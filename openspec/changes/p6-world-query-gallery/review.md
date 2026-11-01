@@ -225,3 +225,308 @@ mutations (World tests: 32)                                         M1 WireRange
                                                                     M6 ray keeps the plane in gaps: 0 fail (golden rays fails);
                                                                     flat piece at its end / tie keeps the last: 0 fail, goldens pass
 ```
+
+# QA re-check of the fixes (task 1.6, at `6a497302`)
+
+**Verdict: changes requested.** One new blocking finding, B4. Everything else from my review is closed or accepted:
+- **B2:** closed. An experiment shows the content hash moves for `carbon_composite` alone.
+- **B3:** closed for what it reported. No false first touches remain in 32 190 fresh grazing sweeps; the QV2 code made 4 054 on the same sweeps. The golden re-record is justified case by case.
+- **S1:** closed. The three mutations now fail their tests.
+- **L2 and L3:** closed.
+- **B1 and S2:** closed by D-054, and the restated budget holds on my runs.
+- **The World Builder's pushback** (S04 in the grid, a tree only above 256 shapes): accepted.
+
+B4 is a side effect of B3's fix: the give-up now drops true first touches when the sweep is turning.
+
+**The PR also needs one more merge (M1).** The branch no longer merges cleanly into today's `unity/main`.
+
+**Scope:**
+- The fix commits `ace2e02`…`6a49730`, 8 of them, and the merge `48ab26e`. That is 16 files.
+- The review branch merges `6a49730` (`eb01afc`), so the checks below ran on the fixes plus this file.
+
+**How I checked:**
+- Every command below was run by me.
+- **A scratch harness, never committed:**
+  - It uses the package's public API only and has its own truth.
+  - The truth is the signed distance to each primitive and to a wire's chain, written with `System.Math`. A golden-section search runs along the core, which is exact because the distance is convex there.
+  - Each sweep's first touch and least gap come from:
+    - a closed form on the plane
+    - convexity for a translation (per segment on a wire)
+    - a Lipschitz branch and bound for a turning sweep (resolution 1e-10 of t, no search left unresolved)
+- **Builds:** the harness was built three times, on `6a49730`, on `f8e67f2` (QV2) and on an instrumented copy of `6a49730`.
+- **The instrumented copy** logs each sweep's exit. Its results equal the pristine build's on the whole fresh set.
+- **Throwaway worktrees:**
+  - patched worldbench copies at `f8e67f2` and `6a49730` dump every golden contact
+  - the mutations
+  - `p6-flight-core--range` with these fixes laid over it
+- **Unity:** used this worktree's Library from my first review; Unity imported the changed files.
+
+## B4 (blocking): a turning sweep's first touch is dropped after 128 steps
+Owner: the World Builder; the Physics Engineer says what 1.6b needs.
+
+**What happens.** A core touching a curved shape (a twig, a trunk, a wire, a box edge) near its middle while it pitches:
+- Its far end swings towards the plane of `Bound` at ω·h, while its middle approaches slowly.
+- Neither the distance / speed step nor the bound's step outruns the creep.
+- After 128 steps the sweep counts no first touch. It returns the current contact at Time 1, although the current pose already lies inside the shape.
+
+**Evidence, a pitching set:**
+- **The set:**
+  - a 0.1–0.3 m core, r 5–10 mm, its middle on a random point of one of 4 probe shapes, 73 trunks or the 20 wires
+  - pitching at 290–2000 °/s at 1 kHz, about its middle
+  - its middle approaching at 0.2–10 % of its ends' swing, sliding up to twice that
+- **Results:**
+
+  | | sweeps | true touches | missed (no Time < 1) | deepest at the step's end | the fastest missed approach |
+  |---|---|---|---|---|---|
+  | `6a49730`, seed 7 | 4000 | 2620 | **658** (25 %) | 1.06 mm | 0.154 mm a step |
+  | `6a49730`, seed 99 | 8000 | 5161 | **1311** (25 %) | 1.38 mm | 0.167 mm a step |
+  | `f8e67f2` (QV2), seed 7 | 4000 | 2620 | 0 | | |
+
+- **Every miss is a touch by the query's own answer.** The sweep starts more than 5 µm clear, and the query's current contact is within 1 µm, mostly inside.
+- **Every miss is the 128-step give-up,** by the instrumented copy.
+- **No contact is lost:** the current contact is always returned.
+
+**The random fresh set shows it too.** In its turning quarter (rotation up to 0.05 rad a step about the contact point), 19 of 2 837 true touches are missed (≤ 8.9 µm deep). In straight sweeps, none of 8 080 is missed.
+
+**Why it matters:**
+- Physics latches every Time < 1 contact (review-physics P1), and K§7.5 makes every impact one Time < 1 record.
+- A missed first touch is a contact up to ~1.4 mm deep that physics meets unlatched. It also goes unrecorded as an impact.
+- The QV2 give-up erred early, a phantom latch. This one errs towards a missed latch, which is the unsafe side for a collision query. `IWorldQuery` now states it, but the spec scenarios and physics have not accepted it.
+
+**Fix:**
+1. **A proven touch is still a first touch.** When the advancement gives up but the current pose is within 1 µm, the step has touched in (t, 1]. Find that touch, by carrying the advancement on or by bisecting between the last advanced t and 1. Report it with Distance within 1 µm.
+2. **Optionally,** a bound that does not take a far end's swing as an approach, such as one per end against the shape's bounding sphere.
+3. **Add a test:**
+   - a 0.3 m skid pitching at 2000 °/s across a twig cylinder and an `L03_medium` conductor
+   - its middle approaching at 10–100 µm a step
+   - it passes with one Time < 1 contact, not after the brute-force touch, with Distance within 1 µm
+4. **State the remainder in `IWorldQuery` and the scenario:** a graze that dips and comes back clear may count none. That is ≤ 6 µm deep in my sets: none of the pitching misses and 10 of the fresh set's 19.
+5. **Physics signs off** the rule.
+
+## Merge condition
+**M1. A merge with today's `unity/main` conflicts in `tools/worldbench/Program.cs`.** Owner: the World Builder, before the PR.
+- **Cause:** p7c-wind's wake grid (`04b7c92f`, `59dec58f`, `50d7fff1`) landed after `7d72db8`. It adds `--wakes`, `--wakes-range` and a third golden (`golden/wakes.txt`), and splits `Golden` per world. 1.6 restructured the same code.
+- **Effect:** pytest's merge check fails.
+- **Fix:** merge `unity/main` with `-m` and keep both sides. After the merge:
+  - `--golden` passes the floor, the test range and the wakes, with no hash moved
+  - `--bench` and `--wakes` still print the power line with the clock
+  - the merge check passes
+- QA re-checks it with B4.
+
+## Should
+**S3. No unit test guards the bound's safety on a primitive.** These mutations make the bound unsafe, so it can step past a touch:
+- a sphere's support without its radius
+- a box's without its z extent
+- a cylinder's without its radius
+
+All 37 world tests pass on each of them; only the goldens' hashes move. The wire's mutation fails `GrazingSpheres_…`. Since a golden can be re-recorded, an unsafe bound could be blessed by one.
+
+Add fast-sphere crossings for the primitives, as `AssertFastSpheresCaught` does for wires, each not after its analytic touch:
+- a sphere
+- a capsule
+- a cylinder (side, cap, rim)
+- a box (face, edge, corner)
+
+## Low
+**L4. A cylinder's first touch can land a hair inside.**
+- **Size:** 7 of 5 126 straight touches on round shapes, all cylinders, are up to 74 nm of travel after the true touch, and 0.1–2.3 nm deep at Time.
+- **Cause:** the cylinder's closest approach is `MinimizeAlong`'s golden search, whose bracket is 4e-9 of the core. It reads up to ~1e-9 m long, so a distance / speed step can pass the touch by that much.
+- **Impact:** within `IWorldQuery`'s 1 µm, and as before (1.4). Change it only if physics needs "never after".
+
+**L5. The as-built note's shown rows did not reproduce.** These rows are shown, not judged (D-054):
+
+| row | my 3 runs | the note |
+|---|---|---|
+| K§10.5, E01 median | 64.4–75.0 µs | 35.5 |
+| K§10.5, crown median | 15.5–35.6 µs | ≤ 14.0 |
+| random-pose capsules | 182–205 ms | 90.6 |
+| random-pose rays | 111–119 ms | 57.9 |
+
+Physics' pattern matches the note. Don't cite those four as the state at 7d.
+
+**L1 (open, unchanged):** a ray lying exactly on a seam line falls through, as the note says.
+
+## The earlier findings
+| | state | evidence (mine) |
+|---|---|---|
+| B1 | closed by D-054 | Physics' pattern on 3 runs (below): every row 0 B, p99 ≤ 59.8 µs (E01 53.6–59.8), medians ≤ 11.8 µs, under PLT-04's 300 µs and at the 60 µs target. |
+| B2 | closed | `ace2e02` changes only the `content_hash` line. My harness builds the test range with and without the row: `6114242e06475fb5` with it, `d6de238216ceb4b9` without, so the row alone moves it. No query hash moved at QV2: the patched `f8e67f2` passes the QV2 golden. |
+| B3 | closed (B4 is new) | The golden audit and the fresh set below. 0 false first touches in 32 190 sweeps; on the same sweeps the QV2 code makes 4 054. The plane's first touches are exact (Distance ≤ 4.9e-17 m). Every new first touch lies within 1 µm of the shape and never after the true one. |
+| S1 | closed | Each mutation fails its test (below). |
+| S2 | closed by D-054 | |
+| L2 | closed | `TestRangeWorldTests` now reads each collider's centre through its transform, its scale, a capsule's `direction` and a cylinder mesh's bounds; the sim's parity checks all three axes. EditMode: 908 of 908, the scene's parity at 731 objects and 43 677 colliders, worst 0.015 mm and 0.0000°. |
+| L3 | closed | `worldbench --bench` prints "AC, Balanced plan, balanced mode, CPU 3201/3201 MHz". |
+
+## The golden re-record (QueryVersion 3), audited case by case
+**No stored input changed.** Patched copies of `f8e67f2` (QV2) and `6a49730` dumped every contact of both goldens. All 20 000 cases have bit-identical inputs. Each copy reproduces its own recorded hashes.
+
+**What moved, each pair against my truth:**
+
+| | floor | test range |
+|---|---|---|
+| (object, shape) pairs | 1113 | 8097 |
+| unchanged, bit for bit | 890 | 7832 |
+| the plane's first touch, within 1 µm before → exact | 220 | 220 |
+| the plane, a give-up → exact first touch | 2 | 6 |
+| a box or wire give-up → a first touch | 0 | 34 boxes, 1 wire |
+| a give-up → Time 1 or none; truth never within 1 µm | 1 (case 1381, least 0.58 mm) | 4 (least 1.06 µm to 0.96 mm) |
+| Time < 1 contacts, old → new | 330 → 329 | 4140 → 4136 |
+
+**Results:**
+- 0 of the 488 moved pairs fail the check.
+- Every new first touch lies within 1 µm of the shape: ≤ 0.86 µm by my truth, and the Distance agrees with my truth within 7.4e-15 m.
+- None is after the true touch; the earliest is 12.4 µm of travel before it. The old answers lay up to 15.3 mm early.
+- This matches the as-built table row for row.
+
+**The cause, by experiment.** The mutation "no bound, a give-up counted a touch" (1.5's loop on QV3's code) reproduces the QV2 hashes exactly (`6f6ca03d23e8cf6b`, `5d4bb3a711df30e7`, `344c7ae53fbd1f21`). The re-record moved only through the bound and the give-up rule.
+
+**The dense objects' trees and `f8e67f2` keep the bits.** The QV3 goldens pass at `6a49730` in Debug and Release, and `f8e67f2` passes QV2's.
+
+**Verdict on the re-record: justified, and it blesses no drift.**
+
+## Fresh grazing sets (not the golden's inputs)
+**How the sweeps are made:**
+- Each sweep aims its least gap at −20 mm to +0.2 mm of a target, log-spread, 10 % of them at 1 µm ± 0.1 %.
+- Its motion is tangential, with a normal part of up to 5 %.
+- r is 3–60 mm, the core 0–0.3 m, the move 5–600 mm a step. A quarter of the sweeps turn by up to 0.05 rad a step.
+- Margin 0.05. A sweep that starts within 5 µm is left out.
+- **The targets:**
+  - the floor's plane and its 5 probe shapes
+  - the test range's plane, where a foot lies off every patch and band
+  - 40 random shapes of each primitive kind
+  - all 20 wires
+
+**Results** (seed 2026, 32 190 sweeps, 21 228 starting clear):
+
+| | true touches | within 1 µm only | clear | false first touches | missed | after the true touch |
+|---|---|---|---|---|---|---|
+| plane, straight / turning | 448 / 187 | 235 / 101 | 439 / 162 | 0 / 0 | 0 / 0 | 0 / 0 |
+| boxes | 1880 / 676 | 875 / 299 | 930 / 278 | 0 / 0 | 0 / **5** | 0 / 0 |
+| spheres, capsules, cylinders | 5126 / 1755 | 2458 / 826 | 2252 / 732 | 0 / 0 | 0 / **14** | 7 (L4) / 0 |
+| wires | 626 / 219 | 284 / 74 | 271 / 95 | 0 / 0 | 0 / 0 | 0 / 0 |
+| **`f8e67f2` (QV2), all** | | | | **4 054** | 0 | |
+
+**Checks on every first touch:**
+- Every reported first touch lies ≤ 1.0 µm from the shape by my truth.
+- Its Distance agrees with my truth within 1e-9 m.
+
+## Mutations (37 world tests, then both goldens in Release)
+| mutation | world tests | goldens |
+|---|---|---|
+| S1: the flat piece answered at its end (`u1`) | 2 fail (both W5 tests) | pass |
+| S1: a tie keeps the last piece (`f <= best`) | 2 fail (both W5 tests) | pass |
+| S1: the ray keeps the plane in gaps (M6) | 1 fails (`Raycast_OverAPatchOrInAHoleBand_…`) | rays fail |
+| B3: no bound, a give-up counted a touch | 4 fail | the QV2 hashes, exactly |
+| B3: no bound, a give-up counted none | 2 fail | contacts fail |
+| the plane not stepped by its bound (`Flat` false) | 0 fail | contacts fail (bits only: the bound phase still lands on the exact touch) |
+| unsafe bound: a sphere, a box, a cylinder (S3) | **0 fail** | contacts fail |
+| unsafe bound: a wire segment without its radius | 1 fails | contacts fail |
+
+## D-054's restatement
+- **The spec's budget requirement and scenario now read as D-054 sets it:**
+  - physics' pattern, judged inside PLT-04's 300 µs at p99 with 0 B
+  - the 100 000-capsule and ray budgets read the same way
+  - the 60 µs target printed on every row
+  - K§10.5's batch with the fiber shown and judged at 7d
+- `worldbench --bench` judges exactly that, and every judged row passes on my 3 runs.
+- The scenario's last clause (`p6-flight-core`'s `flightbench --bench` on the straw rest and the stand's launch) is not testable on this branch.
+
+## The World Builder's pushback: S04 in the grid, a tree only above 256 shapes
+**Accepted.** Their numbers:
+- On physics' straw stream, a tree over S04's 195 long, crossing strips visits 24 nodes and 9 shapes a query, where the grid walks 20 shapes: 20 % slower.
+- The straw's world queries fell anyway, by the narrow phase and the bound: physics' p99 went from 67.6–138.3 to 40.1–88.4 µs, and the replay's p99 from 33.5 to 23.9 µs.
+
+Mine:
+- S04 has 199 shapes and V01_M 386; no test range object lies between them, so the threshold of 256 splits exactly these.
+- The objects with trees: H01_D 4047, H01_I 1207, E01 831, V01_L 511 (×7) and V01_M 386 (×2).
+- The straw row runs at 7.6–7.8 / 12.5–14.4 µs median / p99, and the stand at 2.0 / 8.9–9.7. That is under the 60 µs target with the stand checked by its object's bounds.
+- The bits are unchanged.
+
+**For the orchestrator:**
+- D-054's last sentence still says the straw patch and the stand get a broad phase inside each object. Supersede it with what was built and why.
+- The 256 is untested between 200 and 385 shapes; phase 3's map should re-measure it.
+
+## The merge note
+- `p6-flight-core--range` (now `c2cf4023`) still has `QueryVersion_IsTwo`, asserting 2. Its `Runtime/World` and `Tests/World` are this branch's before 1.6.
+- At the merge, take this branch's `WorldHashTests` (`QueryVersion_IsThree`).
+- `FlightReplay` refuses a log of another query version. The range branch commits no flight log, so nothing stored breaks.
+- **My overlay run:** I laid this branch's `Runtime/World`, `Tests/World` and `tools/worldbench` over `c2cf4023`.
+  - simtests pass 311 of 311, `GoldenFlights.RangeHash` `0x292C0858705902B6` included, so the range golden is unchanged at QV3
+  - `worldbench --golden` passes
+  - `flightbench --probe` passes, its coil check included
+
+## Spec scenarios (re-run)
+| Scenario | Result | Evidence (mine) |
+|---|---|---|
+| A swept arm meets the pole | pass | simtests 287 of 287 |
+| A small fast sphere never crosses a wire unseen | pass | The test now checks Distance within 1 µm and Time not after the analytic touch, and the new test adds 900 grazes at 0.990–0.998 of R + r. My wire set: 845 true touches, none missed or late. |
+| A first touch is a touch (new) | pass, as written | Its 4 tests pass, and each fails its mutation. My fresh set has 0 false first touches. It does not cover turning sweeps (B4). |
+| A rotor ray re-cast from inside a conductor goes on | pass | simtests |
+| The launch stand is added and reset | pass | simtests; `flightbench --probe`'s stand checks PASS |
+| Batched equals single | pass | `--golden` in Debug and Release: 11 cases each, the same hashes |
+| Threads share one world | pass | simtests |
+| The sim sees what the scene shows | pass | EditMode `TestRangeWorldTests`, now reading centre, scale, direction and the cylinder's size: 731 objects, 43 677 colliders, worst 0.015 mm and 0.0000° |
+| A foot in the trench, A patch is the ground once, A capsule straddling a band's edge | pass | simtests; their code paths keep their bits (goldens) |
+| The worst-case step over the busiest spots (restated) | pass, except one clause not testable here | `worldbench --bench` ×3 on AC; the `flightbench --bench` clause is `p6-flight-core`'s |
+
+## Requirements
+- **WLD-11, its G7 subset: partly met.** B4: a first touch can be missed on a turning sweep.
+- **PLT-04, the world-query share: met,** as D-054 judges it: p99 ≤ 59.8 µs, 0 B.
+- **WLD-16: met.** L1 stays a measure-zero edge.
+- **PHB-05, the world's side: met.**
+  - On this branch the probe's contact checks pass; its one red is the trunk's coil geometry, outside this change.
+  - On the range overlay the whole probe passes.
+- **AST-05: met.** Scene parity holds with the L2 fields read.
+
+## Hygiene
+- **Commits:** the 8 fix commits and the merge are by `World Builder <world@450fpv.local>`, subject only, at most 71 characters, with no body or trailer.
+- **Paths:** nothing from `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`.
+- **Determinism:** no `System.Math` in `Runtime/World`. The trees' build sorts with an index tie-break, so every runtime builds the same tree. The query stack is a `stackalloc` of 50 ints, and the build throws past depth 48.
+- **OPSEC and licences:**
+  - `precommit.py --tree HEAD` scans 2168 files with 0 findings.
+  - `fetch.py --verify` is OK, and no third-party file is added.
+
+## Commands and output (logs in this worktree's `unity/Logs/qa21b-*`)
+```
+dotnet test tools/simtests                                          Passed! Failed 0, Passed 287 (4 m 51 s)
+dotnet run -c Debug --project tools/worldbench -- --golden          worldbench: ALL PASS, exit 0 (floor 5, test-range 6 cases;
+                                                                    query_version 3, content 6114242e06475fb5)
+dotnet run -c Release --project tools/worldbench -- --golden        worldbench: ALL PASS, the same hashes, exit 0
+  test-range.contacts: 3964 of 10000 capsules in contact (up to 19), 4136 contacts with Time < 1; 1098 on the plane,
+  4729 on soil shapes, 56 on wires, 215 on the stand; 974 overflow a buffer of 2
+dotnet run -c Release --project tools/flightbench -- --probe        contact-probe: FAIL (1 checks), exit 1: "geometry: ... coil r 0.0415 m
+                                                                    at y -0.053 (legs off -0.053)" (the trunk's coil); every contact check PASS
+dotnet run -c Release --project tools/worldbench -- --bench (x3)    exit 0 each, "AC, Balanced plan, balanced mode, CPU 3201/3201 MHz",
+                                                                    Windows CPU load 50 / 28 / 11 % before each; physics' pattern
+                                                                    median / p99 us: crown 5.6-5.9 / 26.7-30.0, H01_D 3.5-3.6 / 14.8-18.0,
+                                                                    E01 11.3-11.8 / 53.6-59.8, posadka 4.5-4.6 / 8.0-9.5,
+                                                                    straw 7.6-7.8 / 12.5-14.4, stand 2.0 / 8.9-9.7; 0 B everywhere;
+                                                                    100000 capsules 24.1-25.9 ms, rays 13.8-14.8 ms, samples 1.76-2.21 ms;
+                                                                    "worldbench: bench done, every budget met"
+& $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults Logs/qa21b-editmode.xml -logFile - | Out-Host
+                                                                    908 of 908 passed, exit 0 (270 s); TestRangeWorldTests:
+                                                                    "731 objects, 43677 colliders: worst position 0.015 mm, worst turn 0.0000°"
+python -m pytest tools -q   (BLENDER the real 5.2)                  1 failed, 1450 passed in 1727.60s, exit 1: test_existing_tree_is_clean
+                                                                    [origin/unity/main merged with HEAD]: "CONFLICT (content): Merge conflict
+                                                                    in tools/worldbench/Program.cs" (M1)
+python tools/hygiene/precommit.py --tree HEAD                       2168 files scanned, 0 findings, exit 0
+python tools/assets/fetch.py --verify                               OK, exit 0
+openspec validate p6-world-query-gallery --strict                   Change 'p6-world-query-gallery' is valid, exit 0
+harness hash                                                        content_hash with the row 6114242e06475fb5, without it d6de238216ceb4b9
+harness audit (dumps of f8e67f2 and 6a49730)                        inputs differing 0; moved pairs 488: bad 0
+harness fresh 120 2026 (6a49730 / f8e67f2)                          32190 sweeps: false first 0 / 4054; missed 19 / 0; after the touch 7 / 0
+harness pitch 4000 7 (6a49730 / f8e67f2); 8000 99 (6a49730)         missed 658 of 2620 / 0 of 2620; 1311 of 5161, deepest 1.38 mm
+mutations (37 world tests, goldens)                                 as tabled above
+range overlay (c2cf4023 + this branch's World, Tests/World, worldbench):
+  dotnet test tools/simtests                                        Passed 311 of 311 (RangeHash 0x292C0858705902B6 included)
+  worldbench --golden (Release)                                     ALL PASS
+  flightbench --probe                                               contact-probe: PASS
+```
+
+## For the orchestrator, outside this change
+- Supersede D-054's last sentence with the built broad phase.
+- Merge `p6-flight-core--range` with this branch's `QueryVersion_IsThree`.
+- Task 2.1 stays open on B4 and M1. Once both are fixed, my re-check is:
+  - the pitching set, the fresh set and the new tests' mutations
+  - the merge's goldens and pytest's merge check
+- **GPU checks:** Unity EditMode, `--bench` and pytest with the real Blender all finished before the request to stop GPU use, so none is owed.
