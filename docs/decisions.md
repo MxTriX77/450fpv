@@ -503,3 +503,24 @@ The pilot, 2026-11-02: "when armed it says AIR, when not it says DISARMED" and "
 - **The flight-mode element** reads **AIR** while armed and **DISARMED** while disarmed, as Betaflight's OSD does. The armament label "! SAFE !" (D-011) and the name "Svinoriz 10 Opto" are unchanged.
 - **Amps and volts from the sim:** the pack's loaded voltage (total and per cell), the current drawn (A) and the charge used (mAh) come from the battery and ESC model (PHY-11), through the feed signals, at the OSD's refresh, with Betaflight's voltage filter and warning hysteresis (D-048). The low-voltage warning follows `PackLow`.
 - **This is `p4-feed` 1.5** (the OSD content model), built on the player's branch.
+
+## D-058 The wind's two numbers, and landing it before every target passes · Accepted
+From `p7c-wind`'s re-grade on the merged airframe (model 18):
+- **The rotor's in-plane drag is the derived 0.044 N per m/s,** not the 0.25 tuned to the old 13 m/s calibration. PHY-17a's cruise replaced that calibration: clip P's 22.7° now flies 20.6 m/s, inside 17–22.
+- **Severe's centre is 9.5 m/s,** tuned until T0 passes, as design 6 says. Windy and Calm follow from it.
+- **The wind lands in the player with task 1.5 open:** Severe meets 9 of 21 targets, Windy 10, Calm 9 of 9. The field is far closer than the stand-in it replaces. The misses are the roll and pitch spreads (2–3× low), with yaw answering 3× more than roll and pitch against P: the next flight-model investigation.
+
+## D-059 Vegetation, soft wires and a camera that feels every movement · Accepted
+The pilot, 2026-11-02, after flying the map build:
+- "straws and leaves still dont affect flight physics. in real life a straw or two even tho they are tiny may affect the flight - add wobbling, shaking, props getting stuck a bit etc."
+- the electrical cables: the drone should get tangled, twisted and flipped, "just like in real life coz they are smooth, they are not solid ... they are soft and a bit elastic"
+- "there's still this smoothness to how the camera view looks. the drone's camera must be sensitive to micro movements of the whole drone"
+
+What follows:
+- **Straw, leaves, grass and twigs act on the drone** (`p7a-ground`, PHY-05, with `p7f-damage`): a prop that cuts a straw or a leaf takes a torque spike and a short rpm dip, and can stall a moment; the body and legs feel drag and jitter in weeds and crowns. Each is a physical force from the stem's or leaf's own mechanics, never noise on the pose.
+- **Wires are soft and elastic** (`p7d-tether`, PHY-22): a wire is a tensioned cable that deflects, stretches and slides. It can wrap a prop, an arm or a leg, entangle the drone, twist it and flip it, as a real strike does.
+- **The camera shows the body's every movement** (a new `p7e-camera-feel` change, PHY-25):
+  - the rendered camera takes the sim's pose at each video field, never smoothed
+  - the camera's soft mount and the frame's vibration reach the picture
+  - each prop's small factory imbalance (bounded, seeded, logged) and the frame's modes give the high-frequency shake the pilot knows
+- **Order:** these join the ground, damage and fiber changes (D-056). The camera change starts first, because it needs no new world data.
