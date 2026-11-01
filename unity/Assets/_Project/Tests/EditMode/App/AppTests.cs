@@ -59,6 +59,16 @@ namespace Fpv450.Tests.App
         }
 
         [Test]
+        public void ASlowRadioIsNamedAfterFinding13()
+        {
+            Assert.That(CalibrateScreen.SlowRadioUs, Is.EqualTo(4375), "EdgeTX's floor gain on the jump rule's fastest accepted sweep");
+            Assert.That(CalibrateScreen.SlowRadioNote(2000), Is.Null, "a TX12 in joystick mode, every 2 ms");
+            Assert.That(CalibrateScreen.SlowRadioNote(4000), Is.Null);
+            Assert.That(CalibrateScreen.SlowRadioNote(6667), Is.EqualTo("The radio updates its USB output only every 6.7 ms (an RF module is on): switch it off for the sim."));
+            StringAssert.Contains("every 20 ms", CalibrateScreen.SlowRadioNote(20000));
+        }
+
+        [Test]
         public void TheSetupClockReadsHoursAndMinutes()
         {
             Assert.That(SetupScreen.Clock(0), Is.EqualTo("00:00"));

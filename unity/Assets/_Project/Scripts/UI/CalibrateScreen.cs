@@ -39,6 +39,19 @@ namespace Fpv450.UI
         int _tab;
         static readonly string[] Tabs = { "Radio", "Rates" };
 
+        /// <summary>
+        /// QA's finding 13: a radio that updates more slowly than this has a healthy step of EdgeTX's floor gain (1024 / 100
+        /// counts) on the jump rule's fastest accepted sweep (its 10–90 % band in MinTransitUs), about 4.4 ms. That is an
+        /// RF module setting the mixer's period, so the Done screen says so, for a refusal and a saved profile alike.
+        /// </summary>
+        public static readonly long SlowRadioUs = (long)Math.Round(2 * CalibrationWizard.PitfallStep * CalibrationWizard.MinTransitUs / (1 - 2 * CalibrationWizard.EndBand));
+
+        /// <summary>The note for a radio that updates every updateUs, or null when it is quick enough.</summary>
+        public static string SlowRadioNote(long updateUs) => updateUs > SlowRadioUs
+            ? "The radio updates its USB output only every " + (updateUs / 1000.0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)
+              + " ms (an RF module is on): switch it off for the sim."
+            : null;
+
         // The app's reader, or one opened here on first use, so the menu can set Reader just after enabling the screen.
         RadioReader Radio
         {
@@ -207,6 +220,8 @@ namespace Fpv450.UI
             CalibrationProfile p = _wizard.Profile;
             GUILayout.Label("Channels " + p.Order + ", arm on " + (p.Arm.Control == ArmControl.Axis ? "channel " + (p.Arm.Index + 1) : "button " + (p.Arm.Index + 1)) + ".", _text);
             foreach (CalibrationFinding f in _wizard.Findings) GUILayout.Label("• " + f.Message, _text);
+            string slow = SlowRadioNote(_wizard.UpdateUs);
+            if (slow != null) GUILayout.Label("• " + slow, _text);
             if (_saved)
             {
                 GUILayout.Label("Saved as the active profile.", _small);
