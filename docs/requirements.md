@@ -884,6 +884,8 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-23 Openings.** Jagged edges and rebar collide physically. Gaps are the real clear space. Turbulence funnels through narrow openings. *Source:* PR-5, PR-9.
 
 ### 15.6 Randomness and interfaces
+**PHY-26 Prop and motor damage from strikes** (the pilot, D-056). A prop or motor that strikes or scrapes an obstacle is damaged by the strike's energy and contact: a chipped, bent or shortened blade loses thrust and adds a once-per-revolution imbalance; a struck motor loses torque or efficiency, or binds. The damage persists for the rest of the flight, is logged, replays bit for bit, and its numbers come from published blade and motor data. A strike hard enough breaks the prop or stops the motor. *Source:* the pilot, 2026-11-02.
+
 **PHY-24 The randomness rule.** Randomness enters **only** as bounded perturbations of named physical parameters, drawn from named seeded streams and logged.
 - A catalogue lists every stream with its bounds.
 - Ground and cover are world-derived and never drawn: "the ground is not random, it is unknown, and the pilot learns it".
