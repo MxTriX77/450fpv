@@ -306,7 +306,16 @@ namespace Fpv450.Sim.Tests
         // query hash unchanged); the flight by D-050's drone, the airframe's effects (FlyContact's five) and the seam rule.
         // Audited (the kept test): every mechanism off on 1.6b's drone.json over 1.6b's layout, without the seam rule (a
         // temporary edit) it is model 7's bit for bit, with it 0x613987892649445F.
-        public const ulong RangeHash = 0x292C0858705902B6UL;
+        // Model 16: 0x292C0858705902B6. The merge with unity/main (ModelVersion 19, p7c-wind's field at model 18): re-recorded
+        // on the 1808-byte record (p7c-wind's 152 bytes at 1296) in the Calm field with p7c-wind 1.6's derived rotor drag
+        // (0.044), on the same content. Audited against the range branch: with main's tuned drag (0.25), over the range
+        // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
+        // (Model16StillRangeHash, the kept test), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
+        // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
+        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. In the Calm field (its own
+        // draws, not the stand-in's) the flight keeps its course: 5 impacts, no crash, at rest 19.15 mm into the straw on 18
+        // pairs (model 16: 21.98 mm on 17).
+        public const ulong RangeHash = 0xE4B13EDD65CFF0B2UL;
 
         /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
         /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
