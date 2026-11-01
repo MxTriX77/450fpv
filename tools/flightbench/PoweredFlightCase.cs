@@ -39,13 +39,19 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
                 + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
                 + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
+            ulong content = Fpv450.Sim.Tests.RangeScenarios.World.ContentHash;
+            ulong range = GoldenFlights.FlyRange(Drone(), out FlightCore r);
+            bool rok = content == GoldenFlights.RangeContent && range == GoldenFlights.RangeHash && r.Contacts.ImpactCount >= 1 && !r.State.Crashed;
+            Console.WriteLine($"range-flight: the test range 0x{content:X16} ({(content == GoldenFlights.RangeContent ? "as recorded" : $"recorded on 0x{GoldenFlights.RangeContent:X16}: the map moved")}), "
+                + $"{GoldenFlights.RangeSteps} steps on S04's straw, hash 0x{range:X16} ({(range == GoldenFlights.RangeHash ? "matches" : $"golden 0x{GoldenFlights.RangeHash:X16}")}), "
+                + $"{r.Contacts.ImpactCount} impacts, ends {r.State.Position.Y:F4} m up on {r.Trace.ContactsTouching} touching pairs: {(rok ? "PASS" : "FAIL")}");
             ulong tumble = GoldenFlights.FlyTumble(Drone(), out FlightCore t, out GoldenFlights.TumbleChecks tc);
             bool tok = tumble == GoldenFlights.TumbleHash && tc.Momentum < 1e-10 && tc.Energy < 1e-10 && tc.Parabola < 1e-9 && tc.Wander > 0.5;
             Console.WriteLine($"tumble: {GoldenFlights.TumbleSteps} steps of the L4 body off its principal axes, hash 0x{tumble:X16} "
                 + $"({(tumble == GoldenFlights.TumbleHash ? "matches" : $"golden 0x{GoldenFlights.TumbleHash:X16}")}), momentum within {tc.Momentum:E2} (< 1e-10), "
                 + $"energy within {tc.Energy:E2} (< 1e-10), CoM {tc.Parabola:E2} m from its parabola (< 1e-9), body rate wandering {tc.Wander:F3} rad/s (> 0.5): "
                 + $"{(tok ? "PASS" : "FAIL")}");
-            return ok && cok && tok;
+            return ok && cok && rok && tok;
         }
 
         public static bool Bench()

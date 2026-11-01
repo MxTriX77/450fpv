@@ -81,6 +81,13 @@ namespace Fpv450.Sim.Tests
         public const ulong TumbleHash = 0xE3178EE7FF322698UL;
         public const int TumbleSteps = 10000;
 
+        // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
+        // version 2): a change of the map or its assets moves the content hash first, so an audit tells the world's change
+        // from the physics'.
+        public const ulong RangeHash = 0x778DD7ED57A37F62UL;
+        public const ulong RangeContent = 0xD6DE238216CEB4B9UL;
+        public const int RangeSteps = 12000;
+
         public static FlightSetup PoweredSetup(DroneSpec spec)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
@@ -177,6 +184,64 @@ namespace Fpv450.Sim.Tests
                     if (k >= 4000) pilot.Target = new Double3(0, stand + 1 - 0.5 * (k - 4000) * FlightCore.Dt, 0);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                     if (k >= 4000 && s.Position.Y - stand < 0.1)
+                    {
+                        holdAt = k;
+                        held = stick;
+                        held.Roll = held.Pitch = held.Yaw = 0;
+                    }
+                }
+                else
+                {
+                    stick = held;
+                    stick.HostUs = k * FlightCore.StepUs;
+                    if (k - holdAt >= 1500) stick.Throttle = 0;
+                }
+                core.Advance(stick);
+                LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                hash = Fnv(hash, record, 0, record.Length);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
+                    hash = Fnv(hash, e, 0, e.Length);
+                }
+            }
+            return hash;
+        }
+
+        /// <summary>
+        /// Flies the test range's contact golden (1.6b, D-044): FlyContact's flight on S04 #707's straw mat, where
+        /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
+        /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
+        /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
+        /// throttle is cut and it settles into the straw again. In the Calm stand-in wind, as the stub's. Returns its hash,
+        /// with the core for a report.
+        /// </summary>
+        public static ulong FlyRange(DroneSpec spec, out FlightCore core)
+        {
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
+            ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
+            double stand = ContactScenarios.Standing(contacts);
+            Double3 foot = RangeScenarios.Straw;
+            FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
+            setup.World = new FlightWorld(RangeScenarios.World);
+            setup.Wind = WindSetup.Of(WindLevel.Calm);
+            core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            StickSample held = default;
+            int holdAt = -1;
+            for (int k = 0; k < RangeSteps; k++)
+            {
+                ref readonly FlightState s = ref core.State;
+                StickSample stick;
+                if (k < 16) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8 };
+                else if (holdAt < 0)
+                {
+                    if (k >= 4000) pilot.Target = foot + new Double3(0, stand + 1 - 0.5 * (k - 4000) * FlightCore.Dt, 0);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                    if (k >= 4000 && s.Position.Y - (foot.Y + stand) < 0.1)
                     {
                         holdAt = k;
                         held = stick;

@@ -68,6 +68,27 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.ContactHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
+        // 1.6b: the test range's contact golden, from S04's soil onto its straw (GoldenFlights.FlyRange).
+        [Test]
+        public void TheRangeGoldenFlightIsPinned()
+        {
+            Assert.That(RangeScenarios.World.ContentHash, Is.EqualTo(GoldenFlights.RangeContent), "the test range as recorded (else the map moved, not the physics)");
+            DroneSpec spec = RepositoryDrone.Spec();
+            ulong hash = GoldenFlights.FlyRange(spec, out FlightCore core);
+            ref readonly FlightState s = ref core.State;
+            double stand = ContactScenarios.Standing(core.Contacts.Spec), sink = RangeScenarios.Straw.Y + stand - s.Position.Y;
+            double speed = DetMath.Sqrt(Double3.Dot(s.Velocity, s.Velocity));
+            TestContext.Out.WriteLine("range golden: 0x" + hash.ToString("X16") + " after " + s.Step + " steps, sunk " + (sink * 1e3).ToString("0.00")
+                + " mm into the straw, " + core.Contacts.ImpactCount + " impacts, " + core.Trace.ContactsTouching + " touching pairs, " + (speed * 1e3).ToString("0.000") + " mm/s");
+            Assert.That(core.Contacts.ImpactCount, Is.GreaterThanOrEqualTo(1), "it touched down on the mat");
+            Assert.That(s.Crashed, Is.False);
+            Assert.That(core.Trace.ContactsTouching, Is.GreaterThanOrEqualTo(8), "it ends at rest in the straw");
+            Assert.That(sink, Is.InRange(0.010, 0.026), "sunk into the mat as at rest there (RangeContactTests)");
+            Assert.That(speed, Is.LessThan(1e-3));
+            Assert.That(GoldenFlights.FlyRange(spec, out _), Is.EqualTo(hash), "a second flight gives the same bits");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.RangeHash), "the pinned golden (a re-record is audited and raises the model version)");
+        }
+
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
         // other's block.
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes;
