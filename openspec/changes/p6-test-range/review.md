@@ -68,8 +68,8 @@ Either way the nearest-neighbour line and its test must name the same set. On tr
 | Everything placed | **passed** | Smoke log: 29 variants with counts, `731 prefabs placed in 8 groups, 29 variants, 0 missing meshes, materials, textures or unsupported shaders`; every list item present, H01_I and H01_D included; QA's 24 captures (6 views × 4 presets) show no pink and no missing mesh |
 | No text, sign or name | **passed** | No `TextMesh` or `m_Text` in either scene; the only text is the preset's label |
 | The posadka's shape | **failed as written (B1)** | Length 299.2 m, nearest-neighbour median 1.993 m, V01 or V13 24.58 %, a gap of 13.96 m between plants and **10.84 m clear of every collision shape at any height** all pass; the trunks' width, 9.79 m, does not |
-| One command rebuilds a stand-in | *see the rebuild section* | |
-| The metadata survives the port | **passed except the LOD line (B2.2)** | 278 shapes, 18 wind volumes, 11 gaps, porosity, materials and snag flags at 0.0000 mm and under 0.0001°; switches equal Godot's but its last; cull 600 m |
+| One command rebuilds a stand-in | **passed** | All 13 exit 0 and leave `git status` clean, Z01 twice (rebuild section); stronger than asked, since the first run from the committed state is already a no-op |
+| The metadata survives the port | **passed except the LOD line (B2.2)** | 278 shapes, 18 wind volumes, 11 gaps, porosity, materials and snag flags at 0.0000 mm and under 0.0001°; switches equal Godot's but its last; cull 600 m; the audit puts every shape within the LOD0 bounds + 5 cm (farthest +0.0000 m) |
 | The door and gate are gaps | **passed** | Z01's 8, Z02's, Z03's and Z05's gaps: corners within 0.0000 mm of Godot's centre, width, height and yaw; `narrowest_m` the smaller side; normals along Godot's ±Z |
 | Pose parity | **passed for the scene; the sim half is not testable here** | 731 instances against 731 rows, worst 0.0000 mm and 0.00003°; no sim loader is on this branch (`p6-world-query-gallery` 1.4 must prove its half) |
 | Start points listed | **passed** | `track` legs on, heading 90°, 7.12 m from the nearest shape (fence) and 5.74 m in plan from the nearest wire; `field` legs off with the stand, heading 180° towards the belt, 25.6 m from the nearest shape |
@@ -147,7 +147,26 @@ The Euler order was checked against the data, not taken from the port's note. Z0
 - `Fpv450.Build.Gallery`: exit 0 in 59 s, `Succeeded, 0 errors, 0 warnings, 338257838 bytes`.
 
 ## The stand-ins rebuilt
-*Running at the time of this commit; the result follows in the next one.*
+QA's `rebuild_standins.ps1` ran `pwsh tools/build_asset.ps1 Z0n` for all thirteen, then Z01 a second time, each after at least 2.5 GB was free. It recorded the exit code and `git status --porcelain` after each run:
+```
+== Z01 exit 0 in 99 s (AC True, 4118 MB free at start); git status: clean
+== Z02 exit 0 in 42 s (AC True, 5651 MB free at start); git status: 1 lines      <- QA's own review.md, uncommitted at that moment
+== Z03 exit 0 in 43 s ... clean      == Z04 exit 0 in 39 s ... clean      == Z05 exit 0 in 89 s ... clean
+== Z06 exit 0 in 61 s ... clean      == Z07 exit 0 in 49 s ... clean      == Z08 exit 0 in 54 s ... clean
+== Z09 exit 0 in 40 s ... clean      == Z10 exit 0 in 41 s ... clean      == Z11 exit 0 in 44 s ... clean
+== Z12 exit 0 in 37 s ... clean      == Z13 exit 0 in 43 s ... clean
+== Z01 exit 0 in 74 s (AC True, 3135 MB free at start); git status: clean      <- the second run
+```
+Every committed FBX, `.assetmeta.json`, prefab and material is exactly what one command writes from the pinned commit. QA read the montages above from the sheets the 600 m build left (each legend reads "CULL 600 M"). These runs rewrote the sheets from the same, unchanged inputs.
+
+The audit lines, from the Blender step alone (`build.py -- Z01 … Z13`: exit 0, `git status` clean after):
+```
+Z01 157 shapes, LOD0 bounds [-5.300, -0.081, -4.708]..[7.501, 5.358, 3.809] + 0.05 m: farthest +0.0000 m, every one within
+Z02  35 shapes +0.0000 m | Z03 11 +0.0000 m | Z04 10 +0.0000 m | Z05 14 +0.0000 m | Z06 19 +0.0000 m
+Z07   5 shapes -0.0127 m | Z08 1 -0.0079 m | Z09 5 -0.0227 m | Z10 5 -0.0092 m | Z11 6 -0.0088 m | Z12 4 -0.0165 m | Z13 1 -0.0044 m
+11 gap lines (narrowest_m against the inscribed circle)          build.py: OK
+```
+**Does the audit fail a wrong port?** QA mirrored each structure's collision in z, the frame error the design names, and measured it against the same LOD0 bounds. Z01 lands +0.900 m past them, Z02 +0.545 m and Z05 +0.678 m, so the audit fails all three. Z03, which is nearly symmetric in z (+0.0004 m), passes it. For Z03 the overlay is the check, and the overlay shows the head's boxes on its walls.
 
 ## Hygiene
 - No path under `reference/`, `Library/`, `Temp/`, `Logs/`, `Builds/` or `review-sheets/` in the range.
