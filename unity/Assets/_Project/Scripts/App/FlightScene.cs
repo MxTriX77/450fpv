@@ -76,6 +76,9 @@ namespace Fpv450.App
         /// <summary>The ended flight's summary once read; null while reading or flying.</summary>
         public PostFlight Summary { get; private set; }
 
+        /// <summary>The OSD's content (p4-feed 1.5), as the feed draws it.</summary>
+        public FlightOsd Osd => _signals.Osd;
+
         LookSetup _look;
         Transform _body;
         Camera _camera;
@@ -150,6 +153,7 @@ namespace Fpv450.App
             try
             {
                 _spec = DroneSpec.Parse(System.IO.File.ReadAllText(AppData.File(AppData.DroneFile)));
+                _signals.Osd.Cells = _spec.Packs[0].Series; // Propulsion.SeriesCells, PackLow's
                 if (_spec.CameraLens is Double3 lens) CameraMount = V(lens);
                 else Debug.LogError("[Flight] drone.json gives no camera.lens_m: the FPV camera sits at the body origin");
             }
@@ -187,7 +191,7 @@ namespace Fpv450.App
                 _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
                 _armedOnce |= Pose.Armed;
                 Double3 home = Pose.Position - RestPose.Position;
-                _signals.Update(pair.Signals, Pose.Position.Y - RestPose.Position.Y, Math.Sqrt(home.X * home.X + home.Z * home.Z), Pose.TimeS);
+                _signals.Update(pair.Signals, Pose.Armed, Pose.Position.Y - RestPose.Position.Y, Math.Sqrt(home.X * home.X + home.Z * home.Z), Pose.TimeS);
             }
             PlaceCamera(_camera.transform, _body, CameraMount, Chase);
             Latch(session, thisFlight);
@@ -345,6 +349,7 @@ namespace Fpv450.App
             RestPose = new PoseFrame { Position = setup.StartPosition, Attitude = setup.StartAttitude };
             Pose = RestPose;
             _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
+            _signals.Osd.Reset(); // a fresh pack: the filters and the charge used start again
             Look(session.Choices);
         }
 
@@ -378,7 +383,8 @@ namespace Fpv450.App
             StartPoint at = Array.Find(inputs.StartPoints, s => s.Name == c.StartPoint);
             if (at.Name == null) at = inputs.StartPoints[0];
             _body.SetPositionAndRotation(new Vector3((float)at.X, PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
-            _signals.Update(default, 0, 0, 0); // the OSD as before the first flight, not the last flight's end
+            _signals.Osd.Reset(); // the OSD as before the first flight, disarmed, not the last flight's end
+            _signals.Update(default, false, 0, 0, 0);
             Look(c);
         }
 

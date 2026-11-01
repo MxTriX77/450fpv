@@ -7,6 +7,7 @@
         "Fpv450.Input.Radio",
         "Fpv450.App.Session",
         "Fpv450.UI",
+        "Fpv450.UI.Osd",
         "Fpv450.Feed",
         "Fpv450.Feed.Core",
         "Fpv450.World",
