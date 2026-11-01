@@ -142,6 +142,9 @@ namespace Fpv450.Sim.Tests
             /// correction rates over the hover, °/s.</summary>
             public double RollI, YawI, RollDeg, HeadingDeg, RollRate, YawRate;
 
+            /// <summary>Betaflight's roll and yaw ki the prediction used, PID units per degree (Model's).</summary>
+            public double RollKi, YawKi;
+
             /// <summary>The props' unbalance: the body rate's step-to-step change it makes, RMS, rad/s (the rotors at
             /// their own speeds, so their vibrations add in quadrature); and its most, the four in phase (their amplitudes
             /// summed on each axis), which no block of the unbalance's own vibration can pass.</summary>
@@ -231,6 +234,8 @@ namespace Fpv450.Sim.Tests
             p.YawMoment = System.Math.Abs(yaw);
             p.RollI = p.RollMoment / rollAuthority;
             p.YawI = p.YawMoment / (4 * mo.TorquePerDuty * mo.DutyPerUnit);
+            p.RollKi = mo.RollKi;
+            p.YawKi = mo.YawKi;
             p.RollDeg = p.RollI / mo.RollKi;
             p.HeadingDeg = p.YawI / mo.YawKi;
             p.RollRate = p.RollDeg / Seconds;
@@ -305,12 +310,23 @@ namespace Fpv450.Sim.Tests
         public static bool InBand(in Result r, in Band b) =>
             r.RollRate >= b.RollRateLo && r.RollRate <= b.RollRateHi && r.YawRate >= b.YawRateLo && r.YawRate <= b.YawRateHi;
 
-        /// <summary>The yank (I terms, roll and heading at YankAt) within 30 % of the seed's own prediction, and its vibration's
-        /// blocks around the prediction: the linear model leaves out the drift's air (about −14 % on the roll by 4 s) and
-        /// the spin-up's own reaction torques (±12 % on the yaw).</summary>
+        /// <summary>
+        /// The yank's absolute tolerance, degrees (assumed; QA's finding 6, seed 13): the steady model leaves out the spin-up's
+        /// transients, the rotors' reaction torques as they spin up to their Kv-spread speeds and Betaflight's anti-gravity
+        /// boosting the I term while the throttle moves, which turn the drone by a few hundredths of a degree whatever the
+        /// steady moment. Their size: J·Δω over the yaw inertia, 6e-5 kg·m² × 2 × 16 rad/s (the 2 % Kv spread at the hover's
+        /// 920 rad/s, the four signed) / 0.060 kg·m², 1.8 °/s, for the loop's ~20 ms, about 0.04° (derived, its order).
+        /// A small yank's relative error grows past 30 % by this much: on seeds 1–30 the largest miss beyond 30 % is 0.026°
+        /// (seed 27's roll, 0.018° against 0.063°), so with the floor none falls outside.
+        /// </summary>
+        public const double YankFloorDeg = 0.03;
+
+        /// <summary>The yank (I terms, roll and heading at YankAt) within 30 % of the seed's own prediction and YankFloorDeg
+        /// (its I terms' ki times it), and its vibration's blocks around the prediction: the linear model leaves out the
+        /// drift's air (about −14 % on the roll by 4 s) and the spin-up's transients (±12 % on the yaw, and the floor).</summary>
         public static bool AsPredicted(in Result r, in Prediction p) =>
-            Near(DetMath.Abs(r.YankITerm.Roll), p.RollI) && Near(DetMath.Abs(r.YankITerm.Yaw), p.YawI)
-            && Near(DetMath.Abs(r.YankRollDeg), p.RollDeg) && Near(DetMath.Abs(r.YankHeadingDeg), p.HeadingDeg)
+            Near(DetMath.Abs(r.YankITerm.Roll), p.RollI, YankFloorDeg * p.RollKi) && Near(DetMath.Abs(r.YankITerm.Yaw), p.YawI, YankFloorDeg * p.YawKi)
+            && Near(DetMath.Abs(r.YankRollDeg), p.RollDeg, YankFloorDeg) && Near(DetMath.Abs(r.YankHeadingDeg), p.HeadingDeg, YankFloorDeg)
             && r.VibrationMin <= 1.3 * p.Vibration && r.VibrationMax >= 0.7 * p.Vibration;
 
         /// <summary>Never buzzes: the ESCs' commands move by under 1e-4 a step (the loop does not chase the vibration) and the
@@ -325,7 +341,8 @@ namespace Fpv450.Sim.Tests
         /// <summary>Calm's floor (PHY-14): every 1 s block above the band's lowest vibration.</summary>
         public static bool NeverStill(in Result r, in Band b) => r.VibrationMin >= b.VibrationLo;
 
-        static bool Near(double measured, double predicted) => measured >= 0.7 * predicted && measured <= 1.3 * predicted;
+        static bool Near(double measured, double predicted, double floor) =>
+            measured >= 0.7 * predicted - floor && measured <= 1.3 * predicted + floor;
 
         public static string Describe(in Result on, in Result off, in Prediction p) =>
             $"on: roll {on.RollRate:E2} and yaw {on.YawRate:E2} °/s, the yank {on.YankRollDeg:F3}° and {on.YankHeadingDeg:F3}° at {YankAt:F0} s "

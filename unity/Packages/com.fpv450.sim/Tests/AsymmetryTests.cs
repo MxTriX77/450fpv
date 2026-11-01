@@ -32,6 +32,31 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // QA's finding 6: the yank as its draws predict, within 30 % and YankFloorDeg, and never buzzing, on seeds 1–30 (the
+        // suite's 1–5 and QA's 11–15 among them), so the tolerance is sized on the spread it has to hold.
+        [Test]
+        public void TheYankIsAsPredictedOnThirtySeeds()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            AsymmetryScenario.Run run = AsymmetryScenario.Flown(spec);
+            double beyond = 0, busiest = 0;
+            for (ulong seed = 1; seed <= 30; seed++)
+            {
+                AsymmetryScenario.Result on = AsymmetryScenario.Hover(AsymmetryScenario.Setup(spec, seed, true), out FlightCore core);
+                AsymmetryScenario.Prediction p = AsymmetryScenario.Predict(run.Model, core.Draws);
+                double roll = System.Math.Abs(System.Math.Abs(on.YankRollDeg) - p.RollDeg) - 0.3 * p.RollDeg;
+                double heading = System.Math.Abs(System.Math.Abs(on.YankHeadingDeg) - p.HeadingDeg) - 0.3 * p.HeadingDeg;
+                beyond = System.Math.Max(beyond, System.Math.Max(roll, heading));
+                busiest = System.Math.Max(busiest, on.VibrationMax / p.VibrationInPhase);
+                string at = $"seed {seed}: the yank {on.YankRollDeg:F4}° and {on.YankHeadingDeg:F4}° against {p.RollDeg:F4}° and {p.HeadingDeg:F4}°, "
+                    + $"the busiest block {on.VibrationMax / p.VibrationInPhase:F2} of the in-phase bound";
+                TestContext.Out.WriteLine(at);
+                Assert.That(AsymmetryScenario.AsPredicted(on, p), Is.True, at);
+                Assert.That(AsymmetryScenario.Steady(on, p), Is.True, at);
+            }
+            TestContext.Out.WriteLine($"seeds 1-30: the largest miss beyond 30 % {beyond:F4}° (the floor {AsymmetryScenario.YankFloorDeg}°), the busiest block {busiest:F2} of the in-phase bound");
+        }
+
         // Calm's floor (PHY-14), "never perfectly still", from the airframe: with the asymmetry on, every 1 s block of the
         // hover's last 20 s vibrates above the band's floor, and with it off every block is far below it.
         [Test]
