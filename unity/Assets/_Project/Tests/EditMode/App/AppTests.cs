@@ -77,6 +77,42 @@ namespace Fpv450.Tests.App
             Assert.That(SetupScreen.Clock(23 + 59 / 60.0), Is.EqualTo("23:59"));
         }
 
+        // D-052: the build's preset, the saved one, or -quality's, which is saved; no screen offers it.
+        [Test]
+        public void TheQualityPresetIsTheBuildsTheSavedOneOrTheCommandLines()
+        {
+            string[] names = { "Low", "Medium", "High" };
+            string[] none = { "450fpv.exe", "-windowed" };
+            Assert.That(QualityPreset.Pick(none, names, null, out bool given, out string problem), Is.EqualTo(-1), "none saved: the build's");
+            Assert.That((given, problem), Is.EqualTo((false, (string)null)));
+            Assert.That(QualityPreset.Pick(none, names, "Medium", out given, out _), Is.EqualTo(1), "the saved one");
+            Assert.That(given, Is.False);
+            Assert.That(QualityPreset.Pick(new[] { "450fpv.exe", "-quality", "low" }, names, "Medium", out given, out problem), Is.EqualTo(0), "-quality's, in any case");
+            Assert.That((given, problem), Is.EqualTo((true, (string)null)));
+            Assert.That(QualityPreset.Pick(new[] { "450fpv.exe", "-quality", "Ultra" }, names, "Medium", out given, out problem), Is.EqualTo(1), "an unknown name: the saved one");
+            Assert.That((given, problem), Is.EqualTo((false, "-quality 'Ultra' is not one of Low, Medium, High: it is ignored.")));
+            Assert.That(QualityPreset.Pick(new[] { "450fpv.exe", "-quality" }, names, null, out given, out problem), Is.EqualTo(-1));
+            Assert.That(problem, Is.Not.Null, "-quality without a name");
+
+            string dir = Path.Combine(Path.GetTempPath(), "fpv450-quality-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                Assert.That(QualityPreset.Load(dir, out string error), Is.Null);
+                Assert.That(error, Is.Null, "no file: nothing saved");
+                QualityPreset.Save(dir, "Low");
+                QualityPreset.Save(dir, "Medium");
+                Assert.That(QualityPreset.Load(dir, out error), Is.EqualTo("Medium"), "the last saved");
+                Assert.That(error, Is.Null);
+                File.WriteAllText(QualityPreset.PathIn(dir), "{ \"preset\": ");
+                Assert.That(QualityPreset.Load(dir, out error), Is.Null);
+                StringAssert.StartsWith("quality.json could not be read", error);
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
         // QA's finding 16: the keyboard arms with Enter, a toggle; only the radio's switch is held off until seen off.
         [Test]
         public void TheArmingHintIsTheInputs()

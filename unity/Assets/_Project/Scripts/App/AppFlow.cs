@@ -21,7 +21,8 @@ namespace Fpv450.App
     /// radio is in, so arming the switch is the only step left. The summary's Fly again and Setup stay in the range.
     /// </summary>
     /// <remarks>
-    /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot). <c>-smoketest</c>
+    /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
+    /// (a preset, saved for the next start: QualityPreset). <c>-smoketest</c>
     /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged; <c>-smokeshots &lt;folder&gt;</c>
     /// saves its screens there.
     /// </remarks>
@@ -45,6 +46,7 @@ namespace Fpv450.App
         {
             if (_instance != null) return;
             string[] args = Environment.GetCommandLineArgs();
+            if (!Application.isEditor) QualityPreset.Apply(args, Application.persistentDataPath); // before the vsync: a preset sets its own
             int at = Array.IndexOf(args, "-vsync");
             QualitySettings.vSyncCount = at >= 0 && at + 1 < args.Length && int.TryParse(args[at + 1], out int vsync) ? vsync : 1;
             if (Array.IndexOf(args, "-windowed") >= 0) Screen.SetResolution(1920, 1080, FullScreenMode.Windowed);
