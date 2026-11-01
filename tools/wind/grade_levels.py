@@ -20,6 +20,12 @@ flown, and must fail there:
 A target with several conditions (T0b, T8, T10b, T11b, T12) passes when all pass, and its known-wrong model fails it
 when any fails.
 
+T6d (D-060) is a ceiling at clip P's real camera motion over 4-15 Hz, not P's raw floor (0.125 / 0.054 deg): about half
+of that floor is the tracker's (glitches tied to its fit, and fit-independent noise; floor_check.py,
+hover-micro-motion.md section 2). P's real motion is 0.06-0.08 deg roll and about 0.04 deg pitch (section 2.4,
+derived); the harness's frames carry the recorder's field pick (WindHarness.FieldStep), so the ceiling is that motion's
+upper end with P's pick added in quadrature (0.018 / 0.012 deg, section 2.3): 0.082 / 0.044 deg (derived).
+
 usage: python tools/wind/grade_levels.py DIR LEVEL [--json OUT]
 DIR holds <level>/, and optionally <level>-nodrag/, <level>-steady/ and <level>-nobelt/.
 """
@@ -41,7 +47,7 @@ SEVERE = {
     "T1": (0.35, 0.70), "T2": (0.19, 0.38), "T3": (0.85, 1.70), "T4": (0.29, 0.58),
     "T5 field": (0.22, 0.66), "T5 belt": (0.8, 2.5),
     "T6a": (0.85, None), "T6b": (0.06, 0.16), "T6c share": (0.20, 0.45), "T6c rms": (0.11, 0.25),
-    "T6d roll": (None, 0.13), "T6d pitch": (None, 0.06),
+    "T6d roll": (None, 0.082), "T6d pitch": (None, 0.044),       # D-060: P's real motion and pick, not its floor
     "T7 rate": (7, 24), "T7 belt share": (0.70, None),
     "T8 median": (1, 4), "T8 cv": (0.5, 1.2),
     "T9a": (2.2, 3.5), "T9b": (3.3, 5.5),
