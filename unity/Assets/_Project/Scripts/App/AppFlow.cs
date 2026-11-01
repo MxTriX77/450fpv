@@ -281,6 +281,9 @@ namespace Fpv450.App
         IEnumerator Smoke()
         {
             string[] args = Environment.GetCommandLineArgs();
+            // A radio left plugged in would fly the scripted flights: the smoke test reads none.
+            AppRadio.Unplug();
+            Debug.Log("[Smoke] the radio is not read: the flights fly on the development keyboard, or wait for the radio");
             int at = Array.IndexOf(args, "-smokeshots");
             string shots = at >= 0 && at + 1 < args.Length ? args[at + 1] : null;
             if (shots != null) Directory.CreateDirectory(shots);
