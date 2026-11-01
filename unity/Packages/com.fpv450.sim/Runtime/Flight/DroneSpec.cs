@@ -215,6 +215,10 @@ namespace Fpv450.Sim.Flight
         public DronePayload Payload;
         public DroneStand Stand;
 
+        /// <summary>The FPV camera's lens, body m (camera.lens_m): the camera mount's point for the modes (BuildModes); null
+        /// for a file without a camera block (the bootstrap fixture), whose modes keep AirframeModesSpec's.</summary>
+        public Double3? CameraLens;
+
         /// <summary>The airframe's drag; its coil part is the coil's.</summary>
         public AeroSpec Aero;
 
@@ -307,10 +311,12 @@ namespace Fpv450.Sim.Flight
         public GroundEffectSpec BuildGroundEffect() => new GroundEffectSpec { AirDensity = Aero.AirDensity };
 
         /// <summary>The airframe's modes (AirframeModesSpec, p7b-airframe 1.4): each arm's tip mass from its corner's motor,
-        /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), and the payload's and the coil's parts.</summary>
+        /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), the payload's and the coil's parts, and the camera at the
+        /// file's lens.</summary>
         public AirframeModesSpec BuildModes()
         {
             var m = new AirframeModesSpec { PayloadPart = Payload.Part, CoilPart = Coil.Part };
+            if (CameraLens.HasValue) m.Camera = CameraLens.Value;
             string[] corners = { "rr", "fr", "rl", "fl" };
             for (int i = 0; i < 4; i++)
                 m.TipMass[i] = Parts[PartIndex("motor_" + corners[i])].Mass + Parts[PartIndex("prop_" + corners[i])].Mass
@@ -466,7 +472,7 @@ namespace Fpv450.Sim.Flight
                 const string top = "drone.json";
                 if (!IsObject(root, top)) return spec;
                 Members(root, top, "schema", "owner", "name", "bootstrap", "about", "fields",
-                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "stand", "aero", "contacts");
+                    "parts", "motors", "props", "packs", "legs", "legs_off", "coil", "payload", "camera", "stand", "aero", "contacts");
 
                 JsonNode schema = Required(root, "schema", top);
                 if (schema != null && !(schema.Kind == JsonKind.Number && schema.Number == Schema))
@@ -495,6 +501,11 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "coil", top)) != null) spec.Coil = ReadCoil(n, spec);
                 if ((n = Required(root, "payload", top)) != null) spec.Payload = ReadPayload(n, spec);
                 if ((n = Required(root, "legs_off", top)) != null) ReadLegsOff(n, spec);
+                if ((n = root.Member("camera")) != null && IsObject(n, "camera"))
+                {
+                    Members(n, "camera", "lens_m");
+                    if (Vector(n, "lens_m", "camera", out Double3 lens)) spec.CameraLens = lens;
+                }
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
                 if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
