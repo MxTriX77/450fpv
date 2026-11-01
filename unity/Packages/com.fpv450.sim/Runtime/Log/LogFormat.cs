@@ -106,7 +106,8 @@ namespace Fpv450.Sim.Log
         ///    as in 13).
         /// 15: the electronics fitted between the plates (drone.json: the stack's box 0.005–0.025 m, the bottle on the upper
         ///    plate at 0.068 m, the centre of pressure re-derived; on model 14's fit a flight steps as in 14).
-        /// 16: p6-flight-core 1.6b (a skid capsule on the face its support spheres stand on is their support, and leaving a
+        /// 16: p6-flight-core 1.6b (a skid capsule on the face its support spheres stand on, or on a piece coplanar with it, is
+        ///    their support; a sphere's contact on a seam of coplanar shapes is the face's, ContactModel.Seam; leaving a
         ///    compliant shape is no tunnel; a flight on the stub's floor steps as in 15).
         /// </summary>
         public const int ModelVersion = 16;

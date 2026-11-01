@@ -43,6 +43,9 @@ namespace Fpv450.Sim.Tests
 
         // Without the same-face rule (a skid capsule's flat-face tie at its far core end counted as a third point) both
         // flicker: 1564 and 2768 contact events in the last second, never at rest, and 0.9964 and 0.9987 of the weight.
+        // Without the seam rule (ContactModel.Seam) E01's run under D-050's legs is 1.3 µm deeper than the plane, 1.001 of
+        // the weight (a support 2 mm past a filler's edge, its normal 10° off); with the edge alone dropped, 9 µm higher and
+        // pitched (a support on two fillers counted twice in its leg's split).
         [TestCase("soil")]
         [TestCase("run")]
         public void OnSoilItRestsAsOnThePlane(string where)
