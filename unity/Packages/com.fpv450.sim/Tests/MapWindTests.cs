@@ -169,8 +169,13 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That(path, Is.EqualTo(wind.Belts[0].AerodynamicPorosity).Within(0.05), "the belt's bleed across it");
 
-            // ForMap and the header: the layout and the strips go into the log and back.
+            // ForMap and the header: the layout and the strips go into the log and back. The setup's cost (reported): the
+            // obstacles from the map, then the field's first two grids, on the caller's thread before the flight.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
             WindSetup setup = WindSetup.ForMap(map, WindLevel.Severe);
+            double forMap = clock.Elapsed.TotalMilliseconds;
+            using (var timed = new WindField(setup, new FlightRandom(5)))
+                TestContext.Out.WriteLine($"ForMap {forMap:F1} ms; the field with its worker's two grids {clock.Elapsed.TotalMilliseconds - forMap:F0} ms");
             Assert.That(setup.Canopies, Has.Length.EqualTo(2));
             Assert.That(WindSetup.ForMap(map, WindLevel.Still).Wakes, Is.Null, "still air has no wakes");
             FlightSetup flight = WindTargets.BenchFlight(WindLevel.Severe, 5);
