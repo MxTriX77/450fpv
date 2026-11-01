@@ -21,15 +21,6 @@ namespace Fpv450.UI
             GUI.Label(new Rect(Mathf.Round((Screen.width - size.x) / 2), Screen.height - size.y - AppStyle.S(40), size.x, size.y), content, AppStyle.Pill);
         }
 
-        /// <summary>A label at the top-left (the review keys' state).</summary>
-        public static void Corner(string text)
-        {
-            AppStyle.Begin();
-            var content = new GUIContent(text);
-            Vector2 size = AppStyle.Pill.CalcSize(content);
-            GUI.Label(new Rect(AppStyle.S(24), AppStyle.S(24), size.x, size.y), content, AppStyle.Pill);
-        }
-
         public static PauseChoice Pause()
         {
             AppStyle.Begin();

@@ -32,8 +32,9 @@ namespace Fpv450.App
         public static string File(string relative) => Path.Combine(Root, relative);
 
         /// <summary>
-        /// A review build (PRD-05): the menu offers Explore, and the flight has its review keys (C the chase view, V the
-        /// feed). <c>Fpv450.Build</c> makes one with <c>-review</c>; every development build and the editor are one too.
+        /// A review build (PRD-05): the menu offers Explore, and the flight has its review key (F the feed off and on;
+        /// V's view is every build's, D-055). <c>Fpv450.Build</c> makes one with <c>-review</c>; every development build and
+        /// the editor are one too.
         /// </summary>
         public static bool Review =>
 #if FPV450_REVIEW

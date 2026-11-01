@@ -24,7 +24,8 @@ namespace Fpv450.App
     ///   OSD, fed by the physics' signals (FlightFeedSignals)
     /// - the setup's time of day and rain on the look (rain is the overcast preset's sky until the weather's look)
     /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame.
-    /// Review builds add C (a chase view of the drone) and V (the feed off and on).
+    /// V switches between the FPV view and the third-person chase view in every build (D-055); only the camera moves,
+    /// still through the feed and its OSD. Review builds add F (the feed off and on).
     /// </summary>
     [DefaultExecutionOrder(100)] // after the host has ticked the session this frame
     public sealed class FlightScene : MonoBehaviour
@@ -35,8 +36,12 @@ namespace Fpv450.App
         /// along +z at 0° uptilt.</summary>
         public Vector3 CameraMount { get; private set; }
 
-        /// <summary>The chase view's offset behind and above the drone, m, and its pitch down, degrees (review only).</summary>
-        static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
+        /// <summary>The keys over the flight (D-055): V the view in every build, F the feed in review builds. Neither is
+        /// one of KeyboardFallback's, so the flight never sees them.</summary>
+        public const Key ViewKey = Key.V, FeedKey = Key.F;
+
+        /// <summary>The chase view's offset behind and above the drone on its heading, m, and its pitch down, degrees.</summary>
+        public static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
         const float ChasePitchDeg = 14f;
 
         /// <summary>The camera's height over the ground while a flight waits for the radio: about where the drone
@@ -52,7 +57,7 @@ namespace Fpv450.App
         /// <summary>AppFlow draws the setup over the flight: draw nothing.</summary>
         public bool Covered;
 
-        /// <summary>The review chase view (C), behind and above the drone.</summary>
+        /// <summary>The third-person chase view (V), behind and above the drone; false: the FPV camera at the lens.</summary>
         public bool Chase;
 
         /// <summary>This frame's interpolated pose, and the current flight's first (rest) pose; Flights 0 before any.</summary>
@@ -149,6 +154,7 @@ namespace Fpv450.App
             if (Host.WaitingForRadio)
             {
                 Preview(Host.Inputs);
+                PlaceCamera(_camera.transform, _body, CameraMount, Chase);
                 return;
             }
             if (session.Flights == 0) return;
@@ -164,21 +170,28 @@ namespace Fpv450.App
                 Double3 home = Pose.Position - RestPose.Position;
                 _signals.Update(pair.Signals, Pose.Position.Y - RestPose.Position.Y, Math.Sqrt(home.X * home.X + home.Z * home.Z), Pose.TimeS);
             }
-            if (Chase)
-            {
-                Vector3 forward = Vector3.ProjectOnPlane(_body.forward, Vector3.up);
-                if (forward.sqrMagnitude < 1e-6f) forward = Vector3.forward;
-                Quaternion heading = Quaternion.LookRotation(forward.normalized, Vector3.up);
-                _camera.transform.SetPositionAndRotation(_body.position + heading * ChaseOffset, heading * Quaternion.Euler(ChasePitchDeg, 0f, 0f));
-            }
-            else
-            {
-                _camera.transform.localPosition = CameraMount;
-                _camera.transform.localRotation = Quaternion.identity;
-            }
+            PlaceCamera(_camera.transform, _body, CameraMount, Chase);
             if (_look != null) _look.UpdateFog(_camera);
             Cursor.visible = session.State != SessionState.Flying || Covered;
             Summarise(session);
+        }
+
+        /// <summary>The view (D-055): the camera, a child of the drone's body, at the lens (the mount, looking along +z),
+        /// or behind and above the drone on its heading, pitched down. Only the camera moves: the feed and its OSD ride it.</summary>
+        public static void PlaceCamera(Transform camera, Transform body, Vector3 mount, bool chase)
+        {
+            if (chase)
+            {
+                Vector3 forward = Vector3.ProjectOnPlane(body.forward, Vector3.up);
+                if (forward.sqrMagnitude < 1e-6f) forward = Vector3.forward;
+                Quaternion heading = Quaternion.LookRotation(forward.normalized, Vector3.up);
+                camera.SetPositionAndRotation(body.position + heading * ChaseOffset, heading * Quaternion.Euler(ChasePitchDeg, 0f, 0f));
+            }
+            else
+            {
+                camera.localPosition = mount;
+                camera.localRotation = Quaternion.identity;
+            }
         }
 
         // A new flight: its drone for the legs, its stand, its rest pose and its look.
@@ -231,9 +244,9 @@ namespace Fpv450.App
                       $"sun {_look.State.SunElevationDeg:0.0}° up");
         }
 
-        // While the radio is awaited (before the first flight, or after a Fly or a Restart): the FPV view from the chosen
+        // While the radio is awaited (before the first flight, or after a Fly or a Restart): the view from the chosen
         // start at the chosen time, once for each choice the setup hands over and once after each flight. The last
-        // flight's drone and stand go, and its OSD values.
+        // flight's drone and stand go, and its OSD values. LateUpdate places the camera (V's view) every frame.
         void Preview(SessionInputs inputs)
         {
             FlightChoices c = inputs.Choices;
@@ -244,8 +257,6 @@ namespace Fpv450.App
             StartPoint at = Array.Find(inputs.StartPoints, s => s.Name == c.StartPoint);
             if (at.Name == null) at = inputs.StartPoints[0];
             _body.SetPositionAndRotation(new Vector3((float)at.X, PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
-            _camera.transform.localPosition = CameraMount;
-            _camera.transform.localRotation = Quaternion.identity;
             _signals.Update(default, 0, 0, 0); // the OSD as before the first flight, not the last flight's end
             Look(c);
         }
@@ -258,13 +269,21 @@ namespace Fpv450.App
             return null;
         }
 
-        // The review keys: C the chase view, V the feed.
+        // This frame's keys over the flight (LateUpdate reads them first): V the view in every build (D-055), F the feed
+        // in review builds. Neither reaches the flight, whose keys are KeyboardFallback's.
         void Keys()
         {
             Keyboard k = Keyboard.current;
-            if (k == null || Covered || !AppData.Review) return;
-            if (k.cKey.wasPressedThisFrame) Chase = !Chase;
-            if (k.vKey.wasPressedThisFrame && _rig != null) _rig.enabled = !_rig.enabled;
+            if (k == null || Covered) return;
+            Pressed(k[ViewKey].wasPressedThisFrame, AppData.Review && k[FeedKey].wasPressedThisFrame);
+        }
+
+        /// <summary>What this frame's presses of the view key and the feed key do: the view flips between the lens and
+        /// the chase view, the feed goes off or on. Nothing else.</summary>
+        public void Pressed(bool view, bool feed)
+        {
+            if (view) Chase = !Chase;
+            if (feed && _rig != null) _rig.enabled = !_rig.enabled;
         }
 
         /// <summary>Esc over the flight (AppFlow routes it, one action a press): pause and resume, and the menu while no
@@ -325,7 +344,6 @@ namespace Fpv450.App
         {
             if (Covered) return;
             FlightSession session = Host.Session;
-            if (Chase) FlightScreens.Corner("Chase view (C) · " + DroneName);
             if (session == null)
             {
                 if (Host.Problems.Count > 0) FlightScreens.Hint(Host.Problems[Host.Problems.Count - 1] + "  ·  Esc for the menu");
@@ -339,7 +357,7 @@ namespace Fpv450.App
             switch (session.State)
             {
                 case SessionState.Flying:
-                    if (!_armedOnce) FlightScreens.Hint(ArmHint(session.Input) + "  ·  Esc pauses");
+                    if (!_armedOnce) FlightScreens.Hint(ArmHint(session.Input) + "  ·  V: 1st / 3rd person  ·  Esc pauses");
                     break;
                 case SessionState.Paused:
                     switch (FlightScreens.Pause())
