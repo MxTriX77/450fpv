@@ -167,7 +167,9 @@ namespace Fpv450.FlightBench
                 Row(name + ", throttle held, as the stub's", Math.Abs(held.SeparationHeight - stubHeld.SeparationHeight) <= 1e-3 && held.Tunnels == 0 && held.Crashes == 0
                     && held.Lost == 0, Land(held) + First(held));
                 ContactScenarios.Landing cut = ContactScenarios.Land(spec, materials, hash, true, site: site);
-                Row(name + ", throttle cut, as the stub's", Math.Abs(cut.Settled - stubCut.Settled) <= 0.01 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
+                // Within 15 ms since model 24 (RangeContactTests.WithTheAirframesEffectsSoilIsStillThePlane's trace: E01's run
+                // comes to rest 11 ms before the stub under D-064's spool-down).
+                Row(name + ", throttle cut, as the stub's", Math.Abs(cut.Settled - stubCut.Settled) <= 0.015 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
                     Land(cut) + First(cut));
             }
             ContactScenarios.Site straw = RangeScenarios.At(RangeScenarios.Straw, 0);
