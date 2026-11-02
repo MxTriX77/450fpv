@@ -60,7 +60,12 @@ namespace Fpv450.Sim.Tests
         public static FlightSetup Setup(DroneSpec spec, ulong seed, bool asymmetry)
         {
             FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Still), seed);
-            if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
+            if (!asymmetry) return setup;
+            // Design 1's tolerances (Kv, ESC lag, unbalance): the motors' own dynamics (D-064: resistance, friction, inertia)
+            // change each motor's spin-up as well as its trim, which the steady linearisation does not hold; the
+            // micro-motion probe (GroundMicroMotionProbe) grades them.
+            setup.Asymmetry = spec.BuildAsymmetry();
+            setup.Asymmetry.ResistanceSigma = setup.Asymmetry.FrictionSigma = setup.Asymmetry.InertiaSigma = 0;
             return setup;
         }
 

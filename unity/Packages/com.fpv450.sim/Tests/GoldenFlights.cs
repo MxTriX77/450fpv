@@ -187,7 +187,14 @@ namespace Fpv450.Sim.Tests
         // temporary edit, reverted) every golden is the class-4 step's (powered 0xD28B561A9782C097, contact
         // 0xA05AEB00620769BF, rain 0xCCAE77686A84020E); to 0.5 m the Windy flight moves from step 1 and keeps its course:
         // armed, no crash, 147.90 m up, 0.59 m from the class-4 step's end and within 8.3 mrad.
-        public const ulong PoweredHash = 0xA1FF085091A019CDUL;
+        // Model 19: 0xA1FF085091A019CD. D-064: re-recorded with ModelVersion 23 (the 1840-byte record: model 19's 1808 bytes,
+        // then the rotors' wakes, 32) with the rotors' own wakes in its setup and the motors' resistance, friction and inertia
+        // drawn. Audited: without them, over model 19's 1808 bytes, every record and event is model 19's (the kept test,
+        // WithoutD064TheGoldenFlightsAreModel19s; 193–300 m up no surface is in reach, so the re-ingested wash's new numbers
+        // never act). With them it moves from step 21, the first armed step (the wakes wander from the rotors' first turn;
+        // the motors' spreads alone move it from the same step), and keeps its course: armed, no crash, 149.00 m up against
+        // 147.90 at 10 s, 1.16 m from model 19's end and within 1.9° of its attitude (the motors' spreads alone: 0.83 m, 0.24°).
+        public const ulong PoweredHash = 0x5073BC74B404B3AAUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -198,12 +205,19 @@ namespace Fpv450.Sim.Tests
         // Model 18: 0xE5D4C472F6CA12D2. D-060 (ModelVersion 19), audited as the powered flight: it moves from step 1 and keeps
         // its course, 148.90 m up against 148.97, 0.58 m from model 18's end; the film holds 9.59 g at 10 s. To 0.5 m it
         // moves from step 1: 148.69 m up, 0.24 m from the class-4 step's end; the film holds 9.60 g.
-        public const ulong RainPoweredHash = 0xB10D9A860D4431C0UL;
+        // Model 19: 0xB10D9A860D4431C0. D-064 (ModelVersion 23), audited as the powered flight (the kept test): it moves from
+        // step 21 and keeps its course, 149.95 m up against 148.69, 1.82 m from model 19's end and within 3.3°; the film holds
+        // 9.57 g at 10 s against 9.60.
+        public const ulong RainPoweredHash = 0x789866FBE53F0C70UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
         /// their air set still, a temporary edit), and its tumble's pin.</summary>
         public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15StillContactHash = 0x557DEBE410FAEEA1UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
+
+        /// <summary>Model 19's pins (D-060, before D-064), which WithoutD064TheGoldenFlightsAreModel19s holds over 1808 bytes.</summary>
+        public const ulong Model19PoweredHash = 0xA1FF085091A019CDUL, Model19RainPoweredHash = 0xB10D9A860D4431C0UL,
+            Model19ContactHash = 0x8C1E6B066F143A67UL, Model19TumbleHash = 0x2A0283BBFE59FD84UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -289,7 +303,14 @@ namespace Fpv450.Sim.Tests
         // 20 mm of model 18's path and 1.2 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 20 mm aside. To 0.5 m it
         // is the class-4 step's to step 290 (still air at the hubs on the floor) and moves from step 291, as they rise into
         // the field: within 2.7 mm and 1.3 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 0.8 mm aside.
-        public const ulong ContactHash = 0x8C1E6B066F143A67UL;
+        // Model 19: 0x8C1E6B066F143A67. D-064: re-recorded with ModelVersion 23 with the rotors' own wakes and the motors' new
+        // spreads, and the re-ingested wash on published numbers (Dekker et al. 2023's loop, Healy et al. 2021's level) moving
+        // the torque too. Audited: with the wash's model 19 numbers and its torque at the freestream's inflow (a temporary edit
+        // in Propulsion and GroundEffectSpec, reverted) and without the wakes and the spreads, over the first 1808 bytes, every
+        // record and event is model 19's. Against that same flight on the new wash (D-064's sources off) it moves from step 9,
+        // the first armed step, and keeps its course: 5 impacts, no crash, at rest at the same 0.2518 m, 44 mm aside, the
+        // heading 0.15° apart.
+        public const ulong ContactHash = 0xFF836F92A12B4AB0UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -313,7 +334,9 @@ namespace Fpv450.Sim.Tests
         // Model 15 on unity/main: 0xFB841727FADDC7A7. p7c-wind merged with unity/main (ModelVersion 17): the 1808-byte record,
         // p7c-wind's bytes zero but the camera's air (the free body's own motion at the lens); over main's 1656 bytes it is
         // model 15's (the kept test), and models 13's and 14's on their files. It has no air: model 18 keeps it.
-        public const ulong TumbleHash = 0x2A0283BBFE59FD84UL;
+        // Model 19: 0x2A0283BBFE59FD84. D-064 (ModelVersion 23): the record's 32 wake bytes, zero (no rotors); over model 19's
+        // 1808 bytes it is model 19's (the kept test).
+        public const ulong TumbleHash = 0xDB5DEEA6285B6184UL;
         public const int TumbleSteps = 10000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
@@ -400,6 +423,7 @@ namespace Fpv450.Sim.Tests
                 Asymmetry = spec.BuildAsymmetry(),
                 VortexRing = spec.BuildVortexRing(),
                 GroundEffect = spec.BuildGroundEffect(),
+                RotorWake = spec.BuildRotorWake(),
                 Flapping = spec.BuildFlapping(),
                 Modes = spec.BuildModes(),
                 StartPosition = new Double3(0, 300, 0),
@@ -435,7 +459,7 @@ namespace Fpv450.Sim.Tests
         /// layout, for an audit); onRecord sees each step's record before it is hashed (an audit's step-by-step comparison).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny)
+            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool wake = true, bool motors = true, int end = LogFormat.StepSize)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (wind != null) setup.Wind = wind.Value;
@@ -446,6 +470,7 @@ namespace Fpv450.Sim.Tests
             if (!asymmetry) setup.Asymmetry = null;
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
+            WithoutD064(setup, wake, motors);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -456,8 +481,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
                 onRecord?.Invoke(record);
-                hash = Fnv(hash, record, 0, skipAt);
-                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                hash = Fnv(hash, record, 0, skipAt < end ? skipAt : end);
+                hash = Fnv(hash, record, skipAt + skipBytes, end);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
@@ -474,7 +499,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null)
+            Action<byte[]> onRecord = null, bool wake = true, bool motors = true, int end = LogFormat.StepSize)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -486,6 +511,8 @@ namespace Fpv450.Sim.Tests
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
             if (flapping) setup.Flapping = spec.BuildFlapping();
             if (modes) setup.Modes = spec.BuildModes();
+            setup.RotorWake = spec.BuildRotorWake();
+            WithoutD064(setup, wake, motors);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -519,8 +546,8 @@ namespace Fpv450.Sim.Tests
                 after?.Invoke(core);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
                 onRecord?.Invoke(record);
-                hash = Fnv(hash, record, 0, skipAt);
-                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                hash = Fnv(hash, record, 0, skipAt < end ? skipAt : end);
+                hash = Fnv(hash, record, skipAt + skipBytes, end);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
@@ -556,7 +583,8 @@ namespace Fpv450.Sim.Tests
         /// It guards the gyroscopic term on a body that has one, where the free-body golden's cube has none: a step that
         /// leaves out the momentum's transport into the new axes, or turns at the start's rate, fails its checks.
         /// </summary>
-        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks, int skipAt = LogFormat.StepSize, int skipBytes = 0)
+        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks, int skipAt = LogFormat.StepSize, int skipBytes = 0,
+            int end = LogFormat.StepSize)
         {
             FlightSetup setup = TumbleSetup(spec);
             core = new FlightCore(setup);
@@ -575,8 +603,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(StickSample.Neutral);
                 ref readonly FlightState s = ref core.State;
                 LogFormat.EncodeStep(record, s, StickSample.Neutral, core.Trace);
-                hash = Fnv(hash, record, 0, skipAt);
-                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                hash = Fnv(hash, record, 0, skipAt < end ? skipAt : end);
+                hash = Fnv(hash, record, skipAt + skipBytes, end);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, s.Step, core.Events[i]);
@@ -591,6 +619,18 @@ namespace Fpv450.Sim.Tests
                 checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
+        }
+
+        /// <summary>The record's length before D-064's rotor wakes (model 19's 1808 bytes).</summary>
+        public const int Model19Size = 1808;
+
+        // D-064's sources off for an audit against model 19: no rotor wake (wake), the motors' resistance, friction and inertia
+        // undrawn (motors). The re-ingested wash's published numbers and its torque have no switch (their audit was a
+        // temporary edit, GoldenFlights' notes).
+        static void WithoutD064(FlightSetup setup, bool wake, bool motors)
+        {
+            if (!wake) setup.RotorWake = null;
+            if (!motors && setup.Asymmetry != null) setup.Asymmetry.ResistanceSigma = setup.Asymmetry.FrictionSigma = setup.Asymmetry.InertiaSigma = 0;
         }
 
         static ulong Fnv(ulong h, byte[] bytes, int from, int to)

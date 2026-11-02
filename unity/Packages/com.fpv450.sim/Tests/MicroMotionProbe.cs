@@ -78,13 +78,14 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        /// <summary>The whole airframe a pilot's flight has (as WindHarness flies): asymmetry, rings, ground effect,
-        /// flapping and modes.</summary>
+        /// <summary>The whole airframe a pilot's flight has (as WindHarness flies): asymmetry, rings, ground effect, the
+        /// rotors' own wakes (D-064), flapping and modes.</summary>
         public static void Airframe(DroneSpec spec, FlightSetup setup)
         {
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
             setup.Modes = spec.BuildModes();
         }
@@ -492,11 +493,13 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TurbulenceIsTheCruiseFloorAndTheUnbalanceIsNot()
         {
+            // The wind's share against the unbalance (D-060), the rotors' own wakes (D-064, GroundMicroMotionProbe) aside.
             DroneSpec spec = RepositoryDrone.Spec();
-            MicroMotion.Bands built = MicroMotion.Analyse(MicroMotion.Fly(spec, MicroMotion.Kind.Cruise, WindLevel.Severe, 1, seconds: 25));
-            MicroMotion.Bands steady = MicroMotion.Analyse(MicroMotion.Fly(spec, MicroMotion.Kind.Cruise, WindLevel.Severe, 1, steady: true, seconds: 25));
+            MicroMotion.Bands built = MicroMotion.Analyse(MicroMotion.Fly(spec, MicroMotion.Kind.Cruise, WindLevel.Severe, 1, s => s.RotorWake = null, seconds: 25));
+            MicroMotion.Bands steady = MicroMotion.Analyse(MicroMotion.Fly(spec, MicroMotion.Kind.Cruise, WindLevel.Severe, 1, s => s.RotorWake = null,
+                steady: true, seconds: 25));
             MicroMotion.Bands even = MicroMotion.Analyse(MicroMotion.Fly(spec, MicroMotion.Kind.Cruise, WindLevel.Severe, 1,
-                s => s.Asymmetry = null, seconds: 25));
+                s => { s.Asymmetry = null; s.RotorWake = null; }, seconds: 25));
             double b = MicroMotion.Bands.Over(built.Frame[0], 4, 6), w = MicroMotion.Bands.Over(steady.Frame[0], 4, 6);
             double e = MicroMotion.Bands.Over(even.Frame[0], 4, 6);
             TestContext.WriteLine($"roll 4–15 Hz at the frames: built {b:F4}°, fixed vector {w:F4}°, no asymmetry {e:F4}°");

@@ -22,7 +22,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(g.CeilingGain(g.Reach * (1 - 1e-9), 1), Is.EqualTo(1).Within(1e-9));
             Assert.That(g.CeilingGain(1, 1), Is.EqualTo(System.Math.Pow(1 + g.Gamma(1) - g.Gamma(1 / g.Reach), 2.0 / 3)).Within(1e-12));
             Assert.That(g.Sigma(g.RecirculationOnset), Is.EqualTo(0));
-            Assert.That(g.Sigma(g.LowestHeight), Is.EqualTo(g.RecirculationSigma));
+            Assert.That(g.Sigma(g.RecirculationReference), Is.EqualTo(g.RecirculationSigma), "Healy et al.'s level at Dekker et al.'s H/R 2");
+            Assert.That(g.Sigma(0.1), Is.EqualTo(g.Sigma(g.LowestHeight)), "held below the lowest height");
+            Assert.That(3 * g.Sigma(g.LowestHeight), Is.EqualTo(g.RecirculationBound).Within(0.005), "the bound 3σ at the lowest height");
         }
 
         [Test]

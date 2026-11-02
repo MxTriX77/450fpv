@@ -108,13 +108,17 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = AsymmetryScenario.Setup(spec, 7, true);
             var core = new FlightCore(setup);
             MotorAsymmetry a = setup.Asymmetry;
-            Assert.That(core.Random.Opened, Is.EqualTo(new[] { "motor.kv", "esc.lag", "prop.unbalance" }), "still air draws nothing first");
-            Assert.That(core.Random.Draws.Count, Is.EqualTo(16));
+            Assert.That(core.Random.Opened, Is.EqualTo(new[] { "motor.kv", "esc.lag", "prop.unbalance", "motor.resistance", "motor.friction", "motor.inertia" }),
+                "still air draws nothing first");
+            Assert.That(core.Random.Draws.Count, Is.EqualTo(28));
             foreach (ParameterDraw d in core.Random.Draws)
             {
                 Assert.That(d.Value, Is.InRange(d.Lo, d.Hi), d.Parameter);
                 if (d.Stream == "motor.kv") Assert.That((d.Lo, d.Hi), Is.EqualTo((-a.KvBound, a.KvBound)));
                 if (d.Stream == "esc.lag") Assert.That((d.Lo, d.Hi), Is.EqualTo((-a.EscLagBound, a.EscLagBound)));
+                if (d.Stream == "motor.resistance") Assert.That((d.Lo, d.Hi), Is.EqualTo((-a.ResistanceBound, a.ResistanceBound)));
+                if (d.Stream == "motor.friction") Assert.That((d.Lo, d.Hi), Is.EqualTo((-a.FrictionBound, a.FrictionBound)));
+                if (d.Stream == "motor.inertia") Assert.That((d.Lo, d.Hi), Is.EqualTo((-a.InertiaBound, a.InertiaBound)));
             }
             Assert.That(a.PermissibleUnbalance, Is.EqualTo(1.0695e-7).Within(1e-10), "16 g at G 6.3 and 9000 rpm: 0.107 g·mm");
             for (int i = 0; i < 4; i++)

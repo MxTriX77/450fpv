@@ -73,16 +73,20 @@ namespace Fpv450.Sim.Tests
         // rotor drag (0.25) in still air, where the field and the stand-in both blow nothing, each golden over main's
         // 1656-byte layout (the record less p7c-wind's 152 bytes at 1296) is main's model 15 flight in still air, bit for bit
         // (pinned from main's code with the goldens' air set still, a temporary edit), and the tumble, which has no air,
-        // main's model 15 pin. Main's kept audits of models 6–14 fly the stand-in's Windy and Calm air, which is gone.
+        // main's model 15 pin. Main's kept audits of models 6–14 fly the stand-in's Windy and Calm air, which is gone. D-064
+        // (model 23): over the record's first 1808 bytes, without the rotor wakes and the motors' new spreads; the contact
+        // flight's re-ingested wash moved to published numbers and answers in the torque, so its audit against model 19 (and
+        // through it model 15's still-air pin, 0x557DEBE410FAEEA1) was a temporary edit (GoldenFlights' notes).
         [Test]
         public void InStillAirTheGoldenFlightsAreModel15s()
         {
             DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
-            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
+            const int end = GoldenFlights.Model19Size;
+            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still, wake: false, motors: false, end: end),
+                Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.Model15StillContactHash), "contact");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes, end), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
         }
 
         // The tumble's chain, kept over main's layout: on model 14's fit and on model 13's file it is their pins.
@@ -90,8 +94,9 @@ namespace Fpv450.Sim.Tests
         public void OverMainsLayoutTheTumbleIsModel13sAnd14s()
         {
             DroneSpec model14 = GoldenFlights.WithModel14Fit(DroneSpec.Parse(RepositoryDrone.Text()));
-            Assert.That(GoldenFlights.FlyTumble(model14, out _, out _, RotorWindBytesAt, WindBytes), Is.EqualTo(0x26CDDB5EDB155896UL), "model 14's");
-            Assert.That(GoldenFlights.FlyTumble(DroneSpec.Parse(Model13Drone.Text()), out _, out _, RotorWindBytesAt, WindBytes), Is.EqualTo(0xB371E06FF28075D8UL), "model 13's");
+            const int end = GoldenFlights.Model19Size;
+            Assert.That(GoldenFlights.FlyTumble(model14, out _, out _, RotorWindBytesAt, WindBytes, end), Is.EqualTo(0x26CDDB5EDB155896UL), "model 14's");
+            Assert.That(GoldenFlights.FlyTumble(DroneSpec.Parse(Model13Drone.Text()), out _, out _, RotorWindBytesAt, WindBytes, end), Is.EqualTo(0xB371E06FF28075D8UL), "model 13's");
         }
 
         // Model 3's 992 bytes, then 1.6's contacts, then 1.4b's filter block: each parent's layout is the record less the
@@ -101,6 +106,21 @@ namespace Fpv450.Sim.Tests
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes, RotorWindBytesAt = 1296, WindBytes = 152;
         const int RotorAngleAt = RotorWindBytesAt + WindBytes, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
         const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
+        const int WakeAt = ModeAt + ModeBytes, WakeBytes = 32;
+
+        // D-064's audit, kept: without the rotor wakes and the motors' resistance, friction and inertia spreads, over model
+        // 19's 1808 bytes, the powered, rain and tumble goldens are model 19's, every record and event (the powered and rain
+        // flights find no surface, so the re-ingested wash's new numbers never act there).
+        [Test]
+        public void WithoutD064TheGoldenFlightsAreModel19s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int end = GoldenFlights.Model19Size;
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wake: false, motors: false, end: end), Is.EqualTo(GoldenFlights.Model19PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, wake: false, motors: false, end: end),
+                Is.EqualTo(GoldenFlights.Model19RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, end: end), Is.EqualTo(GoldenFlights.Model19TumbleHash), "tumble");
+        }
 
         // p7b-airframe 1.3's check, kept without model 9's pin (it flew the stand-in's air): 193–300 m up the powered golden's
         // rays find no surface within their reach.
@@ -133,7 +153,10 @@ namespace Fpv450.Sim.Tests
                 "1.3's surfaces and wash follow the rings");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, ModeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "mode_shape0")),
                 "1.4's modes follow the surfaces");
-            Assert.That(LogFormat.StepSize - ModeAt, Is.EqualTo(ModeBytes), "to the record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, WakeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "wake_inflow.rear_right")),
+                "D-064's rotor wakes follow the modes");
+            Assert.That(LogFormat.StepSize - WakeAt, Is.EqualTo(WakeBytes), "to the record's end");
+            Assert.That(WakeAt, Is.EqualTo(GoldenFlights.Model19Size), "model 19's record is the first 1808 bytes");
         }
     }
 }
