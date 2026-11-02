@@ -110,6 +110,20 @@ namespace Fpv450.Sim.Tests
             Assert.That(fc.DutyOf(1), Is.EqualTo(1).Within(1e-12));
         }
 
+        // The builder's curve, thr_mid 100 and thr_expo 100 (fc-profiles §2, D-066): the same formula by hand,
+        // 1000 + tmp³/1000 µs on tmp = 10k − 100, and the 12th point's zero divide no fault (the F405's SDIV gives 0).
+        [Test]
+        public void TheBuildersThrottleCurveIsBetaflightsTable()
+        {
+            int[] table = { 1000, 1271, 1488, 1657, 1784, 1875, 1936, 1973, 1992, 1999, 2000 };
+            FcSettings s = FcSettings.Default;
+            s.thr_mid = 100; s.thr_expo = 100;
+            var fc = new FlightController(s, PropsIn);
+            for (int k = 0; k <= 10; k++)
+                Assert.That(fc.ThrottleCommandOf((50 + 95 * k) / 1000.0), Is.EqualTo(table[k]).Within(1e-9), "point " + k);
+            Assert.That(fc.ThrottleCommandOf(1), Is.EqualTo(2000));
+        }
+
         // D-023: the defaults are fc-profiles.md's sim default column and the builder's PIDs, read from the note.
         [Test]
         public void TheDefaultsAreTheProfilesNote()

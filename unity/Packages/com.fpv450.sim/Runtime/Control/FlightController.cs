@@ -638,7 +638,9 @@ namespace Fpv450.Sim.Control
             return stick < 0 ? -tmp : tmp;
         }
 
-        // rc.c initRcProcessing's lookupThrottleRC, in Betaflight's integer arithmetic (C's truncating division).
+        // rc.c initRcProcessing's lookupThrottleRC, in Betaflight's integer arithmetic (C's truncating division). At
+        // thr_mid 100 (a builder's curve) the 12th point divides by zero; the F405's Cortex-M4 SDIV gives 0 there (no
+        // divide-by-zero trap), and rcLookupThrottle reads that point only times 0, at full stick.
         static void BuildThrottleCurve(int mid, int expo, int[] table)
         {
             for (int i = 0; i < table.Length; i++)
@@ -647,7 +649,7 @@ namespace Fpv450.Sim.Control
                 int y = 1;
                 if (tmp > 0) y = 100 - mid;
                 if (tmp < 0) y = mid;
-                int v = 10 * mid + tmp * (100 - expo + expo * (tmp * tmp) / (y * y)) / 10;
+                int v = 10 * mid + tmp * (100 - expo + (y == 0 ? 0 : expo * (tmp * tmp) / (y * y))) / 10;
                 table[i] = 1000 + 1000 * v / 1000;
             }
         }
