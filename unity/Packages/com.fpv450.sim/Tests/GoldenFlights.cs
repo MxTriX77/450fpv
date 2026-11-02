@@ -237,9 +237,12 @@ namespace Fpv450.Sim.Tests
         public const ulong RainPoweredHash = 0x4D876EF3F328F9ADUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
-        /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
-        /// their air set still, a temporary edit), and its tumble's pin.</summary>
-        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15StillContactHash = 0x557DEBE410FAEEA1UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
+        /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
+        /// a temporary edit), and its tumble's pin. The contact flight's model 15 pin, 0x557DEBE410FAEEA1, holds with the stick
+        /// anchor at the contact point; with 1.6c's stick spring on the slip (p6-flight-core--landing's model 23, its kept
+        /// test there) it is 0x78A919AAD7858813: 5 impacts, no crash, at rest at the same 0.2518 m, 0.38 mm aside. Since model
+        /// 24 both need D-064's wash off, which has no switch, so both are temporary-edit audits (ContactHash's notes).</summary>
+        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
 
         /// <summary>The audits against model 19 (GoldenFlightTests.WithoutTheWakeEachGoldenIsModel19s, p7b-airframe 1.3d, and
         /// WithoutD064TheGoldenFlightsAreModel19s, D-064): model 19's 1808-byte record (the record less the interference's 64
@@ -356,6 +359,10 @@ namespace Fpv450.Sim.Tests
         // layout, model 15's 0x557DEBE410FAEEA1). It moves from step 10 against the first and step 9, the first armed step,
         // against the second, and keeps its course: 5 impacts, no crash, at rest at the same 0.2518 m on 8 pairs, 3.3 mm and
         // 25 mm from their resting places, within 0.16° and 1.5° (the held bounce); the largest interference 0.125 m/s.
+        // Model 22 on p6-flight-core--landing: 0x8C1E6B066F143A67. 1.6c's stick spring on the slip (ModelVersion 23, D-067):
+        // with the old anchor at the contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new,
+        // 0x5B8655B7F91E4D75: 5 impacts, no crash, at rest at the same 0.2518 m, 0.24 mm aside: on its skids nothing rolls,
+        // so the bits move only by the rule's arithmetic.
         public const ulong ContactHash = 0xA93D2534E875790FUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
@@ -401,7 +408,7 @@ namespace Fpv450.Sim.Tests
         // on the 1808-byte record (p7c-wind's 152 bytes at 1296) in the Calm field with p7c-wind 1.6's derived rotor drag
         // (0.044), on the same content. Audited against the range branch: with main's tuned drag (0.25), over the range
         // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
-        // (Model16StillRangeHash, the kept test), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
+        // (0xDC85BA160EB0415C, a kept test until model 22), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
         // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
         // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. At model 19 the Calm field
         // blew nothing here: SampleGround reports Hole over S04 and the field took a hole as sheltered (WindField.Begin), so the
@@ -411,7 +418,7 @@ namespace Fpv450.Sim.Tests
         // Model 20 (the wind over a hole, FlightWorld.SoilUnder): re-recorded on the same content and query version 4, where
         // the Calm field now blows over S04 from the straw mat's top: 5 impacts, no crash, at rest 21.19 mm into the straw on
         // 19 pairs. Audited: with the old rule (the hole's −∞ taken as sheltered, a temporary switch) it is model 19's pin bit
-        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (Model16StillRangeHash, the
+        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (0xDC85BA160EB0415C, the
         // kept test), and Calm and still air now differ. Read from the first soil shape alone (the mat's soil box, 0.125 m
         // under the plane's height, a known-wrong) it was 0xCE9BEF5615932EFB, 7 impacts, 0.233 m up on 21 pairs.
         // Model 20: 0x7A21A5FA04DD30E0. The merge with p7c-wind--d060 (ModelVersion 21: D-060's class-4 z0 and σ_u/U, the
@@ -435,6 +442,13 @@ namespace Fpv450.Sim.Tests
         // interference it is 0x64DBB622DE602158 (no parent flew D-064 on the range). It moves from step 10 against that flight
         // and from step 9 against model 22's, and keeps its course: within 1.0 mm and 0.10° of the first, 34 mm and 3.3° of
         // the second (step 8624, the held bounce over the straw).
+        // Model 22 on p6-flight-core--landing: 0x80C73DBA130C6903. 1.6c's stick spring on the slip (ModelVersion 23, D-067):
+        // with the old anchor at the contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new,
+        // 0x7BD729C0B5F2DFD4 on the same content: 5 impacts (4), no crash, at rest 21.24 mm into the straw on 19 pairs (19.09
+        // mm on 18), 1.0 mm aside: the straw's boxes are compliant, so its pairs press and slip more than the plane's. There
+        // the still-air audit against model 16 (main's drag over the range branch's 1656 bytes, a kept test on that branch)
+        // read 0xF19A1EDCA011C4D2 with the new spring: 5 impacts, no crash, at rest 19.11 mm into the straw on 18 pairs
+        // (19.17 mm), 2.7 mm aside; model 16's 0xDC85BA160EB0415C with the old anchor.
         public const ulong RangeHash = 0xAF27BC78A59ECD98UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;

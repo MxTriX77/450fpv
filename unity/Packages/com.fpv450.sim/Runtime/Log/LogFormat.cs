@@ -171,8 +171,15 @@ namespace Fpv450.Sim.Log
         ///    rotor.interference, renamed from wake.rotor) and D-064's micro-motion with the map's wind. A flight without the
         ///    interference steps as on the micro branch's 23 with 22's wind; one without D-064 (no own wake, the motors'
         ///    spreads at 0, model 19's recirculation) steps as in 22 with the interference; one without either as in 22.
+        /// 23 on p6-flight-core--landing (off 22): 1.6c (D-067): the friction's stick spring stretches with the touching
+        ///    material's slip (its point velocity on the contact's tangent plane over the step), not with the contact point's
+        ///    move, so a rounded part rolls where it rolled as slip before: the coil rocks about its contact instead of pivoting
+        ///    on its axis; a flight that touches nothing steps as in 22.
+        /// 25: p6-flight-core--landing's 23 merged onto 24 (the code is the parents' together): 1.6c's stick spring under the
+        ///    interference and D-064's micro-motion. A flight with the stick anchor at the contact point steps as in 24; one
+        ///    that touches nothing steps as in 24 too.
         /// </summary>
-        public const int ModelVersion = 24;
+        public const int ModelVersion = 25;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
