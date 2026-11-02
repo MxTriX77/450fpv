@@ -67,9 +67,11 @@ namespace Fpv450.Sim.Log
         /// 6–9 on p7c-wind's branch: 6 the wind field's header entry and the record's wind at the body's origin (where the
         /// stand-in's gust was) and at each hub (1.4), 7 the header's wake layout (1.5), 8 the header's rain and camera and
         /// the record's rain force, film and air at the camera (1.7), 9 the header's canopy strip and the presets by name
-        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's.
+        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's. 14: p7a-ground 1.1, the contacts
+        /// entry's material rows with their area law, slender member's modulus and wet block, and surfaces.json's table
+        /// and hash after its flag (the record layouts are 13's).
         /// </summary>
-        public const int Version = 13;
+        public const int Version = 14;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header

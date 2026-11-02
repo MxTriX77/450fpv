@@ -298,7 +298,11 @@ namespace Fpv450.Sim.Log
             if (h.Contacts != null)
                 w.WriteLine("  contacts: " + h.Contacts.Shapes.Length + " shapes, margin " + G(h.Contacts.Margin) + " m, legs " + G(h.Contacts.LegStiffness)
                     + " N/m and " + G(h.Contacts.LegDamping) + " N.s/m, a crash past " + G(h.Contacts.CrashAccel) + " m/s2 or a prop strike past "
-                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
+                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)"
+                    + (h.Contacts.Surfaces != null
+                        ? "; surfaces.json 0x" + h.Contacts.Surfaces.Hash.ToString("X16", c) + " (" + h.Contacts.Surfaces.Surfaces.Length + " surfaces, "
+                          + h.Contacts.Surfaces.Cover.Length + " cover kinds)"
+                        : ""));
             else
                 w.WriteLine("  contacts: none");
             if (h.Asymmetry != null)

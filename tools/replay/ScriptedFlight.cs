@@ -14,7 +14,8 @@ namespace Fpv450.Replay
 {
     // The scripted flight that exercises the log end to end (physics-log, "Replay matches the flight"): drone.json at
     // its nominal loadout with its Betaflight 4.5 controller and propulsion (1.4), its drag in a stand-in wind (1.5;
-    // Windy unless asked otherwise) and its contacts (1.6), from rest on the stub's floor. A pilot watching the published
+    // Windy unless asked otherwise) and its contacts (1.6; with surfaces.json's table, p7a-ground 1.1, which the header
+    // records and the replay checks), from rest on the stub's floor. A pilot watching the published
     // pose (SimPilot, as a pilot watches the feed) arms, climbs to 20 m, flies a circuit with a sharp reverse every 15 s,
     // comes back, lands on the slow glide path with the sticks held, cuts the throttle after the touch and disarms. It is
     // flown either through the scheduler on a virtual clock, with three 40 ms process stalls for the hitches, or in real
@@ -51,6 +52,9 @@ namespace Fpv450.Replay
         /// <summary>The repository's drone.json, found from the working directory upwards; null when there is none.</summary>
         public static string RepositoryDrone() => Repository(Path.Combine("assets-src", "drone", "drone.json"));
 
+        /// <summary>The repository's surfaces.json (p7a-ground 1.1), found the same way; null when there is none.</summary>
+        public static string RepositorySurfaces() => Repository(Path.Combine("assets-src", "surfaces.json"));
+
         static string Repository(string relative)
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
@@ -76,6 +80,25 @@ namespace Fpv450.Replay
             catch (IOException e)
             {
                 problem = "drone.json cannot be read: " + e.Message;
+            }
+            return 0;
+        }
+
+        /// <summary>SurfaceTable.Hash of the file, or 0 with problem set when it cannot be read or is not valid.</summary>
+        public static ulong SurfacesHash(string path, out string problem)
+        {
+            try
+            {
+                problem = null;
+                return SurfaceTable.Parse(File.ReadAllText(path)).Hash;
+            }
+            catch (FormatException e)
+            {
+                problem = e.Message;
+            }
+            catch (IOException e)
+            {
+                problem = "surfaces.json cannot be read: " + e.Message;
             }
             return 0;
         }
@@ -172,8 +195,10 @@ namespace Fpv450.Replay
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
                 ?? throw new FileNotFoundException("assets-src/physics_materials.json was not found");
             MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(materialsPath), out ulong materialsHash);
+            SurfaceTable surfaces = SurfaceTable.Parse(File.ReadAllText(RepositorySurfaces()
+                ?? throw new FileNotFoundException("assets-src/surfaces.json was not found")));
             Loadout loadout = spec.Nominal;
-            ContactSpec contacts = spec.BuildContacts(loadout, materials, materialsHash);
+            ContactSpec contacts = spec.BuildContacts(loadout, materials, materialsHash, surfaces);
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Role == ContactRole.Support) stand = Math.Max(stand, s.Radius - s.A.Y);

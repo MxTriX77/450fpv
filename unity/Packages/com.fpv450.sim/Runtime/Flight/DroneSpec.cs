@@ -357,11 +357,12 @@ namespace Fpv450.Sim.Flight
         }
 
         /// <summary>
-        /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse):
-        /// each shape follows its part through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved
-        /// part's shapes move with it, and the payload's scale with it. Null when the file has no contacts block.
+        /// The flight's contact model at a loadout, with physics_materials.json's rows and hash (PhysicsMaterials.Parse)
+        /// and surfaces.json's table (SurfaceTable.Parse; null for none, p7a-ground 1.1): each shape follows its part
+        /// through BuildMass, so a part at 0 kg (legs off, no payload) has no shapes, a moved part's shapes move with it,
+        /// and the payload's scale with it. Null when the file has no contacts block.
         /// </summary>
-        public Contact.ContactSpec BuildContacts(in Loadout loadout, Contact.MaterialRow[] materials, ulong materialsHash)
+        public Contact.ContactSpec BuildContacts(in Loadout loadout, Contact.MaterialRow[] materials, ulong materialsHash, Contact.SurfaceTable surfaces = null)
         {
             if (Contacts == null) return null;
             if (materials == null) throw new ArgumentNullException(nameof(materials));
@@ -388,6 +389,7 @@ namespace Fpv450.Sim.Flight
             c.LegDamping = Legs.Damping;
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
+            c.Surfaces = surfaces?.Clone();
             return c;
         }
 

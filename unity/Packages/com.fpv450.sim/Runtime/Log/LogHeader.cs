@@ -85,7 +85,8 @@ namespace Fpv450.Sim.Log
     ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
-    ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
+    ///   physics materials' rows with physics_materials.json's hash, and surfaces.json's table with its hash when the
+    ///   flight has one (p7a-ground 1.1; none for a flight without contacts)
     /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
     ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
@@ -133,10 +134,36 @@ namespace Fpv450.Sim.Log
         {
             "Margin", "CrashAccel", "CrashPropSpeed", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
+            "Surfaces",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
-        public static readonly string[] MaterialRowFieldsLogged = { "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio" };
+        public static readonly string[] MaterialRowFieldsLogged =
+        {
+            "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "AreaLaw", "AreaReferenceDepth", "ElasticModulus", "HasWet",
+            "WetStiffnessRatio", "WetStiffness", "WetStaticFriction", "WetKineticFriction", "WetAdhesion", "WetAdhesionRelease",
+        };
+
+        /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
+        public static readonly string[] SurfaceTableFieldsLogged = { "ReferenceWidth", "FirmLayer", "Wetting", "Surfaces", "Cover", "Hash" };
+        public static readonly string[] SurfaceRowFieldsLogged = { "Name", "Dry", "Wet", "Saturated" };
+        public static readonly string[] SoilSetFieldsLogged =
+        {
+            "Rigid", "Bearing", "CohesiveShare", "CohesiveModulus", "FrictionalModulus", "UnloadRatio", "MaxSink", "Damping", "StaticFriction",
+            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius",
+        };
+        public static readonly string[] CoverRowFieldsLogged = { "Kind", "Dry", "Wet" };
+        public static readonly string[] CoverSetFieldsLogged =
+        {
+            "ModulusMin", "ModulusMax", "WallShare", "Density", "DryMassPerArea", "DryMatterContent", "MassPerArea", "PetioleDiameter",
+            "HookReleaseMin", "HookReleaseMax", "CutEnergy", "RollFriction", "DampingRatio",
+        };
+        public static readonly string[] WettingFieldsLogged =
+        {
+            "BearingWet", "BearingSaturated", "UnloadRatioWet", "UnloadRatioSaturated", "MaxSinkWet", "MaxSinkSaturated", "FrictionWet",
+            "FrictionSaturated", "AdhesionWet", "AdhesionSaturated", "InterfaceAdhesionWet", "InterfaceAdhesionSaturated", "AdhesionReleaseWet",
+            "AdhesionReleaseSaturated", "CoverHookReleaseWet", "StrawModulusWet", "StrawCutEnergyWet", "StrawDensityWet", "LeafWaterFilm",
+        };
         public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
         public static readonly string[] ShapeGeometryFieldsLogged =
             { "Kind", "Center", "AxisX", "AxisY", "AxisZ", "HalfExtents", "Radius", "HalfLength", "Material", "Surface", "SpanA", "SpanB", "Sag" };
@@ -681,8 +708,18 @@ namespace Fpv450.Sim.Log
                     e.Write(m.KineticFriction);
                     e.Write(m.Stiffness);
                     e.Write(m.DampingRatio);
+                    // p7a-ground 1.1 (format 14): the area law, the slender member's modulus and the wet block.
+                    e.Write((byte)m.AreaLaw);
+                    e.Write(m.AreaReferenceDepth);
+                    e.Write(m.ElasticModulus);
+                    e.Write(m.HasWet);
+                    foreach (double v in new[] { m.WetStiffnessRatio, m.WetStiffness, m.WetStaticFriction, m.WetKineticFriction, m.WetAdhesion, m.WetAdhesionRelease })
+                        e.Write(v);
                 }
                 e.Write(c.MaterialsHash);
+                // surfaces.json's table and hash after its flag (format 14).
+                e.Write(c.Surfaces != null);
+                if (c.Surfaces != null) WriteSurfaces(e, c.Surfaces);
             });
             Entry(w, TagRain, e =>
             {
@@ -1193,10 +1230,108 @@ namespace Fpv450.Sim.Log
                 c.Materials[i] = new MaterialRow
                 {
                     Name = Text(r), StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Stiffness = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                    AreaLaw = (AreaLaw)r.ReadByte(), AreaReferenceDepth = r.ReadDouble(), ElasticModulus = r.ReadDouble(), HasWet = r.ReadBoolean(),
+                    WetStiffnessRatio = r.ReadDouble(), WetStiffness = r.ReadDouble(), WetStaticFriction = r.ReadDouble(), WetKineticFriction = r.ReadDouble(),
+                    WetAdhesion = r.ReadDouble(), WetAdhesionRelease = r.ReadDouble(),
                 };
             c.MaterialsHash = r.ReadUInt64();
+            if (r.ReadBoolean()) c.Surfaces = ReadSurfaces(r);
             return c;
         }
+
+        // ---- surfaces.json's table (p7a-ground 1.1, format 14) ----
+
+        static void WriteSurfaces(BinaryWriter e, SurfaceTable t)
+        {
+            e.Write(t.ReferenceWidth);
+            e.Write(t.FirmLayer);
+            Wetting w = t.Wetting;
+            foreach (double v in new[]
+                     {
+                         w.BearingWet, w.BearingSaturated, w.UnloadRatioWet, w.UnloadRatioSaturated, w.MaxSinkWet, w.MaxSinkSaturated, w.FrictionWet,
+                         w.FrictionSaturated, w.AdhesionWet, w.AdhesionSaturated, w.InterfaceAdhesionWet, w.InterfaceAdhesionSaturated, w.AdhesionReleaseWet,
+                         w.AdhesionReleaseSaturated, w.CoverHookReleaseWet, w.StrawModulusWet, w.StrawCutEnergyWet, w.StrawDensityWet, w.LeafWaterFilm,
+                     })
+                e.Write(v);
+            e.Write((byte)t.Surfaces.Length);
+            foreach (SurfaceRow s in t.Surfaces)
+            {
+                Text(e, s.Name);
+                WriteSoil(e, s.Dry);
+                WriteSoil(e, s.Wet);
+                WriteSoil(e, s.Saturated);
+            }
+            e.Write((byte)t.Cover.Length);
+            foreach (CoverRow k in t.Cover)
+            {
+                e.Write((byte)k.Kind);
+                WriteCover(e, k.Dry);
+                WriteCover(e, k.Wet);
+            }
+            e.Write(t.Hash);
+        }
+
+        static void WriteSoil(BinaryWriter e, in SoilSet s)
+        {
+            e.Write(s.Rigid);
+            foreach (double v in new[]
+                     {
+                         s.Bearing, s.CohesiveShare, s.CohesiveModulus, s.FrictionalModulus, s.UnloadRatio, s.MaxSink, s.Damping, s.StaticFriction,
+                         s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius,
+                     })
+                e.Write(v);
+        }
+
+        static void WriteCover(BinaryWriter e, in CoverSet c)
+        {
+            foreach (double v in new[]
+                     {
+                         c.ModulusMin, c.ModulusMax, c.WallShare, c.Density, c.DryMassPerArea, c.DryMatterContent, c.MassPerArea, c.PetioleDiameter,
+                         c.HookReleaseMin, c.HookReleaseMax, c.CutEnergy, c.RollFriction, c.DampingRatio,
+                     })
+                e.Write(v);
+        }
+
+        static SurfaceTable ReadSurfaces(BinaryReader r)
+        {
+            var t = new SurfaceTable
+            {
+                ReferenceWidth = r.ReadDouble(), FirmLayer = r.ReadDouble(),
+                Wetting = new Wetting
+                {
+                    BearingWet = r.ReadDouble(), BearingSaturated = r.ReadDouble(), UnloadRatioWet = r.ReadDouble(), UnloadRatioSaturated = r.ReadDouble(),
+                    MaxSinkWet = r.ReadDouble(), MaxSinkSaturated = r.ReadDouble(), FrictionWet = r.ReadDouble(), FrictionSaturated = r.ReadDouble(),
+                    AdhesionWet = r.ReadDouble(), AdhesionSaturated = r.ReadDouble(), InterfaceAdhesionWet = r.ReadDouble(),
+                    InterfaceAdhesionSaturated = r.ReadDouble(), AdhesionReleaseWet = r.ReadDouble(), AdhesionReleaseSaturated = r.ReadDouble(),
+                    CoverHookReleaseWet = r.ReadDouble(), StrawModulusWet = r.ReadDouble(), StrawCutEnergyWet = r.ReadDouble(),
+                    StrawDensityWet = r.ReadDouble(), LeafWaterFilm = r.ReadDouble(),
+                },
+            };
+            t.Surfaces = new SurfaceRow[r.ReadByte()];
+            for (int i = 0; i < t.Surfaces.Length; i++)
+                t.Surfaces[i] = new SurfaceRow { Name = Text(r), Dry = ReadSoil(r), Wet = ReadSoil(r), Saturated = ReadSoil(r) };
+            t.Cover = new CoverRow[r.ReadByte()];
+            for (int i = 0; i < t.Cover.Length; i++)
+                t.Cover[i] = new CoverRow { Kind = (CoverKind)r.ReadByte(), Dry = ReadCover(r), Wet = ReadCover(r) };
+            t.Hash = r.ReadUInt64();
+            return t;
+        }
+
+        static SoilSet ReadSoil(BinaryReader r) => new SoilSet
+        {
+            Rigid = r.ReadBoolean(), Bearing = r.ReadDouble(), CohesiveShare = r.ReadDouble(), CohesiveModulus = r.ReadDouble(),
+            FrictionalModulus = r.ReadDouble(), UnloadRatio = r.ReadDouble(), MaxSink = r.ReadDouble(), Damping = r.ReadDouble(),
+            StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Adhesion = r.ReadDouble(), InterfaceAdhesion = r.ReadDouble(),
+            AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(),
+        };
+
+        static CoverSet ReadCover(BinaryReader r) => new CoverSet
+        {
+            ModulusMin = r.ReadDouble(), ModulusMax = r.ReadDouble(), WallShare = r.ReadDouble(), Density = r.ReadDouble(),
+            DryMassPerArea = r.ReadDouble(), DryMatterContent = r.ReadDouble(), MassPerArea = r.ReadDouble(), PetioleDiameter = r.ReadDouble(),
+            HookReleaseMin = r.ReadDouble(), HookReleaseMax = r.ReadDouble(), CutEnergy = r.ReadDouble(), RollFriction = r.ReadDouble(),
+            DampingRatio = r.ReadDouble(),
+        };
 
         static PropulsionSpec ReadPropulsion(BinaryReader r)
         {

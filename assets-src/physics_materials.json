@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "owner": "physics-engineer",
-  "about": "The closed list of physics material ids (AST-05, setup-asset-pipeline design decision 6, physics review R3). Every collision shape's 'material' and every material slot's 'physics' must be an id of 'materials', or 'surface:<id>' naming one of the thirteen ground surfaces (S01-S13, knowledge §7.2) for a shape that stands in for ground; lib/meta.validate refuses anything else. New ids are added here with physics sign-off, never in a generator: the phase-1 sign-off is openspec/changes/archive/2026-10-18-p1-pipeline-hardening/review-materials.md. A plain id never shares a surface's name. The values are the physics engineer's to tune in phases 3 and 6.",
+  "about": "The closed list of physics material ids (AST-05, setup-asset-pipeline design decision 6, physics review R3). Every collision shape's 'material' and every material slot's 'physics' must be an id of 'materials', or 'surface:<id>' naming one of the thirteen ground surfaces (S01-S13, knowledge §7.2; their mechanics are physics' assets-src/surfaces.json) for a shape that stands in for ground; lib/meta.validate refuses anything else. New ids are added here with physics sign-off, never in a generator: the phase-1 sign-off is openspec/changes/archive/2026-10-18-p1-pipeline-hardening/review-materials.md. A plain id never shares a surface's name. The values are the physics engineer's to tune in phases 3 and 6.",
   "fields": {
     "friction_static": "mu_s of the drone's polymer parts on the dry material",
     "friction_kinetic": "mu_k, same pairing",
@@ -10,7 +10,12 @@
     "edge_radius_m": "the radius the fiber bends over at a box's arris; a capsule, cylinder or sphere always uses its own radius, and a snag's radius_m overrides both; null means the material never carries an arris (it is only used on round shapes)",
     "break_stress_pa": "optional: the bending rupture stress of a member on a capsule or cylinder; the contact law derives the break moment from the shape's own radius, M_b = break_stress_pa * pi * r^3 / 4, past which the shape stops resisting for the rest of the flight and a 'break' event is logged, and a hook snag of the material lets go at the same moment; absent means the member never breaks",
     "label": "where the numbers stand: pilot, measured, published, derived or assumed",
-    "rationale": "the source or the calculation, as recorded in the physics review"
+    "rationale": "the source or the calculation, as recorded in the physics review",
+    "labelled value": "p7a-ground's fields below are each labelled on their own, as drone.json's numbers and surfaces.json's are: {\"value\": <number or word>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source, reason or formula>\"}; a value labelled derived meets its formula or the loader refuses the file",
+    "area_law": "required on a row whose stiffness comes from a layer under a spread load (straw, fabric, sandbag): how the contact law scales stiffness_n_per_m from the 15 mm reference foot to a part's footprint (p7a-ground design 6): 'mat', a loose layer spreading the load 2:1 through its depth D, k = E_m·A_s/D with A_s the spread area at D and E_m = stiffness_n_per_m·area_reference_depth_m/A_s(reference foot); 'punch', an elastic flat punch, k in proportion to the footprint's equivalent diameter sqrt(4A/pi) (Sneddon 1965); 'winkler', a loose fill, k in proportion to the footprint's area",
+    "area_reference_depth_m": "with area_law: the layer's depth at which stiffness_n_per_m was derived for the reference foot; the mat law scales by it, and for the punch and winkler laws it names the layer the row was read for",
+    "elastic_modulus_pa": "required on bark and deadwood: the Young's modulus a slender member bends at as a cantilever from its root, k(x) = 3EI/x^3, I = pi·r^4/4, with x its chain length to the contact (p7a-ground design 6)",
+    "wet": "optional: what rain changes (Rain and Severe rain alike: a layer drains, so it is wet, never saturated): on a compliant row stiffness_ratio and the derived stiffness_n_per_m = the dry stiffness_n_per_m × stiffness_ratio; and friction_static, friction_kinetic, the clinging pull adhesion_pa (Pa, per wetted footprint) and its release separation adhesion_release_m (m), each labelled"
   },
   "materials": {
     "steel": {
@@ -77,6 +82,7 @@
       "friction_static": 0.55,
       "friction_kinetic": 0.45,
       "edge_radius_m": null,
+      "elastic_modulus_pa": {"value": 1.28e10, "label": "published", "note": "black locust (V01's tree), green: the modulus of elasticity in static bending, 12.8 GPa (Forest Products Laboratory 2021, Wood Handbook FPL-GTR-282, Table 5-3a); clear wood, so a limb with its bark, pith and juvenile wood reads somewhat stiff, and a shrub's limbs (V13) take the same value until their species' is pinned"},
       "label": "assumed",
       "rationale": "live trunks and limbs: furrowed or plated bark interlocks with a printed foot's layer ridges, so above sawn timber (0.45/0.35); the published 0.2–0.5 of polymers on wood is for planed faces, and bark is not planed; rigid per part locally: a 15 mm foot on bark and sapwood across the grain (E ≈ 0.5 GPa, assumed) is a punch of ≈ 9e6 N/m (derived), so a foot's 11.8 N share sinks under 0.01 mm; a slender member still bends as a cantilever from its root (a 30 mm limb at 1 m: 3EI/L³ ≈ 1.2e3 N/m at E 10 GPa), which the phase-7 contact law derives from the capsule chain, not this row (p1-v13-shrub review-physics N3); trunks and limbs are capsules, so the fiber bends over the member's own radius, never an arris"
     },
@@ -94,6 +100,7 @@
       "friction_kinetic": 0.35,
       "edge_radius_m": null,
       "break_stress_pa": 4.0e7,
+      "elastic_modulus_pa": {"value": 7.0e9, "label": "assumed", "note": "dry hardwood's published 10–15 GPa at 12 % moisture (the Wood Handbook, Table 5-3a) derated by about a third for checking and decay, which take strength before stiffness: break_stress_pa is derated by about half, 40 MPa against the published 60–110 MPa"},
       "label": "assumed",
       "rationale": "dead trees, broken tops, fallen branches, brush, logs, wattle rods: friction as weathered timber; rigid until it snaps at M_b = σ_b·π·r³/4 from the member's own radius (a 10 mm dead twig: 3.9 N·m, 8 N at a 0.5 m tip, so one foot's 11.8 N share snaps it), σ_b 40 MPa assumed under the published 60–110 MPa rupture of dry hardwood for checking and decay; locally rigid per part as bark, and a slender member bends before it snaps as bark's do (p1-v13-shrub review-physics N3); members are capsules, so the fiber bends over their own radius"
     },
@@ -110,6 +117,16 @@
       "stiffness_n_per_m": 490.0,
       "damping_ratio": 0.3,
       "edge_radius_m": 0.02,
+      "area_law": {"value": "mat", "label": "assumed", "note": "loose straw spreads a part's load 2:1 through its depth (K§7.1 step 4, carried): k = E_m·A_s/D, so E_m = 490 N/m × 0.125 m / π(0.07 m)² = 3.98 kPa (derived) for the reference foot's spread disc, against the K§7.2 mat's 4 kPa; a half-skid lying along the face spreads over (0.22 + D)(0.01 + D) and meets 3.03 × the foot's stiffness on S04's mat (derived)"},
+      "area_reference_depth_m": {"value": 0.125, "label": "derived", "note": "S04's mat depth (assets-src/surfaces/S04_patch.json's mat_depth_m), the depth the 490 N/m was derived at"},
+      "wet": {
+        "stiffness_ratio": {"value": 0.6, "label": "assumed", "note": "wet straw softens (the published direction: its modulus falls as it takes up water, Tavakoli et al. 2009) and a wet mat packs down; 0.6 (p7a-ground design 1)"},
+        "stiffness_n_per_m": {"value": 294.0, "label": "derived", "note": "stiffness_n_per_m × wet.stiffness_ratio: a foot's 11.8 N share sinks 40 mm"},
+        "friction_static": {"value": 0.55, "label": "assumed", "note": "wet straw grips a part harder: straw's friction on sheet metal and plywood rises with its moisture (Tavakoli et al. 2009, the published direction)"},
+        "friction_kinetic": {"value": 0.45, "label": "assumed", "note": "as friction_static, 0.1 under it as dry"},
+        "adhesion_pa": {"value": 300.0, "label": "assumed", "note": "wet straw clings: a tenth of wet soil's 3 kPa (surfaces.json's wetting.adhesion_wet_pa), since its stems touch a part along lines, not over a film (p7a-ground design 1)"},
+        "adhesion_release_m": {"value": 0.003, "label": "assumed", "note": "a clinging straw lets go once the part has lifted about a straw's diameter"}
+      },
       "label": "derived",
       "rationale": "thatch, hay, a stack, straw carried by a mesh or a roof: the belt_straw mat (modulus 4 kPa, surfaces.json) 0.125 m deep (S04's mat, re-measured unchanged) under the 15 mm reference foot, km = modulus·π(b/2 + D/2)²/D ≈ 490 N/m, per part as the ground mat's own law reads it: a foot's 11.8 N share (a quarter of 4.8 kg) sinks 24 mm and the 25 N reference foot 51 mm, under the 80 % cap of 0.1 m; μ and ζ carried from that mat; the fiber sinks into a straw edge, so the bend radius is the soil-lip figure 0.02 m (assumed); bundle ends are hook snags the generator writes. Straw lying on terrain is the surface's mat (surface:belt_straw's cover), never this id; a straw layer over a shape, a surface shape standing in for ground included, is this id (p1-s04-belt-straw review-physics §3)."
     },
@@ -119,6 +136,8 @@
       "stiffness_n_per_m": 160.0,
       "damping_ratio": 0.8,
       "edge_radius_m": 0.005,
+      "area_law": {"value": "punch", "label": "assumed", "note": "a mattress or cushion answers a part as an elastic flat punch, whose stiffness grows with the punch's equivalent diameter (Sneddon 1965, published form), as the row's check against comfort foam reads it; a half-skid's 0.01 × 0.22 m footprint meets sqrt(2.2e-3/1.77e-4) = 3.5 × the reference foot's 160 N/m (derived)"},
+      "area_reference_depth_m": {"value": 0.15, "label": "assumed", "note": "the mattress or seat cushion the row was read for (the sheets' 0.1–0.2 m); the punch law has no depth, so it names the layer only"},
       "label": "assumed",
       "rationale": "tarps, curtains, mattresses, sofas, seats, a canvas tilt, greenhouse film: a polymer foot on woven PE or canvas, above the published 0.2–0.4 of plastic on plastic for the weave; per part: the sheets' 50–100 mm sink of a mattress or seat is each foot's under its quarter of 4.8 kg (11.8 N), 118–235 N/m, so 160 N/m: a foot sinks 74 mm (55–100 mm over the 3.6–6.5 kg loadouts) and four feet meet 640 N/m (the 600 N/m read for the whole drone sank them 20 mm); checked as a flat punch into comfort foam of E ≈ 10 kPa (E·b/(1−ν²) ≈ 165 N/m; the published 25 % ILD grades of 10–30 lbf give 5–17 kPa) and as a slack tarp at T ≈ 100 N/m (assumed) over a 1 m span, 2πT/ln(a/r) ≈ 150 N/m under the foot; ζ for a damped cushion that does not bounce; the edge is a hem or a fold"
     },
@@ -162,6 +181,8 @@
       "stiffness_n_per_m": 900.0,
       "damping_ratio": 0.9,
       "edge_radius_m": 0.05,
+      "area_law": {"value": "winkler", "label": "assumed", "note": "the fill is a loose soil (the row's tamped 5e6 N/m³), Winkler's foundation, so the stiffness grows with the footprint's area: a half-skid's 2.2e-3 m² meets 2.2e-3/1.77e-4 = 12.4 × the reference foot's (derived)"},
+      "area_reference_depth_m": {"value": 0.12, "label": "derived", "note": "F04's filled bag, 0.12 m (the row's shoulder of a 0.12 m bag); the winkler law has no depth, so it names the layer only"},
       "label": "derived",
       "rationale": "filled sandbags (F04): μ as fabric (a polymer foot on woven polypropylene or hessian, assumed); a 15 mm foot at 67 kPa punches into loose fill (surface bearing capacity 2–4 kPa), so the fill acts as a loose-soil row: tamped fill at 5e6 N/m³ (assumed, between tilled and meadow_sod) under the 15 mm reference foot, k = bearing·A = 884 N/m, so a leg sinks 13 mm static and 28 mm at 25 N; ζ from those rows' damping at a quarter of 4.8 kg, 0.94; the edge is the rounded shoulder of a 0.12 m bag (derived), so a line over a wall top never cuts; elastic, so no footprint stays (a deviation from the soil law, accepted); no wet adhesion on polypropylene (review-physics.md of p1-fortifications-sheet)"
     },
