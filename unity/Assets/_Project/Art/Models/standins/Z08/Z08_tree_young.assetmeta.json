@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "Z08",
+  "variant": "Z08_tree_young",
+  "generator": "godot_port",
+  "params_sha256": "cd0a96a55e4dbd1fe328271c952a53c9f8b61e9d9acfe2d80c76285d4cd5da54",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -2.402,
+      -0.008,
+      -2.9069
+    ],
+    "max": [
+      2.3772,
+      6.6203,
+      2.9624
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z08_tree_young_LOD0",
+      "tris": 2178,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z08_tree_young_LOD1",
+      "tris": 734,
+      "switch_distance_m": 22.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z08_tree_young_LOD2",
+      "tris": 270,
+      "switch_distance_m": 60.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 600.0,
+  "materials": [
+    {
+      "slot": "bark_belt",
+      "visual": "bark_locust",
+      "physics": "timber"
+    },
+    {
+      "slot": "foliage_belt",
+      "visual": "godot_foliage_belt",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.7,
+        0.0
+      ],
+      "radius": 0.06,
+      "height": 1.4,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        3.4,
+        0.0
+      ],
+      "radius": 1.5,
+      "height": 4.0,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.62
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/vegetation/tree_young.glb",
+      "model_sha256": "85a4b500f1444b82ba2f2df637879c67b1594b71b7a5e993c37a3afca4eaaa44",
+      "catalog_key": "tree_young"
+    },
+    "snag_hazard": true
+  }
+}

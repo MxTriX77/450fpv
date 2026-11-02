@@ -1,0 +1,32 @@
+{
+  "material": "godot_soil_cut",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "soil_cut": "#5a4c3a"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.05
+  },
+  "inputs_sha256": "40b8548d83048902dd6bf41cfa5e7544dc8b3d110654a6eb380bcd146846476c",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "soil_cut"
+  ]
+}

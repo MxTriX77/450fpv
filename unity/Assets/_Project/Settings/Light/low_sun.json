@@ -1,0 +1,9 @@
+{
+  "name": "low_sun",
+  "label": "LOW SUN",
+  "letters": "G, B",
+  "hour": 17.5,
+  "cloud_cover": 0.1,
+  "fog_extinction_per_km": 0.25,
+  "fog_scale_height_m": 1200.0
+}

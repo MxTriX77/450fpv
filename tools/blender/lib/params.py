@@ -3,7 +3,8 @@ key -> {"type", "range", "default", "effect"}, nested keys dotted ("size_m.lengt
 generator tables mirror. build.py refuses a params file that strays from it before anything is built or exported:
 an unknown key, a missing key, a wrong type or a number outside its range, each named with its range."""
 
-TYPES = {"int": (int,), "float": (int, float), "str": (str,), "bool": (bool,)}
+TYPES = {"int": (int,), "float": (int, float), "str": (str,), "bool": (bool,), "list": (list,)}  # a list
+# is a leaf value (the stand-ins' switch distances and hole records, p6-test-range); its generator's check reads it
 
 
 def validate(generator, params):

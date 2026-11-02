@@ -286,6 +286,9 @@ namespace Fpv450.Sim.Log
                 + " m, inertia xx " + G(i.XX) + " yy " + G(i.YY) + " zz " + G(i.ZZ) + " xy " + G(i.XY) + " xz " + G(i.XZ) + " yz " + G(i.YZ) + " kg.m2");
             w.WriteLine("  settings: " + h.Settings.Length + " FcSettings fields by CLI name");
             w.WriteLine("  wind: " + WindLine(h));
+            w.WriteLine("  rain: " + h.Rain.ToString().ToLowerInvariant() + (h.RainParameters.Length > 0 ? " (" + h.RainParameters.Length + " preset values)" : "")
+                + "; camera lens at " + h.CameraPosition.X.ToString("R", CultureInfo.InvariantCulture) + ", "
+                + h.CameraPosition.Y.ToString("R", CultureInfo.InvariantCulture) + ", " + h.CameraPosition.Z.ToString("R", CultureInfo.InvariantCulture) + " m");
             if (h.Aero != null)
                 w.WriteLine("  aero: air " + G(h.Aero.AirDensity) + " kg/m3, body silhouette side/top/front " + V(h.Aero.BodyArea, "0.0000")
                     + " m2 at " + V(h.Aero.BodyCenterOfPressure, "0.000") + " m, C_d " + G(h.Aero.DragCoefficient) + ", coil "
@@ -370,7 +373,8 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  packs " + G(t.PackVolts0) + " / " + G(t.PackVolts1) + " V, " + G(t.PackAmps0) + " / " + G(t.PackAmps1) + " A, charge "
                     + G(s.PackCharge0) + " / " + G(s.PackCharge1));
                 w.WriteLine("  net force " + V(t.NetForce, "0.000") + " N, net moment " + V(t.NetMoment, "0.0000") + " N.m; the air's "
-                    + V(t.AeroForce, "0.000") + " N, " + V(t.AeroMoment, "0.0000") + " N.m; gust " + V(s.Gust, "0.000") + " m/s"
+                    + V(t.AeroForce, "0.000") + " N, " + V(t.AeroMoment, "0.0000") + " N.m; wind " + V(t.Wind, "0.000") + " m/s, at the hubs " + V(t.RotorWind[0], "0.000") + ", "
+                    + V(t.RotorWind[1], "0.000") + ", " + V(t.RotorWind[2], "0.000") + ", " + V(t.RotorWind[3], "0.000") + " m/s"
                     + (s.EscLimited != 0 ? "; ESCs at their current limit: " + Limited(s.EscLimited) : ""));
                 w.WriteLine("  contacts: " + t.ContactsTouching + " touching, force " + V(t.ContactForce, "0.000") + " N, moment " + V(t.ContactMoment, "0.0000")
                     + " N.m; legs " + C4(t.LegLoad) + " N, compressed " + C4(t.LegCompression) + " m" + (s.Crashed ? "; CRASHED" : ""));
@@ -488,17 +492,33 @@ namespace Fpv450.Sim.Log
             return what;
         }
 
-        // The wind in words: its model, level and draws (PHB-06: a stand-in, labelled as such).
+        // The wind in words: its model, level, start second and draws.
         static string WindLine(LogHeader h)
         {
             string text = h.WindModel + ", " + h.Wind.Level.ToString().ToLowerInvariant();
             if (h.Wind.Level == WindLevel.Steady)
+            {
                 text += " " + G(h.Wind.SteadySpeed) + " m/s from " + G(h.Wind.SteadyFromDeg) + " deg";
+                if (h.Wind.SteadyOnsetSeconds != 0) text += ", stepping in at " + G(h.Wind.SteadyOnsetSeconds) + " s";
+            }
+            if (h.Wind.StartSecond != 0) text += ", from second " + h.Wind.StartSecond + " of its history";
             foreach (ParameterDraw d in h.Draws)
                 if (d.Stream == "wind.direction") text += "; from " + G(d.Value) + " deg";
                 else if (d.Stream == "wind.strength") text += ", mean " + G(d.Value) + " m/s in [" + G(d.Lo) + ", " + G(d.Hi) + "]";
             foreach (NamedValue v in h.WindParameters) text += ", " + v.Name + " " + G(v.Value);
-            if (h.WindModel == WindPreset.Model) text += " (p7c-wind replaces it)";
+            WakeLayout b = h.Wind.Wakes;
+            if (b != null)
+                text += "; wakes (p7c-wind 1.5, wake grid version " + WakeGrid.Version + "): " + b.Volumes.Length + " wind volumes on "
+                    + b.NX + " × " + b.NZ + " cells of 2 m from " + G(b.OriginX) + ", " + G(b.OriginZ) + " m";
+            GustFront f = h.Wind.Front;
+            if (f != null)
+                text += "; a gust front (p7c-wind 1.4's scenario" + (f.Uniform ? ", the known-wrong uniform field" : "") + "): from " + G(f.Start.X) + ", "
+                    + G(f.Start.Z) + " m along " + G(f.Normal.X) + ", " + G(f.Normal.Z) + " at " + G(f.Speed) + " m/s, " + V(f.Delta, "0.000")
+                    + " m/s behind it over " + G(f.Width) + " m";
+            CanopyStrip c = h.Wind.Canopy;
+            if (c != null)
+                text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
+                    + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
             return text;
         }
 

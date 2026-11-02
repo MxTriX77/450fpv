@@ -1,0 +1,32 @@
+{
+  "material": "godot_timber_shed",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "timber_rough": "#73623d"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.1
+  },
+  "inputs_sha256": "2b51111f3ea0567b5a071ac2664c9d2664ee3267db93fdcc603e1e1747597120",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "timber_rough"
+  ]
+}

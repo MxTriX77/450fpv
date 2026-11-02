@@ -1,0 +1,10 @@
+{
+  "source": {
+    "commit": "83401382e8b733389982997180cc181b063f61ae",
+    "model": "game/assets/models/vegetation/tree_young.glb",
+    "model_sha256": "85a4b500f1444b82ba2f2df637879c67b1594b71b7a5e993c37a3afca4eaaa44",
+    "catalog_key": "tree_young"
+  },
+  "lod": { "switch_m": [0.0, 22.0, 60.0], "cull_m": 600.0 },
+  "holes": []
+}

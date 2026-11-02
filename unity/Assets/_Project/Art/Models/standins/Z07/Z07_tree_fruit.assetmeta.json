@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "id": "Z07",
+  "variant": "Z07_tree_fruit",
+  "generator": "godot_port",
+  "params_sha256": "7ebc2d46b442f0b86aea233d206d853aae384949fb03f1d5b1ac510feb808788",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -3.9952,
+      -0.0127,
+      -4.4333
+    ],
+    "max": [
+      4.8075,
+      6.8034,
+      4.2157
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z07_tree_fruit_LOD0",
+      "tris": 2252,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z07_tree_fruit_LOD1",
+      "tris": 802,
+      "switch_distance_m": 26.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z07_tree_fruit_LOD2",
+      "tris": 290,
+      "switch_distance_m": 70.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 600.0,
+  "materials": [
+    {
+      "slot": "bark_dark",
+      "visual": "bark_locust",
+      "physics": "timber"
+    },
+    {
+      "slot": "foliage_belt",
+      "visual": "godot_foliage_belt",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.75,
+        0.0
+      ],
+      "radius": 0.16,
+      "height": 1.5,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.3136,
+        2.3561,
+        -1.2124
+      ],
+      "radius": 0.0905,
+      "height": 3.3209,
+      "rotation": [
+        -0.517952,
+        -0.061941,
+        -0.037641,
+        0.852333
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        1.2922,
+        3.2871,
+        0.5428
+      ],
+      "radius": 0.079,
+      "height": 4.0118,
+      "rotation": [
+        -0.194543,
+        -0.761402,
+        -0.265133,
+        0.558681
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        0.4665,
+        3.0228,
+        1.6262
+      ],
+      "radius": 0.0676,
+      "height": 3.7995,
+      "rotation": [
+        -0.044981,
+        -0.88965,
+        -0.445455,
+        0.089834
+      ],
+      "material": "timber",
+      "landable": false
+    },
+    {
+      "shape": "capsule",
+      "center": [
+        -0.2426,
+        3.5873,
+        0.1895
+      ],
+      "radius": 0.0562,
+      "height": 3.2806,
+      "rotation": [
+        -0.102074,
+        0.703317,
+        0.103161,
+        0.695905
+      ],
+      "material": "timber",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        3.75,
+        0.0
+      ],
+      "radius": 3.2,
+      "height": 4.5,
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.62
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/vegetation/tree_fruit.glb",
+      "model_sha256": "3bea459f6705875d85f3292af2f2f6d4a1d37561d9159f7db385c3ae38a50213",
+      "catalog_key": "tree_fruit"
+    },
+    "snag_hazard": true
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "source": {
+    "commit": "83401382e8b733389982997180cc181b063f61ae",
+    "model": "game/assets/models/vegetation/shrub_belt.glb",
+    "model_sha256": "6ddc02133a8081404e8d4987ba9e2b8e97644a6901a579729827ee9528180d65",
+    "catalog_key": "shrub_belt"
+  },
+  "lod": { "switch_m": [0.0, 15.0, 40.0], "cull_m": 600.0 },
+  "holes": []
+}

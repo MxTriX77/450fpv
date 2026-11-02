@@ -523,7 +523,7 @@ The trait definitions and every measured number are in K§11. **The algorithms c
 - The log records which signals are stubbed.
 
 **FEED-04 Traits.** Each trait listed below is implemented with the parameters measured in K§11:
-- N1 grain, N2 sparkles, **N3 and N4 always on** (as in the Godot feed the pilot chose; not per-flight draws), the quality-drop envelope (`degrade`), N8 tear, N11, N12 recovering dropouts, N13 dim-light steps
+- N1 grain, N2 sparkles, **N3 and N4 always on** (as in the Godot feed the pilot chose; not per-flight draws), the quality-drop envelope (`degrade`), N11, N13 dim-light steps; N8's tear wedge and N12's free-running dropouts are a radio link's and are off (D-065), behind a switch kept for the Godot A/B
 - the staged loss and the hard cut
 - P1–P5, P7, P8
 - O1 (k1 ≈ 0.33), O2, O3, O4
@@ -533,7 +533,7 @@ N9, N10 and P10 are **not** simulated.
 
 **FEED-05 Losses, as in the Godot feed.**
 - **Terminal loss** fires on impact, power loss or fiber break, never on a random clock. The variant (staged or hard cut) follows how fast the link margin fell (K§11.3).
-- **Recovering dropouts (N12)** keep the Godot timer the pilot asked for: **3–6 per minute**, with gaps of 5–32 s drawn as u².
+- **Recovering dropouts (N12)** come only from the fiber's link margin (`p7d-tether`), never from a free-running timer: the video rides an optic fiber, not a radio link (D-065).
 - **Quality drops** keep theirs: about 10 per minute, 0.3–2.2 s long, depth 0.25–1.0.
 - **Physics adds, never replaces.** From phase 7, link-margin dips from the fiber add events and modulate N2 on top of those baselines.
 - **There is always a tell before the picture goes.**
@@ -665,7 +665,7 @@ The last setup is remembered.
 **APP-04 In flight.**
 - Arm and disarm on a transmitter switch.
 - Pause and restart.
-- **The flight ends** on a crash (an impact over its threshold, or upside-down on the ground), a fiber break with failsafe, a battery cut-off, or disarm.
+- **The flight ends only by the pilot** (End flight or Restart from the pause menu, D-063). A crash, an upside-down rest, a fiber break with failsafe, a battery cut-off or a disarm is logged and the drone stays under physics, with no dialog; the summary lists the events when the pilot ends the flight.
 - The **post-flight summary** shows the seed, the log path and the key events, with the logged crash cause.
 
 **APP-05 Persistence.** Calibration profiles, rates, setup and quality preset are saved to the user's profile folder.
@@ -689,10 +689,7 @@ The last setup is remembered.
 
 **INP-03 Flight-controller settings: Betaflight 4.5 semantics** (D-023).
 - **Settings in v1:** **ACTUAL rates** (centre sensitivity, full-stick rate, expo per axis) and the **throttle curve** (`thr_mid`, `thr_expo`, Betaflight's 11-point table), with curve previews.
-- **Defaults: the "sim default" column** of [reference-notes/fc-profiles.md](reference-notes/fc-profiles.md), which is the pilot's flown set leaning toward the factory set, mostly on throttle:
-  - roll and pitch: 55 / 225 °/s, expo 0.34
-  - yaw: 85 / 260 °/s, expo 0.15
-  - throttle: `thr_mid` 50, `thr_expo` 10
+- **Defaults: the player default column** of [reference-notes/fc-profiles.md](reference-notes/fc-profiles.md) §2a (D-066): the pilot's FpvPrep 10-inch profile without its throttle-softening step: roll and pitch 50 / 220 °/s, expo 0.45; yaw 80 / 240 °/s, expo 0.20; throttle `thr_mid` 100, `thr_expo` 100; the rest the sim default column.
   - deadband 2 / 2, RC smoothing 50, feedforward 50
   - **airmode and motor idle** as the pilot's profile records them (fc-profiles: `min_throttle` and the airmode setting), because they decide what "throttle to zero at touchdown" does (PHY-02); where the profile is silent, Betaflight 4.5's default, labelled
 - **Profiles** are stored with **Betaflight CLI names**.
@@ -814,9 +811,9 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 - **The model:** descent rate normalised by the induced velocity at the *current* thrust, with thrust-to-weight driving it, not descent speed alone.
 
 **PHY-10 Throttle-punch shake (PR-1).**
-- After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance that lasts as long as the arrest (**0.3–0.7 s** for the empty drone's moderate descents, longer heavy or from a fast descent; D-053), seen mainly as **camera shake**.
+- After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance that lasts as long as the arrest (**0.3–0.7 s** for the empty drone's moderate descents, longer heavy or from a fast descent; D-069), seen mainly as **camera shake**.
 - It depends on descent rate, input abruptness and payload, and doesn't fire on every throttle increase. It varies between occurrences.
-- **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics (the ESCs' current limit through the arrest, D-051 and D-053; the frame's modes add a band above it), and is never tuned to a pilot number.
+- **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics (the rotors re-ingesting their wash through the arrest, D-069; the frame's modes add a band above it), and is never tuned to a pilot number.
 - It publishes the camera-vibration signal.
 
 **PHY-11 Battery.** State of charge and sag over the flight. The heavy corner's margin falls with the sag and is gone at the cut-off. Low-voltage warnings go to the OSD (D-048).
@@ -884,6 +881,8 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-23 Openings.** Jagged edges and rebar collide physically. Gaps are the real clear space. Turbulence funnels through narrow openings. *Source:* PR-5, PR-9.
 
 ### 15.6 Randomness and interfaces
+**PHY-26 Prop and motor damage from strikes** (the pilot, D-056). A prop or motor that strikes or scrapes an obstacle is damaged by the strike's energy and contact: a chipped, bent or shortened blade loses thrust and adds a once-per-revolution imbalance; a struck motor loses torque or efficiency, or binds. The damage persists for the rest of the flight, is logged, replays bit for bit, and its numbers come from published blade and motor data. A strike hard enough breaks the prop or stops the motor. *Source:* the pilot, 2026-11-02.
+
 **PHY-24 The randomness rule.** Randomness enters **only** as bounded perturbations of named physical parameters, drawn from named seeded streams and logged.
 - A catalogue lists every stream with its bounds.
 - Ground and cover are world-derived and never drawn: "the ground is not random, it is unknown, and the pilot learns it".

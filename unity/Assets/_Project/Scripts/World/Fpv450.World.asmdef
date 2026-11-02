@@ -1,7 +1,11 @@
 {
     "name": "Fpv450.World",
     "rootNamespace": "Fpv450.World",
-    "references": [],
+    "references": [
+        "Fpv450.Feed",
+        "Fpv450.Input",
+        "Unity.InputSystem"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

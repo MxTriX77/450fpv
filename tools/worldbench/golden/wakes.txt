@@ -1,0 +1,13 @@
+# worldbench golden: the wake grid over its synthetic layout (p7c-wind 1.3). FNV-1a 64 over every cell's and sample's bits; WakeGrid.Version bumps with a re-record.
+# Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record
+wake.version 1
+wake.grid.0 c04350a95f8b2b6d
+wake.samples.0 d8595a598bb1c902
+wake.grid.10 fa4453915932b392
+wake.samples.10 6216e1f96d10ec45
+wake.grid.37 749d64438fb119a1
+wake.samples.37 5fa4ff8a65588da2
+wake.grid.90 9d4dcfcd2776acdc
+wake.samples.90 048bfb650da6b254
+wake.grid.215.5 2ee5e8d0386ab95f
+wake.samples.215.5 3377d24bc4252f9f

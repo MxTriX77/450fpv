@@ -7,7 +7,8 @@ For every variant of each asset id in assets-src/catalog.json, it checks the var
 (assets-src/<class>/<variant>.json) against the generator's PARAMS table (lib/params.py), runs the generator and
 prints its report lines (counts and fit times), validates the metadata (lib/meta.py; each slot's visual material the
 variant's, the asset's `materials` overridden by its `variant_materials`, lib/catalog.py) and audits the collision against
-the LOD0 mesh (lib/audit.py, with the soft tops of assets-src/physics_materials.json, the card slots of the
+the LOD0 mesh (lib/audit.py; a Godot stand-in's generator, STAND_IN, is held to lib.audit.stand_in instead and to
+no hole contract, p6-test-range design 3; with the soft tops of assets-src/physics_materials.json, the card slots of the
 alpha-clipped recipes and the generator's stated card reach for the shell's cards, and the ground below y = 0 as cover
 for a generator that is PLANTED; a generator's visual-only micro meshes are exported beside their LOD and skipped by
 the audit), checks the hole-filler contract of an asset that cuts the ground (lib/holes.py, with the generator's
@@ -80,13 +81,22 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, visual_by_slot, impostor_lod)
     _refuse(variant, meta.validate(data, material_ids))
     started = time.perf_counter()
-    problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),
-                                card_visuals=catalog.card_visuals(root), card_reach_m=built.get("card_reach_m"),
-                                planted=getattr(generator, "PLANTED", False), clip_boxes=bool(data["holes"]))
+    stand_in = getattr(generator, "STAND_IN", False)  # a Godot stand-in (p6-test-range design 3): its collision
+    if stand_in:                                      # against its mesh's bounds, no hole contract
+        problems, lines = audit.stand_in(data, built["lods"][0])
+    else:
+        problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),
+                                    card_visuals=catalog.card_visuals(root), card_reach_m=built.get("card_reach_m"),
+                                    planted=getattr(generator, "PLANTED", False), clip_boxes=bool(data["holes"]))
     for line in lines:
         print(f"{variant}: {line}")
     print(f"{variant}: audit took {time.perf_counter() - started:.1f} s")
-    hole_problems, hole_lines = holes.audit(data, built["lods"][0], built.get("joints"))
+    if stand_in:
+        hole_problems = []
+        hole_lines = [f"stand-in: {len(data['holes'])} holes written, the hole contract (E01's fillers) not asked"] \
+            if data["holes"] else []
+    else:
+        hole_problems, hole_lines = holes.audit(data, built["lods"][0], built.get("joints"))
     for line in hole_lines + built.get("lines", []):
         print(f"{variant}: {line}")
     _refuse(variant, problems + hole_problems)

@@ -8,7 +8,8 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     // flight-dynamics' aero basics (PHB-02, design 6) on the repository's drone: a crosswind leans it into the wind by
-    // the derived 0.95–2.6° per m/s (CrosswindScenario), the drag its silhouettes and the rotors' in-plane drag make
+    // the drag over the weight (CrosswindScenario), clip P's pitch flies the published cruise (p7c-wind 1.6), the drag
+    // its silhouettes and the rotors' in-plane drag make
     // in a gust, the rotors' gyroscopic moment, and the air at the camera for the feed.
     public sealed class AeroTests
     {
@@ -31,7 +32,7 @@ namespace Fpv450.Sim.Tests
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(Drone, WindSetup.SteadyFrom(from, 5)));
                 TestContext.Out.WriteLine($"5 m/s from {F(from, "0")}°: {Describe(r)}");
-                Assert.That(r.LeanPerMs, Is.InRange(0.95, 2.6), "K§6.5: 0.95–2.6° per m/s of crosswind");
+                Assert.That(r.LeanPerMs, Is.InRange(CrosswindScenario.HoverLeanLo, CrosswindScenario.HoverLeanHi), "the drag's bands over the weight");
                 Assert.That(r.LeanOffWindDeg, Is.LessThan(5), "the lean follows the wind's direction");
                 Assert.That(r.Drift, Is.LessThan(0.05), "the pilot holds the point");
                 Assert.That(r.MeanError, Is.LessThan(0.5));
@@ -44,26 +45,39 @@ namespace Fpv450.Sim.Tests
             CrosswindScenario.Result body = CrosswindScenario.Hold(CrosswindScenario.Setup(Drone, WindSetup.SteadyFrom(270, 5), rotorDrag: false));
             TestContext.Out.WriteLine($"known-wrong, no drag: {Describe(none)}");
             TestContext.Out.WriteLine($"known-wrong, the body's drag alone: {Describe(body)}");
-            Assert.That(none.LeanPerMs, Is.LessThan(0.95));
-            Assert.That(body.LeanPerMs, Is.LessThan(0.95));
+            Assert.That(none.LeanPerMs, Is.LessThan(CrosswindScenario.HoverLeanLo));
+            Assert.That(body.LeanPerMs, Is.LessThan(CrosswindScenario.HoverLeanLo));
         }
 
-        // Where wind.md §5.3 derived the band: at its nominal 13 m/s of cruise, where the drag puts clip P's 22.7° of pitch
-        // (drone.json's rotor in-plane drag is set so), the extra lean each m/s of crosswind needs with the nose kept on
-        // the track: 1.8° nominal.
+        // wind-turbulence's "Clip P's pitch flies the cruise" (p7c-wind 1.6, PHY-17a): the nominal harness pilot holds
+        // clip P's 22.7° of pitch in still air at the nominal loadout, released below and above the cruise; both settle at
+        // the same airspeed, inside the published 17–22 m/s, and the harness is released there. At that airspeed each m/s
+        // of crosswind needs the lean the physics gives (wind.md §5.3's relation, 23.4° over the airspeed, whatever the
+        // drag's split), which T0 grades. The known-wrong: unity/main's rotor drag, tuned to 13 m/s (p7b-airframe 1.7).
         [Test]
-        public void ACrosswindAtCruiseNeedsTheDerivedLean()
+        public void ClipPsPitchFliesTheCruise()
         {
-            double pitch = CrosswindScenario.CruisePitch(Drone, 13);
-            double lean0 = CrosswindScenario.CruiseLean(Drone, 13, 0), lean2 = CrosswindScenario.CruiseLean(Drone, 13, 2);
-            double perMs = (lean2 - lean0) / 2;
-            TestContext.Out.WriteLine($"cruise north at 13 m/s: pitch {F(pitch, "0.00")}° (clip P: 22.7°, 22.4–23.0); a 2 m/s crosswind from the west "
-                + $"leans it {F(lean2 - lean0, "0.00")}° into the wind: {F(perMs, "0.000")}° per m/s (wind.md §5.3: 1.8, 0.95–2.6)");
-            Assert.That(pitch, Is.InRange(22.4, 23.0), "the drag flies clip P's attitude at the nominal airspeed");
-            Assert.That(perMs, Is.InRange(0.95, 2.6));
+            double slow = WindHarness.HeldPitchAirspeed(Drone, 13, out double pitchSlow);
+            double fast = WindHarness.HeldPitchAirspeed(Drone, 25, out double pitchFast);
+            double old = WindHarness.HeldPitchAirspeed(Drone, 13, out _, hForce: double.Parse(GoldenFlights.TunedHForce, CultureInfo.InvariantCulture));
+            double lean0 = CrosswindScenario.CruiseLean(Drone, WindHarness.ReleaseSpeed, 0);
+            double lean2 = CrosswindScenario.CruiseLean(Drone, WindHarness.ReleaseSpeed, 2);
+            double perMs = (lean2 - lean0) / 2, relation = 23.4 / WindHarness.ReleaseSpeed;
+            TestContext.Out.WriteLine($"clip P's pitch held in still air: released at 13 m/s it settles at {F(slow, "0.00")} m/s (pitch {F(pitchSlow, "0.00")}°), "
+                + $"at 25 m/s {F(fast, "0.00")} m/s ({F(pitchFast, "0.00")}°); the harness's release {F(WindHarness.ReleaseSpeed, "0.0")} m/s; "
+                + $"a 2 m/s crosswind there needs {F(perMs, "0.000")}° per m/s (wind.md §5.3's 23.4°/V: {F(relation, "0.000")}); "
+                + $"known-wrong, main's tuned rotor drag {GoldenFlights.TunedHForce} N per m/s: {F(old, "0.00")} m/s");
+            Assert.That(slow, Is.InRange(17, 22), "PHY-17a: the published cruise");
+            Assert.That(fast, Is.EqualTo(slow).Within(0.05), "it settles there from either side");
+            Assert.That(pitchSlow, Is.EqualTo(-22.7).Within(0.3), "the pilot holds clip P's pitch");
+            Assert.That(pitchFast, Is.EqualTo(-22.7).Within(0.3));
+            Assert.That(WindHarness.ReleaseSpeed, Is.EqualTo(slow).Within(0.3), "the harness is released at the cruise");
+            Assert.That(perMs, Is.EqualTo(relation).Within(0.15 * relation), "the lean per m/s follows from the airspeed");
+            Assert.That(old, Is.Not.InRange(17, 22), "the tuned drag flies 13 m/s");
         }
 
-        // The stand-in's turbulent Severe wind: the mean lean over the measured window per m/s of the mean wind there.
+        // The Severe field: the mean lean over the measured window per m/s of the mean wind there; the gusts raise the
+        // quadratic drag's mean above a steady wind's (CrosswindScenario.GustLeanHi).
         [Test]
         public void ASevereWindLeansTheDroneByItsMean()
         {
@@ -71,7 +85,7 @@ namespace Fpv450.Sim.Tests
             {
                 CrosswindScenario.Result r = CrosswindScenario.Hold(CrosswindScenario.Setup(Drone, WindSetup.Of(WindLevel.Severe), seed));
                 TestContext.Out.WriteLine($"Severe, seed {seed}: {Describe(r)}");
-                Assert.That(r.LeanPerMs, Is.InRange(0.95, 2.6));
+                Assert.That(r.LeanPerMs, Is.InRange(CrosswindScenario.HoverLeanLo, CrosswindScenario.GustLeanHiAt(r.WindSpeed)));
                 Assert.That(r.LeanOffWindDeg, Is.LessThan(10));
             }
         }
@@ -109,7 +123,7 @@ namespace Fpv450.Sim.Tests
             double rotorShare = Math.Sqrt(rotors.X * rotors.X + rotors.Z * rotors.Z), total = Math.Sqrt(expected.X * expected.X + expected.Z * expected.Z);
             TestContext.Out.WriteLine($"5 m/s from the west on the drone holding its point: the air's push {got} N, expected {expected} N; the rotors' "
                 + $"{F(rotorShare, "0.000")} N of {F(total, "0.000")} N, the body's {F(body.Length(), "0.000")} N, the coil's {F(coilForce.Length(), "0.000")} N; "
-                + $"the rotors' drag {F(rotorShare / 5 / core.Body.Mass, "0.000")} s⁻¹ per unit mass (wind.md §5.3: 0.25 nominal, 0.1–0.4)");
+                + $"the rotors' drag {F(rotorShare / 5 / core.Body.Mass, "0.000")} s⁻¹ per unit mass (blade-element theory, p7c-wind 1.6)");
             Assert.That((got - expected).Length(), Is.LessThan(0.01 * total), "the model's push is its formulas' (the rotors at their mean speed over the step)");
             Assert.That(got.X, Is.GreaterThan(0), "it pushes downwind, east");
         }

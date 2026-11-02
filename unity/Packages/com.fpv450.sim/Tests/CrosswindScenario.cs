@@ -8,12 +8,30 @@ namespace Fpv450.Sim.Tests
     /// flight-dynamics' "A crosswind leans the drone" (p6-flight-core 1.5): the repository's drone at its nominal
     /// loadout, armed by Betaflight's rules and held at a point by the closed-loop pilot (SimPilot) in a wind, its lean
     /// and drift measured over the flight's last 10 s of 40. The suite asserts it (AeroTests); tools/flightbench --scenarios
-    /// prints it. Also the cruise trim: the pitch that holds an airspeed in still air, for clip P's 22.7° (wind.md
-    /// §5.3). Basic operations only in what the core is fed, so the flights give the same bits on every runtime.
+    /// prints it. Also the cruise trim: the pitch that holds an airspeed in still air (clip P's pitch flown the other
+    /// way round is WindHarness.HeldPitchAirspeed). Basic operations only in what the core is fed, so the flights give
+    /// the same bits on every runtime.
     /// </summary>
     public static class CrosswindScenario
     {
         public const double Seconds = 40, MeasuredSeconds = 10;
+
+        /// <summary>
+        /// The lean per m/s a hover in a steady 5 m/s needs, degrees (derived, p7c-wind 1.6): the drag's bands over the
+        /// weight at the nominal loadout, the rotors' in-plane drag 0.033–0.049 N per m/s (blade-element theory) and the
+        /// silhouettes' C_d 0.8–1.05 (Hoerner), from a wind on the side (the smallest silhouette) to one on the diagonal
+        /// (the side's and the front's at 45°, the largest). K§6.5's 0.95–2.6 is the lean at clip P's cruise, not in a hover.
+        /// </summary>
+        public const double HoverLeanLo = 0.32, HoverLeanHi = 0.56;
+
+        /// <summary>The top of a turbulent field's hover lean per m/s of its mean (assumed: the gusts and the pilot's own
+        /// motion raise the quadratic drag's mean up to 25 % above a steady wind's).</summary>
+        public const double GustLeanHi = 1.25 * HoverLeanHi;
+
+        /// <summary>The top of a turbulent field's hover lean per m/s at a mean of `speed` m/s (derived, p7c-wind 1.5): the
+        /// silhouettes' drag is quadratic, so its lean per m/s grows with the speed, at most in proportion above the bands'
+        /// 5 m/s (the rotors' linear in-plane drag keeps the bottom).</summary>
+        public static double GustLeanHiAt(double speed) => GustLeanHi * System.Math.Max(1, speed / 5);
         const double RadToDeg = 57.29577951308232;
 
         public struct Result
@@ -71,7 +89,7 @@ namespace Fpv450.Sim.Tests
                 if (k < from) continue;
                 ref readonly FlightState s = ref core.State;
                 up = up + s.Attitude.Rotate(new Double3(0, 1, 0));
-                wind = wind + core.Wind.At(s.Gust, s.Position);
+                wind = wind + core.Wind.At(s.Position);
                 drift = drift + new Double3(s.Velocity.X, 0, s.Velocity.Z);
                 Double3 a = core.Trace.AeroForce;
                 air += DetMath.Sqrt(a.X * a.X + a.Z * a.Z) / weight;
@@ -105,8 +123,8 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// The sideways lean, degrees, that holds a track north at a ground speed in a steady crosswind from the west,
-        /// the nose kept on the track ("roll and keep direction", wind.md §5.5): the lean wind.md §5.3 derives 1.8° per
-        /// m/s of (0.95–2.6) at its nominal 13 m/s.
+        /// the nose kept on the track ("roll and keep direction", wind.md §5.5): wind.md §5.3 derives 23.4° over the
+        /// airspeed per m/s, 1.8 at its 13 m/s and 1.24 at the cruise clip P's pitch flies (p7c-wind 1.6).
         /// </summary>
         public static double CruiseLean(DroneSpec spec, double speed, double crosswind)
         {

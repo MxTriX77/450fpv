@@ -210,28 +210,9 @@ namespace Fpv450.Sim.World
 
         private void Check(in ShapeGeometry s, int index)
         {
-            string problem = null;
-            if (s.Kind != ShapeKind.Box && s.Kind != ShapeKind.Sphere && s.Kind != ShapeKind.Capsule && s.Kind != ShapeKind.Cylinder)
-                problem = $"kind {s.Kind}: a runtime object holds boxes, spheres, capsules and cylinders";
-            else if ((s.Material == WorldIds.NoMaterial) == (s.Surface == WorldIds.NoSurface))
-                problem = "needs exactly one of a material and a soil surface";
-            else if (s.Material > _materials.Length || s.Surface > FloorSurface)
-                problem = "names a material or surface this world does not know";
-            else if (!Orthonormal(s.AxisX, s.AxisY, s.AxisZ))
-                problem = "axes are not orthonormal with AxisX x AxisY = AxisZ";
-            else if (!(s.Radius >= 0 && s.HalfLength >= 0 && s.HalfExtents.X >= 0 && s.HalfExtents.Y >= 0 && s.HalfExtents.Z >= 0))
-                problem = "has a negative size";
+            string problem = ShapeMath.RuntimeShapeProblem(s, _materials.Length, FloorSurface);
             if (problem != null)
                 throw new ArgumentException($"shape {index} {problem}", "shapes");
-        }
-
-        private static bool Orthonormal(Double3 x, Double3 y, Double3 z)
-        {
-            const double tolerance = 1e-9;
-            return DetMath.Abs(Double3.Dot(x, x) - 1) <= tolerance && DetMath.Abs(Double3.Dot(y, y) - 1) <= tolerance
-                && DetMath.Abs(Double3.Dot(z, z) - 1) <= tolerance && DetMath.Abs(Double3.Dot(x, y)) <= tolerance
-                && DetMath.Abs(Double3.Dot(y, z)) <= tolerance && DetMath.Abs(Double3.Dot(z, x)) <= tolerance
-                && Double3.Dot(Double3.Cross(x, y), z) > 0;
         }
 
         public void ResetRuntimeObjects()

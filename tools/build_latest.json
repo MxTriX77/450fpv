@@ -12,5 +12,5 @@
     "-smoketest",
     "-windowed"
   ],
-  "contents": "The G7 player: menu (Train, Calibrate, Exit, Explore), setup, the TX12 calibration, flights on the test range from the track (legs on) or the stand (legs off), the analog feed and OSD, pause, restart, the post-flight summary and the flight log. Not yet: collision with houses, trees, the car and wires (the world queries); the D-050 drone and the airframe effects (p7b); the OSD's live content; the weather look."
+  "contents": "The G7 player on the test range's map world: menu (Train, Calibrate, Exit, Explore), setup, the TX12 calibration, flights from the track (legs on) or the stand (legs off) with collision against the ground, houses, trees, the car and wires, the D01 drone at D-050's layout with the airframe's effects, the analog feed and OSD, pause, restart, a summary that names what a crash hit, and the flight log. Not yet: the wind field's re-grade (p7c), the OSD's live content, prop blur, the launch stand's model, the weather look; most tree crowns are passable stand-ins."
 }

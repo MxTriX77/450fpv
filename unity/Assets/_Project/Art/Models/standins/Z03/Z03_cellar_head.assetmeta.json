@@ -1,0 +1,566 @@
+{
+  "schema": 1,
+  "id": "Z03",
+  "variant": "Z03_cellar_head",
+  "generator": "godot_port",
+  "params_sha256": "c992923b681ff9bd0d4265d3ed234eae0aea180a9f3bac431a5fd61b755745cd",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -2.087039,
+      -0.027792,
+      -1.624384
+    ],
+    "max": [
+      0.87,
+      2.064692,
+      1.624384
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Z03_cellar_head_LOD0",
+      "tris": 912,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "Z03_cellar_head_LOD1",
+      "tris": 228,
+      "switch_distance_m": 22.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 600.0,
+  "materials": [
+    {
+      "slot": "brick_red",
+      "visual": "brick_red",
+      "physics": "masonry"
+    },
+    {
+      "slot": "concrete_rough",
+      "visual": "godot_concrete",
+      "physics": "masonry"
+    },
+    {
+      "slot": "roof_felt",
+      "visual": "godot_roof_felt",
+      "physics": "masonry"
+    },
+    {
+      "slot": "tarp_blue",
+      "visual": "godot_tarp_blue",
+      "physics": "masonry"
+    },
+    {
+      "slot": "wood_weathered",
+      "visual": "godot_timber_shed",
+      "physics": "masonry"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -0.55,
+        0.975,
+        -1.375
+      ],
+      "size": [
+        0.4,
+        1.95,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.785,
+        -1.375
+      ],
+      "size": [
+        0.7,
+        0.33,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.55,
+        0.975,
+        -1.375
+      ],
+      "size": [
+        0.4,
+        1.95,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.8,
+        1.375
+      ],
+      "size": [
+        1.5,
+        1.6,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.625,
+        0.8438,
+        0.625
+      ],
+      "size": [
+        0.25,
+        1.6875,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.625,
+        0.9313,
+        -0.625
+      ],
+      "size": [
+        0.25,
+        1.8625,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.625,
+        0.8438,
+        0.625
+      ],
+      "size": [
+        0.25,
+        1.6875,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.625,
+        0.9313,
+        -0.625
+      ],
+      "size": [
+        0.25,
+        1.8625,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.82,
+        0.0
+      ],
+      "size": [
+        1.74,
+        0.09,
+        3.2603
+      ],
+      "rotation": [
+        0.058034,
+        0.0,
+        0.0,
+        0.998315
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.871,
+        0.0
+      ],
+      "size": [
+        1.74,
+        0.012,
+        3.2403
+      ],
+      "rotation": [
+        0.058034,
+        0.0,
+        0.0,
+        0.998315
+      ],
+      "material": "masonry",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.6,
+        0.025,
+        -0.1
+      ],
+      "size": [
+        0.66,
+        0.05,
+        1.58
+      ],
+      "rotation": [
+        0.0,
+        -0.104528,
+        0.0,
+        0.994522
+      ],
+      "material": "masonry",
+      "landable": false
+    }
+  ],
+  "gaps": [
+    {
+      "id": "cellar_door",
+      "polygon": [
+        [
+          -0.35,
+          0.0,
+          -1.5
+        ],
+        [
+          0.35,
+          0.0,
+          -1.5
+        ],
+        [
+          0.35,
+          1.62,
+          -1.5
+        ],
+        [
+          -0.35,
+          1.62,
+          -1.5
+        ]
+      ],
+      "normal": [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      "narrowest_m": 0.7
+    }
+  ],
+  "wind_volumes": [
+    {
+      "shape": "box",
+      "center": [
+        -0.55,
+        0.975,
+        -1.375
+      ],
+      "size": [
+        0.4,
+        1.95,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.785,
+        -1.375
+      ],
+      "size": [
+        0.7,
+        0.33,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.55,
+        0.975,
+        -1.375
+      ],
+      "size": [
+        0.4,
+        1.95,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.8,
+        1.375
+      ],
+      "size": [
+        1.5,
+        1.6,
+        0.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.625,
+        0.8438,
+        0.625
+      ],
+      "size": [
+        0.25,
+        1.6875,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.625,
+        0.9313,
+        -0.625
+      ],
+      "size": [
+        0.25,
+        1.8625,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.625,
+        0.8438,
+        0.625
+      ],
+      "size": [
+        0.25,
+        1.6875,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.625,
+        0.9313,
+        -0.625
+      ],
+      "size": [
+        0.25,
+        1.8625,
+        1.25
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.82,
+        0.0
+      ],
+      "size": [
+        1.74,
+        0.09,
+        3.2603
+      ],
+      "rotation": [
+        0.058034,
+        0.0,
+        0.0,
+        0.998315
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        1.871,
+        0.0
+      ],
+      "size": [
+        1.74,
+        0.012,
+        3.2403
+      ],
+      "rotation": [
+        0.058034,
+        0.0,
+        0.0,
+        0.998315
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.6,
+        0.025,
+        -0.1
+      ],
+      "size": [
+        0.66,
+        0.05,
+        1.58
+      ],
+      "rotation": [
+        0.0,
+        -0.104528,
+        0.0,
+        0.994522
+      ],
+      "porosity": 0.0
+    }
+  ],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [],
+  "stand_in": {
+    "source": {
+      "commit": "83401382e8b733389982997180cc181b063f61ae",
+      "model": "game/assets/models/structures/cellar_head.glb",
+      "model_sha256": "9c9b8f4174e8b3c7b8474c735a7c7a3b7111e90752d70877df0e7a3ec983b617",
+      "catalog_key": "cellar_head"
+    },
+    "snag_hazard": true
+  }
+}

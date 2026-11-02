@@ -72,6 +72,33 @@ namespace Fpv450.Sim.Tests
             Assert.That((BitConverter.DoubleToInt64Bits(s3), BitConverter.DoubleToInt64Bits(c3)), Is.EqualTo((PinnedS3, PinnedC3)));
         }
 
+        // Log and Exp (the wind field's profile and draws, p7c-wind 1.4) against System.Math over their working ranges, a
+        // few ulp, and their exact points.
+        [Test]
+        public void LogAndExp_AgreeWithTheRuntimesToAFewUlp()
+        {
+            double worstLog = 0, worstExp = 0;
+            for (int i = -2000; i <= 2000; i++)
+            {
+                double x = Math.Pow(10, i * 0.0137) * 1.0001;
+                double l = DetMath.Log(x), rl = Math.Log(x);
+                worstLog = Math.Max(worstLog, Math.Abs(l - rl) / Math.Max(1e-300, Math.Abs(rl) < 1 ? 1 : Math.Abs(rl)));
+                double y = i * 0.35;
+                double ex = DetMath.Exp(y), re = Math.Exp(y);
+                worstExp = Math.Max(worstExp, Math.Abs(ex - re) / re);
+            }
+            TestContext.WriteLine($"worst log {worstLog:E2}, exp {worstExp:E2} (relative, against System.Math)");
+            Assert.That(worstLog, Is.LessThanOrEqualTo(4.5e-16));
+            Assert.That(worstExp, Is.LessThanOrEqualTo(4.5e-16));
+            Assert.That(DetMath.Log(1), Is.EqualTo(0.0));
+            Assert.That(DetMath.Exp(0), Is.EqualTo(1.0));
+            Assert.That(DetMath.Log(0), Is.EqualTo(double.NegativeInfinity));
+            Assert.That(double.IsNaN(DetMath.Log(-1)), Is.True);
+            Assert.That(Math.Abs(DetMath.Log(4.9e-324) - Math.Log(4.9e-324)), Is.LessThan(1e-12));
+            Assert.That(DetMath.Exp(800), Is.EqualTo(double.PositiveInfinity));
+            Assert.That(DetMath.Exp(-800), Is.EqualTo(0.0));
+        }
+
         // sin and cos of 250° (−0.9396926207859082, −0.3420201433256694), recorded on .NET 10 and Mono alike.
         const long PinnedS3 = unchecked((long)0xBFEE11F642522D1AUL), PinnedC3 = unchecked((long)0xBFD5E3A8748A0C01UL);
     }

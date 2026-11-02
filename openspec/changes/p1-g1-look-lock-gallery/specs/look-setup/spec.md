@@ -22,4 +22,4 @@ The look setup SHALL apply distance haze whose strength and colour follow the pr
 
 #### Scenario: Belt at 200 m
 - **WHEN** the belt row is rendered from the 200 m viewpoint under overcast
-- **THEN** the crowns' mean luminance is below the sky's by at least the margin letter H shows between its belt and sky (the comparison sheet is the evidence), and the band is continuous, not a row of separate cards
+- **THEN** the crowns' mean luminance is below the sky's by at least the margin letter H shows between its belt and sky (the comparison sheet is the evidence; task 1.1: 0.36 of the sky against the 0.46 of H's receding belt). The band is not continuous: task 1.1 saw three sparse crowns, which is V01's crown net, not the light. G1's gate closed as seen (D-046), so the band was not re-judged, and it stays open as V01's look miss (D-040)

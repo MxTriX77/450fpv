@@ -1,0 +1,9 @@
+{
+  "name": "night",
+  "label": "NIGHT",
+  "letters": "L",
+  "hour": 23.0,
+  "cloud_cover": 1.0,
+  "fog_extinction_per_km": 0.25,
+  "fog_scale_height_m": 1200.0
+}

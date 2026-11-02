@@ -1,0 +1,32 @@
+{
+  "material": "godot_wood_weathered",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "wood_weathered": "#615e56"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.1
+  },
+  "inputs_sha256": "bbefbb6c8a90aaf8e9ce13af38687a90d046a44354c312522294288a40e2d767",
+  "size": [
+    16,
+    64
+  ],
+  "columns": [
+    "wood_weathered"
+  ]
+}
