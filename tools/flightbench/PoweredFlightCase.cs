@@ -75,9 +75,9 @@ namespace Fpv450.FlightBench
             ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still);
             ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still);
             ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152);
-            bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.Model15StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
+            bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
             Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, contact 0x{c15:X16}, tumble 0x{t15:X16} "
-                + $"({(mok ? "model 15's, bit for bit" : "NOT model 15's")}): {(mok ? "PASS" : "FAIL")}");
+                + $"({(mok ? "model 15's, bit for bit, the contact flight with 1.6c's stick spring" : "NOT model 15's")}): {(mok ? "PASS" : "FAIL")}");
             // The tumble's chain over main's layout: model 14's fit and model 13's file fly their pins.
             ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _, 1296, 152);
             ulong t13 = GoldenFlights.FlyTumble(M13(), out _, out _, 1296, 152);
@@ -87,9 +87,9 @@ namespace Fpv450.FlightBench
             // The merge's audit against the range branch (model 19): on main's tuned rotor drag in still air, over the range
             // branch's 1656-byte layout, the range golden is model 16's range flight in still air.
             ulong r16 = GoldenFlights.FlyRange(main, out _, 1296, 152, wind: still);
-            bool r16ok = r16 == GoldenFlights.Model16StillRangeHash;
+            bool r16ok = r16 == GoldenFlights.StillRangeHash;
             Console.WriteLine($"main's rotor drag in still air, over the range branch's layout: range 0x{r16:X16} "
-                + $"({(r16ok ? "model 16's, bit for bit" : "NOT model 16's")}): {(r16ok ? "PASS" : "FAIL")}");
+                + $"({(r16ok ? "model 16's with 1.6c's stick spring" : "NOT model 16's with 1.6c's stick spring")}): {(r16ok ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && mok && eok && r16ok;
         }
 

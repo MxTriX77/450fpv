@@ -200,10 +200,13 @@ namespace Fpv450.Sim.Tests
         // moves from step 1: 148.69 m up, 0.24 m from the class-4 step's end; the film holds 9.60 g.
         public const ulong RainPoweredHash = 0xB10D9A860D4431C0UL;
 
-        /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
-        /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
-        /// their air set still, a temporary edit), and its tumble's pin.</summary>
-        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15StillContactHash = 0x557DEBE410FAEEA1UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
+        /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15sButTheStickSpring):
+        /// main's model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code
+        /// with their air set still, a temporary edit), and its tumble's pin. The contact flight's model 15 pin,
+        /// 0x557DEBE410FAEEA1, holds with the stick anchor at the contact point (1.6c's old rule, a temporary edit, reverted);
+        /// with 1.6c's stick spring on the slip it is StillContactHash: 5 impacts, no crash, at rest at the same 0.2518 m,
+        /// 0.38 mm aside.</summary>
+        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, StillContactHash = 0x78A919AAD7858813UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -289,7 +292,10 @@ namespace Fpv450.Sim.Tests
         // 20 mm of model 18's path and 1.2 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 20 mm aside. To 0.5 m it
         // is the class-4 step's to step 290 (still air at the hubs on the floor) and moves from step 291, as they rise into
         // the field: within 2.7 mm and 1.3 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 0.8 mm aside.
-        public const ulong ContactHash = 0x8C1E6B066F143A67UL;
+        // Model 22: 0x8C1E6B066F143A67. 1.6c's stick spring on the slip (ModelVersion 23, D-067): with the old anchor at the
+        // contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new, 5 impacts, no crash, at
+        // rest at the same 0.2518 m, 0.24 mm aside: on its skids nothing rolls, so the bits move only by the rule's arithmetic.
+        public const ulong ContactHash = 0x5B8655B7F91E4D75UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -327,7 +333,7 @@ namespace Fpv450.Sim.Tests
         // on the 1808-byte record (p7c-wind's 152 bytes at 1296) in the Calm field with p7c-wind 1.6's derived rotor drag
         // (0.044), on the same content. Audited against the range branch: with main's tuned drag (0.25), over the range
         // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
-        // (Model16StillRangeHash, the kept test), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
+        // (0xDC85BA160EB0415C, the kept test until 1.6c), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
         // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
         // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. At model 19 the Calm field
         // blew nothing here: SampleGround reports Hole over S04 and the field took a hole as sheltered (WindField.Begin), so the
@@ -337,7 +343,7 @@ namespace Fpv450.Sim.Tests
         // Model 20 (the wind over a hole, FlightWorld.SoilUnder): re-recorded on the same content and query version 4, where
         // the Calm field now blows over S04 from the straw mat's top: 5 impacts, no crash, at rest 21.19 mm into the straw on
         // 19 pairs. Audited: with the old rule (the hole's −∞ taken as sheltered, a temporary switch) it is model 19's pin bit
-        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (Model16StillRangeHash, the
+        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (0xDC85BA160EB0415C, the
         // kept test), and Calm and still air now differ. Read from the first soil shape alone (the mat's soil box, 0.125 m
         // under the plane's height, a known-wrong) it was 0xCE9BEF5615932EFB, 7 impacts, 0.233 m up on 21 pairs.
         // Model 20: 0x7A21A5FA04DD30E0. The merge with p7c-wind--d060 (ModelVersion 21: D-060's class-4 z0 and σ_u/U, the
@@ -352,12 +358,18 @@ namespace Fpv450.Sim.Tests
         // impacts, no crash, at rest 19.09 mm into the straw on 18 pairs. Audited: in WindSetup.Of(Calm), the open field
         // the golden flew before, it is model 21's pin bit for bit (a check before the switch), and in still air model 16's
         // (the kept test); flown twice, the same bits with the wake grid's worker.
-        public const ulong RangeHash = 0x80C73DBA130C6903UL;
+        // Model 22: 0x80C73DBA130C6903. 1.6c's stick spring on the slip (ModelVersion 23, D-067): with the old anchor at the
+        // contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new, on the same content, 5
+        // impacts (4), no crash, at rest 21.24 mm into the straw on 19 pairs (19.09 mm on 18), 1.0 mm aside: the straw's
+        // boxes are compliant, so its pairs press and slip more than the plane's.
+        public const ulong RangeHash = 0x7BD729C0B5F2DFD4UL;
 
-        /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
-        /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
-        /// golden's air set still, a temporary edit.</summary>
-        public const ulong Model16StillRangeHash = 0xDC85BA160EB0415CUL;
+        /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16sButTheStickSpring):
+        /// model 16's range golden in still air over its 1656-byte layout, 0xDC85BA160EB0415C, pinned from the range branch's
+        /// code (c2cf4023) with the golden's air set still, a temporary edit; it holds with the stick anchor at the contact
+        /// point (1.6c's old rule, a temporary edit, reverted). With 1.6c's stick spring on the slip it is this: 5 impacts, no
+        /// crash, at rest 19.11 mm into the straw on 18 pairs (19.17 mm), 2.7 mm aside.</summary>
+        public const ulong StillRangeHash = 0xF19A1EDCA011C4D2UL;
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
 

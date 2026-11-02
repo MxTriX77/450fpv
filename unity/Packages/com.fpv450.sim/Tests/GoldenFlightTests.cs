@@ -94,13 +94,14 @@ namespace Fpv450.Sim.Tests
         // main's tuned rotor drag (0.25) in still air, where the field and the stand-in both blow nothing, the range golden
         // over the range branch's 1656-byte layout (the record less p7c-wind's 152 bytes at 1296) is model 16's range flight
         // in still air, bit for bit (pinned from the range branch's code, c2cf4023, with the golden's air set still, a
-        // temporary edit). Model 16's kept audit against 1.6b's model 7 flew the stand-in's Calm air, which is gone.
+        // temporary edit). Model 16's kept audit against 1.6b's model 7 flew the stand-in's Calm air, which is gone. Since
+        // 1.6c (model 23) it holds with the stick anchor at the contact point; the pin is 1.6c's stick spring's.
         [Test]
-        public void InStillAirTheRangeGoldenIsModel16s()
+        public void InStillAirTheRangeGoldenIsModel16sButTheStickSpring()
         {
             DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
             Assert.That(GoldenFlights.FlyRange(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: WindSetup.Of(WindLevel.Still)),
-                Is.EqualTo(GoldenFlights.Model16StillRangeHash), "range");
+                Is.EqualTo(GoldenFlights.StillRangeHash), "range");
             Assert.That(core.Contacts.ImpactCount, Is.GreaterThanOrEqualTo(1), "it touched down on the mat");
         }
 
@@ -108,15 +109,16 @@ namespace Fpv450.Sim.Tests
         // rotor drag (0.25) in still air, where the field and the stand-in both blow nothing, each golden over main's
         // 1656-byte layout (the record less p7c-wind's 152 bytes at 1296) is main's model 15 flight in still air, bit for bit
         // (pinned from main's code with the goldens' air set still, a temporary edit), and the tumble, which has no air,
-        // main's model 15 pin. Main's kept audits of models 6–14 fly the stand-in's Windy and Calm air, which is gone.
+        // main's model 15 pin. Main's kept audits of models 6–14 fly the stand-in's Windy and Calm air, which is gone. Since
+        // 1.6c (model 23) the contact flight holds with the stick anchor at the contact point; its pin is 1.6c's spring's.
         [Test]
-        public void InStillAirTheGoldenFlightsAreModel15s()
+        public void InStillAirTheGoldenFlightsAreModel15sButTheStickSpring()
         {
             DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
             Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.Model15StillContactHash), "contact");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.StillContactHash), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
         }
 
