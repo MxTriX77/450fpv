@@ -102,6 +102,11 @@ namespace Fpv450.Sim.Tests
             {
                 setup.Propulsion = spec.BuildPropulsion();
                 setup.Aero = spec.BuildAero();
+                // D-064's micro-motion, as a pilot's flight has it: the motors' spreads, the re-ingested wash (with the
+                // ground's gain) and each rotor's own wake.
+                setup.Asymmetry = spec.BuildAsymmetry();
+                setup.GroundEffect = spec.BuildGroundEffect();
+                setup.RotorWake = spec.BuildRotorWake();
                 setup.StartPackCharge = 0.9;
                 hold = HoverThrottle(spec, materials, hash);
             }
