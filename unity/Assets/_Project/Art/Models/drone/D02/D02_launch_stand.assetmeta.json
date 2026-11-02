@@ -1,0 +1,221 @@
+{
+  "schema": 1,
+  "id": "D02",
+  "variant": "D02_launch_stand",
+  "generator": "launch_stand",
+  "params_sha256": "8f533c80e7cd6abed14c43f551820ef9a255a06bfbe1bee8062ae6d019c13cfe",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.155563,
+      0.0,
+      -0.155563
+    ],
+    "max": [
+      0.155563,
+      0.25,
+      0.155563
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "D02_launch_stand_LOD0",
+      "tris": 2088,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D02_launch_stand_LOD1",
+      "tris": 168,
+      "switch_distance_m": 3.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D02_launch_stand_LOD2",
+      "tris": 72,
+      "switch_distance_m": 10.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 330.0,
+  "materials": [
+    {
+      "slot": "steel",
+      "visual": "stand_steel",
+      "physics": "steel"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.141421,
+        0.125,
+        -0.141421
+      ],
+      "size": [
+        0.02,
+        0.25,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.141421,
+        0.125,
+        0.141421
+      ],
+      "size": [
+        0.02,
+        0.25,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.141421,
+        0.125,
+        -0.141421
+      ],
+      "size": [
+        0.02,
+        0.25,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.141421,
+        0.125,
+        0.141421
+      ],
+      "size": [
+        0.02,
+        0.25,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "steel",
+      "landable": true
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.01,
+        0.0
+      ],
+      "size": [
+        0.42,
+        0.02,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        -0.382683,
+        0.0,
+        0.92388
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.01,
+        0.0
+      ],
+      "size": [
+        0.42,
+        0.02,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.382683,
+        0.0,
+        0.92388
+      ],
+      "material": "steel",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.148492,
+          0.02,
+          -0.148492
+        ],
+        [
+          0.148492,
+          0.02,
+          0.148492
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    },
+    {
+      "kind": "edge",
+      "points": [
+        [
+          -0.148492,
+          0.02,
+          0.148492
+        ],
+        [
+          0.148492,
+          0.02,
+          -0.148492
+        ]
+      ],
+      "radius_m": 0.01,
+      "material": "steel"
+    }
+  ],
+  "mass_kg": 1.6
+}
