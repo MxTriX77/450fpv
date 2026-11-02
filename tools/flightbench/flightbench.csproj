@@ -27,6 +27,8 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GroundEffectScenario.cs" Link="GroundEffectScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FlappingScenario.cs" Link="FlappingScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ShakeScenario.cs" Link="ShakeScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LandingStability.cs" Link="LandingStability.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LandingScenarios.cs" Link="LandingScenarios.cs" />
   </ItemGroup>
 
   <!-- K§8.5's simulated pilot and the test flight, which the wind-harness mode flies (p7c-wind 1.2). -->
