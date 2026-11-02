@@ -20,7 +20,15 @@ namespace Fpv450.Sim.Flight
     ///   unsteadiness is not. Each rotor's re-ingested inflow through its disc, x·v_h, is a first-order process about 0
     ///   (the fountain's upwash and the re-ingested downwash), with σ rising as the height falls, its time constant the
     ///   wash's loop, RecirculationLoop·(z + R)/v_h, its unit from the named stream "ground.recirc" (counter-based on the
-    ///   step and the corner), bounded. It enters the thrust's advance ratio as the ring's inflow does. Never on the pose.
+    ///   step and the corner), bounded. It enters the thrust's and the torque's advance ratio as the rotor's own wake does
+    ///   (RotorWakeSpec; D-064). Its σ and bound are thrust shares, which Propulsion turns into an inflow over v_h through
+    ///   the props' static slope. Never on the pose.
+    ///   Published (Dekker, Baars, Scarano, Tuinstra, Ragni, "Unsteady flow behaviour of multi-rotors in ground proximity",
+    ///   Flow 3, E30, 2023, TU Delft; two 6-inch rotors one diameter apart, PIV): at H/R 2 the fountain rises above the discs
+    ///   and is re-ingested, at H/R 4 it reaches 3 R and is not; the re-ingestion's time scale is the recirculation path's,
+    ///   T_conv ≈ 0.1 s at H/R 2 (f_conv ≈ 10 Hz, spectral peaks at multiples of about 7 Hz), larger in magnitude the lower
+    ///   the rotors. Healy, McCauley, Gandhi, Sahni and Mistry (77th VFS Forum 2021, computed; as Dekker et al. quote it):
+    ///   when the fountain is near a rotor its thrust drops suddenly, the vibrations up to 10 %.
     /// </summary>
     public sealed class GroundEffectSpec
     {
@@ -35,19 +43,25 @@ namespace Fpv450.Sim.Flight
         /// measurements; on this prop, assumed).</summary>
         public double CeilingAlpha = 1.60;
 
-        /// <summary>The height over R below which the wash re-ingests: 4.0 (assumed: two diameters, where the mean gain is
-        /// down to 0.4 %; the wall jet and the fountain between the rotors reach the discs from about there).</summary>
+        /// <summary>The height over R below which the wash re-ingests: 4.0 (published: Dekker et al. 2023, the fountain reaches
+        /// 3 R at H/R 4, below the discs, and rises above them at H/R 2).</summary>
         public double RecirculationOnset = 4.0;
 
-        /// <summary>The re-ingested inflow's σ over v_h at LowestHeight, falling linearly to 0 at RecirculationOnset: 0.05
-        /// (assumed: about 3 % of the thrust through the props' static slope, a third of the vortex ring's measured σ).</summary>
-        public double RecirculationSigma = 0.05;
+        /// <summary>The re-ingested wash's thrust σ, a share of the thrust, at RecirculationReference: 0.033 (derived from
+        /// Healy et al. 2021's "up to 10 %" read as 3σ, assumed), rising linearly as the height falls from RecirculationOnset
+        /// (0) and held below LowestHeight (assumed: the fountain's larger magnitude the lower the rotors, Dekker et al.).</summary>
+        public double RecirculationSigma = 0.033;
 
-        /// <summary>Its bound over v_h: 0.15 (assumed: 3σ at LowestHeight).</summary>
-        public double RecirculationBound = 0.15;
+        /// <summary>The height over R RecirculationSigma holds at: 2 (published: Dekker et al.'s and Healy et al.'s H/R 2).</summary>
+        public double RecirculationReference = 2.0;
 
-        /// <summary>The wash's loop over (z + R), down to the ground, out, up and back in: 2 (assumed).</summary>
-        public double RecirculationLoop = 2;
+        /// <summary>Its bound, a share of the thrust: 0.17 (assumed: 3σ at LowestHeight, 3 × 0.033 × 3.5/2).</summary>
+        public double RecirculationBound = 0.17;
+
+        /// <summary>The wash's loop over (z + R), down to the ground, out, up and back in: 3.0 (derived from published: Dekker
+        /// et al.'s T_conv 0.1 s at H/R 2 for their rotor, 2.14 N on R 76.2 mm, so v_h 6.92 m/s by momentum theory; 0.1·v_h/R
+        /// is 9.1 over (z + R) = 3 R).</summary>
+        public double RecirculationLoop = 3.0;
 
         /// <summary>The air's density, kg/m³ (drone.json's aero air_density_kg_m3, 1.225, published ISA).</summary>
         public double AirDensity = 1.225;
@@ -77,12 +91,12 @@ namespace Fpv450.Sim.Flight
         /// <summary>Hsiao and Chirarattananon's ceiling coefficient γ at δ = R/z.</summary>
         public double Gamma(double delta) => 0.5 + 0.5 * DetMath.Sqrt(1 + CeilingAlpha * delta * delta / 8);
 
-        /// <summary>The re-ingested inflow's σ over v_h at height z over R.</summary>
+        /// <summary>The re-ingested wash's thrust σ, a share of the thrust, at height z over R.</summary>
         public double Sigma(double zOverR)
         {
             if (!(zOverR < RecirculationOnset)) return 0;
             double z = zOverR > LowestHeight ? zOverR : LowestHeight;
-            return RecirculationSigma * (RecirculationOnset - z) / (RecirculationOnset - LowestHeight);
+            return RecirculationSigma * (RecirculationOnset - z) / (RecirculationOnset - RecirculationReference);
         }
     }
 }

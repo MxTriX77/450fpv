@@ -104,7 +104,7 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "Flapping", "Modes",
+            "RotorWake", "Flapping", "Modes",
         };
 
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
@@ -117,9 +117,13 @@ namespace Fpv450.Sim.Log
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
         public static readonly string[] GroundEffectFieldsLogged =
         {
-            "Reach", "LowestHeight", "CeilingAlpha", "RecirculationOnset", "RecirculationSigma", "RecirculationBound",
-            "RecirculationLoop", "AirDensity",
+            "Reach", "LowestHeight", "CeilingAlpha", "RecirculationOnset", "RecirculationSigma", "RecirculationReference",
+            "RecirculationBound", "RecirculationLoop", "AirDensity",
         };
+
+        /// <summary>The rotor wake's fields the header records, checked against RotorWakeSpec by the suite.</summary>
+        public static readonly string[] RotorWakeFieldsLogged =
+            { "ThrustSigma", "CornerFrequency", "Bound", "AirDensity" };
 
         /// <summary>The flapping's fields the header records, checked against RotorFlappingSpec by the suite.</summary>
         public static readonly string[] FlappingFieldsLogged =
@@ -160,7 +164,11 @@ namespace Fpv450.Sim.Log
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
-        public static readonly string[] AsymmetryFieldsLogged = { "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm" };
+        public static readonly string[] AsymmetryFieldsLogged =
+        {
+            "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm", "ResistanceBound", "ResistanceSigma",
+            "FrictionBound", "FrictionSigma", "InertiaBound", "InertiaSigma",
+        };
         public static readonly string[] VortexRingFieldsLogged =
         {
             "EntryRate", "ExitRate", "PeakRate", "EndRate", "EntryInflow", "PeakInflow", "EscapeInPlane", "InflowLag", "FluctuationSigma",
@@ -171,7 +179,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21;
+            TagModes = 20, TagRain = 21, TagRotorWake = 22;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -222,6 +230,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The rotors' ground and ceiling effect; null for none (the wash's stream is in the randomness entry).</summary>
         public GroundEffectSpec GroundEffect;
+
+        /// <summary>The rotors' own wake unsteadiness; null for perfectly steady rotors (its stream is in the randomness entry).</summary>
+        public RotorWakeSpec RotorWake;
 
         /// <summary>The rotors' flapping; null for none.</summary>
         public RotorFlappingSpec Flapping;
@@ -299,6 +310,7 @@ namespace Fpv450.Sim.Log
                 Asymmetry = setup.Asymmetry?.Clone(),
                 VortexRing = setup.VortexRing?.Clone(),
                 GroundEffect = setup.GroundEffect?.Clone(),
+                RotorWake = setup.RotorWake?.Clone(),
                 Flapping = setup.Flapping?.Clone(),
                 Modes = setup.Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
@@ -397,6 +409,7 @@ namespace Fpv450.Sim.Log
                 Asymmetry = Asymmetry?.Clone(),
                 VortexRing = VortexRing?.Clone(),
                 GroundEffect = GroundEffect?.Clone(),
+                RotorWake = RotorWake?.Clone(),
                 Flapping = Flapping?.Clone(),
                 Modes = Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
@@ -705,6 +718,12 @@ namespace Fpv450.Sim.Log
                 e.Write(Asymmetry.BalanceGrade);
                 e.Write(Asymmetry.PropMass);
                 e.Write(Asymmetry.ServiceRpm);
+                e.Write(Asymmetry.ResistanceBound);
+                e.Write(Asymmetry.ResistanceSigma);
+                e.Write(Asymmetry.FrictionBound);
+                e.Write(Asymmetry.FrictionSigma);
+                e.Write(Asymmetry.InertiaBound);
+                e.Write(Asymmetry.InertiaSigma);
             });
             Entry(w, TagVortexRing, e =>
             {
@@ -725,9 +744,17 @@ namespace Fpv450.Sim.Log
                 GroundEffectSpec g = GroundEffect;
                 foreach (double x in new[]
                          {
-                             g.Reach, g.LowestHeight, g.CeilingAlpha, g.RecirculationOnset, g.RecirculationSigma, g.RecirculationBound,
-                             g.RecirculationLoop, g.AirDensity,
+                             g.Reach, g.LowestHeight, g.CeilingAlpha, g.RecirculationOnset, g.RecirculationSigma,
+                             g.RecirculationReference, g.RecirculationBound, g.RecirculationLoop, g.AirDensity,
                          })
+                    e.Write(x);
+            });
+            Entry(w, TagRotorWake, e =>
+            {
+                e.Write(RotorWake != null);
+                if (RotorWake == null) return;
+                RotorWakeSpec k = RotorWake;
+                foreach (double x in new[] { k.ThrustSigma, k.CornerFrequency, k.Bound, k.AirDensity })
                     e.Write(x);
             });
             Entry(w, TagFlapping, e =>
@@ -1028,7 +1055,9 @@ namespace Fpv450.Sim.Log
                             ? new MotorAsymmetry
                             {
                                 KvBound = r.ReadDouble(), KvSigma = r.ReadDouble(), EscLagBound = r.ReadDouble(), BalanceGrade = r.ReadDouble(),
-                                PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(),
+                                PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(), ResistanceBound = r.ReadDouble(),
+                                ResistanceSigma = r.ReadDouble(), FrictionBound = r.ReadDouble(), FrictionSigma = r.ReadDouble(),
+                                InertiaBound = r.ReadDouble(), InertiaSigma = r.ReadDouble(),
                             }
                             : null;
                         break;
@@ -1048,8 +1077,18 @@ namespace Fpv450.Sim.Log
                             ? new GroundEffectSpec
                             {
                                 Reach = r.ReadDouble(), LowestHeight = r.ReadDouble(), CeilingAlpha = r.ReadDouble(),
-                                RecirculationOnset = r.ReadDouble(), RecirculationSigma = r.ReadDouble(), RecirculationBound = r.ReadDouble(),
+                                RecirculationOnset = r.ReadDouble(), RecirculationSigma = r.ReadDouble(),
+                                RecirculationReference = r.ReadDouble(), RecirculationBound = r.ReadDouble(),
                                 RecirculationLoop = r.ReadDouble(), AirDensity = r.ReadDouble(),
+                            }
+                            : null;
+                        break;
+                    case TagRotorWake:
+                        RotorWake = r.ReadBoolean()
+                            ? new RotorWakeSpec
+                            {
+                                ThrustSigma = r.ReadDouble(), CornerFrequency = r.ReadDouble(), Bound = r.ReadDouble(),
+                                AirDensity = r.ReadDouble(),
                             }
                             : null;
                         break;

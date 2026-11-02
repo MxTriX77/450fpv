@@ -82,7 +82,11 @@ namespace Fpv450.Sim.Flight
     ///   to the thrust's advance ratio and its fluctuation to the thrust; AdvanceRing moves the rings once a step.
     /// - the ground and the ceiling (GroundEffectSpec, p7b-airframe 1.3), inside RotorInflow: each rotor's thrust at its speed
     ///   gains by its distances along its axis to the surfaces below and above it (SetSurfaces), and its re-ingested wash
-    ///   adds its inflow to the thrust's advance ratio; AdvanceWash moves the wash once a step.
+    ///   adds its inflow to the thrust's and the torque's advance ratio; AdvanceWash moves the wash once a step.
+    /// - the rotor's own wake (RotorWakeSpec, D-064), inside RotorInflow: each rotor's wandering wake inflow joins the wash's
+    ///   in the thrust's and the torque's advance ratio; AdvanceWake moves it once a step.
+    /// - the motors' own dynamics (MotorAsymmetry, D-064): each winding's resistance, each motor's friction and each rotor's
+    ///   inertia as the flight drew them.
     /// </summary>
     public sealed class Propulsion
     {
@@ -120,6 +124,14 @@ namespace Fpv450.Sim.Flight
         readonly double[] _surfaceGain = new double[4], _washInflow = new double[4], _washInduced = new double[4];
         readonly double[][] _ocv = new double[2][];
 
+        // The rotor's own wake (null: none): its spec and stream, its σ over v_h, each rotor's wake inflow (m/s) at the step's
+        // start; and the inflow over v_h of a thrust share through the props' static slope.
+        readonly RotorWakeSpec _wake;
+        readonly SeedStream _wakeStream;
+        readonly double _wakeSigma;
+        readonly double[] _wakeInflow = new double[4];
+        readonly double _shareToInflow;
+
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
         bool _elastic;
@@ -137,12 +149,18 @@ namespace Fpv450.Sim.Flight
         /// identical ones), with each rotor's vortex ring from ring and its thrust's fluctuation from ringStream (null for
         /// none).</summary>
         public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream)
-            : this(spec, draws, ring, ringStream, null, default) { }
+            : this(spec, draws, ring, ringStream, null, default, null, default) { }
 
         /// <summary>The same, with each rotor's ground and ceiling effect from ground and its re-ingested wash from
         /// groundStream (null for neither).</summary>
         public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream,
             GroundEffectSpec ground, SeedStream groundStream)
+            : this(spec, draws, ring, ringStream, ground, groundStream, null, default) { }
+
+        /// <summary>The same, with each rotor's own wake unsteadiness from wake and its stream wakeStream (null for none: a
+        /// perfectly steady rotor, the known-wrong of D-064).</summary>
+        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream,
+            GroundEffectSpec ground, SeedStream groundStream, RotorWakeSpec wake, SeedStream wakeStream)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Motors == null || spec.Motors.Length != 4) throw new ArgumentException("four motors", nameof(spec));
@@ -151,15 +169,16 @@ namespace Fpv450.Sim.Flight
             {
                 DroneMotor m = spec.Motors[i];
                 _ke[i] = draws == null ? 60 / (TwoPi * m.Kv) : 60 / (TwoPi * (m.Kv * draws.KvScale[i]));
-                _invR[i] = 1 / m.Resistance;
-                _friction[i] = _ke[i] * m.NoLoadCurrent;
-                _inertia[i] = m.RotorInertia;
+                double resistance = draws?.ResistanceScale == null ? m.Resistance : m.Resistance * draws.ResistanceScale[i];
+                _invR[i] = 1 / resistance;
+                _friction[i] = draws?.FrictionScale == null ? _ke[i] * m.NoLoadCurrent : _ke[i] * (m.NoLoadCurrent * draws.FrictionScale[i]);
+                _inertia[i] = draws?.InertiaScale == null ? m.RotorInertia : m.RotorInertia * draws.InertiaScale[i];
                 _escTau[i] = draws == null ? m.EscTau : m.EscTau + draws.EscLag[i];
                 _reaction[i] = m.Clockwise ? -1 : +1;
                 _polePairs[i] = m.MagnetPoles / 2;
                 _hub[i] = m.Position;
                 _limit[i] = m.EscCurrentLimit;
-                _limitVolts[i] = m.EscCurrentLimit * m.Resistance;
+                _limitVolts[i] = m.EscCurrentLimit * resistance;
                 if (draws == null) continue;
                 _unbalance[i] = draws.Unbalance[i];
                 _unbalanceAngle[i] = draws.UnbalanceAngle[i];
@@ -189,12 +208,14 @@ namespace Fpv450.Sim.Flight
                 _ringGain[i] = _surfaceGain[i] = 1;
                 _groundAt[i] = _ceilingAt[i] = double.PositiveInfinity;
             }
-            if (ring == null && ground == null) return;
+            if (ring == null && ground == null && wake == null) return;
             _ring = ring?.Clone();
             _ringStream = ringStream;
             _ground = ground?.Clone();
             _groundStream = groundStream;
-            double rho = ring != null ? ring.AirDensity : ground.AirDensity;
+            _wake = wake?.Clone();
+            _wakeStream = wakeStream;
+            double rho = ring != null ? ring.AirDensity : ground != null ? ground.AirDensity : wake.AirDensity;
             _radius = _diameter / 2;
             _twoRhoArea = 2 * rho * (TwoPi / 2) * _radius * _radius;
             // The static C_T at the reference rpm, k_T·(2π)²/(ρD⁴), sets v_h/(n·D) = √(2C_T/π) (momentum theory). The table's
@@ -208,7 +229,20 @@ namespace Fpv450.Sim.Flight
             // The held branch's inflow over v_h: momentum theory at the descent where it holds (η of the limit).
             double held = -DescentAdvanceRatioLimit / vhOverNd;
             _heldInflow = -0.5 * held + DetMath.Sqrt(0.25 * held * held + 1);
+            // An added inflow x·v_h at hover moves the thrust by the static slope through that advance ratio, −2r·x/(1 − r) of
+            // it, so a thrust share σ_T is the inflow σ_T·(1 − r)/(2r) over v_h (derived; 1.5 at r 0.25).
+            _shareToInflow = (1 - r) / (2 * r);
+            if (_wake != null) _wakeSigma = _wake.ThrustSigma * _shareToInflow;
         }
+
+        /// <summary>Whether the rotors carry their own wake's unsteadiness (RotorWakeSpec).</summary>
+        public bool HasWake => _wake != null;
+
+        /// <summary>The rotors' wake σ in hover, over v_h (the thrust's σ through the props' static slope).</summary>
+        public double WakeSigma => _wakeSigma;
+
+        /// <summary>The inflow over v_h of a thrust share at hover, through the props' static slope (derived).</summary>
+        public double ShareToInflow => _shareToInflow;
 
         /// <summary>Whether the rotors have their vortex rings (VortexRingSpec).</summary>
         public bool HasRing => _ring != null;
@@ -361,15 +395,18 @@ namespace Fpv450.Sim.Flight
                     _ringInflow[i] = s.RingInflow[i];
                     _ringGain[i] = 1 + s.RingThrust[i];
                 }
+                if (_ground == null && _wake == null) continue;
+                double t = _meanThrust[i], vh = t > 0 ? DetMath.Sqrt(t / _twoRhoArea) : 0;
+                _washInduced[i] = vh;
+                // The rotor's own wake (D-064), in v_h.
+                if (_wake != null) _wakeInflow[i] = s.WakeInflow[i] * vh;
                 if (_ground == null) continue;
                 // The ground and the ceiling (1.3), at v_h of the rotor's thrust at the last sub-step, faded by the hub's
                 // airspeed in the disc's plane (Cheeseman and Bennett's forward form); the re-ingested wash in v_h.
-                double t = _meanThrust[i], vh = t > 0 ? DetMath.Sqrt(t / _twoRhoArea) : 0;
                 double vh2 = vh * vh, v2 = air.X * air.X + air.Z * air.Z;
                 double fade = vh2 + v2 > 0 ? vh2 / (vh2 + v2) : 1;
                 _surfaceGain[i] = _ground.GroundGain(_groundAt[i] / _radius, fade) * _ground.CeilingGain(_ceilingAt[i] / _radius, fade);
                 _washInflow[i] = s.WashInflow[i] * vh;
-                _washInduced[i] = vh;
             }
         }
 
@@ -395,9 +432,34 @@ namespace Fpv450.Sim.Flight
                 z = DetMath.Min(DetMath.Max(z, _ground.LowestHeight), _ground.RecirculationOnset);
                 double tau = _ground.RecirculationLoop * (z + 1) * _radius / vh, a = tau / (tau + dt);
                 x *= a;
-                if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_groundStream, s.Step, i);
-                double bound = _ground.RecirculationBound;
+                if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * (sigma * _shareToInflow) * VortexRingSpec.Normal(_groundStream, s.Step, i);
+                double bound = _ground.RecirculationBound * _shareToInflow;
                 s.WashInflow[i] = x > bound ? bound : x < -bound ? -bound : x;
+            }
+        }
+
+        /// <summary>
+        /// The rotors' own wakes over one step of dt seconds (RotorWakeSpec, D-064): each rotor's wake inflow over v_h, x, a
+        /// first-order process, x ← a·x + √(1 − a²)·σ·n, a = τ/(τ + dt), τ = R/(2π·CornerFrequency·v_h), σ the hover's (the
+        /// thrust's σ through the static slope) faded by Glauert's v_i/v_h at the rotor's in-plane μ, n from
+        /// "rotor.wake" at the step and the corner, bounded at Bound times the hover's σ. A stopped rotor has none.
+        /// </summary>
+        public void AdvanceWake(ref FlightState s, double dt)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                double vh = _washInduced[i];
+                if (!(vh > 0))
+                {
+                    s.WakeInflow[i] = 0;
+                    continue;
+                }
+                Double3 p = _inPlane[i];
+                double sigma = _wakeSigma * RotorWakeSpec.Fade(DetMath.Sqrt(p.X * p.X + p.Z * p.Z) / vh);
+                double tau = _radius / (TwoPi * _wake.CornerFrequency * vh), a = tau / (tau + dt);
+                double x = a * s.WakeInflow[i] + DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_wakeStream, s.Step, i);
+                double bound = _wake.Bound * _wakeSigma;
+                s.WakeInflow[i] = x > bound ? bound : x < -bound ? -bound : x;
             }
         }
 
@@ -581,11 +643,13 @@ namespace Fpv450.Sim.Flight
 
         // A rotor's thrust and torque at speed w with this step's inflow (Aero), and with its vortex ring when the rotors
         // have one: the ring's added inflow moves the thrust's advance ratio past the held descent branch, its fluctuation
-        // scales the thrust; _meanThrust keeps the thrust without the fluctuation. With the ground and the ceiling, the
-        // re-ingested wash's inflow joins the ring's and the surfaces' gain scales the thrust (the torque keeps its own).
+        // scales the thrust; _meanThrust keeps the thrust without the fluctuation (in the ring the torque keeps the
+        // freestream's, as measured). With the ground and the ceiling, the re-ingested wash's inflow joins the ring's and the
+        // surfaces' gain scales the thrust; the rotor's own wake (D-064) joins the wash. The wash and the wake move the
+        // torque's advance ratio too: the blades see that inflow, so the props' published torque against J answers it.
         void RotorAero(int i, double w, out double thrust, out double torque)
         {
-            if ((_ring == null && _ground == null) || !(w > 0))
+            if ((_ring == null && _ground == null && _wake == null) || !(w > 0))
             {
                 Aero(w, _inflow[i], out thrust, out torque);
                 _meanThrust[i] = thrust;
@@ -594,13 +658,15 @@ namespace Fpv450.Sim.Flight
             double rpm = w * (60 / TwoPi);
             double advance = _inflow[i] / (w * (_diameter / TwoPi));
             double w2 = w * w;
-            double added = _ground == null ? _ringInflow[i] : _ringInflow[i] + _washInflow[i];
-            double j = (advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit)) + added * _ringAdvance / w;
+            double own = (_ground == null ? 0 : _washInflow[i]) + (_wake == null ? 0 : _wakeInflow[i]);
+            double held = advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit);
+            double j = held + (_ringInflow[i] + own) * _ringAdvance / w;
             double mean = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, j) * w2;
             if (_ground != null) mean *= _surfaceGain[i];
             _meanThrust[i] = mean;
             thrust = mean * _ringGain[i];
-            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, advance) * w2;
+            double jq = own == 0 ? advance : held + own * _ringAdvance / w;
+            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, jq) * w2;
         }
 
         // A ratio against the advance ratio: the table, its first segment continued below 0 to the descent limit.
