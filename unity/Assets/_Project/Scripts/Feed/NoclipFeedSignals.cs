@@ -7,7 +7,7 @@ namespace Fpv450.Feed
     /// The feed's signals on a noclip camera, until the physics thread exists (p4-feed design 4): the camera's angular
     /// rate is measured off the camera's own motion and labelled <see cref="SignalSource.Noclip"/>; every other signal
     /// is <see cref="Stub"/>'s labelled stub. With no drone that is no motor current and an intact link, so only the
-    /// Godot timers' quality drops and recovering dropouts run.
+    /// Godot timer's quality drops run; with no fiber, nothing drops the picture out (D-065).
     /// </summary>
     public sealed class NoclipFeedSignals : IFeedSignals, IFieldOsd
     {

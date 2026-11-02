@@ -17,7 +17,8 @@ namespace Fpv450.Feed.Tests
         /// fields, digested exactly as <see cref="FeedSchedule.Digest"/> does (p4-feed task 1.1's A/B). Between
         /// them the cases reach every loss state and every tell: the timer's dropouts (blue and black, the
         /// brightening and the top tear), the staged terminal loss (seeds 1 and 3, faded), and the hard cut with a
-        /// grain rise (seed 2) and with a bottom tear (seed 3, abrupt).
+        /// grain rise (seed 2) and with a bottom tear (seed 3, abrupt). Run with Godot's link artefacts, its
+        /// free-running dropouts, which D-065 took out of the feed: the port's own A/B stays on record.
         [TestCase(1, 0f, 0, false, 0xB476A0243BF62FAAUL)]
         [TestCase(2, 0f, 0, false, 0xE3FF6DA934271FC8UL)]
         [TestCase(3, 0f, 0, false, 0xC3D7A4784E241541UL)]
@@ -31,10 +32,108 @@ namespace Fpv450.Feed.Tests
         public void TheSameSeedGivesTheGodotSchedule(int seed, float motorCurrent, int cutField, bool abrupt,
             ulong godot)
         {
-            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt), Is.EqualTo(godot));
+            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt, godot: true),
+                Is.EqualTo(godot));
         }
 
-        /// Terminal losses are events, never a timer (D-008, D-026): left to its own timers the feed only ever
+        /// The feed's own schedule since D-065 (the noise is the analog camera's, and only the fiber loses the
+        /// picture), pinned from <c>feedbench schedule</c> without <c>--godot</c>, so any later drift shows: N3, N4
+        /// and the quality drops with no free-running dropout, and the cut reaching the staged loss (seeds 1 and 3,
+        /// faded) and the hard cut with a grain rise (seeds 2 and 3, abrupt) and with a bottom tear (seed 5,
+        /// abrupt).
+        [TestCase(1, 0f, 0, false, 0x9E9F49F99D786D2DUL)]
+        [TestCase(2, 0f, 0, false, 0x7DD6B34951EB7430UL)]
+        [TestCase(3, 0f, 0, false, 0x74F90FE2518D07DCUL)]
+        [TestCase(1, 0.6f, 0, false, 0x39B2EAFA94D12ABDUL)]
+        [TestCase(2, 0.6f, 0, false, 0xAD6ED49D469B0DEDUL)]
+        [TestCase(3, 0.6f, 0, false, 0x8773A2B8F8CD6BEFUL)]
+        [TestCase(1, 0f, 7500, false, 0x5712D2D85C03AB31UL)]
+        [TestCase(2, 0f, 7500, true, 0xCE1EF22CC44D958CUL)]
+        [TestCase(3, 0f, 7500, false, 0x44F7B7002431242FUL)]
+        [TestCase(3, 0f, 7500, true, 0x1EB0D9926AFF5B46UL)]
+        [TestCase(5, 0f, 7500, true, 0x181F2C2106E553F5UL)]
+        public void TheSameSeedGivesTheSameSchedule(int seed, float motorCurrent, int cutField, bool abrupt,
+            ulong pinned)
+        {
+            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt), Is.EqualTo(pinned));
+        }
+
+        /// D-065: left to itself the feed never loses the picture. No dropout, no tell and no tear in five minutes;
+        /// only N3, N4 and the quality drops run.
+        [TestCase(1, 0f)]
+        [TestCase(2, 0f)]
+        [TestCase(3, 0f)]
+        [TestCase(1, 0.6f)]
+        public void TheFeedNeverLosesThePictureOnItsOwn(int seed, float motorCurrent)
+        {
+            int lost = 0, drops = 0, n3 = 0, n4 = 0;
+            FeedSchedule.Run(seed, Fields, motorCurrent, 0, false, e =>
+            {
+                FeedLoss l = e.Loss;
+                if (l.Busy || l.Current != FeedLoss.State.Picture || l.Tell > 0f || l.TearAmp > 0f || l.GrainBoost > 0f)
+                    lost++;
+                drops += e.Degrade > 0f ? 1 : 0;
+                n3 += e.N3Amp > 0f ? 1 : 0;
+                n4 += e.N4Amp > 0f ? 1 : 0;
+            });
+            Assert.That(lost, Is.Zero);
+            Assert.That(new[] { drops, n3, n4 }, Has.All.GreaterThan(Fields / 10), "the camera's noise still runs");
+        }
+
+        /// With Godot's timer off, the schedule is Godot's field for field until the field where Godot's timer
+        /// fired its first dropout: nothing else in the scheduler moved.
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void UntilGodotsFirstDropoutTheScheduleIsGodots(int seed)
+        {
+            var godot = new System.Collections.Generic.List<string>();
+            FeedSchedule.Run(seed, Fields, 0.6f, 0, false, e => godot.Add(FeedSchedule.Row(e)), godot: true);
+            int first = godot.FindIndex(row => row.Split(' ')[2] == "1");
+            Assert.That(first, Is.GreaterThan(0), "Godot's timer fires a dropout");
+            int field = 0;
+            FeedSchedule.Run(seed, first, 0.6f, 0, false, e => Assert.That(FeedSchedule.Row(e), Is.EqualTo(godot[field++])));
+            Assert.That(field, Is.EqualTo(first));
+        }
+
+        /// The fiber's two entry points stay (D-065, p7d-tether drives them): a margin dip's recovering dropout,
+        /// with its tell, an outage in Godot's range and the picture back clean (FEED-06), and the break's terminal
+        /// loss, which never clears.
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public void TheFibersEntryPointsStillLoseThePicture(int seed)
+        {
+            var events = new FeedEvents(seed);
+            events.AdvanceTo(600, 0f);
+            events.Loss.StartDropout();
+            int tell = 0, black = 0, blue = 0;
+            while (events.Field < 700)
+            {
+                events.AdvanceTo(events.Field + 1, 0f);
+                FeedLoss l = events.Loss;
+                if (!l.Busy && l.Current == FeedLoss.State.Picture)
+                    break;
+                if (l.Current == FeedLoss.State.Picture)
+                    tell++;
+                black += l.Current == FeedLoss.State.Black ? 1 : 0;
+                blue += l.Current == FeedLoss.State.Blue ? 1 : 0;
+            }
+            FeedUniforms u = FeedUniforms.From(events, seed, 1f, 1f, 0f);
+            Assert.That(tell, Is.InRange(2, 5), "always a tell before the picture goes");
+            Assert.That(black > 0 ? black : blue, black > 0 ? Is.InRange(2, 4) : Is.InRange(17, 35));
+            Assert.That(new[] { u.LossState, u.Tell, u.TearAmp, u.GrainBoost, u.BlackA, u.BlackB },
+                Is.EqualTo(new[] { 0f, 0f, 0f, 0f, 0f, 1f }), "the picture comes back clean");
+
+            events.TriggerCut(seed % 2 == 0);
+            events.AdvanceTo(events.Field + 60, 0f);
+            Assert.That(events.Loss.Current, Is.EqualTo(FeedLoss.State.Blue));
+            events.AdvanceTo(events.Field + 3000, 0f);
+            Assert.That(events.Loss.Current, Is.EqualTo(FeedLoss.State.Blue), "a break never clears");
+        }
+
+        /// Terminal losses are events, never a timer (D-008, D-026): left to its own timers the Godot feed only ever
         /// shows recovering dropouts, whose blue lasts at most 35 fields (FeedLoss.cs:48), and never snow.
         [TestCase(1)]
         [TestCase(2)]
@@ -49,7 +148,7 @@ namespace Fpv450.Feed.Tests
                 longestBlue = Math.Max(longestBlue, blueRun);
                 if (s == FeedLoss.State.Snow || s == FeedLoss.State.PartialSnow)
                     snow++;
-            });
+            }, godot: true);
             Assert.That(snow, Is.Zero);
             Assert.That(longestBlue, Is.InRange(18, 35));
         }

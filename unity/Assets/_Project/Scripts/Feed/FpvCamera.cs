@@ -183,12 +183,14 @@ namespace Fpv450.Feed
             }
 
             // The clock runs on from where the rig last stopped, so switching the feed off and on resumes the schedule.
-            Events = new FeedEvents(settings.seed);
+            Events = NewEvents();
             Step(pinnedField >= 0 ? pinnedField : (int)(clock * FieldsPerSecond));
             Debug.Log($"[Feed] FPV camera: {size.x}x{size.y} render, {settings.VerticalFovDeg(RenderCoverage):0.00}° vertical, " +
                       (shutterOn ? $"rolling shutter on ({settings.shutterMarginDeg:0.#}° margin), " : "") +
                       $"picture {settings.PictureHorizontalFovDeg:0.0}° across, lens k1 {settings.K1:0.00}, " +
-                      $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}. {FeedSignalLog.Describe(Signals)}");
+                      $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}, " +
+                      (settings.godotLinkArtefacts ? "Godot's link artefacts (the A/B, D-026). " : "no link artefacts (D-065). ") +
+                      FeedSignalLog.Describe(Signals));
             Debug.Log($"[Feed] OSD ({Signals.SourceOf(FeedSignal.OsdState).ToString().ToLowerInvariant()}), " +
                       $"{FeedOsd.Cols}x{FeedOsd.Rows} cells of {FeedOsd.CellW * 1920f:0.0}x{FeedOsd.CellH * 1080f:0.0} px at 1920x1080, " +
                       $"{FeedFont.CellCount}-cell ROM, field {Events.Field}: {FeedOsd.Describe(Signals)}");
@@ -219,7 +221,7 @@ namespace Fpv450.Feed
         public void Step(int field)
         {
             if (field < Events.Field)
-                Events = new FeedEvents(settings.seed);
+                Events = NewEvents();
             Events.AdvanceTo(field, FeedSignalScale.MotorCurrent(Signals.MotorCurrentTotalA));
             Feed.Uniforms = FeedUniforms.From(Events, settings.seed, settings.gain, Signals);
             if (Events.Field != osdField)
@@ -231,6 +233,9 @@ namespace Fpv450.Feed
                 osdCodes.Apply(false);
             }
         }
+
+        /// A fresh scheduler from the settings' seed, with Godot's link artefacts only if the settings ask (D-065).
+        FeedEvents NewEvents() => new FeedEvents(settings.seed) { GodotLinkArtefacts = settings.godotLinkArtefacts };
 
         /// The ROM's atlas (FeedFont.BuildAtlas), baked once: R the glyph, G its outline, linear, point-sampled.
         static Texture2D Glyphs()
