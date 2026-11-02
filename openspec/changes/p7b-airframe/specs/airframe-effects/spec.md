@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The airframe effects a real heavy quad shows and a clean plant does not: motor asymmetry, ground and ceiling effect, recirculation, the rotors' edgewise-flow moments, vortex ring state, the throttle-punch shake, and the battery's and inertia's character, each physical, bounded and logged.
+The airframe effects a real heavy quad shows and a clean plant does not: motor asymmetry, ground and ceiling effect, recirculation, the rotors' edgewise-flow moments, the rotors in each other's wake, vortex ring state, the throttle-punch shake, and the battery's and inertia's character, each physical, bounded and logged.
 
 ## ADDED Requirements
 
@@ -38,6 +38,21 @@ Each rotor in edgewise flow SHALL flap and make a hub moment from blade-element 
 #### Scenario: A gust step tilts the drone harder
 - **WHEN** the hovering drone meets a 4 m/s gust step from the front and from the side, with the flapping on and off
 - **THEN** with it on, the peak pitch rate (front) and roll rate (side) are at least 1.5 times those without it, and the drone tilts away from the gust
+
+### Requirement: The rotors in each other's wake
+In forward flight each rotor's wake SHALL reach the other rotors' discs as an axial inflow from a published wake model with labelled constants: a downwash on the rotors behind it and an upwash on those beside and ahead, from its skew (the advance ratio and the inflow through its tilted disc) and the discs' spacing, formed only while the flow carries the wake away; its own unsteadiness SHALL be a bounded fluctuation of that inflow from a named, logged stream, never on the pose.
+
+#### Scenario: The wake model against its published form
+- **WHEN** the wake's normal velocity is taken over the disc at skews of 30°, 60° and 75°, and in the disc's plane outside an unskewed wake
+- **THEN** its gradient along the flow is Coleman's tan(χ/2) within 0.2 % and flat across it, and outside the unskewed wake it is nothing (within 0.002 v_i)
+
+#### Scenario: The rear rotors lose thrust in forward flight
+- **WHEN** the drone holds 6° nose down at 10 m/s and 12° at 15 m/s in still air with the whole airframe, with the wake and with a known-wrong model without the interaction
+- **THEN** with it, the rear pair's thrust at its own speed is 2–20 % under the front pair's (the published order on other frames), the rear rotors spin faster to hold the pitch, and the front pair gains from the upwash; without it the two pairs are equal and the band fails
+
+#### Scenario: Hover and slow flight keep their thrust
+- **WHEN** the drone hovers in still air, and flies 3 m/s at 1° nose down, with the wake
+- **THEN** the hover takes no added inflow (within 1e-3 m/s) and its rotors' speeds are those without the wake within 0.1 %, and the slow flight's rear pair is under 2 % from the front's
 
 ### Requirement: Settling into the own wash
 Vortex ring state SHALL set in from the descent rate normalised by the induced velocity at the current thrust, with hysteresis, costing thrust and adding a wandering moment, its entry and exit logged.
