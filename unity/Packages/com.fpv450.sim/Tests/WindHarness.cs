@@ -299,7 +299,7 @@ namespace Fpv450.Sim.Tests
         /// the belt's strip. `steady` is the known-wrong fixed vector: the drawn strength from the drawn direction at every
         /// point and time, without turbulence, profile, direction changes or the strip.</summary>
         public static FlightSetup Setup(DroneSpec spec, WindLevel level, ulong seed, double height, bool belt, bool drag,
-            out double courseDeg, out double fromDeg, int startSecond = 0, bool steady = false)
+            out double courseDeg, out double fromDeg, int startSecond = 0, bool steady = false, bool wake = true)
         {
             var drawn = new WindField(WindSetup.Of(level), new FlightRandom(seed));
             fromDeg = drawn.FromDeg;
@@ -313,6 +313,7 @@ namespace Fpv450.Sim.Tests
             if (steady) wind = WindSetup.SteadyFrom(fromDeg, drawn.MeanSpeed);
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);
+            if (!wake) setup.RotorWake = null; // p7b-airframe 1.3d's known-wrong: no rotor-rotor interaction
             if (level == WindLevel.Calm) setup.Asymmetry = null; // PHY-14, K§8.6: Calm is flown with the asymmetry off
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = along * ReleaseSpeed;
@@ -324,13 +325,14 @@ namespace Fpv450.Sim.Tests
         }
 
         // The whole airframe a pilot's flight has (p7b-airframe): the motors' asymmetry on the seed's draws, the vortex rings,
-        // the ground effect, the rotors' flapping and the airframe's modes.
+        // the ground effect, the rotors' flapping, the rotors in each other's wake (1.3d) and the airframe's modes.
         static void Airframe(DroneSpec spec, FlightSetup setup)
         {
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
             setup.Flapping = spec.BuildFlapping();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Modes = spec.BuildModes();
         }
 
@@ -338,7 +340,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
-            bool steady = false, bool remnant = true)
+            bool steady = false, bool remnant = true, bool wake = true)
         {
             double height = HeightOf(i, n), low = BeltHeightOf(i, n), climb = ClimbSecondsOf(i, n), seconds = Seconds + climb;
             double[] history = History(level, seed, 120, out double drawn);
@@ -346,7 +348,7 @@ namespace Fpv450.Sim.Tests
             if (start < 0)
                 throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + seconds + " s within 90° of its drawn direction");
             FlightSetup setup = Setup(spec, level, seed, low, belt && !steady, drag, out double courseDeg, out double fromDeg,
-                steady ? 0 : start, steady);
+                steady ? 0 : start, steady, wake);
 
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);

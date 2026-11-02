@@ -13,6 +13,8 @@ flown, and must fail there:
   share, T10b's belt), flown at the same heights
 - `-noiseless`: the pilot without its stick noise (D-060, HarnessPilot's motor noise), a second known-wrong for the
   pitch spread and its 1-4 Hz (T2, T6c), where the human remnant belongs; every flown known-wrong must fail
+- `-nowake`: the airframe without the rotors in each other's wake (p7b-airframe 1.3d, D-060's rear rotors in the front
+  rotors' wake), a third known-wrong for the pitch spread and its bands (T2, T6b, T6c)
 - `as severe` (Calm only): Severe's runs graded on Calm's ceilings, a calm level as strong as Severe (every ceiling
   but T6d's)
 - `pose`: the nominal runs' logs with white noise of 0.15 deg per axis added to the attitude, the "noise on the pose"
@@ -29,7 +31,7 @@ derived); the harness's frames carry the recorder's field pick (WindHarness.Fiel
 upper end with P's pick added in quadrature (0.018 / 0.012 deg, section 2.3): 0.082 / 0.044 deg (derived).
 
 usage: python tools/wind/grade_levels.py DIR LEVEL [--json OUT]
-DIR holds <level>/, and optionally <level>-nodrag/, <level>-steady/, <level>-nobelt/ and <level>-noiseless/.
+DIR holds <level>/, and optionally <level>-nodrag/, <level>-steady/, <level>-nobelt/, <level>-noiseless/ and <level>-nowake/.
 """
 
 import argparse
@@ -63,9 +65,9 @@ CALM = {"T0", "T1", "T2", "T3", "T4", "T5 field", "T5 belt", "T6d roll", "T6d pi
 # The targets in wind.md's order, each with its conditions and its known-wrong model (the family that must fail it).
 TARGETS = [
     ("T0", ["T0"], "nodrag"), ("T0b", ["T0b spread", "T0b windward"], "steady"),
-    ("T1", ["T1"], "steady"), ("T2", ["T2"], ("steady", "noiseless")), ("T3", ["T3", "T3 ratio"], "nobelt"), ("T4", ["T4", "T4 ratio"], "nobelt"),
+    ("T1", ["T1"], "steady"), ("T2", ["T2"], ("steady", "noiseless", "nowake")), ("T3", ["T3", "T3 ratio"], "nobelt"), ("T4", ["T4", "T4 ratio"], "nobelt"),
     ("T5 field", ["T5 field"], "steady"), ("T5 belt", ["T5 belt"], "nobelt"),
-    ("T6a", ["T6a"], "pose"), ("T6b", ["T6b"], "steady"), ("T6c", ["T6c share", "T6c rms"], ("steady", "noiseless")),
+    ("T6a", ["T6a"], "pose"), ("T6b", ["T6b"], ("steady", "nowake")), ("T6c", ["T6c share", "T6c rms"], ("steady", "noiseless", "nowake")),
     ("T6d", ["T6d roll", "T6d pitch"], "pose"), ("T7", ["T7 rate", "T7 belt share"], "nobelt"),
     ("T8", ["T8 median", "T8 cv"], "steady"), ("T9a", ["T9a"], "calm/busy"), ("T9b", ["T9b"], "stationary"),
     ("T10a", ["T10a"], "steady"), ("T10b", ["T10b whole", "T10b belt", "T10b belt > field"], "nobelt"),
@@ -242,7 +244,7 @@ def main(argv=None):
     v = readings(runs)
     res = verdicts(v, a.level)
     wrong = {}
-    for fam in ("nodrag", "steady", "nobelt", "noiseless"):
+    for fam in ("nodrag", "steady", "nobelt", "noiseless", "nowake"):
         d = root / f"{a.level}-{fam}"
         if (d / "harness.json").exists():
             wrong[fam] = verdicts(readings(load_runs(d)), a.level)

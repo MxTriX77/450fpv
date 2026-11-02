@@ -18,10 +18,11 @@ namespace Fpv450.FlightBench
     // reproduces p6-flight-core 1.5's scenario's there (within 15 %, 20 % with the belt) and its airspeed is the cruise's;
     // without drag (a known-wrong model) it must fail. T0, the lean that grades it, is wind_stats.py's. p7c-wind 1.5: the
     // belt is a wooded strip's canopy flow (CanopyFlow, belt-geometry-p.md), flown at 0.5–1.0 H, and `--wrong
-    // steady|nodrag` and `--belt off` fly the known-wrong families that tools/wind/grade_levels.py grades every target on.
+    // steady|nodrag|noiseless|nowake` (D-060: the pilot without its stick noise; p7b-airframe 1.3d: the airframe without the
+    // rotors' wakes) and `--belt off` fly the known-wrong families that tools/wind/grade_levels.py grades every target on.
     internal static class WindHarnessCase
     {
-        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless] [--history N]";
+        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--history N]";
 
         public static int Run(string[] args)
         {
@@ -29,7 +30,7 @@ namespace Fpv450.FlightBench
                 return Fail(Usage);
             int seeds = 5, history = 0, first = 1;
             string output = null;
-            bool all = true, belt = true, steady = false, drag = true, remnant = true;
+            bool all = true, belt = true, steady = false, drag = true, remnant = true, wake = true;
             for (int i = 2; i < args.Length; i++)
             {
                 string value = i + 1 < args.Length ? args[i + 1] : null;
@@ -41,8 +42,8 @@ namespace Fpv450.FlightBench
                     case "--out" when value != null: output = value; i++; break;
                     case "--pilots" when value == "nominal" || value == "all": all = value == "all"; i++; break;
                     case "--belt" when value == "on" || value == "off": belt = value == "on"; i++; break;
-                    case "--wrong" when value == "steady" || value == "nodrag" || value == "noiseless":
-                        steady = value == "steady"; drag = value != "nodrag"; remnant = value != "noiseless"; i++; break;
+                    case "--wrong" when value == "steady" || value == "nodrag" || value == "noiseless" || value == "nowake":
+                        steady = value == "steady"; drag = value != "nodrag"; remnant = value != "noiseless"; wake = value != "nowake"; i++; break;
                     default: return Fail(Usage);
                 }
             }
@@ -50,13 +51,13 @@ namespace Fpv450.FlightBench
             DroneSpec spec = PoweredFlightCase.Drone();
             WindHarness.Pilot[] pilots = all ? WindHarness.Pilots : new[] { WindHarness.Pilots[0] };
             Console.WriteLine($"flightbench: the wind harness (p7c-wind 1.2, K§8.5): {level}, the {WindPreset.Model} wind"
-                + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
+                + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (wake ? "" : ", the known-wrong airframe without the rotors' wakes") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
                 + $", {seeds} seeds × {pilots.Length} pilots, {WindHarness.Seconds:F0} s each and the climb between the stretches (unmeasured), the first {WindHarness.DiscardSeconds:F0} s discarded");
 
             var runs = new WindHarness.Run[pilots.Length * seeds];
             var clock = System.Diagnostics.Stopwatch.StartNew();
             Parallel.For(0, runs.Length, j =>
-                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant));
+                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant, wake));
             Console.WriteLine($"  {runs.Length} flights in {clock.Elapsed.TotalSeconds:F1} s");
 
             foreach (WindHarness.Run r in runs)
@@ -68,7 +69,7 @@ namespace Fpv450.FlightBench
             }
 
             bool ok = true;
-            if (level != WindLevel.Calm && !steady && drag && remnant)
+            if (level != WindLevel.Calm && !steady && drag && remnant && wake)
             {
                 // 1.5's scenario's own lean at the cruise (CrosswindScenario), in the Severe centre's crosswind.
                 double c = WindPreset.SevereCentre;
@@ -97,7 +98,7 @@ namespace Fpv450.FlightBench
 
             if (output != null)
             {
-                string dir = Path.Combine(output, level.ToString().ToLowerInvariant() + (steady ? "-steady" : !drag ? "-nodrag" : !remnant ? "-noiseless" : belt ? "" : "-nobelt"));
+                string dir = Path.Combine(output, level.ToString().ToLowerInvariant() + (steady ? "-steady" : !drag ? "-nodrag" : !remnant ? "-noiseless" : !wake ? "-nowake" : belt ? "" : "-nobelt"));
                 var manifest = new List<object>();
                 foreach (WindHarness.Run r in runs)
                 {
@@ -116,7 +117,7 @@ namespace Fpv450.FlightBench
                 }
                 var doc = new
                 {
-                    harness = "p7c-wind 1.5 (K§8.5)", level = level.ToString(), wind = steady ? "steady (known-wrong)" : WindPreset.Model, belt = belt && !steady, remnant,
+                    harness = "p7c-wind 1.5 (K§8.5)", level = level.ToString(), wind = steady ? "steady (known-wrong)" : WindPreset.Model, belt = belt && !steady, remnant, wake,
                     strip_height_m = belt ? WindHarness.StripHeight : 0, strip_width_m = belt ? WindHarness.StripWidthHeights * WindHarness.StripHeight : 0,
                     strip_area_index = belt ? WindHarness.StripAreaIndex : 0, seconds = WindHarness.Seconds, discarded_s = WindHarness.DiscardSeconds,
                     how = "per run: wind_stats.py --csv <dir>/<csv> --segment <segment> --json <out>; T0c: --wind-log <dir>/history/*.csv",

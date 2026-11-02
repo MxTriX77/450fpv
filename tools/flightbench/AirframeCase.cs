@@ -87,6 +87,7 @@ namespace Fpv450.FlightBench
             s.VortexRing = on ? spec.BuildVortexRing() : null;
             s.GroundEffect = on ? spec.BuildGroundEffect() : null;
             s.Flapping = on ? spec.BuildFlapping() : null;
+            s.RotorWake = on ? spec.BuildRotorWake() : null;
             s.Modes = on ? spec.BuildModes() : null;
             return s;
         }

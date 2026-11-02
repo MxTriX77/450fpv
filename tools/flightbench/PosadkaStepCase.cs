@@ -37,6 +37,7 @@ namespace Fpv450.FlightBench
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
             setup.Flapping = spec.BuildFlapping();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Modes = spec.BuildModes();
             const double h = WakeGridFixture.MapleTop;
             using var probe = new WindField(wind, new FlightRandom(Seed));

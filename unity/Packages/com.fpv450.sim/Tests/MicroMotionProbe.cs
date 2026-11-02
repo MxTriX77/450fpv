@@ -79,13 +79,14 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>The whole airframe a pilot's flight has (as WindHarness flies): asymmetry, rings, ground effect,
-        /// flapping and modes.</summary>
+        /// flapping, the rotors' wakes (p7b-airframe 1.3d) and modes.</summary>
         public static void Airframe(DroneSpec spec, FlightSetup setup)
         {
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
             setup.Flapping = spec.BuildFlapping();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Modes = spec.BuildModes();
         }
 
