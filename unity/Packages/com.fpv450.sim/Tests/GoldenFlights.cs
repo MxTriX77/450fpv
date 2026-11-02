@@ -272,7 +272,18 @@ namespace Fpv450.Sim.Tests
         // Model 17: 0x4D5A4F57872D01F7. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight. In Calm's
         // band, 1.32 times model 17's, it moves from step 1 and keeps its course: 5 impacts, no crash, at rest on 8 touching
         // pairs at 0.2518 m, 51 mm from where it rose; 125 events.
-        public const ulong ContactHash = 0x1152D64875230761UL;
+        // Model 18: 0x1152D64875230761. p7a-ground 1.10: re-recorded with ModelVersion 23, the floor's belt_bare now
+        // surfaces.json's soil (the setup carries the table; the record's layout is model 18's). Audited: without the table
+        // the flight is model 18's, every record and event (WithoutTheSoilTheContactGoldenIsModel18s, kept). With it the
+        // flight moves from step 2, the first whose forces take the soil: the skids sink into belt_bare from the start.
+        // It keeps its course: the same climb (0.7424 m at 1 s against 0.7420), the held bounce lower on the soil (its top
+        // 0.4094 m against 0.4511), 3 impacts against 5, at most 53.8 mm from model 18's path, no crash, at rest on its
+        // skids 3.9 mm deeper (0.2479 m against 0.2518; the half-skids 3.5–4.3 mm in, 5.3–5.6 mm at the deepest); 91
+        // events against 125.
+        public const ulong ContactHash = 0xA248F9B82CF85639UL;
+
+        /// <summary>Model 18's contact golden on the rigid floor, which the flight without surfaces.json keeps (p7a-ground 1.10's audit).</summary>
+        public const ulong Model18ContactHash = 0x1152D64875230761UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -453,16 +464,18 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
-        /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
+        /// later the throttle is cut and it comes to rest. The floor's belt_bare is surfaces.json's soil (p7a-ground 1.10);
+        /// soil false flies model 18's rigid floor. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null)
+            Action<byte[]> onRecord = null, bool soil = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
+            if (soil) setup.Contacts = spec.BuildContacts(spec.Nominal, materials, mh, SoilScenarios.Table()); // p7a-ground 1.10
             setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();

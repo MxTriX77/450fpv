@@ -69,6 +69,14 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.ContactHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
+        // p7a-ground 1.10's audit (model 23), kept: without surfaces.json the contact golden is model 18's flight on the rigid
+        // floor, every record and event bit for bit; only the soil moves it.
+        [Test]
+        public void WithoutTheSoilTheContactGoldenIsModel18s()
+        {
+            Assert.That(GoldenFlights.FlyContact(RepositoryDrone.Spec(), out _, soil: false), Is.EqualTo(GoldenFlights.Model18ContactHash));
+        }
+
         // The merge of p7c-wind and unity/main (model 17), its audit against unity/main, kept: on drone.json with main's tuned
         // rotor drag (0.25) in still air, where the field and the stand-in both blow nothing, each golden over main's
         // 1656-byte layout (the record less p7c-wind's 152 bytes at 1296) is main's model 15 flight in still air, bit for bit
@@ -81,7 +89,7 @@ namespace Fpv450.Sim.Tests
             WindSetup still = WindSetup.Of(WindLevel.Still);
             Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still), Is.EqualTo(GoldenFlights.Model15StillContactHash), "contact");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still, soil: false), Is.EqualTo(GoldenFlights.Model15StillContactHash), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
         }
 

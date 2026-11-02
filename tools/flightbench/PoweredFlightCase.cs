@@ -50,6 +50,11 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
                 + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
                 + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
+            // p7a-ground 1.10's audit: without surfaces.json the contact flight is model 18's on the rigid floor.
+            ulong rigid = GoldenFlights.FlyContact(Drone(), out _, soil: false);
+            bool sok = rigid == GoldenFlights.Model18ContactHash;
+            cok &= sok;
+            Console.WriteLine($"contact-flight without surfaces.json: hash 0x{rigid:X16} ({(sok ? "model 18's, bit for bit" : "NOT model 18's")}): {(sok ? "PASS" : "FAIL")}");
             ulong rain = GoldenFlights.FlyPowered(Drone(), out FlightCore r, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
             bool rok = rain == GoldenFlights.RainPoweredHash && r.Rain.FilmMass > 0;
             Console.WriteLine($"rain-flight: {GoldenFlights.PoweredSteps} steps in Calm and Severe rain, hash 0x{rain:X16} "
@@ -67,7 +72,7 @@ namespace Fpv450.FlightBench
             DroneSpec main = GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
             ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still);
-            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still);
+            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still, soil: false);
             ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152);
             bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.Model15StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
             Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, contact 0x{c15:X16}, tumble 0x{t15:X16} "
