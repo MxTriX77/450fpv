@@ -77,7 +77,9 @@ namespace Fpv450.Feed.Tests
 
                 rig.Step(1365);
                 Assert.That(rig.Feed.Uniforms.Field, Is.EqualTo(1365f));
-                Assert.That(rig.Feed.Uniforms.TearAmp, Is.EqualTo(0.6356117f)); // seed 1's dropout tell (feedbench)
+                // Godot's timer put seed 1's first tearing dropout tell here; D-065 took the timer out.
+                Assert.That(new[] { rig.Feed.Uniforms.TearAmp, rig.Feed.Uniforms.LossState, rig.Feed.Uniforms.TearWedge },
+                    Is.EqualTo(new[] { 0f, 0f, 0f }));
                 rig.Step(600); // back: replayed from the seed
                 Assert.That(rig.Events.Field, Is.EqualTo(600));
 

@@ -23,6 +23,8 @@
 // OSD keeps its straight horizon while the real one bends (gd:28-30). With k1 = 0 and coverage 1 it is Godot's read.
 // A second, off in the A/B (p7e-camera-feel): the camera's read, each field row turned by the camera's rotation at its
 // read and averaged over its exposure (shutter_tex), on the scene only; with _Shutter.x = 0 the read is the one above.
+// One removal (D-065, the camera's noise, not a radio link's): the tear's black wedge is drawn only with _TearWedge = 1,
+// Godot's feed in the A/B; the feed draws its tear as a shear alone.
 Shader "Hidden/Fpv450/Feed"
 {
     Properties
@@ -65,6 +67,9 @@ Shader "Hidden/Fpv450/Feed"
     float _TearAmp;         // gd:66
     float _TearTop;         // gd:67
     float _GrainBoost;      // gd:68
+    // D-065: 1 draws the tear's black wedge (gd:382-385, the pilot's "black sticks"), Godot's link artefact, only in
+    // the FEED-00 A/B (FeedEvents.GodotLinkArtefacts); 0 leaves the tear its shear alone.
+    float _TearWedge;
 
     // O1 (the port's addition): x = k1, y = the render's coverage in half-widths at the corner (1 + k1 r²), z = the
     // picture's aspect. (0, 1, any) reads the scene exactly as Godot did.
@@ -445,10 +450,10 @@ Shader "Hidden/Fpv450/Feed"
         rgb += float3(0.05, 0.0, 0.07) * smoothstep(0.86, 1.0, y_dec);
         rgb = clamp(rgb, 0.0, 1.0);
 
-        // the tear's wedge, gd:382-385
+        // the tear's wedge, gd:382-385, Godot's only (D-065)
         if (_TearAmp > 0.0)
         {
-            float wedge = _TearAmp * tear_band * 0.10 * hash(float3(floor(line_ / 3.0), 211.0, fw));
+            float wedge = _TearWedge * _TearAmp * tear_band * 0.10 * hash(float3(floor(line_ / 3.0), 211.0, fw));
             rgb *= step(x, 1.0 - wedge);
         }
 

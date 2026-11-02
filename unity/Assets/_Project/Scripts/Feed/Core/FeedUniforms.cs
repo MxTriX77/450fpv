@@ -14,6 +14,9 @@ namespace Fpv450.Feed
         public float N3Amp, N3Roll, N3Spacing, N4Amp, N4Span, Degrade;
         public float LossState, LossSplit, LossTopStrip, BlackA, BlackB, SnowLevel, SnowChroma;
         public float Tell, TearAmp, TearTop, GrainBoost;
+        /// 1 draws the black wedge a tear cuts in from the right edge (gd:382-385), the "black sticks"; 0 leaves the
+        /// tear its sideways shear alone. 1 only with <see cref="FeedEvents.GodotLinkArtefacts"/> (D-065).
+        public float TearWedge;
 
         /// <summary>
         /// The uniforms for the field <paramref name="events"/> stands at, in VideoFeed.cs:141-169's order.
@@ -47,6 +50,7 @@ namespace Fpv450.Feed
                 TearAmp = loss.TearAmp,
                 TearTop = loss.TearTop,
                 GrainBoost = loss.GrainBoost,
+                TearWedge = events.GodotLinkArtefacts ? 1f : 0f,
             };
         }
 

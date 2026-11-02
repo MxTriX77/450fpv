@@ -44,6 +44,9 @@ namespace Fpv450.Feed
         /// minute (D-026). `docs/reference-notes/video-feed.md` measures ≈5/min in severe wind and rain and a
         /// free-running floor of 0.2/min otherwise, so this rate is the pilot's deliberate choice and the real
         /// driver is the fiber link margin. 5–32 s apart, mean ≈ 14 s.
+        /// D-065 takes this timer out: the link is a fiber, not a radio, so a dropout comes only from the fiber's
+        /// margin dip (p7d-tether, <see cref="FeedLoss.StartDropout"/>). It runs only with
+        /// <see cref="GodotLinkArtefacts"/>, for the A/B against Godot.
         /// Terminal losses are never on this timer: <see cref="TriggerCut"/> is what fires them.
         const double DropoutGapMinSeconds = 5.0, DropoutGapMaxSeconds = 32.0; // FeedEvents.cs:22
 
@@ -69,6 +72,13 @@ namespace Fpv450.Feed
         /// Whether this flight's airframe has the trait at all. The footage has each in 1 of its 3 airframe groups,
         /// so the real draw is p ≈ 1/3 per flight; the feed forces both on so they are part of the look (D-026).
         public bool HasN3 = true, HasN4 = true; // FeedEvents.cs:45
+
+        /// The Godot feed's two link-type artefacts (D-026), off by default (D-065: the noise is the analog camera's,
+        /// and the link is a fiber, not a radio): the free-running recovering dropouts above, and the black wedge a
+        /// tear cuts in from the right edge (the "black sticks", <see cref="FeedUniforms.TearWedge"/>). True gives
+        /// Godot's feed field for field, for the FEED-00 A/B. Either way the timer's first gap is drawn, so with it
+        /// off the schedule is Godot's up to the field of Godot's first dropout.
+        public bool GodotLinkArtefacts;
 
         /// The field counter the shader hashes on. Pinned by the review tools for a reproducible still.
         public int Field;
@@ -175,11 +185,12 @@ namespace Fpv450.Feed
             _dropWait = DrawGap(DropGapMinSeconds, DropGapMaxSeconds);
         }
 
-        /// Advances the loss sequence, and starts a recovering dropout when the timer comes up and nothing is
-        /// running. A terminal blue screen never clears, so once one is up the timer does nothing.
+        /// Advances the loss sequence. With <see cref="GodotLinkArtefacts"/> it also starts a recovering dropout when
+        /// the timer comes up and nothing is running; a terminal blue screen never clears, so once one is up the timer
+        /// does nothing. Without it (D-065) only the fiber's events start a sequence.
         void StepLoss()
         {
-            if (!Loss.Busy && --_dropoutWait <= 0)
+            if (GodotLinkArtefacts && !Loss.Busy && --_dropoutWait <= 0)
             {
                 Loss.StartDropout();
                 _dropoutWait = DrawGap(DropoutGapMinSeconds, DropoutGapMaxSeconds);

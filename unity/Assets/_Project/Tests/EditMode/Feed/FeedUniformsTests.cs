@@ -50,6 +50,17 @@ namespace Fpv450.Feed.Tests
             Assert.That(new[] { u.Gain, u.LinkMargin, u.MotorCurrent }, Is.EqualTo(new[] { 1f, 1f, 0f }));
         }
 
+        /// The tear's black wedge, the pilot's "black sticks", is Godot's link artefact: drawn only in the A/B
+        /// against Godot (D-065).
+        [Test]
+        public void OnlyGodotsFeedDrawsTheTearsWedge()
+        {
+            var events = new FeedEvents(1);
+            Assert.That(FeedUniforms.From(events, 1, 1f, 1f, 0f).TearWedge, Is.Zero);
+            events.GodotLinkArtefacts = true;
+            Assert.That(FeedUniforms.From(events, 1, 1f, 1f, 0f).TearWedge, Is.EqualTo(1f));
+        }
+
         /// Motor current: the Godot stand-in's 68 A full current (FeedSignals.cs:37), clamped to 0–1.
         [TestCase(0f, 0f)]
         [TestCase(34f, 0.5f)]

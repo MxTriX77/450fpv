@@ -63,6 +63,7 @@ namespace Fpv450.Feed
                 SnowLevel = Shader.PropertyToID("_SnowLevel"), SnowChroma = Shader.PropertyToID("_SnowChroma"),
                 Tell = Shader.PropertyToID("_Tell"), TearAmp = Shader.PropertyToID("_TearAmp"),
                 TearTop = Shader.PropertyToID("_TearTop"), GrainBoost = Shader.PropertyToID("_GrainBoost"),
+                TearWedge = Shader.PropertyToID("_TearWedge"),
                 OsdCodes = Shader.PropertyToID("_OsdCodes"), OsdGlyphs = Shader.PropertyToID("_OsdGlyphs"),
                 OsdCells = Shader.PropertyToID("_OsdCells"), OsdCell = Shader.PropertyToID("_OsdCell"),
                 OsdOrigin = Shader.PropertyToID("_OsdOrigin"), Lens = Shader.PropertyToID("_Lens"),
@@ -202,6 +203,7 @@ namespace Fpv450.Feed
                 m.SetFloat(TearAmp, u.TearAmp);
                 m.SetFloat(TearTop, u.TearTop);
                 m.SetFloat(GrainBoost, u.GrainBoost);
+                m.SetFloat(TearWedge, u.TearWedge);
                 m.SetTexture(OsdCodes, o.OsdCodes != null ? o.OsdCodes : Texture2D.blackTexture);
                 m.SetTexture(OsdGlyphs, o.OsdGlyphs != null ? o.OsdGlyphs : Texture2D.blackTexture);
                 m.SetFloat(OsdCells, o.OsdCells);
