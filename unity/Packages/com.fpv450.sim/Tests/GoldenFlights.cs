@@ -347,7 +347,12 @@ namespace Fpv450.Sim.Tests
         // the range branch's model 20 (range 0x7A21A5FA04DD30E0, powered 0xFE81E38EFCBD2F4E, contact 0x1152D64875230761,
         // rain 0xE5D4C472F6CA12D2); with 19's rule over a hole the stub's goldens are p7c-wind--d060's pins and the range
         // flight is model 19's 0xE4B13EDD65CFF0B2, so the change is D-060's field blowing over the hole, nothing else.
-        public const ulong RangeHash = 0x10A035F9F29042CCUL;
+        // Model 21: 0x10A035F9F29042CC. The merge with p7c-wind--map-wakes (ModelVersion 22): re-recorded in the map's own
+        // Calm wind (WindSetup.ForMap, the player's: the obstacles' wakes and the belt's canopy) on the same content: 4
+        // impacts, no crash, at rest 19.09 mm into the straw on 18 pairs. Audited: in WindSetup.Of(Calm), the open field
+        // the golden flew before, it is model 21's pin bit for bit (a check before the switch), and in still air model 16's
+        // (the kept test); flown twice, the same bits with the wake grid's worker.
+        public const ulong RangeHash = 0x80C73DBA130C6903UL;
 
         /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
         /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
@@ -575,9 +580,9 @@ namespace Fpv450.Sim.Tests
         /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
         /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
         /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
-        /// throttle is cut and it settles into the straw again. In the Calm wind (the field, over the hole from the mat's top
-        /// since model 20), as the stub's, with the airframe's
-        /// effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
+        /// throttle is cut and it settles into the straw again. In the map's own Calm wind (WindSetup.ForMap since model 22,
+        /// as the player flies it: the obstacles' wakes and the belt's canopy; over the hole from the mat's top since model
+        /// 20), the field disposed at the end (its wake grid's worker), with the airframe's effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
         /// step's record before it is hashed). Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
@@ -589,7 +594,7 @@ namespace Fpv450.Sim.Tests
             Double3 foot = RangeScenarios.Straw;
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
             setup.World = new FlightWorld(RangeScenarios.World);
-            setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
+            setup.Wind = wind ?? WindSetup.ForMap(RangeScenarios.World, WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
@@ -635,6 +640,7 @@ namespace Fpv450.Sim.Tests
                     hash = Fnv(hash, e, 0, e.Length);
                 }
             }
+            core.Wind.Dispose();
             return hash;
         }
 
