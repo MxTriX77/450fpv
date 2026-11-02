@@ -15,11 +15,17 @@ from lib import params as params_lib
 
 REPO = Path(__file__).resolve().parents[3]
 VARIANTS = ("D01_legs_on", "D01_legs_off")
+BOTTLE = "D01_bottle"  # the bottle alone, which the player scales to the setup's payload
 MM = 0.001
 
 
 def load(variant):
     return json.loads((REPO / "assets-src" / "drone" / f"{variant}.json").read_text(encoding="utf-8"))
+
+
+def loaded(variant="D01_legs_on", kg=1.0):
+    """A legs variant carrying a bottle of `kg` drawn in (the variants' own params carry none)."""
+    return dict(load(variant), payload_kg=kg)
 
 
 @pytest.fixture(scope="module")
@@ -77,14 +83,14 @@ def d050_spec(spec, tmp_path, legs_off_moves=None):
 
 # --- params -----------------------------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("variant", VARIANTS)
+@pytest.mark.parametrize("variant", VARIANTS + (BOTTLE,))
 def test_params_conform(variant):
     assert params_lib.validate(drone, load(variant)) == []
 
 
 @pytest.mark.parametrize("change, words", [
     (lambda p: p.update(payload_kg=2.5), "outside the spec's setting"),
-    (lambda p: p.update(layout="legs_up"), "legs_on or legs_off"),
+    (lambda p: p.update(layout="legs_up"), "legs_off or bottle"),
     (lambda p: p["arm"].update(width_m=0.032, mount_width_m=0.028), "narrower"),
     (lambda p: p["bottle"].update(cap_d_m=0.020), "neck, its cap and its body"),
     (lambda p: p["coil"].update(cap_d_m=0.085), "hole, the core, the rear cap"),
@@ -94,6 +100,17 @@ def test_check_refuses_inconsistent_params(change, words):
     p = load("D01_legs_on")
     change(p)
     assert any(words in problem for problem in params_lib.validate(drone, p))
+
+
+def test_check_holds_the_bottle_layout_to_the_specs_part(spec, tmp_path):
+    p = dict(load(BOTTLE), payload_kg=0.5)  # the prefab is the spec's part; the player scales it
+    assert any("must be its mass_kg" in problem for problem in params_lib.validate(drone, p))
+    s = copy.deepcopy(spec)
+    s["legs_off"]["moved"] = {"payload": {"value": [0.0, 0.07, 0.0], "label": "assumed"}}
+    path = tmp_path / "moved.json"
+    path.write_text(json.dumps(s), encoding="utf-8")
+    p = dict(load(BOTTLE), spec=str(path))
+    assert any("leaves the payload in place" in problem for problem in params_lib.validate(drone, p))
 
 
 # --- the prop-tips scenario (DRN-02) ------------------------------------------------------------------------------
@@ -241,25 +258,38 @@ def test_payout_shrinks_the_pack_to_the_core():
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
-def test_bottle_fills_the_payload_part(variant):
-    params = load(variant)
+@pytest.mark.parametrize("kg", [0.1, 0.5, 1.0, 1.5, 2.0])
+def test_bottle_holds_its_water(variant, kg):
+    """D-050: a plain PET bottle sized by its water. The mass build's part is the water as a solid cylinder (about
+    1000 kg/m3), scaled by the cube root of the mass; the drawn bottle is that part's diameter, centred on it, and
+    holds its volume below the cap, so its water follows the setup's mass."""
+    params = loaded(variant, kg)
     layout, parts = layout_parts(params)
-    pay = layout.part("payload")
+    pay = layout.scaled_payload()
     f, _ = drone.mount_frame(params, layout, "payload")
     c = pay["position_m"]
     local = [tuple(sum((v[a] - c[a]) * axis[a] for a in range(3)) for axis in (f.u, f.v, f.w))
              for v in parts["bottle"].vertices]
-    assert min(p[2] for p in local) == pytest.approx(-pay["length_m"] / 2, abs=1e-9)
-    assert max(p[2] for p in local) == pytest.approx(pay["length_m"] / 2, abs=1e-9)
+    s, length = layout.payload_scale, drone.bottle_length(params, layout) * layout.payload_scale
+    assert min(p[2] for p in local) == pytest.approx(-length / 2, abs=1e-9)
+    assert max(p[2] for p in local) == pytest.approx(length / 2, abs=1e-9)
     assert max(math.hypot(p[0], p[1]) for p in local) == pytest.approx(pay["diameter_m"] / 2, abs=1e-9)
-    assert volume(parts["bottle"]) > 0.8 * math.pi * (pay["diameter_m"] / 2) ** 2 * pay["length_m"] * 0.6
+    water = math.pi * (pay["diameter_m"] / 2) ** 2 * pay["length_m"]
+    file_part = layout.part("payload")
+    profile = drone._profile_points(params, file_part["diameter_m"] / 2, length / s, 0, ring=False)
+    assert s ** 3 * drone.water_volume(profile[:-4]) == pytest.approx(water, rel=1e-9)  # base to the cap's foot
+    assert water == pytest.approx(kg / 1000.0, rel=0.01)  # about 1 l a kilogram (the spec's part)
+    assert volume(parts["bottle"]) == pytest.approx(water, rel=0.02)  # its 32-gon, with the cap and ring
+    capsule = next(sh for sh in drone.load_spec(params)["contacts"]["shapes"] if sh["name"] == "payload")
+    reach = math.dist(capsule["a_m"]["value"], capsule["b_m"]["value"]) + 2 * capsule["radius_m"]["value"]
+    assert length == pytest.approx(reach * s, abs=0.005 * s)  # the flight's capsule end to end, 0.26 m at 1 kg
 
 
 def test_d050_layout_hangs_the_coil_and_straps_the_bottle_on_top(spec, tmp_path):
     """D-050: the coil beneath, mounted on the bottom plate's underside; the bottle on the upper plate, its straps
     passing under that plate; the upper plate's top left clear for it."""
     for variant in VARIANTS:
-        params = dict(load(variant), spec=d050_spec(spec, tmp_path))
+        params = dict(loaded(variant), spec=d050_spec(spec, tmp_path))
         layout, parts = layout_parts(params)
         bottom, top, upper = drone.plate_heights(params, layout)
         f, d = drone.mount_frame(params, layout, "coil")
@@ -295,25 +325,70 @@ def test_legs_off_drops_the_legs_and_moves_what_the_spec_moves(spec):
         assert f"clamp_{corner}" in parts  # the clamps stay on the arms
 
 
-def test_payload_mass_scales_the_bottle_and_zero_leaves_it_off():
-    params = load("D01_legs_on")
+@pytest.mark.parametrize("kg", [0.1, 0.5, 2.0])
+def test_payload_mass_scales_the_bottle_as_the_mass_build_and_zero_leaves_it_off(kg):
+    """DroneSpec.ScaleAwayFromArmPlane: the part's size times s = (m / m0)^(1/3), its face toward the arm plane kept,
+    so the centre moves away from the arms when heavier and towards them when lighter; the drawn bottle, its straps
+    and its shapes are the spec-mass bottle scaled so about that face, which is what the player does to D01_bottle."""
+    params = loaded()
     base = drone.Layout(drone.load_spec(params), params)
-    heavy = drone.Layout(drone.load_spec(params), dict(params, payload_kg=2.0))
-    s = (2.0 / base.part("payload")["mass_kg"]) ** (1 / 3)
-    assert heavy.payload_scale == pytest.approx(s)
-    dy = heavy.part("payload")["position_m"][1] - base.part("payload")["position_m"][1]
-    assert abs(dy) == pytest.approx((s - 1) * base.part("payload")["diameter_m"] / 2)
-    assert math.copysign(1, dy) == math.copysign(1, base.part("payload")["position_m"][1])  # away from the arms
-    empty = dict(params, payload_kg=0.0)
+    layout = drone.Layout(drone.load_spec(params), loaded(kg=kg))
+    pay0 = base.part("payload")
+    s = (kg / pay0["mass_kg"]) ** (1 / 3)
+    assert layout.payload_scale == pytest.approx(s)
+    pay = layout.scaled_payload()
+    assert pay["diameter_m"] == pytest.approx(pay0["diameter_m"] * s) and pay["length_m"] == pytest.approx(
+        pay0["length_m"] * s)
+    dy = pay["position_m"][1] - pay0["position_m"][1]
+    assert dy == pytest.approx(math.copysign(1, pay0["position_m"][1]) * (s - 1) * pay0["diameter_m"] / 2)
+    assert pay["position_m"][1] - pay["diameter_m"] / 2 == pytest.approx(pay0["position_m"][1] - pay0["diameter_m"] / 2)
+    pivot = drone.bottle_pivot(params, base)
+    prefab = drone.build(load(BOTTLE))
+    parts = drone.part_meshes(loaded(kg=kg), layout, 0)
+    drawn = parts["bottle"].vertices + parts["bottle_straps"].vertices
+    assert len(drawn) == len(prefab["lods"][0].vertices)
+    for v, w in zip(drawn, prefab["lods"][0].vertices):  # the prefab at localPosition pivot, localScale s
+        assert v == pytest.approx(tuple(pivot[a] + s * w[a] for a in range(3)), abs=1e-12)
+    shapes = drone.build(loaded(kg=kg))["collision"][-3:]
+    for got, ref in zip(shapes, prefab["collision"]):
+        assert got["center"] == pytest.approx([pivot[a] + s * ref["center"][a] for a in range(3)], abs=1e-12)
+        assert got["radius"] == pytest.approx(ref["radius"] * s) and got["height"] == pytest.approx(ref["height"] * s)
+    empty = loaded(kg=0.0)
     layout, parts = layout_parts(empty)
     assert not layout.has("payload") and "bottle" not in parts and "bottle_straps" not in parts
     assert len(drone.build(empty)["collision"]) == len(drone.build(params)["collision"]) - 3
+    assert empty == dict(load("D01_legs_on"))  # the legs variants carry no bottle: it is D01_bottle's
+
+
+def test_bottle_variant_is_the_bottle_alone_from_where_it_sits():
+    """D01_bottle: the bottle and its straps at the spec's 1 kg, their origin where the bottle meets the upper plate
+    (the face the mass build keeps), so one prefab serves every payload of the setup."""
+    params = load(BOTTLE)
+    built = drone.build(params)
+    layout = drone.Layout(drone.load_spec(params), params)
+    pivot = drone.bottle_pivot(params, layout)
+    _, _, upper = drone.plate_heights(params, layout)
+    assert pivot == pytest.approx((0.0, upper[1], 0.0), abs=1e-12)  # on the upper plate's top, over the centre
+    pay = layout.part("payload")
+    assert pivot[1] == pytest.approx(pay["position_m"][1] - pay["diameter_m"] / 2, abs=1e-12)
+    lod0 = built["lods"][0]
+    assert set(lod0.slots()) == {"bottle", "strap"}
+    bottle = drone.part_meshes(params, layout, 0)["bottle"]
+    assert bottle.bounds()[0][1] == pytest.approx(pivot[1], abs=1e-12)  # drawn in place, moved by build only
+    assert lod0.bounds()[0][1] == pytest.approx(-params["plates"]["upper_m"] - drone.STRAP_T_M, abs=1e-9)
+    assert [round(c["center"][1] - (pay["position_m"][1] - pivot[1]), 9) for c in built["collision"]] == [0, 0, 0]
+    tris = [m.triangles() for m in built["lods"]]
+    assert tris == sorted(tris, reverse=True) and len(set(tris)) == 4 and tris[0] < 2000
+    assert built["snag"] == [] and len(built["collision"]) == 3
+    assert built["cull_distance_m"] == 120.0  # its 0.256 m under two pixels at the feed's 935 px/rad
+    data = meta.assemble("D01", BOTTLE, "drone", params, built, {s: f"drone_{s}" for s in drone.PALETTES})
+    assert meta.validate(data, meta.load_physics_materials(REPO)) == []
 
 
 # --- solids, LODs, determinism ------------------------------------------------------------------------------------
 
 def test_parts_are_closed_solids_with_outward_normals(spec):
-    params = load("D01_legs_on")
+    params = loaded()
     layout, parts = layout_parts(params)
     pk = part(spec, "pack_right")
     outline = drone._rounded_rect(0.0, 0.0, pk["size_m"][0], pk["size_m"][1], params["pack"]["corner_r_m"], 4)
@@ -367,7 +442,7 @@ def test_no_face_is_degenerate(built):
 
 def test_palettes_match_their_recipes_and_the_catalog():
     catalog = json.loads((REPO / "assets-src" / "catalog.json").read_text(encoding="utf-8"))["assets"]["D01"]
-    assert catalog["generator"] == "drone" and catalog["variants"] == list(VARIANTS)
+    assert catalog["generator"] == "drone" and catalog["variants"] == list(VARIANTS) + [BOTTLE]
     assert set(catalog["materials"]) == set(drone.PALETTES)
     for slot, columns in drone.PALETTES.items():
         recipe = json.loads((REPO / "assets-src" / "materials" / f"{catalog['materials'][slot]}.json")
