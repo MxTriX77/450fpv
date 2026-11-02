@@ -53,8 +53,8 @@ namespace Fpv450.Sim.Tests
         public void TheDroneTipsWhereItsCentreOfMassPassesOverTheSkid()
         {
             LandingStability a = LegsOn();
-            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.39).Within(0.01), "the roll tip, D-050's nominal build");
-            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.80).Within(0.01), "the pitch tip over the front ends");
+            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.35).Within(0.01), "the roll tip, D-066's nominal build (23.39° on model 22's)");
+            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.75).Within(0.01), "the pitch tip over the front ends (42.80° on model 22's)");
             // Set down at rest just inside and just past each tip.
             Assert.That(RollTime(true, a.StaticRollTipDeg - 0.05, 60), Is.EqualTo(double.PositiveInfinity), "inside the roll tip it rights itself");
             Assert.That(RollTime(true, a.StaticRollTipDeg + 0.05, 60), Is.LessThan(10), "past it, it falls");
@@ -129,7 +129,7 @@ namespace Fpv450.Sim.Tests
             // drone over the front ends only past μ_k 0.91, so on the ground's 0.4 nothing trips it; caught at their ends (a
             // groove, a clod) the skids tip it at the mechanics' speed.
             LandingStability a = LegsOn();
-            Assert.That(a.SlidingTripFriction, Is.EqualTo(0.907).Within(0.001));
+            Assert.That(a.SlidingTripFriction, Is.EqualTo(0.905).Within(0.001), "D-066's build (0.907 on model 22's)");
             var t = new LandingScenarios.Touch { Legs = true, PitchDeg = 10, Descent = 0.5, Forward = true };
             Assert.That(Critical(t), Is.EqualTo(double.PositiveInfinity), "the runners slide");
             t.Edit = LandingScenarios.GroundFriction(10);
@@ -157,7 +157,7 @@ namespace Fpv450.Sim.Tests
         {
             LandingStability a = LegsOff();
             Assert.That(a.PackRestDeg, Is.EqualTo(22.59).Within(0.01), "the pack meets the ground");
-            Assert.That(a.CoilRollingRate, Is.EqualTo(5.364).Within(0.001));
+            Assert.That(a.CoilRollingRate, Is.EqualTo(5.374).Within(0.001), "D-066's build (5.364 /s on model 22's)");
             foreach (double from in new[] { 0.5, 1, 2 })
             {
                 double sim = RollTime(false, from, 20), rolling = a.CoilRockTime(from, 20), axle = a.CoilRockTime(from, 20, false);
