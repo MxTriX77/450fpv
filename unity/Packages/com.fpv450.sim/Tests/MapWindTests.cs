@@ -508,8 +508,10 @@ namespace Fpv450.Sim.Tests
         }
 
         // The map's wind at seven points over 4 s of Severe, every bit of it: pinned on .NET 10 and checked on Mono by the
-        // Unity EditMode run (the same test), so the field over the map is the same bits on both runtimes.
-        const ulong PinnedMapWind = 0x9E8D9108B60D91B8UL;
+        // Unity EditMode run (the same test), so the field over the map is the same bits on both runtimes. Model 21 on
+        // p7c-wind--map-wakes: 0x9E8D9108B60D91B8. Model 22 (merged onto D-060's field): re-pinned; with z0 0.03 m, σ_u/U
+        // 0.135 and the 1 m cut (a temporary switch, reverted) it is model 21's bit for bit, so D-060's field is the change.
+        const ulong PinnedMapWind = 0x0EF8A67AC398C411UL;
 
         [Test]
         public void TheMapsWindIsTheSameBitsOnEveryRuntime()
