@@ -9,7 +9,7 @@ namespace Fpv450.Sim.Tests
     // scenario reads each rotor's added inflow from the others' wakes, its share of the thrust that inflow takes at the
     // rotor's own speed (the CFD's "against an isolated rotor at the same rpm"), the rotors' speeds, the wake's skew and
     // the airspeed.
-    public static class RotorWakeScenario
+    public static class RotorInterferenceScenario
     {
         const double Height = 35, Seconds = 30, MeasuredSeconds = 10;
         const double DegToRad = 0.017453292519943295, RadToDeg = 57.29577951308232;
@@ -31,7 +31,7 @@ namespace Fpv450.Sim.Tests
             public double RearUnderFront => 1 - (1 - RearLoss) / (1 - FrontLoss);
         }
 
-        /// <summary>The published order of the rear rotors' loss in forward flight at 5–15 m/s, other frames (RotorWakeSpec's
+        /// <summary>The published order of the rear rotors' loss in forward flight at 5–15 m/s, other frames (RotorInterferenceSpec's
         /// sources: 11 % Ye et al., 19 % Misiorowski et al., at most 11 % rear under front Nguyen et al.): 2–20 %.</summary>
         public const double LeastLoss = 0.02, MostLoss = 0.20;
 
@@ -47,9 +47,9 @@ namespace Fpv450.Sim.Tests
             + $"{0.5 * (r.Inflow[1] + r.Inflow[3]):F2} m/s, v_i {r.Induced[1]:F2} m/s, skew {r.SkewDeg[1]:F1}°";
 
         /// <summary>Flies the held pitch (degrees, nose down negative) released at a speed (m/s), with or without the wake.</summary>
-        public static Result Cruise(DroneSpec spec, double pitchDeg, double releaseSpeed, bool wake = true)
+        public static Result Cruise(DroneSpec spec, double pitchDeg, double releaseSpeed, bool interference = true)
         {
-            FlightSetup setup = WindHarness.Setup(spec, WindLevel.Still, 1, Height, belt: false, drag: true, out _, out _, wake: wake);
+            FlightSetup setup = WindHarness.Setup(spec, WindLevel.Still, 1, Height, belt: false, drag: true, out _, out _, interference: interference);
             setup.StartVelocity = new Double3(0, 0, releaseSpeed);
             DetMath.SinCos(pitchDeg * DegToRad / 2, out double sp, out double cp);
             setup.StartAttitude = new Quat(sp, 0, 0, cp);
@@ -81,9 +81,9 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Holds a hover at 35 m in still air with SimPilot (the harness pilot flies a course, not a point), with or
         /// without the wake.</summary>
-        public static Result Hover(DroneSpec spec, bool wake = true)
+        public static Result Hover(DroneSpec spec, bool interference = true)
         {
-            FlightSetup setup = WindHarness.Setup(spec, WindLevel.Still, 1, Height, belt: false, drag: true, out _, out _, wake: wake);
+            FlightSetup setup = WindHarness.Setup(spec, WindLevel.Still, 1, Height, belt: false, drag: true, out _, out _, interference: interference);
             setup.StartVelocity = default;
             setup.StartAttitude = Quat.Identity;
             var core = new FlightCore(setup);
@@ -104,14 +104,14 @@ namespace Fpv450.Sim.Tests
             Propulsion prop = core.Propulsion;
             for (int i = 0; i < 4; i++)
             {
-                double w = core.State.RotorSpeed[i], added = core.Trace.WakeInflow[i];
+                double w = core.State.RotorSpeed[i], added = core.Trace.InterferenceInflow[i];
                 prop.Aero(w, prop.Inflow[i] - added, out double free, out _);
                 prop.Aero(w, prop.Inflow[i], out double taken, out _);
                 r.Inflow[i] += added;
                 r.Loss[i] += free > 0 ? 1 - taken / free : 0;
                 r.Speed[i] += w;
-                r.Induced[i] += prop.WakeInduced(i);
-                r.SkewDeg[i] += 2 * Atan(prop.WakeSkew(i)) * RadToDeg;
+                r.Induced[i] += prop.InterferenceInduced(i);
+                r.SkewDeg[i] += 2 * Atan(prop.InterferenceSkew(i)) * RadToDeg;
             }
             r.Airspeed += core.State.Velocity.Length();
             n++;

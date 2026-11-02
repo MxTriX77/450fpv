@@ -356,12 +356,12 @@ namespace Fpv450.Sim.Flight
             return f;
         }
 
-        /// <summary>The rotors in each other's wake (RotorWakeSpec, p7b-airframe 1.3d) in the aero block's air: the radius from the
+        /// <summary>The rotors in each other's wake (RotorInterferenceSpec, p7b-airframe 1.3d) in the aero block's air: the radius from the
         /// props, the target disc weighted along the blade by the flapping's chord (the sheet's).</summary>
-        public RotorWakeSpec BuildRotorWake()
+        public RotorInterferenceSpec BuildInterference()
         {
             RotorFlappingSpec f = BuildFlapping();
-            return new RotorWakeSpec { AirDensity = Aero.AirDensity, Radius = f.Radius, Stations = f.Stations, Chords = f.Chords };
+            return new RotorInterferenceSpec { AirDensity = Aero.AirDensity, Radius = f.Radius, Stations = f.Stations, Chords = f.Chords };
         }
 
         /// <summary>

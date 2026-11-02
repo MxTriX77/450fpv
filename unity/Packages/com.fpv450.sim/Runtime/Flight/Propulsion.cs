@@ -83,8 +83,8 @@ namespace Fpv450.Sim.Flight
     /// - the ground and the ceiling (GroundEffectSpec, p7b-airframe 1.3), inside RotorInflow: each rotor's thrust at its speed
     ///   gains by its distances along its axis to the surfaces below and above it (SetSurfaces), and its re-ingested wash
     ///   adds its inflow to the thrust's advance ratio; AdvanceWash moves the wash once a step.
-    /// - the rotors in each other's wake (RotorWakeSpec, p7b-airframe 1.3d), inside RotorInflow: each rotor's axial inflow takes
-    ///   the other rotors' wakes' downwash or upwash at its disc, scaled by its fluctuation; AdvanceWake moves that once a step.
+    /// - the rotors in each other's wake (RotorInterferenceSpec, p7b-airframe 1.3d), inside RotorInflow: each rotor's axial inflow takes
+    ///   the other rotors' wakes' downwash or upwash at its disc, scaled by its fluctuation; AdvanceInterference moves that once a step.
     /// </summary>
     public sealed class Propulsion
     {
@@ -125,12 +125,12 @@ namespace Fpv450.Sim.Flight
         // The rotors in each other's wake (null: none): its spec, table and stream; each rotor's induced velocity (m/s), its wake's
         // tan(χ/2) and downstream direction (body x, z) and its in-plane airspeed (m/s) at the step's start, and the interference
         // it takes (m/s).
-        readonly RotorWakeSpec _wake;
-        readonly RotorWakeTable _wakeTable;
-        readonly SeedStream _wakeStream;
-        readonly double[] _wakeInduced = new double[4], _wakeSkew = new double[4], _wakeDx = new double[4], _wakeDz = new double[4];
-        readonly double[] _wakeSpeed = new double[4];
-        Corners _wakeInflow;
+        readonly RotorInterferenceSpec _interference;
+        readonly RotorInterferenceTable _interferenceTable;
+        readonly SeedStream _interferenceStream;
+        readonly double[] _interferenceInduced = new double[4], _interferenceSkew = new double[4], _interferenceDx = new double[4], _interferenceDz = new double[4];
+        readonly double[] _interferenceSpeed = new double[4];
+        Corners _interferenceInflow;
 
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
@@ -159,7 +159,7 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The same, with the rotors in each other's wake from wake and its fluctuation from wakeStream (null for none).</summary>
         public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream,
-            GroundEffectSpec ground, SeedStream groundStream, RotorWakeSpec wake, SeedStream wakeStream)
+            GroundEffectSpec ground, SeedStream groundStream, RotorInterferenceSpec interference, SeedStream interferenceStream)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Motors == null || spec.Motors.Length != 4) throw new ArgumentException("four motors", nameof(spec));
@@ -206,11 +206,11 @@ namespace Fpv450.Sim.Flight
                 _ringGain[i] = _surfaceGain[i] = 1;
                 _groundAt[i] = _ceilingAt[i] = double.PositiveInfinity;
             }
-            if (wake != null)
+            if (interference != null)
             {
-                _wake = wake.Clone();
-                _wakeTable = _wake.Table(_hub);
-                _wakeStream = wakeStream;
+                _interference = interference.Clone();
+                _interferenceTable = _interference.Table(_hub);
+                _interferenceStream = interferenceStream;
             }
             if (ring == null && ground == null) return;
             _ring = ring?.Clone();
@@ -239,16 +239,16 @@ namespace Fpv450.Sim.Flight
         /// <summary>Whether the rotors feel the ground and the ceiling (GroundEffectSpec).</summary>
         public bool HasGround => _ground != null;
 
-        /// <summary>Whether the rotors take each other's wake (RotorWakeSpec).</summary>
-        public bool HasWake => _wake != null;
+        /// <summary>Whether the rotors take each other's wake (RotorInterferenceSpec).</summary>
+        public bool HasInterference => _interference != null;
 
         /// <summary>Each rotor's added inflow from the other rotors' wakes this step, m/s, positive down through the disc (0
         /// without the wake): inside Inflow.</summary>
-        public ref readonly Corners WakeInflow => ref _wakeInflow;
+        public ref readonly Corners InterferenceInflow => ref _interferenceInflow;
 
         /// <summary>A rotor's induced velocity (m/s) and its wake's tan(χ/2) this step, from RotorInflow (0 without the wake).</summary>
-        public double WakeInduced(int corner) => _wakeInduced[corner];
-        public double WakeSkew(int corner) => _wakeSkew[corner];
+        public double InterferenceInduced(int corner) => _interferenceInduced[corner];
+        public double InterferenceSkew(int corner) => _interferenceSkew[corner];
 
         /// <summary>A rotor's gain from the ground and the ceiling this step (1 without them).</summary>
         public double SurfaceGain(int corner) => _surfaceGain[corner];
@@ -406,55 +406,55 @@ namespace Fpv450.Sim.Flight
                 _washInflow[i] = s.WashInflow[i] * vh;
                 _washInduced[i] = vh;
             }
-            if (_wake != null) Interference(s);
+            if (_interference != null) Interference(s);
         }
 
-        // The rotors in each other's wake (RotorWakeSpec, p7b-airframe 1.3d): each source's induced velocity at its thrust at the
+        // The rotors in each other's wake (RotorInterferenceSpec, p7b-airframe 1.3d): each source's induced velocity at its thrust at the
         // last sub-step (Glauert's), the share of its wake the flow carries away (Formed), and its wake's skew and downstream
         // direction from its own inflow so far; each target's added
-        // inflow Σ k·v_i over the others, scaled by its fluctuation (1 + FlightState.WakeShare), into its axial inflow as the
+        // inflow Σ k·v_i over the others, scaled by its fluctuation (1 + FlightState.InterferenceShare), into its axial inflow as the
         // wind's axial part enters it, so the thrust, the torque, the flapping and the ring all take it.
         void Interference(in FlightState s)
         {
             for (int i = 0; i < 4; i++)
             {
                 Double3 p = _inPlane[i];
-                double v = DetMath.Sqrt(p.X * p.X + p.Z * p.Z), t = _meanThrust[i], vi = _wake.InducedVelocity(v, _inflow[i], t);
+                double v = DetMath.Sqrt(p.X * p.X + p.Z * p.Z), t = _meanThrust[i], vi = _interference.InducedVelocity(v, _inflow[i], t);
                 double through = _inflow[i] + vi;
-                _wakeInduced[i] = vi * _wake.Formed(t, DetMath.Sqrt(v * v + through * through));
-                _wakeSpeed[i] = v;
-                _wakeSkew[i] = RotorWakeSpec.HalfSkew(v, through);
-                _wakeDx[i] = v > 0 ? -p.X / v : 0;
-                _wakeDz[i] = v > 0 ? -p.Z / v : 0;
+                _interferenceInduced[i] = vi * _interference.Formed(t, DetMath.Sqrt(v * v + through * through));
+                _interferenceSpeed[i] = v;
+                _interferenceSkew[i] = RotorInterferenceSpec.HalfSkew(v, through);
+                _interferenceDx[i] = v > 0 ? -p.X / v : 0;
+                _interferenceDz[i] = v > 0 ? -p.Z / v : 0;
             }
             for (int j = 0; j < 4; j++)
             {
                 double sum = 0;
                 for (int i = 0; i < 4; i++)
-                    if (i != j && _wakeInduced[i] > 0)
-                        sum += _wakeTable.Factor(i, j, _wakeSkew[i], _wakeDx[i], _wakeDz[i]) * _wakeInduced[i];
-                double added = sum * (1 + s.WakeShare[j]);
-                _wakeInflow[j] = added;
+                    if (i != j && _interferenceInduced[i] > 0)
+                        sum += _interferenceTable.Factor(i, j, _interferenceSkew[i], _interferenceDx[i], _interferenceDz[i]) * _interferenceInduced[i];
+                double added = sum * (1 + s.InterferenceShare[j]);
+                _interferenceInflow[j] = added;
                 _inflow[j] += added;
             }
         }
 
         /// <summary>
-        /// The wakes' fluctuation over one step of dt seconds (RotorWakeSpec): each rotor's share x, a first-order process,
+        /// The wakes' fluctuation over one step of dt seconds (RotorInterferenceSpec): each rotor's share x, a first-order process,
         /// x ← a·x + √(1 − a²)·σ·n, a = τ/(τ + dt), τ = FluctuationScale·R/V_∥ at the rotor's in-plane airspeed, n from
-        /// "wake.rotor" at the step and the corner, bounded. Held while the rotor has no in-plane airspeed.
+        /// "rotor.interference" at the step and the corner, bounded. Held while the rotor has no in-plane airspeed.
         /// </summary>
-        public void AdvanceWake(ref FlightState s, double dt)
+        public void AdvanceInterference(ref FlightState s, double dt)
         {
-            double sigma = _wake.FluctuationSigma, bound = _wake.FluctuationBound;
+            double sigma = _interference.FluctuationSigma, bound = _interference.FluctuationBound;
             for (int i = 0; i < 4; i++)
             {
-                double v = _wakeSpeed[i], x = s.WakeShare[i];
+                double v = _interferenceSpeed[i], x = s.InterferenceShare[i];
                 if (!(v > 0)) continue;
-                double tau = _wake.FluctuationScale * _wake.Radius / v, a = tau / (tau + dt);
+                double tau = _interference.FluctuationScale * _interference.Radius / v, a = tau / (tau + dt);
                 x *= a;
-                if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_wakeStream, s.Step, i);
-                s.WakeShare[i] = x > bound ? bound : x < -bound ? -bound : x;
+                if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_interferenceStream, s.Step, i);
+                s.InterferenceShare[i] = x > bound ? bound : x < -bound ? -bound : x;
             }
         }
 

@@ -86,7 +86,7 @@ namespace Fpv450.Sim.Tests
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
             setup.Flapping = spec.BuildFlapping();
-            setup.RotorWake = spec.BuildRotorWake();
+            setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();
         }
 

@@ -469,7 +469,7 @@ namespace Fpv450.Sim.Tests
                 VortexRing = spec.BuildVortexRing(),
                 GroundEffect = spec.BuildGroundEffect(),
                 Flapping = spec.BuildFlapping(),
-                RotorWake = spec.BuildRotorWake(),
+                Interference = spec.BuildInterference(),
                 Modes = spec.BuildModes(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
@@ -506,10 +506,10 @@ namespace Fpv450.Sim.Tests
         /// hashed (an audit's step-by-step comparison).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool wake = true, int layout = LogFormat.StepSize)
+            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, int layout = LogFormat.StepSize)
         {
             FlightSetup setup = PoweredSetup(spec);
-            if (!wake) setup.RotorWake = null;
+            if (!interference) setup.Interference = null;
             if (wind != null) setup.Wind = wind.Value;
             setup.Rain = rain;
             if (!modes) setup.Modes = null;
@@ -546,7 +546,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, bool wake = true, int layout = LogFormat.StepSize)
+            Action<byte[]> onRecord = null, bool interference = true, int layout = LogFormat.StepSize)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -557,7 +557,7 @@ namespace Fpv450.Sim.Tests
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
             if (flapping) setup.Flapping = spec.BuildFlapping();
-            if (wake) setup.RotorWake = spec.BuildRotorWake();
+            if (interference) setup.Interference = spec.BuildInterference();
             if (modes) setup.Modes = spec.BuildModes();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -615,7 +615,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
-            bool wake = true, int layout = LogFormat.StepSize)
+            bool interference = true, int layout = LogFormat.StepSize)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -628,7 +628,7 @@ namespace Fpv450.Sim.Tests
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
             if (flapping) setup.Flapping = spec.BuildFlapping();
-            if (wake) setup.RotorWake = spec.BuildRotorWake();
+            if (interference) setup.Interference = spec.BuildInterference();
             if (modes) setup.Modes = spec.BuildModes();
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));

@@ -99,7 +99,7 @@ namespace Fpv450.Sim.Tests
         public void InStillAirTheRangeGoldenIsModel16s()
         {
             DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
-            Assert.That(GoldenFlights.FlyRange(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: WindSetup.Of(WindLevel.Still), wake: false,
+            Assert.That(GoldenFlights.FlyRange(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: WindSetup.Of(WindLevel.Still), interference: false,
                     layout: GoldenFlights.Model19Layout),
                 Is.EqualTo(GoldenFlights.Model16StillRangeHash), "range");
             Assert.That(core.Contacts.ImpactCount, Is.GreaterThanOrEqualTo(1), "it touched down on the mat");
@@ -115,10 +115,10 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
-            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still, wake: false, layout: GoldenFlights.Model19Layout),
+            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still, interference: false, layout: GoldenFlights.Model19Layout),
                 Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still, wake: false, layout: GoldenFlights.Model19Layout),
+            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still, interference: false, layout: GoldenFlights.Model19Layout),
                 Is.EqualTo(GoldenFlights.Model15StillContactHash), "contact");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes, GoldenFlights.Model19Layout), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
         }
@@ -140,7 +140,7 @@ namespace Fpv450.Sim.Tests
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes, RotorWindBytesAt = 1296, WindBytes = 152;
         const int RotorAngleAt = RotorWindBytesAt + WindBytes, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
         const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
-        const int WakeAt = ModeAt + ModeBytes, WakeBytes = 64;
+        const int InterferenceAt = ModeAt + ModeBytes, InterferenceBytes = 64;
 
         // p7b-airframe 1.3d's audit: each golden flown without the rotors' wakes, over model 19's 1808 bytes (the record less
         // the wake's 64 at its end), is model 19's pin bit for bit, record and events: the wake's code and the record's new
@@ -150,9 +150,9 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = RepositoryDrone.Spec();
             const int at = GoldenFlights.Model19Layout;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, wake: false, layout: at), Is.EqualTo(GoldenFlights.Model19PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, wake: false, layout: at), Is.EqualTo(GoldenFlights.Model19ContactHash), "contact");
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, wake: false, layout: at),
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, layout: at), Is.EqualTo(GoldenFlights.Model19PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, interference: false, layout: at), Is.EqualTo(GoldenFlights.Model19ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: at),
                 Is.EqualTo(GoldenFlights.Model19RainHash), "rain");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model19TumbleHash), "tumble");
         }
@@ -188,10 +188,10 @@ namespace Fpv450.Sim.Tests
                 "1.3's surfaces and wash follow the rings");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, ModeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "mode_shape0")),
                 "1.4's modes follow the surfaces");
-            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, WakeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "wake_inflow.rear_right")),
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, InterferenceAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "interference_inflow.rear_right")),
                 "1.3d's wakes follow the modes");
-            Assert.That(WakeAt, Is.EqualTo(GoldenFlights.Model19Layout), "model 19's record is the record before them");
-            Assert.That(LogFormat.StepSize - WakeAt, Is.EqualTo(WakeBytes), "to the record's end");
+            Assert.That(InterferenceAt, Is.EqualTo(GoldenFlights.Model19Layout), "model 19's record is the record before them");
+            Assert.That(LogFormat.StepSize - InterferenceAt, Is.EqualTo(InterferenceBytes), "to the record's end");
         }
     }
 }

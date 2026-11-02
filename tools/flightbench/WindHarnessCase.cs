@@ -33,7 +33,7 @@ namespace Fpv450.FlightBench
                 return Fail(Usage);
             int seeds = 5, history = 0, first = 1;
             string output = null, mapId = null;
-            bool all = true, belt = true, steady = false, drag = true, remnant = true, wake = true, nomap = false;
+            bool all = true, belt = true, steady = false, drag = true, remnant = true, interference = true, nomap = false;
             for (int i = 2; i < args.Length; i++)
             {
                 string value = i + 1 < args.Length ? args[i + 1] : null;
@@ -46,7 +46,7 @@ namespace Fpv450.FlightBench
                     case "--pilots" when value == "nominal" || value == "all": all = value == "all"; i++; break;
                     case "--belt" when value == "on" || value == "off": belt = value == "on"; i++; break;
                     case "--wrong" when value == "steady" || value == "nodrag" || value == "noiseless" || value == "nowake":
-                        steady = value == "steady"; drag = value != "nodrag"; remnant = value != "noiseless"; wake = value != "nowake"; i++; break;
+                        steady = value == "steady"; drag = value != "nodrag"; remnant = value != "noiseless"; interference = value != "nowake"; i++; break;
                     case "--wrong" when value == "nomap": nomap = true; i++; break;
                     case "--map" when value != null: mapId = value; i++; break;
                     default: return Fail(Usage);
@@ -58,13 +58,13 @@ namespace Fpv450.FlightBench
             if (nomap && mapId == null) return Fail(Usage);
             if (mapId != null) return RunMap(spec, level, seeds, first, pilots, mapId, nomap, drag, remnant, output);
             Console.WriteLine($"flightbench: the wind harness (p7c-wind 1.2, K§8.5): {level}, the {WindPreset.Model} wind"
-                + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (wake ? "" : ", the known-wrong airframe without the rotors' wakes") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
+                + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (interference ? "" : ", the known-wrong airframe without the rotors in each other's wake") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
                 + $", {seeds} seeds × {pilots.Length} pilots, {WindHarness.Seconds:F0} s each and the climb between the stretches (unmeasured), the first {WindHarness.DiscardSeconds:F0} s discarded");
 
             var runs = new WindHarness.Run[pilots.Length * seeds];
             var clock = System.Diagnostics.Stopwatch.StartNew();
             Parallel.For(0, runs.Length, j =>
-                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant, wake));
+                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant, interference));
             Console.WriteLine($"  {runs.Length} flights in {clock.Elapsed.TotalSeconds:F1} s");
 
             foreach (WindHarness.Run r in runs)
@@ -76,7 +76,7 @@ namespace Fpv450.FlightBench
             }
 
             bool ok = true;
-            if (level != WindLevel.Calm && !steady && drag && remnant && wake)
+            if (level != WindLevel.Calm && !steady && drag && remnant && interference)
             {
                 // 1.5's scenario's own lean at the cruise (CrosswindScenario), in the Severe centre's crosswind.
                 double c = WindPreset.SevereCentre;
@@ -105,7 +105,7 @@ namespace Fpv450.FlightBench
 
             if (output != null)
             {
-                string dir = Path.Combine(output, level.ToString().ToLowerInvariant() + (steady ? "-steady" : !drag ? "-nodrag" : !remnant ? "-noiseless" : !wake ? "-nowake" : belt ? "" : "-nobelt"));
+                string dir = Path.Combine(output, level.ToString().ToLowerInvariant() + (steady ? "-steady" : !drag ? "-nodrag" : !remnant ? "-noiseless" : !interference ? "-nowake" : belt ? "" : "-nobelt"));
                 var manifest = new List<object>();
                 foreach (WindHarness.Run r in runs)
                 {
@@ -124,7 +124,7 @@ namespace Fpv450.FlightBench
                 }
                 var doc = new
                 {
-                    harness = "p7c-wind 1.5 (K§8.5)", level = level.ToString(), wind = steady ? "steady (known-wrong)" : WindPreset.Model, belt = belt && !steady, remnant, wake,
+                    harness = "p7c-wind 1.5 (K§8.5)", level = level.ToString(), wind = steady ? "steady (known-wrong)" : WindPreset.Model, belt = belt && !steady, remnant, interference,
                     strip_height_m = belt ? WindHarness.StripHeight : 0, strip_width_m = belt ? WindHarness.StripWidthHeights * WindHarness.StripHeight : 0,
                     strip_area_index = belt ? WindHarness.StripAreaIndex : 0, seconds = WindHarness.Seconds, discarded_s = WindHarness.DiscardSeconds,
                     how = "per run: wind_stats.py --csv <dir>/<csv> --segment <segment> --json <out>; T0c: --wind-log <dir>/history/*.csv",

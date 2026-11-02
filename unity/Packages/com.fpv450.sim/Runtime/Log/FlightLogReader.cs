@@ -338,15 +338,15 @@ namespace Fpv450.Sim.Log
                     + G(h.Flapping.Radius) + " m, " + h.Flapping.Stations.Length + " stations; air " + G(h.Flapping.AirDensity) + " kg/m3");
             else
                 w.WriteLine("  flapping: off");
-            if (h.RotorWake != null)
-                w.WriteLine("  rotor wake: Coleman's skewed vortex cylinder on R " + G(h.RotorWake.Radius) + " m, " + h.RotorWake.Stations.Length
-                    + " stations; table " + h.RotorWake.SkewNodes + " skews by " + G(h.RotorWake.SkewStep) + " in tan(chi/2), offsets by "
-                    + G(h.RotorWake.OffsetStep) + " in sin(phi/2); formed from " + G(h.RotorWake.TransportOnset) + " to " + G(h.RotorWake.TransportWhole)
-                    + " v_h of transport; fluctuation sigma " + G(h.RotorWake.FluctuationSigma) + " within "
-                    + G(h.RotorWake.FluctuationBound) + ", eddies " + G(h.RotorWake.FluctuationScale) + " R; air " + G(h.RotorWake.AirDensity) + " kg/m3"
-                    + (h.RotorWake.FluctuationSigma > 0 ? "" : "; KNOWN-WRONG: no fluctuation"));
+            if (h.Interference != null)
+                w.WriteLine("  rotor interference: Coleman's skewed vortex cylinder on R " + G(h.Interference.Radius) + " m, " + h.Interference.Stations.Length
+                    + " stations; table " + h.Interference.SkewNodes + " skews by " + G(h.Interference.SkewStep) + " in tan(chi/2), offsets by "
+                    + G(h.Interference.OffsetStep) + " in sin(phi/2); formed from " + G(h.Interference.TransportOnset) + " to " + G(h.Interference.TransportWhole)
+                    + " v_h of transport; fluctuation sigma " + G(h.Interference.FluctuationSigma) + " within "
+                    + G(h.Interference.FluctuationBound) + ", eddies " + G(h.Interference.FluctuationScale) + " R; air " + G(h.Interference.AirDensity) + " kg/m3"
+                    + (h.Interference.FluctuationSigma > 0 ? "" : "; KNOWN-WRONG: no fluctuation"));
             else
-                w.WriteLine("  rotor wake: off");
+                w.WriteLine("  rotor interference: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");

@@ -46,11 +46,11 @@ namespace Fpv450.Sim.Flight
     /// - The wake's own unsteadiness: its tip vortices and shear layer wander past the target disc, so each rotor's
     ///   interference carries a fluctuation, a share x of it, a first-order process with the corner of eddies of
     ///   FluctuationScale·R carried past at the rotor's in-plane airspeed, σ FluctuationSigma, bounded, its unit from the named
-    ///   stream "wake.rotor" (counter-based on the step and the corner). Never on the pose. The tip vortices' passage at the
+    ///   stream "rotor.interference" (counter-based on the step and the corner). Never on the pose. The tip vortices' passage at the
     ///   blade-pass frequency (2/rev, 290–350 Hz) is left out: it is vibration (hover-micro-motion.md §4, the blade pass).
     /// Basic operations and square roots only; the table is built once per layout and shared, a step allocates nothing.
     /// </summary>
-    public sealed class RotorWakeSpec
+    public sealed class RotorInterferenceSpec
     {
         const double Pi = 3.141592653589793;
 
@@ -61,7 +61,7 @@ namespace Fpv450.Sim.Flight
         public double AirDensity = 1.225;
 
         /// <summary>The blade's stations x = r/R and its chord there, m (linear between): the target disc's weighting along the
-        /// blade, c·x per unit radius (DroneSpec.BuildRotorWake: the sheet's chord, as the flapping's).</summary>
+        /// blade, c·x per unit radius (DroneSpec.BuildInterference: the sheet's chord, as the flapping's).</summary>
         public double[] Stations, Chords;
 
         /// <summary>The table's step in tan(χ/2) and its nodes from 0: 0.025 and 37, to tan(χ/2) 0.9, χ 84° (assumed: the
@@ -90,9 +90,9 @@ namespace Fpv450.Sim.Flight
         /// radius from the target, so its corner is V_∥/(2πR), 24 Hz at the cruise).</summary>
         public double FluctuationScale = 1;
 
-        public RotorWakeSpec Clone()
+        public RotorInterferenceSpec Clone()
         {
-            var c = (RotorWakeSpec)MemberwiseClone();
+            var c = (RotorInterferenceSpec)MemberwiseClone();
             c.Stations = (double[])Stations?.Clone();
             c.Chords = (double[])Chords?.Clone();
             return c;
@@ -243,20 +243,20 @@ namespace Fpv450.Sim.Flight
             return Chords[k] + (x - Stations[k]) * (Chords[k + 1] - Chords[k]) / (Stations[k + 1] - Stations[k]);
         }
 
-        static readonly List<RotorWakeTable> Built = new List<RotorWakeTable>();
+        static readonly List<RotorInterferenceTable> Built = new List<RotorInterferenceTable>();
         static readonly object BuildLock = new object();
 
         /// <summary>The interference table of this spec for four hubs (body m; their positions in the discs' plane, x and z):
         /// built once for a layout and spec and shared (it is a function of them alone).</summary>
-        public RotorWakeTable Table(Double3[] hubs)
+        public RotorInterferenceTable Table(Double3[] hubs)
         {
             if (hubs == null || hubs.Length != 4) throw new ArgumentException("four hubs", nameof(hubs));
             lock (BuildLock)
             {
-                foreach (RotorWakeTable t in Built)
+                foreach (RotorInterferenceTable t in Built)
                     if (t.IsFor(this, hubs))
                         return t;
-                var built = new RotorWakeTable(this, hubs);
+                var built = new RotorInterferenceTable(this, hubs);
                 Built.Add(built);
                 return built;
             }
@@ -264,20 +264,20 @@ namespace Fpv450.Sim.Flight
     }
 
     /// <summary>
-    /// The interference factors of a layout (RotorWakeSpec.Table): for each ordered pair of rotors, the target's added inflow
+    /// The interference factors of a layout (RotorInterferenceSpec.Table): for each ordered pair of rotors, the target's added inflow
     /// over the source's induced velocity at the source's skew and the target's place in its flow, from a table per distance
     /// between hubs over tan(χ/2) and sin(φ/2), read bilinearly.
     /// </summary>
-    public sealed class RotorWakeTable
+    public sealed class RotorInterferenceTable
     {
-        readonly RotorWakeSpec _spec;
+        readonly RotorInterferenceSpec _spec;
         readonly Double3[] _hubs = new Double3[4];
         readonly int[] _pairTable = new int[16];
         readonly double[] _pairX = new double[16], _pairZ = new double[16], _pairLength = new double[16];
         readonly double[][] _factor;
         readonly int _skewNodes, _offsetNodes;
 
-        internal RotorWakeTable(RotorWakeSpec spec, Double3[] hubs)
+        internal RotorInterferenceTable(RotorInterferenceSpec spec, Double3[] hubs)
         {
             _spec = spec.Clone();
             _skewNodes = spec.SkewNodes;
@@ -325,7 +325,7 @@ namespace Fpv450.Sim.Flight
         /// <summary>The distinct distances between hubs over R, in the order the tables hold them.</summary>
         public double[] Distances { get; }
 
-        internal bool IsFor(RotorWakeSpec spec, Double3[] hubs)
+        internal bool IsFor(RotorInterferenceSpec spec, Double3[] hubs)
         {
             for (int i = 0; i < 4; i++)
                 if (hubs[i].X != _hubs[i].X || hubs[i].Z != _hubs[i].Z) return false;

@@ -73,8 +73,8 @@ namespace Fpv450.FlightBench
             DroneSpec main = GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
             const int m19 = GoldenFlights.Model19Layout;
-            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still, wake: false, layout: m19);
-            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still, wake: false, layout: m19);
+            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still, interference: false, layout: m19);
+            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still, interference: false, layout: m19);
             ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152, m19);
             bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.Model15StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
             Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, contact 0x{c15:X16}, tumble 0x{t15:X16} "
@@ -88,14 +88,14 @@ namespace Fpv450.FlightBench
             // The merge's audit against the range branch (model 19): on main's tuned rotor drag in still air, over the range
             // branch's 1656-byte layout (and without the rotors' wakes, over model 19's 1808 bytes), the range golden is model
             // 16's range flight in still air.
-            ulong r16 = GoldenFlights.FlyRange(main, out _, 1296, 152, wind: still, wake: false, layout: m19);
+            ulong r16 = GoldenFlights.FlyRange(main, out _, 1296, 152, wind: still, interference: false, layout: m19);
             bool r16ok = r16 == GoldenFlights.Model16StillRangeHash;
             Console.WriteLine($"main's rotor drag in still air, over the range branch's layout: range 0x{r16:X16} "
                 + $"({(r16ok ? "model 16's, bit for bit" : "NOT model 16's")}): {(r16ok ? "PASS" : "FAIL")}");
             // p7b-airframe 1.3d's audit: without the rotors' wakes, over model 19's 1808 bytes, each golden is model 19's pin.
-            ulong p19 = GoldenFlights.FlyPowered(Drone(), out _, wake: false, layout: m19);
-            ulong c19 = GoldenFlights.FlyContact(Drone(), out _, wake: false, layout: m19);
-            ulong r19 = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, wake: false, layout: m19);
+            ulong p19 = GoldenFlights.FlyPowered(Drone(), out _, interference: false, layout: m19);
+            ulong c19 = GoldenFlights.FlyContact(Drone(), out _, interference: false, layout: m19);
+            ulong r19 = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: m19);
             ulong t19 = GoldenFlights.FlyTumble(Drone(), out _, out _, layout: m19);
             bool wok = p19 == GoldenFlights.Model19PoweredHash && c19 == GoldenFlights.Model19ContactHash && r19 == GoldenFlights.Model19RainHash
                 && t19 == GoldenFlights.Model19TumbleHash;

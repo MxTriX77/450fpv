@@ -154,11 +154,12 @@ namespace Fpv450.Sim.Log
         /// 22: p7c-wind--map-wakes merged onto 21 (the code is the parents' together): the map's wind with 20's wind over a
         ///    hole and D-060's field; a flight with strips or wakes alone, or neither, steps as in 21.
         /// 19–21 on p7b-airframe--rotor-wake (off p7c-wind--d060's 19, D-060's open field): 20 left to the range branch; 21
-        ///    p7b-airframe 1.3d (the rotors in each other's wake, RotorWakeSpec: Coleman's skewed vortex cylinder behind each
-        ///    rotor, its downwash on the rotors behind and its upwash beside and ahead, and its own fluctuation; a flight
-        ///    without the wake steps as in 19).
+        ///    p7b-airframe 1.3d (the rotors in each other's wake, RotorWakeSpec there: Coleman's skewed vortex cylinder behind
+        ///    each rotor, its downwash on the rotors behind and its upwash beside and ahead, and its own fluctuation from the
+        ///    stream wake.rotor; a flight without the wake steps as in 19).
         /// 24: the physics integration (23 being p7a-ground's and p7b-airframe--micro's): p7b-airframe--rotor-wake's 21 merged
-        ///    onto 22, the rotor-rotor interference with the map's wind; a flight without the interference steps as in 22.
+        ///    onto 22, the rotor-rotor interference (RotorInterferenceSpec, its fluctuation from the stream rotor.interference)
+        ///    with the map's wind; a flight without the interference steps as in 22.
         /// </summary>
         public const int ModelVersion = 24;
 
@@ -180,7 +181,7 @@ namespace Fpv450.Sim.Log
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "WakeShare" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -194,7 +195,7 @@ namespace Fpv450.Sim.Log
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
-                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "WakeInflow",
+                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -320,8 +321,8 @@ namespace Fpv450.Sim.Log
             for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_shape" + m, "m kg^0.5, mass-normalised", LogFieldType.F64);
             for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_rate" + m, "m kg^0.5/s", LogFieldType.F64);
             // The rotors in each other's wake (p7b-airframe 1.3d).
-            b.Corners("wake_inflow", "m/s, the other rotors' wakes' added inflow through the disc, + down; 0 without the wake");
-            b.Corners("wake_share", "the wakes' fluctuation, a share of that inflow");
+            b.Corners("interference_inflow", "m/s, the other rotors' wakes' added inflow through the disc, + down; 0 without the interference");
+            b.Corners("interference_share", "the wakes' fluctuation, a share of that inflow");
             return b.Done(StepSize);
         }
 
@@ -456,8 +457,8 @@ namespace Fpv450.Sim.Log
             w.C4(s.WashInflow);
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeShape[m]);
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeRate[m]);
-            w.C4(t.WakeInflow);
-            w.C4(s.WakeShare);
+            w.C4(t.InterferenceInflow);
+            w.C4(s.InterferenceShare);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -564,8 +565,8 @@ namespace Fpv450.Sim.Log
             s.WashInflow = r.C4();
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeShape[m] = r.F64();
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeRate[m] = r.F64();
-            t.WakeInflow = r.C4();
-            s.WakeShare = r.C4();
+            t.InterferenceInflow = r.C4();
+            s.InterferenceShare = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
