@@ -101,6 +101,13 @@ namespace Fpv450.Sim.Flight
 
         public ref readonly DronePart Part(int i) => ref _parts[i];
 
+        /// <summary>Moves one part's centre, body m, and rebuilds (BuildTolerance: the build's placement).</summary>
+        public void SetPartPosition(int part, Double3 position)
+        {
+            _parts[part].Position = position;
+            Build();
+        }
+
         /// <summary>Sets one part's mass, kg (0 leaves it off), and rebuilds.</summary>
         public void SetPartMass(int part, double mass)
         {

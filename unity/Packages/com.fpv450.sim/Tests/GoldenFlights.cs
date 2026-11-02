@@ -212,6 +212,12 @@ namespace Fpv450.Sim.Tests
         // from step 25, against the rotor-wake branch's from step 21, the first armed step; it keeps its course: armed, no
         // crash, 157.26 m up against 149.00 and 156.18, 8.26 m and 1.17 m from their ends, within 7.8° and 1.8°. The largest
         // interference 7.04 m/s (6.8 on its branch); each rotor's own wake within 0.129 v_h.
+        // Model 22 on p7b-airframe--power: 0xA1FF085091A019CD. D-066: re-recorded with ModelVersion 23 (the class's ESC, no current limit; the
+        // published 1.4 A no-load current; the packs 0.88 kg and the electronics 0.24 kg). Audited: on model 22's drone
+        // (WithModel22Drone) every golden is model 22's, every record and event (OnModel22sDroneEachGoldenIsModel22s, kept). On
+        // model 23's the Windy flight moves from step 1 (the lighter body) and keeps its course on the open-loop script, which
+        // the 90 g lighter drone climbs harder: armed, no crash, 153.53 m up against 147.90 at 10 s, 16.7 m from model 22's end,
+        // the packs at 0.8941 of 0.9 against 0.8949.
         public const ulong PoweredHash = 0x67788361104F58BBUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
@@ -234,6 +240,8 @@ namespace Fpv450.Sim.Tests
         // model 19's without either). It moves from step 22 against the first and step 21 against the second and keeps its
         // course: 158.09 m up against 149.95 and 157.38, 8.16 m and 0.95 m from their ends, within 7.3° and 1.9°; the film holds
         // 9.11 g at 10 s (9.57 and 9.06).
+        // Model 22 on p7b-airframe--power: 0xB10D9A860D4431C0. D-066 (ModelVersion 23), audited as the powered flight: it moves from step 1 and keeps
+        // its course, 155.36 m up against 148.69; the film holds 10.28 g at 10 s against 9.60.
         public const ulong RainPoweredHash = 0x4D876EF3F328F9ADUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
@@ -375,6 +383,8 @@ namespace Fpv450.Sim.Tests
         // from step 9, the first armed step, against the landing's, and keeps its course: 5 impacts, no crash, at rest at the
         // same 0.2518 m on 8 pairs, 0.64 mm and 26.9 mm aside, within 0.66 mm and 0.013° of model 24's path and 31 mm and
         // 1.4° of the landing's (the held bounce).
+        // Model 22 on p7b-airframe--power: 0x8C1E6B066F143A67. D-066 (ModelVersion 23), audited as the powered flight: it keeps its course, 5 impacts,
+        // no crash, at rest on 8 contacts at 0.2519 m against 0.2518, 18 mm aside.
         public const ulong ContactHash = 0x0F21FF2A28BA0E16UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
@@ -406,6 +416,8 @@ namespace Fpv450.Sim.Tests
         // Model 24: the 1904-byte record, the interference's and the own wake's bytes zero (no propulsion): over the first 1872
         // bytes the rotor-wake branch's pin, over the micro branch's 1840 its pin (the kept test), over 1808 model 19's (the kept
         // test).
+        // Model 22 on p7b-airframe--power: 0x2A0283BBFE59FD84. D-066 (ModelVersion 23): the L4 body is the lighter packs' and electronics' (4.742 kg);
+        // momentum within 1.7e-12, energy 3.5e-12, the CoM 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s.
         public const ulong TumbleHash = 0x6712A54D0FDA7F84UL;
         public const int TumbleSteps = 10000;
 
@@ -471,6 +483,8 @@ namespace Fpv450.Sim.Tests
         // with the old anchor; no parent flew D-064 on the range). It moves from step 3 against model 24 and from step 9
         // against the landing's, and keeps its course: at rest 1.6 mm and 17.6 mm aside, within 1.8 mm and 0.30° of model
         // 24's path, 35 mm and 4.2° of the landing's (step 8625, the held bounce over the straw).
+        // Model 22 on p7b-airframe--power: 0x80C73DBA130C6903. D-066 (ModelVersion 23), audited as the powered flight: it keeps its course, 4 impacts,
+        // no crash, at rest on 18 pairs at 0.2342 m against 0.2339, within 1 mm.
         public const ulong RangeHash = 0x0D5350CB2E68C6B8UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
@@ -516,6 +530,34 @@ namespace Fpv450.Sim.Tests
                 }
             }
             spec.Aero.BodyCenterOfPressure.Y = -0.01;
+            return spec;
+        }
+
+        /// <summary>D-066's kept audit (GoldenFlightTests.OnModel22sDroneEachGoldenIsModel25s): on WithModel22Drone each golden
+        /// flies the landing's merge's model 25 pins bit for bit, every record and event (on p7b-airframe--power, model 22's:
+        /// 0xA1FF085091A019CD, 0xB10D9A860D4431C0, 0x8C1E6B066F143A67, 0x2A0283BBFE59FD84, 0x80C73DBA130C6903).</summary>
+        public const ulong Model25PoweredHash = 0x67788361104F58BBUL, Model25RainPoweredHash = 0x4D876EF3F328F9ADUL,
+            Model25ContactHash = 0x0F21FF2A28BA0E16UL, Model25TumbleHash = 0x6712A54D0FDA7F84UL, Model25RangeHash = 0x0D5350CB2E68C6B8UL;
+
+        /// <summary>The audit against p7b-airframe--power (GoldenFlightTests.WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs):
+        /// that branch's model 24 pins over model 19's 1808-byte record, which the powered, rain and tumble goldens flown on
+        /// drone.json without the interference and D-064's sources keep bit for bit (they touch nothing, so 1.6c's spring and
+        /// D-064's wash never act). Its contact and range pins, 0xAF0C71C9193B4326 and 0xFBAC3E4D67B45ACD, need D-064's wash and
+        /// 1.6c's spring off too, temporary edits (ContactHash's and RangeHash's notes).</summary>
+        public const ulong PowerPoweredHash = 0xCC20DE164C858267UL, PowerRainHash = 0xACF1742E51117659UL, PowerTumbleHash = 0x95E56C6BB49BB744UL;
+
+        /// <summary>The spec with model 22's drone (drone.json before D-066): the ESCs' assumed 40 A current limit, the
+        /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg. Pass a freshly parsed
+        /// spec: it is changed in place.</summary>
+        public static DroneSpec WithModel22Drone(DroneSpec spec)
+        {
+            for (int i = 0; i < spec.Motors.Length; i++)
+            {
+                spec.Motors[i].EscCurrentLimit = 40;
+                spec.Motors[i].NoLoadCurrent = 1.0;
+            }
+            foreach (DronePack pack in spec.Packs) spec.Parts[pack.Part].Mass = 0.92;
+            spec.Parts[spec.PartIndex("electronics")].Mass = 0.25;
             return spec;
         }
 

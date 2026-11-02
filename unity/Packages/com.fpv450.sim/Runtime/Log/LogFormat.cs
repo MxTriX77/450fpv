@@ -77,8 +77,12 @@ namespace Fpv450.Sim.Log
         /// interference (64 bytes after model 19's 1808) and then each rotor's own wake (32), 1904 bytes; the header's
         /// interference entry (tag 22) and own-wake entry (tag 23), the asymmetry's motor dynamics and the recirculation's
         /// reference height.
+        /// 15 on p7b-airframe--power: the header's build placement (tag 22, D-066: BuildTolerance's bounds and parts; its
+        /// draws with the others).
+        /// 16: p7b-airframe--power's 15 merged onto the integration's 15: the build placement's header entry at tag 24, after
+        ///    the interference's 22 and the own wake's 23; the record is 15's 1904 bytes.
         /// </summary>
-        public const int Version = 15;
+        public const int Version = 16;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -178,8 +182,18 @@ namespace Fpv450.Sim.Log
         /// 25: p6-flight-core--landing's 23 merged onto 24 (the code is the parents' together): 1.6c's stick spring under the
         ///    interference and D-064's micro-motion. A flight with the stick anchor at the contact point steps as in 24; one
         ///    that touches nothing steps as in 24 too.
+        /// 23–24 on p7b-airframe--power (off 22): 23 D-066, the drone's power and mass from published builds of its class
+        ///    (drone.json: the class's ESC, which senses no current, so no current limit, "none", for the assumed 40 A; the
+        ///    motors' published 1.4 A no-load current for the assumed 1.0; the packs 0.92 → 0.88 kg and the electronics 0.25 →
+        ///    0.24 kg from published cells, packs and the stack); on model 22's drone a flight steps as in 22. 24 the build's
+        ///    placement (BuildTolerance, PHY-24): the bottle, the packs, the coil and the leads where the pilot's hands set them
+        ///    this flight, drawn from "build.placement", so the centre of mass sits a few millimetres off the exact build's; a
+        ///    flight without it steps as in 23.
+        /// 26: p7b-airframe--power's 24 merged onto 25 (the code is the parents' together): D-066's power and mass and the
+        ///    build's placement with the interference, D-064's micro-motion and 1.6c's stick spring. On model 22's drone (the
+        ///    40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics) and without the placement a flight steps as in 25.
         /// </summary>
-        public const int ModelVersion = 25;
+        public const int ModelVersion = 26;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

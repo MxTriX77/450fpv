@@ -96,7 +96,9 @@ namespace Fpv450.Sim.Tests
             new Approach { Name = "crown", Variant = "V01_L", Occurrence = 0, Foot = new Double3(-136.5, 0, -40), HeadingDeg = 0, Height = 10, Speed = 10, ClimbSteps = 6000 },
             new Approach { Name = "wall", Variant = "H01_D", Occurrence = 0, Foot = new Double3(-125, 0, -90), HeadingDeg = 0, Height = 1.5, Speed = 10, ClimbSteps = 3000 },
             new Approach { Name = "car", Variant = "R01_A", Occurrence = 0, Foot = new Double3(-161.5, 0, -13), HeadingDeg = 180, Height = 0.8, Speed = 10, ClimbSteps = 3000 },
-            new Approach { Name = "wire", Variant = "L03_medium", Occurrence = 1, Foot = new Double3(-140, 0, -84), HeadingDeg = 0, Height = 5.47, Speed = 10, ClimbSteps = 6000 },
+            // The wire edge-on: the height at which a prop's rim meets L03's lowest cable first (derived, scanned in 10 mm steps:
+            // 5.47–5.48 m on model 22, 5.44 m on D-066's lighter model 23, which flies the approach about 30 mm higher).
+            new Approach { Name = "wire", Variant = "L03_medium", Occurrence = 1, Foot = new Double3(-140, 0, -84), HeadingDeg = 0, Height = 5.44, Speed = 10, ClimbSteps = 6000 },
             new Approach { Name = "climb", Variant = "L03_medium", Occurrence = 1, Foot = new Double3(-140, 0, -34.483), HeadingDeg = 0, Height = 1.5, Speed = 0, ClimbSteps = 3000, ClimbRate = 3 },
         };
 

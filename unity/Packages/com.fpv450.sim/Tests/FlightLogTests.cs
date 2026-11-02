@@ -552,6 +552,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(AeroSpec)), Is.EquivalentTo(LogHeader.AeroFieldsLogged));
             Assert.That(InstanceFields(typeof(WindSetup)), Is.EquivalentTo(LogHeader.WindFieldsLogged));
             Assert.That(InstanceFields(typeof(MotorAsymmetry)), Is.EquivalentTo(LogHeader.AsymmetryFieldsLogged));
+            Assert.That(InstanceFields(typeof(BuildTolerance)), Is.EquivalentTo(LogHeader.PlacementFieldsLogged));
             Assert.That(InstanceFields(typeof(VortexRingSpec)), Is.EquivalentTo(LogHeader.VortexRingFieldsLogged));
             Assert.That(InstanceFields(typeof(GroundEffectSpec)), Is.EquivalentTo(LogHeader.GroundEffectFieldsLogged));
             Assert.That(InstanceFields(typeof(RotorFlappingSpec)), Is.EquivalentTo(LogHeader.FlappingFieldsLogged));

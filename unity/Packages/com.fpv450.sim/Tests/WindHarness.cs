@@ -45,9 +45,14 @@ namespace Fpv450.Sim.Tests
         public const double Seconds = 39, DiscardSeconds = 5, BeltStartSeconds = 9, BeltSeconds = 7;
 
         /// <summary>The release speed along the course, m/s (derived, p7c-wind 1.6: the airspeed clip P's 22.7° of pitch
-        /// settles at in still air, HeldPitchAirspeed: 20.57 m/s on D-050's silhouette, 18.82 on D-043's; PHY-17a's published
-        /// cruise is 17–22).</summary>
-        public const double ReleaseSpeed = 20.6;
+        /// settles at in still air, HeldPitchAirspeed: 20.38 m/s on D-066's model 23, 20.57 on model 22's D-050 silhouette,
+        /// 18.82 on D-043's; PHY-17a's published cruise is 17–22).</summary>
+        public const double ReleaseSpeed = 20.4;
+
+        /// <summary>The cruise D-060's field checks meet the turbulence at, m/s: model 22's release, 20.6. The field does not
+        /// depend on the drone, so D-066's lighter cruise (ReleaseSpeed) does not move them; at 20.4 the 0.7–1 m eddies' share
+        /// of von Kármán's energy sits on its band's 0.70 floor.</summary>
+        public const double FieldCheckSpeed = 20.6;
 
         /// <summary>The runs' field heights spread evenly over this band, m above the floor (assumed, wind.md §6.2;
         /// belt-geometry-p.md did not measure P's field stretch).</summary>

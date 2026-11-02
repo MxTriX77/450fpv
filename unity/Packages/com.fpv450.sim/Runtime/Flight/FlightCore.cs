@@ -31,6 +31,11 @@ namespace Fpv450.Sim.Flight
         /// drawn from at the start. Null for four identical rotors (Calm's wind grading, a bench).</summary>
         public MotorAsymmetry Asymmetry;
 
+        /// <summary>The build's placement (BuildTolerance, D-066, PHY-24): where the bottle, the packs, the coil and the
+        /// leads sit this flight, drawn at the start, so the centre of mass is a few millimetres off the exact build's.
+        /// Null for the exact build (the goldens, a bench).</summary>
+        public BuildTolerance Placement;
+
         /// <summary>The rotors' vortex rings (VortexRingSpec, p7b-airframe 1.2): null for none, as a bench's rotors and the
         /// goldens' audits fly.</summary>
         public VortexRingSpec VortexRing;
@@ -169,6 +174,13 @@ namespace Fpv450.Sim.Flight
             _settings = setup.Settings;
             MassModel mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
             Random = new FlightRandom(setup.Seed);
+            // The build's placement first, so the airframe's modes and the body see the flight's own centre of mass.
+            Placement = setup.Placement?.Clone();
+            if (Placement != null)
+            {
+                PlacementOffsets = Placement.DrawFor(Random);
+                Placement.Apply(mass, PlacementOffsets);
+            }
             if (setup.Aero != null)
             {
                 if (setup.Aero.CoilPart >= mass.PartCount || (setup.Aero.CoilPart >= 0 && mass.Part(setup.Aero.CoilPart).Kind != PartKind.Cylinder))
@@ -265,6 +277,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The motors' asymmetry, or null for identical rotors; and its per-flight draws.</summary>
         public MotorAsymmetry Asymmetry { get; }
+
+        /// <summary>The build's placement and this flight's offsets (null for the exact build).</summary>
+        public BuildTolerance Placement { get; }
+        public BuildTolerance.Offsets PlacementOffsets { get; }
         public MotorAsymmetry.Draws Draws { get; }
 
         /// <summary>The rotors' vortex rings, or null for none.</summary>
