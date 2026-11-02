@@ -523,7 +523,7 @@ The trait definitions and every measured number are in K§11. **The algorithms c
 - The log records which signals are stubbed.
 
 **FEED-04 Traits.** Each trait listed below is implemented with the parameters measured in K§11:
-- N1 grain, N2 sparkles, **N3 and N4 always on** (as in the Godot feed the pilot chose; not per-flight draws), the quality-drop envelope (`degrade`), N8 tear, N11, N12 recovering dropouts, N13 dim-light steps
+- N1 grain, N2 sparkles, **N3 and N4 always on** (as in the Godot feed the pilot chose; not per-flight draws), the quality-drop envelope (`degrade`), N11, N13 dim-light steps; N8's tear wedge and N12's free-running dropouts are a radio link's and are off (D-065), behind a switch kept for the Godot A/B
 - the staged loss and the hard cut
 - P1–P5, P7, P8
 - O1 (k1 ≈ 0.33), O2, O3, O4
@@ -533,7 +533,7 @@ N9, N10 and P10 are **not** simulated.
 
 **FEED-05 Losses, as in the Godot feed.**
 - **Terminal loss** fires on impact, power loss or fiber break, never on a random clock. The variant (staged or hard cut) follows how fast the link margin fell (K§11.3).
-- **Recovering dropouts (N12)** keep the Godot timer the pilot asked for: **3–6 per minute**, with gaps of 5–32 s drawn as u².
+- **Recovering dropouts (N12)** come only from the fiber's link margin (`p7d-tether`), never from a free-running timer: the video rides an optic fiber, not a radio link (D-065).
 - **Quality drops** keep theirs: about 10 per minute, 0.3–2.2 s long, depth 0.25–1.0.
 - **Physics adds, never replaces.** From phase 7, link-margin dips from the fiber add events and modulate N2 on top of those baselines.
 - **There is always a tell before the picture goes.**
@@ -689,10 +689,7 @@ The last setup is remembered.
 
 **INP-03 Flight-controller settings: Betaflight 4.5 semantics** (D-023).
 - **Settings in v1:** **ACTUAL rates** (centre sensitivity, full-stick rate, expo per axis) and the **throttle curve** (`thr_mid`, `thr_expo`, Betaflight's 11-point table), with curve previews.
-- **Defaults: the "sim default" column** of [reference-notes/fc-profiles.md](reference-notes/fc-profiles.md), which is the pilot's flown set leaning toward the factory set, mostly on throttle:
-  - roll and pitch: 55 / 225 °/s, expo 0.34
-  - yaw: 85 / 260 °/s, expo 0.15
-  - throttle: `thr_mid` 50, `thr_expo` 10
+- **Defaults: the player default column** of [reference-notes/fc-profiles.md](reference-notes/fc-profiles.md) §2a (D-066): the pilot's FpvPrep 10-inch profile without its throttle-softening step: roll and pitch 50 / 220 °/s, expo 0.45; yaw 80 / 240 °/s, expo 0.20; throttle `thr_mid` 100, `thr_expo` 100; the rest the sim default column.
   - deadband 2 / 2, RC smoothing 50, feedforward 50
   - **airmode and motor idle** as the pilot's profile records them (fc-profiles: `min_throttle` and the airmode setting), because they decide what "throttle to zero at touchdown" does (PHY-02); where the profile is silent, Betaflight 4.5's default, labelled
 - **Profiles** are stored with **Betaflight CLI names**.
