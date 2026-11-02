@@ -254,8 +254,10 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The integration's audit against p7b-airframe--micro (GoldenFlightTests.WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs):
         /// that branch's model 23 pins over its 1840-byte record (model 19's 1808 bytes, then the own wake's 32), which each golden
-        /// flown without the interference keeps bit for bit.</summary>
-        public const ulong MicroPoweredHash = 0x5073BC74B404B3AAUL, MicroContactHash = 0xFF836F92A12B4AB0UL, MicroRainHash = 0x789866FBE53F0C70UL,
+        /// flown without the interference keeps bit for bit. Since model 25 the contact flight's is with 1.6c's stick spring
+        /// (0xDFC291AE4872A3B7); the branch's own 0xFF836F92A12B4AB0 holds with the stick anchor at the contact point (a
+        /// temporary edit, reverted; ContactHash's notes).</summary>
+        public const ulong MicroPoweredHash = 0x5073BC74B404B3AAUL, MicroContactHash = 0xDFC291AE4872A3B7UL, MicroRainHash = 0x789866FBE53F0C70UL,
             MicroTumbleHash = 0xDB5DEEA6285B6184UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
@@ -363,7 +365,17 @@ namespace Fpv450.Sim.Tests
         // with the old anchor at the contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new,
         // 0x5B8655B7F91E4D75: 5 impacts, no crash, at rest at the same 0.2518 m, 0.24 mm aside: on its skids nothing rolls,
         // so the bits move only by the rule's arithmetic.
-        public const ulong ContactHash = 0xA93D2534E875790FUL;
+        // Model 24: 0xA93D2534E875790F. The landing's merge (ModelVersion 25): re-recorded with 1.6c's stick spring under the
+        // interference and D-064. Audited against each parent with the other side off (temporary edits, reverted): with the
+        // stick anchor back at the contact point it is model 24's pin bit for bit; without the interference and D-064's
+        // sources (the wash on model 19's numbers and its torque at the freestream's inflow), over the first 1808 bytes, the
+        // landing branch's 0x5B8655B7F91E4D75; with neither model 22's 0x8C1E6B066F143A67, and on main's drag in still air
+        // over main's layout the landing's 0x78A919AAD7858813 and, with the old anchor, model 15's 0x557DEBE410FAEEA1. It
+        // moves from step 3 against model 24 (the skids stand on the floor from the first step: the rule's arithmetic) and
+        // from step 9, the first armed step, against the landing's, and keeps its course: 5 impacts, no crash, at rest at the
+        // same 0.2518 m on 8 pairs, 0.64 mm and 26.9 mm aside, within 0.66 mm and 0.013° of model 24's path and 31 mm and
+        // 1.4° of the landing's (the held bounce).
+        public const ulong ContactHash = 0x0F21FF2A28BA0E16UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -449,7 +461,17 @@ namespace Fpv450.Sim.Tests
         // the still-air audit against model 16 (main's drag over the range branch's 1656 bytes, a kept test on that branch)
         // read 0xF19A1EDCA011C4D2 with the new spring: 5 impacts, no crash, at rest 19.11 mm into the straw on 18 pairs
         // (19.17 mm), 2.7 mm aside; model 16's 0xDC85BA160EB0415C with the old anchor.
-        public const ulong RangeHash = 0xAF27BC78A59ECD98UL;
+        // Model 24: 0xAF27BC78A59ECD98. The landing's merge (ModelVersion 25): re-recorded in the map's own Calm wind
+        // (WindSetup.ForMap, kept) on the same content with 1.6c's stick spring under the interference and D-064: 3 impacts
+        // (3), no crash, at rest 19.53 mm into the straw on 20 pairs (19.66 mm on 19). Audited (temporary edits, reverted):
+        // with the stick anchor at the contact point it is model 24's pin bit for bit; without the interference and D-064's
+        // sources, over the first 1808 bytes, the landing branch's 0x7BD729C0B5F2DFD4; with neither model 22's pin, and in
+        // still air on main's drag over the range branch's 1656 bytes the landing's 0xF19A1EDCA011C4D2 and, with the old
+        // anchor, model 16's 0xDC85BA160EB0415C. Without the interference it reads 0x1E7B91861E59753F (0x64DBB622DE602158
+        // with the old anchor; no parent flew D-064 on the range). It moves from step 3 against model 24 and from step 9
+        // against the landing's, and keeps its course: at rest 1.6 mm and 17.6 mm aside, within 1.8 mm and 0.30° of model
+        // 24's path, 35 mm and 4.2° of the landing's (step 8625, the held bounce over the straw).
+        public const ulong RangeHash = 0x0D5350CB2E68C6B8UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;

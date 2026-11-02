@@ -96,7 +96,8 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"without the interference and D-064's sources, over model 19's 1808 bytes: powered 0x{p19:X16}, rain 0x{r19:X16}, "
                 + $"tumble 0x{t19:X16} ({(aok ? "model 19's, bit for bit" : "NOT model 19's")}): {(aok ? "PASS" : "FAIL")}");
             // The integration's audit against p7b-airframe--micro (model 23): without the interference, over that branch's 1840
-            // bytes (the record less the interference's 64 at 1808), each golden is its pin.
+            // bytes (the record less the interference's 64 at 1808), each golden is its pin; since model 25 the contact flight's
+            // is with 1.6c's stick spring (GoldenFlights.MicroContactHash).
             const int at = GoldenFlights.Model19Layout, skip = 64;
             ulong mp = GoldenFlights.FlyPowered(Drone(), out _, at, skip, interference: false);
             ulong mc = GoldenFlights.FlyContact(Drone(), out _, at, skip, interference: false);

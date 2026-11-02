@@ -149,7 +149,8 @@ namespace Fpv450.Sim.Tests
 
         // The integration's audit against p7b-airframe--micro (model 23), kept: without the interference, over that branch's
         // 1840-byte record (the record less the interference's 64 bytes at 1808), each golden is its pin bit for bit, record
-        // and events: the interference's code, its stream and the record's fields change no flight without it.
+        // and events: the interference's code, its stream and the record's fields change no flight without it. Since model 25
+        // the contact flight's pin is the branch's with 1.6c's stick spring (GoldenFlights.MicroContactHash's notes).
         [Test]
         public void WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs()
         {
