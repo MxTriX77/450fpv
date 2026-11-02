@@ -149,8 +149,12 @@ namespace Fpv450.Sim.Log
         ///    steps as in 19, and one with neither too.
         /// 22: p7c-wind--map-wakes merged onto 21 (the code is the parents' together): the map's wind with 20's wind over a
         ///    hole and D-060's field; a flight with strips or wakes alone, or neither, steps as in 21.
+        /// 23: p6-flight-core 1.6c (D-067): the friction's stick spring stretches with the touching material's slip (its point
+        ///    velocity on the contact's tangent plane over the step), not with the contact point's move, so a rounded part
+        ///    rolls where it rolled as slip before: the coil rocks about its contact instead of pivoting on its axis; a flight
+        ///    that touches nothing steps as in 22.
         /// </summary>
-        public const int ModelVersion = 22;
+        public const int ModelVersion = 23;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

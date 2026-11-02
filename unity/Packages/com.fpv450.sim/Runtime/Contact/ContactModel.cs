@@ -39,7 +39,8 @@ namespace Fpv450.Sim.Contact
     /// - A body shape: each touching pair is its own spring and damper, the shape's stiffness along the normal in series
     ///   with the material's (a rigid material drops out: the shape's alone, never 1/(1/k + 1/∞), P7), c = 2ζ·√(k·m·share).
     /// - Friction (K§7.1 step 5): a stick anchor per pair, tangential stiffness ratio × the normal's, holding to μs·Fn and
-    ///   sliding at μk·Fn; μ from physics_materials.json's row, or the ground's pair.
+    ///   sliding at μk·Fn; μ from physics_materials.json's row, or the ground's pair. The spring stretches with the touching
+    ///   material's slip, not with the contact point's move, so a rounded part rolls (1.6c: the coil rocks about its contact).
     /// - A prop disc: its bounding sphere each step; when that meets anything, a chord capsule over each ChordSegments
     ///   of the rim's segments, sized to hold them (1.7: the stand's posts sit inside the sphere, far from the rim); and
     ///   when a chord meets anything, its segments of the ring of capsules round the rim (P4). Both gates only skip
@@ -78,7 +79,7 @@ namespace Fpv450.Sim.Contact
             public bool Latched, Flipped, Seen, Touching, Suppressed;
             public double Depth;        // at the pose Sense last saw, m
             public Double3 Point;       // the contact point on the plane under the core there, world
-            public Double3 Anchor;      // the friction's stick point, world
+            public Double3 Stretch;     // the friction's stick spring, world: the touching material's slip since it stuck
             public bool Anchored, Sliding;
             public long Since;
             public double Impulse, PeakForce, MadeSpeed, Time;
@@ -341,8 +342,12 @@ namespace Fpv450.Sim.Contact
             }
         }
 
-        /// <summary>The stick anchor (K§7.1 step 5): a tangential spring kt and damper ct to the anchor, holding to μs·fn and
-        /// sliding at μk·fn, the anchor dragged along so the spring carries the sliding force.</summary>
+        /// <summary>The stick anchor (K§7.1 step 5): a tangential spring kt and damper ct, holding to μs·fn and sliding at
+        /// μk·fn, the anchor dragged along so the spring carries the sliding force. The spring's stretch is the slip of the
+        /// body's material at the contact, its point velocity v on the tangent plane times the step (the velocity that moved
+        /// it there, semi-implicit), never the contact point's own move: a part rolling on a curved face (the coil on its
+        /// side, a skid's tube) moves its contact point with no slip at all, and reading that move as slip held the coil's
+        /// contact where it first touched, an axle on its axis (1.6c, D-067).</summary>
         static Double3 Friction(ref Pair p, double fn, double kt, double ct, Double3 v, in Row row)
         {
             if (!(fn > 0) || !(kt > 0))
@@ -350,21 +355,26 @@ namespace Fpv450.Sim.Contact
                 p.Anchored = false;
                 return default;
             }
+            Double3 n = p.N;
+            Double3 vt = v - n * Double3.Dot(n, v);
             if (!p.Anchored)
             {
-                p.Anchor = p.Point;
+                p.Stretch = default;
                 p.Anchored = true;
                 p.Sliding = false;
             }
-            Double3 n = p.N, d = p.Point - p.Anchor;
-            d = d - n * Double3.Dot(n, d);
-            Double3 vt = v - n * Double3.Dot(n, v);
+            else
+            {
+                p.Stretch = p.Stretch + vt * FlightCore.Dt; // the touching material's slip over the step that brought it here
+            }
+            Double3 d = p.Stretch - n * Double3.Dot(n, p.Stretch);
+            p.Stretch = d;
             Double3 ft = d * -kt - vt * ct;
             double size = ft.Length(), limit = (p.Sliding ? row.KineticFriction : row.StaticFriction) * fn;
             if (size > limit)
             {
                 ft = ft * (row.KineticFriction * fn / size);
-                p.Anchor = p.Point + ft * (1 / kt);
+                p.Stretch = ft * (-1 / kt);
                 p.Sliding = true;
             }
             else
