@@ -292,7 +292,8 @@ namespace Fpv450.Sim.Tests
             SurfaceTable table = Table();
             byte[] log = Rest(table, out ulong with);
             Rest(null, out ulong without);
-            Assert.That(with, Is.EqualTo(without), "nothing reads the table in a step yet: the flight steps bit for bit as without it");
+            // 1.10: the table's soil carries the skids (the floor's belt_bare), so the flight moves; its replay matches below.
+            Assert.That(with, Is.Not.EqualTo(without), "the table's soil acts in a step");
 
             LogHeader h = new FlightLogReader(new MemoryStream(log)).Header;
             SurfaceTable logged = h.Contacts.Surfaces;

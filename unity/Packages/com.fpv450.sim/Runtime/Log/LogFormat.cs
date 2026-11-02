@@ -131,8 +131,12 @@ namespace Fpv450.Sim.Log
         ///    the field; the camera's lens one point, drone.json's camera.lens_m, for the modes and the air at the lens).
         /// 18: p7c-wind 1.5's re-grade on the merge (Severe's centre tuned until T0 passes, 7.2 → 9.5 m/s at 35 m; Windy 4.75
         ///    and Calm 1.425 from it; a flight at model 17's centres steps as in 17).
+        /// 19–22: taken by p6-flight-core's range branch and the wind's integration with it.
+        /// 23: p7a-ground 1.10 (the soil under the half-skids: Winkler's elasto-plastic law with Wong's rule per column, in
+        ///    series with the leg, the groove's anchor and the footprint ring, surfaces.json's sets at the flight's rain; the
+        ///    surface's own friction on the ground; a flight without surfaces.json steps as in 18).
         /// </summary>
-        public const int ModelVersion = 18;
+        public const int ModelVersion = 23;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

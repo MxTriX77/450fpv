@@ -224,7 +224,7 @@ namespace Fpv450.Sim.Flight
                 RuntimeIds[i] = World.Query.AddObject(objects[i].Name, objects[i].Shapes);
             if (setup.Contacts != null)
             {
-                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass);
+                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass, Contact.SurfaceTable.MoistureOf(setup.Rain));
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
             }
