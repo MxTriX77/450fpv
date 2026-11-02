@@ -64,6 +64,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>Each rotor's distance along its axis to the surface below it and above it at the step's start, m (its rays
         /// and SampleGround, GroundEffectSpec): +∞ for none within the reach, 0 without the ground effect.</summary>
         public Corners GroundDistance, CeilingDistance;
+        /// <summary>Each rotor's added inflow through its disc from the other rotors' wakes this step, m/s, positive down
+        /// through it (RotorWakeSpec): a downwash behind a rotor, an upwash beside and ahead. 0 without the wake.</summary>
+        public Corners WakeInflow;
     }
 
     /// <summary>

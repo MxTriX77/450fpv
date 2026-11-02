@@ -555,6 +555,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(VortexRingSpec)), Is.EquivalentTo(LogHeader.VortexRingFieldsLogged));
             Assert.That(InstanceFields(typeof(GroundEffectSpec)), Is.EquivalentTo(LogHeader.GroundEffectFieldsLogged));
             Assert.That(InstanceFields(typeof(RotorFlappingSpec)), Is.EquivalentTo(LogHeader.FlappingFieldsLogged));
+            Assert.That(InstanceFields(typeof(RotorWakeSpec)), Is.EquivalentTo(LogHeader.RotorWakeFieldsLogged));
             Assert.That(InstanceFields(typeof(AirframeModesSpec)), Is.EquivalentTo(LogHeader.ModesFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
@@ -684,11 +685,12 @@ namespace Fpv450.Sim.Tests
         [TestCase("vortex rings", "vortex rings: off")]
         [TestCase("ground effect", "ground effect: off")]
         [TestCase("flapping", "flapping: off")]
+        [TestCase("rotor wake", "rotor wake: off")]
         [TestCase("modes", "modes: off (a rigid airframe)")]
         [TestCase(null, null)]
         public void TheSummaryNamesEveryAirframeEffectOnOrOff(string offName, string offLine)
         {
-            string[] names = { "motor asymmetry", "vortex rings", "ground effect", "flapping", "modes" };
+            string[] names = { "motor asymmetry", "vortex rings", "ground effect", "flapping", "rotor wake", "modes" };
             DroneSpec spec = RepositoryDrone.Spec();
             foreach (bool allOff in offName == null ? new[] { false, true } : new[] { false })
             {
@@ -698,6 +700,7 @@ namespace Fpv450.Sim.Tests
                 if (Off("vortex rings")) setup.VortexRing = null;
                 if (Off("ground effect")) setup.GroundEffect = null;
                 if (Off("flapping")) setup.Flapping = null;
+                if (Off("rotor wake")) setup.RotorWake = null;
                 if (Off("modes")) setup.Modes = null;
                 var core = new FlightCore(setup);
                 LogHeader h = LogHeader.For(setup, core);

@@ -243,6 +243,7 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
         - Calm's T2 and T4 read on Severe's runs, as before.
     - **Still missing at model 19 (not tuned away):**
       - Pitch's 1–4 Hz and spread: T2 0.09° against 0.19–0.38, and T6c. The stick noise does not close them. D-060's next flight-model item, the rear rotors in the front rotors' wake, is named for it.
+        - **Built as `p7b-airframe` 1.3d** (`ModelVersion` 21, `LogFormat.Version` 14; the harness flies it with the whole airframe, `--wrong nowake` its known-wrong, graded on T2, T6b and T6c). Severe, seeds 1–10 / 101–110, model 19 → 21: T2 0.087 → 0.107 / 0.097 → 0.116° [0.28]; T6c's 1–2 Hz 0.064 → 0.081 / 0.073 → 0.088° [0.18], its share 0.50 both; T6b 0.039 / 0.041° unchanged [0.114]; T10b 0.477 / 0.577 → 0.480 / 0.577 and 0.517 / 0.553 → 0.518 / 0.563 [0.57 / 0.77]. About a fifth of pitch's gap closes; it stays 2.4–2.6× low. Why, and what is left: 1.3d's notes.
       - The belt's absolute spreads (T3, T4) and T7's belt share, now that the field carries P's roll.
       - T6b, T8's median, T9b (pitch kurtosis 2.9 against 3.3–5.5), T10a, and T0b's windward share.
     - **Verified:**

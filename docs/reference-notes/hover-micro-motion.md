@@ -145,6 +145,7 @@ Severe cruise, 5 seeds, measured (*scratch* where the intensity or the cut moves
     - At P's cruise each wake leaves its disc about 64° from the axis (derived: μ ≈ 0.16, λ ≈ 0.077), so it passes the rear disc, 0.32 m behind, about 0.16 m below the plane: the rear rotors partly ingest it.
     - A vertical gust swings that skew and moves the ingestion: a pitch moment at the gusts' frequencies.
     - Multirotor forward-flight tests and CFD report the rear rotors' thrust loss (recalled, not re-read).
+    - *Since built* (`p7b-airframe` 1.3d, model 21): Coleman's skewed wake gives the rear pair 6.2 % under the front at P's cruise (χ 57°, the wake below the rear discs as derived above); Severe's T2 rises 20–23 % and T6c's 1–2 Hz 21–27 %, so pitch stays 2.4–2.6× low. Its task lists what may carry the rest.
 - **The H-force:** 0.25 lifts roll's spread 46 %, but it is `p7c-wind` 1.6's known-wrong (the cruise falls to 12.97 m/s). 0.044 stands.
 
 ## 6. Recommendations
