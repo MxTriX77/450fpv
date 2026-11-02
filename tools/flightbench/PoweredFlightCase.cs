@@ -66,19 +66,29 @@ namespace Fpv450.FlightBench
             // in still air, and the tumble main's pin. Main's kept audits of models 6–14 flew the stand-in's air, which is gone.
             DroneSpec main = GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
-            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still);
-            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still);
-            ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152);
+            const int m19 = GoldenFlights.Model19Layout;
+            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still, wake: false, layout: m19);
+            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still, wake: false, layout: m19);
+            ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152, m19);
             bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.Model15StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
             Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, contact 0x{c15:X16}, tumble 0x{t15:X16} "
                 + $"({(mok ? "model 15's, bit for bit" : "NOT model 15's")}): {(mok ? "PASS" : "FAIL")}");
             // The tumble's chain over main's layout: model 14's fit and model 13's file fly their pins.
-            ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _, 1296, 152);
-            ulong t13 = GoldenFlights.FlyTumble(M13(), out _, out _, 1296, 152);
+            ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _, 1296, 152, m19);
+            ulong t13 = GoldenFlights.FlyTumble(M13(), out _, out _, 1296, 152, m19);
             bool eok = t14 == 0x26CDDB5EDB155896UL && t13 == 0xB371E06FF28075D8UL;
             Console.WriteLine($"the tumble over main's layout: model 14's fit 0x{t14:X16}, model 13's file 0x{t13:X16} "
                 + $"({(eok ? "theirs, bit for bit" : "NOT theirs")}): {(eok ? "PASS" : "FAIL")}");
-            return ok && cok && rok && tok && mok && eok;
+            // p7b-airframe 1.3d's audit: without the rotors' wakes, over model 19's 1808 bytes, each golden is model 19's pin.
+            ulong p19 = GoldenFlights.FlyPowered(Drone(), out _, wake: false, layout: m19);
+            ulong c19 = GoldenFlights.FlyContact(Drone(), out _, wake: false, layout: m19);
+            ulong r19 = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, wake: false, layout: m19);
+            ulong t19 = GoldenFlights.FlyTumble(Drone(), out _, out _, layout: m19);
+            bool wok = p19 == GoldenFlights.Model19PoweredHash && c19 == GoldenFlights.Model19ContactHash && r19 == GoldenFlights.Model19RainHash
+                && t19 == GoldenFlights.Model19TumbleHash;
+            Console.WriteLine($"without the rotors' wakes, over model 19's layout: powered 0x{p19:X16}, contact 0x{c19:X16}, rain 0x{r19:X16}, "
+                + $"tumble 0x{t19:X16} ({(wok ? "model 19's, bit for bit" : "NOT model 19's")}): {(wok ? "PASS" : "FAIL")}");
+            return ok && cok && rok && tok && mok && eok && wok;
         }
 
         public static bool Bench()
