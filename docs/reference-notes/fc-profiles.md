@@ -49,9 +49,62 @@ Betaflight ACTUAL rates: the centre sensitivity and the full-stick rate are in �
 | `rc_smoothing_auto_factor` | 30 | 60 | 80 | **50** |
 | `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** |
 | `f_yaw` | 0 | 0 | — | **0** |
-| `vbat_sag_compensation` | 0 | 0 | 100 | **0** (offered as an option) |
+| `vbat_sag_compensation` | 0 | 0 | 0 (100 in an earlier FpvPrep) | **0** (offered as an option) |
 
 **How the sim default was set:** the pilot's flown set moved **25 % of the way toward the factory set**, and **throttle moved 60 %**, because the pilot stressed it: "especially throttle - you dont always get the chance to set comfortable throttle". These are named, tunable defaults. The pilot adjusts them after MVP-1.
+
+**Since D-066 the player flies §2a's player default,** not this column. The sim core's `FcSettings.Default` keeps this column as the fixed controller of its tests and golden flights. Moving it means re-recording the goldens, audited case by case.
+
+## 2a. The player's default (D-066)
+
+The pilot, after the first flights: the sim's rates feel "overly smooth". Take FpvPrep's profiles, but "without that 'throttle softer softer' applied". Builders ship high throttle curves, the pilot softens them "only for a little bit", and such drones lift off at 30–45 % throttle.
+
+**What was read:** FpvPrep's saved profiles for 10-inch heavy fiber quads, and the CLI dumps it takes before and after configuring a drone.
+- **The rates:** every 10-inch profile holds the same rates, FpvPrep's standard heavy-quad set (§2, with its reasoning in §3).
+- **The throttle:** each profile's `thr_mid` / `thr_expo` is the builder's curve after FpvPrep's `throttle softer` command.
+  - One step moves `thr_expo` by 10 toward the expo that gives the most stick travel between lift-off power and cruise power (FpvPrep's marks: 50 % and 85 % of power). `thr_mid` stays the builder's.
+  - The profile taken holds 100 / 48: its drones arrive from the builder with 100 / 100 (in every rate profile of every "before" dump), and `throttle softer` was applied twice (100 → 68 → 48).
+  - **Without that step,** the curve is the builder's: **`thr_mid 100`, `thr_expo 100`**. On Betaflight's table that is power = 1 − (1 − stick)³, so a lot of power comes in the first third of the stick.
+- **TPA and the throttle limit:** the profile's builder leaves both at Betaflight 4.5's defaults: TPA on D, 65 % above 1350 µs; `throttle_limit_type SCALE` at 100 %, which limits nothing. The sim core already has these.
+
+| Setting (Betaflight CLI) | The profile as saved | Without `throttle softer` | **Player default** |
+|---|---|---|---|
+| `rates_type` | ACTUAL | ACTUAL | **ACTUAL** |
+| Roll and pitch: centre / full stick, °/s / expo | 50 / 220 / 0.45 | 50 / 220 / 0.45 | **50 / 220 / 0.45** |
+| Yaw: centre / full stick, °/s / expo | 80 / 240 / 0.20 | 80 / 240 / 0.20 | **80 / 240 / 0.20** |
+| Throttle: `thr_mid` / `thr_expo` | 100 / 48 | 100 / 100 | **100 / 100** |
+
+- **Taken:** only these rows, the ones the Calibrate screen edits (INP-03). Everything else stays the sim default column's.
+- **Also in the profile, not taken yet** (INP-07; none is on the screen):
+  - `deadband` 4 / `yaw_deadband` 5
+  - `rc_smoothing_auto_factor` 80
+  - `feedforward_transition` 40, `feedforward_jitter_factor` 12, `feedforward_boost` 0
+  - `vbat_sag_compensation` 0, which the sim already has
+  - The smoothing and the feedforward transition are both softer around centre than the sim's 50 and 0, so taking them would go against "overly smooth".
+- **Where it lives:** `FcSettingsStore.PlayerDefault`. A profile folder with no `fc-settings.json` flies it, and so does the smoke test. Calibrate → Rates → **Defaults** restores it. A saved `fc-settings.json` keeps its own values.
+
+**The rates, before and after.** The profile's rates are 6–12 % gentler than the earlier default from centre to 90 % of the stick: at half stick, roll gives 49 °/s against 56 °/s, and yaw 72 °/s against 80 °/s. So the new rate numbers do not cure "overly smooth". If the sim still feels smooth at the pilot's real rates, the cause lies in the plant's power and inertia (D-066) or the controller's response, not in these numbers.
+
+| Stick | 0.1 | 0.2 | 0.3 | 0.4 | 0.5 | 0.6 | 0.7 | 0.8 | 0.9 | 1.0 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Roll and pitch before (55 / 225 / 0.34), °/s | 6.3 | 15.2 | 26.3 | 39.8 | 56.1 | 75.7 | 100.0 | 130.7 | 170.9 | 225.0 |
+| Roll and pitch after (50 / 220 / 0.45), °/s | 5.7 | 13.5 | 23.2 | 35.0 | 49.3 | 66.9 | 89.5 | 119.6 | 161.2 | 220.0 |
+| Yaw before (85 / 260 / 0.15), °/s | 9.6 | 22.5 | 38.4 | 57.4 | 79.6 | 105.3 | 135.1 | 169.8 | 210.8 | 260.0 |
+| Yaw after (80 / 240 / 0.20), °/s | 8.9 | 20.7 | 35.1 | 52.2 | 72.1 | 95.2 | 122.1 | 154.0 | 192.5 | 240.0 |
+
+**The throttle curve, before and after.** The throttle command is rcCommand after `min_check` 1050 and the curve, as a % of 1000–2000 µs. The mixer then spreads it from the 5.5 % idle to full.
+
+| Throttle stick, % | 10 | 20 | 30 | 40 | 50 | 60 | 70 | 80 | 90 | 100 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Before, 50 / 10 | 6.1 | 17.7 | 28.2 | 38.1 | 47.6 | 57.1 | 66.7 | 76.9 | 87.8 | 100 |
+| After, 100 / 100 | 14.3 | 39.7 | 59.5 | 74.4 | 85.1 | 92.3 | 96.7 | 99.0 | 99.9 | 100 |
+
+Betaflight's table points, at rcData 1050 + 95k µs, are 0, 116, 221, 318, 410, 500, 590, 682, 779, 884, 1000 before, and 0, 271, 488, 657, 784, 875, 936, 973, 992, 999, 1000 after.
+
+**What the curve alone moves.** The lift-off throttle also depends on the drone's thrust and mass, which D-066 re-derives. With the same plant, the same command now comes at a lower stick:
+- **The nominal drone's hover:** 0.482 of the stick on 50 / 10 is a 45.9 % command. On 100 / 100 that is **22.7 %** of the stick.
+- **A lift-off at 80 % on a near-linear curve** (79 % command) moves to **43.5 %**.
+- **For D-066's power check, read through this curve:** the pilot's 30–45 % lift-off stick is a **59.5–80.3 % throttle command**. A command of 50, 55, 62 or 65 % is 24.7, 27.5, 31.4 or 33.1 % of the stick. §3's real lift-off near 62 % power is about 31 % of the stick, consistent with FpvPrep's record of about 28 % on this curve.
 
 ## 3. Other class data from FpvPrep's notes
 - **Liftoff and hover power.** A loaded heavy quad lifted off at **about 62 % motor power**. Its builder had shaped the throttle as `thr_mid 100, thr_expo 100`, so power = 1 − (1 − stick)³, which spreads the last 10 % of power over almost half the stick. FpvPrep had calculated hover at 31–52 %; the real drone needed more. **Use this as a plant-realism check:** a loaded Svinoriz should lift off around 50–65 % motor power.

@@ -176,7 +176,13 @@ namespace Fpv450.App
                 if (_flight.Host.Inputs != null)
                 {
                     _flight.Host.Inputs.Choices = _setup.Choices.Clone();
-                    if (_smokeLogs != null) _flight.Host.Inputs.LogFolder = _smokeLogs;
+                    if (_smokeLogs != null)
+                    {
+                        _flight.Host.Inputs.LogFolder = _smokeLogs;
+                        // The player's default rates and throttle (D-066), never the pilot's saved ones: its checks and
+                        // its keyboard pilot assume a curve.
+                        _flight.Host.Inputs.Settings = FcSettingsStore.PlayerDefault;
+                    }
                 }
                 _flight.SetupRequested += () =>
                 {
@@ -632,17 +638,20 @@ namespace Fpv450.App
         const string HouseBesideTrack = "Z01_house_adobe";
 
         // The smoke test's keyboard pilot into the house, on the flight's own pose. The throttle (W, S, which move it at
-        // KeyboardSticks.ThrottlePerSecond) is steered to a level set by the height's and the climb's errors about the
-        // hover (0.48 at 1 kg, assumed; tried on the session at 7 and 16 ms frames), holding 3 m over the start; D turns
-        // to 158° once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
+        // KeyboardSticks.ThrottlePerSecond) is steered to the stick whose command, on the flight's own curve, is a level
+        // set by the height's and the climb's errors about the hover (a command of 0.46 at 1 kg, assumed: 0.48 of the
+        // stick on the 50 / 10 curve it was tried on, at 7 and 16 ms frames), holding 3 m over the start; D turns to 158°
+        // once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
         // The flight's crash latch, as the physics last published it (the core is stepping on its thread).
         static bool Crashed(FlightSession session) => session.Poses.Read().Signals.Crashed;
 
         IEnumerator IntoTheHouse()
         {
-            const double Height = 3, Heading = 158, Hover = 0.48;
+            const double Height = 3, Heading = 158, Hover = 0.46;
             FlightSessionHost host = _flight.Host;
             FlightSession session = host.Session;
+            var curve = new RatePreview();
+            curve.From(host.Inputs.Settings);
             KeyboardKeys keys = KeyboardKeys.None;
             host.Keys = () => keys;
             double rest = _flight.RestPose.Position.Y, throttle = 0; // the keyboard's throttle, as its keys move it
@@ -661,7 +670,7 @@ namespace Fpv450.App
                 Quat q = p.Attitude;
                 double heading = Math.Atan2(2 * (q.X * q.Z + q.W * q.Y), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 180 / Math.PI;
                 double turn = ((Heading - heading) % 360 + 540) % 360 - 180;
-                double want = Math.Max(0.3, Math.Min(0.7, Hover + (pitchFrom >= 0 ? 0.03 : 0) + 0.05 * (Height - h) - 0.06 * p.Velocity.Y));
+                double want = StickFor(curve, Math.Max(0.3, Math.Min(0.7, Hover + (pitchFrom >= 0 ? 0.03 : 0) + 0.05 * (Height - h) - 0.06 * p.Velocity.Y)));
                 KeyboardKeys k = throttle < want - 0.01 ? KeyboardKeys.ThrottleUp : throttle > want + 0.01 ? KeyboardKeys.ThrottleDown : KeyboardKeys.None;
                 if (pitchFrom < 0 && h > 2)
                 {
@@ -688,6 +697,17 @@ namespace Fpv450.App
                 keys = k;
             }
             host.Keys = () => KeyboardKeys.None;
+        }
+
+        // The throttle stick (0–1) whose command (0–1 of rcCommand) is command on a preview's curve: its inverse, linear
+        // between the samples. command is above the curve's 0 at the stick's foot.
+        static double StickFor(RatePreview curve, double command)
+        {
+            double[] t = curve.Throttle;
+            for (int i = 1; i < t.Length; i++)
+                if (t[i] >= command)
+                    return RatePreview.Stick(i - 1) + (RatePreview.Stick(i) - RatePreview.Stick(i - 1)) * (command - t[i - 1]) / (t[i] - t[i - 1]);
+            return 1;
         }
 
         // The house flight's hover (-smokeseq): a sequence in the FPV view, then one in the chase view and back. V's own

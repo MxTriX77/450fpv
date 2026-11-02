@@ -9,7 +9,7 @@ using NUnit.Framework;
 
 namespace Fpv450.Tests.Radio
 {
-    // tx-input (p6-input-app 1.3, INP-03, INP-07, APP-05): "The defaults are the sim default column" through the
+    // tx-input (p6-input-app 1.3, INP-03, INP-07, APP-05): the defaults, the player default column (D-066), through the
     // settings file and the screen's rows, the previews against the flight controller's own RC path and against
     // Betaflight's formula written out here, and the settings file: a restart reads it back bit for bit, a corrupt one
     // falls back to the defaults with a message.
@@ -50,7 +50,7 @@ namespace Fpv450.Tests.Radio
         }
 
         [Test]
-        public void AFreshProfileIsTheSimDefaultColumn()
+        public void AFreshProfileIsThePlayerDefault()
         {
             string dir = TempDir();
             try
@@ -58,16 +58,21 @@ namespace Fpv450.Tests.Radio
                 FcSettings s = FcSettingsStore.Load(dir, out string error);
                 Assert.IsNull(error, "no file yet is no error");
                 Assert.IsFalse(File.Exists(FcSettingsStore.PathIn(dir)), "loading writes nothing");
-                AssertSame(FcSettings.Default, s, "no file: FcSettings.Default");
+                AssertSame(FcSettingsStore.PlayerDefault, s, "no file: FcSettingsStore.PlayerDefault");
 
-                // The screen's rows, in the configurator's units: the scenario's numbers exactly.
+                // The screen's rows, in the configurator's units: the pilot's FpvPrep 10-inch profile's rates, and the
+                // builder's throttle curve without FpvPrep's "throttle softer" (D-066).
                 double Shown(string name) => Row(name).Shown(s);
-                Assert.AreEqual(new[] { 55.0, 225, 0.34 }, new[] { Shown("roll_rc_rate"), Shown("roll_srate"), Shown("roll_expo") }, "roll");
-                Assert.AreEqual(new[] { 55.0, 225, 0.34 }, new[] { Shown("pitch_rc_rate"), Shown("pitch_srate"), Shown("pitch_expo") }, "pitch");
-                Assert.AreEqual(new[] { 85.0, 260, 0.15 }, new[] { Shown("yaw_rc_rate"), Shown("yaw_srate"), Shown("yaw_expo") }, "yaw");
-                Assert.AreEqual(new[] { 50.0, 10 }, new[] { s.thr_mid, s.thr_expo }, "thr_mid, thr_expo (CLI)");
-                Assert.AreEqual(new[] { 0.5, 0.1 }, new[] { Shown("thr_mid"), Shown("thr_expo") }, "thr_mid, thr_expo (shown)");
-                // The rest of the scenario, not on the screen in v1: the same record's defaults.
+                Assert.AreEqual(new[] { 50.0, 220, 0.45 }, new[] { Shown("roll_rc_rate"), Shown("roll_srate"), Shown("roll_expo") }, "roll");
+                Assert.AreEqual(new[] { 50.0, 220, 0.45 }, new[] { Shown("pitch_rc_rate"), Shown("pitch_srate"), Shown("pitch_expo") }, "pitch");
+                Assert.AreEqual(new[] { 80.0, 240, 0.2 }, new[] { Shown("yaw_rc_rate"), Shown("yaw_srate"), Shown("yaw_expo") }, "yaw");
+                Assert.AreEqual(new[] { 100.0, 100 }, new[] { s.thr_mid, s.thr_expo }, "thr_mid, thr_expo (CLI)");
+                Assert.AreEqual(new[] { 1.0, 1.0 }, new[] { Shown("thr_mid"), Shown("thr_expo") }, "thr_mid, thr_expo (shown)");
+                // Off the screen's rows, every setting is the sim core's default.
+                object player = s, core = FcSettings.Default;
+                foreach (FieldInfo f in typeof(FcSettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
+                    if (!FcSettingRow.Rows.Any(r => r.Name == f.Name)) Assert.AreEqual(f.GetValue(core), f.GetValue(player), f.Name + " is FcSettings.Default's");
+                // The rest, not on the screen in v1: the sim core's defaults.
                 Assert.AreEqual(new[] { 2.0, 2 }, new[] { s.deadband, s.yaw_deadband }, "deadband / yaw_deadband");
                 Assert.IsTrue(s.rc_smoothing);
                 Assert.AreEqual(50, s.rc_smoothing_auto_factor, "rc_smoothing_auto_factor");
@@ -103,7 +108,7 @@ namespace Fpv450.Tests.Radio
             edited.deadband = 5; edited.yaw_deadband = 10;
             edited.thr_mid = 40; edited.thr_expo = 30;
 
-            foreach ((string name, FcSettings s) in new[] { ("defaults", FcSettings.Default), ("edited", edited) })
+            foreach ((string name, FcSettings s) in new[] { ("defaults", FcSettingsStore.PlayerDefault), ("edited", edited) })
             {
                 var preview = new RatePreview();
                 preview.From(s);
@@ -138,9 +143,9 @@ namespace Fpv450.Tests.Radio
 
             // The ends of the default curves are the column's full-stick rates; the throttle reaches full.
             var d = new RatePreview();
-            d.From(FcSettings.Default);
-            Assert.That(d.Rate[0][RatePreview.Points - 1], Is.EqualTo(225).Within(1e-9));
-            Assert.That(d.Rate[2][RatePreview.Points - 1], Is.EqualTo(260).Within(1e-9));
+            d.From(FcSettingsStore.PlayerDefault);
+            Assert.That(d.Rate[0][RatePreview.Points - 1], Is.EqualTo(220).Within(1e-9));
+            Assert.That(d.Rate[2][RatePreview.Points - 1], Is.EqualTo(240).Within(1e-9));
             Assert.That(d.Throttle[RatePreview.Points - 1], Is.EqualTo(1).Within(1e-12));
         }
 
@@ -217,7 +222,7 @@ namespace Fpv450.Tests.Radio
                     File.WriteAllText(FcSettingsStore.PathIn(dir), text);
                     FcSettings s = FcSettingsStore.Load(dir, out string error);
                     TestContext.WriteLine(what + ": " + error);
-                    AssertSame(FcSettings.Default, s, what);
+                    AssertSame(FcSettingsStore.PlayerDefault, s, what);
                     Assert.IsNotNull(error, what);
                     StringAssert.StartsWith(FcSettingsStore.FileName + " could not be read", error, what);
                     StringAssert.Contains(message, error, what);

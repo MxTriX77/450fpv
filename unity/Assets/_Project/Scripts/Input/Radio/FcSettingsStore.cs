@@ -91,7 +91,7 @@ namespace Fpv450.Input.Radio
     /// <summary>
     /// The pilot's flight-controller settings (INP-03, INP-07, APP-05): fc-settings.json in the user's profile folder
     /// (Unity's persistentDataPath), beside calibration.json, as Betaflight CLI names and CLI values. With no file the
-    /// settings are FcSettings.Default, the sim default column. The file holds every row the screen edits and any
+    /// settings are PlayerDefault. The file holds every row the screen edits and any
     /// other FcSettings field that is not its default, so a setting the screen does not show yet survives a save and an
     /// imported `diff all` can write the same form. Reading takes any FcSettings field by its CLI name, checks the rows
     /// against Betaflight's ranges and the whole set against the flight controller, and starts from the defaults for
@@ -101,6 +101,24 @@ namespace Fpv450.Input.Radio
     {
         public const string FileName = "fc-settings.json";
         const string Format = "fpv450 fc settings 1";
+
+        /// <summary>
+        /// The player's defaults (D-066, D-023; fc-profiles.md §2, the player default column): FcSettings.Default with
+        /// the screen's rows from the pilot's FpvPrep 10-inch profile, its rates as saved and its throttle curve as the
+        /// builder ships it, without FpvPrep's "throttle softer" steps. The sim core's FcSettings.Default stays the
+        /// controller of its tests and golden flights.
+        /// </summary>
+        public static FcSettings PlayerDefault
+        {
+            get
+            {
+                FcSettings s = FcSettings.Default;
+                s.roll_rc_rate = s.pitch_rc_rate = 5; s.roll_srate = s.pitch_srate = 22; s.roll_expo = s.pitch_expo = 45;
+                s.yaw_rc_rate = 8; s.yaw_srate = 24; s.yaw_expo = 20;
+                s.thr_mid = 100; s.thr_expo = 100;
+                return s;
+            }
+        }
 
         static Dictionary<string, FieldInfo> _fields;
 
@@ -124,7 +142,7 @@ namespace Fpv450.Input.Radio
         {
             error = null;
             string path = PathIn(directory);
-            if (!File.Exists(path)) return FcSettings.Default;
+            if (!File.Exists(path)) return PlayerDefault;
             try
             {
                 return FromJson(File.ReadAllText(path, Encoding.UTF8));
@@ -132,7 +150,7 @@ namespace Fpv450.Input.Radio
             catch (Exception e)
             {
                 error = FileName + " could not be read (" + e.Message + "): the defaults are in use, and the next change replaces it.";
-                return FcSettings.Default;
+                return PlayerDefault;
             }
         }
 
@@ -156,7 +174,7 @@ namespace Fpv450.Input.Radio
                 Member(b, ref first, row.Name, row.Get(settings));
                 written.Add(row.Name);
             }
-            object value = settings, defaults = FcSettings.Default;
+            object value = settings, defaults = PlayerDefault;
             foreach (FieldInfo f in typeof(FcSettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
                 object v = f.GetValue(value);
@@ -171,7 +189,7 @@ namespace Fpv450.Input.Radio
             Dictionary<string, object> root = JsonRead.Object(MiniJson.Parse(json), FileName);
             if (JsonRead.Text(root, "format") != Format) throw new FormatException(FileName + " is not " + Format);
             Dictionary<string, object> set = JsonRead.Object(JsonRead.Member(root, "settings"), "'settings'");
-            object box = FcSettings.Default;
+            object box = PlayerDefault;
             foreach (KeyValuePair<string, object> kv in set)
             {
                 FieldInfo f = Field(kv.Key) ?? throw new FormatException("no Betaflight setting '" + kv.Key + "' here");

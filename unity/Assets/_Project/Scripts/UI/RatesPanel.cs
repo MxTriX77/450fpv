@@ -98,7 +98,7 @@ namespace Fpv450.UI
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Defaults", GUILayout.Width(160), GUILayout.Height(36)))
             {
-                foreach (FcSettingRow row in rows) row.Set(ref _settings, row.Get(FcSettings.Default));
+                foreach (FcSettingRow row in rows) row.Set(ref _settings, row.Get(FcSettingsStore.PlayerDefault));
                 Changed();
             }
             GUILayout.Space(12);
