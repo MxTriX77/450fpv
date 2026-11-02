@@ -565,3 +565,20 @@ The pilot, 2026-11-02: "in real life motors may be different just by 0.0004%, ra
   - each motor's and ESC's own dynamics (time constant, friction, low-throttle and idle behaviour), drawn per motor per flight
   - the legs' stick-slip at liftoff (`p7a-ground`)
 - **Graded like the wind:** each target is met against the footage and fails a known-wrong model (a perfectly steady rotor), and nothing is tuned to pass.
+
+## D-065 The feed's noise is the camera's, not a radio link's · Accepted
+The pilot, 2026-11-02: "the noise is ok, although those black sticks among other noise effect type - that's unnecessary. remember it's not radio, it's optic fiber, so most of noise comes from the analog camera's encoding, not from link quality".
+- **Removed:** the link-type artefacts. That means the black streaks or "sticks", and the free-running dropouts to the blue screen (they were D-026's port of a radio link's behaviour).
+- **Kept:** the analog camera's own encoding noise (luma and chroma noise, the PAL encoding's artefacts), which the pilot finds right.
+- **A picture loss now comes only from the fiber** (a break or a margin dip, `p7d-tether`). This supersedes my answer 1 in `p7d-tether`'s design.
+
+## D-066 The drone's power, mass and rates follow published builds and the pilot's profiles · Accepted
+The pilot, 2026-11-02: the rates feel "overly smooth"; cargo drones' "motors are pretty powerful because drones like this are designed to lift some unusually high weight"; "such drones lift off at 30-45 [% throttle] (based on the exact model)", not at 80 %; a loaded drone is about 3.5–4 kg in total. The setup's weight is the bottle only.
+- **The mass build** is re-derived from published specifications of comparable heavy 10-inch fiber drones (VISION names Viriy 10 Opto, BOMBUS Opto, OTU, Beshketnyk), with their takeoff mass and payload and each component's published mass. It is checked against the pilot's 3.5–4 kg loaded total.
+- **The power:** the motors' thrust comes from published test data for the class (10-inch props, 6S), and the ESC rating and current limit from the class's published ESCs. This revisits D-051's assumed 40 A. The pilot's 30–45 % liftoff throttle is the check, never a tuning target alone.
+- **The rates and throttle defaults** come from the pilot's FpvPrep profiles (D-023), without the extra throttle softening.
+
+## D-067 Landing stability is computed: toppling and the coil's tilt · Accepted
+The pilot, 2026-11-02: in real life they fall on landing "quite more often than i do in this game"; the sim "tolerates excessive angles of how i position the legs corresponding to the ground"; landing on the coil "does tilt, but it tilts super slowly, in real life it happens a bit faster". There are no figures; "calculate thoroughly".
+- **Computed, not tuned:** the physics engineer derives the toppling condition and time from rigid-body mechanics (the support polygon, the centre of mass height and the inertia, the skids catching on the ground, the leg and contact stiffness and damping, friction), then compares the sim with the analytic answer and fixes the cause.
+- **The coil (legs off):** its tilt rate is checked against an inverted-pendulum rock about its contact.
