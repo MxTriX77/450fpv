@@ -37,9 +37,20 @@
 // - On a plane the first touch is exact: its Distance is 0 to rounding.
 // - A separating plane proves when the sweep cannot touch a shape, so a capsule sliding
 //   past or along any shape is never a first touch (QueryVersion 3).
-// - A sweep that neither touches nor is proven clear within 128 steps counts no first
-//   touch (the current contact, if within the margin): a first touch is always one the
-//   advancement reached, never a give-up.
+// - A sweep that neither touches nor is proven clear within 128 steps (a core pitching
+//   across a curved shape: its far ends swing at the shape while its middle creeps in):
+//   - its current pose touches (within 1 µm): the step touched, and bisection between the
+//     last pose shown clear and the current one finds that touch, the first touch
+//     (QueryVersion 4). It is the first where the distance is convex in t (a translation
+//     past a convex shape); on QA's and the tests' pitching sets it was never later.
+//   - otherwise it counts no first touch (the current contact, if within the margin). The
+//     remainder: a turning graze that dips in and comes back clear within the step may
+//     count none (QA's sets: at most about 6 µm deep).
+//   So a first touch is always a touch, and a step that ends inside a shape it began
+//   clear of is always a first touch.
+// - A first touch lies within 1 µm of the shape and not after the true touch, except that
+//   a cylinder's may lie up to a few nm inside, up to about 0.1 µm of travel late: its
+//   closest approach is a search that reads up to a few nm long (QA's re-check L4).
 // - Touching since the step began (t = 0):
 //   - the current pose on the same side (normals agree) and within the margin: the
 //     current contact, Time = 1;

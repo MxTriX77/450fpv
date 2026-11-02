@@ -52,10 +52,13 @@ namespace Fpv450.Sim.Tests
             return h;
         }
 
-        // The field alone at the reference height over the floor, or a known-wrong model in its place.
-        public static History Gusts(WindLevel level, ulong seed, double seconds, int every, Func<WindField, WindModel> wrong = null)
+        // The field alone at the reference height over the floor (the level's preset, or a known-wrong one), or a known-wrong
+        // model in its place.
+        public static History Gusts(WindLevel level, ulong seed, double seconds, int every, Func<WindField, WindModel> wrong = null,
+            WindPreset? preset = null)
         {
-            var wind = new WindField(WindSetup.Of(level), new FlightRandom(seed));
+            var random = new FlightRandom(seed);
+            var wind = preset == null ? new WindField(WindSetup.Of(level), random) : new WindField(WindSetup.Of(level), random, preset.Value);
             var h = new History { Mean = wind.MeanSpeed, FromDeg = wind.FromDeg, Every = every };
             int n = (int)(seconds * StepsPerSecond / every);
             h.Samples = new Double3[n];
@@ -127,6 +130,15 @@ namespace Fpv450.Sim.Tests
                 w.Begin(step, default, 0);
                 return w.Mean + new Double3(a * (2 * r.NextDouble() - 1), b * (2 * r.NextDouble() - 1), a * (2 * r.NextDouble() - 1));
             };
+        }
+
+        // The open field over the stubble's own roughness (z0 ≈ 0.1·h = 0.03 m, the field before D-060), σ_u/U derived from it.
+        public static WindPreset Stubble(WindLevel level)
+        {
+            WindPreset p = WindPreset.Of(level);
+            p.Roughness = 0.1 * p.CoverHeight;
+            p.Intensity = WindPreset.SurfaceIntensity(p.Roughness, p.Displacement, p.ReferenceHeight);
+            return p;
         }
 
         // The field with a σ that does not grow with the wind: 0.2 m/s at every level.
@@ -216,8 +228,9 @@ namespace Fpv450.Sim.Tests
             return inBand && Math.Abs(offset) <= 3 * error;
         }
 
-        // σ/U: the horizontal turbulence's standard deviation over the drawn strength, pooled, inside K§6.7's 0.12–0.15;
-        // the vertical's over the horizontal within 10 % of the preset's.
+        // σ/U: the horizontal turbulence's standard deviation over the drawn strength, pooled, within 10 % of the preset's
+        // σ_u/U, which the landscape's roughness class sets (D-060: 0.164 over class 4's z0 0.10 m; the stubble's z0 0.03 m
+        // reads 0.136, 17 % under it); the vertical's over the horizontal within 10 % of the preset's.
         public static bool Intensity(List<History> runs, WindPreset preset, out string detail, out double ratio)
         {
             double h2 = 0, v2 = 0, u2 = 0;
@@ -233,8 +246,8 @@ namespace Fpv450.Sim.Tests
             }
             ratio = Math.Sqrt(h2 / u2);
             double vertical = Math.Sqrt(v2 / h2);
-            detail = $"σ_u/U {F(ratio, "0.0000")} (K§6.7: 0.12–0.15), σ_w/σ_u {F(vertical, "0.000")} ({F(preset.VerticalRatio)})";
-            return ratio >= 0.12 && ratio <= 0.15 && Math.Abs(vertical / preset.VerticalRatio - 1) <= 0.1;
+            detail = $"σ_u/U {F(ratio, "0.0000")} (the class's {F(preset.Intensity, "0.0000")} ± 10 %, z0 {F(preset.Roughness)} m), σ_w/σ_u {F(vertical, "0.000")} ({F(preset.VerticalRatio)})";
+            return Math.Abs(ratio / preset.Intensity - 1) <= 0.1 && Math.Abs(vertical / preset.VerticalRatio - 1) <= 0.1;
         }
 
         /// <summary>

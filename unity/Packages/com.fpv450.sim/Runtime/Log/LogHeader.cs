@@ -80,7 +80,7 @@ namespace Fpv450.Sim.Log
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
     /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
     ///   its start second and the level's preset by name (its per-flight draws are the randomness's), with the
-    ///   wakes' obstacles, the gust front and the canopy strip when the flight has them
+    ///   wakes' obstacles, the gust front and the canopy strips when the flight has them
     /// - the rain (p7c-wind 1.7): its level and its preset by name (its per-flight draws, the rate and the film's
     ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
@@ -155,7 +155,7 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopy" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
@@ -339,7 +339,7 @@ namespace Fpv450.Sim.Log
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
                 new NamedValue("reference_height_m", p.ReferenceHeight), new NamedValue("cover_height_m", p.CoverHeight),
-                new NamedValue("roughness_over_cover", p.RoughnessRatio), new NamedValue("displacement_over_cover", p.DisplacementRatio),
+                new NamedValue("roughness_m", p.Roughness), new NamedValue("displacement_over_cover", p.DisplacementRatio),
                 new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
                 new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
                 new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
@@ -641,12 +641,12 @@ namespace Fpv450.Sim.Log
                     e.Write(g.Width);
                     e.Write(g.Uniform);
                 }
-                // The canopy strip (p7c-wind 1.5, format 9) after its flag.
-                CanopyStrip c = Wind.Canopy;
-                e.Write(c != null);
-                if (c == null) return;
-                foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
-                    e.Write(x);
+                // The canopy strips (p7c-wind 1.5, format 9; format 14 a count, 0 for none: a map's belt has one a section).
+                CanopyStrip[] strips = Wind.Canopies ?? new CanopyStrip[0];
+                e.Write((ushort)strips.Length);
+                foreach (CanopyStrip c in strips)
+                    foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
+                        e.Write(x);
             });
             Entry(w, TagContacts, e =>
             {
@@ -1007,12 +1007,17 @@ namespace Fpv450.Sim.Log
                             {
                                 Start = V3(r), Normal = V3(r), Delta = V3(r), Speed = r.ReadDouble(), Width = r.ReadDouble(), Uniform = r.ReadBoolean(),
                             };
-                        if (r.ReadBoolean())
-                            Wind.Canopy = new CanopyStrip
-                            {
-                                CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
-                                Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
-                            };
+                        int strips = r.ReadUInt16();
+                        if (strips > 0)
+                        {
+                            Wind.Canopies = new CanopyStrip[strips];
+                            for (int i = 0; i < strips; i++)
+                                Wind.Canopies[i] = new CanopyStrip
+                                {
+                                    CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
+                                    Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
+                                };
+                        }
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;

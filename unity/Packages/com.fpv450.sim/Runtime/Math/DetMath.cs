@@ -154,5 +154,36 @@ namespace Fpv450.Sim
             if (n < -1022) { p *= 2.2250738585072014e-308; n += 1022; } // 2^-1022
             return p * System.BitConverter.Int64BitsToDouble((n + 1023) << 52);
         }
+
+        const double Pi = 3.141592653589793, HalfPi = 1.5707963267948966, SixthPi = 0.5235987755982988;
+        const double Sqrt3 = 1.7320508075688772, TanTwelfthPi = 0.2679491924311228; // 2 − √3
+
+        /// <summary>
+        /// The angle of (x, y) from +x towards +y, radians in [−π, π], by the basic operations only (System.Math.Atan2
+        /// is not correctly rounded). t = min(|x|, |y|)/max(|x|, |y|) in [0, 1]; above tan(π/12) it is turned back by
+        /// π/6, t' = (√3·t − 1)/(t + √3), so |t'| ≤ tan(π/12); atan t' by its series to t'^29 (the next term below 4e-18
+        /// of it); then the octant and the signs. (0, 0) gives 0; NaN gives NaN.
+        /// </summary>
+        public static double Atan2(double y, double x)
+        {
+            if (double.IsNaN(x) || double.IsNaN(y)) return double.NaN;
+            double ax = Abs(x), ay = Abs(y);
+            if (ax == 0 && ay == 0) return 0;
+            bool steep = ay > ax;
+            double t = steep ? ax / ay : ay / ax, offset = 0;
+            if (t > TanTwelfthPi)
+            {
+                t = (Sqrt3 * t - 1) / (t + Sqrt3);
+                offset = SixthPi;
+            }
+            double t2 = t * t;
+            double a = t * (1 + t2 * (-1.0 / 3 + t2 * (1.0 / 5 + t2 * (-1.0 / 7 + t2 * (1.0 / 9 + t2 * (-1.0 / 11 + t2 * (1.0 / 13
+                + t2 * (-1.0 / 15 + t2 * (1.0 / 17 + t2 * (-1.0 / 19 + t2 * (1.0 / 21 + t2 * (-1.0 / 23 + t2 * (1.0 / 25
+                + t2 * (-1.0 / 27 + t2 * (1.0 / 29)))))))))))))));
+            double r = offset + a;
+            if (steep) r = HalfPi - r;
+            if (x < 0) r = Pi - r;
+            return y < 0 ? -r : r;
+        }
     }
 }

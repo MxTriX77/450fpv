@@ -221,6 +221,124 @@ namespace Fpv450.Sim.Tests
             Assert.That(contacts[0].Distance, Is.EqualTo(Math.Sqrt(off * off + 0.0001) - 0.15 - r).Within(1e-9));
         }
 
+        // ---- The bound is safe on every primitive (QA's re-check S3) ----------------------------------------------------
+
+        private static Double3 Unit(Double3 v) => v * (1 / Math.Sqrt(Double3.Dot(v, v)));
+
+        /// <summary>
+        /// A 7.5 mm sphere moved 60 mm in one step: either past a curved feature (a sphere's centre, a capsule's or a
+        /// cylinder's axis, a rim, a box edge or corner: `point`, reached at `reach` from it) at 0.990–0.998 of `reach`, out
+        /// along `away` (in the feature's own region) and moving along `along` (square to `away`); or onto a flat face
+        /// (`point` on it, outward normal `away`, moving along `along` in it) from 0.1–1 mm over it to 15–75 µm into it. Each
+        /// is one contact of `obj` with Time in (0, 1), not after the analytic first touch, Distance within 1 µm of 0. The
+        /// distance / speed steps creep on these grazes, so the separating plane's bound settles them: a support that
+        /// leaves out part of the shape steps past the touch or calls the sweep clear.
+        /// </summary>
+        private static void AssertGrazeCaught(FloorWorld world, int obj, Double3 point, Double3 away, Double3 along, double reach, bool flat,
+            Random rng, string what)
+        {
+            const double r = 0.0075, step = 0.06;
+            Double3 from, to;
+            double touch;
+            if (flat)
+            {
+                double above = 0.0001 + 0.0009 * rng.NextDouble(), into = (0.002 + 0.008 * rng.NextDouble()) * r;
+                from = point - along * (step / 2) + away * (r + above);
+                to = point + along * (step / 2) + away * (r - into);
+                touch = above / (above + into);
+            }
+            else
+            {
+                double pass = (0.990 + 0.008 * rng.NextDouble()) * reach;
+                from = point + away * pass - along * (step / 2);
+                to = point + away * pass + along * (step / 2);
+                touch = 0.5 - Math.Sqrt(reach * reach - pass * pass) / step;
+            }
+            var contacts = new StaticContact[8];
+            int n = world.StaticContacts(new Capsule(from, from, r), new Capsule(to, to, r), 0.05, contacts);
+            Assert.That(n, Is.LessThanOrEqualTo(contacts.Length), what + ": overflow");
+            StaticContact[] mine = Array.FindAll(contacts.AsSpan(0, n).ToArray(), c => c.Object == obj);
+            Assert.That(mine.Length, Is.EqualTo(1), what + ": the sphere passed unseen");
+            Assert.That(mine[0].Time, Is.GreaterThan(0).And.LessThan(1), what + ": Time");
+            Assert.That(mine[0].Time, Is.LessThanOrEqualTo(touch + 1e-9), what + ": Time after the first touch");
+            Assert.That(mine[0].Distance, Is.EqualTo(0).Within(1e-6), what + ": Distance at the first touch");
+        }
+
+        [Test]
+        public void GrazingSpheres_AreCaughtNotAfterTheirFirstTouch_OnEveryPrimitive()
+        {
+            // Mutations that leave out a sphere's radius, a box's z extent or a cylinder's radius from the bound's support
+            // passed every world test before this one; only the goldens' hashes moved.
+            FloorWorld world = World();
+            ushort steel = world.MaterialId("steel");
+            // Exact 3-4-5 turns (yaw, then tilt about the new x), so every axis of the box and the cylinder is off the world's.
+            Double3 ax = new Double3(0.8, 0, -0.6), ay = new Double3(0.36, 0.8, 0.48), az = new Double3(0.48, -0.6, 0.64);
+            ShapeGeometry Turned(ShapeGeometry s)
+            {
+                s.AxisX = ax;
+                s.AxisY = ay;
+                s.AxisZ = az;
+                return s;
+            }
+            Double3 sphereAt = new Double3(0, 2, 0), capsuleAt = new Double3(3, 2, 0), cylinderAt = new Double3(6, 2, 0), boxAt = new Double3(9, 2, 0);
+            Double3 h = new Double3(0.5, 0.3, 0.4);
+            int sphere = world.AddObject("sphere", new[] { Shape(ShapeKind.Sphere, sphereAt, steel, 0.1) });
+            int capsule = world.AddObject("capsule", new[] { Turned(Shape(ShapeKind.Capsule, capsuleAt, steel, 0.05, 0.4)) });
+            int cylinder = world.AddObject("cylinder", new[] { Turned(Shape(ShapeKind.Cylinder, cylinderAt, steel, 0.15, 0.4)) });
+            int box = world.AddObject("box", new[] { Turned(Shape(ShapeKind.Box, boxAt, steel, halfExtents: h)) });
+            Double3[] axes = { ax, ay, az };
+            double[] half = { h.X, h.Y, h.Z };
+            const double r = 0.0075;
+            var rng = new Random(2611);
+            Double3 Square(Double3 v) // a random unit vector square to the unit v
+            {
+                Double3 p = Unit(Double3.Cross(v, Math.Abs(v.Y) < 0.9 ? Up : new Double3(1, 0, 0))), q = Double3.Cross(v, p);
+                double a = 2 * Math.PI * rng.NextDouble();
+                return p * Math.Cos(a) + q * Math.Sin(a);
+            }
+            double Sign() => rng.Next(2) == 0 ? 1 : -1;
+
+            for (int trial = 0; trial < 150; trial++)
+            {
+                // A sphere: past its centre, any way.
+                Double3 away = Unit(new Double3(rng.NextDouble() - 0.5, rng.NextDouble() - 0.5, rng.NextDouble() - 0.5));
+                AssertGrazeCaught(world, sphere, sphereAt, away, Square(away), 0.1 + r, false, rng, $"sphere {trial}");
+
+                // A capsule and a cylinder's side: square past their axis, inside the length.
+                away = Square(ay);
+                AssertGrazeCaught(world, capsule, capsuleAt + ay * (0.6 * rng.NextDouble() - 0.3), away, Double3.Cross(ay, away) * Sign(),
+                    0.05 + r, false, rng, $"capsule {trial}");
+                away = Square(ay);
+                AssertGrazeCaught(world, cylinder, cylinderAt + ay * (0.5 * rng.NextDouble() - 0.25), away, Double3.Cross(ay, away) * Sign(),
+                    0.15 + r, false, rng, $"cylinder side {trial}");
+
+                // A cylinder's cap: onto it, inside its rim. Its rim: past a rim point, out between the side's and the cap's normals.
+                double end = Sign();
+                Double3 radial = Square(ay);
+                Double3 onCap = cylinderAt + ay * (0.4 * end) + radial * (0.1 * rng.NextDouble());
+                AssertGrazeCaught(world, cylinder, onCap, ay * end, Square(ay), 0, true, rng, $"cylinder cap {trial}");
+                double tilt = (0.25 + 0.5 * rng.NextDouble()) * Math.PI / 2;
+                away = radial * Math.Cos(tilt) + ay * (end * Math.Sin(tilt));
+                Double3 across = (radial * -Math.Sin(tilt) + ay * (end * Math.Cos(tilt))) * Sign();
+                AssertGrazeCaught(world, cylinder, cylinderAt + ay * (0.4 * end) + radial * 0.15, away, across, r, false, rng, $"cylinder rim {trial}");
+
+                // A box: onto each face, past each edge and each corner.
+                int i = rng.Next(3), j = (i + 1) % 3, k = (i + 2) % 3;
+                double si = Sign(), sj = Sign(), sk = Sign();
+                Double3 onFace = boxAt + axes[i] * (si * half[i]) + axes[j] * ((2 * rng.NextDouble() - 1) * (half[j] - 0.05))
+                    + axes[k] * ((2 * rng.NextDouble() - 1) * (half[k] - 0.05));
+                AssertGrazeCaught(world, box, onFace, axes[i] * si, Square(axes[i]), 0, true, rng, $"box face {i} {trial}");
+                Double3 onEdge = boxAt + axes[i] * (si * half[i]) + axes[j] * (sj * half[j]) + axes[k] * ((1.6 * rng.NextDouble() - 0.8) * half[k]);
+                tilt = (0.25 + 0.5 * rng.NextDouble()) * Math.PI / 2;
+                away = axes[i] * (si * Math.Cos(tilt)) + axes[j] * (sj * Math.Sin(tilt));
+                AssertGrazeCaught(world, box, onEdge, away, Double3.Cross(axes[k], away) * Sign(), r, false, rng, $"box edge {k} {trial}");
+                Double3 corner = boxAt + axes[0] * (si * half[0]) + axes[1] * (sj * half[1]) + axes[2] * (sk * half[2]);
+                away = Unit(axes[0] * (si * (0.5 + 0.5 * rng.NextDouble())) + axes[1] * (sj * (0.5 + 0.5 * rng.NextDouble()))
+                    + axes[2] * (sk * (0.5 + 0.5 * rng.NextDouble())));
+                AssertGrazeCaught(world, box, corner, away, Square(away), r, false, rng, $"box corner {trial}");
+            }
+        }
+
         // ---- The line contact on a box face (review-physics W5) ---------------------------------------------------------
 
         /// <summary>The contact of a level 5 mm skid 1 mm over the 1 m box's top face (y 1), at rest, from a to b at the face's height.</summary>

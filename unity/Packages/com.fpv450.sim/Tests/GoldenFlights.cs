@@ -178,7 +178,16 @@ namespace Fpv450.Sim.Tests
         // the powered, contact, rain and tumble goldens and the still-air audit are model 17's, every record and event. At
         // 11.5 the Windy flight moves from step 1 (the strength draw, 4.83 m/s in Windy's band) and ends 148.12 m up,
         // 102 events, armed, no crash.
-        public const ulong PoweredHash = 0xFE81E38EFCBD2F4EUL;
+        // Model 18: 0xFE81E38EFCBD2F4E. D-060: re-recorded with ModelVersion 19 (the open field's z0 0.03 → 0.10 m, σ_u/U
+        // 0.135 → 0.164). Audited: with z0 0.03 m and σ_u/U 0.135 (a temporary edit, reverted) the powered, contact, rain and
+        // tumble goldens are model 18's, every record and event. With class 4's roughness the Windy flight moves from step 1
+        // (the turbulence's amplitude and the profile) and keeps its course: armed, no crash, 148.28 m up against 148.12,
+        // 2.5 m from model 18's end and within 8 mrad of its attitude. Then the turbulence carried from the 1 m cut to the
+        // discs' 0.5 m (ModelVersion 19 still; the branch had not landed): with the cut back at 1 m and 128 and 64 modes (a
+        // temporary edit, reverted) every golden is the class-4 step's (powered 0xD28B561A9782C097, contact
+        // 0xA05AEB00620769BF, rain 0xCCAE77686A84020E); to 0.5 m the Windy flight moves from step 1 and keeps its course:
+        // armed, no crash, 147.90 m up, 0.59 m from the class-4 step's end and within 8.3 mrad.
+        public const ulong PoweredHash = 0xA1FF085091A019CDUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -186,7 +195,10 @@ namespace Fpv450.Sim.Tests
         // powered flight: with main's terms off it is model 10's bit for bit; on the merge the film holds 9.50 g at 10 s.
         // Model 17: 0x5FA1F49E82CBC0D5. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight: in Calm's
         // stronger band it moves from step 1; the film holds 9.57 g at 10 s.
-        public const ulong RainPoweredHash = 0xE5D4C472F6CA12D2UL;
+        // Model 18: 0xE5D4C472F6CA12D2. D-060 (ModelVersion 19), audited as the powered flight: it moves from step 1 and keeps
+        // its course, 148.90 m up against 148.97, 0.58 m from model 18's end; the film holds 9.59 g at 10 s. To 0.5 m it
+        // moves from step 1: 148.69 m up, 0.24 m from the class-4 step's end; the film holds 9.60 g.
+        public const ulong RainPoweredHash = 0xB10D9A860D4431C0UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
@@ -272,7 +284,12 @@ namespace Fpv450.Sim.Tests
         // Model 17: 0x4D5A4F57872D01F7. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight. In Calm's
         // band, 1.32 times model 17's, it moves from step 1 and keeps its course: 5 impacts, no crash, at rest on 8 touching
         // pairs at 0.2518 m, 51 mm from where it rose; 125 events.
-        public const ulong ContactHash = 0x1152D64875230761UL;
+        // Model 18: 0x1152D64875230761. D-060 (ModelVersion 19), audited as the powered flight. It moves from step 1 (on its
+        // legs the hubs, 0.288 m up, are now under d + z0 = 0.30 m, in the cover's still air) and keeps its course: within
+        // 20 mm of model 18's path and 1.2 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 20 mm aside. To 0.5 m it
+        // is the class-4 step's to step 290 (still air at the hubs on the floor) and moves from step 291, as they rise into
+        // the field: within 2.7 mm and 1.3 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 0.8 mm aside.
+        public const ulong ContactHash = 0x8C1E6B066F143A67UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -312,12 +329,30 @@ namespace Fpv450.Sim.Tests
         // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
         // (Model16StillRangeHash, the kept test), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
         // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
-        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. The Calm field blows
-        // nothing here: SampleGround reports Hole over S04 and the field takes a hole as sheltered (WindField.Begin), so the
-        // flight is the same in still air and in Windy's field, bit for bit (a check). It moves from model 16's by the
+        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. At model 19 the Calm field
+        // blew nothing here: SampleGround reports Hole over S04 and the field took a hole as sheltered (WindField.Begin), so the
+        // flight was the same in still air and in Windy's field, bit for bit (a check). It moved from model 16's by the
         // stand-in's Calm air, which blew over the hole, the derived drag and the record: 5 impacts, no crash, at rest
-        // 19.15 mm into the straw on 18 pairs (model 16: 21.98 mm on 17).
-        public const ulong RangeHash = 0xE4B13EDD65CFF0B2UL;
+        // 19.15 mm into the straw on 18 pairs (model 16: 21.98 mm on 17). Model 19: 0xE4B13EDD65CFF0B2.
+        // Model 20 (the wind over a hole, FlightWorld.SoilUnder): re-recorded on the same content and query version 4, where
+        // the Calm field now blows over S04 from the straw mat's top: 5 impacts, no crash, at rest 21.19 mm into the straw on
+        // 19 pairs. Audited: with the old rule (the hole's −∞ taken as sheltered, a temporary switch) it is model 19's pin bit
+        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (Model16StillRangeHash, the
+        // kept test), and Calm and still air now differ. Read from the first soil shape alone (the mat's soil box, 0.125 m
+        // under the plane's height, a known-wrong) it was 0xCE9BEF5615932EFB, 7 impacts, 0.233 m up on 21 pairs.
+        // Model 20: 0x7A21A5FA04DD30E0. The merge with p7c-wind--d060 (ModelVersion 21: D-060's class-4 z0 and σ_u/U, the
+        // turbulence to 0.5 m): re-recorded on the same content and query version 4, where the Calm field over S04 now
+        // carries D-060's profile and turbulence: 5 impacts, no crash, at rest 19.10 mm into the straw on 18 pairs. Audited
+        // against both parents (temporary switches, reverted): with z0 0.03 m, σ_u/U 0.135 and the 1 m cut every golden is
+        // the range branch's model 20 (range 0x7A21A5FA04DD30E0, powered 0xFE81E38EFCBD2F4E, contact 0x1152D64875230761,
+        // rain 0xE5D4C472F6CA12D2); with 19's rule over a hole the stub's goldens are p7c-wind--d060's pins and the range
+        // flight is model 19's 0xE4B13EDD65CFF0B2, so the change is D-060's field blowing over the hole, nothing else.
+        // Model 21: 0x10A035F9F29042CC. The merge with p7c-wind--map-wakes (ModelVersion 22): re-recorded in the map's own
+        // Calm wind (WindSetup.ForMap, the player's: the obstacles' wakes and the belt's canopy) on the same content: 4
+        // impacts, no crash, at rest 19.09 mm into the straw on 18 pairs. Audited: in WindSetup.Of(Calm), the open field
+        // the golden flew before, it is model 21's pin bit for bit (a check before the switch), and in still air model 16's
+        // (the kept test); flown twice, the same bits with the wake grid's worker.
+        public const ulong RangeHash = 0x80C73DBA130C6903UL;
 
         /// <summary>The merge's audit against the range branch (GoldenFlightTests.InStillAirTheRangeGoldenIsModel16s): model
         /// 16's range golden in still air over its 1656-byte layout, pinned from the range branch's code (c2cf4023) with the
@@ -545,8 +580,9 @@ namespace Fpv450.Sim.Tests
         /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
         /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
         /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
-        /// throttle is cut and it settles into the straw again. In the Calm wind (the field), as the stub's, with the airframe's
-        /// effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
+        /// throttle is cut and it settles into the straw again. In the map's own Calm wind (WindSetup.ForMap since model 22,
+        /// as the player flies it: the obstacles' wakes and the belt's canopy; over the hole from the mat's top since model
+        /// 20), the field disposed at the end (its wake grid's worker), with the airframe's effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
         /// step's record before it is hashed). Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
@@ -558,7 +594,7 @@ namespace Fpv450.Sim.Tests
             Double3 foot = RangeScenarios.Straw;
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
             setup.World = new FlightWorld(RangeScenarios.World);
-            setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
+            setup.Wind = wind ?? WindSetup.ForMap(RangeScenarios.World, WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
@@ -604,6 +640,7 @@ namespace Fpv450.Sim.Tests
                     hash = Fnv(hash, e, 0, e.Length);
                 }
             }
+            core.Wind.Dispose();
             return hash;
         }
 

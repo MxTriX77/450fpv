@@ -185,6 +185,72 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
         - **S6:** T0b's "windward in ≥ 4 of 5" is graded as `runs − 1`, 9 of 10 at 10 seeds; state it as a share, at least 8 of 10 (80 %, K§8.6), or size it from its false-failure rate at the run count used.
         - **S8:** the harness's airspeed band (−5 to +8 %), like the lean's ±15 % and ±20 %, has no measured false-failure rate (`--belt off` on 10 seeds exits 1 at −5.3 %). Size it, or report the no-strip family without the pass and fail.
         - **The micro-motion investigation** runs on `unity/physics/p7-micro-motion`: the misses D-058 names (the roll and pitch spreads 2–3× low, the yaw 3× high) wait for it.
+    - **D-060's fixes and the re-grade** (`unity/physics/p7c-wind--d060`, with `p7-micro-motion`'s probe merged; `ModelVersion` 19, log format 13 unchanged; the range branch also names its next model 19, so whichever lands second takes 20). Each item has its known-wrong:
+      - **z0 from the landscape's class** (`WindPreset.Roughness`): Davenport–Wieringa class 4, z0 0.10 m (published, recalled), d still the stubble's 0.2 m. σ_u/U is now derived from it, 2.4·κ/ln((35 − 0.2)/0.10) = 0.164 (`SurfaceIntensity`), not the assumed 0.135. Measured over 20 seeds × 1200 s: 0.161 Windy, 0.157 Severe. The stubble's z0 0.03 m (0.136) reads 0.130–0.133 and fails the class's ±10 %.
+      - **The turbulence to the discs' 0.5 m** (2D of the 10-inch disc, derived): 138 open modes and 71 canopy modes keep the modes per e-fold. Met at the cruise, the field's 20–30 Hz (its 0.7–1 m eddies) holds 0.86–0.92 of von Kármán's energy. The 1 m cut reads 0.01–0.05 and fails.
+      - **The recorder's field pick** (`WindHarness.FieldStep`): each logged frame shows the newest whole PAL field at its horizon row (5.44 ms into the field). The frames' instants jitter by σ 5.77 ms (a field's 20/√12). The uniform clock reads 0.29 ms and fails. The pilot still sees the tick's frame (K§8.5).
+      - **T6d against P's real motion** (`grade_levels.py`): a ceiling of 0.082° roll and 0.044° pitch (derived: hover-micro-motion.md §2.4's upper ends with P's pick in quadrature), not P's raw floor (0.125° / 0.054°, half of it the tracker's, `floor_check.py`). The 0.15° pose noise reads 0.13° and fails.
+      - **The pilot's stick noise** (`HarnessPilot.UseRemnant`, stream `pilot.motor`): the optimal-control model's motor noise (Kleinman, Baron and Levison 1970; recalled, not re-read: the scanned NTRS copies have no text layer).
+        - The noise is −25 dB of each command's variance, white, through the neuromotor lag τ_n 0.1 s. It is added to the three body rates and the throttle.
+        - Its E{u_c²} is learnt over the measured span only. On a 1 Hz command it reads 0.0531 of the command's variance against the model's 0.0497. −20 dB in its place reads 0.168 and fails.
+        - The noiseless pilot is the grade's known-wrong family for T2 and T6c (`--wrong noiseless`). It was never tuned.
+        - Measured and not adopted (Severe, 10 seeds, split 0.64):
+          - The model's −20 dB observation noise, fed raw into K§8.5's laws (this pilot has no optimal estimator to filter it), runs away: T1 5.1°.
+          - On the pilot's errors, through τ_n, it swamps the field: T1 0.83°, T2 0.38°, T5 field 1.99°, T3/T1 1.27, T7 34/min with 35 % in the belt.
+          - The motor noise with its level learnt from the release: the release's transient sets the noise for the next 10 s. Calm's pitch residual reads 0.23° in the first 3 s and 0.035° at 40 s, and T4 fails Calm's 0.145° ceiling at 0.165°.
+      - **The split per stretch** (`WindHarness.FieldSplit`, `BeltSplit`): s 0.85 over the field and 0.73 over the belt (derived). They are set so that wind_stats.py's roll share reads K§8.4's measured 0.80 and 0.64 on Severe's 10 seeds, as K§8.5 once set 0.64 from the belt's share.
+        - Calibration (field / belt share): 0.64 / 0.64 read 0.518 / 0.524; 0.86 / 0.64 read 0.810 / 0.532; 0.92 / 0.50 read 0.887 / 0.362; 0.85 / 0.73 read 0.796 / 0.643.
+        - On the four final sets the shares read 0.79–0.80 over the field and 0.64–0.68 over the belt. The single 0.64 reads 0.51–0.52 over the field and fails (`TheSplitReadsClipPsRollShare`).
+      - **QA's S6:** T0b's windward rule is now a share, at least 80 % of the runs (K§8.6's 4 of 5): 8 of 10 passes and 7 of 10 fails. The old `runs − 1` failed 8 of 10.
+      - **For S2:** `flightbench --wind-harness … --first-seed S` flies another seed set.
+    - **The goldens (ModelVersion 19)**, audited case by case (GoldenFlights' notes):
+      - With z0 0.03 m and σ_u/U 0.135, every golden is model 18's.
+      - With the 1 m cut, every golden is the class-4 step's.
+      - Powered (Windy) `0xA1FF085091A019CD`: it moves from step 1, ends 147.90 m up, armed, no crash.
+      - Contact (Calm) `0x8C1E6B066F143A67`: it is the class-4 step's to step 290, since the hubs on the floor sit under d + z0 = 0.30 m. It then moves within 2.7 mm and ends with 5 impacts, at rest at 0.2518 m.
+      - Rain `0xB10D9A860D4431C0`: the film holds 9.60 g.
+      - The free body and the tumble are unchanged.
+    - **The re-grade** (every family flown, `--pilots all`, 10 seeds a set; targets passed):
+
+      | Set | Severe, model 18 | Severe, model 19 | Windy, model 18 | Windy, model 19 | Calm, model 19 |
+      |---|---|---|---|---|---|
+      | 1–10 | 9 of 21 | **11** | 10 | 10 | 9 of 9 (18: 9) |
+      | 101–110 | 10 (QA's) | **11** | 10 (QA's) | **11** | 9 of 9 |
+      | 201–210 | 8 (QA's) | **10** | 9 (QA's) | 9 | 9 of 9 |
+      | 301–310 | 9 (QA's) | **11** | 10 (QA's) | **11** | 9 of 9 |
+
+      Model 18's seeds 1–10 read the same counts under the new grader (T6d's ceiling and T0b's share move no verdict there).
+
+      - **Severe, seeds 1–10, model 18 → 19** (P in brackets):
+        - T1 0.254 → **0.439°** [0.51]: PASS on every set (0.44–0.52).
+        - T5 field 0.720 → **0.408°** [0.44]: PASS on every set. The yaw's 3× was the pilot's split, as the note found.
+        - T2 0.072 → 0.087° [0.28]: the noiseless pilot reads 0.082°, so the stick noise adds 6 %.
+        - T6c's 1–2 Hz 0.055 → 0.064° [0.18]; its share 0.44 → 0.50 (20–45 %).
+        - T6b 0.021 → 0.039° (0.06–0.16).
+        - T6d 0.020 / 0.021 → 0.034 / 0.025° against the 0.082 / 0.044° ceiling. Like for like, roll is still 2–2.5× under P's real 0.06–0.08° and pitch 1.5× under its 0.04°.
+        - T10b passes 3 of 4 sets (belt 0.53–0.58 against ≥ 0.55).
+        - Lost: T7, at 25–32 /min with 40–58 % of the roll events in the belt. The field's roll rose 1.7× and the belt's ratio fell: T3/T1 2.68 → 1.41–1.74, T11a's ratio 2.72 → 1.62–2.13.
+        - T11a belt reads 0.88–1.14°, under 1.1 on 3 of 4 sets.
+      - Windy follows: T1 0.110 → 0.194°, now passing. It loses T7 the same way, and T11b's s0 tilt on seeds 1–10 (1.27 against 1.25).
+      - **S2's spread:** Severe 10–11 of 21 and Windy 9–11 over the four sets (8–10 and 9–10 at model 18).
+        - Per target, from the 40 runs' per-run spread (a normal approximation of a 10-run mean outside its band): T0 3 % at Severe and 6 % at Windy, T1 0.1 % and 3 %, T5 belt 0.3 % and 0.9 %, and below 0.1 % for every other passing mean.
+        - At 20 seeds every passing mean's rate is 1.2 % or less (Windy's T0). 20 seeds is the suggested size.
+        - T10b belt sits on its floor: 0.556 against 0.55, failing 44 % of 10-run sets at any count.
+        - The pooled conditions are not covered by that estimate. T0b's windward share is 29 of 40 runs at Severe and 32 of 40 at Windy, against 80 %.
+      - **Known-wrongs that pass:**
+        - T6a's pose noise (0.92–0.95 against ≥ 0.85, as before).
+        - T8's fixed vector on seeds 301–310, and T11b's no-drag on 101–110 (QA's S3).
+        - Calm's T2 and T4 read on Severe's runs, as before.
+    - **Still missing at model 19 (not tuned away):**
+      - Pitch's 1–4 Hz and spread: T2 0.09° against 0.19–0.38, and T6c. The stick noise does not close them. D-060's next flight-model item, the rear rotors in the front rotors' wake, is named for it.
+      - The belt's absolute spreads (T3, T4) and T7's belt share, now that the field carries P's roll.
+      - T6b, T8's median, T9b (pitch kurtosis 2.9 against 3.3–5.5), T10a, and T0b's windward share.
+    - **Verified:**
+      - The suite: 299 of 299.
+      - `flightbench --golden` PASS (the new pins), `--scenarios` PASS (the class's σ_u/U, the 20–30 Hz reach and their known-wrongs).
+      - `replay --record … --wind severe --canopy` (60 s, 60 000 steps, 128 events) and a 30 s Windy flight replay bit for bit.
+      - `python -m pytest tools/wind tools/flightbench` and the OPSEC scan pass.
+      - `--bench` is owed on AC: the open field's 138 modes are 8 % more samples a point than 128, and the canopy's 71 are 11 % more than 64.
 - [x] 1.6 [physics-engineer] Cruise in wind (design 6): the drag re-derived for clip P's pitch at 17–22 m/s, superseding 1.5's 13 m/s calibration in `drone.json`'s `aero` block; verify the "clip P's pitch flies the cruise" scenario and T0 at that airspeed
   - **As built** (`drone.json`'s `props.h_force_n_per_m_s` and `aero.drag_coefficient` notes; `Tests/{WindHarness,CrosswindScenario,AeroTests,GoldenFlights}.cs`; `ModelVersion` 7, `LogFormat.Version` 6 unchanged):
     - **The drag:**
@@ -232,6 +298,38 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
     - **The cases:** Severe wind in Severe rain with the whole airframe. Over the posadka: the wake grid's synthetic belt (`WakeGridFixture`, D-046: the test range's layout is on its own branch), held 0.75 H up and 2 H downwind of the belt, from the second where seed 1's bearing moves 10° within the 60 s, paced at 1 kHz of wall time as the sim's thread is. Through the canopy: the harness's Severe flight (a canopy strip is never flown with wakes).
     - **The budget** (AC, Balanced plan, balanced mode, 3201 MHz; other agents' work on the host): posadka-step 58 000 steps p50 38.0 µs, p99 107.0 µs, max 1594.6 µs; the bearing moved 10.7°, the worker rebuilt the grid 9 times (89 ms each), 0 stalls; 0 B. canopy-step inside the strip p50 27.4 µs, p99 47.8 µs, outside 17.5 / 31.1 µs; 0 B. Every bench row PASS (powered p99 93.2 µs).
     - Unpaced, 3 s of latency pass in about 70 ms of wall time and the worker stalled the step 5 times (a max of 19.9 ms): the pacing is the sim's, not a fix.
+- [x] 1.9 [physics-engineer] The map's wind (design 9; D-059, D-060; VISION §2.3): the player's flights carry the map's own obstacles, `WindSetup.ForMap(map, level)`; verify the "behind a house and inside the belt" and "along the belt" scenarios, the same seed's bits, 0 B, the precompute off the step, replay on the map
+  - **As built** (`Runtime/Wind/MapWind.cs`, `Runtime/World/MapWorldWind.cs` (the loader's two hooks), `WindSetup.{ForMap,Canopies}`, `WindField.Air`, `DetMath.Atan2`, `Tests/MapWindTests.cs`, `WindHarness.FlyMap`, `flightbench --wind-harness <level> --map <id> [--wrong nomap]` and `--bench`'s `map-step`, `replay --record --map <id>` in the map's wind; `LogFormat.Version` 14, `ModelVersion` 21, 20 being the range branch's hole fix):
+    - **The obstacles** (the test range, 914 placed wind volumes): the 175 off the belt as placed (houses, cars, fences, poles, the yard's fruit trees; 12 tilted volumes as their upright bounding boxes), and one porous box per belt section, on the map's 256 × 256 cells of 2 m. The belt's 739 volumes never enter the wake grid.
+    - **The belt** (`posadka`, derived): two sections either side of the field track at x −20:
+      - west: 282 volumes, 119.6 × 17.32 m about (−83.5, −0.3), axis 89.988°, h 10.50 m (tallest 13.50), λ 1.681, optical porosity across 0.063, α 0.330
+      - east: 457 volumes, 177.8 × 17.86 m about (73.2, −0.2), h 10.38 m, λ 1.628, optical 0.061, α 0.326
+      - Raupach then gives d/h 0.80, β 0.30 (its plateau), α_canopy 1.90; in seed 11's Severe draw (7.83 m/s) u* 0.869 m/s and U(h) 2.90 m/s. α above 0.3: no standing bubble, as a living multi-row belt (1.5's rule).
+    - **Behind H01_D** (Severe, seed 90, wind from 18°, 8.04 m/s; the house's own volumes: H 5.07 m, W 12.24 m, L 9.94 m, path porosity 0.065; 165 points × 300 times):
+      - Perera's far wake at 5–15 H, 0.3–0.55 H: u/U 0.630 against 0.636 (bias −0.007, rms 0.020), with the footprint as the 2 m grid holds it (half a cell wider each side) and the lateral spread
+      - Fackrell's cavity: reverse flow down to −0.225 at 0.25 H, forward again at 1.25 X_R (X_R 2.25 H; the band 0.8–1.35 holds the half cell and the cavity's top meeting 0.25 H at 0.97 X_R)
+      - the bluff body's boost (WakeGrid's, assumed: 2× at 4 H): (T − 1) 0.91 of it at 2–8 H, peak T 2.64. Perera and Fackrell give no turbulence; the boost is 1.3's labelled function.
+      - Known-wrong (no map obstacles): u/U 1.000 (bias +0.364), no reverse flow, T 1.00: fails each.
+    - **The belt's lee** (Severe, seed 100, wind from 192°, the west section): Perera at α 0.330, 5–15 H: bias −0.019; lowest u/U at 2–15 H 0.292 (porous, no reverse flow); mean T 5–15 H 1.90 (the shelterbelt literature's 2×). Known-wrong: bias +0.375, T 1.00.
+    - **Inside the belt** (Severe, seed 11, plan weight ≥ 0.9, mean 0.936; 5830 points a height × 40 snapshots 10 s apart): σ/u* at h 2.08 / 1.53 / 1.04 (the canopy's 2.0 / 1.6 / 1.1); U(z)/U(h) at 0.25 / 0.5 / 0.75 h 0.246 / 0.382 / 0.596 against the exponential's 0.241 / 0.388 / 0.623; U(h) 3.09 m/s against u*/β 2.90 (the 6 % open share). Known-wrong: σ/u* 1.22 / 1.22 / 0.72 and the log law's 0.752 / 0.878 / 0.950.
+    - **Along the belt** (`--wind-harness severe --seeds 10 --pilots nominal --map test-range`, then `grade_levels.py`'s readings): K§8.5's nominal pilot along the belt's centre line over its crowns (1.35–1.6 h, 14.3–16.7 m, assumed: the posadka's rows leave no room to fly in its canopy as P did), east or west with the wind from the left, 9 s of field before it and 22 s after; the belt is 42 % of the measured frames.
+      - the map's wind: T5 belt 1.50° (0.8–2.5) against field 0.69°, ×2.17; T3/T1 2.01 (≥ 1.8), T4/T2 1.72 (≥ 1.2), T11a 2.09 (≥ 1.8); T7: 94 of 101 roll events over the belt, 93 % (≥ 70 %), 31.5 a minute there against 1.7 over the field
+      - known-wrong (`--wrong nomap`): T5 belt 0.62° (fails), ×1.06; T3/T1 0.97, T4/T2 0.98, T11a 1.00; T7 44 % of the events over the belt, its share of the time: fails each
+      - Not graded here: T7's pooled rate (33.6 a minute, over 7–24 because the belt is 42 % of the run, P's 18 %), T5 field 0.69° (over 0.22–0.66: 1.5's yaw over-response), T10b belt 0.28 against field 0.29 (the same finding).
+    - **Determinism and cost:** the same seed's map field bit for bit at seven points over 6000 steps, another seed different in 99 %; 0 B on the step; the map's wind pinned `0x9E8D9108B60D91B8` (4000 steps at 7 points) for the EditMode run on Mono; the setup's ForMap 4.9 ms and the field's first two grids 232 ms on the caller's thread, then the worker. `flightbench --bench`'s `map-step` (AC, Balanced plan, best power efficiency mode, 3201 MHz; other agents on the host): Severe wind in Severe rain with the whole airframe, held 0.75 h up 2 m inside the west section's edge, where a point takes both shares, the bearing moving 10.7° in 60 s: 58 000 steps p50 54.5 µs, p99 152.8 µs (posadka-step in the same run 45.6 / 106.1), the worker rebuilding 9 times (86 ms each), 0 stalls, 0 B.
+    - **Goldens:** none moved, so none re-recorded: no golden flies strips with wakes, and a flight with either alone steps as in 19 (free body, powered, contact, range, rain, tumble and the audits all match at model 21). The range golden flies `WindSetup.Of` over S04, where the field blows nothing until the hole fix (model 20); once both are in, it should fly the map's wind, re-recorded then.
+    - **Verified:** `dotnet test tools/simtests` 349 of 349 (MapWindTests 7, DetMath's atan2 within 4.4e-16 of the runtime's); `flightbench --golden`, `--scenarios`, `--wind-harness severe|windy|calm` and `--bench` PASS; `worldbench --golden` and `--wakes` PASS; `replay --record --map test-range --wind severe` (the map's wind from the track start, header 44 530 B) landed at 0.487 m/s with no crash, and replayed 120 000 steps and 325 events bit for bit.
+    - **For the app** (game-developer, next): in `SessionSetup.Build`, `Wind = world.Query is MapWorld map ? WindSetup.ForMap(map, c.Wind) : WindSetup.Of(c.Wind)`, and the flight's end disposes `core.Wind` (the wake grid's worker thread and its two grids, about 17 MB).
+    - **On the range branch** (`unity/physics/wind-integration`, off `p6-flight-core--range` at `56e8bff4`, the turbulence build's line): `p7c-wind--d060` merged at `029aedf` as model 21 (its 19; the range's 19 and 20 came first), then this branch at `069fd3c` as model 22 (its 21); `LogFormat.Version` 14.
+      - **Conflicts:** `LogFormat`'s model (every parent's history entry kept); `WindHarness.Fly`, this branch's split into `Fly` and `FlyMap` with D-060's stick noise in both (`Run.Remnant`, `FlyMap(…, remnant)`); `flightbench --wind-harness`, `--first-seed` and `--wrong noiseless` with `--map` and `--wrong nomap` (the map runs fly from the first seed and log `remnant`). `WindField.Begin` keeps the range's hole rule (`FlightWorld.SoilUnder`, called by `FlightCore.BeginWind`); `DetMath` holds one `Atan2` (this branch's) beside `Log` and `Exp`.
+      - **Goldens**, each audited against both parents with the other side's change switched off (temporary switches, reverted):
+        - Model 21: the stub's goldens are D-060's pins. The range golden moves to `0x10A035F9F29042CC` (5 impacts, no crash, 19.10 mm into the straw on 18 pairs). With z0 0.03 m, σ_u/U 0.135 and the 1 m cut every golden is the range branch's model 20; with 19's rule over a hole the range flight is model 19's `0xE4B13EDD65CFF0B2`.
+        - Model 22: the map's wind pin moves to `0x0EF8A67AC398C411` (with D-060 off, this branch's `0x9E8D9108B60D91B8`). The range golden now flies the player's `WindSetup.ForMap` in Calm, `0x80C73DBA130C6903` (4 impacts, no crash, 19.09 mm on 18 pairs, the same bits flown twice with the worker); in `WindSetup.Of(Calm)` it is model 21's pin.
+      - **Behind H01_D** (`BehindH01DTheWakeIsFackrellsAndPererasAtSevere`): the cavity's reattachment is read from the mean flow (the same fields at σ 0). With D-060 the 30 s turbulent reading put it at 1.45 X_R, out of 0.8–1.35 (1.25 before D-060); the mean flow reads 1.07 X_R with and without D-060. At 0.25 H the wake eddies carry √(T² − 1)·σ_u, and σ_u over the local mean is 0.40 over class 4's z0 (0.27 over the stubble's).
+      - **The grade** (Severe, seeds 1–10, every family): 11 of 21 targets pass, and every CSV of the five families is byte for byte `p7c-wind--d060`'s set: the harness's floor has no hole, and one strip without wakes steps as before.
+      - **Along the belt** (`--map test-range`, 10 seeds, nominal, now with the stick noise and the split per stretch): T5 belt 0.98° against the field's 0.38° (×2.57), T3/T1 1.22, T4/T2 1.34, T11a 1.49, T7 64 % of the roll events over the belt. This branch read 1.50° / 0.69°, 2.01, 1.72, 2.09 and 93 % before D-060. `--wrong nomap` fails each. Not yet split by D-060 item.
+      - **Not kept, a tunnel** (`p6-flight-core` 1.6b's record): `InTheWindNoTunnelThroughARigidShape("wire", 5.52, Severe)` logs one, the suite's only failure.
+      - **Verified:** `dotnet test tools/simtests` 367 of 368; `flightbench --golden`, `--scenarios`, `--contacts`, `--shake`, `--probe` and `--wind-harness calm|windy|severe` PASS; `worldbench --golden` PASS; `replay --record --map test-range --wind severe` (the map's own wind) 120 000 steps and 335 events bit for bit, landing at 0.491 m/s, no crash; on the floor in Severe 295 events, with `--wakes` 307, bit for bit; `python -m pytest tools/wind tools/flightbench`, the OPSEC scan and `openspec validate --strict` pass. `flightbench --bench` on AC ("AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz"; other agents on the host): 16 PASS, 0 B; powered p99 137.8 µs, posadka-step p50 48.0 / p99 121.5 µs, map-step p50 50.6 / p99 137.6 µs (9 rebuilds, 0 stalls), canopy-step inside p99 80.7 µs, S04's straw p99 182.3 µs.
 
 ## 2. Review
 

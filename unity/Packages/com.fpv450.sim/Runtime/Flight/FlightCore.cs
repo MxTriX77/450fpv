@@ -138,6 +138,8 @@ namespace Fpv450.Sim.Flight
         readonly Double3[] _hubWind = new Double3[4];
         readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
         readonly Sim.World.GroundSample[] _windGround = new Sim.World.GroundSample[1];
+        readonly Sim.World.Ray[] _soilRay = new Sim.World.Ray[1]; // FlightWorld.SoilUnder's buffers
+        readonly Sim.World.RayHit[] _soilHit = new Sim.World.RayHit[1];
         readonly RotorSurfaces _surfaces; // the rotors' surfaces (GroundEffectSpec), or null
         readonly AirframeModes _modes; // the airframe's modes (AirframeModesSpec), or null
         readonly VibrationBands _vibration; // the camera mount's vibration, with the modes
@@ -349,7 +351,9 @@ namespace Fpv450.Sim.Flight
             {
                 _windAt[0] = new Sim.World.XZ(s.Position.X, s.Position.Z);
                 World.SampleGround(_windAt, _windGround);
-                ground = _windGround[0].Height;
+                ground = (_windGround[0].Flags & Sim.World.GroundFlags.Hole) != 0
+                    ? World.SoilUnder(s.Position, _soilRay, _soilHit, out _) // model 20: the wind over a hole
+                    : _windGround[0].Height;
             }
             _wind.Begin(s.Step, s.Position, ground);
             _trace.Wind = _wind.At(s.Position);
