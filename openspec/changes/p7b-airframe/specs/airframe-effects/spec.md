@@ -13,6 +13,13 @@ Each flight SHALL draw each motor's Kv spread, ESC timing jitter and prop imbala
 - **WHEN** the drone hovers on flat ground in still air for 30 s on five seeds, with asymmetry on and then off
 - **THEN** with it on, the correction rate needed lies inside the computed band on every seed and never buzzes or diverges; with it off, the drift is at least halved
 
+### Requirement: The build's placement within its tolerances
+Each flight SHALL draw where the pilot's hands set the bottle, each pack, the coil and the main leads, once, from the named seeded stream "build.placement", each within its labelled bound and logged (PHY-24, D-066), never as noise on the pose, so the centre of mass sits off the exact build's by what those bounds allow.
+
+#### Scenario: Off centre, the coil tips at once
+- **WHEN** the drone, legs off, rests disarmed on its coil on the floor, the exact build started level and from 0.1° of roll, and the placed build started level on twenty seeds
+- **THEN** the exact build balances from level; every placed build tips onto a pack with nothing to start it, most of them sooner than the exact build from 0.1°; its centre of mass across stays inside the bounds' sum, and the flight carries its placement in the log and replays bit for bit
+
 ### Requirement: Ground effect, ceiling effect and recirculation per rotor
 Each rotor SHALL gain thrust near the ground by Cheeseman–Bennett from its own ray and the ground's relief and mat top, none over a hole, and under a roof by a published ceiling-effect model from its upward ray, and a close hover SHALL never be still, its variation the re-ingested wash's from a named, logged stream and never on the pose.
 
