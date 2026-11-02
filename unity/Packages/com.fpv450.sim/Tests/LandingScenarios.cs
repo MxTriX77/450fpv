@@ -201,6 +201,15 @@ namespace Fpv450.Sim.Tests
             return c;
         };
 
+        /// <summary>A caught skid on dead legs: the ground's pair at μ 10 and each leg's damper at ζ √2 on a quarter of the
+        /// mass (overdamped, so a leg returns none of the touch), the rigid-body mechanics' own plastic catch.</summary>
+        public static Func<ContactSpec, ContactSpec> DeadLegsCaught(double mass) => c =>
+        {
+            c = GroundFriction(10)(c);
+            c.LegDamping = 2 * Math.Sqrt(2) * Math.Sqrt(c.LegStiffness * mass / 4);
+            return c;
+        };
+
         /// <summary>Every body shape's damping ratio set to zeta (the overdamped known-wrong at 2).</summary>
         public static Func<ContactSpec, ContactSpec> BodyDamping(double zeta) => c =>
         {
