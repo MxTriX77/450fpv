@@ -264,6 +264,31 @@ namespace Fpv450.FlightBench
                 Row(from == 0 ? "a head gust step pitches harder with flapping" : "a side gust step rolls harder with flapping", harder,
                     FlappingScenario.Describe(from, on, off));
             }
+            // p7b-airframe 1.3d: the rotors in each other's wake.
+            Console.WriteLine("the rotors in each other's wake (p7b-airframe 1.3d, D-060):");
+            double slopeError = 0;
+            foreach (double deg in new[] { 30.0, 60.0, 75.0 })
+            {
+                double u = System.Math.Tan(deg * System.Math.PI / 360);
+                double slope = (RotorWakeSpec.PointFactor(u, 0.02, 0) - RotorWakeSpec.PointFactor(u, -0.02, 0)) / 0.04;
+                slopeError = System.Math.Max(slopeError, System.Math.Abs(slope / u - 1));
+            }
+            Row("the wake gives Coleman's tan(chi/2) gradient over the disc at chi 30, 60, 75", slopeError < 2e-3, $"worst relative error {slopeError:E2}");
+            double wakeOutside = RotorWakeSpec.PointFactor(1e-9, 2.5, 0.3);
+            Row("an unskewed wake induces nothing in the plane outside the disc", System.Math.Abs(wakeOutside) < 2e-3, $"{wakeOutside:E2} v_i one spacing behind");
+            foreach ((double pitch, double speed) in RotorWakeScenario.Forward)
+            {
+                RotorWakeScenario.Result on = RotorWakeScenario.Cruise(spec, pitch, speed), off = RotorWakeScenario.Cruise(spec, pitch, speed, wake: false);
+                Row($"the rear rotors lose {100 * RotorWakeScenario.LeastLoss:F0}-{100 * RotorWakeScenario.MostLoss:F0} % under the front at {speed:F0} m/s",
+                    on.RearUnderFront >= RotorWakeScenario.LeastLoss && on.RearUnderFront <= RotorWakeScenario.MostLoss, RotorWakeScenario.Describe(on));
+                Row("known-wrong: no interaction", off.RearUnderFront >= RotorWakeScenario.LeastLoss && off.RearUnderFront <= RotorWakeScenario.MostLoss,
+                    RotorWakeScenario.Describe(off), knownWrong: true);
+            }
+            RotorWakeScenario.Result wakeHover = RotorWakeScenario.Hover(spec), wakeSlow = RotorWakeScenario.Cruise(spec, RotorWakeScenario.SlowPitch, RotorWakeScenario.SlowSpeed);
+            double wakeAdded = System.Math.Max(System.Math.Abs(wakeHover.Inflow[0]), System.Math.Max(System.Math.Abs(wakeHover.Inflow[1]), System.Math.Max(System.Math.Abs(wakeHover.Inflow[2]), System.Math.Abs(wakeHover.Inflow[3]))));
+            Row("a hover in still air takes no wake", wakeAdded < 1e-3, $"largest added inflow {wakeAdded:E2} m/s");
+            Row($"slow flight takes little: under 2 % at {RotorWakeScenario.SlowSpeed:F0} m/s", System.Math.Abs(wakeSlow.RearUnderFront) < 0.02, RotorWakeScenario.Describe(wakeSlow));
+
             // p7b-airframe 1.4: the throttle-punch shake, its causes and the airframe's modes (D-049's scenarios).
             Console.WriteLine("the throttle-punch shake (p7b-airframe 1.4, D-049, D-051; its 40-seed distribution: --shake):");
             var modes = new FlightCore(ShakeScenario.Setup(spec, 1, 1)).Modes;
