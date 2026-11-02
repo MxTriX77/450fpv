@@ -202,7 +202,17 @@ namespace Fpv450.Sim.Tests
         // the rotors' first turn; the motors' spreads alone move it from the same step), and keeps its course: armed, no crash,
         // 149.00 m up against 147.90 at 10 s, 1.16 m from model 19's end and within 1.9° of its attitude (the motors' spreads
         // alone: 0.83 m, 0.24°).
-        public const ulong PoweredHash = 0x2C064B70711ED0EDUL;
+        // Model 24 (the physics integration): re-recorded on the 1904-byte record (model 19's 1808 bytes, the interference's 64,
+        // the own wake's 32) with both in its setup. Audited against each parent with the other switched off: without the
+        // interference, over the micro branch's 1840 bytes, it is that branch's 0x5073BC74B404B3AA bit for bit, record and events
+        // (the kept test, WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs); without D-064's sources (no own wake, the
+        // motors' spreads at 0, the wash on model 19's numbers and its torque at the freestream's inflow) and with the
+        // interference's stream back at wake.rotor (temporary switches, reverted), over the first 1872 bytes, the rotor-wake
+        // branch's 0x2C064B70711ED0ED; without either, model 19's (the kept test). Against the micro branch's flight it moves
+        // from step 25, against the rotor-wake branch's from step 21, the first armed step; it keeps its course: armed, no
+        // crash, 157.26 m up against 149.00 and 156.18, 8.26 m and 1.17 m from their ends, within 7.8° and 1.8°. The largest
+        // interference 7.04 m/s (6.8 on its branch); each rotor's own wake within 0.129 v_h.
+        public const ulong PoweredHash = 0x67788361104F58BBUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -219,7 +229,12 @@ namespace Fpv450.Sim.Tests
         // Model 19 on p7b-airframe--micro: D-064 (ModelVersion 23), 0x789866FBE53F0C70, audited as the powered flight (the kept
         // test): it moves from step 21 and keeps its course, 149.95 m up against 148.69, 1.82 m from model 19's end and within
         // 3.3°; the film holds 9.57 g at 10 s against 9.60.
-        public const ulong RainPoweredHash = 0x113E39E1C2C3C447UL;
+        // Model 24: re-recorded with both, audited as the powered flight (the micro branch's 0x789866FBE53F0C70 without the
+        // interference, the kept test; the rotor-wake branch's 0x113E39E1C2C3C447 without D-064 under the temporary switches;
+        // model 19's without either). It moves from step 22 against the first and step 21 against the second and keeps its
+        // course: 158.09 m up against 149.95 and 157.38, 8.16 m and 0.95 m from their ends, within 7.3° and 1.9°; the film holds
+        // 9.11 g at 10 s (9.57 and 9.06).
+        public const ulong RainPoweredHash = 0x4D876EF3F328F9ADUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
@@ -335,7 +350,13 @@ namespace Fpv450.Sim.Tests
         // first 1808 bytes, every record and event is model 19's. Against that same flight on the new wash (D-064's sources off)
         // it moves from step 9, the first armed step, and keeps its course: 5 impacts, no crash, at rest at the same 0.2518 m,
         // 44 mm aside, the heading 0.15° apart.
-        public const ulong ContactHash = 0x67D93616B88664A4UL;
+        // Model 24: re-recorded with both, audited as the powered flight: without the interference the micro branch's
+        // 0xFF836F92A12B4AB0 (the kept test); without D-064's sources under the temporary switches the rotor-wake branch's
+        // 0x67D93616B88664A4, and with neither model 19's 0x8C1E6B066F143A67 (and, on main's drag in still air over main's
+        // layout, model 15's 0x557DEBE410FAEEA1). It moves from step 10 against the first and step 9, the first armed step,
+        // against the second, and keeps its course: 5 impacts, no crash, at rest at the same 0.2518 m on 8 pairs, 3.3 mm and
+        // 25 mm from their resting places, within 0.16° and 1.5° (the held bounce); the largest interference 0.125 m/s.
+        public const ulong ContactHash = 0xA93D2534E875790FUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -363,7 +384,10 @@ namespace Fpv450.Sim.Tests
         // propulsion); over model 19's 1808 bytes it is model 19's pin (the kept test), and models 13's to 15's on their files.
         // On p7b-airframe--micro, D-064 (ModelVersion 23): the record's 32 wake bytes, zero (no rotors), 0xDB5DEEA6285B6184; over
         // model 19's 1808 bytes it is model 19's (the kept test).
-        public const ulong TumbleHash = 0xC06853AF2DFF1B84UL;
+        // Model 24: the 1904-byte record, the interference's and the own wake's bytes zero (no propulsion): over the first 1872
+        // bytes the rotor-wake branch's pin, over the micro branch's 1840 its pin (the kept test), over 1808 model 19's (the kept
+        // test).
+        public const ulong TumbleHash = 0x6712A54D0FDA7F84UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -402,7 +426,16 @@ namespace Fpv450.Sim.Tests
         // impacts, no crash, at rest 19.09 mm into the straw on 18 pairs. Audited: in WindSetup.Of(Calm), the open field
         // the golden flew before, it is model 21's pin bit for bit (a check before the switch), and in still air model 16's
         // (the kept test); flown twice, the same bits with the wake grid's worker.
-        public const ulong RangeHash = 0x80C73DBA130C6903UL;
+        // Model 22: 0x80C73DBA130C6903. The physics integration (ModelVersion 24): re-recorded in the map's own Calm wind
+        // (WindSetup.ForMap, kept) on the same content with the interference and D-064 in its setup: 3 impacts (4), no crash,
+        // at rest on 19 pairs (18), 0.6 mm deeper in the straw. Audited (temporary switches, reverted): with the interference
+        // alone (D-064's sources off, the wash on model 19's numbers, the stream at wake.rotor) it is the rotor-wake merge's
+        // 0x818AFC9F9B03EFA3, with neither model 22's pin bit for bit, and on main's drag in still air over the range branch's
+        // 1656 bytes model 16's 0xDC85BA160EB0415C (a kept test until model 22: D-064's wash has no switch). Without the
+        // interference it is 0x64DBB622DE602158 (no parent flew D-064 on the range). It moves from step 10 against that flight
+        // and from step 9 against model 22's, and keeps its course: within 1.0 mm and 0.10° of the first, 34 mm and 3.3° of
+        // the second (step 8624, the held bounce over the straw).
+        public const ulong RangeHash = 0xAF27BC78A59ECD98UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
