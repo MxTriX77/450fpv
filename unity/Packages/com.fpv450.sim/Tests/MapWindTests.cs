@@ -242,11 +242,20 @@ namespace Fpv450.Sim.Tests
                 boostExpected.Add(1 + 2.0 * Spread(cm, c0, c1, X * H) * r * r * Math.Exp(2 * (1 - r)));
             }
 
+            // The cavity's reattachment is read from the mean flow: the same fields without turbulence (σ 0, so no open modes
+            // and no wake eddies, both zero-mean). At 0.25 H the wake eddies carry √(T² − 1)·σ_u, and σ_u over the local
+            // mean is 0.40 there over class 4's z0 (D-060; 0.27 over the stubble's): 30 s of samples read them into the
+            // band's mean, which put the crossing at 1.25 X_R before D-060 and 1.45 after it, against the mean flow's 1.07
+            // in both (the merge's check, p7c-wind--map-wakes onto d-060).
+            WindPreset still = WindPreset.Of(WindLevel.Severe);
+            still.Intensity = 0;
+            using var quiet = new WindField(WindSetup.ForMap(map, WindLevel.Severe), new FlightRandom(seed), still);
+            var quietOpen = new WindField(WindSetup.Of(WindLevel.Severe), new FlightRandom(seed), still);
             foreach (bool wrong in new[] { false, true })
             {
                 WindField w = wrong ? new WindField(WindSetup.Of(WindLevel.Severe), new FlightRandom(seed)) : field;
                 Measure(w, open, far, out double[] u, out _);
-                Measure(w, open, cavity, out double[] uc, out _);
+                Measure(wrong ? new WindField(WindSetup.Of(WindLevel.Severe), new FlightRandom(seed), still) : quiet, quietOpen, cavity, out double[] uc, out _);
                 Measure(w, open, boost, out _, out double[] t);
                 double bias = 0, rms = 0;
                 for (int i = 0; i < u.Length; i++)
@@ -280,7 +289,7 @@ namespace Fpv450.Sim.Tests
                 TestContext.Out.WriteLine($"{(wrong ? "known-wrong, no map obstacles" : "the map's wind")}, seed {seed}, U {field.MeanSpeed:F2} m/s from {from:F1}°: "
                     + $"H01_D H {H:F2} m (grid {gridH:F2}), W {W:F2} m, L {L:F2} m, β {beta:F4}; Fackrell's X_R {xr:F2} H");
                 TestContext.Out.WriteLine($"  far wake 5–15 H: u/U {meanFar:F3} against Perera's {meanExpected:F3} (bias {bias:+0.000;-0.000}, rms {rms:F3}, {u.Length} points × 300 times)");
-                TestContext.Out.WriteLine($"  cavity at 0.25 H: deepest {deepest:F3}, forward again at {reattach:F2} X_R");
+                TestContext.Out.WriteLine($"  cavity at 0.25 H, the mean flow: deepest {deepest:F3}, forward again at {reattach:F2} X_R");
                 TestContext.Out.WriteLine($"  turbulence 2–8 H at 0.5 H: (T − 1) over the boost's {ratio:F3}, peak T {peak:F2}");
                 if (!wrong)
                 {
