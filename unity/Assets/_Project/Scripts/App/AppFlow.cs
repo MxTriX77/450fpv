@@ -586,7 +586,8 @@ namespace Fpv450.App
                 Check(_flight.Pose.Armed, "armed for the flight into the house");
                 yield return IntoTheHouse();
                 FlightSession session = host.Session;
-                double rest = _flight.RestPose.Position.Y, hit = _flight.Pose.Position.Y - rest;
+                PoseFrame atCrash = _flight.Pose;
+                double rest = _flight.RestPose.Position.Y, hit = atCrash.Position.Y - rest;
                 long crashStep = session.Poses.LatestStep;
                 Check(Crashed(session) && session.State == SessionState.Flying && _flight.Summary == null,
                       "the flight into the house crashes at " + hit.ToString("0.0") + " m and flies on, no summary: " + session.State);
@@ -595,10 +596,15 @@ namespace Fpv450.App
                 yield return Hold(KeyboardKeys.None, 1.0f);
                 PoseFrame lying = _flight.Pose;
                 long stepped = session.Poses.LatestStep - crashStep;
-                Check(session.State == SessionState.Flying && _flight.Summary == null && stepped > 2000 && hit - (lying.Position.Y - rest) > 0.5 &&
+                // Under physics: it moved off the crash pose, wherever it lands (the ground below the wall, or the eave and
+                // the roof, where the airframe's effects and the throttle's ramp down can carry it). It need not rest:
+                // armed at zero throttle, airmode works the motors against what it lies on, as Betaflight's does.
+                Quat a = atCrash.Attitude, b = lying.Attitude;
+                double moved = (lying.Position - atCrash.Position).Length(), turned = 2 * Math.Acos(Math.Min(1, Math.Abs(a.W * b.W + a.X * b.X + a.Y * b.Y + a.Z * b.Z))) * 180 / Math.PI;
+                Check(session.State == SessionState.Flying && _flight.Summary == null && stepped > 2000 && (moved > 0.1 || turned > 30) &&
                       _flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal),
-                      "after the crash the drone stays under physics, nothing over the picture: it fell from " + hit.ToString("0.0") + " to " +
-                      (lying.Position.Y - rest).ToString("0.0") + " m, " + lying.Velocity.Length().ToString("0.0") + " m/s, " + stepped + " steps on; " + Osd());
+                      "after the crash the drone stays under physics, nothing over the picture: from " + hit.ToString("0.0") + " m it moved " + moved.ToString("0.00") + " m and turned " +
+                      turned.ToString("0") + "°, now at " + (lying.Position.Y - rest).ToString("0.0") + " m, " + lying.Velocity.Length().ToString("0.0") + " m/s, " + stepped + " steps on; " + Osd());
                 yield return Shot("crash_lying_fpv");
                 yield return PressV("after the crash");
                 yield return Shot("crash_chase");
