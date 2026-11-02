@@ -104,7 +104,7 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "Flapping", "Modes",
+            "Flapping", "RotorWake", "Modes",
         };
 
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
@@ -126,6 +126,13 @@ namespace Fpv450.Sim.Log
         {
             "LiftSlope", "ZeroLiftAngle", "BendingFrequency", "Southwell", "SkewGain", "Radius", "Blades", "BladeInertia",
             "Stations", "Chords", "Angles", "AirDensity",
+        };
+
+        /// <summary>The wake's fields the header records, checked against RotorWakeSpec by the suite.</summary>
+        public static readonly string[] RotorWakeFieldsLogged =
+        {
+            "Radius", "AirDensity", "Stations", "Chords", "SkewStep", "SkewNodes", "OffsetStep", "TransportOnset", "TransportWhole",
+            "FluctuationSigma", "FluctuationBound", "FluctuationScale",
         };
 
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
@@ -171,7 +178,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21;
+            TagModes = 20, TagRain = 21, TagRotorWake = 22;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -225,6 +232,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The rotors' flapping; null for none.</summary>
         public RotorFlappingSpec Flapping;
+
+        /// <summary>The rotors in each other's wake; null for none (its fluctuation's stream is in the randomness entry).</summary>
+        public RotorWakeSpec RotorWake;
 
         /// <summary>The airframe's modes; null for a rigid airframe.</summary>
         public AirframeModesSpec Modes;
@@ -300,6 +310,7 @@ namespace Fpv450.Sim.Log
                 VortexRing = setup.VortexRing?.Clone(),
                 GroundEffect = setup.GroundEffect?.Clone(),
                 Flapping = setup.Flapping?.Clone(),
+                RotorWake = setup.RotorWake?.Clone(),
                 Modes = setup.Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
@@ -398,6 +409,7 @@ namespace Fpv450.Sim.Log
                 VortexRing = VortexRing?.Clone(),
                 GroundEffect = GroundEffect?.Clone(),
                 Flapping = Flapping?.Clone(),
+                RotorWake = RotorWake?.Clone(),
                 Modes = Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
@@ -761,6 +773,25 @@ namespace Fpv450.Sim.Log
                 e.Write(m.PayloadPart);
                 e.Write(m.CoilPart);
             });
+            Entry(w, TagRotorWake, e =>
+            {
+                e.Write(RotorWake != null);
+                if (RotorWake == null) return;
+                RotorWakeSpec k = RotorWake;
+                foreach (double x in new[]
+                         {
+                             k.Radius, k.AirDensity, k.SkewStep, k.OffsetStep, k.TransportOnset, k.TransportWhole, k.FluctuationSigma,
+                             k.FluctuationBound, k.FluctuationScale,
+                         })
+                    e.Write(x);
+                e.Write(k.SkewNodes);
+                e.Write((ushort)k.Stations.Length);
+                for (int i = 0; i < k.Stations.Length; i++)
+                {
+                    e.Write(k.Stations[i]);
+                    e.Write(k.Chords[i]);
+                }
+            });
             Entry(w, TagRuntimeObjects, e =>
             {
                 e.Write((ushort)RuntimeObjects.Length);
@@ -1074,6 +1105,27 @@ namespace Fpv450.Sim.Log
                             Flapping.Stations[i] = r.ReadDouble();
                             Flapping.Chords[i] = r.ReadDouble();
                             Flapping.Angles[i] = r.ReadDouble();
+                        }
+                        break;
+                    case TagRotorWake:
+                        if (!r.ReadBoolean())
+                        {
+                            RotorWake = null;
+                            break;
+                        }
+                        RotorWake = new RotorWakeSpec
+                        {
+                            Radius = r.ReadDouble(), AirDensity = r.ReadDouble(), SkewStep = r.ReadDouble(), OffsetStep = r.ReadDouble(),
+                            TransportOnset = r.ReadDouble(), TransportWhole = r.ReadDouble(), FluctuationSigma = r.ReadDouble(), FluctuationBound = r.ReadDouble(), FluctuationScale = r.ReadDouble(),
+                            SkewNodes = r.ReadInt32(),
+                        };
+                        int wakeStations = r.ReadUInt16();
+                        RotorWake.Stations = new double[wakeStations];
+                        RotorWake.Chords = new double[wakeStations];
+                        for (int i = 0; i < wakeStations; i++)
+                        {
+                            RotorWake.Stations[i] = r.ReadDouble();
+                            RotorWake.Chords[i] = r.ReadDouble();
                         }
                         break;
                     case TagModes:

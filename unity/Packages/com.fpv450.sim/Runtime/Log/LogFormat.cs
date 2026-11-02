@@ -67,9 +67,10 @@ namespace Fpv450.Sim.Log
         /// 6–9 on p7c-wind's branch: 6 the wind field's header entry and the record's wind at the body's origin (where the
         /// stand-in's gust was) and at each hub (1.4), 7 the header's wake layout (1.5), 8 the header's rain and camera and
         /// the record's rain force, film and air at the camera (1.7), 9 the header's canopy strip and the presets by name
-        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's.
+        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's. 14: the rotors' wakes in the step record
+        /// (p7b-airframe 1.3d: each rotor's added inflow from the others' wakes and its fluctuation) and the header's wake entry.
         /// </summary>
-        public const int Version = 13;
+        public const int Version = 14;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -134,8 +135,12 @@ namespace Fpv450.Sim.Log
         ///    (138 open modes, 71 canopy modes; the 1 m cut had 128 and 64); a flight with z0 0.03 m, σ_u/U 0.135 and the 1 m
         ///    cut steps as in 18. p6-flight-core's range branch also takes 19 for its next model: whichever lands second
         ///    takes 20.
+        /// 20: taken by p6-flight-core's range branch (the wind over a hole), whose 19 is its merge with unity/main.
+        /// 21: p7b-airframe 1.3d on p7c-wind's D-060 branch (the rotors in each other's wake, RotorWakeSpec: Coleman's skewed
+        ///    vortex cylinder behind each rotor, its downwash on the rotors behind and its upwash beside and ahead, and its own
+        ///    fluctuation; a flight without the wake steps as in 19).
         /// </summary>
-        public const int ModelVersion = 19;
+        public const int ModelVersion = 21;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -148,14 +153,14 @@ namespace Fpv450.Sim.Log
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
-        /// airframe's modes (1.4).</summary>
-        public const int StepSize = 1808, EventSize = 72, EndSize = 48;
+        /// airframe's modes (1.4), then the rotors' wakes (1.3d).</summary>
+        public const int StepSize = 1872, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "WakeShare" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -169,7 +174,7 @@ namespace Fpv450.Sim.Log
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
-                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance",
+                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "WakeInflow",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -294,6 +299,9 @@ namespace Fpv450.Sim.Log
             // The airframe's modes (p7b-airframe 1.4), lowest first; 0 past the body's count.
             for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_shape" + m, "m kg^0.5, mass-normalised", LogFieldType.F64);
             for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_rate" + m, "m kg^0.5/s", LogFieldType.F64);
+            // The rotors in each other's wake (p7b-airframe 1.3d).
+            b.Corners("wake_inflow", "m/s, the other rotors' wakes' added inflow through the disc, + down; 0 without the wake");
+            b.Corners("wake_share", "the wakes' fluctuation, a share of that inflow");
             return b.Done(StepSize);
         }
 
@@ -428,6 +436,8 @@ namespace Fpv450.Sim.Log
             w.C4(s.WashInflow);
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeShape[m]);
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeRate[m]);
+            w.C4(t.WakeInflow);
+            w.C4(s.WakeShare);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -534,6 +544,8 @@ namespace Fpv450.Sim.Log
             s.WashInflow = r.C4();
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeShape[m] = r.F64();
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeRate[m] = r.F64();
+            t.WakeInflow = r.C4();
+            s.WakeShare = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
