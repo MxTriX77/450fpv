@@ -28,6 +28,17 @@ Each rotor SHALL gain thrust near the ground by Cheeseman–Bennett from its own
 - **WHEN** the drone without asymmetry hovers on its legs in still air with its skids about 0.1 m up, with the recirculation and with a known-wrong model without it, and the same hover 3 m up
 - **THEN** every half second of the close hover moves the body above a rate floor, while the known-wrong model's and the high hover's stay below a tenth of it
 
+### Requirement: The drone is never perfectly still
+Each rotor SHALL carry its own wake's thrust and torque unsteadiness at a published level, rising near the ground as its wash re-ingests by published numbers, and each motor's winding resistance, friction and rotor inertia SHALL be drawn per flight within published or labelled tolerances (D-064); each SHALL be a bounded perturbation of a named physical parameter from a named seeded stream, logged, never noise on the pose, and the camera's micro-motion SHALL be graded against the pilot's footage with a perfectly steady rotor as the known-wrong.
+
+#### Scenario: The own wake is the published unsteadiness
+- **WHEN** one rotor is held at a hover speed in still air with its wake, and again as a known-wrong perfectly steady rotor
+- **THEN** its thrust's spread is the published share within 10 % and its correlation time the published corner's within 15 %, and the steady rotor's thrust does not move
+
+#### Scenario: Near the ground the hover is never still
+- **WHEN** the drone, flown by K§8.5's pilot with its stick noise, hovers with its camera 1.25 m and 0.3 m over the floor in still air on three seeds, with the sources on and as the known-wrong steady rotor
+- **THEN** at 1.25 m the camera's roll and pitch rate spread exceed 2 °/s and their 4–15 Hz motion the footage's lowest 0.006°, while the steady rotor's stay below 0.1 °/s and 0.001°, and at 0.3 m the 1–4 Hz roll and pitch are at least 1.2× those at 1.25 m
+
 ### Requirement: Rotor edgewise-flow moments
 Each rotor in edgewise flow SHALL flap and make a hub moment from blade-element theory on the props' sheet with labelled constants: the dissymmetry of lift's rolling moment and the back flapping's tilt away from the airflow, the in-plane force staying the H-force alone so it is not counted twice.
 

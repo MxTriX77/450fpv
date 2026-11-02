@@ -555,6 +555,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(VortexRingSpec)), Is.EquivalentTo(LogHeader.VortexRingFieldsLogged));
             Assert.That(InstanceFields(typeof(GroundEffectSpec)), Is.EquivalentTo(LogHeader.GroundEffectFieldsLogged));
             Assert.That(InstanceFields(typeof(RotorFlappingSpec)), Is.EquivalentTo(LogHeader.FlappingFieldsLogged));
+            Assert.That(InstanceFields(typeof(RotorWakeSpec)), Is.EquivalentTo(LogHeader.RotorWakeFieldsLogged));
             Assert.That(InstanceFields(typeof(RotorInterferenceSpec)), Is.EquivalentTo(LogHeader.InterferenceFieldsLogged));
             Assert.That(InstanceFields(typeof(AirframeModesSpec)), Is.EquivalentTo(LogHeader.ModesFieldsLogged));
 
@@ -680,17 +681,18 @@ namespace Fpv450.Sim.Tests
         }
 
         // QA's p7b-airframe finding 5: the summary names every airframe effect, on or off, once each. Each flight records the
-        // powered golden's setup for 20 steps with one effect off (and one with all five off), and its summary says so.
+        // powered golden's setup for 20 steps with one effect off (and one with all of them off), and its summary says so.
         [TestCase("motor asymmetry", "motor asymmetry: off (identical rotors)")]
         [TestCase("vortex rings", "vortex rings: off")]
         [TestCase("ground effect", "ground effect: off")]
+        [TestCase("rotor wake", "rotor wake: off (KNOWN-WRONG for a pilot's flight: a perfectly steady rotor)")]
         [TestCase("flapping", "flapping: off")]
         [TestCase("rotor interference", "rotor interference: off")]
         [TestCase("modes", "modes: off (a rigid airframe)")]
         [TestCase(null, null)]
         public void TheSummaryNamesEveryAirframeEffectOnOrOff(string offName, string offLine)
         {
-            string[] names = { "motor asymmetry", "vortex rings", "ground effect", "flapping", "rotor interference", "modes" };
+            string[] names = { "motor asymmetry", "vortex rings", "ground effect", "rotor wake", "flapping", "rotor interference", "modes" };
             DroneSpec spec = RepositoryDrone.Spec();
             foreach (bool allOff in offName == null ? new[] { false, true } : new[] { false })
             {
@@ -699,6 +701,7 @@ namespace Fpv450.Sim.Tests
                 if (Off("motor asymmetry")) setup.Asymmetry = null;
                 if (Off("vortex rings")) setup.VortexRing = null;
                 if (Off("ground effect")) setup.GroundEffect = null;
+                if (Off("rotor wake")) setup.RotorWake = null;
                 if (Off("flapping")) setup.Flapping = null;
                 if (Off("rotor interference")) setup.Interference = null;
                 if (Off("modes")) setup.Modes = null;

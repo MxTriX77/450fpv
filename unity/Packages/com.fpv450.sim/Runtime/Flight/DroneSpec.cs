@@ -314,6 +314,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The rotors' ground and ceiling effect and recirculation (GroundEffectSpec), in the aero block's air.</summary>
         public GroundEffectSpec BuildGroundEffect() => new GroundEffectSpec { AirDensity = Aero.AirDensity };
 
+        /// <summary>Each rotor's own wake unsteadiness at the published levels (RotorWakeSpec, D-064), in the aero block's air.</summary>
+        public RotorWakeSpec BuildRotorWake() => new RotorWakeSpec { AirDensity = Aero.AirDensity };
+
         /// <summary>The airframe's modes (AirframeModesSpec, p7b-airframe 1.4): each arm's tip mass from its corner's motor,
         /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), the payload's and the coil's parts, and the camera at the
         /// file's lens.</summary>

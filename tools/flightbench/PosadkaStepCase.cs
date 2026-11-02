@@ -39,6 +39,7 @@ namespace Fpv450.FlightBench
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
             setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();
@@ -61,6 +62,7 @@ namespace Fpv450.FlightBench
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
             setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();

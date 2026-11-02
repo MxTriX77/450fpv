@@ -315,7 +315,7 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);
             if (!interference) setup.Interference = null; // p7b-airframe 1.3d's known-wrong: no rotor-rotor interaction
-            if (level == WindLevel.Calm) setup.Asymmetry = null; // PHY-14, K§8.6: Calm is flown with the asymmetry off
+            if (level == WindLevel.Calm) { setup.Asymmetry = null; setup.RotorWake = null; } // PHY-14, K§8.6: Calm is flown with the airframe's floor off (its asymmetry and its rotors' own wakes, D-064)
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = along * ReleaseSpeed;
             // Yaw onto the course (about +Y, the heading grows), then the nose down (about body +x).
@@ -326,12 +326,14 @@ namespace Fpv450.Sim.Tests
         }
 
         // The whole airframe a pilot's flight has (p7b-airframe): the motors' asymmetry on the seed's draws, the vortex rings,
-        // the ground effect, the rotors' flapping, the rotors in each other's wake (1.3d) and the airframe's modes.
+        // the ground effect, the rotors' own wakes (D-064), the rotors' flapping, the rotors in each other's wake (1.3d) and the
+        // airframe's modes.
         static void Airframe(DroneSpec spec, FlightSetup setup)
         {
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
             setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();
@@ -489,7 +491,7 @@ namespace Fpv450.Sim.Tests
             wind.StartSecond = start;
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);
-            if (level == WindLevel.Calm) setup.Asymmetry = null;
+            if (level == WindLevel.Calm) { setup.Asymmetry = null; setup.RotorWake = null; } // as Setup's Calm
             setup.StartPosition = new Double3(east ? x0 - lead : x1 + lead, height, z);
             setup.StartVelocity = new Double3(east ? ReleaseSpeed : -ReleaseSpeed, 0, 0);
             DetMath.SinCos(courseDeg * DegToRad / 2, out double sy, out double cy);

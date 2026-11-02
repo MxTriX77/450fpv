@@ -70,14 +70,15 @@ namespace Fpv450.FlightBench
             // The merge's audit against unity/main (model 17): on drone.json with main's tuned rotor drag (0.25) in still air,
             // over main's 1656-byte layout (the record less p7c-wind's 152 bytes at 1296), each golden is main's model 15 flight
             // in still air, and the tumble main's pin. Main's kept audits of models 6–14 flew the stand-in's air, which is gone.
+            // D-064 (model 23): over the record's first 1808 bytes, without the rotor wakes and the motors' new spreads; the
+            // contact flight's re-ingested wash moved to published numbers, so its audit was a temporary edit (GoldenFlights).
             DroneSpec main = GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
             const int m19 = GoldenFlights.Model19Layout;
-            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still, interference: false, layout: m19);
-            ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still, interference: false, layout: m19);
+            ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still, interference: false, wake: false, motors: false, layout: m19);
             ulong t15 = GoldenFlights.FlyTumble(main, out _, out _, 1296, 152, m19);
-            bool mok = p15 == GoldenFlights.Model15StillPoweredHash && c15 == GoldenFlights.Model15StillContactHash && t15 == GoldenFlights.Model15TumbleHash;
-            Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, contact 0x{c15:X16}, tumble 0x{t15:X16} "
+            bool mok = p15 == GoldenFlights.Model15StillPoweredHash && t15 == GoldenFlights.Model15TumbleHash;
+            Console.WriteLine($"main's rotor drag in still air, over main's layout: powered 0x{p15:X16}, tumble 0x{t15:X16} "
                 + $"({(mok ? "model 15's, bit for bit" : "NOT model 15's")}): {(mok ? "PASS" : "FAIL")}");
             // The tumble's chain over main's layout: model 14's fit and model 13's file fly their pins.
             ulong t14 = GoldenFlights.FlyTumble(M14(), out _, out _, 1296, 152, m19);
@@ -85,23 +86,27 @@ namespace Fpv450.FlightBench
             bool eok = t14 == 0x26CDDB5EDB155896UL && t13 == 0xB371E06FF28075D8UL;
             Console.WriteLine($"the tumble over main's layout: model 14's fit 0x{t14:X16}, model 13's file 0x{t13:X16} "
                 + $"({(eok ? "theirs, bit for bit" : "NOT theirs")}): {(eok ? "PASS" : "FAIL")}");
-            // The merge's audit against the range branch (model 19): on main's tuned rotor drag in still air, over the range
-            // branch's 1656-byte layout (and without the rotors' wakes, over model 19's 1808 bytes), the range golden is model
-            // 16's range flight in still air.
-            ulong r16 = GoldenFlights.FlyRange(main, out _, 1296, 152, wind: still, interference: false, layout: m19);
-            bool r16ok = r16 == GoldenFlights.Model16StillRangeHash;
-            Console.WriteLine($"main's rotor drag in still air, over the range branch's layout: range 0x{r16:X16} "
-                + $"({(r16ok ? "model 16's, bit for bit" : "NOT model 16's")}): {(r16ok ? "PASS" : "FAIL")}");
-            // p7b-airframe 1.3d's audit: without the rotors' wakes, over model 19's 1808 bytes, each golden is model 19's pin.
-            ulong p19 = GoldenFlights.FlyPowered(Drone(), out _, interference: false, layout: m19);
-            ulong c19 = GoldenFlights.FlyContact(Drone(), out _, interference: false, layout: m19);
-            ulong r19 = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: m19);
+            // p7b-airframe 1.3d's and D-064's audits (model 24): without the interference and D-064's sources, over model 19's
+            // 1808 bytes, the powered, rain and tumble goldens are model 19's (the contact and range flights' wash has no switch).
+            ulong p19 = GoldenFlights.FlyPowered(Drone(), out _, interference: false, wake: false, motors: false, layout: m19);
+            ulong r19 = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, wake: false,
+                motors: false, layout: m19);
             ulong t19 = GoldenFlights.FlyTumble(Drone(), out _, out _, layout: m19);
-            bool wok = p19 == GoldenFlights.Model19PoweredHash && c19 == GoldenFlights.Model19ContactHash && r19 == GoldenFlights.Model19RainHash
-                && t19 == GoldenFlights.Model19TumbleHash;
-            Console.WriteLine($"without the rotors' wakes, over model 19's layout: powered 0x{p19:X16}, contact 0x{c19:X16}, rain 0x{r19:X16}, "
-                + $"tumble 0x{t19:X16} ({(wok ? "model 19's, bit for bit" : "NOT model 19's")}): {(wok ? "PASS" : "FAIL")}");
-            return ok && cok && rangeOk && rok && tok && mok && eok && r16ok && wok;
+            bool aok = p19 == GoldenFlights.Model19PoweredHash && r19 == GoldenFlights.Model19RainHash && t19 == GoldenFlights.Model19TumbleHash;
+            Console.WriteLine($"without the interference and D-064's sources, over model 19's 1808 bytes: powered 0x{p19:X16}, rain 0x{r19:X16}, "
+                + $"tumble 0x{t19:X16} ({(aok ? "model 19's, bit for bit" : "NOT model 19's")}): {(aok ? "PASS" : "FAIL")}");
+            // The integration's audit against p7b-airframe--micro (model 23): without the interference, over that branch's 1840
+            // bytes (the record less the interference's 64 at 1808), each golden is its pin.
+            const int at = GoldenFlights.Model19Layout, skip = 64;
+            ulong mp = GoldenFlights.FlyPowered(Drone(), out _, at, skip, interference: false);
+            ulong mc = GoldenFlights.FlyContact(Drone(), out _, at, skip, interference: false);
+            ulong mr = GoldenFlights.FlyPowered(Drone(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false);
+            ulong mt = GoldenFlights.FlyTumble(Drone(), out _, out _, at, skip);
+            bool uok = mp == GoldenFlights.MicroPoweredHash && mc == GoldenFlights.MicroContactHash && mr == GoldenFlights.MicroRainHash
+                && mt == GoldenFlights.MicroTumbleHash;
+            Console.WriteLine($"without the interference, over the micro branch's 1840 bytes: powered 0x{mp:X16}, contact 0x{mc:X16}, rain 0x{mr:X16}, "
+                + $"tumble 0x{mt:X16} ({(uok ? "its model 23's, bit for bit" : "NOT its model 23's")}): {(uok ? "PASS" : "FAIL")}");
+            return ok && cok && rangeOk && rok && tok && mok && eok && aok && uok;
         }
 
         public static bool Bench()

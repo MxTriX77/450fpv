@@ -319,11 +319,17 @@ namespace Fpv450.Sim.Log
             if (h.GroundEffect != null)
                 w.WriteLine("  ground effect: Cheeseman-Bennett below, Hsiao-Chirarattananon alpha0 " + G(h.GroundEffect.CeilingAlpha)
                     + " above, rays " + G(h.GroundEffect.Reach) + " R, held at " + G(h.GroundEffect.LowestHeight) + " R; wash sigma "
-                    + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
-                    + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
-                    + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+                    + G(h.GroundEffect.RecirculationSigma) + " of thrust at " + G(h.GroundEffect.RecirculationReference) + " R within "
+                    + G(h.GroundEffect.RecirculationBound) + " below " + G(h.GroundEffect.RecirculationOnset) + " R, loop "
+                    + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air " + G(h.GroundEffect.AirDensity) + " kg/m3"
+                    + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
             else
                 w.WriteLine("  ground effect: off");
+            if (h.RotorWake != null)
+                w.WriteLine("  rotor wake: thrust sigma " + G(h.RotorWake.ThrustSigma) + " in hover, corner f R/v_h " + G(h.RotorWake.CornerFrequency)
+                    + ", within " + G(h.RotorWake.Bound) + " sigma; air " + G(h.RotorWake.AirDensity) + " kg/m3");
+            else
+                w.WriteLine("  rotor wake: off (KNOWN-WRONG for a pilot's flight: a perfectly steady rotor)");
             if (h.Modes != null)
                 w.WriteLine("  modes: arms " + G(h.Modes.ArmWidth * 1000) + " x " + G(h.Modes.ArmThickness * 1000) + " mm plate of " + G(h.Modes.ArmModulus / 1e9)
                     + " GPa over " + G(h.Modes.ArmLength) + " m, " + G(h.Modes.ArmStiffness) + " N/m, damping " + G(h.Modes.ArmDamping) + "; mounts "

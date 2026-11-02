@@ -71,8 +71,12 @@ namespace Fpv450.Sim.Log
         /// count and the strips (p7c-wind, the map's wind: a map's belt has one a section), where 13 had a flag and one.
         /// 14 on p7b-airframe--rotor-wake: the rotors' wakes in the step record (p7b-airframe 1.3d: each rotor's added
         /// inflow from the others' wakes and its fluctuation) and the header's wake entry.
-        /// 15: the physics integration, the parents' 14s together: the header's canopy strips, and the rotor-rotor
-        /// interference's record fields and header entry.
+        /// 14 on p7b-airframe--micro (D-064): the record's rotor wakes at its end, the header's rotor wake entry, the
+        /// asymmetry's motor dynamics and the recirculation's reference height.
+        /// 15: the physics integration, the three 14s together: the header's canopy strips; the record's rotor-rotor
+        /// interference (64 bytes after model 19's 1808) and then each rotor's own wake (32), 1904 bytes; the header's
+        /// interference entry (tag 22) and own-wake entry (tag 23), the asymmetry's motor dynamics and the recirculation's
+        /// reference height.
         /// </summary>
         public const int Version = 15;
 
@@ -136,7 +140,7 @@ namespace Fpv450.Sim.Log
         ///    the field; the camera's lens one point, drone.json's camera.lens_m, for the modes and the air at the lens).
         /// 18: p7c-wind 1.5's re-grade on the merge (Severe's centre tuned until T0 passes, 7.2 → 9.5 m/s at 35 m; Windy 4.75
         ///    and Calm 1.425 from it; a flight at model 17's centres steps as in 17).
-      /// 19: 1.6b's range branch and unity/main merged (model 18's wind field, wakes, canopy and rain with model 16's
+        /// 19: 1.6b's range branch and unity/main merged (model 18's wind field, wakes, canopy and rain with model 16's
         ///    contacts: the skids on soil faces, the seam rule, no tunnel out of a compliant shape; the code is the two
         ///    parents' together, so a flight on the stub's floor steps as in 18).
         /// 20: the wind over a hole (FlightWorld.SoilUnder): where SampleGround reports Hole the field's profile, roughness and
@@ -157,9 +161,16 @@ namespace Fpv450.Sim.Log
         ///    p7b-airframe 1.3d (the rotors in each other's wake, RotorWakeSpec there: Coleman's skewed vortex cylinder behind
         ///    each rotor, its downwash on the rotors behind and its upwash beside and ahead, and its own fluctuation from the
         ///    stream wake.rotor; a flight without the wake steps as in 19).
-        /// 24: the physics integration (23 being p7a-ground's and p7b-airframe--micro's): p7b-airframe--rotor-wake's 21 merged
-        ///    onto 22, the rotor-rotor interference (RotorInterferenceSpec, its fluctuation from the stream rotor.interference)
-        ///    with the map's wind; a flight without the interference steps as in 22.
+        /// 19–23 on p7b-airframe--micro (off p7c-wind--d060's 19): 20–22 left to the other lines; 23 D-064's micro-motion
+        ///    (p7b-airframe 1.10: each rotor's own wake unsteadiness, RotorWakeSpec, from the stream rotor.wake; the re-ingested
+        ///    wash on published numbers, Dekker et al. 2023's onset and loop and Healy et al. 2021's level, answering in the
+        ///    torque too; and each motor's resistance, friction and inertia drawn per flight; a flight without the wake, with
+        ///    the motors' new spreads at 0 and model 19's recirculation steps as in 19). p7a-ground's branch also took 23.
+        /// 24: the physics integration: p7b-airframe--rotor-wake's 21 and p7b-airframe--micro's 23 merged onto 22 (the code
+        ///    is the parents' together): the rotor-rotor interference (RotorInterferenceSpec, its fluctuation from the stream
+        ///    rotor.interference, renamed from wake.rotor) and D-064's micro-motion with the map's wind. A flight without the
+        ///    interference steps as on the micro branch's 23 with 22's wind; one without D-064 (no own wake, the motors'
+        ///    spreads at 0, model 19's recirculation) steps as in 22 with the interference; one without either as in 22.
         /// </summary>
         public const int ModelVersion = 24;
 
@@ -174,14 +185,14 @@ namespace Fpv450.Sim.Log
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
-        /// airframe's modes (1.4), then the rotors' wakes (1.3d).</summary>
-        public const int StepSize = 1872, EventSize = 72, EndSize = 48;
+        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064).</summary>
+        public const int StepSize = 1904, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -323,6 +334,8 @@ namespace Fpv450.Sim.Log
             // The rotors in each other's wake (p7b-airframe 1.3d).
             b.Corners("interference_inflow", "m/s, the other rotors' wakes' added inflow through the disc, + down; 0 without the interference");
             b.Corners("interference_share", "the wakes' fluctuation, a share of that inflow");
+            // Each rotor's own wake (D-064).
+            b.Corners("wake_inflow", "the rotor's own wake inflow through the disc over v_h");
             return b.Done(StepSize);
         }
 
@@ -459,6 +472,7 @@ namespace Fpv450.Sim.Log
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeRate[m]);
             w.C4(t.InterferenceInflow);
             w.C4(s.InterferenceShare);
+            w.C4(s.WakeInflow);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -567,6 +581,7 @@ namespace Fpv450.Sim.Log
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeRate[m] = r.F64();
             t.InterferenceInflow = r.C4();
             s.InterferenceShare = r.C4();
+            s.WakeInflow = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

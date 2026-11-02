@@ -90,37 +90,26 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.RangeHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
 
-        // The merge of 1.6b's range branch and unity/main (model 19), its audit against the range branch: on drone.json with
-        // main's tuned rotor drag (0.25) in still air, where the field and the stand-in both blow nothing, the range golden
-        // over the range branch's 1656-byte layout (the record less p7c-wind's 152 bytes at 1296) is model 16's range flight
-        // in still air, bit for bit (pinned from the range branch's code, c2cf4023, with the golden's air set still, a
-        // temporary edit). Model 16's kept audit against 1.6b's model 7 flew the stand-in's Calm air, which is gone.
-        [Test]
-        public void InStillAirTheRangeGoldenIsModel16s()
-        {
-            DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
-            Assert.That(GoldenFlights.FlyRange(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: WindSetup.Of(WindLevel.Still), interference: false,
-                    layout: GoldenFlights.Model19Layout),
-                Is.EqualTo(GoldenFlights.Model16StillRangeHash), "range");
-            Assert.That(core.Contacts.ImpactCount, Is.GreaterThanOrEqualTo(1), "it touched down on the mat");
-        }
-
         // The merge of p7c-wind and unity/main (model 17), its audit against unity/main, kept: on drone.json with main's tuned
         // rotor drag (0.25) in still air, where the field and the stand-in both blow nothing, each golden over main's
         // 1656-byte layout (the record less p7c-wind's 152 bytes at 1296) is main's model 15 flight in still air, bit for bit
         // (pinned from main's code with the goldens' air set still, a temporary edit), and the tumble, which has no air,
-        // main's model 15 pin. Main's kept audits of models 6–14 fly the stand-in's Windy and Calm air, which is gone.
+        // main's model 15 pin. Main's kept audits of models 6–14 fly the stand-in's Windy and Calm air, which is gone. D-064
+        // (model 23): over the record's first 1808 bytes, without the rotor wakes and the motors' new spreads; the contact
+        // flight's re-ingested wash moved to published numbers and answers in the torque, so its audit against model 19 (and
+        // through it model 15's still-air pin, 0x557DEBE410FAEEA1) was a temporary edit (GoldenFlights' notes). For the same
+        // reason the range golden's audit against model 16 in still air (0xDC85BA160EB0415C over the range branch's 1656 bytes,
+        // a kept test until model 22) is a temporary edit since model 24 (GoldenFlights.RangeHash's notes).
         [Test]
         public void InStillAirTheGoldenFlightsAreModel15s()
         {
             DroneSpec spec = GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce);
             WindSetup still = WindSetup.Of(WindLevel.Still);
-            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still, interference: false, layout: GoldenFlights.Model19Layout),
-                Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
+            const int at = GoldenFlights.Model19Layout;
+            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still, interference: false, wake: false, motors: false,
+                layout: at), Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
-            Assert.That(GoldenFlights.FlyContact(spec, out _, RotorWindBytesAt, WindBytes, wind: still, interference: false, layout: GoldenFlights.Model19Layout),
-                Is.EqualTo(GoldenFlights.Model15StillContactHash), "contact");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes, GoldenFlights.Model19Layout), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes, at), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
         }
 
         // The tumble's chain, kept over main's layout: on model 14's fit and on model 13's file it is their pins.
@@ -140,21 +129,36 @@ namespace Fpv450.Sim.Tests
         const int ContactBytesAt = 992, ContactBytes = 120, FilterBytesAt = ContactBytesAt + ContactBytes, RotorWindBytesAt = 1296, WindBytes = 152;
         const int RotorAngleAt = RotorWindBytesAt + WindBytes, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
         const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
-        const int InterferenceAt = ModeAt + ModeBytes, InterferenceBytes = 64;
+        const int InterferenceAt = ModeAt + ModeBytes, InterferenceBytes = 64, WakeAt = InterferenceAt + InterferenceBytes, WakeBytes = 32;
 
-        // p7b-airframe 1.3d's audit: each golden flown without the rotors' wakes, over model 19's 1808 bytes (the record less
-        // the wake's 64 at its end), is model 19's pin bit for bit, record and events: the wake's code and the record's new
-        // fields change no flight without it. The tumble has no propulsion, so it is model 19's with the wake's bytes zero.
+        // The audits of p7b-airframe 1.3d and D-064, kept on the integration (model 24): without the interference, the rotor
+        // wakes and the motors' resistance, friction and inertia spreads, over model 19's 1808 bytes, the powered, rain and
+        // tumble goldens are model 19's, every record and event (the powered and rain flights find no surface, so the
+        // re-ingested wash's new numbers never act there; the contact flight's wash has no switch, GoldenFlights' notes).
         [Test]
-        public void WithoutTheWakeEachGoldenIsModel19s()
+        public void WithoutEitherTheGoldenFlightsAreModel19s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             const int at = GoldenFlights.Model19Layout;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, layout: at), Is.EqualTo(GoldenFlights.Model19PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, interference: false, layout: at), Is.EqualTo(GoldenFlights.Model19ContactHash), "contact");
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: at),
-                Is.EqualTo(GoldenFlights.Model19RainHash), "rain");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, wake: false, motors: false, layout: at),
+                Is.EqualTo(GoldenFlights.Model19PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, wake: false,
+                motors: false, layout: at), Is.EqualTo(GoldenFlights.Model19RainHash), "rain");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model19TumbleHash), "tumble");
+        }
+
+        // The integration's audit against p7b-airframe--micro (model 23), kept: without the interference, over that branch's
+        // 1840-byte record (the record less the interference's 64 bytes at 1808), each golden is its pin bit for bit, record
+        // and events: the interference's code, its stream and the record's fields change no flight without it.
+        [Test]
+        public void WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, interference: false), Is.EqualTo(GoldenFlights.MicroPoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, InterferenceAt, InterferenceBytes, interference: false), Is.EqualTo(GoldenFlights.MicroContactHash), "contact");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain,
+                interference: false), Is.EqualTo(GoldenFlights.MicroRainHash), "rain");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, InterferenceAt, InterferenceBytes), Is.EqualTo(GoldenFlights.MicroTumbleHash), "tumble");
         }
 
         // p7b-airframe 1.3's check, kept without model 9's pin (it flew the stand-in's air): 193–300 m up the powered golden's
@@ -189,9 +193,11 @@ namespace Fpv450.Sim.Tests
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, ModeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "mode_shape0")),
                 "1.4's modes follow the surfaces");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, InterferenceAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "interference_inflow.rear_right")),
-                "1.3d's wakes follow the modes");
-            Assert.That(InterferenceAt, Is.EqualTo(GoldenFlights.Model19Layout), "model 19's record is the record before them");
-            Assert.That(LogFormat.StepSize - InterferenceAt, Is.EqualTo(InterferenceBytes), "to the record's end");
+                "1.3d's interference follows the modes");
+            Assert.That(InterferenceAt, Is.EqualTo(GoldenFlights.Model19Layout), "model 19's record is the record before it");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, WakeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "wake_inflow.rear_right")),
+                "D-064's rotor wakes follow the interference");
+            Assert.That(LogFormat.StepSize - WakeAt, Is.EqualTo(WakeBytes), "to the record's end");
         }
     }
 }
