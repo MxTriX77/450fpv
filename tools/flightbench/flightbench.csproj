@@ -21,6 +21,7 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GustFrontScenario.cs" Link="GustFrontScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RainScenario.cs" Link="RainScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SoilScenarios.cs" Link="SoilScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AsymmetryScenario.cs" Link="AsymmetryScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/VortexRingScenario.cs" Link="VortexRingScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/GroundEffectScenario.cs" Link="GroundEffectScenario.cs" />

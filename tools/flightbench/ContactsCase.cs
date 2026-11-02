@@ -5,6 +5,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Tests;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
 namespace Fpv450.FlightBench
@@ -18,10 +19,12 @@ namespace Fpv450.FlightBench
         public const string Name = "contacts";
         static bool _ok = true;
 
-        static void Row(string name, bool pass, string detail)
+        static void Row(string name, bool pass, string detail, bool knownWrong = false)
         {
-            _ok &= pass;
-            Console.WriteLine($"  {name}: {detail}: {(pass ? "PASS" : "FAIL")}");
+            bool good = knownWrong ? !pass : pass;
+            _ok &= good;
+            string verdict = knownWrong ? (pass ? "PASSES: the target cannot tell it from the model (FAIL)" : "fails, as it must") : pass ? "PASS" : "FAIL";
+            Console.WriteLine($"  {name}: {detail}: {verdict}");
         }
 
         static string Land(ContactScenarios.Landing r) =>
@@ -72,8 +75,131 @@ namespace Fpv450.FlightBench
             int fast = ContactScenarios.Overdriven(spec, materials, hash, 40, out string fastDetail);
             Row("at 40 m/s it goes through, and the log says so", fast >= 1, fastDetail);
 
+            Soil(spec);
+
             Console.WriteLine($"{Name}: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
+        }
+
+        // p7a-ground 1.10: the soil under the half-skids with surfaces.json, its scenarios with their known-wrong models, and
+        // the rest, liftoff and glide on the stub's floors (until the range's zones land, 1.3) and on the test range.
+        static void Soil(DroneSpec spec)
+        {
+            SurfaceTable table = SoilScenarios.Table();
+            Console.WriteLine($"the soil (p7a-ground 1.10): surfaces.json 0x{table.Hash:X16}; Bekker n = 1 at b = the tube's 10 mm, Wong's rule per column, the leg in series");
+
+            Console.WriteLine("a resting drone sinks as the rows say (3 s disarmed; the sink at each half-skid's load centroid against the row's derived sink for its load):");
+            foreach (SurfaceRow row in table.Surfaces)
+            {
+                if (row.Dry.Rigid) continue;
+                string line = "";
+                bool pass = true;
+                foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain, RainLevel.SevereRain })
+                {
+                    SoilScenarios.Rest r = SoilScenarios.Resting(spec, SoilScenarios.Floor(row.Name), default, rain);
+                    SoilSet set = row.Set(SurfaceTable.MoistureOf(rain));
+                    double worst = 0, sink = 0, resid = 0;
+                    for (int c = 0; c < 4; c++)
+                    {
+                        ContactModel.SkidSoil k = r.Skids[c];
+                        double t = k.Centroid, j = 0.1025, L = 0.22;
+                        double z = t <= j ? k.Sink0 + (k.Sink1 - k.Sink0) * t / j : k.Sink1 + (k.Sink2 - k.Sink1) * (t - j) / (L - j);
+                        double m = t <= j ? k.Max0 + (k.Max1 - k.Max0) * t / j : k.Max1 + (k.Max2 - k.Max1) * (t - j) / (L - j);
+                        double v = SoilScenarios.LevelSink(set, 0.005, L, k.Static, table.FirmLayer);
+                        double derived = m > v ? m - (m - v) / set.UnloadRatio : v;
+                        worst = Math.Max(worst, Math.Abs(z / derived - 1));
+                        sink = Math.Max(sink, z);
+                        resid = Math.Max(resid, Math.Abs(k.Residual));
+                        pass &= k.Engaged;
+                    }
+                    pass &= worst < 0.02 && resid < 1e-9 && r.LateEvents == 0;
+                    line += $"{rain} {sink * 1e3:F2} mm (within {worst * 100:F3} %, residual {resid:E0} N) ";
+                }
+                Row(row.Name, pass, line.TrimEnd());
+            }
+            SoilScenarios.Rest rigidRest = SoilScenarios.Resting(spec, SoilScenarios.Floor("belt_straw"), default, rigid: true);
+            Row("known-wrong: the rigid ground with plain friction", rigidRest.Skids[0].Engaged, "no soil under the skids, no sink", knownWrong: true);
+
+            Console.WriteLine("a sunk skid resists sideways more than along (belt_straw, the skids held 3 mm below the surface, pushed slowly):");
+            var across = new Double3(1, 0, 0);
+            var along = new Double3(0, 0, 1);
+            SoilScenarios.Push pa = SoilScenarios.Drag(spec, SoilScenarios.Floor("belt_straw"), 0.003, across);
+            SoilScenarios.Push pb = SoilScenarios.Drag(spec, SoilScenarios.Floor("belt_straw"), 0.003, along);
+            double ratio = pa.Breakaway / pb.Breakaway, derivedRatio = pa.DerivedHold / pb.DerivedHold;
+            Row("dry", Math.Abs(ratio / derivedRatio - 1) < 0.02 && Math.Abs(pa.Breakaway / pa.DerivedHold - 1) < 0.02 && Math.Abs(pb.Breakaway / pb.DerivedHold - 1) < 0.02,
+                $"{pa.Sink * 1e3:F2} mm in, {pa.Normal:F2} N on the ground; across breaks at {pa.Breakaway:F3} N (μs·Fn + P, {pa.DerivedHold:F3}), slides at {pa.Sliding:F3} "
+                + $"({pa.DerivedSlide:F3}); along {pb.Breakaway:F3} N ({pb.DerivedHold:F3}); across/along {ratio:F4} against {derivedRatio:F4}; "
+                + $"the groove alone {(pa.DerivedHold - 0.5 * pa.Normal) / (pb.DerivedHold - 0.5 * pb.Normal):F2}x (L/2r = 22)");
+            SoilScenarios.Push pw = SoilScenarios.Drag(spec, SoilScenarios.Floor("belt_straw"), 0.008, across, RainLevel.Rain);
+            Row("in Rain, with the interface adhesion", Math.Abs(pw.Breakaway / pw.DerivedHold - 1) < 0.02,
+                $"{pw.Sink * 1e3:F2} mm in, {pw.Normal:F2} N; across breaks at {pw.Breakaway:F3} N (μs·Fn + c_a·S_m + P, {pw.DerivedHold:F3}), slides at {pw.Sliding:F3} ({pw.DerivedSlide:F3})");
+            double ra = SoilScenarios.Breakaway(spec, SoilScenarios.Floor("belt_straw"), 0.003, across, out double na, rigid: true);
+            double rb = SoilScenarios.Breakaway(spec, SoilScenarios.Floor("belt_straw"), 0.003, along, out double nb, rigid: true);
+            Row("known-wrong: the rigid ground with plain friction", Math.Abs(ra / rb / derivedRatio - 1) < 0.02,
+                $"across {ra:F9} N, along {rb:F9} N, both μs·Fn ({0.5 * na:F9}): no groove, the ratio 1", knownWrong: true);
+
+            Console.WriteLine("loose soil swallows a fast landing (1.5 m/s down, the throttle cut at the touch):");
+            SoilScenarios.Landing spoil = SoilScenarios.Land(spec, SoilScenarios.Floor("crater_spoil"), default, 1.5);
+            SoilScenarios.Landing track = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 1.5);
+            Row("crater_spoil against dirt_track", spoil.PeakSink > track.PeakSink && spoil.Stop > track.Stop && spoil.PeakAccel < track.PeakAccel && spoil.Set > 0,
+                $"sank {spoil.PeakSink * 1e3:F2} against {track.PeakSink * 1e3:F2} mm, stopped in {spoil.Stop * 1e3:F0} against {track.Stop * 1e3:F0} ms at {spoil.PeakAccel:F1} "
+                + $"against {track.PeakAccel:F1} m/s², set {spoil.Set * 1e3:F2} and {track.Set * 1e3:F2} mm, rose {spoil.Rebound * 1e3:F1} and {track.Rebound * 1e3:F1} mm");
+            SoilScenarios.Landing es = SoilScenarios.Land(spec, SoilScenarios.Floor("crater_spoil"), default, 1.5, table: SoilScenarios.With("crater_spoil", x => { x.UnloadRatio = 1; return x; }));
+            SoilScenarios.Landing et = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 1.5, table: SoilScenarios.With("dirt_track", x => { x.UnloadRatio = 1; return x; }));
+            Row("known-wrong: an elastic soil (unload ratio 1)", es.Set > 0 && et.Set > 0,
+                $"set {es.Set * 1e3:F2} and {et.Set * 1e3:F2} mm, rose {es.Rebound * 1e3:F1} and {et.Rebound * 1e3:F1} mm: no set, more returned", knownWrong: true);
+
+            Console.WriteLine("a re-landing finds its prints (crater_spoil, the pilot's 0.3 m/s landing, cut; again on the spot; then 0.3 m aside):");
+            SoilScenarios.Relanding rl = SoilScenarios.Relandings(spec, SoilScenarios.Floor("crater_spoil"), default);
+            Row("the prints", !rl.Print[0] && rl.Print[1] && !rl.Print[2] && rl.Yield[1] < rl.Yield[0] && Math.Abs(rl.Yield[2] / rl.Yield[0] - 1) < 0.02,
+                $"the soil yields {rl.Yield[0] * 1e3:F3} mm, then {rl.Yield[1] * 1e3:F3} mm from its print's floor {rl.Floor[1] * 1e3:F3} mm down, then {rl.Yield[2] * 1e3:F3} mm aside");
+
+            Console.WriteLine("the glide landing (the pilot's 0.5 m/s down and 0.3 m/s forward, held to the touch, cut):");
+            SoilScenarios.Landing gt = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
+            SoilScenarios.Landing gd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
+            SoilScenarios.Landing rt = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, rigid: true);
+            SoilScenarios.Landing rd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, rigid: true);
+            Row("tilled stumbles more than the dirt track", gt.NoseDown > gd.NoseDown && gt.Crashes + gd.Crashes == 0,
+                $"nose down {gt.NoseDown:F3}° ({gt.PeakSink * 1e3:F2} mm in) against {gd.NoseDown:F3}° ({gd.PeakSink * 1e3:F2} mm)");
+            Row("known-wrong: the rigid ground with plain friction", Math.Abs(rt.NoseDown - rd.NoseDown) >= 0.5 * (gt.NoseDown - gd.NoseDown),
+                $"{rt.NoseDown:F3}° and {rd.NoseDown:F3}°", knownWrong: true);
+
+            // The range flights: rest and liftoff (design 13's ramp and held-leg rule) dry and in rain, four seeds with the
+            // motors' asymmetry drawn.
+            Console.WriteLine("rest and liftoff, design 13's held leg (a corner over 1 N 20 ms after the others, the drone turning 0.5° toward it), seeds 1-4:");
+            var range = new FlightWorld(SoilScenarios.Range());
+            var places = new (string Name, FlightWorld World, Double3 At)[]
+            {
+                ("the stub's dirt_track (the track's zone until 1.3)", SoilScenarios.Floor("dirt_track"), default),
+                ("the range's track start (the plane's belt_straw)", range, SoilScenarios.TrackStart(range)),
+                ("S04's patch (its straw mat over its soil box)", range, SoilScenarios.PatchCentre(range)),
+            };
+            foreach (var place in places)
+            {
+                double hover = SoilScenarios.HoverThrottle(spec, place.World, place.At);
+                foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain, RainLevel.SevereRain })
+                {
+                    int held = 0, soil = 0;
+                    double hold = 0, sink = 0;
+                    for (ulong seed = 1; seed <= 4; seed++)
+                    {
+                        SoilScenarios.Liftoff l = SoilScenarios.Lift(spec, place.World, place.At, hover, rain, seed, true);
+                        if (l.Held >= 0) held++;
+                        hold = Math.Max(hold, l.Hold);
+                        for (int c = 0; c < 4; c++)
+                        {
+                            sink = Math.Max(sink, l.Sink[c]);
+                            if (l.Sink[c] > 0) soil++;
+                        }
+                    }
+                    string detail = $"{place.Name}, {rain}: hover {hover:F3}, {soil} of 16 half-skids in soil at rest, the deepest {sink * 1e3:F2} mm; {held} of 4 held, "
+                        + $"the last corner at most {hold * 1e3:F0} ms after the others";
+                    if (rain == RainLevel.Sunny && place.World != range) Row("no held leg on the dry track", held == 0, detail);
+                    else Console.WriteLine("  (information) " + detail);
+                }
+            }
+            Console.WriteLine("  (information) the pilot's \"most of the time in rain\" needs a pull against the lift, the cohesive pull σ_a·S_m over δ_a (design 7, task 1.13):"
+                + " the anchor's c_a·S_m acts along the ground and lets go with the normal force. The dry track's \"sometimes\" needs the leg spread (1.17) and hooks (1.14).");
         }
 
         /// <summary>The step with its contacts busiest: legs on resting on the floor (eight supports and their friction), and
