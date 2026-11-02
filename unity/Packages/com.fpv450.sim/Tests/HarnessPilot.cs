@@ -92,6 +92,11 @@ namespace Fpv450.Sim.Tests
     ///   optimal estimator, which this pilot has not, and fed raw into K§8.5's laws it is another model (p7c-wind 1.5's
     ///   tasks note its reading). Each draw is a 12-uniform sum (bounded at ±6σ) from the named counter-based stream
     ///   `pilot.motor`, per stick report and command. Without it the pilot is noiseless (the known-wrong).
+    /// - **Hover** (D-064's near-ground grade, `Hover`): the same pilot holding a spot instead of a course. It wants the
+    ///   tilt that stops the slide on both axes, the roll as above with the whole of it on the horizon (no heading trade
+    ///   without forward speed, k = −sin θ ≈ 0) and the pitch θ_ref = ē_p + u/(g·τ_v) from the forward slide u, ē_p trimmed
+    ///   as ē is; the heading holds the course. Its loops, delay, τ and stick noise are K§8.5's (assumed to carry over from
+    ///   P's cruise to a hover).
     /// It reports the sticks at the TX12's 250 Hz (every `Period` steps). Basic operations only, so its flights give
     /// the same bits on every runtime.
     /// </summary>
@@ -156,17 +161,23 @@ namespace Fpv450.Sim.Tests
         /// <summary>The course's bearing, radians from north toward east, and the height to hold, m.</summary>
         public double Course, Height;
 
+        /// <summary>Hold a spot (a hover) instead of flying the course at PitchDeg.</summary>
+        public bool Hover;
+
         /// <summary>One camera frame: the step it was taken at (relative to the release) and what it shows.</summary>
         public struct Frame
         {
             public long Step;
             public double Roll, Pitch, Heading, Slide, Height, Climb;
+
+            /// <summary>The ground's slide along the course, m/s (forward positive): the hover's pitch reads it.</summary>
+            public double Forward;
         }
 
         readonly FlightController _fc;
         readonly Frame[] _frames = new Frame[16];
         long _taken, _used;
-        double _meanTilt, _throttleIntegral;
+        double _meanTilt, _meanPitch, _throttleIntegral;
         int _count;
         StickSample _last;
 
@@ -203,6 +214,7 @@ namespace Fpv450.Sim.Tests
             {
                 Step = step, Roll = roll, Pitch = pitch, Heading = heading,
                 Slide = s.Velocity.X * cos - s.Velocity.Z * sin, // the course's right is (cos, 0, −sin)
+                Forward = s.Velocity.X * sin + s.Velocity.Z * cos, // the course is (sin, 0, cos)
                 Height = s.Position.Y, Climb = s.Velocity.Y,
             };
         }
@@ -224,6 +236,7 @@ namespace Fpv450.Sim.Tests
                 ref readonly Frame f = ref _frames[seen % _frames.Length];
                 double dt = 1 / CameraHz;
                 _meanTilt -= f.Slide / (G * TauV * TrimTau) * dt;
+                if (Hover) _meanPitch += f.Forward / (G * TauV * TrimTau) * dt;
                 _throttleIntegral += ClimbGain / ClimbIntegralTau * ClimbError(f) * dt;
                 seen++;
             }
@@ -236,9 +249,9 @@ namespace Fpv450.Sim.Tests
             DetMath.SinCos(PitchDeg * DegToRad, out double sinRef, out _);
             double k = -sinRef;
             double change = -v.Slide / (G * TauV); // e* − ē
-            double rollRef = _meanTilt + Split * change;
-            double headingRef = Course + (1 - Split) * change / k;
-            double pitchRef = PitchDeg * DegToRad;
+            double rollRef = _meanTilt + (Hover ? change : Split * change);
+            double headingRef = Hover ? Course : Course + (1 - Split) * change / k;
+            double pitchRef = Hover ? _meanPitch + v.Forward / (G * TauV) : PitchDeg * DegToRad;
 
             // The Euler rates, then the body rates by the exact ZYX relations.
             double rollRate = (rollRef - v.Roll) / TauRoll;
