@@ -6,7 +6,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: D01_legs_on_cylinder_r0.015_h0.025
+  m_Name: D01_bottle_cylinder_r0.015_h0.025
   serializedVersion: 12
   m_SubMeshes:
   - serializedVersion: 2
