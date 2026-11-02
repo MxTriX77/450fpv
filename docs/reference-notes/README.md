@@ -9,6 +9,7 @@ These notes were copied verbatim from the Godot repo (`MxTriX77/450fpv`, `main`)
 | [wind.md](wind.md) | the frame-by-frame study of clip P (severe wind and rain); interpretation; the simulated pilot; the Severe/Windy/Calm targets T0–T12; rain traits R1–R8 |
 | [airframes.md](airframes.md) | public specs of the reference airframes; class mass and thrust |
 | [pilot-requirements.md](pilot-requirements.md) | PR-1 to PR-11, in the pilot's words, then interpreted |
+| [ground-micro-motion.md](ground-micro-motion.md) | new for D-064: the camera's micro-motion near the ground by phase, axis and band (C, D, E, F, H, A), clip S's low cruise, the recorder's 2-2-1 field steps, and the targets for the physics |
 
 ## Things that changed since they were written
 - **The drone's name** is now **"Svinoriz 10 Opto"** (the pilot, 2026-10-17). These notes say "Svinorez".
