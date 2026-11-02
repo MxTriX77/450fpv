@@ -146,7 +146,7 @@ namespace Fpv450.FlightBench
                 var lowPass = new List<WindTargets.History>();
                 var white = new List<WindTargets.History>();
                 WindPreset cut = preset;
-                cut.ShortestWavelength = WindHarness.ReleaseSpeed; // the known-wrong field: nothing above 1 Hz at the cruise
+                cut.ShortestWavelength = WindHarness.FieldCheckSpeed; // the known-wrong field: nothing above 1 Hz at the cruise
                 WindPreset oneMetre = preset; // the known-wrong field before D-060: cut at 1 m
                 oneMetre.ShortestWavelength = 1;
                 oneMetre.Modes = 128;
@@ -160,20 +160,20 @@ namespace Fpv450.FlightBench
                 for (ulong seed = 1; seed <= 5; seed++)
                 {
                     flat.Add(WindTargets.Gusts(level, seed, 300, 50, WindTargets.FlatSigma));
-                    met.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed));
-                    lowPass.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, cut));
-                    coarse.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, oneMetre));
-                    white.Add(WindTargets.Encounter(level, seed, 66, WindHarness.ReleaseSpeed, null, WindTargets.White));
+                    met.Add(WindTargets.Encounter(level, seed, 66, WindHarness.FieldCheckSpeed));
+                    lowPass.Add(WindTargets.Encounter(level, seed, 66, WindHarness.FieldCheckSpeed, cut));
+                    coarse.Add(WindTargets.Encounter(level, seed, 66, WindHarness.FieldCheckSpeed, oneMetre));
+                    white.Add(WindTargets.Encounter(level, seed, 66, WindHarness.FieldCheckSpeed, null, WindTargets.White));
                 }
                 foreach (WindTargets.History h in runs) biased.Add(WindTargets.Biased(h));
                 Row($"{level}: σ/U, 20 seeds of 1200 s", WindTargets.Intensity(runs, preset, out d, out _), d);
                 Row($"{level}: the mean in its band and unbiased", WindTargets.MeanInBand(runs, preset, out d), d);
-                Row($"{level}: energy at 2–4 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d);
-                Row($"{level}: energy at 1–2 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 1, 2, out d, out _), d);
-                Row($"{level}: energy at 20–30 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise (the field to the discs' 0.5 m), 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.ReleaseSpeed, 20, 30, out d, out _), d);
-                Row($"{level} known-wrong: the field cut at 1 m, 20–30 Hz", WindTargets.Spectrum(coarse, preset, WindHarness.ReleaseSpeed, 20, 30, out d, out _), d, knownWrong: true);
-                Row($"{level} known-wrong: a field that stops below 1 Hz at the {WindHarness.ReleaseSpeed:F1} m/s cruise", WindTargets.Spectrum(lowPass, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
-                Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, WindHarness.ReleaseSpeed, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level}: energy at 2–4 Hz at the {WindHarness.FieldCheckSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.FieldCheckSpeed, 2, 4, out d, out _), d);
+                Row($"{level}: energy at 1–2 Hz at the {WindHarness.FieldCheckSpeed:F1} m/s cruise, 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.FieldCheckSpeed, 1, 2, out d, out _), d);
+                Row($"{level}: energy at 20–30 Hz at the {WindHarness.FieldCheckSpeed:F1} m/s cruise (the field to the discs' 0.5 m), 5 seeds", WindTargets.Spectrum(met, preset, WindHarness.FieldCheckSpeed, 20, 30, out d, out _), d);
+                Row($"{level} known-wrong: the field cut at 1 m, 20–30 Hz", WindTargets.Spectrum(coarse, preset, WindHarness.FieldCheckSpeed, 20, 30, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: a field that stops below 1 Hz at the {WindHarness.FieldCheckSpeed:F1} m/s cruise", WindTargets.Spectrum(lowPass, preset, WindHarness.FieldCheckSpeed, 2, 4, out d, out _), d, knownWrong: true);
+                Row($"{level} known-wrong: white noise", WindTargets.Spectrum(white, preset, WindHarness.FieldCheckSpeed, 2, 4, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a flat 0.2 m/s σ", WindTargets.Intensity(flat, preset, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: the stubble's roughness (z0 0.03 m), 20 seeds of 1200 s", WindTargets.Intensity(stubble, preset, out d, out _), d, knownWrong: true);
                 Row($"{level} known-wrong: a mean 5 % strong", WindTargets.MeanInBand(biased, preset, out d), d, knownWrong: true);
@@ -277,21 +277,27 @@ namespace Fpv450.FlightBench
                     ShakeScenario.Result sharp = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, false);
                     ShakeScenario.Result gentle = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1), drop, true);
                     if (payload > 0 && drop == 0.6) heavy = sharp;
-                    // From the hover: the kick, never the shake; arresting a descent: an ESC on its current limit through the
-                    // whole arrest and the shake lasting it, the frame's band ringing; a gentle ramp in a 5–9 m/s descent shows
-                    // PHY-09's wobble instead.
+                    // From the hover: the kick, never the shake; arresting a descent (the class's ESC, no current limit, D-066):
+                    // arrested, the shake ending with the arrest and showing from 9 m/s, the frame's band ringing; a gentle ramp in
+                    // a 5–9 m/s descent shows PHY-09's wobble instead.
                     bool ok = drop == 0 ? sharp.Duration < ShakeScenario.KickSeconds && gentle.Fields == 0
-                        : ShakeScenario.LastsTheArrest(sharp) && sharp.VibrationPeak.Y > ShakeScenario.Rings
-                          && (drop < 0.6 || ShakeScenario.Wobbles(gentle, sharp));
+                        : ShakeScenario.EndsWithTheArrest(sharp) && sharp.VibrationPeak.Y > ShakeScenario.Rings
+                          && (drop < 1.0 || sharp.Fields > 0) && (drop < 0.6 || ShakeScenario.Wobbles(gentle));
                     Row($"{payload:F0} kg, {(drop == 0 ? "from the hover" : $"after a {drop:F1} s drop")}", ok,
                         $"sharp: {ShakeScenario.Describe(sharp)}; gentle: {ShakeScenario.Describe(gentle)}");
                     if (drop == 0) continue;
-                    ShakeScenario.Result noLimit = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1, currentLimit: false), drop, false);
-                    Row($"known-wrong: an ESC that senses no current, {payload:F0} kg after a {drop:F1} s drop", ShakeScenario.HoldsTheArrest(noLimit)
-                        || noLimit.TiltMax >= sharp.TiltMax, $"tilt {noLimit.TiltMax:F2}° against the punch's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(noLimit), knownWrong: true);
+                    FlightSetup ringless = ShakeScenario.Setup(spec, payload, 1);
+                    ringless.VortexRing = null;
+                    ShakeScenario.Result noRing = ShakeScenario.Fly(ringless, drop, false);
+                    Row($"known-wrong: no ring (the rotors never re-ingest their wash), {payload:F0} kg after a {drop:F1} s drop", noRing.Peak >= sharp.Peak,
+                        $"peak {noRing.Peak:F3}° against the punch's {sharp.Peak:F3}°; " + ShakeScenario.Describe(noRing), knownWrong: true);
+                    ShakeScenario.Result prot = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1, protection: true), drop, false);
+                    Row($"40 A current protection, {payload:F0} kg after a {drop:F1} s drop: held at the limit, longer, tilting further",
+                        ShakeScenario.HoldsTheLimit(prot) && prot.ArrestedAfter > sharp.ArrestedAfter && prot.TiltMax > sharp.TiltMax,
+                        $"tilt {prot.TiltMax:F2}° against the drone's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(prot));
                 }
             ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
-            Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.LastsTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
+            Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.EndsWithTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
                 && stiff.Peak / heavy.Peak <= 1.2, $"peak {stiff.Peak / heavy.Peak:F2} of the flexing airframe's; " + ShakeScenario.Describe(stiff));
             Row("known-wrong: a rigid airframe publishes no camera vibration", stiff.Published, ShakeScenario.Describe(stiff), knownWrong: true);
             Console.WriteLine($"scenarios: {(_ok ? "PASS" : "FAIL")}");

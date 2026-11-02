@@ -463,6 +463,20 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>The tunnel events' objects and materials, for a report.</summary>
             public List<string> TunnelThrough;
+
+            /// <summary>The tunnels by any part but the leg assembly's tubes (leg_, skid_, support_, tjoint_): those into a
+            /// rod at speed are the class RangeContactTests names (a soft tube that fast into a rod snaps in truth, phase 7's
+            /// breakage), logged as a bug and counted; any other is a new one.</summary>
+            public int OtherTunnels
+            {
+                get
+                {
+                    int n = 0;
+                    foreach (string t in TunnelThrough)
+                        if (!(t.StartsWith("leg_") || t.StartsWith("skid_") || t.StartsWith("support_") || t.StartsWith("tjoint_"))) n++;
+                    return n;
+                }
+            }
         }
 
         /// <summary>
@@ -516,7 +530,7 @@ namespace Fpv450.Sim.Tests
                     if (e.Kind == EventKind.Tunnel)
                     {
                         r.Tunnels++;
-                        r.TunnelThrough.Add(world.Query.ObjectName(e.Object) + " " + (world.Query.MaterialName(e.Material) ?? world.Query.SurfaceName(e.Surface)));
+                        r.TunnelThrough.Add(spec.Parts[e.Part].Name + " through " + world.Query.ObjectName(e.Object) + " " + (world.Query.MaterialName(e.Material) ?? world.Query.SurfaceName(e.Surface)));
                     }
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind == EventKind.Impact && crashed >= 0 && r.ImpactPart == null)

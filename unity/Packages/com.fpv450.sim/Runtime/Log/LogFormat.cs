@@ -149,8 +149,12 @@ namespace Fpv450.Sim.Log
         ///    steps as in 19, and one with neither too.
         /// 22: p7c-wind--map-wakes merged onto 21 (the code is the parents' together): the map's wind with 20's wind over a
         ///    hole and D-060's field; a flight with strips or wakes alone, or neither, steps as in 21.
+        /// 23: D-066, the drone's power and mass from published builds of its class (drone.json: the class's ESC, which senses
+        ///    no current, so no current limit, "none", for the assumed 40 A; the motors' published 1.4 A no-load current for the
+        ///    assumed 1.0; the packs 0.92 → 0.88 kg and the electronics 0.25 → 0.24 kg from published cells, packs and the
+        ///    stack); on model 22's drone a flight steps as in 22.
         /// </summary>
-        public const int ModelVersion = 22;
+        public const int ModelVersion = 23;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

@@ -18,7 +18,10 @@ namespace Fpv450.FlightBench
 
         // The tumble's chain over main's layout flies model 14's fit and model 13's file (D-043's layout, a fixture since D-050).
         static DroneSpec M13() => DroneSpec.Parse(Repository(GoldenFlights.Model13DronePath));
-        static DroneSpec M14() => GoldenFlights.WithModel14Fit(Drone());
+        static DroneSpec M14() => GoldenFlights.WithModel14Fit(M22());
+
+        // D-066's audit (model 23): model 22's drone, the 40 A limit, the 1.0 A no-load current and its pack and electronics masses.
+        static DroneSpec M22() => GoldenFlights.WithModel22Drone(Drone());
 
         public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
 
@@ -70,7 +73,15 @@ namespace Fpv450.FlightBench
             // The merge's audit against unity/main (model 17): on drone.json with main's tuned rotor drag (0.25) in still air,
             // over main's 1656-byte layout (the record less p7c-wind's 152 bytes at 1296), each golden is main's model 15 flight
             // in still air, and the tumble main's pin. Main's kept audits of models 6–14 flew the stand-in's air, which is gone.
-            DroneSpec main = GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce);
+            // D-066's audit (model 23): on model 22's drone every golden is model 22's, every record and event.
+            ulong p22 = GoldenFlights.FlyPowered(M22(), out _), c22 = GoldenFlights.FlyContact(M22(), out _), g22 = GoldenFlights.FlyRange(M22(), out _);
+            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
+            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _);
+            bool m22 = p22 == GoldenFlights.Model22PoweredHash && c22 == GoldenFlights.Model22ContactHash && g22 == GoldenFlights.Model22RangeHash
+                && w22 == GoldenFlights.Model22RainPoweredHash && t22 == GoldenFlights.Model22TumbleHash;
+            Console.WriteLine($"model 22's drone (the 40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics): powered 0x{p22:X16}, contact 0x{c22:X16}, "
+                + $"range 0x{g22:X16}, rain 0x{w22:X16}, tumble 0x{t22:X16} ({(m22 ? "model 22's, bit for bit" : "NOT model 22's")}): {(m22 ? "PASS" : "FAIL")}");
+            DroneSpec main = GoldenFlights.WithModel22Drone(GoldenFlights.WithRotorDrag(DroneText(), GoldenFlights.TunedHForce));
             WindSetup still = WindSetup.Of(WindLevel.Still);
             ulong p15 = GoldenFlights.FlyPowered(main, out _, 1296, 152, wind: still);
             ulong c15 = GoldenFlights.FlyContact(main, out _, 1296, 152, wind: still);
@@ -90,7 +101,7 @@ namespace Fpv450.FlightBench
             bool r16ok = r16 == GoldenFlights.Model16StillRangeHash;
             Console.WriteLine($"main's rotor drag in still air, over the range branch's layout: range 0x{r16:X16} "
                 + $"({(r16ok ? "model 16's, bit for bit" : "NOT model 16's")}): {(r16ok ? "PASS" : "FAIL")}");
-            return ok && cok && rangeOk && rok && tok && mok && eok && r16ok;
+            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && r16ok;
         }
 
         public static bool Bench()

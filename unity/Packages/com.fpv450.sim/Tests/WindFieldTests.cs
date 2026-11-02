@@ -130,13 +130,13 @@ namespace Fpv450.Sim.Tests
             var coarse = new List<History>();
             for (ulong seed = 1; seed <= 5; seed++)
             {
-                met.Add(Encounter(WindLevel.Severe, seed, 33, WindHarness.ReleaseSpeed));
-                coarse.Add(Encounter(WindLevel.Severe, seed, 33, WindHarness.ReleaseSpeed, cut));
+                met.Add(Encounter(WindLevel.Severe, seed, 33, WindHarness.FieldCheckSpeed));
+                coarse.Add(Encounter(WindLevel.Severe, seed, 33, WindHarness.FieldCheckSpeed, cut));
             }
-            bool reaches = Spectrum(met, preset, WindHarness.ReleaseSpeed, 20, 30, out string d, out _);
-            bool wrong = Spectrum(coarse, preset, WindHarness.ReleaseSpeed, 20, 30, out string w, out _);
-            Spectrum(met, preset, WindHarness.ReleaseSpeed, 4, 15, out string d4, out _);
-            Spectrum(coarse, preset, WindHarness.ReleaseSpeed, 4, 15, out string w4, out _);
+            bool reaches = Spectrum(met, preset, WindHarness.FieldCheckSpeed, 20, 30, out string d, out _);
+            bool wrong = Spectrum(coarse, preset, WindHarness.FieldCheckSpeed, 20, 30, out string w, out _);
+            Spectrum(met, preset, WindHarness.FieldCheckSpeed, 4, 15, out string d4, out _);
+            Spectrum(coarse, preset, WindHarness.FieldCheckSpeed, 4, 15, out string w4, out _);
             TestContext.Out.WriteLine($"to 0.5 m: {d}; over the camera's band, {d4}");
             TestContext.Out.WriteLine($"known-wrong, the 1 m cut: {w}; over the camera's band, {w4}");
             Assert.That(reaches, Is.True, d);

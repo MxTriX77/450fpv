@@ -141,7 +141,7 @@ namespace Fpv450.FlightBench
             foreach (RangeScenarios.Approach a in RangeScenarios.Approaches)
             {
                 ContactScenarios.PoleStrike p = RangeScenarios.Into(spec, materials, hash, a);
-                Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s" : $"{a.Speed} m/s at {a.Height} m")})", p.Tunnels == 0 && p.Lost == 0, Strike(p));
+Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s" : $"{a.Speed} m/s at {a.Height} m")})", p.Tunnels == 0 && p.Lost == 0, Strike(p));
             }
             RangeScenarios.OnWire wire = RangeScenarios.OntoWire(spec, materials, hash);
             Row("a skid across a conductor at 2 m/s", wire.Tunnels == 0 && wire.Lost == 0,

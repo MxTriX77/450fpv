@@ -53,37 +53,36 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
-        /// A full punch holds the arrest (D-049, D-051, D-053): an ESC on its current limit for the whole arrest (within 0.03 s)
-        /// and all four for part of it, and its shake, where it shows, never outlasting the arrest by more than Settle. On
-        /// every full punch of 440 seeds a cell (seeds 1–40, 301–500 and 1001–1200: the hold within 0.005 s, all four 0.20 s at
-        /// least, the end at most 0.27 s after the arrest). Its end is bounded above only: the visible shake can fade below
-        /// the line before the arrest ends (2 kg from 5.4 m/s), and a weak one from 2.5 m/s shows only in the settling just
-        /// after it.
+        /// A full punch's shake ends with its arrest (D-066): the descent arrested, and the shake, where it shows, never
+        /// outlasting the arrest by more than Settle. Its end is bounded above only: the visible shake can fade below the line
+        /// before the arrest ends (2 kg), and a weak one from 2.5 m/s shows only in the settling just after it.
         /// </summary>
-        public static bool HoldsTheArrest(in Result r) =>
-            !double.IsNaN(r.ArrestedAfter) && DetMath.Abs(r.Limited - r.ArrestedAfter) <= 0.03 && r.AllLimited > 0
-            && (r.Fields == 0 || r.First + r.Duration <= r.ArrestedAfter + Settle);
+        public static bool EndsWithTheArrest(in Result r) =>
+            !double.IsNaN(r.ArrestedAfter) && (r.Fields == 0 || r.First + r.Duration <= r.ArrestedAfter + Settle);
 
-        /// <summary>A full punch's shake lasts the arrest: it holds the arrest and shows. Nearly every one shows (a weak
-        /// arrest from 2.5 m/s can stay under the visible line: seed 385, empty).</summary>
-        public static bool LastsTheArrest(in Result r) => HoldsTheArrest(r) && r.Fields > 0;
+        /// <summary>A full punch's shake lasts the arrest: it ends with it and shows.</summary>
+        public static bool LastsTheArrest(in Result r) => EndsWithTheArrest(r) && r.Fields > 0;
+
+        /// <summary>
+        /// With current protection (Setup's protection, D-051's alternative): an ESC on its limit for the whole arrest
+        /// (within 0.03 s) and all four for part of it, the shake ending with the arrest (model 22's drone, D-053).
+        /// </summary>
+        public static bool HoldsTheLimit(in Result r) =>
+            EndsWithTheArrest(r) && DetMath.Abs(r.Limited - r.ArrestedAfter) <= 0.03 && r.AllLimited > 0;
 
         /// <summary>
         /// PHY-09's wobble, not the shake (D-049): a gentle ramp does not arrest a 5–9 m/s descent within HoldLimit, so the
-        /// rotors sit in their ring for over 1 s of the window and the wandering thrust shows over the visible line, while an
-        /// ESC meets its limit for less than the full punch's time at the same descent (at most 0.57 of it on 440 seeds
-        /// a cell; at most half of it on nearly every ramp, flightbench --shake).
+        /// rotors sit in their ring for over 1 s of the window and the wandering thrust shows over the visible line.
         /// </summary>
-        public static bool Wobbles(in Result r, in Result punch) => r.Fields > 0 && r.InRing > 1.0 && r.Limited < punch.Limited;
+        public static bool Wobbles(in Result r) => r.Fields > 0 && r.InRing > 1.0;
 
         /// <summary>The frame's band rings on a sharp step: the camera vibration's Y band (50–200 Hz) over this, m/s² (derived:
         /// between the gentle input from the hover's 0.11 at most and every sharp step's 0.42 at least, on 40 seeds a cell).</summary>
         public const double Rings = 0.3;
 
         /// <summary>From the hover a sharp step shows only the motors' spin-up kick: shorter than the pilot's shortest shake,
-        /// 0.3 s (PR-1; at most 0.14 s on 440 seeds a cell), and every ESC leaves its limit within KickLimited, s (at most
-        /// 0.05 s on those seeds).</summary>
-        public const double KickSeconds = 0.3, KickLimited = 0.1;
+        /// 0.3 s (PR-1; at most 0.14 s on 440 seeds a cell with model 22's 40 A protection, 0.08 s on seeds 1–40 without).</summary>
+        public const double KickSeconds = 0.3;
 
         /// <summary>"Nearly every": the share of a cell's flights a rate PHY-10 states holds on, where a bound is not true on
         /// every seed (QA's re-review, B1; D-053). Its claims hold on 99 % or more of 440 seeds a cell (1–40, 301–500 and
@@ -91,10 +90,9 @@ namespace Fpv450.Sim.Tests
         /// fields", 436 of 440, on its one cell of 40), far less for the others (240 or 160 flights each).</summary>
         public const double NearlyEvery = 0.95;
 
-        /// <summary>The pilot's "most" for the 0.3–0.7 s of the empty drone's moderate descents (PR-1): this share of the
-        /// seeds and the median inside. The empty full punch from 2.5 m/s leaves the band on 7.7 % of 440 seeds (1–40, 301–500,
-        /// 1001–1200), so a fresh group of ten misses at least 7 of 10 about 0.5 % of the time; the known-wrong ESC that senses
-        /// no current, its shake barely showing from 2.5 m/s, fails it.</summary>
+        /// <summary>The pilot's "most" for the 0.3–0.7 s after a sudden drop (PR-1): this share of the seeds and the median
+        /// inside. On the class's ESC (D-066) the empty drone's full punch from 9 m/s holds it (39 of 40, the median 0.60 s
+        /// on seeds 1–40); from 5.3 m/s only the median (0.32 s, 25 of 40), from 2.5 m/s it barely shows.</summary>
         public const double Most = 0.7;
 
         /// <summary>The pilot's band on a group of seeds: at least Most of them inside 0.3–0.7 s, and the median.</summary>
@@ -124,10 +122,11 @@ namespace Fpv450.Sim.Tests
             public double TiltMax;
         }
 
-        /// <summary>The known-wrong ESC without a current limit (D-051: an ESC that senses no current, as Bluejay's), A.</summary>
-        public const double NoCurrentLimit = 1e4;
+        /// <summary>The ESC with current protection (D-051's alternative, model 22's drone: BLHeli_32's protection at the motor's
+        /// 40 A, p6-flight-core 1.5's policy), A. The drone's own ESC, the class's published one, senses no current (D-066).</summary>
+        public const double Protection = 40;
 
-        public static FlightSetup Setup(DroneSpec spec, double payload, ulong seed, bool modes = true, bool currentLimit = true)
+        public static FlightSetup Setup(DroneSpec spec, double payload, ulong seed, bool modes = true, bool protection = false)
         {
             var setup = new FlightSetup
             {
@@ -137,8 +136,8 @@ namespace Fpv450.Sim.Tests
                 StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
             };
             if (modes) setup.Modes = spec.BuildModes();
-            if (!currentLimit)
-                for (int i = 0; i < setup.Propulsion.Motors.Length; i++) setup.Propulsion.Motors[i].EscCurrentLimit = NoCurrentLimit;
+            if (protection)
+                for (int i = 0; i < setup.Propulsion.Motors.Length; i++) setup.Propulsion.Motors[i].EscCurrentLimit = Protection;
             return setup;
         }
 
