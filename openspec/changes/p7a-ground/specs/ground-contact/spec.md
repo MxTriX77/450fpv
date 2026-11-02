@@ -22,7 +22,7 @@ The physics SHALL read every ground surface's mechanics from one physics-owned t
 - **THEN** the replay is refused before its first step, naming both hashes
 
 ### Requirement: Elasto-plastic soil under a part
-A part on soil (a half-skid, a support or coil sphere, an arm, the stand's base) SHALL meet Winkler's foundation, a force of the soil's modulus times the volume the part displaces, with Wong's load and unload rule over the groove the part has pressed (a conforming groove, so unloading follows the footprint at the deepest sink), a firm layer past the maximum sink and viscous damping; each leg SHALL be in series with its soil at equal force, solved each step by a fixed number of Newton steps, and the law SHALL apply to the ground function and every soil shape alike (`Surface != 0`), using only + − × ÷ √.
+A part on soil (a half-skid, a support or coil sphere, an arm, the stand's base) SHALL meet Winkler's foundation, a force of the soil's modulus times the volume the part displaces, with Wong's load and unload rule over the groove the part has pressed (applied to every soil column under the part, so an unload ratio of 1 is elastic), a firm layer past the maximum sink and viscous damping; each leg SHALL be in series with its soil at equal force, solved each step by a fixed number of Newton steps, and the law SHALL apply to the ground function and every soil shape alike (`Surface != 0`), using only + − × ÷ √.
 
 #### Scenario: A resting drone sinks as the rows say
 - **WHEN** the drone (legs on, 5.18 kg) rests disarmed for 3 s on each surface of the test range, dry, with wind and asymmetry off
@@ -30,7 +30,7 @@ A part on soil (a half-skid, a support or coil sphere, an arm, the stand's base)
 
 #### Scenario: Soil keeps a plastic set
 - **WHEN** a flat 15 mm disc is loaded to 25 N on crater_spoil and unloaded, three times in the same print, and a half-skid the same way
-- **THEN** for both the sink recovered on each unload is smaller than the sink applied, the retained set grows on the first loading and grows by less than 5 % of it on the third; the disc's second and third reloadings are stiffer than its first loading by the surface's unload ratio within 1e-9 relative, and the half-skid's follow its groove's unload line k_u·S_m within 1e-9 relative
+- **THEN** for both the sink recovered on each unload is smaller than the sink applied, the retained set grows on the first loading and grows by less than 5 % of it on the third; the disc's second and third reloadings are stiffer than its first loading by the surface's unload ratio within 1e-9 relative, and the half-skid's follow Wong's rule column by column, the virgin law at z_m − ratio·(z_m − z), within 1e-9 relative
 
 #### Scenario: Loose soil swallows a fast landing
 - **WHEN** the drone lands at 1.5 m/s with the throttle cut at the touch on the shelled patch's `crater_spoil` and on the track's `dirt_track`, dry, and the same with a known-wrong elastic soil (the unload ratio 1)
