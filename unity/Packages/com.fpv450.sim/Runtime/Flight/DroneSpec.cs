@@ -309,6 +309,15 @@ namespace Fpv450.Sim.Flight
             return a;
         }
 
+        /// <summary>The build's placement tolerances (BuildTolerance, D-066) on this file's bottle, coil, electronics (the
+        /// leads' carrier) and packs.</summary>
+        public BuildTolerance BuildPlacement()
+        {
+            var packs = new int[Packs.Length];
+            for (int k = 0; k < packs.Length; k++) packs[k] = Packs[k].Part;
+            return new BuildTolerance { BottlePart = Payload.Part, CoilPart = Coil.Part, WiringPart = PartIndex("electronics"), PackParts = packs };
+        }
+
         /// <summary>The rotors' vortex rings at the published boundaries (VortexRingSpec), in the aero block's air.</summary>
         public VortexRingSpec BuildVortexRing() => new VortexRingSpec { AirDensity = Aero.AirDensity };
 

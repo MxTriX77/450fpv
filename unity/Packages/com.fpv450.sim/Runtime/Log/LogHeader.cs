@@ -104,7 +104,7 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "Flapping", "Modes",
+            "Flapping", "Modes", "Placement",
         };
 
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
@@ -161,6 +161,11 @@ namespace Fpv450.Sim.Log
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
         public static readonly string[] AsymmetryFieldsLogged = { "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm" };
+        public static readonly string[] PlacementFieldsLogged =
+        {
+            "BottleAcross", "BottleAlong", "PackAlong", "PackOut", "CoilAcross", "CoilAlong", "WiringMass", "WiringAcross",
+            "BottlePart", "CoilPart", "WiringPart", "PackParts",
+        };
         public static readonly string[] VortexRingFieldsLogged =
         {
             "EntryRate", "ExitRate", "PeakRate", "EndRate", "EntryInflow", "PeakInflow", "EscapeInPlane", "InflowLag", "FluctuationSigma",
@@ -171,7 +176,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21;
+            TagModes = 20, TagRain = 21, TagPlacement = 22;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -216,6 +221,9 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The motors' asymmetry's tolerances; null for identical rotors (its draws are in Draws).</summary>
         public MotorAsymmetry Asymmetry;
+
+        /// <summary>The build's placement tolerances; null for the exact build (its draws are in Draws).</summary>
+        public BuildTolerance Placement;
 
         /// <summary>The rotors' vortex rings; null for none (their stream is in the randomness entry).</summary>
         public VortexRingSpec VortexRing;
@@ -297,6 +305,7 @@ namespace Fpv450.Sim.Log
                 CameraPosition = setup.CameraPosition,
                 Contacts = setup.Contacts?.Clone(),
                 Asymmetry = setup.Asymmetry?.Clone(),
+                Placement = setup.Placement?.Clone(),
                 VortexRing = setup.VortexRing?.Clone(),
                 GroundEffect = setup.GroundEffect?.Clone(),
                 Flapping = setup.Flapping?.Clone(),
@@ -395,6 +404,7 @@ namespace Fpv450.Sim.Log
                 CameraPosition = CameraPosition,
                 Contacts = Contacts?.Clone(),
                 Asymmetry = Asymmetry?.Clone(),
+                Placement = Placement?.Clone(),
                 VortexRing = VortexRing?.Clone(),
                 GroundEffect = GroundEffect?.Clone(),
                 Flapping = Flapping?.Clone(),
@@ -705,6 +715,24 @@ namespace Fpv450.Sim.Log
                 e.Write(Asymmetry.BalanceGrade);
                 e.Write(Asymmetry.PropMass);
                 e.Write(Asymmetry.ServiceRpm);
+            });
+            Entry(w, TagPlacement, e =>
+            {
+                e.Write(Placement != null);
+                if (Placement == null) return;
+                e.Write(Placement.BottleAcross);
+                e.Write(Placement.BottleAlong);
+                e.Write(Placement.PackAlong);
+                e.Write(Placement.PackOut);
+                e.Write(Placement.CoilAcross);
+                e.Write(Placement.CoilAlong);
+                e.Write(Placement.WiringMass);
+                e.Write(Placement.WiringAcross);
+                e.Write(Placement.BottlePart);
+                e.Write(Placement.CoilPart);
+                e.Write(Placement.WiringPart);
+                e.Write((ushort)Placement.PackParts.Length);
+                foreach (int p in Placement.PackParts) e.Write(p);
             });
             Entry(w, TagVortexRing, e =>
             {
@@ -1036,6 +1064,21 @@ namespace Fpv450.Sim.Log
                                 PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(),
                             }
                             : null;
+                        break;
+                    case TagPlacement:
+                        if (!r.ReadBoolean())
+                        {
+                            Placement = null;
+                            break;
+                        }
+                        Placement = new BuildTolerance
+                        {
+                            BottleAcross = r.ReadDouble(), BottleAlong = r.ReadDouble(), PackAlong = r.ReadDouble(), PackOut = r.ReadDouble(),
+                            CoilAcross = r.ReadDouble(), CoilAlong = r.ReadDouble(), WiringMass = r.ReadDouble(), WiringAcross = r.ReadDouble(),
+                            BottlePart = r.ReadInt32(), CoilPart = r.ReadInt32(), WiringPart = r.ReadInt32(),
+                        };
+                        Placement.PackParts = new int[r.ReadUInt16()];
+                        for (int k = 0; k < Placement.PackParts.Length; k++) Placement.PackParts[k] = r.ReadInt32();
                         break;
                     case TagVortexRing:
                         VortexRing = r.ReadBoolean()

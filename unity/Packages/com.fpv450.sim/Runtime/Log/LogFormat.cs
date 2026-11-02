@@ -69,8 +69,9 @@ namespace Fpv450.Sim.Log
         /// the record's rain force, film and air at the camera (1.7), 9 the header's canopy strip and the presets by name
         /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's. 14: the header's canopy strips as a
         /// count and the strips (p7c-wind, the map's wind: a map's belt has one a section), where 13 had a flag and one.
+        /// 15: the header's build placement (tag 22, D-066: BuildTolerance's bounds and parts; its draws with the others).
         /// </summary>
-        public const int Version = 14;
+        public const int Version = 15;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -153,8 +154,11 @@ namespace Fpv450.Sim.Log
         ///    no current, so no current limit, "none", for the assumed 40 A; the motors' published 1.4 A no-load current for the
         ///    assumed 1.0; the packs 0.92 → 0.88 kg and the electronics 0.25 → 0.24 kg from published cells, packs and the
         ///    stack); on model 22's drone a flight steps as in 22.
+        /// 24: the build's placement (BuildTolerance, PHY-24): the bottle, the packs, the coil and the leads where the pilot's
+        ///    hands set them this flight, drawn from "build.placement", so the centre of mass sits a few millimetres off the
+        ///    exact build's; a flight without it steps as in 23.
         /// </summary>
-        public const int ModelVersion = 23;
+        public const int ModelVersion = 24;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
