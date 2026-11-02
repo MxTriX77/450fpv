@@ -380,11 +380,39 @@ def write_table(repo_root, tmp_path, edit):
      "'asphalt' is a surface id; a plain material id never shares a surface's name"),
     (lambda rows: rows.update({"surface:soil": rows["concrete"]}),
      "'surface:soil' is a surface id"),
+    # p7a-ground 1.1, "An area-type row says its law": a copy of straw without area_law, named by row and field.
+    (lambda rows: rows["straw"].pop("area_law"), r"straw\.area_law: missing"),
+    (lambda rows: rows["fabric"]["area_law"].update(value="sponge"), r"fabric\.area_law\.value: must be one of mat"),
+    (lambda rows: rows["sandbag"]["area_reference_depth_m"].pop("label"), r"sandbag\.area_reference_depth_m\.label: missing"),
+    (lambda rows: rows["bark"].pop("elastic_modulus_pa"), r"bark\.elastic_modulus_pa: missing"),
+    (lambda rows: rows["deadwood"].update(elastic_modulus_pa=7e9), r"deadwood\.elastic_modulus_pa: a value carries its label"),
+    (lambda rows: rows["straw"]["wet"]["friction_static"].pop("note"), r"straw\.wet\.friction_static\.note: missing"),
+    (lambda rows: rows["straw"]["wet"].update(suction_pa=rows["straw"]["wet"]["adhesion_pa"]),
+     r"straw\.wet\.suction_pa: is not a field of the wet block"),
 ])
 def test_malformed_physics_material_table_is_refused(repo_root, tmp_path, edit, expected):
     write_table(repo_root, tmp_path, edit)
     with pytest.raises(ValueError, match=expected):
         meta.load_physics_materials(tmp_path)
+
+
+def test_area_rows_name_their_law(repo_root):
+    """p7a-ground 1.1, asset-pipeline "An area-type row says its law": straw, fabric and sandbag name their law and
+    reference depth, each labelled; bark and deadwood carry the modulus their members bend at."""
+    rows = json.loads((repo_root / meta.PHYSICS_MATERIALS).read_text(encoding="utf-8"))["materials"]
+    assert {r: rows[r]["area_law"]["value"] for r in meta.AREA_LAW_ROWS} == {"straw": "mat", "fabric": "punch",
+                                                                             "sandbag": "winkler"}
+    for r in meta.AREA_LAW_ROWS:
+        assert rows[r]["area_reference_depth_m"]["value"] > 0 and rows[r]["area_law"]["label"] in meta.LABELS
+    for r in meta.BENDING_ROWS:
+        assert rows[r]["elastic_modulus_pa"]["value"] > 0 and rows[r]["elastic_modulus_pa"]["note"]
+
+
+def test_surface_ids_are_physics_table(repo_root):
+    """The asset side's surface names are physics' surfaces.json's, in its order (surface id i + 1 is SURFACE_IDS[i],
+    as MapWorld.SurfaceIds reads them)."""
+    table = json.loads((repo_root / "assets-src" / "surfaces.json").read_text(encoding="utf-8"))
+    assert tuple(table["surfaces"]) == meta.SURFACE_IDS
 
 
 def test_textures_are_carried_from_the_generator(k01_params, material_ids):

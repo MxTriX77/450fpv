@@ -89,11 +89,19 @@ TEXTURE_CHANNELS = 4
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
 LABELS = ("pilot", "measured", "published", "derived", "assumed")
 # A shape that stands in for ground (a hole filler, a cut wall, a mound top) names a surface of the map's table
-# instead, as "surface:<id>": exactly the thirteen S01–S13 names (knowledge §7.2, the earthworks sheet; the
-# phase-3 compiler checks the same names against surfaces.json). A plain material id never shares one of them.
+# instead, as "surface:<id>": exactly the thirteen S01–S13 names (knowledge §7.2, the earthworks sheet), in the order
+# of physics' assets-src/surfaces.json, which holds their mechanics (p7a-ground 1.1; the suite checks the two agree).
+# A plain material id never shares one of them.
 SURFACE_PREFIX = "surface:"
 SURFACE_IDS = ("meadow_sod", "dry_crust", "crater_spoil", "belt_straw", "belt_bare", "tilled", "burnt_field",
                "weeds", "yard_litter", "rubble", "asphalt", "concrete_slab", "dirt_track")
+# p7a-ground 1.1: a layer under a spread load names how its stiffness scales with a part's footprint, and a slender
+# member's row carries the modulus it bends at; each such field, and a row's optional wet block, is a labelled value.
+AREA_LAW_ROWS = ("straw", "fabric", "sandbag")
+AREA_LAWS = ("mat", "punch", "winkler")
+BENDING_ROWS = ("bark", "deadwood")
+WET_FIELDS = ("stiffness_ratio", "stiffness_n_per_m", "friction_static", "friction_kinetic", "adhesion_pa",
+              "adhesion_release_m")
 IMPOSTOR_MAX_PX = 1024  # asset-pipeline "Baked impostor LOD": the albedo, the normal and the smoothness atlas, 1k
                         # each at most
 
@@ -122,7 +130,57 @@ def load_physics_materials(root):
             raise ValueError(f"{PHYSICS_MATERIALS}: {material_id} needs friction_static, friction_kinetic, "
                              "edge_radius_m (a number or null), stiffness_n_per_m with damping_ratio or neither, "
                              f"break_stress_pa positive if present, a label in {', '.join(LABELS)} and a rationale")
+        problems = _layer_problems(material_id, row)
+        if problems:
+            raise ValueError(f"{PHYSICS_MATERIALS}: {material_id}.{problems[0]}")
     return set(rows)
+
+
+def _layer_problems(material_id, row):
+    """p7a-ground's fields of a material row: 'field: what is wrong' for each problem."""
+    problems = []
+    if material_id in AREA_LAW_ROWS or "area_law" in row or "area_reference_depth_m" in row:
+        for key in ("area_law", "area_reference_depth_m"):
+            if key not in row:
+                problems.append(f"{key}: missing (a layer under a spread load names its area law and reference depth)")
+        if "area_law" in row:
+            problems += _labelled_problems(row["area_law"], "area_law", lambda v: v in AREA_LAWS,
+                                           f"one of {', '.join(AREA_LAWS)}")
+        if "area_reference_depth_m" in row:
+            problems += _labelled_problems(row["area_reference_depth_m"], "area_reference_depth_m",
+                                           lambda v: _is_num(v) and v > 0, "a number above 0")
+    if material_id in BENDING_ROWS or "elastic_modulus_pa" in row:
+        if "elastic_modulus_pa" not in row:
+            problems.append("elastic_modulus_pa: missing (a slender member bends at its modulus)")
+        else:
+            problems += _labelled_problems(row["elastic_modulus_pa"], "elastic_modulus_pa",
+                                           lambda v: _is_num(v) and v > 0, "a number above 0")
+    wet = row.get("wet")
+    if wet is not None:
+        if not isinstance(wet, dict):
+            problems.append("wet: must be an object of labelled values")
+        else:
+            for key, value in wet.items():
+                if key not in WET_FIELDS:
+                    problems.append(f"wet.{key}: is not a field of the wet block ({', '.join(WET_FIELDS)})")
+                else:
+                    problems += _labelled_problems(value, f"wet.{key}", lambda v: _is_num(v) and v >= 0,
+                                                   "a number of at least 0")
+    return problems
+
+
+def _labelled_problems(node, path, valid, what):
+    """A labelled value, {"value": …, "label": one of LABELS, "note": "…"} as drone.json's and surfaces.json's."""
+    if not isinstance(node, dict) or not set(node) <= {"value", "label", "note"}:
+        return [f"{path}: a value carries its label: {{\"value\": …, \"label\": …, \"note\": …}}"]
+    problems = []
+    if node.get("label") not in LABELS:
+        problems.append(f"{path}.label: missing or not one of {', '.join(LABELS)}")
+    if not isinstance(node.get("note"), str) or not node["note"].strip():
+        problems.append(f"{path}.note: missing: every value says its source, its reason or its formula")
+    if not valid(node.get("value")):
+        problems.append(f"{path}.value: must be {what}")
+    return problems
 
 
 def assemble(asset_id, variant, generator, params, built, visual_by_slot, impostor_lod=None):
