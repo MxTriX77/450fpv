@@ -5,6 +5,7 @@ using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.FlightBench
 {
@@ -16,9 +17,11 @@ namespace Fpv450.FlightBench
     // thread is (unpaced, 3 s of latency would pass in about 70 ms and the worker could not keep up with a faster-than-real
     // flight). The bench times the step and checks that the flight thread never waits for the worker
     // (WakeGridWorker.Stalls); the pilot's own work and the pacing are outside the timed calls.
+    // map-step (p7c-wind, the map's wind): the same over the test range in its own wind (WindSetup.ForMap), held 2 m inside
+    // the belt's west section's north edge at 0.75 h, where a point takes the canopy's share and the wake grid's both.
     internal static class PosadkaStepCase
     {
-        public const string Name = "posadka-step";
+        public const string Name = "posadka-step", MapName = "map-step";
 
         const ulong Seed = 1;
         const int Seconds = 60, Warmup = 2000;
@@ -42,6 +45,30 @@ namespace Fpv450.FlightBench
             using var probe = new WindField(wind, new FlightRandom(Seed));
             Double3 downwind = WindField.Toward(probe.FromDegAt(start), 1);
             Double3 hold = new Double3(downwind.X * 2 * h, 0.75 * h, downwind.Z * 2 * h);
+            return Run(Name, setup, hold, start, turned, $"posadka, the whole airframe, held {hold.Y:F1} m up and {2 * h:F1} m downwind of the belt");
+        }
+
+        public static bool BenchMap()
+        {
+            DroneSpec spec = PoweredFlightCase.Drone();
+            int start = FirstTurn(out double turned);
+            MapWorld map = RangeScenarios.World;
+            WindSetup wind = WindSetup.ForMap(map, WindLevel.Severe);
+            wind.StartSecond = start;
+            FlightSetup setup = CrosswindScenario.Setup(spec, wind, Seed);
+            setup.Rain = RainLevel.SevereRain;
+            setup.Asymmetry = spec.BuildAsymmetry();
+            setup.VortexRing = spec.BuildVortexRing();
+            setup.GroundEffect = spec.BuildGroundEffect();
+            setup.Flapping = spec.BuildFlapping();
+            setup.Modes = spec.BuildModes();
+            CanopyStrip west = MapWind.Of(map).Belts[0].Strip;
+            var hold = new Double3(west.CentreX, 0.75 * west.Height, west.CentreZ + west.Width / 2 - 2);
+            return Run(MapName, setup, hold, start, turned, $"test range in its own wind, the whole airframe, held {hold.Y:F1} m up 2 m inside the belt's edge");
+        }
+
+        static bool Run(string name, FlightSetup setup, Double3 hold, int start, double turned, string where)
+        {
             setup.StartPosition = hold;
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
@@ -67,8 +94,8 @@ namespace Fpv450.FlightBench
             double p50 = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us, max = times[steps - 1] * us;
             var worker = core.Wind.Wakes;
             bool ok = p99 <= 300 && allocated == 0 && worker.Builds >= 2 && worker.Stalls == 0 && core.State.Armed && !core.State.Crashed;
-            Console.WriteLine($"{Name}: Severe wind ({core.Wind.MeanSpeed:F2} m/s) in Severe rain ({core.Rain.RateMmPerHour:F1} mm/h) over the "
-                + $"posadka, the whole airframe, held {hold.Y:F1} m up and {2 * h:F1} m downwind of the belt from second {start} (the bearing "
+            Console.WriteLine($"{name}: Severe wind ({core.Wind.MeanSpeed:F2} m/s) in Severe rain ({core.Rain.RateMmPerHour:F1} mm/h) over the "
+                + $"{where} from second {start} (the bearing "
                 + $"moving {turned:F1}° in {Seconds} s): {steps} steps p50 {p50:F2} µs, p99 {p99:F2} µs, max {max:F1} µs; the wake grid rebuilt "
                 + $"{worker.Builds} times (last {worker.LastBuildSeconds * 1000:F0} ms on the worker), {worker.Stalls} stalls; allocation {allocated} B: "
                 + $"{(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B, ≥ 2 rebuilds, no stall)");

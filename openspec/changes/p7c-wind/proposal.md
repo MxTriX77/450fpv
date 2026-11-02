@@ -14,6 +14,7 @@ The pilot's strongest physics point is the wind: "the worst part" is the tree be
 - **The field** (PHY-13, 13a, 15): the log-law mean profile, von Kármán turbulence reaching 2–4 Hz, the wakes, vorticity and per-rotor gust gradients, the per-flight direction and strength with meander and rare shifts (K§8.3), and the cavity under a trench lip. It replaces the stand-in.
 - **The levels** (PHY-14): Severe tuned until T0 passes, Windy and Calm from it, every K§8.6 target graded on at least five seeds, T0c on 40 seeds × 120 min, and each target shown to fail a known-wrong model.
 - **Cruise in wind** (PHY-17a): the airframe drag re-derived so clip P's 22.7° of pitch at about 4.8 kg gives the published 17–22 m/s cruise. This supersedes `p6-flight-core` 1.5's 13 m/s calibration. The horizon–heading trade-off (PHY-16, T10b, T11b) follows from it.
+- **The map's wind** (D-059, D-060): a flight over a map carries the map's own obstacles (`WindSetup.ForMap`), its placed wind volumes as the wake grid's obstacles and its tree belt read once, as wooded strips with one porous wake each (design 9).
 - **Rain** (PHY-17), the part that is not the fiber's or the ground's: the rain-rate signal, the rain's drag and wet mass on the body, and the air velocity at the camera for the lens drops (FEED-13).
 
 ## Capabilities
