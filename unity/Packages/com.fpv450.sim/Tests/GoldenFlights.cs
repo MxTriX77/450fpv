@@ -218,7 +218,16 @@ namespace Fpv450.Sim.Tests
         // model 23's the Windy flight moves from step 1 (the lighter body) and keeps its course on the open-loop script, which
         // the 90 g lighter drone climbs harder: armed, no crash, 153.53 m up against 147.90 at 10 s, 16.7 m from model 22's end,
         // the packs at 0.8941 of 0.9 against 0.8949.
-        public const ulong PoweredHash = 0x67788361104F58BBUL;
+        // Model 25: 0x67788361104F58BB. The power merge (ModelVersion 26): re-recorded with D-066's drone under the
+        // interference, D-064 and 1.6c's spring (the exact build, no placement). Audited against each parent with the other
+        // side off: on model 22's drone (WithModel22Drone) it is model 25's pin bit for bit, every record and event (the kept
+        // test, OnModel22sDroneEachGoldenIsModel25s); without the interference and D-064's sources, over model 19's 1808
+        // bytes, the power branch's 0xCC20DE164C858267 (the kept test, WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs).
+        // It moves from step 1 against model 25 (the lighter body) and from step 21, the first armed step, against the power
+        // branch's, and keeps its course: armed, no crash, 162.72 m up against 157.26 and 153.53 at 10 s on the open-loop
+        // script (the lighter drone climbs harder, as on its branch), 20.1 m and 9.9 m from their ends, within 21° and 7.8°;
+        // the packs at 0.8941 of 0.9 (the power branch's 0.8941).
+        public const ulong PoweredHash = 0x53F1D10489702031UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -242,7 +251,11 @@ namespace Fpv450.Sim.Tests
         // 9.11 g at 10 s (9.57 and 9.06).
         // Model 22 on p7b-airframe--power: 0xB10D9A860D4431C0. D-066 (ModelVersion 23), audited as the powered flight: it moves from step 1 and keeps
         // its course, 155.36 m up against 148.69; the film holds 10.28 g at 10 s against 9.60.
-        public const ulong RainPoweredHash = 0x4D876EF3F328F9ADUL;
+        // Model 25: 0x4D876EF3F328F9AD. The power merge (ModelVersion 26), audited as the powered flight (model 25's pin on
+        // model 22's drone, the kept test; the power branch's 0xACF1742E51117659 without the integration's sources, the kept
+        // test). It moves from step 1 and step 21 and keeps its course: 164.73 m up against 158.09 and 155.36, 19.8 m and 9.8
+        // m from their ends, within 19° and 8.0°; the film holds 9.92 g at 10 s (9.11 and 10.28).
+        public const ulong RainPoweredHash = 0x53B90D4307BF1534UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -385,7 +398,14 @@ namespace Fpv450.Sim.Tests
         // 1.4° of the landing's (the held bounce).
         // Model 22 on p7b-airframe--power: 0x8C1E6B066F143A67. D-066 (ModelVersion 23), audited as the powered flight: it keeps its course, 5 impacts,
         // no crash, at rest on 8 contacts at 0.2519 m against 0.2518, 18 mm aside.
-        public const ulong ContactHash = 0x0F21FF2A28BA0E16UL;
+        // Model 25: 0x0F21FF2A28BA0E16. The power merge (ModelVersion 26): re-recorded with D-066's drone. Audited: on model
+        // 22's drone it is model 25's pin bit for bit (the kept test); without the interference and D-064's sources, with the
+        // wash on model 19's numbers, its torque at the freestream's inflow and the stick anchor at the contact point
+        // (temporary edits, reverted), over 1808 bytes, the power branch's 0xAF0C71C9193B4326. It moves from step 1 against
+        // model 25 (the lighter body) and from step 3 against the power branch's (1.6c's spring on the standing skids), and
+        // keeps its course: 5 impacts, no crash, at rest at 0.2519 m on 8 pairs (0.2518 and 0.2519), 59 mm and 42 mm aside,
+        // within 117 mm and 1.5° of model 25's path and 49 mm and 1.5° of the power branch's (the held bounce).
+        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -418,7 +438,11 @@ namespace Fpv450.Sim.Tests
         // test).
         // Model 22 on p7b-airframe--power: 0x2A0283BBFE59FD84. D-066 (ModelVersion 23): the L4 body is the lighter packs' and electronics' (4.742 kg);
         // momentum within 1.7e-12, energy 3.5e-12, the CoM 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s.
-        public const ulong TumbleHash = 0x6712A54D0FDA7F84UL;
+        // Model 25: 0x6712A54D0FDA7F84. The power merge (ModelVersion 26): D-066's lighter L4 body (4.742 kg) on the 1904-byte
+        // record, the interference's and the own wake's bytes zero: on model 22's drone model 25's pin (the kept test), over
+        // 1808 bytes the power branch's 0x95E56C6BB49BB744 (the kept test); momentum within 1.7e-12, energy 3.5e-12, the CoM
+        // 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s, the power branch's numbers.
+        public const ulong TumbleHash = 0xBCBD33E6B6A94844UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -485,7 +509,13 @@ namespace Fpv450.Sim.Tests
         // 24's path, 35 mm and 4.2° of the landing's (step 8625, the held bounce over the straw).
         // Model 22 on p7b-airframe--power: 0x80C73DBA130C6903. D-066 (ModelVersion 23), audited as the powered flight: it keeps its course, 4 impacts,
         // no crash, at rest on 18 pairs at 0.2342 m against 0.2339, within 1 mm.
-        public const ulong RangeHash = 0x0D5350CB2E68C6B8UL;
+        // Model 25: 0x0D5350CB2E68C6B8. The power merge (ModelVersion 26), in WindSetup.ForMap's Calm (kept): re-recorded with
+        // D-066's drone: 4 impacts, no crash, at rest 20.69 mm into the straw on 21 pairs (model 25: 19.53 on 20; the power
+        // branch: 18.82 on 18). Audited as the contact flight: model 25's pin on model 22's drone (the kept test), the power
+        // branch's 0xFBAC3E4D67B45ACD under the temporary edits over 1808 bytes. It moves from step 1 and step 3 and keeps its
+        // course: at rest 6.9 mm and 24 mm from their resting places, within 114 mm and 3.1° of model 25's path and 34 mm and
+        // 3.5° of the power branch's (the held bounce over the straw).
+        public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
