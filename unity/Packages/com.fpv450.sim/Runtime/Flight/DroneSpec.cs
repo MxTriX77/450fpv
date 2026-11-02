@@ -35,7 +35,8 @@ namespace Fpv450.Sim.Flight
         /// <summary>The ESC's command filter τ_esc, s.</summary>
         public double EscTau;
 
-        /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion).</summary>
+        /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion);
+        /// +∞ for an ESC that senses no current (drone.json's "none").</summary>
         public double EscCurrentLimit;
     }
 
@@ -671,7 +672,7 @@ namespace Fpv450.Sim.Flight
                     motor.MagnetPoles = Count(m, "magnet_poles", path, 2);
                     if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
-                    motor.EscCurrentLimit = Positive(m, "esc_current_limit_a", path);
+                    motor.EscCurrentLimit = LimitOrNone(m, "esc_current_limit_a", path);
                 }
                 // The diagonal pairs spin alike and the two pairs oppositely, so the rotor torques cancel at hover.
                 if (System.Array.IndexOf(spins, null) < 0
@@ -990,6 +991,20 @@ namespace Fpv450.Sim.Flight
                 double x = Number(o, key, path);
                 if (!double.IsNaN(x) && !(x > 0)) { Fail(path + "." + key, "must be above 0"); return double.NaN; }
                 return x;
+            }
+
+            // A limit above 0, or "none" for no limit at all (+∞).
+            double LimitOrNone(JsonNode o, string key, string path)
+            {
+                JsonNode v = Labelled(o, key, path);
+                if (v == null) return double.NaN;
+                if (v.Kind == JsonKind.String && v.Text == "none") return double.PositiveInfinity;
+                if (v.Kind != JsonKind.Number || !(v.Number > 0))
+                {
+                    Fail(path + "." + key + ".value", "must be above 0, or \"none\"");
+                    return double.NaN;
+                }
+                return v.Number;
             }
 
             double NonNegative(JsonNode o, string key, string path)
