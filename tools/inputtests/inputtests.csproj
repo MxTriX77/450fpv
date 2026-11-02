@@ -24,5 +24,6 @@
   <ItemGroup>
     <ProjectReference Include="../simcore/simcore.csproj" />
     <ProjectReference Include="../inputcore/inputcore.csproj" />
+    <ProjectReference Include="../simtests/simtests.csproj" />
   </ItemGroup>
 </Project>

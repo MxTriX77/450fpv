@@ -78,6 +78,11 @@ Branch `unity/game/p6-input-app` off `unity/main`, after `p6-flight-core`'s task
       - `SessionSetup.Build` takes drone.json's mass, propulsion, aero and contacts at the loadout (the coil full at take-off), `WindSetup.Of(level)`, the settings, a new `FlightWorld.Floor()` and the start point (the floor's `origin` until the test range lists its own).
       - Legs on, the drone stands on its unloaded skids. Legs off, `LaunchStand.Build` is placed as the runtime object at the start point's heading, and the drone rests at `RestingOrigin`.
       - The time of day and the rain go to the scene: the G7 physics has no rain, and the log header has no field for either.
+      - **Since the wind-integration merge (model 22):**
+        - Over a map the wind is `WindSetup.ForMap` (its wakes and its belt's canopy). `Finish` disposes the core's wind, which frees the wake grid's worker and about 17 MB.
+        - The rain also goes to the physics (`FlightSetup.Rain`).
+        - Until then the app flew the clean plant. Now it flies the powered golden's airframe effects, value for value: the motors' asymmetry (seeded per flight, Calm included), the vortex rings, the ground and ceiling effect, flapping, the airframe's modes and the camera's position. `TheFlightFliesTheGoldensEffects` compares every `FlightSetup` field that is not a choice of the flight against `GoldenFlights.PoweredSetup`.
+        - Two scripted crash tests now fly another path. The car's level throttle 0.52 became 0.51, back onto the steel bumper. The box's drone lands hopping, with airmode's motors against the floor, so its check now counts the steps on the floor and its height at the end.
     - **The session** (`FlightSession`):
       - `SessionInputs.FromProfile(persistentDataPath, …)` loads the setup, `FcSettingsStore.Load` and the active calibration, and names any file it could not read.
       - `Start` takes the radio when `RadioReader.Connected`; otherwise the keyboard where it is allowed; otherwise it refuses ("no radio is connected"). It sets the reader's map (`CalibratedStickMap`, or raw without a profile), `HoldArm` and the flight's inbox.

@@ -440,7 +440,7 @@ namespace Fpv450.App.Session
         /// <summary>
         /// The FlightSetup of inputs' choices: drone.json's mass, propulsion, aero and contacts at the loadout (the
         /// payload, the legs, the coil full at take-off), the wind level (over a map, with its wakes and its belt's
-        /// canopy: WindSetup.ForMap), the settings, a new world, and the start point:
+        /// canopy: WindSetup.ForMap), the rain, the airframe's effects as the powered golden's, the settings, a new world, and the start point:
         /// legs on, the drone standing on the ground there, its skids unloaded; legs off, the launch stand placed there
         /// as a runtime object and the drone resting on its posts; both at the start point's heading.
         /// </summary>
@@ -465,7 +465,17 @@ namespace Fpv450.App.Session
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
                 Wind = world.Query is MapWorld map ? WindSetup.ForMap(map, c.Wind) : WindSetup.Of(c.Wind),
+                Rain = c.Rain == Rain.SevereRain ? RainLevel.SevereRain : c.Rain == Rain.Rain ? RainLevel.Rain : RainLevel.Sunny,
+                CameraPosition = spec.CameraPosition,
                 Contacts = contacts,
+                // The airframe's effects, as the powered golden flies them (GoldenFlights.PoweredSetup): the motors'
+                // asymmetry (drawn from the flight's seed; Calm keeps it, only the wind harness grades Calm without it),
+                // the vortex rings, the ground and ceiling effect, flapping, and the airframe's modes.
+                Asymmetry = spec.BuildAsymmetry(),
+                VortexRing = spec.BuildVortexRing(),
+                GroundEffect = spec.BuildGroundEffect(),
+                Flapping = spec.BuildFlapping(),
+                Modes = spec.BuildModes(),
                 StartAttitude = new Quat(0, sin, 0, cos),
             };
             if (c.Legs)

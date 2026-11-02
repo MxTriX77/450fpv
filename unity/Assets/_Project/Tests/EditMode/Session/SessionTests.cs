@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Fpv450.App.Session;
@@ -10,6 +11,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using NUnit.Framework;
@@ -102,6 +104,50 @@ namespace Fpv450.Tests.Session
         }
 
         // ---- Setup to FlightSetup ---------------------------------------------------------------------------------------
+
+        // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
+        // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
+        // choices. A field FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        [Test]
+        public void TheFlightFliesTheGoldensEffects()
+        {
+            var choices = new HashSet<string> { "Seed", "Settings", "World", "Mass", "Wind", "Rain", "Contacts", "RuntimeObjects",
+                "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge" };
+            foreach (bool legs in new[] { true, false })
+            {
+                Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
+                rig.Session.Start();
+                FlightSetup app = rig.Session.Setup, golden = GoldenFlights.PoweredSetup(_spec);
+                var effects = new List<string>();
+                foreach (FieldInfo f in typeof(FlightSetup).GetFields(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (choices.Contains(f.Name)) continue;
+                    effects.Add(f.Name);
+                    Assert.That(f.GetValue(golden), Is.Not.Null, f.Name + ": the golden flies it");
+                    Assert.AreEqual(Dump(f.GetValue(golden)), Dump(f.GetValue(app)), f.Name + " (legs " + legs + "): as the golden flies it");
+                }
+                if (legs) TestContext.WriteLine("the golden's effects, each flown by the app as the golden flies it: " + string.Join(", ", effects));
+                rig.Session.Dispose();
+            }
+        }
+
+        // Every value an object holds, its fields' in order, doubles bit for bit.
+        static string Dump(object v, int depth = 0)
+        {
+            if (v == null) return "null";
+            Type t = v.GetType();
+            if (v is double d) return BitConverter.DoubleToInt64Bits(d).ToString("X16");
+            if (v is float s) return BitConverter.SingleToInt32Bits(s).ToString("X8");
+            if (t.IsPrimitive || t.IsEnum || v is string) return v.ToString();
+            if (depth > 8) return t.Name;
+            var b = new System.Text.StringBuilder(t.Name).Append('{');
+            if (v is Array a)
+                foreach (object e in a) b.Append(Dump(e, depth + 1)).Append(',');
+            else
+                foreach (FieldInfo f in t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                    b.Append(f.Name).Append('=').Append(Dump(f.GetValue(v), depth + 1)).Append(',');
+            return b.Append('}').ToString();
+        }
 
         [Test]
         public void TheSetupBecomesTheFlight()
@@ -529,12 +575,20 @@ namespace Fpv450.Tests.Session
             long crashed = core.State.Step;
             double crashY = core.State.Position.Y;
             rig.Radio.Throttle = 0;
-            rig.Run(1500);
-            TestContext.WriteLine("crashed at step " + crashed + ", " + crashY.ToString("0.000") + " m; 1.5 s later " + core.State.Position.Y.ToString("0.000") + " m, "
-                                  + core.State.Velocity.Length().ToString("0.000") + " m/s, " + core.Trace.ContactsTouching + " touching pairs");
+            // With the airframe's effects it lands hopping (airmode's motors against the floor), so the floor is the
+            // steps it touches below the box, not one instant's contact.
+            int floor = 0;
+            for (int ms = 0; ms < 1500; ms++)
+            {
+                rig.Run(1);
+                if (core.Trace.ContactsTouching > 0 && crashY - core.State.Position.Y > 0.5) floor++;
+            }
+            double rest = rig.Session.Setup.StartPosition.Y;
+            TestContext.WriteLine("crashed at step " + crashed + ", " + crashY.ToString("0.000") + " m; 1.5 s later " + core.State.Position.Y.ToString("0.000") + " m (standing "
+                                  + rest.ToString("0.000") + " m), " + core.State.Velocity.Length().ToString("0.000") + " m/s, on the floor " + floor + " of the 1500 steps");
             Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
             Assert.That(core.State.Step, Is.EqualTo(crashed + 1500), "stepping on under physics");
-            Assert.That(crashY - core.State.Position.Y > 0.5 && core.Trace.ContactsTouching > 0, "fell from the box onto the floor");
+            Assert.That(floor > 0 && Math.Abs(core.State.Position.Y - rest) < 0.02, "fell from the box onto the floor, and lies there");
             rig.Session.EndFlight(); // the pause's End flight
             Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
 
@@ -564,8 +618,9 @@ namespace Fpv450.Tests.Session
         // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 103° to face
         // R01_A's middle (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown at about 0.6 m into its
         // end, where the steel bumper is (at the flight model 19 the old 108° and lower throttle skimmed past it into a
-        // fence). The summary names the placed car by MapWorld.ObjectName, through the log's world id and hash; without
-        // the world, or with another, it is "object N".
+        // fence; with the airframe's effects on, the level 0.52 flew over the bumper into the body's sheet metal, and 0.51
+        // meets the bumper at 101°, 103° and 105°). The summary names the placed car by MapWorld.ObjectName, through the
+        // log's world id and hash; without the world, or with another, it is "object N".
         [Test]
         public void ACrashIntoTheRangesCarNamesIt()
         {
@@ -585,7 +640,7 @@ namespace Fpv450.Tests.Session
             FlightCore core = rig.Session.Core;
             for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
             {
-                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.52; // lift, then low and level
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.51; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }
