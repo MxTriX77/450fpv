@@ -83,6 +83,8 @@ namespace Fpv450.Sim.Flight
     /// - the ground and the ceiling (GroundEffectSpec, p7b-airframe 1.3), inside RotorInflow: each rotor's thrust at its speed
     ///   gains by its distances along its axis to the surfaces below and above it (SetSurfaces), and its re-ingested wash
     ///   adds its inflow to the thrust's advance ratio; AdvanceWash moves the wash once a step.
+    /// - the rotors in each other's wake (RotorWakeSpec, p7b-airframe 1.3d), inside RotorInflow: each rotor's axial inflow takes
+    ///   the other rotors' wakes' downwash or upwash at its disc, scaled by its fluctuation; AdvanceWake moves that once a step.
     /// </summary>
     public sealed class Propulsion
     {
@@ -120,6 +122,16 @@ namespace Fpv450.Sim.Flight
         readonly double[] _surfaceGain = new double[4], _washInflow = new double[4], _washInduced = new double[4];
         readonly double[][] _ocv = new double[2][];
 
+        // The rotors in each other's wake (null: none): its spec, table and stream; each rotor's induced velocity (m/s), its wake's
+        // tan(χ/2) and downstream direction (body x, z) and its in-plane airspeed (m/s) at the step's start, and the interference
+        // it takes (m/s).
+        readonly RotorWakeSpec _wake;
+        readonly RotorWakeTable _wakeTable;
+        readonly SeedStream _wakeStream;
+        readonly double[] _wakeInduced = new double[4], _wakeSkew = new double[4], _wakeDx = new double[4], _wakeDz = new double[4];
+        readonly double[] _wakeSpeed = new double[4];
+        Corners _wakeInflow;
+
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
         bool _elastic;
@@ -143,6 +155,11 @@ namespace Fpv450.Sim.Flight
         /// groundStream (null for neither).</summary>
         public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream,
             GroundEffectSpec ground, SeedStream groundStream)
+            : this(spec, draws, ring, ringStream, ground, groundStream, null, default) { }
+
+        /// <summary>The same, with the rotors in each other's wake from wake and its fluctuation from wakeStream (null for none).</summary>
+        public Propulsion(PropulsionSpec spec, MotorAsymmetry.Draws draws, VortexRingSpec ring, SeedStream ringStream,
+            GroundEffectSpec ground, SeedStream groundStream, RotorWakeSpec wake, SeedStream wakeStream)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
             if (spec.Motors == null || spec.Motors.Length != 4) throw new ArgumentException("four motors", nameof(spec));
@@ -189,6 +206,12 @@ namespace Fpv450.Sim.Flight
                 _ringGain[i] = _surfaceGain[i] = 1;
                 _groundAt[i] = _ceilingAt[i] = double.PositiveInfinity;
             }
+            if (wake != null)
+            {
+                _wake = wake.Clone();
+                _wakeTable = _wake.Table(_hub);
+                _wakeStream = wakeStream;
+            }
             if (ring == null && ground == null) return;
             _ring = ring?.Clone();
             _ringStream = ringStream;
@@ -215,6 +238,17 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Whether the rotors feel the ground and the ceiling (GroundEffectSpec).</summary>
         public bool HasGround => _ground != null;
+
+        /// <summary>Whether the rotors take each other's wake (RotorWakeSpec).</summary>
+        public bool HasWake => _wake != null;
+
+        /// <summary>Each rotor's added inflow from the other rotors' wakes this step, m/s, positive down through the disc (0
+        /// without the wake): inside Inflow.</summary>
+        public ref readonly Corners WakeInflow => ref _wakeInflow;
+
+        /// <summary>A rotor's induced velocity (m/s) and its wake's tan(χ/2) this step, from RotorInflow (0 without the wake).</summary>
+        public double WakeInduced(int corner) => _wakeInduced[corner];
+        public double WakeSkew(int corner) => _wakeSkew[corner];
 
         /// <summary>A rotor's gain from the ground and the ceiling this step (1 without them).</summary>
         public double SurfaceGain(int corner) => _surfaceGain[corner];
@@ -338,8 +372,9 @@ namespace Fpv450.Sim.Flight
         /// air): p7c-wind's field sampled at the hub. Today the air is each hub's velocity through it in body axes, the
         /// body origin's velocity plus ω × r less that wind, split along the disc's normal (body +y) and its plane.
         /// The rotors' own terms go here and nowhere else: the own wash and the vortex ring (p7b 1.2), the neighbours'
-        /// wash and recirculation, and the ground and ceiling (1.3), each from the state and the rotors' own loads; and
-        /// each hub's elastic velocity along the axis when the airframe flexes (1.4, SetHubElastic).
+        /// wash and recirculation, and the ground and ceiling (1.3), each from the state and the rotors' own loads; each
+        /// hub's elastic velocity along the axis when the airframe flexes (1.4, SetHubElastic); and, after every rotor's own
+        /// air, the other rotors' wakes at its disc (1.3d, Interference).
         /// The vortex ring (1.2): each rotor's ring adds its inflow through the disc (FlightState.RingInflow, m/s) to the
         /// thrust's inflow and its fluctuation (RingThrust) to the thrust, as the state holds them at the step's start;
         /// AdvanceRing moves them after the step's loops. The torque keeps the freestream's inflow: Washizu et al. and
@@ -370,6 +405,56 @@ namespace Fpv450.Sim.Flight
                 _surfaceGain[i] = _ground.GroundGain(_groundAt[i] / _radius, fade) * _ground.CeilingGain(_ceilingAt[i] / _radius, fade);
                 _washInflow[i] = s.WashInflow[i] * vh;
                 _washInduced[i] = vh;
+            }
+            if (_wake != null) Interference(s);
+        }
+
+        // The rotors in each other's wake (RotorWakeSpec, p7b-airframe 1.3d): each source's induced velocity at its thrust at the
+        // last sub-step (Glauert's), the share of its wake the flow carries away (Formed), and its wake's skew and downstream
+        // direction from its own inflow so far; each target's added
+        // inflow Σ k·v_i over the others, scaled by its fluctuation (1 + FlightState.WakeShare), into its axial inflow as the
+        // wind's axial part enters it, so the thrust, the torque, the flapping and the ring all take it.
+        void Interference(in FlightState s)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                Double3 p = _inPlane[i];
+                double v = DetMath.Sqrt(p.X * p.X + p.Z * p.Z), t = _meanThrust[i], vi = _wake.InducedVelocity(v, _inflow[i], t);
+                double through = _inflow[i] + vi;
+                _wakeInduced[i] = vi * _wake.Formed(t, DetMath.Sqrt(v * v + through * through));
+                _wakeSpeed[i] = v;
+                _wakeSkew[i] = RotorWakeSpec.HalfSkew(v, through);
+                _wakeDx[i] = v > 0 ? -p.X / v : 0;
+                _wakeDz[i] = v > 0 ? -p.Z / v : 0;
+            }
+            for (int j = 0; j < 4; j++)
+            {
+                double sum = 0;
+                for (int i = 0; i < 4; i++)
+                    if (i != j && _wakeInduced[i] > 0)
+                        sum += _wakeTable.Factor(i, j, _wakeSkew[i], _wakeDx[i], _wakeDz[i]) * _wakeInduced[i];
+                double added = sum * (1 + s.WakeShare[j]);
+                _wakeInflow[j] = added;
+                _inflow[j] += added;
+            }
+        }
+
+        /// <summary>
+        /// The wakes' fluctuation over one step of dt seconds (RotorWakeSpec): each rotor's share x, a first-order process,
+        /// x ← a·x + √(1 − a²)·σ·n, a = τ/(τ + dt), τ = FluctuationScale·R/V_∥ at the rotor's in-plane airspeed, n from
+        /// "wake.rotor" at the step and the corner, bounded. Held while the rotor has no in-plane airspeed.
+        /// </summary>
+        public void AdvanceWake(ref FlightState s, double dt)
+        {
+            double sigma = _wake.FluctuationSigma, bound = _wake.FluctuationBound;
+            for (int i = 0; i < 4; i++)
+            {
+                double v = _wakeSpeed[i], x = s.WakeShare[i];
+                if (!(v > 0)) continue;
+                double tau = _wake.FluctuationScale * _wake.Radius / v, a = tau / (tau + dt);
+                x *= a;
+                if (sigma > 0) x += DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_wakeStream, s.Step, i);
+                s.WakeShare[i] = x > bound ? bound : x < -bound ? -bound : x;
             }
         }
 

@@ -43,6 +43,10 @@ namespace Fpv450.Sim.Flight
         /// p7b-airframe 1.3c): null for none, as a bench's rotors and the goldens' audits fly.</summary>
         public RotorFlappingSpec Flapping;
 
+        /// <summary>The rotors in each other's wake, the rear rotors in the front rotors' in forward flight (RotorWakeSpec,
+        /// p7b-airframe 1.3d): null for none, as a bench's rotors and the goldens' audits fly.</summary>
+        public RotorWakeSpec RotorWake;
+
         /// <summary>The airframe's elastic modes, the arms' bending and the payload's and the coil's mounts (AirframeModesSpec,
         /// p7b-airframe 1.4): null for a rigid airframe, as a bench and the goldens' audits fly.</summary>
         public AirframeModesSpec Modes;
@@ -199,7 +203,9 @@ namespace Fpv450.Sim.Flight
                 GroundEffect = setup.GroundEffect?.Clone();
                 SeedStream wash = GroundEffect != null ? Random.Open("ground.recirc") : default;
                 Flapping = setup.Flapping?.Clone();
-                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash) { Flapping = Flapping };
+                RotorWake = setup.RotorWake?.Clone();
+                SeedStream wake = RotorWake != null ? Random.Open("wake.rotor") : default;
+                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash, RotorWake, wake) { Flapping = Flapping };
                 ModesSpec = setup.Modes?.Clone();
                 if (ModesSpec != null)
                 {
@@ -258,6 +264,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The rotors' flapping, or null for none.</summary>
         public RotorFlappingSpec Flapping { get; }
+
+        /// <summary>The rotors in each other's wake, or null for none.</summary>
+        public RotorWakeSpec RotorWake { get; }
 
         /// <summary>The airframe's modes' spec and the modes this body has, or null for a rigid airframe.</summary>
         public AirframeModesSpec ModesSpec { get; }
@@ -540,6 +549,13 @@ namespace Fpv450.Sim.Flight
 
             // The re-ingested wash moves once a step too (Propulsion.AdvanceWash), from the step's heights and v_h.
             if (_propulsion.HasGround) _propulsion.AdvanceWash(ref s, Dt);
+
+            // The wakes' interference this step for the record, and their fluctuation moves once a step (Propulsion.AdvanceWake).
+            if (_propulsion.HasWake)
+            {
+                _trace.WakeInflow = _propulsion.WakeInflow;
+                _propulsion.AdvanceWake(ref s, Dt);
+            }
 
             Field(s, amps, loads.Volts);
         }
