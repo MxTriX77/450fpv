@@ -418,6 +418,7 @@ namespace Fpv450.App.Session
         void Finish(FlightEnd end)
         {
             if (_stepping) StopStepping();
+            _core.Wind.Dispose(); // a map's wake grid: its worker thread and about 17 MB
             if (_keyboard == null && _in.Reader != null && _in.Reader.Inbox == _inbox) _in.Reader.Inbox = null;
             _log.Close(_inbox.Dropped);
             LogFault = _log.Fault;
@@ -438,7 +439,8 @@ namespace Fpv450.App.Session
     {
         /// <summary>
         /// The FlightSetup of inputs' choices: drone.json's mass, propulsion, aero and contacts at the loadout (the
-        /// payload, the legs, the coil full at take-off), the wind level, the settings, a new world, and the start point:
+        /// payload, the legs, the coil full at take-off), the wind level (over a map, with its wakes and its belt's
+        /// canopy: WindSetup.ForMap), the settings, a new world, and the start point:
         /// legs on, the drone standing on the ground there, its skids unloaded; legs off, the launch stand placed there
         /// as a runtime object and the drone resting on its posts; both at the start point's heading.
         /// </summary>
@@ -462,7 +464,7 @@ namespace Fpv450.App.Session
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
-                Wind = WindSetup.Of(c.Wind),
+                Wind = world.Query is MapWorld map ? WindSetup.ForMap(map, c.Wind) : WindSetup.Of(c.Wind),
                 Contacts = contacts,
                 StartAttitude = new Quat(0, sin, 0, cos),
             };
