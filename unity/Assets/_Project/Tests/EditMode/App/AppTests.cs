@@ -225,7 +225,7 @@ namespace Fpv450.Tests.App
         public void VSwitchesOnlyTheView()
         {
             Assert.That(FlightScene.ViewKey, Is.EqualTo(Key.V));
-            Assert.That(FlightScene.FeedKey, Is.Not.EqualTo(Key.V).And.Not.EqualTo(Key.C), "the review feed's key left V; C is retired");
+            Assert.That(FlightScene.FeedKey, Is.Not.EqualTo(Key.V).And.Not.EqualTo(Key.C), "the review feed's key left V; C is the noise's (D-078)");
 
             var body = new GameObject("Drone").transform;
             var eye = new GameObject("FpvCamera").transform;
@@ -276,7 +276,8 @@ namespace Fpv450.Tests.App
         public void TheAppsKeysNeverReachTheFlight()
         {
             Assert.That(FlightScene.RestartKey, Is.EqualTo(Key.R));
-            Key[] keys = { FlightScene.RestartKey };
+            Assert.That(FlightScene.NoiseKey, Is.EqualTo(Key.C));
+            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey };
             Assert.That(keys, Is.Unique);
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>("D-078 test keyboard");
             keyboard.MakeCurrent();
@@ -294,6 +295,32 @@ namespace Fpv450.Tests.App
             finally
             {
                 InputSystem.RemoveDevice(keyboard);
+            }
+        }
+
+        // D-078: C turns the feed's noise off and on for the rest of the app's run: the next flight's scene keeps it, and
+        // the view stays as it was.
+        [Test]
+        public void CTogglesTheNoiseForTheRun()
+        {
+            bool before = FlightScene.FeedNoise;
+            Assert.That(before, Is.True, "on at the app's start");
+            FlightScene first = new GameObject("Flight").AddComponent<FlightScene>(), next = null;
+            try
+            {
+                first.Pressed(false, false, true);
+                Assert.That(FlightScene.FeedNoise, Is.False, "C: off");
+                Assert.That(first.Chase, Is.False, "the view stays");
+                next = new GameObject("Flight 2").AddComponent<FlightScene>();
+                Assert.That(FlightScene.FeedNoise, Is.False, "the next flight's scene keeps it");
+                next.Pressed(false, false, true);
+                Assert.That(FlightScene.FeedNoise, Is.True, "C again: on");
+            }
+            finally
+            {
+                if (FlightScene.FeedNoise != before) first.Pressed(false, false, true);
+                Object.DestroyImmediate(first.gameObject);
+                if (next != null) Object.DestroyImmediate(next.gameObject);
             }
         }
 
