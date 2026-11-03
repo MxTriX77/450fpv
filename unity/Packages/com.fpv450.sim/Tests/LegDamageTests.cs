@@ -425,6 +425,7 @@ namespace Fpv450.Sim.Tests
             for (int c = 0; c < 4; c++)
                 if ((core.Contacts.Legs.Flags(c) & LegFlags.Broken) != 0) broken++;
             Assert.That(broken, Is.GreaterThan(0), "the landing breaks a leg");
+            Assert.That(core.Loose.Count, Is.GreaterThan(0), "and its pieces fly loose (p7g-legs 1.3: the structure's change, the pieces' steps)");
             Assert.That(allocated, Is.EqualTo(0), "2000 steps through the law's every branch");
         }
 
