@@ -1,4 +1,5 @@
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 
 namespace Fpv450.App.Session
 {
@@ -31,7 +32,7 @@ namespace Fpv450.App.Session
     /// under physics, and the summary lists them when the pilot ends it. The fiber's come with p7d.</summary>
     public enum FlightIncidentKind : byte
     {
-        /// <summary>An impact over its threshold (the core's crash: ContactModel's acceleration or prop strike).</summary>
+        /// <summary>An impact over its threshold (the core's crash: ContactModel's acceleration; a blade's strike is damage).</summary>
         Crash = 1,
 
         /// <summary>Upside down on the ground: the body's up axis below the horizon while touching, for
@@ -52,5 +53,22 @@ namespace Fpv450.App.Session
         public long Step;
 
         public double Seconds => Step * FlightCore.Dt;
+    }
+
+    /// <summary>A prop's damage in the log (D-079), found by PostFlight: one blade's damage events (BladeDamaged), or one
+    /// rotor's jams (RotorJammed, Slot JamSlot). None ends the flight; a new flight's props are whole.</summary>
+    public struct PropDamage
+    {
+        public const int JamSlot = 16;
+
+        /// <summary>The blade (0–15, the event's index), or JamSlot for the rotor's jams.</summary>
+        public int Slot;
+
+        /// <summary>The last of them, and how many there were.</summary>
+        public LoggedEvent Last;
+        public int Count;
+
+        /// <summary>The blade's mass lost over its damage events, kg (each event's B); 0 for the jams.</summary>
+        public double MassLost;
     }
 }
