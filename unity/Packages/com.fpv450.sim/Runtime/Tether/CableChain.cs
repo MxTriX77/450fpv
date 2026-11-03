@@ -19,6 +19,9 @@ namespace Fpv450.Sim.Tether
         /// <summary>μs and μk, the line's on the member.</summary>
         public double StaticFriction, KineticFriction;
         public bool Capstan;
+        /// <summary>The caller's: a member re-found every step (the ground's plane under the node), so the node may be merged
+        /// away with it on (its hold is lost with it, which only lowers the energy).</summary>
+        public bool Remeshable;
 
         /// <summary>The chain's: the hold is set (the node pressed on the member in the last step).</summary>
         public bool Engaged;
@@ -58,8 +61,44 @@ namespace Fpv450.Sim.Tether
         /// <summary>A bilateral spring and damper to AnchorTarget moving at AnchorVelocity (0 stiffness: none).</summary>
         public double AnchorStiffness, AnchorDamping;
         public Double3 AnchorTarget, AnchorVelocity;
+        /// <summary>The anchor's target follows a body (the drone's exit): AnchorTarget is where it is at the step's end, it
+        /// moved there at AnchorVelocity over the step, so the energy check takes the spring at the step's start from where
+        /// the target was and the target's motion as the work done on the line, F·V·dt (design 13).</summary>
+        public bool AnchorFollows;
         /// <summary>Two members at most: a node touching two takes both on its diagonal (the wedge, design 6).</summary>
         public CableContact Contact0, Contact1;
+        /// <summary>The caller's: how long the node has rested, s (the trail's freeze, design 3). It moves with the node; a
+        /// node a split makes starts at 0.</summary>
+        public double RestTime;
+    }
+
+    /// <summary>
+    /// The spool at the chain's last node (p7d-tether design 3), set by the caller before each step: the last node is the
+    /// exit, anchored to the drone, and line flows out through it one way. While it pays out, the last segment is the pack's
+    /// resistance, not a spring: its tension is the moving line's capstan over the lip on the pack's resistance,
+    /// T = μ·ṡ² + e^(μθ)·(P(ṡ) + m_b·s̈) (the belt's capstan with its centrifugal tension, published for flat belts; the peel
+    /// P = G₀·irregularity·max(1, (ṡ/v_ref)^n), the momentum flux μ·ṡ², the balloon's inertia m_b·s̈), taken inside the
+    /// implicit step: a constant pull e^(μθ)·P(0), a damper along the segment (the rate law's and the flux's secant at the last
+    /// step's ṡ), and the balloon's mass e^(μθ)·m_b coupling the two nodes along it, with the geometric stiffness across. It
+    /// holds while its tension stays under the static hold e^(μθ)·P(0).
+    /// </summary>
+    public struct CableSpool
+    {
+        public bool Active;
+        /// <summary>No line flows: the coil is empty (its end is fixed to the core).</summary>
+        public bool Locked;
+        /// <summary>The known-wrong two-way spool (design 16): it takes line back in at the static hold tension.</summary>
+        public bool TwoWay;
+        /// <summary>e^(μ·θ_e), the exit lip's capstan this step (at least 1).</summary>
+        public double Lip;
+        /// <summary>N: the pack's static peel resistance at the section at the peel, G₀·irregularity.</summary>
+        public double Peel;
+        /// <summary>The peel's rate law, max(1, (ṡ/v_ref)^n): n, and v_ref in m/s.</summary>
+        public double RateExponent, ReferenceRate;
+        /// <summary>kg/m: the line's mass per metre as it leaves the pack (the momentum flux μ·ṡ²).</summary>
+        public double FluxMass;
+        /// <summary>kg: the balloon's line between the peel and the exit, μ·L_b.</summary>
+        public double BalloonMass;
     }
 
     /// <summary>What the energy check made of a step (design 13).</summary>
@@ -139,6 +178,11 @@ namespace Fpv450.Sim.Tether
         public long Wedges { get; private set; }
         public CableWedge LastWedge { get; private set; }
 
+        /// <summary>Merges whose coarser lumping raised the energy (a sagging line's mass lumped higher), the rise taken back
+        /// from the line's relative motion, and that energy, J (labelled numerical damping; only a spool's chain).</summary>
+        public long MergeClips { get; private set; }
+        public double MergeClipped { get; private set; }
+
         /// <summary>Material slid through capstan contacts, splits and merges, and splits refused for want of room.</summary>
         public long Slides { get; private set; }
         public long Splits { get; private set; }
@@ -147,6 +191,19 @@ namespace Fpv450.Sim.Tether
         /// <summary>The extra solves the active-set correction took, and the steps solved again on majorizing models.</summary>
         public long Corrections { get; private set; }
         public long SafeSteps { get; private set; }
+
+        /// <summary>The spool at the last node (the caller's, before each step); inactive by default.</summary>
+        public CableSpool Spool;
+        /// <summary>The balloon's speed ṡ, m/s: line leaving the exit (state; negative only while a two-way spool takes line
+        /// back).</summary>
+        public double SpoolSpeed;
+        /// <summary>The last step's: the line paid out, m (negative: taken back by a two-way spool), the pack's resistance
+        /// T_r = μ·ṡ² + P(ṡ) + m_b·s̈ (or its static P(0) while it holds), N, the exit segment's tension at the step's end,
+        /// N, and whether line flowed.</summary>
+        public double SpoolPaid { get; private set; }
+        public double SpoolPackTension { get; private set; }
+        public double SpoolExitTension { get; private set; }
+        public bool SpoolPaying { get; private set; }
 
         readonly CableNode[] _nodes;
 
@@ -164,6 +221,10 @@ namespace Fpv450.Sim.Tether
         readonly double[] _s0;
         readonly CableContact[] _c0, _c1;
         readonly double[] _capLen, _capT, _capExp, _capFactor, _capS;
+
+        // This step's spool model (kind 4 on the last segment): the constant pull, the damper, the balloon's mass, the spool's
+        // speed at the start, the static peel's work and the added line's energy.
+        double _spoolForce, _spoolDamp, _spoolMass, _spoolSpeed0, _spoolPeelWork;
 
         public CableChain(int capacity, double massPerMetre, double axialStiffness)
         {
@@ -251,7 +312,10 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>The true energy (kinetic, elastic, gravitational, the anchors' and the contacts' springs), J, with the
         /// targets as they stand; magnitude is the sum of its terms' sizes (the scale of the check's tolerance).</summary>
-        public double Energy(out double magnitude)
+        public double Energy(out double magnitude) => Energy(out magnitude, 0);
+
+        // At a step's start (dt > 0) a following anchor's spring is taken from where its target was, AnchorTarget − V·dt.
+        double Energy(out double magnitude, double startDt)
         {
             double kinetic = 0, elastic = 0, gravity = 0, springs = 0;
             int n = Count;
@@ -263,6 +327,7 @@ namespace Fpv450.Sim.Tether
                 if (a.AnchorStiffness > 0)
                 {
                     Double3 e = a.Position - a.AnchorTarget;
+                    if (a.AnchorFollows) e = e + a.AnchorVelocity * startDt;
                     springs += 0.5 * a.AnchorStiffness * Double3.Dot(e, e);
                 }
                 springs += ContactEnergy(a.Position, ref a.Contact0) + ContactEnergy(a.Position, ref a.Contact1);
@@ -273,6 +338,8 @@ namespace Fpv450.Sim.Tether
                     if (stretch > 0) elastic += 0.5 * (AxialStiffness / rest) * stretch * stretch;
                 }
             }
+            // The spool's balloon moves with the line it pays out (CableSpool): its mass seen through the lip.
+            if (Spool.Active && n >= 2) kinetic += 0.5 * (Spool.Lip * Spool.BalloonMass) * SpoolSpeed * SpoolSpeed;
             magnitude = kinetic + elastic + springs + (gravity < 0 ? -gravity : gravity);
             return kinetic + elastic + gravity + springs;
         }
@@ -315,6 +382,7 @@ namespace Fpv450.Sim.Tether
             int n = Count;
             double dt2 = dt * dt;
             Steps++;
+            _spoolSpeed0 = SpoolSpeed;
             for (int i = 0; i < n; i++)
             {
                 _x0[i] = _nodes[i].Position;
@@ -360,7 +428,7 @@ namespace Fpv450.Sim.Tether
 
             // 3. The true energy at the start, with this step's targets.
             double startMagnitude;
-            double e0 = Energy(out startMagnitude);
+            double e0 = Energy(out startMagnitude, dt);
             EnergyAtStart = e0;
 
             // 4. The segments' models: a taut one's exact tangent; a slack one predicted to tighten, a spring along its
@@ -392,6 +460,9 @@ namespace Fpv450.Sim.Tether
                     _segEnergy[j] = 0;
                 }
             }
+            // The spool's segment pays out (kind 4) when it did last step, or when the explicit prediction takes the
+            // elastic segment past the static hold.
+            if (Spool.Active && n >= 2) ChooseSpool();
 
             for (int i = 0; i < n; i++)
             {
@@ -408,7 +479,7 @@ namespace Fpv450.Sim.Tether
             {
                 Restore(n);
                 for (int j = 0; j + 1 < n; j++)
-                    if (_segLen[j] > 0)
+                    if (_segLen[j] > 0 && _segKind[j] != 4) // the spool's model is linear and dissipative as it stands
                     {
                         _segKind[j] = 3;
                         _segDir[j] = (_x0[j + 1] - _x0[j]) * (1 / _segLen[j]);
@@ -444,6 +515,9 @@ namespace Fpv450.Sim.Tether
                     _nodes[i].Contact0.Engaged = false;
                     _nodes[i].Contact1.Engaged = false;
                 }
+                SpoolSpeed = 0;
+                SpoolPaid = 0;
+                SpoolPaying = false;
                 e1 = Energy(out _);
             }
 
@@ -472,12 +546,16 @@ namespace Fpv450.Sim.Tether
                 }
             }
 
-            double work = 0;
+            // The spool's line out (or in), and the energy it brings: the added line's at its nodes, less the static peel's
+            // work (what the pack takes for certain), plus a two-way reel's pull.
+            double work = Spool.Active && n >= 2 ? SpoolStep(dt) : 0;
             for (int i = 0; i < n; i++)
             {
                 ref CableNode a = ref _nodes[i];
                 work += Double3.Dot(a.Force, a.Position - _x0[i]) + dt * Double3.Dot(a.Velocity, a.Drag * a.Air);
                 if (a.AnchorDamping > 0) work += dt * a.AnchorDamping * Double3.Dot(a.Velocity, a.AnchorVelocity);
+                if (a.AnchorFollows && a.AnchorStiffness > 0) // the target's motion: the spring's pull on the node along it
+                    work -= dt * a.AnchorStiffness * Double3.Dot(a.Position - a.AnchorTarget, a.AnchorVelocity);
                 work += DamperWork(a.Velocity, dt, ref a.Contact0) + DamperWork(a.Velocity, dt, ref a.Contact1);
             }
             deficit = 0;
@@ -522,6 +600,7 @@ namespace Fpv450.Sim.Tether
                 a.Contact1 = _c1[i];
             }
             for (int i = 0; i < n; i++) _nodes[i].Mass = MassOf(i);
+            SpoolSpeed = _spoolSpeed0;
         }
 
         static void Speculate(Double3 x, ref CableContact c)
@@ -562,6 +641,20 @@ namespace Fpv450.Sim.Tether
                     continue;
                 }
                 Double3 d = _segDir[j];
+                if (kind == 4)
+                {
+                    // The spool paying out (CableSpool): the static pull, the damper and the balloon's mass along d, the
+                    // geometric stiffness across; the balloon's momentum at the start along d.
+                    double across4 = _segTension[j] / _segLen[j];
+                    Sym3 k4 = Outer(d, _spoolDamp * dt + _spoolMass - across4 * dt2) + Iso(across4 * dt2);
+                    _diag[j] = _diag[j] + k4;
+                    _diag[j + 1] = _diag[j + 1] + k4;
+                    _off[j] = k4 * -1.0;
+                    Double3 pull4 = d * (dt * _spoolForce - _spoolMass * _spoolSpeed0);
+                    _rhs[j] = _rhs[j] + pull4;
+                    _rhs[j + 1] = _rhs[j + 1] - pull4;
+                    continue;
+                }
                 double along = _segStiff[j], across = 0;
                 if (kind == 1) across = _segTension[j] / _segLen[j];
                 else if (kind == 3) across = along; // the majorizer ½k|Δ|² − k·ℓ·d·Δ: isotropic, about the same force
@@ -622,6 +715,7 @@ namespace Fpv450.Sim.Tether
                 missed |= Missed(a.Position, _x0[i], ref a.Contact0);
                 missed |= Missed(a.Position, _x0[i], ref a.Contact1);
             }
+            if (Spool.Active && n >= 2 && !Spool.Locked) missed |= SpoolMissed();
             return missed;
         }
 
@@ -735,9 +829,20 @@ namespace Fpv450.Sim.Tether
             double rest = _nodes[j + 1].Material - _nodes[j].Material, k = _segStiff[j];
             double stretch = d.Length() - rest;
             double truth = stretch > 0 ? 0.5 * k * stretch * stretch : 0;
+            byte kind = _segKind[j];
+            if (kind == 4)
+            {
+                // The spool's: what the segment holds at its new rest length plus the static peel's work the budget took
+                // out, against the model's static pull and its geometric stiffness about the start.
+                Double3 dir4 = _segDir[j];
+                Double3 delta4 = d - dir4 * _segLen[j];
+                double along4 = Double3.Dot(dir4, delta4), across4 = _segTension[j] / _segLen[j];
+                double model4 = _segEnergy[j] + _spoolForce * along4 + 0.5 * across4 * (Double3.Dot(delta4, delta4) - along4 * along4);
+                truth += _spoolPeelWork;
+                return truth > model4 ? truth - model4 : 0;
+            }
             if (truth == 0) return 0;
             double model;
-            byte kind = _segKind[j];
             if (kind == 1)
             {
                 Double3 dir = _segDir[j];
@@ -1005,7 +1110,8 @@ namespace Fpv450.Sim.Tether
         bool Removable(int i)
         {
             ref CableNode a = ref _nodes[i];
-            return !(a.AnchorStiffness > 0) && !(a.AnchorDamping > 0) && !a.Contact0.Active && !a.Contact1.Active;
+            return !(a.AnchorStiffness > 0) && !(a.AnchorDamping > 0) && (!a.Contact0.Active || a.Contact0.Remeshable)
+                && (!a.Contact1.Active || a.Contact1.Remeshable);
         }
 
         bool Remesh()
@@ -1015,6 +1121,30 @@ namespace Fpv450.Sim.Tether
             while (j + 1 < Count)
             {
                 double sa = _nodes[j].Material, sb = _nodes[j + 1].Material, rest = sb - sa;
+                if (Spool.Active && j + 2 == Count)
+                {
+                    // The spool's segment grows as line leaves: past twice the exit's target it leaves a segment of the
+                    // target behind it, so the line trails at the near spacing (a midpoint split would halve it); the piece a
+                    // hair under the target (2^−20 of it, numerical) so rounding never reads it past and splits it again.
+                    double h = Target(sb);
+                    // A full chain first merges the pair of segments that overshoots its target least (the far line coarser than
+                    // its law rather than the line at the exit).
+                    if (rest > 2 * h && Count == Capacity && MakeRoom())
+                    {
+                        changed = true;
+                        j = Count - 2; // the spool's segment, one node nearer the fixed end
+                    }
+                    if (rest > 2 * h && Count < Capacity)
+                    {
+                        Split(j, h * (1 - 1.0 / 1048576) / rest);
+                        changed = true;
+                    }
+                    else if (rest > 2 * h) SplitsRefused++;
+                    // Line taken back (a two-way spool) shrinks it: under half the target the node behind it merges away, so
+                    // the reel goes on taking line in.
+                    else if (rest < 0.5 * h && Count > 2 && Removable(j)) changed |= TryMerge(j);
+                    break;
+                }
                 if (rest > Target(0.5 * (sa + sb)))
                 {
                     if (Count == Capacity)
@@ -1023,7 +1153,7 @@ namespace Fpv450.Sim.Tether
                         j++;
                         continue;
                     }
-                    Split(j);
+                    Split(j, 0.5);
                     changed = true;
                     j += 2;
                     continue;
@@ -1043,19 +1173,57 @@ namespace Fpv450.Sim.Tether
             return changed;
         }
 
+        // The removable node whose two segments' sum is the least over the target at their middle, merged away (TryMerge's
+        // energy rule); ties to the first from the fixed end. True if one was.
+        bool MakeRoom()
+        {
+            int best = -1;
+            double least = double.PositiveInfinity;
+            for (int m = 1; m + 1 < Count - 1; m++)
+            {
+                if (!Removable(m)) continue;
+                double sa = _nodes[m - 1].Material, sc = _nodes[m + 1].Material, ratio = (sc - sa) / Target(0.5 * (sa + sc));
+                if (ratio < least)
+                {
+                    least = ratio;
+                    best = m;
+                }
+            }
+            return best > 0 && TryMerge(best);
+        }
+
         // A segment split at its midpoint: position, velocity and material halfway, so momentum is kept, the springs'
         // energy is unchanged and the kinetic falls by μℓ₀/16·|v_a − v_b|².
-        void Split(int j)
+        // On the spool's segment the line at the exit moves with the exit across it and with the balloon along it, v − ṡ·d (the
+        // exit node's own velocity is the drone's), so the new node takes the line's. At a fraction f from node j: position,
+        // velocity and material at f (a midpoint at ½), so momentum is kept, the straight segment's strain and so its springs'
+        // energy are unchanged and the kinetic falls.
+        void Split(int j, double f)
         {
+            Double3 exitLine = default;
+            bool exit = Spool.Active && j + 2 == Count;
+            if (exit)
+            {
+                Double3 r = _nodes[j + 1].Position - _nodes[j].Position;
+                double len = r.Length();
+                exitLine = _nodes[j + 1].Velocity - (len > 0 ? r * (SpoolSpeed / len) : default);
+            }
             Array.Copy(_nodes, j + 1, _nodes, j + 2, Count - j - 1);
             ref CableNode a = ref _nodes[j];
             ref CableNode b = ref _nodes[j + 2];
-            _nodes[j + 1] = new CableNode
-            {
-                Position = (a.Position + b.Position) * 0.5,
-                Velocity = (a.Velocity + b.Velocity) * 0.5,
-                Material = 0.5 * (a.Material + b.Material),
-            };
+            _nodes[j + 1] = f == 0.5
+                ? new CableNode
+                {
+                    Position = (a.Position + b.Position) * 0.5,
+                    Velocity = (a.Velocity + (exit ? exitLine : b.Velocity)) * 0.5,
+                    Material = 0.5 * (a.Material + b.Material),
+                }
+                : new CableNode
+                {
+                    Position = a.Position + (b.Position - a.Position) * f,
+                    Velocity = a.Velocity + ((exit ? exitLine : b.Velocity) - a.Velocity) * f,
+                    Material = a.Material + (b.Material - a.Material) * f,
+                };
             Count++;
             a.Mass = MassOf(j);
             _nodes[j + 1].Mass = MassOf(j + 1);
@@ -1065,7 +1233,9 @@ namespace Fpv450.Sim.Tether
 
         // Node m removed: its mass goes to its neighbours by the rest lengths (μ·ℓ_b/2 to the one before, μ·ℓ_a/2 to the one
         // after), merging inelastically (momentum kept, kinetic energy can only fall). Done only if the whole energy
-        // (springs, kinetic, gravity) does not rise.
+        // (springs, kinetic, gravity) does not rise; on a spool's chain, whose payout splits a node off every near spacing of
+        // line, a rise (a sagging line lumped coarser holds its mass higher) the line's relative motion can give back is taken
+        // from it about the mean velocity, momentum kept (labelled numerical damping, MergeClips), so the far line coarsens.
         bool TryMerge(int m)
         {
             ref CableNode a = ref _nodes[m - 1];
@@ -1081,7 +1251,13 @@ namespace Fpv450.Sim.Tether
                 - 0.5 * a.Mass * Double3.Dot(a.Velocity, a.Velocity) - 0.5 * b.Mass * Double3.Dot(b.Velocity, b.Velocity)
                 - 0.5 * c.Mass * Double3.Dot(c.Velocity, c.Velocity);
             double potential = -Double3.Dot(Gravity, a.Position * toA + b.Position * toB - c.Position * c.Mass);
-            if (after - before + kinetic + potential > 0) return false;
+            double rise = after - before + kinetic + potential, relative = 0;
+            if (rise > 0)
+            {
+                if (!Spool.Active) return false;
+                relative = RelativeKinetic(out _) + kinetic; // the merge keeps the mean velocity, so it lowers this by its own loss
+                if (!(rise < relative)) return false;
+            }
             a.Velocity = va;
             b.Velocity = vb;
             Array.Copy(_nodes, m + 1, _nodes, m, Count - m - 1);
@@ -1090,6 +1266,12 @@ namespace Fpv450.Sim.Tether
             _nodes[m - 1].Mass = MassOf(m - 1);
             _nodes[m].Mass = MassOf(m);
             Merges++;
+            if (rise > 0)
+            {
+                TakeBack(rise, relative);
+                MergeClips++;
+                MergeClipped += rise;
+            }
             return true;
         }
 
@@ -1098,6 +1280,172 @@ namespace Fpv450.Sim.Tether
             double before = i > 0 ? _nodes[i].Material - _nodes[i - 1].Material : 0;
             double after = i + 1 < Count ? _nodes[i + 1].Material - _nodes[i].Material : 0;
             return 0.5 * MassPerMetre * (before + after);
+        }
+
+        // ---- the spool (design 3: CableSpool) ----
+
+        void ChooseSpool()
+        {
+            int j = Count - 2;
+            if (Spool.Locked) return;
+            bool pay = Spool.TwoWay || SpoolSpeed > 0;
+            if (!pay)
+            {
+                double rest = _s0[j + 1] - _s0[j];
+                pay = AxialStiffness * ((_pred[j + 1] - _pred[j]).Length() / rest - 1) > Spool.Lip * Spool.Peel;
+            }
+            if (pay) PayModel(j);
+        }
+
+        // The paying segment's model from the step's start: the static pull e^(μθ)·P(0); the damper, the rate law's and the
+        // flux's secant at the last step's ṡ, (e^(μθ)·P(0)·(rate − 1) + μ·ṡ²)/ṡ; the balloon's mass e^(μθ)·m_b; the expected
+        // tension for the geometric stiffness across.
+        void PayModel(int j)
+        {
+            Double3 r = _x0[j + 1] - _x0[j];
+            double len = r.Length();
+            if (!(len > 0)) return;
+            double rest = _s0[j + 1] - _s0[j], k = AxialStiffness / rest, sigma = _spoolSpeed0 > 0 ? _spoolSpeed0 : 0;
+            _segKind[j] = 4;
+            _segDir[j] = r * (1 / len);
+            _segLen[j] = len;
+            _segStiff[j] = k;
+            _segEnergy[j] = len > rest ? 0.5 * k * (len - rest) * (len - rest) : 0;
+            _spoolForce = Spool.Lip * Spool.Peel;
+            _spoolDamp = sigma > 0 ? (_spoolForce * (Rate(sigma) - 1) + Spool.FluxMass * sigma * sigma) / sigma : 0;
+            _spoolMass = Spool.Lip * Spool.BalloonMass;
+            _segTension[j] = _spoolForce + _spoolDamp * sigma;
+        }
+
+        // The elastic segment's model from the step's start (step 4's rule; a segment the spool gives back is taken
+        // speculative when slack, above its true energy).
+        void ElasticModel(int j)
+        {
+            Double3 d = _x0[j + 1] - _x0[j];
+            double len = d.Length(), rest = _s0[j + 1] - _s0[j], k = AxialStiffness / rest;
+            _segStiff[j] = k;
+            _segLen[j] = len;
+            _segTension[j] = 0;
+            _segEnergy[j] = 0;
+            if (!(len > 0))
+            {
+                _segKind[j] = 0;
+                return;
+            }
+            _segDir[j] = d * (1 / len);
+            if (len >= rest)
+            {
+                _segKind[j] = 1;
+                _segTension[j] = k * (len - rest);
+                _segEnergy[j] = 0.5 * k * (len - rest) * (len - rest);
+            }
+            else _segKind[j] = 2;
+        }
+
+        // After a pass: a paying segment whose line came back (one way) holds; a holding one past the static hold pays.
+        bool SpoolMissed()
+        {
+            int j = Count - 2;
+            if (_segKind[j] == 4)
+            {
+                if (Spool.TwoWay || !(Double3.Dot(_segDir[j], _nodes[j + 1].Velocity - _nodes[j].Velocity) < 0)) return false;
+                ElasticModel(j);
+                return true;
+            }
+            double rest = _s0[j + 1] - _s0[j];
+            if (!(AxialStiffness * ((_nodes[j + 1].Position - _nodes[j].Position).Length() / rest - 1) > Spool.Lip * Spool.Peel)) return false;
+            PayModel(j);
+            return _segKind[j] == 4;
+        }
+
+        // The line out through the exit after the solve: while paying, ṡ is the separation rate along the segment and the
+        // rest length grows until the segment's tension is the law's at ṡ; while holding, a tension past the static hold the
+        // last pass left slides out (closed form, the balloon at rest). The added line takes its node's velocity (its mass
+        // moves with the material); the energy it brings, less the static peel's work.
+        double SpoolStep(double dt)
+        {
+            int j = Count - 2;
+            ref CableNode a = ref _nodes[j];
+            ref CableNode b = ref _nodes[j + 1];
+            double rest = b.Material - a.Material, len = (b.Position - a.Position).Length();
+            double sdot = 0, ds = 0;
+            bool paying = _segKind[j] == 4;
+            _spoolPeelWork = 0;
+            if (paying)
+            {
+                sdot = Double3.Dot(_segDir[j], b.Velocity - a.Velocity);
+                if (!Spool.TwoWay && sdot < 0) sdot = 0; // the line went slack at the exit: the balloon stops in the pack
+                if (sdot != 0 || Spool.TwoWay)
+                {
+                    double t = sdot >= 0 ? ExitLaw(sdot, dt) : Spool.Lip * Spool.Peel;
+                    ds = len / (1 + t / AxialStiffness) - rest;
+                    if (!Spool.TwoWay && ds < 0) ds = 0;
+                }
+            }
+            else if (!Spool.Locked && len > rest)
+            {
+                double hold = Spool.Lip * Spool.Peel;
+                if (AxialStiffness * (len / rest - 1) > hold) ds = len / (1 + hold / AxialStiffness) - rest;
+            }
+            if (ds < MinRest - rest) ds = MinRest - rest;
+            double energy = 0;
+            if (ds != 0)
+            {
+                double ma = a.Mass, mb = b.Mass;
+                b.Material += ds;
+                a.Mass = MassOf(j);
+                b.Mass = MassOf(j + 1);
+                double dma = a.Mass - ma, dmb = b.Mass - mb;
+                energy = 0.5 * dma * Double3.Dot(a.Velocity, a.Velocity) + 0.5 * dmb * Double3.Dot(b.Velocity, b.Velocity)
+                    - dma * Double3.Dot(Gravity, a.Position) - dmb * Double3.Dot(Gravity, b.Position);
+                if (ds > 0 && paying) _spoolPeelWork = Spool.Lip * Spool.Peel * ds;
+                if (ds < 0) energy += Spool.Lip * Spool.Peel * -ds; // a two-way reel's motor pulls the line in
+            }
+            SpoolSpeed = paying ? sdot : 0;
+            SpoolPaid = ds;
+            SpoolPaying = ds > 0;
+            SpoolPackTension = paying && sdot > 0 ? Spool.FluxMass * sdot * sdot + Inner(sdot, dt) : Spool.Peel;
+            double restEnd = b.Material - a.Material;
+            SpoolExitTension = len > restEnd ? AxialStiffness * (len / restEnd - 1) : 0;
+            return energy - _spoolPeelWork;
+        }
+
+        // The pack's resistance inside the lip less its momentum flux, P(ṡ) + m_b·s̈ (never below zero: a line the balloon
+        // would push out goes slack), and the exit's tension over the moving lip.
+        double Inner(double sdot, double dt)
+        {
+            double v = Spool.Peel * Rate(sdot) + Spool.BalloonMass * (sdot - _spoolSpeed0) / dt;
+            return v > 0 ? v : 0;
+        }
+
+        double ExitLaw(double sdot, double dt) => Spool.FluxMass * sdot * sdot + Spool.Lip * Inner(sdot, dt);
+
+        double Rate(double sdot) =>
+            sdot > Spool.ReferenceRate ? DetMath.Exp(Spool.RateExponent * DetMath.Log(sdot / Spool.ReferenceRate)) : 1;
+
+        // ---- the laid trail's end (design 3) ----
+
+        /// <summary>A node at rest put before node 0 (the trail's last point lifted back into the chain): material below node
+        /// 0's. The caller moves node 0's anchor to it.</summary>
+        public void InsertFirst(Double3 position, double material)
+        {
+            if (Count == Capacity) throw new InvalidOperationException("the chain is full");
+            if (!(material < _nodes[0].Material - MinRest)) throw new ArgumentException("material coordinates must rise");
+            Array.Copy(_nodes, 0, _nodes, 1, Count);
+            _nodes[0] = new CableNode { Position = position, Material = material };
+            Count++;
+            _nodes[0].Mass = MassOf(0);
+            _nodes[1].Mass = MassOf(1);
+        }
+
+        /// <summary>Node 0 taken off (frozen into the trail with node 1 now the chain's end), its mass leaving with it.</summary>
+        public void RemoveFirst()
+        {
+            if (Count <= 2) throw new InvalidOperationException("a chain keeps two nodes");
+            Array.Copy(_nodes, 1, _nodes, 0, Count - 1);
+            Count--;
+            _nodes[Count] = default;
+            _nodes[0].Mass = MassOf(0);
         }
 
         // ---- 3 × 3 helpers (+ − × ÷ only) ----
