@@ -601,3 +601,10 @@ From QA's review of the physics line (`p7b-airframe/review-integration.md`, B2).
 - **D-064's motor spreads are a second cause.** At full duty every motor saturates, so the loop can't trim their spread. In the pilot's own case (the empty drone's full punch from 9 m/s) without the ring, 16–24 of 40 flights still shake 0.3–0.7 s; with the spreads off as well, 4 of 40.
 - **No current limit trims either cause**, so G7's ESC-firmware question still decides only whether the protection variant is flown.
 - The tests judge the wash by the shake past the motors' spin-up kick, on seed sets sized to a false-failure rate under 1 % (D-053's rule).
+
+## D-071 The trench's cavity is built in `p7c-wind`, from published cavity flows · Accepted
+From QA's wind review of the physics line (`p7c-wind/review-integration.md`, S5). PHY-13 and `p7c-wind`'s proposal promise the cavity under a trench lip, but nothing decided it. At model 26, model 20's hole rule restarts the open profile at a cut's floor, so in the map's Severe wind E01's run reads 0.47–1.20 of the open field at the same height over its floor.
+- **It is built, not deferred.** A launch or landing in a cut is a flight the pilot makes, and a cut's shelter is physical (fidelity is never simplified).
+- **The physics engineer builds it in `p7c-wind` (a new 1.10)** after the line lands. The flow inside a cut comes from its depth below the lip (WLD-16: `SampleGround` keeps `TerrainHeight` at the lip over a hole) and its width along the wind, by published open and closed cavity-flow measurements (the shear layer over the cut, the recirculating cell, reattachment on the floor once the cut is long enough). Every number is cited or derived, never asked (D-024).
+- **The world builder** adds whatever per-hole data that model needs and the map doesn't already give.
+- **Until it lands,** the build's description lists the trench's shelter as not yet done.
