@@ -16,8 +16,10 @@ namespace Fpv450.FlightBench
     {
         static bool _ok = true;
 
-        /// <summary>The seeds the shake's ringless known-wrong is judged on, each of the six arrested descents (a rate).</summary>
-        const ulong RinglessSeeds = 20;
+        /// <summary>The seeds the shake's ringless known-wrong is judged on, each of the six arrested descents (a rate; QA's
+        /// integration review, N2): bootstrapped from 520 seeds' flights at model 26, a fresh 40 fails it spuriously about
+        /// 0.6 % of the time (0.57 % of 20 000 draws), 20 about 3.3 %.</summary>
+        const ulong RinglessSeeds = 40;
 
         static void Row(string name, bool pass, string detail, bool knownWrong = false)
         {
