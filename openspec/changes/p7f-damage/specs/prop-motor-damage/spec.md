@@ -55,8 +55,9 @@ Each flight SHALL start every prop with its factory mass unbalance (`prop.unbala
 - **THEN** every Δθ lies within ±0.25°, both ends are approached within 0.5 % of the bound, and each flight's header lists its eight draws with their bound
 
 #### Scenario: The baseline shake is bounded away from imperceptible
-- **WHEN** the drone hovers 10 s in still air on 20 000 seeds' draws, and with both factory draws off
-- **THEN** the camera's 50–200 Hz RMS band over the seeds (0.5–99.5 %) is printed, its 0.5th percentile lies above the draws-off hover's, and the mass and aerodynamic shares are each at least a fifth of the total at the median
+- **WHEN** the drone hovers 10 s in still air on 20 000 seeds' draws, and each seed again with both factory draws off (the same seed, so the rotors' own wake noise is the same)
+- **THEN** the camera's 50–200 Hz RMS band over the seeds (0.5–99.5 %) is printed with and without the draws; paired by seed, the draws raise the band on at least 99.5 % of the seeds and their own share's 0.5th percentile is above zero; and the mass and aerodynamic shares are each at least a fifth of the total at the median
+- **AND** the absolute band is not compared across seeds: each rotor's own wake noise (D-064) excites the arms' mode near 62 Hz and varies between seeds more than the imbalance adds (`p7f-damage` 1.2's as-built note)
 
 #### Scenario: PHY-07's band moves and still holds
 - **WHEN** `AsymmetryScenario` predicts the 30 s hands-off hover's drift band with the pitch draws, and the five-seed hover flies with asymmetry on and off
