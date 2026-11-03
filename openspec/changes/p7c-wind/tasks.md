@@ -347,7 +347,7 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
     - design 10's first readings reproduced to the printed digits (E01 across at 9.5 m/s: 0.10 and 0.19 m/s at 1.0 and 0.5 m over the floor; the turns at 5.2, 5.8, 6.8 and 7.0 D)
     - the goldens audited: a flight that never enters a cut's opening steps as in 26; re-record the range golden only if it moves, audited against model 26 with the cuts switched off
     - `dotnet test tools/simtests`; `flightbench --golden`, `--scenarios`, `--wind-harness severe` (every CSV byte for byte model 26's: the harness's floor has no cut) and `--bench` on AC; `openspec validate p7c-wind --strict`
-- [ ] 1.10a [world-builder] The cut records (design 10, D-071): `MapWorld` holds each hole record for the wind, at load time, beside its wind volumes (`MapWorldWind`).
+- [x] 1.10a [world-builder] The cut records (design 10, D-071): `MapWorld` holds each hole record for the wind, at load time, beside its wind volumes (`MapWorldWind`).
   - **Each record carries:**
     - its centre line with each point's lip height (the placement file's y)
     - `top_width_m` and `depth_m`, now loaded (the loader reads only the band today)
@@ -362,6 +362,24 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
     - the known-wrongs fail: a niche marked open fails the roof check, and the spade width fails the slots
     - S04's patches give no record
     - `python -m pytest tools/map`, `dotnet test tools/simtests`, and `worldbench --golden` (re-recorded only if the hash moves, audited)
+  - **As built** (`Runtime/World/MapWorld{Load,Wind}.cs`; derived at load, so `placements.json` and the content hash stay, `6114242e06475fb5`; `QueryVersion`, `ModelVersion` and `LogFormat.Version` unchanged: no query changes and nothing reads the records yet):
+    - **The API for 1.10:** `MapWorld.Cuts`, a `ReadOnlySpan<CutRecord>` in the file's order: `Object` (its row), `Record` (the asset's id), `CentreLine` (world, each point's Y the lip), `TopWidth`, `Depth`, `LipWidth`, `EndFirst` and `EndLast` (`ends_m`), `Covered`.
+    - **The rules** (each record against its own object's shapes and gaps):
+      - `Covered`: a ray up from the centre line's middle (half its plan length), half the depth under the lip, meets a filler (the hole contract's `belt_bare` shapes, F-7) below the lip, or starts in one.
+      - `LipWidth`: an open record's mean `narrowest_m` over its object's level gaps (normal within 2.6° of vertical: E01's slots) whose centre lies in its band. With none (Z04: box walls, no crumble), or when covered (no opening at its lip), its `top_width_m`.
+      - The ends: rays along the end segments, `LipProbe` 1 cm under the lip (below the cut faces' box tops, 3 mm under it), to the first filler, 0 from inside one. An end that meets none inside the band throws `FormatException`.
+    - **The records:**
+      - E01's run: 23.997 m of centre line (the arc pieces' chords), open, lip 0.942516 m (the mean of 21 slots, 0.903018–0.980621), ends 0 and 0 (the end walls run through the end points at the lip).
+      - The niches: covered, 0.8 m (their own width), ends 0.474 / 0.450 m and 0. The first end runs across the run's opening to its far wall; there the open run takes the point (design 10).
+      - Z04's shaft: open, 0.9 m, ends 0.25 and 0.25.
+      - S04's patches: none.
+    - **The map's checks** (`make_test_range.py`): `cut_record` mirrors the loader's rules; `cut_problems` runs on every record at build. It checks a width and a depth over 0, ends of 0 or more inside the band, an open record's width inside its slots' range, and `covered` against the roof ray both ways. C# and Python agree to 1e-15.
+    - **Verified:**
+      - `MapWorldTests` `CutRecords_*` (4): the records against the file, E01's run, the niches, Z04 against its walls.
+      - `tools/map/tests`: the records against the assets, plus the two known-wrongs. A niche marked open fails the roof check; the spade's 0.8 m fails the slots.
+      - `python -m pytest tools/map` 11 passed; `python -m pytest tools` 1540 passed.
+      - `dotnet test tools/simtests --filter World` 45 passed; the full `dotnet test tools/simtests` 399 passed.
+      - `worldbench --golden` ALL PASS, nothing re-recorded: the hash did not move.
 
 ## 2. Review
 

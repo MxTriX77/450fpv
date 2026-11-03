@@ -900,6 +900,110 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That(holes, Is.GreaterThan(500), "E01's patch samples are holes");
         }
+
+        // ---- The cut records (p7c-wind 1.10a, design 10, D-071) ------------------------------------------------------
+
+        private static CutRecord Cut(string variant, string record)
+        {
+            foreach (CutRecord c in World.Cuts)
+                if (World.ObjectName(c.Object) == variant && c.Record == record)
+                    return c;
+            Assert.Fail($"no cut record {variant} {record}");
+            return default;
+        }
+
+        private static double PlanLength(Double3[] line)
+        {
+            double length = 0;
+            for (int i = 0; i + 1 < line.Length; i++)
+                length += Math.Sqrt((line[i + 1].X - line[i].X) * (line[i + 1].X - line[i].X) + (line[i + 1].Z - line[i].Z) * (line[i + 1].Z - line[i].Z));
+            return length;
+        }
+
+        [Test]
+        public void CutRecords_AreTheHoleBandsWithTheirFiles_AndS04GivesNone()
+        {
+            List<object> holes = List(Obj(Obj(TestJson.Parse(Placements()))["ground"])["holes"]);
+            Assert.That(World.Cuts.Length, Is.EqualTo(holes.Count), "one record per hole band, in the file's order");
+            for (int k = 0; k < holes.Count; k++)
+            {
+                Dictionary<string, object> h = Obj(holes[k]);
+                CutRecord c = World.Cuts[k];
+                Assert.That(c.Object, Is.EqualTo((int)(double)h["instance"]));
+                Assert.That(c.Record, Is.EqualTo((string)h["record"]));
+                Assert.That(World.ObjectName(c.Object), Is.EqualTo("E01_curving").Or.EqualTo("Z04_cellar_shaft"), "S04's patches give no record");
+                List<object> line = List(h["centre_line_m"]);
+                Assert.That(c.CentreLine.Length, Is.EqualTo(line.Count));
+                for (int i = 0; i < line.Count; i++)
+                    AssertNear(c.CentreLine[i], Vec(line[i]), Exact, $"{c.Record} point {i}, its y the lip's height");
+                Assert.That(c.TopWidth, Is.EqualTo((double)h["top_width_m"]).Within(Exact), c.Record);
+                Assert.That(c.Depth, Is.EqualTo((double)h["depth_m"]).Within(Exact), c.Record);
+            }
+        }
+
+        [Test]
+        public void CutRecords_E01sRun_IsOpen_ItsLipWidthTheSlotsMean_ItsEndsAtItsEndWalls()
+        {
+            // The slots read independently: E01's gaps named slot_* (trench.py, the open top in slots of about a metre).
+            var slots = new List<double>();
+            foreach (object g in List(Obj(TestJson.Parse(ReadModel("earthworks/E01/E01_curving.assetmeta.json")))["gaps"]))
+                if (((string)Obj(g)["id"]).StartsWith("slot_", StringComparison.Ordinal))
+                    slots.Add((double)Obj(g)["narrowest_m"]);
+            double mean = 0, least = double.PositiveInfinity, most = 0;
+            foreach (double w in slots)
+            {
+                mean += w / slots.Count;
+                least = Math.Min(least, w);
+                most = Math.Max(most, w);
+            }
+            CutRecord run = Cut("E01_curving", "run");
+            TestContext.Out.WriteLine($"run: {PlanLength(run.CentreLine):F4} m of centre line, lip {run.LipWidth:R} m (slots {least}–{most}, {slots.Count}), ends {run.EndFirst:R} and {run.EndLast:R} m");
+            // 24.0 m of run: the 0.5 m arc pieces' chords fall about 4 mm short of the arcs, the points are in millimetres.
+            Assert.That(PlanLength(run.CentreLine), Is.EqualTo(24.0).Within(0.005));
+            Assert.That(slots.Count, Is.EqualTo(21));
+            Assert.That(run.LipWidth, Is.EqualTo(mean).Within(Exact), "the slots' mean narrowest");
+            Assert.That(run.LipWidth, Is.InRange(least, most), "inside the slots' 0.903–0.981 m, never the spade's 0.8");
+            Assert.That(run.Covered, Is.False);
+            // The end walls' faces run through the end points at the lip and lean 0.7 mm into the cut at LipProbe; the
+            // points are in millimetres.
+            Assert.That(run.EndFirst, Is.InRange(0.0, 0.001), "at its first end wall");
+            Assert.That(run.EndLast, Is.InRange(0.0, 0.001), "at its last end wall");
+        }
+
+        [Test]
+        public void CutRecords_E01sNiches_AreCovered_AtTheirOwnWidth()
+        {
+            foreach (string niche in new[] { "niche_0", "niche_1" })
+            {
+                CutRecord c = Cut("E01_curving", niche);
+                TestContext.Out.WriteLine($"{niche}: {PlanLength(c.CentreLine):F4} m, lip {c.LipWidth:R} m, ends {c.EndFirst:R} and {c.EndLast:R} m");
+                Assert.That(c.Covered, Is.True, niche + ": the fillers roof it");
+                Assert.That(c.LipWidth, Is.EqualTo(c.TopWidth), niche + ": no opening at its lip, its own width");
+                Assert.That(c.EndLast, Is.EqualTo(0.0), niche + ": its back point lies in the soil");
+                Assert.That(c.EndFirst, Is.InRange(0.3, 0.6), niche + ": from the run's centre line across to its far wall");
+            }
+        }
+
+        [Test]
+        public void CutRecords_Z04sShaft_IsOpen_AtItsWallsInnerFaces()
+        {
+            // Z04's walls read independently (its collision 0–3): the side walls along x, the end walls along z; its
+            // centre line z +1.0 to -1.0 (its hole record), placed at yaw 0.
+            List<object> shapes = List(Obj(TestJson.Parse(ReadModel("standins/Z04/Z04_cellar_shaft.assetmeta.json")))["collision"]);
+            Double3 Centre(int i) => Vec(Obj(shapes[i])["center"]);
+            Double3 Size(int i) => Vec(Obj(shapes[i])["size"]);
+            double width = Centre(1).X - Size(1).X / 2 - (Centre(0).X + Size(0).X / 2);
+            double end0 = Centre(2).Z - Size(2).Z / 2 - 1.0, end1 = -1.0 - (Centre(3).Z + Size(3).Z / 2);
+            CutRecord shaft = Cut("Z04_cellar_shaft", "shaft");
+            TestContext.Out.WriteLine($"shaft: {PlanLength(shaft.CentreLine):F4} m, lip {shaft.LipWidth:R} m (walls {width:R}), ends {shaft.EndFirst:R} and {shaft.EndLast:R} m");
+            Assert.That(width, Is.EqualTo(0.9).Within(Exact));
+            Assert.That(shaft.LipWidth, Is.EqualTo(width).Within(Exact), "0.9 m between its walls");
+            Assert.That(shaft.EndFirst, Is.EqualTo(end0).Within(Exact));
+            Assert.That(shaft.EndLast, Is.EqualTo(end1).Within(Exact));
+            Assert.That(end0, Is.EqualTo(0.25).Within(Exact));
+            Assert.That(end1, Is.EqualTo(0.25).Within(Exact));
+            Assert.That(shaft.Covered, Is.False);
+        }
     }
 
     /// <summary>A plain JSON reader for the tests (objects, arrays, strings, numbers by double.Parse, true/false/null), so

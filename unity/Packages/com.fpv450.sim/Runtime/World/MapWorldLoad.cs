@@ -16,7 +16,8 @@
 // - The broad phase: an object of more than TreeShapes shapes gets a tree over their bounds
 //   (BuildTree) and is listed in the 2 m grid's cells by its bounds; every other object's
 //   shapes are listed there each by its own.
-// - Each variant's wind volumes placed at its rows' poses, and each row's group, for the wind (MapWorldWind.cs).
+// - Each variant's wind volumes placed at its rows' poses, and each row's group, for the wind (MapWorldWind.cs); and
+//   each hole band's cut record, derived from its row's metadata (MapWorldWind.cs, the cut records).
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -47,6 +48,8 @@ namespace Fpv450.Sim.World
             public double[] WireRadius, WireSag;
             public ushort[] WireMaterial;
             public WindRecord[] Wind;
+            public Double3[] LevelGapCentre; // local: each level gap's vertices' mean (MapWorldWind.cs, the cut records)
+            public double[] LevelGapNarrowest;
         }
 
         /// <summary>The map maps/&lt;mapId&gt;/placements.json of the repository at `root`, with its metadata and the material table.</summary>
@@ -190,6 +193,7 @@ namespace Fpv450.Sim.World
             };
             var gaps = new List<Gap>();
             var band = new List<XZ>();
+            var cuts = new List<CutRecord>();
             foreach (JsonNode patch in Need(ground, "patches", JsonKind.Array, file + " ground").Items)
             {
                 JsonNode r = Need(patch, "footprint_m", JsonKind.Array, file + " ground.patches");
@@ -210,9 +214,10 @@ namespace Fpv450.Sim.World
                     throw new FormatException(where + ": a band needs two centre-line points and a width");
                 var g = new Gap { BandFirst = band.Count, BandCount = line.Items.Count, Radius = radius,
                     X0 = double.PositiveInfinity, Z0 = double.PositiveInfinity, X1 = double.NegativeInfinity, Z1 = double.NegativeInfinity };
-                foreach (JsonNode p in line.Items)
+                var centre = new Double3[line.Items.Count];
+                for (int k = 0; k < centre.Length; k++)
                 {
-                    Double3 v = Vector(p, where);
+                    Double3 v = centre[k] = Vector(line.Items[k], where);
                     band.Add(new XZ(v.X, v.Z));
                     g.X0 = DetMath.Min(g.X0, v.X - radius);
                     g.Z0 = DetMath.Min(g.Z0, v.Z - radius);
@@ -220,9 +225,11 @@ namespace Fpv450.Sim.World
                     g.Z1 = DetMath.Max(g.Z1, v.Z + radius);
                 }
                 gaps.Add(g);
+                cuts.Add(PlaceCut(hole, centre, radius, rowMeta, rowPosition, rowYaw, where));
             }
             _gaps = gaps.ToArray();
             _band = band.ToArray();
+            _cuts = cuts.ToArray();
 
             // The broad phase inside each dense object: its tree. Then the cells: the dense objects by their bounds (item ~o),
             // every other shape by its own (item i), gaps by their rectangles.
@@ -443,6 +450,7 @@ namespace Fpv450.Sim.World
                 WireMaterial = new ushort[wires.Items.Count],
                 Wind = ParseWind(root, path),
             };
+            ParseLevelGaps(root, path, out meta.LevelGapCentre, out meta.LevelGapNarrowest);
             for (int s = 0; s < collision.Items.Count; s++)
             {
                 JsonNode c = collision.Items[s];
