@@ -121,6 +121,33 @@ namespace Fpv450.Sim.Tests
             Assert.That(double.IsNaN(DetMath.Atan2(double.NaN, 1)), Is.True);
         }
 
+        // p7f-damage 1.3: a blade's contact arc against a face, cos α = r_m / r_tip (design 5), and its error bound.
+        [Test]
+        public void Acos_AgreesWithTheRuntimesToAFewUlpOfPi()
+        {
+            double worst = 0, worstNearOne = 0;
+            for (int i = 0; i <= 200000; i++)
+            {
+                double x = -1 + i * 1e-5;
+                worst = Math.Max(worst, Math.Abs(DetMath.Acos(x) - Math.Acos(x)));
+            }
+            // Near 1, where the contact arcs of a shallow graze live (1 µm to 5 mm past the face at r 0.127 m).
+            for (int i = 1; i <= 20000; i++)
+            {
+                double x = 1 - i * 2e-6 / 20000 * i;
+                double a = DetMath.Acos(x);
+                worstNearOne = Math.Max(worstNearOne, Math.Abs(a - Math.Acos(x)) / Math.Acos(x));
+            }
+            TestContext.WriteLine($"worst acos {worst:E2} (absolute), near 1 {worstNearOne:E2} (relative), against System.Math");
+            Assert.That(worst, Is.LessThanOrEqualTo(1.5e-15));
+            Assert.That(worstNearOne, Is.LessThanOrEqualTo(1e-15));
+            Assert.That(DetMath.Acos(1), Is.EqualTo(0.0));
+            Assert.That(DetMath.Acos(-1), Is.EqualTo(Math.PI));
+            Assert.That(DetMath.Acos(0), Is.EqualTo(Math.PI / 2));
+            Assert.That(DetMath.Acos(1 + 1e-15), Is.EqualTo(0.0), "a cosine rounded past 1 is clamped");
+            Assert.That(double.IsNaN(DetMath.Acos(double.NaN)), Is.True);
+        }
+
         // sin and cos of 250° (−0.9396926207859082, −0.3420201433256694), recorded on .NET 10 and Mono alike.
         const long PinnedS3 = unchecked((long)0xBFEE11F642522D1AUL), PinnedC3 = unchecked((long)0xBFD5E3A8748A0C01UL);
     }
