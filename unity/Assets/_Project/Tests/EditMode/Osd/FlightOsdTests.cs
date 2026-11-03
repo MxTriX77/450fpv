@@ -78,8 +78,8 @@ namespace Fpv450.Tests.Osd
             var expected = new string[FeedOsd.Rows];
             for (int r = 0; r < FeedOsd.Rows; r++) expected[r] = Row();
             expected[0] = Row((0, "AIR"), (23, ">12m"));
-            expected[7] = Row((13, "{|}"));
-            expected[10] = Row((0, "! SAFE !"), (24, FlightOsd.SymThr + "  0")); // no stick sample yet: the throttle down
+            expected[7] = Row((13, "{|}"), (24, FlightOsd.SymThr + "  0")); // the throttle at the middle right; no stick sample yet: down
+            expected[10] = Row((0, "! SAFE !"));
             expected[11] = Row((0, "["), (1, "01:15"), (24, "0MAH")); // 41.2 A for 20 ms: 0.23 mAh, "%4d"
             expected[12] = Row((0, "$"), (1, "3.91в"), (7, "SVINORIZ 10 OPTO"), (24, "0.25")); // 2347 / 6 = 391
             expected[13] = Row((0, "$"), (1, "23.5в"), (22, "41.20"), (27, "a")); // 23.47 rounds to 23.5; " 41.20"
@@ -94,7 +94,7 @@ namespace Fpv450.Tests.Osd
         }
 
         // D-080: the throttle element as Betaflight 4.5's: calculateThrottlePercent of the stick's own channel, from
-        // min_check (1050 µs by default) to 2000 in integers, before the curve; "%c%3d" at the right of row 10.
+        // min_check (1050 µs by default) to 2000 in integers, before the curve; "%c%3d" at the right of row 7, the reticle's.
         [Test]
         public void TheThrottleReadsAsBetaflightsElement()
         {
@@ -116,12 +116,12 @@ namespace Fpv450.Tests.Osd
             osd.MinCheck = 1050;
             osd.Sticks(new StickSample { Throttle = 0.5 }); // its channel 1500 µs
             osd.Build(0, NoLinkLoss);
-            Assert.That(osd.Row(10), Is.EqualTo(Row((0, "! SAFE !"), (24, FlightOsd.SymThr + " 47"))));
+            Assert.That(osd.Row(7), Is.EqualTo(Row((13, "{|}"), (24, FlightOsd.SymThr + " 47"))));
             osd.Sticks(new StickSample { Throttle = 1 });
             osd.Build(4, NoLinkLoss);
-            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + " 47"), "it changes at the OSD's next refresh (12 Hz), not before");
+            Assert.That(osd.Row(7).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + " 47"), "it changes at the OSD's next refresh (12 Hz), not before");
             osd.Build(5, NoLinkLoss);
-            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + "100"));
+            Assert.That(osd.Row(7).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + "100"));
         }
 
         // D-078: X's stick overlay as Betaflight 4.5 draws it (osd_elements.c), mode 2: each stick a 7 × 5 cross with its
@@ -158,6 +158,7 @@ namespace Fpv450.Tests.Osd
                 Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(FlightOsd.SymStickCenter))),
                 Row((5, v), (23, v)),
                 Row((5, v), (23, v), (26, Lo.ToString())));
+            Assert.That(osd.Row(7), Is.EqualTo(Row((13, "{|}"), (24, FlightOsd.SymThr + "100"))), "the throttle below the right stick's box, clear of it");
             // Half throttle is mid-cell at the centre; a little forward pitch is the centre row's high sprite, a little back
             // its low one: three positions a row.
             Sticks(0.5, 0, 0.11, 0, 13, null, null, Row((2, Cross(Mid)), (20, Cross(Hi))));

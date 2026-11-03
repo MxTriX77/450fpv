@@ -17,9 +17,11 @@ namespace Fpv450.UI
     /// <item>0, from 0: the flight mode, "AIR" while armed and "DISARMED" while disarmed (D-057), from the pose's arm state.</item>
     /// <item>0, to 26: the altitude, "&gt;" and whole metres above the rest pose.</item>
     /// <item>7, 13–15: the reticle.</item>
+    /// <item>7, 24–27: the throttle (D-080), Betaflight's element, in the middle right of the picture (the pilot's): on
+    /// the reticle's row, which holds the frame's vertical centre, at the right edge of the other right-hand elements; its
+    /// glyph, then the percent as "%3d", from the stick sample the flight flies (FeedSignals.Sticks) by Betaflight's
+    /// calculateThrottlePercent.</item>
     /// <item>10, 0–7: the armament label "! SAFE !" (D-011), always.</item>
-    /// <item>10, 24–27: the throttle (D-080), Betaflight's element: its glyph, then the percent as "%3d", from the stick
-    /// sample the flight flies (FeedSignals.Sticks) by Betaflight's calculateThrottlePercent.</item>
     /// <item>11, 0–5: the flight timer, MM:SS of flight time.</item>
     /// <item>11, to 27: the charge used, mAh, integrated from the current (Betaflight's mAh drawn), its unit "MAH".</item>
     /// <item>12, 0–5: a battery mark and the average cell voltage; 7–22: the name "Svinoriz 10 Opto" (D-011), or a warning
@@ -231,7 +233,7 @@ namespace Fpv450.UI
             PutRight(RowTop, ColAltEnd, ">" + Math.Max(0, (int)Math.Round(r.AltitudeM)).ToString(Invariant) + "m");
             Put(RowReticle, ColReticle, "{|}");
             Put(RowArmed, ColLeft, Armament);
-            PutRight(RowArmed, ColRightEnd, ThrottleText(ThrottlePercent(PwmRangeMin + 1000 * r.Sticks.Throttle, MinCheck)));
+            PutRight(RowReticle, ColRightEnd, ThrottleText(ThrottlePercent(PwmRangeMin + 1000 * r.Sticks.Throttle, MinCheck)));
 
             int seconds = (int)r.ElapsedSeconds;
             Put(RowTimer, ColLeft, "[");
