@@ -65,6 +65,9 @@ namespace Fpv450.Sim.Tests
         }
 
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _floor.Geometry(obj, shape, out geometry);
+        public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>
+            _floor.MicroDetailNear(centre, radius, kinds, results);
+        public bool Feature(int obj, int shape, out GroundFeature feature) => _floor.Feature(obj, shape, out feature);
         public int AddObject(string name, ReadOnlySpan<ShapeGeometry> shapes) => _floor.AddObject(name, shapes);
         public void ResetRuntimeObjects() => _floor.ResetRuntimeObjects();
         public string ObjectName(int obj) => _floor.ObjectName(obj);

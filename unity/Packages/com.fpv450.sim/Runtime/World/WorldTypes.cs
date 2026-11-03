@@ -156,4 +156,60 @@ namespace Fpv450.Sim.World
         /// <summary>Wire: its sag at mid-span (the metadata's sag_m), m.</summary>
         public double Sag;
     }
+
+    /// <summary>A micro element's kind (the metadata's micro_elements records, AST-10); as a mask, the kinds a query wants.</summary>
+    [Flags]
+    public enum MicroKind : byte
+    {
+        None = 0,
+        Straw = 1,
+        Stem = 2,
+        Twig = 4,
+        Leaf = 8,
+        All = Straw | Stem | Twig | Leaf,
+    }
+
+    /// <summary>
+    /// One drawn element of a placed instance (IWorldQuery.MicroDetailNear; p7a-ground design 8): a straw, stem, twig or
+    /// leaf of its variant's micro_elements records, placed in world space at its instance's pose.
+    /// </summary>
+    public struct MicroElement
+    {
+        /// <summary>Stable: (Object &lt;&lt; 32) | Index, the instance and the element's index in its variant's records.</summary>
+        public ulong Id;
+        public MicroKind Kind;
+        /// <summary>Held at its base (rooted, grown from a parent, or a lying straw held by the mat's tangle): only an anchored element can hook.</summary>
+        public bool Anchored;
+        /// <summary>The centre line's points: 2 or 3.</summary>
+        public byte PointCount;
+        /// <summary>The centre line in world space, m, base first: P0–P1 and P1–P2 (P2 = P1 for two points).</summary>
+        public Double3 P0, P1, P2;
+        /// <summary>The drawn tube's diameter at its base, m (it tapers toward its tip; a leaf's thickness is ignored).</summary>
+        public double Diameter;
+        /// <summary>A leaf's area, m²; 0 for the other kinds.</summary>
+        public double Area;
+        /// <summary>The index of the element of the same instance it grows from; −1 for none.</summary>
+        public int Parent;
+        /// <summary>The collision shape of the same instance it grows from (Geometry(Object, ParentShape)); −1 for none.</summary>
+        public int ParentShape;
+
+        /// <summary>The placed instance (object id).</summary>
+        public int Object => (int)(Id >> 32);
+
+        /// <summary>The element's index in its variant's records (bake order).</summary>
+        public int Index => (int)(uint)Id;
+    }
+
+    /// <summary>A ground feature an asset's shapes belong to (IWorldQuery.Feature): a pitfall of its metadata's features records.</summary>
+    public struct GroundFeature
+    {
+        /// <summary>The record's id, unique within its asset.</summary>
+        public int Id;
+        /// <summary>The pit's centre in world space, m (the record's, placed at its instance's pose).</summary>
+        public Double3 Center;
+        /// <summary>m.</summary>
+        public double Radius;
+        /// <summary>Below the ground around it, m.</summary>
+        public double Depth;
+    }
 }

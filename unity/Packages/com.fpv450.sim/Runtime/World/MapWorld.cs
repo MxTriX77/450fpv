@@ -29,7 +29,9 @@
 //   order, 1 … n); surfaces are S01–S13 (SurfaceIds, 1 … 13).
 // - Identity (design 6): FNV-1a over the placement file, every referenced .assetmeta.json
 //   (by path, ordinal order) and the material names, CRLF read as LF; QueryVersion
-//   beside it. Runtime objects are outside it (the log records them).
+//   beside it. Runtime objects are outside it (the log records them). A variant's micro
+//   elements sidecar is covered through the SHA-256 its metadata names, which the loader
+//   checks (MapWorldMicro.cs, with MicroDetailNear and Feature).
 // Engine-free, allocation-free after loading, reentrant: queries change nothing.
 // New in this change; its sweep, grid walk and wire chain follow refs/godot/main's
 // Contacts.cs and WorldObjects.cs (8 m broadphase cells there, 2 m here; see ShapeMath).
@@ -66,12 +68,13 @@ namespace Fpv450.Sim.World
             public int Right, First, Count;
         }
 
-        /// <summary>A ground patch's footprint (BandCount 0) or a hole band (its centre line in _band, half its width).</summary>
+        /// <summary>A ground patch's footprint (BandCount 0) or a hole band (its centre line in _band, half its width, its instance).</summary>
         private struct Gap
         {
             public double X0, Z0, X1, Z1;
             public int BandFirst, BandCount;
             public double Radius;
+            public int Instance;
         }
 
         private readonly string[] _materials; // id − 1
@@ -133,21 +136,29 @@ namespace Fpv450.Sim.World
             for (int k = _gapStart[cell]; k < _gapStart[cell + 1]; k++)
             {
                 ref readonly Gap g = ref _gaps[_gapItems[k]];
-                if (!(x >= g.X0 && x <= g.X1 && z >= g.Z0 && z <= g.Z1))
+                if (!InGapBox(g, x, z))
                     continue;
-                if (g.BandCount == 0)
+                if (g.BandCount == 0 || InBand(g, x, z))
                     return true;
-                double rr = g.Radius * g.Radius;
-                for (int i = g.BandFirst; i < g.BandFirst + g.BandCount - 1; i++)
-                {
-                    XZ a = _band[i], b = _band[i + 1];
-                    double dx = b.X - a.X, dz = b.Z - a.Z, px = x - a.X, pz = z - a.Z, dd = dx * dx + dz * dz;
-                    double t = dd > 0 ? (px * dx + pz * dz) / dd : 0;
-                    t = t > 0 ? t < 1 ? t : 1 : 0;
-                    double ex = px - dx * t, ez = pz - dz * t;
-                    if (ex * ex + ez * ez <= rr)
-                        return true;
-                }
+            }
+            return false;
+        }
+
+        private static bool InGapBox(in Gap g, double x, double z) => x >= g.X0 && x <= g.X1 && z >= g.Z0 && z <= g.Z1;
+
+        /// <summary>Whether (x, z) lies within a band's half width of its centre line (closed).</summary>
+        private bool InBand(in Gap g, double x, double z)
+        {
+            double rr = g.Radius * g.Radius;
+            for (int i = g.BandFirst; i < g.BandFirst + g.BandCount - 1; i++)
+            {
+                XZ a = _band[i], b = _band[i + 1];
+                double dx = b.X - a.X, dz = b.Z - a.Z, px = x - a.X, pz = z - a.Z, dd = dx * dx + dz * dz;
+                double t = dd > 0 ? (px * dx + pz * dz) / dd : 0;
+                t = t > 0 ? t < 1 ? t : 1 : 0;
+                double ex = px - dx * t, ez = pz - dz * t;
+                if (ex * ex + ez * ez <= rr)
+                    return true;
             }
             return false;
         }
