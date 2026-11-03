@@ -268,12 +268,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(a.Sliding, Is.EqualTo(a.DerivedSlide).Within(2).Percent, "and slides at μk·Fn + P");
 
             // On a rigid floor (no groove) both break at μs·Fn, found by bisection on the push; it is the known-wrong
-            // model, and fails the ratio.
+            // model, and fails the ratio. Its pairs' stick spring reads the slip from the point velocity (1.6c, D-067), so
+            // the push is Breakaway's creep, whose dampers break it early by about 3e-6 of the hold.
             double c = SoilScenarios.Breakaway(spec, SoilScenarios.Floor("belt_straw"), 0.003, across, out double cn, rigid: true);
             double d = SoilScenarios.Breakaway(spec, SoilScenarios.Floor("belt_straw"), 0.003, along, out double dn, rigid: true);
             TestContext.WriteLine($"  rigid floor: across {c:F12} N, along {d:F12} N against μs·Fn {0.5 * cn:F12} and {0.5 * dn:F12}");
-            Assert.That(c, Is.EqualTo(0.5 * cn).Within(1e-9));
-            Assert.That(d, Is.EqualTo(0.5 * dn).Within(1e-9));
+            Assert.That(c, Is.EqualTo(0.5 * cn).Within(1e-5 * 0.5 * cn));
+            Assert.That(d, Is.EqualTo(0.5 * dn).Within(1e-5 * 0.5 * dn));
             Assert.That(c / d, Is.Not.EqualTo(derived).Within(2).Percent, "the rigid ground fails the ratio");
         }
 

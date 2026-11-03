@@ -331,7 +331,9 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// The breakaway force exactly: the drone held as in Drag, settled 0.5 s, then moved by d along direction in one
         /// step; the largest d whose step holds without any anchor sliding, by bisection to a picometre, and the contacts'
-        /// tangential force there (N), with their normal force (N).
+        /// tangential force there (N), with their normal force (N). On the rigid floor (rigid) the move is a creep instead
+        /// (RigidCreepSteps): the plain pairs' stick spring stretches with the touching material's slip, its point velocity
+        /// over the step (p6-flight-core 1.6c, D-067), so a pose moved with no velocity stretches nothing.
         /// </summary>
         public static double Breakaway(DroneSpec spec, FlightWorld world, double depth, Double3 direction, out double normal, RainLevel rain = RainLevel.Sunny,
             bool rigid = false)
@@ -353,6 +355,11 @@ namespace Fpv450.Sim.Tests
             return held;
         }
 
+        /// <summary>The rigid floor's creep, steps: d over 4 s, slowing linearly to rest, so the plain pairs' dampers (c_t·v)
+        /// end at rest; on the way they add about (c_t/k_t/T)² of the hold to the spring, and the creep breaks early by that
+        /// share (3e-6 here: 59.99982 N against μs·Fn's 60; measured).</summary>
+        public const int RigidCreepSteps = 4000;
+
         static bool Holds(DroneSpec spec, FlightWorld world, double depth, Double3 direction, double d, RainLevel rain, bool rigid, out double tangential, out double normal)
         {
             FlightSetup setup = Setup(spec, world, default, rain, rigid: rigid);
@@ -363,10 +370,19 @@ namespace Fpv450.Sim.Tests
             var s = new FlightState { Attitude = Quat.Identity, Position = new Double3(0, Standing(spec) - depth, 0) };
             model.Sense(s, ref s, events);
             Double3 f = default;
-            for (int k = 0; k < 501; k++)
+            int creep = rigid ? RigidCreepSteps : 0;
+            for (int k = 0; k < 501 + creep; k++)
             {
                 FlightState was = s;
-                if (k == 500) s.Position = s.Position + direction * d;
+                if (k == 500 && creep == 0) s.Position = s.Position + direction * d;
+                if (k >= 500 && k < 500 + creep)
+                {
+                    // The creep: its step j of N moves (N − j)·2d/(N(N + 1)) at the velocity that moves it there, slowing to rest at d.
+                    double move = 2 * d * (500 + creep - k) / ((double)creep * (creep + 1));
+                    s.Position = s.Position + direction * move;
+                    s.Velocity = direction * (move / FlightCore.Dt);
+                }
+                else s.Velocity = default;
                 s.Step++;
                 events.Clear();
                 model.Sense(was, ref s, events);
