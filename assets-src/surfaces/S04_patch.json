@@ -35,5 +35,5 @@
   "physics_material": "surface:belt_straw",
   "mat_material": "straw",
   "mound_material": "surface:crater_spoil",
-  "lod": { "lod1_switch_m": 8.0, "lod2_switch_m": 60.0, "cull_m": 400.0 }
+  "lod": { "lod1_switch_m": 8.0, "lod2_switch_m": 60.0, "cull_m": 400.0, "fade_share": 0.25 }
 }

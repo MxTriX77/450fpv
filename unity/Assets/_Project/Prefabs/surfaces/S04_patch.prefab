@@ -6543,7 +6543,7 @@ MonoBehaviour:
   id: S04
   variant: S04_patch
   generator: ground_patch
-  paramsSha256: 9b5c7d47cd965f77d7527e6116d99f058d9ef37fbe181aa547dc42fa3163c05c
+  paramsSha256: 68c13b6d6791fcc9cbcf33cff88dba6d2a58d0a06d7eefac945c0fcb6d371cb5
   units: m
   frame: unity-lh-yup
   bounds:
@@ -6582,6 +6582,9 @@ MonoBehaviour:
   - slot: edge
     visual: belt_straw
     physics: straw
+  - slot: far
+    visual: belt_straw
+    physics: surface:belt_straw
   collision:
   - kind: 0
     center: {x: 0, y: -0.275, z: 0}
@@ -8191,21 +8194,21 @@ LODGroup:
   m_GameObject: {fileID: 5551176185893124036}
   serializedVersion: 2
   m_LocalReferencePoint: {x: 0, y: 0.39300898, z: 0}
-  m_Size: 9.237604
-  m_FadeMode: 0
+  m_Size: 6.928203
+  m_FadeMode: 1
   m_AnimateCrossFading: 0
   m_LastLODIsBillboard: 0
   m_LODs:
-  - screenRelativeHeight: 1
-    fadeTransitionWidth: 0
+  - screenRelativeHeight: 0.75
+    fadeTransitionWidth: 1
     renderers:
     - renderer: {fileID: 7157548575472631611}
     - renderer: {fileID: 3868473692957812833}
-  - screenRelativeHeight: 0.13333334
-    fadeTransitionWidth: 0
+  - screenRelativeHeight: 0.1
+    fadeTransitionWidth: 0.05128206
     renderers:
     - renderer: {fileID: 3899000980688593000}
-  - screenRelativeHeight: 0.02
+  - screenRelativeHeight: 0.015
     fadeTransitionWidth: 0
     renderers:
     - renderer: {fileID: 525824207266256921}
@@ -8435,7 +8438,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: 446a7473056796a4e943a3305c4e49a3, type: 2}
   - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
   - {fileID: 2100000, guid: 9789df47a06e35f41ae6fabf4ad51802, type: 2}
   m_StaticBatchInfo:
@@ -10064,7 +10067,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: 5111ea019b0c48e4b97d84fc92c95850, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -12645,7 +12648,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
+  - {fileID: 2100000, guid: 5111ea019b0c48e4b97d84fc92c95850, type: 2}
   - {fileID: 2100000, guid: 572284409eed265499fa83b33f4f5eb8, type: 2}
   - {fileID: 2100000, guid: 9789df47a06e35f41ae6fabf4ad51802, type: 2}
   m_StaticBatchInfo:
