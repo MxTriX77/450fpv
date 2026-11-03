@@ -292,7 +292,7 @@ namespace Fpv450.FlightBench
             RotorInterferenceScenario.Result wakeHover = RotorInterferenceScenario.Hover(spec), wakeSlow = RotorInterferenceScenario.Cruise(spec, RotorInterferenceScenario.SlowPitch, RotorInterferenceScenario.SlowSpeed);
             double wakeAdded = System.Math.Max(System.Math.Abs(wakeHover.Inflow[0]), System.Math.Max(System.Math.Abs(wakeHover.Inflow[1]), System.Math.Max(System.Math.Abs(wakeHover.Inflow[2]), System.Math.Abs(wakeHover.Inflow[3]))));
             Row("a hover in still air takes no wake", wakeAdded < 1e-3, $"largest added inflow {wakeAdded:E2} m/s");
-            Row($"slow flight takes little: under 2 % at {RotorInterferenceScenario.SlowSpeed:F0} m/s", System.Math.Abs(wakeSlow.RearUnderFront) < 0.02, RotorInterferenceScenario.Describe(wakeSlow));
+            Row($"slow flight takes little: under 2 % at {wakeSlow.Airspeed:F1} m/s", System.Math.Abs(wakeSlow.RearUnderFront) < 0.02, RotorInterferenceScenario.Describe(wakeSlow));
 
             // p7b-airframe 1.4: the throttle-punch shake, its causes and the airframe's modes (D-049's scenarios).
             Console.WriteLine("the throttle-punch shake (p7b-airframe 1.4, D-049, D-051; its 40-seed distribution: --shake):");
