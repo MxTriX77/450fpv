@@ -9,6 +9,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
@@ -40,6 +41,14 @@ namespace Fpv450.App.Session
         public DroneSpec Drone;
         public MaterialRow[] Materials;
         public ulong MaterialsHash;
+
+        /// <summary>surfaces.json's ground (SurfaceTable.Parse, p7a-ground 1.1), loaded once: each flight's contacts carry it,
+        /// and the flight's rain picks its moisture set. Null for none (a test's rigid ground).</summary>
+        public SurfaceTable Surfaces;
+
+        /// <summary>tether.json's fiber (TetherTable.Parse, p7d-tether 1.1), loaded once: each flight flies the line, laid
+        /// from the table's launch behind the start, the coil full. Null for none (a test without the line).</summary>
+        public TetherTable Tether;
 
         public FlightChoices Choices = new FlightChoices();
         public FcSettings Settings = FcSettings.Default;
@@ -439,8 +448,9 @@ namespace Fpv450.App.Session
     {
         /// <summary>
         /// The FlightSetup of inputs' choices: drone.json's mass, propulsion, aero and contacts at the loadout (the
-        /// payload, the legs, the coil full at take-off), the wind level (over a map, with its wakes and its belt's
-        /// canopy: WindSetup.ForMap), the rain, the airframe's effects as the powered golden's, the settings, a new world, and the start point:
+        /// payload, the legs, the coil full at take-off) on surfaces.json's ground, the wind level (over a map, with its
+        /// wakes, its belt's canopy and its cuts' cavity flow: WindSetup.ForMap), the rain (the ground's moisture with the
+        /// table), the fiber line with tether.json, the airframe's effects as the powered golden's, the settings, a new world, and the start point:
         /// legs on, the drone standing on the ground there, its skids unloaded; legs off, the launch stand placed there
         /// as a runtime object and the drone resting on its posts; both at the start point's heading.
         /// </summary>
@@ -453,7 +463,7 @@ namespace Fpv450.App.Session
             loadout = new Loadout { Payload = c.Payload, Legs = c.Legs, CoilPaidOut = 0 };
             start = Find(inputs.StartPoints, c.StartPoint);
             FlightWorld world = inputs.World();
-            ContactSpec contacts = spec.BuildContacts(loadout, inputs.Materials, inputs.MaterialsHash);
+            ContactSpec contacts = spec.BuildContacts(loadout, inputs.Materials, inputs.MaterialsHash, inputs.Surfaces);
             var foot = new Double3(start.X, GroundAt(world, start), start.Z);
             DetMath.SinCos(start.Yaw / 2, out double sin, out double cos);
             var setup = new FlightSetup
@@ -492,6 +502,14 @@ namespace Fpv450.App.Session
             {
                 setup.StartPosition = LaunchStand.RestingOrigin(spec, contacts, foot);
                 setup.RuntimeObjects = new[] { LaunchStand.Build(spec, foot, start.Yaw, world.Query.MaterialId(spec.Stand.Material)) };
+            }
+            // The fiber (p7d-tether 1.6), as the replay's --line flies it: laid from the table's launch behind the start
+            // (TetherLayout null, legs on or off), one-way, drone.json's coil full at take-off paying out.
+            if (inputs.Tether != null)
+            {
+                setup.Tether = inputs.Tether;
+                setup.TetherCoilPart = spec.Coil.Part;
+                setup.TetherSpoolMass = spec.Coil.SpoolMass;
             }
             inputs.Adjust?.Invoke(setup);
             return setup;
