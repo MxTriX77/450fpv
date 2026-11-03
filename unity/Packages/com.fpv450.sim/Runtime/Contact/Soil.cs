@@ -121,5 +121,29 @@ namespace Fpv450.Sim.Contact
         /// <summary>The plastic set z_p a deepest sink zMax leaves when the part is lifted off: where Force falls to zero,
         /// zMax·(1 − 1/ratio) (derived; 0 for an elastic soil, ratio 1).</summary>
         public static double Set(in SoilSet set, double zMax) => zMax > 0 ? zMax - zMax / set.UnloadRatio : 0;
+
+        /// <summary>
+        /// Wet soil's hold on a part lifting out of its groove (p7a-ground design 7, 1.13): the pull (per metre of a tube, N/m)
+        /// of a wetted width w (m) at a separation s (m) above the groove's set z_p, by a cohesive zone's law (Dugdale 1960,
+        /// Barenblatt 1962). Past the set the wetted soil, stuck to the part, stretches on its own unload line, k_u·w·s, until
+        /// the pull reaches the normal adhesion σ_a·w at s_e = σ_a/k_u (k_u = unload ratio × the modulus at the part's width,
+        /// Wong's line continued into tension); then the bond fails, the pull falling linearly to nothing at δ_a. So the hold
+        /// peaks at σ_a times the wetted footprint and the work to part is ½·σ_a·δ_a times it (derived), whatever k_u, and the
+        /// law runs on from Wong's unloading without a jump. slope is its rate d/ds (N/m²). Nothing in dry soil (σ_a = 0) or
+        /// at s ≤ 0, where Force presses; the caller keeps s_e below δ_a (ContactModel refuses a set that does not).
+        /// </summary>
+        public static double Cohesion(in SoilSet set, double ku, double w, double s, out double slope)
+        {
+            slope = 0;
+            if (!(set.Adhesion > 0) || !(w > 0) || !(s > 0) || !(s < set.AdhesionRelease)) return 0;
+            double se = set.Adhesion / ku;
+            if (s <= se)
+            {
+                slope = ku * w;
+                return ku * w * s;
+            }
+            slope = -set.Adhesion * w / (set.AdhesionRelease - se);
+            return set.Adhesion * w * (set.AdhesionRelease - s) / (set.AdhesionRelease - se);
+        }
     }
 }

@@ -203,8 +203,12 @@ namespace Fpv450.Sim.Log
         /// 27: p7a-ground's 23 merged onto 26 (the code is the parents' together): 1.10's soil under 1.6b's seam rule, the
         ///    landing's stick spring (D-067), the interference, D-064's micro-motion and D-066's power, mass and placement.
         ///    A flight without surfaces.json steps as in 26.
+        /// 28–31: assigned to other lines (D-072).
+        /// 32: p7a-ground 1.13 (wet ground: a wet groove's cohesive pull on its half-skid as it lifts, Soil.Cohesion, in the
+        ///    leg's series solve as a tension; wet straw's row, softer, gripping harder and clinging; the cover kinds' wet
+        ///    sets for the elements). A Sunny flight, and any flight without surfaces.json, steps as in 27.
         /// </summary>
-        public const int ModelVersion = 27;
+        public const int ModelVersion = 32;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

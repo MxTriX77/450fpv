@@ -736,18 +736,20 @@ namespace Fpv450.Sim.Tests
         /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. The floor's belt_bare is surfaces.json's soil (p7a-ground 1.10);
-        /// soil false flies the rigid floor (model 26's flight). Returns its hash, with the core for a report.
+        /// soil false flies the rigid floor (model 26's flight); rain flies it in that rain (1.13's audit: the wet set, the
+        /// rain's drops and film), on table if given. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
-            bool soil = true)
+            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
-            if (soil) setup.Contacts = spec.BuildContacts(spec.Nominal, materials, mh, SoilScenarios.Table()); // p7a-ground 1.10
+            if (soil) setup.Contacts = spec.BuildContacts(spec.Nominal, materials, mh, table ?? SoilScenarios.Table()); // p7a-ground 1.10
+            setup.Rain = rain;
             setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
@@ -809,17 +811,21 @@ namespace Fpv450.Sim.Tests
         /// throttle is cut and it settles into the straw again. In the map's own Calm wind (WindSetup.ForMap since model 22,
         /// as the player flies it: the obstacles' wakes and the belt's canopy; over the hole from the mat's top since model
         /// 20), the field disposed at the end (its wake grid's worker), with the airframe's effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
-        /// step's record before it is hashed). Returns its hash, with the core for a report.
+        /// step's record before it is hashed). rain and table fly it in that rain with surfaces.json (1.13's audit of wet
+        /// straw). Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
-            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
+            SurfaceTable table = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             Double3 foot = RangeScenarios.Straw;
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
+            if (table != null) setup.Contacts = spec.BuildContacts(spec.Nominal, materials, mh, table); // 1.13's audit: wet straw needs the table
+            setup.Rain = rain;
             setup.World = new FlightWorld(RangeScenarios.World);
             setup.Wind = wind ?? WindSetup.ForMap(RangeScenarios.World, WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();

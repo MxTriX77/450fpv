@@ -407,7 +407,9 @@ namespace Fpv450.Sim.Tests
         public void ASoilFlightOnTheRangeReplaysBitForBit()
         {
             // The liftoff ramp from the range's track start in Rain, its half-skids in the plane's wet belt_straw, recorded
-            // with its header (the table, the rain) and replayed headless on the same world: every step bit for bit.
+            // with its header (the table, the rain) and replayed headless on the same world: every step bit for bit. Since
+            // 1.13 the wet grooves hold the skids by their cohesive pull (four of 6.6 N): the hover + 0.1 (0.58) no longer
+            // lifts the drone out of them, so the pilot pushes on to 0.75 and the replay covers the pull and its release.
             DroneSpec spec = Drone();
             var world = new FlightWorld(SoilScenarios.Range());
             FlightSetup setup = SoilScenarios.Setup(spec, world, SoilScenarios.TrackStart(world) + new Double3(0, SoilScenarios.Standing(spec), 0), RainLevel.Rain, 7, true);
@@ -418,16 +420,20 @@ namespace Fpv450.Sim.Tests
             var stream = new System.IO.MemoryStream();
             var recorder = new Log.FlightRecorder(stream, header, Log.FlightRecorder.DefaultCapacity, ownsStream: false);
             bool engaged = false;
+            double pull = 0;
             for (int k = 0; k < 4000; k++)
             {
-                var stick = new Control.StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8, Throttle = k < 2000 ? 0 : Math.Min(1, (k - 2000) / 500.0) * 0.58 };
+                var stick = new Control.StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8, Throttle = k < 2000 ? 0 : Math.Min(1, (k - 2000) / 500.0) * 0.75 };
                 core.Advance(stick);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
                 engaged |= core.Contacts.SoilOf(0).Engaged;
+                for (int c = 0; c < 4; c++) pull = Math.Max(pull, core.Contacts.SoilOf(c).Pull);
             }
             recorder.Close();
             Assert.That(recorder.Fault, Is.Null);
             Assert.That(engaged, Is.True, "the flight rested in the soil");
+            TestContext.WriteLine($"  the wet grooves pulled a half-skid down by at most {pull:F3} N");
+            Assert.That(pull, Is.GreaterThan(1), "the wet grooves held it as it lifted");
             Assert.That(core.State.Position.Y, Is.GreaterThan(SoilScenarios.Standing(spec) + 0.1), "and lifted off it");
             ulong table = SoilScenarios.Table().Hash;
             Log.ReplayResult r = Log.FlightReplay.Run(new System.IO.MemoryStream(stream.ToArray()), id => id == "test-range" ? world : null, spec.ContentHash, null, table);

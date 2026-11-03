@@ -422,20 +422,26 @@ namespace Fpv450.Sim.Tests
 
         public struct Liftoff
         {
-            /// <summary>The hover throttle the ramp rises past by 0.1, and when each corner's load last passed 1 N (s from the
-            /// ramp's start; NaN if never after it).</summary>
+            /// <summary>The hover throttle the ramp rises past by 0.1, and when each corner's ground load last passed 1 N either
+            /// way, pressing or pulled down by a wet groove (1.13) (s from the ramp's start; NaN if never after it).</summary>
             public double HoverThrottle;
             public double[] Left;
 
             /// <summary>Design 13's held leg: a corner still over 1 N at least 20 ms after the other three left, the attitude
             /// moving at least 0.5° toward it; the corner (−1 for none), the hold (s), the turn toward it (°), the peak ground
-            /// force on it during the hold (N), and whether its anchor slid.</summary>
+            /// force on it during the hold, its size either way (N), and whether its anchor slid.</summary>
             public int Held;
             public double Hold, Turn, Peak;
             public bool Slid;
 
             /// <summary>Each corner's deepest sink at rest before the ramp, m.</summary>
             public double[] Sink;
+
+            /// <summary>The largest pull toward the ground on any corner during the ramp (N; a wet groove's or wet straw's,
+            /// 1.13), how many corners still carried more than 1 N either way at its end (the drone held down), and the four
+            /// corners' load then (N; below 0 the ground pulls the drone down by that much).</summary>
+            public double Pull, EndLoad;
+            public int Stuck;
         }
 
         /// <summary>The hover throttle of the drone in still air over world (the pilot's mean throttle over 2 s of a 1 m hover).</summary>
@@ -492,8 +498,14 @@ namespace Fpv450.Sim.Tests
                     lean[k, c] = Lean(core.State, corner[c]);
                     load[k, c] = core.Trace.LegLoad[c];
                     slid[k, c] = core.Contacts.SoilOf(c).Sliding;
-                    if (load[k, c] > 1) r.Left[c] = (k + 1) * FlightCore.Dt;
+                    if (Math.Abs(load[k, c]) > 1) r.Left[c] = (k + 1) * FlightCore.Dt;
+                    if (-load[k, c] > r.Pull) r.Pull = -load[k, c];
                 }
+            }
+            for (int c = 0; c < 4; c++)
+            {
+                if (Math.Abs(load[Steps - 1, c]) > 1) r.Stuck++;
+                r.EndLoad += load[Steps - 1, c];
             }
             // The last corner to leave, and when the other three had left.
             int held = 0;
@@ -509,7 +521,7 @@ namespace Fpv450.Sim.Tests
             for (int k = from; k <= to; k++)
             {
                 turn = DetMath.Max(turn, lean[k, held] - lean[from, held]);
-                peak = DetMath.Max(peak, load[k, held]);
+                peak = DetMath.Max(peak, Math.Abs(load[k, held]));
                 any |= slid[k, held];
             }
             r.Hold = r.Left[held] - third;
@@ -642,6 +654,158 @@ namespace Fpv450.Sim.Tests
             }
             return r;
         }
+
+        // ---- The wet pull (1.13) ---------------------------------------------------------------------------------------
+
+        public struct Unstick
+        {
+            /// <summary>Per corner: the largest pull toward the ground (N); the separation from the groove's set (soil) or the
+            /// layer's top (straw) at which the pull last acted (m); the work the pull did against the lift (J, the trapezoid
+            /// over the separation); the wetted footprint by the test's own geometry (m²): the tube's chord at each node's
+            /// deepest sink by the three-point rule in soil, the chord at the straw's compression at the press times the
+            /// half-skid's length on straw; and whether a pull still acted at the end.</summary>
+            public double[] Peak, Released, Work, Footprint;
+            public bool[] Holding;
+
+            /// <summary>Per corner at the press's end: the leg's deflection in soil, the corner's overlap on a layer (m), and its
+            /// load (N).</summary>
+            public double[] Press, PressLoad;
+
+            /// <summary>The contacts' normal force at the press's end (N), the drone's weight (N), and the bytes allocated
+            /// over the lift's steps.</summary>
+            public double Load, Weight;
+            public long Allocated;
+        }
+
+        /// <summary>
+        /// "A wet skid is held as it lifts": the legs-on drone held level over at (ContactModel alone, as Drag), its skids
+        /// 1 mm over the ground, pressed down at 10 mm/s until its contacts carry its weight (each half-skid at its resting
+        /// load), then lifted at 10 mm/s until 6 mm past the last pull, each step's pose moved with its velocity zero
+        /// (quasi-static: the dampers read nothing, so the static law is what is measured). Reads each corner's pull and
+        /// separation every step: in soil SoilOf's (the separation of the T-joint's node, the skids level, from Soil.Set of
+        /// its deepest sink), on a wet layer the trace's (the leg's stretch F/k0 less the corner's overlap).
+        /// </summary>
+        public static Unstick Unsticking(DroneSpec spec, FlightWorld world, Double3 at, RainLevel rain, SurfaceTable table = null, Action<FlightWorld> place = null)
+        {
+            FlightSetup setup = Setup(spec, world, default, rain, table: table);
+            MassModel mass = setup.Mass;
+            world.Query.ResetRuntimeObjects();
+            place?.Invoke(world);
+            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain));
+            var events = new StepEvents();
+            var s = new FlightState { Attitude = Quat.Identity, Position = at + new Double3(0, Standing(spec) + 0.001, 0) };
+            model.Sense(s, ref s, events);
+            const double Step = 0.01 * FlightCore.Dt; // 10 mm/s
+            var r = new Unstick
+            {
+                Peak = new double[4], Released = new double[4], Work = new double[4], Footprint = new double[4], Holding = new bool[4],
+                Weight = mass.Properties.Mass * G,
+            };
+            double k0 = setup.Contacts.LegStiffness;
+            setup.Contacts.Row("straw", out MaterialRow straw);
+            double layer = rain == RainLevel.Sunny || !straw.HasWet ? straw.Stiffness : straw.WetStiffness;
+            var trace = new StepTrace();
+            // The press.
+            for (int k = 0; k < 20000 && r.Load < r.Weight; k++)
+            {
+                FlightState was = s;
+                s.Position = s.Position - new Double3(0, Step, 0);
+                s.Step++;
+                events.Clear();
+                model.Sense(was, ref s, events);
+                Double3 f = default, m = default;
+                trace = new StepTrace();
+                model.Forces(ref s, mass.Properties, ref f, ref m, ref trace, events);
+                r.Load = f.Y;
+            }
+            double[] press = r.Press = new double[4];
+            r.PressLoad = new double[4];
+            for (int c = 0; c < 4; c++)
+            {
+                ContactModel.SkidSoil sk = model.SoilOf(c);
+                press[c] = trace.LegCompression[c];
+                r.PressLoad[c] = trace.LegLoad[c];
+                // In soil the tube's chord at each node's deepest sink; on the straw layer its chord at the layer's own
+                // compression (the corner's load over the row's stiffness) along the half-skid.
+                r.Footprint[c] = sk.Engaged ? W0 * Chord(sk.Max0) + W1 * Chord(sk.Max1) + W2 * Chord(sk.Max2) : Chord(trace.LegLoad[c] / layer) * L;
+            }
+            // The lift.
+            var last = new double[4];
+            var lastS = new double[4];
+            bool[] pulled = new bool[4];
+            double beyond = 0, lift = 0;
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int k = 0; k < 20000 && beyond < 0.006; k++)
+            {
+                FlightState was = s;
+                s.Position = s.Position + new Double3(0, Step, 0);
+                lift += Step;
+                s.Step++;
+                events.Clear();
+                model.Sense(was, ref s, events);
+                Double3 f = default, m = default;
+                trace = new StepTrace();
+                model.Forces(ref s, mass.Properties, ref f, ref m, ref trace, events);
+                bool any = false;
+                for (int c = 0; c < 4; c++)
+                {
+                    ContactModel.SkidSoil sk = model.SoilOf(c);
+                    double pull, sep;
+                    if (sk.Engaged)
+                    {
+                        pull = sk.Pull;
+                        sep = Soil.Set(SetOf(world, setup.Contacts.Surfaces, sk.Surface, rain), sk.Max1) - sk.Sink1;
+                    }
+                    else
+                    {
+                        // On a layer: the corner's overlap is the press's less the lift (the drone level, the face's plane
+                        // fixed), and the part's separation the leg's stretch less it.
+                        pull = trace.LegLoad[c] < 0 ? -trace.LegLoad[c] : 0;
+                        sep = -pull / k0 - (press[c] - lift);
+                    }
+                    if (k > 0) r.Work[c] += 0.5 * (pull + last[c]) * (sep - lastS[c]);
+                    if (pull > 0)
+                    {
+                        pulled[c] = true;
+                        r.Peak[c] = DetMath.Max(r.Peak[c], pull);
+                        r.Released[c] = sep;
+                        any = true;
+                    }
+                    r.Holding[c] = pull > 0;
+                    last[c] = pull;
+                    lastS[c] = sep;
+                }
+                if (!any && (pulled[0] || pulled[1] || pulled[2] || pulled[3] || lift > 0.03)) beyond += Step;
+            }
+            r.Allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            return r;
+        }
+
+        /// <summary>The depth of S04's straw mat, m (its generator's mat_depth_m; physics_materials.json's straw row is
+        /// stated there).</summary>
+        public const double MatDepth = 0.125;
+
+        /// <summary>A stub floor of belt_straw with one straw box on it, 2 m square and MatDepth deep, its top at MatDepth
+        /// over the origin: S04's mat without its tiles' seams, so each support meets its top face alone. Place it with
+        /// Unsticking's place after the floor's runtime objects are reset.</summary>
+        public static FlightWorld MatFloor() => new FlightWorld(new FloorWorld(0, "belt_straw", "straw"));
+
+        public static void PlaceMat(FlightWorld world)
+        {
+            var box = new ShapeGeometry
+            {
+                Kind = ShapeKind.Box, Center = new Double3(0, 0.5 * MatDepth, 0), AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 1, 0),
+                AxisZ = new Double3(0, 0, 1), HalfExtents = new Double3(1, 0.5 * MatDepth, 1), Material = 1,
+            };
+            ((FloorWorld)world.Query).AddObject("straw_mat", new[] { box });
+        }
+
+        // The skid's tube (drone.json, measured) and the three-point rule's weights on its nodes at 0, the T-joint and L.
+        const double TubeRadius = 0.005, L = 0.22, A = 0.1025;
+        static readonly double W1 = L * L * L / (6 * A * (L - A)), W2 = L / 2 - L * L / (6 * (L - A)), W0 = L - W1 - W2;
+
+        // The tube's chord at sink z, the test's own (Math): 2√(2rz − z²) up to r, then its width.
+        static double Chord(double z) => !(z > 0) ? 0 : z >= TubeRadius ? 2 * TubeRadius : 2 * Math.Sqrt(2 * TubeRadius * z - z * z);
 
         /// <summary>A world surface id's set in a table at a rain level.</summary>
         public static SoilSet SetOf(FlightWorld world, SurfaceTable table, byte surface, RainLevel rain)

@@ -59,13 +59,19 @@ namespace Fpv450.Sim.Contact
     /// slides at μk·Fn + c_a·S_m + P(θ), P the groove's passive resistance toward the stretch. A ring of the last grooves
     /// lets a half-skid landing on the same soil within half the groove's width across and 10° start from their sinks. A
     /// rigid surface (asphalt, a slab) keeps the leg alone on the supports, as without the table.
+    ///
+    /// Wet ground (p7a-ground 1.13, design 7), with the table in Rain or Severe rain: a groove that has loaded wet soil
+    /// holds its half-skid as it lifts by its cohesive pull (Soil.Cohesion over each node's wetted width), a tension in the
+    /// leg's series solve; a material row's wet block stands in for the row (wet straw: softer, gripping harder), and a
+    /// corner lifting off a wet layer it pressed clings by the same law (Cling); the cover kinds read their wet sets (Cover).
     /// </summary>
     public sealed class ContactModel
     {
         /// <summary>A corner's half-skid in soil (ContactModel.SoilOf): its leg's deflection, each node's sink below the
         /// soil's surface (middle, T-joint, outer end) and deepest sink, the soil's static force, the force with its damping,
         /// its stiffness, the load centroid's arc from the middle, the footprint now and at the deepest sinks, the anchor's
-        /// force, and the series solve's residual k·x − F.</summary>
+        /// force, and the series solve's residual k·x − F; in wet soil (1.13) the cohesive pull (N, toward the soil) and the
+        /// wetted footprint still holding (m²).</summary>
         public struct SkidSoil
         {
             public bool Engaged, Sliding;
@@ -73,6 +79,7 @@ namespace Fpv450.Sim.Contact
             public int Object, Shape;
             public double Deflection, Sink0, Sink1, Sink2, Max0, Max1, Max2, Static, Force, Stiffness, Centroid, Footprint, Wetted, Residual;
             public Double3 Friction;
+            public double Pull, Clinging;
         }
 
         /// <summary>The (object, shape) pairs one shape holds at once; more is a ContactsLost event.</summary>
@@ -114,6 +121,7 @@ namespace Fpv450.Sim.Contact
         {
             public bool Known, Rigid;
             public double StaticFriction, KineticFriction, Stiffness, Damping;
+            public double Adhesion, AdhesionRelease; // a wet layer's cling σ_a (Pa) and its release δ_a (m), 1.13; 0 when dry
         }
 
         /// <summary>The footprint ring's grooves (design 3, assumed: two a corner).</summary>
@@ -135,7 +143,8 @@ namespace Fpv450.Sim.Contact
             public int Object, Shape;            // the soil's identity: the ground (its surface) or a soil shape
             public byte Surface;
             public double Max0, Max1, Max2;      // each node's deepest sink, m
-            public double X;                     // the leg's deflection, m
+            public double Wet0, Wet1, Wet2;      // each node's wetted width since it last let go, m (1.13; 0 in dry soil)
+            public double X;                     // the leg's deflection, m (below 0 stretched by the cohesive pull)
             public Double3 Anchor, AnchorBody;   // the stick anchor (world) and the material point stuck there (body)
             public bool Anchored, Sliding;
             public SkidSoil Last;                // what the last Forces found, for the log and the tests
@@ -174,6 +183,11 @@ namespace Fpv450.Sim.Contact
         readonly Row[] _surfaceRow;     // world surface id → its friction as a rigid ground
         readonly Print[] _prints;
         int _printNext;
+
+        // Wet ground (1.13): each corner's footprint clinging to a wet layer (a material row's cling, straw's) since it last
+        // let go, m² (null when nothing clings); the cover kinds' sets at the flight's moisture, for the elements (1.14, 1.15).
+        readonly double[] _cling;
+        readonly CoverSet[] _cover;
 
         // The impact window.
         int _impactLeft, _impacts;
@@ -215,24 +229,41 @@ namespace Fpv450.Sim.Contact
             _samples = new GroundSample[supports + middles];
             _massShare = mass * _spec.DampingMassShare;
 
-            // The world's materials by id, from the table by name; one the table lacks is refused.
+            // The world's materials by id, from the table by name; one the table lacks is refused. With surfaces.json in
+            // Rain or Severe rain a row's wet block stands in (1.13: wet straw is softer, grips harder and clings); a flight
+            // without the table reads the dry rows, as model 27's.
+            bool wet = table != null && moisture != Moisture.Dry;
             IWorldQuery q = world.Query;
             int top = 0;
             for (int id = 1; id < ushort.MaxValue; id++)
                 if (q.MaterialName((ushort)id) != null) top = id;
             _byMaterial = new Row[top + 1];
+            bool clings = false;
             for (int id = 1; id <= top; id++)
             {
                 string name = q.MaterialName((ushort)id);
                 if (name == null) continue;
                 if (!_spec.Row(name, out MaterialRow r))
                     throw new ArgumentException("the world's material '" + name + "' has no row in physics_materials.json", nameof(spec));
+                if (wet && r.HasWet)
+                {
+                    double k = r.Rigid ? 0 : r.WetStiffness;
+                    _byMaterial[id] = new Row
+                    {
+                        Known = true, Rigid = r.Rigid, StaticFriction = r.WetStaticFriction, KineticFriction = r.WetKineticFriction, Stiffness = k,
+                        Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(k * _massShare),
+                        Adhesion = r.Rigid ? 0 : r.WetAdhesion, AdhesionRelease = r.Rigid ? 0 : r.WetAdhesionRelease,
+                    };
+                    clings |= _byMaterial[id].Adhesion > 0;
+                    continue;
+                }
                 _byMaterial[id] = new Row
                 {
                     Known = true, Rigid = r.Rigid, StaticFriction = r.StaticFriction, KineticFriction = r.KineticFriction, Stiffness = r.Stiffness,
                     Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(r.Stiffness * _massShare),
                 };
             }
+            if (clings && _skids != null) _cling = new double[4];
             _groundRow = new Row { Known = true, Rigid = true, StaticFriction = _spec.GroundStaticFriction, KineticFriction = _spec.GroundKineticFriction };
 
             // The world's surfaces by id, from the table by name at the flight's moisture; one the table lacks is refused.
@@ -252,6 +283,31 @@ namespace Fpv450.Sim.Contact
                     SoilSet set = table.Surfaces[k].Set(moisture);
                     _soil[id] = set;
                     _surfaceRow[id] = new Row { Known = true, Rigid = true, StaticFriction = set.StaticFriction, KineticFriction = set.KineticFriction };
+                    // The cohesive pull's rise on the soil's unload line ends at σ_a, which must come before δ_a (1.13).
+                    for (int c = 0; set.Adhesion > 0 && c < 4; c++)
+                    {
+                        if (!_skids[c].Known) continue;
+                        double ku = set.UnloadRatio * Soil.Modulus(set, Soil.Width(SoilPart.Tube, _skids[c].Radius));
+                        if (!(set.Adhesion / ku < set.AdhesionRelease))
+                            throw new ArgumentException("surfaces.json's " + name + " at " + moisture + ": σ_a over the unload modulus, " + set.Adhesion / ku
+                                + " m, is not below adhesion_release_m " + set.AdhesionRelease, nameof(spec));
+                    }
+                }
+                _cover = new CoverSet[table.Cover.Length];
+                for (int i = 0; i < _cover.Length; i++) _cover[i] = table.Cover[i].Set(moisture);
+            }
+            for (int c = 0; _cling != null && c < 4; c++)
+            {
+                if (!_skids[c].Known) continue;
+                for (int id = 1; id < _byMaterial.Length; id++)
+                {
+                    Row w = _byMaterial[id];
+                    if (!(w.Adhesion > 0)) continue;
+                    // The cling's rise on the layer's own stiffness ends at σ_a·A before δ_a, and its fall is gentler than the
+                    // leg (Cling's closed form), at the largest footprint, the half-skid's whole width.
+                    double a = w.Adhesion * 2 * _skids[c].Radius * _skids[c].Length, rise = a / w.Stiffness;
+                    if (!(rise < w.AdhesionRelease) || !(a / (w.AdhesionRelease - rise) < _spec.LegStiffness))
+                        throw new ArgumentException("physics_materials.json's " + q.MaterialName((ushort)id) + " wet block: its cling cannot let go under the leg", nameof(spec));
                 }
             }
 
@@ -342,7 +398,10 @@ namespace Fpv450.Sim.Contact
             {
                 if (_skids != null && _skids[c].Known
                     && SoilCorner(c, s, com, ref f, ref m, ref load, ref compression, ref touching, ref strongest, ref strongestPair, ref strongestForce))
+                {
+                    if (_cling != null) _cling[c] = 0;
                     continue;
+                }
                 double deepest = 0, sum = 0, closing = 0;
                 int deepShape = -1, deepPair = -1;
                 for (int i = 0; i < _shapes.Length; i++)
@@ -356,7 +415,11 @@ namespace Fpv450.Sim.Contact
                         if (p.Touching && !p.Suppressed) Gather(ref p, i, k, s, ref deepest, ref sum, ref closing, ref deepShape, ref deepPair);
                     }
                 }
-                if (!(sum > 0)) continue;
+                if (!(sum > 0))
+                {
+                    if (_cling != null && _cling[c] > 0) Cling(c, s, com, ref f, ref m, ref load, ref compression, ref touching);
+                    continue;
+                }
                 closing /= sum;
                 double k0 = _spec.LegStiffness, c0 = _spec.LegDamping;
                 Row row = RowOf(deepPair < 0 ? _ground[deepShape] : _pairs[deepShape * PairsPerShape + deepPair]);
@@ -365,6 +428,18 @@ namespace Fpv450.Sim.Contact
                 if (fn < 0) fn = 0;
                 load[c] = fn;
                 compression[c] = deepest;
+                if (_cling != null)
+                {
+                    // A wet layer's footprint (1.13): the half-skid lying along it, its chord at the layer's own compression
+                    // (the static load over the layer's stiffness) times its length; the widest since it last let go.
+                    double area = 0;
+                    if (row.Adhesion > 0)
+                    {
+                        Soil.Displaced(SoilPart.Tube, _skids[c].Radius, kn * deepest / row.Stiffness, out _, out double chord);
+                        area = chord * _skids[c].Length;
+                    }
+                    _cling[c] = row.Adhesion > 0 ? DetMath.Max(_cling[c], area) : 0;
+                }
                 // Each point's share, its friction, and the moment it makes.
                 for (int i = 0; i < _shapes.Length; i++)
                 {
@@ -471,6 +546,54 @@ namespace Fpv450.Sim.Contact
             }
         }
 
+        /// <summary>
+        /// Corner c lifting off a wet layer it pressed (1.13: wet straw clings): its deepest pair on a clinging row, at its
+        /// overlap δ ≤ 0, held over the corner's footprint A by the soil's cohesive law (Soil.Cohesion) on the layer's own
+        /// stiffness k, in series with the leg k0. Rising, the layer and the leg stretch with the part, F = kn·δ (kn their
+        /// series), to −σ_a·A at δ = −σ_a·A/kn; then the bond fails over the part's separation s = x − δ (x = F/k0, the
+        /// leg's stretch), F = −σ_a·A·(δ_a − s)/(δ_a − s_e) with s_e = σ_a·A/k, which solves to F = −c·(δ_a + δ)/(1 − c/k0),
+        /// c = σ_a·A/(δ_a − s_e) (derived; the constructor holds s_e below δ_a and c below k0), nothing at δ = −δ_a. Static,
+        /// like the soil's pull; past δ_a, or with no such pair left in the result, the footprint is cleared.
+        /// </summary>
+        void Cling(int c, in FlightState s, Double3 com, ref Double3 f, ref Double3 m, ref Corners load, ref Corners compression, ref int touching)
+        {
+            int shape = -1, pair = -1;
+            double depth = double.NegativeInfinity;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    if (p.Suppressed || !(RowOf(p).Adhesion > 0) || !(p.Depth > depth)) continue;
+                    depth = p.Depth;
+                    shape = i;
+                    pair = k;
+                }
+            }
+            Row row = shape >= 0 ? RowOf(_pairs[shape * PairsPerShape + pair]) : default;
+            if (shape < 0 || !(depth > -row.AdhesionRelease))
+            {
+                _cling[c] = 0;
+                return;
+            }
+            ref Pair q = ref _pairs[shape * PairsPerShape + pair];
+            double k0 = _spec.LegStiffness, kn = Series(k0, row.Stiffness), peak = row.Adhesion * _cling[c], fn;
+            if (kn * depth >= -peak) fn = kn * depth;
+            else
+            {
+                double slope = peak / (row.AdhesionRelease - peak / row.Stiffness);
+                fn = -slope * (row.AdhesionRelease + depth) / (1 - slope / k0);
+            }
+            Double3 fw = q.N * fn;
+            f = f + fw;
+            m = m + Double3.Cross(s.Attitude.InverseRotate(q.Point - s.Position) - com, s.Attitude.InverseRotate(fw));
+            touching++;
+            load[c] = fn;
+            compression[c] = depth;
+        }
+
         // ---- The soil under a half-skid (p7a-ground 1.10) -----------------------------------------------------------------
 
         /// <summary>
@@ -485,6 +608,7 @@ namespace Fpv450.Sim.Contact
             ref Skid k = ref _skids[c];
             double r = k.Radius;
             Double3 c0 = World(s, k.Middle), c1 = World(s, _shapes[k.Joint].A), c2 = World(s, _shapes[k.End].A);
+            bool holding = k.Engaged && (k.Wet0 > 0 || k.Wet1 > 0 || k.Wet2 > 0); // its wet groove still clings (1.13)
 
             // The deepest soil shape the corner's parts touch: where the plane is absent (a patch, a hole band) it is the ground.
             int soilShape = -1, soilPair = -1;
@@ -504,6 +628,22 @@ namespace Fpv450.Sim.Contact
                     }
                 }
             }
+            // A groove clinging to a soil shape holds the skid above its face (1.13): that shape's pair while it is in the result.
+            double clingDepth = double.NegativeInfinity;
+            bool clingSearch = soilShape < 0 && holding && k.Object != WorldIds.Ground;
+            for (int i = 0; clingSearch && i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int j = 0; j < _count[i]; j++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + j];
+                    if (p.Object != k.Object || p.Shape != k.Shape || !(p.Depth > clingDepth)) continue;
+                    clingDepth = p.Depth;
+                    soilShape = i;
+                    soilPair = j;
+                }
+            }
             Pair none = default;
             ref Pair soil = ref soilShape >= 0 ? ref _pairs[soilShape * PairsPerShape + soilPair] : ref none;
             bool has0 = Node(k.Ground, c0, r, soil, soilShape >= 0, out double e0, out Double3 n0, out byte s0, out int o0, out int h0);
@@ -519,8 +659,8 @@ namespace Fpv450.Sim.Contact
             if (has1 && e1 > deepNode) { deepNode = e1; n = n1; surface = s1; obj = o1; shp = h1; }
             if (has2 && e2 > deepNode) { deepNode = e2; n = n2; surface = s2; obj = o2; shp = h2; }
             bool soft = surface != WorldIds.NoSurface && _surfaceRow[surface].Known && !_soil[surface].Rigid;
-            if (k.Engaged && (!soft || !(deepNode > 0) || k.Object != obj || k.Shape != shp || k.Surface != surface)) Leave(ref k, c0, c2, n);
-            if (!soft || !(deepNode > 0)) return false;
+            if (k.Engaged && (!soft || !(deepNode > 0) && !holding || k.Object != obj || k.Shape != shp || k.Surface != surface)) Leave(ref k, c0, c2, n);
+            if (!soft || !(deepNode > 0) && !k.Engaged) return false;
             if (!k.Engaged) Land(ref k, obj, shp, surface, c0, c2, n);
 
             // The corner's other points (rigid or compliant shapes, Surface 0) as one spring through the same leg, as P7's.
@@ -546,10 +686,24 @@ namespace Fpv450.Sim.Contact
             double kl = Soil.Modulus(set, Soil.Width(SoilPart.Tube, r)), firm = _spec.Surfaces.FirmLayer;
             double ko = other && !orow.Rigid ? orow.Stiffness : 0;
             double lo = 0, hi = DetMath.Max(deepNode, other ? deep : 0);
+            // Wet soil (1.13): the groove's cohesive pull enters the solve as a tension, so the leg may stretch by up to the
+            // whole pull over its stiffness; the bracket's top stays at least 0, where no node presses.
+            bool wet = set.Adhesion > 0;
+            double ku = wet ? set.UnloadRatio * kl : 0;
+            if (wet)
+            {
+                lo = -set.Adhesion * (k.W0 * k.Wet0 + k.W1 * k.Wet1 + k.W2 * k.Wet2) / k0;
+                if (hi < 0) hi = 0;
+            }
             double x = DetMath.Min(hi, DetMath.Max(lo, k.X));
             for (int it = 0; it < NewtonSteps; it++)
             {
                 double fs = Tube(k, set, kl, firm, e0 - x, e1 - x, e2 - x, out double ks);
+                if (wet)
+                {
+                    fs -= Pulls(k, set, ku, e0 - x, e1 - x, e2 - x, out double kp, out _, out _, out _);
+                    ks += kp;
+                }
                 double fo = ko > 0 && deep > x ? ko * (deep - x) : 0;
                 double residual = k0 * x - fs - fo, slope = k0 + ks + (ko > 0 && deep > x ? ko : 0);
                 if (residual == 0) break;
@@ -594,6 +748,20 @@ namespace Fpv450.Sim.Contact
             f = f + fw;
             m = m + Double3.Cross(s.Attitude.InverseRotate(point - s.Position) - com, s.Attitude.InverseRotate(fw));
             touching++;
+
+            // The wet groove's cohesive pull toward the soil (1.13), at its own centroid along the half-skid.
+            double pull = 0;
+            if (wet)
+            {
+                pull = Pulls(k, set, ku, z0, z1, z2, out _, out double q0, out double q1, out double q2);
+                if (pull > 0)
+                {
+                    double pullArc = (k.W1 * q1 * k.Arc + k.W2 * q2 * k.Length) / pull;
+                    Double3 at = c0 + (c2 - c0) * (pullArc / k.Length) - n * r, fp = n * -pull;
+                    f = f + fp;
+                    m = m + Double3.Cross(s.Attitude.InverseRotate(at - s.Position) - com, s.Attitude.InverseRotate(fp));
+                }
+            }
             ref Pair credit = ref obj == WorldIds.Ground ? ref _ground[k.End] : ref soil;
             credit.Impulse += fn * FlightCore.Dt;
             if (fn > credit.PeakForce) credit.PeakForce = fn;
@@ -608,7 +776,7 @@ namespace Fpv450.Sim.Contact
             double carried = 0;
             if (other)
             {
-                double fo = held ? k0 * x - soilStatic : !orow.Rigid && deep > x ? ko * (deep - x) : 0;
+                double fo = held ? k0 * x - (soilStatic - pull) : !orow.Rigid && deep > x ? ko * (deep - x) : 0;
                 double co = orow.Rigid ? c0leg : Series(c0leg, orow.Damping);
                 fo -= co * closing / sum;
                 if (fo > 0)
@@ -628,15 +796,24 @@ namespace Fpv450.Sim.Contact
                     }
                 }
             }
-            load[c] = fn + carried;
+            load[c] = pull > 0 ? fn + carried - pull : fn + carried;
             compression[c] = x;
+
+            // Each node's wetted width: the widest contact since it last let go, cleared past δ_a (1.13).
+            if (wet)
+            {
+                k.Wet0 = Wetted(set, r, z0, k.Max0, k.Wet0);
+                k.Wet1 = Wetted(set, r, z1, k.Max1, k.Wet1);
+                k.Wet2 = Wetted(set, r, z2, k.Max2, k.Wet2);
+            }
 
             k.Last = new SkidSoil
             {
                 Engaged = true, Surface = surface, Object = obj, Shape = shp, Deflection = x, Sink0 = z0, Sink1 = z1, Sink2 = z2,
                 Max0 = DetMath.Max(k.Max0, z0), Max1 = DetMath.Max(k.Max1, z1), Max2 = DetMath.Max(k.Max2, z2), Static = soilStatic,
                 Force = fn, Stiffness = soilStiffness, Centroid = arc, Footprint = footprint, Wetted = wetted, Friction = ft, Sliding = k.Sliding,
-                Residual = k0 * x - soilStatic - (held ? k0 * x - soilStatic : !orow.Rigid && other && deep > x ? ko * (deep - x) : 0),
+                Residual = k0 * x - (soilStatic - pull) - (held ? k0 * x - (soilStatic - pull) : !orow.Rigid && other && deep > x ? ko * (deep - x) : 0),
+                Pull = pull, Clinging = k.W0 * k.Wet0 + k.W1 * k.Wet1 + k.W2 * k.Wet2,
             };
 
             // The supports' own ground anchors stand aside while the soil carries the corner.
@@ -661,6 +838,31 @@ namespace Fpv450.Sim.Contact
             double f2 = Soil.Force(SoilPart.Tube, k.Radius, set, kl, firm, z2, k.Max2, out double t2);
             stiffness = k.W0 * t0 + k.W1 * t1 + k.W2 * t2;
             return k.W0 * f0 + k.W1 * f1 + k.W2 * f2;
+        }
+
+        // A half-skid's wet groove pulling it toward the soil (N, 1.13) at its nodes' sinks, by the same three-point rule:
+        // each node's cohesive law (Soil.Cohesion) over its wetted width at its separation from its groove's set; its rate
+        // d/dz of the soil's force (N/m), and each node's pull per metre.
+        static double Pulls(in Skid k, in SoilSet set, double ku, double z0, double z1, double z2, out double stiffness, out double q0, out double q1, out double q2)
+        {
+            q0 = Soil.Cohesion(set, ku, k.Wet0, Soil.Set(set, k.Max0) - z0, out double s0);
+            q1 = Soil.Cohesion(set, ku, k.Wet1, Soil.Set(set, k.Max1) - z1, out double s1);
+            q2 = Soil.Cohesion(set, ku, k.Wet2, Soil.Set(set, k.Max2) - z2, out double s2);
+            stiffness = k.W0 * s0 + k.W1 * s1 + k.W2 * s2;
+            return k.W0 * q0 + k.W1 * q1 + k.W2 * q2;
+        }
+
+        // A node's wetted width after a step at sink z (1.13): the widest contact since it last let go, the chord at Wong's
+        // effective sink while the node presses its groove; nothing once it has separated from the set by δ_a.
+        static double Wetted(in SoilSet set, double r, double z, double max, double width)
+        {
+            double effective = z >= max ? z : max - set.UnloadRatio * (max - z);
+            if (effective > 0)
+            {
+                Soil.Displaced(SoilPart.Tube, r, effective, out _, out double chord);
+                return chord > width ? chord : width;
+            }
+            return Soil.Set(set, max) - z >= set.AdhesionRelease ? 0 : width;
         }
 
         // A node's overlap of the ground (δ, m, along its normal), from the plane's sample where it has one, else the soil
@@ -703,6 +905,7 @@ namespace Fpv450.Sim.Contact
             k.X = 0;
             k.Anchored = k.Sliding = false;
             k.Max0 = k.Max1 = k.Max2 = 0;
+            k.Wet0 = k.Wet1 = k.Wet2 = 0;
             Double3 c1 = c0 + (c2 - c0) * (k.Arc / k.Length);
             for (int back = 1; back <= PrintRing; back++)
             {
@@ -749,12 +952,21 @@ namespace Fpv450.Sim.Contact
             k.X = 0;
             k.Anchored = k.Sliding = false;
             k.Max0 = k.Max1 = k.Max2 = 0;
+            k.Wet0 = k.Wet1 = k.Wet2 = 0;
             k.Last = default;
         }
 
         /// <summary>Corner c's half-skid on soil as the last Forces left it (default when it is not in soil, or without
         /// surfaces.json).</summary>
         public SkidSoil SoilOf(int corner) => _skids != null && _skids[corner].Engaged ? _skids[corner].Last : default;
+
+        /// <summary>Corner c's footprint clinging to a wet layer (wet straw, 1.13) since it last let go, m²; 0 when none.</summary>
+        public double ClingOf(int corner) => _cling != null ? _cling[corner] : 0;
+
+        /// <summary>A cover kind's set at the flight's moisture (1.13: wet in Rain and Severe rain, so wet stems and straws
+        /// hold harder before they break and cost more to cut), which the drawn elements read (1.14, 1.15); default
+        /// without surfaces.json.</summary>
+        public CoverSet Cover(CoverKind kind) => _cover != null ? _cover[(int)kind] : default;
 
         /// <summary>The ring's grooves in use.</summary>
         public int Prints
