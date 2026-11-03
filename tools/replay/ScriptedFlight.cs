@@ -133,9 +133,11 @@ namespace Fpv450.Replay
             StickSample _held;
             bool _holding;
             double _slowFrom = -1, _slowY, _touchAt = -1;
+            readonly double _descent;
 
-            public Pilot(FlightCore core, Double3 foot, Double3 nose, double stand)
+            public Pilot(FlightCore core, Double3 foot, Double3 nose, double stand, double descent)
             {
+                _descent = descent;
                 _p = new SimPilot(core.Controller, foot + new Double3(0, stand, 0)) { Period = 1, Heading = nose };
                 _foot = foot;
                 _stand = stand;
@@ -179,7 +181,7 @@ namespace Fpv450.Replay
                             _slowFrom = t;
                             _slowY = clearance;
                         }
-                        if (_slowFrom >= 0) y = _slowY - 0.8 - 0.5 * (t - _slowFrom);
+                        if (_slowFrom >= 0) y = _slowY - 0.8 - _descent * (t - _slowFrom);
                         _p.Target = _foot + new Double3(0, _stand + y, 0);
                     }
                     s = _p.Sticks(pose, hostUs);
@@ -204,8 +206,21 @@ namespace Fpv450.Replay
 
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
+        // Each leg's state and set angle at the end (p7g-legs 1.2), or "elastic" without the legs' law.
+        static string Legs(FlightCore core)
+        {
+            if (core.Contacts?.Legs == null) return "elastic";
+            var parts = new string[LegDamage.Legs];
+            for (int c = 0; c < LegDamage.Legs; c++)
+            {
+                Double3 set = core.Contacts.Legs.Set(c);
+                parts[c] = $"{LegDamage.Names[c]} {core.Contacts.Legs.Flags(c)} {Math.Sqrt(set.X * set.X + set.Z * set.Z) * 180 / Math.PI:F2}°";
+            }
+            return string.Join(", ", parts);
+        }
+
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double descent = 0.5)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
@@ -279,7 +294,7 @@ namespace Fpv450.Replay
 
             var inbox = new StickInbox();
             var poses = new PoseBuffer();
-            var pilot = new Pilot(core, foot, nose, stand);
+            var pilot = new Pilot(core, foot, nose, stand, descent);
             var wall = Stopwatch.StartNew();
             var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
             Exception fault;
@@ -298,7 +313,7 @@ namespace Fpv450.Replay
                 WallSeconds = wall.Elapsed.TotalSeconds,
                 Fault = fault ?? recorder.Fault,
                 Landing = pilot.Landing + $"; ends at {core.State.Position.Y - foot.Y - stand:F4} m over standing, {core.Trace.ContactsTouching} touching pairs, "
-                    + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}",
+                    + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}; legs {Legs(core)}",
             };
         }
 

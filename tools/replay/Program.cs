@@ -16,10 +16,12 @@ namespace Fpv450.Replay
             + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--drone <drone.json>]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--descent M/S] [--drone <drone.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
-            + "                                         in the map's own wind (its wakes and its belt's canopy)\n"
+            + "                                         in the map's own wind (its wakes and its belt's canopy);\n"
+            + "                                         --descent: its last metres' descent (0.5 m/s; 1.9 lands hard\n"
+            + "                                         enough to bend a leg, p7g-legs 1.2)\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json";
 
@@ -108,8 +110,11 @@ namespace Fpv450.Replay
                 throw new ArgumentException("--rain is sunny, rain or severerain");
 
             string map = Option(args, "--map");
+            string descent = Option(args, "--descent");
+            double last = descent == null ? 0.5 : double.Parse(descent, System.Globalization.CultureInfo.InvariantCulture);
+            if (!(last > 0 && last <= 2)) throw new ArgumentException("--descent must be in (0, 2] m/s");
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
-                Array.IndexOf(args, "--canopy") >= 0, map);
+                Array.IndexOf(args, "--canopy") >= 0, map, last);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {map ?? "floor"}, {wind} wind, {rain}, "
