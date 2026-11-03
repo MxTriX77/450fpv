@@ -86,6 +86,26 @@ namespace Fpv450.Sim.Tests
             Assert.That(Math.Round(mid10 / plane10, 2), Is.EqualTo(0.03));
             Assert.That(Math.Round(mid05 / plane05, 2), Is.EqualTo(0.11));
 
+            // The same readings at the map's W, E01's lip width 0.9425 m (1.10a's record): h_o is W.
+            {
+                const double Wm = 0.9425;
+                CutSpec m = Straight(wind, 90, L, Wm, D);
+                WindField g = Field(p, m);
+                g.Begin(0, At(m, L / 2, 0, -1), -D);
+                double Um = Math.Sqrt(g.Cut.DriveAcross * g.Cut.DriveAcross + g.Cut.DriveAlong * g.Cut.DriveAlong), Am = Cavity.CellStrength * Um;
+                double m10 = Horizontal(g.At(At(m, L / 2, 0, -D + 1.0))), m05 = Horizontal(g.At(At(m, L / 2, 0, -D + 0.5)));
+                TestContext.Out.WriteLine($"  at the map's W {Wm} m: U_o {Um:F3} m/s at h_o {g.Cut.DriveHeight:F4} m (A {Am:F3} m/s); mid-opening at 1.0 / 0.5 m over the floor "
+                    + $"{m10:F4} / {m05:F4} m/s ({m10 / Am:F3} / {m05 / Am:F3} A), {m10 / plane10:F4} / {m05 / plane05:F4} of the plane");
+                Assert.That(g.Cut.DriveHeight, Is.EqualTo(Wm), "h_o is W");
+                Assert.That(Math.Round(Um, 2), Is.EqualTo(3.25), "U_o 3.25 m/s");
+                Assert.That(Math.Round(Am, 2), Is.EqualTo(1.07), "A 1.07 m/s");
+                Assert.That(Math.Round(m10, 3), Is.EqualTo(0.007), "near the cell's turn");
+                Assert.That(Math.Round(m05, 2), Is.EqualTo(0.31));
+                Assert.That(Math.Round(m05 / Am, 2), Is.EqualTo(0.29), "the return 0.29 A");
+                Assert.That(Math.Round(m10 / plane10, 3), Is.EqualTo(0.002));
+                Assert.That(Math.Round(m05 / plane05, 2), Is.EqualTo(0.18));
+            }
+
             // The design's maxima at any bearing anywhere in the opening (reported): at 1.0 and 0.5 m over the floor, and
             // 0.1 m under the lip.
             double max10 = 0, max05 = 0, maxLip = 0;
@@ -104,6 +124,10 @@ namespace Fpv450.Sim.Tests
             }
             TestContext.Out.WriteLine($"  at any bearing, anywhere in the opening: at most {max10:F3} m/s at 1.0 m ({max10 / plane10:F3} of the plane), "
                 + $"{max05:F3} m/s at 0.5 m ({max05 / plane05:F3}); 0.1 m under the lip up to {maxLip:F3} m/s");
+            Assert.That(Math.Round(max10, 3), Is.EqualTo(0.278), "design 10's maximum at 1.0 m");
+            Assert.That(Math.Round(max05, 2), Is.EqualTo(0.19), "at 0.5 m");
+            Assert.That(Math.Round(maxLip, 3), Is.EqualTo(1.441), "0.1 m under the lip");
+            Assert.That(max10 / plane10, Is.LessThanOrEqualTo(0.1), "the spec's 0.1 of the plane at 1.0 m holds at any bearing");
 
             // One vortex: with the wind 0.1 m under the lip, against it from 0.5 m under the lip to the floor, up the upwind
             // wall and down the downwind wall; and the known-wrong, model 26's open profile from the floor.
