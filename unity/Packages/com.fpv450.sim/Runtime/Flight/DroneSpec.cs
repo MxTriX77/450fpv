@@ -549,6 +549,11 @@ namespace Fpv450.Sim.Flight
                 // published loss factor); the failure law with the legs on.
                 c.LegSideStiffness = Legs.SideStiffness;
                 c.LegSideDampingRatio = Legs.Tube.LossFactor / 2;
+                // p7g-legs 1.3: the side give's parts, the axial load's softening and the crack flown (design 3).
+                c.LegTubeSideStiffness = Legs.Tube.BendingStiffness;
+                c.LegJawSideStiffness = Legs.Clamp.JawStiffness / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
+                c.LegSwayLoad = SwayFactor * Legs.Tube.Modulus.Value * Legs.Tube.SecondMoment / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
+                c.LegTubeAxialStiffness = Legs.Tube.AxialStiffness;
                 if (loadout.Legs) c.Legs = BuildLegDamage();
             }
             c.Materials = (Contact.MaterialRow[])materials.Clone();
@@ -585,9 +590,22 @@ namespace Fpv450.Sim.Flight
                 d.Clamp[c] = new Double3(leg.Position.X, clamp.Position.Y - clamp.Size.Y / 2, leg.Position.Z);
                 d.Foot[c] = new Double3(leg.Position.X, joint.Position.Y - joint.Size.Y / 2, leg.Position.Z);
                 d.SocketLever = joint.Size.Y;
+                // p7g-legs 1.3: the skid through this leg's T-joint (the one on its side), its axis under the leg, and the leg
+                // on the same skid.
+                int skid = PartIndex(leg.Position.X >= 0 ? "skid_right" : "skid_left");
+                d.SkidParts[c] = skid;
+                d.Bore[c] = new Double3(leg.Position.X, Parts[skid].Position.Y, leg.Position.Z);
             }
+            for (int c = 0; c < 4; c++)
+                for (int k = 0; k < 4; k++)
+                    if (k != c && d.SkidParts[k] == d.SkidParts[c]) d.Sibling[c] = k;
+            d.AirDensity = Aero != null ? Aero.AirDensity : 0;
             return d;
         }
+
+        /// <summary>The sway-buckling factor of a column fixed at one end and free to sway at the other, π²/4 (published: Euler's
+        /// cantilever; Timoshenko and Gere): the free length's side give vanishes at π²EI/(4L²) (p7g-legs 1.3).</summary>
+        public const double SwayFactor = 2.4674011002723395;
 
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
         // centre moved away from the plane by its half-extent along y times (s − 1). s = 1 leaves every bit as it was.

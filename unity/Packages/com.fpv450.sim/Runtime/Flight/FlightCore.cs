@@ -148,6 +148,7 @@ namespace Fpv450.Sim.Flight
         readonly Double3 _camera;
         double _rainMassRate;
         readonly Contact.ContactModel _contacts;
+        readonly Contact.LoosePieces _loose; // the pieces a damaged leg drops (p7g-legs 1.3), with the legs' law
         readonly Double3[] _hubWind = new Double3[4];
         readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
         readonly Sim.World.GroundSample[] _windGround = new Sim.World.GroundSample[1];
@@ -256,7 +257,34 @@ namespace Fpv450.Sim.Flight
                 _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass, Random);
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
+                if (_contacts.Legs != null)
+                {
+                    _loose = new Contact.LoosePieces(_contacts.Spec, World, _mass);
+                    _trace.Loose = _loose;
+                }
             }
+        }
+
+        /// <summary>The pieces the legs dropped (p7g-legs 1.3), or null without the legs' law.</summary>
+        public Contact.LoosePieces Loose => _loose;
+
+        /// <summary>
+        /// A leg bent before the first step (the scenarios' damaged builds; a flight never calls it, and its log would not
+        /// replay): the leg's set, its shapes turned by it.
+        /// </summary>
+        public void PresetLeg(int leg, Double3 set, bool move = true) => _contacts.PresetLeg(leg, set, _state, move);
+
+        /// <summary>
+        /// A leg off before the first step (the scenarios' damaged builds; a flight never calls it, and its log would not
+        /// replay): slid out of its clamp, its piece dropped (no loose body: it is not there), its skid hanging from the other
+        /// leg on it, the build rebuilt.
+        /// </summary>
+        public void RemoveLeg(int leg)
+        {
+            _contacts.Legs.Remove(leg);
+            Contact.LegChange ch = _contacts.Restructure(_state, _events);
+            Rebuild(ch, ref _state, false);
+            _events.Clear();
         }
 
         public ref readonly FlightState State => ref _state;
@@ -359,6 +387,13 @@ namespace Fpv450.Sim.Flight
             _trace.AeroForce = airWorld;
             _trace.AeroMoment = airMoment;
             s.Step++;
+            // The pieces already loose step to this step's end; a leg or a T-joint that let go in this step's forces takes
+            // its pieces off now, at the moved pose, before the sweep (p7g-legs 1.3).
+            if (_loose != null)
+            {
+                _loose.Step(_wind);
+                if (_contacts.RestructurePending) Rebuild(_contacts.Restructure(s, _events), ref s, true);
+            }
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
 
@@ -367,6 +402,46 @@ namespace Fpv450.Sim.Flight
             _rain.Fill(_rainMassRate, Dt);
             _mass.SetPartMass(_filmPart, _rain.FilmMass);
             _trace.FilmMass = _rain.FilmMass;
+        }
+
+        // The build after a structure change (p7g-legs 1.3, design 5, the coil's rule): each piece flies loose from where it is
+        // with the drone's motion at its parts (fly), then the build without it, every leaving part at 0 kg and a broken leg
+        // cut to its stub (LoosePieces.Cut), rebuilt exactly once (MassModel), and the airframe's modes solved again for it.
+        // The state is the body origin's (RigidBody), so its velocity and turn stay: the body keeps its linear and angular
+        // momentum less what the pieces take, which is theirs at the same motion.
+        void Rebuild(Contact.LegChange ch, ref FlightState s, bool fly)
+        {
+            if (fly)
+                for (int p = 0; p < ch.Pieces; p++) _loose.Spawn(ch, p, s, _mass, _contacts, _events);
+            Contact.LegDamageSpec l = _contacts.Spec.Legs;
+            for (int p = 0; p < ch.Pieces; p++)
+            {
+                int bits = ch.Parts[p];
+                for (int c = 0; c < 4; c++)
+                {
+                    if ((bits & 1 << c) != 0) Off(l.Parts[c]);
+                    if ((bits & 1 << (8 + c)) != 0) Off(l.TJointParts[c]);
+                }
+                for (int side = 0; side < 2; side++)
+                    if ((bits & 1 << (12 + side)) != 0)
+                        for (int c = 0; c < 4; c++)
+                            if ((l.Bore[c].X >= 0) == (side == 0)) Off(l.SkidParts[c]);
+            }
+            for (int c = 0; c < 4; c++)
+            {
+                if ((ch.Stubs & 1 << c) == 0) continue;
+                Contact.LoosePieces.Cut(_mass.Part(l.Parts[c]), l.Clamp[c], out _, out DronePart stub);
+                _mass.SetPart(l.Parts[c], stub, false);
+            }
+            _mass.Rebuild();
+            _modes?.Rebuild(_mass, ref s.ModeShape, ref s.ModeRate);
+        }
+
+        void Off(int part)
+        {
+            DronePart p = _mass.Part(part);
+            p.Mass = 0;
+            _mass.SetPart(part, p, false);
         }
 
         // The camera mount's acceleration over the step, body m/s²: the body origin's (from its velocities), the turn's at the
@@ -657,7 +732,18 @@ namespace Fpv450.Sim.Flight
                 RotorSpeed = s.RotorSpeed,
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
+                LegState = _trace.LegState,
+                CornerState = _trace.CornerState,
+                LegSet = _trace.LegSet,
+                SkidFold = _trace.SkidFold,
             };
+            if (_loose == null) return;
+            for (int i = 0; i < Contact.LoosePieces.Slots; i++)
+            {
+                if (!_loose.Active(i)) continue;
+                ref readonly FlightState p = ref _loose.State(i);
+                pose.Loose[i] = new LoosePose { Parts = _loose.PartsOf(i), Position = p.Position, Attitude = p.Attitude, AtRest = _loose.AtRest(i) };
+            }
         }
 
         /// <summary>The feed signals of the current state (FeedSignals says which are live).</summary>

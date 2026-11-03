@@ -83,6 +83,24 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The moment at each leg's clamp's edge the legs' law judged this step, N·m; 0 without it.</summary>
         public Corners LegMoment;
+
+        /// <summary>Each corner's state after the step (Contact.CornerState), a byte a corner, rear right in the low byte (p7g-legs
+        /// 1.3): what carries its skid half, what is left of its tube.</summary>
+        public uint CornerState;
+
+        /// <summary>Each leg's side give this step with the anchor in series, N/m: the tube's by its crack less the axial load's
+        /// softening (P·Δ), or a hanging half's cantilever (p7g-legs 1.3).</summary>
+        public Corners LegSideGive;
+
+        /// <summary>Each leg's jaws' turn at the foot, body m (the side spring's rest moved by their friction slipping).</summary>
+        public Corners3 LegJaw;
+
+        /// <summary>Each hanging skid half's fold about the other leg's bore, body rotation vector, rad.</summary>
+        public Corners3 SkidFold;
+
+        /// <summary>The flight's loose pieces (p7g-legs 1.3, design 4), or null: logged in the side record at 50 Hz
+        /// (LogFormat.LooseBlock), never in the step record.</summary>
+        public Contact.LoosePieces Loose;
     }
 
     /// <summary>
@@ -177,6 +195,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>Part's T-joint let its skid go (Index: TJointSlip, the skid slid in its bore, or TJointFracture, the socket
         /// broke). A: the force along the skid, N, or the socket's moment, N·m; B: its capacity; C as LegSet's.</summary>
         SkidLoose = 27,
+
+        /// <summary>A piece left the drone and flies loose (p7g-legs 1.3, design 4): Part its leg's (or its skid's), Index its
+        /// slot in the side record (LogFormat.LooseBlock), Point its centre of mass. A: its mass, kg; B: its centre's speed,
+        /// m/s; C: its parts (the LegChange mask). The build is rebuilt without it in the same step.</summary>
+        PieceDropped = 28,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

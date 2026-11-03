@@ -23,6 +23,9 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The T-joint's socket broke across its print layers.</summary>
         TJointFracture = 6,
+
+        /// <summary>A skid hanging from one T-joint folded at that T-joint's bore, past its first yield there (p7g-legs 1.3).</summary>
+        SkidFold = 7,
     }
 
     /// <summary>A leg's state, bit by bit (the step record's leg_state).</summary>
@@ -84,6 +87,22 @@ namespace Fpv450.Sim.Contact
         /// the T-joint's screw torque (N·m) and the print's interlayer strength (Pa).</summary>
         public LegBound YieldStress, Elongation, EdgeFactor, ClampTorque, NutFactor, Friction, TJointTorque, Interlayer;
 
+        /// <summary>p7g-legs 1.3: each leg's skid (DroneSpec.Parts, the one through its T-joint), the leg on the same skid, and
+        /// the skid's axis under the leg (body m), where a skid hanging from that leg's T-joint turns.</summary>
+        public int[] SkidParts = new int[4], Sibling = new int[4];
+        public Double3[] Bore = new Double3[4];
+
+        /// <summary>A loose piece's air (p7g-legs 1.3, design 4): the air's density (the aero block's, kg/m³) and a round tube's
+        /// drag coefficient across its axis, 1.2 (published: a circular cylinder below the drag crisis, Hoerner 1965, 3-9), on
+        /// the flow's component across each tube (the independence principle, published).</summary>
+        public double AirDensity, LooseDrag = 1.2;
+
+        /// <summary>A loose piece at rest stops stepping (assumed, named): its centre of mass under RestSpeed (m/s) and its turn
+        /// under RestRate (rad/s), touching, for RestSteps steps on end; it then lies where it is, as nothing in the world moves
+        /// it (the drone never touches its own dropped pieces).</summary>
+        public double RestSpeed = 0.005, RestRate = 0.05;
+        public int RestSteps = 200;
+
         const double Pi = 3.141592653589793;
 
         /// <summary>The fixed–pinned column's first buckling load factor, β² (β the root of tan β = β; Timoshenko and Gere).</summary>
@@ -114,6 +133,9 @@ namespace Fpv450.Sim.Contact
             c.TJointParts = (int[])TJointParts.Clone();
             c.Clamp = (Double3[])Clamp.Clone();
             c.Foot = (Double3[])Foot.Clone();
+            c.SkidParts = (int[])SkidParts.Clone();
+            c.Sibling = (int[])Sibling.Clone();
+            c.Bore = (Double3[])Bore.Clone();
             return c;
         }
     }
@@ -141,6 +163,15 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The leg spring's stiffness along the leg and across it at the foot, N/m.</summary>
         public double AxialStiffness, LateralStiffness;
+
+        /// <summary>The couple at the foot (body, N·m) from the other half of its skid hanging from this leg's T-joint (p7g-legs
+        /// 1.3): its force is in the Law sums, its moment about the bore here. 0 with both legs on the skid.</summary>
+        public Double3 FootCouple;
+
+        /// <summary>The tube's own deflection across it at the foot (body, m; p7g-legs 1.3): its force across over its give,
+        /// or with no give left (P past the sway load) the whole spring's. The axial load on it adds P·δ to the clamp's moment
+        /// (M = F·L + P·δ, the deformed leg's statics): the side give's softening never takes the moment away. 0 on 1.2's chain.</summary>
+        public Double3 Deflection;
     }
 
     /// <summary>What a leg's give takes off its spring's force in the step (body axes): along the leg (compression +), across
@@ -176,15 +207,20 @@ namespace Fpv450.Sim.Contact
     ///   leg would ever keep a set, against the pilot's "bend", D-079).
     /// - The set. Past M_c the section yields, by the elastic–plastic tube's moment–curvature law in the rectangle's closed
     ///   form at the tube's own shape factor, κ/κ_c = √((f − 1)/(f − m)), m = M/M_c, and its curvature beyond the elastic
-    ///   one spread over the cantilever's falling moment is kept: the set angle θ_p and the foot's offset δ_p, closed forms
-    ///   of m. The offset moves the leg spring's rest across the leg, which is what holds the moment at the section's
-    ///   capacity while it yields; the contact shapes stay where they are (1.3 rotates them).
+    ///   one spread over the cantilever's falling moment is kept as the set angle θ_p at the clamp's root (a closed form of
+    ///   m). Since 1.3 the set turns the leg's shapes and its skid half rigidly about the clamp's edge (design 8), so the foot
+    ///   moves θ_p·L, which is what holds the moment at the section's capacity while it yields (1.2 moved the spring's rest by
+    ///   the curvature's own offset δ_p instead, the shapes left in place).
+    /// - The axial load on the deflected tube (1.3): M = F·L + P·δ at the clamp, δ the tube's own deflection at the foot, so
+    ///   the side give's geometric softening (ContactModel) never takes the clamp's moment away.
+    /// - The jaws (1.3): their bed held by their friction, μ·P·D over the lever at the foot, until the force across less the
+    ///   bed's own passes it; then the bed turns (the spring's rest moved) and the friction does the work.
     /// - Parting by strain. The clamp's edge's strain K_t·κ·c passes the elongation at break ε_b at
     ///   m* = f − (f − 1)·(κ_c·K_t·c/ε_b)²: the tube parts there (Broken), never at a stress ahead of its set.
     /// - The T-joint. The M3 pinch screw's preload holds the skid in its bore to 2μP_t along it; the socket breaks across
     ///   its layers past σ_i·π(D_s⁴ − D⁴)/(32·D_s). Either lets the skid go (SkidLoose).
-    /// A broken or detached leg's state is kept and its law stops; its offsets stay. 1.3 takes its parts off the contacts
-    /// and the build.
+    /// A broken or detached leg's state is kept and its law stops; its set stays (the app draws it). Its piece leaves the
+    /// contacts and the build (ContactModel.Restructure, FlightCore) and flies loose (LoosePieces).
     /// </summary>
     public sealed class LegDamage
     {
@@ -208,14 +244,22 @@ namespace Fpv450.Sim.Contact
 
         readonly LegFlags[] _flags = new LegFlags[Legs];
         readonly double[] _envelope = { 1, 1, 1, 1 }, _twist = new double[Legs], _bow = new double[Legs], _slip = new double[Legs], _moment = new double[Legs];
-        readonly Double3[] _bend = new Double3[Legs], _offset = new Double3[Legs], _bowDir = new Double3[Legs];
+        readonly Double3[] _bend = new Double3[Legs], _jaw = new Double3[Legs], _bowDir = new Double3[Legs];
         readonly bool[] _flowing = new bool[Legs], _turning = new bool[Legs];
+        readonly LegMode[] _skidMode = new LegMode[Legs];
 
-        /// <summary>Each leg's strengths drawn from its stream, recorded with their bounds in random's draws.</summary>
-        public LegDamage(LegDamageSpec spec, FlightRandom random)
+        // The jaws' bed at the foot (N/m; 0 holds them rigid, 1.2's chain) and each leg's friction couple there, μ·P·D over
+        // the lever (N).
+        readonly double _jawStiffness;
+        readonly double[] _jawFriction = new double[Legs];
+
+        /// <summary>Each leg's strengths drawn from its stream, recorded with their bounds in random's draws. jawStiffness is
+        /// the clamp's jaws' bed at the foot (ContactSpec.LegJawSideStiffness): with it the jaws turn by their friction (1.3).</summary>
+        public LegDamage(LegDamageSpec spec, FlightRandom random, double jawStiffness = 0)
         {
             _spec = (spec ?? throw new ArgumentNullException(nameof(spec))).Clone();
             if (random == null) throw new ArgumentNullException(nameof(random));
+            _jawStiffness = jawStiffness;
             double i = _spec.SecondMoment, area = _spec.Area;
             _c = _spec.OuterDiameter / 2;
             _ei = _spec.Modulus * i;
@@ -242,6 +286,7 @@ namespace Fpv450.Sim.Contact
                 _twistMoment[k] = mu * preload * _spec.OuterDiameter;
                 _skidSlip[k] = 2 * mu * (screw / (nut * _spec.ScrewDiameter));
                 _socketMoment[k] = layers * socket;
+                _jawFriction[k] = _twistMoment[k] / Lever(k);
             }
         }
 
@@ -260,20 +305,45 @@ namespace Fpv450.Sim.Contact
         /// the clamp.</summary>
         public Double3 Set(int leg) => new Double3(_bend[leg].X, _twist[leg], _bend[leg].Z);
 
-        /// <summary>The leg's stiffness over an intact one's by its state: the cracked factor once cracked, 0 broken or off
-        /// (1.3 makes the contact law fly it).</summary>
+        /// <summary>The leg's stiffness over an intact one's by its state: the cracked factor once cracked, 0 broken or off. The
+        /// contact law flies it on the tube's own stiffnesses (p7g-legs 1.3).</summary>
         public double StiffnessFactor(int leg) =>
             (_flags[leg] & (LegFlags.Broken | LegFlags.Detached)) != 0 ? 0 : (_flags[leg] & LegFlags.Cracked) != 0 ? _spec.CrackedFactor : 1;
 
         /// <summary>The leg spring's rest moved by the leg's give: along the leg (the bow's shortening less the clamp's slip,
-        /// m), across it at the foot (body, m) and turned about it (rad).</summary>
+        /// m) and across it at the foot by the jaws' turn (body, m). The set and the twist move the leg's shapes instead
+        /// (p7g-legs 1.3, design 8).</summary>
         public double AxialOffset(int leg) => _bow[leg] - _slip[leg];
-        public Double3 LateralOffset(int leg) => _offset[leg];
-        public double TwistOffset(int leg) => _twist[leg];
+        public Double3 LateralOffset(int leg) => _jaw[leg];
 
         /// <summary>Whether the leg's give has moved its spring's rest at all (an intact leg's spring flies as without the law,
         /// bit for bit).</summary>
-        public bool Moved(int leg) => _bow[leg] != 0 || _slip[leg] != 0 || _twist[leg] != 0 || _offset[leg].X != 0 || _offset[leg].Z != 0;
+        public bool Moved(int leg) => _bow[leg] != 0 || _slip[leg] != 0 || _jaw[leg].X != 0 || _jaw[leg].Z != 0;
+
+        /// <summary>The leg's set as the rotation of its shapes about its clamp's edge (body rotation vector, rad): the bend
+        /// turns the foot along it, the twist about the leg (design 8).</summary>
+        public Double3 SetRotation(int leg) => new Double3(-_bend[leg].Z, _twist[leg], _bend[leg].X);
+
+        /// <summary>How the leg's T-joint let its skid go (TJointSlip or TJointFracture), or 0 while it holds.</summary>
+        public LegMode SkidMode(int leg) => _skidMode[leg];
+
+        /// <summary>The jaws' friction at the foot, μ·P·D over the lever (N), and their bed (N/m; 0 rigid).</summary>
+        public double JawFriction(int leg) => _jawFriction[leg];
+        public double JawStiffness => _jawStiffness;
+
+        /// <summary>
+        /// A leg bent before the flight's first step (the scenarios' damaged builds; a flight never calls it): its set, the
+        /// bend (x, z) and the twist (y) as Set returns them, and Set in its state. The contact model then moves its shapes.
+        /// </summary>
+        public void Preset(int leg, Double3 set)
+        {
+            _bend[leg] = new Double3(set.X, 0, set.Z);
+            _twist[leg] = set.Y;
+            if (set.X != 0 || set.Y != 0 || set.Z != 0) _flags[leg] |= LegFlags.Set;
+        }
+
+        /// <summary>A leg off before the flight's first step (the scenarios' builds missing a leg; a flight never calls it).</summary>
+        public void Remove(int leg) => _flags[leg] |= LegFlags.Detached;
 
         /// <summary>The bow's moment at the leg's clamp now, as the lateral vector it bends the foot toward (body), N·m.</summary>
         public Double3 BowMomentVector(int leg, double axial)
@@ -319,8 +389,8 @@ namespace Fpv450.Sim.Contact
             if ((flags & (LegFlags.Broken | LegFlags.Detached)) != 0) return;
             double p = loads.LawAxial + loads.ShapeAxial;
 
-            // The clamp: the pull and the twist on the jaws' friction circle.
-            double pull = p < 0 ? -p : 0, twist = loads.Twist, slipCap = _slipForce[leg], twistCap = _twistMoment[leg];
+            // The clamp: the pull and the twist on the jaws' friction circle (a skid hanging from this T-joint twists it too).
+            double pull = p < 0 ? -p : 0, twist = loads.Twist + loads.FootCouple.Y, slipCap = _slipForce[leg], twistCap = _twistMoment[leg];
             double q = pull / slipCap * (pull / slipCap) + twist / twistCap * (twist / twistCap);
             if (q > 1)
             {
@@ -381,10 +451,38 @@ namespace Fpv450.Sim.Contact
                 else flags &= ~LegFlags.Bowed;
             }
 
-            // The clamp's edge: the moment's lateral vector, the section under its axial load.
+            // The jaws (p7g-legs 1.3, design 3): their bed in parallel with their friction, held until the force across the
+            // foot less the bed's own passes the friction couple over the lever (μ·P·D/L), then turning so that it is that
+            // couple: Δ = (|r| − F_f)/(k + k_j) along r = F − k_j·u_j, k the side give's chain with the jaws held. The turn
+            // moves the side spring's rest (LateralOffset); the friction's work is the joint's damping, never a tuned ζ.
+            // The axial load on the deflected tube (P·δ, 1.3) loads the jaws and the edge with the force across.
             double carried = p < _buckling ? p : _buckling;
+            Double3 pDelta = loads.Deflection * carried;
+            Double3 lateral = loads.LawLateral;
+            if (_jawStiffness > 0)
+            {
+                double kc = loads.LawTouching ? loads.LateralStiffness : 0;
+                Double3 r = lateral + pDelta * (1 / Lever(leg)) - _jaw[leg] * _jawStiffness;
+                double size = r.Length();
+                if (size > _jawFriction[leg])
+                {
+                    double delta = (size - _jawFriction[leg]) / (kc + _jawStiffness);
+                    Double3 e = r * (1 / size);
+                    _jaw[leg] = _jaw[leg] + e * delta;
+                    if (kc > 0)
+                    {
+                        relief.Lateral = relief.Lateral + e * (kc * delta);
+                        relief.Any = true;
+                        lateral = lateral - e * (kc * delta);
+                    }
+                }
+            }
+
+            // The clamp's edge: the moment's lateral vector (the force across, the axial load on the deflection, the tube shapes',
+            // the bow's and a hanging skid's couple), the section under its axial load.
             Double3 bow = BowMomentVector(leg, p);
-            Double3 mu = loads.LawLateral * Lever(leg) + loads.ShapeMoment + bow;
+            Double3 couple = new Double3(loads.FootCouple.Z, 0, -loads.FootCouple.X);
+            Double3 mu = lateral * Lever(leg) + pDelta + loads.ShapeMoment + bow + couple;
             double m = mu.Length();
             _moment[leg] = m;
             double s = DetMath.Abs(carried) / _squash[leg];
@@ -401,15 +499,19 @@ namespace Fpv450.Sim.Contact
                 double env = _envelope[leg], top = PartingRatio(leg, s);
                 Double3 way = mu * (1 / m);
                 double relievable = 0;
-                if (loads.LawTouching)
+                double kl = loads.LateralStiffness, lever = Lever(leg);
+                if (loads.LawTouching && kl > 0)
                 {
-                    relievable = Double3.Dot(loads.LawLateral, way);
+                    relievable = Double3.Dot(lateral, way);
                     if (!(relievable > 0)) relievable = 0;
                 }
-                double kl = loads.LateralStiffness, lever = Lever(leg);
-                // δ_p and θ_p per unit of κ_c·L² and κ_c·L.
-                double kc = mc / _ei, d0 = OffsetRatio(env, f), r0 = RotationRatio(env, f), scale = kc * lever * lever;
-                if (!(top > env) || Excess(top, mc, m, kl, lever, relievable, scale, d0, f) < 0)
+                // θ_p per unit of κ_c·L, and the foot's move θ_p·L per κ_c·L²: the set turns the leg's shapes rigidly about the
+                // clamp's edge (design 8), so its foot moves θ_p·L (1.2's spring rest moved δ_p, the curvature's own offset).
+                double kc = mc / _ei, r0 = RotationRatio(env, f), d0 = r0, scale = kc * lever * lever;
+                // The set straightens the tube's deflection by the foot's move too, which takes P·δ off (at most δ that way).
+                double pd = carried > 0 ? carried : 0, dway = Double3.Dot(loads.Deflection, way);
+                if (!(dway > 0)) dway = 0;
+                if (!(top > env) || Excess(top, mc, m, kl, lever, relievable, scale, d0, f, pd, dway) < 0)
                 {
                     double last = RotationRatio(top, f) - r0;
                     if (last > 0) _bend[leg] = _bend[leg] + way * (last * kc * lever);
@@ -422,17 +524,18 @@ namespace Fpv450.Sim.Contact
                 for (int n = 0; n < Bisections; n++)
                 {
                     double mid = lo + (hi - lo) / 2;
-                    if (Excess(mid, mc, m, kl, lever, relievable, scale, d0, f) < 0) lo = mid;
+                    if (Excess(mid, mc, m, kl, lever, relievable, scale, d0, f, pd, dway) < 0) lo = mid;
                     else hi = mid;
                 }
-                double grown = (OffsetRatio(hi, f) - d0) * scale;
+                double grown = (RotationRatio(hi, f) - d0) * scale;
                 if (relievable > 0)
                 {
+                    // This step's force relieved by the foot's move, at most what the spring carries that way; from the next
+                    // step the shapes have moved and the held foot's anchor with them (ContactModel).
                     double give = relievable / kl;
                     double move = grown < give ? grown : give;
                     if (move > 0)
                     {
-                        _offset[leg] = _offset[leg] + way * move;
                         relief.Lateral = relief.Lateral + way * (kl * move);
                         relief.Any = true;
                     }
@@ -447,15 +550,17 @@ namespace Fpv450.Sim.Contact
 
             // The T-joint: the skid's slip in its bore, the socket's break.
             if ((flags & LegFlags.SkidLoose) != 0) return;
-            double along = DetMath.Abs(loads.SkidAxial), socket = _spec.SocketLever * loads.LawLateral.Length();
+            double along = DetMath.Abs(loads.SkidAxial), socket = (lateral * _spec.SocketLever + couple).Length();
             if (along > _skidSlip[leg])
             {
                 flags |= LegFlags.SkidLoose;
+                _skidMode[leg] = LegMode.TJointSlip;
                 Emit(events, EventKind.SkidLoose, leg, LegMode.TJointSlip, cause, along, _skidSlip[leg], speed);
             }
             else if (socket > _socketMoment[leg])
             {
                 flags |= LegFlags.SkidLoose;
+                _skidMode[leg] = LegMode.TJointFracture;
                 Emit(events, EventKind.SkidLoose, leg, LegMode.TJointFracture, cause, socket, _socketMoment[leg], speed);
             }
         }
@@ -463,11 +568,17 @@ namespace Fpv450.Sim.Contact
         /// <summary>The leg's moment at the clamp's edge in the last step, N·m (the record's leg_moment).</summary>
         public double Moment(int leg) => _moment[leg];
 
-        // The set's return mapping: h(m) = m·M_c + min(L·k_l·(δ_p(m) − δ_p(m_env)), L·relievable) − M, increasing in m.
-        static double Excess(double m, double mc, double moment, double kl, double lever, double relievable, double scale, double d0, double f)
+        /// <summary>A step in which the leg carries nothing (its tube a stub or gone, p7g-legs 1.3).</summary>
+        public void Idle(int leg) => _moment[leg] = 0;
+
+        // The set's return mapping: h(m) = m·M_c + min(L·k_l·Δ, L·relievable) + P·min(Δ, δ) − M, Δ = (θ_p(m) − θ_p(m_env))·L the
+        // foot's move, increasing in m.
+        static double Excess(double m, double mc, double moment, double kl, double lever, double relievable, double scale, double d0, double f,
+            double pd, double dway)
         {
-            double give = lever * kl * (OffsetRatio(m, f) - d0) * scale, cap = lever * relievable;
-            return m * mc + (give < cap ? give : cap) - moment;
+            double move = (RotationRatio(m, f) - d0) * scale, give = lever * kl * move, cap = lever * relievable;
+            double straight = move < dway ? move : dway;
+            return m * mc + (give < cap ? give : cap) + pd * straight - moment;
         }
 
         /// <summary>The set angle at the clamp per κ_c·L of a cantilever whose clamp carries m·M_c, its moment falling to 0 at

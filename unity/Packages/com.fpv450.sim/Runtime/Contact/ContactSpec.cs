@@ -115,6 +115,17 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public double LegSideStiffness, LegSideDampingRatio;
 
+        /// <summary>
+        /// The side give's parts and the leg's own along it (p7g-legs 1.3, design 3; derived from the section, 1.1): the tube
+        /// bending from the clamp at the foot, 3EI/L³ (N/m); the clamp's jaws' bed turning, at the foot (N/m); the free length's
+        /// sway-buckling load π²EI/(4L²), fixed at the clamp, the foot free to sway (N); and the tube's own EA/L along it (N/m).
+        /// The axial load P takes the tube's give down by its geometric stiffness, 12P/(π²L) = LegTubeSideStiffness·P/LegSwayLoad,
+        /// to 0 at LegSwayLoad and never below (the buckled branch). The jaws' bed turns only as their friction slips (LegDamage),
+        /// so the side give with the jaws held is the tube's alone. A crack scales the tube's two stiffnesses by its factor. 0
+        /// for 1.2's chain: LegSideStiffness alone, no axial softening, no crack flown.
+        /// </summary>
+        public double LegTubeSideStiffness, LegJawSideStiffness, LegSwayLoad, LegTubeAxialStiffness;
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;
