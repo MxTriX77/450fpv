@@ -270,6 +270,33 @@ namespace Fpv450.Tests.App
             }
         }
 
+        // D-078: the app's keys over the flight are none of the flight's (KeyboardFallback's): each held alone, the flight
+        // reads no key. None is V, F or Esc, and no two are the same.
+        [Test]
+        public void TheAppsKeysNeverReachTheFlight()
+        {
+            Assert.That(FlightScene.RestartKey, Is.EqualTo(Key.R));
+            Key[] keys = { FlightScene.RestartKey };
+            Assert.That(keys, Is.Unique);
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>("D-078 test keyboard");
+            keyboard.MakeCurrent();
+            try
+            {
+                foreach (Key key in keys)
+                {
+                    Assert.That(key, Is.Not.EqualTo(FlightScene.ViewKey).And.Not.EqualTo(FlightScene.FeedKey).And.Not.EqualTo(Key.Escape));
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(key));
+                    InputSystem.Update();
+                    Assert.That(keyboard[key].isPressed, key + " held");
+                    Assert.That(KeyboardFallback.ReadKeys(), Is.EqualTo(KeyboardKeys.None), key + " is not a flight key");
+                }
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(keyboard);
+            }
+        }
+
         // An exact keyboard flight on the floor (Threaded false: Tick runs the steps due on the test's clock), its keys held
         // on the test keyboard and read a 1 ms frame at a time as the app reads them: the scene's keys, then the flight's
         // (FlightSessionHost ticks the session with KeyboardFallback.ReadKeys). Enter arms, W climbs, D yaws, the up arrow

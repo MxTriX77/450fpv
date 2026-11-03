@@ -570,6 +570,42 @@ namespace Fpv450.Tests.Session
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot));
         }
 
+        // D-078: R restarts a flight in the air, not paused, at once: the same setup and the same start point (the second
+        // of two), a new seed and log, step 0 at rest where the first began; the first ended by the pilot.
+        [Test]
+        public void RestartInTheAirIsTheSameSetupFromTheSameStart()
+        {
+            var second = new StartPoint { Name = "second", X = 3, Z = -2, Yaw = 1 };
+            Rig rig = Make(i =>
+            {
+                i.StartPoints = new[] { StartPoint.Origin, second };
+                i.Choices = new FlightChoices { Payload = 1.3, Legs = false, TimeOfDay = 6.5, Wind = WindLevel.Windy, Rain = Rain.Rain, StartPoint = "second" };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.75;
+            rig.Run(500);
+            FlightSetup first = rig.Session.Setup;
+            ulong seed = rig.Session.Seed;
+            string log = rig.Session.LogPath;
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
+            Assert.That(rig.Session.Core.State.Position.Y - first.StartPosition.Y, Is.GreaterThan(0.05), "in the air");
+
+            Assert.That(rig.Session.Restart(), Is.True, "the radio is in: the new flight starts at once");
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Flying, 2)));
+            Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");
+            Assert.That(rig.Session.LogPath, Is.Not.EqualTo(log), "a new log");
+            Assert.That(rig.Session.StartPoint.Name, Is.EqualTo("second"), "the same start point");
+            FlightChoices c = rig.Session.Choices;
+            Assert.That((c.Payload, c.Legs, c.TimeOfDay, c.Wind, c.Rain, c.StartPoint), Is.EqualTo((1.3, false, 6.5, WindLevel.Windy, Rain.Rain, "second")), "the same setup");
+            Assert.That((rig.Session.Loadout.Payload, rig.Session.Loadout.Legs), Is.EqualTo((1.3, false)));
+            Assert.That(rig.Session.Setup.StartPosition, Is.EqualTo(first.StartPosition), "at rest where the first began");
+            Assert.That(rig.Session.Setup.StartAttitude, Is.EqualTo(first.StartAttitude));
+            Assert.That(rig.Session.Setup.RuntimeObjects.Length, Is.EqualTo(1), "on its launch stand again: the legs are off");
+            Assert.That(rig.Session.Core.State.Step, Is.EqualTo(0));
+            Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot), "the first flight ended by the pilot");
+        }
+
         // ---- What the flight meets: each logged, none an end (D-063) ---------------------------------------------------
 
         // app-flow "A crash into the car", without the scene: a steel box named R01_A over the drone, full throttle. The

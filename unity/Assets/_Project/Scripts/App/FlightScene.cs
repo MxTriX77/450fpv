@@ -28,7 +28,8 @@ namespace Fpv450.App
     /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame,
     ///   which shows only once the pilot has ended the flight (D-063); nothing else is drawn over a flight
     /// V switches between the FPV view and the third-person chase view in every build (D-055); only the camera moves,
-    /// still through the feed and its OSD. Review builds add F (the feed off and on).
+    /// still through the feed and its OSD. Review builds add F (the feed off and on). R restarts the flight at once from
+    /// the same setup and start point (D-078).
     /// In the FPV view the camera takes each PAL field at its own sim time (p7e-camera-feel): the scene is drawn once per
     /// whole field, with the camera at the field's reference instant on the flexing frame (FieldCamera), each line read
     /// through the field's rolling-shutter track, and held until the next field; the feed's fields follow the flight's.
@@ -42,9 +43,9 @@ namespace Fpv450.App
         /// along +z at 0° uptilt.</summary>
         public Vector3 CameraMount { get; private set; }
 
-        /// <summary>The keys over the flight (D-055): V the view in every build, F the feed in review builds. Neither is
-        /// one of KeyboardFallback's, so the flight never sees them.</summary>
-        public const Key ViewKey = Key.V, FeedKey = Key.F;
+        /// <summary>The keys over the flight (D-055, D-078): V the view in every build, F the feed in review builds, R the
+        /// restart. None is one of KeyboardFallback's, so the flight never sees them.</summary>
+        public const Key ViewKey = Key.V, FeedKey = Key.F, RestartKey = Key.R;
 
         /// <summary>The chase view's offset behind and above the drone on its heading, m, and its pitch down, degrees.</summary>
         public static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
@@ -432,12 +433,26 @@ namespace Fpv450.App
         }
 
         // This frame's keys over the flight (LateUpdate reads them first): V the view in every build (D-055), F the feed
-        // in review builds. Neither reaches the flight, whose keys are KeyboardFallback's.
+        // in review builds, R the restart (D-078). None reaches the flight, whose keys are KeyboardFallback's.
         void Keys()
         {
             Keyboard k = Keyboard.current;
             if (k == null || Covered) return;
             Pressed(k[ViewKey].wasPressedThisFrame, AppData.Review && k[FeedKey].wasPressedThisFrame);
+            if (k[RestartKey].wasPressedThisFrame) Restart();
+        }
+
+        /// <summary>
+        /// R (D-078): the flight again at once, from the same setup and start point, with a new seed and log. A flight
+        /// flying or paused ends by the pilot and the next starts, as the pause's Restart does (D-063: nothing else ends
+        /// it); after End flight it is the summary's Fly again. A flight already waiting for the radio is left to wait.
+        /// </summary>
+        public void Restart()
+        {
+            FlightSession session = Host != null ? Host.Session : null;
+            if (session == null || Host.WaitingForRadio) return;
+            if (session.State == SessionState.Flying || session.State == SessionState.Paused) Host.Restart();
+            else if (session.State == SessionState.Ended) Host.Fly();
         }
 
         /// <summary>What this frame's presses of the view key and the feed key do: the view flips between the lens and
