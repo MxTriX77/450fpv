@@ -68,24 +68,25 @@ namespace Fpv450.Tests.Session
             Assert.That(world.Id, Is.EqualTo("test-range"), "MapWorld's map id, which the log records so replay reopens it");
             Assert.That(world.Open().Query, Is.InstanceOf<MapWorld>());
             Assert.That(world.Open().ContentHash, Is.EqualTo(MapWorld.Load(root, "test-range").ContentHash));
-            Assert.That(world.StartPoints.Length, Is.EqualTo(2));
-            StartPoint track = world.StartPoints[0], field = world.StartPoints[1];
-            Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo(("track", -178.0, -40.0, false)));
-            Assert.That((field.Name, field.X, field.Z, field.Stand), Is.EqualTo(("field", 40.0, 45.0, true)));
+            // D-077: the app flies from the houses' start only; the map's field start stays the benches'.
+            Assert.That(Array.ConvertAll(MapWorld.Load(root, "test-range").StartPoints, p => p.Id), Is.EqualTo(new[] { "track", "field" }));
+            Assert.That(world.StartPoints.Length, Is.EqualTo(1));
+            StartPoint track = world.StartPoints[0];
+            Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo((FlightWorlds.HousesStart, -178.0, -40.0, false)));
             Assert.That(track.Yaw, Is.EqualTo(Math.PI / 2).Within(1e-15), "heading 90°: east");
-            Assert.That(field.Yaw, Is.EqualTo(Math.PI).Within(1e-15), "heading 180°: south");
 
-            foreach (StartPoint at in world.StartPoints)
+            foreach (bool legs in new[] { true, false })
             {
+                StartPoint at = track;
                 SessionInputs inputs = Inputs();
                 world.ApplyTo(inputs);
-                inputs.Choices = new FlightChoices { StartPoint = at.Name, Legs = !at.Stand };
+                inputs.Choices = new FlightChoices { StartPoint = "field", Legs = legs }; // an older setup's start: the houses'
                 FlightSetup setup = SessionSetup.Build(inputs, 1, out Loadout loadout, out StartPoint start);
                 Assert.That(start.Name, Is.EqualTo(at.Name));
                 Assert.That(setup.StartPosition.X, Is.EqualTo(at.X).Within(1e-12));
                 Assert.That(setup.StartPosition.Z, Is.EqualTo(at.Z).Within(1e-12));
                 RuntimeObject[] objects = setup.RuntimeObjects ?? new RuntimeObject[0];
-                if (!at.Stand)
+                if (legs)
                 {
                     Assert.That(objects, Is.Empty, at.Name + ": legs on, no stand");
                     continue;

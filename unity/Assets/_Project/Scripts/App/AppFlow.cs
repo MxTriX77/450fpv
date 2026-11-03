@@ -278,8 +278,8 @@ namespace Fpv450.App
 
         /// <summary>
         /// The player's smoke test, through the screens' own calls: the menu and the setup drawn; Explore in a review build;
-        /// then a flight from the ground (legs on, the first start that is not the stand's) and one from the launch stand
-        /// (legs off, the stand's start), the second set from the first's summary through Setup. With the development
+        /// then two flights from the houses' start, the one the setup offers (D-077): on the legs, then from the launch
+        /// stand (legs off), the second set from the first's summary through Setup. With the development
         /// keyboard each flight is flown by a script of its keys: armed, climbed, paused (no step while paused),
         /// restarted (the stand's, before arming, from the pause: a new seed and log), the throttle down, disarmed in the
         /// air with no end and no summary (D-062), re-armed, flown on, ended from the pause's End flight, and the summary
@@ -403,7 +403,8 @@ namespace Fpv450.App
             yield return Shot("menu");
             Train();
             yield return null;
-            Check(_view == View.Setup && _setup.Starts.Length >= 2, "Train opens the setup, " + _setup.Starts.Length + " start points");
+            Check(_view == View.Setup && _setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.HousesStart,
+                  "Train opens the setup, from the houses' start only (D-077): " + _setup.Starts.Length + " start point(s)");
             yield return Shot("setup");
 
             if (AppData.Review)
@@ -419,15 +420,16 @@ namespace Fpv450.App
                 Train();
             }
 
-            StartPoint ground = Array.Find(_setup.Starts, s => !s.Stand), stand = Array.Find(_setup.Starts, s => s.Stand);
-            Check(ground.Name != null && stand.Name != null, "the range lists a ground start and a stand start");
-            var starts = new[] { ground, stand };
-            for (int n = 0; n < starts.Length; n++)
+            StartPoint ground = _setup.Starts.Length > 0 ? _setup.Starts[0] : default;
+            Check(ground.Name != null, "the range lists its houses' start");
+            for (int n = 0; n < 2; n++)
             {
-                StartPoint start = starts[n];
+                StartPoint start = ground;
+                bool stand = n == 1; // the second from the launch stand, at the same start
+                string tag = start.Name + (stand ? "_stand" : "");
                 FlightChoices c = _setup.Choices;
                 c.StartPoint = start.Name;
-                c.Legs = !start.Stand;
+                c.Legs = !stand;
                 c.Payload = 1.0;
                 c.Wind = wind;
                 c.Rain = Rain.Sunny;
@@ -450,7 +452,7 @@ namespace Fpv450.App
                     Vector3 lens = new Vector3((float)start.X, 0f, (float)start.Z) + Quaternion.Euler(0f, (float)(start.Yaw * 180 / Math.PI), 0f) * _flight.CameraMount;
                     Check(host.WaitingForRadio && Math.Abs(eye.x - lens.x) < 0.01 && Math.Abs(eye.z - lens.z) < 0.01 && eye.y < 0.5,
                           "after a flight, the wait for the radio views the chosen start " + where + " from " + eye.ToString("0.00"));
-                    yield return Shot("waiting_after_flight_" + start.Name);
+                    yield return Shot("waiting_after_flight_" + tag);
                     host.Inputs.KeyboardAllowed = true;
                 }
                 if (!host.Inputs.KeyboardAllowed)
@@ -459,11 +461,11 @@ namespace Fpv450.App
                     Check(host.WaitingForRadio || host.Session.State == SessionState.Flying, "the flight waits for the radio (or flies on it)");
                     Check(!host.WaitingForRadio || _flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal),
                           "the OSD reads DISARMED while waiting: " + Osd());
-                    yield return Shot("waiting_" + start.Name);
+                    yield return Shot("waiting_" + tag);
                     if (n == 0)
                     {
                         yield return PressV("while waiting at '" + start.Name + "'");
-                        yield return Shot("waiting_chase_" + start.Name);
+                        yield return Shot("waiting_chase_" + tag);
                         yield return PressV("while waiting at '" + start.Name + "'");
                         _flight.Covered = true;
                         _setup.Choices = host.Inputs.Choices.Clone();
@@ -476,7 +478,7 @@ namespace Fpv450.App
                 yield return new WaitForSecondsRealtime(1);
                 FlightSession session = host.Session;
                 Check(session.State == SessionState.Flying, "flight " + session.Flights + " started at " + where + " on " + session.Input);
-                if (start.Stand)
+                if (stand)
                 {
                     // The pause's Restart, first without the radio (QA's finding 14): the flight ends by the pilot and the
                     // next waits for it; with the keyboard back it starts.
@@ -501,15 +503,15 @@ namespace Fpv450.App
                 Check(bottle != null && (bottle.localPosition - DroneModels.BottleSeat).magnitude < 1e-6f
                       && Mathf.Abs(bottle.localScale.x - DroneModels.BottleScale(session.Loadout.Payload)) < 1e-6f,
                       "D01_bottle on its seat at " + session.Loadout.Payload.ToString("0.0") + " kg's size" + (bottle != null ? ", scale " + bottle.localScale.x.ToString("0.000") : ""));
-                if (start.Stand)
+                if (stand)
                     Check(drawn != null && Mathf.Abs(drawn.position.x - (float)start.X) < 1e-3f && Mathf.Abs(drawn.position.z - (float)start.Z) < 1e-3f
                           && Quaternion.Angle(drawn.rotation, Quaternion.Euler(0f, (float)(start.Yaw * 180 / Math.PI), 0f)) < 0.1f,
                           "D02 at the stand's foot and heading" + (drawn != null ? ", " + drawn.position.ToString("0.000") + " at " + drawn.eulerAngles.y.ToString("0.0") + "°, the drone " + (rest - drawn.position.y).ToString("0.000") + " m above its foot" : ""));
                 else Check(drawn == null, "no stand with the legs on");
-                yield return Shot("rest_" + start.Name);
+                yield return Shot("rest_" + tag);
                 yield return PressV("at rest at " + where);
-                yield return Shot("chase_" + start.Name);
-                bool chaseClimb = _sequences != null && start.Stand; // -smokeseq: the stand's punch-out in the chase view
+                yield return Shot("chase_" + tag);
+                bool chaseClimb = _sequences != null && stand; // -smokeseq: the stand's punch-out in the chase view
                 if (!chaseClimb) yield return PressV("at rest at " + where);
 
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
@@ -517,7 +519,7 @@ namespace Fpv450.App
                 Check(_flight.Pose.Armed, "armed by the keyboard's switch");
                 double top = rest;
                 Action climb = () => top = Math.Max(top, _flight.Pose.Position.Y);
-                StartCoroutine(Sequence("punch_" + (chaseClimb ? "chase_" : "fpv_") + start.Name, 1.4f)); // the throttle near 0.7
+                StartCoroutine(Sequence("punch_" + (chaseClimb ? "chase_" : "fpv_") + tag, 1.4f)); // the throttle near 0.7
                 yield return Hold(KeyboardKeys.ThrottleUp, 1.6f, climb);
                 yield return Hold(KeyboardKeys.None, 1.4f, climb);
                 Check(top - rest > 1.0, "climbed " + (top - rest).ToString("0.00") + " m");
@@ -526,9 +528,9 @@ namespace Fpv450.App
                 Check(_flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal) && shown.Centiamps > 0 && shown.MahDrawn > 0 &&
                       shown.PackCentivolts > 0 && shown.CellCentivolts == shown.PackCentivolts / _flight.Osd.Cells,
                       "the OSD reads AIR armed, with the current, the charge used and the pack: " + Osd());
-                yield return Shot("air_" + start.Name);
+                yield return Shot("air_" + tag);
                 yield return PressV("in the air");
-                yield return Shot("air_chase_" + start.Name);
+                yield return Shot("air_chase_" + tag);
                 yield return PressV("in the air");
 
                 host.Pause();
@@ -553,7 +555,7 @@ namespace Fpv450.App
                 Check(!_flight.Pose.Armed && session.State == SessionState.Flying && _flight.Summary == null && up > 3 &&
                       _flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal),
                       "disarmed in the air at " + up.ToString("0.0") + " m: still flying, no summary, the OSD reads DISARMED: " + Osd());
-                yield return Shot("disarmed_air_" + start.Name);
+                yield return Shot("disarmed_air_" + tag);
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
                 yield return new WaitForSecondsRealtime(0.2f);
                 up = _flight.Pose.Position.Y - rest;
@@ -564,14 +566,14 @@ namespace Fpv450.App
                 Check(session.State == SessionState.Flying && _flight.Pose.Armed && _flight.Osd.Shown.Centiamps > 0 && _flight.Summary == null,
                       "flies on after the re-arm, at " + (_flight.Pose.Position.Y - rest).ToString("0.0") + " m, " + sink.ToString("0.0") + " then " +
                       _flight.Pose.Velocity.Y.ToString("0.0") + " m/s up: " + Osd());
-                yield return Shot("rearmed_" + start.Name);
+                yield return Shot("rearmed_" + tag);
                 host.Pause();
                 session.EndFlight(); // the pause's End flight
                 yield return Until(() => _flight.Summary != null, 30);
                 PostFlight summary = _flight.Summary;
                 Check(summary != null && summary.End.Kind == FlightEndKind.Pilot, "End flight, and the summary from the log: " + (summary != null ? summary.Cause() : "none"));
                 Check(summary != null && summary.Log.Events.Exists(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause), "the pause is in the log");
-                yield return Shot("summary_" + start.Name);
+                yield return Shot("summary_" + tag);
                 yield return Replays(session.LogPath, "from " + where);
                 if (n == 0)
                 {
@@ -586,13 +588,14 @@ namespace Fpv450.App
             // D-063: the crash ends nothing. The drone stays under physics with nothing over the picture: the throttle
             // down, it falls from the wall and lies where it lands, stepping on, until the pause's End flight, whose
             // summary lists the crash.
-            string lastStart = stand.Name;
+            string lastStart = ground.Name;
+            bool lastLegs = false; // the stand's flight
             double lastHour = 17.5;
             if (_flight != null && _flight.Host.Inputs != null && _flight.Host.Inputs.KeyboardAllowed)
             {
                 FlightChoices c = _setup.Choices;
                 c.StartPoint = lastStart = ground.Name;
-                c.Legs = true;
+                c.Legs = lastLegs = true;
                 c.TimeOfDay = lastHour = 14.0;
                 Fly();
                 FlightSessionHost host = _flight.Host;
@@ -639,7 +642,7 @@ namespace Fpv450.App
             }
 
             FlightChoices saved = SetupStore.Load(Application.persistentDataPath, out string error);
-            Check(error == null && saved.StartPoint == lastStart && saved.Legs == (lastStart == ground.Name) && saved.TimeOfDay == lastHour,
+            Check(error == null && saved.StartPoint == lastStart && saved.Legs == lastLegs && saved.TimeOfDay == lastHour,
                   "the last setup is saved for the next start");
             if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
             else File.Delete(setupFile);

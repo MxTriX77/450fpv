@@ -25,10 +25,17 @@ namespace Fpv450.App.Session
         }
     }
 
-    /// <summary>The worlds the app flies (D-047: the test range is the one map).</summary>
+    /// <summary>The worlds the app flies (D-047: the test range is the one map; D-077: from its houses' start only).</summary>
     public static class FlightWorlds
     {
         public const string TestRangeMap = "test-range";
+
+        /// <summary>
+        /// The one start the app flies from (D-077, the pilot: "we only load the one with many houses"): the map's
+        /// `track`, by the yard and its houses. The map keeps its other start, the field's launch stand, for the benches;
+        /// the setup's legs still decide whether the drone stands on its legs or on the stand.
+        /// </summary>
+        public const string HousesStart = "track";
 
         /// <summary>The test range's placement file, from the root that mirrors the repository (the editor's repository, the
         /// player's StreamingAssets).</summary>
@@ -37,16 +44,18 @@ namespace Fpv450.App.Session
         /// <summary>
         /// The test range (D-044, D-047) on its queries, MapWorld.Load(root, "test-range"), loaded once and shared by its
         /// flights: each flight's FlightWorld resets the map's runtime objects and adds its own (FlightCore). The log names
-        /// the world by its map id, so replay and the summary reopen it; the start points are the map's, in its order.
+        /// the world by its map id, so replay and the summary reopen it; the start point is the map's HousesStart (D-077).
         /// </summary>
         public static FlightWorldChoice TestRange(string root)
         {
             MapWorld map = MapWorld.Load(root, TestRangeMap);
+            MapStart[] starts = Array.FindAll(map.StartPoints, p => p.Id == HousesStart);
+            if (starts.Length == 0) throw new FormatException("the test range has no '" + HousesStart + "' start point");
             return new FlightWorldChoice
             {
                 Id = map.MapId,
                 Open = () => new FlightWorld(map),
-                StartPoints = Array.ConvertAll(map.StartPoints, AppStart),
+                StartPoints = Array.ConvertAll(starts, AppStart),
             };
         }
 
