@@ -9,7 +9,7 @@ using NUnit.Framework;
 
 namespace Fpv450.Tests.Radio
 {
-    // tx-input (p6-input-app 1.3, INP-03, INP-07, APP-05): the defaults, the player default column (D-066), through the
+    // tx-input (p6-input-app 1.3, INP-03, INP-07, APP-05): the defaults, the player default (D-076), through the
     // settings file and the screen's rows, the previews against the flight controller's own RC path and against
     // Betaflight's formula written out here, and the settings file: a restart reads it back bit for bit, a corrupt one
     // falls back to the defaults with a message, and one written with an older default set takes today's defaults and
@@ -61,23 +61,29 @@ namespace Fpv450.Tests.Radio
                 Assert.IsFalse(File.Exists(FcSettingsStore.PathIn(dir)), "loading writes nothing");
                 AssertSame(FcSettingsStore.PlayerDefault, s, "no file: FcSettingsStore.PlayerDefault");
 
-                // The screen's rows, in the configurator's units: the pilot's FpvPrep 10-inch profile's rates, and the
-                // builder's throttle curve without FpvPrep's "throttle softer" (D-066).
+                // The screen's rows, in the configurator's units: the rate profile the pilot flies (FpvPrep's presets and
+                // the pilot's saved quad configs), and the throttle curve those configs hold most (D-076).
                 double Shown(string name) => Row(name).Shown(s);
                 Assert.AreEqual(new[] { 50.0, 220, 0.45 }, new[] { Shown("roll_rc_rate"), Shown("roll_srate"), Shown("roll_expo") }, "roll");
                 Assert.AreEqual(new[] { 50.0, 220, 0.45 }, new[] { Shown("pitch_rc_rate"), Shown("pitch_srate"), Shown("pitch_expo") }, "pitch");
                 Assert.AreEqual(new[] { 80.0, 240, 0.2 }, new[] { Shown("yaw_rc_rate"), Shown("yaw_srate"), Shown("yaw_expo") }, "yaw");
-                Assert.AreEqual(new[] { 100.0, 100 }, new[] { s.thr_mid, s.thr_expo }, "thr_mid, thr_expo (CLI)");
-                Assert.AreEqual(new[] { 1.0, 1.0 }, new[] { Shown("thr_mid"), Shown("thr_expo") }, "thr_mid, thr_expo (shown)");
-                // Off the screen's rows, every setting is the sim core's default.
+                Assert.AreEqual(new[] { 100.0, 36 }, new[] { s.thr_mid, s.thr_expo }, "thr_mid, thr_expo (CLI)");
+                Assert.AreEqual(new[] { 1.0, 0.36 }, new[] { Shown("thr_mid"), Shown("thr_expo") }, "thr_mid, thr_expo (shown)");
+                // Not on the screen in v1, from the same profile (D-076): the deadband, the RC smoothing, the
+                // feedforward's shaping, and the feedforward gains of the builder whose PIDs the sim flies.
+                Assert.AreEqual(new[] { 4.0, 5 }, new[] { s.deadband, s.yaw_deadband }, "deadband / yaw_deadband");
+                Assert.IsTrue(s.rc_smoothing);
+                Assert.AreEqual(80, s.rc_smoothing_auto_factor, "rc_smoothing_auto_factor");
+                Assert.AreEqual(new[] { 80.0, 80, 0 }, new[] { s.f_roll, s.f_pitch, s.f_yaw }, "feedforward");
+                Assert.AreEqual(new[] { 40.0, 12, 0 }, new[] { s.feedforward_transition, s.feedforward_jitter_factor, s.feedforward_boost },
+                    "feedforward_transition, feedforward_jitter_factor, feedforward_boost");
+                // Everything else is the sim core's default.
+                string[] fromProfile = { "deadband", "yaw_deadband", "rc_smoothing_auto_factor", "f_roll", "f_pitch", "f_yaw",
+                    "feedforward_transition", "feedforward_jitter_factor", "feedforward_boost" };
                 object player = s, core = FcSettings.Default;
                 foreach (FieldInfo f in typeof(FcSettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
-                    if (!FcSettingRow.Rows.Any(r => r.Name == f.Name)) Assert.AreEqual(f.GetValue(core), f.GetValue(player), f.Name + " is FcSettings.Default's");
-                // The rest, not on the screen in v1: the sim core's defaults.
-                Assert.AreEqual(new[] { 2.0, 2 }, new[] { s.deadband, s.yaw_deadband }, "deadband / yaw_deadband");
-                Assert.IsTrue(s.rc_smoothing);
-                Assert.AreEqual(50, s.rc_smoothing_auto_factor, "rc_smoothing_auto_factor");
-                Assert.AreEqual(new[] { 50.0, 50, 0 }, new[] { s.f_roll, s.f_pitch, s.f_yaw }, "feedforward");
+                    if (!FcSettingRow.Rows.Any(r => r.Name == f.Name) && !fromProfile.Contains(f.Name))
+                        Assert.AreEqual(f.GetValue(core), f.GetValue(player), f.Name + " is FcSettings.Default's");
                 // The profile is silent on airmode, and its min_throttle is analog's (DShot ignores it): Betaflight
                 // 4.5's AIRMODE feature and dshot_idle_value, labelled in FcSettings.
                 Assert.IsTrue(s.airmode, "airmode");
@@ -88,7 +94,9 @@ namespace Fpv450.Tests.Radio
                     TestContext.WriteLine("  " + r.Group + " " + r.Label + " = " + r.Shown(s).ToString(r.Format, CultureInfo.InvariantCulture) + r.Unit
                         + "   (" + r.Name + " " + r.Get(s).ToString("R", CultureInfo.InvariantCulture) + ")");
                 TestContext.WriteLine("  deadband " + s.deadband + " / yaw_deadband " + s.yaw_deadband + ", rc_smoothing_auto_factor " + s.rc_smoothing_auto_factor
-                    + ", f_roll / f_pitch / f_yaw " + s.f_roll + " / " + s.f_pitch + " / " + s.f_yaw + ", airmode " + s.airmode + ", dshot_idle_value " + s.dshot_idle_value);
+                    + ", f_roll / f_pitch / f_yaw " + s.f_roll + " / " + s.f_pitch + " / " + s.f_yaw + ", feedforward_transition " + s.feedforward_transition
+                    + ", feedforward_jitter_factor " + s.feedforward_jitter_factor + ", feedforward_boost " + s.feedforward_boost
+                    + ", airmode " + s.airmode + ", dshot_idle_value " + s.dshot_idle_value);
             }
             finally
             {

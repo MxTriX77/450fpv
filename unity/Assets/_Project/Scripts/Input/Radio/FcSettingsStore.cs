@@ -106,10 +106,11 @@ namespace Fpv450.Input.Radio
         const string Format = "fpv450 fc settings 2", Format1 = "fpv450 fc settings 1";
 
         /// <summary>
-        /// The player's defaults (D-066, D-023; fc-profiles.md §2, the player default column): FcSettings.Default with
-        /// the screen's rows from the pilot's FpvPrep 10-inch profile, its rates as saved and its throttle curve as the
-        /// builder ships it, without FpvPrep's "throttle softer" steps. The sim core's FcSettings.Default stays the
-        /// controller of its tests and golden flights.
+        /// The player's defaults (D-076; fc-profiles.md §2b): FcSettings.Default with the rate profile the pilot flies, as
+        /// FpvPrep's presets and the pilot's saved quad configs hold it in their active rate profile: the rates, the
+        /// deadband, the RC smoothing and the feedforward's shaping; the feedforward gains of the builder whose PIDs the
+        /// sim flies (fc-profiles §1); and the throttle curve the pilot's saved configs hold most, `thr_mid` 100 and
+        /// `thr_expo` 36. The sim core's FcSettings.Default stays the controller of its tests and golden flights.
         /// </summary>
         public static FcSettings PlayerDefault
         {
@@ -118,7 +119,11 @@ namespace Fpv450.Input.Radio
                 FcSettings s = FcSettings.Default;
                 s.roll_rc_rate = s.pitch_rc_rate = 5; s.roll_srate = s.pitch_srate = 22; s.roll_expo = s.pitch_expo = 45;
                 s.yaw_rc_rate = 8; s.yaw_srate = 24; s.yaw_expo = 20;
-                s.thr_mid = 100; s.thr_expo = 100;
+                s.thr_mid = 100; s.thr_expo = 36;
+                s.deadband = 4; s.yaw_deadband = 5;
+                s.rc_smoothing_auto_factor = 80;
+                s.f_roll = 80; s.f_pitch = 80; s.f_yaw = 0;
+                s.feedforward_transition = 40; s.feedforward_jitter_factor = 12; s.feedforward_boost = 0;
                 return s;
             }
         }
