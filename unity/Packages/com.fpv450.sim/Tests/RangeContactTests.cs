@@ -323,11 +323,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
                 Assert.That(here.TouchSpeed, Is.EqualTo(stub.TouchSpeed).Within(1e-3));
                 Assert.That(here.SeparationHeight, Is.EqualTo(stub.SeparationHeight).Within(1e-3), "the ground's law is the stub floor's");
-                // At rest within 15 ms of the stub (the soil spot's tolerance in the crosswind, assumed): since model 24 D-064's
-                // motor spreads and its re-ingested wash on published numbers both act in the cut's spool-down, and on E01's run,
-                // whose floor fillers meet at seams under the supports (32 contact events against the stub's 26), the 0.01 m/s
-                // rest reading comes 11 ms earlier (0.414 against 0.425 s; equal with either source off, traced).
-                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.015).And.LessThanOrEqualTo(2));
+                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.01).And.LessThanOrEqualTo(2));
                 else Assert.That(here.Separated && here.SeparationHeight > 0.05, Is.True, "held: the legs throw it back into the air");
                 Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
             }
@@ -399,11 +395,7 @@ namespace Fpv450.Sim.Tests
                     else Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.015));
                     continue;
                 }
-                // Traced (model 24): the site, not the soil's law. E01's run is 0.64 m wide between its walls; held in the
-                // crosswind, the bounce drifts the rear-left rotor over a wall's foot, its ray meeting the ground up to 44 mm nearer
-                // than the plane's for 0.2 s (2.4 R against 2.7 R), where D-064's re-ingested wash and the cushion are stronger:
-                // 56.23 mm against 55.20. With the wash on model 19's numbers the two rise alike (42.89 mm). Within 2 mm (assumed).
-                Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(2e-3), "E01's fillers land as the plane");
+                Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(1e-3), "E01's fillers land as the plane");
                 if (cut) Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.01));
             }
         }
