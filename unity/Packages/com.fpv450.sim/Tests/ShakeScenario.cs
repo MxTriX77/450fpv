@@ -101,8 +101,9 @@ namespace Fpv450.Sim.Tests
         public const double NearlyEvery = 0.95;
 
         /// <summary>The pilot's "most" for the 0.3–0.7 s after a sudden drop (PR-1): this share of the seeds and the median
-        /// inside. On the class's ESC (D-066) the empty drone's full punch from 9 m/s holds it (39 of 40, the median 0.60 s
-        /// on seeds 1–40); from 5.3 m/s only the median (0.32 s, 25 of 40), from 2.5 m/s it barely shows.</summary>
+        /// inside. At model 26 the empty drone's full punch from 9 m/s holds it (40 of 40, the median 0.62 s on seeds 1–40),
+        /// and so does the one from 5.3 m/s (32 of 40, the median 0.38 s); from 2.5 m/s it shows on 32 of 40, mostly as the
+        /// kick (the median 0.20 s, past KickSeconds on 4).</summary>
         public const double Most = 0.7;
 
         /// <summary>The pilot's band on a group of seeds: at least Most of them inside 0.3–0.7 s, and the median.</summary>
