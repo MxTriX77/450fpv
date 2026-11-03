@@ -23,11 +23,15 @@ The calibration wizard SHALL take the pilot through centring and a sweep of the 
 - **THEN** it completes in under 2 minutes with the radio alone after the start
 
 ### Requirement: Rates and the throttle curve in Betaflight's terms
-The pilot SHALL edit ACTUAL rates (centre sensitivity, full-stick rate and expo per axis) and the throttle curve (`thr_mid`, `thr_expo`, Betaflight's 11-point table) with curve previews. Settings SHALL be stored under Betaflight CLI names in `FcSettings`, with the defaults of `fc-profiles.md`'s sim default column, and the settings layer SHALL be able to expose Betaflight's other flight-feel settings without a redesign (INP-03, INP-07).
+The pilot SHALL edit ACTUAL rates (centre sensitivity, full-stick rate and expo per axis) and the throttle curve (`thr_mid`, `thr_expo`, Betaflight's 11-point table) with curve previews. Settings SHALL be stored under Betaflight CLI names in `FcSettings`, with the player default of `fc-profiles.md` §2b (D-076), and the settings layer SHALL be able to expose Betaflight's other flight-feel settings without a redesign (INP-03, INP-07).
 
-#### Scenario: The defaults are the sim default column
+#### Scenario: The defaults are the rate profile the pilot flies
 - **WHEN** a fresh profile is created
-- **THEN** roll and pitch are 55 / 225 °/s with expo 0.34, yaw is 85 / 260 °/s with expo 0.15, `thr_mid` is 50, `thr_expo` is 10, deadband is 2 / 2, RC smoothing is 50 and feedforward is 50, and airmode and motor idle are the profile's
+- **THEN** roll and pitch are 50 / 220 °/s with expo 0.45, yaw is 80 / 240 °/s with expo 0.20, `thr_mid` is 100, `thr_expo` is 36, deadband is 4 / 5, `rc_smoothing_auto_factor` is 80, feedforward is 80 / 80 / 0 with `feedforward_transition` 40, `feedforward_jitter_factor` 12 and `feedforward_boost` 0, and every other setting is the sim core's default
+
+#### Scenario: The defaults win over a stale save
+- **WHEN** `fc-settings.json` was written with an older default set (format 1)
+- **THEN** every value that was a default then reads as today's default, every value the pilot changed is kept, nothing is written until the next change, and that change saves format 2
 
 ### Requirement: Disconnect and the keyboard fallback
 USB loss SHALL failsafe-disarm the drone and be logged (INP-05). A keyboard fallback SHALL exist for development only, and SHALL be marked in the log so it is never used for tuning (INP-06).

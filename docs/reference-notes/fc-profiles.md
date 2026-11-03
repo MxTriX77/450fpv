@@ -34,28 +34,30 @@ The sources are the pilot's own tool **FpvPrep** (`https://github.com/MxTriX77/F
 
 Betaflight ACTUAL rates: the centre sensitivity and the full-stick rate are in °/s, and expo runs 0–1.
 
-| Setting (Betaflight CLI) | OTU factory ("sharp") | **Pilot's flown set ("ideal")** | FpvPrep standard heavy-quad set | **Sim default** |
-|---|---|---|---|---|
-| `rates_type` | ACTUAL | ACTUAL | ACTUAL | ACTUAL |
-| roll / pitch centre (`*_rc_rate` × 10) | 70 | 50 | 50 | **55** |
-| roll / pitch full stick (`*_srate` × 10) | 150 | 250 | 220 | **225** |
-| roll / pitch expo (`*_expo` / 100) | 0 | 0.45 | 0.45 | **0.34** |
-| yaw centre | 70 | 90 | 80 | **85** |
-| yaw full stick | 150 | 300 | 240 | **260** |
-| yaw expo | 0 | 0.20 | 0.20 | **0.15** |
-| `thr_mid` | 50 | 50 | builder's | **50** |
-| `thr_expo` | 0 | 25 | builder's | **10** |
-| `deadband` / `yaw_deadband` | 0 / 0 | 3 / 3 | 4 / 5 | **2 / 2** |
-| `rc_smoothing_auto_factor` | 30 | 60 | 80 | **50** |
-| `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** |
-| `f_yaw` | 0 | 0 | — | **0** |
-| `vbat_sag_compensation` | 0 | 0 | 0 (100 in an earlier FpvPrep) | **0** (offered as an option) |
+| Setting (Betaflight CLI) | OTU factory ("sharp") | **Pilot's flown set ("ideal")** | FpvPrep standard heavy-quad set | **Sim default** (the core's tests) | **Player default** (D-076, §2b) |
+|---|---|---|---|---|---|
+| `rates_type` | ACTUAL | ACTUAL | ACTUAL | ACTUAL | **ACTUAL** |
+| roll / pitch centre (`*_rc_rate` × 10) | 70 | 50 | 50 | **55** | **50** |
+| roll / pitch full stick (`*_srate` × 10) | 150 | 250 | 220 | **225** | **220** |
+| roll / pitch expo (`*_expo` / 100) | 0 | 0.45 | 0.45 | **0.34** | **0.45** |
+| yaw centre | 70 | 90 | 80 | **85** | **80** |
+| yaw full stick | 150 | 300 | 240 | **260** | **240** |
+| yaw expo | 0 | 0.20 | 0.20 | **0.15** | **0.20** |
+| `thr_mid` | 50 | 50 | builder's | **50** | **100** |
+| `thr_expo` | 0 | 25 | builder's | **10** | **36** |
+| `deadband` / `yaw_deadband` | 0 / 0 | 3 / 3 | 4 / 5 | **2 / 2** | **4 / 5** |
+| `rc_smoothing_auto_factor` | 30 | 60 | 80 | **50** | **80** |
+| `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** | **80**, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` |
+| `f_yaw` | 0 | 0 | — | **0** | **0** |
+| `vbat_sag_compensation` | 0 | 0 | 0 (100 in an earlier FpvPrep) | **0** (offered as an option) | **0** |
 
 **How the sim default was set:** the pilot's flown set moved **25 % of the way toward the factory set**, and **throttle moved 60 %**, because the pilot stressed it: "especially throttle - you dont always get the chance to set comfortable throttle". These are named, tunable defaults. The pilot adjusts them after MVP-1.
 
-**Since D-066 the player flies §2a's player default,** not this column. The sim core's `FcSettings.Default` keeps this column as the fixed controller of its tests and golden flights. Moving it means re-recording the goldens, audited case by case.
+**Since D-066 the player flies its own default,** not the sim default column: §2a's, and since D-076 §2b's, the last column. The sim core's `FcSettings.Default` keeps the sim default column as the fixed controller of its tests and golden flights. Moving it means re-recording the goldens, audited case by case.
 
 ## 2a. The player's default (D-066)
+
+*Superseded by §2b (D-076): its rates stay; the throttle, deadband, smoothing and feedforward now follow the pilot's saved quad configs.*
 
 The pilot, after the first flights: the sim's rates feel "overly smooth". Take FpvPrep's profiles, but "without that 'throttle softer softer' applied". Builders ship high throttle curves, the pilot softens them "only for a little bit", and such drones lift off at 30–45 % throttle.
 
@@ -105,6 +107,66 @@ Betaflight's table points, at rcData 1050 + 95k µs, are 0, 116, 221, 318, 410, 
 - **The nominal drone's hover:** 0.482 of the stick on 50 / 10 is a 45.9 % command. On 100 / 100 that is **22.7 %** of the stick.
 - **A lift-off at 80 % on a near-linear curve** (79 % command) moves to **43.5 %**.
 - **For D-066's power check, read through this curve:** the pilot's 30–45 % lift-off stick is a **59.5–80.3 % throttle command**. A command of 50, 55, 62 or 65 % is 24.7, 27.5, 31.4 or 33.1 % of the stick. §3's real lift-off near 62 % power is about 31 % of the stick, consistent with FpvPrep's record of about 28 % on this curve.
+
+## 2b. The player's default (D-076)
+
+The pilot, on the model-26 build: "you never implemented the default controller rates. it's still ultra smooth and slow"; roll and yaw are "super slow"; the throttle should lift off "A LITTLE BIT" earlier.
+
+**Why model 26 flew the old numbers.** The pilot's own `fc-settings.json` on the build machine was saved before D-066. It held the sim default column's rows (55 / 225 / 0.34, 85 / 260 / 0.15) with `thr_mid` moved to 78 and `thr_expo` at 10. A saved file holds every row, so §2a never reached the pilot: model 26 flew those rates on 78 / 10. Now a file of the old format takes today's defaults (see "The file" below).
+
+**What was read:** FpvPrep's presets and the pilot's saved quad configs (the `diff all` FpvPrep keeps after configuring each drone), for the БЕШКЕТ, БЕШКЕТ10Х8, БЕШКЕТ13Х4, ОТУ, ОТУ10 and ОТУ20 builds.
+- **The active rate profile is 0 in every config.** `# restore original rateprofile selection` restores `rateprofile 0`, and no adjustment range switches rate profiles (none uses function 12). Profiles 1–3 are the builders' leftovers and are never selected: 120 / 360 °/s with no expo on БЕШКЕТ and БЕШКЕТ13Х4, and 10 / 440 °/s on БЕШКЕТ10Х8.
+- **The rates:** profile 0 holds FpvPrep's standard set in every preset and in all but three configs: 50 / 220 / 0.45 on roll and pitch, 80 / 240 / 0.20 on yaw. The three are two БЕШКЕТ still on the builder's 120 / 360, and one БЕШКЕТ13Х4 with yaw at 90 / 280.
+- **Deadband, smoothing and feedforward's shaping,** in every preset and in all but the two unconfigured БЕШКЕТ:
+  - `deadband` 4, `yaw_deadband` 5
+  - `rc_smoothing_auto_factor` 80
+  - `feedforward_transition` 40, `feedforward_jitter_factor` 12, `feedforward_boost` 0
+- **Set per build; FpvPrep never changes them** (each config's "before" matches its "after"):
+  - **The feedforward gains** (`f_roll` / `f_pitch` / `f_yaw`):
+    - БЕШКЕТ: 20 / 25 / 45
+    - БЕШКЕТ10Х8: 100 / 100 / 100
+    - БЕШКЕТ13Х4: 65 / 74 / 65
+    - the OTU builds: 80 / 80 / 0, except 40 / 40 / 0 on the one ОТУ that carried the pilot's own tune before FpvPrep
+  - **`rc_smoothing`:** OFF on БЕШКЕТ10Х8 and БЕШКЕТ13Х4, on elsewhere.
+  - **The sim takes the OTU builder's values,** because it flies that builder's PIDs (§1): feedforward 80 / 80 / 0, with RC smoothing on.
+- **The throttle curves in profile 0** (`thr_mid` / `thr_expo`):
+  - **100 / 36** (the БЕШКЕТ10Х8 preset) is the most common, about half the configs.
+  - **100 / 48** (the БЕШКЕТ10Х4 and VIRIY 10 presets) comes next.
+  - Others with `thr_mid` 100: expo 46, 55, 65, 68, 78, 80 and 100.
+  - The OTU builds: 50 / 0, 50 / 20 and 50 / 25.
+
+**The throttle: 100 / 36.** It is the curve the pilot's saved configs hold most. It is also the softest of the builder-shaped curves (`thr_mid` 100), so it is the smallest step earlier from what the pilot flew. The OTU builds' 50 / x curves lift off later than 78 / 10 when a bottle is carried, so none of them moves liftoff earlier. The physics (D-066's mass and power) is unchanged.
+
+**Liftoff and hover, before and after.** The stick, as a % of its travel, is shown liftoff / hover.
+
+How it was computed (`LiftoffTests`):
+- The session's own setup on the sim core, headless: Calm, a full pack, legs on.
+- **The hover** is held 100 m up.
+- **The liftoff** is the throttle at which the standing drone leaves the floor, on a slow ramp.
+
+| Bottle | Mixer throttle | Before: the pilot's save, 78 / 10 | Model 26's default, 100 / 100 (never reached the pilot) | After: the default, 100 / 36 | After: the pilot's save as read now, 78 / 36 |
+|---|---|---|---|---|---|
+| 0 kg | 40.1 / 40.4 % | 40.1 / 40.3 | 20.2 / 20.3 | **31.1 / 31.3** | **32.7 / 32.9** |
+| 1 kg | 46.4 / 46.7 % | 46.3 / 46.6 | 23.0 / 23.1 | **36.2 / 36.4** | **38.8 / 39.0** |
+| 2 kg | 51.8 / 52.7 % | 51.7 / 52.6 | 25.7 / 26.2 | **40.8 / 41.5** | **44.3 / 45.3** |
+
+- **The pilot's own save:**
+  - It keeps its `thr_mid` 78, a value the pilot changed, and takes `thr_expo` 36.
+  - Liftoff comes about 7.5 points of stick earlier at every load.
+- **A fresh profile, or Calibrate → Rates → Defaults,** gives 100 / 36:
+  - Liftoff comes 9–11 points earlier than on 78 / 10.
+  - That is inside the pilot's 30–45 % (D-066) at 0–2 kg.
+- **The ground's cushion** lifts the drone off 0.3–0.9 points of mixer throttle below its hover.
+- **The ramp's rate** moves the liftoff by up to half a point.
+
+**The rates did not get faster.** From centre to 90 % of the stick, FpvPrep's set is 6–12 % gentler than the 55 / 225 / 0.34 the pilot's save flew (§2a's table). If roll and yaw still feel "super slow" at the pilot's real rates, the cause is the drone's response, not these numbers.
+
+**The file (format 2).** `fc-settings.json` now reads `"fpv450 fc settings 2"`.
+- **A format-1 file** was written with either the sim default column (before D-066) or §2a's default.
+- **Reading one:**
+  - every value equal to either old default takes today's default
+  - any other value is the pilot's own and stays
+- **Saving:** reading writes nothing, and the next change saves format 2.
 
 ## 3. Other class data from FpvPrep's notes
 - **Liftoff and hover power.** A loaded heavy quad lifted off at **about 62 % motor power**. Its builder had shaped the throttle as `thr_mid 100, thr_expo 100`, so power = 1 − (1 − stick)³, which spreads the last 10 % of power over almost half the stick. FpvPrep had calculated hover at 31–52 %; the real drone needed more. **Use this as a plant-realism check:** a loaded Svinoriz should lift off around 50–65 % motor power.
