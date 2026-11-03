@@ -18,6 +18,9 @@ namespace Fpv450.Replay
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
             + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--drone <drone.json>]\n"
+            + "  replay --record <log> --graze [--drone <drone.json>]\n"
+            + "                                         fly the test range's wall graze (p7f-damage 1.3: a blade strike\n"
+            + "                                         that chips the front-left blades, the drone flying on) and log it\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
             + "                                         in the map's own wind (its wakes and its belt's canopy)\n"
@@ -122,6 +125,16 @@ namespace Fpv450.Replay
                 throw new ArgumentException("--rain is sunny, rain or severerain");
 
             string map = Option(args, "--map");
+            if (Array.IndexOf(args, "--graze") >= 0)
+            {
+                ScriptedFlight.Recorded g = ScriptedFlight.FlyGraze(path, drone, out string outcome);
+                Console.WriteLine($"record {Path.GetFileName(path)}: the graze along H01_D's south wall on the test range, {g.Counts.Steps} steps, "
+                    + $"{g.Counts.Events} events, {g.Bytes} bytes; {g.WallSeconds:F2} s of wall time");
+                Console.WriteLine("  " + outcome);
+                if (g.Fault == null) return 0;
+                Console.WriteLine("  the log failed: " + g.Fault.Message);
+                return 1;
+            }
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
                 Array.IndexOf(args, "--canopy") >= 0, map);
             LogEnd c = r.Counts;

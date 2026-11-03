@@ -15,4 +15,12 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SimPilot.cs" Link="SimPilot.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" Link="WakeGridFixture.cs" />
   </ItemGroup>
+
+  <!-- The graze along the test range's wall (p7f-damage 1.3): a blade strike that chips the blades, logged and replayed. -->
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/StrikeScenarios.cs" Link="StrikeScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RangeScenarios.cs" Link="RangeScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
+  </ItemGroup>
 </Project>

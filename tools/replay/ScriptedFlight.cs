@@ -325,6 +325,44 @@ namespace Fpv450.Replay
             };
         }
 
+        /// <summary>
+        /// The graze (p7f-damage 1.3, `--record --graze`): on the test range, StrikeScenarios.Graze's flight with a pilot's effects
+        /// on the seed: along H01_D's south wall at 2 m/s, the front-left rim asked 3 mm into the masonry for 0.3 s from its first
+        /// strike, then back off and hover 3 s; every step logged as it is flown (no scheduler: the replay needs only the sticks).
+        /// </summary>
+        public static Recorded FlyGraze(string path, string dronePath, out string outcome)
+        {
+            DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
+            FlightRecorder recorder = null;
+            LogHeader header = null;
+            var wall = Stopwatch.StartNew();
+            Fpv450.Sim.Tests.StrikeScenarios.GrazeResult g = Fpv450.Sim.Tests.StrikeScenarios.Graze(spec, 2, 0.003, 0.3, 3, Seed, true,
+                Fpv450.Sim.Tests.StrikeScenarios.Airframe(spec),
+                (setup, core) =>
+                {
+                    header = LogHeader.For(setup, core);
+                    header.Build = Host.Build;
+                    header.Isa = Host.Isa;
+                    header.WorldId = "test-range";
+                    header.SetDrone(spec, spec.Nominal);
+                    recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
+                },
+                (core, stick) => recorder.RecordStep(core.State, stick, core.Trace, core.Events));
+            recorder.Close();
+            outcome = g.Describe();
+            return new Recorded
+            {
+                Counts = recorder.Counts,
+                Bytes = new FileInfo(path).Length,
+                HeaderBytes = header.Length,
+                Seed = Seed,
+                DroneHash = header.DroneHash,
+                WallSeconds = wall.Elapsed.TotalSeconds,
+                Fault = recorder.Fault,
+                Landing = "none (a hover beside the wall)",
+            };
+        }
+
         static Exception Virtual(FlightCore core, StickInbox inbox, PoseBuffer poses, FlightRecorder recorder, long steps, Pilot pilot)
         {
             var clock = new VirtualClock { Now = StartUs };
