@@ -198,6 +198,7 @@ namespace Fpv450.Sim.Contact
         readonly double[] _lastAxial = new double[4], _tubeSide = new double[4];
         readonly Double3[] _hangForce = new Double3[4], _hangCouple = new Double3[4];
         readonly bool[] _hangTouching = new bool[4];
+        readonly int[] _hangShape = { -1, -1, -1, -1 }, _hangPair = new int[4]; // a hanging half's strongest contact
         readonly int[] _legTube = { -1, -1, -1, -1 };  // each leg's tube shape
         readonly LegFlags[] _followed = new LegFlags[4]; // the legs' flags the structure last followed
         readonly LegChange _change = new LegChange();
@@ -857,6 +858,8 @@ namespace Fpv450.Sim.Contact
             }
             _hangForce[c] = law;
             _hangCouple[c] = s.Attitude.InverseRotate(couple);
+            _hangShape[c] = causeShape;
+            _hangPair[c] = causePair;
         }
 
         // A corner's support under its leg (the skid's sphere at the T-joint): the hanging half's lever point.
@@ -935,6 +938,11 @@ namespace Fpv450.Sim.Contact
                 law = law + _hangForce[hung];
                 along += Double3.Dot(_hangForce[hung], skid);
                 footCouple = _hangCouple[hung];
+                if (_hangShape[hung] >= 0 && (causeShape < 0 || _hangForce[hung].Length() > DetMath.Max(strong, _tubeStrongest[c])))
+                {
+                    causeShape = _hangShape[hung]; // the load comes through the hanging half: its contact is the cause
+                    causePair = _hangPair[hung];
+                }
             }
             double axial = Double3.Dot(up, law);
             // The tube's own deflection across at the foot (1.3): its share of the spring's push across, d·k_a/(k_s + k_a) with the
