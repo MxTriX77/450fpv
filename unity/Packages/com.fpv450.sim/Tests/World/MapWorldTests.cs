@@ -23,16 +23,16 @@ namespace Fpv450.Sim.Tests
         private static string _root;
 
         /// <summary>The repository root (the test range's placement file found from this file or the working directory).</summary>
-        private static string Root => _root ?? (_root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(
+        internal static string Root => _root ?? (_root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(
             ContactScenarios.RepositoryFile("maps/test-range/placements.json")))));
 
-        private static MapWorld World => _world ?? (_world = MapWorld.Load(Root, "test-range"));
+        internal static MapWorld World => _world ?? (_world = MapWorld.Load(Root, "test-range"));
 
-        private static string ReadModel(string path) => File.ReadAllText(Path.Combine(Root, MapWorld.ModelsRoot, path));
+        internal static string ReadModel(string path) => File.ReadAllText(Path.Combine(Root, MapWorld.ModelsRoot, path));
 
-        private static string Placements() => File.ReadAllText(Path.Combine(Root, "maps/test-range/placements.json"));
+        internal static string Placements() => File.ReadAllText(Path.Combine(Root, "maps/test-range/placements.json"));
 
-        private static string[] Materials() => MapWorld.MaterialNames(File.ReadAllText(Path.Combine(Root, MapWorld.MaterialsFile)));
+        internal static string[] Materials() => MapWorld.MaterialNames(File.ReadAllText(Path.Combine(Root, MapWorld.MaterialsFile)));
 
         private static int Object(string variant, int occurrence = 0)
         {
