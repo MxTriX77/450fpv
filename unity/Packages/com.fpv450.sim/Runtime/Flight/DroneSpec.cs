@@ -512,6 +512,10 @@ namespace Fpv450.Sim.Flight
             c.LegDamping = Legs.Damping;
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
+            // The blades' flap stiffness in a strike is the flapping's (p7f-damage design 5): one source for both.
+            RotorFlappingSpec f = new RotorFlappingSpec();
+            c.FlapFrequency = f.BendingFrequency;
+            c.FlapSouthwell = f.Southwell;
             return c;
         }
 
@@ -655,11 +659,10 @@ namespace Fpv450.Sim.Flight
                 var c = new Contact.ContactSpec();
                 const string at = "contacts";
                 if (!IsObject(p, at)) return c;
-                Members(p, at, "margin_m", "crash_accel_m_s2", "crash_prop_speed_m_s", "impact_window_s", "impact_speed_m_s",
+                Members(p, at, "margin_m", "crash_accel_m_s2", "impact_window_s", "impact_speed_m_s",
                     "friction_stiffness_ratio", "damping_mass_share", "ground_friction_static", "ground_friction_kinetic", "ring_segments", "shapes");
                 c.Margin = Positive(p, "margin_m", at);
                 c.CrashAccel = Positive(p, "crash_accel_m_s2", at);
-                c.CrashPropSpeed = Positive(p, "crash_prop_speed_m_s", at);
                 c.ImpactWindow = Positive(p, "impact_window_s", at);
                 c.ImpactSpeed = Positive(p, "impact_speed_m_s", at);
                 c.FrictionStiffnessRatio = Positive(p, "friction_stiffness_ratio", at);

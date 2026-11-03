@@ -108,7 +108,9 @@ namespace Fpv450.Sim.Flight
     ///
     /// Each step first fixes the wind field's frame (its time and the ground under the body; the record carries the wind
     /// that acted at the body's origin and at each hub), then takes every force from the step's starting state (the contacts' from the planes and ground the last step's sweep
-    /// left at that pose), then moves the body, then sweeps the contact shapes from the old pose to the new one.
+    /// left at that pose), then moves the body, then sweeps the contact shapes from the old pose to the new one, and then the
+    /// blades' passes across the shapes their discs cut take their work off the rotors and give the body their impulses
+    /// (PropStrikes, p7f-damage 1.3; the damage they leave flies from the next step).
     ///
     /// The controller runs at its real 4 kHz: each step is FlightController.LoopsPerStep loops, each followed by a
     /// sub-step of the ESCs, motors and packs (Propulsion) at the loop's 250 µs, while the body moves once a step
@@ -148,6 +150,7 @@ namespace Fpv450.Sim.Flight
         readonly Double3 _camera;
         double _rainMassRate;
         readonly Contact.ContactModel _contacts;
+        readonly Contact.PropStrikes _strikes; // the blades against what the discs cut (p7f-damage 1.3), or null
         readonly Double3[] _hubWind = new Double3[4];
         readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
         readonly Sim.World.GroundSample[] _windGround = new Sim.World.GroundSample[1];
@@ -256,6 +259,8 @@ namespace Fpv450.Sim.Flight
                 _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass);
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
+                if (_propulsion != null && setup.Propulsion.Rotor != null && setup.Contacts.BladeStrikes)
+                    _strikes = new Contact.PropStrikes(_contacts, World, _propulsion, setup.Propulsion, Random);
             }
         }
 
@@ -326,11 +331,17 @@ namespace Fpv450.Sim.Flight
         /// <summary>The contact model, or null for a flight without contacts.</summary>
         public Contact.ContactModel Contacts => _contacts;
 
+        /// <summary>The blades' strikes on what their discs cut (p7f-damage 1.3), or null: no contacts, no propulsion, no props.blade,
+        /// or ContactSpec.BladeStrikes off.</summary>
+        public Contact.PropStrikes Strikes => _strikes;
+
         /// <summary>One 1 ms step with the stick sample in force (StickSample, "the timing contract").</summary>
         public void Advance(in StickSample stick)
         {
             ref FlightState s = ref _state;
             _events.Clear();
+            s.BladeStrikes = default;
+            Corners angles = s.RotorAngle; // where the blades start the step, for their passes (PropStrikes)
             BeginWind(s);
 
             // The net force (world, N) and the net moment about the CoM (body, N·m), weight aside; the air's share
@@ -360,6 +371,9 @@ namespace Fpv450.Sim.Flight
             _trace.AeroMoment = airMoment;
             s.Step++;
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
+            // The blades' passes across what the discs cut: their work off the rotors, their impulses on the body, the damage
+            // they leave (p7f-damage design 6), after the move as the strikes are sensed.
+            if (_strikes != null) _strikes.Apply(angles, ref s, body, _events);
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
 
             // The film takes the water the drops brought this step; the next step flies its mass.

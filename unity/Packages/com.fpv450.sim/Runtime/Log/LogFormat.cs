@@ -92,8 +92,13 @@ namespace Fpv450.Sim.Log
         /// 24 is assigned to another line (D-072).
         /// 25: p7f-damage 1.1a, the contacts entry's material rows with what a blade meets (MaterialRow.Hardness, CrushStrength,
         ///    Density); the records are 23's.
+        /// 26: p7f-damage 1.3 (D-072's number), the step record's blade strikes after the rotors' own wakes (FlightState.BladeStrikes:
+        ///    per rotor and blade its kind, count, material, energy, impulse, diameter, cut energy and radius; 384 bytes, 2288 in
+        ///    all), the contacts entry without the prop strike's crash speed (retired) and with the strikes' switch and parameters
+        ///    (ContactSpec.BladeStrikes … FlapSouthwell), and the events BladeStrike (17), BladeDamaged (18) and RotorJammed (19,
+        ///    D-074's kinds).
         /// </summary>
-        public const int Version = 25;
+        public const int Version = 26;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -210,8 +215,16 @@ namespace Fpv450.Sim.Log
         ///    (prop.blade_pitch, ±0.25°), with the flapping's blade inertia from props.blade's table (2.12e-5 kg·m², not the
         ///    uniform rod's 4.3e-5). A flight on a drone.json without props.blade (no rotor spec, no pitch draws, the rod)
         ///    steps as in 26; so does one with the pitch bound at 0 and the flapping's inertia at the rod.
+        /// 30–34 are assigned to other lines (D-072).
+        /// 35: p7f-damage 1.3 (D-072's number): the blades against the shapes their discs cut (PropStrikes: the pass at the nearest
+        ///    point of the shape's cut by the disc's slab, BladeCut; who yields by hardness, the hard face's crush, break, bend and
+        ///    wear, the shape inside the rim's sever or break, the soft face's carve; the pass's work off the rotor, its stop on
+        ///    the face, the body's reaction, tangential impulse and push), each blade's strength drawn from prop.blade_strength,
+        ///    the disc's pairs while their shapes cut its slab within the rim, and no crash by a prop strike (ContactSpec's 3 m/s
+        ///    retired). A flight whose discs cut nothing steps as in 29; one with the strikes off (ContactSpec.BladeStrikes) as in
+        ///    29 but for the crash and the pairs the slab keeps.
         /// </summary>
-        public const int ModelVersion = 29;
+        public const int ModelVersion = 35;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -224,14 +237,15 @@ namespace Fpv450.Sim.Log
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
-        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064).</summary>
-        public const int StepSize = 1904, EventSize = 72, EndSize = 48;
+        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the blades' strikes
+        /// (p7f-damage 1.3).</summary>
+        public const int StepSize = 2288, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow", "BladeStrikes" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -375,6 +389,23 @@ namespace Fpv450.Sim.Log
             b.Corners("interference_share", "the wakes' fluctuation, a share of that inflow");
             // Each rotor's own wake (D-064).
             b.Corners("wake_inflow", "the rotor's own wake inflow through the disc over v_h");
+            // The blades' strikes this step (p7f-damage 1.3), per rotor and blade.
+            for (int c = 0; c < 4; c++)
+            {
+                for (int blade = 0; blade < 2; blade++)
+                {
+                    string at = "blade_strike." + CornerNames[c] + "." + blade;
+                    b.Add(at + ".kind", "StrikeKind: 0 none, 1 shape, 2 element, 3 wire", LogFieldType.U8);
+                    b.Add(at + ".count", "strikes this step", LogFieldType.U8);
+                    b.Add(at + ".material", "world material id of the last; 0 none", LogFieldType.U16);
+                    b.Add(at + ".reserved", "zero", LogFieldType.Pad, 4);
+                    b.Add(at + ".energy", "J taken from the rotor", LogFieldType.F64);
+                    b.Add(at + ".impulse", "N.s on the drone, the strikes' sum of magnitudes", LogFieldType.F64);
+                    b.Add(at + ".diameter", "m, an element's or a wire's; 0 for a shape", LogFieldType.F64);
+                    b.Add(at + ".cut_energy", "J, an element's cut; 0 for a shape", LogFieldType.F64);
+                    b.Add(at + ".radius", "m, the smallest strike radius on the blade", LogFieldType.F64);
+                }
+            }
             return b.Done(StepSize);
         }
 
@@ -512,6 +543,19 @@ namespace Fpv450.Sim.Log
             w.C4(t.InterferenceInflow);
             w.C4(s.InterferenceShare);
             w.C4(s.WakeInflow);
+            for (int i = 0; i < BladeStrikes.Slots; i++)
+            {
+                BladeStrike x = s.BladeStrikes[i];
+                w.U8((byte)x.Kind);
+                w.U8(x.Count);
+                w.U16(x.Material);
+                w.Zero(4);
+                w.F64(x.Energy);
+                w.F64(x.Impulse);
+                w.F64(x.Diameter);
+                w.F64(x.CutEnergy);
+                w.F64(x.Radius);
+            }
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -621,6 +665,17 @@ namespace Fpv450.Sim.Log
             t.InterferenceInflow = r.C4();
             s.InterferenceShare = r.C4();
             s.WakeInflow = r.C4();
+            for (int i = 0; i < BladeStrikes.Slots; i++)
+            {
+                var x = new BladeStrike { Kind = (StrikeKind)r.U8(), Count = r.U8(), Material = r.U16() };
+                r.Skip(4);
+                x.Energy = r.F64();
+                x.Impulse = r.F64();
+                x.Diameter = r.F64();
+                x.CutEnergy = r.F64();
+                x.Radius = r.F64();
+                s.BladeStrikes[i] = x;
+            }
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

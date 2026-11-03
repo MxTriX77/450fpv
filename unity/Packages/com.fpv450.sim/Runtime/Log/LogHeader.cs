@@ -144,8 +144,10 @@ namespace Fpv450.Sim.Log
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
         public static readonly string[] ContactFieldsLogged =
         {
-            "Margin", "CrashAccel", "CrashPropSpeed", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
+            "Margin", "CrashAccel", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
+            "BladeStrikes", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth", "FlapFrequency",
+            "FlapSouthwell",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -746,10 +748,14 @@ namespace Fpv450.Sim.Log
                 e.Write(Contacts != null);
                 if (Contacts == null) return;
                 ContactSpec c = Contacts;
-                foreach (double v in new[] { c.Margin, c.CrashAccel, c.CrashPropSpeed, c.ImpactWindow, c.ImpactSpeed, c.FrictionStiffnessRatio,
+                foreach (double v in new[] { c.Margin, c.CrashAccel, c.ImpactWindow, c.ImpactSpeed, c.FrictionStiffnessRatio,
                     c.DampingMassShare, c.GroundStaticFriction, c.GroundKineticFriction, c.LegStiffness, c.LegDamping })
                     e.Write(v);
                 e.Write(c.RingSegments);
+                e.Write(c.BladeStrikes);
+                foreach (double v in new[] { c.WearCoefficient, c.StrengthSigma, c.StrengthBound, c.SectionForm, c.PlasticShare, c.SlapWidth,
+                    c.FlapFrequency, c.FlapSouthwell })
+                    e.Write(v);
                 e.Write((ushort)c.Shapes.Length);
                 foreach (ContactShape s in c.Shapes)
                 {
@@ -1399,10 +1405,12 @@ namespace Fpv450.Sim.Log
         {
             var c = new ContactSpec
             {
-                Margin = r.ReadDouble(), CrashAccel = r.ReadDouble(), CrashPropSpeed = r.ReadDouble(), ImpactWindow = r.ReadDouble(),
+                Margin = r.ReadDouble(), CrashAccel = r.ReadDouble(), ImpactWindow = r.ReadDouble(),
                 ImpactSpeed = r.ReadDouble(), FrictionStiffnessRatio = r.ReadDouble(), DampingMassShare = r.ReadDouble(),
                 GroundStaticFriction = r.ReadDouble(), GroundKineticFriction = r.ReadDouble(), LegStiffness = r.ReadDouble(), LegDamping = r.ReadDouble(),
-                RingSegments = r.ReadInt32(),
+                RingSegments = r.ReadInt32(), BladeStrikes = r.ReadBoolean(), WearCoefficient = r.ReadDouble(), StrengthSigma = r.ReadDouble(),
+                StrengthBound = r.ReadDouble(), SectionForm = r.ReadDouble(), PlasticShare = r.ReadDouble(), SlapWidth = r.ReadDouble(),
+                FlapFrequency = r.ReadDouble(), FlapSouthwell = r.ReadDouble(),
             };
             c.Shapes = new ContactShape[r.ReadUInt16()];
             for (int i = 0; i < c.Shapes.Length; i++)

@@ -91,8 +91,6 @@ namespace Fpv450.Sim.Contact
         /// <summary>A contact acceleration of the body over this ends the flight in a crash, m/s².</summary>
         public double CrashAccel;
 
-        /// <summary>A prop disc entering a rigid shape (or the ground) faster than this along the normal is a crash, m/s.</summary>
-        public double CrashPropSpeed;
 
         /// <summary>An impact's window from its first touch, s: its peak acceleration and impulse are taken over it.</summary>
         public double ImpactWindow;
@@ -114,6 +112,37 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The capsules round a prop disc's rim (review-physics P4).</summary>
         public int RingSegments;
+
+        /// <summary>
+        /// The blades meet what their discs strike (p7f-damage 1.3, PropStrikes): each pass takes its work from the rotor, gives
+        /// the body its impulses and leaves its damage. On for every flight; off only for an audit against model 29, whose
+        /// strikes did nothing (a strike is then logged and does nothing, and, since model 35, never ends the flight).
+        /// </summary>
+        public bool BladeStrikes = true;
+
+        /// <summary>Archard's wear coefficient k of the blade sliding on a harder face, V = k·F_n·s/H_b: 3e-3 (assumed, p7f-damage
+        /// design 5: inside Lancaster 1969's published 1e-3–1e-2 for polymers abraded by harder asperities, its middle on a log
+        /// scale; set by 1.3, which 1.1a left unset).</summary>
+        public double WearCoefficient = 3e-3;
+
+        /// <summary>Each blade's strength factor's spread (prop.blade_strength, design 12): σ 5 %, clamped ±12 % (assumed: moulded
+        /// glass-filled nylon varies with its fibre orientation and weld lines; no spread is published for props).</summary>
+        public double StrengthSigma = 0.05, StrengthBound = 0.12;
+
+        /// <summary>The section's bending form factor on c·t²/6 and t·c²/6: 0.7 (assumed, design 1: an airfoil's against its
+        /// bounding rectangle).</summary>
+        public double SectionForm = 0.7;
+
+        /// <summary>A section's plastic hinge stiffness over its elastic one, k_p = share × EI/span: 0.1 (assumed, design 5).</summary>
+        public double PlasticShare = 0.1;
+
+        /// <summary>The width of a slap's contact along the span, m: 1 mm (assumed, design 5), which caps its peak force at the
+        /// tip's local crush, σ_c·chord·width.</summary>
+        public double SlapWidth = 0.001;
+
+        /// <summary>The blade's non-rotating first flap mode, Hz, and its Southwell coefficient (RotorFlappingSpec's: 150 Hz
+        /// assumed, 1.193 published), for its rotating flap stiffness K_β = I_b·(ω₀² + (K_s − 1)·Ω²) (DroneSpec.BuildContacts).</summary>
+        public double FlapFrequency = 150, FlapSouthwell = 1.193;
 
         /// <summary>The shapes present at the loadout (a part at 0 kg has none).</summary>
         public ContactShape[] Shapes = new ContactShape[0];
