@@ -70,8 +70,9 @@ namespace Fpv450.Sim.Tests
                             }
                             if (gentle)
                             {
-                                // In a 5–9 m/s descent a gentle ramp shows PHY-09's wobble instead.
-                                if (drop >= 0.6) Assert.That(ShakeScenario.Wobbles(r), Is.True, "the rotors settle into their wash: " + at);
+                                // In a 5–9 m/s descent a gentle ramp's rotors settle into their ring instead, PHY-09's wobble
+                                // (that it shows over the visible line is a rate, nearly every one).
+                                if (drop >= 0.6) Assert.That(r.InRing, Is.GreaterThan(1.0), "the rotors settle into their wash: " + at);
                                 continue;
                             }
                             // Arresting a descent sharply rings the frame's band (that it shows is a rate below 9 m/s: a weak arrest
