@@ -165,6 +165,25 @@ namespace Fpv450.Sim.Tests
             Assert.That(DroneSpec.Parse(Valid).Motors[0].EscCurrentLimit, Is.EqualTo(40));
         }
 
+        // p6-flight-core 1.6c: what the ESC does with its spinning motor on a disarm, a labelled word; a motor that names
+        // none freewheels (the specs before model 42), and the repository's is the class's BLHeli_S (D-069).
+        [Test]
+        public void TheEscsDisarmRuleIsReadFromItsWord()
+        {
+            string find = "'esc_current_limit_a': {'value': 40".Replace('\'', '"');
+            Assert.That(Valid.Contains(find), Is.True);
+            foreach (DroneMotor m in DroneSpec.Parse(Valid).Motors) Assert.That(m.EscDisarm, Is.EqualTo(EscDisarm.Freewheel), "none named");
+            for (int i = 0; i < DroneSpec.DisarmWords.Length; i++)
+            {
+                string named = Valid.Replace(find, "\"esc_disarm\": {\"value\": \"" + DroneSpec.DisarmWords[i] + "\", \"label\": \"published\"}, " + find);
+                foreach (DroneMotor m in DroneSpec.Parse(named).Motors) Assert.That(m.EscDisarm, Is.EqualTo((EscDisarm)i), DroneSpec.DisarmWords[i]);
+            }
+            string wrong = Valid.Replace(find, "\"esc_disarm\": {\"value\": \"blheli_32\", \"label\": \"published\"}, " + find);
+            var e = Assert.Throws<DroneSpecException>(() => DroneSpec.Parse(wrong));
+            Assert.That(e.Message, Does.Contain("esc_disarm.value: must be one of freewheel, blheli_s"));
+            foreach (DroneMotor m in RepositoryDrone.Spec().Motors) Assert.That(m.EscDisarm, Is.EqualTo(EscDisarm.BlheliS), "the repository's");
+        }
+
         [Test]
         public void EveryProblemIsListedInOneRun()
         {

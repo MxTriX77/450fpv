@@ -491,11 +491,131 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        static void Step(Propulsion prop, ref FlightState s, in Corners duty)
+        static void Step(Propulsion prop, ref FlightState s, in Corners duty, bool driving = true) => Step(prop, ref s, duty, driving, out _);
+
+        static void Step(Propulsion prop, ref FlightState s, in Corners duty, bool driving, out RotorLoads loads)
         {
             prop.BeginStep(s);
-            var loads = new RotorLoads();
-            for (int j = 0; j < FlightController.LoopsPerStep; j++) prop.SubStep(ref s, duty, true, FlightController.LoopDt, ref loads);
+            loads = new RotorLoads();
+            for (int j = 0; j < FlightController.LoopsPerStep; j++) prop.SubStep(ref s, duty, driving, FlightController.LoopDt, ref loads);
+        }
+
+        // ---- The ESC on a disarm (p6-flight-core 1.6c, EscDisarm) ----
+
+        static PropulsionSpec Disarming(EscDisarm rule)
+        {
+            PropulsionSpec p = Drone.BuildPropulsion();
+            for (int i = 0; i < 4; i++) p.Motors[i].EscDisarm = rule;
+            return p;
+        }
+
+        // Every motor settled at the hover's duty on a body held at rest, then disarmed: the rear right rotor's speed after
+        // each 1 ms step (rad/s), and the packs' current after each.
+        static (List<double> speed, List<double> amps) Disarm(EscDisarm rule, int steps)
+        {
+            var prop = new Propulsion(Disarming(rule));
+            var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = 1, PackCharge1 = 1 };
+            var hover = new Corners { RearRight = 0.47, FrontRight = 0.47, RearLeft = 0.47, FrontLeft = 0.47 };
+            for (int k = 0; k < 3000; k++) Step(prop, ref s, hover);
+            var speed = new List<double> { s.RotorSpeed.RearRight };
+            var amps = new List<double> { 0 };
+            for (int k = 0; k < steps; k++)
+            {
+                Step(prop, ref s, default, false, out RotorLoads loads);
+                speed.Add(s.RotorSpeed.RearRight);
+                amps.Add(loads.Amps0 + loads.Amps1);
+            }
+            return (speed, amps);
+        }
+
+        static int FirstBelow(List<double> trace, double w) => trace.FindIndex(x => x < w);
+
+        [Test]
+        public void ADisarmedBlheliSBrakesItsMotorAsTheShortedDcMotor()
+        {
+            // BLHeli_S 16.7 stays in its run loop at zero power on Betaflight's DShot 0, its damping FET shorting the active
+            // phases: the motor at d = 0, J·ω̇ = −Ke²/R·ω − Kt·I0 − Q(ω), drawing nothing from the packs. The mechanics
+            // integrated here by RK4 at 0.1 ms against the sim; the known-wrong is model 38's freewheel (drag alone).
+            DroneSpec d = Drone;
+            DroneMotor m = d.Motors[0];
+            var prop = new Propulsion(d.BuildPropulsion());
+            double ke = 60 / (2 * Math.PI * m.Kv), j = m.RotorInertia;
+            (List<double> braked, List<double> amps) = Disarm(EscDisarm.BlheliS, 400);
+            double w0 = braked[0];
+            Func<double, double> rate = w =>
+            {
+                prop.Aero(w, 0, out _, out double q);
+                return -(ke * ke / m.Resistance * w + ke * m.NoLoadCurrent + q) / j;
+            };
+            double t = 0, x = w0, half = 0, tenth = 0;
+            const double dt = 1e-4;
+            while (x > 0.1 * w0)
+            {
+                double k1 = rate(x), k2 = rate(x + 0.5 * dt * k1), k3 = rate(x + 0.5 * dt * k2), k4 = rate(x + dt * k3);
+                x += dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4);
+                t += dt;
+                if (half == 0 && x < 0.5 * w0) half = t;
+            }
+            tenth = t;
+            double simHalf = FirstBelow(braked, 0.5 * w0) * 1e-3, simTenth = FirstBelow(braked, 0.1 * w0) * 1e-3;
+            TestContext.Out.WriteLine($"from {F(w0 * 60 / (2 * Math.PI), "0")} rpm: half speed {F(1000 * simHalf, "0")} ms (mechanics {F(1000 * half, "0.0")}), "
+                + $"a tenth {F(1000 * simTenth, "0")} ms (mechanics {F(1000 * tenth, "0.0")})");
+            Assert.That(simHalf, Is.EqualTo(half).Within(0.0015), "half speed as the shorted motor's");
+            Assert.That(simTenth, Is.EqualTo(tenth).Within(0.0015), "a tenth as the shorted motor's");
+            for (int k = 5; k < 100; k++) Assert.That(Math.Abs(amps[k]), Is.LessThan(0.05), $"no supply current while it brakes ({F(amps[k])} A at {k} ms)");
+
+            (List<double> coast, _) = Disarm(EscDisarm.Freewheel, 400);
+            double coastHalf = FirstBelow(coast, 0.5 * w0) * 1e-3;
+            TestContext.Out.WriteLine($"freewheeling (model 38): half speed {F(1000 * coastHalf, "0")} ms");
+            Assert.That(coastHalf, Is.GreaterThan(1.5 * simHalf), "the known-wrong freewheel keeps its speed (and thrust) far longer");
+        }
+
+        [Test]
+        public void BelowItsMinimumSpeedTheEscLetsTheMotorCoast()
+        {
+            // BLHeli_S leaves its run loop past a 32 ms commutation period (about 1220 eRPM; Bluejay about 1330) and turns
+            // every FET off: from there only the bearings, iron and prop slow the rotor. So the speed's fall below the minimum
+            // is the friction's Kt·I0 (plus the prop's small drag), not the short's.
+            DroneMotor m = Drone.Motors[0];
+            double ke = 60 / (2 * Math.PI * m.Kv), friction = ke * m.NoLoadCurrent / m.RotorInertia;
+            foreach ((EscDisarm rule, double erpm) in new[] { (EscDisarm.BlheliS, 1220.0), (EscDisarm.Bluejay, 1330.0) })
+            {
+                double exit = erpm / (m.MagnetPoles / 2) * 2 * Math.PI / 60;
+                (List<double> w, _) = Disarm(rule, 600);
+                int k = FirstBelow(w, exit);
+                Assert.That(k, Is.GreaterThan(0), $"{rule} reaches its minimum speed");
+                // The step after it left the loop: the fall of one step against the friction's and the short's.
+                double fall = (w[k + 1] - w[k + 2]) / 1e-3, shorted = friction + ke * ke / m.Resistance * w[k + 1] / m.RotorInertia;
+                TestContext.Out.WriteLine($"{rule}: left its run loop at {F(w[k] * 60 / (2 * Math.PI), "0")} rpm after {k} ms; then {F(fall, "0")} rad/s² "
+                    + $"(friction {F(friction, "0")}, shorted {F(shorted, "0")})");
+                Assert.That(fall, Is.EqualTo(friction).Within(0.1 * friction), $"{rule}: it coasts");
+            }
+        }
+
+        [Test]
+        public void BrakeOnStopShortsTheThreePhasesAfterItsCounter()
+        {
+            // The compared variants (G7's ESC-firmware question): brake on stop leaves the run loop after 3 ticks of the stop
+            // counter (assumed mid-phase: BLHeli_S 80 ms of its 32 ms ticks, Bluejay 40 ms of its 16 ms), then BLHeli_S waits
+            // 100 ms with every FET off and Bluejay none, and both turn on the three low-side FETs, a three-phase short. Until
+            // the counter each brakes as its firmware's default, bit for bit; BLHeli_S then coasts 100 ms; with the short on
+            // the rotor stops and stays stopped.
+            (List<double> blheli, _) = Disarm(EscDisarm.BlheliS, 400);
+            (List<double> blheliBrake, _) = Disarm(EscDisarm.BlheliSBrakeOnStop, 400);
+            (List<double> bluejay, _) = Disarm(EscDisarm.Bluejay, 400);
+            (List<double> bluejayBrake, _) = Disarm(EscDisarm.BluejayBrakeOnStop, 400);
+            for (int k = 0; k <= 79; k++) Assert.That(blheliBrake[k], Is.EqualTo(blheli[k]), $"BLHeli_S's run loop at {k} ms");
+            for (int k = 0; k <= 39; k++) Assert.That(bluejayBrake[k], Is.EqualTo(bluejay[k]), $"Bluejay's run loop at {k} ms");
+            TestContext.Out.WriteLine($"BLHeli_S at 80, 179, 182, 200 ms: default {F(blheli[80], "0.0")}, {F(blheli[179], "0.0")}, {F(blheli[182], "0.0")}, {F(blheli[200], "0.0")} rad/s; "
+                + $"brake on stop {F(blheliBrake[80], "0.0")}, {F(blheliBrake[179], "0.0")}, {F(blheliBrake[182], "0.0")}, {F(blheliBrake[200], "0.0")}");
+            TestContext.Out.WriteLine($"Bluejay at 40, 42, 60 ms: default {F(bluejay[40], "0.0")}, {F(bluejay[42], "0.0")}, {F(bluejay[60], "0.0")} rad/s; "
+                + $"brake on stop {F(bluejayBrake[40], "0.0")}, {F(bluejayBrake[42], "0.0")}, {F(bluejayBrake[60], "0.0")}");
+            Assert.That(blheliBrake[179] / blheliBrake[80], Is.GreaterThan(0.7), "BLHeli_S coasts in its 100 ms wait");
+            Assert.That(blheli[179] / blheli[80], Is.LessThan(0.2), "where its default still brakes in the run loop");
+            Assert.That(blheliBrake[182] - blheliBrake[183], Is.GreaterThan(3 * (blheliBrake[178] - blheliBrake[179])), "then the short brakes it");
+            Assert.That(bluejayBrake[60], Is.LessThan(bluejay[60]), "Bluejay's three-phase short brakes harder than its run loop's two");
+            Assert.That(blheliBrake[400], Is.LessThan(1e-6), "BLHeli_S's rotor stopped");
+            Assert.That(bluejayBrake[400], Is.LessThan(1e-6), "Bluejay's rotor stopped");
         }
 
         // ---- The builder's PIDs hold a stable loop ----

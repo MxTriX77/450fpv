@@ -54,7 +54,13 @@ namespace Fpv450.Sim.Flight
     ///   lag τ_m = J / (Kt·Ke/R + ∂Q/∂ω) follows from the load (about 40 ms at hover, Propulsion's tests), and the
     ///   update is the design's n += (n* − n)·h/(τ + h): backward Euler on the linearised motor, no transcendental
     ///   functions. The ESC drives both ways (Betaflight's DShot ESCs brake actively), so the current goes negative
-    ///   when the prop is pulled down; disarmed, the ESC lets the motor freewheel (i = 0).
+    ///   when the prop is pulled down.
+    /// - the disarm (drone.json's esc_disarm, EscDisarm; p6-flight-core 1.6c): Betaflight sends DShot 0 and the class's
+    ///   BLHeli_S (or Bluejay) stays in its run loop at zero power, its complementary PWM's damping FET shorting the active
+    ///   phases: the same motor at d = 0, i = −Ke·ω/R, a braking torque with no supply current. Below its firmware's
+    ///   minimum speed (or past its stop counter) it turns every FET off and the motor coasts (i = 0); with brake on stop it
+    ///   then turns on the three low-side FETs, a three-phase short, i = −1.095·Ke·ω/R. Freewheel coasts at once. The ESC
+    ///   starts with its motor stopped, every FET off, and brakes on stop only after a run loop.
     /// - the prop: T = k_T(rpm)·f_T(J)·ω² and Q = κ·k_T·q(rpm)·f_Q(J)·ω², drone.json's published tables of the
     ///   static coefficients against rpm (C_T rises with rpm) and against the advance ratio J = V_a/(n·D) of the
     ///   axial inflow through the disc (the forward-flight derate, PHB-03): never a flat factor. A descending rotor
@@ -109,6 +115,36 @@ namespace Fpv450.Sim.Flight
         readonly double _kT, _kQ, _diameter, _hPerSpeed;
         readonly double[] _rpm, _rpmThrust, _rpmTorque, _j, _jThrust, _jTorque;
         readonly double[] _series = new double[2], _conductance = new double[2], _capacity = new double[2];
+
+        // The ESCs on a disarm (EscDisarm): each one's speed below which its firmware leaves the run loop (rad/s; +∞ for
+        // Freewheel), the time after the disarm at which its stop counter does (s; +∞ for none), and when its brake on stop
+        // turns on the low-side FETs (s; +∞ without it). The state: the sub-steps since the disarm, the ESCs out of their
+        // run loop and those whose brake on stop is set, bit 1 << corner; it is a function of the flight so far, like the
+        // contact model's tables, and the flight starts with every motor stopped.
+        readonly double[] _runExitSpeed = new double[4], _stopCountExit = new double[4], _brakeAt = new double[4];
+        int _stopLoops, _escOff = 0xF, _escBrake;
+
+        // The firmwares' published rules (BLHeli_S 16.7, bitdump/BLHeli's BLHeli_S SiLabs/BLHeli_S.asm; Bluejay 0.21,
+        // bird-sanctuary/bluejay's src/Bluejay.asm, Modules/Isrs.asm and Settings/BluejaySettings.asm):
+        // - the run loop's minimum speed: BLHeli_S's run6_brake_done, "Comm_Period4x more than 32ms (~1220 eRPM)";
+        //   Bluejay's run6_check_speed, "Default minimum speed (~1330 erpm)"
+        // - the stop counter: Rcp_Stop_Cnt counts the ticks of timer 2 with a zero throttle, BLHeli_S's every 32 ms (on a
+        //   48 MHz MCU it skips every other interrupt), Bluejay's every 16 ms after arming on 48 MHz MCUs; BLHeli_S leaves
+        //   its run loop past 250 ticks, or 3 with brake on stop ("About 100ms before stopping when brake is set"); Bluejay
+        //   only with brake on stop, past 3. The limit passes 2–3 ticks after the zero throttle by the timer's phase,
+        //   which nothing sets: the middle, 2.5 (assumed).
+        // - brake on stop: BLHeli_S's run_to_wait_for_power_on turns every FET off, waits 100 ms ("Wait for pwm to be
+        //   stopped") and turns on AcomFET, BcomFET and CcomFET; Bluejay's exit_run_mode_no_stall_no_beep turns on its
+        //   three Com FETs at once. Both default it off (DEFAULT_PGM_BRAKE_ON_STOP 0), and Bluejay's braking strength to
+        //   its full 255.
+        const double BlheliSExitErpm = 1220, BluejayExitErpm = 1330, BlheliSTick = 0.032, BluejayTick = 0.016;
+        const double BlheliSStopTicks = 250, BrakeStopTicks = 3, TickPhase = 0.5, BlheliSBrakeWait = 0.1;
+
+        /// <summary>A three-phase short's braking torque over the run loop's two-phase short at zero duty, which the DC model's
+        /// Ke and R describe (derived: sinusoidal back-EMF E a phase, no inductance; all three phases shorted dissipate
+        /// 3/2·E²/R_ph, two phases across a commutation's 60° about the line voltage's peak 3E²·(1/2 + 3√3/4π)/(2R_ph) =
+        /// 1.370·E²/R_ph).</summary>
+        public const double ThreePhaseShort = 1.0947;
 
         // The vortex ring (null: none): its spec and stream, the rotor's radius, 2ρA, the held descent branch's inflow over
         // v_h, and the advance ratio a m/s of the ring's inflow makes at 1 rad/s.
@@ -198,6 +234,7 @@ namespace Fpv450.Sim.Flight
                 _hub[i] = m.Position;
                 _limit[i] = m.EscCurrentLimit;
                 _limitVolts[i] = m.EscCurrentLimit * resistance;
+                EscRules(m.EscDisarm, _polePairs[i], out _runExitSpeed[i], out _stopCountExit[i], out _brakeAt[i]);
                 if (draws == null) continue;
                 _unbalance[i] = draws.Unbalance[i];
                 _unbalanceAngle[i] = draws.UnbalanceAngle[i];
@@ -599,6 +636,20 @@ namespace Fpv450.Sim.Flight
             s.RingLatched = (byte)latched;
         }
 
+        // An ESC's disarm rules (the constants above): the run loop's minimum mechanical speed (rad/s), the stop counter's
+        // exit and brake on stop's FETs (s after the disarm), +∞ where its firmware has none.
+        static void EscRules(EscDisarm rule, double polePairs, out double exitSpeed, out double countExit, out double brakeAt)
+        {
+            bool blheli = rule == EscDisarm.BlheliS || rule == EscDisarm.BlheliSBrakeOnStop;
+            bool brake = rule == EscDisarm.BlheliSBrakeOnStop || rule == EscDisarm.BluejayBrakeOnStop;
+            double tick = blheli ? BlheliSTick : BluejayTick;
+            exitSpeed = rule == EscDisarm.Freewheel ? double.PositiveInfinity
+                : (blheli ? BlheliSExitErpm : BluejayExitErpm) / polePairs * (TwoPi / 60);
+            countExit = brake ? (BrakeStopTicks - TickPhase) * tick
+                : rule == EscDisarm.BlheliS ? (BlheliSStopTicks - TickPhase) * tick : double.PositiveInfinity;
+            brakeAt = !brake ? double.PositiveInfinity : blheli ? countExit + BlheliSBrakeWait : countExit;
+        }
+
         /// <summary>
         /// One sub-step of h seconds with the controller's duty commands (0–1); driving is false while disarmed. The
         /// state's ESC commands, rotor speeds and charges advance; loads gathers the thrust, the reaction and the
@@ -613,21 +664,46 @@ namespace Fpv450.Sim.Flight
                 s.EscCommand[i] = d + ((driving ? duty[i] : 0) - d) * h / (_escTau[i] + h);
             }
 
+            // The ESCs' modes (EscDisarm): armed, each drives; disarmed, each stays in its run loop until its firmware
+            // leaves it (below its minimum speed, or past its stop counter), then lets its motor coast, or with brake on
+            // stop turns on its low-side FETs.
+            if (driving)
+            {
+                _stopLoops = 0;
+                _escOff = 0;
+                _escBrake = 0;
+            }
+            else
+            {
+                if (_stopLoops < int.MaxValue) _stopLoops++;
+                double since = _stopLoops * h;
+                for (int i = 0; i < 4; i++)
+                {
+                    int bit = 1 << i;
+                    if ((_escOff & bit) != 0 || (s.RotorSpeed[i] >= _runExitSpeed[i] && since < _stopCountExit[i])) continue;
+                    _escOff |= bit;
+                    if (_brakeAt[i] < double.PositiveInfinity) _escBrake |= bit;
+                }
+            }
+            int running = driving ? 0xF : ~_escOff & 0xF;
+
             // The bus: the packs' Thevenin source, loaded by the free ESCs, I = Σ d·(d·V − Ke·ω)/R, and by the limited
             // ones, Σ (I_lim·R + Ke·ω)·I_lim / V. An ESC is limited when its motor's current at the bus's voltage would
-            // pass its limit; limiting one raises the voltage, so the set only grows and four rounds settle it.
+            // pass its limit; limiting one raises the voltage, so the set only grows and four rounds settle it. A disarmed
+            // ESC still in its run loop loads the bus at its decaying duty and is never limited (its current brakes).
             double voc0 = OpenCircuitVolts(0, s.PackCharge0), voc1 = OpenCircuitVolts(1, s.PackCharge1);
             double g = _conductance[0] + _conductance[1];
             double vth = (_conductance[0] * voc0 + _conductance[1] * voc1) / g, rth = 1 / g;
             double volts = Bus(vth, rth, 0, 0, 0);
             int limited = 0;
-            if (driving)
+            if (running != 0)
             {
                 for (int round = 0; round < 5; round++)
                 {
                     double load = 0, emf = 0, power = 0;
                     for (int i = 0; i < 4; i++)
                     {
+                        if ((running & (1 << i)) == 0) continue;
                         double d = s.EscCommand[i];
                         if ((limited & (1 << i)) != 0)
                         {
@@ -639,7 +715,7 @@ namespace Fpv450.Sim.Flight
                     }
                     volts = Bus(vth, rth, load, emf, power);
                     int more = 0;
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; driving && i < 4; i++)
                         if ((limited & (1 << i)) == 0 && (s.EscCommand[i] * volts - _ke[i] * s.RotorSpeed[i]) * _invR[i] > _limit[i])
                             more |= 1 << i;
                     if (more == 0) break;
@@ -650,14 +726,17 @@ namespace Fpv450.Sim.Flight
             for (int i = 0; i < 4; i++)
             {
                 double w = s.RotorSpeed[i], d = s.EscCommand[i], ke = _ke[i];
-                bool held = (limited & (1 << i)) != 0;
-                double current = !driving ? 0 : held ? _limit[i] : (d * volts - ke * w) * _invR[i];
-                double drive = held ? (_limitVolts[i] + ke * w) / volts : d;
+                int bit = 1 << i;
+                bool run = (running & bit) != 0, held = (limited & bit) != 0;
+                bool brake = !run && (_escBrake & bit) != 0 && _stopLoops * h >= _brakeAt[i];
+                double current = held ? _limit[i] : run ? (d * volts - ke * w) * _invR[i] : brake ? -ThreePhaseShort * ke * w * _invR[i] : 0;
+                double drive = held ? (_limitVolts[i] + ke * w) / volts : run ? d : 0;
                 double q = _torque[i];
                 double loss = w > 0 ? _friction[i] : 0;
                 double rate = (ke * current - loss - q) / _inertia[i];
-                // A free motor's current falls as it speeds up (Ke²/R); a limited one's is held, so only the prop damps.
-                double slope = -((driving && !held ? ke * ke * _invR[i] : 0) + (w > 0 ? 2 * q / w : 0)) / _inertia[i];
+                // A free motor's current falls as it speeds up (Ke²/R), a shorted one's too; a limited one's is held, so only
+                // the prop damps.
+                double slope = -((run && !held ? ke * ke * _invR[i] : brake ? ThreePhaseShort * ke * ke * _invR[i] : 0) + (w > 0 ? 2 * q / w : 0)) / _inertia[i];
                 double next = w + h * rate / (1 - h * slope);
                 if (next < 0) next = 0;
                 RotorAero(i, next, out double thrust, out double torque);

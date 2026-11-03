@@ -195,7 +195,7 @@ namespace Fpv450.Sim.Log
         /// <summary>The propulsion's fields the header records, checked against the structs by the suite.</summary>
         public static readonly string[] PropulsionFieldsLogged = { "Motors", "Props", "Packs" };
         public static readonly string[] MotorFieldsLogged =
-            { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau", "EscCurrentLimit" };
+            { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau", "EscCurrentLimit", "EscDisarm" };
         public static readonly string[] PropsFieldsLogged =
         {
             "Diameter", "Blades", "Pitch", "ThrustCoefficient", "TorqueRatio", "ReferenceRpm", "StaticRpm", "StaticThrustRatio",
@@ -660,6 +660,7 @@ namespace Fpv450.Sim.Log
                     e.Write(m.MagnetPoles);
                     e.Write(m.EscTau);
                     e.Write(m.EscCurrentLimit);
+                    e.Write((int)m.EscDisarm);
                 }
                 DroneProps p = Propulsion.Props;
                 e.Write(p.Diameter);
@@ -1596,7 +1597,7 @@ namespace Fpv450.Sim.Log
                 {
                     Position = V3(r), Clockwise = r.ReadBoolean(), Kv = r.ReadDouble(), Resistance = r.ReadDouble(),
                     NoLoadCurrent = r.ReadDouble(), RotorInertia = r.ReadDouble(), MagnetPoles = r.ReadInt32(), EscTau = r.ReadDouble(),
-                    EscCurrentLimit = r.ReadDouble(),
+                    EscCurrentLimit = r.ReadDouble(), EscDisarm = (EscDisarm)r.ReadInt32(),
                 };
             }
             spec.Props = new DroneProps

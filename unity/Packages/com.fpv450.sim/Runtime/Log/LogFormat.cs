@@ -104,8 +104,11 @@ namespace Fpv450.Sim.Log
         ///    17 and p7d-tether's 21 merged onto 16: the wind entry's cuts (20's), the contacts entry's material fields and
         ///    surfaces.json's table (17's), and the tether entry at tag 25 with the line's launch, the record's tether block
         ///    and the events Payout, TetherWedge and WorldBug (21's) together; the record is 21's 2008 bytes.
+        /// 25–31: assigned elsewhere (D-072).
+        /// 32: the ESC's disarm (p6-flight-core 1.6c, model 42; assigned by D-072): each motor of the propulsion entry gains
+        ///    its ESC's disarm rule (EscDisarm, an int32) after its current limit; the record is 21's 2008 bytes.
         /// </summary>
-        public const int Version = 24;
+        public const int Version = 32;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -268,8 +271,14 @@ namespace Fpv450.Sim.Log
         ///    nothing (S04's overlapping straw tiles: a part sunk in one lay inside a neighbour's side face, and the legs took
         ///    that face's horizontal normal for a contact). A flight whose parts never meet such a face, and any flight
         ///    without the layers' area laws, steps as in 36; the record is unchanged.
+        /// 39–41: assigned elsewhere (D-072).
+        /// 42: the ESC's disarm (on 38; p6-flight-core 1.6c, Propulsion, EscDisarm): disarmed, the class's BLHeli_S stays in its
+        ///    run loop at zero power with damped light's complementary PWM, so the motor brakes as the DC model at d = 0 (i =
+        ///    −Ke·ω/R, no supply current) until about 1220 eRPM, then coasts; Bluejay alike to about 1330 eRPM; brake on stop
+        ///    then shorts the three phases. A motor whose spec names no rule (EscDisarm.Freewheel) coasts at once as in 38, and
+        ///    a flight that never disarms with its rotors turning steps as in 38; the record is unchanged.
         /// </summary>
-        public const int ModelVersion = 38;
+        public const int ModelVersion = 42;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
