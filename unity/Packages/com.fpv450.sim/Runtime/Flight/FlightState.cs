@@ -77,5 +77,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The airframe's elastic modes (AirframeModes, p7b-airframe 1.4): each mode's coordinate (mass-normalised,
         /// m·√kg) and its rate, lowest first. 0 without the modes.</summary>
         public ModeSet ModeShape, ModeRate;
+
+        /// <summary>The step's blade strikes per rotor and blade (p7a-ground design 9, p7f-damage design 4): what struck each
+        /// blade this step, written by the strikes and read by the damage in the same step; cleared at the step's start.</summary>
+        public BladeStrikes BladeStrikes;
     }
 }

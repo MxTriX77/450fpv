@@ -488,7 +488,7 @@ namespace Fpv450.Sim.Tests
         /// (target(core) gives its id: a runtime object or a placed one), in order.
         /// </summary>
         public static PoleStrike Into(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, Site site, double height, double speed,
-            System.Func<FlightCore, int> target, RuntimeObject[] objects = null, int climbSteps = 3000, double climbRate = 0)
+            System.Func<FlightCore, int> target, RuntimeObject[] objects = null, int climbSteps = 3000, double climbRate = 0, List<FlightEvent> events = null)
         {
             ContactSpec probe = spec.BuildContacts(spec.Nominal, materials, materialsHash);
             double stand = Standing(probe);
@@ -518,6 +518,7 @@ namespace Fpv450.Sim.Tests
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     FlightEvent e = core.Events[i];
+                    events?.Add(e);
                     if (e.Kind == EventKind.Tunnel)
                     {
                         r.Tunnels++;

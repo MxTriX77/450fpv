@@ -105,7 +105,8 @@ namespace Fpv450.Sim.Tests
             recorder.Close();
             Assert.That(recorder.Fault, Is.Null);
             log.Position = 0;
-            ReplayResult replay = FlightReplay.Run(log, id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash);
+            ReplayResult replay = FlightReplay.Run(log, id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash,
+                materialsHash: setup.Contacts.MaterialsHash);
             TestContext.Out.WriteLine(replay.Message + ": " + replay.Steps + " steps, " + replay.Events + " events; wash up to " + r.MostWash.ToString("E2") + " v_h");
             Assert.That(r.MostWash, Is.GreaterThan(0), "the recorded hover re-ingests its wash");
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);

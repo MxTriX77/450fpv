@@ -13,19 +13,23 @@ namespace Fpv450.Replay
     {
         const string Usage =
             "usage:\n"
-            + "  replay <log> [--drone <drone.json>] [--surfaces <surfaces.json>] [--tether <tether.json>]\n"
+            + "  replay <log> [--drone <drone.json>] [--materials <physics_materials.json>] [--surfaces <surfaces.json>] [--tether <tether.json>]\n"
             + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
             + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>]\n"
+            + "  replay --record <log> --graze [--drone <drone.json>]\n"
+            + "                                         fly the test range's wall graze (p7f-damage 1.3: a blade strike\n"
+            + "                                         that chips the front-left blades, the drone flying on) and log it\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
             + "                                         (or the foot and heading --foot gives) in the map's own wind\n"
             + "                                         (its wakes, its belt's canopy and its cuts' cavity flow); --line\n"
             + "                                         flies it on the fiber (the repository's tether.json, or the file given)\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
-            + "drone.json and surfaces.json default to the repository's assets-src/drone/drone.json and assets-src/surfaces.json,\n"
-            + "and tether.json, for a log with the line, to its assets-src/tether.json";
+            + "drone.json, physics_materials.json and surfaces.json default to the repository's assets-src/drone/drone.json,\n"
+            + "assets-src/physics_materials.json and assets-src/surfaces.json, and tether.json, for a log with the line, to its\n"
+            + "assets-src/tether.json";
 
         private static int Main(string[] args)
         {
@@ -73,6 +77,18 @@ namespace Fpv450.Replay
                 }
                 Console.WriteLine($"  drone.json {drone}: 0x{droneHash:X16}");
             }
+            ulong materialsHash = 0;
+            string materials = Option(args, "--materials") ?? (h.Contacts != null && h.Contacts.MaterialsHash != 0 ? ScriptedFlight.RepositoryMaterials() : null);
+            if (materials != null)
+            {
+                materialsHash = ScriptedFlight.MaterialsHash(materials, out string problem);
+                if (problem != null)
+                {
+                    Console.WriteLine("refused: " + problem);
+                    return (int)ReplayOutcome.Refused;
+                }
+                Console.WriteLine($"  physics_materials.json {materials}: 0x{materialsHash:X16}");
+            }
             ulong surfacesHash = 0;
             string surfaces = Option(args, "--surfaces") ?? (h.Contacts?.Surfaces != null ? ScriptedFlight.RepositorySurfaces() : null);
             if (surfaces != null)
@@ -106,7 +122,7 @@ namespace Fpv450.Replay
             Console.WriteLine($"  world '{h.WorldId}' from {where}: 0x{world.ContentHash:X16}");
 
             var clock = Stopwatch.StartNew();
-            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa, surfacesHash, tetherHash);
+            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa, surfacesHash, tetherHash, materialsHash);
             Console.WriteLine("  " + r.Message);
             foreach (string note in r.Notes) Console.WriteLine("  note: " + note);
             Console.WriteLine($"  replayed in {clock.Elapsed.TotalSeconds:F2} s on {LogHeader.CurrentRuntime()}, isa {Host.Isa}; exit {(int)r.Outcome} ({r.Outcome})");
@@ -146,6 +162,16 @@ namespace Fpv450.Replay
             }
             string tether = Option(args, "--tether") ?? (Array.IndexOf(args, "--line") >= 0
                 ? ScriptedFlight.RepositoryTether() ?? throw new ArgumentException("no tether.json found; pass --tether") : null);
+            if (Array.IndexOf(args, "--graze") >= 0)
+            {
+                ScriptedFlight.Recorded g = ScriptedFlight.FlyGraze(path, drone, out string outcome);
+                Console.WriteLine($"record {Path.GetFileName(path)}: the graze along H01_D's south wall on the test range, {g.Counts.Steps} steps, "
+                    + $"{g.Counts.Events} events, {g.Bytes} bytes; {g.WallSeconds:F2} s of wall time");
+                Console.WriteLine("  " + outcome);
+                if (g.Fault == null) return 0;
+                Console.WriteLine("  the log failed: " + g.Fault.Message);
+                return 1;
+            }
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
                 Array.IndexOf(args, "--canopy") >= 0, map, foot, tether);
             LogEnd c = r.Counts;

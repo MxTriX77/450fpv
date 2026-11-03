@@ -533,7 +533,7 @@ namespace Fpv450.Tests.Session
 
             ReplayResult replay;
             using (FileStream f = File.OpenRead(rig.Session.LogPath))
-                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash);
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
             TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
         }

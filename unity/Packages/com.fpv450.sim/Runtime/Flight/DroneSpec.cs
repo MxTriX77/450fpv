@@ -72,6 +72,89 @@ namespace Fpv450.Sim.Flight
         public double HForce;
     }
 
+    /// <summary>
+    /// One prop blade as a structure (drone.json's props.blade, p7f-damage design 1): its stations, the middles of equal
+    /// spans from its root to the tip (x = r/R), with the chord, the greatest thickness, the chord line's angle to the
+    /// disc plane and the section's fill (its area over chord × thickness) at each; the hub, a cylinder less its bore; and
+    /// the blade's material. Read-only by convention.
+    /// </summary>
+    public sealed class PropBlade
+    {
+        const double Pi = 3.141592653589793;
+
+        /// <summary>Per station: x = r/R, the chord (m), the thickness (m), the section angle (rad) and the fill.</summary>
+        public double[] Stations, Chord, Thickness, SectionAngle, Fill;
+
+        /// <summary>The hub's diameter, its thickness along the shaft and its bore, m.</summary>
+        public double HubDiameter, HubThickness, HubBore;
+
+        /// <summary>The material's values are conditioned (moisture at its 23 °C, 50 % RH equilibrium); false for dry.</summary>
+        public bool Conditioned;
+
+        /// <summary>The material: density (kg/m³), flexural modulus and strength, crush strength (Pa), fracture energy (J/m²),
+        /// the proportional limit (a share of the flexural strength) and the ball-indentation hardness (Pa).</summary>
+        public double Density, FlexuralModulus, FlexuralStrength, CrushStrength, FractureEnergy, ProportionalLimit, Hardness;
+
+        /// <summary>A span's width, r/R.</summary>
+        public double Span => Stations[1] - Stations[0];
+
+        /// <summary>One blade's mass, kg, on a prop of this radius: density × fill × chord × thickness over the spans.</summary>
+        public double BladeMass(double radius)
+        {
+            double sum = 0;
+            for (int k = 0; k < Stations.Length; k++) sum += Fill[k] * Chord[k] * Thickness[k];
+            return Density * radius * Span * sum;
+        }
+
+        /// <summary>The hub's mass, kg.</summary>
+        public double HubMass => Density * Pi / 4 * (HubDiameter * HubDiameter - HubBore * HubBore) * HubThickness;
+
+        /// <summary>The blades' and the hub's moment of inertia about the shaft, kg·m², on a prop of this radius.</summary>
+        public double Inertia(double radius, int blades)
+        {
+            double ro = HubDiameter / 2, ri = HubBore / 2;
+            return blades * BladeInertia(radius) + HubMass / 2 * (ro * ro + ri * ri);
+        }
+
+        /// <summary>One blade's moment of inertia about the shaft, kg·m², on a prop of this radius: its flap inertia about
+        /// the hub's centre too (RotorFlappingSpec.BladeInertia), Σ ρ·fill·c·t·r²·dr over the spans.</summary>
+        public double BladeInertia(double radius)
+        {
+            double sum = 0;
+            for (int k = 0; k < Stations.Length; k++) sum += Fill[k] * Chord[k] * Thickness[k] * Stations[k] * Stations[k];
+            return Density * radius * radius * radius * Span * sum;
+        }
+    }
+
+    /// <summary>
+    /// A motor's internals (drone.json's motors[].internals, p7f-damage design 8 and 9): the turning bell's band, its can
+    /// and back iron, the magnetic gap and the magnets, the shaft, and the two bearings. Heights are above the motor's base
+    /// (the arm top), m.
+    /// </summary>
+    public struct MotorInternals
+    {
+        /// <summary>The bell's band, from and to, m above the base.</summary>
+        public double BellFrom, BellTo;
+
+        /// <summary>The aluminium can's and the steel back iron's thicknesses (m) and yield stresses (Pa).</summary>
+        public double CanThickness, CanYield, BackIronThickness, BackIronYield;
+
+        /// <summary>The air gap and the magnets' radial thickness (m), their remanence B_r (T) and recoil permeability μ_r.</summary>
+        public double Gap, MagnetThickness, MagnetRemanence, MagnetPermeability;
+
+        /// <summary>The shaft's diameter (m), its yield and its tensile strength (Pa).</summary>
+        public double ShaftDiameter, ShaftYield, ShaftUltimate;
+
+        /// <summary>The prop's hub and the lower and upper bearings, m above the base.</summary>
+        public double HubHeight, LowerBearingHeight, UpperBearingHeight;
+
+        /// <summary>A bearing's basic static and dynamic load ratings C0r and Cr (N), its balls, their diameter D_w and the
+        /// ball set's pitch diameter (m).</summary>
+        public double BearingStaticRating, BearingDynamicRating;
+        public int BearingBalls;
+        public double BallDiameter, PitchDiameter;
+    }
+
     /// <summary>One battery pack: its mass part and its cells.</summary>
     public sealed class DronePack
     {
@@ -207,6 +290,13 @@ namespace Fpv450.Sim.Flight
 
         public DroneProps Props;
 
+        /// <summary>One blade of the props as a structure (props.blade, p7f-damage design 1); null for a file without one.</summary>
+        public PropBlade Blade;
+
+        /// <summary>The motors' internals (motors[].internals, p7f-damage design 8 and 9), in Motors' order; null for a file
+        /// without them.</summary>
+        public MotorInternals[] Internals;
+
         /// <summary>The two packs (PHB-03).</summary>
         public DronePack[] Packs;
 
@@ -293,17 +383,29 @@ namespace Fpv450.Sim.Flight
             props.InflowAdvanceRatio = (double[])Props.InflowAdvanceRatio.Clone();
             props.InflowThrustRatio = (double[])Props.InflowThrustRatio.Clone();
             props.InflowTorqueRatio = (double[])Props.InflowTorqueRatio.Clone();
-            return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs };
+            return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs, Rotor = BuildRotor() };
+        }
+
+        /// <summary>The props' blades as elements (DamagedRotorSpec, p7f-damage 1.2): props.blade with the flapping's sections
+        /// (RotorFlappingSpec's lift slope and zero-lift angle), so the drone has one blade; null for a file without
+        /// props.blade.</summary>
+        public DamagedRotorSpec BuildRotor()
+        {
+            if (Blade == null) return null;
+            var sections = new RotorFlappingSpec();
+            return new DamagedRotorSpec { Blade = Blade, LiftSlope = sections.LiftSlope, ZeroLiftAngle = sections.ZeroLiftAngle };
         }
 
         /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
         public AeroSpec BuildAero() => Aero.Clone();
 
         /// <summary>The motors' asymmetry at its researched tolerances (MotorAsymmetry), the props' mass from the parts
-        /// (the rear right prop's, "prop_rr"; the four are alike) and the service speed at the props' reference rpm.</summary>
+        /// (the rear right prop's, "prop_rr"; the four are alike), the service speed at the props' reference rpm, and the
+        /// blades' pitch offsets for the props' blades, none for a file without props.blade (no elements to fly them).</summary>
         public MotorAsymmetry BuildAsymmetry()
         {
-            var a = new MotorAsymmetry { ServiceRpm = Props.ReferenceRpm };
+            var a = new MotorAsymmetry { ServiceRpm = Props.ReferenceRpm, Blades = Props.Blades };
+            if (Blade == null) a.BladePitchBound = 0;
             foreach (DronePart p in Parts)
                 if (p.Name == "prop_rr") a.PropMass = p.Mass;
             return a;
@@ -343,10 +445,11 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>
         /// The rotors' flapping (RotorFlappingSpec) on the props' sheet, in the aero block's air: the radius and blades from
-        /// the props; a blade's flap inertia from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3 (derived, as the
-        /// mass build's rod); the chord at 19 stations from 0.1 R to the tip, linear through the sheet's 18 mm at 0.1 R
-        /// (assumed), 26 mm at 0.3 R and 8 mm at the tip (the sheet, docs/object-sheets/drone.md); the angle there the
-        /// props' helix less the zero-lift angle.
+        /// the props; a blade's flap inertia from props.blade's table (PropBlade.BladeInertia, p7f-damage 1.2: the drone has
+        /// one blade), or, for a file without the table, from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3
+        /// (derived, as the mass build's rod); the chord at 19 stations from 0.1 R to the tip, linear through the sheet's
+        /// 18 mm at 0.1 R (assumed), 26 mm at 0.3 R and 8 mm at the tip (the sheet, docs/object-sheets/drone.md); the angle
+        /// there the props' helix less the zero-lift angle.
         /// </summary>
         public RotorFlappingSpec BuildFlapping()
         {
@@ -356,7 +459,7 @@ namespace Fpv450.Sim.Flight
             var f = new RotorFlappingSpec
             {
                 AirDensity = Aero.AirDensity, Radius = radius, Blades = Props.Blades,
-                BladeInertia = mass / Props.Blades * radius * radius / 3,
+                BladeInertia = Blade != null ? Blade.BladeInertia(radius) : mass / Props.Blades * radius * radius / 3,
                 Stations = new double[19], Chords = new double[19], Angles = new double[19],
             };
             for (int k = 0; k < 19; k++)
@@ -411,6 +514,10 @@ namespace Fpv450.Sim.Flight
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
             c.Surfaces = surfaces?.Clone();
+            // The blades' flap stiffness in a strike is the flapping's (p7f-damage design 5): one source for both.
+            RotorFlappingSpec f = new RotorFlappingSpec();
+            c.FlapFrequency = f.BendingFrequency;
+            c.FlapSouthwell = f.Southwell;
             return c;
         }
 
@@ -483,6 +590,9 @@ namespace Fpv450.Sim.Flight
 
             void Fail(string path, string what) => Problems.Add(path + ": " + what);
 
+            // While true (props.blade, motors[].internals: p7f-damage), a labelled value needs its note too.
+            bool _noted;
+
             public DroneSpec Read(JsonNode root)
             {
                 var spec = new DroneSpec
@@ -521,8 +631,8 @@ namespace Fpv450.Sim.Flight
 
                 JsonNode n;
                 if ((n = Required(root, "parts", top)) != null) spec.Parts = ReadParts(n);
-                if ((n = Required(root, "motors", top)) != null) ReadMotors(n, spec.Motors);
-                if ((n = Required(root, "props", top)) != null) spec.Props = ReadProps(n);
+                if ((n = Required(root, "motors", top)) != null) ReadMotors(n, spec);
+                if ((n = Required(root, "props", top)) != null) spec.Props = ReadProps(n, spec);
                 if ((n = Required(root, "packs", top)) != null) ReadPacks(n, spec);
                 if ((n = Required(root, "legs", top)) != null) ReadLegs(n, spec);
                 if ((n = Required(root, "coil", top)) != null) spec.Coil = ReadCoil(n, spec);
@@ -551,11 +661,10 @@ namespace Fpv450.Sim.Flight
                 var c = new Contact.ContactSpec();
                 const string at = "contacts";
                 if (!IsObject(p, at)) return c;
-                Members(p, at, "margin_m", "crash_accel_m_s2", "crash_prop_speed_m_s", "impact_window_s", "impact_speed_m_s",
+                Members(p, at, "margin_m", "crash_accel_m_s2", "impact_window_s", "impact_speed_m_s",
                     "friction_stiffness_ratio", "damping_mass_share", "ground_friction_static", "ground_friction_kinetic", "ring_segments", "shapes");
                 c.Margin = Positive(p, "margin_m", at);
                 c.CrashAccel = Positive(p, "crash_accel_m_s2", at);
-                c.CrashPropSpeed = Positive(p, "crash_prop_speed_m_s", at);
                 c.ImpactWindow = Positive(p, "impact_window_s", at);
                 c.ImpactSpeed = Positive(p, "impact_speed_m_s", at);
                 c.FrictionStiffnessRatio = Positive(p, "friction_stiffness_ratio", at);
@@ -671,18 +780,21 @@ namespace Fpv450.Sim.Flight
                 return parts;
             }
 
-            void ReadMotors(JsonNode list, DroneMotor[] motors)
+            // After the parts, which the internals check against.
+            void ReadMotors(JsonNode list, DroneSpec spec)
             {
+                DroneMotor[] motors = spec.Motors;
                 if (!IsArray(list, "motors", 4)) return;
                 if (list.Items.Count != 4) Fail("motors", "a quad has 4 motors, in Betaflight's Quad X order");
                 var spins = new string[4];
+                int withInternals = 0;
                 for (int i = 0; i < 4 && i < list.Items.Count; i++)
                 {
                     JsonNode m = list.Items[i];
                     string path = "motors[" + i + "] (" + Corner[i] + ")";
                     if (!IsObject(m, path)) continue;
                     Members(m, path, "position_m", "spin", "kv_rpm_per_v", "resistance_ohm", "no_load_current_a",
-                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s", "esc_current_limit_a");
+                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s", "esc_current_limit_a", "internals");
                     ref DroneMotor motor = ref motors[i];
                     if (Vector(m, "position_m", path, out motor.Position)) AtCorner(motor.Position, i, path + ".position_m");
                     spins[i] = Text(m, "spin", path, new[] { "cw", "ccw" });
@@ -695,20 +807,71 @@ namespace Fpv450.Sim.Flight
                     if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
                     motor.EscCurrentLimit = LimitOrNone(m, "esc_current_limit_a", path);
+                    JsonNode internals = m.Member("internals");
+                    if (internals == null) continue;
+                    if (spec.Internals == null) spec.Internals = new MotorInternals[4];
+                    spec.Internals[i] = ReadInternals(internals, path + ".internals", motor, spec, i);
+                    withInternals++;
                 }
+                if (withInternals != 0 && withInternals != list.Items.Count) Fail("motors", "internals go on all four motors or on none");
                 // The diagonal pairs spin alike and the two pairs oppositely, so the rotor torques cancel at hover.
                 if (System.Array.IndexOf(spins, null) < 0
                     && !(spins[0] == spins[3] && spins[1] == spins[2] && spins[0] != spins[1]))
                     Fail("motors", "the diagonal pairs must spin alike and the two pairs oppositely");
             }
 
-            DroneProps ReadProps(JsonNode p)
+            // A motor's internals (p7f-damage design 8, 9), every value with its note, checked against its corner's motor part
+            // ("motor_rr", …) where the file has one: the bell inside the motor's height, the hub at position_m over its base.
+            MotorInternals ReadInternals(JsonNode n, string path, in DroneMotor motor, DroneSpec spec, int corner)
+            {
+                var x = new MotorInternals();
+                if (!IsObject(n, path)) return x;
+                _noted = true;
+                Members(n, path, "bell_band_m", "can_thickness_m", "can_yield_pa", "back_iron_thickness_m", "back_iron_yield_pa", "gap_m",
+                    "magnet_thickness_m", "magnet_remanence_t", "magnet_relative_permeability", "shaft_diameter_m", "shaft_yield_pa",
+                    "shaft_ultimate_pa", "hub_height_m", "bearing_heights_m", "bearing_static_rating_n", "bearing_dynamic_rating_n",
+                    "bearing_balls", "bearing_ball_diameter_m", "bearing_pitch_diameter_m");
+                Pair(n, "bell_band_m", path, out x.BellFrom, out x.BellTo);
+                x.CanThickness = Positive(n, "can_thickness_m", path);
+                x.CanYield = Positive(n, "can_yield_pa", path);
+                x.BackIronThickness = Positive(n, "back_iron_thickness_m", path);
+                x.BackIronYield = Positive(n, "back_iron_yield_pa", path);
+                x.Gap = Positive(n, "gap_m", path);
+                x.MagnetThickness = Positive(n, "magnet_thickness_m", path);
+                x.MagnetRemanence = Positive(n, "magnet_remanence_t", path);
+                x.MagnetPermeability = Positive(n, "magnet_relative_permeability", path);
+                if (x.MagnetPermeability < 1) Fail(path + ".magnet_relative_permeability", "a magnet's recoil permeability is at least 1");
+                x.ShaftDiameter = Positive(n, "shaft_diameter_m", path);
+                x.ShaftYield = Positive(n, "shaft_yield_pa", path);
+                x.ShaftUltimate = Positive(n, "shaft_ultimate_pa", path);
+                if (x.ShaftUltimate < x.ShaftYield) Fail(path + ".shaft_ultimate_pa", "is below shaft_yield_pa");
+                x.HubHeight = Positive(n, "hub_height_m", path);
+                Pair(n, "bearing_heights_m", path, out x.LowerBearingHeight, out x.UpperBearingHeight);
+                if (x.UpperBearingHeight >= x.HubHeight) Fail(path + ".bearing_heights_m", "the bearings sit below the prop's hub");
+                x.BearingStaticRating = Positive(n, "bearing_static_rating_n", path);
+                x.BearingDynamicRating = Positive(n, "bearing_dynamic_rating_n", path);
+                x.BearingBalls = Count(n, "bearing_balls", path, 3);
+                x.BallDiameter = Positive(n, "bearing_ball_diameter_m", path);
+                x.PitchDiameter = Positive(n, "bearing_pitch_diameter_m", path);
+                if (x.BallDiameter >= x.PitchDiameter) Fail(path + ".bearing_ball_diameter_m", "a ball is smaller than its set's pitch diameter");
+                _noted = false;
+                int part = spec.PartIndex("motor_" + CornerIds[corner]);
+                if (part < 0) return x;
+                DronePart p = spec.Parts[part];
+                double baseY = p.Position.Y - p.Length / 2;
+                if (x.BellTo > p.Length) Fail(path + ".bell_band_m", "runs past the motor part's " + p.Length + " m");
+                if (DetMath.Abs(motor.Position.Y - baseY - x.HubHeight) > 1e-9)
+                    Fail(path + ".hub_height_m", "must be position_m over the motor part's base, " + (motor.Position.Y - baseY) + " m");
+                return x;
+            }
+
+            DroneProps ReadProps(JsonNode p, DroneSpec spec)
             {
                 var props = new DroneProps();
                 if (!IsObject(p, "props")) return props;
                 Members(p, "props", "diameter_m", "blades", "pitch_m", "k_t_n_per_rad2_s2", "kappa_m", "reference_rpm",
                     "static_rpm", "static_thrust_ratio", "static_torque_ratio",
-                    "inflow_advance_ratio", "inflow_thrust_ratio", "inflow_torque_ratio", "h_force_n_per_m_s");
+                    "inflow_advance_ratio", "inflow_thrust_ratio", "inflow_torque_ratio", "h_force_n_per_m_s", "blade");
                 props.Diameter = Positive(p, "diameter_m", "props");
                 props.Blades = Count(p, "blades", "props", 2);
                 props.Pitch = Positive(p, "pitch_m", "props");
@@ -736,7 +899,70 @@ namespace Fpv450.Sim.Flight
                 if (props.InflowThrustRatio.Length > 0 && props.InflowTorqueRatio.Length > 0
                     && (props.InflowThrustRatio[0] != 1 || props.InflowTorqueRatio[0] != 1))
                     Fail("props.inflow_thrust_ratio", "both ratios must be 1 at J = 0, the static point");
+                JsonNode blade = p.Member("blade");
+                if (blade != null) spec.Blade = ReadBlade(blade, props, spec);
                 return props;
+            }
+
+            // One blade as a structure (p7f-damage design 1), every value with its note: equal spans whose last ends at the
+            // tip, sections thinner than their chords, and the blades and the hub weighing the prop part ("prop_rr") within 0.1 g.
+            PropBlade ReadBlade(JsonNode n, in DroneProps props, DroneSpec spec)
+            {
+                const string at = "props.blade";
+                var b = new PropBlade { Stations = new double[0], Chord = new double[0], Thickness = new double[0], SectionAngle = new double[0], Fill = new double[0] };
+                if (!IsObject(n, at)) return b;
+                _noted = true;
+                int before = Problems.Count;
+                Members(n, at, "stations_r_over_r", "chord_m", "thickness_m", "section_angle_rad", "fill", "hub_diameter_m", "hub_thickness_m",
+                    "hub_bore_m", "moisture", "density_kg_m3", "flexural_modulus_pa", "flexural_strength_pa", "crush_strength_pa",
+                    "fracture_energy_j_per_m2", "proportional_limit", "hardness_pa");
+                b.Stations = Numbers(n, "stations_r_over_r", at, 2);
+                b.Chord = Numbers(n, "chord_m", at, 2);
+                b.Thickness = Numbers(n, "thickness_m", at, 2);
+                b.SectionAngle = Numbers(n, "section_angle_rad", at, 2);
+                b.Fill = Numbers(n, "fill", at, 2);
+                int count = b.Stations.Length;
+                if (b.Chord.Length != count || b.Thickness.Length != count || b.SectionAngle.Length != count || b.Fill.Length != count)
+                    Fail(at, "chord_m, thickness_m, section_angle_rad and fill need one value per station");
+                else
+                    for (int k = 0; k < count; k++)
+                    {
+                        if (!(b.Thickness[k] > 0 && b.Thickness[k] < b.Chord[k])) Fail(at + ".thickness_m", "station " + k + " is not thinner than its chord, above 0");
+                        if (!(b.Fill[k] > 0 && b.Fill[k] <= 1)) Fail(at + ".fill", "station " + k + " fills 0–1 of its chord × thickness");
+                    }
+                if (count >= 2)
+                {
+                    double span = b.Span;
+                    for (int k = 1; k < count; k++)
+                        if (!(DetMath.Abs(b.Stations[k] - b.Stations[k - 1] - span) <= 1e-9)) Fail(at + ".stations_r_over_r", "the spans must be equal and increase");
+                    if (!(b.Stations[0] - span / 2 > 0)) Fail(at + ".stations_r_over_r", "the root is outside the shaft, above 0");
+                    if (!(DetMath.Abs(b.Stations[count - 1] + span / 2 - 1) <= 1e-9)) Fail(at + ".stations_r_over_r", "the last span ends at the tip, 1");
+                }
+                b.HubDiameter = Positive(n, "hub_diameter_m", at);
+                b.HubThickness = Positive(n, "hub_thickness_m", at);
+                b.HubBore = Positive(n, "hub_bore_m", at);
+                if (b.HubBore >= b.HubDiameter) Fail(at + ".hub_bore_m", "is not inside the hub");
+                JsonNode moisture = Labelled(n, "moisture", at);
+                if (moisture != null)
+                {
+                    if (moisture.Kind == JsonKind.String && (moisture.Text == "dry" || moisture.Text == "conditioned")) b.Conditioned = moisture.Text == "conditioned";
+                    else Fail(at + ".moisture.value", "must be \"dry\" or \"conditioned\"");
+                }
+                b.Density = Positive(n, "density_kg_m3", at);
+                b.FlexuralModulus = Positive(n, "flexural_modulus_pa", at);
+                b.FlexuralStrength = Positive(n, "flexural_strength_pa", at);
+                b.CrushStrength = Positive(n, "crush_strength_pa", at);
+                b.FractureEnergy = Positive(n, "fracture_energy_j_per_m2", at);
+                b.ProportionalLimit = Positive(n, "proportional_limit", at);
+                if (b.ProportionalLimit > 1) Fail(at + ".proportional_limit", "is a share of the flexural strength, at most 1");
+                b.Hardness = Positive(n, "hardness_pa", at);
+                _noted = false;
+                int prop = spec.PartIndex("prop_rr");
+                if (Problems.Count > before || prop < 0 || double.IsNaN(props.Diameter) || props.Blades < 1) return b;
+                double mass = props.Blades * b.BladeMass(props.Diameter / 2) + b.HubMass, part = spec.Parts[prop].Mass;
+                if (!(DetMath.Abs(mass - part) <= 1e-4))
+                    Fail(at + ".thickness_m", "the blades and the hub weigh " + mass * 1000 + " g, not the prop part's " + part * 1000 + " g (within 0.1 g)");
+                return b;
             }
 
             // A curve's points: increasing x (from 0 for the advance ratio) and non-negative ratios, one per point.
@@ -995,6 +1221,7 @@ namespace Fpv450.Sim.Flight
                 }
                 JsonNode note = n.Member("note");
                 if (note != null && note.Kind != JsonKind.String) Fail(path + ".note", "must be words");
+                else if (_noted && (note == null || note.Text.Length == 0)) Fail(path + ".note", "missing: a value here carries its source or its reason");
                 JsonNode value = n.Member("value");
                 if (value == null) { Fail(path + ".value", "missing"); ok = false; }
                 return ok ? value : null;
@@ -1055,6 +1282,20 @@ namespace Fpv450.Sim.Flight
                     else Fail(path + "." + key + ".value[" + i + "]", "must be a number");
                 }
                 return xs;
+            }
+
+            // Two values from 0, the first below the second, [from, to].
+            void Pair(JsonNode o, string key, string path, out double from, out double to)
+            {
+                from = to = double.NaN;
+                double[] xs = Numbers(o, key, path, 2);
+                if (xs.Length == 0) return;
+                if (xs.Length != 2 || !(xs[0] >= 0 && xs[1] > xs[0])) Fail(path + "." + key, "must be [from, to], from 0 and increasing");
+                else
+                {
+                    from = xs[0];
+                    to = xs[1];
+                }
             }
 
             bool Vector(JsonNode o, string key, string path, out Double3 v)

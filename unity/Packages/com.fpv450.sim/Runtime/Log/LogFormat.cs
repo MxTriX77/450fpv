@@ -90,7 +90,6 @@ namespace Fpv450.Sim.Log
         ///    entries; the record is 16's 1904 bytes.
         /// 18: p7d-tether's 14 merged onto the integration's 16: the tether entry at tag 25, after the placement's 24; the
         ///    record is 16's 1904 bytes.
-        /// 19: assigned to p7f-damage (D-072).
         /// 20: p7c-wind 1.10 (design 10, D-071; assigned by D-072): the wind entry's cuts after its canopy strips, a count (0
         ///    for none) and each cut's roof flag, opening at the lip, depth, ends and centre line; the record is 16's 1904
         ///    bytes.
@@ -99,13 +98,35 @@ namespace Fpv450.Sim.Log
         ///    line's force and moment on the drone, its nodes, flags, extra solves and trail), 2008 bytes; the tether entry
         ///    gains the line's launch (its coil part, its spool's mass, its layout, the two-way switch); the events Payout,
         ///    TetherWedge and WorldBug.
-        /// 22–23: assigned to p7a-ground (unused: its 1.12 and 1.13 changed no layout) and p7f-damage (D-072).
+        /// 22: assigned to p7a-ground (unused: its 1.12 and 1.13 changed no layout; D-072).
         /// 24: the physics integration 2 (unity/physics/physics-integration-2, assigned by D-072): p7c-wind's 20, p7a-ground's
         ///    17 and p7d-tether's 21 merged onto 16: the wind entry's cuts (20's), the contacts entry's material fields and
         ///    surfaces.json's table (17's), and the tether entry at tag 25 with the line's launch, the record's tether block
         ///    and the events Payout, TetherWedge and WorldBug (21's) together; the record is 21's 2008 bytes.
+        /// 19, 23, 25 and 26 on p7f-damage (off 16):
+        /// 19: p7f-damage 1.1b, the header's drone internals entry (tag 25): drone.json's hash, its props.blade (the stations'
+        ///    chord, thickness, section angle and fill, the hub and the blade's material) and its motors[].internals; the
+        ///    records are 16's.
+        /// 23: p7f-damage 1.2, the header's propulsion entry with the props' blades as elements (PropulsionSpec.Rotor: the blade's
+        ///    table, the sections' lift slope, zero-lift angle and profile drag) and the asymmetry entry with the blades' pitch
+        ///    bound and count (MotorAsymmetry.BladePitchBound, Blades; the draws are the randomness entry's); the records are 19's.
+        /// 25: p7f-damage 1.1a, the contacts entry's material rows with what a blade meets (MaterialRow.Hardness, CrushStrength,
+        ///    Density); the records are 23's.
+        /// 26: p7f-damage 1.3 (D-072's number), the step record's blade strikes after the rotors' own wakes (FlightState.BladeStrikes:
+        ///    per rotor and blade its kind, count, material, energy, impulse, diameter, cut energy and radius; 384 bytes, 2288 in
+        ///    all), the contacts entry without the prop strike's crash speed (retired) and with the strikes' switch and parameters
+        ///    (ContactSpec.BladeStrikes … FlapSouthwell), and the events BladeStrike (17), BladeDamaged (18) and RotorJammed (19,
+        ///    D-074's kinds).
+        /// 27–29: assigned elsewhere (D-072); 29, the buried face's, unused (model 38 changed no layout).
+        /// 30: the physics integration 2 with p7f-damage (unity/physics/physics-integration-2--damage, assigned by D-072):
+        ///    p7f-damage's 26 merged onto 24: the record is 24's 2008 bytes (through the fiber's block), then 26's blade strikes
+        ///    (384 bytes), 2392 in all; the contacts entry's material rows carry 17's fields, then 25's what a blade meets, then
+        ///    the hash and surfaces.json's table, with 26's strikes' switch and parameters and no crash speed; the tether entry
+        ///    stays at tag 25 and the drone internals entry (19's tag 25) moves to tag 26; the events Payout, TetherWedge and
+        ///    WorldBug (14–16, p7d-tether's) and BladeStrike, BladeDamaged and RotorJammed (17–19, p7f-damage's; 20–22 stay
+        ///    reserved for p7f-damage, D-074).
         /// </summary>
-        public const int Version = 24;
+        public const int Version = 30;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -227,7 +248,6 @@ namespace Fpv450.Sim.Log
         ///    the map's wind (MapWind's belt bearing, MapWorldWind's volume yaw). A flight steps as in 26 wherever the two
         ///    give the same bits; on the test range every call does (815 in worldbench's goldens, 817 in flightbench's, none
         ///    differing), so every golden of 26 holds.
-        /// 29: assigned to p7f-damage (D-072).
         /// 30: p7c-wind 1.10, the wind inside a cut (design 10, D-071; assigned by D-072; Cavity, CutFrame, WindSetup.Cuts,
         ///    MapWind.Cuts): where the body's origin lies in a cut's opening, the field takes the lip as its ground above it,
         ///    an open cut's own cavity flow below it (the field's mean at h_o over the lip across and along the cut, one 2-D
@@ -258,7 +278,6 @@ namespace Fpv450.Sim.Log
         ///    ground; one that touches no layer row no area law or stroke; one without the line (FlightSetup.Tether null) no
         ///    line, its record block zero. With none of them a flight steps as in 28 (as in 26 on the test range, where the
         ///    two Atan2 forms give the same bits).
-        /// 35: assigned elsewhere (D-072).
         /// 36: Betaflight's yaw I (on 34; reference-notes/rate-tracking.md §6): the controller multiplies yaw's Ki by 2.5 after
         ///    the scaling, as pid_init.c's pidInitConfig does without integrated yaw. A flight on i_yaw just under 12, whose
         ///    Ki is 34's ITERM_SCALE × 30 bit for bit (GoldenFlights.Model34YawI), steps as in 34; the record is unchanged.
@@ -268,8 +287,31 @@ namespace Fpv450.Sim.Log
         ///    nothing (S04's overlapping straw tiles: a part sunk in one lay inside a neighbour's side face, and the legs took
         ///    that face's horizontal normal for a contact). A flight whose parts never meet such a face, and any flight
         ///    without the layers' area laws, steps as in 36; the record is unchanged.
+        /// 29 and 35 on p7f-damage (off 26):
+        /// 29: p7f-damage 1.2 (D-072's number): the damaged rotor (DamagedRotor: blade-element momentum theory on what is left of
+        ///    each blade, the thrust and torque through η, the rotor's J less the material lost, the lost material's pull, the
+        ///    blades' unequal lift and drag and the flap sets' couple at each sub-step) and each blade's factory pitch offset
+        ///    (prop.blade_pitch, ±0.25°), with the flapping's blade inertia from props.blade's table (2.12e-5 kg·m², not the
+        ///    uniform rod's 4.3e-5). A flight on a drone.json without props.blade (no rotor spec, no pitch draws, the rod)
+        ///    steps as in 26; so does one with the pitch bound at 0 and the flapping's inertia at the rod.
+        /// 35: p7f-damage 1.3 (D-072's number): the blades against the shapes their discs cut (PropStrikes: the pass at the nearest
+        ///    point of the shape's cut by the disc's slab, BladeCut; who yields by hardness, the hard face's crush, break, bend and
+        ///    wear, the shape inside the rim's sever or break, the soft face's carve; the pass's work off the rotor, its stop on
+        ///    the face, the body's reaction, tangential impulse and push), each blade's strength drawn from prop.blade_strength,
+        ///    the disc's pairs while their shapes cut its slab within the rim, and no crash by a prop strike (ContactSpec's 3 m/s
+        ///    retired). A flight whose discs cut nothing steps as in 29; one with the strikes off (ContactSpec.BladeStrikes) as in
+        ///    29 but for the crash and the pairs the slab keeps.
+        /// 39: assigned elsewhere (D-072).
+        /// 40: the physics integration 2 with p7f-damage (unity/physics/physics-integration-2--damage, assigned by D-072; the code
+        ///    is the parents' together): p7f-damage's 35 (the damaged rotor, the blades' factory pitch and the flapping's blade
+        ///    inertia from props.blade, 29's; the blades' strikes on the shapes their discs cut, the strength draws and the prop
+        ///    crash retired, 35's) merged onto 38 (the wind inside a cut, the soil, wet ground, the layers' area laws and stroke,
+        ///    the buried face, the fiber line, Betaflight's yaw I). A flight on a drone.json without props.blade steps as in 38;
+        ///    one without the line's mechanisms (no surfaces.json, no area laws, no line, model 34's yaw I; no cut entered)
+        ///    steps as in 35. A blade strike on surfaces.json's soil is still a Glance (p7f-damage 1.1a's soil half and 1.3's
+        ///    carve against its rows are open).
         /// </summary>
-        public const int ModelVersion = 38;
+        public const int ModelVersion = 40;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -283,18 +325,22 @@ namespace Fpv450.Sim.Log
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
-        /// line (p7d-tether 1.6).</summary>
-        public const int StepSize = 2008, EventSize = 72, EndSize = 48;
+        /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3).</summary>
+        public const int StepSize = 2392, EventSize = 72, EndSize = 48;
 
         /// <summary>The record before the fiber's block (model 28's, format 18), over which a flight without the line keeps
-        /// model 28's bits.</summary>
+        /// model 28's bits; it is also p7f-damage's model 29 record, before the blades' strikes.</summary>
         public const int Model28StepSize = 1904;
+
+        /// <summary>The record before the blades' strikes (models 31–38's, formats 21–24: through the fiber's block), over which
+        /// a flight without props.blade keeps model 38's bits.</summary>
+        public const int Model38StepSize = 2008;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow", "BladeStrikes" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -456,6 +502,23 @@ namespace Fpv450.Sim.Log
             b.Add("tether.flags", "bit 0 paying out, 1 coil empty, 2 clipped, 3 safe step, 4 wedge, 5 two-way spool", LogFieldType.U8);
             b.Add("tether.corrections", "the chain's extra solves this step", LogFieldType.U8);
             b.Add("tether.trail", "the laid trail's points after the step", LogFieldType.I32);
+            // The blades' strikes this step (p7f-damage 1.3), per rotor and blade.
+            for (int c = 0; c < 4; c++)
+            {
+                for (int blade = 0; blade < 2; blade++)
+                {
+                    string at = "blade_strike." + CornerNames[c] + "." + blade;
+                    b.Add(at + ".kind", "StrikeKind: 0 none, 1 shape, 2 element, 3 wire", LogFieldType.U8);
+                    b.Add(at + ".count", "strikes this step", LogFieldType.U8);
+                    b.Add(at + ".material", "world material id of the last; 0 none", LogFieldType.U16);
+                    b.Add(at + ".reserved", "zero", LogFieldType.Pad, 4);
+                    b.Add(at + ".energy", "J taken from the rotor", LogFieldType.F64);
+                    b.Add(at + ".impulse", "N.s on the drone, the strikes' sum of magnitudes", LogFieldType.F64);
+                    b.Add(at + ".diameter", "m, an element's or a wire's; 0 for a shape", LogFieldType.F64);
+                    b.Add(at + ".cut_energy", "J, an element's cut; 0 for a shape", LogFieldType.F64);
+                    b.Add(at + ".radius", "m, the smallest strike radius on the blade", LogFieldType.F64);
+                }
+            }
             return b.Done(StepSize);
         }
 
@@ -606,6 +669,19 @@ namespace Fpv450.Sim.Log
             w.U8(l.Flags);
             w.U8(l.Corrections);
             w.I32(l.Trail);
+            for (int i = 0; i < BladeStrikes.Slots; i++)
+            {
+                BladeStrike x = s.BladeStrikes[i];
+                w.U8((byte)x.Kind);
+                w.U8(x.Count);
+                w.U16(x.Material);
+                w.Zero(4);
+                w.F64(x.Energy);
+                w.F64(x.Impulse);
+                w.F64(x.Diameter);
+                w.F64(x.CutEnergy);
+                w.F64(x.Radius);
+            }
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -728,6 +804,17 @@ namespace Fpv450.Sim.Log
             l.Flags = r.U8();
             l.Corrections = r.U8();
             l.Trail = r.I32();
+            for (int i = 0; i < BladeStrikes.Slots; i++)
+            {
+                var x = new BladeStrike { Kind = (StrikeKind)r.U8(), Count = r.U8(), Material = r.U16() };
+                r.Skip(4);
+                x.Energy = r.F64();
+                x.Impulse = r.F64();
+                x.Diameter = r.F64();
+                x.CutEnergy = r.F64();
+                x.Radius = r.F64();
+                s.BladeStrikes[i] = x;
+            }
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

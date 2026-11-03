@@ -218,6 +218,70 @@ namespace Fpv450.Sim.Tests
             Assert.Throws<FormatException>(() => DetJson.ParseNumber(text));
         }
 
+        // p7f-damage 1.1b, "The blade's tables are labelled and add up": drone.json's props.blade and motors[].internals
+        // read, every value with its label and its note (the loader refuses one without); the blades and the hub weigh the
+        // prop part's 16 g within 0.1 g; with the bell they turn inside the rotor inertia's ±30 % band; and a copy without one
+        // material value, without a note or with a blade of the wrong mass is refused, naming the field.
+        [Test]
+        public void TheBladesTablesAreLabelledAndAddUp()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            PropBlade b = spec.Blade;
+            Assert.That(b, Is.Not.Null, "props.blade");
+            Assert.That(spec.Internals, Has.Length.EqualTo(4), "motors[].internals");
+            Assert.That(b.Stations.Length, Is.EqualTo(40));
+            Assert.That(b.Conditioned, Is.True, "the in-service blade's material");
+
+            double radius = spec.Props.Diameter / 2, prop = spec.Parts[spec.PartIndex("prop_rr")].Mass;
+            Assert.That(prop, Is.EqualTo(0.016));
+            Assert.That(spec.Props.Blades * b.BladeMass(radius) + b.HubMass, Is.EqualTo(prop).Within(1e-4), "the blades and the hub");
+            // The rotor's inertia (6.0e-5 kg·m², ±30 %) is the prop's and the bell's, about 35 g of magnets and can at 17 mm
+            // (rotor_inertia_kg_m2's note): the blades and the hub with that bell are inside its band.
+            double rotor = spec.Motors[0].RotorInertia, bell = 0.035 * 0.017 * 0.017;
+            Assert.That(b.Inertia(radius, spec.Props.Blades) + bell, Is.InRange(0.7 * rotor, 1.3 * rotor));
+            foreach (MotorInternals m in spec.Internals) Assert.That(m, Is.EqualTo(spec.Internals[0]), "the four motors alike");
+            Assert.That(spec.Internals[0].BearingStaticRating, Is.EqualTo(276), "the 685ZZ's C0r");
+
+            // Each case edits the first line that starts with its key: drops it, drops its note (the blade's last value), or
+            // thickens the root station by 4 mm (0.4 g on the two blades).
+            string text = RepositoryDrone.Text().Replace("\r\n", "\n");
+            foreach ((string key, Func<string, string> edit, string expected) in new (string, Func<string, string>, string)[]
+                     {
+                         ("      \"fracture_energy_j_per_m2\": ", line => "", "props.blade.fracture_energy_j_per_m2: missing"),
+                         ("        \"gap_m\": ", line => "", "motors[0] (rear right).internals.gap_m: missing"),
+                         ("      \"hardness_pa\": ", line => line.Substring(0, line.IndexOf(", \"note\"", StringComparison.Ordinal)) + "}\n",
+                             "props.blade.hardness_pa.note: missing"),
+                         ("      \"thickness_m\": ", line => line.Replace("0.0054041", "0.0094041"), "props.blade.thickness_m: the blades and the hub weigh"),
+                     })
+            {
+                int at = text.IndexOf("\n" + key, StringComparison.Ordinal) + 1, end = text.IndexOf('\n', at) + 1;
+                Assert.That(at, Is.GreaterThan(0), key);
+                string copy = text.Substring(0, at) + edit(text.Substring(at, end - at)) + text.Substring(end);
+                var e = Assert.Throws<DroneSpecException>(() => DroneSpec.Parse(copy), key);
+                Assert.That(string.Join("\n", e.Problems), Does.Contain(expected));
+            }
+        }
+
+        // p7f-damage 1.1b, "A new blade is whole", the tables' half (the blade's state, each tip at 1 and every chord share at
+        // 1, comes with 1.2's BladeState): the file's blade runs from 0.1 R to the tip, with the sheet's chord at every station
+        // (the law the flapping flies) and the pitch's helix with no set.
+        [Test]
+        public void ANewBladeIsWhole()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            PropBlade b = spec.Blade;
+            int last = b.Stations.Length - 1;
+            Assert.That(b.Stations[0] - b.Span / 2, Is.EqualTo(0.1).Within(1e-12), "from 0.1 R");
+            Assert.That(b.Stations[last] + b.Span / 2, Is.EqualTo(1).Within(1e-12), "to the tip");
+            RotorFlappingSpec f = spec.BuildFlapping();
+            for (int k = 0; k <= last; k++)
+            {
+                double x = b.Stations[k], chord = x < 0.3 ? 0.018 + (x - 0.1) / 0.2 * 0.008 : 0.026 - (x - 0.3) / 0.7 * 0.018;
+                Assert.That(b.Chord[k], Is.EqualTo(chord).Within(1e-7), "the sheet's chord at station " + k);
+                Assert.That(b.SectionAngle[k], Is.EqualTo(f.HelixAngle(spec.Props.Pitch, x) + f.ZeroLiftAngle).Within(1e-6), "the helix, no set, at station " + k);
+            }
+        }
+
         static string ReplaceFirst(string s, string find, string replace)
         {
             int i = s.IndexOf(find, StringComparison.Ordinal);

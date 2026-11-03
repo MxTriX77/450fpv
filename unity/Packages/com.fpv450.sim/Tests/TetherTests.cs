@@ -285,8 +285,9 @@ namespace Fpv450.Sim.Tests
                 + $"{allocated} B allocated in the steps");
             Assert.That(core.Tether.PaidOut, Is.GreaterThan(20), "rebuilds happened");
             Assert.That(allocated, Is.EqualTo(0), "0 B in steady state");
+            ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
             ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "floor" ? FlightWorld.Floor() : null, Spec.ContentHash,
-                tetherHash: TetherScenarios.Table().ContentHash);
+                tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);
             Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
             Assert.That(r.Steps, Is.EqualTo(12000));
         }

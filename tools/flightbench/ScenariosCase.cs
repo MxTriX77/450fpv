@@ -199,11 +199,21 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  the band from the tolerances ({AsymmetryScenario.BandDraws} seeds' draws, {AsymmetryScenario.BandQuantile * 100:F1}–"
                 + $"{100 - AsymmetryScenario.BandQuantile * 100:F1} %): roll {band.RollRateLo:E2}–{band.RollRateHi:E2} °/s, yaw {band.YawRateLo:E2}–"
                 + $"{band.YawRateHi:E2} °/s, vibration {band.VibrationLo:E2}–{band.VibrationHi:E2} rad/s per step");
+            AsymmetryScenario.Band before = run.BandWithoutPitch;
+            Console.WriteLine($"  without the blades' pitch draws (before p7f-damage 1.2): roll {before.RollRateLo:E2}–{before.RollRateHi:E2} °/s, yaw {before.YawRateLo:E2}–"
+                + $"{before.YawRateHi:E2} °/s, vibration {before.VibrationLo:E2}–{before.VibrationHi:E2} rad/s per step");
             for (int i = 0; i < AsymmetryScenario.Seeds.Length; i++)
             {
                 AsymmetryScenario.Result on = run.On[i], off = run.Off[i];
                 AsymmetryScenario.Prediction p = run.Predicted[i];
-                bool pass = AsymmetryScenario.InBand(on, band) && AsymmetryScenario.AsPredicted(on, p) && AsymmetryScenario.Steady(on, p)
+                // Since model 40 (the blades' pitch draws under Betaflight's yaw I × 2.5) the anti-gravity boost turns seed 2's
+                // angles past the floor too: p7f-damage 1.2's rule, as the suite's, the I terms with it on, the angles with it off.
+                FlightSetup flat = AsymmetryScenario.Setup(spec, AsymmetryScenario.Seeds[i], true);
+                Fpv450.Sim.Control.FcSettings fc = flat.Settings;
+                fc.anti_gravity = false;
+                flat.Settings = fc;
+                bool pass = AsymmetryScenario.InBand(on, band) && AsymmetryScenario.MomentAsPredicted(on, p)
+                    && AsymmetryScenario.AsPredicted(AsymmetryScenario.Hover(flat), p) && AsymmetryScenario.Steady(on, p)
                     && AsymmetryScenario.NeverStill(on, band) && !AsymmetryScenario.NeverStill(off, band)
                     && off.RollRate <= 0.5 * on.RollRate && off.YawRate <= 0.5 * on.YawRate && off.SideDrift <= 0.5 * on.SideDrift;
                 Row($"seed {AsymmetryScenario.Seeds[i]}", pass, AsymmetryScenario.Describe(on, off, p));

@@ -16,6 +16,9 @@ namespace Fpv450.Sim.Flight
     ///   the bearings' and the iron's friction ("motor.friction"), and its rotor's inertia J, the bell and the prop
     ///   ("motor.inertia"), each × (1 + δ), δ nearly normal, clamped. With Kv they set each motor's time constant
     ///   τ_m = J/(Kt·Ke/R + ∂Q/∂ω), its speed at a duty and its idle, so the four answer one command a little apart.
+    /// - The blades' pitch (p7f-damage design 3, D-059): each blade's sections sit Δθ off the sheet's, Δθ uniform in
+    ///   ±BladePitchBound ("prop.blade_pitch"), flown by the blades' elements (DamagedRotor): their mean a per-rotor thrust and
+    ///   torque offset, their difference a 1/rev hub moment and in-plane force, the baseline shake beside the unbalance's.
     /// </summary>
     public sealed class MotorAsymmetry
     {
@@ -64,6 +67,15 @@ namespace Fpv450.Sim.Flight
         /// drone's climb).</summary>
         public double ServiceRpm = 9000;
 
+        /// <summary>The blades' factory pitch offset's bound, ±rad: 0.25° (assumed: no blade-to-blade pitch tolerance is
+        /// published for moulded props; at the bound the blades' difference makes a 1/rev hub moment of the order of the mass
+        /// unbalance's moment about the centre of mass, p7f-damage design 3). 0 draws none (a drone.json without props.blade,
+        /// whose blades have no elements to fly them: DroneSpec.BuildAsymmetry).</summary>
+        public double BladePitchBound = 0.25 * 3.141592653589793 / 180;
+
+        /// <summary>The props' blades, each drawn its own pitch offset (drone.json's props.blades).</summary>
+        public int Blades = 2;
+
         /// <summary>The permissible residual unbalance U_per = m·G/Ω, kg·m.</summary>
         public double PermissibleUnbalance => PropMass * BalanceGrade / (ServiceRpm * (TwoPi / 60));
 
@@ -72,7 +84,8 @@ namespace Fpv450.Sim.Flight
         /// <summary>
         /// One flight's per-motor draws from random (at the flight's start), each recorded for the header: "motor.kv"
         /// (kv_scale), "esc.lag" (lag_s), "prop.unbalance" (kg_m, then angle_rad), then "motor.resistance",
-        /// "motor.friction" and "motor.inertia" (each a scale), corner by corner.
+        /// "motor.friction" and "motor.inertia" (each a scale), corner by corner; then, with a pitch bound, "prop.blade_pitch"
+        /// (rad), corner by corner and blade by blade.
         /// </summary>
         public Draws DrawFor(FlightRandom random)
         {
@@ -99,6 +112,12 @@ namespace Fpv450.Sim.Flight
             for (int i = 0; i < 4; i++) d.FrictionScale[i] = 1 + random.DrawNormal(ref f, "motor.friction." + Corner(i), FrictionSigma, FrictionBound);
             SeedStream j = random.Open("motor.inertia");
             for (int i = 0; i < 4; i++) d.InertiaScale[i] = 1 + random.DrawNormal(ref j, "motor.inertia." + Corner(i), InertiaSigma, InertiaBound);
+            if (!(BladePitchBound > 0)) return d;
+            d.BladePitch = new double[4 * Blades];
+            SeedStream pitch = random.Open("prop.blade_pitch");
+            for (int i = 0; i < 4; i++)
+                for (int b = 0; b < Blades; b++)
+                    d.BladePitch[i * Blades + b] = random.Draw(ref pitch, "prop.blade_pitch_rad." + Corner(i) + "." + b, -BladePitchBound, BladePitchBound);
             return d;
         }
 
@@ -118,6 +137,9 @@ namespace Fpv450.Sim.Flight
 
             /// <summary>The winding resistance, the no-load current and the rotor inertia over drone.json's (D-064).</summary>
             public double[] ResistanceScale, FrictionScale, InertiaScale;
+
+            /// <summary>Each blade's factory pitch offset, rad, rotor-major (corner × Blades + blade); null without a pitch bound.</summary>
+            public double[] BladePitch;
         }
     }
 }

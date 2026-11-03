@@ -8,7 +8,9 @@ namespace Fpv450.FlightBench
     // on the stub (1.6) and on the test range (1.6b), `--wind-harness` K§8.5's acceptance harness (p7c-wind 1.2), `--shake
     // [first seed]` the throttle-punch shake's distribution on 40 seeds a cell (1–40 by default) and PHY-10's claims on
     // them, failing if one misses. `--landing` holds the touchdowns' toppling and the coil's rock against rigid-body
-    // mechanics (1.6c, D-067). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
+    // mechanics (1.6c, D-067). `--factory [seeds] [first]` flies the factory imbalance's baseline shake on 20 000 seeds by
+    // default (p7f-damage 1.2). `--damage [seeds]` flies the damage harness's first cells along H01_D's wall, 8 seeds a cell by
+    // default (p7f-damage 1.3). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
     // drone and prints the setpoint against the achieved rate and what limits it; `--rate-log <log>...` reads flight logs so.
     internal static class Program
@@ -63,6 +65,24 @@ namespace Fpv450.FlightBench
                 Console.WriteLine("flightbench: landing stability against rigid-body mechanics (p6-flight-core 1.6c, D-067)");
                 return LandingCase.Run() ? 0 : 1;
             }
+            if (args.Length >= 1 && args.Length <= 3 && args[0] == "--factory")
+            {
+                int seeds = 20000, first = 1;
+                if ((args.Length < 2 || int.TryParse(args[1], out seeds) && seeds >= 10) && (args.Length < 3 || int.TryParse(args[2], out first) && first >= 1))
+                {
+                    Console.WriteLine("flightbench: the factory imbalance's baseline shake (p7f-damage 1.2), " + seeds + " seeds' hovers");
+                    return FactoryCase.Run(seeds, first) ? 0 : 1;
+                }
+            }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--damage")
+            {
+                int seeds = 8;
+                if (args.Length < 2 || int.TryParse(args[1], out seeds) && seeds >= 1)
+                {
+                    Console.WriteLine("flightbench: blade strikes on H01_D's wall, the damage harness's first cells (p7f-damage 1.3), " + seeds + " seeds a cell");
+                    return DamageCase.Run(seeds) ? 0 : 1;
+                }
+            }
             if (args.Length >= 1 && args[0] == "--wind-harness")
                 return WindHarnessCase.Run(args);
             if (args.Length == 1 && args[0] == "--rate-tracking")
@@ -78,7 +98,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
             return 2;
         }
     }

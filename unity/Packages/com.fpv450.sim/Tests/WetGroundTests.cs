@@ -315,8 +315,8 @@ namespace Fpv450.Sim.Tests
             // Without the cohesive pull (σ_a 0 in every set) it is model 27's flight, every record and event; with it, model
             // 32's. The flight touches no straw, so the straw row's wet block plays no part. Hashed over model 28's 1904 bytes
             // since model 34 (the line's record; its block is zero without the line), on model 34's yaw I since model 36
-            // (GoldenFlights.Model34YawI).
-            DroneSpec spec = Drone();
+            // (GoldenFlights.Model34YawI), and without props.blade since model 40 (GoldenFlights.WithoutTheBlade: the line's flight).
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json"))));
             SurfaceTable without = SoilScenarios.Table().Clone();
             for (int i = 0; i < without.Surfaces.Length; i++) without.Surfaces[i].Wet.Adhesion = without.Surfaces[i].Saturated.Adhesion = 0;
             foreach ((RainLevel rain, ulong parent, ulong pin) in new[] { (RainLevel.Rain, Model27ContactRainHash, ContactRainHash), (RainLevel.SevereRain, Model27ContactSevereHash, ContactSevereHash) })

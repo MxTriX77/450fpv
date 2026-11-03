@@ -10,7 +10,8 @@ namespace Fpv450.Sim.Contact
         /// <summary>The contacts' acceleration of the body passed ContactSpec.CrashAccel.</summary>
         Acceleration = 1,
 
-        /// <summary>A prop disc entered a rigid shape or the ground faster than ContactSpec.CrashPropSpeed.</summary>
+        /// <summary>Retired at model 35 (p7f-damage 1.3): a prop disc entering a rigid shape or the ground faster than 3 m/s ended
+        /// the flight. A strike now does its own mechanics (PropStrikes) and never ends the flight; old logs keep the value.</summary>
         PropStrike = 2,
     }
 
@@ -49,8 +50,10 @@ namespace Fpv450.Sim.Contact
     /// - A prop disc: its bounding sphere each step; when that meets anything, a chord capsule over each ChordSegments
     ///   of the rim's segments, sized to hold them (1.7: the stand's posts sit inside the sphere, far from the rim); and
     ///   when a chord meets anything, its segments of the ring of capsules round the rim (P4). Both gates only skip
-    ///   capsules that touch nothing, so the ring finds what it found without them. A shape's entry is a PropStrike, and
-    ///   a crash when the shape is rigid or the ground and the entry is fast.
+    ///   capsules that touch nothing, so the ring finds what it found without them. A shape the bounding sphere meets
+    ///   that cuts the disc's slab inside the rim is the disc's too (BladeCut), and a pair lives while its shape cuts the
+    ///   slab within the rim, so a rod that passes the rim into the disc is still met (p7f-damage design 4). A shape's
+    ///   entry is a PropStrike; the blades' passes across it are PropStrikes' (model 35: never a crash).
     /// No restitution coefficient anywhere: a bounce is the stored energy of the compliance and the thrust.
     ///
     /// The soil (p7a-ground 1.10, design 2 and 3), with surfaces.json attached (ContactSpec.Surfaces) at the flight's
@@ -193,6 +196,7 @@ namespace Fpv450.Sim.Contact
         readonly GroundSample[] _samples;
         readonly Double3[] _ring;       // the rim's unit directions in the disc's plane (body xz)
         readonly double[] _chordReach;  // each chord's farthest rim vertex from it, on the unit ring
+        readonly StaticContact[] _gate = new StaticContact[Buffer]; // a disc's bounding sphere's contacts, while the ring queries
 
         // The soil (surfaces.json at the flight's moisture), or null without the table.
         readonly Skid[] _skids;         // by corner
@@ -400,6 +404,20 @@ namespace Fpv450.Sim.Contact
         }
 
         public ContactSpec Spec => _spec;
+
+        /// <summary>A prop disc's pairs now (0 for any other shape): the shapes its slab cuts or its ring touched, in the order
+        /// they came (PropStrikes reads them after each Sense).</summary>
+        public int DiscPairs(int shape) => _shapes[shape].Role == ContactRole.Disc ? _count[shape] : 0;
+
+        /// <summary>A disc's pair k: the world object and its shape, their material and surface.</summary>
+        public void DiscPair(int shape, int k, out int obj, out int objShape, out ushort material, out byte surface)
+        {
+            ref Pair p = ref _pairs[shape * PairsPerShape + k];
+            obj = p.Object;
+            objShape = p.Shape;
+            material = p.Material;
+            surface = p.Surface;
+        }
 
         /// <summary>Impacts so far, and the latest one's peak acceleration (m/s²) and impulse (N·s): the feed's Impact.</summary>
         public int ImpactCount => _impacts;
@@ -1639,6 +1657,8 @@ namespace Fpv450.Sim.Contact
             double r = d.Radius + d.HalfThickness;
             Double3 hubWas = World(was, d.A), hubNow = World(now, d.A);
             int gate = _world.StaticContacts(new Capsule(hubWas, hubWas, r), new Capsule(hubNow, hubNow, r), 0, _buf);
+            int gated = gate < Buffer ? gate : Buffer;
+            for (int j = 0; j < gated; j++) _gate[j] = _buf[j];
             int lost = 0;
             for (int chord = 0; gate > 0 && chord < _chordReach.Length; chord++)
             {
@@ -1683,6 +1703,32 @@ namespace Fpv450.Sim.Contact
                     }
                 }
             }
+            // The slab's cut (p7f-damage design 4): a shape the bounding sphere meets that cuts the disc within the rim is the
+            // disc's, and a pair the ring no longer touches lives while its shape still cuts it, so a rod inside the rim is met.
+            Double3 axis = now.Attitude.Rotate(new Double3(0, 1, 0));
+            for (int j = 0; gate > 0 && j < gated; j++)
+            {
+                StaticContact c = _gate[j];
+                int k = 0;
+                while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
+                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, out BladeCut.Meeting m)) continue;
+                if (k == PairsPerShape)
+                {
+                    lost++;
+                    continue;
+                }
+                _count[i]++;
+                _pairs[first + k] = new Pair
+                {
+                    Object = c.Object, Shape = c.Shape, Material = c.Material, Surface = c.Surface, Time = 2, Seen = true, P = m.Point, Point = m.Point,
+                    N = m.Normal,
+                };
+            }
+            for (int k = 0; k < _count[i]; k++)
+            {
+                ref Pair p = ref _pairs[first + k];
+                if (!p.Seen && Cuts(d, hubNow, axis, p.Object, p.Shape, out _)) p.Seen = true;
+            }
             if (lost > 0) Lost(events, i, lost);
             int kept = 0;
             for (int k = 0; k < _count[i]; k++)
@@ -1699,13 +1745,28 @@ namespace Fpv450.Sim.Contact
                     e.A = p.MadeSpeed;
                     events.Add(e);
                     StartImpact(e, p.MadeSpeed);
-                    bool rigid = RowOf(p).Rigid;
-                    if (!now.Crashed && rigid && p.MadeSpeed > _spec.CrashPropSpeed) Crash(ref now, events, i, p, CrashCause.PropStrike, p.MadeSpeed);
                 }
                 if (kept != k) _pairs[first + kept] = p;
                 kept++;
             }
             _count[i] = kept;
+        }
+
+        // Whether (obj, shape) cuts the disc's slab within its rim at the hub's pose now (BladeCut, the world's geometry now:
+        // a runtime object where it is).
+        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, out BladeCut.Meeting m)
+        {
+            m = default;
+            if (!_world.Geometry(obj, shape, out ShapeGeometry g)) return false;
+            ReadOnlySpan<Double3> chain = default;
+            if (g.Kind == ShapeKind.Wire)
+            {
+                chain = _world.WirePoints(obj, shape);
+                BladeCut.WireWindow(chain, g.Radius, hub, d.Radius + d.HalfThickness, out int lo, out int hi);
+                if (hi < lo) return false;
+                chain = chain.Slice(lo, hi - lo + 2);
+            }
+            return BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m);
         }
 
         static Double3 World(in FlightState s, Double3 body) => s.Position + s.Attitude.Rotate(body);

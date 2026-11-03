@@ -35,21 +35,27 @@ namespace Fpv450.Sim.Flight
         /// <summary>The last step's band outputs' magnitudes, m/s² (X, Y, Z), for a scenario's look at them.</summary>
         public Double3 Last { get; private set; }
 
+        /// <summary>The last step's 50–200 Hz band output itself, body m/s² per axis (a scenario's spectrum of it).</summary>
+        public Double3 LastMid { get; private set; }
+
         /// <summary>One step's acceleration of the mount, body m/s²; a whole field of fieldSteps publishes the RMS.</summary>
         public void Add(in Double3 a, int fieldSteps)
         {
             double x2 = 0, y2 = 0, z2 = 0;
+            Double3 mid = default;
             for (int axis = 0; axis < 3; axis++)
             {
                 double v = axis == 0 ? a.X : axis == 1 ? a.Y : a.Z;
                 double x = Run(_xLow, 1, axis, Run(_xHigh, 0, axis, v));
                 double y = Run(_yLow, 3, axis, Run(_yHigh, 2, axis, v));
                 double z = Run(_zHigh, 4, axis, v);
+                if (axis == 0) mid.X = y; else if (axis == 1) mid.Y = y; else mid.Z = y;
                 x2 += x * x;
                 y2 += y * y;
                 z2 += z * z;
             }
             Last = new Double3(DetMath.Sqrt(x2), DetMath.Sqrt(y2), DetMath.Sqrt(z2));
+            LastMid = mid;
             _sumX += x2;
             _sumY += y2;
             _sumZ += z2;
