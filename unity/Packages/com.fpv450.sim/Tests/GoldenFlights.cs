@@ -413,7 +413,22 @@ namespace Fpv450.Sim.Tests
         // 0.4094 m against 0.4511), 3 impacts against 5, at most 53.8 mm from model 18's path, no crash, at rest on its
         // skids 3.9 mm deeper (0.2479 m against 0.2518; the half-skids 3.5–4.3 mm in, 5.3–5.6 mm at the deepest); 91
         // events against 125.
-        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
+        // Model 26: 0xAAEA31DBFBB13710. The ground merge (ModelVersion 27): re-recorded with p7a-ground 1.10's soil under the
+        // physics line's model 26 (the floor's belt_bare as surfaces.json's soil; D-066's drone, the interference, D-064 and
+        // 1.6c's stick spring). Audited against each parent with the other side off: without surfaces.json it is model 26's
+        // pin, every record and event (WithoutTheSoilTheContactGoldenIsModel26s, kept); on model 22's drone without the
+        // interference and D-064's sources, over 1808 bytes, with the wash on model 19's numbers and its torque at the
+        // freestream's inflow, the stick anchor at the contact point and D-060's field back at z0 0.03 m, σ_u/U 0.135 and the
+        // 1 m cut (temporary edits, reverted), p7a-ground's model 23 pin 0xA248F9B82CF85639, and without the table model 18's
+        // 0x1152D64875230761. It moves from step 2 against model 26 (the first whose forces take the soil) and from step 1
+        // against p7a-ground's (the lighter body), and keeps its course: the climb as model 26's (0.8202 m at 1 s against
+        // 0.8238), no crash; the first touchdown, at 1.55 m/s, sinks the deepest node 5.52 mm (p7a-ground's 5.69 at 1.71 m/s);
+        // D-064's own wake gives the held bounce a fourth impact (4 against p7a-ground's 3; 5 on model 26's rigid floor), which
+        // sets the skids down 24.6 mm from that touchdown, past half a groove's width, on fresh soil (p7a-ground's 5.2 mm,
+        // inside its grooves; without the own wake 3 impacts and 7.4 mm), so it rests on its skids 2.0–2.3 mm in (the grooves
+        // 2.8–3.3 mm at the deepest) at 0.2497 m against p7a-ground's 0.2479 and model 26's 0.2519, 28 mm from both; within
+        // 47 mm and 1.5° of model 26's path and 105 mm and 1.2° of p7a-ground's (the held bounce); 92 events against 125 and 91.
+        public const ulong ContactHash = 0x37C4BFF09B9C22E2UL;
 
         /// <summary>The physics line's model 26 contact golden on the rigid floor, which the flight without surfaces.json keeps (the ground merge's audit, model 27).</summary>
         public const ulong Model26ContactHash = 0xAAEA31DBFBB13710UL;
