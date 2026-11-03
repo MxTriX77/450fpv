@@ -470,11 +470,17 @@ namespace Fpv450.App.Session
                 Contacts = contacts,
                 // The airframe's effects, as the powered golden flies them (GoldenFlights.PoweredSetup): the motors'
                 // asymmetry (drawn from the flight's seed; Calm keeps it, only the wind harness grades Calm without it),
-                // the vortex rings, the ground and ceiling effect, flapping, and the airframe's modes.
+                // the vortex rings, the ground and ceiling effect, each rotor's wake unsteadiness (D-064), flapping, the
+                // rotors in each other's wake (its table built once, behind the loading screen: Prepare), and the
+                // airframe's modes; and, as the replay's pilot flies it (ScriptedFlight), the build as the pilot's hands
+                // set it (D-066).
                 Asymmetry = spec.BuildAsymmetry(),
+                Placement = spec.BuildPlacement(),
                 VortexRing = spec.BuildVortexRing(),
                 GroundEffect = spec.BuildGroundEffect(),
+                RotorWake = spec.BuildRotorWake(),
                 Flapping = spec.BuildFlapping(),
+                Interference = spec.BuildInterference(),
                 Modes = spec.BuildModes(),
                 StartAttitude = new Quat(0, sin, 0, cos),
             };
@@ -489,6 +495,18 @@ namespace Fpv450.App.Session
             }
             inputs.Adjust?.Invoke(setup);
             return setup;
+        }
+
+        /// <summary>
+        /// Builds the rotor interference table of the drone's layout (RotorInterferenceSpec.Table, about 1.3 s), which the
+        /// sim caches for the process, so every flight's FlightCore finds it built: run it off the frame, behind the
+        /// loading screen, before the first flight (FlightSessionHost). Returns the table.
+        /// </summary>
+        public static RotorInterferenceTable Prepare(DroneSpec spec)
+        {
+            var hubs = new Double3[4];
+            for (int i = 0; i < 4; i++) hubs[i] = spec.Motors[i].Position; // Propulsion's hubs
+            return spec.BuildInterference().Table(hubs);
         }
 
         /// <summary>The body origin's height over the ground of the legs-on drone standing on its skids, unloaded.</summary>

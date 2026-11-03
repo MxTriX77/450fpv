@@ -192,7 +192,9 @@ namespace Fpv450.App
                     _view = View.Setup;
                 };
                 _flight.MenuRequested += Menu;
-                _view = View.Flight;
+                // The loading screen stays up while the host prepares the flight off the frame (Update ends it).
+                _flight.Covered = _flight.Host.Preparing;
+                _view = _flight.Host.Preparing ? View.Loading : View.Flight;
             }
             else if (scene.name == BootScene)
             {
@@ -203,6 +205,11 @@ namespace Fpv450.App
 
         void Update()
         {
+            if (_view == View.Loading && _flight != null && !_flight.Host.Preparing)
+            {
+                _flight.Covered = false;
+                _view = View.Flight;
+            }
             Keyboard k = Keyboard.current;
             if (k == null || !k.escapeKey.wasPressedThisFrame) return;
             if (_view == View.Explore) Menu();

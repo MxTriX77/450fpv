@@ -49,6 +49,50 @@ namespace Fpv450.Tests.App
             }
         }
 
+        // p5-drone's bottle and stand as the flight draws them: the build carries both prefabs; the bottle sits at its seat,
+        // drone.json's payload underside, scaled as the mass build scales the part (none at 0 kg); D02, drawn at foot 0 and
+        // yaw 0, stands with every shape of the physics' stand where the flight put it.
+        [Test]
+        public void TheBottleAndTheStandAreDrawnAsThePhysicsHasThem()
+        {
+            DroneModels models = DroneModels.Load();
+            Assert.That(models, Is.Not.Null);
+            Assert.That(models.legsOn != null && models.legsOff != null, "ProjectSetup.Apply's D01 prefabs");
+            Assert.That(models.bottle != null && models.bottle.name == "D01_bottle", "ProjectSetup.Apply's D01_bottle");
+            Assert.That(models.stand != null && models.stand.name == "D02_launch_stand", "ProjectSetup.Apply's D02");
+
+            DroneSpec spec = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile)));
+            DronePart payload = spec.Parts[spec.Payload.Part];
+            Assert.That(DroneModels.BottleSeat.y, Is.EqualTo(payload.Position.Y - payload.Diameter / 2).Within(1e-6), "the payload's underside");
+            Assert.That((DroneModels.BottleSeat.x, DroneModels.BottleSeat.z), Is.EqualTo((0f, 0f)));
+            Assert.That(DroneModels.BottleDrawnKg, Is.EqualTo(payload.Mass), "the bottle is drawn at the file's payload");
+            Assert.That(DroneModels.BottleScale(0), Is.EqualTo(0f), "no payload, no bottle");
+            Assert.That(DroneModels.BottleScale(1.0), Is.EqualTo(1f));
+            Assert.That(DroneModels.BottleScale(0.1), Is.EqualTo(0.4642f).Within(1e-4));
+            Assert.That(DroneModels.BottleScale(2.0), Is.EqualTo(1.2599f).Within(1e-4));
+            foreach (double kg in new[] { 0.1, 0.7, 1.5, 2.0 })
+            {
+                MassModel m = spec.BuildMass(new Loadout { Payload = kg, Legs = true });
+                Assert.That(m.Part(spec.Payload.Part).Diameter / payload.Diameter, Is.EqualTo(DroneModels.BottleScale(kg)).Within(1e-6), kg + " kg: as the mass build scales the part");
+            }
+
+            var drawn = LaunchStand.Build(spec, default, 0, 0);
+            foreach (double yaw in new[] { 0, 0.4, System.Math.PI / 2, System.Math.PI, -2.1 })
+            {
+                var foot = new Double3(40, 1.25, 45);
+                RuntimeObject placed = LaunchStand.Build(spec, foot, yaw, 0);
+                DroneModels.StandPose(placed, out Vector3 at, out Quaternion turn);
+                Assert.That(Vector3.Distance(at, new Vector3(40f, 1.25f, 45f)), Is.LessThan(1e-5f), "yaw " + yaw + ": the foot");
+                for (int s = 0; s < placed.Shapes.Length; s++)
+                {
+                    Vector3 want = V(placed.Shapes[s].Center), got = at + turn * V(drawn.Shapes[s].Center);
+                    Assert.That(Vector3.Distance(got, want), Is.LessThan(1e-5f), "yaw " + yaw + ": shape " + s);
+                }
+            }
+        }
+
+        static Vector3 V(in Double3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
+
         [Test]
         public void TheFeedReadsThePhysicsWhereItIsLive()
         {

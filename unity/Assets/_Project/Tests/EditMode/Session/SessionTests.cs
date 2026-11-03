@@ -108,6 +108,8 @@ namespace Fpv450.Tests.Session
         // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
         // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
         // choices. A field FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        // The build's placement (D-066) is a pilot's flight's, as the replay's pilot flies it (ScriptedFlight); the golden
+        // keeps the file's exact build, so the app's is compared with drone.json's own.
         [Test]
         public void TheFlightFliesTheGoldensEffects()
         {
@@ -118,6 +120,7 @@ namespace Fpv450.Tests.Session
                 Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
                 rig.Session.Start();
                 FlightSetup app = rig.Session.Setup, golden = GoldenFlights.PoweredSetup(_spec);
+                if (golden.Placement == null) golden.Placement = _spec.BuildPlacement();
                 var effects = new List<string>();
                 foreach (FieldInfo f in typeof(FlightSetup).GetFields(BindingFlags.Public | BindingFlags.Instance))
                 {
@@ -129,6 +132,21 @@ namespace Fpv450.Tests.Session
                 if (legs) TestContext.WriteLine("the golden's effects, each flown by the app as the golden flies it: " + string.Join(", ", effects));
                 rig.Session.Dispose();
             }
+        }
+
+        // The rotor interference table (about 1.3 s) is built by Prepare, off the frame behind the loading screen: the
+        // flight's propulsion then flies that very table, so its FlightCore builds none.
+        [Test]
+        public void TheFlightFliesThePreparedInterferenceTable()
+        {
+            RotorInterferenceTable prepared = SessionSetup.Prepare(_spec);
+            Assert.That(prepared, Is.Not.Null);
+            Rig rig = Make(i => i.Choices = new FlightChoices { Wind = WindLevel.Calm });
+            rig.Session.Start();
+            object propulsion = typeof(FlightCore).GetField("_propulsion", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(rig.Session.Core);
+            object flown = propulsion.GetType().GetField("_interferenceTable", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(propulsion);
+            Assert.That(flown, Is.SameAs(prepared), "the flight's table is the prepared one");
+            rig.Session.Dispose();
         }
 
         // Every value an object holds, its fields' in order, doubles bit for bit.

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Fpv450.App.Session;
 using Fpv450.Input;
 using Fpv450.Input.Radio;
@@ -13,6 +14,7 @@ namespace Fpv450.App
     /// <summary>
     /// The flight session in a scene (design 6): it builds a FlightSession from the user's profile folder (the last
     /// setup, the settings, the active calibration) on the app's radio over the test range (FlightWorlds.TestRange),
+    /// prepares its flights off the frame (SessionSetup.Prepare, Preparing), then
     /// starts a flight once the radio is connected (or after StartWaitSeconds on the development keyboard), ticks it
     /// once a frame and ends it when disabled. FlightScene draws it: Session's Poses, State and summary. Without a radio
     /// where the keyboard may not fly, it waits for one; it never gives up on the pilot's radio.
@@ -38,6 +40,13 @@ namespace Fpv450.App
         // A flight is wanted: the first once enabled, then one for each Fly. It starts when it can.
         bool _wanted;
 
+        // The flight's preparation off the frame (SessionSetup.Prepare: the rotor interference table, about 1.3 s).
+        Task _prepared;
+
+        /// <summary>The first flight is being prepared off the frame; AppFlow keeps the loading screen up meanwhile, and no
+        /// flight starts.</summary>
+        public bool Preparing => _prepared != null && !_prepared.IsCompleted;
+
         /// <summary>A flight is wanted (the first, a Fly or a Restart), no radio is connected and the keyboard may not fly:
         /// the scene asks for the radio.</summary>
         public bool WaitingForRadio => Session != null && _wanted && !AppRadio.Reader.Connected && !Inputs.KeyboardAllowed;
@@ -58,6 +67,12 @@ namespace Fpv450.App
                 inputs.Build = Application.version;
                 Inputs = inputs;
                 Session = new FlightSession(inputs);
+                _prepared = Task.Run(() =>
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    SessionSetup.Prepare(drone);
+                    Debug.Log("[FlightSessionHost] the rotor interference table in " + watch.ElapsedMilliseconds + " ms, off the frame");
+                });
             }
             catch (Exception e)
             {
@@ -69,7 +84,7 @@ namespace Fpv450.App
         void Update()
         {
             if (Session == null) return;
-            if (_wanted && (AppRadio.Reader.Connected || (Inputs.KeyboardAllowed && Time.unscaledTime - _enabledAt >= StartWaitSeconds)))
+            if (_wanted && !Preparing && (AppRadio.Reader.Connected || (Inputs.KeyboardAllowed && Time.unscaledTime - _enabledAt >= StartWaitSeconds)))
                 Begin();
             Session?.Tick(Keys());
         }

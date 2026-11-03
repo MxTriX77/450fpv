@@ -167,8 +167,8 @@ namespace Fpv450.EditorSetup
                 throw new InvalidOperationException($"Could not save {BootScenePath}");
         }
 
-        // The flight's drone (p6-input-app 1.4b): p5-drone's D01 prefabs, referenced from a Resources asset so the build
-        // carries them.
+        // The flight's drone (p6-input-app 1.4b): p5-drone's D01 prefabs, its bottle and D02 (the launch stand), referenced
+        // from a Resources asset so the build carries them.
         static void EnsureDroneModels()
         {
             const string path = "Assets/_Project/Scripts/App/Resources/" + DroneModels.ResourceName + ".asset";
@@ -185,6 +185,8 @@ namespace Fpv450.EditorSetup
                 ?? throw new InvalidOperationException($"p5-drone's {variant}.prefab is missing");
             models.legsOn = Prefab("D01_legs_on");
             models.legsOff = Prefab("D01_legs_off");
+            models.bottle = Prefab("D01_bottle");
+            models.stand = Prefab("D02_launch_stand");
             EditorUtility.SetDirty(models);
         }
 

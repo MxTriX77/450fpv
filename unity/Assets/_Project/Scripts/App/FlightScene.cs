@@ -20,7 +20,8 @@ namespace Fpv450.App
     /// The flight over the test range (design 6, APP-04, D-047), put on the loaded TestRange scene by AppFlow. It switches
     /// the range's noclip rig off and takes over its look, then flies a FlightSessionHost:
     /// - the drone at the interpolated PoseFrame (PosePair.Interpolate on the host clock): p5-drone's D01 prefab for the
-    ///   setup's legs (DroneModels), and the launch stand from the flight's runtime object when the legs are off
+    ///   setup's legs (DroneModels) with D01_bottle on it at the payload's size, and D02, the launch stand, where the
+    ///   flight's runtime object stands when the legs are off
     /// - the FPV camera at drone.json's camera.lens_m, 0° uptilt (FEED-02's rig, FpvCamera), through the analog feed and its
     ///   OSD, fed by the physics' signals (FlightFeedSignals)
     /// - the setup's time of day and rain on the look (rain is the overcast preset's sky until the weather's look)
@@ -175,8 +176,8 @@ namespace Fpv450.App
                 Debug.LogError("[Flight] " + e.Message);
             }
             _models = DroneModels.Load();
-            if (_models == null || _models.legsOn == null || _models.legsOff == null)
-                Debug.LogError("[Flight] no Resources/" + DroneModels.ResourceName + " with both D01 prefabs: run Fpv450.EditorSetup.ProjectSetup.Apply");
+            if (_models == null || _models.legsOn == null || _models.legsOff == null || _models.bottle == null || _models.stand == null)
+                Debug.LogError("[Flight] no Resources/" + DroneModels.ResourceName + " with both D01 prefabs, D01_bottle and D02: run Fpv450.EditorSetup.ProjectSetup.Apply");
             _camera.transform.localPosition = CameraMount;
         }
 
@@ -346,17 +347,24 @@ namespace Fpv450.App
             GameObject prefab = _models != null ? _models.For(session.Loadout.Legs) : null;
             if (prefab != null)
             {
-                // Drawn in both views (the parts in the lens's frustum, and the chase view), its colliders gone: PhysX
-                // stays out of the flight, whose contacts are drone.json's.
-                _model = Instantiate(prefab, _body, false);
+                // Drawn in both views (the parts in the lens's frustum, and the chase view).
+                _model = Drawn(prefab, _body);
                 _model.name = DroneName;
-                foreach (Collider c in _model.GetComponentsInChildren<Collider>(true)) Destroy(c);
+                // The bottle on its seat, sized by the payload's mass as the physics' part (D-050); none at 0 kg.
+                float scale = DroneModels.BottleScale(session.Loadout.Payload);
+                if (scale > 0 && _models.bottle != null)
+                {
+                    Transform bottle = Drawn(_models.bottle, _model.transform).transform;
+                    bottle.localPosition = DroneModels.BottleSeat;
+                    bottle.localScale = new Vector3(scale, scale, scale);
+                }
             }
             foreach (RuntimeObject o in session.Setup.RuntimeObjects ?? new RuntimeObject[0])
-                if (o.Name == LaunchStand.Name)
+                if (o.Name == LaunchStand.Name && _models != null && _models.stand != null)
                 {
-                    _stand = StandIn.Boxes(o, _spec != null ? _spec.Stand.Material : "steel");
-                    _stand.transform.SetParent(transform, false);
+                    DroneModels.StandPose(o, out Vector3 foot, out Quaternion turn);
+                    _stand = Drawn(_models.stand, transform);
+                    _stand.transform.SetPositionAndRotation(foot, turn);
                 }
             FlightSetup setup = session.Setup;
             RestPose = new PoseFrame { Position = setup.StartPosition, Attitude = setup.StartAttitude };
@@ -364,6 +372,15 @@ namespace Fpv450.App
             _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
             _signals.Osd.Reset(); // a fresh pack: the filters and the charge used start again
             Look(session.Choices);
+        }
+
+        // A prefab's instance, drawn only: its colliders go, since PhysX stays out of the flight, whose contacts are
+        // drone.json's and the runtime stand's.
+        static GameObject Drawn(GameObject prefab, Transform parent)
+        {
+            GameObject go = Instantiate(prefab, parent, false);
+            foreach (Collider c in go.GetComponentsInChildren<Collider>(true)) Destroy(c);
+            return go;
         }
 
         void Look(FlightChoices c)
