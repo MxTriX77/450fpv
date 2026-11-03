@@ -111,6 +111,10 @@ In Rain every surface SHALL take its wet set and in Severe rain its saturated se
 - **WHEN** the drone rests on each range surface dry, in Rain and in Severe rain
 - **THEN** each wetter set sinks the skids deeper than the drier, and the log header names the rain level and the rows
 
+#### Scenario: Wet straw clings as it lifts
+- **WHEN** the drone is pressed into a level straw mat to its weight and lifted at 10 mm/s, dry, in Rain and in Severe rain
+- **THEN** in rain each corner meets the straw row's wet stiffness in series with its leg, and its pull rises to the row's wet σ_a times the half-skid's footprint within 1 %, falls to zero by its δ_a and does ½·σ_a·δ_a times the footprint of work within 1 %; dry straw holds nothing
+
 ### Requirement: Vegetation acts on the body and legs
 The elements the physics reads SHALL be the ones drawn (S04's top-layer straws, standing stems and twigs; V01's and V13's crown twigs and leaves), returned by `MicroDetailNear` with stable ids and their mechanics from the surfaces table, each element's value drawn by its own id within its row's range, never by the flight. Standing stems and crown twigs SHALL push as rooted cantilevers capped at slide-off and buckling, so the body and legs feel drag and jitter in weeds, straw and crowns (D-059); where a crown has elements its `twig` shell SHALL no longer push; a twig under a skid SHALL roll across its axis; an anchored element that lies over a part at their first touch SHALL be able to hook it, pulling back toward its base until its release force, keyed by its id across cache swaps. Every force SHALL be an element's own; nothing SHALL be added to the pose. The element cache SHALL refresh on the worker at a fixed step after its request, so a late worker changes only the logged hitches.
 
