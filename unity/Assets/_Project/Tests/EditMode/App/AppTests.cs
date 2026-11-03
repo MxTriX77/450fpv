@@ -60,7 +60,7 @@ namespace Fpv450.Tests.App
                 TestContext.WriteLine("physics_materials.json: " + rows.Length + " rows, 0x" + hash.ToString("X16"));
                 Assert.That(hash, Is.EqualTo(MergedMaterialsHash), "the physics integration 2's merged table");
                 Assert.That(System.Array.TrueForAll(rows, r => r.Hardness > 0 && r.Density > 0), "every row's hardness and density");
-                int at = json.IndexOf("\"hardness_pa\"", System.StringComparison.Ordinal);
+                int at = json.IndexOf("\"hardness_pa\"", json.IndexOf("\"materials\"", System.StringComparison.Ordinal), System.StringComparison.Ordinal); // the first row's
                 Assert.That(at, Is.GreaterThan(0));
                 string stripped = json.Substring(0, at) + "\"hardness_pa_gone\"" + json.Substring(at + "\"hardness_pa\"".Length);
                 var refused = Assert.Throws<System.FormatException>(() => PhysicsMaterials.Parse(stripped, out _));

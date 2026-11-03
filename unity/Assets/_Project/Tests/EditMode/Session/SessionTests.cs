@@ -888,7 +888,7 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Damage.Count, Is.GreaterThan(0), "the summary has the damage");
             foreach (PropDamage d in p.Damage)
             {
-                Assert.That((d.Last.Event.Part, d.Slot == PropDamage.JamSlot), Is.EqualTo((prop, false)), "fl's blades, no jam");
+                Assert.That(((int)d.Last.Event.Part, d.Slot == PropDamage.JamSlot), Is.EqualTo((prop, false)), "fl's blades, no jam");
                 Assert.That(d.Last.Event.A, Is.EqualTo(core.Propulsion.Rotor(fl).Blade(d.Slot).TipRadius), "the last event leaves the blade's tip");
                 string line = p.Describe(d);
                 Assert.That(p.Lines(), Has.Member(line));
