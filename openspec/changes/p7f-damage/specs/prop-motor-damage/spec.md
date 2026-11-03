@@ -78,11 +78,11 @@ Each disc pair SHALL take its shape's exact geometry from the world (a runtime o
 A face harder than the blade (by the rows' `hardness_pa`, Rabinowicz's rule) SHALL damage the blade: it SHALL crush the blade back to the meeting radius, or break it at the first station whose bending passes its strength, or, when the face is tilted to the disc and bending clears it for less force than crushing, slap and chip it, bend it past its proportional limit or slide over it and wear it by Archard's law; each pass's energy and the face's push SHALL follow from the mode.
 
 #### Scenario: Grazing a wall trims the tip and pushes the drone off
-- **WHEN** a hovering drone drifts at 0.3 m/s into `H01_D`'s south wall until a prop's rim is 1 mm in, the disc level
-- **THEN** the struck blades are crushed back to the wall in their passes (`BladeDamaged` crush, the length within 1 µm of the geometry, or less when the energy runs out), the rotor's speed dips in each strike's step by √(ω² − 2E/J) within 1e-9 relative, the face's push moves the drone away from the wall, and the energies and impulses per pass are printed
+- **WHEN** a hovering drone drifts at 0.3 m/s into a steel face and into `H01_D`'s south wall (masonry) until a prop's rim is 1 mm in, the disc level
+- **THEN** on the steel the struck blades are crushed back to the face in their passes (`BladeDamaged` crush, the length within 1 µm of the geometry, or less when the energy runs out); on the masonry the friction's edgewise moment at the tip (μ·σ_c·A, μ 0.55) passes a station's edgewise strength before the crush is done, so each blade chips there on its first touch (`BladeDamaged` break near the tip); on both the rotor's speed dips in each strike's step by √(ω² − 2E/J) within 1e-9 relative, the face's push moves the drone away from the wall, and the energies and impulses per pass are printed
 
 #### Scenario: A tilted disc slaps rather than crushes
-- **WHEN** the same drift meets the wall with the drone pitched 20° toward it, and the plane ground under a disc tilted 30°
+- **WHEN** the same drift meets the wall with the drone pitched 20° toward it, and a concrete slab under a disc tilted 30° (the ground's plane and soil take no blade damage until `p7a-ground`'s surfaces: their passes are logged and do no work)
 - **THEN** the blades bend over the face (no crush event) unless a slap's peak moment passes a section's strength, every break or set is logged at its station with its peak moment, and the friction work and the worn volume are printed per pass
 
 #### Scenario: A head-on rod breaks the blade
@@ -97,8 +97,8 @@ A face softer than the blade SHALL be carved at its own crushing pressure over t
 - **THEN** at 1 mm each pass costs the carve's energy and the rotor recovers between passes, at 20 mm the rotor stops on the wood (`RotorJammed`) and turns again as the motor drives it, and the blade is broken only where its cutting force passes a section's strength, each printed
 
 #### Scenario: Props that touch the ground bog down
-- **WHEN** the drone tips over on landing on the dirt track and on S04's bare soil, its props reaching 2 and 10 mm into the ground
-- **THEN** each pass's energy is p·V + m_f·v² within 1e-9 relative, the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, and the blades' leading edges show Archard wear
+- **WHEN** a disc tilted 30° reaches 2 and 10 mm into a soil-like face: the materials table's soil-like row (`sandbag`: dry sand's c·N_c and density), and, once `p7a-ground`'s `surfaces.json` lands, the dirt track's and S04's bare soil when the drone tips over on landing
+- **THEN** each pass's energy is p·V + m_f·v² within 1e-9 relative, the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, and, with the soils' sand share (`p7a-ground`), the blades' leading edges show Archard wear
 
 #### Scenario: Who yields is decided by the material
 - **WHEN** the same 5 mm entry at hover speed meets concrete, steel, masonry, timber, bark, rubber and S04's straw boxes
@@ -109,7 +109,7 @@ Each pass SHALL take its energy from the rotor in the strike's step (a dip, or a
 
 #### Scenario: The strike's impulses balance
 - **WHEN** any strike on a body held free in space
-- **THEN** the angular momentum about the rotor's axis lost by the rotor is the body's gain within 1e-9 relative, the energy the rotor loses equals the pass's work within 1e-9 relative, and the damage first changes the rotor's coefficients in the next step
+- **THEN** the body's angular momentum about its centre of mass plus the rotor's spin changes by the moment of the face's impulse within 1e-9 relative (the rotor's lost spin is the body's reaction about the rotor's axis), the body's momentum changes by the face's impulse within 1e-9 relative, the energy the rotor loses equals the pass's work within 1e-9 relative, and the damage first changes the rotor's coefficients in the next step
 
 #### Scenario: The drone flies on after a wall touch
 - **WHEN** the drone grazes `H01_D`'s wall at 2 m/s with a prop, and again flies into it at 10 m/s
@@ -192,8 +192,8 @@ Scripted scrapes of the props and the motors along the range's wall SHALL make t
 The only new draws SHALL be each blade's factory pitch (`prop.blade_pitch`) and each blade's strength factor (`prop.blade_strength`, nearly normal, σ 5 %, clamped ±12 %), both logged with their bounds; nothing about a strike, the world or the damage SHALL be drawn. Every new state SHALL be preallocated (0 B in steady state), use only + − × ÷ √ and `DetMath`, and keep PLT-04's step budget.
 
 #### Scenario: The strength draws cover their bounds and set the chip
-- **WHEN** the strength draws of 10 000 seeds are taken, and one scripted head-on strike flies on 1000 seeds
-- **THEN** every factor lies within ±12 % with both clamps reached, and the strike's broken length varies across the seeds only through the drawn strength, within the range its bounds give
+- **WHEN** the strength draws of 10 000 seeds are taken, and one scripted strike near its margin flies on 1000 seeds (a slap, whose force is the tip's own dynamics: a crush's force, σ_c·A, scales with the strength as its sections do, so a crush, the masonry graze or the head-on rod, breaks alike at both bounds, printed)
+- **THEN** every factor lies within ±12 % with both clamps reached, and the strike's broken length varies across the seeds only through the drawn strength (one factor, one length), from a chip near the tip on the weakest blades to none on the strongest; a known-wrong fixed chip per strike gives one length on every seed
 
 #### Scenario: The budget holds
 - **WHEN** `flightbench --bench` runs on AC with the power mode printed: the props scraping `H01_D`'s wall for 2 s, a hover with a broken blade, a strike burst into V01_L's trunk, and a prop in the ground on a tipped landing
