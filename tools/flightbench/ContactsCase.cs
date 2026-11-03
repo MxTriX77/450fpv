@@ -80,6 +80,7 @@ namespace Fpv450.FlightBench
             Range(spec, materials, hash);
             Soil(spec);
             WetGround(spec, materials);
+            Layers(spec, materials);
 
             Console.WriteLine($"{Name}: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
@@ -273,6 +274,64 @@ namespace Fpv450.FlightBench
             Row("straw", cw.HookReleaseMax > cd.HookReleaseMax && cw.CutEnergy > cd.CutEnergy,
                 $"hook release {cd.HookReleaseMin:F2}–{cd.HookReleaseMax:F2} N dry, {cw.HookReleaseMin:F2}–{cw.HookReleaseMax:F2} wet; cut energy {cd.CutEnergy:F0} J/m² dry, {cw.CutEnergy:F0} wet");
         }
+
+        // p7a-ground 1.12: compliant layers (design 6), the area laws and the stroke with their known-wrong models (LayerTests
+        // asserts them).
+        static void Layers(DroneSpec spec, MaterialRow[] materials)
+        {
+            MaterialRow straw = Array.Find(materials, m => m.Name == "straw"), fabric = Array.Find(materials, m => m.Name == "fabric");
+            Console.WriteLine("compliant layers (p7a-ground 1.12): a layer row meets each part by its footprint, to 80 % of its thickness, then carries it onto what is beneath");
+
+            Console.WriteLine("a skid meets the straw by its area (pressed level into S04's 0.125 m straw tile on the range to the weight; a corner's load over the straw's compression):");
+            var range = new FlightWorld(RangeScenarios.World);
+            LayerScenarios.Press skid = LayerScenarios.Pressing(LayerScenarios.Setup(spec, range), LayerScenarios.Tile, 1);
+            LayerScenarios.Press foot = LayerScenarios.Pressing(LayerScenarios.ReferenceFeet(LayerScenarios.Setup(spec, range)), LayerScenarios.Tile, 1);
+            LayerScenarios.Press bare = LayerScenarios.Pressing(LayerScenarios.Setup(spec, range, without: "straw"), LayerScenarios.Tile, 1);
+            double ks = skid.Load[0] / skid.Compression[0], kf = foot.Load[0] / foot.Compression[0], kw = bare.Load[0] / bare.Compression[0];
+            Row("the half-skid against the 15 mm reference foot", Math.Abs(ks / kf / 3.03 - 1) < 0.01 && Math.Abs(kf / straw.Stiffness - 1) < 1e-9,
+                $"{ks:F2} N/m against {kf:F2} ({ks / kf:F4} ×, the table's 3.03), pressed {skid.Overlap[0] * 1e3:F2} mm at {skid.Load[0]:F2} N");
+            Row("known-wrong: the straw row without its area law", Math.Abs(kw / kf / 3.03 - 1) < 0.01,
+                $"{kw:F2} N/m ({kw / kf:F4} ×), pressed {bare.Overlap[0] * 1e3:F2} mm, {bare.Overlap[0] / skid.Overlap[0]:F3} × deeper", knownWrong: true);
+
+            Console.WriteLine("a hard landing on a mattress stops at its stroke (pressed level past each layer's stroke load):");
+            var top = new Double3(0, LayerScenarios.FabricDepth, 0);
+            LayerScenarios.Press mattress = LayerScenarios.Pressing(LayerScenarios.Setup(spec, LayerScenarios.MattressFloor()), top, 10, place: LayerScenarios.PlaceMattress);
+            LayerScenarios.Press loose = LayerScenarios.Pressing(LayerScenarios.Setup(spec, LayerScenarios.MattressFloor()), top, 10, double.PositiveInfinity,
+                LayerScenarios.PlaceMattress);
+            double fs = Layer.StrokeShare * LayerScenarios.FabricDepth, kfab = LayerScenarios.HalfSkid(fabric, LayerScenarios.FabricDepth);
+            Row("0.15 m of fabric over the rigid floor, 10 g", Math.Abs(mattress.Compression[0] - fs) < 1e-9 && mattress.Load[0] > kfab * fs && mattress.Allocated == 0,
+                $"a corner's {mattress.Load[0]:F1} N (the stroke at {kfab * fs:F1}): the fabric {mattress.Compression[0] * 1e3:F3} mm, the leg {mattress.Deflection[0] * 1e3:F2} mm");
+            Row("known-wrong: no stroke limit", loose.Compression[0] <= LayerScenarios.FabricDepth,
+                $"the fabric {loose.Compression[0] * 1e3:F1} mm, past its {LayerScenarios.FabricDepth * 1e3:F0} mm: the skid {(loose.Overlap[0] - LayerScenarios.FabricDepth) * 1e3:F1} mm into the floor",
+                knownWrong: true);
+            SurfaceTable table = SoilScenarios.Table();
+            LayerScenarios.Press mat = LayerScenarios.Pressing(LayerScenarios.Setup(spec, range, table), LayerScenarios.Tile, 20);
+            LayerScenarios.Press through = LayerScenarios.Pressing(LayerScenarios.Setup(spec, range, table), LayerScenarios.Tile, 20, double.PositiveInfinity);
+            double ss = Layer.StrokeShare * SoilScenarios.MatDepth, kst = LayerScenarios.HalfSkid(straw, SoilScenarios.MatDepth);
+            ContactModel.SkidSoil sk = mat.Soil[0];
+            Row("S04's 0.125 m straw over its soil box, 20 g", sk.Engaged && Math.Abs(mat.Compression[0] - sk.Sink1 - ss) < 1e-9 && Math.Abs((mat.Load[0] - sk.Static) / (kst * ss) - 1) < 1e-8
+                && Math.Abs(sk.Residual) < 1e-9 && mat.Allocated == 0,
+                $"a corner's {mat.Load[0]:F1} N (the stroke at {kst * ss:F1}): the straw {(mat.Compression[0] - sk.Sink1) * 1e3:F3} mm carrying {mat.Load[0] - sk.Static:F2} N, the soil "
+                + $"under it {sk.Sink1 * 1e3:F3} mm carrying {sk.Static:F2} N by its law (residual {sk.Residual:E1} N)");
+            Row("known-wrong: no stroke limit", through.Compression[0] <= SoilScenarios.MatDepth,
+                $"the straw {through.Compression[0] * 1e3:F1} mm, past its {SoilScenarios.MatDepth * 1e3:F0} mm", knownWrong: true);
+
+            Console.WriteLine("a rest on wet straw stays level (the range golden's flight on S04's straw with surfaces.json; its roll at the end):");
+            MaterialRow[] without = (MaterialRow[])materials.Clone();
+            for (int i = 0; i < without.Length; i++)
+                if (without[i].Name == "straw") without[i].AreaLaw = AreaLaw.None;
+            foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain })
+            {
+                ulong h = GoldenFlights.FlyRange(spec, out FlightCore core, rain: rain, table: table);
+                double roll = Roll(core.State);
+                Row(rain.ToString(), Math.Abs(roll) < 2 && !core.State.Crashed, $"0x{h:X16}, rests rolled {roll:F3}°, {core.Contacts.ImpactCount} impacts");
+            }
+            ulong hw = GoldenFlights.FlyRange(spec, out FlightCore wrong, rain: RainLevel.Rain, table: table, materials: without);
+            Row("known-wrong: Rain, the straw row without its area law", Math.Abs(Roll(wrong.State)) < 2, $"0x{hw:X16}, rests rolled {Roll(wrong.State):F3}°",
+                knownWrong: true);
+        }
+
+        static double Roll(in FlightState s) => Math.Asin(s.Attitude.Rotate(new Double3(1, 0, 0)).Y) * 57.29577951308232;
 
         // A lift's pull against σ_a·S, its release by δ_a and its work against ½·σ_a·δ_a·S, every corner.
         static bool Held(SoilScenarios.Unstick u, double sigma, double release, double footprint, out string detail)
