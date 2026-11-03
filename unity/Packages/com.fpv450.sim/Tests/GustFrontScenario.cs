@@ -22,21 +22,36 @@ namespace Fpv450.Sim.Tests
 
         public const double Seconds = 6, FrontAt = 3; // the front is released after 3 s of hold
 
+        /// <summary>The drone's rearmost air behind its origin, m (derived: the rear discs' rims, drone.json's hubs at
+        /// z −0.160 with r 0.127, 0.287 m, rounded out). The hold's window ends when the front's ramp, Width/2 ahead of
+        /// its plane, reaches it: the field's flight first leaves the uniform field's 8 ms later (model 36).</summary>
+        public const double Rearmost = 0.3;
+
         public struct Result
         {
-            /// <summary>Peak |pitch rate| and |yaw rate| over the passage, rad/s, less each one's peak before it.</summary>
+            /// <summary>Peak |pitch rate| and |yaw rate| over the passage, rad/s, less each one's wobble in the hold.</summary>
             public double Pitch, Yaw, Roll;
+
+            /// <summary>The hold's own wobble: each axis's peak |rate| in the 500 ms before the front's ramp reaches the
+            /// drone (Rearmost), rad/s, measured in this flight. The field's and the uniform field's flights are the same
+            /// bits until then.</summary>
+            public double HoldPitch, HoldYaw, HoldRoll;
 
             /// <summary>The steps of the pitch and the yaw peaks after the front reached the rear hubs.</summary>
             public int PitchStep, YawStep;
         }
 
-        /// <summary>The scenario's pass: pitch and yaw both answer the front (each above 2 °/s, assumed: twice the
-        /// hold's own wobble), together (their peaks within 150 ms), each at least 3× the uniform field's (assumed).</summary>
+        /// <summary>The scenario's floor over the hold's own wobble on each axis (assumed: an answer twice the wobble the
+        /// hold shows before the front reaches the drone stands clear of it).</summary>
+        public const double WobbleShare = 2;
+
+        /// <summary>The scenario's pass: pitch and yaw both answer the front (each above WobbleShare × that axis's wobble
+        /// in the hold before it, measured in the same flight), together (their peaks within 150 ms), each at least 3× the
+        /// uniform field's (assumed).</summary>
         public static bool Coupled(in Result field, in Result uniform)
         {
-            const double floor = 2 / 57.29577951308232;
-            return field.Pitch > floor && field.Yaw > floor && System.Math.Abs(field.PitchStep - field.YawStep) <= 150
+            return field.Pitch > WobbleShare * field.HoldPitch && field.Yaw > WobbleShare * field.HoldYaw
+                && System.Math.Abs(field.PitchStep - field.YawStep) <= 150
                 && field.Pitch >= 3 * uniform.Pitch && field.Yaw >= 3 * uniform.Yaw;
         }
 
@@ -55,6 +70,7 @@ namespace Fpv450.Sim.Tests
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, setup.StartPosition);
             int steps = (int)(Seconds * 1000), arrive = (int)((FrontAt + (StartBehind - 0.2) / Speed) * 1000) - 16;
+            int reached = (int)((FrontAt + (StartBehind - Rearmost - 0.5 * Width) / Speed) * 1000);
             double before = 0, beforeYaw = 0, beforeRoll = 0;
             var r = new Result();
             for (int k = 0; k < steps; k++)
@@ -62,19 +78,23 @@ namespace Fpv450.Sim.Tests
                 core.Advance(pilot.Sticks(core, core.State.Step * FlightCore.StepUs));
                 Double3 w = core.State.BodyRate;
                 double pitch = DetMath.Abs(w.X), yaw = DetMath.Abs(w.Y), roll = DetMath.Abs(w.Z);
-                if (k < arrive - 500) continue;
-                if (k < arrive)
+                if (k < reached - 500) continue;
+                if (k < reached)
                 {
                     before = DetMath.Max(before, pitch);
                     beforeYaw = DetMath.Max(beforeYaw, yaw);
                     beforeRoll = DetMath.Max(beforeRoll, roll);
                     continue;
                 }
+                if (k < arrive) continue;
                 if (k > arrive + 600) break;
                 if (pitch > r.Pitch) { r.Pitch = pitch; r.PitchStep = k - arrive; }
                 if (yaw > r.Yaw) { r.Yaw = yaw; r.YawStep = k - arrive; }
                 r.Roll = DetMath.Max(r.Roll, roll);
             }
+            r.HoldPitch = before;
+            r.HoldYaw = beforeYaw;
+            r.HoldRoll = beforeRoll;
             r.Pitch -= before;
             r.Yaw -= beforeYaw;
             r.Roll -= beforeRoll;

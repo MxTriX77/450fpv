@@ -247,7 +247,9 @@ namespace Fpv450.Sim.Tests
         // The physics integration 2's audit against p7a-ground (model 34 against its 33), kept: over model 28's 1904 bytes, the
         // record less the line's block, the contact golden on the floor's soil and the range golden with the layers' area laws
         // are p7a-ground's model 33 pins, every record and event, and the line's block is zero on every record: the cavity
-        // (neither flight enters a cut's opening), the line's code and its fdlibm Atan2 change neither flight.
+        // (neither flight enters a cut's opening), the line's code and its fdlibm Atan2 change neither flight. Since model 38 the
+        // range flight meets the buried face (ContactModel.Buried) too, as GoldenFlights.Model33RangeOn38Hash: model 33's pin
+        // with it off.
         [Test]
         public void OverModel28sRecordEachGoldenIsModel33s()
         {
@@ -259,7 +261,8 @@ namespace Fpv450.Sim.Tests
                 for (int i = at; i < LogFormat.StepSize; i++) if (record[i] != 0) nonZero++;
             }
             Assert.That(GoldenFlights.FlyContact(spec, out _, layout: at, onRecord: Tail, yawI: false), Is.EqualTo(GoldenFlights.Model33ContactHash), "contact, on the soil");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Tail, yawI: false), Is.EqualTo(GoldenFlights.Model33RangeHash), "range, with the area laws");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Tail, yawI: false), Is.EqualTo(GoldenFlights.Model33RangeOn38Hash),
+                "range, with the area laws and model 38's buried face");
             Assert.That(nonZero, Is.EqualTo(0), "the fiber's block of a flight without the line");
         }
 
@@ -293,7 +296,8 @@ namespace Fpv450.Sim.Tests
         // Betaflight's yaw I's audit (model 36 against 34), kept: on model 34's yaw I (GoldenFlights.Model34YawI, i_yaw just
         // under 12, whose yaw Ki is model 34's ITERM_SCALE × 30 bit for bit) every golden is model 34's pin, every record and
         // event: pid_init.c's × 2.5 on yaw's Ki is the whole move. Each kept audit above against an earlier model flies it too;
-        // the tumble has no rotors and keeps its hash (TheTumbleGoldenIsPinned).
+        // the tumble has no rotors and keeps its hash (TheTumbleGoldenIsPinned). Since model 38 the range flight meets the
+        // buried face too, as GoldenFlights.Model34RangeOn38Hash: model 34's pin with it off.
         [Test]
         public void OnModel34sYawIEachGoldenIsModel34s()
         {
@@ -302,7 +306,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, yawI: false),
                 Is.EqualTo(GoldenFlights.Model34RainPoweredHash), "rain");
             Assert.That(GoldenFlights.FlyContact(spec, out _, yawI: false), Is.EqualTo(GoldenFlights.Model34ContactHash), "contact");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, yawI: false), Is.EqualTo(GoldenFlights.Model34RangeHash), "range");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, yawI: false), Is.EqualTo(GoldenFlights.Model34RangeOn38Hash), "range, with model 38's buried face");
             Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, yawI: false), Is.EqualTo(GoldenFlights.Model34TetherHash), "tether");
         }
 

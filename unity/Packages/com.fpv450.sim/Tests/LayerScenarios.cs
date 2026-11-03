@@ -20,7 +20,8 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>S04's instance 707: the middle of its straw tile 4 (1.82 × 4.59 m, top at y 0, over the patch's soil box),
         /// no other straw tile within 5 cm of a 0.6 × 0.8 m square round it, so a press meets one tile's top alone (where tiles
-        /// overlap, a skid sunk in one meets another's side face: the side-face latch, its own task).</summary>
+        /// overlap, a skid sunk in one lies inside another's side face, a face buried in the mat that carries nothing since
+        /// model 38).</summary>
         public static readonly Double3 Tile = new Double3(-5.7, 0, -9.7);
 
         /// <summary>The drone's contacts at its nominal loadout from the repository's files, with surfaces.json when table is

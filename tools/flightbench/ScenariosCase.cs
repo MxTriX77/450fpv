@@ -187,8 +187,9 @@ namespace Fpv450.FlightBench
             // Per-rotor gradients (PR-3): a gust front crossing the drone tail to nose.
             GustFrontScenario.Result field = GustFrontScenario.Fly(spec, uniform: false), uniform = GustFrontScenario.Fly(spec, uniform: true);
             string Rates(GustFrontScenario.Result r) =>
-                $"peak pitch {r.Pitch * 57.29578:F2} °/s at +{r.PitchStep} ms, yaw {r.Yaw * 57.29578:F2} °/s at +{r.YawStep} ms, roll {r.Roll * 57.29578:F2} °/s";
-            Row("a gust front crossing the drone: coupled pitch and yaw, each 3× the uniform field's or more",
+                $"peak pitch {r.Pitch * 57.29578:F2} °/s at +{r.PitchStep} ms, yaw {r.Yaw * 57.29578:F2} °/s at +{r.YawStep} ms, roll {r.Roll * 57.29578:F2} °/s "
+                + $"over the hold's own wobble {r.HoldPitch * 57.29578:G3}, {r.HoldYaw * 57.29578:G3} and {r.HoldRoll * 57.29578:G3} °/s";
+            Row($"a gust front crossing the drone: coupled pitch and yaw, each over {GustFrontScenario.WobbleShare:F0}× the hold's own wobble and 3× the uniform field's or more",
                 GustFrontScenario.Coupled(field, uniform), Rates(field) + "; the uniform field " + Rates(uniform));
             Row("known-wrong: the uniform field", GustFrontScenario.Coupled(uniform, uniform), Rates(uniform), knownWrong: true);
             Console.WriteLine("motor asymmetry (airframe-effects, p7b-airframe 1.1): a hands-off hover in still air, "

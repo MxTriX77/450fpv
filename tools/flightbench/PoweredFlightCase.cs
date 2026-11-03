@@ -179,10 +179,10 @@ namespace Fpv450.FlightBench
                 && r28 == GoldenFlights.Model28RainHash && t28 == GoldenFlights.Model28TumbleHash && tail == 0;
             Console.WriteLine($"without the line, over model 28's 1904 bytes: powered 0x{a28:X16}, contact (no soil) 0x{c28:X16}, range (no area laws) 0x{g28:X16}, "
                 + $"rain 0x{r28:X16}, tumble 0x{t28:X16} ({(k28 ? "model 28's, bit for bit" : "NOT model 28's")}), {tail} non-zero bytes in the fiber's block: {(k28 ? "PASS" : "FAIL")}");
-            bool k33 = c33 == GoldenFlights.Model33ContactHash && g33 == GoldenFlights.Model33RangeHash && tail == 0;
+            bool k33 = c33 == GoldenFlights.Model33ContactHash && g33 == GoldenFlights.Model33RangeOn38Hash && tail == 0;
             k28 &= k33;
             Console.WriteLine($"without the line, over model 28's 1904 bytes, with the soil and the area laws: contact 0x{c33:X16}, range 0x{g33:X16} "
-                + $"({(k33 ? "p7a-ground's model 33, bit for bit" : "NOT model 33's")}): {(k33 ? "PASS" : "FAIL")}");
+                + $"({(k33 ? "p7a-ground's model 33, bit for bit; the range with model 38's buried face" : "NOT model 33's")}): {(k33 ? "PASS" : "FAIL")}");
             // p7d-tether 1.6: the contact flight with the line.
             ulong line = GoldenFlights.FlyContact(Drone(), out FlightCore l, tether: true);
             bool lok = line == GoldenFlights.TetherHash && l.Tether.PaidOut > 0 && l.Tether.Chain.Wedges == 0 && !l.State.Crashed;
@@ -202,10 +202,10 @@ namespace Fpv450.FlightBench
                 y34g = GoldenFlights.FlyRange(Drone(), out _, yawI: false),
                 y34r = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, yawI: false),
                 y34l = GoldenFlights.FlyContact(Drone(), out _, tether: true, yawI: false);
-            bool y34 = y34p == GoldenFlights.Model34PoweredHash && y34c == GoldenFlights.Model34ContactHash && y34g == GoldenFlights.Model34RangeHash
+            bool y34 = y34p == GoldenFlights.Model34PoweredHash && y34c == GoldenFlights.Model34ContactHash && y34g == GoldenFlights.Model34RangeOn38Hash
                 && y34r == GoldenFlights.Model34RainPoweredHash && y34l == GoldenFlights.Model34TetherHash;
             Console.WriteLine($"on model 34's yaw I (i_yaw {GoldenFlights.Model34YawI:R}): powered 0x{y34p:X16}, contact 0x{y34c:X16}, range 0x{y34g:X16}, "
-                + $"rain 0x{y34r:X16}, tether 0x{y34l:X16} ({(y34 ? "model 34's, bit for bit" : "NOT model 34's")}): {(y34 ? "PASS" : "FAIL")}");
+                + $"rain 0x{y34r:X16}, tether 0x{y34l:X16} ({(y34 ? "model 34's, bit for bit; the range with model 38's buried face" : "NOT model 34's")}): {(y34 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34;
         }
 

@@ -212,8 +212,8 @@ namespace Fpv450.FlightBench
             }
             Console.WriteLine("  (information) in rain the wet groove's cohesive pull (1.13) holds each half-skid by up to σ_a·S_m against the lift: 6.6 N wet and 11 N saturated"
                 + " on a soft soil sunk past the tube's radius, four of them 26 and 44 N; where the four exceed the ramp's thrust over the weight the drone stays down"
-                + " (design 13's protocol and σ_a are both assumed: 1.17 grades them). On S04 the tiled mat's side faces keep a corner touching as it lifts, so the cling"
-                + " never acts there. The dry track's \"sometimes\" needs the leg spread (1.17) and hooks (1.14).");
+                + " (design 13's protocol and σ_a are both assumed: 1.17 grades them). On S04 the wet straw clings as on one mat: the faces between its overlapping"
+                + " tiles are buried in the mat and carry nothing (model 38). The dry track's \"sometimes\" needs the leg spread (1.17) and hooks (1.14).");
         }
 
         // p7a-ground 1.13: wet ground (design 7), its scenarios with their known-wrong models (WetGroundTests asserts them).
@@ -251,6 +251,14 @@ namespace Fpv450.FlightBench
                 Row(rain.ToString(), pass, $"{u.Press[0] * 1e3:F2} mm in at the weight against dry {dryMat.Press[0] * 1e3:F2}, a corner's {kw:F1} N/m against {kd:F1}; " + detail);
             }
             Row("dry straw: no cling", Math.Max(Math.Max(dryMat.Peak[0], dryMat.Peak[1]), Math.Max(dryMat.Peak[2], dryMat.Peak[3])) == 0, "the pull at most 0 N");
+            // The same lift on S04's own tiles on the range, where the skids cross overlapping tiles (model 38's buried face).
+            var range = new FlightWorld(SoilScenarios.Range());
+            foreach (RainLevel rain in new[] { RainLevel.Rain, RainLevel.SevereRain })
+            {
+                SoilScenarios.Unstick u = SoilScenarios.Unsticking(spec, range, RangeScenarios.Straw, rain);
+                Row("S04's overlapping tiles, " + rain, Held(u, straw.WetAdhesion, straw.WetAdhesionRelease, 2 * R * L, out string detail) && u.EndForce.Length() == 0,
+                    detail + $"; {u.EndForce.Length():F3} N on the drone once it is off");
+            }
 
             Console.WriteLine("rain softens the ground (3 s disarmed on each soil; the T-joints' sinks dry / Rain / Severe rain):");
             foreach (string name in new[] { "dirt_track", "belt_straw", "tilled", "crater_spoil" })
