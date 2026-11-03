@@ -82,10 +82,15 @@ namespace Fpv450.FlightBench
             Drone on = Build(spec, true), off = Build(spec, false);
             Console.WriteLine($"{Name}: drone.json at L4 (hash 0x{spec.ContentHash:X16}): legs on {on.Mass:F3} kg, legs off {off.Mass:F3} kg; "
                 + $"break: {b.ToString().ToLowerInvariant()}");
-            Check("geometry", on.SkidRadius == spec.Legs.FootRadius && Math.Abs(on.Support[0].Y - on.SkidRadius + 0.253) < 1e-12
-                && Math.Abs(on.Skid[1].A.Z - on.Support[3].Z - 0.121) < 1e-12,
-                $"skids at y {on.Support[0].Y - on.SkidRadius:F3} m with r {on.SkidRadius} m (legs.foot_radius_m), the overhang {on.Skid[1].A.Z - on.Support[3].Z:F3} m "
-                + $"past each T-joint to the core end; arms r {on.ArmRadius} m; coil r {on.CoilRadius} m at y {on.Coil.A.Y} (legs off {off.Coil.A.Y}); "
+            // drone.json's own rows, not the loadout's mass model the probe drone is built from: the skid's underside, and
+            // its core end past the front T-joint (leg_fr's z).
+            DronePart skidRow = spec.Parts[spec.PartIndex("skid_right")], legRow = spec.Parts[spec.Legs.Parts[1]];
+            double skidY = skidRow.Position.Y - skidRow.Diameter / 2, overhang = skidRow.Length / 2 - skidRow.Diameter / 2 - legRow.Position.Z;
+            Check("geometry", on.SkidRadius == spec.Legs.FootRadius && Math.Abs(on.Support[0].Y - on.SkidRadius - skidY) < 1e-12
+                && Math.Abs(on.Skid[1].A.Z - on.Support[3].Z - overhang) < 1e-12,
+                $"skids at y {on.Support[0].Y - on.SkidRadius:F3} m with r {on.SkidRadius} m (legs.foot_radius_m), the overhang {on.Skid[1].A.Z - on.Support[3].Z:F4} m "
+                + $"past each T-joint to the core end (drone.json's skid_right and leg_fr: {skidY:F3} m, {overhang:F4} m); "
+                + $"arms r {on.ArmRadius} m; coil r {on.CoilRadius} m at y {on.Coil.A.Y} (legs off {off.Coil.A.Y}); "
                 + $"discs R {on.DiscRadius} m, half-thickness {on.DiscHalf} m");
             Resting(on);
             Sliding(on);

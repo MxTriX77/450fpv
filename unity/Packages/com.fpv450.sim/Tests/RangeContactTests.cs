@@ -1,0 +1,603 @@
+using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
+using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
+using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
+using NUnit.Framework;
+
+namespace Fpv450.Sim.Tests
+{
+    // ground-contact's scenarios on the test range (p6-flight-core 1.6b, D-044): RangeScenarios on MapWorld. The ground
+    // there is the plane, and S04's soil and E01's fillers where SampleGround reports Hole; both must carry the drone as
+    // the stub's floor does, each support counted once. Each check names the known-wrong rule it fails.
+    public sealed class RangeContactTests
+    {
+        const double G = 9.80665;
+
+        static MaterialRow[] Materials(out ulong hash) => ContactScenarios.RepositoryMaterials(out hash);
+
+        static DroneSpec Spec => RepositoryDrone.Spec();
+
+        static RangeScenarios.Resting Rest(ContactScenarios.Site site)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.Resting r = RangeScenarios.Rest(Spec, m, h, site);
+            TestContext.Out.WriteLine($"sank {r.Sink * 1e3:F3} mm, {r.LoadOverWeight:F4} of the weight on the legs, {r.Pairs.Count} pairs ({r.Plane} plane, "
+                + $"{r.Soil} soil, {r.Material} material), {r.HoleSupports} supports over Hole, {r.LateEvents} events in the last second: "
+                + string.Join("; ", r.Pairs));
+            Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0));
+            return r;
+        }
+
+        // ---- resting ------------------------------------------------------------------------------------------------------
+
+        [Test]
+        public void AtTheTrackStartItRestsAsOnTheStub()
+        {
+            RangeScenarios.Resting range = Rest(RangeScenarios.At(RangeScenarios.Start("track")));
+            RangeScenarios.Resting stub = Rest(default);
+            Assert.That(range.Plane, Is.EqualTo(8), "each support on the plane, once");
+            Assert.That(range.Pairs.Count, Is.EqualTo(8), "no skid capsule beside them (the plane is SampleGround's)");
+            Assert.That(range.Sink, Is.EqualTo(stub.Sink).Within(1e-9), "the plane is the stub's floor");
+            Assert.That(range.LoadOverWeight, Is.EqualTo(1).Within(1e-3));
+            Assert.That(range.LateEvents, Is.EqualTo(0));
+        }
+
+        // Without the same-face rule (a skid capsule's flat-face tie at its far core end counted as a third point) both
+        // flicker: 1564 and 2768 contact events in the last second, never at rest, and 0.9964 and 0.9987 of the weight.
+        // Without the seam rule (ContactModel.Seam) E01's run rests on 16 soil pairs, two a support (a support 2 mm past a
+        // filler's edge meets that edge too, its normal 10° off). At model 26 that is only 0.443 µm deeper than the plane and
+        // 1.0001 of the weight (QA's integration review, B3; 1.3 µm and 1.001 at 1.6b's model), inside those tolerances, so
+        // one pair a support is what fails it. With the edge alone dropped (1.6b), 9 µm higher and pitched (a support on two
+        // fillers counted twice in its leg's split).
+        [TestCase("soil")]
+        [TestCase("run")]
+        public void OnSoilItRestsAsOnThePlane(string where)
+        {
+            ContactScenarios.Site site = where == "soil" ? RangeScenarios.At(RangeScenarios.Soil, 0) : RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading);
+            RangeScenarios.Resting soil = Rest(site);
+            RangeScenarios.Resting plane = Rest(RangeScenarios.At(RangeScenarios.Start("track")));
+            Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
+            Assert.That(soil.Plane, Is.EqualTo(0), "no plane inside the patch or the band");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count), "only soil shapes carry it");
+            Assert.That(soil.Pairs.Count, Is.EqualTo(8), "every support on soil, once (the seam rule)");
+            Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, however many fillers a support stands on");
+            Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
+            Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
+            Assert.That(soil.Speed, Is.LessThan(1e-4));
+        }
+
+        // SameSupport's coplanar widening (a skid's contact on a face coplanar with its support's) has no case on the range:
+        // switched off, S04's soil and E01's run rest as before to 1 nm (QA's integration review, B3). So it has its own. Three
+        // timber boards lie flush on the stub's floor: the middle one 0.10 m wide under the skids' middles, the outer ones
+        // under the supports (the joints at ±0.1025 m, the ends at ±0.22). Each skid half's line contact on the middle board
+        // lies 0.05 m or more from every support sphere and on no support's board, so only its plane, the outer boards' top,
+        // makes it its support's. With the widening the drone rests on its eight supports as on one wide board; without it
+        // the four skid halves meet the middle board as four more of their legs' points. It starts 1 mm over the boards, so
+        // every contact is made in flight and logged (the start pose's are made before the first step).
+        [Test]
+        public void OnFlushBoardsEachSupportIsOnePoint()
+        {
+            RangeScenarios.Resting Boards(params (double Z0, double Z1)[] boards)
+            {
+                FlightWorld world = FlightWorld.Floor();
+                ushort timber = world.Query.MaterialId("timber");
+                var shapes = new ShapeGeometry[boards.Length];
+                for (int i = 0; i < boards.Length; i++)
+                    shapes[i] = new ShapeGeometry
+                    {
+                        Kind = ShapeKind.Box, Center = new Double3(0, 0.025, (boards[i].Z0 + boards[i].Z1) / 2), AxisX = new Double3(1, 0, 0),
+                        AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1), HalfExtents = new Double3(0.4, 0.025, (boards[i].Z1 - boards[i].Z0) / 2),
+                        Material = timber,
+                    };
+                var site = new ContactScenarios.Site(world, new Double3(0, 0.051, 0), 0) { Objects = new[] { new RuntimeObject("boards", shapes) } };
+                return Rest(site);
+            }
+            RangeScenarios.Resting one = Boards((-0.45, 0.45));
+            RangeScenarios.Resting three = Boards((-0.45, -0.05), (-0.05, 0.05), (0.05, 0.45));
+            Assert.That(one.Material, Is.EqualTo(one.Pairs.Count).And.EqualTo(8), "on one board, each support once (the premise)");
+            Assert.That(three.Material, Is.EqualTo(three.Pairs.Count).And.EqualTo(8), "on three, each support once and no skid's middle");
+            Assert.That(three.Sink, Is.EqualTo(one.Sink).Within(1e-9), "as on one board");
+            Assert.That(three.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
+            Assert.That(three.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
+        }
+
+        [Test]
+        public void OnS04sStrawItSinksIntoTheMat()
+        {
+            RangeScenarios.Resting r = Rest(RangeScenarios.At(RangeScenarios.Straw, 0));
+            Assert.That(r.HoleSupports, Is.EqualTo(8), "over the patch (the premise)");
+            Assert.That(r.Material, Is.EqualTo(r.Pairs.Count), "on the straw shapes alone");
+            Assert.That(r.Plane + r.Soil, Is.EqualTo(0), "the mat holds it off the soil 0.125 m below");
+            // The mat's 490 N/m in series with a leg: 11.8 N sinks a support 25 mm on its own (physics_materials.json's
+            // straw row); the leg tubes' ends, 10 mm above the skids, carry part of it once the skids are past them. Rigid
+            // straw would sink 1.2 mm.
+            Assert.That(r.Sink, Is.InRange(0.010, 0.026));
+            Assert.That(r.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
+            Assert.That(r.Speed, Is.LessThan(1e-3));
+        }
+
+        // ---- the landing --------------------------------------------------------------------------------------------------
+
+        // ground-contact's "Hold the sticks and it leaves the ground", on the test range: on the plane, on S04's soil and in
+        // E01's run, each as on the stub.
+        [TestCase("track")]
+        [TestCase("soil")]
+        [TestCase("run")]
+        public void HoldTheSticksAndItLeavesTheGround(string where)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            ContactScenarios.Site site = where == "track" ? RangeScenarios.At(RangeScenarios.Start("track"))
+                : where == "soil" ? RangeScenarios.At(RangeScenarios.Soil, 0) : RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading);
+            ContactScenarios.Landing held = ContactScenarios.Land(Spec, m, h, false, site: site);
+            ContactScenarios.Landing cut = ContactScenarios.Land(Spec, m, h, true, site: site);
+            ContactScenarios.Landing stub = ContactScenarios.Land(Spec, m, h, false);
+            TestContext.Out.WriteLine($"held: touch {held.TouchSpeed:F3} m/s, rose {held.SeparationHeight * 1e3:F1} mm (stub {stub.SeparationHeight * 1e3:F1}); "
+                + $"cut: rose {cut.SeparationHeight * 1e3:F1} mm, at rest {cut.Settled:F3} s after the touch");
+            Assert.That(held.TouchSpeed, Is.EqualTo(0.5).Within(0.05));
+            Assert.That(held.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
+            Assert.That(held.Separated && held.SeparationHeight > 0.05, Is.True, "held: the legs throw it back into the air");
+            Assert.That(held.SeparationHeight, Is.EqualTo(stub.SeparationHeight).Within(1e-3), "the ground's law is the stub floor's");
+            Assert.That(cut.Settled, Is.LessThanOrEqualTo(2), "cut: it stays down within 2 s");
+            Assert.That(cut.SeparationHeight, Is.LessThan(held.SeparationHeight / 10), "cut: at most a hop");
+            foreach (ContactScenarios.Landing r in new[] { held, cut })
+                Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void OnStrawTheMatSoaksUpTheBounce()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            ContactScenarios.Site site = RangeScenarios.At(RangeScenarios.Straw, 0);
+            ContactScenarios.Landing held = ContactScenarios.Land(Spec, m, h, false, site: site);
+            ContactScenarios.Landing cut = ContactScenarios.Land(Spec, m, h, true, site: site);
+            ContactScenarios.Landing plane = ContactScenarios.Land(Spec, m, h, false);
+            TestContext.Out.WriteLine($"held: rose {held.SeparationHeight * 1e3:F1} mm (the plane {plane.SeparationHeight * 1e3:F1}); cut: at rest {cut.Settled:F3} s");
+            Assert.That(RangeScenarios.World.MaterialName(held.First.Material), Is.EqualTo("straw"), "it lands on the mat");
+            Assert.That(held.SeparationHeight, Is.LessThan(plane.SeparationHeight), "the mat's damping takes part of the legs' stored energy");
+            Assert.That(cut.Settled, Is.LessThanOrEqualTo(2));
+            foreach (ContactScenarios.Landing r in new[] { held, cut })
+                Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0), "sinking through a compliant mat is no tunnel");
+        }
+
+        // ---- the field start: the stand, and a belly landing legs off --------------------------------------------------------
+
+        [Test]
+        public void LiftoffFromTheStandAtTheFieldStart()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            StartPoint field = RangeScenarios.Start("field");
+            Assert.That(field.Stand && !field.LegsOn, Is.True, "the premise: legs off, the stand");
+            ContactScenarios.Liftoff r = ContactScenarios.FromStand(Spec, m, h, site: RangeScenarios.At(field));
+            TestContext.Out.WriteLine($"{r.Made} made, {r.Broken} broken, off at throttle {r.Throttle:F3} (duty {r.Duty:F3}) {r.Time:F3} s into the ramp");
+            Assert.That(r.MadeSteel, Is.EqualTo(8), "each arm's two edges on its post, in steel");
+            Assert.That(r.RestDepth, Is.EqualTo(4.626 * G / (8 * 18000)).Within(2e-6), "resting m·g/(8·k_up) deep (L4 legs off, D-066)");
+            Assert.That(r.BrokenSteel, Is.EqualTo(r.Broken));
+            Assert.That(r.Broken, Is.GreaterThanOrEqualTo(8), "it leaves all four posts");
+            Assert.That(r.Duty, Is.InRange(0.45, 0.65), "near hover's duty");
+            Assert.That(r.ClimbAfter, Is.GreaterThan(0.05));
+            Assert.That(r.Slide, Is.LessThan(0.005));
+            Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void LegsOffItLandsOnItsSpool()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.Belly r = RangeScenarios.BellyLanding(Spec, m, h, RangeScenarios.At(RangeScenarios.Start("field")));
+            TestContext.Out.WriteLine($"first {r.FirstPart} at {r.TouchSpeed:F3} m/s, peak {r.PeakAccel / G:F1} g, at rest {r.Settled:F3} s on {string.Join(", ", r.Resting)}");
+            Assert.That(r.FirstPart, Does.StartWith("coil"), "D-043: legs off, the spool meets the floor first");
+            Assert.That(r.PeakAccel, Is.LessThan(490.3), "a 0.5 m/s belly landing is no crash");
+            Assert.That(r.Settled, Is.LessThanOrEqualTo(2));
+            Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0));
+        }
+
+        // ---- flights into the range's objects ---------------------------------------------------------------------------------
+
+        static ContactScenarios.PoleStrike Into(string name, bool airframe = false)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            ContactScenarios.PoleStrike r = RangeScenarios.Into(Spec, m, h, RangeScenarios.Find(name), airframe);
+            TestContext.Out.WriteLine($"first {r.FirstPart} on {r.FirstObject} ({r.FirstMaterial}) by {r.First.Kind} at {r.First.A:F2} m/s flying {r.FirstFlightSpeed:F2}; "
+                + $"crash ({r.Cause}) by {r.Part} on {r.Object} ({r.Material}) at {r.Speed:F2} m/s; peak {r.PeakAccel:F0} m/s², impulse {r.Impulse:F2} N·s; "
+                + $"{r.Tunnels} tunnels, {r.Touched.Count} touches of the target");
+            Assert.That(r.Tunnels, Is.EqualTo(0), "no tunnel: " + string.Join(", ", r.TunnelThrough));
+            Assert.That(r.Lost, Is.EqualTo(0));
+            return r;
+        }
+
+        // ground-contact's "Into a pole", on the test range's L01_straight.
+        [Test]
+        public void IntoThePole()
+        {
+            ContactScenarios.PoleStrike r = Into("pole");
+            Assert.That(r.FlightSpeed, Is.EqualTo(10).Within(1));
+            Assert.That(r.Object, Is.EqualTo("L01_straight"));
+            Assert.That(r.Material, Is.EqualTo("timber"));
+            Assert.That(r.Part, Is.Not.Null.And.Not.Empty);
+            Assert.That(r.PeakAccel, Is.GreaterThan(490.3), "past the 50 g threshold");
+            Assert.That(r.Impulse, Is.GreaterThan(4.8 * 5), "most of its momentum");
+        }
+
+        [Test]
+        public void IntoHousesWall()
+        {
+            ContactScenarios.PoleStrike r = Into("wall");
+            Assert.That(r.FirstObject, Is.EqualTo("H01_D"));
+            Assert.That((r.Crashes > 0, r.Object, r.Material), Is.EqualTo((true, "H01_D", "masonry")));
+        }
+
+        [Test]
+        public void IntoTheCar()
+        {
+            ContactScenarios.PoleStrike r = Into("car");
+            Assert.That(r.FirstObject, Is.EqualTo("R01_A"));
+            Assert.That(r.Crashes > 0 && r.Object == "R01_A", Is.True, "a crash on the car");
+        }
+
+        // The crown's twig shell (30 N/m) is meant to be pushed through to its bark limbs (physics_materials.json): leaving
+        // a twig shape is no tunnel. With every latched pass a tunnel, this flight logged 30.
+        [Test]
+        public void IntoACrown()
+        {
+            ContactScenarios.PoleStrike r = Into("crown");
+            Assert.That(r.FirstObject, Is.EqualTo("V01_L"), "the posadka's crown first");
+            Assert.That(r.Touched.Count, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void IntoAConductor()
+        {
+            ContactScenarios.PoleStrike r = Into("wire");
+            Assert.That(r.FirstObject, Is.EqualTo("L03_medium"));
+            Assert.That(r.FirstMaterial, Is.EqualTo("cable"));
+            Assert.That(r.First.Kind, Is.EqualTo(EventKind.PropStrike), "edge-on, a prop's rim meets it first");
+            Assert.That((r.Crashes > 0, r.Cause, r.Object), Is.EqualTo((true, CrashCause.PropStrike, "L03_medium")), "a rigid conductor at 10 m/s");
+        }
+
+        // review-physics §6: climbing into a conductor that crosses the front discs, clear of every body shape above them.
+        // The ring catches it on the rim; the bounding sphere alone would strike 0.11 m above the disc (P4).
+        [Test]
+        public void ClimbingIntoAConductor()
+        {
+            ContactScenarios.PoleStrike r = Into("climb");
+            double wire = RangeScenarios.MidSpan(RangeScenarios.Placed("L03_medium", 1), 3).Y;
+            Assert.That(r.FirstObject, Is.EqualTo("L03_medium"));
+            Assert.That(r.FirstMaterial, Is.EqualTo("cable"));
+            Assert.That(r.First.Kind, Is.EqualTo(EventKind.PropStrike), "a prop ring meets it first");
+            Assert.That(r.FirstPart, Is.EqualTo("prop_fr").Or.EqualTo("prop_fl"));
+            Assert.That(r.First.Point.Y, Is.EqualTo(wire).Within(0.01), "on the lowest conductor, at the rim's height");
+            Assert.That(r.First.A, Is.GreaterThan(1), "closing at the climb's speed");
+        }
+
+        // review-physics §6 and P3: a conductor across the skids between their spheres is caught by the skid capsules.
+        [Test]
+        public void ASkidAcrossAConductor()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.OnWire r = RangeScenarios.OntoWire(Spec, m, h);
+            TestContext.Out.WriteLine($"first {r.FirstShape} at {r.TouchSpeed:F3} m/s; {string.Join(", ", r.Shapes)}; peak leg {r.PeakLegLoad:F1} N; "
+                + $"{r.After:F3} m over it 1.5 s later; {r.Strikes} strikes");
+            Assert.That(r.FirstShape, Does.StartWith("skid_"), "the skid capsule, not a support sphere: it crosses between them");
+            Assert.That(r.TouchSpeed, Is.EqualTo(2).Within(0.4));
+            Assert.That(r.PeakLegLoad, Is.GreaterThan(0), "the leg carries it");
+            Assert.That(r.Tunnels + r.Lost, Is.EqualTo(0));
+        }
+
+        // ---- with the airframe's effects on ---------------------------------------------------------------------------------
+
+        // The two laws with the airframe's effects on, as a pilot's flight has them (p7b-airframe: the motors' asymmetry, the
+        // vortex rings, the ground effect from the rotors' rays, the flapping, the modes). With the same-face rule off, a
+        // skid's flat-face tie counts as a third point and the rest flickers (2016 and 3800 contact events in the last second
+        // on S04's soil and in E01's run); without the seam rule the run rests on 16 soil pairs, two a support; with every latched
+        // pass a tunnel, the crown logs 31 through V01_L's and V01_M's twigs.
+        static ContactScenarios.Site Airframe(ContactScenarios.Site site)
+        {
+            site.Airframe = true;
+            return site;
+        }
+
+        [TestCase("soil")]
+        [TestCase("run")]
+        public void WithTheAirframesEffectsSoilIsStillThePlane(string where)
+        {
+            ContactScenarios.Site site = Airframe(where == "soil" ? RangeScenarios.At(RangeScenarios.Soil, 0) : RangeScenarios.At(RangeScenarios.Run, RangeScenarios.RunHeading));
+            RangeScenarios.Resting soil = Rest(site);
+            RangeScenarios.Resting plane = Rest(Airframe(RangeScenarios.At(RangeScenarios.Start("track"))));
+            Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.EqualTo(8), "only soil shapes carry it, every support once");
+            Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
+            Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
+            Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
+
+            // The landing: the rotors' rays meet the soil's face where the stub's meet its floor, so the ground effect, the
+            // touch and the bounce are the stub's.
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing here = ContactScenarios.Land(Spec, m, h, cut, site: site);
+                ContactScenarios.Landing stub = ContactScenarios.Land(Spec, m, h, cut, site: Airframe(default));
+                TestContext.Out.WriteLine($"{(cut ? "cut" : "held")}: touch {here.TouchSpeed:F4} m/s (stub {stub.TouchSpeed:F4}), rose {here.SeparationHeight * 1e3:F2} mm "
+                    + $"(stub {stub.SeparationHeight * 1e3:F2}), at rest {here.Settled:F3} s (stub {stub.Settled:F3}), {here.ContactEvents} contact events (stub {stub.ContactEvents})");
+                Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
+                Assert.That(here.TouchSpeed, Is.EqualTo(stub.TouchSpeed).Within(1e-3));
+                Assert.That(here.SeparationHeight, Is.EqualTo(stub.SeparationHeight).Within(1e-3), "the ground's law is the stub floor's");
+                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.01).And.LessThanOrEqualTo(2));
+                else Assert.That(here.Separated && here.SeparationHeight > 0.05, Is.True, "held: the legs throw it back into the air");
+                Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
+            }
+        }
+
+        [Test]
+        public void WithTheAirframesEffectsACompliantShapeIsNoTunnel()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing r = ContactScenarios.Land(Spec, m, h, cut, site: Airframe(RangeScenarios.At(RangeScenarios.Straw, 0)));
+                TestContext.Out.WriteLine($"straw, {(cut ? "cut" : "held")}: rose {r.SeparationHeight * 1e3:F1} mm, at rest {r.Settled:F3} s, {r.Tunnels} tunnels");
+                Assert.That(RangeScenarios.World.MaterialName(r.First.Material), Is.EqualTo("straw"), "it lands on the mat");
+                Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0), "sinking through a compliant mat is no tunnel");
+            }
+            ContactScenarios.PoleStrike crown = Into("crown", true);
+            Assert.That(crown.FirstObject, Is.EqualTo("V01_L"), "the posadka's crown first");
+            Assert.That(crown.Touched.Count, Is.GreaterThan(0));
+        }
+
+        // ---- in the wind (p7c-wind's field, model 19) ------------------------------------------------------------------
+
+        // The laws in the wind, the airframe's effects on. The soil's laws are held in a steady 5 m/s from 270°, the same air
+        // everywhere, against the plane at the same heading in it (at model 19 the level presets blew nothing over S04 and
+        // E01, where SampleGround reports Hole; since model 20 they read the soil there, OverAHoleTheWindReadsTheSoil).
+        static ContactScenarios.Site InTheAir(ContactScenarios.Site site, WindSetup wind)
+        {
+            site.Airframe = true;
+            site.Wind = wind;
+            return site;
+        }
+
+        [TestCase("soil")]
+        [TestCase("run")]
+        public void InASteadyCrosswindSoilIsStillThePlane(string where)
+        {
+            WindSetup wind = WindSetup.SteadyFrom(270, 5);
+            double heading = where == "soil" ? 0 : RangeScenarios.RunHeading;
+            ContactScenarios.Site site = InTheAir(RangeScenarios.At(where == "soil" ? RangeScenarios.Soil : RangeScenarios.Run, heading), wind);
+            ContactScenarios.Site plane = InTheAir(RangeScenarios.At(RangeScenarios.Start("track").Position, heading), wind);
+            RangeScenarios.Resting soil = Rest(site), flat = Rest(plane);
+            Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.EqualTo(8), "only soil shapes carry it, every support once");
+            Assert.That(soil.LoadOverWeight + soil.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, less the air's lift");
+            Assert.That(soil.Sink, Is.EqualTo(flat.Sink).Within(1e-6), "as the plane in the same air: the seam rule");
+            Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest: the skid's same-face rule");
+
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing here = ContactScenarios.Land(Spec, m, h, cut, site: site);
+                ContactScenarios.Landing there = ContactScenarios.Land(Spec, m, h, cut, site: plane);
+                TestContext.Out.WriteLine($"{(cut ? "cut" : "held")}: touch {here.TouchSpeed:F4} m/s (plane {there.TouchSpeed:F4}), rose {here.SeparationHeight * 1e3:F2} mm "
+                    + $"(plane {there.SeparationHeight * 1e3:F2}), at rest {here.Settled:F3} s (plane {there.Settled:F3}), {here.ContactEvents} contact events (plane {there.ContactEvents})");
+                Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
+                Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
+                Assert.That(here.TouchSpeed, Is.EqualTo(there.TouchSpeed).Within(1e-3), "the touch is the plane's");
+                if (where == "soil")
+                {
+                    // Traced: the site, not the soil's law. S04's soil spot is a gap of bare soil (x −0.33 to +0.60 m about its
+                    // foot) in the straw mat, whose boxes stand 0.125 m higher. In the crosswind the pilot's hold sits 0.36 m
+                    // downwind at the touch, on the plane as here; held, the bounce carries it on, and from 0.31 s after the
+                    // touch the right rotors' rays meet the mat (0.25 m against the plane's 0.35): more ground effect on that
+                    // side, a higher rise (202.5 mm against 169.2), support_fr_end on a straw box mid-bounce, and the end on
+                    // the mat. Cut, it settles within 10 ms of the plane (0.764 against 0.754 s).
+                    double over = here.Core.State.Position.Y - site.Foot.Y - (there.Core.State.Position.Y - plane.Foot.Y);
+                    if (!cut) Assert.That(over, Is.GreaterThan(0.08), "held, it ends on the mat, 0.125 m over the soil");
+                    else Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.015));
+                    continue;
+                }
+                Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(1e-3), "E01's fillers land as the plane");
+                if (cut) Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.01));
+            }
+        }
+
+        // No tunnel through a compliant shape in the wind: the straw landings in the crosswind, and the crown in Windy's field
+        // (the posadka stands on the plane; the approach crosses S04, where the field blows since model 20).
+        [Test]
+        public void InTheWindACompliantShapeIsNoTunnel()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            foreach (bool cut in new[] { false, true })
+            {
+                ContactScenarios.Landing r = ContactScenarios.Land(Spec, m, h, cut, site: InTheAir(RangeScenarios.At(RangeScenarios.Straw, 0), WindSetup.SteadyFrom(270, 5)));
+                TestContext.Out.WriteLine($"straw in the crosswind, {(cut ? "cut" : "held")}: rose {r.SeparationHeight * 1e3:F1} mm, at rest {r.Settled:F3} s, {r.Tunnels} tunnels");
+                Assert.That(RangeScenarios.World.MaterialName(r.First.Material), Is.EqualTo("straw"), "it lands on the mat");
+                Assert.That(r.Tunnels + r.Crashes + r.Lost, Is.EqualTo(0), "sinking through a compliant mat is no tunnel");
+            }
+            RangeScenarios.Approach a = RangeScenarios.Find("crown");
+            ContactScenarios.PoleStrike crown = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
+                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
+            TestContext.Out.WriteLine($"crown in Windy: first {crown.FirstPart} on {crown.FirstObject} ({crown.FirstMaterial}); crash ({crown.Cause}) by {crown.Part} "
+                + $"on {crown.Object} ({crown.Material}); {crown.Tunnels} tunnels, {crown.Touched.Count} touches");
+            Assert.That(crown.FirstObject, Is.EqualTo("V01_L"), "the posadka's crown first");
+            Assert.That(crown.Tunnels + crown.Lost, Is.EqualTo(0));
+
+            RangeScenarios.Resting track = Rest(InTheAir(RangeScenarios.At(RangeScenarios.Start("track")), WindSetup.Of(WindLevel.Severe)));
+            Assert.That(track.Plane, Is.EqualTo(8));
+            Assert.That(track.LoadOverWeight + track.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "Severe's field at the track start");
+            Assert.That(track.LateEvents, Is.EqualTo(0));
+        }
+
+        // Tunnels: none through a rigid shape in any level's field, on the crown's and the wire's approaches. At model 19 on
+        // query version 3 the wire logged 2 through L03's cable held at 5.475 m, or with leg_fr first at 5.51–5.52 m: query
+        // version 4 (the turning sweep bisected to its touch) closes them, model 19's flights there now log none. Severe's
+        // crown logged 4 through V01_L's bark, and model 19's flight still does at query version 4: after the strike crash
+        // the tumbling drone's leg_fr, support_fr_joint and support_fr_end pass limb 307 (r 4.0 mm) and skid_rl limb 149
+        // (r 13.4 mm) at 5–13 m/s closing. The leg tube's 6.6 kN/m and the legs' spring need 0.1–0.3 m to stop the drone,
+        // more than the limbs are thick, so the core passes the limb's axis under the latch and leaves the sweep's margin
+        // 18–115 mm deep against its latched plane: drone.json's margin_m names it (a soft part that fast into a rod snaps
+        // in truth, phase 7's breakage; ATunnelIsLoggedAsABug). Since model 20 that approach crosses S04 in the wind, meets
+        // the crown otherwise (the crash on Z11_tree_ash behind it) and logs none.
+        [TestCase("crown", 10.0, WindLevel.Calm)]
+        [TestCase("crown", 10.0, WindLevel.Windy)]
+        [TestCase("crown", 10.0, WindLevel.Severe)]
+        [TestCase("wire", 5.47, WindLevel.Severe)]
+        [TestCase("wire", 5.475, WindLevel.Severe)]
+        [TestCase("wire", 5.51, WindLevel.Severe)]
+        [TestCase("wire", 5.52, WindLevel.Severe)]
+        [TestCase("wire", 5.475, WindLevel.Windy)]
+        [TestCase("wire", 5.475, WindLevel.Still)]
+        public void InTheWindNoTunnelThroughARigidShape(string name, double height, WindLevel level)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.Approach a = RangeScenarios.Find(name);
+            ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(level)),
+                height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
+            TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
+                + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
+            Assert.That(p.Tunnels + p.Lost, Is.EqualTo(0));
+        }
+
+        // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets
+        // (FlightWorld.SoilUnder): the top of the object holding that soil, past any other object's shapes. Over S04's straw
+        // mat (its top at y 0, the plane's height) the field blows as over the stub's floor at y 0, over the bare soil between
+        // its straw boxes from the soil (y −0.125), and over E01's run from its floor (y −1.5). The known-wrongs: the old
+        // rule (a hole's −∞ taken as sheltered) blows nothing over the patches and the run at any height, so the Calm wind
+        // at 1 m over the straw is 0 and the range golden in Calm is its flight in still air, bit for bit; the first soil
+        // shape alone reads the straw mat's soil box, 0.125 m under the plane's height, and the wind there is not the floor's.
+        [Test]
+        public void OverAHoleTheWindReadsTheSoil()
+        {
+            var w = new FlightWorld(RangeScenarios.World);
+            var ray = new Ray[1];
+            var hit = new RayHit[1];
+            var up = new Double3(0, 1, 0);
+            Assert.That(w.SoilUnder(RangeScenarios.Straw + up, ray, hit, out _), Is.EqualTo(0).Within(1e-9), "the straw mat's top");
+            Assert.That(w.SoilUnder(RangeScenarios.Soil + up, ray, hit, out _), Is.EqualTo(-0.125).Within(1e-9), "the soil box between the straw boxes");
+            Assert.That(w.SoilUnder(RangeScenarios.Run + up * 3, ray, hit, out _), Is.EqualTo(-1.5).Within(1e-9), "the run's floor");
+            Assert.That(w.SoilUnder(RangeScenarios.Straw - up * 0.5, ray, hit, out _), Is.EqualTo(double.NegativeInfinity), "under the soil: sheltered");
+
+            // The scan of every patch and the run on a 0.5 m grid at four heights, clear of the footprints' edges (a ray straight
+            // down an edge grazes the faces there): ground under every point, past what stands on it.
+            var xz = new XZ[1];
+            var g = new GroundSample[1];
+            int most = 0, points = 0, holes = 0, crossed = 0;
+            foreach ((double x0, double z0, double x1, double z1) in new[] { (-140.0, -19.355, 160.0, -7.355), (-140.0, 7.353, 160.0, 19.353), (44.0, -21.15, 79.25, -7.4) })
+            {
+                for (int ix = 0; ix < (int)((x1 - x0) / 0.5); ix++)
+                {
+                    for (int iz = 0; iz < (int)((z1 - z0) / 0.5); iz++)
+                    {
+                        double x = x0 + 0.2 + 0.5 * ix, z = z0 + 0.2 + 0.5 * iz; // off the footprints' edges
+                        xz[0] = new XZ(x, z);
+                        RangeScenarios.World.SampleGround(xz, g);
+                        points++;
+                        if ((g[0].Flags & GroundFlags.Hole) == 0) continue;
+                        holes++;
+                        foreach (double y in new[] { 0.5, 2, 10, 40 })
+                        {
+                            double ground = w.SoilUnder(new Double3(x, y, z), ray, hit, out int casts);
+                            Assert.That(ground, Is.InRange(-1.6, 0.5), $"soil under ({x}, {y}, {z})");
+                            most = casts > most ? casts : most;
+                            if (casts > 1) crossed++;
+                        }
+                    }
+                }
+            }
+            TestContext.Out.WriteLine($"{holes} of {points} points over a hole, {crossed} rays cast again past a shape, at most {most} casts (SoilCasts {FlightWorld.SoilCasts})");
+            Assert.That(holes, Is.GreaterThan(10000));
+            Assert.That(8 * most, Is.LessThanOrEqualTo(FlightWorld.SoilCasts), "SoilCasts holds eight times the scan's most");
+
+            // The field over the straw is the stub floor's at the same point: one step 1 m over the mat in Calm.
+            MaterialRow[] m = Materials(out ulong h);
+            Double3 WindAt(FlightWorld world, WindSetup wind)
+            {
+                FlightSetup setup = ContactScenarios.Setup(Spec, m, h, true, RangeScenarios.Straw + up);
+                setup.World = world;
+                setup.Wind = wind;
+                var core = new FlightCore(setup);
+                core.Advance(default);
+                return core.Trace.Wind;
+            }
+            Double3 over = WindAt(new FlightWorld(RangeScenarios.World), WindSetup.Of(WindLevel.Calm));
+            Double3 floor = WindAt(FlightWorld.Floor(), WindSetup.Of(WindLevel.Calm));
+            TestContext.Out.WriteLine($"Calm at 1 m over the straw: {over.Length():F4} m/s (the floor's {floor.Length():F4})");
+            Assert.That(over.Length(), Is.GreaterThan(0.1), "the field blows over the hole");
+            Assert.That((over - floor).Length(), Is.LessThan(1e-9), "as over the floor at the same height");
+
+            // The range golden's flight in Calm is no longer its flight in still air.
+            Assert.That(GoldenFlights.FlyRange(Spec, out _), Is.Not.EqualTo(GoldenFlights.FlyRange(Spec, out _, wind: WindSetup.Of(WindLevel.Still))),
+                "Calm and still air differ over S04");
+        }
+
+        // review-physics §6 and W6: a rotor's down ray meets a conductor, and cast again from inside it goes on to the ground.
+        [Test]
+        public void ARotorRayPastAConductor()
+        {
+            MapWorld w = RangeScenarios.World;
+            int line = RangeScenarios.Placed("L03_medium", 1);
+            Double3 wire = RangeScenarios.MidSpan(line, 3);
+            Assert.That(w.Geometry(line, 3, out ShapeGeometry g), Is.True);
+            var hub = new Double3(wire.X, wire.Y + 0.1, wire.Z);
+            var hits = new RayHit[2];
+            w.Raycast(new[] { new Ray(hub, new Double3(0, -1, 0)) }, 10, new System.Span<RayHit>(hits, 0, 1));
+            w.Raycast(new[] { new Ray(new Double3(hub.X, wire.Y, hub.Z), new Double3(0, -1, 0)) }, 10, new System.Span<RayHit>(hits, 1, 1));
+            Assert.That(hits[0].Object, Is.EqualTo(line));
+            Assert.That(hits[0].Distance, Is.EqualTo(0.1 - g.Radius).Within(1e-6), "the conductor's top");
+            Assert.That(hits[1].Object, Is.EqualTo(WorldIds.Ground), "from its axis, past it to the ground");
+            Assert.That(hits[1].Distance, Is.EqualTo(wire.Y).Within(1e-9));
+        }
+
+        // ---- the log ------------------------------------------------------------------------------------------------------
+
+        // A player's flight on the test range, its log naming the world by the map's id as the app's does (FlightWorlds):
+        // the legs-on drone at the track start with the airframe's effects on, armed, a collective ramp to 0.7 over 1.5 s,
+        // off the ground and climbing. Recorded on the shared map, it replays bit for bit on the map loaded again from the
+        // repository, as tools/replay opens it; a log whose world hash is not the map's is refused before its first step.
+        [Test]
+        public void ARangeFlightReplaysOnTheMapItNames()
+        {
+            DroneSpec spec = Spec;
+            MaterialRow[] m = Materials(out ulong h);
+            ContactScenarios.Site site = Airframe(RangeScenarios.At(RangeScenarios.Start("track")));
+            double stand = ContactScenarios.Standing(spec.BuildContacts(spec.Nominal, m, h));
+            FlightSetup setup = ContactScenarios.Setup(spec, m, h, true, site.Foot + new Double3(0, stand, 0));
+            setup.World = site.Open();
+            setup.StartAttitude = site.Attitude();
+            var core = new FlightCore(site.Effects(setup, spec));
+            LogHeader header = LogHeader.For(setup, core);
+            header.WorldId = RangeScenarios.World.MapId;
+            header.SetDrone(spec, spec.Nominal);
+            var stream = new System.IO.MemoryStream();
+            var recorder = new FlightRecorder(stream, header, FlightRecorder.DefaultCapacity, ownsStream: false);
+            const int Steps = 4000;
+            for (int k = 0; k < Steps; k++)
+            {
+                var stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 200, Throttle = k < 500 ? 0 : DetMath.Min(0.7, 0.7 * (k - 500) / 1500.0) };
+                core.Advance(stick);
+                recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+            }
+            recorder.Close();
+            Assert.That(recorder.Fault, Is.Null);
+            Assert.That(core.State.Position.Y - setup.StartPosition.Y, Is.GreaterThan(0.5), "off the range's ground");
+            byte[] log = stream.ToArray();
+
+            FlightWorld Open(string id) => id == "test-range" ? new FlightWorld(MapWorld.Load(RangeScenarios.Root, id)) : null;
+            ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            TestContext.Out.WriteLine(r.Message);
+            Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
+            Assert.That(r.Steps, Is.EqualTo(Steps));
+            Assert.That(r.Events, Is.GreaterThanOrEqualTo(8), "the supports' contacts broken at liftoff, replayed bit for bit");
+
+            var hash = new byte[8];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(hash, header.WorldHash);
+            int at = System.MemoryExtensions.IndexOf(new System.ReadOnlySpan<byte>(log, 0, (int)header.Length), new System.ReadOnlySpan<byte>(hash));
+            Assert.That(at, Is.GreaterThan(0), "the header holds the world's hash");
+            log[at] ^= 1;
+            ReplayResult tampered = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            TestContext.Out.WriteLine(tampered.Message);
+            Assert.That(tampered.Outcome, Is.EqualTo(ReplayOutcome.Refused), tampered.Message);
+            StringAssert.Contains("the world differs: the log was flown on world 'test-range'", tampered.Message);
+            Assert.That(tampered.Steps, Is.EqualTo(0), "nothing replayed");
+        }
+    }
+}

@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
@@ -10,14 +11,16 @@ using Fpv450.Sim.Log;
 using Fpv450.Sim.Tests;
 using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Replay
 {
     // The scripted flight that exercises the log end to end (physics-log, "Replay matches the flight"): drone.json at
     // its nominal loadout with its Betaflight 4.5 controller and propulsion (1.4), its drag in a stand-in wind (1.5;
-    // Windy unless asked otherwise) and its contacts (1.6), from rest on the stub's floor. A pilot watching the published
-    // pose (SimPilot, as a pilot watches the feed) arms, climbs to 20 m, flies a circuit with a sharp reverse every 15 s,
-    // comes back, lands on the slow glide path with the sticks held, cuts the throttle after the touch and disarms. It is
+    // Windy unless asked otherwise) and its contacts (1.6), from rest on the stub's floor, or on a map's legs-on start
+    // point facing its heading (--map, 1.6b). A pilot watching the published pose (SimPilot, as a pilot watches the feed)
+    // arms, climbs to 20 m, flies a circuit with a sharp reverse every 15 s, comes back, lands on the slow glide path
+    // with the sticks held, cuts the throttle after the touch and disarms. It is
     // flown either through the scheduler on a virtual clock, with three 40 ms process stalls for the hitches, or in real
     // time on the flight thread with the stick reports from an input thread. Both log through the ring and the flush
     // worker; the replay only needs the logged sticks.
@@ -46,8 +49,41 @@ namespace Fpv450.Replay
             public long NowUs() => Now;
         }
 
-        /// <summary>The worlds a replay can open by the header's id.</summary>
-        public static FlightWorld OpenWorld(string id) => id == "floor" ? FlightWorld.Floor() : null;
+        /// <summary>
+        /// The world a log names by its header's id: "floor" is the stub's floor; any other id is the repository's map
+        /// maps/&lt;id&gt; (MapWorld.Load), as the app names its flights on the test range (FlightWorlds). Null when there is
+        /// neither; where says what was opened, or why nothing was. The replay checks its content hash against the log's.
+        /// </summary>
+        public static FlightWorld OpenWorld(string id, out string where)
+        {
+            if (id == "floor")
+            {
+                where = "the stub's floor";
+                return FlightWorld.Floor();
+            }
+            if (id.Length == 0 || !id.All(c => c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_'))
+            {
+                where = "it is not a map id";
+                return null;
+            }
+            string placements = Repository(Path.Combine("maps", id, "placements.json"));
+            if (placements == null)
+            {
+                where = "no maps/" + id + "/placements.json in a repository above " + Directory.GetCurrentDirectory();
+                return null;
+            }
+            string root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(placements)));
+            try
+            {
+                where = "the map " + placements;
+                return new FlightWorld(MapWorld.Load(root, id));
+            }
+            catch (Exception e) when (e is IOException || e is FormatException || e is ArgumentException)
+            {
+                where = "the map " + placements + " cannot be loaded: " + e.Message;
+                return null;
+            }
+        }
 
         /// <summary>The repository's drone.json, found from the working directory upwards; null when there is none.</summary>
         public static string RepositoryDrone() => Repository(Path.Combine("assets-src", "drone", "drone.json"));
@@ -108,20 +144,23 @@ namespace Fpv450.Replay
         /// low to 0.5 s; up to 20 m by 12 s; then a 30 m circuit at 8 m/s, its target reversed for 0.6 s every 15 s (a full
         /// sharp reverse); from 80 s back over the start at 20 m; from 92 s down at 2 m/s, and at 0.5 m/s from 3 m; with
         /// the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) through the touch; 0.5 s after the legs
-        /// first compress the throttle is cut, and 2 s later the switch goes off. TX12 resolution on every axis.
+        /// first compress the throttle is cut, and 2 s later the switch goes off. TX12 resolution on every axis. Every
+        /// height and target is over the start's foot.
         /// </summary>
         sealed class Pilot
         {
             const double Cruise = 8, Radius = 30, Height = 20;
             readonly SimPilot _p;
+            readonly Double3 _foot;
             readonly double _stand;
             StickSample _held;
             bool _holding;
             double _slowFrom = -1, _slowY, _touchAt = -1;
 
-            public Pilot(FlightCore core, double stand)
+            public Pilot(FlightCore core, Double3 foot, Double3 nose, double stand)
             {
-                _p = new SimPilot(core.Controller, new Double3(0, stand, 0)) { Period = 1 };
+                _p = new SimPilot(core.Controller, foot + new Double3(0, stand, 0)) { Period = 1, Heading = nose };
+                _foot = foot;
                 _stand = stand;
             }
 
@@ -130,7 +169,7 @@ namespace Fpv450.Replay
             public StickSample Sticks(double t, in PoseFrame pose, long hostUs)
             {
                 if (t < 0.5) return new StickSample { HostUs = hostUs, Arm = t >= 0.2 };
-                double clearance = pose.Position.Y - _stand;
+                double clearance = pose.Position.Y - _foot.Y - _stand;
                 if (_touchAt < 0 && _holding && (pose.LegCompression.RearRight > 0 || pose.LegCompression.FrontRight > 0
                     || pose.LegCompression.RearLeft > 0 || pose.LegCompression.FrontLeft > 0))
                 {
@@ -143,7 +182,7 @@ namespace Fpv450.Replay
                 {
                     if (t < 12)
                     {
-                        _p.Target = new Double3(0, _stand + Math.Min(Height, 2 * (t - 0.5)), 0);
+                        _p.Target = _foot + new Double3(0, _stand + Math.Min(Height, 2 * (t - 0.5)), 0);
                     }
                     else if (t < 80)
                     {
@@ -152,7 +191,7 @@ namespace Fpv450.Replay
                         if ((t - 12) % 15 >= 7 && (t - 12) % 15 < 7.6) along = along * -1;
                         _p.HoldVelocity = true;
                         _p.TargetVelocity = along;
-                        _p.Target = new Double3(0, _stand + Height, 0);
+                        _p.Target = _foot + new Double3(0, _stand + Height, 0);
                     }
                     else
                     {
@@ -164,7 +203,7 @@ namespace Fpv450.Replay
                             _slowY = clearance;
                         }
                         if (_slowFrom >= 0) y = _slowY - 0.8 - 0.5 * (t - _slowFrom);
-                        _p.Target = new Double3(0, _stand + y, 0);
+                        _p.Target = _foot + new Double3(0, _stand + y, 0);
                     }
                     s = _p.Sticks(pose, hostUs);
                     if (_slowFrom >= 0 && clearance < 0.1 && pose.Velocity.Y < 0)
@@ -189,7 +228,7 @@ namespace Fpv450.Replay
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny, bool canopy = false)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
@@ -200,6 +239,8 @@ namespace Fpv450.Replay
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Role == ContactRole.Support) stand = Math.Max(stand, s.Radius - s.A.Y);
+            if (map != null && (wakes || canopy))
+                throw new ArgumentException("--map " + map + " flies the map's own wind (WindSetup.ForMap): not with --wakes or --canopy");
             WindSetup air = WindSetup.Of(wind);
             // --wakes (p7c-wind 1.5): the wake grid's synthetic layout (a maple row along X through the start, with a gap,
             // and a solid house), so the replay rebuilds the grid and its worker's handovers from the header. --canopy: a
@@ -207,25 +248,48 @@ namespace Fpv450.Replay
             // rebuilds the canopy's flow from the header.
             if (wakes) air.Wakes = new WakeLayout { OriginX = -300, OriginZ = -300, NX = 300, NZ = 300, Volumes = Fpv450.Sim.Tests.WakeGridFixture.Volumes() };
             if (canopy)
-                air.Canopy = new CanopyStrip
+                air.Canopies = new[]
                 {
-                    CentreX = 0, CentreZ = 0, AxisDeg = 90, Length = 1000, Width = 141, Height = 16.6, FrontalAreaIndex = 0.3,
+                    new CanopyStrip { CentreX = 0, CentreZ = 0, AxisDeg = 90, Length = 1000, Width = 141, Height = 16.6, FrontalAreaIndex = 0.3 },
                 };
+            // --map: the map's first legs-on start point off a stand, its foot and heading (D-019's yaw: the body turned
+            // about +y, the nose's bearing (sin, 0, cos), as ContactScenarios.Site turns it), and the map's own wind
+            // (WindSetup.ForMap: its obstacles' wakes and its belt's canopy, as the app flies it).
+            FlightWorld world = FlightWorld.Floor();
+            Double3 foot = default, nose = new Double3(0, 0, 1);
+            Quat attitude = Quat.Identity;
+            if (map != null)
+            {
+                world = OpenWorld(map, out string where) ?? throw new ArgumentException("--map " + map + ": " + where);
+                StartPoint start = Array.Find(((MapWorld)world.Query).StartPoints, p => p.LegsOn && !p.Stand);
+                if (start.Id == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand");
+                foot = start.Position;
+                air = WindSetup.ForMap((MapWorld)world.Query, wind);
+                double heading = start.HeadingDeg * (Math.PI / 180);
+                DetMath.SinCos(heading / 2, out double sin, out double cos);
+                attitude = new Quat(0, sin, 0, cos);
+                DetMath.SinCos(heading, out sin, out cos);
+                nose = new Double3(sin, 0, cos);
+            }
             var setup = new FlightSetup
             {
                 Seed = Seed,
-                World = OpenWorld("floor"),
+                World = world,
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
                 Contacts = contacts,
                 Wind = air,
                 Asymmetry = spec.BuildAsymmetry(), // a pilot's flight: the motors as this seed drew them (p7b-airframe 1.1)
+                Placement = spec.BuildPlacement(), // and the build as the pilot's hands set it (D-066, PHY-24)
                 VortexRing = spec.BuildVortexRing(), // and the rotors' vortex rings (1.2)
                 GroundEffect = spec.BuildGroundEffect(), // and their ground and ceiling effect and recirculation (1.3)
+                RotorWake = spec.BuildRotorWake(), // and each rotor's own wake unsteadiness (D-064)
                 Flapping = spec.BuildFlapping(), // and their edgewise-flow moments (1.3c)
+                Interference = spec.BuildInterference(), // and each other's wake (1.3d)
                 Modes = spec.BuildModes(), // and the airframe's modes (1.4)
-                StartPosition = new Double3(0, stand, 0),
+                StartPosition = foot + new Double3(0, stand, 0),
+                StartAttitude = attitude,
                 Rain = rain,
                 CameraPosition = spec.CameraPosition,
             };
@@ -233,12 +297,12 @@ namespace Fpv450.Replay
             LogHeader header = LogHeader.For(setup, core);
             header.Build = Host.Build;
             header.Isa = Host.Isa;
-            header.WorldId = "floor";
+            header.WorldId = map ?? "floor";
             header.SetDrone(spec, loadout);
 
             var inbox = new StickInbox();
             var poses = new PoseBuffer();
-            var pilot = new Pilot(core, stand);
+            var pilot = new Pilot(core, foot, nose, stand);
             var wall = Stopwatch.StartNew();
             var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
             Exception fault;
@@ -256,7 +320,7 @@ namespace Fpv450.Replay
                 DroneHash = header.DroneHash,
                 WallSeconds = wall.Elapsed.TotalSeconds,
                 Fault = fault ?? recorder.Fault,
-                Landing = pilot.Landing + $"; ends at {core.State.Position.Y - stand:F4} m over standing, {core.Trace.ContactsTouching} touching pairs, "
+                Landing = pilot.Landing + $"; ends at {core.State.Position.Y - foot.Y - stand:F4} m over standing, {core.Trace.ContactsTouching} touching pairs, "
                     + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}",
             };
         }

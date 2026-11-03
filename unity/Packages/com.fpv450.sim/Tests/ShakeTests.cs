@@ -29,18 +29,19 @@ namespace Fpv450.Sim.Tests
             Assert.That(empty.Modes.Count, Is.EqualTo(7), "no bottle: the arms and the coil");
         }
 
-        // Sixty-two arrested descents: two payloads, four drops (from the hover, 2.5, 5.4 and 9 m/s), a sharp full and a sharp
-        // 0.8 step and the gentle ramp, two seeds; the known-wrong ESC that senses no current on each full punch, and the
-        // known-wrong rigid airframe twice. The spec's three scenarios (D-049, D-051, D-053): "Shake only when its causes
-        // meet", "The shake lasts as long as the arrest", "The visible shake is the rigid body's". What they state of every
-        // flight is checked on each flight here; what they state of nearly every one, or of the median, is a rate, checked on
-        // 40 seeds a cell by flightbench --shake, which fails when one misses (QA's re-review, B1).
+        // Seventy-four arrested descents: two payloads, four drops (from the hover, 2.5, 5.4 and 9 m/s), a sharp full and a
+        // sharp 0.8 step and the gentle ramp, two seeds; each full punch again with 40 A current protection (D-051's
+        // alternative) and with the known-wrong ringless rotors; the known-wrong rigid airframe twice. The drone's own ESC is
+        // the class's, which senses no current (D-066). The spec's three scenarios (D-049, D-051, D-053, D-066): "Shake only
+        // when its causes meet", "The shake lasts as long as the arrest", "The visible shake is the rigid body's". What they
+        // state of every flight is checked on each flight here; what they state of nearly every one, or of the median, is a
+        // rate, checked on 40 seeds a cell by flightbench --shake, which fails when one misses (QA's re-review, B1).
         [Test]
         public void ShakeOnlyWhenItsCausesMeet()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             int flights = 0;
-            double halfSum = 0, fullSum = 0;
+            double ringedPeaks = 0, ringlessPeaks = 0;
             var heavyPunch = new ShakeScenario.Result[Seeds.Length];
             foreach (double payload in Payloads)
                 foreach (double drop in Drops)
@@ -58,50 +59,58 @@ namespace Fpv450.Sim.Tests
                                 + ShakeScenario.Describe(r);
                             TestContext.WriteLine(at);
                             Assert.That(r.Published, Is.True, "the camera's vibration reaches the feed");
+                            Assert.That(r.Limited, Is.EqualTo(0), "the class's ESC senses no current, so none is limited: " + at);
                             if (drop == 0)
                             {
                                 // From the hover: a gentle increase never shows it; a sharp one only its own kick as the motors
-                                // spin up, shorter than the pilot's shortest shake, the ESCs off their limit within 0.1 s.
+                                // spin up, shorter than the pilot's shortest shake.
                                 if (gentle) Assert.That(r.Fields, Is.EqualTo(0), "a gentle increase never shows it: " + at);
                                 else Assert.That(r.Duration, Is.LessThan(ShakeScenario.KickSeconds), "a punch from the hover is a kick, not the shake: " + at);
-                                Assert.That(r.Limited, Is.LessThan(ShakeScenario.KickLimited), at);
                                 continue;
                             }
-                            if (gentle) continue;
-                            // Arresting a descent sharply meets an ESC's current limit and rings the frame's band (that nearly
-                            // every one shows the shake is a rate: a weak arrest from 2.5 m/s can stay under the visible line).
-                            Assert.That(r.Limited, Is.GreaterThan(0), "an ESC meets its limit: " + at);
+                            if (gentle)
+                            {
+                                // In a 5–9 m/s descent a gentle ramp's rotors settle into their ring instead, PHY-09's wobble
+                                // (that it shows over the visible line is a rate, nearly every one).
+                                if (drop >= 0.6) Assert.That(r.InRing, Is.GreaterThan(1.0), "the rotors settle into their wash: " + at);
+                                continue;
+                            }
+                            // Arresting a descent sharply rings the frame's band (that it shows is a rate below 9 m/s: a weak arrest
+                            // stays under the visible line).
                             Assert.That(r.VibrationPeak.Y, Is.GreaterThan(ShakeScenario.Rings), "the frame's band rings: " + at);
                             if (stick < 1) continue;
-                            // A full punch holds an ESC on its limit through the whole arrest, all four for part of it, and its
-                            // shake never outlasts it by more than the loop's settling.
-                            Assert.That(ShakeScenario.HoldsTheArrest(r), Is.True, "a full punch holds its arrest: " + at);
+                            // A full punch's shake ends with its arrest, within the loop's settling (that it shows from 9 m/s is
+                            // a rate, nearly every one: a heavy one can stay just under the visible line).
+                            Assert.That(ShakeScenario.EndsWithTheArrest(r), Is.True, "a full punch's shake ends with its arrest: " + at);
                             if (payload > 0 && drop == 0.6) heavyPunch[s] = r;
                         }
                     if (drop == 0) continue;
                     for (int s = 0; s < Seeds.Length; s++)
                     {
-                        ShakeScenario.Result full = runs[0, s], half = runs[1, s], gentle = runs[2, s];
-                        // A smaller step lets the ESCs go sooner (on nearly every seed: 2640 of 2640 on 440 seeds a cell, but by
-                        // 12 ms at the least, so a rate, flightbench --shake); in a 5–9 m/s descent a gentle ramp shows PHY-09's wobble.
-                        halfSum += half.Duration;
-                        fullSum += full.Duration;
-                        if (drop >= 0.6) Assert.That(ShakeScenario.Wobbles(gentle, full), Is.True, "the rotors settle into their wash: " + ShakeScenario.Describe(gentle));
-                        // Known-wrong: an ESC that senses no current (D-051). Nothing holds the loop short of authority: no
-                        // ESC sits on a limit through the arrest, and it tilts less far than the full punch (less than half as
-                        // far on nearly every seed, a rate).
-                        ShakeScenario.Result wrong = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, Seeds[s], currentLimit: false), drop, false);
+                        ShakeScenario.Result full = runs[0, s];
+                        // 40 A current protection (D-051's alternative, model 22's drone): the arrest takes longer, its shake
+                        // still ending with it (that an ESC holds its limit through it and the drone tilts further are rates,
+                        // nearly every one: --shake).
+                        ShakeScenario.Result held = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, Seeds[s], protection: true), drop, false);
                         flights++;
-                        string w = $"no current limit, {payload:F0} kg, drop {drop:F1} s, seed {Seeds[s]}: " + ShakeScenario.Describe(wrong);
+                        string w = $"40 A protection, {payload:F0} kg, drop {drop:F1} s, seed {Seeds[s]}: " + ShakeScenario.Describe(held);
                         TestContext.WriteLine(w);
-                        Assert.That(ShakeScenario.HoldsTheArrest(wrong), Is.False, w);
-                        Assert.That(wrong.TiltMax, Is.LessThan(full.TiltMax), "the tilt is the current limit's: " + w);
+                        Assert.That(ShakeScenario.EndsWithTheArrest(held), Is.True, w);
+                        Assert.That(held.ArrestedAfter, Is.GreaterThan(full.ArrestedAfter), "the limit lengthens the arrest: " + w);
+                        // Known-wrong: rotors that never re-ingest their wash (no ring). The shake is mainly the wash's (D-064's
+                        // motor spreads a second cause, ShakeScenario.PastTheKick), so it weakens (on most seeds, a rate; here in sum).
+                        FlightSetup ringless = ShakeScenario.Setup(spec, payload, Seeds[s]);
+                        ringless.VortexRing = null;
+                        ShakeScenario.Result noRing = ShakeScenario.Fly(ringless, drop, false);
+                        flights++;
+                        TestContext.WriteLine($"no ring, {payload:F0} kg, drop {drop:F1} s, seed {Seeds[s]}: " + ShakeScenario.Describe(noRing));
+                        ringedPeaks += full.Peak;
+                        ringlessPeaks += noRing.Peak;
                     }
                     Assert.That(runs[0, 0].Peak, Is.Not.EqualTo(runs[0, 1].Peak), "it varies between occurrences");
                 }
-            // The 0.8 steps' shakes are shorter in sum: over these 12 pairs in all (in every cell of 40 seeds, flightbench --shake).
-            TestContext.WriteLine($"the 0.8 step's shakes over the full punches': {halfSum / fullSum:F2}");
-            Assert.That(halfSum, Is.LessThan(fullSum), "the 0.8 step's shake is shorter");
+            TestContext.WriteLine($"the ringless rotors' peaks over the ringed ones', summed: {ringlessPeaks / ringedPeaks:F2}");
+            Assert.That(ringlessPeaks, Is.LessThan(ringedPeaks), "the shake is mainly the re-ingested wash's");
             // Known-wrong: a rigid airframe, the modes off. The visible shake is the rigid body's, so it stays (within 20 % of
             // the flexing airframe's peak; as long is a rate, the same median and within three fields on nearly every seed);
             // but the camera has no frame to ring, and the feed no vibration.
@@ -112,38 +121,63 @@ namespace Fpv450.Sim.Tests
                 string at = $"rigid, 2 kg, drop 0.6 s, step 1.0, seed {Seeds[s]}: " + ShakeScenario.Describe(r);
                 TestContext.WriteLine(at);
                 Assert.That(r.Peak / heavyPunch[s].Peak, Is.InRange(0.8, 1.2), "the visible shake is the rigid body's: " + at);
-                Assert.That(ShakeScenario.HoldsTheArrest(r), Is.True, at);
+                Assert.That(ShakeScenario.EndsWithTheArrest(r), Is.True, at);
                 Assert.That(r.Published, Is.False, "the known-wrong rigid airframe publishes no camera vibration");
             }
-            Assert.That(flights, Is.EqualTo(62));
+            Assert.That(flights, Is.EqualTo(74));
         }
 
-        // The empty drone's full punch from 2.5 and 5.3 m/s on seeds 1–10, the pilot's PR-1: the shake lasts 0.3–0.7 s on
-        // most, at least 7 of 10 (ShakeScenario.Most), its median in it. On 440 seeds the 2.5 m/s cell leaves the band on
-        // 7.7 % (weak shakes over the visible line for 0.1–0.2 s), so a fresh 10 seeds fails it about 0.5 % of the time. The
-        // known-wrong ESC that senses no current fails it from 2.5 m/s, where its shake barely shows.
+        // The empty drone's full punch from 9 m/s (a sudden drop) on seeds 1–10, the pilot's PR-1: the shake lasts 0.3–0.7 s
+        // on most, at least 7 of 10 (ShakeScenario.Most), its median in it.
+        // The known-wrong ringless rotors cannot be told from it in that cell (QA's integration review, B2): D-064's motor
+        // spreads, which no current limit trims (D-066), shake a fast arrest without the wash too, inside the band on 272 of
+        // 520 seeds (1–40, 301–500, 701–740, 1001–1200, 1301–1340), so ten seeds pass the band about 21 % of the time and
+        // forty about 1.8 %. So the known-wrong is judged as flightbench --shake judges it, the wash as the main cause: on
+        // seeds 1–40 of the six arrested descents (both payloads, 2.5, 5.3 and 9 m/s) the ringless shake is weaker on most
+        // and lasts past the kick on at most half as many. Bootstrapped from the same 520 seeds' flights, a fresh 40 fails
+        // that about 0.6 % of the time (0.57 % of 20 000 draws). 480 flights, each on its own seed and independent, in parallel.
         [Test]
         public void TheShakeLastsAboutTheArrest()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            foreach (double drop in new[] { 0.3, 0.6 })
-                foreach (bool limit in new[] { true, false })
+            double[] payloads = { 0, 2 }, drops = { 0.3, 0.6, 1.0 };
+            const int Seeds = 40;
+            var runs = new ShakeScenario.Result[2, payloads.Length * drops.Length, Seeds]; // [ring off, cell, seed]
+            System.Threading.Tasks.Parallel.For(0, runs.Length, j =>
+            {
+                int ringless = j / (runs.GetLength(1) * Seeds), cell = j / Seeds % runs.GetLength(1), s = j % Seeds;
+                FlightSetup setup = ShakeScenario.Setup(spec, payloads[cell / drops.Length], (ulong)(s + 1));
+                if (ringless == 1) setup.VortexRing = null;
+                runs[ringless, cell, s] = ShakeScenario.Fly(setup, drops[cell % drops.Length], false);
+            });
+
+            var lengths = new double[10];
+            int inside = 0, pilots = drops.Length - 1; // the empty drone from 9 m/s
+            for (int s = 0; s < lengths.Length; s++)
+            {
+                lengths[s] = runs[0, pilots, s].Duration;
+                if (ShakeScenario.LastsInTenths(lengths[s], 0.3, 0.7)) inside++;
+            }
+            System.Array.Sort(lengths);
+            double median = (lengths[4] + lengths[5]) / 2;
+            string at = $"from 9 m/s: {inside} of 10 in 0.3–0.7 s, {lengths[0]:F2}–{lengths[9]:F2} s, median {median:F2} s";
+            TestContext.WriteLine(at);
+            Assert.That(ShakeScenario.PilotBand(inside, lengths.Length, median), Is.True, at);
+
+            int punches = 0, weaker = 0, ringedLasts = 0, ringlessLasts = 0;
+            for (int cell = 0; cell < runs.GetLength(1); cell++)
+                for (int s = 0; s < Seeds; s++)
                 {
-                    if (!limit && drop > 0.3) continue;
-                    var lengths = new double[10];
-                    int inside = 0;
-                    for (int s = 0; s < lengths.Length; s++)
-                    {
-                        ShakeScenario.Result r = ShakeScenario.Fly(ShakeScenario.Setup(spec, 0, (ulong)(s + 1), currentLimit: limit), drop, false);
-                        lengths[s] = r.Duration;
-                        if (ShakeScenario.LastsInTenths(r.Duration, 0.3, 0.7)) inside++;
-                    }
-                    System.Array.Sort(lengths);
-                    double median = (lengths[4] + lengths[5]) / 2;
-                    string at = $"drop {drop:F1} s{(limit ? "" : ", no current limit")}: {inside} of 10 in 0.3–0.7 s, {lengths[0]:F2}–{lengths[9]:F2} s, median {median:F2} s";
-                    TestContext.WriteLine(at);
-                    Assert.That(ShakeScenario.PilotBand(inside, lengths.Length, median), Is.EqualTo(limit), at);
+                    ShakeScenario.Result ringed = runs[0, cell, s], noRing = runs[1, cell, s];
+                    punches++;
+                    if (noRing.Peak < ringed.Peak) weaker++;
+                    if (ShakeScenario.PastTheKick(ringed)) ringedLasts++;
+                    if (ShakeScenario.PastTheKick(noRing)) ringlessLasts++;
                 }
+            string wrong = $"no ring, seeds 1–{Seeds} of the six descents: weaker {weaker}/{punches}; past the kick ({ShakeScenario.KickSeconds:F1} s) on "
+                + $"{ringlessLasts}/{punches} against {ringedLasts}";
+            TestContext.WriteLine(wrong);
+            Assert.That(weaker >= ShakeScenario.Most * punches && 2 * ringlessLasts <= ringedLasts, Is.True, "the known-wrong fails: " + wrong);
         }
 
         [Test]

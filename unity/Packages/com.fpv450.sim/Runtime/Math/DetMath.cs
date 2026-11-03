@@ -157,7 +157,10 @@ namespace Fpv450.Sim
 
         // ---- Atan2 (p7d-tether 1.1): fdlibm 5.3's algorithm and constants (Sun Microsystems, 1993, published), on the
         // basic operations only. Each constant's bits match fdlibm's hex comment; the splits of π/2, π and atan(½, 1, 3/2)
-        // into a head and a tail are re-derived exactly (the 1.1 as-built note). Exp and Log are p7c-wind's, above. ----
+        // into a head and a tail are re-derived exactly (the 1.1 as-built note). Exp and Log are p7c-wind's, above. The
+        // physics line's series Atan2 (the map's wind: a belt's bearing, a wind volume's yaw) gave way to this one at the
+        // merge, model 28: it was 4 ulp off on the circle sweep and lost the signs of zero and the infinities (p7d-tether
+        // 1.1's note on the merge onto the physics line). ----
 
         // atan x ≈ x − x·(aT0·x² + … + aT10·x^22) on |x| ≤ 7/16 (Remez), and atan of the reduction points ½, 1, 3/2 and ∞
         // as a head and a tail.

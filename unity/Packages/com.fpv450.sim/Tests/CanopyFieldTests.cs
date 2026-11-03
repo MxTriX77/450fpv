@@ -13,8 +13,8 @@ namespace Fpv450.Sim.Tests
     // a strip, so every other flight's wind is bit for bit what it is without, and outside the strip the open field's;
     // its roughness is Raupach (1994)'s and its profile continuous to the open field's at the blending height; at its top
     // the eddies carry the canopy's σ/u* beyond the open field's, along, across and up, and below it every σ falls as
-    // the mean does to the CanopyDecay power; the seed draws them; the header records the strip; out of bounds, with
-    // wakes or without a pilot's level refused.
+    // the mean does to the CanopyDecay power; the seed draws them; the header records the strip; out of bounds or
+    // without a pilot's level refused (with wakes, a map's: MapWindTests).
     public sealed class CanopyFieldTests
     {
         // The harness's strip (16.6 m, λ 0.3) across a course north from the origin, the wind from the west.
@@ -26,7 +26,7 @@ namespace Fpv450.Sim.Tests
         static WindSetup WithStrip(WindLevel level)
         {
             WindSetup w = WindSetup.Of(level);
-            w.Canopy = Strip();
+            w.Canopies = new[] { Strip() };
             return w;
         }
 
@@ -193,15 +193,16 @@ namespace Fpv450.Sim.Tests
             LogHeader h = Named(LogHeader.For(setup, new FlightCore(setup)));
             LogHeader back = LogHeader.Read(new MemoryStream(h.Encode()));
             Assert.That(back.Unknown, Is.Empty);
-            CanopyStrip x = setup.Wind.Canopy, y = back.Wind.Canopy;
-            Assert.That(y, Is.Not.Null);
+            CanopyStrip x = setup.Wind.Canopies[0];
+            Assert.That(back.Wind.Canopies, Has.Length.EqualTo(1));
+            CanopyStrip y = back.Wind.Canopies[0];
             Assert.That(new[] { y.CentreX, y.CentreZ, y.AxisDeg, y.Length, y.Width, y.Height, y.FrontalAreaIndex },
                 Is.EqualTo(new[] { x.CentreX, x.CentreZ, x.AxisDeg, x.Length, x.Width, x.Height, x.FrontalAreaIndex }));
             Assert.That(back.WindParameters, Is.EqualTo(LogHeader.PresetOf(WindLevel.Severe)));
 
             FlightSetup plain = WindTargets.BenchFlight(WindLevel.Severe, 5);
             LogHeader p = Named(LogHeader.For(plain, new FlightCore(plain)));
-            Assert.That(LogHeader.Read(new MemoryStream(p.Encode())).Wind.Canopy, Is.Null);
+            Assert.That(LogHeader.Read(new MemoryStream(p.Encode())).Wind.Canopies, Is.Null);
         }
 
         [Test]
@@ -211,15 +212,15 @@ namespace Fpv450.Sim.Tests
                      { s => s.Height = 0.5, s => s.Width = 0, s => s.FrontalAreaIndex = 0, s => s.CentreX = double.NaN, s => s.Height = 40 })
             {
                 WindSetup w = WithStrip(WindLevel.Severe);
-                spoil(w.Canopy);
+                spoil(w.Canopies[0]);
                 Assert.Throws<ArgumentException>(() => new WindField(w, new FlightRandom(1)));
             }
             WindSetup steady = WindSetup.SteadyFrom(270, 5);
-            steady.Canopy = Strip();
+            steady.Canopies = new[] { Strip() };
             Assert.Throws<ArgumentException>(() => new WindField(steady, new FlightRandom(1)), "a canopy needs a pilot's level");
-            WindSetup both = WithStrip(WindLevel.Severe);
-            both.Wakes = new WakeLayout { OriginX = -300, OriginZ = -300, NX = 300, NZ = 300, Volumes = WakeGridFixture.Volumes() };
-            Assert.Throws<ArgumentException>(() => new WindField(both, new FlightRandom(1)), "not with wakes");
+            WindSetup none = WindSetup.Of(WindLevel.Severe);
+            none.Canopies = new CanopyStrip[0];
+            Assert.Throws<ArgumentException>(() => new WindField(none, new FlightRandom(1)), "null or at least one strip");
         }
 
         static LogHeader Named(LogHeader h)

@@ -12,6 +12,10 @@ namespace Fpv450.Sim.Flight
     /// - Prop balance: each prop keeps a residual unbalance U uniform in [0, U_per] at a uniform angle ("prop.unbalance"),
     ///   U_per = m·G/Ω by ISO 21940-11's grade G at the service speed Ω, so each rotor pulls its hub with U·ω² turning
     ///   with it (Propulsion).
+    /// - The motor's own dynamics (D-064): each motor's winding resistance R ("motor.resistance"), its no-load current I0,
+    ///   the bearings' and the iron's friction ("motor.friction"), and its rotor's inertia J, the bell and the prop
+    ///   ("motor.inertia"), each × (1 + δ), δ nearly normal, clamped. With Kv they set each motor's time constant
+    ///   τ_m = J/(Kt·Ke/R + ∂Q/∂ω), its speed at a duty and its idle, so the four answer one command a little apart.
     /// </summary>
     public sealed class MotorAsymmetry
     {
@@ -31,6 +35,24 @@ namespace Fpv450.Sim.Flight
         /// the 250 µs sub-step, so the lag carries it as one offset per flight within its bound (assumed).</summary>
         public double EscLagBound = 0.08e-3;
 
+        /// <summary>The winding resistance's bound, a fraction: ±10 % (published: an outer-rotor BLDC's datasheet tolerance on
+        /// the line-to-line resistance at 25 °C, E-JPC's VH series, as on its torque and back-EMF constants).</summary>
+        public double ResistanceBound = 0.10;
+
+        /// <summary>Its spread, σ: a third of the bound (assumed: the tolerance as 3σ).</summary>
+        public double ResistanceSigma = 0.10 / 3;
+
+        /// <summary>The no-load current's bound, a fraction: ±10 % (published: maxon's test specification, ±10 % on the
+        /// no-load current and speed; its catalogue's I0 a typical value).</summary>
+        public double FrictionBound = 0.10;
+
+        /// <summary>Its spread, σ: a third of the bound (assumed).</summary>
+        public double FrictionSigma = 0.10 / 3;
+
+        /// <summary>The rotor inertia's bound, a fraction: ±3 % (assumed: the moulded prop's and the bell's mass; no lot
+        /// spread is published), and its σ, 1 % (assumed).</summary>
+        public double InertiaBound = 0.03, InertiaSigma = 0.01;
+
         /// <summary>ISO 21940-11's balance grade G, m/s: G 6.3 (published: Tyto Robotics, UAV props are typically balanced
         /// to G 6.3).</summary>
         public double BalanceGrade = 6.3e-3;
@@ -49,12 +71,17 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>
         /// One flight's per-motor draws from random (at the flight's start), each recorded for the header: "motor.kv"
-        /// (kv_scale), "esc.lag" (lag_s), "prop.unbalance" (kg_m, then angle_rad), corner by corner.
+        /// (kv_scale), "esc.lag" (lag_s), "prop.unbalance" (kg_m, then angle_rad), then "motor.resistance",
+        /// "motor.friction" and "motor.inertia" (each a scale), corner by corner.
         /// </summary>
         public Draws DrawFor(FlightRandom random)
         {
             if (random == null) throw new ArgumentNullException(nameof(random));
-            var d = new Draws { KvScale = new double[4], EscLag = new double[4], Unbalance = new double[4], UnbalanceAngle = new double[4] };
+            var d = new Draws
+            {
+                KvScale = new double[4], EscLag = new double[4], Unbalance = new double[4], UnbalanceAngle = new double[4],
+                ResistanceScale = new double[4], FrictionScale = new double[4], InertiaScale = new double[4],
+            };
             SeedStream kv = random.Open("motor.kv");
             for (int i = 0; i < 4; i++) d.KvScale[i] = 1 + random.DrawNormal(ref kv, "motor.kv." + Corner(i), KvSigma, KvBound);
             SeedStream lag = random.Open("esc.lag");
@@ -66,6 +93,12 @@ namespace Fpv450.Sim.Flight
                 d.Unbalance[i] = random.Draw(ref prop, "prop.unbalance_kg_m." + Corner(i), 0, limit);
                 d.UnbalanceAngle[i] = random.Draw(ref prop, "prop.unbalance_angle_rad." + Corner(i), 0, TwoPi);
             }
+            SeedStream r = random.Open("motor.resistance");
+            for (int i = 0; i < 4; i++) d.ResistanceScale[i] = 1 + random.DrawNormal(ref r, "motor.resistance." + Corner(i), ResistanceSigma, ResistanceBound);
+            SeedStream f = random.Open("motor.friction");
+            for (int i = 0; i < 4; i++) d.FrictionScale[i] = 1 + random.DrawNormal(ref f, "motor.friction." + Corner(i), FrictionSigma, FrictionBound);
+            SeedStream j = random.Open("motor.inertia");
+            for (int i = 0; i < 4; i++) d.InertiaScale[i] = 1 + random.DrawNormal(ref j, "motor.inertia." + Corner(i), InertiaSigma, InertiaBound);
             return d;
         }
 
@@ -82,6 +115,9 @@ namespace Fpv450.Sim.Flight
 
             /// <summary>The prop's residual unbalance, kg·m, and its angle from the rotor's zero, rad.</summary>
             public double[] Unbalance, UnbalanceAngle;
+
+            /// <summary>The winding resistance, the no-load current and the rotor inertia over drone.json's (D-064).</summary>
+            public double[] ResistanceScale, FrictionScale, InertiaScale;
         }
     }
 }

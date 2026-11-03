@@ -536,3 +536,32 @@ From the micro-motion investigation (`docs/reference-notes/hover-micro-motion.md
   - the grade above 4 Hz against P's real motion, with the recorder's field timing
   - the pilot's stick noise from a published human-operator model (the noiseless pilot as the known-wrong, never tuned to pass)
 - **Roll and heading then match P;** pitch stays 3× low. A new flight-model item, the rear rotors in the front rotors' wake in forward flight, is named for it.
+
+## D-061 Which objects get a tree inside them · Accepted
+Supersedes D-054's last sentence. The world builder measured it, and QA accepted it:
+- **S04's straw patch stays in the grid:** a tree over its 195 long, crossing strips measured about 20 % slower than the grid's walk.
+- **A tree inside an object goes only to objects with more than 256 shapes.** The straw's cost was the exact distance tests, not the search for candidates.
+- **Physics' pattern meets the 60 µs line** at p99 on every row (crown, H01_D, E01, posadka, straw, stand), with 0 B.
+
+## D-062 Disarming doesn't end the flight · Accepted
+The pilot, 2026-11-02: "arm disarm change AIR DISARM on OSD, dont make disarm trigger that stupid dialog."
+- **Disarming no longer ends the flight.** The OSD shows DISARMED (D-057); the drone stays in the world under physics, and the pilot can re-arm with the switch and fly on.
+- **The flight ends on:** a crash, the failsafe, the battery cut-off, or End flight from the pause menu. The post-flight summary shows only then.
+- The arm and disarm events stay in the log, and replay is unchanged.
+
+## D-063 Nothing interrupts the flight; the pilot watches the drone · Accepted
+The pilot, 2026-11-02: "i dont like that whenever something is off this dialog pops out. just let me see the drone behavior".
+- **No event ends the flight on its own.** After a crash, an upside-down rest, the failsafe or the battery cut-off, the drone stays under physics (tumbling, falling, lying where it lands) and the pilot keeps watching through the feed or the chase view.
+- **Each event is logged** as before (the crash names its object, LOG-03), and the flight's events are listed when the pilot ends the flight.
+- **The summary shows only on End flight or Restart from the pause menu.** No dialog or overlay appears during the flight.
+- **Supersedes the end rule** of D-062 and APP-04: the flight now ends only by the pilot.
+
+## D-064 The drone is never perfectly still: low-throttle and near-ground micro-motion · Accepted
+The pilot, 2026-11-02: "in real life motors may be different just by 0.0004%, randomly, but this tiny difference is visible in micromovements and microshakings of the camera when on a slower speed, lower throttle etc. ... make it act realistically unexpected (but not like unexpectedly crashing) ... one can sense these things ESPECIALLY when lifting off or landing."
+- **The target is the pilot's footage:** the reference analyst measures the camera's micro-motion (rates and spectra by axis) in the clips that show a liftoff, a hover near the ground and a landing, as clip P was measured for the wind (D-028).
+- **The sources are physical and published,** each a bounded perturbation of a named parameter, seeded and logged (PHY-24), never noise on the pose:
+  - each rotor's own thrust and torque unsteadiness in hover, from published rotor measurements
+  - its rise near the ground as the wash recirculates unevenly (ground effect's unsteady part)
+  - each motor's and ESC's own dynamics (time constant, friction, low-throttle and idle behaviour), drawn per motor per flight
+  - the legs' stick-slip at liftoff (`p7a-ground`)
+- **Graded like the wind:** each target is met against the footage and fails a known-wrong model (a perfectly steady rotor), and nothing is tuned to pass.

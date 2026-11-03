@@ -46,12 +46,16 @@ namespace Fpv450.Sim.Tests
             });
         }
 
-        // The drone's propulsion with its ESCs' current limit lifted (an ESC with none), or with no rotor in-plane drag
-        // (the rate rig of a step-response test, where the tumbling body's own air does not reach the loop).
-        static PropulsionSpec Unlimited()
+        // An ESC with current protection (BLHeli_32's, AM32's), A: p6-flight-core 1.5's policy at the motor's 40 A, model
+        // 22's drone; the class's published ESC senses no current (drone.json, D-066), so the drone's own has none.
+        const double Protection = ShakeScenario.Protection;
+
+        // The drone's propulsion with each ESC's current protection at Protection, or with no rotor in-plane drag (the
+        // rate rig of a step-response test, where the tumbling body's own air does not reach the loop).
+        internal static PropulsionSpec Protected()
         {
             PropulsionSpec p = Drone.BuildPropulsion();
-            for (int i = 0; i < 4; i++) p.Motors[i].EscCurrentLimit = 1e9;
+            for (int i = 0; i < 4; i++) p.Motors[i].EscCurrentLimit = Protection;
             return p;
         }
 
@@ -171,6 +175,83 @@ namespace Fpv450.Sim.Tests
             Assert.That(duty["L4 nominal 0.5"], Is.LessThan(duty["L4 nominal 0.1"]), "the sagging pack needs more");
         }
 
+        // ---- The hover stick by load (D-066) ----
+
+        // The pilot (D-066): drones of the class lift off at 30–45 % throttle, "based on the exact model", a loaded one
+        // being about 3.5–4 kg. The throttle the pilot reads is the stick past min_check, the throttle curve's input (rc.c
+        // updateRcCommands; the OSD's calculateThrottlePercent). Each load's hover is held by the closed-loop pilot, and its
+        // mixer throttle read back through three curves: the pilot's flown set (thr_mid 50, thr_expo 25, fc-profiles §2,
+        // which D-066 asks for), the sim's present default (50, 10) and a straight one (50, 0). Liftoff from the ground
+        // needs about 1 % less thrust than this hover (the cushion with the hubs 2.3 R up on the legs, T/T∞ = 1/(1 −
+        // (R/4z)²) = 1.012), so it lifts off within about half a point of the hover's stick. Computed, never tuned: the
+        // pilot's band is a check, and the test pins what the physics gives (to half a point) so a change is seen.
+        static readonly (string name, double mid, double expo)[] Curves = { ("the pilot's 50/25", 50, 25), ("the default 50/10", 50, 10), ("straight 50/0", 50, 0) };
+
+        static double ThrottlePercent(double stick) =>
+            100 * (Math.Clamp(1000 + 1000 * stick, FcSettings.Default.min_check, 2000) - FcSettings.Default.min_check) / (2000 - FcSettings.Default.min_check);
+
+        static FlightController CurveController(double mid, double expo)
+        {
+            FcSettings s = FcSettings.Default;
+            s.thr_mid = mid;
+            s.thr_expo = expo;
+            return Core(L4, 1, settings: s).Controller;
+        }
+
+        // The throttle the pilot reads, %, holding a hover of this mass on a pack at this charge through the pilot's curve;
+        // and the mixer throttle.
+        static double HoverPercent(MassModel mass, double charge, FlightController pilotsCurve, out Hover h)
+        {
+            FlightCore core = Core(mass, charge);
+            Arm(core);
+            h = HoldHeight(core);
+            return ThrottlePercent(StickFor(pilotsCurve, h.Throttle));
+        }
+
+        [Test]
+        public void TheHoverStickByLoad()
+        {
+            MassModel empty = Drone.BuildMass(new Loadout { Payload = 0, Legs = true });
+            var loads = new (string name, MassModel mass, double pinned)[] { ("no bottle", empty, 36.8), ("a 1 kg bottle", L5, 44.9), ("a 2 kg bottle", L6, 52.8) };
+            FlightController pilots = CurveController(50, 25);
+            var controllers = new FlightController[Curves.Length];
+            for (int c = 0; c < Curves.Length; c++) controllers[c] = CurveController(Curves[c].mid, Curves[c].expo);
+            double last = 0;
+            var full = new List<(string name, double percent, double pinned)>();
+            foreach (var l in loads)
+            {
+                foreach (double charge in new[] { 1.0, 0.5 })
+                {
+                    double percent = HoverPercent(l.mass, charge, pilots, out Hover h);
+                    var line = new System.Text.StringBuilder();
+                    for (int c = 0; c < Curves.Length; c++)
+                        line.Append($"{(c > 0 ? ", " : "")}{Curves[c].name} {F(ThrottlePercent(StickFor(controllers[c], h.Throttle)), "0.0")} %");
+                    TestContext.Out.WriteLine($"{l.name}, legs on, the coil full: {F(l.mass.Properties.Mass, "0.000")} kg, charge {F(charge, "0.0")}: the hover's throttle "
+                        + $"{line}; Betaflight's mixer {F(100 * h.Throttle, "0.0")} %, ESC duty {F(100 * h.Duty, "0.0")} %, {F(h.Rpm, "0")} rpm, {F(h.Amps, "0.0")} A at {F(h.Volts, "0.00")} V"
+                        + $"{(charge == 1.0 ? $"; the pilot's 30–45 %: {(percent >= 30 && percent <= 45 ? "inside" : "outside")}" : "")}");
+                    if (charge == 1.0) full.Add((l.name, percent, l.pinned));
+                }
+            }
+            foreach (var (name, percent, pinned) in full)
+            {
+                Assert.That(percent, Is.EqualTo(pinned).Within(0.5), name + ": the hover's throttle through the pilot's curve, as computed");
+                Assert.That(percent, Is.GreaterThan(last), name + ": a heavier drone needs more");
+                last = percent;
+            }
+            Assert.That(full[0].percent, Is.InRange(30, 45), "the drone with no bottle lifts off inside the pilot's 30–45 % (D-066)");
+
+            // The heaviest drone that hovers at the pilot's 45 % on a full pack (bisection on the bottle's mass).
+            double lo = 0, hi = 2;
+            for (int it = 0; it < 10; it++)
+            {
+                double mid = (lo + hi) / 2;
+                if (HoverPercent(Drone.BuildMass(new Loadout { Payload = mid, Legs = true }), 1.0, pilots, out _) <= 45) lo = mid; else hi = mid;
+            }
+            double heaviest = Drone.BuildMass(new Loadout { Payload = lo, Legs = true }).Properties.Mass;
+            TestContext.Out.WriteLine($"the pilot's 45 % holds a hover on a full pack up to {F(heaviest, "0.000")} kg, a {F(lo, "0.00")} kg bottle");
+            Assert.That(lo, Is.InRange(0.5, 1.5), "45 % holds between a half and a 1.5 kg bottle, as computed");
+        }
+
         // ---- Battery sag compensation (1.4b) ----
 
         // vbat_sag_compensation 100 holds the hover throttle from a full pack to 20 % charge; off, the sagging pack
@@ -284,29 +365,31 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheMaximumThrustIsTheMotorsAtItsTopSpeed()
         {
-            // With the ESCs' 40 A limit (drone.json, the 1.5 policy) and without one.
-            foreach (bool limited in new[] { true, false })
+            // The drone's ESCs, which sense no current (drone.json, D-066), and with 40 A current protection (model 22's policy).
+            foreach (bool limited in new[] { false, true })
             {
-                var prop = new Propulsion(limited ? Drone.BuildPropulsion() : Unlimited());
+                var prop = new Propulsion(limited ? Protected() : Drone.BuildPropulsion());
                 FullDuty(prop, 1, 2, out RotorLoads loads);
                 double total = (loads.Thrust.RearRight + loads.Thrust.FrontRight + loads.Thrust.RearLeft + loads.Thrust.FrontLeft) / loads.SubSteps;
-                FullDutySteadyState(1, out double perMotor, out double volts, out double packAmps, limited ? double.NaN : 1e9);
+                FullDutySteadyState(1, out double perMotor, out double volts, out double packAmps, limited ? Protection : double.NaN);
                 double weight4 = L4.Properties.Mass * G, weight5 = L5.Properties.Mass * G;
-                TestContext.Out.WriteLine($"full duty, full pack, {(limited ? "the ESCs' 40 A limit" : "no current limit")}: {F(total / G, "0.00")} kgf "
+                TestContext.Out.WriteLine($"full duty, full pack, {(limited ? "40 A current protection" : "the drone's ESCs, no current limit")}: {F(total / G, "0.00")} kgf "
                     + $"({F(total / 4 / G, "0.00")} kgf a motor), {F(loads.Volts, "0.00")} V, {F(loads.Amps0 + loads.Amps1, "0.0")} A from the packs, "
                     + $"limited ESCs 0x{loads.Limited:X}; thrust over weight {F(total / weight4, "0.00")} at L4, {F(total / weight5, "0.00")} at L5; "
                     + $"the independent steady state {F(perMotor / G, "0.000")} kgf a motor at {F(volts, "0.00")} V, {F(packAmps, "0.0")} A");
                 Assert.That(total / 4, Is.EqualTo(perMotor).Within(0.01 * perMotor), "the dynamic model settles on the DC motor's steady state");
                 Assert.That(loads.Volts, Is.EqualTo(volts).Within(0.01 * volts));
                 Assert.That(loads.Amps0 + loads.Amps1, Is.EqualTo(packAmps).Within(0.01 * packAmps));
-                Assert.That(loads.Limited, Is.EqualTo(limited ? 0xF : 0), "full duty passes 40 A, so the limit holds every motor");
-                Assert.That(total / G, limited ? Is.InRange(9.0, 12.5) : Is.InRange(10.0, 17.0),
-                    limited ? "K§5.3's 9.0–12.5 kgf at a 40 A maximum" : "a 10-inch 2-blade on a 900 KV 3115 at 6S");
+                Assert.That(loads.Limited, Is.EqualTo(limited ? 0xF : 0), "full duty passes 40 A, so the protection holds every motor");
+                Assert.That(total / G, limited ? Is.InRange(9.0, 12.5) : Is.InRange(13.0, 17.0),
+                    limited ? "K§5.3's 9.0–12.5 kgf at a 40 A maximum"
+                        : "a 10-inch 2-blade on a 900 KV 3115 at 6S: the published benches' 3.5–4.2 kgf a motor at full throttle (D-066)");
+                if (!limited) Assert.That(packAmps / 4, Is.LessThan(60), "inside the class's published ESC's 60 A a motor, continuous");
             }
         }
 
-        // The ESC's limit: a spin-up from idle to full duty never lets a motor's current pass it, and an ESC without one
-        // draws far more in the spin-up than at its steady full duty.
+        // An ESC's current protection: a spin-up from idle to full duty never lets a motor's current pass it, and the
+        // drone's ESC, which has none, draws far more in the spin-up than at its steady full duty.
         [Test]
         public void TheEscHoldsTheMotorAtItsCurrentLimit()
         {
@@ -316,7 +399,7 @@ namespace Fpv450.Sim.Tests
             var peaks = new double[2];
             for (int pass = 0; pass < 2; pass++)
             {
-                var prop = new Propulsion(pass == 0 ? d.BuildPropulsion() : Unlimited());
+                var prop = new Propulsion(pass == 0 ? Protected() : d.BuildPropulsion());
                 var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = 1, PackCharge1 = 1 };
                 var idle = new Corners { RearRight = 0.06, FrontRight = 0.06, RearLeft = 0.06, FrontLeft = 0.06 };
                 var full = new Corners { RearRight = 1, FrontRight = 1, RearLeft = 1, FrontLeft = 1 };
@@ -330,16 +413,17 @@ namespace Fpv450.Sim.Tests
                         double w = s.RotorSpeed.RearRight;
                         prop.SubStep(ref s, full, true, FlightController.LoopDt, ref loads);
                         // The motor's current over the sub-step from its supply current and duty: i = I_supply / d'.
-                        double volts = loads.Volts, held = (loads.Limited & 1) != 0 ? m.EscCurrentLimit : double.NaN;
+                        double volts = loads.Volts, held = (loads.Limited & 1) != 0 ? Protection : double.NaN;
                         double free = (s.EscCommand.RearRight * volts - ke * w) / m.Resistance;
                         peaks[pass] = Math.Max(peaks[pass], double.IsNaN(held) ? free : held);
                     }
                 }
             }
-            TestContext.Out.WriteLine($"idle to full duty: the motor's peak current {F(peaks[0], "0.0")} A with the ESC's {F(m.EscCurrentLimit, "0")} A limit, "
-                + $"{F(peaks[1], "0.0")} A without one");
-            Assert.That(peaks[0], Is.LessThanOrEqualTo(m.EscCurrentLimit * (1 + 1e-12)), "the limit holds the current");
-            Assert.That(peaks[1], Is.GreaterThan(1.5 * m.EscCurrentLimit), "the spin-up's transient current");
+            TestContext.Out.WriteLine($"idle to full duty: the motor's peak current {F(peaks[0], "0.0")} A with {F(Protection, "0")} A current protection, "
+                + $"{F(peaks[1], "0.0")} A on the drone's ESC, which has none");
+            Assert.That(double.IsPositiveInfinity(m.EscCurrentLimit), Is.True, "the class's published ESC senses no current (D-066)");
+            Assert.That(peaks[0], Is.LessThanOrEqualTo(Protection * (1 + 1e-12)), "the protection holds the current");
+            Assert.That(peaks[1], Is.GreaterThan(1.5 * Protection), "the spin-up's transient current");
         }
 
         [Test]
@@ -377,8 +461,8 @@ namespace Fpv450.Sim.Tests
             var prop = new Propulsion(d.BuildPropulsion());
             DroneMotor m = d.Motors[0];
             double ke = 60 / (2 * Math.PI * m.Kv);
-            // Near idle, at hover and near full: 0.80, where the 0.02 step keeps the current under the ESC's 40 A limit (a
-            // limited motor is a current source, TheEscHoldsTheMotorAtItsCurrentLimit).
+            // Near idle, at hover and near full: 0.80, below full duty's top speed (the drone's ESC has no current limit,
+            // TheEscHoldsTheMotorAtItsCurrentLimit).
             foreach (double duty in new[] { 0.15, 0.47, 0.80 })
             {
                 // Settle every motor at the duty, then step one motor by 0.02 (a small signal; the bus barely moves).
@@ -538,12 +622,12 @@ namespace Fpv450.Sim.Tests
             // D-045). Bounded here so that a change of it is seen: 20–35 % on the ESC's 0.4 ms command lag (p7b-airframe
             // 1.0), across its 0.2–0.7 ms range; design 5's assumed 5 ms, the known-wrong lag, falls out of it.
             Assert.That(bare.Overshoot, Is.LessThan(0.25), "without the filters: overshoots by less than 25 %");
-            Assert.That(chain.Overshoot, Is.InRange(0.20, 0.35), "the builder's chain: measured 32.5 % (roll), 27.1 % (pitch) on D-050's layout");
+            Assert.That(chain.Overshoot, Is.InRange(0.20, 0.40), "the builder's chain: measured 34.3 % (roll) on the class's ESC, which no current limit holds in the step (D-066; 32.5 % with 40 A protection on D-050's layout)");
             foreach (double tau in new[] { 0.0002, 0.0007, 0.005 })
             {
                 StepResult r = StepResponse(axis, FcSettings.Default, tau);
                 TestContext.Out.WriteLine($"{name} step, the builder's chain, τ_esc {F(1000 * tau, "0.0")} ms: {r}");
-                if (tau < 0.001) Assert.That(r.Overshoot, Is.InRange(0.20, 0.35), "inside the band across τ_esc's range");
+                if (tau < 0.001) Assert.That(r.Overshoot, Is.InRange(0.20, 0.40), "inside the band across τ_esc's range (33.8–35.8 % roll on the class's ESC, D-066)");
                 else Assert.That(r.Overshoot, Is.GreaterThan(0.35), "the known-wrong 5 ms lag overshoots past the band");
             }
             // The same step on the elastic airframe (AirframeModes, 1.4; D-050's strapped loads): the bottle's mount on top is
@@ -661,11 +745,11 @@ namespace Fpv450.Sim.Tests
                 for (int j = 0; j < 4; j++) prop.SubStep(ref s, u, true, FlightController.LoopDt, ref loads);
             }
             double steady = loads.YawMoment / loads.SubSteps / mass.Properties.Inertia.YY * 180 / Math.PI;
-            double unlimitedKick = YawKick(Unlimited(), fc);
+            double protectedKick = YawKick(Protected(), fc);
             TestContext.Out.WriteLine($"yaw authority at hover: {F(steady, "0")} °/s² steady (drag torque), {F(kick, "0")} °/s² over full yaw's first 50 ms "
-                + $"(with the rotors' spin-up; {F(unlimitedKick, "0")} °/s² with no ESC current limit)");
-            Assert.That(steady, Is.InRange(500, 800), "fc-profiles §3: about 500–800 °/s²");
-            Assert.That(kick, Is.LessThan(unlimitedKick), "the 40 A limit takes from the spin-up's kick");
+                + $"(with the rotors' spin-up; {F(protectedKick, "0")} °/s² with 40 A current protection)");
+            Assert.That(steady, Is.InRange(450, 880), "fc-profiles §3: about 500–800 °/s² (FpvPrep's estimate; 831 on the class's ESC, D-066, model 22's 745 with 40 A protection)");
+            Assert.That(protectedKick, Is.LessThan(kick), "current protection would take from the spin-up's kick");
         }
 
         // Full yaw from a hover at mixer throttle 0.45: the yaw acceleration over the first 50 ms, °/s².

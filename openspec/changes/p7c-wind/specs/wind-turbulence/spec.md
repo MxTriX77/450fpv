@@ -38,6 +38,17 @@ Each flight SHALL draw its prevailing direction (uniform) and strength (uniform 
 - **WHEN** two flights run with the same seed and level
 - **THEN** their wind at every rotor is bit-identical at every step, and a different seed gives a different prevailing direction
 
+### Requirement: A map's wind is its own obstacles, its belt counted once
+A flight over a map SHALL carry the wakes of the map's placed wind volumes and the canopy flow of its tree belt, derived from the world and never drawn, with the belt read once: its canopy inside and over it, its porous wake on its lee, never its plants as thin obstacles.
+
+#### Scenario: Behind a house and inside the belt
+- **WHEN** the field flies Severe over the test range with the map's obstacles, and again without them (the known-wrong)
+- **THEN** behind H01_D the mean reverses and reattaches near Fackrell's X_R, the far wake is Perera's at the house's height and porosity, and the turbulence is boosted; inside the belt σ/u* at the canopy's top is the canopy's and the mean profile its exponential; behind the belt the wake is porous; and the field without the map's obstacles fails each
+
+#### Scenario: Along the belt
+- **WHEN** the simulated pilot flies Severe along the test range's belt over its crowns on ten seeds, with the map's obstacles and without them
+- **THEN** the yaw residual over the belt and the share of roll events there are higher with them, and without them the belt stretch reads as the field
+
 ### Requirement: Cruise at the published speed
 The airframe's drag SHALL be calibrated so that clip P's 22.7° of pitch at about 4.8 kg gives the published cruise of 17–22 m/s, every drag number labelled.
 

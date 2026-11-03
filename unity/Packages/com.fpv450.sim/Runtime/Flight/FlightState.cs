@@ -66,6 +66,14 @@ namespace Fpv450.Sim.Flight
         /// disc over v_h, the recirculation's process. 0 without the ground effect and away from the ground.</summary>
         public Corners WashInflow;
 
+        /// <summary>Each rotor's own wake inflow through its disc over v_h, the wake's wandering (RotorWakeSpec, D-064). 0 without
+        /// it.</summary>
+        public Corners WakeInflow;
+
+        /// <summary>Each rotor's share of the wake interference it takes that the other rotors' wakes' own unsteadiness adds
+        /// (RotorInterferenceSpec, p7b-airframe 1.3d): the fluctuation's process. 0 without the wake.</summary>
+        public Corners InterferenceShare;
+
         /// <summary>The airframe's elastic modes (AirframeModes, p7b-airframe 1.4): each mode's coordinate (mass-normalised,
         /// m·√kg) and its rate, lowest first. 0 without the modes.</summary>
         public ModeSet ModeShape, ModeRate;
