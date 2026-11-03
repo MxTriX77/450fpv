@@ -135,6 +135,20 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyTumble(now, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model37TumbleHash), "tumble, with the law");
         }
 
+        // p7g-legs 1.3 (model 41), its audit, kept: the flights that touch nothing (powered, rain, tumble) are model 39's over its
+        // 2072 bytes, every record and event, with the side give's parts and a damaged leg's change in place; the contact and
+        // range flights' moves are their pins' audits (GoldenFlights).
+        [Test]
+        public void OverModel39sRecordTheFlightsThatTouchNothingAreModel39s()
+        {
+            DroneSpec now = RepositoryDrone.Spec();
+            const int at = GoldenFlights.Model39Layout;
+            Assert.That(GoldenFlights.FlyPowered(now, out _, layout: at), Is.EqualTo(GoldenFlights.Model39PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at),
+                Is.EqualTo(GoldenFlights.Model39RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyTumble(now, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model39TumbleHash), "tumble");
+        }
+
         // p7g-legs 1.1 (model 37), its audit, kept: on model 26's legs (WithModel26Legs: the CFRP legs' and skids' 11 and 20 g,
         // the assumed 10 kN/m spring and its 45 N·s/m damper, the leg shapes' 6600 N/m, no side give) every golden is model
         // 26's over its 1904 bytes, every record and event, so the legs' data is the whole change.
@@ -202,7 +216,7 @@ namespace Fpv450.Sim.Tests
         const int RotorAngleAt = RotorWindBytesAt + WindBytes, RotorAngleBytes = 32, RingAt = RotorAngleAt + RotorAngleBytes, RingBytes = 72;
         const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
         const int InterferenceAt = ModeAt + ModeBytes, InterferenceBytes = 64, WakeAt = InterferenceAt + InterferenceBytes, WakeBytes = 32;
-        const int LegAt = WakeAt + WakeBytes, LegBytes = 168;
+        const int LegAt = WakeAt + WakeBytes, LegBytes = 168, DamageAt = LegAt + LegBytes, DamageBytes = 224;
 
         // The audits of p7b-airframe 1.3d and D-064, kept on the integration (model 24): without the interference, the rotor
         // wakes and the motors' resistance, friction and inertia spreads, over model 19's 1808 bytes, the powered, rain and
@@ -274,7 +288,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(LegAt, Is.EqualTo(GoldenFlights.Model37Layout), "model 37's record is the record before the legs'");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, LegAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "leg_state.rear_right")),
                 "p7g-legs 1.2's legs follow the rotor wakes");
-            Assert.That(LogFormat.StepSize - LegAt, Is.EqualTo(LegBytes), "to the record's end");
+            Assert.That(DamageAt, Is.EqualTo(GoldenFlights.Model39Layout), "model 39's record is the record before a damaged leg's");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, DamageAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "leg_side_give.rear_right")),
+                "p7g-legs 1.3's side give, jaws and folds follow the legs' state");
+            Assert.That(LogFormat.StepSize - DamageAt, Is.EqualTo(DamageBytes), "to the record's end");
         }
     }
 }

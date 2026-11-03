@@ -237,7 +237,11 @@ namespace Fpv450.Sim.Tests
         // model 37's 1904 bytes). Audited: over model 37's 1904 bytes it is model 37's pin bit for bit, every record and event,
         // with the legs' side give and their law (it touches nothing 300 m up) and without them (the kept test,
         // WithoutTheFootsGiveEachGoldenIsModel37s); the legs' bytes hold four intact legs at full stiffness, their moment 0.
-        public const ulong PoweredHash = 0x4907E4D57EB9EB98UL;
+        // Model 39: 0x4907E4D57EB9EB98. p7g-legs 1.3 (ModelVersion 41): re-recorded on the 2296-byte record (each leg's side give,
+        // jaws and hanging fold after model 39's 2072 bytes). Audited: over model 39's 2072 bytes it is model 39's pin bit for bit,
+        // every record and event (the kept test, OverModel39sRecordTheFlightsThatTouchNothingAreModel39s); the new bytes hold each
+        // leg's side give untouched (the tube's 268 N/m with the anchor in series), the jaws and folds 0.
+        public const ulong PoweredHash = 0xCA9A9F3EF97C2118UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -270,7 +274,9 @@ namespace Fpv450.Sim.Tests
         // 26's end and within 0.21°; the film holds 9.93 g at 10 s (9.92).
         // Model 37: 0x15C2A0EF0C503D48. p7g-legs 1.2 (ModelVersion 39), audited as the powered flight: over 1904 bytes model 37's
         // pin with the law and without it; the legs' bytes intact.
-        public const ulong RainPoweredHash = 0x5AE2CBA32972DD28UL;
+        // Model 39: 0x5AE2CBA32972DD28. p7g-legs 1.3 (ModelVersion 41), audited as the powered flight: over model 39's 2072 bytes
+        // model 39's pin (the kept test, OverModel39sRecordTheFlightsThatTouchNothingAreModel39s); it touches nothing in its 10 s.
+        public const ulong RainPoweredHash = 0x724D775C852F6B48UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -435,7 +441,14 @@ namespace Fpv450.Sim.Tests
         // m/s and its tube bows past the buckling load: it cracks and keeps a set of 0.065° (1.90 N·m past 1.69, step 8916); the
         // other three stay intact. On the legs' assumed ζ 0.2 carried across (a temporary edit) the side damper alone cracked all
         // four at that touch.
-        public const ulong ContactHash = 0xFCA3F1141457625CUL;
+        // Model 39: 0xFCA3F1141457625C. p7g-legs 1.3 (ModelVersion 41): re-recorded with a damaged leg changing the drone and the
+        // side give's parts (the tube's give less P·Δ, the jaws held by their friction, the crack flown). Audited: model 37's pin
+        // without the legs' law over 1904 bytes (the kept test, as before). It moves from step 3 (the skids standing: the side
+        // give 265 N/m with the jaws held against 1.2's 260 with their bed) and keeps its course: 8 impacts (8), no crash, at
+        // rest at the same 0.2528 m on 8 pairs, 169.8 mm from model 37's resting place (39: 163.6) and 1.06° from its attitude.
+        // The held bounce's spinning 2.6 m/s corner touch now loads every leg past its sway load, and P·δ at the clamps cracks
+        // all four with sets of 0.039°, 0.121°, 0.003° and 0.002° (39: leg_fr alone, 0.065°); none parts, so no piece drops.
+        public const ulong ContactHash = 0xB7391628EDE527ADUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -478,7 +491,9 @@ namespace Fpv450.Sim.Tests
         // wandering 5.49 rad/s (5.46).
         // Model 37: 0x5FBFA89AF2217693. p7g-legs 1.2 (ModelVersion 39): the 2072-byte record, the legs' bytes zero (no contacts):
         // over 1904 bytes model 37's pin (the kept test); its checks as before.
-        public const ulong TumbleHash = 0x7F9A35ED00445E73UL;
+        // Model 39: 0x7F9A35ED00445E73. p7g-legs 1.3 (ModelVersion 41): the 2296-byte record; over model 39's 2072 bytes model
+        // 39's pin (the kept test); its checks as before.
+        public const ulong TumbleHash = 0xA6914F6702FE98F3UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -560,7 +575,11 @@ namespace Fpv450.Sim.Tests
         // step 3 and keeps its course: 4 impacts against 5, no crash, at rest 0.2338 m up on S04's straw against 0.2319 (19.2 mm
         // into the straw) on 18 pairs (21), 18.2 mm from model 37's resting place, within 21 mm and 4.6° of its path; every leg
         // intact.
-        public const ulong RangeHash = 0xDCC264386AF9748FUL;
+        // Model 39: 0xDCC264386AF9748F. p7g-legs 1.3 (ModelVersion 41), on the same content: re-recorded as the contact flight.
+        // Audited as it (model 37's pin without the legs' law over 1904 bytes, the kept test): it moves from step 3 and keeps its
+        // course: 4 impacts (4), no crash, at rest 0.2338 m up on 18 pairs (the same), 18.4 mm from model 37's resting place
+        // (39: 18.2) and 2.55° from its attitude; every leg intact.
+        public const ulong RangeHash = 0x1FB746560EDFD45AUL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
@@ -654,6 +673,12 @@ namespace Fpv450.Sim.Tests
         /// record before the legs' state (2072 − 168 bytes), and its pins, which each golden flown without the legs' side give
         /// and their failure law (WithModel37Legs) keeps bit for bit.</summary>
         public const int Model37Layout = 1904;
+
+        /// <summary>p7g-legs 1.3's kept audit (GoldenFlightTests.OverModel39sRecordTheFlightsThatTouchNothingAreModel39s): model
+        /// 39's record, the record before the side give, jaws and folds (2296 − 224 bytes), and its pins.</summary>
+        public const int Model39Layout = 2072;
+        public const ulong Model39PoweredHash = 0x4907E4D57EB9EB98UL, Model39RainPoweredHash = 0x5AE2CBA32972DD28UL,
+            Model39ContactHash = 0xFCA3F1141457625CUL, Model39TumbleHash = 0x7F9A35ED00445E73UL, Model39RangeHash = 0xDCC264386AF9748FUL;
         public const ulong Model37PoweredHash = 0xCD0A523E1C9B94F8UL, Model37RainPoweredHash = 0x15C2A0EF0C503D48UL,
             Model37ContactHash = 0xA3B92A5D52CFE546UL, Model37TumbleHash = 0x5FBFA89AF2217693UL, Model37RangeHash = 0x89E6F89885BD7282UL;
 
