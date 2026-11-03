@@ -638,8 +638,11 @@ The pilot's feedback on the model-26 build: roll and yaw are "super slow", it is
 ## D-077 The setup loads only the test range · Accepted
 The pilot: "remove the field option, we only load the one with many houses". The setup offers no map choice; the floor map stays a test fixture only.
 
-## D-078 R restarts the flight; C turns the camera's noise off and on · Accepted
-The pilot asked for both. R restarts the flight at once from the same setup and start point (it doesn't interrupt anything else, D-063). C toggles the analog feed's noise for the rest of the session; the OSD and the picture stay.
+## D-078 R restarts the flight, C toggles the camera's noise, X the OSD's sticks · Accepted
+The pilot asked for all three. R restarts the flight at once from the same setup and start point (it doesn't interrupt anything else, D-063). C toggles the analog feed's noise for the rest of the session; the OSD and the picture stay. X toggles Betaflight's stick overlay on the OSD (both sticks' positions).
+
+## D-080 The OSD shows the throttle on the right · Accepted
+The pilot sent Betaflight's throttle element as they fly it: the throttle glyph, then the value in percent. It goes on the OSD's right side, in the footage-exact font (D-057's OSD), from the sim's own throttle (the stick after the curve, as Betaflight shows it); the sample's value is never copied.
 
 ## D-079 Crashes damage the props and legs; crashes and landing falls come a bit more often · Accepted
 The pilot on the model-26 build: the camera is "mega good", the flying "almost top notch", but a prop strike on a wall is "too gameish". The drone bounces off realistically, but the props don't break. "In real life the drone crashes a bit more often (more reasons for it), and it falls when landing a bit more often."
