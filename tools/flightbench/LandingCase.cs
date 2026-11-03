@@ -71,6 +71,42 @@ namespace Fpv450.FlightBench
                         Row($"    the caught skid at {roll}°, {descent} m/s down", Math.Abs(fd / mech - 1) < 0.01 && Math.Abs(fc / mech - 1) < 0.12,
                             $"on dead legs {fd:F3}, on the legs {fc:F3}, against {mech:F3}");
                 }
+            // The disarmed column by the ESC's rule on Betaflight's DShot 0 (p6-flight-core 1.6c, EscDisarm): drone.json's
+            // BLHeli_S, model 38's freewheel (the known-wrong) and the compared variants G7's ESC-firmware question decides.
+            var rules = new[] { EscDisarm.Freewheel, EscDisarm.BlheliS, EscDisarm.BlheliSBrakeOnStop, EscDisarm.Bluejay, EscDisarm.BluejayBrakeOnStop };
+            Console.WriteLine("  disarmed at the touch, by the ESC's rule: the lowest lateral speed (m/s) that tips the drone over");
+            Console.WriteLine("    roll  descent | freewheel (38) | blheli_s | blheli_s, brake on stop | bluejay | bluejay, brake on stop");
+            var tipsAtRest = new int[rules.Length];
+            foreach (double descent in new[] { 0.0, 0.5 })
+                foreach (double roll in new[] { 0.0, 5, 10, 15, 20 })
+                {
+                    var line = new System.Text.StringBuilder($"    {roll,4:F0}° {descent,5:F1}    |");
+                    for (int r = 0; r < rules.Length; r++)
+                    {
+                        var t = new LandingScenarios.Touch { Legs = true, RollDeg = roll, Descent = descent, Power = LandingScenarios.Power.Disarmed, Esc = rules[r] };
+                        double v = LandingScenarios.CriticalSpeed(spec, m, h, t);
+                        if (v == 0) tipsAtRest[r]++;
+                        line.Append(r == 0 ? $" {S(v),14} |" : r == 2 ? $" {S(v),23} |" : r == 4 ? $" {S(v),22}" : $" {S(v),8} |");
+                    }
+                    Console.WriteLine(line);
+                }
+            Console.WriteLine($"    tipping with no drift, of 10: freewheel {tipsAtRest[0]}, blheli_s {tipsAtRest[1]}, brake on stop {tipsAtRest[2]}, "
+                + $"bluejay {tipsAtRest[3]}, brake on stop {tipsAtRest[4]}");
+
+            // The powered columns' steady approach (N4): its touch's own state, with no drift.
+            Console.WriteLine($"  the powered columns fly a steady approach (N4): the touch {LandingScenarios.ApproachSeconds:F1} s after the throttle's step, "
+                + $"its lateral speed the touch's own; powered, \"no descent\" is {LandingScenarios.PoweredMinDescent:F1} m/s");
+            Console.WriteLine("    roll  descent | touch after (s) | tilt (deg) | lateral, descent (m/s) | thrust / weight | anti-gravity | throttle");
+            foreach (double descent in new[] { 0.0, 0.5 })
+                foreach (double roll in new[] { 0.0, 5, 10, 15, 20 })
+                {
+                    var t = new LandingScenarios.Touch { Legs = true, RollDeg = roll, Descent = descent, Power = LandingScenarios.Power.Held };
+                    LandingScenarios.Outcome o = LandingScenarios.Run(spec, m, h, t);
+                    bool steady = o.Touched && o.TouchAt >= 0.4 && Math.Abs(o.TouchTilt - roll) < 0.05 && Math.Abs(o.TouchLateral) < 0.01
+                        && Math.Abs(o.TouchDescent - Math.Max(descent, LandingScenarios.PoweredMinDescent)) < 0.005 && o.TouchAntiGravity < 0.01;
+                    Row($"    {roll,4:F0}° {descent,5:F1}    | {o.TouchAt,15:F3} | {o.TouchTilt,10:F3} | {o.TouchLateral,10:F4}, {o.TouchDescent,6:F4} | {o.TouchThrust / (a.Mass * 9.80665),15:F3} | {o.TouchAntiGravity,12:F4} | {o.Throttle:F4}",
+                        steady, "steady");
+                }
             Console.WriteLine($"  dynamic rollover on a pinned skid: from {a.RolloverDeg(0.95):F2}° with 0.95 of the weight in thrust, {a.RolloverDeg(0.5):F2}° with 0.5; "
                 + $"pinning it at 10° takes μ {LandingStability.PinFriction(10, 0.95):F2} and {LandingStability.PinFriction(10, 0.5):F2}");
             Console.WriteLine($"  forward along the skids (free, 0.5 m/s down): sliding runners trip only past μ_k {a.SlidingTripFriction:F2}");
@@ -119,7 +155,14 @@ namespace Fpv450.FlightBench
             {
                 var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = p, ReachDeg = 20, Seconds = 6 };
                 var o = LandingScenarios.Run(spec, m, h, t);
-                Console.WriteLine($"  powered onto the coil at 1°, {p}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s");
+                Console.WriteLine($"  powered onto the coil at 1°, {p}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s "
+                    + $"(the touch at {o.TouchDescent:F3} m/s down, {o.TouchAt:F3} s after the throttle's step)");
+            }
+            foreach (EscDisarm rule in rules)
+            {
+                var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = LandingScenarios.Power.Disarmed, ReachDeg = 20, Seconds = 6, Esc = rule };
+                var o = LandingScenarios.Run(spec, m, h, t);
+                Console.WriteLine($"  the coil disarmed, {rule}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s");
             }
             return _ok;
         }

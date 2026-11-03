@@ -125,8 +125,16 @@ namespace Fpv450.Sim.Log
         ///    stays at tag 25 and the drone internals entry (19's tag 25) moves to tag 26; the events Payout, TetherWedge and
         ///    WorldBug (14–16, p7d-tether's) and BladeStrike, BladeDamaged and RotorJammed (17–19, p7f-damage's; 20–22 stay
         ///    reserved for p7f-damage, D-074).
+        /// 31: assigned elsewhere (D-072).
+        /// 32: the ESC's disarm on 24 (p6-flight-core 1.6c, model 42; assigned by D-072): each motor of the propulsion entry gains
+        ///    its ESC's disarm rule (EscDisarm, an int32) after its current limit; the record is 21's 2008 bytes.
+        /// 33: assigned elsewhere (D-072).
+        /// 34: the physics integration 2 with the ESC's disarm (unity/physics/physics-integration-2--disarm, assigned by
+        ///    D-072): 32 merged onto 30: each motor of the propulsion entry carries its ESC's disarm rule (32's) after its
+        ///    current limit; the drone internals entry stays at tag 26 and the tether entry at 25; the record is 30's 2392
+        ///    bytes; no new event kind.
         /// </summary>
-        public const int Version = 30;
+        public const int Version = 34;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -310,8 +318,23 @@ namespace Fpv450.Sim.Log
         ///    one without the line's mechanisms (no surfaces.json, no area laws, no line, model 34's yaw I; no cut entered)
         ///    steps as in 35. A blade strike on surfaces.json's soil is still a Glance (p7f-damage 1.1a's soil half and 1.3's
         ///    carve against its rows are open).
+        /// 41: assigned elsewhere (D-072).
+        /// 42: the ESC's disarm (on 38; p6-flight-core 1.6c, Propulsion, EscDisarm): disarmed, the class's BLHeli_S stays in its
+        ///    run loop at zero power with damped light's complementary PWM, so the motor brakes as the DC model at d = 0 (i =
+        ///    −Ke·ω/R, no supply current) until about 1220 eRPM, then coasts; Bluejay alike to about 1330 eRPM; brake on stop
+        ///    then shorts the three phases. A motor whose spec names no rule (EscDisarm.Freewheel) coasts at once as in 38, and
+        ///    a flight that never disarms with its rotors turning steps as in 38; the record is unchanged.
+        /// 43: assigned elsewhere (D-072).
+        /// 44: the physics integration 2 with the ESC's disarm (unity/physics/physics-integration-2--disarm, assigned by
+        ///    D-072; the code is the parents' together): 42's disarm merged onto 40. Disarmed, every ESC keeps its firmware's
+        ///    rule whatever its blades: a damaged rotor (40's DamagedRotor) brakes by the same short, i = −Ke·ω/R, against its
+        ///    own J less the material lost and its loads through η, and a strike that slows it below the run loop's minimum
+        ///    speed lets its motor coast as the firmware does. A flight that never disarms with its rotors turning steps as
+        ///    in 40, and so does one whose motors name no rule (EscDisarm.Freewheel); one on a drone.json without props.blade
+        ///    steps as in 42. 42's landing harness (the steady approach, a touch judged alone) is test code. The record is
+        ///    40's.
         /// </summary>
-        public const int ModelVersion = 40;
+        public const int ModelVersion = 44;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

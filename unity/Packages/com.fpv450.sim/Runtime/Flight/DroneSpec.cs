@@ -6,6 +6,35 @@ using Fpv450.Sim.World;
 namespace Fpv450.Sim.Flight
 {
     /// <summary>
+    /// What the ESC does with a spinning motor when the flight controller disarms (Betaflight sends DShot 0, its
+    /// DSHOT_CMD_MOTOR_STOP: dshot.c's dshotInitEndpoints, mixer.c's motor_disarmed): its firmware's rule at zero throttle
+    /// (Propulsion, p6-flight-core 1.6c). drone.json's esc_disarm.
+    /// </summary>
+    public enum EscDisarm
+    {
+        /// <summary>Every FET off at once: the motor coasts (the model before 42; the known-wrong for the class's ESC, and a
+        /// spec that names none).</summary>
+        Freewheel = 0,
+
+        /// <summary>BLHeli_S 16.7 at its defaults: the run loop goes on at zero power with damped light's complementary PWM,
+        /// shorting the active phases (regenerative braking), until the commutation period passes 32 ms (about 1220 eRPM)
+        /// or 250 ticks of its 32 ms stop counter (8 s); then every FET off.</summary>
+        BlheliS = 1,
+
+        /// <summary>BLHeli_S with brake on stop: as BlheliS, but it leaves the run loop after 3 ticks of the stop counter
+        /// (64–96 ms), waits 100 ms with every FET off, then turns on the three low-side FETs (a three-phase short).</summary>
+        BlheliSBrakeOnStop = 2,
+
+        /// <summary>Bluejay 0.21 at its defaults (braking strength 255, brake on stop off): the run loop goes on at zero power
+        /// with full damping until about 1330 eRPM; then every FET off.</summary>
+        Bluejay = 3,
+
+        /// <summary>Bluejay with brake on stop: it leaves the run loop after 3 ticks of its 16 ms stop counter (32–48 ms on
+        /// the 48 MHz MCU) and turns on the three low-side FETs at once.</summary>
+        BluejayBrakeOnStop = 4,
+    }
+
+    /// <summary>
     /// One motor and its rotor, at a corner in Betaflight's Quad X order (Corners): a DC motor seen through its ESC
     /// (Propulsion), whose first-order lag τ_m = J / (Kt·Ke/R + ∂Q/∂ω) follows from these constants and the load.
     /// </summary>
@@ -38,6 +67,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion);
         /// +∞ for an ESC that senses no current (drone.json's "none").</summary>
         public double EscCurrentLimit;
+
+        /// <summary>What the ESC does with its spinning motor on a disarm (Propulsion); Freewheel when drone.json names none.</summary>
+        public EscDisarm EscDisarm;
     }
 
     /// <summary>
@@ -271,6 +303,9 @@ namespace Fpv450.Sim.Flight
         public const int Schema = 1;
 
         public static readonly string[] Labels = { "pilot", "measured", "published", "derived", "assumed" };
+
+        /// <summary>drone.json's esc_disarm words, in EscDisarm's order.</summary>
+        public static readonly string[] DisarmWords = { "freewheel", "blheli_s", "blheli_s_brake_on_stop", "bluejay", "bluejay_brake_on_stop" };
 
         /// <summary>The drone part materials (a closed list; physics signs off additions).</summary>
         public static readonly string[] Materials = { "carbon", "aluminium", "steel", "polymer", "li_ion", "electronics" };
@@ -794,7 +829,7 @@ namespace Fpv450.Sim.Flight
                     string path = "motors[" + i + "] (" + Corner[i] + ")";
                     if (!IsObject(m, path)) continue;
                     Members(m, path, "position_m", "spin", "kv_rpm_per_v", "resistance_ohm", "no_load_current_a",
-                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s", "esc_current_limit_a", "internals");
+                        "rotor_inertia_kg_m2", "magnet_poles", "esc_tau_s", "esc_current_limit_a", "esc_disarm", "internals");
                     ref DroneMotor motor = ref motors[i];
                     if (Vector(m, "position_m", path, out motor.Position)) AtCorner(motor.Position, i, path + ".position_m");
                     spins[i] = Text(m, "spin", path, new[] { "cw", "ccw" });
@@ -807,6 +842,7 @@ namespace Fpv450.Sim.Flight
                     if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
                     motor.EscCurrentLimit = LimitOrNone(m, "esc_current_limit_a", path);
+                    motor.EscDisarm = DisarmOf(m, path);
                     JsonNode internals = m.Member("internals");
                     if (internals == null) continue;
                     if (spec.Internals == null) spec.Internals = new MotorInternals[4];
@@ -1243,6 +1279,17 @@ namespace Fpv450.Sim.Flight
             }
 
             // A limit above 0, or "none" for no limit at all (+∞).
+            // drone.json's esc_disarm, a labelled word; Freewheel when the motor names none (the specs before model 42).
+            EscDisarm DisarmOf(JsonNode o, string path)
+            {
+                if (o.Member("esc_disarm") == null) return EscDisarm.Freewheel;
+                JsonNode v = Labelled(o, "esc_disarm", path);
+                if (v == null) return EscDisarm.Freewheel;
+                int i = v.Kind == JsonKind.String ? System.Array.IndexOf(DisarmWords, v.Text) : -1;
+                if (i < 0) Fail(path + ".esc_disarm.value", "must be one of " + string.Join(", ", DisarmWords));
+                return i < 0 ? EscDisarm.Freewheel : (EscDisarm)i;
+            }
+
             double LimitOrNone(JsonNode o, string key, string path)
             {
                 JsonNode v = Labelled(o, key, path);
