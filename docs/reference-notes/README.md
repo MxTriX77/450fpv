@@ -21,4 +21,5 @@ These notes were copied verbatim from the Godot repo (`MxTriX77/450fpv`, `main`)
 - **Launch rails → launch stand** (D-022): four posts about 25 cm high, one under each motor.
 - **New:** [fc-profiles.md](fc-profiles.md), with real Betaflight profiles of the class and the sim's default rates (D-023).
 - **New:** [hover-micro-motion.md](hover-micro-motion.md), why the sim's camera is quiet above 4 Hz against clip P: P's floor split from its tracker's, the sources ranked, and the spreads (D-059).
+- **New:** [rate-tracking.md](rate-tracking.md), how the drone follows its controller's setpoint on roll, pitch and yaw at 0–2 kg, what limits each axis, the pilot's model-26 flights, and the yaw I factor the sim's controller misses (D-076).
 - **Drone layout:** the payload sits on top and there are two battery packs (pilot, 2026-10-17). The mass layout in wind.md §5.5 assumed cargo forward and below, with one pack. Phase 5 re-derives it.
