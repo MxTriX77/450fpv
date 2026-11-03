@@ -11,6 +11,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
@@ -29,6 +30,8 @@ namespace Fpv450.Tests.Session
         static DroneSpec _spec;
         static MaterialRow[] _materials;
         static ulong _materialsHash;
+        static SurfaceTable _surfaces;
+        static TetherTable _tether;
         string _dir;
 
         [OneTimeSetUp]
@@ -36,6 +39,8 @@ namespace Fpv450.Tests.Session
         {
             _spec = DroneSpec.Parse(File.ReadAllText(RepositoryFile("assets-src/drone/drone.json")));
             _materials = PhysicsMaterials.Parse(File.ReadAllText(RepositoryFile(PhysicsMaterials.RelativePath)), out _materialsHash);
+            _surfaces = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath)));
+            _tether = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath)));
         }
 
         [SetUp]
@@ -108,14 +113,16 @@ namespace Fpv450.Tests.Session
 
         // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
         // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
-        // choices. A field FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        // choices, and the line, which the golden does not fly (TheFlightCarriesTheGroundTheCutsAndTheLine). A field
+        // FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
         // The build's placement (D-066) is a pilot's flight's, as the replay's pilot flies it (ScriptedFlight); the golden
         // keeps the file's exact build, so the app's is compared with drone.json's own.
         [Test]
         public void TheFlightFliesTheGoldensEffects()
         {
             var choices = new HashSet<string> { "Seed", "Settings", "World", "Mass", "Wind", "Rain", "Contacts", "RuntimeObjects",
-                "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge" };
+                "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge",
+                "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass", "TetherTwoWay" };
             foreach (bool legs in new[] { true, false })
             {
                 Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
@@ -232,6 +239,94 @@ namespace Fpv450.Tests.Session
             Assert.That(new FlightChoices { Wind = WindLevel.Still }.Check(), Is.Not.Null);
             Rig rig = Make(i => i.Choices = new FlightChoices { Payload = 2.5 });
             Assert.Throws<ArgumentException>(() => rig.Session.Start());
+        }
+
+        // ---- The ground, the cuts and the line (physics integration 2) --------------------------------------------------
+
+        // The app's flight on the test range as FlightSessionHost builds it: surfaces.json's ground on its contacts, the soil
+        // under the start and the cover kinds at the rain's moisture set (D-021: Sunny dry, Rain wet, Severe rain
+        // saturated, the cover wet in both rains); the map's cuts in its wind (WindSetup.ForMap); and tether.json's line,
+        // laid from the table's launch behind the start (no layout), one-way, drone.json's coil full, legs on and legs off.
+        // The log's header carries the three back with the app's build, world, drone and ISA, and the log replays bit for
+        // bit with the repository's two files, as tools/replay replays a pilot's flight with its defaults.
+        [Test]
+        public void TheFlightCarriesTheGroundTheCutsAndTheLine()
+        {
+            FlightWorldChoice range = FlightWorlds.TestRange(RepositoryRoot());
+            CutSpec[] cuts = WindSetup.ForMap((MapWorld)range.Open().Query, WindLevel.Windy).Cuts;
+            Assert.That(cuts, Is.Not.Null.And.Not.Empty, "the test range has its cuts");
+            foreach ((bool legs, Rain rain, Moisture moisture) in new[] { (true, Rain.Sunny, Moisture.Dry), (false, Rain.Rain, Moisture.Wet), (true, Rain.SevereRain, Moisture.Saturated) })
+            {
+                string where = "legs " + (legs ? "on" : "off") + ", " + rain;
+                Rig rig = Make(i =>
+                {
+                    range.ApplyTo(i);
+                    i.Surfaces = _surfaces;
+                    i.Tether = _tether;
+                    i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Windy, Rain = rain };
+                });
+                rig.Session.Start();
+                FlightSetup s = rig.Session.Setup;
+                FlightCore core = rig.Session.Core;
+
+                // The ground: the table on the contacts, the soil under the start and the cover at the rain's set.
+                Assert.That(s.Contacts.Surfaces, Is.Not.Null, where + ": surfaces.json on the contacts");
+                Assert.That(s.Contacts.Surfaces.Hash, Is.EqualTo(_surfaces.Hash));
+                Assert.That(SurfaceTable.MoistureOf(s.Rain), Is.EqualTo(moisture), where + ": the rain's moisture");
+                var under = new GroundSample[1];
+                s.World.SampleGround(new[] { new XZ(s.StartPosition.X, s.StartPosition.Z) }, under);
+                string surface = s.World.Query.SurfaceName(under[0].Surface);
+                SurfaceRow row = Array.Find(_surfaces.Surfaces, r => r.Name == surface);
+                Assert.That(row.Name, Is.EqualTo(surface), where + ": the start's surface '" + surface + "' is in the table");
+                var soil = (SoilSet[])typeof(ContactModel).GetField("_soil", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(core.Contacts);
+                Assert.AreEqual(Dump(row.Set(moisture)), Dump(soil[under[0].Surface]), where + ": " + surface + " at its " + moisture + " set");
+                if (moisture != Moisture.Dry) Assert.AreNotEqual(Dump(row.Dry), Dump(soil[under[0].Surface]), where + ": not the dry set");
+                for (int k = 0; k < _surfaces.Cover.Length; k++)
+                    Assert.AreEqual(Dump(_surfaces.Cover[k].Set(moisture)), Dump(core.Contacts.Cover((CoverKind)k)), where + ": cover " + (CoverKind)k);
+                TestContext.WriteLine(where + ": the start on " + surface + " at its " + moisture + " set, the cover " + (moisture == Moisture.Dry ? "dry" : "wet"));
+
+                // The cuts, and the line from its launch.
+                Assert.AreEqual(Dump(cuts), Dump(s.Wind.Cuts), where + ": the map's cuts in the wind");
+                Assert.That(s.Tether, Is.SameAs(_tether), where + ": tether.json's line");
+                Assert.That((s.TetherCoilPart, s.TetherSpoolMass, s.TetherTwoWay, s.TetherLayout), Is.EqualTo((_spec.Coil.Part, _spec.Coil.SpoolMass, false, (Double3[])null)),
+                    where + ": drone.json's coil, one-way, laid from the table's launch");
+                Assert.That(rig.Session.Loadout.CoilPaidOut, Is.EqualTo(0.0), "the coil full at take-off");
+                Assert.That(core.Tether, Is.Not.Null, where + ": the flight flies the line");
+                Assert.That(core.Tether.TwoWay, Is.False);
+
+                // At rest 300 ms: the line through its nodes, its trail laid behind the start.
+                rig.Run(300);
+                PoseFrame pose = rig.Session.Poses.Read().Current;
+                TestContext.WriteLine(where + ": at rest, the line " + pose.FiberNodeCount + " nodes, the trail " + pose.FiberTrailCount + " points, "
+                    + pose.FiberPaidOut.ToString("0.000") + " m paid out");
+                Assert.That(pose.FiberNodeCount, Is.GreaterThanOrEqualTo(2), where + ": the span's nodes are published");
+                Assert.That(core.State.Crashed, Is.False);
+
+                rig.Session.EndFlight();
+                PostFlight p = rig.Session.ReadSummary();
+                LogHeader h = p.Log.Header;
+                Assert.That(p.Log.Complete, p.Log.CutReason);
+                Assert.That(h.Unknown, Is.Empty, "every header entry read back");
+                Assert.That((h.Build, h.WorldId, h.DroneHash, h.Isa), Is.EqualTo(("inputtests", range.Id, _spec.ContentHash, HostIsa.Flags)), "the app's own entries");
+                Assert.That(h.Contacts.Surfaces, Is.Not.Null, where + ": the header carries surfaces.json");
+                Assert.AreEqual(Dump(s.Contacts.Surfaces), Dump(h.Contacts.Surfaces), where + ": the whole table and its hash");
+                Assert.That(h.Rain, Is.EqualTo(s.Rain));
+                Assert.AreEqual(Dump(s.Wind.Cuts), Dump(h.Wind.Cuts), where + ": the cuts");
+                Assert.That(h.Tether, Is.Not.Null, where + ": the header carries tether.json");
+                Assert.That(h.Tether.ContentHash, Is.EqualTo(_tether.ContentHash));
+                Assert.AreEqual(Dump(_tether.Rows), Dump(h.Tether.Rows), where + ": every row");
+                Assert.That((h.TetherCoilPart, h.TetherSpoolMass, h.TetherTwoWay, h.TetherLayout), Is.EqualTo((s.TetherCoilPart, s.TetherSpoolMass, false, (Double3[])null)));
+
+                // tools/replay's defaults: the repository's surfaces.json and tether.json, by their hashes.
+                ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+                ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+                ReplayResult replay;
+                using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile);
+                TestContext.WriteLine(where + ": " + replay.Message);
+                Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), where + ": " + replay.Message);
+                rig.Session.Dispose();
+            }
         }
 
         // ---- Arm and disarm ---------------------------------------------------------------------------------------------
@@ -605,6 +700,41 @@ namespace Fpv450.Tests.Session
             Assert.That(rig.Session.Setup.RuntimeObjects.Length, Is.EqualTo(1), "on its launch stand again: the legs are off");
             Assert.That(rig.Session.Core.State.Step, Is.EqualTo(0));
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot), "the first flight ended by the pilot");
+        }
+
+        // R (D-078) and the pause's Restart are a new flight: its line is laid again from the start, the coil full and the
+        // trail the launch's, as the drone stands again at its start; the first flight's line had paid out as it flew.
+        [Test]
+        public void RestartLaysTheLineAgain()
+        {
+            Rig rig = Make(i =>
+            {
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm };
+            });
+            rig.Session.Start();
+            FiberLine first = rig.Session.Core.Tether;
+            int laid = first.TrailCount;
+            double coil = first.CoilLineAtStart;
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.75;
+            rig.Radio.Pitch = 0.3;
+            rig.Run(1500);
+            double paid = first.PaidOut;
+            PoseFrame flown = rig.Session.Poses.Read().Current;
+            TestContext.WriteLine("the first flight: " + paid.ToString("0.00") + " m paid out, the trail " + first.TrailCount + " points (" + laid + " laid), "
+                + flown.FiberNodeCount + " nodes, at " + flown.Position.Y.ToString("0.0") + " m");
+            Assert.That(paid, Is.GreaterThan(1), "the first flight paid line out");
+            Assert.That(flown.FiberPaidOut, Is.EqualTo(paid), "the pose publishes it");
+
+            Assert.That(rig.Session.Restart(), Is.True);
+            FiberLine second = rig.Session.Core.Tether;
+            Assert.That(second, Is.Not.SameAs(first), "a new line");
+            Assert.That((second.PaidOut, second.TrailCount, second.CoilLineAtStart), Is.EqualTo((0.0, laid, coil)), "laid again from the start, the coil full");
+            PoseFrame start = rig.Session.Poses.Read().Current;
+            Assert.That((start.Step, start.FiberPaidOut, start.FiberTrailCount), Is.EqualTo((0L, 0.0, laid)), "the new flight's first pose");
+            rig.Session.Dispose();
         }
 
         // D-078, D-080: each step publishes the stick sample it flew with its signals, for the OSD's sticks and throttle:
