@@ -85,7 +85,7 @@ namespace Fpv450.Fiber
             _coil = new CoilPack(model, coil);
             if (_coil.Unreadable > 0)
                 Debug.LogWarning($"[Fiber] {model.name}: {_coil.Unreadable} mesh(es) are not readable, their coil stays full " +
-                                 "(the model's import needs Read/Write for the pack to follow the payout)");
+                                 "(its coil_pack meshes are the importer's readable copies: pwsh tools/build_asset.ps1 D01)");
             if (_coil.Vertices == 0)
             {
                 _coil.Dispose();

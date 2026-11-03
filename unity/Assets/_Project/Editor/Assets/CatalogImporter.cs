@@ -943,7 +943,7 @@ namespace Fpv450.Assets
         /// <summary>
         /// Creates or updates the prefab in place (so its file ids stay stable): the metadata component, one child
         /// per LOD with the FBX mesh and the slot materials plus one per micro mesh of that LOD (rendered with it,
-        /// never a collider), or, for an impostor LOD, the card set (<see cref="EnsureImpostor"/>), the LODGroup, one
+        /// never a collider) and one per readable part of it (its readable copy, <see cref="ReadableChild"/>), or, for an impostor LOD, the card set (<see cref="EnsureImpostor"/>), the LODGroup, one
         /// child per collision primitive, and nothing else. Every slot of a mesh LOD whose metadata entry is
         /// <c>thin_wire</c> draws with the thin-wire material made from its recipe's
         /// (<see cref="EnsureThinWireMaterial"/>), and every vertex of it must carry its radius in uv2, the shader's
@@ -972,8 +972,9 @@ namespace Fpv450.Assets
                 var wireSlots = new HashSet<string>(meta.wires.Select(w => w.slot));
                 var keep = new HashSet<string>();
                 var thin = new List<string>();
+                var readable = new List<string>();
                 Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, wireSlots, keep, thin,
-                    prefabPath);
+                    prefabPath, readable);
                 EnsureLodGroup(root, meta, renderers, LodBounds(metaJson, meta.bounds, prefabPath));
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
@@ -987,6 +988,7 @@ namespace Fpv450.Assets
                 if (!saved)
                     throw new IOException($"could not save {prefabPath}");
                 string micro = meta.micro.Length == 0 ? "" : $"{string.Join(", ", meta.micro.Select(m => $"{m.name} ({m.count} {m.kind}, LOD{m.lod})"))} micro, ";
+                micro += readable.Count == 0 ? "" : $"{string.Join(", ", readable)} readable, ";
                 string ports = meta.ports.Length == 0 ? "" : $"{meta.ports.Length} ports ({string.Join(", ", meta.ports.Select(p => p.id))}), ";
                 string wires = meta.wires.Length == 0 ? "" : $"{meta.wires.Length} wires without colliders ({string.Join(", ", meta.wires.GroupBy(w => (w.slot, w.diameterM)).Select(g => $"{g.Count()} x {g.Key.diameterM * 1000f:0.#} mm in {g.Key.slot} -> {ThinWireShader}"))}), ";
                 string thinWire = thin.Count == 0 ? "" : $"thin wire {string.Join(", ", thin)}, ";
@@ -1006,16 +1008,27 @@ namespace Fpv450.Assets
         }
 
         /// <summary>
-        /// Per LOD, its mesh's renderer followed by those of the micro meshes listed for it; an impostor LOD's card set
-        /// (<see cref="EnsureImpostor"/>) alone.
+        /// Per LOD, its mesh's renderer followed by those of the micro meshes and then the readable parts listed for it
+        /// (<see cref="ReadableChild"/>); an impostor LOD's card set (<see cref="EnsureImpostor"/>) alone.
         /// </summary>
         static Renderer[][] EnsureLods(GameObject root, AssetPhysicsMeta meta, Dictionary<string, object> metaJson, string metaPath, string fbxPath,
-            Dictionary<string, Material> materialBySlot, HashSet<string> wireSlots, HashSet<string> keep, List<string> thin, string prefabPath)
+            Dictionary<string, Material> materialBySlot, HashSet<string> wireSlots, HashSet<string> keep, List<string> thin, string prefabPath,
+            List<string> readable)
         {
             var imported = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath)
                 ?? throw new FileNotFoundException($"{fbxPath} did not import as a model");
             MeshFilter[] filters = imported.GetComponentsInChildren<MeshFilter>(true);
             List<object> lodsJson = Json.Arr(metaJson, "lods", metaPath);
+            var parts = new List<(int lod, string name)>();
+            if (metaJson.TryGetValue("readable", out object readableJson))
+                foreach (object item in Json.Arr(readableJson, $"{metaPath} readable"))
+                {
+                    var part = Json.Obj(item, $"{metaPath} readable[{parts.Count}]");
+                    int at = (int)Json.Num(part, "lod", metaPath);
+                    if (at < 0 || at >= meta.lods.Length || Json.Obj(lodsJson[at], metaPath).ContainsKey("impostor"))
+                        throw new FormatException($"{metaPath}: readable part {Json.Str(part, "name", metaPath)} names LOD {at}, which is no mesh LOD");
+                    parts.Add((at, Json.Str(part, "name", metaPath)));
+                }
             var renderers = new Renderer[meta.lods.Length][];
             bool impostor = false;
             for (int i = 0; i < meta.lods.Length; i++)
@@ -1032,11 +1045,94 @@ namespace Fpv450.Assets
                 foreach (AssetPhysicsMeta.MicroMesh micro in meta.micro)
                     if (micro.lod == i)
                         lod.Add(MeshChild(root, micro.name, false, filters, fbxPath, materialBySlot, wireSlots, keep, thin));
+                foreach ((int at, string name) in parts)
+                    if (at == i)
+                        lod.Add(ReadableChild(root, name, filters, fbxPath, materialBySlot, wireSlots, keep, thin, prefabPath, readable));
                 renderers[i] = lod.ToArray();
             }
             if (!impostor)
                 DeleteImpostorAssets(prefabPath, root.name);
+            string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
+            foreach (string file in Directory.GetFiles(FullPath(folder), $"{root.name}_LOD*.asset"))
+                if (!readable.Contains(Path.GetFileNameWithoutExtension(file)))
+                    AssetDatabase.DeleteAsset($"{folder}/{Path.GetFileName(file)}"); // a part the metadata no longer lists
             return renderers;
+        }
+
+        /// <summary>
+        /// A part of a LOD the player rewrites (the metadata's <c>readable</c>: D01's coil pack, which p7d-tether's
+        /// CoilPack shrinks as the line pays out), drawn as <see cref="MeshChild"/> draws a LOD's mesh but from a readable
+        /// copy of it, an asset beside the prefab (<c>&lt;name&gt;.asset</c>, rewritten only when it changes), so in the
+        /// player only this part keeps a CPU copy while the model's import stays unreadable (<see cref="ArtImportSettings"/>).
+        /// </summary>
+        static Renderer ReadableChild(GameObject root, string name, MeshFilter[] filters, string fbxPath, Dictionary<string, Material> materialBySlot,
+            HashSet<string> wireSlots, HashSet<string> keep, List<string> thin, string prefabPath, List<string> readable)
+        {
+            Renderer renderer = MeshChild(root, name, false, filters, fbxPath, materialBySlot, wireSlots, keep, thin);
+            MeshFilter filter = renderer.GetComponent<MeshFilter>();
+            string path = $"{Path.GetDirectoryName(prefabPath).Replace('\\', '/')}/{name}.asset";
+            var copy = new Mesh();
+            CopyMesh(filter.sharedMesh, copy);
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh == null)
+            {
+                AssetDatabase.CreateAsset(copy, path);
+                mesh = copy;
+            }
+            else
+            {
+                if (!SameMesh(mesh, copy))
+                {
+                    CopyMesh(copy, mesh);
+                    EditorUtility.SetDirty(mesh);
+                    AssetDatabase.SaveAssetIfDirty(mesh);
+                }
+                Object.DestroyImmediate(copy);
+            }
+            filter.sharedMesh = mesh;
+            readable.Add(name);
+            return renderer;
+        }
+
+        /// <summary>Copies a mesh's vertices with their normals, tangents, colours and UVs, its submeshes and its bounds into
+        /// another, which a new Mesh leaves readable. The editor reads an unreadable import's mesh.</summary>
+        static void CopyMesh(Mesh from, Mesh to)
+        {
+            to.Clear();
+            to.name = from.name;
+            to.indexFormat = from.indexFormat;
+            to.vertices = from.vertices;
+            if (from.HasVertexAttribute(VertexAttribute.Normal)) to.normals = from.normals;
+            if (from.HasVertexAttribute(VertexAttribute.Tangent)) to.tangents = from.tangents;
+            if (from.HasVertexAttribute(VertexAttribute.Color)) to.colors = from.colors;
+            var uv = new List<Vector4>();
+            for (int channel = 0; channel < 8; channel++)
+                if (from.HasVertexAttribute(VertexAttribute.TexCoord0 + channel))
+                {
+                    from.GetUVs(channel, uv);
+                    int dimension = from.GetVertexAttributeDimension(VertexAttribute.TexCoord0 + channel);
+                    if (dimension == 2) to.SetUVs(channel, uv.Select(v => (Vector2)v).ToList());
+                    else to.SetUVs(channel, uv);
+                }
+            to.subMeshCount = from.subMeshCount;
+            for (int s = 0; s < from.subMeshCount; s++)
+                to.SetIndices(from.GetIndices(s), from.GetTopology(s), s, true, (int)from.GetBaseVertex(s));
+            to.bounds = from.bounds;
+        }
+
+        static bool SameMesh(Mesh a, Mesh b) =>
+            a.name == b.name && a.GetVertexAttributes().SequenceEqual(b.GetVertexAttributes()) && a.vertices.SequenceEqual(b.vertices)
+            && a.normals.SequenceEqual(b.normals) && a.tangents.SequenceEqual(b.tangents) && a.colors.SequenceEqual(b.colors)
+            && Enumerable.Range(0, 8).All(c => SameUVs(a, b, c)) && a.subMeshCount == b.subMeshCount
+            && Enumerable.Range(0, a.subMeshCount).All(s => a.GetTopology(s) == b.GetTopology(s) && a.GetIndices(s).SequenceEqual(b.GetIndices(s)))
+            && a.bounds == b.bounds;
+
+        static bool SameUVs(Mesh a, Mesh b, int channel)
+        {
+            List<Vector4> ua = new List<Vector4>(), ub = new List<Vector4>();
+            a.GetUVs(channel, ua);
+            b.GetUVs(channel, ub);
+            return ua.SequenceEqual(ub);
         }
 
         static Renderer MeshChild(GameObject root, string meshName, bool thinWire, MeshFilter[] filters, string fbxPath,

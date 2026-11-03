@@ -80,6 +80,32 @@ def test_micro_meshes_are_named_counted_and_bounded(k01_params, material_ids):
         meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, dict(VISUALS, straw="straw"))
 
 
+def test_readable_parts_are_named_bounded_and_written_only_when_there_are_some(k01_params, material_ids):
+    """p7d-tether 1.14: a generator's readable part (a LOD's piece the player rewrites, D01's coil pack) is listed
+    under `readable` by its LOD and kind, named <variant>_LOD<n>_<kind>, widens the bounds and is written after the
+    schema's keys; an asset without one writes no such key; a bad entry, or one named as another mesh, is refused."""
+    from lib.geometry import Mesh
+    built = debris_brick.build(k01_params)
+    assert "readable" not in k01_meta(k01_params) and '"readable"' not in meta.dumps(k01_meta(k01_params))
+    piece = Mesh()
+    for p in ((0.0, 0.0, 0.0), (0.01, 0.0, 0.0), (0.0, 0.2, 0.0)):
+        piece.vertex(p)
+    piece.face([0, 1, 2], (0.0, 0.0, 1.0), "brick")
+    built["readable"] = [{"lod": 1, "kind": "pack", "mesh": piece}]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert meta.validate(data, material_ids) == []
+    assert data["readable"] == [{"lod": 1, "name": "K01_whole_LOD1_pack", "kind": "pack", "tris": 1}]
+    assert data["bounds"]["max"][1] == 0.2
+    assert list(json.loads(meta.dumps(data)))[-1] == "readable"
+    for bad in ({"lod": 2}, {"name": "K01_whole_LOD1"}, {"tris": 0}):
+        broken = copy.deepcopy(data)
+        broken["readable"][0].update(bad)
+        assert any(p.startswith("readable[0]: needs lod, name, kind, tris") for p in meta.validate(broken, material_ids))
+    built["readable"][0]["lod"] = 2
+    with pytest.raises(ValueError, match="LOD 2, which does not exist"):
+        meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+
+
 def test_lod_bounds_are_written_under_the_bounds(k01_params, material_ids):
     """p1-r01-vaz-sedan, QA 2.1's S2: a generator's "lod_bounds", the object's own box without what its meshes lay
     round it, lands as bounds.lod (the LOD group's frame); one outside the bounds, or turned inside out, is refused;

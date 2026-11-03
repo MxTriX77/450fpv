@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Fpv450.App;
 using Fpv450.Fiber;
+using Fpv450.Sim;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Tests;
 using NUnit.Framework;
@@ -13,7 +16,7 @@ namespace Fpv450.Tests.Fiber
     /// The coil's pack radius following payout (p7d-tether 1.14, DRN-05): D01's pack from drone.json and the look's coil
     /// stations, the generator's law (drone.py's coil_radii), and the pack moved on a model whose spool is drone.py's LOD0
     /// lathe (the rear cap, the ribbed pack, the front hoop) with a cable tie's head on the cap, under a turned and offset
-    /// child, beside a pack box that must not move.
+    /// child, beside a pack box that must not move; only the pack's own meshes read; the flight's D01 with its readable pack.
     /// </summary>
     public sealed class CoilPackTests
     {
@@ -85,6 +88,111 @@ namespace Fpv450.Tests.Fiber
             }
         }
 
+        // Only the meshes named as the pack's are read (CoilShape.PackMesh): an unreadable rest of the model is no warning,
+        // an unreadable pack is one and keeps its pack full.
+        [Test]
+        public void OnlyThePacksOwnMeshesAreRead()
+        {
+            CoilShape shape = CoilShape.D01(RepositoryDrone.Spec());
+            GameObject model = Model(shape, out MeshFilter coil, out MeshFilter box);
+            try
+            {
+                box.sharedMesh.UploadMeshData(true);
+                Assert.That(box.sharedMesh.isReadable, Is.False);
+                var pack = new CoilPack(model, shape);
+                Assert.That((pack.Unreadable, pack.Vertices), Is.EqualTo((0, Ring * (2 + 4 * Ribs - 1))), "the rest of the model never read");
+                pack.Dispose();
+                coil.sharedMesh.UploadMeshData(true);
+                pack = new CoilPack(model, shape);
+                Assert.That((pack.Unreadable, pack.Vertices), Is.EqualTo((1, 0)), "an unreadable pack mesh");
+                pack.Dispose();
+            }
+            finally
+            {
+                Object.DestroyImmediate(model);
+            }
+        }
+
+        // The flight's D01 (DroneModels' prefab for each legs setting, as FlightScene draws it): its pack is its own mesh in
+        // every LOD (drone.py's coil_pack), the catalog importer's readable copy, and the rest of the model unreadable; the
+        // flight's FiberView takes the pack with no warning, clones only the pack's meshes, moves every vertex on the pack to
+        // the law (the empty spool's core) and gives the model its meshes back. Needs pwsh tools/build_asset.ps1 D01.
+        [Test]
+        public void TheFlightsD01HasItsPackReadableAndNothingElse()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            CoilShape shape = CoilShape.D01(spec);
+            DroneModels models = DroneModels.Load();
+            Assert.That(models != null && models.legsOn != null && models.legsOff != null, "Resources/DroneModels (ProjectSetup.Apply)");
+            FlightSetup setup = TetherScenarios.Setup(spec);
+            var core = new FlightCore(setup);
+            var warnings = new List<string>();
+            Application.LogCallback listen = (message, _, type) => { if (type != LogType.Log) warnings.Add(message); };
+            Application.logMessageReceived += listen;
+            try
+            {
+                foreach (GameObject prefab in new[] { models.legsOn, models.legsOff })
+                {
+                    GameObject model = Object.Instantiate(prefab);
+                    var go = new GameObject("Fiber (test)");
+                    try
+                    {
+                        MeshFilter[] filters = model.GetComponentsInChildren<MeshFilter>(true);
+                        MeshFilter[] packs = filters.Where(f => f.sharedMesh.name.EndsWith(CoilShape.D01PackMesh, StringComparison.Ordinal)).ToArray();
+                        Assert.That(packs.Select(f => f.name), Is.EqualTo(Enumerable.Range(0, 4).Select(q => $"{prefab.name}_LOD{q}{CoilShape.D01PackMesh}")),
+                            prefab.name + ": a pack a LOD");
+                        Assert.That(packs.All(f => f.sharedMesh.isReadable), prefab.name + ": the pack readable");
+                        Assert.That(filters.Except(packs).Where(f => f.sharedMesh.isReadable).Select(f => f.name), Is.Empty, prefab.name + ": nothing else readable");
+                        Mesh[] own = filters.Select(f => f.sharedMesh).ToArray();
+                        Vector3[][] before = packs.Select(f => ModelSpace(model, f)).ToArray();
+                        var view = go.AddComponent<FiberView>();
+                        view.Begin(core.Tether, setup.Tether, model, shape);
+                        Assert.That(view.Coil, Is.Not.Null, prefab.name + ": the pack found");
+                        Assert.That(view.Coil.Unreadable, Is.EqualTo(0), prefab.name);
+                        Assert.That(filters.Select((f, i) => f.sharedMesh != own[i]), Is.EqualTo(filters.Select(f => packs.Contains(f))), prefab.name + ": only the pack's meshes cloned");
+                        view.Coil.Show(0);
+                        float by = (float)(shape.PackRadius(0) - shape.Radius);
+                        int moved = 0;
+                        for (int m = 0; m < packs.Length; m++)
+                        {
+                            Vector3[] after = ModelSpace(model, packs[m]);
+                            for (int i = 0; i < after.Length; i++)
+                            {
+                                Vector3 d0 = before[m][i] - shape.Centre, d1 = after[i] - shape.Centre;
+                                float z = Vector3.Dot(d0, shape.Axis), r0 = (d0 - shape.Axis * z).magnitude;
+                                bool onPack = z >= shape.PackRear - 1e-4f && z <= shape.PackFront + 1e-4f && r0 >= shape.Radius - Rib - 1e-4f && r0 <= shape.Radius + 1e-4f;
+                                float r1 = (d1 - shape.Axis * Vector3.Dot(d1, shape.Axis)).magnitude;
+                                Assert.That(r1, Is.EqualTo(onPack ? r0 + by : r0).Within(2e-6f), $"{packs[m].name} vertex {i}");
+                                Assert.That(Vector3.Dot(d1, shape.Axis), Is.EqualTo(z).Within(1e-6f), $"{packs[m].name} vertex {i} at its station");
+                                if (onPack) moved++;
+                            }
+                        }
+                        TestContext.WriteLine($"{prefab.name}: {packs.Length} readable pack meshes of {packs.Sum(f => f.sharedMesh.vertexCount)} vertices, " +
+                                              $"{moved} moved {by * 1000:F1} mm to the core; {filters.Length - packs.Length} meshes unreadable and unread");
+                        Assert.That(moved, Is.EqualTo(view.Coil.Vertices).And.GreaterThan(0));
+                        view.End();
+                        Assert.That(filters.Select(f => f.sharedMesh), Is.EqualTo(own), prefab.name + ": the model's own meshes back");
+                    }
+                    finally
+                    {
+                        Object.DestroyImmediate(go);
+                        Object.DestroyImmediate(model);
+                    }
+                }
+            }
+            finally
+            {
+                Application.logMessageReceived -= listen;
+            }
+            Assert.That(warnings, Is.Empty, "no warning from the flight's coil");
+        }
+
+        static Vector3[] ModelSpace(GameObject model, MeshFilter filter)
+        {
+            Matrix4x4 toModel = model.transform.worldToLocalMatrix * filter.transform.localToWorldMatrix;
+            return filter.sharedMesh.vertices.Select(v => toModel.MultiplyPoint3x4(v)).ToArray();
+        }
+
         // ---- the model ----
 
         const int Ring = 32, Ribs = 20; // drone.py's LOD0: 32 segments, 0.15 m / 7.5 mm ribs
@@ -146,7 +254,7 @@ namespace Fpv450.Tests.Fiber
             vertices.AddRange(head.vertices);
             foreach (int t in head.triangles) triangles.Add(offset + t);
             Object.DestroyImmediate(head);
-            var mesh = new Mesh { name = "D01 coil (test)" };
+            var mesh = new Mesh { name = "D01 (test)_LOD0" + CoilShape.D01PackMesh }; // read as D01's pack meshes are
             mesh.SetVertices(vertices);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateNormals();

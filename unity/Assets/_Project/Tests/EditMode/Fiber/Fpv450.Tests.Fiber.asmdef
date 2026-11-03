@@ -2,6 +2,7 @@
     "name": "Fpv450.Tests.Fiber",
     "rootNamespace": "Fpv450.Tests.Fiber",
     "references": [
+        "Fpv450.App",
         "Fpv450.Fiber",
         "Fpv450.Sim",
         "Fpv450.Sim.Tests",
