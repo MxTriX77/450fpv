@@ -192,8 +192,13 @@ namespace Fpv450.Sim.Log
         /// 26: p7b-airframe--power's 24 merged onto 25 (the code is the parents' together): D-066's power and mass and the
         ///    build's placement with the interference, D-064's micro-motion and 1.6c's stick spring. On model 22's drone (the
         ///    40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics) and without the placement a flight steps as in 25.
+        /// 37: p7g-legs 1.1 (D-072's number), the class's legs as data (drone.json's legs block): rigid PVC-U legs and skids,
+        ///    10/8 mm (10.2 and 18.3 g, from 11 and 20 g of CFRP), each leg's spring from its section, 52.3 kN/m along it (the
+        ///    tube's EA/L, the arm under the clamp, the skid's ring in the T-joint, in series) for the assumed 10 kN/m, its damper
+        ///    103 N·s/m at the same ζ 0.2 (from 45); the leg shapes keep 6600 N/m. On model 26's drone.json a flight steps as in
+        ///    26.
         /// </summary>
-        public const int ModelVersion = 26;
+        public const int ModelVersion = 37;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

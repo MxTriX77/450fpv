@@ -15,7 +15,8 @@ namespace Fpv450.Sim.Tests
         // ---- the repository's drone.json at the seven loadouts ----
 
         // One of the object sheet's seven loadouts (docs/object-sheets/drone.md), with D-050's build of it from drone.json,
-        // derived and pinned (D-048, D-050: the figures as the file's layout gives them). L7 is the heaviest corner, on the
+        // derived and pinned (D-048, D-050: the figures as the file's layout gives them; legs on re-pinned for p7g-legs 1.1's
+        // PVC-U legs and skids, 6.6 g lighter). L7 is the heaviest corner, on the
         // sheet's pack option B (6S3P twice), which the test puts on in place of the file's packs.
         public sealed class BuildLoadout
         {
@@ -31,25 +32,25 @@ namespace Fpv450.Sim.Tests
         static readonly BuildLoadout[] Builds =
         {
             new BuildLoadout { Name = "L1", Payload = 0, Coil = 0,
-                Mass = 3.397, ComY = -0.0293, Roll = 0.0348, Pitch = 0.0339, Yaw = 0.0541, CoilAbove = -0.0237, PitchRoll = 0.974, YawRoll = 1.553,
+                Mass = 3.390, ComY = -0.0290, Roll = 0.0346, Pitch = 0.0336, Yaw = 0.0539, CoilAbove = -0.0240, PitchRoll = 0.973, YawRoll = 1.561,
                 OffMass = 3.281, OffComY = -0.0233, OffRoll = 0.0295, OffPitch = 0.0283, OffYaw = 0.0514, OffCoilAbove = -0.0297, OffPitchRoll = 0.960, OffYawRoll = 1.745 },
             new BuildLoadout { Name = "L2", Payload = 0, Coil = 1,
-                Mass = 4.087, ComY = -0.0333, Roll = 0.0358, Pitch = 0.0369, Yaw = 0.0567, CoilAbove = -0.0197, PitchRoll = 1.031, YawRoll = 1.586,
+                Mass = 4.080, ComY = -0.0331, Roll = 0.0355, Pitch = 0.0366, Yaw = 0.0565, CoilAbove = -0.0199, PitchRoll = 1.030, YawRoll = 1.594,
                 OffMass = 3.971, OffComY = -0.0284, OffRoll = 0.0306, OffPitch = 0.0314, OffYaw = 0.0540, OffCoilAbove = -0.0246, OffPitchRoll = 1.027, OffYawRoll = 1.767 },
             new BuildLoadout { Name = "L3", Payload = 1.0, Coil = 0,
-                Mass = 4.397, ComY = -0.0072, Roll = 0.0430, Pitch = 0.0450, Yaw = 0.0578, CoilAbove = -0.0458, PitchRoll = 1.047, YawRoll = 1.346,
+                Mass = 4.390, ComY = -0.0069, Roll = 0.0426, Pitch = 0.0446, Yaw = 0.0577, CoilAbove = -0.0461, PitchRoll = 1.047, YawRoll = 1.353,
                 OffMass = 4.281, OffComY = -0.0019, OffRoll = 0.0367, OffPitch = 0.0384, OffYaw = 0.0551, OffCoilAbove = -0.0511, OffPitchRoll = 1.048, OffYawRoll = 1.505 },
             new BuildLoadout { Name = "L4 nominal in flight", Payload = 1.0, Coil = 0.5,
-                Mass = 4.742, ComY = -0.0105, Roll = 0.0439, Pitch = 0.0470, Yaw = 0.0591, CoilAbove = -0.0425, PitchRoll = 1.069, YawRoll = 1.346,
+                Mass = 4.735, ComY = -0.0103, Roll = 0.0436, Pitch = 0.0466, Yaw = 0.0590, CoilAbove = -0.0427, PitchRoll = 1.069, YawRoll = 1.353,
                 OffMass = 4.626, OffComY = -0.0058, OffRoll = 0.0378, OffPitch = 0.0406, OffYaw = 0.0564, OffCoilAbove = -0.0472, OffPitchRoll = 1.073, OffYawRoll = 1.494 },
             new BuildLoadout { Name = "L5 nominal take-off", Payload = 1.0, Coil = 1,
-                Mass = 5.087, ComY = -0.0134, Roll = 0.0448, Pitch = 0.0488, Yaw = 0.0604, CoilAbove = -0.0396, PitchRoll = 1.090, YawRoll = 1.349,
+                Mass = 5.080, ComY = -0.0132, Roll = 0.0445, Pitch = 0.0485, Yaw = 0.0603, CoilAbove = -0.0398, PitchRoll = 1.090, YawRoll = 1.355,
                 OffMass = 4.971, OffComY = -0.0090, OffRoll = 0.0388, OffPitch = 0.0426, OffYaw = 0.0577, OffCoilAbove = -0.0440, OffPitchRoll = 1.097, OffYawRoll = 1.488 },
             new BuildLoadout { Name = "L6", Payload = 2.0, Coil = 1,
-                Mass = 6.087, ComY = 0.0034, Roll = 0.0551, Pitch = 0.0655, Yaw = 0.0686, CoilAbove = -0.0564, PitchRoll = 1.189, YawRoll = 1.245,
+                Mass = 6.080, ComY = 0.0036, Roll = 0.0547, Pitch = 0.0651, Yaw = 0.0684, CoilAbove = -0.0566, PitchRoll = 1.190, YawRoll = 1.250,
                 OffMass = 5.971, OffComY = 0.0073, OffRoll = 0.0483, OffPitch = 0.0584, OffYaw = 0.0659, OffCoilAbove = -0.0603, OffPitchRoll = 1.210, OffYawRoll = 1.364 },
             new BuildLoadout { Name = "L7 heaviest", SixP = true, Payload = 1.4, Coil = 1,
-                Mass = 6.367, ComY = -0.0113, Roll = 0.0599, Pitch = 0.0598, Yaw = 0.0766, CoilAbove = -0.0417, PitchRoll = 1.000, YawRoll = 1.279,
+                Mass = 6.360, ComY = -0.0112, Roll = 0.0596, Pitch = 0.0595, Yaw = 0.0764, CoilAbove = -0.0418, PitchRoll = 0.999, YawRoll = 1.284,
                 OffMass = 6.251, OffComY = -0.0078, OffRoll = 0.0538, OffPitch = 0.0535, OffYaw = 0.0739, OffCoilAbove = -0.0452, OffPitchRoll = 0.995, OffYawRoll = 1.374 },
         };
         static IEnumerable<BuildLoadout> BuildLoadouts() => Builds;
@@ -299,7 +300,7 @@ namespace Fpv450.Sim.Tests
             foreach (int leg in spec.Legs.Parts)
                 Assert.That(Array.IndexOf(spec.LegsOff.Removed, leg), Is.GreaterThanOrEqualTo(0), "every leg comes off");
             TestContext.WriteLine($"legs off: {removed:F3} kg off (derived)");
-            Assert.That(removed, Is.EqualTo(0.116).Within(1e-12), "4 legs, 4 T-joints and 2 skids (the sheet: 0.12 kg)");
+            Assert.That(removed, Is.EqualTo(0.1094).Within(1e-12), "4 legs, 4 T-joints and 2 skids (p7g-legs 1.1's PVC-U tube; the sheet's 0.12 kg was CFRP)");
             Assert.That(model.Properties.Mass, Is.EqualTo(spec.BuildMass(spec.Nominal).Properties.Mass - removed).Within(1e-12));
             Assert.That(spec.LegsOff.Moved, Is.Empty, "nothing moves");
             Assert.That(model.Part(spec.Coil.Part).Position.Y, Is.LessThan(0), "the coil hangs underneath");

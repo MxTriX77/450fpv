@@ -227,7 +227,13 @@ namespace Fpv450.Sim.Tests
         // branch's, and keeps its course: armed, no crash, 162.72 m up against 157.26 and 153.53 at 10 s on the open-loop
         // script (the lighter drone climbs harder, as on its branch), 20.1 m and 9.9 m from their ends, within 21° and 7.8°;
         // the packs at 0.8941 of 0.9 (the power branch's 0.8941).
-        public const ulong PoweredHash = 0x53F1D10489702031UL;
+        // Model 26: 0x53F1D10489702031. p7g-legs 1.1 (ModelVersion 37): re-recorded with the class's plastic legs (drone.json's
+        // legs block: the PVC-U legs and skids 6.6 g lighter, each leg's spring derived from its section, 52.3 kN/m). Audited:
+        // on model 26's legs (WithModel26Legs) it is model 26's pin bit for bit, every record and event (the kept test,
+        // OnModel26sLegsEachGoldenIsModel26s). It moves from step 1 (the lighter body; 300 m up the spring never acts) and
+        // keeps its course: armed, no crash, 162.65 m up against 162.72 at 10 s, 273 mm from model 26's end and within 0.33°
+        // of its attitude; the packs at 0.8941 of 0.9 (the same).
+        public const ulong PoweredHash = 0xCD0A523E1C9B94F8UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -255,7 +261,10 @@ namespace Fpv450.Sim.Tests
         // model 22's drone, the kept test; the power branch's 0xACF1742E51117659 without the integration's sources, the kept
         // test). It moves from step 1 and step 21 and keeps its course: 164.73 m up against 158.09 and 155.36, 19.8 m and 9.8
         // m from their ends, within 19° and 8.0°; the film holds 9.92 g at 10 s (9.11 and 10.28).
-        public const ulong RainPoweredHash = 0x53B90D4307BF1534UL;
+        // Model 26: 0x53B90D4307BF1534. p7g-legs 1.1 (ModelVersion 37), audited as the powered flight (model 26's pin on model
+        // 26's legs, the kept test): it moves from step 1 and keeps its course, 164.76 m up against 164.73, 204 mm from model
+        // 26's end and within 0.21°; the film holds 9.93 g at 10 s (9.92).
+        public const ulong RainPoweredHash = 0x15C2A0EF0C503D48UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -405,7 +414,13 @@ namespace Fpv450.Sim.Tests
         // model 25 (the lighter body) and from step 3 against the power branch's (1.6c's spring on the standing skids), and
         // keeps its course: 5 impacts, no crash, at rest at 0.2519 m on 8 pairs (0.2518 and 0.2519), 59 mm and 42 mm aside,
         // within 117 mm and 1.5° of model 25's path and 49 mm and 1.5° of the power branch's (the held bounce).
-        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
+        // Model 26: 0xAAEA31DBFBB13710. p7g-legs 1.1 (ModelVersion 37): re-recorded with the plastic legs. Audited: on model
+        // 26's legs it is model 26's pin bit for bit (the kept test). It moves from step 1 (the lighter body on the derived
+        // 52.3 kN/m spring and its 103 N·s/m damper, the skids standing on the floor from the first step) and keeps its
+        // course: 6 impacts against 5, no crash, at rest at 0.2528 m against 0.2519 (the stiffer
+        // spring sinks 0.24 mm under a leg's share, the assumed 10 kN/m 1.24 mm), 74 mm aside, within 80 mm and 1.8° of model
+        // 26's path (the held bounce).
+        public const ulong ContactHash = 0xA3B92A5D52CFE546UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -442,7 +457,11 @@ namespace Fpv450.Sim.Tests
         // record, the interference's and the own wake's bytes zero: on model 22's drone model 25's pin (the kept test), over
         // 1808 bytes the power branch's 0x95E56C6BB49BB744 (the kept test); momentum within 1.7e-12, energy 3.5e-12, the CoM
         // 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s, the power branch's numbers.
-        public const ulong TumbleHash = 0xBCBD33E6B6A94844UL;
+        // Model 26: 0xBCBD33E6B6A94844. p7g-legs 1.1 (ModelVersion 37): the L4 body with the plastic legs (4.735 kg; roll
+        // 0.0436, pitch 0.0466, yaw 0.0590 kg·m²): on model 26's legs model 26's pin (the kept test); 8.9 mm and 0.20° from
+        // model 26's end at 10 s; momentum within 1.4e-12, energy 2.7e-12, the CoM 5.1e-11 m from its parabola, the rate
+        // wandering 5.49 rad/s (5.46).
+        public const ulong TumbleHash = 0x5FBFA89AF2217693UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -515,7 +534,11 @@ namespace Fpv450.Sim.Tests
         // branch's 0xFBAC3E4D67B45ACD under the temporary edits over 1808 bytes. It moves from step 1 and step 3 and keeps its
         // course: at rest 6.9 mm and 24 mm from their resting places, within 114 mm and 3.1° of model 25's path and 34 mm and
         // 3.5° of the power branch's (the held bounce over the straw).
-        public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
+        // Model 26: 0xC79B60F487AEB8B6. p7g-legs 1.1 (ModelVersion 37), on the same content: re-recorded with the plastic legs.
+        // Audited as the contact flight (model 26's pin on model 26's legs, the kept test): it moves from step 1 and keeps its
+        // course: 5 impacts against 4, no crash, at rest 0.2319 m up on S04's straw against 0.2323 (0.4 mm deeper), 1.1 mm
+        // from model 26's resting place and within 0.50° of its attitude.
+        public const ulong RangeHash = 0x89E6F89885BD7282UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
@@ -569,6 +592,11 @@ namespace Fpv450.Sim.Tests
         public const ulong Model25PoweredHash = 0x67788361104F58BBUL, Model25RainPoweredHash = 0x4D876EF3F328F9ADUL,
             Model25ContactHash = 0x0F21FF2A28BA0E16UL, Model25TumbleHash = 0x6712A54D0FDA7F84UL, Model25RangeHash = 0x0D5350CB2E68C6B8UL;
 
+        /// <summary>p7g-legs 1.1's kept audit (GoldenFlightTests.OnModel26sLegsEachGoldenIsModel26s): on WithModel26Legs each golden
+        /// flies model 26's pins bit for bit, every record and event.</summary>
+        public const ulong Model26PoweredHash = 0x53F1D10489702031UL, Model26RainPoweredHash = 0x53B90D4307BF1534UL,
+            Model26ContactHash = 0xAAEA31DBFBB13710UL, Model26TumbleHash = 0xBCBD33E6B6A94844UL, Model26RangeHash = 0xC79B60F487AEB8B6UL;
+
         /// <summary>The audit against p7b-airframe--power (GoldenFlightTests.WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs):
         /// that branch's model 24 pins over model 19's 1808-byte record, which the powered, rain and tumble goldens flown on
         /// drone.json without the interference and D-064's sources keep bit for bit (they touch nothing, so 1.6c's spring and
@@ -576,11 +604,35 @@ namespace Fpv450.Sim.Tests
         /// 1.6c's spring off too, temporary edits (ContactHash's and RangeHash's notes).</summary>
         public const ulong PowerPoweredHash = 0xCC20DE164C858267UL, PowerRainHash = 0xACF1742E51117659UL, PowerTumbleHash = 0x95E56C6BB49BB744UL;
 
+        /// <summary>The spec with model 26's legs (drone.json before p7g-legs 1.1): 10/8 mm CFRP legs and skids of 11 and 20 g,
+        /// each leg's assumed 10 kN/m spring and its 45 N·s/m damper, and the leg shapes' 6600 N/m every way. Pass a freshly
+        /// parsed spec: it is changed in place.</summary>
+        public static DroneSpec WithModel26Legs(DroneSpec spec)
+        {
+            foreach (string name in new[] { "leg_rr", "leg_fr", "leg_rl", "leg_fl", "skid_right", "skid_left" })
+            {
+                ref DronePart p = ref spec.Parts[spec.PartIndex(name)];
+                p.Mass = name.StartsWith("leg_", StringComparison.Ordinal) ? 0.011 : 0.020;
+                p.Material = "carbon";
+            }
+            spec.Legs.Stiffness = 10000;
+            spec.Legs.Damping = 45;
+            for (int i = 0; i < spec.Contacts.Shapes.Length; i++)
+            {
+                ref ContactShape s = ref spec.Contacts.Shapes[i];
+                bool leg = s.Role == ContactRole.Body && s.Name.StartsWith("leg_", StringComparison.Ordinal);
+                if (leg) s.Stiffness = s.StiffnessUp = 6600;
+                if (leg || s.Role == ContactRole.Support || s.Role == ContactRole.Skid) s.Material = "carbon_composite";
+            }
+            return spec;
+        }
+
         /// <summary>The spec with model 22's drone (drone.json before D-066): the ESCs' assumed 40 A current limit, the
-        /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg. Pass a freshly parsed
-        /// spec: it is changed in place.</summary>
+        /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg, on model 26's legs
+        /// (WithModel26Legs: model 22's drone had them). Pass a freshly parsed spec: it is changed in place.</summary>
         public static DroneSpec WithModel22Drone(DroneSpec spec)
         {
+            WithModel26Legs(spec);
             for (int i = 0; i < spec.Motors.Length; i++)
             {
                 spec.Motors[i].EscCurrentLimit = 40;

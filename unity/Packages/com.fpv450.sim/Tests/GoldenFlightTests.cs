@@ -112,6 +112,21 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes, at), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
         }
 
+        // p7g-legs 1.1 (model 37), its audit, kept: on model 26's legs (WithModel26Legs: the CFRP legs' and skids' 11 and 20 g,
+        // the assumed 10 kN/m spring and its 45 N·s/m damper, the leg shapes' 6600 N/m) every golden is model 26's, every
+        // record and event, so the legs' data is the whole change.
+        [Test]
+        public void OnModel26sLegsEachGoldenIsModel26s()
+        {
+            DroneSpec Model26() => GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()));
+            Assert.That(GoldenFlights.FlyPowered(Model26(), out _), Is.EqualTo(GoldenFlights.Model26PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(Model26(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
+                Is.EqualTo(GoldenFlights.Model26RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(Model26(), out _), Is.EqualTo(GoldenFlights.Model26ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model26(), out _, out _), Is.EqualTo(GoldenFlights.Model26TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyRange(Model26(), out _), Is.EqualTo(GoldenFlights.Model26RangeHash), "range");
+        }
+
         // D-066 (model 23 on p7b-airframe--power), its audit, kept: on model 22's drone (the 40 A limit, the 1.0 A no-load
         // current, the 0.92 kg packs and the 0.25 kg electronics put back) every golden is model 22's there and, since the
         // merge at model 26, the landing's merge's model 25 here, every record and event (the goldens fly the exact build, no
@@ -135,7 +150,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text())); // the branch flew them
             const int at = GoldenFlights.Model19Layout;
             Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, wake: false, motors: false, layout: at),
                 Is.EqualTo(GoldenFlights.PowerPoweredHash), "powered");

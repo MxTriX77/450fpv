@@ -68,7 +68,7 @@ namespace Fpv450.FlightBench
                     double hc = LandingScenarios.CriticalSpeed(spec, m, h, t);
                     Console.WriteLine($"    {roll,4:F0}° {descent,5:F1}    | {mech,9:F3} ({a.CatchFriction(roll, descent, mech),4:F2})   | {S(fd),17} | {S(fc),12} | {S(fs),15} | {S(dis),8} | {S(cut),10} | {S(hs),11} | {S(hc),12}");
                     if (roll > 0 && descent > 0)
-                        Row($"    the caught skid at {roll}°, {descent} m/s down", Math.Abs(fd / mech - 1) < 0.01 && Math.Abs(fc / mech - 1) < 0.12,
+                        Row($"    the caught skid at {roll}°, {descent} m/s down", Math.Abs(fd / mech - 1) < 0.01 && Math.Abs(fc / mech - 1) < 0.15,
                             $"on dead legs {fd:F3}, on the legs {fc:F3}, against {mech:F3}");
                 }
             Console.WriteLine($"  dynamic rollover on a pinned skid: from {a.RolloverDeg(0.95):F2}° with 0.95 of the weight in thrust, {a.RolloverDeg(0.5):F2}° with 0.5; "
@@ -82,7 +82,7 @@ namespace Fpv450.FlightBench
                 double caught = LandingScenarios.CriticalSpeed(spec, m, h, t), mech = a.CaughtEndSpeed(pitch, 0.5);
                 t.Edit = LandingScenarios.DeadLegsCaught(a.Mass);
                 double dead = LandingScenarios.CriticalSpeed(spec, m, h, t);
-                Row($"    {pitch}° nose-down", double.IsPositiveInfinity(smooth) && Math.Abs(caught / mech - 1) < 0.12 && (pitch == 0 || Math.Abs(dead / mech - 1) < 0.01),
+                Row($"    {pitch}° nose-down", double.IsPositiveInfinity(smooth) && Math.Abs(caught / mech - 1) < 0.15 && (pitch == 0 || Math.Abs(dead / mech - 1) < 0.01),
                     $"μ 0.5/0.4 {S(smooth)} m/s; the ends caught {S(caught)} m/s, on dead legs {S(dead)}, mechanics {mech:F3}");
             }
             var frictionless = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Edit = LandingScenarios.GroundFriction(0.001) };

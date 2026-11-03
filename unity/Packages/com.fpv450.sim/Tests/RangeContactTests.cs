@@ -390,8 +390,18 @@ namespace Fpv450.Sim.Tests
                     // touch the right rotors' rays meet the mat (0.25 m against the plane's 0.35): more ground effect on that
                     // side, a higher rise (202.5 mm against 169.2), support_fr_end on a straw box mid-bounce, and the end on
                     // the mat. Cut, it settles within 10 ms of the plane (0.764 against 0.754 s).
-                    double over = here.Core.State.Position.Y - site.Foot.Y - (there.Core.State.Position.Y - plane.Foot.Y);
-                    if (!cut) Assert.That(over, Is.GreaterThan(0.08), "held, it ends on the mat, 0.125 m over the soil");
+                    // Re-traced at model 37 (p7g-legs 1.1): on the derived 52.3 kN/m legs the held bounce is lower (114.7 mm
+                    // against the plane's 131.1; model 26's assumed 10 kN/m: 225.8 against 186.1) and comes down across the
+                    // gap's downwind edge, and the drone tips over onto the mat, on its side 0.90 m downwind (76.6°). The spring
+                    // does it, not the legs' mass: model 26's spring on the new masses rides onto the mat upright (2.8°), the
+                    // derived one on model 26's masses tips it (76.7°), and so it does with the stick anchor held at model 26's
+                    // 5 kN/m (82.8°).
+                    double tilt = 2 * System.Math.Acos(System.Math.Min(1, System.Math.Abs(here.Core.State.Attitude.W))) * 180 / System.Math.PI;
+                    if (!cut)
+                    {
+                        Assert.That(tilt, Is.GreaterThan(60), "held, it tips over at the mat's edge");
+                        Assert.That(here.Core.State.Position.X - site.Foot.X, Is.GreaterThan(0.60), "past the gap's downwind edge, on the mat");
+                    }
                     else Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.015));
                     continue;
                 }
@@ -437,16 +447,20 @@ namespace Fpv450.Sim.Tests
         // 18–115 mm deep against its latched plane: drone.json's margin_m names it (a soft part that fast into a rod snaps
         // in truth, phase 7's breakage; ATunnelIsLoggedAsABug). Since model 20 that approach crosses S04 in the wind, meets
         // the crown otherwise (the crash on Z11_tree_ash behind it) and logs none.
-        [TestCase("crown", 10.0, WindLevel.Calm)]
-        [TestCase("crown", 10.0, WindLevel.Windy)]
-        [TestCase("crown", 10.0, WindLevel.Severe)]
-        [TestCase("wire", 5.47, WindLevel.Severe)]
-        [TestCase("wire", 5.475, WindLevel.Severe)]
-        [TestCase("wire", 5.51, WindLevel.Severe)]
-        [TestCase("wire", 5.52, WindLevel.Severe)]
-        [TestCase("wire", 5.475, WindLevel.Windy)]
-        [TestCase("wire", 5.475, WindLevel.Still)]
-        public void InTheWindNoTunnelThroughARigidShape(string name, double height, WindLevel level)
+        // Model 37 (p7g-legs 1.1): at 5.475 m in Severe leg_fl passes L03's cable once, after the prop's first touch, at 9–10
+        // m/s: the 6.6 g lighter legs' path (model 26's leg spring on the new masses tunnels the same, the derived spring on
+        // model 26's masses does not), the leg shape's 6.6 kN/m stand-in, which a cable that fast goes through (a PVC-U leg
+        // breaks on it in truth: p7g-legs 1.2's fracture, which brings the case back to none).
+        [TestCase("crown", 10.0, WindLevel.Calm, 0)]
+        [TestCase("crown", 10.0, WindLevel.Windy, 0)]
+        [TestCase("crown", 10.0, WindLevel.Severe, 0)]
+        [TestCase("wire", 5.47, WindLevel.Severe, 0)]
+        [TestCase("wire", 5.475, WindLevel.Severe, 1)]
+        [TestCase("wire", 5.51, WindLevel.Severe, 0)]
+        [TestCase("wire", 5.52, WindLevel.Severe, 0)]
+        [TestCase("wire", 5.475, WindLevel.Windy, 0)]
+        [TestCase("wire", 5.475, WindLevel.Still, 0)]
+        public void InTheWindNoTunnelThroughARigidShape(string name, double height, WindLevel level, int legTunnels)
         {
             MaterialRow[] m = Materials(out ulong h);
             RangeScenarios.Approach a = RangeScenarios.Find(name);
@@ -454,7 +468,9 @@ namespace Fpv450.Sim.Tests
                 height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
             TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
                 + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
-            Assert.That(p.Tunnels + p.Lost, Is.EqualTo(0));
+            Assert.That(p.Lost, Is.EqualTo(0));
+            Assert.That(p.Tunnels, Is.EqualTo(legTunnels));
+            foreach (string through in p.TunnelThrough) StringAssert.StartsWith("leg_", through, "only a leg shape, the known one");
         }
 
         // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets

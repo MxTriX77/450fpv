@@ -53,8 +53,8 @@ namespace Fpv450.Sim.Tests
         public void TheDroneTipsWhereItsCentreOfMassPassesOverTheSkid()
         {
             LandingStability a = LegsOn();
-            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.35).Within(0.01), "the roll tip, D-066's nominal build (23.39° on model 22's)");
-            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.75).Within(0.01), "the pitch tip over the front ends (42.80° on model 22's)");
+            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.33).Within(0.01), "the roll tip, p7g-legs 1.1's plastic legs (23.35° on model 26's, 23.39° on model 22's)");
+            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.72).Within(0.01), "the pitch tip over the front ends (42.75° on model 26's, 42.80° on model 22's)");
             // Set down at rest just inside and just past each tip.
             Assert.That(RollTime(true, a.StaticRollTipDeg - 0.05, 60), Is.EqualTo(double.PositiveInfinity), "inside the roll tip it rights itself");
             Assert.That(RollTime(true, a.StaticRollTipDeg + 0.05, 60), Is.LessThan(10), "past it, it falls");
@@ -81,7 +81,9 @@ namespace Fpv450.Sim.Tests
         {
             // On dead legs (overdamped, so they return nothing of the touch) a caught skid is the mechanics' plastic catch, and
             // the sim gives its speed to 1 %, sideways and fore-aft; on the repository's legs (ζ 0.2) the legs' spring gives
-            // back part of the touch as rotation, and a caught skid tips the drone up to 12 % sooner.
+            // back part of the touch as rotation, and a caught skid tips the drone up to 14 % sooner on p7g-legs 1.1's derived
+            // 52.3 kN/m (10° and 20°: 0.918 and 0.936 of the mechanics in roll, 0.863 and 0.901 nose-down), up to 10 % on model
+            // 26's assumed 10 kN/m (0.960, 0.975, 0.896, 0.934).
             LandingStability a = LegsOn();
             Func<ContactSpec, ContactSpec> dead = LandingScenarios.DeadLegsCaught(a.Mass), caught = LandingScenarios.GroundFriction(10);
             foreach (double tilt in new[] { 10.0, 20 })
@@ -92,8 +94,8 @@ namespace Fpv450.Sim.Tests
                 Assert.That(Critical(side) / roll, Is.EqualTo(1).Within(0.01), $"{tilt}° of roll on dead legs, against {roll:F3}");
                 Assert.That(Critical(ahead) / pitch, Is.EqualTo(1).Within(0.01), $"{tilt}° nose-down on dead legs, against {pitch:F3}");
                 side.Edit = ahead.Edit = caught;
-                Assert.That(Critical(side) / roll, Is.EqualTo(1).Within(0.12), $"{tilt}° of roll on the legs");
-                Assert.That(Critical(ahead) / pitch, Is.EqualTo(1).Within(0.12), $"{tilt}° nose-down on the legs");
+                Assert.That(Critical(side) / roll, Is.EqualTo(1).Within(0.15), $"{tilt}° of roll on the legs");
+                Assert.That(Critical(ahead) / pitch, Is.EqualTo(1).Within(0.15), $"{tilt}° nose-down on the legs");
             }
         }
 
@@ -134,7 +136,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(Critical(t), Is.EqualTo(double.PositiveInfinity), "the runners slide");
             t.Edit = LandingScenarios.GroundFriction(10);
             double sim = Critical(t), mechanics = a.CaughtEndSpeed(10, 0.5);
-            Assert.That(sim / mechanics, Is.EqualTo(1).Within(0.12), $"caught ends: {sim:F3} m/s against {mechanics:F3}");
+            Assert.That(sim / mechanics, Is.EqualTo(1).Within(0.15), $"caught ends: {sim:F3} m/s against {mechanics:F3} (the legs' give-back, ACaughtSkidTipsItAtTheRigidBodySpeed)");
         }
 
         [Test]

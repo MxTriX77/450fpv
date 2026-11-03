@@ -206,11 +206,16 @@ namespace Fpv450.Sim.Tests
             return c;
         };
 
-        /// <summary>A caught skid on dead legs: the ground's pair at μ 10 and each leg's damper at ζ √2 on a quarter of the
-        /// mass (overdamped, so a leg returns none of the touch), the rigid-body mechanics' own plastic catch.</summary>
+        /// <summary>A caught skid on dead legs: the ground's pair at μ 10 and each leg at 10 kN/m with its damper at ζ √2 on a
+        /// quarter of the mass (overdamped, so a leg returns none of the touch), the rigid-body mechanics' own plastic catch.
+        /// The catch does not depend on the leg's spring, and the device keeps model 26's 10 kN/m: on p7g-legs 1.1's derived
+        /// 52.3 kN/m the overdamped damper (729 N·s/m) passes the explicit step's stability on a skid end's small effective
+        /// mass, and the catch tips the drone at no speed at all past 30–40 kN/m (a sweep of 10–52.3 kN/m at ζ 0.7, 1 and √2:
+        /// within 0.6 % of the mechanics to 20 kN/m at every ζ, and at ζ 0.7 to 52.3 kN/m).</summary>
         public static Func<ContactSpec, ContactSpec> DeadLegsCaught(double mass) => c =>
         {
             c = GroundFriction(10)(c);
+            c.LegStiffness = 10000;
             c.LegDamping = 2 * Math.Sqrt(2) * Math.Sqrt(c.LegStiffness * mass / 4);
             return c;
         };
