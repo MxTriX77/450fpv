@@ -17,7 +17,9 @@ namespace Fpv450.App.Session
     /// The incidents (D-063), each logged and none an end, in step order:
     /// - a crash: the log's first Crash event, the core's latch, with the part, the object and its material (LOG-03)
     /// - upside down on the ground: the body's up axis below the horizon while any contact touches, held UpsideDownSteps;
-    ///   once a rest (assumed: a tumble that rights itself is not one)
+    ///   once each time it turns over: tipping from one upside-down rest to another (off the bottle onto a side, every
+    ///   contact lifting for a few ms) is the same one, and only righting starts a new one (assumed: a tumble that
+    ///   rights itself is not one)
     /// - the failsafe: each loss of the radio (FlightSummary.Failsafes), which disarms an armed drone (INP-05)
     /// - the battery cut-off: the first step either pack's charge is at or under BatteryCutoffCharge. Charge 0 is the end
     ///   of drone.json's OCV table, 3.0 V a cell open-circuit (the flight controller's warning); past it the pack's
@@ -74,12 +76,10 @@ namespace Fpv450.App.Session
                     p.Distance += (s.State.Position - last).Length();
                     last = s.State.Position;
                     long step = s.State.Step;
-                    if (!(s.State.Attitude.Rotate(new Double3(0, 1, 0)).Y < 0 && s.Trace.ContactsTouching > 0)) upsideFrom = -1;
-                    else if (upsideFrom < 0)
-                    {
-                        upsideFrom = step;
-                        counted = false;
-                    }
+                    bool upside = s.State.Attitude.Rotate(new Double3(0, 1, 0)).Y < 0;
+                    if (!upside) counted = false; // righted: the next time it turns over is another
+                    if (!(upside && s.Trace.ContactsTouching > 0)) upsideFrom = -1;
+                    else if (upsideFrom < 0) upsideFrom = step;
                     if (upsideFrom >= 0 && !counted && step - upsideFrom >= UpsideDownSteps)
                     {
                         counted = true;
