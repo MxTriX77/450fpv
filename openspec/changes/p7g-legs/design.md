@@ -60,9 +60,16 @@ See proposal.md for why.
      - Slip along the tube when |F_a| > 2μP (two jaws). Rotation of the leg in the clamp when M > μ·P·D (the jaws' couple).
      - A rotation leaves a set angle, as yield does. Slip past the clamp's length means the leg comes off (detach).
      - μ is a published plastic-on-plastic friction value.
-   - **Crack, then fracture.**
-     - Past the ultimate stress, σ = M·c/I + F_a/A ≥ σ_u, the tube parts at the clamp's edge, the stress raiser. A stress concentration factor is published for a clamped tube's edge.
-     - A crack, at a lower threshold set by the material's toughness, halves the section's stiffness (assumed; 1.1 replaces it with a published value or labels it) and lowers M_y.
+   - **Buckling** (added after 1.1: it is the first mode of a level or gripping landing, 385 N along the leg on 1.1's PVC-U tube).
+     - A leg loaded along its axis past its buckling load (the clamped–pinned column's Euler load from E, I and the free length, its end fixity labelled) bows sideways.
+     - Past the bow's own plastic hinge (M ≥ M_p at the bow's peak, from the bow's amplitude), it keeps a set angle as yield does. Below that, it springs back elastically.
+     - Without this mode, "A harsh landing bends a leg" cannot happen on a level landing.
+   - **Crack, then parting** (restated after 1.1: the tube is ductile PVC-U, so it tears by strain, not by a brittle stress).
+     - A crack at the clamp's edge, the stress raiser (K_t, 1.1's labelled bounds), starts at the edge's first yield, M ≥ M_y/K_t. It halves the section's stiffness (1.1's labelled factor) and lowers M_y.
+     - The tube parts when the strain at the clamp's edge, the set curvature's κ·c times K_t, passes the material's elongation at break (1.1's published value and bounds). It never parts at a stress ahead of its set, as a brittle law would for any K_t above 1.45.
+   - **The foot's side give in series with the ground's grip** (added after 1.1). The leg's own side stiffness at the foot (262 N/m, 1.1) sits in series with D-067's stick anchor (0.5 × the normal spring, about 26 kN/m), so a gripping foot loads the clamp through the leg's compliance and never through a spring 100× stiffer than the leg.
+     - This is a contact-law change: the model moves and the log format with it, by the numbers assigned at 1.2.
+     - The leg contact shapes' penetration spring (6600 N/m) stays as it is.
    - **T-joint.** Pull-out and rotation of the skid in the T-joint, by the same friction law; a plastic T-joint's fracture past its section's capacity.
    - All laws are closed forms in + − × ÷ √. No transcendental functions are needed.
 
