@@ -549,7 +549,9 @@ namespace Fpv450.Sim.Contact
         // contact's point (a seam's coplanar piece, Seam), and the capsule is no deeper into it by more than its own radius:
         // a straight skid on a flat face, whose line contact's tie falls at either core end (IWorldQuery: the start of the
         // flat stretch), the far one's point well clear of every sphere. A crossing between the spheres (a rod, a wire, a
-        // ridge or a hump the spheres stand off) is deeper, or off that face, and counts.
+        // ridge or a hump the spheres stand off) is deeper, or off that face, and counts. The coplanar face is needed where a
+        // skid's middle lies on a flush piece no support stands on (RangeContactTests.OnFlushBoardsEachSupportIsOnePoint:
+        // without it, 12 pairs); the range's soil and run have no such piece under the skids.
         bool SameSupport(int capsule, in StaticContact contact)
         {
             ContactShape c = _shapes[capsule];

@@ -161,7 +161,7 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                 ContactScenarios.Site site = at;
                 site.Airframe = true;
                 RangeScenarios.Resting r = RangeScenarios.Rest(spec, materials, hash, site);
-                Row(name + ", resting", r.Soil == r.Pairs.Count && r.Soil >= 8 && Math.Abs(r.LoadOverWeight - 1) < 1e-3 && r.LateEvents == 0
+                Row(name + ", resting, each support once", r.Soil == r.Pairs.Count && r.Pairs.Count == 8 && Math.Abs(r.LoadOverWeight - 1) < 1e-3 && r.LateEvents == 0
                     && r.Tunnels == 0 && r.Crashes == 0 && r.Lost == 0, Rest(r));
                 ContactScenarios.Landing held = ContactScenarios.Land(spec, materials, hash, false, site: site);
                 Row(name + ", throttle held, as the stub's", Math.Abs(held.SeparationHeight - stubHeld.SeparationHeight) <= 1e-3 && held.Tunnels == 0 && held.Crashes == 0

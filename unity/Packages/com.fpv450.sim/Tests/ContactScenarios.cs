@@ -91,6 +91,9 @@ namespace Fpv450.Sim.Tests
             public bool Airframe;
             public WindSetup? Wind;
 
+            /// <summary>Runtime objects the flight places in the world (null: none).</summary>
+            public RuntimeObject[] Objects;
+
             public Site(FlightWorld world, Double3 foot, double heading)
             {
                 World = world;
@@ -98,14 +101,16 @@ namespace Fpv450.Sim.Tests
                 Heading = heading;
                 Airframe = false;
                 Wind = null;
+                Objects = null;
             }
 
             public FlightWorld Open() => World ?? FlightWorld.Floor();
 
-            /// <summary>The setup in the site's air, with the airframe's effects on when Airframe asks for them.</summary>
+            /// <summary>The setup in the site's air and with its objects, with the airframe's effects on when Airframe asks for them.</summary>
             public FlightSetup Effects(FlightSetup setup, DroneSpec spec)
             {
                 if (Wind != null) setup.Wind = Wind.Value;
+                if (Objects != null) setup.RuntimeObjects = Objects;
                 if (!Airframe) return setup;
                 setup.Asymmetry = spec.BuildAsymmetry();
                 setup.VortexRing = spec.BuildVortexRing();

@@ -46,9 +46,11 @@ namespace Fpv450.Sim.Tests
 
         // Without the same-face rule (a skid capsule's flat-face tie at its far core end counted as a third point) both
         // flicker: 1564 and 2768 contact events in the last second, never at rest, and 0.9964 and 0.9987 of the weight.
-        // Without the seam rule (ContactModel.Seam) E01's run under D-050's legs is 1.3 µm deeper than the plane, 1.001 of
-        // the weight (a support 2 mm past a filler's edge, its normal 10° off); with the edge alone dropped, 9 µm higher and
-        // pitched (a support on two fillers counted twice in its leg's split).
+        // Without the seam rule (ContactModel.Seam) E01's run rests on 16 soil pairs, two a support (a support 2 mm past a
+        // filler's edge meets that edge too, its normal 10° off). At model 26 that is only 0.443 µm deeper than the plane and
+        // 1.0001 of the weight (QA's integration review, B3; 1.3 µm and 1.001 at 1.6b's model), inside those tolerances, so
+        // one pair a support is what fails it. With the edge alone dropped (1.6b), 9 µm higher and pitched (a support on two
+        // fillers counted twice in its leg's split).
         [TestCase("soil")]
         [TestCase("run")]
         public void OnSoilItRestsAsOnThePlane(string where)
@@ -59,11 +61,46 @@ namespace Fpv450.Sim.Tests
             Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
             Assert.That(soil.Plane, Is.EqualTo(0), "no plane inside the patch or the band");
             Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count), "only soil shapes carry it");
-            Assert.That(soil.Soil, Is.GreaterThanOrEqualTo(8), "every support on soil");
+            Assert.That(soil.Pairs.Count, Is.EqualTo(8), "every support on soil, once (the seam rule)");
             Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, however many fillers a support stands on");
             Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
             Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
             Assert.That(soil.Speed, Is.LessThan(1e-4));
+        }
+
+        // SameSupport's coplanar widening (a skid's contact on a face coplanar with its support's) has no case on the range:
+        // switched off, S04's soil and E01's run rest as before to 1 nm (QA's integration review, B3). So it has its own. Three
+        // timber boards lie flush on the stub's floor: the middle one 0.10 m wide under the skids' middles, the outer ones
+        // under the supports (the joints at ±0.1025 m, the ends at ±0.22). Each skid half's line contact on the middle board
+        // lies 0.05 m or more from every support sphere and on no support's board, so only its plane, the outer boards' top,
+        // makes it its support's. With the widening the drone rests on its eight supports as on one wide board; without it
+        // the four skid halves meet the middle board as four more of their legs' points. It starts 1 mm over the boards, so
+        // every contact is made in flight and logged (the start pose's are made before the first step).
+        [Test]
+        public void OnFlushBoardsEachSupportIsOnePoint()
+        {
+            RangeScenarios.Resting Boards(params (double Z0, double Z1)[] boards)
+            {
+                FlightWorld world = FlightWorld.Floor();
+                ushort timber = world.Query.MaterialId("timber");
+                var shapes = new ShapeGeometry[boards.Length];
+                for (int i = 0; i < boards.Length; i++)
+                    shapes[i] = new ShapeGeometry
+                    {
+                        Kind = ShapeKind.Box, Center = new Double3(0, 0.025, (boards[i].Z0 + boards[i].Z1) / 2), AxisX = new Double3(1, 0, 0),
+                        AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1), HalfExtents = new Double3(0.4, 0.025, (boards[i].Z1 - boards[i].Z0) / 2),
+                        Material = timber,
+                    };
+                var site = new ContactScenarios.Site(world, new Double3(0, 0.051, 0), 0) { Objects = new[] { new RuntimeObject("boards", shapes) } };
+                return Rest(site);
+            }
+            RangeScenarios.Resting one = Boards((-0.45, 0.45));
+            RangeScenarios.Resting three = Boards((-0.45, -0.05), (-0.05, 0.05), (0.05, 0.45));
+            Assert.That(one.Material, Is.EqualTo(one.Pairs.Count).And.EqualTo(8), "on one board, each support once (the premise)");
+            Assert.That(three.Material, Is.EqualTo(three.Pairs.Count).And.EqualTo(8), "on three, each support once and no skid's middle");
+            Assert.That(three.Sink, Is.EqualTo(one.Sink).Within(1e-9), "as on one board");
+            Assert.That(three.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
+            Assert.That(three.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
         }
 
         [Test]
@@ -253,7 +290,7 @@ namespace Fpv450.Sim.Tests
         // The two laws with the airframe's effects on, as a pilot's flight has them (p7b-airframe: the motors' asymmetry, the
         // vortex rings, the ground effect from the rotors' rays, the flapping, the modes). With the same-face rule off, a
         // skid's flat-face tie counts as a third point and the rest flickers (2016 and 3800 contact events in the last second
-        // on S04's soil and in E01's run); without the seam rule the run is 1.3 µm deeper than the plane; with every latched
+        // on S04's soil and in E01's run); without the seam rule the run rests on 16 soil pairs, two a support; with every latched
         // pass a tunnel, the crown logs 31 through V01_L's and V01_M's twigs.
         static ContactScenarios.Site Airframe(ContactScenarios.Site site)
         {
@@ -269,7 +306,7 @@ namespace Fpv450.Sim.Tests
             RangeScenarios.Resting soil = Rest(site);
             RangeScenarios.Resting plane = Rest(Airframe(RangeScenarios.At(RangeScenarios.Start("track"))));
             Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
-            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.GreaterThanOrEqualTo(8), "only soil shapes carry it, every support");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.EqualTo(8), "only soil shapes carry it, every support once");
             Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
             Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
             Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
@@ -334,7 +371,7 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.Site plane = InTheAir(RangeScenarios.At(RangeScenarios.Start("track").Position, heading), wind);
             RangeScenarios.Resting soil = Rest(site), flat = Rest(plane);
             Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
-            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.GreaterThanOrEqualTo(8), "only soil shapes carry it, every support");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.EqualTo(8), "only soil shapes carry it, every support once");
             Assert.That(soil.LoadOverWeight + soil.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, less the air's lift");
             Assert.That(soil.Sink, Is.EqualTo(flat.Sink).Within(1e-6), "as the plane in the same air: the seam rule");
             Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest: the skid's same-face rule");
