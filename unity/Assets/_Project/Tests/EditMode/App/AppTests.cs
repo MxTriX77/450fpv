@@ -10,6 +10,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tether;
 using Fpv450.UI;
 using NUnit.Framework;
 using UnityEngine;
@@ -23,7 +24,8 @@ namespace Fpv450.Tests.App
     public sealed class AppTests
     {
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
-        // drone and the test range's map.
+        // drone, the test range's map, and surfaces.json and tether.json byte for byte the repository's, so a pilot's log
+        // carries the hashes tools/replay checks against the repository's files by default.
         [Test]
         public void ThePlayerCarriesEveryFileTheFlightReads()
         {
@@ -42,6 +44,11 @@ namespace Fpv450.Tests.App
                 FlightWorldChoice range = FlightWorlds.TestRange(copies);
                 Assert.That(range.Id, Is.EqualTo("test-range"));
                 Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "the same map as the repository's");
+                foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath })
+                {
+                    Assert.That(files, Does.Contain(table), "the player carries " + table);
+                    Assert.That(File.ReadAllBytes(Path.Combine(copies, table)), Is.EqualTo(File.ReadAllBytes(AppData.File(table))), table + " byte for byte");
+                }
             }
             finally
             {

@@ -7,13 +7,15 @@ using Fpv450.Input;
 using Fpv450.Input.Radio;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using UnityEngine;
 
 namespace Fpv450.App
 {
     /// <summary>
     /// The flight session in a scene (design 6): it builds a FlightSession from the user's profile folder (the last
-    /// setup, the settings, the active calibration) on the app's radio over the test range (FlightWorlds.TestRange),
+    /// setup, the settings, the active calibration) on the app's radio over the test range (FlightWorlds.TestRange), with
+    /// surfaces.json's ground and tether.json's line, each read once,
     /// prepares its flights off the frame (SessionSetup.Prepare, Preparing), then
     /// starts a flight once the radio is connected (or after StartWaitSeconds on the development keyboard), ticks it
     /// once a frame and ends it when disabled. FlightScene draws it: Session's Poses, State and summary. Without a radio
@@ -61,6 +63,8 @@ namespace Fpv450.App
                 DroneSpec drone = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile)));
                 MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(AppData.File(PhysicsMaterials.RelativePath)), out ulong hash);
                 SessionInputs inputs = SessionInputs.FromProfile(Application.persistentDataPath, drone, materials, hash, Problems);
+                inputs.Surfaces = SurfaceTable.Parse(File.ReadAllText(AppData.File(SurfaceTable.RelativePath)));
+                inputs.Tether = TetherTable.Parse(File.ReadAllText(AppData.File(TetherTable.RelativePath)));
                 FlightWorlds.TestRange(AppData.Root).ApplyTo(inputs);
                 inputs.Reader = AppRadio.Reader;
                 inputs.KeyboardAllowed = KeyboardFallback.Allowed;
