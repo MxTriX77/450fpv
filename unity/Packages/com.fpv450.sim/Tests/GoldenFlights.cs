@@ -517,7 +517,9 @@ namespace Fpv450.Sim.Tests
         // 3.5° of the power branch's (the held bounce over the straw).
         public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
 
-        public const ulong RangeContent = 0x6114242E06475FB5UL;
+        // D-081: S04's far layer (its base maps, mask maps, far slot and cross-fade in its metadata) moves the content from
+        // 0x6114242E06475FB5 alone: every worldbench query hash is unchanged and physics reads none of it.
+        public const ulong RangeContent = 0x8EE16BE059618971UL;
         public const int RangeSteps = 12000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
