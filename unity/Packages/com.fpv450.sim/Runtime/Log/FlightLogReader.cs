@@ -451,6 +451,21 @@ namespace Fpv450.Sim.Log
                 case EventKind.VortexRingLeft:
                     return "rotor " + CornerName(e.Index) + (e.Kind == EventKind.VortexRingEntered ? " enters" : " leaves") + " its vortex ring at eta "
                         + G(e.A) + ", mu " + G(e.B) + " (v_h " + G(e.C) + " m/s" + (e.C > 0 ? ")" : ": the rotor stopped)");
+                case EventKind.LegSet:
+                    return "LEG SET: " + PartName(e.Part) + " yields (" + LegModeName(e.Index) + ") at " + G(e.A) + " N.m past " + G(e.B) + " N.m, loaded by "
+                        + Where(e) + " at " + V(e.Point, "0.000") + " m, touched at " + G(e.C) + " m/s";
+                case EventKind.LegCracked:
+                    return "LEG CRACKED: " + PartName(e.Part) + " at its clamp's edge (" + LegModeName(e.Index) + "), " + G(e.A) + " N.m past " + G(e.B)
+                        + " N.m, loaded by " + Where(e) + ", touched at " + G(e.C) + " m/s";
+                case EventKind.LegBroken:
+                    return "LEG BROKEN: " + PartName(e.Part) + " parted at its clamp's edge (" + LegModeName(e.Index) + "), " + G(e.A) + " N.m past "
+                        + G(e.B) + " N.m, loaded by " + Where(e) + " at " + V(e.Point, "0.000") + " m, touched at " + G(e.C) + " m/s";
+                case EventKind.LegDetached:
+                    return "LEG OFF: " + PartName(e.Part) + " slid out of its clamp (" + LegModeName(e.Index) + "), pulled " + G(e.A) + " N past "
+                        + G(e.B) + " N, by " + Where(e) + ", touched at " + G(e.C) + " m/s";
+                case EventKind.SkidLoose:
+                    return "SKID LOOSE: " + PartName(e.Part) + " let its skid go (" + LegModeName(e.Index) + "), " + G(e.A) + " past " + G(e.B)
+                        + ", loaded by " + Where(e) + ", touched at " + G(e.C) + " m/s";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);
@@ -548,6 +563,9 @@ namespace Fpv450.Sim.Log
 
         static string CornerName(byte corner) =>
             corner == 0 ? "rear right" : corner == 1 ? "front right" : corner == 2 ? "rear left" : corner == 3 ? "front left" : "#" + corner;
+
+        static string LegModeName(byte mode) =>
+            Enum.IsDefined(typeof(Contact.LegMode), mode) ? ((Contact.LegMode)mode).ToString().ToLowerInvariant() : "mode " + mode;
 
         static string Names(NamedId[] names)
         {

@@ -144,6 +144,15 @@ namespace Fpv450.Sim.Log
         {
             "Margin", "CrashAccel", "CrashPropSpeed", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
+            "LegSideStiffness", "LegSideDampingRatio", "Legs",
+        };
+
+        /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
+        public static readonly string[] LegFieldsLogged =
+        {
+            "Parts", "TJointParts", "Clamp", "Foot", "SocketLever", "FreeLength", "OuterDiameter", "InnerDiameter", "Modulus", "CrackedFactor",
+            "BoltDiameter", "GripLength", "ScrewDiameter", "SocketDiameter", "YieldStress", "Elongation", "EdgeFactor", "ClampTorque", "NutFactor",
+            "Friction", "TJointTorque", "Interlayer",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -718,6 +727,27 @@ namespace Fpv450.Sim.Log
                     e.Write(m.DampingRatio);
                 }
                 e.Write(c.MaterialsHash);
+                e.Write(c.LegSideStiffness);
+                e.Write(c.LegSideDampingRatio);
+                e.Write(c.Legs != null);
+                if (c.Legs == null) return;
+                LegDamageSpec l = c.Legs;
+                for (int k = 0; k < 4; k++)
+                {
+                    e.Write(l.Parts[k]);
+                    e.Write(l.TJointParts[k]);
+                    V3(e, l.Clamp[k]);
+                    V3(e, l.Foot[k]);
+                }
+                foreach (double v in new[] { l.SocketLever, l.FreeLength, l.OuterDiameter, l.InnerDiameter, l.Modulus, l.CrackedFactor, l.BoltDiameter,
+                    l.GripLength, l.ScrewDiameter, l.SocketDiameter })
+                    e.Write(v);
+                foreach (LegBound b in new[] { l.YieldStress, l.Elongation, l.EdgeFactor, l.ClampTorque, l.NutFactor, l.Friction, l.TJointTorque, l.Interlayer })
+                {
+                    e.Write(b.Value);
+                    e.Write(b.Min);
+                    e.Write(b.Max);
+                }
             });
             Entry(w, TagRain, e =>
             {
@@ -1334,8 +1364,40 @@ namespace Fpv450.Sim.Log
                     Name = Text(r), StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Stiffness = r.ReadDouble(), DampingRatio = r.ReadDouble(),
                 };
             c.MaterialsHash = r.ReadUInt64();
+            c.LegSideStiffness = r.ReadDouble();
+            c.LegSideDampingRatio = r.ReadDouble();
+            if (!r.ReadBoolean()) return c;
+            var l = new LegDamageSpec();
+            for (int k = 0; k < 4; k++)
+            {
+                l.Parts[k] = r.ReadInt32();
+                l.TJointParts[k] = r.ReadInt32();
+                l.Clamp[k] = V3(r);
+                l.Foot[k] = V3(r);
+            }
+            l.SocketLever = r.ReadDouble();
+            l.FreeLength = r.ReadDouble();
+            l.OuterDiameter = r.ReadDouble();
+            l.InnerDiameter = r.ReadDouble();
+            l.Modulus = r.ReadDouble();
+            l.CrackedFactor = r.ReadDouble();
+            l.BoltDiameter = r.ReadDouble();
+            l.GripLength = r.ReadDouble();
+            l.ScrewDiameter = r.ReadDouble();
+            l.SocketDiameter = r.ReadDouble();
+            l.YieldStress = Bound(r);
+            l.Elongation = Bound(r);
+            l.EdgeFactor = Bound(r);
+            l.ClampTorque = Bound(r);
+            l.NutFactor = Bound(r);
+            l.Friction = Bound(r);
+            l.TJointTorque = Bound(r);
+            l.Interlayer = Bound(r);
+            c.Legs = l;
             return c;
         }
+
+        static LegBound Bound(BinaryReader r) => new LegBound { Value = r.ReadDouble(), Min = r.ReadDouble(), Max = r.ReadDouble() };
 
         static PropulsionSpec ReadPropulsion(BinaryReader r)
         {

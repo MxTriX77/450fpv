@@ -81,8 +81,12 @@ namespace Fpv450.Sim.Log
         /// draws with the others).
         /// 16: p7b-airframe--power's 15 merged onto the integration's 15: the build placement's header entry at tag 24, after
         ///    the interference's 22 and the own wake's 23; the record is 15's 1904 bytes.
+        /// 27: p7g-legs 1.2 (D-072's number): the legs' state in the step record after 16's 1904 bytes (each leg's state
+        ///    byte, its set, its stiffness factor and its clamp's moment, 2072 bytes), event kinds 23–27 (LegSet, LegCracked,
+        ///    LegBroken, LegDetached, SkidLoose; D-074), and the header's contacts entry with the legs' side give and their
+        ///    failure law's data after the materials' hash.
         /// </summary>
-        public const int Version = 16;
+        public const int Version = 27;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -197,8 +201,14 @@ namespace Fpv450.Sim.Log
         ///    tube's EA/L, the arm under the clamp, the skid's ring in the T-joint, in series) for the assumed 10 kN/m, its damper
         ///    103 N·s/m at the same ζ 0.2 (from 45); the leg shapes keep 6600 N/m. On model 26's drone.json a flight steps as in
         ///    26.
+        /// 39: p7g-legs 1.2 (D-072's number): each leg a spring along its tube and across it at the foot (its side give from
+        ///    the section, 262 N/m, in series with the stick anchor; its damper at the legs' ζ), so a gripping foot loads the
+        ///    leg through the tube and a tilted leg is a strut (ContactSpec.LegSideStiffness); and the legs' failure law
+        ///    (LegDamage: the clamp's slip and twist, buckling, the edge's crack and set, parting by strain, the T-joint), each
+        ///    leg's strengths drawn from leg.strength.&lt;leg&gt;. Without the side give and the law (LegSideStiffness 0, Legs null)
+        ///    a flight steps as in 37; with the side give alone, as with the law until a leg passes a capacity.
         /// </summary>
-        public const int ModelVersion = 37;
+        public const int ModelVersion = 39;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -211,8 +221,9 @@ namespace Fpv450.Sim.Log
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
-        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064).</summary>
-        public const int StepSize = 1904, EventSize = 72, EndSize = 48;
+        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the legs'
+        /// state (p7g-legs 1.2).</summary>
+        public const int StepSize = 2072, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
@@ -233,6 +244,7 @@ namespace Fpv450.Sim.Log
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow",
+                "LegState", "LegSet", "LegStiffnessFactor", "LegMoment",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -362,6 +374,12 @@ namespace Fpv450.Sim.Log
             b.Corners("interference_share", "the wakes' fluctuation, a share of that inflow");
             // Each rotor's own wake (D-064).
             b.Corners("wake_inflow", "the rotor's own wake inflow through the disc over v_h");
+            // The legs (p7g-legs 1.2).
+            foreach (string c in CornerNames) b.Add("leg_state." + c, "LegFlags: 1 set, 2 cracked, 4 broken, 8 detached, 16 bowed, 32 twisted, 64 skid loose", LogFieldType.U8);
+            b.Add("leg.reserved", "zero", LogFieldType.Pad, 4);
+            foreach (string c in CornerNames) b.Vec("leg_set." + c, "rad, body: x and z the bend at the clamp (the foot's way times the set angle), y the twist in the clamp");
+            b.Corners("leg_stiffness", "the leg's stiffness over an intact one's by its state");
+            b.Corners("leg_moment", "N.m, the moment at the clamp's edge the legs' law judged; 0 without it");
             return b.Done(StepSize);
         }
 
@@ -499,6 +517,11 @@ namespace Fpv450.Sim.Log
             w.C4(t.InterferenceInflow);
             w.C4(s.InterferenceShare);
             w.C4(s.WakeInflow);
+            for (int c = 0; c < 4; c++) w.U8((byte)(t.LegState >> (8 * c)));
+            w.Zero(4);
+            for (int c = 0; c < 4; c++) w.V3(t.LegSet[c]);
+            w.C4(t.LegStiffnessFactor);
+            w.C4(t.LegMoment);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -608,6 +631,11 @@ namespace Fpv450.Sim.Log
             t.InterferenceInflow = r.C4();
             s.InterferenceShare = r.C4();
             s.WakeInflow = r.C4();
+            for (int c = 0; c < 4; c++) t.LegState |= (uint)r.U8() << (8 * c);
+            r.Skip(4);
+            for (int c = 0; c < 4; c++) t.LegSet[c] = r.V3();
+            t.LegStiffnessFactor = r.C4();
+            t.LegMoment = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

@@ -37,7 +37,8 @@ namespace Fpv450.Sim.Flight
         /// <summary>The contacts' share of the net moment, about the centre of mass, body axes, N·m.</summary>
         public Double3 ContactMoment;
 
-        /// <summary>Each leg's spring force, N, and its compression (its deepest point's depth), m.</summary>
+        /// <summary>Each leg's spring force, N, and its compression (its deepest point's depth), m. Since p7g-legs 1.2 the force
+        /// is along the leg, compression positive (with LegSideStiffness 0, along the contact's normal, as before).</summary>
         public Corners LegLoad, LegCompression;
 
         /// <summary>The touching (shape, object, shape) pairs whose force the step took, the legs' points among them.</summary>
@@ -67,6 +68,21 @@ namespace Fpv450.Sim.Flight
         /// <summary>Each rotor's added inflow through its disc from the other rotors' wakes this step, m/s, positive down
         /// through it (RotorInterferenceSpec): a downwash behind a rotor, an upwash beside and ahead. 0 without the wake.</summary>
         public Corners InterferenceInflow;
+
+        /// <summary>Each leg's state after the step (Contact.LegFlags), a byte a corner, rear right in the low byte (p7g-legs
+        /// 1.2); 0 for intact legs, and without the legs' law.</summary>
+        public uint LegState;
+
+        /// <summary>Each leg's set after the step, body axes, rad: x and z its bend at the clamp (the way its foot moved,
+        /// times the set angle), y its twist in the clamp.</summary>
+        public Corners3 LegSet;
+
+        /// <summary>Each leg's stiffness over an intact one's by its state (the cracked factor, 0 broken or off; 1.3 flies
+        /// it); 1 without the legs' law.</summary>
+        public Corners LegStiffnessFactor;
+
+        /// <summary>The moment at each leg's clamp's edge the legs' law judged this step, N·m; 0 without it.</summary>
+        public Corners LegMoment;
     }
 
     /// <summary>
@@ -138,6 +154,29 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Index's rotor left its vortex ring. A, B, C as VortexRingEntered's.</summary>
         VortexRingLeft = 13,
+
+        // 14–22: other lines' (D-074).
+
+        /// <summary>Part's leg began to yield, a set that stays (Index: Contact.LegMode, Bending, Buckling or ClampTwist), loaded
+        /// by (Object, Shape) at Point (p7g-legs 1.2). A: the moment at its clamp's edge, or the twist on its jaws, N·m; B: the
+        /// capacity it passed, N·m; C: that contact's closing speed at its touch, m/s. The set's angle is in the step record.</summary>
+        LegSet = 23,
+
+        /// <summary>Part's leg cracked at its clamp's edge, the edge's first yield (Index: Bending or Buckling). A: the moment
+        /// there, N·m; B: the edge's first-yield moment, N·m; C as LegSet's.</summary>
+        LegCracked = 24,
+
+        /// <summary>Part's leg parted at its clamp's edge, the strain there past the elongation at break (Index: Bending or
+        /// Buckling). A: the moment there, N·m; B: the moment the edge's strain parts it at, N·m; C as LegSet's.</summary>
+        LegBroken = 25,
+
+        /// <summary>Part's leg slid out of its clamp (Index: ClampSlip). A: the pull on the jaws, N; B: what they held with the
+        /// twist they carried, N; C as LegSet's.</summary>
+        LegDetached = 26,
+
+        /// <summary>Part's T-joint let its skid go (Index: TJointSlip, the skid slid in its bore, or TJointFracture, the socket
+        /// broke). A: the force along the skid, N, or the socket's moment, N·m; B: its capacity; C as LegSet's.</summary>
+        SkidLoose = 27,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

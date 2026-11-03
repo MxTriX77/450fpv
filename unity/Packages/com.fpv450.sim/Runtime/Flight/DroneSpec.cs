@@ -148,6 +148,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>A cracked tube's stiffness over an intact one's.</summary>
         public double CrackedStiffness;
 
+        /// <summary>The material's mechanical loss factor η (p7g-legs 1.2): the leg's bending across damps at ζ = η/2.</summary>
+        public double LossFactor;
+
         /// <summary>Young's modulus, Pa; the yield stress, Pa; the ultimate (bending) stress, Pa; the elongation at break; the
         /// density, kg/m³.</summary>
         public LegBound Modulus, YieldStress, UltimateStress, Elongation, Density;
@@ -540,9 +543,50 @@ namespace Fpv450.Sim.Flight
             c.Shapes = shapes.ToArray();
             c.LegStiffness = Legs.Stiffness;
             c.LegDamping = Legs.Damping;
+            if (Legs.Tube != null)
+            {
+                // p7g-legs 1.2: the side give from the section (1.1's 262 N/m, derived), damped at the tube's own ζ = η/2 (its
+                // published loss factor); the failure law with the legs on.
+                c.LegSideStiffness = Legs.SideStiffness;
+                c.LegSideDampingRatio = Legs.Tube.LossFactor / 2;
+                if (loadout.Legs) c.Legs = BuildLegDamage();
+            }
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
             return c;
+        }
+
+        /// <summary>
+        /// The legs' failure data (p7g-legs 1.2) from the legs block: each leg's part and T-joint ("tjoint_rr", …), its clamp's
+        /// bottom edge ("clamp_rr"'s underside) and its foot (its T-joint's underside, the skid's) on the leg's axis, the tube,
+        /// the clamp and the T-joint with their labelled strengths and bounds (1.1). Null for a file without the build.
+        /// </summary>
+        public Contact.LegDamageSpec BuildLegDamage()
+        {
+            if (Legs.Tube == null) return null;
+            string[] corners = { "rr", "fr", "rl", "fl" };
+            var d = new Contact.LegDamageSpec
+            {
+                FreeLength = Legs.Tube.FreeLength, OuterDiameter = Legs.Tube.OuterDiameter, InnerDiameter = Legs.Tube.InnerDiameter,
+                Modulus = Legs.Tube.Modulus.Value, CrackedFactor = Legs.Tube.CrackedStiffness,
+                BoltDiameter = Legs.Clamp.BoltDiameter, GripLength = Legs.Clamp.GripLength,
+                ScrewDiameter = Legs.TJoint.ScrewDiameter, SocketDiameter = Legs.TJoint.SocketDiameter,
+                YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
+                ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
+                TJointTorque = Legs.TJoint.Torque, Interlayer = Legs.TJoint.InterlayerStrength,
+            };
+            for (int c = 0; c < 4; c++)
+            {
+                DronePart leg = Parts[Legs.Parts[c]], clamp = Parts[PartIndex("clamp_" + corners[c])];
+                int tjoint = PartIndex("tjoint_" + corners[c]);
+                DronePart joint = Parts[tjoint];
+                d.Parts[c] = Legs.Parts[c];
+                d.TJointParts[c] = tjoint;
+                d.Clamp[c] = new Double3(leg.Position.X, clamp.Position.Y - clamp.Size.Y / 2, leg.Position.Z);
+                d.Foot[c] = new Double3(leg.Position.X, joint.Position.Y - joint.Size.Y / 2, leg.Position.Z);
+                d.SocketLever = joint.Size.Y;
+            }
+            return d;
         }
 
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
@@ -963,7 +1007,7 @@ namespace Fpv450.Sim.Flight
             {
                 var t = new LegTube();
                 if (!IsObject(p, at)) return t;
-                Members(p, at, "material", "outer_diameter_m", "inner_diameter_m", "free_length_m", "cracked_stiffness_factor",
+                Members(p, at, "material", "outer_diameter_m", "inner_diameter_m", "free_length_m", "cracked_stiffness_factor", "loss_factor",
                     "modulus_pa", "modulus_bounds_pa", "yield_stress_pa", "yield_stress_bounds_pa", "ultimate_stress_pa", "ultimate_stress_bounds_pa",
                     "elongation_at_break", "elongation_at_break_bounds", "density_kg_m3", "density_bounds_kg_m3");
                 t.Material = Text(p, "material", at, TubeMaterials);
@@ -974,6 +1018,7 @@ namespace Fpv450.Sim.Flight
                 t.FreeLength = Positive(p, "free_length_m", at);
                 t.CrackedStiffness = Positive(p, "cracked_stiffness_factor", at);
                 if (t.CrackedStiffness > 1) Fail(at + ".cracked_stiffness_factor", "a crack never stiffens the tube: at most 1");
+                t.LossFactor = Positive(p, "loss_factor", at);
                 t.Modulus = Bounded(p, "modulus_pa", "modulus_bounds_pa", at);
                 t.YieldStress = Bounded(p, "yield_stress_pa", "yield_stress_bounds_pa", at);
                 t.UltimateStress = Bounded(p, "ultimate_stress_pa", "ultimate_stress_bounds_pa", at);

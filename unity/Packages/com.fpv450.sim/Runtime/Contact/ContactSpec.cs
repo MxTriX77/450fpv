@@ -106,6 +106,19 @@ namespace Fpv450.Sim.Contact
         /// <summary>Each leg's spring k (N/m) and damper c (N·s/m), in series with the ground (drone.json's legs).</summary>
         public double LegStiffness, LegDamping;
 
+        /// <summary>
+        /// Each leg's give across its tube at the foot (N/m) and that give's damping ratio (p7g-legs 1.2, design 3; its damper
+        /// c = 2ζ·√(k·m·share), as a body shape's): the legs stand along body +y, LegStiffness along them, this across, the
+        /// stick anchor in series with it, so a gripping foot loads the leg through the tube's bending and a tilted leg pushes
+        /// its foot along its tube (a strut). 0 for the law before it (model 37: one spring along the contact's normal, the
+        /// stick anchor alone across it).
+        /// </summary>
+        public double LegSideStiffness, LegSideDampingRatio;
+
+        /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
+        /// give.</summary>
+        public LegDamageSpec Legs;
+
         /// <summary>The capsules round a prop disc's rim (review-physics P4).</summary>
         public int RingSegments;
 
@@ -121,6 +134,7 @@ namespace Fpv450.Sim.Contact
             var c = (ContactSpec)MemberwiseClone();
             c.Shapes = (ContactShape[])Shapes.Clone();
             c.Materials = (MaterialRow[])Materials.Clone();
+            c.Legs = Legs?.Clone();
             return c;
         }
 
