@@ -7,7 +7,8 @@ namespace Fpv450.Feed
     /// (<c>docs/legacy/video-feed-godot/src/FeedFont.cs</c>): 5 × 8 glyphs in a 14 × 18 cell, capitals only, icons at
     /// their own size, a one-texel outline by dilation. The glyph rows, their order (a character's code is its index
     /// plus one) and the atlas are Godot's; only the engine plumbing differs: the atlas comes back as bytes, which the
-    /// rig uploads (<c>FpvCamera</c>).
+    /// rig uploads (<c>FpvCamera</c>). Betaflight's throttle and stick-overlay symbols (D-078, D-080) follow Godot's
+    /// last glyph, so Godot's codes are unchanged.
     /// </summary>
     /// <remarks>
     /// The geometry is the Godot ROM's, measured off the footage at 1920 × 1080 (its header holds the table): ink
@@ -79,6 +80,23 @@ namespace Fpv450.Feed
             "{ .............. .............. ...........### ..............",
             "| .............. ....######.... #####.....#### ....######....",
             "} .............. .............. ####.......... ..............",
+
+            // Betaflight's symbols (D-078, D-080), after Godot's ROM so its codes stay: each is U+E000 plus its code in
+            // Betaflight's font (drivers/osd_symbols.h, FlightOsd.Symbols). Drawn here in this ROM's pixels, never taken
+            // from Betaflight's GPL font files.
+            // SYM_THR 0x04, the throttle icon: an arc down to the left, a dot, an arc up to the right, turned half about
+            // its middle. 7 x 11, 2 rows over and 1 under the digits, as Betaflight's icon and the pilot's sample sit.
+            " ..####. .#..... #...... ....... ....... ..###.. ....... ....... ......# .....#. .####..",
+            // The stick overlay's cursor (0x08-0x0A), a 5 x 5 diamond with an open middle on the vertical axis's column,
+            // high, mid and low in its cell: three positions a row, mid on the horizontal axis's row.
+            " ..#.. .###. ##.## .###. ..#.. ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... .....",
+            " ..... ..... ..... ..... ..... ..... ..#.. .###. ##.## .###. ..#.. ..... ..... ..... ..... ..... ..... .....",
+            " ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... ..... ..#.. .###. ##.## .###. ..#..",
+            // The overlay's axes (0x0B centre, 0x16 vertical, 0x17 horizontal): one-texel lines through the cell's middle
+            // column and row, edge to edge, so a run of cells draws one unbroken cross.
+            " ......#....... ......#....... ......#....... ......#....... ......#....... ......#....... ......#....... ......#....... ############## ......#....... ......#....... ......#....... ......#....... ......#....... ......#....... ......#....... ......#....... ......#.......",
+            " # # # # # # # # # # # # # # # # # #",
+            " ##############",
         };
 
         static readonly Dictionary<char, float> Codes = Build();

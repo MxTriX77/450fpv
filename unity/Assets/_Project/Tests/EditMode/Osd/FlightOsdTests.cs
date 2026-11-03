@@ -85,10 +85,12 @@ namespace Fpv450.Tests.Osd
             expected[13] = Row((0, "$"), (1, "23.5в"), (22, "41.20"), (27, "a")); // 23.47 rounds to 23.5; " 41.20"
             for (int r = 0; r < FeedOsd.Rows; r++)
                 Assert.That(osd.Row(r), Is.EqualTo(expected[r]), "row " + r);
-            // Betaflight's symbols the ROM does not draw yet (FlightOsd.Symbols) are the tech artist's to add.
             for (int r = 0; r < FeedOsd.Rows; r++)
                 foreach (char c in osd.Row(r))
-                    Assert.That(c == ' ' || FeedFont.Has(c) || FlightOsd.Symbols.IndexOf(c) >= 0, $"'{c}' in row {r} has no glyph");
+                    Assert.That(c == ' ' || FeedFont.Has(c), $"'{c}' in row {r} has no glyph");
+            // Betaflight's symbols, the stick overlay's too (off here), are all in the ROM.
+            foreach (char c in FlightOsd.Symbols)
+                Assert.That(FeedFont.Has(c), $"U+{(int)c:X4} has no glyph");
         }
 
         // D-080: the throttle element as Betaflight 4.5's: calculateThrottlePercent of the stick's own channel, from

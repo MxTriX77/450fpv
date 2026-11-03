@@ -72,8 +72,8 @@ namespace Fpv450.UI
         public const string MahUnit = "MAH";
 
         /// <summary>
-        /// Betaflight 4.5's symbols this model writes that the feed's ROM (FeedFont) does not draw yet, each U+E000 plus its
-        /// code in Betaflight's font (drivers/osd_symbols.h); until the ROM has them they draw blank.
+        /// Betaflight 4.5's symbols this model writes, each U+E000 plus its code in Betaflight's font
+        /// (drivers/osd_symbols.h); the feed's ROM (FeedFont) draws them after Godot's glyphs.
         /// </summary>
         public const char SymThr = '\uE004', SymStickSpriteHigh = '\uE008', SymStickSpriteMid = '\uE009', SymStickSpriteLow = '\uE00A',
             SymStickCenter = '\uE00B', SymStickVertical = '\uE016', SymStickHorizontal = '\uE017';

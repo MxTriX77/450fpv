@@ -9,6 +9,13 @@ namespace Fpv450.Feed.Tests
     /// </summary>
     public sealed class FeedOsdTests
     {
+        /// Godot's ROM: its 49 glyphs and the blank cell.
+        const int GodotCells = 50;
+
+        /// Betaflight's symbols after it (D-078, D-080), U+E000 plus their code in Betaflight's font: SYM_THR, the stick
+        /// overlay's high, mid and low cursor, its centre, its vertical and its horizontal.
+        const string BetaflightSymbols = "";
+
         /// The Godot layout at the Godot capture's pinned signals (`--video-signals 1,1,0`: altitude, distance and
         /// timer 0, the 6S stand-in pack at 25.2 V, 0 A), read off FeedOsd.cs:82-125 cell by cell. The one change is
         /// the name's E → I (D-011); both names are 16 characters, so every cell stays where Godot put it.
@@ -111,7 +118,7 @@ namespace Fpv450.Feed.Tests
                         Is.EqualTo(FeedFont.Code(c < rx[r].Length ? rx[r][c] : ' ')));
             Assert.That(FeedFont.Code(' '), Is.EqualTo(0f));
             Assert.That(FeedFont.Code('0'), Is.EqualTo(1f));
-            Assert.That(FeedFont.Code('}'), Is.EqualTo(FeedFont.CellCount - 1f));
+            Assert.That(FeedFont.Code('}'), Is.EqualTo(GodotCells - 1f), "Godot's last glyph keeps its code");
         }
 
         /// The grid's geometry is the measured one (K§11.6): a 67.3 × 71.0 px cell inset half a cell, which overflows
@@ -134,7 +141,7 @@ namespace Fpv450.Feed.Tests
         {
             byte[] rg = FeedFont.BuildAtlas();
             int w = FeedFont.AtlasWidth, h = FeedFont.CellH;
-            Assert.That(FeedFont.CellCount, Is.EqualTo(50));
+            Assert.That(FeedFont.CellCount, Is.EqualTo(GodotCells + BetaflightSymbols.Length));
             Assert.That(rg.Length, Is.EqualTo(w * h * 2));
             for (int y = 0; y < h; y++)
                 for (int x = 0; x < FeedFont.CellW; x++)
@@ -167,6 +174,43 @@ namespace Fpv450.Feed.Tests
                 int left = (y * w + battery * FeedFont.CellW) * 2, right = (y * w + battery * FeedFont.CellW + FeedFont.CellW - 1) * 2;
                 Assert.That(rg[left] + rg[left + 1] + rg[right] + rg[right + 1], Is.EqualTo(0), $"row {y}: the battery stays inside its cell");
             }
+        }
+
+        /// Betaflight's symbols (D-078, D-080) in this ROM's pixels, after Godot's cells: the throttle icon 7 × 11 at
+        /// columns 3–9 and rows 3–13, the same turned half about its middle; the stick cursor a 5 × 5 diamond open in the
+        /// middle, on column 6 and centred on rows 2, 8 and 15; the axes one-texel lines on column 6 and row 8, edge to
+        /// edge, so neighbouring cells join into one cross.
+        [Test]
+        public void BetaflightsSymbolsAreDrawnInTheRomsPixels()
+        {
+            byte[] rg = FeedFont.BuildAtlas();
+            int w = FeedFont.AtlasWidth, cw = FeedFont.CellW, h = FeedFont.CellH;
+            for (int i = 0; i < BetaflightSymbols.Length; i++)
+                Assert.That(FeedFont.Code(BetaflightSymbols[i]), Is.EqualTo(GodotCells + i), $"symbol {i}");
+            bool Ink(char c, int x, int y) => rg[(y * w + (int)FeedFont.Code(c) * cw + x) * 2] == 255;
+
+            int thr = 0;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < cw; x++)
+                {
+                    string at = $"({x}, {y})";
+                    if (Ink('', x, y))
+                    {
+                        thr++;
+                        Assert.That(x >= 3 && x <= 9 && y >= 3 && y <= 13, Is.True, "the throttle icon's box " + at);
+                    }
+                    if (x <= 12 && y <= 16)
+                        Assert.That(Ink('', x, y), Is.EqualTo(Ink('', 12 - x, 16 - y)), "the throttle icon's half turn " + at);
+                    for (int k = 0; k < 3; k++)
+                    {
+                        int cy = new[] { 2, 8, 15 }[k], d = System.Math.Abs(x - 6) + System.Math.Abs(y - cy);
+                        Assert.That(Ink((char)('' + k), x, y), Is.EqualTo(d <= 2 && d > 0), $"cursor {k} " + at);
+                    }
+                    Assert.That(Ink('', x, y), Is.EqualTo(x == 6 || y == 8), "the centre " + at);
+                    Assert.That(Ink('', x, y), Is.EqualTo(x == 6), "the vertical " + at);
+                    Assert.That(Ink('', x, y), Is.EqualTo(y == 8), "the horizontal " + at);
+                }
+            Assert.That(thr, Is.EqualTo(15), "two arcs of 6 and a dot of 3");
         }
     }
 }
