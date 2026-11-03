@@ -534,6 +534,11 @@ namespace Fpv450.Sim.Log
                 foreach (CanopyStrip c in h.Wind.Canopies)
                     text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
                         + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
+            if (h.Wind.Cuts != null)
+                foreach (CutSpec c in h.Wind.Cuts)
+                    text += "; a cut's cavity flow (p7c-wind 1.10" + (c.Covered ? ", covered" : "") + "): " + G(c.Width) + " m wide at the lip, "
+                        + G(c.Depth) + " m deep, " + c.CentreLine.Length + " centre-line points from " + G(c.CentreLine[0].X) + ", "
+                        + G(c.CentreLine[0].Z) + " m, ends " + G(c.EndFirst) + " and " + G(c.EndLast) + " m";
             return text;
         }
 

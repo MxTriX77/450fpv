@@ -85,6 +85,27 @@ namespace Fpv450.Sim.Wind
             return new MapWind(wakes.Checked(), belts);
         }
 
+        /// <summary>The map's cuts for the wind's cavity flow (p7c-wind 1.10, design 10): each hole record (MapWorld.Cuts,
+        /// p7c-wind 1.10a) in the file's order, its centre line with the lip's height at each point, its opening's width at
+        /// the lip, its depth, its ends and whether fillers roof it. Null on a map without one. Load time: it allocates.</summary>
+        public static CutSpec[] Cuts(MapWorld map)
+        {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            ReadOnlySpan<CutRecord> records = map.Cuts;
+            if (records.Length == 0) return null;
+            var cuts = new CutSpec[records.Length];
+            for (int k = 0; k < cuts.Length; k++)
+            {
+                CutRecord r = records[k];
+                cuts[k] = new CutSpec
+                {
+                    CentreLine = (Double3[])r.CentreLine.Clone(), Width = r.LipWidth, Depth = r.Depth, EndFirst = r.EndFirst,
+                    EndLast = r.EndLast, Covered = r.Covered,
+                }.Checked();
+            }
+            return cuts;
+        }
+
         static Belt[] Sections(List<WindVolume> v)
         {
             int n = v.Count;

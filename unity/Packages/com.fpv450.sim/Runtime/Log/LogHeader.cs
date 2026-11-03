@@ -166,11 +166,12 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
+        public static readonly string[] CutFieldsLogged = { "CentreLine", "Width", "Depth", "EndFirst", "EndLast", "Covered" };
         public static readonly string[] AsymmetryFieldsLogged =
         {
             "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm", "ResistanceBound", "ResistanceSigma",
@@ -682,6 +683,19 @@ namespace Fpv450.Sim.Log
                 foreach (CanopyStrip c in strips)
                     foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
                         e.Write(x);
+                // The cuts (p7c-wind 1.10, format 20): a count, 0 for none; each its roof flag, opening, depth and ends, then
+                // its centre line.
+                CutSpec[] cuts = Wind.Cuts ?? new CutSpec[0];
+                e.Write((ushort)cuts.Length);
+                foreach (CutSpec c in cuts)
+                {
+                    e.Write(c.Covered);
+                    foreach (double x in new[] { c.Width, c.Depth, c.EndFirst, c.EndLast })
+                        e.Write(x);
+                    e.Write(c.CentreLine.Length);
+                    foreach (Double3 p in c.CentreLine)
+                        V3(e, p);
+                }
             });
             Entry(w, TagContacts, e =>
             {
@@ -1103,6 +1117,24 @@ namespace Fpv450.Sim.Log
                                     CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
                                     Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
                                 };
+                        }
+                        int cuts = r.ReadUInt16();
+                        if (cuts > 0)
+                        {
+                            Wind.Cuts = new CutSpec[cuts];
+                            for (int i = 0; i < cuts; i++)
+                            {
+                                var c = new CutSpec
+                                {
+                                    Covered = r.ReadBoolean(), Width = r.ReadDouble(), Depth = r.ReadDouble(), EndFirst = r.ReadDouble(),
+                                    EndLast = r.ReadDouble(),
+                                };
+                                int points = r.ReadInt32();
+                                if (points < 2 || points > 4096) throw new FlightLogException("the header's cut " + i + " has " + points + " centre-line points");
+                                c.CentreLine = new Double3[points];
+                                for (int k = 0; k < points; k++) c.CentreLine[k] = V3(r);
+                                Wind.Cuts[i] = c;
+                            }
                         }
                         break;
                     case TagContacts:
