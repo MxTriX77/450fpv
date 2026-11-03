@@ -13,6 +13,15 @@
 // visible width (the object sheet's 270 D / d on the feed). The lit normal is the round conductor's at that offset,
 // so the shading does not depend on the tube's 6 or 4 sides. Off: the plain tube at full alpha, for comparisons.
 //
+// _THIN_WIRE_FEED (the fiber's material, p7d-tether 1.14): the same rule seen through the analog feed. The feed reads this
+// render once per field line and once per tap along it (Shaders/Feed.shader's LINES and SC_SAMPLES), through the lens
+// (p_u = p_d (1 + k1 r_d^2)), about 3.8 render pixels apart down the picture's centre and up to twice that at its edges, so a
+// line one render pixel wide falls between field lines and comes back as dashes. Here the tent's radius across the line is
+// the feed's sample spacing across it (never under one pixel), so every field line and every tap takes the line's weight
+// at its coverage, as a sensor row integrates it: c = T((x + h) / R) - T((x - h) / R). The global _ThinWireFeedRead holds the
+// feed's read (FiberView.FeedRead: k1, the render's coverage in half-widths, the taps across the picture, the field lines);
+// its w = 0 when no feed reads the render, and the rule is the one above. Wire materials leave the keyword off.
+//
 // The mesh (wire_span's tubes): every vertex lies on its ring the conductor's radius r from the centre line, its normal
 // radial (smooth shading), and UV channel 1 (Unity's uv2, full precision under the project's vertex compression)
 // holds (r, 0) in metres. A uniform scale only.
@@ -41,6 +50,7 @@ Shader "Fpv450/ThinWire"
         _OcclusionMap("Occlusion", 2D) = "white" {}
 
         [Toggle(_THIN_WIRE_COVERAGE)] _ThinWireCoverage("Sub-pixel coverage", Float) = 1.0
+        [Toggle(_THIN_WIRE_FEED)] _ThinWireFeed("The feed's sample spacing", Float) = 0.0
     }
 
     SubShader
@@ -71,6 +81,7 @@ Shader "Fpv450/ThinWire"
 
             // Material keywords (the thin wire's, and URP/Lit's that a wire recipe sets)
             #pragma shader_feature_local _THIN_WIRE_COVERAGE
+            #pragma shader_feature_local _THIN_WIRE_FEED
             #pragma shader_feature_local_fragment _METALLICSPECGLOSSMAP
             #pragma shader_feature_local_fragment _OCCLUSIONMAP
 
@@ -136,6 +147,37 @@ Shader "Fpv450/ThinWire"
                 return t < 0.0 ? 0.5 * (1.0 + t) * (1.0 + t) : 1.0 - 0.5 * (1.0 - t) * (1.0 - t);
             }
 
+            #if defined(_THIN_WIRE_FEED)
+            float4 _ThinWireFeedRead; // global: x k1, y the render's coverage in half-widths, z the feed's taps across the picture, w its field lines (0: no feed)
+
+            // The tent's radius in render pixels at the clip-space point clip, across the line's screen direction across (unit,
+            // render pixels; zero for the widest spacing in any direction): the feed's taps along a field line and its field
+            // lines down the picture, mapped into the render by the lens's Jacobian at the point the feed reads there,
+            // J = (1 + k1 r_d^2) I + 2 k1 p_d p_d^T, never under one pixel. FiberCoverage.FeedFilterPx is its CPU copy.
+            float FeedFilterPx(float4 clip, float2 across)
+            {
+                if (_ThinWireFeedRead.w <= 0.0)
+                    return THIN_WIRE_FILTER_PX;
+                float2 size = _ScaledScreenParams.xy;
+                float aspect = size.x / size.y;
+                float k1 = _ThinWireFeedRead.x, coverage = _ThinWireFeedRead.y;
+                float2 pu = clip.xy / max(clip.w, 1e-6) * float2(coverage, coverage / aspect); // half-widths
+                float ru = length(pu);
+                float rd = ru;
+                [unroll] for (int i = 0; i < 4; i++) // Newton on rd (1 + k1 rd^2) = ru
+                    rd -= (rd + k1 * rd * rd * rd - ru) / (1.0 + 3.0 * k1 * rd * rd);
+                float2 pd = ru > 1e-6 ? pu * (rd / ru) : pu;
+                float m = 1.0 + k1 * rd * rd;
+                float perHalfWidth = size.x / (2.0 * coverage); // render pixels
+                float2 tap = float2(m + 2.0 * k1 * pd.x * pd.x, 2.0 * k1 * pd.x * pd.y) * (2.0 / _ThinWireFeedRead.z * perHalfWidth);
+                float2 fieldLine = float2(2.0 * k1 * pd.x * pd.y, m + 2.0 * k1 * pd.y * pd.y) * (2.0 / (aspect * _ThinWireFeedRead.w) * perHalfWidth);
+                float spacing = dot(across, across) > 0.0
+                    ? max(abs(dot(tap, across)), abs(dot(fieldLine, across)))
+                    : max(length(tap), length(fieldLine));
+                return max(spacing, THIN_WIRE_FILTER_PX);
+            }
+            #endif
+
             Varyings ThinWireVertex(Attributes input)
             {
                 Varyings output = (Varyings)0;
@@ -148,7 +190,11 @@ Shader "Fpv450/ThinWire"
                 float3 centreWS = TransformObjectToWorld(input.positionOS.xyz - normalOS * input.wire.x);
                 float3 normalWS = TransformObjectToWorldNormal(normalOS);
             #if defined(_THIN_WIRE_COVERAGE)
-                float3 positionWS = centreWS + normalWS * ((radius + THIN_WIRE_FILTER_PX * PixelSizeWS(centreWS)) / THIN_WIRE_NARROWEST);
+                float filter = THIN_WIRE_FILTER_PX;
+            #if defined(_THIN_WIRE_FEED)
+                filter = FeedFilterPx(TransformWorldToHClip(centreWS), float2(0.0, 0.0));
+            #endif
+                float3 positionWS = centreWS + normalWS * ((radius + filter * PixelSizeWS(centreWS)) / THIN_WIRE_NARROWEST);
             #else
                 float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
             #endif
@@ -186,12 +232,20 @@ Shader "Fpv450/ThinWire"
                 float3 offset = input.positionWS - centreWS;
                 float s;        // signed, across the line on screen, in metres at the centre's depth
                 float3 facing;  // towards the camera, square to the line
+                float filter = THIN_WIRE_FILTER_PX;
                 if (dot(across, across) > 1e-6 * dot(along, along))
                 {
                     along = normalize(along);
                     across = normalize(across);
                     facing = normalize(toCamera - along * dot(toCamera, along));
                     s = dot(offset, across);
+                #if defined(_THIN_WIRE_FEED)
+                    // The line's direction on screen, from its centre and a pixel along it; the feed's spacing across it.
+                    float4 c0 = TransformWorldToHClip(centreWS);
+                    float4 c1 = TransformWorldToHClip(centreWS + along * pixel);
+                    float2 a = (c1.xy / c1.w - c0.xy / c0.w) * _ScaledScreenParams.xy;
+                    filter = FeedFilterPx(c0, dot(a, a) > 1e-12 ? normalize(float2(-a.y, a.x)) : float2(0.0, 0.0));
+                #endif
                 }
                 else // seen end-on: a dot
                 {
@@ -199,10 +253,13 @@ Shader "Fpv450/ThinWire"
                     s = length(across);
                     across /= max(s, 1e-12);
                     facing = toCamera;
+                #if defined(_THIN_WIRE_FEED)
+                    filter = FeedFilterPx(TransformWorldToHClip(centreWS), float2(0.0, 0.0));
+                #endif
                 }
                 float x = abs(s) / pixel, h = radius / pixel;
-                coverage = TentIntegral(x + h) - TentIntegral(x - h);
-                float k = clamp(s / (radius + pixel), -1.0, 1.0);
+                coverage = TentIntegral((x + h) / filter) - TentIntegral((x - h) / filter);
+                float k = clamp(s / (radius + filter * pixel), -1.0, 1.0);
                 normalWS = across * k + facing * sqrt(1.0 - k * k);
             #endif
 
