@@ -64,6 +64,11 @@ namespace Fpv450.Sim.Contact
     /// holds its half-skid as it lifts by its cohesive pull (Soil.Cohesion over each node's wetted width), a tension in the
     /// leg's series solve; a material row's wet block stands in for the row (wet straw: softer, gripping harder), and a
     /// corner lifting off a wet layer it pressed clings by the same law (Cling); the cover kinds read their wet sets (Cover).
+    ///
+    /// Compliant layers (p7a-ground 1.12, design 6): a layer row (one with an area law: straw, fabric, a sandbag's fill) meets
+    /// each touching part by its footprint (Layered, Layer), the leg by its half-skid; it compresses at most Layer.StrokeShare
+    /// of its thickness, past which it is solid, and either carries the half-skid onto its own object's soil beneath (Carry)
+    /// or stops the leg, or a body shape's own spring, at its stroke.
     /// </summary>
     public sealed class ContactModel
     {
@@ -100,6 +105,11 @@ namespace Fpv450.Sim.Contact
         // about 1e-15 m), so the earlier result keeps the contact and rounding never trades it between the pieces.
         const double SeamTie = 1e-9;
 
+        // Two contacts' normals with a dot product at or below this face away from each other (assumed: more than 120° apart;
+        // a layer's underside and its soil's top, or two abutting pieces' sides, are 180° apart, a face's pieces and its edges
+        // within 90°), so neither is the other's seam (1.12).
+        const double FacingAway = -0.5;
+
         const int Buffer = 32;
 
         struct Pair
@@ -122,6 +132,8 @@ namespace Fpv450.Sim.Contact
             public bool Known, Rigid;
             public double StaticFriction, KineticFriction, Stiffness, Damping;
             public double Adhesion, AdhesionRelease; // a wet layer's cling σ_a (Pa) and its release δ_a (m), 1.13; 0 when dry
+            public AreaLaw Law;                      // a layer's area law and its reference depth (m), 1.12; None for any other row
+            public double LawDepth;
         }
 
         /// <summary>The footprint ring's grooves (design 3, assumed: two a corner).</summary>
@@ -189,6 +201,11 @@ namespace Fpv450.Sim.Contact
         readonly double[] _cling;
         readonly CoverSet[] _cover;
 
+        // Compliant layers (1.12): each corner's half-skid (its skid capsule, the part a corner meets a layer with; −1 without
+        // one), and the share of a layer's thickness it compresses before it is solid.
+        readonly int[] _halfSkid = { -1, -1, -1, -1 };
+        readonly double _stroke;
+
         // The impact window.
         int _impactLeft, _impacts;
         double _impactPeak, _lastPeak, _lastImpulse;
@@ -196,9 +213,11 @@ namespace Fpv450.Sim.Contact
         FlightEvent _impact;
 
         /// <summary>The model for a drone of the given mass in world; moisture picks surfaces.json's sets (D-021: Sunny is
-        /// Dry, Rain Wet, Severe rain Saturated), unread without the table.</summary>
-        public ContactModel(ContactSpec spec, FlightWorld world, double mass, Moisture moisture = Moisture.Dry)
+        /// Dry, Rain Wet, Severe rain Saturated), unread without the table. stroke is the layers' stroke share, Layer.StrokeShare
+        /// in every flight; a scenario's known-wrong model without the stroke limit passes +∞.</summary>
+        public ContactModel(ContactSpec spec, FlightWorld world, double mass, Moisture moisture = Moisture.Dry, double stroke = Layer.StrokeShare)
         {
+            _stroke = stroke;
             _spec = (spec ?? throw new ArgumentNullException(nameof(spec))).Clone();
             _world = world ?? throw new ArgumentNullException(nameof(world));
             _shapes = _spec.Shapes;
@@ -222,6 +241,8 @@ namespace Fpv450.Sim.Contact
             _supports = new int[supports];
             for (int i = 0, k = 0; i < n; i++)
                 if (_shapes[i].Role == ContactRole.Support) _supports[k++] = i;
+            for (int i = 0; i < n; i++)
+                if (_shapes[i].Role == ContactRole.Skid && _shapes[i].Corner >= 0 && _shapes[i].Corner < 4) _halfSkid[_shapes[i].Corner] = i;
             SurfaceTable table = _spec.Surfaces;
             if (table != null) _skids = Skids();
             int middles = _skids != null ? 4 : 0; // the supports' samples, then the skids' middles
@@ -253,6 +274,7 @@ namespace Fpv450.Sim.Contact
                         Known = true, Rigid = r.Rigid, StaticFriction = r.WetStaticFriction, KineticFriction = r.WetKineticFriction, Stiffness = k,
                         Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(k * _massShare),
                         Adhesion = r.Rigid ? 0 : r.WetAdhesion, AdhesionRelease = r.Rigid ? 0 : r.WetAdhesionRelease,
+                        Law = r.Rigid ? AreaLaw.None : r.AreaLaw, LawDepth = r.Rigid ? 0 : r.AreaReferenceDepth,
                     };
                     clings |= _byMaterial[id].Adhesion > 0;
                     continue;
@@ -261,6 +283,7 @@ namespace Fpv450.Sim.Contact
                 {
                     Known = true, Rigid = r.Rigid, StaticFriction = r.StaticFriction, KineticFriction = r.KineticFriction, Stiffness = r.Stiffness,
                     Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(r.Stiffness * _massShare),
+                    Law = r.Rigid ? AreaLaw.None : r.AreaLaw, LawDepth = r.Rigid ? 0 : r.AreaReferenceDepth,
                 };
             }
             if (clings && _skids != null) _cling = new double[4];
@@ -422,20 +445,32 @@ namespace Fpv450.Sim.Contact
                 }
                 closing /= sum;
                 double k0 = _spec.LegStiffness, c0 = _spec.LegDamping;
-                Row row = RowOf(deepPair < 0 ? _ground[deepShape] : _pairs[deepShape * PairsPerShape + deepPair]);
-                double kn = row.Rigid ? k0 : Series(k0, row.Stiffness), cn = row.Rigid ? c0 : Series(c0, row.Damping);
-                double fn = kn * deepest - cn * closing;
+                ref Pair deep = ref deepPair < 0 ? ref _ground[deepShape] : ref _pairs[deepShape * PairsPerShape + deepPair];
+                Row row = RowOf(deep);
+                // A layer meets the corner's half-skid by its footprint and compresses to its stroke, past which it is solid
+                // and the leg alone takes the further sink (1.12, design 6: nothing beneath it here that SoilCorner carries).
+                double kl = row.Stiffness, cl = row.Damping, stroke = double.PositiveInfinity;
+                if (!row.Rigid) Layered(deep, row, _halfSkid[c] >= 0 ? _halfSkid[c] : deepShape, _halfSkid[c] >= 0, s, out kl, out cl, out stroke);
+                double kn = row.Rigid ? k0 : Series(k0, kl), cn = row.Rigid ? c0 : Series(c0, cl);
+                bool solid = !row.Rigid && kn * deepest >= kl * stroke;
+                if (solid)
+                {
+                    kn = k0;
+                    cn = c0;
+                }
+                double fn = solid ? k0 * (deepest - stroke) - c0 * closing : kn * deepest - cn * closing;
                 if (fn < 0) fn = 0;
                 load[c] = fn;
                 compression[c] = deepest;
                 if (_cling != null)
                 {
                     // A wet layer's footprint (1.13): the half-skid lying along it, its chord at the layer's own compression
-                    // (the static load over the layer's stiffness) times its length; the widest since it last let go.
+                    // (the static load over the layer's stiffness, at most its stroke) times its length; the widest since it
+                    // last let go.
                     double area = 0;
                     if (row.Adhesion > 0)
                     {
-                        Soil.Displaced(SoilPart.Tube, _skids[c].Radius, kn * deepest / row.Stiffness, out _, out double chord);
+                        Soil.Displaced(SoilPart.Tube, _skids[c].Radius, solid ? stroke : kn * deepest / kl, out _, out double chord);
                         area = chord * _skids[c].Length;
                     }
                     _cling[c] = row.Adhesion > 0 ? DetMath.Max(_cling[c], area) : 0;
@@ -470,8 +505,17 @@ namespace Fpv450.Sim.Contact
                     double up = nb.Y * nb.Y;
                     double ks = 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
                     double cs = 2 * shape.DampingRatio * DetMath.Sqrt(ks * _massShare);
-                    double kn = row.Rigid ? ks : Series(ks, row.Stiffness), cn = row.Rigid ? cs : Series(cs, row.Damping);
-                    double fn = kn * p.Depth - cn * Double3.Dot(PointVelocity(s, p.Point), p.N);
+                    // A layer by this part's footprint, solid past its stroke: then the part's own spring alone (1.12, P7).
+                    double kl = row.Stiffness, cl = row.Damping, stroke = double.PositiveInfinity;
+                    if (!row.Rigid) Layered(p, row, i, false, s, out kl, out cl, out stroke);
+                    double kn = row.Rigid ? ks : Series(ks, kl), cn = row.Rigid ? cs : Series(cs, cl), depth = p.Depth;
+                    if (!row.Rigid && kn * depth >= kl * stroke)
+                    {
+                        kn = ks;
+                        cn = cs;
+                        depth -= stroke;
+                    }
+                    double fn = kn * depth - cn * Double3.Dot(PointVelocity(s, p.Point), p.N);
                     if (fn < 0) fn = 0;
                     Apply(ref p, i, k, fn, kn, cn, p.Depth, row, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                 }
@@ -579,11 +623,14 @@ namespace Fpv450.Sim.Contact
                 return;
             }
             ref Pair q = ref _pairs[shape * PairsPerShape + pair];
-            double k0 = _spec.LegStiffness, kn = Series(k0, row.Stiffness), peak = row.Adhesion * _cling[c], fn;
+            // The layer's own stiffness under the clinging footprint, the half-skid's whole length (its area's, 1.12): at
+            // least the row's in every law, so the constructor's check at the row's holds.
+            double kl = row.Law != AreaLaw.None ? row.Stiffness * Footprint(q, row, false, _skids[c].Length, 2 * _skids[c].Radius) : row.Stiffness;
+            double k0 = _spec.LegStiffness, kn = Series(k0, kl), peak = row.Adhesion * _cling[c], fn;
             if (kn * depth >= -peak) fn = kn * depth;
             else
             {
-                double slope = peak / (row.AdhesionRelease - peak / row.Stiffness);
+                double slope = peak / (row.AdhesionRelease - peak / kl);
                 fn = -slope * (row.AdhesionRelease + depth) / (1 - slope / k0);
             }
             Double3 fw = q.N * fn;
@@ -592,6 +639,78 @@ namespace Fpv450.Sim.Contact
             touching++;
             load[c] = fn;
             compression[c] = depth;
+        }
+
+        // ---- Compliant layers (p7a-ground 1.12) -----------------------------------------------------------------------------
+
+        /// <summary>
+        /// A layer row under a touching part (design 6): its stiffness and damping by the part's footprint on pair p's face, by
+        /// the row's area law at the layer's depth (Layer.Scale, Layer.Depth), the damping at the row's ratio (√ of the
+        /// factor); and its stroke, the share _stroke of the shape's thickness along the pair's normal (Layer.Thickness). The
+        /// part's footprint: a sphere's the disc of its diameter; a body capsule's its length on the face (Layer.Pressed) times
+        /// its diameter; a corner's half-skid (along) its whole length lying along the face, whichever of the corner's pairs is
+        /// deepest: the leg is one spring, and a footprint read on its deepest pair's face would change by a step whenever that
+        /// pair passed to another face (between S04's overlapping tiles). A compliant row without an area law (a sheet's, a
+        /// mesh's or a crown's give, not a layer's) keeps its own and no stroke.
+        /// </summary>
+        void Layered(in Pair p, in Row row, int part, bool along, in FlightState s, out double k, out double c, out double stroke)
+        {
+            k = row.Stiffness;
+            c = row.Damping;
+            stroke = double.PositiveInfinity;
+            if (row.Law == AreaLaw.None) return;
+            ContactShape sh = _shapes[part];
+            bool disc = Same(sh.A, sh.B);
+            double length = disc ? 0 : along ? (sh.B - sh.A).Length() : Layer.Pressed(World(s, sh.A), World(s, sh.B), sh.Radius, p.N);
+            double scale = Footprint(p, row, disc, length, 2 * sh.Radius, out double thickness);
+            k = row.Stiffness * scale;
+            c = row.Damping * DetMath.Sqrt(scale);
+            stroke = _stroke * thickness;
+        }
+
+        // A layer row's factor for a footprint on pair p's shape (Layer.Scale at the layer's depth), and the shape's thickness
+        // along the pair's normal; a shape the world no longer has reads as a plane (the row's depth, no stroke).
+        double Footprint(in Pair p, in Row row, bool disc, double length, double width, out double thickness)
+        {
+            double depth = double.PositiveInfinity;
+            thickness = double.PositiveInfinity;
+            if (_world.Geometry(p.Object, p.Shape, out ShapeGeometry g))
+            {
+                depth = Layer.Depth(g);
+                thickness = Layer.Thickness(g, p.N);
+            }
+            return Layer.Scale(row.Law, row.LawDepth, depth, disc, length, width);
+        }
+
+        double Footprint(in Pair p, in Row row, bool disc, double length, double width) => Footprint(p, row, disc, length, width, out _);
+
+        /// <summary>
+        /// The lift of soil pair q's face under a layer at its stroke (design 6's carry-through): the corner c's deepest
+        /// touching layer pair of q's own object whose face lies over q's (the same side, q's face within the layer's
+        /// thickness plus Layer.CarryReach under its top along its normal), solid at its stroke, carries the part onto q, so
+        /// q's face reads sep − stroke higher (sep its depth under the layer's top); 0 with none, or where q's face reaches
+        /// above the layer's stroke (the part meets it first).
+        /// </summary>
+        double Carry(int c, in Pair q)
+        {
+            double best = double.NegativeInfinity, lift = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int j = 0; j < _count[i]; j++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + j];
+                    if (!p.Touching || p.Suppressed || p.Surface != WorldIds.NoSurface || p.Object != q.Object || !(p.Depth > best)) continue;
+                    Row row = RowOf(p);
+                    if (row.Law == AreaLaw.None || !(Double3.Dot(p.N, q.N) > 0) || !_world.Geometry(p.Object, p.Shape, out ShapeGeometry g)) continue;
+                    double thickness = Layer.Thickness(g, p.N), sep = Double3.Dot(p.N, p.P - q.P), stroke = _stroke * thickness;
+                    if (!(sep > 0 && sep <= thickness + Layer.CarryReach)) continue;
+                    best = p.Depth;
+                    lift = sep > stroke ? sep - stroke : 0;
+                }
+            }
+            return lift;
         }
 
         // ---- The soil under a half-skid (p7a-ground 1.10) -----------------------------------------------------------------
@@ -611,8 +730,9 @@ namespace Fpv450.Sim.Contact
             bool holding = k.Engaged && (k.Wet0 > 0 || k.Wet1 > 0 || k.Wet2 > 0); // its wet groove still clings (1.13)
 
             // The deepest soil shape the corner's parts touch: where the plane is absent (a patch, a hole band) it is the ground.
+            // Under a layer of its own object at its stroke the soil's face reads lifted by the layer's solid rest (1.12, Carry).
             int soilShape = -1, soilPair = -1;
-            double soilDepth = 0;
+            double soilDepth = 0, lift = 0;
             for (int i = 0; i < _shapes.Length; i++)
             {
                 ContactRole role = _shapes[i].Role;
@@ -620,11 +740,14 @@ namespace Fpv450.Sim.Contact
                 for (int j = 0; j < _count[i]; j++)
                 {
                     ref Pair p = ref _pairs[i * PairsPerShape + j];
-                    if (p.Touching && p.Surface != WorldIds.NoSurface && p.Depth > soilDepth)
+                    if (p.Surface == WorldIds.NoSurface) continue;
+                    double up = Carry(c, p);
+                    if ((p.Touching || up > 0) && p.Depth + up > soilDepth)
                     {
-                        soilDepth = p.Depth;
+                        soilDepth = p.Depth + up;
                         soilShape = i;
                         soilPair = j;
+                        lift = up;
                     }
                 }
             }
@@ -646,9 +769,10 @@ namespace Fpv450.Sim.Contact
             }
             Pair none = default;
             ref Pair soil = ref soilShape >= 0 ? ref _pairs[soilShape * PairsPerShape + soilPair] : ref none;
-            bool has0 = Node(k.Ground, c0, r, soil, soilShape >= 0, out double e0, out Double3 n0, out byte s0, out int o0, out int h0);
-            bool has1 = Node(_ground[k.Joint], c1, r, soil, soilShape >= 0, out double e1, out Double3 n1, out byte s1, out int o1, out int h1);
-            bool has2 = Node(_ground[k.End], c2, r, soil, soilShape >= 0, out double e2, out Double3 n2, out byte s2, out int o2, out int h2);
+            if (clingDepth > double.NegativeInfinity) lift = Carry(c, soil);
+            bool has0 = Node(k.Ground, c0, r, soil, soilShape >= 0, lift, out double e0, out Double3 n0, out byte s0, out int o0, out int h0);
+            bool has1 = Node(_ground[k.Joint], c1, r, soil, soilShape >= 0, lift, out double e1, out Double3 n1, out byte s1, out int o1, out int h1);
+            bool has2 = Node(_ground[k.End], c2, r, soil, soilShape >= 0, lift, out double e2, out Double3 n2, out byte s2, out int o2, out int h2);
 
             // The deepest node sets the surface, the normal and the soil's identity (design 5's rule, carried).
             double deepNode = double.NegativeInfinity;
@@ -678,13 +802,17 @@ namespace Fpv450.Sim.Contact
             }
             bool other = sum > 0;
             Row orow = other ? RowOf(_pairs[deepShape * PairsPerShape + deepPair]) : default;
+            // A layer among them meets the half-skid by its footprint, to its stroke (1.12): over this soil it carries the part
+            // onto it past the stroke (Carry's lift), elsewhere it is solid there and stops the leg as a rigid point does.
+            double ko = 0, oc = 0, ostroke = double.PositiveInfinity;
+            if (other && !orow.Rigid) Layered(_pairs[deepShape * PairsPerShape + deepPair], orow, _halfSkid[c], true, s, out ko, out oc, out ostroke);
+            bool carrying = lift > 0 && other && orow.Law != AreaLaw.None && _pairs[deepShape * PairsPerShape + deepPair].Object == soil.Object;
 
-            // The series solve: k·x = F_soil(δ − x) + k_o·(δ_o − x)⁺, safeguarded Newton from the last step's x; a rigid
-            // other point holds the leg to its depth.
+            // The series solve: k·x = F_soil(δ − x) + k_o·min(δ_o − x, its stroke)⁺, safeguarded Newton from the last step's x;
+            // a rigid other point holds the leg to its depth, a solid layer to its stroke.
             SoilSet set = _soil[surface];
             double k0 = _spec.LegStiffness, c0leg = _spec.LegDamping;
             double kl = Soil.Modulus(set, Soil.Width(SoilPart.Tube, r)), firm = _spec.Surfaces.FirmLayer;
-            double ko = other && !orow.Rigid ? orow.Stiffness : 0;
             double lo = 0, hi = DetMath.Max(deepNode, other ? deep : 0);
             // Wet soil (1.13): the groove's cohesive pull enters the solve as a tension, so the leg may stretch by up to the
             // whole pull over its stiffness; the bracket's top stays at least 0, where no node presses.
@@ -704,16 +832,19 @@ namespace Fpv450.Sim.Contact
                     fs -= Pulls(k, set, ku, e0 - x, e1 - x, e2 - x, out double kp, out _, out _, out _);
                     ks += kp;
                 }
-                double fo = ko > 0 && deep > x ? ko * (deep - x) : 0;
-                double residual = k0 * x - fs - fo, slope = k0 + ks + (ko > 0 && deep > x ? ko : 0);
+                double fo = ko > 0 && deep > x ? ko * DetMath.Min(deep - x, ostroke) : 0;
+                double residual = k0 * x - fs - fo, slope = k0 + ks + (ko > 0 && deep > x && deep - x < ostroke ? ko : 0);
                 if (residual == 0) break;
                 if (residual > 0) hi = x;
                 else lo = x;
                 double next = x - residual / slope;
                 x = next >= lo && next <= hi ? next : 0.5 * (lo + hi); // a converged step lands on its bracket's end
             }
-            bool held = other && orow.Rigid && deep > x; // the rigid point stops the leg short of the soil's solution
-            if (held) x = deep;
+            // The rigid point, or a solid layer that carries nothing beneath, stops the leg short of the soil's solution.
+            double floor = !other ? double.NegativeInfinity : orow.Rigid ? deep : carrying ? double.NegativeInfinity : deep - ostroke;
+            bool held = floor > x;
+            if (held) x = floor;
+            bool past = other && !orow.Rigid && deep - x >= ostroke; // a layer at its stroke: solid, its damper still
 
             // The soil's force at the solution: its nodes, its load centroid, its footprints now and at the deepest sinks.
             double z0 = e0 - x, z1 = e1 - x, z2 = e2 - x;
@@ -776,13 +907,13 @@ namespace Fpv450.Sim.Contact
             double carried = 0;
             if (other)
             {
-                double fo = held ? k0 * x - (soilStatic - pull) : !orow.Rigid && deep > x ? ko * (deep - x) : 0;
-                double co = orow.Rigid ? c0leg : Series(c0leg, orow.Damping);
+                double fo = held ? k0 * x - (soilStatic - pull) : ko > 0 && deep > x ? ko * DetMath.Min(deep - x, ostroke) : 0;
+                double co = orow.Rigid || held ? c0leg : past ? 0 : Series(c0leg, oc);
                 fo -= co * closing / sum;
                 if (fo > 0)
                 {
                     carried = fo;
-                    double kno = orow.Rigid ? k0 : Series(k0, orow.Stiffness);
+                    double kno = orow.Rigid || held || past ? k0 : Series(k0, ko);
                     for (int i = 0; i < _shapes.Length; i++)
                     {
                         ContactRole role = _shapes[i].Role;
@@ -812,7 +943,7 @@ namespace Fpv450.Sim.Contact
                 Engaged = true, Surface = surface, Object = obj, Shape = shp, Deflection = x, Sink0 = z0, Sink1 = z1, Sink2 = z2,
                 Max0 = DetMath.Max(k.Max0, z0), Max1 = DetMath.Max(k.Max1, z1), Max2 = DetMath.Max(k.Max2, z2), Static = soilStatic,
                 Force = fn, Stiffness = soilStiffness, Centroid = arc, Footprint = footprint, Wetted = wetted, Friction = ft, Sliding = k.Sliding,
-                Residual = k0 * x - (soilStatic - pull) - (held ? k0 * x - (soilStatic - pull) : !orow.Rigid && other && deep > x ? ko * (deep - x) : 0),
+                Residual = k0 * x - (soilStatic - pull) - (held ? k0 * x - (soilStatic - pull) : other && ko > 0 && deep > x ? ko * DetMath.Min(deep - x, ostroke) : 0),
                 Pull = pull, Clinging = k.W0 * k.Wet0 + k.W1 * k.Wet1 + k.W2 * k.Wet2,
             };
 
@@ -866,8 +997,9 @@ namespace Fpv450.Sim.Contact
         }
 
         // A node's overlap of the ground (δ, m, along its normal), from the plane's sample where it has one, else the soil
-        // shape's plane; false where neither is there.
-        static bool Node(in Pair ground, Double3 core, double r, in Pair soil, bool hasSoil, out double depth, out Double3 n, out byte surface, out int obj, out int shape)
+        // shape's plane, lifted by a layer carrying the part onto it (1.12, Carry); false where neither is there.
+        static bool Node(in Pair ground, Double3 core, double r, in Pair soil, bool hasSoil, double lift, out double depth, out Double3 n, out byte surface,
+            out int obj, out int shape)
         {
             if (ground.Surface != WorldIds.NoSurface)
             {
@@ -881,6 +1013,7 @@ namespace Fpv450.Sim.Contact
             if (hasSoil)
             {
                 depth = r - Double3.Dot(soil.N, core - soil.P);
+                if (lift > 0) depth += lift;
                 n = soil.N;
                 surface = soil.Surface;
                 obj = soil.Object;
@@ -1289,7 +1422,10 @@ namespace Fpv450.Sim.Contact
         // a support on two fillers is two of its leg's points against one beside it, so the leg's depth split leans on it
         // (pitched, 9 µm higher, the rear legs 5 % over the front). A real edge (a curb, a step, a rod or a wire on the
         // floor) stands off that plane and counts. A leg's ground is SampleGround's, never the plane's contact here. A
-        // capsule's line contact is left to the query and the skids' same-face rule (SameSupport).
+        // capsule's line contact is left to the query and the skids' same-face rule (SameSupport). A face on that plane facing
+        // the other way (normals more than 120° apart, FacingAway) is not a piece of it but the face of a piece on its other
+        // side (a layer's underside on its soil, a tile's side against its neighbour's), so it counts (1.12: a sphere through
+        // a straw tile's bottom kept its tile and its soil).
         bool Seam(int j, int found, bool groundless)
         {
             StaticContact c = _buf[j];
@@ -1298,7 +1434,7 @@ namespace Fpv450.Sim.Contact
                 StaticContact d = _buf[q];
                 double deeper = c.Distance - d.Distance;
                 if (q == j || !(deeper > SeamTie || deeper >= -SeamTie && q < j) || groundless && d.Object == WorldIds.Ground) continue;
-                if (OnPlane(d.Normal, d.Point, c.Point)) return true;
+                if (Double3.Dot(c.Normal, d.Normal) > FacingAway && OnPlane(d.Normal, d.Point, c.Point)) return true;
             }
             return false;
         }

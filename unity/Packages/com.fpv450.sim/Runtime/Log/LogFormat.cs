@@ -207,8 +207,12 @@ namespace Fpv450.Sim.Log
         /// 32: p7a-ground 1.13 (wet ground: a wet groove's cohesive pull on its half-skid as it lifts, Soil.Cohesion, in the
         ///    leg's series solve as a tension; wet straw's row, softer, gripping harder and clinging; the cover kinds' wet
         ///    sets for the elements). A Sunny flight, and any flight without surfaces.json, steps as in 27.
+        /// 33: p7a-ground 1.12's compliant layers (design 6): a layer row (straw, fabric, sandbag) meets each touching part by
+        ///    its footprint, by the row's area law, and compresses at most Layer.StrokeShare of its thickness, past which it is
+        ///    solid and carries the half-skid onto its own object's soil beneath, or leaves the part's own spring. A flight
+        ///    that touches no layer steps as in 32.
         /// </summary>
-        public const int ModelVersion = 32;
+        public const int ModelVersion = 33;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

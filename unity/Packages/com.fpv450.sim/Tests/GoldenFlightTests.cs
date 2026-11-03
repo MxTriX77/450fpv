@@ -93,10 +93,22 @@ namespace Fpv450.Sim.Tests
             Assert.That(core.Contacts.ImpactCount, Is.GreaterThanOrEqualTo(1), "it touched down on the mat");
             Assert.That(s.Crashed, Is.False);
             Assert.That(core.Trace.ContactsTouching, Is.GreaterThanOrEqualTo(8), "it ends at rest in the straw");
-            Assert.That(sink, Is.InRange(0.010, 0.026), "sunk into the mat as at rest there (RangeContactTests)");
+            Assert.That(sink, Is.EqualTo(0.009).Within(15).Percent, "sunk into the mat as at rest there (RangeContactTests: 9.0 mm by the half-skid's area)");
             Assert.That(speed, Is.LessThan(2e-3), "at rest (1.15 mm/s at 12 s on D-066's model 23, under 1 mm/s on model 22)");
             Assert.That(GoldenFlights.FlyRange(spec, out _), Is.EqualTo(hash), "a second flight gives the same bits");
             Assert.That(hash, Is.EqualTo(GoldenFlights.RangeHash), "the pinned golden (a re-record is audited and raises the model version)");
+        }
+
+        // p7a-ground 1.12's audit (model 33), kept: without the layers' area laws the range golden is model 32's flight, every
+        // record and event, dry and in Rain with surfaces.json (1.13's flight that ended rolled 17.6° on wet straw): neither
+        // reaches the stroke, and the seam's facing test changes nothing there, so the area law is the whole move.
+        [Test]
+        public void WithoutTheAreaLawsTheRangeGoldenIsModel32s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyRange(spec, out _, materials: GoldenFlights.WithoutTheAreaLaws()), Is.EqualTo(GoldenFlights.Model32RangeHash), "dry");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, rain: RainLevel.Rain, table: SoilScenarios.Table(), materials: GoldenFlights.WithoutTheAreaLaws()),
+                Is.EqualTo(GoldenFlights.Model32RainRangeHash), "in Rain with surfaces.json");
         }
 
         // The merge of p7c-wind and unity/main (model 17), its audit against unity/main, kept: on drone.json with main's tuned
@@ -134,7 +146,8 @@ namespace Fpv450.Sim.Tests
                 Is.EqualTo(GoldenFlights.Model25RainPoweredHash), "rain");
             Assert.That(GoldenFlights.FlyContact(Model22(), out _, soil: false), Is.EqualTo(GoldenFlights.Model25ContactHash), "contact");
             Assert.That(GoldenFlights.FlyTumble(Model22(), out _, out _), Is.EqualTo(GoldenFlights.Model25TumbleHash), "tumble");
-            Assert.That(GoldenFlights.FlyRange(Model22(), out _), Is.EqualTo(GoldenFlights.Model25RangeHash), "range");
+            Assert.That(GoldenFlights.FlyRange(Model22(), out _, materials: GoldenFlights.WithoutTheAreaLaws()), Is.EqualTo(GoldenFlights.Model25RangeHash),
+                "range, without 1.12's area laws (model 33)");
         }
 
         // The merge's audit against p7b-airframe--power (model 24 there), kept: on drone.json without the interference and

@@ -156,12 +156,15 @@ namespace Fpv450.Sim.Tests
             }
 
             // Straw (the drone never reaches S04's soil box): wet straw is softer. On one level mat each corner meets the
-            // row's wet stiffness in series with the leg (its load over its overlap), and the weight presses it deeper
-            // (the leg tubes, body parts, take a share of it on the mat); Rain and Severe rain share the row's one wet
-            // block. On S04's own tiled mat at its patch's centre every corner presses deeper too.
+            // row's wet stiffness under its half-skid (its area law, 1.12: 3.03 × the reference foot's) in series with the
+            // leg (its load over its overlap), and the weight presses it deeper; Rain and Severe rain share the row's one wet
+            // block. On S04's own tiled mat at its patch's centre every corner that carries the dry press presses deeper too
+            // (by its area the dry mat carries the weight on three corners there, the fourth over a lower tile).
             MaterialRow straw = Straw();
             double k0 = Drone().BuildContacts(Drone().Nominal, ContactScenarios.RepositoryMaterials(out ulong mh), mh).LegStiffness;
-            double ratio = Series(k0, straw.Stiffness) / Series(k0, straw.WetStiffness);
+            double area = Layer.Scale(straw.AreaLaw, straw.AreaReferenceDepth, SoilScenarios.MatDepth, false, L, 2 * R);
+            double wetK = straw.WetStiffness * area, dryK = straw.Stiffness * area;
+            double ratio = Series(k0, dryK) / Series(k0, wetK);
             Double3 top = new Double3(0, SoilScenarios.MatDepth, 0), patch = SoilScenarios.PatchCentre(range);
             SoilScenarios.Unstick dryMat = SoilScenarios.Unsticking(spec, SoilScenarios.MatFloor(), top, RainLevel.Sunny, place: SoilScenarios.PlaceMat);
             SoilScenarios.Unstick dryPatch = SoilScenarios.Unsticking(spec, range, patch, RainLevel.Sunny);
@@ -173,12 +176,12 @@ namespace Fpv450.Sim.Tests
                 {
                     double kw = wetMat.PressLoad[c] / wetMat.Press[c], kd = dryMat.PressLoad[c] / dryMat.Press[c];
                     TestContext.WriteLine($"  straw corner {c}: on a level mat {rain} {wetMat.Press[c] * 1e3:F2} mm at {wetMat.PressLoad[c]:F3} N, {kw:F3} N/m "
-                        + $"(the wet row with the leg {Series(k0, straw.WetStiffness):F3}), against Sunny {dryMat.Press[c] * 1e3:F2} mm at {dryMat.PressLoad[c]:F3} N, {kd:F3} N/m "
-                        + $"({Series(k0, straw.Stiffness):F3}; {ratio:F4}× stiffer); on S04's patch {wetPatch.Press[c] * 1e3:F2} against {dryPatch.Press[c] * 1e3:F2} mm");
-                    Assert.That(kw, Is.EqualTo(Series(k0, straw.WetStiffness)).Within(1e-9).Percent, "wet straw meets the row's wet stiffness");
-                    Assert.That(kd, Is.EqualTo(Series(k0, straw.Stiffness)).Within(1e-9).Percent, "dry straw the row's own");
+                        + $"(the wet row by the half-skid's area with the leg {Series(k0, wetK):F3}), against Sunny {dryMat.Press[c] * 1e3:F2} mm at {dryMat.PressLoad[c]:F3} N, "
+                        + $"{kd:F3} N/m ({Series(k0, dryK):F3}; {ratio:F4}× stiffer); on S04's patch {wetPatch.Press[c] * 1e3:F2} against {dryPatch.Press[c] * 1e3:F2} mm");
+                    Assert.That(kw, Is.EqualTo(Series(k0, wetK)).Within(1e-9).Percent, "wet straw meets the row's wet stiffness by the half-skid's area");
+                    Assert.That(kd, Is.EqualTo(Series(k0, dryK)).Within(1e-9).Percent, "dry straw the row's own by its area");
                     Assert.That(wetMat.Press[c], Is.GreaterThan(dryMat.Press[c]), "the wet mat sinks deeper at the weight");
-                    Assert.That(wetPatch.Press[c], Is.GreaterThan(dryPatch.Press[c]), "S04's wet mat sinks deeper");
+                    if (dryPatch.PressLoad[c] > 0) Assert.That(wetPatch.Press[c], Is.GreaterThan(dryPatch.Press[c]), "S04's wet mat sinks deeper");
                 }
             }
 
@@ -216,8 +219,9 @@ namespace Fpv450.Sim.Tests
         public void WetStrawClingsAsItLifts()
         {
             // Lifted at 10 mm/s off a level straw mat (S04's row and depth, one box) after pressing it to the weight: the
-            // straw row's wet block holds each corner by its σ_a over the half-skid's footprint (sunk 40 mm, past the tube's
-            // radius: 2r·L), falling to nothing by its δ_a; dry straw holds nothing (the known-wrong: the mat before 1.13).
+            // straw row's wet block holds each corner by its σ_a over the half-skid's footprint (sunk 13 mm by its area law,
+            // past the tube's radius: 2r·L), falling to nothing by its δ_a; dry straw holds nothing (the known-wrong: the mat
+            // before 1.13).
             DroneSpec spec = Drone();
             Double3 top = new Double3(0, SoilScenarios.MatDepth, 0);
             MaterialRow straw = Straw();

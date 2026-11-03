@@ -703,7 +703,9 @@ namespace Fpv450.Sim.Tests
             };
             double k0 = setup.Contacts.LegStiffness;
             setup.Contacts.Row("straw", out MaterialRow straw);
-            double layer = rain == RainLevel.Sunny || !straw.HasWet ? straw.Stiffness : straw.WetStiffness;
+            // The straw under a level half-skid of S04's mat, by its area law (1.12): its row's stiffness × the footprint's factor.
+            double layer = (rain == RainLevel.Sunny || !straw.HasWet ? straw.Stiffness : straw.WetStiffness)
+                * Layer.Scale(straw.AreaLaw, straw.AreaReferenceDepth, MatDepth, false, L, 2 * TubeRadius);
             var trace = new StepTrace();
             // The press.
             for (int k = 0; k < 20000 && r.Load < r.Weight; k++)
@@ -726,7 +728,7 @@ namespace Fpv450.Sim.Tests
                 press[c] = trace.LegCompression[c];
                 r.PressLoad[c] = trace.LegLoad[c];
                 // In soil the tube's chord at each node's deepest sink; on the straw layer its chord at the layer's own
-                // compression (the corner's load over the row's stiffness) along the half-skid.
+                // compression (the corner's load over the layer's stiffness under the half-skid) along the half-skid.
                 r.Footprint[c] = sk.Engaged ? W0 * Chord(sk.Max0) + W1 * Chord(sk.Max1) + W2 * Chord(sk.Max2) : Chord(trace.LegLoad[c] / layer) * L;
             }
             // The lift.
