@@ -168,12 +168,14 @@ namespace Fpv450.Sim.Log
         };
 
         /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
-        public static readonly string[] SurfaceTableFieldsLogged = { "ReferenceWidth", "FirmLayer", "Wetting", "Surfaces", "Cover", "Hash" };
+        public static readonly string[] SurfaceTableFieldsLogged =
+            { "ReferenceWidth", "FirmLayer", "SandHardness", "ParticleDensity", "WaterDensity", "Wetting", "Surfaces", "Cover", "Hash" };
         public static readonly string[] SurfaceRowFieldsLogged = { "Name", "Dry", "Wet", "Saturated" };
         public static readonly string[] SoilSetFieldsLogged =
         {
             "Rigid", "Bearing", "CohesiveShare", "CohesiveModulus", "FrictionalModulus", "UnloadRatio", "MaxSink", "Damping", "StaticFriction",
-            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius",
+            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius", "Cohesion", "BulkDensity", "SandShare", "Hardness",
+            "CrushStrength", "Density",
         };
         public static readonly string[] CoverRowFieldsLogged = { "Kind", "Dry", "Wet" };
         public static readonly string[] CoverSetFieldsLogged =
@@ -185,7 +187,8 @@ namespace Fpv450.Sim.Log
         {
             "BearingWet", "BearingSaturated", "UnloadRatioWet", "UnloadRatioSaturated", "MaxSinkWet", "MaxSinkSaturated", "FrictionWet",
             "FrictionSaturated", "AdhesionWet", "AdhesionSaturated", "InterfaceAdhesionWet", "InterfaceAdhesionSaturated", "AdhesionReleaseWet",
-            "AdhesionReleaseSaturated", "CoverHookReleaseWet", "StrawModulusWet", "StrawCutEnergyWet", "StrawDensityWet", "LeafWaterFilm",
+            "AdhesionReleaseSaturated", "CoverHookReleaseWet", "StrawModulusWet", "StrawCutEnergyWet", "StrawDensityWet", "LeafWaterFilm", "CohesionWet",
+            "CohesionSaturated", "WaterContentWet",
         };
         public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
         public static readonly string[] ShapeGeometryFieldsLogged =
@@ -1593,12 +1596,16 @@ namespace Fpv450.Sim.Log
         {
             e.Write(t.ReferenceWidth);
             e.Write(t.FirmLayer);
+            e.Write(t.SandHardness);
+            e.Write(t.ParticleDensity);
+            e.Write(t.WaterDensity);
             Wetting w = t.Wetting;
             foreach (double v in new[]
                      {
                          w.BearingWet, w.BearingSaturated, w.UnloadRatioWet, w.UnloadRatioSaturated, w.MaxSinkWet, w.MaxSinkSaturated, w.FrictionWet,
                          w.FrictionSaturated, w.AdhesionWet, w.AdhesionSaturated, w.InterfaceAdhesionWet, w.InterfaceAdhesionSaturated, w.AdhesionReleaseWet,
                          w.AdhesionReleaseSaturated, w.CoverHookReleaseWet, w.StrawModulusWet, w.StrawCutEnergyWet, w.StrawDensityWet, w.LeafWaterFilm,
+                         w.CohesionWet, w.CohesionSaturated, w.WaterContentWet,
                      })
                 e.Write(v);
             e.Write((byte)t.Surfaces.Length);
@@ -1625,7 +1632,8 @@ namespace Fpv450.Sim.Log
             foreach (double v in new[]
                      {
                          s.Bearing, s.CohesiveShare, s.CohesiveModulus, s.FrictionalModulus, s.UnloadRatio, s.MaxSink, s.Damping, s.StaticFriction,
-                         s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius,
+                         s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius, s.Cohesion, s.BulkDensity, s.SandShare,
+                         s.Hardness, s.CrushStrength, s.Density,
                      })
                 e.Write(v);
         }
@@ -1644,7 +1652,8 @@ namespace Fpv450.Sim.Log
         {
             var t = new SurfaceTable
             {
-                ReferenceWidth = r.ReadDouble(), FirmLayer = r.ReadDouble(),
+                ReferenceWidth = r.ReadDouble(), FirmLayer = r.ReadDouble(), SandHardness = r.ReadDouble(), ParticleDensity = r.ReadDouble(),
+                WaterDensity = r.ReadDouble(),
                 Wetting = new Wetting
                 {
                     BearingWet = r.ReadDouble(), BearingSaturated = r.ReadDouble(), UnloadRatioWet = r.ReadDouble(), UnloadRatioSaturated = r.ReadDouble(),
@@ -1652,7 +1661,8 @@ namespace Fpv450.Sim.Log
                     AdhesionWet = r.ReadDouble(), AdhesionSaturated = r.ReadDouble(), InterfaceAdhesionWet = r.ReadDouble(),
                     InterfaceAdhesionSaturated = r.ReadDouble(), AdhesionReleaseWet = r.ReadDouble(), AdhesionReleaseSaturated = r.ReadDouble(),
                     CoverHookReleaseWet = r.ReadDouble(), StrawModulusWet = r.ReadDouble(), StrawCutEnergyWet = r.ReadDouble(),
-                    StrawDensityWet = r.ReadDouble(), LeafWaterFilm = r.ReadDouble(),
+                    StrawDensityWet = r.ReadDouble(), LeafWaterFilm = r.ReadDouble(), CohesionWet = r.ReadDouble(), CohesionSaturated = r.ReadDouble(),
+                    WaterContentWet = r.ReadDouble(),
                 },
             };
             t.Surfaces = new SurfaceRow[r.ReadByte()];
@@ -1670,7 +1680,8 @@ namespace Fpv450.Sim.Log
             Rigid = r.ReadBoolean(), Bearing = r.ReadDouble(), CohesiveShare = r.ReadDouble(), CohesiveModulus = r.ReadDouble(),
             FrictionalModulus = r.ReadDouble(), UnloadRatio = r.ReadDouble(), MaxSink = r.ReadDouble(), Damping = r.ReadDouble(),
             StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Adhesion = r.ReadDouble(), InterfaceAdhesion = r.ReadDouble(),
-            AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(),
+            AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(), Cohesion = r.ReadDouble(), BulkDensity = r.ReadDouble(),
+            SandShare = r.ReadDouble(), Hardness = r.ReadDouble(), CrushStrength = r.ReadDouble(), Density = r.ReadDouble(),
         };
 
         static CoverSet ReadCover(BinaryReader r) => new CoverSet

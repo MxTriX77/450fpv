@@ -125,8 +125,14 @@ namespace Fpv450.Sim.Log
         ///    stays at tag 25 and the drone internals entry (19's tag 25) moves to tag 26; the events Payout, TetherWedge and
         ///    WorldBug (14–16, p7d-tether's) and BladeStrike, BladeDamaged and RotorJammed (17–19, p7f-damage's; 20–22 stay
         ///    reserved for p7f-damage, D-074).
+        /// 31–32: assigned elsewhere (D-072).
+        /// 33: p7f-damage 1.1a's soil half on the physics integration 2 (assigned by D-072): surfaces.json's table in the contacts
+        ///    entry gains what a blade meets: the sand's hardness, the grains' and water's densities after the firm layer; the
+        ///    cohesion's wet and saturated factors and the wet set's water after the wetting's values; and each set's cohesion,
+        ///    bulk density and sand share (a soil's) and hardness, crush strength and density (a rigid set's) after its lip; the
+        ///    records are 30's.
         /// </summary>
-        public const int Version = 30;
+        public const int Version = 33;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header

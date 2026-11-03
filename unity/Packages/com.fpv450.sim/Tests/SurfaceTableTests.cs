@@ -104,6 +104,57 @@ namespace Fpv450.Sim.Tests
                 Assert.Throws<FormatException>(() => SurfaceTable.Parse(noDryLabel)).Message);
         }
 
+        // ---- p7f-damage 1.1a's soil half: "Every row says what a blade meets", for surfaces.json -----------------------
+        //
+        // Every soil set carries its cohesion, bulk density and sand share, every rigid set its face's hardness, crush strength
+        // and density, each labelled; a soil's bearing pressure c·N_c (the carve's p_t) is far below the blade's hardness (a soft
+        // target), a rigid face above it (a hard target) and the sand's quartz above it (the severe wear class); the slab is
+        // physics_materials.json's concrete; and a set without one of its fields is refused, naming the set and the field.
+        [Test]
+        public void EverySetSaysWhatABladeMeets()
+        {
+            SurfaceTable t = Table();
+            double blade = RepositoryDrone.Spec().Blade.Hardness, nc = 2 + Math.PI;
+            TestContext.Out.WriteLine($"the blade's hardness {blade / 1e6:F0} MPa; the sand's {t.SandHardness / 1e9:F1} GPa, {t.SandHardness / blade:F0} × it");
+            Assert.That(t.SandHardness, Is.GreaterThan(blade), "quartz abrades the blade: the severe class");
+            foreach (SurfaceRow s in t.Surfaces)
+            {
+                foreach (Moisture m in new[] { Moisture.Dry, Moisture.Wet, Moisture.Saturated })
+                {
+                    SoilSet x = s.Set(m);
+                    string at = s.Name + " " + m;
+                    if (x.Rigid)
+                    {
+                        Assert.That(x.Hardness, Is.GreaterThan(blade), at + ": a hard target");
+                        Assert.That(x.CrushStrength > 0 && x.Density > 0, Is.True, at);
+                        Assert.That(x.Cohesion + x.BulkDensity + x.SandShare, Is.EqualTo(0), at + ": no soil");
+                        TestContext.Out.WriteLine($"{at}: hardness {x.Hardness / 1e6:F0} MPa ({x.Hardness / blade:F1} × the blade's), crush {x.CrushStrength / 1e6:F1} MPa, {x.Density:F0} kg/m³");
+                        continue;
+                    }
+                    Assert.That(x.Cohesion, Is.GreaterThan(0), at);
+                    Assert.That(x.BulkDensity, Is.GreaterThan(0).And.LessThan(t.ParticleDensity), at);
+                    Assert.That(x.SandShare, Is.InRange(0.0, 1.0), at);
+                    Assert.That(x.Cohesion * nc, Is.LessThan(1e-3 * blade), at + ": a soft target, carved");
+                    Assert.That(x.Hardness + x.CrushStrength + x.Density, Is.EqualTo(0), at + ": no face");
+                    TestContext.Out.WriteLine($"{at}: c {x.Cohesion / 1e3:F2} kPa, c·N_c {x.Cohesion * nc / 1e3:F2} kPa ({x.Cohesion * nc / blade:E1} × the blade's), "
+                        + $"ρ {x.BulkDensity:F1} kg/m³, sand {x.SandShare:F2}");
+                }
+            }
+            MaterialRow concrete = Array.Find(PhysicsMaterials.Parse(MaterialsText(), out _), r => r.Name == "concrete");
+            SoilSet slab = Surface(t, "concrete_slab").Dry;
+            Assert.That((slab.Hardness, slab.CrushStrength, slab.Density), Is.EqualTo((concrete.Hardness, concrete.CrushStrength, concrete.Density)),
+                "the slab is physics_materials.json's concrete");
+
+            string noCohesion = Edit(Text(), "\"belt_straw\"|\"dry\"", "\"cohesion_pa\"", "\"cohesionx_pa\"");
+            string m1 = Assert.Throws<FormatException>(() => SurfaceTable.Parse(noCohesion)).Message;
+            TestContext.Out.WriteLine(m1);
+            StringAssert.Contains("surfaces.belt_straw.dry.cohesion_pa: missing", m1);
+            string noHardness = Edit(Text(), "\"asphalt\"|\"dry\"", "\"hardness_pa\"", "\"hardnessx_pa\"");
+            StringAssert.Contains("surfaces.asphalt.dry.hardness_pa: missing", Assert.Throws<FormatException>(() => SurfaceTable.Parse(noHardness)).Message);
+            string soilFace = Edit(Text(), "\"dirt_track\"|\"dry\"", "\"sand_share\"", "\"hardness_pa\": {\"value\": 1e9, \"label\": \"assumed\", \"note\": \"x\"}, \"sand_share\"");
+            StringAssert.Contains("surfaces.dirt_track.dry.hardness_pa: is not a field of the schema", Assert.Throws<FormatException>(() => SurfaceTable.Parse(soilFace)).Message);
+        }
+
         // ---- the loader refuses bad files --------------------------------------------------------------------------------
 
         [TestCase("\"belt_straw\"|\"wet\"|\"bearing_n_per_m3\"", "1.41e6", "1.5e6", "surfaces.belt_straw.wet.bearing_n_per_m3: is labelled derived")]
@@ -124,6 +175,13 @@ namespace Fpv450.Sim.Tests
         [TestCase("\"concrete_slab\"|\"wet\"", "\"friction_static\"", "\"bearing_n_per_m3\": {\"value\": 1e9, \"label\": \"assumed\", \"note\": \"x\"}, \"friction_static\"",
             "surfaces.concrete_slab.wet.bearing_n_per_m3: is not a field of the schema")]
         [TestCase("\"wetting\"|\"adhesion_release_wet_m\"", "\"label\": \"assumed\", ", "\"label\": \"guessed\", ", "wetting.adhesion_release_wet_m.label: must be one of")]
+        [TestCase("\"dirt_track\"|\"wet\"|\"bulk_density_kg_m3\"", "1850.0", "1800.0", "surfaces.dirt_track.wet.bulk_density_kg_m3: is labelled derived")]
+        [TestCase("\"belt_straw\"|\"saturated\"|\"cohesion_pa\"", "900.0", "1000.0", "surfaces.belt_straw.saturated.cohesion_pa: is labelled derived")]
+        [TestCase("\"tilled\"|\"saturated\"|\"sand_share\"", "0.4", "0.5", "surfaces.tilled.saturated.sand_share: is labelled derived")]
+        [TestCase("\"concrete_slab\"|\"wet\"|\"hardness_pa\"", "4.5e8", "4.6e8", "surfaces.concrete_slab.wet.hardness_pa: is labelled derived")]
+        [TestCase("\"dirt_track\"|\"dry\"|\"bulk_density_kg_m3\"", "1600.0", "2100.0", "surfaces.dirt_track.dry.bulk_density_kg_m3: leaves a porosity of")]
+        [TestCase("\"weeds\"|\"dry\"|\"sand_share\"", "0.4", "1.4", "surfaces.weeds.dry.sand_share: must be at least 0 and at most 1")]
+        [TestCase("\"constants\"|\"sand_hardness_pa\"", "\"value\": 1.1e10", "\"value\": 0", "constants.sand_hardness_pa: must be above 0")]
         public void TheLoaderRefusesABadFile(string anchors, string old, string replacement, string expected)
         {
             string bad = Edit(Text(), anchors, old, replacement);
@@ -160,18 +218,33 @@ namespace Fpv450.Sim.Tests
                     Close(x.StaticFriction, dry.StaticFriction * fMu, at + "μs");
                     Close(x.KineticFriction, dry.KineticFriction * fMu, at + "μk");
                     formulas += 2;
-                    if (x.Rigid) continue;
+                    if (x.Rigid)
+                    {
+                        // What a blade meets on a rigid face: rain does not change it (p7f-damage 1.1a).
+                        Close(x.Hardness, dry.Hardness, at + "hardness");
+                        Close(x.CrushStrength, dry.CrushStrength, at + "crush");
+                        Close(x.Density, dry.Density, at + "density");
+                        formulas += 3;
+                        continue;
+                    }
                     Close(x.CohesiveShare, dry.CohesiveShare, at + "share");
                     Close(x.Damping, dry.Damping, at + "damping");
                     Close(x.LipEdgeRadius, dry.LipEdgeRadius, at + "lip");
-                    formulas += 3;
+                    Close(x.SandShare, dry.SandShare, at + "sand share");
+                    formulas += 4;
                     if (s.Name == "rubble")
                     {
                         // The table's one labelled departure: granular debris drains, so it keeps its dry soil and holds no film.
                         Assert.That(x.Bearing == dry.Bearing && x.UnloadRatio == dry.UnloadRatio && x.MaxSink == dry.MaxSink, Is.True, at);
                         Assert.That(x.Adhesion == 0 && x.InterfaceAdhesion == 0 && x.AdhesionRelease == 0, Is.True, at);
+                        Assert.That(x.Cohesion == dry.Cohesion && x.BulkDensity == dry.BulkDensity, Is.True, at + ": it drains, its cohesion and water as dry");
                         continue;
                     }
+                    // p7f-damage 1.1a: the cohesion by wetting's factor; the bulk density with the wet set's water, or its pores full.
+                    Close(x.Cohesion, dry.Cohesion * (sat ? w.CohesionSaturated : w.CohesionWet), at + "cohesion");
+                    Close(x.BulkDensity, sat ? dry.BulkDensity + (1 - dry.BulkDensity / t.ParticleDensity) * t.WaterDensity : dry.BulkDensity + w.WaterContentWet * t.WaterDensity,
+                        at + "bulk density");
+                    formulas += 2;
                     Close(x.Bearing, dry.Bearing * (sat ? w.BearingSaturated : w.BearingWet), at + "bearing");
                     Close(x.UnloadRatio, dry.UnloadRatio * (sat ? w.UnloadRatioSaturated : w.UnloadRatioWet), at + "unload ratio");
                     Close(x.MaxSink, dry.MaxSink * (sat ? w.MaxSinkSaturated : w.MaxSinkWet), at + "max sink");
@@ -339,6 +412,41 @@ namespace Fpv450.Sim.Tests
             byte[] plain = Rest(null, out _);
             Assert.That(FlightReplay.Run(new MemoryStream(plain), OpenWorld, drone, null, other, materialsHash: materials).Outcome, Is.EqualTo(ReplayOutcome.Match),
                 "a log without a table replays whatever file the replay holds");
+        }
+
+        // p7f-damage 1.1a's soil half: "The materials hash covers the new fields", for surfaces.json. The header carries what a
+        // blade meets (the constants, the wetting's factors, every set's fields), and one of them changed (rubble's wet cohesion,
+        // a labelled departure nothing derives from; the sand's hardness) moves the file's hash, so a replay holding that table
+        // refuses a log flown with the repository's.
+        [Test]
+        public void TheSurfacesHashCoversTheBladeFields()
+        {
+            SurfaceTable table = Table();
+            byte[] log = Rest(table, out _);
+            SurfaceTable logged = new FlightLogReader(new MemoryStream(log)).Header.Contacts.Surfaces;
+            Assert.That((logged.SandHardness, logged.ParticleDensity, logged.WaterDensity), Is.EqualTo((table.SandHardness, table.ParticleDensity, table.WaterDensity)));
+            Assert.That((logged.Wetting.CohesionWet, logged.Wetting.CohesionSaturated, logged.Wetting.WaterContentWet),
+                Is.EqualTo((table.Wetting.CohesionWet, table.Wetting.CohesionSaturated, table.Wetting.WaterContentWet)));
+            SoilSet track = Surface(logged, "dirt_track").Saturated, slab = Surface(logged, "concrete_slab").Wet;
+            Assert.That((track.Cohesion, track.BulkDensity, track.SandShare), Is.EqualTo((9000.0, Surface(table, "dirt_track").Saturated.BulkDensity, 0.2)));
+            Assert.That((slab.Hardness, slab.CrushStrength, slab.Density), Is.EqualTo((4.5e8, 2.5e7, 2400.0)));
+
+            ulong drone = RepositoryDrone.Spec().ContentHash;
+            ContactScenarios.RepositoryMaterials(out ulong materials);
+            foreach (string edited in new[]
+                     {
+                         Edit(Text(), "\"rubble\"|\"wet\"|\"cohesion_pa\"", "\"value\": 1000.0,", "\"value\": 1100.0,"),
+                         Edit(Text(), "\"constants\"|\"sand_hardness_pa\"", "\"value\": 1.1e10", "\"value\": 1.2e10"),
+                     })
+            {
+                ulong other = SurfaceTable.Parse(edited).Hash;
+                Assert.That(other, Is.Not.EqualTo(table.Hash), "the hash covers the blade's fields");
+                ReplayResult refused = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, null, other, materialsHash: materials);
+                TestContext.Out.WriteLine(refused.Message);
+                Assert.That(refused.Outcome, Is.EqualTo(ReplayOutcome.Refused));
+                StringAssert.Contains("surfaces.json differs", refused.Message);
+            }
+            Assert.That(FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, null, table.Hash, materialsHash: materials).Outcome, Is.EqualTo(ReplayOutcome.Match));
         }
 
         [Test]
