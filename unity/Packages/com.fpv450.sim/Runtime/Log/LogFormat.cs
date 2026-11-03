@@ -81,8 +81,12 @@ namespace Fpv450.Sim.Log
         /// draws with the others).
         /// 16: p7b-airframe--power's 15 merged onto the integration's 15: the build placement's header entry at tag 24, after
         ///    the interference's 22 and the own wake's 23; the record is 15's 1904 bytes.
+        /// 17 and 18 are assigned to p7a-ground and p7d-tether (D-072).
+        /// 19: p7f-damage 1.1b, the header's drone internals entry (tag 25): drone.json's hash, its props.blade (the stations'
+        ///    chord, thickness, section angle and fill, the hub and the blade's material) and its motors[].internals; the
+        ///    records are 16's.
         /// </summary>
-        public const int Version = 16;
+        public const int Version = 19;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header

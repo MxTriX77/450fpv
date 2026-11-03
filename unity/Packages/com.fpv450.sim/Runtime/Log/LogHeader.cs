@@ -75,7 +75,8 @@ namespace Fpv450.Sim.Log
     /// - the flight: the model version and the seed (with the streams opened and every per-flight draw)
     /// - the host: the build, the runtime and the ISA flags (for a cross-machine check, never a refusal: LOG-04)
     /// - the world: the id a replay opens it by, its content hash and QueryVersion, its surface and material names
-    /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout
+    /// - the drone: drone.json's hash (0 for a body not read from it), its name and the pilot's loadout; and, entered with
+    ///   the file's hash, its props' blade and its motors' internals (p7f-damage; none when the file has none)
     /// - the body the flight started with: the mass model's parts and the mass, CoM and inertia they built
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
     /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
@@ -188,10 +189,24 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] PackFieldsLogged = { "Part", "Series", "Parallel", "CellCapacity", "CellResistance", "Ocv" };
 
+        /// <summary>The blade's and the motors' internals' fields the header records (p7f-damage), checked against the types
+        /// by the suite.</summary>
+        public static readonly string[] BladeFieldsLogged =
+        {
+            "Stations", "Chord", "Thickness", "SectionAngle", "Fill", "HubDiameter", "HubThickness", "HubBore", "Conditioned", "Density",
+            "FlexuralModulus", "FlexuralStrength", "CrushStrength", "FractureEnergy", "ProportionalLimit", "Hardness",
+        };
+        public static readonly string[] InternalsFieldsLogged =
+        {
+            "BellFrom", "BellTo", "CanThickness", "CanYield", "BackIronThickness", "BackIronYield", "Gap", "MagnetThickness",
+            "MagnetRemanence", "MagnetPermeability", "ShaftDiameter", "ShaftYield", "ShaftUltimate", "HubHeight", "LowerBearingHeight",
+            "UpperBearingHeight", "BearingStaticRating", "BearingDynamicRating", "BearingBalls", "BallDiameter", "PitchDiameter",
+        };
+
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24;
+            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagDroneInternals = 25;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -208,6 +223,11 @@ namespace Fpv450.Sim.Log
         public ulong DroneHash;
         public string DroneName = "";
         public Loadout Loadout;
+
+        /// <summary>drone.json's props.blade and motors[].internals (p7f-damage), entered with the file's hash; null for a body
+        /// not read from a drone.json with them.</summary>
+        public PropBlade Blade;
+        public MotorInternals[] Internals;
 
         public DronePart[] Parts = new DronePart[0];
         public MassProperties Body;
@@ -394,12 +414,14 @@ namespace Fpv450.Sim.Log
         /// <summary>This process's runtime and architecture, as the header records them (".NET 10.0.x X64", "Mono …").</summary>
         public static string CurrentRuntime() => RuntimeInformation.FrameworkDescription + " " + RuntimeInformation.ProcessArchitecture;
 
-        /// <summary>The body came from drone.json at this loadout.</summary>
+        /// <summary>The body came from drone.json at this loadout; its blade and motors' internals with it.</summary>
         public void SetDrone(DroneSpec spec, in Loadout loadout)
         {
             DroneHash = spec.ContentHash;
             DroneName = spec.Name ?? "";
             Loadout = loadout;
+            Blade = spec.Blade;
+            Internals = (MotorInternals[])spec.Internals?.Clone();
         }
 
         /// <summary>
@@ -621,6 +643,38 @@ namespace Fpv450.Sim.Log
                     e.Write(k.CellCapacity);
                     e.Write(k.CellResistance);
                     Numbers(e, k.Ocv);
+                }
+            });
+            Entry(w, TagDroneInternals, e =>
+            {
+                // drone.json's hash, the file these tables are read from (format 19, p7f-damage 1.1b).
+                e.Write(DroneHash);
+                e.Write(Blade != null);
+                if (Blade != null)
+                {
+                    PropBlade b = Blade;
+                    foreach (double[] column in new[] { b.Stations, b.Chord, b.Thickness, b.SectionAngle, b.Fill })
+                        Numbers(e, column);
+                    foreach (double x in new[] { b.HubDiameter, b.HubThickness, b.HubBore })
+                        e.Write(x);
+                    e.Write(b.Conditioned);
+                    foreach (double x in new[] { b.Density, b.FlexuralModulus, b.FlexuralStrength, b.CrushStrength, b.FractureEnergy, b.ProportionalLimit, b.Hardness })
+                        e.Write(x);
+                }
+                MotorInternals[] motors = Internals ?? new MotorInternals[0];
+                e.Write((ushort)motors.Length);
+                foreach (MotorInternals m in motors)
+                {
+                    foreach (double x in new[]
+                             {
+                                 m.BellFrom, m.BellTo, m.CanThickness, m.CanYield, m.BackIronThickness, m.BackIronYield, m.Gap, m.MagnetThickness,
+                                 m.MagnetRemanence, m.MagnetPermeability, m.ShaftDiameter, m.ShaftYield, m.ShaftUltimate, m.HubHeight,
+                                 m.LowerBearingHeight, m.UpperBearingHeight, m.BearingStaticRating, m.BearingDynamicRating,
+                             })
+                        e.Write(x);
+                    e.Write(m.BearingBalls);
+                    e.Write(m.BallDiameter);
+                    e.Write(m.PitchDiameter);
                 }
             });
             Entry(w, TagAero, e =>
@@ -994,7 +1048,8 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false;
+            bool sawLayouts = false, sawTables = false;
+            ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
                 ushort tag = r.ReadUInt16();
@@ -1054,6 +1109,33 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagPropulsion:
                         Propulsion = r.ReadBoolean() ? ReadPropulsion(r) : null;
+                        break;
+                    case TagDroneInternals:
+                        tablesHash = r.ReadUInt64();
+                        sawTables = true;
+                        Blade = r.ReadBoolean()
+                            ? new PropBlade
+                            {
+                                Stations = Numbers(r), Chord = Numbers(r), Thickness = Numbers(r), SectionAngle = Numbers(r), Fill = Numbers(r),
+                                HubDiameter = r.ReadDouble(), HubThickness = r.ReadDouble(), HubBore = r.ReadDouble(), Conditioned = r.ReadBoolean(),
+                                Density = r.ReadDouble(), FlexuralModulus = r.ReadDouble(), FlexuralStrength = r.ReadDouble(),
+                                CrushStrength = r.ReadDouble(), FractureEnergy = r.ReadDouble(), ProportionalLimit = r.ReadDouble(),
+                                Hardness = r.ReadDouble(),
+                            }
+                            : null;
+                        int motors = r.ReadUInt16();
+                        Internals = motors > 0 ? new MotorInternals[motors] : null;
+                        for (int i = 0; i < motors; i++)
+                            Internals[i] = new MotorInternals
+                            {
+                                BellFrom = r.ReadDouble(), BellTo = r.ReadDouble(), CanThickness = r.ReadDouble(), CanYield = r.ReadDouble(),
+                                BackIronThickness = r.ReadDouble(), BackIronYield = r.ReadDouble(), Gap = r.ReadDouble(),
+                                MagnetThickness = r.ReadDouble(), MagnetRemanence = r.ReadDouble(), MagnetPermeability = r.ReadDouble(),
+                                ShaftDiameter = r.ReadDouble(), ShaftYield = r.ReadDouble(), ShaftUltimate = r.ReadDouble(),
+                                HubHeight = r.ReadDouble(), LowerBearingHeight = r.ReadDouble(), UpperBearingHeight = r.ReadDouble(),
+                                BearingStaticRating = r.ReadDouble(), BearingDynamicRating = r.ReadDouble(), BearingBalls = r.ReadInt32(),
+                                BallDiameter = r.ReadDouble(), PitchDiameter = r.ReadDouble(),
+                            };
                         break;
                     case TagAero:
                         Aero = r.ReadBoolean()
@@ -1307,6 +1389,9 @@ namespace Fpv450.Sim.Log
                 r.BaseStream.Position = end;
             }
             if (!sawLayouts) throw new FlightLogException("the header has no record layouts");
+            if (sawTables && tablesHash != DroneHash)
+                throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
+                    + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));
         }
 
         static ContactSpec ReadContacts(BinaryReader r)

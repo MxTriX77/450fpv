@@ -281,6 +281,13 @@ namespace Fpv450.Sim.Log
                     + " kg, legs " + (h.Loadout.Legs ? "on" : "off") + ", coil " + h.Loadout.CoilPaidOut.ToString("0.0", c) + " m paid out");
             else
                 w.WriteLine("  drone: a bench body, not from drone.json");
+            if (h.Blade != null)
+                w.WriteLine("  prop blade: " + h.Blade.Stations.Length + " stations from " + G(h.Blade.Stations[0]) + " R, " + (h.Blade.Conditioned ? "conditioned" : "dry")
+                    + ", density " + G(h.Blade.Density) + " kg/m3, flexural strength " + G(h.Blade.FlexuralStrength) + " Pa, crush " + G(h.Blade.CrushStrength)
+                    + " Pa, hardness " + G(h.Blade.Hardness) + " Pa");
+            if (h.Internals != null)
+                w.WriteLine("  motor internals: " + h.Internals.Length + " motors, gap " + G(h.Internals[0].Gap) + " m, shaft " + G(h.Internals[0].ShaftDiameter)
+                    + " m, bearings C0r " + G(h.Internals[0].BearingStaticRating) + " N");
             Sym3 i = h.Body.Inertia;
             w.WriteLine("  body: " + h.Parts.Length + " parts, " + h.Body.Mass.ToString("0.000", c) + " kg, CoM " + V(h.Body.CenterOfMass, "0.0000")
                 + " m, inertia xx " + G(i.XX) + " yy " + G(i.YY) + " zz " + G(i.ZZ) + " xy " + G(i.XY) + " xz " + G(i.XZ) + " yz " + G(i.YZ) + " kg.m2");

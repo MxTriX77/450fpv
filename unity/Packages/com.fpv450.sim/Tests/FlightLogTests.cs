@@ -532,6 +532,43 @@ namespace Fpv450.Sim.Tests
                     StringAssert.DoesNotContain(personal, text);
         }
 
+        // p7f-damage 1.1b: a flight from the repository's drone.json enters its blade and its motors' internals, bit for bit,
+        // with the file's hash; a header whose tables name another drone.json is refused, and a bench body enters none.
+        [Test]
+        public void TheHeaderKeepsTheBladeAndTheMotorsInternals()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            FlightSetup setup = Setup(spec);
+            var core = new FlightCore(setup);
+            byte[] bytes = Header(setup, core, spec).Encode();
+            LogHeader back = LogHeader.Read(new MemoryStream(bytes));
+            Assert.That(back.Unknown, Is.Empty);
+            Assert.That(back.Blade, Is.Not.Null);
+            foreach (string f in LogHeader.BladeFieldsLogged)
+            {
+                FieldInfo info = typeof(PropBlade).GetField(f);
+                Assert.That(info.GetValue(back.Blade), Is.EqualTo(info.GetValue(spec.Blade)), "blade." + f);
+            }
+            Assert.That(back.Internals, Is.EqualTo(spec.Internals));
+
+            // The entry: tag 25, its payload led by drone.json's hash.
+            int at = LogHeader.PrologueSize, payload = -1;
+            while (at < bytes.Length)
+            {
+                int tag = bytes[at] | bytes[at + 1] << 8, size = BitConverter.ToInt32(bytes, at + 2);
+                if (tag == 25) payload = at + 6;
+                at += 6 + size;
+            }
+            Assert.That(BitConverter.ToUInt64(bytes, payload), Is.EqualTo(spec.ContentHash));
+            bytes[payload] ^= 1;
+            var e = Assert.Throws<FlightLogException>(() => LogHeader.Read(new MemoryStream(bytes)));
+            StringAssert.Contains("blade and motor tables are of drone.json", e.Message);
+
+            LogHeader bench = LogHeader.Read(new MemoryStream(LogHeader.For(setup, core).Encode()));
+            Assert.That(bench.Blade, Is.Null);
+            Assert.That(bench.Internals, Is.Null);
+        }
+
         [Test]
         public void TheRecordsCoverTheStateAndTheSetup()
         {
@@ -559,6 +596,8 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(RotorWakeSpec)), Is.EquivalentTo(LogHeader.RotorWakeFieldsLogged));
             Assert.That(InstanceFields(typeof(RotorInterferenceSpec)), Is.EquivalentTo(LogHeader.InterferenceFieldsLogged));
             Assert.That(InstanceFields(typeof(AirframeModesSpec)), Is.EquivalentTo(LogHeader.ModesFieldsLogged));
+            Assert.That(InstanceFields(typeof(PropBlade)), Is.EquivalentTo(LogHeader.BladeFieldsLogged));
+            Assert.That(InstanceFields(typeof(MotorInternals)), Is.EquivalentTo(LogHeader.InternalsFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })
