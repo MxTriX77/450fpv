@@ -34,26 +34,26 @@ The sources are the pilot's own tool **FpvPrep** (`https://github.com/MxTriX77/F
 
 Betaflight ACTUAL rates: the centre sensitivity and the full-stick rate are in °/s, and expo runs 0–1.
 
-| Setting (Betaflight CLI) | OTU factory ("sharp") | **Pilot's flown set ("ideal")** | FpvPrep standard heavy-quad set | **Sim default** (the core's tests) | **Player default** (D-076, §2b) |
+| Setting (Betaflight CLI) | OTU factory ("sharp") | **Pilot's flown set ("ideal")** | FpvPrep standard heavy-quad set | **Player default** (D-076, §2b) | **Sim default** (the core's tests) |
 |---|---|---|---|---|---|
-| `rates_type` | ACTUAL | ACTUAL | ACTUAL | ACTUAL | **ACTUAL** |
-| roll / pitch centre (`*_rc_rate` × 10) | 70 | 50 | 50 | **55** | **50** |
-| roll / pitch full stick (`*_srate` × 10) | 150 | 250 | 220 | **225** | **220** |
-| roll / pitch expo (`*_expo` / 100) | 0 | 0.45 | 0.45 | **0.34** | **0.45** |
-| yaw centre | 70 | 90 | 80 | **85** | **80** |
-| yaw full stick | 150 | 300 | 240 | **260** | **240** |
-| yaw expo | 0 | 0.20 | 0.20 | **0.15** | **0.20** |
-| `thr_mid` | 50 | 50 | builder's | **50** | **100** |
-| `thr_expo` | 0 | 25 | builder's | **10** | **36** |
-| `deadband` / `yaw_deadband` | 0 / 0 | 3 / 3 | 4 / 5 | **2 / 2** | **4 / 5** |
-| `rc_smoothing_auto_factor` | 30 | 60 | 80 | **50** | **80** |
-| `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** | **80**, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` |
+| `rates_type` | ACTUAL | ACTUAL | ACTUAL | **ACTUAL** | ACTUAL |
+| roll / pitch centre (`*_rc_rate` × 10) | 70 | 50 | 50 | **50** | **55** |
+| roll / pitch full stick (`*_srate` × 10) | 150 | 250 | 220 | **220** | **225** |
+| roll / pitch expo (`*_expo` / 100) | 0 | 0.45 | 0.45 | **0.45** | **0.34** |
+| yaw centre | 70 | 90 | 80 | **80** | **85** |
+| yaw full stick | 150 | 300 | 240 | **240** | **260** |
+| yaw expo | 0 | 0.20 | 0.20 | **0.20** | **0.15** |
+| `thr_mid` | 50 | 50 | builder's | **100** | **50** |
+| `thr_expo` | 0 | 25 | builder's | **36** | **10** |
+| `deadband` / `yaw_deadband` | 0 / 0 | 3 / 3 | 4 / 5 | **4 / 5** | **2 / 2** |
+| `rc_smoothing_auto_factor` | 30 | 60 | 80 | **80** | **50** |
+| `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **80**, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** |
 | `f_yaw` | 0 | 0 | — | **0** | **0** |
-| `vbat_sag_compensation` | 0 | 0 | 0 (100 in an earlier FpvPrep) | **0** (offered as an option) | **0** |
+| `vbat_sag_compensation` | 0 | 0 | 0 (100 in an earlier FpvPrep) | **0** | **0** (offered as an option) |
 
 **How the sim default was set:** the pilot's flown set moved **25 % of the way toward the factory set**, and **throttle moved 60 %**, because the pilot stressed it: "especially throttle - you dont always get the chance to set comfortable throttle". These are named, tunable defaults. The pilot adjusts them after MVP-1.
 
-**Since D-066 the player flies its own default,** not the sim default column: §2a's, and since D-076 §2b's, the last column. The sim core's `FcSettings.Default` keeps the sim default column as the fixed controller of its tests and golden flights. Moving it means re-recording the goldens, audited case by case.
+**Since D-066 the player flies its own default,** not the sim default column: §2a's, and since D-076 §2b's, the player default column. The sim core's `FcSettings.Default` keeps the sim default column as the fixed controller of its tests and golden flights. Moving it means re-recording the goldens, audited case by case.
 
 ## 2a. The player's default (D-066)
 
