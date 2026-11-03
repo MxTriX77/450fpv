@@ -110,6 +110,16 @@ namespace Fpv450.Sim.Tests
         public double Beta => Math.Atan2(Track, SkidHeight);
         public double StaticRollTipDeg => Deg(Beta);
 
+        /// <summary>The roll tip on legs that give across their tubes (p7g-legs 1.2): on its low skid each leg carries half the
+        /// weight up through its foot, whose share across the tilted leg, (W/2)·sin φ, bends the foot in under the body by
+        /// u = W·sin φ/(2k); the centre of mass stands over the feet at tan φ = (track − u)/height (a fixed point), deg.</summary>
+        public double SoftRollTipDeg(double sideStiffness)
+        {
+            double phi = Beta;
+            for (int i = 0; i < 200; i++) phi = Math.Atan2(Track - Mass * G * Math.Sin(phi) / (2 * sideStiffness), SkidHeight);
+            return Deg(phi);
+        }
+
         /// <summary>The nose-down pitch at which the centre of mass stands over the skids' front end spheres, deg.</summary>
         public double StaticPitchTipDeg => Deg(Math.Atan2(SkidEndZ - CenterOfMass.Z, SkidHeight));
 

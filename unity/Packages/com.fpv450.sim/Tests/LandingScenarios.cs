@@ -220,6 +220,17 @@ namespace Fpv450.Sim.Tests
             return c;
         };
 
+        /// <summary>The legs rigid across their tubes, as LandingStability's mechanics has them: model 37's one spring along the
+        /// contact's normal and the stick anchor alone across it (no side give, no failure law), then edit if any.</summary>
+        public static Func<ContactSpec, ContactSpec> RigidAcross(Func<ContactSpec, ContactSpec> edit = null) => c =>
+        {
+            c = (edit != null ? edit(c) : c).Clone();
+            c.LegSideStiffness = 0;
+            c.LegSideDampingRatio = 0;
+            c.Legs = null;
+            return c;
+        };
+
         /// <summary>Every body shape's damping ratio set to zeta (the overdamped known-wrong at 2).</summary>
         public static Func<ContactSpec, ContactSpec> BodyDamping(double zeta) => c =>
         {

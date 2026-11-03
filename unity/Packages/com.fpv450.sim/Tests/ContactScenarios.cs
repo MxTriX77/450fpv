@@ -468,6 +468,13 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>The tunnel events' objects and materials, for a report.</summary>
             public List<string> TunnelThrough;
+
+            /// <summary>The tunnels and the legs' events (p7g-legs 1.2) in order, with their steps, for a report; each leg's break's
+            /// step (−1 none); and how many tunnels went through a part of a leg that had broken by then (its supports, skid
+            /// capsule or tube).</summary>
+            public List<string> Order;
+            public long[] Broke;
+            public int ThroughBroken;
         }
 
         /// <summary>
@@ -500,7 +507,7 @@ namespace Fpv450.Sim.Tests
             int aim = target(core);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, height, 0)) { Heading = site.Nose() };
-            var r = new PoleStrike { Touched = new List<string>(), TunnelThrough = new List<string>() };
+            var r = new PoleStrike { Touched = new List<string>(), TunnelThrough = new List<string>(), Order = new List<string>(), Broke = new long[] { -1, -1, -1, -1 } };
             long crashed = -1;
             double lastSpeed = 0, lastHeight = 0;
             for (int k = 0; k < 20000; k++)
@@ -522,7 +529,18 @@ namespace Fpv450.Sim.Tests
                     {
                         r.Tunnels++;
                         r.TunnelThrough.Add(spec.Parts[e.Part].Name + " through " + world.Query.ObjectName(e.Object) + " " + (world.Query.MaterialName(e.Material) ?? world.Query.SurfaceName(e.Surface)));
+                        ContactShape shape = core.Contacts.Spec.Shapes[e.Index];
+                        int leg = shape.Corner;
+                        if (shape.Role == ContactRole.Body) leg = core.Contacts.Legs == null ? -1 : System.Array.IndexOf(core.Contacts.Legs.Spec.Parts, shape.Part);
+                        if (shape.Role != ContactRole.Disc && leg >= 0 && r.Broke[leg] >= 0) r.ThroughBroken++;
                     }
+                    if (e.Kind == EventKind.LegBroken && core.Contacts.Legs != null)
+                        for (int c = 0; c < 4; c++)
+                            if (core.Contacts.Legs.Spec.Parts[c] == e.Part && r.Broke[c] < 0) r.Broke[c] = core.State.Step;
+                    if (e.Kind == EventKind.Tunnel || e.Kind >= EventKind.LegSet && e.Kind <= EventKind.SkidLoose)
+                        r.Order.Add("step " + core.State.Step + ": " + e.Kind + " " + spec.Parts[e.Part].Name + (e.Kind == EventKind.Tunnel
+                            ? " (" + core.Contacts.Spec.Shapes[e.Index].Name + ", " + e.A.ToString("F3") + " m deep at " + e.B.ToString("F2") + " m/s)"
+                            : " (" + (LegMode)e.Index + ", " + e.A.ToString("F2") + " past " + e.B.ToString("F2") + ")"));
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind == EventKind.Impact && crashed >= 0 && r.ImpactPart == null)
                     {

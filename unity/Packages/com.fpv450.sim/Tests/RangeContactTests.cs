@@ -298,6 +298,13 @@ namespace Fpv450.Sim.Tests
             return site;
         }
 
+        // Since model 39 (p7g-legs 1.2) the legs give across their tubes, and a cut landing's rest (every leg loaded, the body
+        // under 1 cm/s) waits for the legs' side sway, f = √(4·k_l/m)/2π = 2.3 Hz at ζ 0.2, no longer for the 32 Hz bounce along
+        // them: a site's small difference in the touch moves that crossing by a part of the sway's 0.44 s period. Two sites with
+        // one law rest within an eighth of it (derived): E01's run 17 ms before the stub (0.219 against 0.236 s), S04's soil in
+        // the crosswind 22 ms before the plane; model 37's 10 and 15 ms were the bounce's.
+        const double SideSettle = 0.055;
+
         [TestCase("soil")]
         [TestCase("run")]
         public void WithTheAirframesEffectsSoilIsStillThePlane(string where)
@@ -323,7 +330,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
                 Assert.That(here.TouchSpeed, Is.EqualTo(stub.TouchSpeed).Within(1e-3));
                 Assert.That(here.SeparationHeight, Is.EqualTo(stub.SeparationHeight).Within(1e-3), "the ground's law is the stub floor's");
-                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.01).And.LessThanOrEqualTo(2));
+                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(SideSettle).And.LessThanOrEqualTo(2));
                 else Assert.That(here.Separated && here.SeparationHeight > 0.05, Is.True, "held: the legs throw it back into the air");
                 Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
             }
@@ -396,13 +403,27 @@ namespace Fpv450.Sim.Tests
                     // does it, not the legs' mass: model 26's spring on the new masses rides onto the mat upright (2.8°), the
                     // derived one on model 26's masses tips it (76.7°), and so it does with the stick anchor held at model 26's
                     // 5 kN/m (82.8°).
+                    // Re-traced at model 39 (p7g-legs 1.2): on the legs' side give the held bounce rises as the plane's (137.1 mm
+                    // against 138.4) and no longer tips it: it is carried past the gap's downwind edge upright (8.3°) and is still
+                    // in the air at the end, 1.10 m downwind and 0.74 m up (the held hover's throttle); the stiff anchor across the
+                    // foot (model 37's) was what threw it over at the mat's edge. Cut, the crosswind keeps the legs' side sway going
+                    // (2.3 Hz at the tube's ζ 0.015, its decay's time 1/(ζω) = 4.6 s): it rests under 1 cm/s at 3.75 s and the
+                    // plane's not inside the 4 s, so it is held to the plane's end instead, on its eight supports at the plane's
+                    // height and upright.
                     double tilt = 2 * System.Math.Acos(System.Math.Min(1, System.Math.Abs(here.Core.State.Attitude.W))) * 180 / System.Math.PI;
+                    TestContext.Out.WriteLine($"{(cut ? "cut" : "held")}: ends {tilt:F1}° from level, {here.Core.State.Position.X - site.Foot.X:F3} m downwind of the foot, {here.Core.State.Position.Y - site.Foot.Y:F4} m over it");
                     if (!cut)
                     {
-                        Assert.That(tilt, Is.GreaterThan(60), "held, it tips over at the mat's edge");
-                        Assert.That(here.Core.State.Position.X - site.Foot.X, Is.GreaterThan(0.60), "past the gap's downwind edge, on the mat");
+                        Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(0.002), "held, it rises as on the plane");
+                        Assert.That(tilt, Is.LessThan(60), "and stays upright");
+                        Assert.That(here.Core.State.Position.X - site.Foot.X, Is.GreaterThan(0.60), "past the gap's downwind edge");
                     }
-                    else Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.015));
+                    else
+                    {
+                        Assert.That(here.Touching, Is.EqualTo(8).And.EqualTo(there.Touching), "cut, it ends on its eight supports as the plane's");
+                        Assert.That(here.Core.State.Position.Y - site.Foot.Y, Is.EqualTo(there.Core.State.Position.Y - plane.Foot.Y).Within(1e-4), "at its height");
+                        Assert.That(tilt, Is.LessThan(1), "upright");
+                    }
                     continue;
                 }
                 Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(1e-3), "E01's fillers land as the plane");
@@ -451,13 +472,18 @@ namespace Fpv450.Sim.Tests
         // m/s: the 6.6 g lighter legs' path (model 26's leg spring on the new masses tunnels the same, the derived spring on
         // model 26's masses does not), the leg shape's 6.6 kN/m stand-in, which a cable that fast goes through (a PVC-U leg
         // breaks on it in truth: p7g-legs 1.2's fracture, which brings the case back to none).
+        // Model 39 (p7g-legs 1.2): the legs break on these strikes, and every tunnel goes through a broken leg's part, which 1.2
+        // keeps on the drone and 1.3 parts from it (design 8, the loose piece), bringing each to none: at 5.475 m in Severe
+        // leg_fl parts at its clamp 4 ms before its tube passes the cable; at 5.52 m the four legs part on the cable and the
+        // skids then pass it, 0.1 m into it on their legs' side give. No tunnel goes through an intact leg's part. Severe's
+        // crown logs none (it did, through support_fr_end after leg_fr broke, with the side give at the legs' assumed ζ 0.2).
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
         [TestCase("crown", 10.0, WindLevel.Severe, 0)]
         [TestCase("wire", 5.47, WindLevel.Severe, 0)]
         [TestCase("wire", 5.475, WindLevel.Severe, 1)]
         [TestCase("wire", 5.51, WindLevel.Severe, 0)]
-        [TestCase("wire", 5.52, WindLevel.Severe, 0)]
+        [TestCase("wire", 5.52, WindLevel.Severe, 2)]
         [TestCase("wire", 5.475, WindLevel.Windy, 0)]
         [TestCase("wire", 5.475, WindLevel.Still, 0)]
         public void InTheWindNoTunnelThroughARigidShape(string name, double height, WindLevel level, int legTunnels)
@@ -468,9 +494,10 @@ namespace Fpv450.Sim.Tests
                 height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
             TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
                 + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
+            foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             Assert.That(p.Lost, Is.EqualTo(0));
             Assert.That(p.Tunnels, Is.EqualTo(legTunnels));
-            foreach (string through in p.TunnelThrough) StringAssert.StartsWith("leg_", through, "only a leg shape, the known one");
+            Assert.That(p.ThroughBroken, Is.EqualTo(p.Tunnels), "each through a broken leg's part, which 1.3 parts from the drone");
         }
 
         // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets
