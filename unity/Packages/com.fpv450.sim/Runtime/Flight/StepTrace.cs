@@ -67,6 +67,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>Each rotor's added inflow through its disc from the other rotors' wakes this step, m/s, positive down
         /// through it (RotorInterferenceSpec): a downwash behind a rotor, an upwash beside and ahead. 0 without the wake.</summary>
         public Corners InterferenceInflow;
+        /// <summary>The fiber's step (p7d-tether 1.6): its payout, its tensions, its pull on the drone, its nodes and trail;
+        /// all 0 for a flight without the line.</summary>
+        public Tether.TetherTrace Tether;
     }
 
     /// <summary>
@@ -138,6 +141,28 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Index's rotor left its vortex ring. A, B, C as VortexRingEntered's.</summary>
         VortexRingLeft = 13,
+
+        /// <summary>The fiber's coil passed a rebuild mark (p7d-tether 1.6: each span.coil_rebuild_m of line paid out this
+        /// flight) and the mass model was rebuilt. Point: the exit. A: the line paid out at the mark, m; B: the coil's mass
+        /// now, kg; C: the pack's resistance T_r (payout_tension_n), N.</summary>
+        Payout = 14,
+
+        /// <summary>The fiber's chain gained energy its guards could not take back, or went non-finite (CableChain, design
+        /// 13): a physics bug, never pilot error; the step undone and the line stopped. Index: the first non-finite node, or
+        /// none for an energy breach; Point: that node, or the exit. A: the rise over the budget, J; B: the linearisation's
+        /// deficit, J; C: what the line's relative motion held, J.</summary>
+        TetherWedge = 15,
+
+        /// <summary>A preallocated table of the world's or the line's was full: a bug in a producer or a world beyond its
+        /// budget (Index: WorldBugCause). A: the table's size.</summary>
+        WorldBug = 16,
+    }
+
+    /// <summary>WorldBug's Index.</summary>
+    public enum WorldBugCause : byte
+    {
+        /// <summary>The fiber's laid trail was full (trail.capacity): its oldest pair was merged.</summary>
+        TrailFull = 1,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

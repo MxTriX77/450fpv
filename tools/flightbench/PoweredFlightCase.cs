@@ -77,9 +77,11 @@ namespace Fpv450.FlightBench
             // contact flight's re-ingested wash moved to published numbers, so its audit was a temporary edit (GoldenFlights).
             // D-066's audit (model 23 on p7b-airframe--power), kept: on model 22's drone every golden is model 22's there and the
             // landing's merge's model 25 here (the merge at model 26), every record and event.
-            ulong p22 = GoldenFlights.FlyPowered(M22(), out _), c22 = GoldenFlights.FlyContact(M22(), out _), g22 = GoldenFlights.FlyRange(M22(), out _);
-            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
-            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _);
+            const int m28 = GoldenFlights.Model28Layout; // since model 31 the record's end is the fiber's block
+            ulong p22 = GoldenFlights.FlyPowered(M22(), out _, layout: m28), c22 = GoldenFlights.FlyContact(M22(), out _, layout: m28),
+                g22 = GoldenFlights.FlyRange(M22(), out _, layout: m28);
+            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m28);
+            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _, layout: m28);
             bool m22 = p22 == GoldenFlights.Model25PoweredHash && c22 == GoldenFlights.Model25ContactHash && g22 == GoldenFlights.Model25RangeHash
                 && w22 == GoldenFlights.Model25RainPoweredHash && t22 == GoldenFlights.Model25TumbleHash;
             Console.WriteLine($"model 22's drone (the 40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics): powered 0x{p22:X16}, contact 0x{c22:X16}, "
@@ -111,10 +113,10 @@ namespace Fpv450.FlightBench
             // bytes (the record less the interference's 64 at 1808), each golden is its pin; since model 25 the contact flight's
             // is with 1.6c's stick spring (GoldenFlights.MicroContactHash).
             const int at = GoldenFlights.Model19Layout, skip = 64;
-            ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false);
-            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false);
-            ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false);
-            ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip);
+            ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false, layout: m28);
+            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false, layout: m28);
+            ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: m28);
+            ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip, m28);
             bool uok = mp == GoldenFlights.MicroPoweredHash && mc == GoldenFlights.MicroContactHash && mr == GoldenFlights.MicroRainHash
                 && mt == GoldenFlights.MicroTumbleHash;
             Console.WriteLine($"without the interference, over the micro branch's 1840 bytes: powered 0x{mp:X16}, contact 0x{mc:X16}, rain 0x{mr:X16}, "
@@ -128,7 +130,30 @@ namespace Fpv450.FlightBench
             bool pok = pp == GoldenFlights.PowerPoweredHash && pr == GoldenFlights.PowerRainHash && pt == GoldenFlights.PowerTumbleHash;
             Console.WriteLine($"without the interference and D-064's sources, over 1808 bytes: powered 0x{pp:X16}, rain 0x{pr:X16}, tumble 0x{pt:X16} "
                 + $"({(pok ? "the power branch's, bit for bit" : "NOT the power branch's")}): {(pok ? "PASS" : "FAIL")}");
-            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok;
+            // p7d-tether 1.6's audit (model 31): every golden without the line is model 28's over its 1904 bytes, the fiber's block
+            // zero on every record.
+            int tail = 0;
+            void Tail(byte[] record)
+            {
+                for (int i = m28; i < Fpv450.Sim.Log.LogFormat.StepSize; i++) if (record[i] != 0) tail++;
+            }
+            ulong a28 = GoldenFlights.FlyPowered(Drone(), out _, layout: m28, onRecord: Tail);
+            ulong c28 = GoldenFlights.FlyContact(Drone(), out _, layout: m28, onRecord: Tail);
+            ulong g28 = GoldenFlights.FlyRange(Drone(), out _, layout: m28, onRecord: Tail);
+            ulong r28 = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m28, onRecord: Tail);
+            ulong t28 = GoldenFlights.FlyTumble(Drone(), out _, out _, layout: m28);
+            bool k28 = a28 == GoldenFlights.Model28PoweredHash && c28 == GoldenFlights.Model28ContactHash && g28 == GoldenFlights.Model28RangeHash
+                && r28 == GoldenFlights.Model28RainHash && t28 == GoldenFlights.Model28TumbleHash && tail == 0;
+            Console.WriteLine($"without the line, over model 28's 1904 bytes: powered 0x{a28:X16}, contact 0x{c28:X16}, range 0x{g28:X16}, rain 0x{r28:X16}, "
+                + $"tumble 0x{t28:X16} ({(k28 ? "model 28's, bit for bit" : "NOT model 28's")}), {tail} non-zero bytes in the fiber's block: {(k28 ? "PASS" : "FAIL")}");
+            // p7d-tether 1.6: the contact flight with the line.
+            ulong line = GoldenFlights.FlyContact(Drone(), out FlightCore l, tether: true);
+            bool lok = line == GoldenFlights.TetherHash && l.Tether.PaidOut > 0 && l.Tether.Chain.Wedges == 0 && !l.State.Crashed;
+            Console.WriteLine($"tether-flight: {GoldenFlights.ContactSteps} steps with the line, hash 0x{line:X16} "
+                + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "
+                + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
+                + $"{l.Tether.Chain.Wedges} wedges, ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok;
         }
 
         public static bool Bench()

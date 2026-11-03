@@ -227,7 +227,9 @@ namespace Fpv450.Sim.Tests
         // branch's, and keeps its course: armed, no crash, 162.72 m up against 157.26 and 153.53 at 10 s on the open-loop
         // script (the lighter drone climbs harder, as on its branch), 20.1 m and 9.9 m from their ends, within 21° and 7.8°;
         // the packs at 0.8941 of 0.9 (the power branch's 0.8941).
-        public const ulong PoweredHash = 0x53F1D10489702031UL;
+        // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
+        // it is model 28's pin, Model28PoweredHash, bit for bit (the kept test).
+        public const ulong PoweredHash = 0x68F588AF6D73D471UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -255,7 +257,9 @@ namespace Fpv450.Sim.Tests
         // model 22's drone, the kept test; the power branch's 0xACF1742E51117659 without the integration's sources, the kept
         // test). It moves from step 1 and step 21 and keeps its course: 164.73 m up against 158.09 and 155.36, 19.8 m and 9.8
         // m from their ends, within 19° and 8.0°; the film holds 9.92 g at 10 s (9.11 and 10.28).
-        public const ulong RainPoweredHash = 0x53B90D4307BF1534UL;
+        // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
+        // it is model 28's pin, Model28RainHash, bit for bit (the kept test).
+        public const ulong RainPoweredHash = 0x947B8DD37255DDB4UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -264,6 +268,14 @@ namespace Fpv450.Sim.Tests
         /// test there) it is 0x78A919AAD7858813: 5 impacts, no crash, at rest at the same 0.2518 m, 0.38 mm aside. Since model
         /// 24 both need D-064's wash off, which has no switch, so both are temporary-edit audits (ContactHash's notes).</summary>
         public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
+
+        /// <summary>The audit against model 28 (GoldenFlightTests.OverModel28sRecordEachGoldenIsModel28s, p7d-tether 1.6): model
+        /// 28's 1904-byte record (the record less the fiber's 104-byte block at its end) and its pins, which every golden flown
+        /// without the line keeps bit for bit, its fiber block zero on every record (the line's code changes no flight
+        /// without it: the airframe modes' rebuild, the cable chain's spool and the flight's line are all off).</summary>
+        public const int Model28Layout = LogFormat.Model28StepSize;
+        public const ulong Model28PoweredHash = 0x53F1D10489702031UL, Model28ContactHash = 0xAAEA31DBFBB13710UL, Model28RangeHash = 0xC79B60F487AEB8B6UL,
+            Model28RainHash = 0x53B90D4307BF1534UL, Model28TumbleHash = 0xBCBD33E6B6A94844UL;
 
         /// <summary>The audits against model 19 (GoldenFlightTests.WithoutTheWakeEachGoldenIsModel19s, p7b-airframe 1.3d, and
         /// WithoutD064TheGoldenFlightsAreModel19s, D-064): model 19's 1808-byte record (the record less the interference's 64
@@ -405,7 +417,20 @@ namespace Fpv450.Sim.Tests
         // model 25 (the lighter body) and from step 3 against the power branch's (1.6c's spring on the standing skids), and
         // keeps its course: 5 impacts, no crash, at rest at 0.2519 m on 8 pairs (0.2518 and 0.2519), 59 mm and 42 mm aside,
         // within 117 mm and 1.5° of model 25's path and 49 mm and 1.5° of the power branch's (the held bounce).
-        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
+        // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
+        // it is model 28's pin, Model28ContactHash, bit for bit (the kept test).
+        public const ulong ContactHash = 0x89EEA4CA37C2ACD0UL;
+
+        /// <summary>
+        /// The contact flight with the line (p7d-tether 1.6, first recorded with ModelVersion 31): FlyContact's flight on the
+        /// stub's floor with tether.json's line laid from 3 m behind (the table's launch) and drone.json's coil, half paid out at
+        /// the nominal loadout: it takes off, hovers 1 m up, comes down and lands with the line paying out, its span and trail
+        /// in the step and its pull on the drone. Hashed over the whole record with its events. Against FlyContact without the line
+        /// it moves from step 3 (the laid line's weight and its pull at the exit, at most 0.031 N) and keeps its course: at most
+        /// 6.7 mm and 0.10° from it, 5 impacts against 5, at rest at the same 0.2519 m, 2.4 mm aside; 0.073 m paid out, the chain
+        /// at 15 nodes, the trail at 8 points, no clip, safe step or wedge.
+        /// </summary>
+        public const ulong TetherHash = 0xA8BD64033E8EBFBDUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -442,7 +467,9 @@ namespace Fpv450.Sim.Tests
         // record, the interference's and the own wake's bytes zero: on model 22's drone model 25's pin (the kept test), over
         // 1808 bytes the power branch's 0x95E56C6BB49BB744 (the kept test); momentum within 1.7e-12, energy 3.5e-12, the CoM
         // 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s, the power branch's numbers.
-        public const ulong TumbleHash = 0xBCBD33E6B6A94844UL;
+        // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
+        // it is model 28's pin, Model28TumbleHash, bit for bit (the kept test).
+        public const ulong TumbleHash = 0x3FD62A50B3AF6C84UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -515,7 +542,9 @@ namespace Fpv450.Sim.Tests
         // branch's 0xFBAC3E4D67B45ACD under the temporary edits over 1808 bytes. It moves from step 1 and step 3 and keeps its
         // course: at rest 6.9 mm and 24 mm from their resting places, within 114 mm and 3.1° of model 25's path and 34 mm and
         // 3.5° of the power branch's (the held bounce over the straw).
-        public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
+        // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
+        // it is model 28's pin, Model28RangeHash, bit for bit (the kept test).
+        public const ulong RangeHash = 0xE29C5993A913A2B6UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
@@ -713,7 +742,8 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
+            bool tether = false)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -728,6 +758,12 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors);
+            if (tether)
+            {
+                setup.Tether = Tether.TetherTable.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
+                setup.TetherCoilPart = spec.Coil.Part;
+                setup.TetherSpoolMass = spec.Coil.SpoolMass;
+            }
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];

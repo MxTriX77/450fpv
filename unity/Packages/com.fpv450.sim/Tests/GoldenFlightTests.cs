@@ -120,12 +120,13 @@ namespace Fpv450.Sim.Tests
         public void OnModel22sDroneEachGoldenIsModel25s()
         {
             DroneSpec Model22() => GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text()));
-            Assert.That(GoldenFlights.FlyPowered(Model22(), out _), Is.EqualTo(GoldenFlights.Model25PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyPowered(Model22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
+            const int at = GoldenFlights.Model28Layout; // since model 31 the record's end is the fiber's block
+            Assert.That(GoldenFlights.FlyPowered(Model22(), out _, layout: at), Is.EqualTo(GoldenFlights.Model25PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(Model22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at),
                 Is.EqualTo(GoldenFlights.Model25RainPoweredHash), "rain");
-            Assert.That(GoldenFlights.FlyContact(Model22(), out _), Is.EqualTo(GoldenFlights.Model25ContactHash), "contact");
-            Assert.That(GoldenFlights.FlyTumble(Model22(), out _, out _), Is.EqualTo(GoldenFlights.Model25TumbleHash), "tumble");
-            Assert.That(GoldenFlights.FlyRange(Model22(), out _), Is.EqualTo(GoldenFlights.Model25RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(Model22(), out _, layout: at), Is.EqualTo(GoldenFlights.Model25ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model22(), out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model25TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyRange(Model22(), out _, layout: at), Is.EqualTo(GoldenFlights.Model25RangeHash), "range");
         }
 
         // The merge's audit against p7b-airframe--power (model 24 there), kept: on drone.json without the interference and
@@ -187,11 +188,48 @@ namespace Fpv450.Sim.Tests
         public void WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs()
         {
             DroneSpec spec = GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text()));
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, interference: false), Is.EqualTo(GoldenFlights.MicroPoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, InterferenceAt, InterferenceBytes, interference: false), Is.EqualTo(GoldenFlights.MicroContactHash), "contact");
+            const int at = GoldenFlights.Model28Layout; // since model 31 the record's end is the fiber's block
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, interference: false, layout: at), Is.EqualTo(GoldenFlights.MicroPoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, InterferenceAt, InterferenceBytes, interference: false, layout: at), Is.EqualTo(GoldenFlights.MicroContactHash), "contact");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain,
-                interference: false), Is.EqualTo(GoldenFlights.MicroRainHash), "rain");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, InterferenceAt, InterferenceBytes), Is.EqualTo(GoldenFlights.MicroTumbleHash), "tumble");
+                interference: false, layout: at), Is.EqualTo(GoldenFlights.MicroRainHash), "rain");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, InterferenceAt, InterferenceBytes, at), Is.EqualTo(GoldenFlights.MicroTumbleHash), "tumble");
+        }
+
+        // p7d-tether 1.6's audit (model 31): every golden flown without the line is model 28's over its 1904-byte record, every
+        // record and event, and the fiber's block after it is zero on every record: the line's code (the modes' rebuild, the
+        // chain's spool, the flight's line) changes no flight without it.
+        [Test]
+        public void OverModel28sRecordEachGoldenIsModel28s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int at = GoldenFlights.Model28Layout;
+            int nonZero = 0;
+            void Tail(byte[] record)
+            {
+                for (int i = at; i < LogFormat.StepSize; i++) if (record[i] != 0) nonZero++;
+            }
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: at, onRecord: Tail), Is.EqualTo(GoldenFlights.Model28PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, onRecord: Tail),
+                Is.EqualTo(GoldenFlights.Model28RainHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, layout: at, onRecord: Tail), Is.EqualTo(GoldenFlights.Model28ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model28TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Tail), Is.EqualTo(GoldenFlights.Model28RangeHash), "range");
+            Assert.That(nonZero, Is.EqualTo(0), "the fiber's block of a flight without the line");
+        }
+
+        // p7d-tether 1.6: the contact flight with the line, pinned (GoldenFlights.TetherHash), the same twice, the line paying out
+        // and its pull reaching the drone.
+        [Test]
+        public void TheTetherGoldenFlightIsPinned()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore core, tether: true);
+            Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "the pinned golden (a re-record is audited and raises the model version)");
+            Assert.That(core.Tether.PaidOut, Is.GreaterThan(0), "the line paid out");
+            Assert.That(core.Tether.Chain.Wedges, Is.EqualTo(0));
+            Assert.That(core.State.Crashed, Is.False);
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true), Is.EqualTo(hash), "a second flight gives the same bits");
         }
 
         // p7b-airframe 1.3's check, kept without model 9's pin (it flew the stand-in's air): 193–300 m up the powered golden's
@@ -230,7 +268,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(InterferenceAt, Is.EqualTo(GoldenFlights.Model19Layout), "model 19's record is the record before it");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, WakeAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "wake_inflow.rear_right")),
                 "D-064's rotor wakes follow the interference");
-            Assert.That(LogFormat.StepSize - WakeAt, Is.EqualTo(WakeBytes), "to the record's end");
+            Assert.That(GoldenFlights.Model28Layout - WakeAt, Is.EqualTo(WakeBytes), "to model 28's record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model28Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "tether.paid_out")),
+                "p7d-tether 1.6's fiber block follows model 28's record");
+            Assert.That(LogFormat.StepSize - GoldenFlights.Model28Layout, Is.EqualTo(104), "to the record's end");
         }
     }
 }

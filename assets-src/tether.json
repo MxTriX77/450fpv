@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "owner": "physics-engineer",
-  "about": "Every number of the fiber-optic line, its strength, the spool it pays out of, the optical link it carries, the wires' end fittings and the launch layout (p7d-tether design 1; PHY-18…21, D-024). The sim core reads it with DetJson through TetherTable, which refuses a missing block or field, an unknown one, a value without its label or rationale, a value of the wrong shape, and a derived value that does not equal its derivation from the table's own values. The flight log records every row and the file's hash; a replay refuses a tether.json of another hash. Randomness enters only through the bands and quantile tables named by design 14's streams (fiber.span_strength, fiber.section_strength, spool.peel, spool.irregularity, wire.strength, wire.tie), each drawn, bounded and logged; nothing about where the line lies is drawn. New values are added here by physics with the schema in TetherTable, never in code.",
+  "about": "Every number of the fiber-optic line, its strength, the spool it pays out of, the optical link it carries, the wires' end fittings, the launch layout, the span's nodes, the laid trail and the rotors' air on the line (p7d-tether design 1, 3, 4; PHY-18…21, D-024). The sim core reads it with DetJson through TetherTable, which refuses a missing block or field, an unknown one, a value without its label or rationale, a value of the wrong shape, and a derived value that does not equal its derivation from the table's own values. The flight log records every row and the file's hash; a replay refuses a tether.json of another hash. Randomness enters only through the bands and quantile tables named by design 14's streams (fiber.span_strength, fiber.section_strength, spool.peel, spool.irregularity, wire.strength, wire.tie), each drawn, bounded and logged; nothing about where the line lies is drawn. New values are added here by physics with the schema in TetherTable, never in code.",
   "fields": {
     "value": "a number; a band [lo, hi]; a vector [x, y, z] in the body frame (Unity's: +x right, +y up, +z forward), metres; or a quantile table [[p, value], …] with p rising from 0 to 1, read piecewise linearly",
     "label": "where the number stands: pilot, measured, published, derived or assumed",
@@ -32,7 +32,8 @@
     "air_kinematic_viscosity_m2_s": {"value": 1.461e-5, "label": "published", "rationale": "ISA sea level at 15 °C: μ 1.789e-5 Pa·s over ρ 1.225 kg/m³; the line's Reynolds number v·d/ν"},
     "wet_film_rain_m": {"value": 5.0e-5, "label": "assumed", "rationale": "the water film a line carries in Rain (D-021, design 5): 0.35 mm across and 68 % heavier"},
     "wet_film_severe_m": {"value": 7.5e-5, "label": "assumed", "rationale": "the film in Severe rain (design 5)"},
-    "water_density_kg_m3": {"value": 1000, "label": "published", "rationale": "the film's density"}
+    "water_density_kg_m3": {"value": 1000, "label": "published", "rationale": "the film's density"},
+    "air_density_kg_m3": {"value": 1.225, "label": "published", "rationale": "ISA sea level at 15 °C: the line's drag ½ρu² and the rotors' induced velocity √(T/2ρA) at the line (design 3, 4); air_kinematic_viscosity_m2_s is μ over this"}
   },
   "strength": {
     "span_pa": {"value": [[0, 6.895e8], [1, 1.4e9]], "label": "assumed", "rationale": "fiber.span_strength, one draw per flight at arming, met by T/A_g anywhere on the span (design 7): the floor is the proof stress (published); the ceiling is assumed, a fifth of a short section's, because a whole span breaks near its proof-truncated weakest flaw (Weibull's weakest link, published); uniform inside, the shape assumed: 8.5–17 N"},
@@ -76,5 +77,29 @@
   },
   "launch": {
     "anchor_behind_start_m": {"value": 3, "label": "assumed", "rationale": "the line's far end at the ground station on the ground, 3 m behind the start point; the line laid straight from it to beneath the exit (the pilot sets the drone down on its line)"}
+  },
+  "span": {
+    "max_nodes": {"value": 32, "label": "assumed", "rationale": "the active chain from the touchdown to the exit (design 3, PHY-18's ≤ 32 lumped nodes): near_spacing_m within near_length_m of the exit and spacing_growth a node beyond cover about 1.5 km of line, more than any airborne arc"},
+    "near_spacing_m": {"value": 0.1, "label": "assumed", "rationale": "a segment's rest length within near_length_m of the exit: the props' and the legs' scale, where the line meets the drone's own air and parts (design 3)"},
+    "near_length_m": {"value": 1.0, "label": "assumed", "rationale": "the line from the exit, material metres, spaced at near_spacing_m (design 3)"},
+    "spacing_growth": {"value": 1.5, "label": "assumed", "rationale": "beyond near_length_m each segment's rest length is this many times the one before (design 3): the rest length grows by spacing_growth − 1 per material metre"},
+    "ground_reach_m": {"value": 0.5, "label": "assumed", "rationale": "a node this close to the ground takes the ground as a contact (design 6, 12); 1.7 adds the shapes, the elements and the clearance certificate"},
+    "ground_static_friction": {"value": 0.5, "label": "assumed", "rationale": "μs of the line's acrylate coating on the ground: drone.json's polymer pair on the ground's surfaces (the coating as a polymer part, design 1); 1.7 reads each surface's own"},
+    "ground_kinetic_friction": {"value": 0.4, "label": "assumed", "rationale": "μk of the same pair (drone.json's ground_friction_kinetic)"},
+    "coil_rebuild_m": {"value": 10, "label": "assumed", "rationale": "the mass model, the inertia and the airframe's coil mode are rebuilt each time this much line has paid out (0.69 g of line, design 3), the body's motion kept"}
+  },
+  "trail": {
+    "freeze_seconds": {"value": 0.5, "label": "assumed", "rationale": "a node resting on the ground this long, slower than freeze_speed_m_s and held by its friction, is frozen into the laid trail (design 3)"},
+    "freeze_speed_m_s": {"value": 0.005, "label": "assumed", "rationale": "the speed under which a node on the ground counts as resting (design 3)"},
+    "capacity": {"value": 16384, "label": "assumed", "rationale": "the laid trail's points, preallocated: 10 km of line at 0.6 m a point (design 3); an overflow merges the oldest pair and logs a WorldBug"},
+    "hold_length_m": {"value": 1.0, "label": "assumed", "rationale": "the laid line whose friction holds the trail's last point: it lifts back into the chain when the tension at the touchdown, or the rotors' air on it, passes μs times the weight of this much line (design 3)"}
+  },
+  "rotor_air": {
+    "far_wake_speed_ratio": {"value": 2, "label": "published", "rationale": "the wake below a disc moves at twice the induced velocity (momentum theory's far wake; Johnson 1980, Leishman 2006), design 4"},
+    "far_wake_radius_ratio": {"value": 0.7071, "label": "published", "rationale": "the far wake contracts to R/√2 (momentum theory's continuity at 2v_i; Leishman 2006), design 4"},
+    "wake_reach_over_radius": {"value": 4, "label": "assumed", "rationale": "the wake column reaches the ground and turns into the radial wall jet when the disc is within this many radii of it, measured along the wake: about two diameters before a hover wake mixes out (design 4 assumed 2R; drone.json's legs-on disc stands 2.27R up, so 2R would leave the liftoff without its jet)"},
+    "wall_jet_thickness_over_radius": {"value": 0.3536, "label": "derived", "rationale": "h_j where the column turns: its flux π(R/√2)²·2v_i leaves through 2π(R/√2)·h_j at the column's own speed, so h_j = far_wake_radius_ratio·R/2 (mass conservation; design 4's assumed 0.1R would make the jet 3.5 times faster than the column it comes from); beyond, u = πR²v_i/(2π·r·h_j)"},
+    "wall_lift_coefficient": {"value": 0.9, "label": "published", "rationale": "a circular cylinder resting on a plane wall in a cross-flow is lifted off it, C_L ≈ 0.9 on the wall in a steady current (the pipeline on the seabed: Sumer and Fredsøe, Hydrodynamics Around Cylindrical Structures, 2006; DNV-RP-F109): the wall jet lifts a line lying in it (design 4)"},
+    "wall_lift_gap_over_diameter": {"value": 0.5, "label": "assumed", "rationale": "the wall lift falls linearly to zero as the gap under the line reaches this many diameters (the published curves fall to small values at a gap of 0.5–1 diameters)"}
   }
 }

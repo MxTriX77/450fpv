@@ -46,7 +46,8 @@ namespace Fpv450.Sim.Tether
 
     /// <summary>
     /// assets-src/tether.json (p7d-tether design 1, PHY-18…21): every number of the fiber, its strength, the spool, the
-    /// optical link, the wires' end fittings and the launch, physics-owned. Each value is {"value": …, "label": "pilot" |
+    /// optical link, the wires' end fittings, the launch, the span's nodes, the laid trail and the rotors' air on the line
+    /// (1.6), physics-owned. Each value is {"value": …, "label": "pilot" |
     /// "measured" | "published" | "derived" | "assumed", "rationale": "its source or reason"}; a block or field the schema
     /// lacks, a missing one, a missing label or rationale, or a value of the wrong shape refuses the file with every
     /// problem listed. A value labelled derived must equal its derivation from the table's own values (within 1e-3, the
@@ -61,7 +62,7 @@ namespace Fpv450.Sim.Tether
         public const int Schema = 1;
 
         /// <summary>The blocks, in the file's and the log's order.</summary>
-        public static readonly string[] Blocks = { "fiber", "strength", "spool", "link", "fittings", "launch" };
+        public static readonly string[] Blocks = { "fiber", "strength", "spool", "link", "fittings", "launch", "span", "trail", "rotor_air" };
 
         // The schema: every field of every block and its shape, in order (design 1, 3, 5, 7, 8).
         static readonly (string Name, TetherValueKind Kind)[] Fields =
@@ -91,6 +92,7 @@ namespace Fpv450.Sim.Tether
             ("fiber.wet_film_rain_m", TetherValueKind.Positive),
             ("fiber.wet_film_severe_m", TetherValueKind.Positive),
             ("fiber.water_density_kg_m3", TetherValueKind.Positive),
+            ("fiber.air_density_kg_m3", TetherValueKind.Positive),
             ("strength.span_pa", TetherValueKind.Quantiles),
             ("strength.flaw_spacing_m", TetherValueKind.Positive),
             ("strength.flaw_pa", TetherValueKind.Quantiles),
@@ -124,6 +126,24 @@ namespace Fpv450.Sim.Tether
             ("fittings.house_anchor_hold_n", TetherValueKind.Band),
             ("fittings.conductor_strength_ratio", TetherValueKind.Band),
             ("launch.anchor_behind_start_m", TetherValueKind.Positive),
+            ("span.max_nodes", TetherValueKind.Positive),
+            ("span.near_spacing_m", TetherValueKind.Positive),
+            ("span.near_length_m", TetherValueKind.Positive),
+            ("span.spacing_growth", TetherValueKind.Positive),
+            ("span.ground_reach_m", TetherValueKind.Positive),
+            ("span.ground_static_friction", TetherValueKind.Positive),
+            ("span.ground_kinetic_friction", TetherValueKind.Positive),
+            ("span.coil_rebuild_m", TetherValueKind.Positive),
+            ("trail.freeze_seconds", TetherValueKind.Positive),
+            ("trail.freeze_speed_m_s", TetherValueKind.Positive),
+            ("trail.capacity", TetherValueKind.Positive),
+            ("trail.hold_length_m", TetherValueKind.Positive),
+            ("rotor_air.far_wake_speed_ratio", TetherValueKind.Positive),
+            ("rotor_air.far_wake_radius_ratio", TetherValueKind.Positive),
+            ("rotor_air.wake_reach_over_radius", TetherValueKind.Positive),
+            ("rotor_air.wall_jet_thickness_over_radius", TetherValueKind.Positive),
+            ("rotor_air.wall_lift_coefficient", TetherValueKind.Positive),
+            ("rotor_air.wall_lift_gap_over_diameter", TetherValueKind.Positive),
         };
 
         const double DerivedTolerance = 1e-3;
@@ -298,6 +318,7 @@ namespace Fpv450.Sim.Tether
             Derived(rows, "fiber.bending_stiffness_n_m2", e * Pi * dg * dg * dg * dg / 64, "youngs_modulus_pa·π·glass_diameter_m⁴/64", problems);
             Derived(rows, "fiber.proof_force_n", V("fiber.proof_stress_pa") * area, "proof_stress_pa·glass_area", problems);
             Derived(rows, "link.launch_margin_db", V("link.budget_db") - V("link.connector_loss_db"), "budget_db − connector_loss_db", problems);
+            Derived(rows, "rotor_air.wall_jet_thickness_over_radius", V("rotor_air.far_wake_radius_ratio") / 2, "far_wake_radius_ratio/2", problems);
             Derived(rows, "link.macrobend_decay_per_m",
                 DetMath.Log(V("link.macrobend_loss_a_db") / V("link.macrobend_loss_b_db")) / (V("link.macrobend_radius_b_m") - V("link.macrobend_radius_a_m")),
                 "ln(macrobend_loss_a_db/macrobend_loss_b_db)/(macrobend_radius_b_m − macrobend_radius_a_m)", problems);

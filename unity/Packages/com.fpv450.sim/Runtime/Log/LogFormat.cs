@@ -87,8 +87,14 @@ namespace Fpv450.Sim.Log
         /// 17: left to p7a-ground's merge.
         /// 18: p7d-tether's 14 merged onto the integration's 16: the tether entry at tag 25, after the placement's 24; the
         ///    record is 16's 1904 bytes.
+        /// 19–20: left to p7f-damage and p7c-wind (D-072).
+        /// 21: p7d-tether 1.6, the line in the step: the record's tether block after the rotors' own wakes (104 bytes: the
+        ///    payout, the pack's resistance payout_tension_n, the exit's tension and lip, the irregularity at the peel, the
+        ///    line's force and moment on the drone, its nodes, flags, extra solves and trail), 2008 bytes; the tether entry
+        ///    gains the line's launch (its coil part, its spool's mass, its layout, the two-way switch); the events Payout,
+        ///    TetherWedge and WorldBug.
         /// </summary>
-        public const int Version = 18;
+        public const int Version = 21;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -204,8 +210,14 @@ namespace Fpv450.Sim.Log
         ///    the map's wind (MapWind's belt bearing, MapWorldWind's volume yaw). A flight steps as in 26 wherever the two
         ///    give the same bits; on the test range every call does (815 in worldbench's goldens, 817 in flightbench's, none
         ///    differing), so every golden of 26 holds.
+        /// 29–30: left to p7f-damage and p7c-wind (D-072).
+        /// 31: p7d-tether 1.6 (on 28): the fiber in the step (FiberLine): the coil paying out one way through the exit by the
+        ///    pack's law over the lip's capstan, the span and its laid trail, the line's pull at the exit, the coil's mass and
+        ///    the airframe's coil mode rebuilt each 10 m of payout (AirframeModes.Rebuild), drag by Reynolds number, the wind
+        ///    field, the rotors' air and rain's film on the line. A flight without the line (FlightSetup.Tether null) steps as in
+        ///    28: every golden flown without it is model 28's bit for bit over the first 1904 bytes, the tether block zero.
         /// </summary>
-        public const int ModelVersion = 28;
+        public const int ModelVersion = 31;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -218,8 +230,13 @@ namespace Fpv450.Sim.Log
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
-        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064).</summary>
-        public const int StepSize = 1904, EventSize = 72, EndSize = 48;
+        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
+        /// line (p7d-tether 1.6).</summary>
+        public const int StepSize = 2008, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the fiber's block (model 28's, format 18), over which a flight without the line keeps
+        /// model 28's bits.</summary>
+        public const int Model28StepSize = 1904;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
@@ -239,8 +256,13 @@ namespace Fpv450.Sim.Log
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
-                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow",
+                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow", "Tether",
             };
+        public static readonly string[] TetherTraceFieldsLogged =
+        {
+            "PaidOut", "PayoutSpeed", "PayoutTension", "ExitTension", "LipAngle", "Irregularity", "Force", "Moment", "Nodes", "Trail",
+            "Flags", "Corrections",
+        };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
 
@@ -369,6 +391,19 @@ namespace Fpv450.Sim.Log
             b.Corners("interference_share", "the wakes' fluctuation, a share of that inflow");
             // Each rotor's own wake (D-064).
             b.Corners("wake_inflow", "the rotor's own wake inflow through the disc over v_h");
+            // The fiber's line (p7d-tether 1.6); all zero for a flight without it.
+            b.Add("tether.paid_out", "m, the line paid out this flight", LogFieldType.F64);
+            b.Add("tether.payout_speed", "m/s, the balloon's speed: line leaving the exit", LogFieldType.F64);
+            b.Add("tether.payout_tension_n", "N, the pack's resistance T_r (the peel at the section, the momentum flux, the balloon); its static peel while it holds", LogFieldType.F64);
+            b.Add("tether.exit_tension", "N, the exit segment's tension at the step's end", LogFieldType.F64);
+            b.Add("tether.lip_angle", "rad, the exit lip's wrap: the canister's aft axis to the first segment", LogFieldType.F64);
+            b.Add("tether.irregularity", "the pack's irregularity at the section at the peel (spool.irregularity)", LogFieldType.F64);
+            b.Vec("tether.force", "N, world, the line's pull on the drone this step, in net_force");
+            b.Vec("tether.moment", "N.m, body, its moment about the CoM, in net_moment");
+            b.Add("tether.nodes", "the chain's nodes after the step", LogFieldType.U16);
+            b.Add("tether.flags", "bit 0 paying out, 1 coil empty, 2 clipped, 3 safe step, 4 wedge, 5 two-way spool", LogFieldType.U8);
+            b.Add("tether.corrections", "the chain's extra solves this step", LogFieldType.U8);
+            b.Add("tether.trail", "the laid trail's points after the step", LogFieldType.I32);
             return b.Done(StepSize);
         }
 
@@ -506,6 +541,19 @@ namespace Fpv450.Sim.Log
             w.C4(t.InterferenceInflow);
             w.C4(s.InterferenceShare);
             w.C4(s.WakeInflow);
+            ref readonly Tether.TetherTrace l = ref t.Tether;
+            w.F64(l.PaidOut);
+            w.F64(l.PayoutSpeed);
+            w.F64(l.PayoutTension);
+            w.F64(l.ExitTension);
+            w.F64(l.LipAngle);
+            w.F64(l.Irregularity);
+            w.V3(l.Force);
+            w.V3(l.Moment);
+            w.U16((ushort)l.Nodes);
+            w.U8(l.Flags);
+            w.U8(l.Corrections);
+            w.I32(l.Trail);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -615,6 +663,19 @@ namespace Fpv450.Sim.Log
             t.InterferenceInflow = r.C4();
             s.InterferenceShare = r.C4();
             s.WakeInflow = r.C4();
+            ref Tether.TetherTrace l = ref t.Tether;
+            l.PaidOut = r.F64();
+            l.PayoutSpeed = r.F64();
+            l.PayoutTension = r.F64();
+            l.ExitTension = r.F64();
+            l.LipAngle = r.F64();
+            l.Irregularity = r.F64();
+            l.Force = r.V3();
+            l.Moment = r.V3();
+            l.Nodes = r.U16();
+            l.Flags = r.U8();
+            l.Corrections = r.U8();
+            l.Trail = r.I32();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
