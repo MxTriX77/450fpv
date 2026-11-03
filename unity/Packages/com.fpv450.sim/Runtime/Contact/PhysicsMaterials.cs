@@ -7,7 +7,8 @@ namespace Fpv450.Sim.Contact
     /// <summary>
     /// assets-src/physics_materials.json, the physics material ids every collision shape names (AST-05): physics reads
     /// its own table from it (review-physics §3: the world hands out ids, never parameters). Only the contact law's
-    /// fields are read, by DetJson (the same bits on every runtime); the world-builder's validator checks the rest.
+    /// fields and what a blade meets (p7f-damage design 5, each labelled) are read, by DetJson (the same bits on every
+    /// runtime); the world-builder's validator checks the rest.
     /// The file lies outside the world's content hash, so the log records its hash beside drone.json's (P8).
     /// </summary>
     public static class PhysicsMaterials
@@ -36,6 +37,9 @@ namespace Fpv450.Sim.Contact
                         KineticFriction = Number(m, "friction_kinetic", path, problems, true),
                         Stiffness = Number(m, "stiffness_n_per_m", path, problems, false),
                         DampingRatio = Number(m, "damping_ratio", path, problems, false),
+                        Hardness = Labelled(m, "hardness_pa", path, problems, false),
+                        CrushStrength = Labelled(m, "crush_strength_pa", path, problems, true),
+                        Density = Labelled(m, "density_kg_m3", path, problems, false),
                     };
                     if (row.KineticFriction > row.StaticFriction) problems.Add(path + ": friction_kinetic is above friction_static");
                     bool hasK = m.Member("stiffness_n_per_m") != null, hasZ = m.Member("damping_ratio") != null;
@@ -64,6 +68,36 @@ namespace Fpv450.Sim.Contact
                 return 0;
             }
             return n.Number;
+        }
+
+        // What a blade meets (p7f-damage 1.1a), each labelled: {"value": a number above 0 (or null where nullable, read as 0),
+        // "label": one of DroneSpec.Labels, "note": its source or reason}.
+        static double Labelled(JsonNode o, string key, string path, List<string> problems, bool nullable)
+        {
+            string at = path + "." + key;
+            JsonNode n = o.Member(key);
+            if (n == null)
+            {
+                problems.Add(at + ": missing");
+                return 0;
+            }
+            JsonNode value = n.Member("value"), label = n.Member("label"), note = n.Member("note");
+            if (n.Kind != JsonKind.Object || n.Keys.Count != 3 || value == null || label == null || note == null)
+            {
+                problems.Add(at + ": must be {\"value\", \"label\", \"note\"}");
+                return 0;
+            }
+            if (label.Kind != JsonKind.String || Array.IndexOf(DroneSpec.Labels, label.Text) < 0)
+                problems.Add(at + ".label: must be one of " + string.Join(", ", DroneSpec.Labels));
+            if (note.Kind != JsonKind.String || note.Text.Length == 0)
+                problems.Add(at + ".note: missing: a value here carries its source or its reason");
+            if (nullable && value.Kind == JsonKind.Null) return 0;
+            if (value.Kind != JsonKind.Number || !(value.Number > 0))
+            {
+                problems.Add(at + ".value: must be a number above 0" + (nullable ? " or null" : ""));
+                return 0;
+            }
+            return value.Number;
         }
     }
 }

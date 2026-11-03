@@ -13,7 +13,8 @@ namespace Fpv450.Replay
     {
         const string Usage =
             "usage:\n"
-            + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit, on the world\n"
+            + "  replay <log> [--drone <drone.json>] [--materials <physics_materials.json>]\n"
+            + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
             + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--drone <drone.json>]\n"
@@ -21,7 +22,8 @@ namespace Fpv450.Replay
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
             + "                                         in the map's own wind (its wakes and its belt's canopy)\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
-            + "drone.json defaults to the repository's assets-src/drone/drone.json";
+            + "drone.json and physics_materials.json default to the repository's assets-src/drone/drone.json and\n"
+            + "assets-src/physics_materials.json";
 
         private static int Main(string[] args)
         {
@@ -69,6 +71,18 @@ namespace Fpv450.Replay
                 }
                 Console.WriteLine($"  drone.json {drone}: 0x{droneHash:X16}");
             }
+            ulong materialsHash = 0;
+            string materials = Option(args, "--materials") ?? (h.Contacts != null && h.Contacts.MaterialsHash != 0 ? ScriptedFlight.RepositoryMaterials() : null);
+            if (materials != null)
+            {
+                materialsHash = ScriptedFlight.MaterialsHash(materials, out string problem);
+                if (problem != null)
+                {
+                    Console.WriteLine("refused: " + problem);
+                    return (int)ReplayOutcome.Refused;
+                }
+                Console.WriteLine($"  physics_materials.json {materials}: 0x{materialsHash:X16}");
+            }
             FlightWorld world = ScriptedFlight.OpenWorld(h.WorldId, out string where);
             if (world == null)
             {
@@ -78,7 +92,7 @@ namespace Fpv450.Replay
             Console.WriteLine($"  world '{h.WorldId}' from {where}: 0x{world.ContentHash:X16}");
 
             var clock = Stopwatch.StartNew();
-            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa);
+            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa, materialsHash: materialsHash);
             Console.WriteLine("  " + r.Message);
             foreach (string note in r.Notes) Console.WriteLine("  note: " + note);
             Console.WriteLine($"  replayed in {clock.Elapsed.TotalSeconds:F2} s on {LogHeader.CurrentRuntime()}, isa {Host.Isa}; exit {(int)r.Outcome} ({r.Outcome})");

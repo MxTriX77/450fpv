@@ -89,8 +89,11 @@ namespace Fpv450.Sim.Log
         /// 23: p7f-damage 1.2, the header's propulsion entry with the props' blades as elements (PropulsionSpec.Rotor: the blade's
         ///    table, the sections' lift slope, zero-lift angle and profile drag) and the asymmetry entry with the blades' pitch
         ///    bound and count (MotorAsymmetry.BladePitchBound, Blades; the draws are the randomness entry's); the records are 19's.
+        /// 24 is assigned to another line (D-072).
+        /// 25: p7f-damage 1.1a, the contacts entry's material rows with what a blade meets (MaterialRow.Hardness, CrushStrength,
+        ///    Density); the records are 23's.
         /// </summary>
-        public const int Version = 23;
+        public const int Version = 25;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header

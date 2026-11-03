@@ -68,6 +68,12 @@ namespace Fpv450.Sim.Contact
         /// <summary>The damping ratio of that compliance; 0 for a rigid material.</summary>
         public double DampingRatio;
 
+        /// <summary>What a blade meets (p7f-damage design 5): the face's indentation hardness, Pa, against the blade's (a harder
+        /// face is a hard target and the blade yields, a softer one yields to it); the pressure it resists a blade carving it,
+        /// Pa, 0 where the file's is null (a thin compliant row a blade passes without damage from it); and its density,
+        /// kg/m³, the mass a carving blade flings.</summary>
+        public double Hardness, CrushStrength, Density;
+
         public readonly bool Rigid => Stiffness == 0;
     }
 

@@ -582,7 +582,7 @@ namespace Fpv450.Sim.Tests
             byte[] log = stream.ToArray();
 
             FlightWorld Open(string id) => id == "test-range" ? new FlightWorld(MapWorld.Load(RangeScenarios.Root, id)) : null;
-            ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash, materialsHash: h);
             TestContext.Out.WriteLine(r.Message);
             Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
             Assert.That(r.Steps, Is.EqualTo(Steps));
@@ -593,7 +593,7 @@ namespace Fpv450.Sim.Tests
             int at = System.MemoryExtensions.IndexOf(new System.ReadOnlySpan<byte>(log, 0, (int)header.Length), new System.ReadOnlySpan<byte>(hash));
             Assert.That(at, Is.GreaterThan(0), "the header holds the world's hash");
             log[at] ^= 1;
-            ReplayResult tampered = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            ReplayResult tampered = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash, materialsHash: h);
             TestContext.Out.WriteLine(tampered.Message);
             Assert.That(tampered.Outcome, Is.EqualTo(ReplayOutcome.Refused), tampered.Message);
             StringAssert.Contains("the world differs: the log was flown on world 'test-range'", tampered.Message);

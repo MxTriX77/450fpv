@@ -100,7 +100,7 @@ IMPOSTOR_MAX_PX = 1024  # asset-pipeline "Baked impostor LOD": the albedo, the n
 
 def load_physics_materials(root):
     """The ids of assets-src/physics_materials.json, after checking that every row carries the fields and the
-    label decision 6 asks for. Raises ValueError on a malformed table."""
+    label decision 6 asks for, and what a blade meets (BLADE_FIELDS). Raises ValueError on a malformed table."""
     with open(os.path.join(root, PHYSICS_MATERIALS), encoding="utf-8") as f:
         table = json.load(f)
     rows = table.get("materials")
@@ -122,7 +122,31 @@ def load_physics_materials(root):
             raise ValueError(f"{PHYSICS_MATERIALS}: {material_id} needs friction_static, friction_kinetic, "
                              "edge_radius_m (a number or null), stiffness_n_per_m with damping_ratio or neither, "
                              f"break_stress_pa positive if present, a label in {', '.join(LABELS)} and a rationale")
+        for field in BLADE_FIELDS:
+            problem = ("is missing" if field not in row
+                       else _blade_field_problem(row[field], nullable=field == "crush_strength_pa"))
+            if problem:
+                raise ValueError(f"{PHYSICS_MATERIALS}: {material_id}.{field} {problem}")
     return set(rows)
+
+
+# What a blade meets (p7f-damage design 5, asset-pipeline "Physics material rows say what a blade meets"): every
+# row carries these, each labelled on its own; crush_strength_pa is null where a blade passes the row without damage
+# from it.
+BLADE_FIELDS = ("hardness_pa", "crush_strength_pa", "density_kg_m3")
+
+
+def _blade_field_problem(field, nullable):
+    if not isinstance(field, dict) or set(field) != {"value", "label", "note"}:
+        return 'must be {"value", "label", "note"}'
+    if field["label"] not in LABELS:
+        return f"needs a label in {', '.join(LABELS)}"
+    if not isinstance(field["note"], str) or not field["note"]:
+        return "needs a note naming its source or reason"
+    value = field["value"]
+    if not ((_is_num(value) and value > 0) or (nullable and value is None)):
+        return "needs a value above 0" + (" or null" if nullable else "")
+    return None
 
 
 def assemble(asset_id, variant, generator, params, built, visual_by_slot, impostor_lod=None):

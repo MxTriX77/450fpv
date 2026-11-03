@@ -87,6 +87,9 @@ namespace Fpv450.Replay
         /// <summary>The repository's drone.json, found from the working directory upwards; null when there is none.</summary>
         public static string RepositoryDrone() => Repository(Path.Combine("assets-src", "drone", "drone.json"));
 
+        /// <summary>The repository's physics_materials.json, found as drone.json is; null when there is none.</summary>
+        public static string RepositoryMaterials() => Repository(Path.Combine("assets-src", "physics_materials.json"));
+
         static string Repository(string relative)
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
@@ -112,6 +115,26 @@ namespace Fpv450.Replay
             catch (IOException e)
             {
                 problem = "drone.json cannot be read: " + e.Message;
+            }
+            return 0;
+        }
+
+        /// <summary>PhysicsMaterials.Parse's hash of the file, or 0 with problem set when it cannot be read or is not valid.</summary>
+        public static ulong MaterialsHash(string path, out string problem)
+        {
+            try
+            {
+                problem = null;
+                PhysicsMaterials.Parse(File.ReadAllText(path), out ulong hash);
+                return hash;
+            }
+            catch (FormatException e)
+            {
+                problem = e.Message;
+            }
+            catch (IOException e)
+            {
+                problem = "physics_materials.json cannot be read: " + e.Message;
             }
             return 0;
         }
@@ -208,7 +231,7 @@ namespace Fpv450.Replay
             RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
-            string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
+            string materialsPath = RepositoryMaterials()
                 ?? throw new FileNotFoundException("assets-src/physics_materials.json was not found");
             MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(materialsPath), out ulong materialsHash);
             Loadout loadout = spec.Nominal;

@@ -86,7 +86,8 @@ namespace Fpv450.Sim.Log
     ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
-    ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
+    ///   physics materials' rows (with what a blade meets, p7f-damage 1.1a) with physics_materials.json's hash (none for a
+    ///   flight without contacts)
     /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
     ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
@@ -148,7 +149,8 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
-        public static readonly string[] MaterialRowFieldsLogged = { "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio" };
+        public static readonly string[] MaterialRowFieldsLogged =
+            { "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "Hardness", "CrushStrength", "Density" };
         public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
         public static readonly string[] ShapeGeometryFieldsLogged =
             { "Kind", "Center", "AxisX", "AxisY", "AxisZ", "HalfExtents", "Radius", "HalfLength", "Material", "Surface", "SpanA", "SpanB", "Sag" };
@@ -772,6 +774,9 @@ namespace Fpv450.Sim.Log
                     e.Write(m.KineticFriction);
                     e.Write(m.Stiffness);
                     e.Write(m.DampingRatio);
+                    e.Write(m.Hardness);
+                    e.Write(m.CrushStrength);
+                    e.Write(m.Density);
                 }
                 e.Write(c.MaterialsHash);
             });
@@ -1413,6 +1418,7 @@ namespace Fpv450.Sim.Log
                 c.Materials[i] = new MaterialRow
                 {
                     Name = Text(r), StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Stiffness = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                    Hardness = r.ReadDouble(), CrushStrength = r.ReadDouble(), Density = r.ReadDouble(),
                 };
             c.MaterialsHash = r.ReadUInt64();
             return c;

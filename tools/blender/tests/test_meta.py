@@ -380,11 +380,38 @@ def write_table(repo_root, tmp_path, edit):
      "'asphalt' is a surface id; a plain material id never shares a surface's name"),
     (lambda rows: rows.update({"surface:soil": rows["concrete"]}),
      "'surface:soil' is a surface id"),
+    (lambda rows: rows["concrete"].pop("hardness_pa"), r"concrete\.hardness_pa is missing"),
+    (lambda rows: rows["timber"].pop("crush_strength_pa"), r"timber\.crush_strength_pa is missing"),
+    (lambda rows: rows["glass"].pop("density_kg_m3"), r"glass\.density_kg_m3 is missing"),
+    (lambda rows: rows["steel"]["hardness_pa"].update(label="guessed"), r"steel\.hardness_pa needs a label in pilot"),
+    (lambda rows: rows["steel"]["density_kg_m3"].update(note=""), r"steel\.density_kg_m3 needs a note"),
+    (lambda rows: rows["rubber"].update(hardness_pa=5.0e6), r"rubber\.hardness_pa must be \{"),
+    (lambda rows: rows["timber"]["crush_strength_pa"].update(value=0),
+     r"timber\.crush_strength_pa needs a value above 0 or null"),
+    (lambda rows: rows["straw"]["density_kg_m3"].update(value=None), r"straw\.density_kg_m3 needs a value above 0$"),
 ])
 def test_malformed_physics_material_table_is_refused(repo_root, tmp_path, edit, expected):
     write_table(repo_root, tmp_path, edit)
     with pytest.raises(ValueError, match=expected):
         meta.load_physics_materials(tmp_path)
+
+
+def test_every_row_says_what_a_blade_meets(repo_root, material_ids):
+    """asset-pipeline (p7f-damage) "Every row says what a blade meets": the three labelled fields on every row (the
+    loader refuses the rest, above); the hard rows harder than the blade's hardness_pa in drone.json, the soft ones
+    softer (Rabinowicz's rule, p7f-damage design 5); null crush only on the thin compliant rows."""
+    rows = json.loads((repo_root / meta.PHYSICS_MATERIALS).read_text(encoding="utf-8"))["materials"]
+    drone = json.loads((repo_root / "assets-src" / "drone" / "drone.json").read_text(encoding="utf-8"))
+    blade = drone["props"]["blade"]["hardness_pa"]["value"]
+    for name, row in rows.items():
+        for field in meta.BLADE_FIELDS:
+            assert row[field]["label"] in meta.LABELS and row[field]["note"], (name, field)
+    for name in ("concrete", "masonry", "steel", "glass"):
+        assert rows[name]["hardness_pa"]["value"] > blade, name
+    for name in ("timber", "bark", "rubber"):
+        assert rows[name]["hardness_pa"]["value"] < blade, name
+    passed = {name for name, row in rows.items() if row["crush_strength_pa"]["value"] is None}
+    assert passed == {"straw", "foliage", "twig", "fabric", "mesh"}
 
 
 def test_textures_are_carried_from_the_generator(k01_params, material_ids):
