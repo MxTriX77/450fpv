@@ -619,3 +619,12 @@ The physics branches kept colliding: models 21–26 and formats 14–15 were eac
 From `p7f-damage` 1.1b. The damage design put a bind at Kt·I_lim = 0.42 N·m (40 A, D-051), but D-069 found that the class's ESC limits no current. Supersedes `p7f-damage` design 8's and its open question 3's 40 A policy.
 - **The drive into a slow or stalled rotor is the electrical chain's own:** the duty the ESC allows at that speed (BLHeli_S's and Bluejay's published low-speed power rules, derived in `p7f` 1.5), the pack's sagged voltage, and the winding, ESC and wiring resistance. On a full pack without such a rule, the stall torque is about Kt·V/R ≈ 2.4 N·m.
 - **The 40 A protection** stays only as the compared variant; G7's ESC-firmware question decides only whether it is flown (D-069).
+
+## D-074 Log event kinds are assigned once, like the model numbers · Accepted
+`p7d-tether` 1.6 appended event kinds 14–16 (`Payout`, `TetherWedge`, `WorldBug`) above `unity/main`'s 13; `p7a` and `p7f` would have appended the same numbers. Extends D-072 to `StepTrace`'s event kinds.
+- **Taken:** 14–16 by `p7d-tether`. The next free kind is 17; the orchestrator assigns each new one when a task asks.
+
+## D-075 The fiber reaches a disc only by a modelled flow: the fountain and the ground vortex · Accepted
+From `p7d-tether` 1.6. Design 4's rotor air has inflow only on the intake side, so a line lying under the rear never moves toward a rim at a punch (0.24–0.29 m away, no disc crossed). The scenario's "toward the nearest disc's edge" is right about the risk but needs a physical path, never a pull toward the rim.
+- **The path is built from published measurements:** in ground effect the wall jets of neighbouring rotors meet under the body and rise as a fountain that the discs re-ingest on their inboard side; in forward flight near the ground a ground vortex rolls up ahead of the wake. Both are measured for multirotors, tandem rotors and jet lift in ground effect, and the brownout studies track particles along them.
+- **A new task, `p7d` 1.6b,** builds both into `RotorAir` after 1.6; until it lands, the punch scenario asserts what the field gives and prints the rim distance.
