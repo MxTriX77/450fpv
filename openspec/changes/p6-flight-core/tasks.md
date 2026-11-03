@@ -431,6 +431,77 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
       - The causes listed above stand: the ground's catch (soil, its groove, stems) and the centre of mass off the axis.
       - What airmode really does at the touch is wind up the I term on the cut, about 140 at 5° from the steady approach. Betaflight keeps that I term while the drone sits, so the high side's motors stay at about a third of their duty and its legs carry 2–6 N of the 11.6 N each would carry level. That is why pilots disarm at once.
     - **The checks:** `dotnet test tools/simtests` (the two new tests skipped, the rest unchanged), the two tests un-ignored and failing as quoted above, and `openspec validate p6-flight-core --strict`.
+  - **As built: N4's fixes and the ESC on a disarm** (`unity/physics/physics-integration-2--landing`, on the physics integration 2 at model 38; `LogFormat.ModelVersion` 42, `LogFormat.Version` 32, assigned by D-072; no new event kind):
+    - **The steady approach** (`Tests/LandingScenarios.cs`, test code only). A powered touch is armed at step 8 and flies the approach's throttle from step 16, its attitude held by acro's rate loop.
+      - It touches `ApproachSeconds` (0.5 s, assumed; N4 asked at least 0.4) after the throttle's step, at the asked attitude, lateral speed and descent.
+      - The approach's throttle holds the sink steady at the tilt, so the tilted thrust balances the weight and the drone drifts at g·tan φ. Its start drift is backed off by that drift over the approach: a braking flare.
+      - Powered, "no descent" is `PoweredMinDescent`, 0.2 m/s (assumed). At 0.1 m/s the ground's cushion (D-064's wash and gain) brakes the last centimetres by about as much as the descent, and the approach never settles.
+      - Eight rounds of the approach set the throttle, sink, height, drift and attitude, each from what the last round missed when its steady part began, 0.3 s after the step. Acro holds the rate, not the attitude: without the attitude rounds the spin-up and the flare's drag levelled the touch by 0.6–0.75° (1° became 0.39°).
+      - Measured on every powered row of `--landing`: the touch 0.501–0.510 s after the step, its tilt within 0.006° of the asked, its drift within 5.2 mm/s, its descent within 0.3 mm/s, its thrust 0.99–1.06 W, and anti-gravity's filter at 0.0000.
+      - `Outcome` reports the touch's own time, speeds, thrust, anti-gravity, tilt and throttle, when it ended, and the later landing's speed and verdict.
+    - **The touch judged alone.** A touch ends once nothing has touched the ground for `HopSeconds`, 0.2 s (derived: a 5 cm hop's flight). Its verdict runs to the next contact, so a turn in the air off a caught skid is still the touch's. With the verdict closed at the lift-off instead, the free 0° nose-down caught row moved 1.712 → 2.015 m/s (a vault); with this rule it keeps 1.712. The next contact starts a later landing, reported apart (`LaterSpeed`, `LaterOver`).
+    - **The tests.** The two N4 tests are un-ignored and pass:
+      - `ArmedAndCutFromAHoverItDoesNotTipWithoutDrift`: 5°, 10°, 15° stay up (at most 5.0°, 10.0°, 15.2°), touching 0.51 s after the step with anti-gravity settled.
+      - `HeldAtTheHoverATouchIsJudgedOnItsOwn`: at 10° and 0.5 m/s down it flies off after 0.051 s, the touch at most 10.4°; its next landing comes at 3.37 m/s.
+      - `WithThrustHeldOnlyAPinnedSkidRollsItOver` keeps its rollover, judged over the touch and its next landing: at the hover's thrust the drone hops off its first touch after 0.054 s, and the tilted thrust drifts it onto its low skid at 2.14 m/s. The pinned skid rolls it over there; the smooth one skates.
+      - `ArmedTheFlightControllerHoldsTheCoilUp`: disarmed 0.639 s to 20°, armed and cut never.
+    - **The ESC on a disarm** (published; the sources read: bitdump/BLHeli's `BLHeli_S SiLabs/BLHeli_S.asm` rev 16.7, bird-sanctuary/bluejay's `src/Bluejay.asm`, `Modules/Isrs.asm` and `Settings/BluejaySettings.asm` 0.21, Betaflight 4.5.0's `drivers/dshot.c` and `flight/mixer.c`):
+      - **Betaflight on a disarm** sends DShot 0 to every ESC: `dshotInitEndpoints` sets `*disarm = DSHOT_CMD_MOTOR_STOP`, and `applyMixToMotors` writes `motor_disarmed` while not armed.
+      - **BLHeli_S** (the class's J-H-50, D-069) runs damped light always: "Motor pwm is always damped light (aka complementary pwm, regenerative braking)".
+        - At zero throttle its PWM register sits at the minimum and the damping FET is on for the rest of each period, less the FET-on delay. So in its run loop the active phases are shorted.
+        - It leaves the loop when the commutation period passes 32 ms (`run6_brake_done`, "~1220 eRPM"), or after 250 ticks of its stop counter `Rcp_Stop_Cnt` (timer 2 every 32 ms; a 48 MHz MCU skips every other interrupt; 8 s).
+        - Then `run_to_wait_for_power_on` calls `switch_power_off`: every FET off, and the motor coasts.
+        - Brake on stop (`DEFAULT_PGM_BRAKE_ON_STOP 0`) cuts the limit to 3 ticks ("About 100ms before stopping when brake is set"). After `wait100ms` it turns on `AcomFET`, `BcomFET` and `CcomFET`.
+      - **Bluejay** does the same at its defaults, with `DEFAULT_PGM_BRAKING_STRENGTH 255` (full damping):
+        - its minimum speed is "~1330 erpm" (`run6_check_speed`), and it has no stop counter without brake on stop
+        - with brake on stop it leaves after 3 ticks of its 16 ms timer ("every 16 ms after arming (on 48MHz MCUs)") and turns on the three Com FETs at once (`exit_run_mode_no_stall_no_beep`)
+      - **So the default** is neither coasting nor a brake on stop: the motor's own short through the ESC's FETs, braking it to near standstill.
+    - **The model** (`Runtime/Flight/Propulsion.cs`, `DroneSpec.cs`; `drone.json`'s new per-motor `esc_disarm`):
+      - **The default:** the run loop is the DC motor at d = 0, i = −Ke·ω/R, the same motor and resistance as the armed ESC's braking at low duty, with no supply current. Below the minimum speed (1220 or 1330 eRPM, 174 or 190 rpm on 7 pole pairs) every FET goes off and the motor coasts, latched until armed again, so a windmilling prop is not braked.
+      - **Brake on stop:** the counter's exit comes at 2.5 ticks (assumed: the timer's phase is unset, so the middle of 2–3 ticks), 80 ms for BLHeli_S and 40 ms for Bluejay. BLHeli_S then coasts 100 ms. The three-phase short is i = −1.0947·Ke·ω/R (derived: sinusoidal back-EMF, no inductance; three phases dissipate 3/2·E²/R_ph, the two-phase short across a commutation's 60° 1.370·E²/R_ph).
+      - The flight starts with every ESC stopped, and brake on stop acts only after a run loop.
+      - `drone.json`'s motors read `blheli_s` (published, the note citing the sources above). `EscDisarm.Freewheel`, model 38's coast at once, is what a motor without the field gets: both test fixtures, which keep their models' behaviour. The other values are `blheli_s_brake_on_stop`, `bluejay` and `bluejay_brake_on_stop`.
+      - The rule rides in the header's propulsion entry (format 32). The ESC's mode is a function of the flight so far, held in `Propulsion` like `ContactModel`'s tables, so the record is unchanged.
+      - **What it does from the hover's duty** (`PropulsionTests`, at rest, 8705 rpm):
+        - Half speed in 36 ms and a tenth in 120 ms, against the shorted motor integrated by RK4 at 35.3 and 118.9 ms, with no supply current.
+        - It coasts below the minimum speed: BLHeli_S leaves its run loop at 174 rpm after 188 ms and Bluejay at 189 rpm after 185 ms, then fall at 249 rad/s² (the friction's 248, the short's 554).
+        - Model 38's freewheel keeps half speed for 268 ms. A rotor's thrust integral after the disarm is 25.6 ms of the hover's thrust braked, 196.2 ms freewheeling.
+        - Brake on stop matches its default bit for bit to its counter. BLHeli_S's then coasts from 197.6 to 160.8 rad/s over its 100 ms wait while the default brakes to 23.5; Bluejay's three-phase short brakes harder than its run loop.
+      - **The tests' known-wrongs:** freewheel (half speed > 1.5 × the brake's); a run-loop short below the minimum speed (its 554 rad/s² against the 249 measured). `DroneSpecTests` reads every word, refuses another (`blheli_32`), reads Freewheel without the field and BLHeli_S on the repository's.
+    - **The landing table, model 38 against 42** (`flightbench --landing`: the lowest drift that tips it over, m/s; "never" not even at 4 m/s; powered "no descent" is 0.2 m/s down from 42; the free and mechanics columns, the falls, the runners, the range and the coil's rock are unchanged to the digit):
+
+      | Roll, descent | Free, μ 0.5 | Disarmed 38 → 42 | Freewheel on 42's harness | Armed, cut 38 → 42 | Held, μ 0.5 38 → 42 | Held, caught 38 → 42 |
+      |---|---|---|---|---|---|---|
+      | 0°, none | 0.830 | 0.796 → 0.785 | 0.393 | 2.567 → never | never → never | 0.136 → 3.697 |
+      | 5°, none | 0.701 | 0.705 → 0.645 | 0.282 | 0 → never | never → never | 0 → 3.182 |
+      | 10°, none | 0.456 | 0.460 → 0.378 | 0.084 | 0 → never | never → never | 0 → 2.815 |
+      | 15°, none | 0.268 | 0.272 → 0.179 | 0 | 0 → 0.655 | 3.111 → never | 0 → 2.594 |
+      | 20°, none | 0.102 | 0.110 → 0.007 | 0 | 0.484 → 0.152 | 1.480 → never | 0 → 1.062 |
+      | 0°, 0.5 down | 0.761 | 0.784 → 0.700 | 1.023 | 2.075 → never | never → never | 2.158 → 3.917 |
+      | 5°, 0.5 down | 0.724 | 0.723 → 0.656 | 0.321 | 2.545 → never | never → never | 0 → 3.659 |
+      | 10°, 0.5 down | 0.492 | 0.518 → 0.410 | 0.132 | 1.533 → never | 0 → never | 0 → 3.390 |
+      | 15°, 0.5 down | 0.313 | 0.316 → 0.223 | 0 | 1.001 → never | 0 → never | 0 → 3.095 |
+      | 20°, 0.5 down | 0.125 | 0.117 → 0.030 | 0 | 0 → 0.303 | 0 → never | 0 → 1.684 |
+
+      - **Armed, cut:** model 38's tips at 5–15° with no drift were the powered start's (N4). From the steady approach the rate loop holds the drone up to 4 m/s at 0–10°. Above about 2 m/s the outcome need not be monotonic in the drift (N4), so "never" is the bisection's ends, not a proof.
+      - **Held:** model 38's "held" was a throttle the rotors had not reached. At the hover's thrust the drone hops off its touch on the smooth floor; a caught skid trips it only at 1.1–3.9 m/s, because airmode's full authority fights the trip. It rolls over at the drift's later landing, which the column no longer counts.
+      - **The disarmed column by rule:** BLHeli_S and Bluejay agree within 0.002 m/s; brake on stop within 0.008 (by its 40–80 ms counter the rotors are at a fifth of their speed). None tips at rest of the 10 rows; model 38's freewheel tips 4.
+      - **The coil:** disarmed to 20° in 0.639 s (model 38 0.649 s; the freewheel 0.391 s; the variants 0.636–0.640). Armed and cut, 12.8° after 6 s (14.9°). Held, 1.6° (0.6°).
+    - **"Falls more often" (D-079).** A disarm at the touch is how the pilot lands (N4: pilots disarm at once). Braked, it now tips at less drift than model 38's at every row, by 0.011–0.108 m/s, and at less than the free body's, by 0.045–0.095 m/s. At 20° nearly any drift tips it: 7 mm/s, or 30 mm/s at 0.5 m/s down.
+      - The cause is the tilted thrust while the rotors brake. Its 25.6 ms integral gives g·tan φ × 25.6 ms: 0.044, 0.067 and 0.091 m/s at 10°, 15° and 20°, against 0.078, 0.089 and 0.095 measured below the free body.
+      - So the modelled ESC moves the pilot's "falls a bit more often" the pilot's way. Model 38's freewheel, on the fixed harness, overshoots it by the wrong mechanism: 196 ms of thrust rolling the drone over its skid, 4 of 10 rows tipping at rest.
+      - Armed and cut, falls move the other way, since the harness no longer tips it.
+      - The rest of the gap stays with the ground's catch, the off-axis centre of mass and the legs (`p7a`, `p7g`).
+    - **Betaflight's PID while disarmed (the yaw I note): the sim does not depart; nothing changed.** Betaflight 4.5.0:
+      - `fc/core.c` `processRx` (790–796): disarmed it calls `pidSetItermReset(true)` and `pidStabilisationState(pidAtMinThrottle ? ON : OFF)`.
+      - `flight/pid.c` (137): `pidAtMinThrottle` defaults to `PID_STABILISATION_ON`. No config of the pilot's sets `pid_at_min_throttle`.
+      - So `pidController` computes P, I, D and F and `Sum = P + I + D + F` (1125, 1133), and only then `pidResetIterm()` zeroes I (1148–1150). The disarmed loop's sum holds one loop's I. The "zero the whole PID data" branch (1139–1147) runs only with stabilisation off or a gyro overflow.
+      - `mixer.c` `mixTable` computes `motorMixRange` from those sums while disarmed (no early return; 421–425 overwrite only the motor outputs).
+      - `FlightController.Loop` does all of this: the sum with this loop's I, then `ITerm = default`, and the mix range from the sum. Model 36's moved record from step 1 (`fc.motor_mix_range`) is Betaflight's own.
+    - **The goldens:** `flightbench --golden` passes with every pin unmoved, every kept audit included. No golden disarms with its rotors turning, and a stopped motor's ESC is off from the start, so model 42 steps as 38 there. No stored input changed.
+    - **The replay:** `tools/replay --record … --disarm-at-touch` (new: the switch goes off as the legs first compress, the rotors at the hover's speed) flew 120 000 steps, touched at 0.457 m/s down and ended disarmed on 4 pairs. `replay` matched 120 000 steps and 99 events bit for bit (102 logged, 3 of them Late hitches).
+    - **The checks:** `dotnet test tools/simtests` 529 of 529; `flightbench --landing` PASS (0 FAIL); `--golden` PASS; `--contacts` PASS; `--shake` PASS; the replay above; `python -m pytest tools`; `precommit.py --tree HEAD`; `openspec validate --all --strict`.
+    - **Left for G7:** the ESC-firmware question also decides the `esc_disarm` value, and a word on brake on stop would settle the variant. The landings barely depend on it.
 - [x] 1.7 [physics-engineer] The budget and determinism (PLT-04):
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
   - **Verify:** p99 ≤ 300 µs and 0 allocations; a worker forced early or late changes only the logged hitches; the golden run identical in .NET and in the Unity editor (LOG-04's first half).
