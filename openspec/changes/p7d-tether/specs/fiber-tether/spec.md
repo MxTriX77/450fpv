@@ -37,7 +37,7 @@ The coil SHALL pay line out through the rear cap's exit only while the tension a
 
 #### Scenario: Line pays out as the drone flies away
 - **WHEN** the drone flies straight away from its launch point at 5, 10 and 20 m/s for 20 s in Calm
-- **THEN** the paid-out length rises monotonically and is at least the straight-line distance from the anchor, and the logged exit tension at steady speed equals the resistance's law at that speed times the lip's capstan within 2 %
+- **THEN** the paid-out length rises monotonically and is at least the straight-line distance from the anchor, and the logged exit tension at steady speed equals the resistance's law at that speed over the lip's capstan within 2 % (the moving line's capstan: its momentum flux μ·ṡ² outside the exponential, as a belt's centrifugal tension)
 
 #### Scenario: Line never comes back
 - **WHEN** the drone flies 100 m out and then straight back toward its launch point
@@ -78,11 +78,11 @@ Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow to
 - **THEN** that target fails
 
 ### Requirement: The line pulls the drone
-The tension at the exit SHALL act on the drone at the exit point, below and behind the centre of mass, as a force and a moment, and every contact of the line with a drone part SHALL act on the drone at its point; the line SHALL never act through the centre of mass alone.
+The tension at the exit, less the momentum flux μ·ṡ² of the line leaving it (the leaving line carries that momentum away), SHALL act on the drone at the exit point along the first segment, below and behind the centre of mass, as a force and a moment, and every contact of the line with a drone part SHALL act on the drone at its point; the line SHALL never act through the centre of mass alone.
 
 #### Scenario: The exit's pull and its moment
 - **WHEN** the drone hovers with the line trailing taut behind it at the payout tension, and the line is then held fast 20 m behind
-- **THEN** the force and moment on the drone equal the logged exit tension along the first segment at the logged exit point within 1e-9 relative, and once held the exit tension rises until the drone is pulled back and pitched toward the hold or the line breaks
+- **THEN** the force and moment on the drone equal the logged exit tension, less the logged payout speed's momentum flux, along the first segment at the logged exit point within 1e-9 relative, and once held the exit tension rises until the drone is pulled back and pitched toward the hold or the line breaks
 
 #### Scenario: A line round a skid tethers the drone
 - **WHEN** the line is wrapped once round the rear skid and held fast on the ground behind, and the drone climbs at hover + 0.2
