@@ -274,8 +274,9 @@ namespace Fpv450.Sim.Wind
     ///   open profile and s the wake grid's speed, and the wake eddies carry √(1 − w) of their excess. Outside every
     ///   strip, or above its blending height, the wakes alone.
     /// - **The wind inside a cut** (p7c-wind 1.10, design 10, D-071; Cavity, CutFrame), when the setup has cuts: where the
-    ///   body's origin lies in a cut's opening, the step's frame is that cut's. Above the lip the field takes the lip as its
-    ///   ground (its profile, wakes and canopy), never the floor. Below it, in an open cut, the cut's own cavity flow driven
+    ///   body's origin lies in a cut's opening (the world's own: within the cut's reach, the ground under it below the
+    ///   lip), the step's frame is that cut's. Above the lip the field takes the lip as its ground (its profile, wakes and
+    ///   canopy), never the floor. Below it, in an open cut, the cut's own cavity flow, D its depth at the centre line, driven
     ///   by the field's mean at h_o = min(W, 1.5·D) over the lip at the origin (with its wakes and canopy share), with the
     ///   field's fluctuation at the point, each part tapered, boosted and shared as at h_o, times τ·Λ; under a covered
     ///   cut's roof, and in the walls, still air. Elsewhere the field as before, bit for bit.

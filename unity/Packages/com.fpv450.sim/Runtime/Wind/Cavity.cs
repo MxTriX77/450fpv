@@ -5,9 +5,10 @@ namespace Fpv450.Sim.Wind
     /// <summary>
     /// A cut in the ground whose wind is a cavity flow (p7c-wind design 10, D-071): a trench's run, a niche, a cellar's
     /// shaft. Its centre line (world, m, each point's Y the lip's height there), its opening's width at the lip, its depth
-    /// under the lip (the floor the field takes where the core finds no soil under the body), the opening past the first
-    /// and the last centre-line points along the end segments, m, and whether a roof covers it below the lip (still air
-    /// under it). Derived from the world's hole records (MapWind.Cuts), never drawn; the log header records every value.
+    /// under the lip (its floor at the centre line: the cavity's D wherever the body is in its opening), the opening past
+    /// the first and the last centre-line points along the end segments, m, and whether a roof covers it below the lip
+    /// (still air under it). Derived from the world's hole records (MapWind.Cuts), never drawn; the log header records
+    /// every value.
     /// </summary>
     public sealed class CutSpec
     {
@@ -166,14 +167,22 @@ namespace Fpv450.Sim.Wind
     /// <summary>
     /// A flight's cuts and the step's frame in them (p7c-wind design 10): built at the flight's start from the setup's
     /// cuts (a bounding box per cut, each centre-line segment's axis and arc), then Locate at the step's start and Flow at
-    /// each point. The frame is the nearest centre-line segment of the cut whose opening holds the body's origin, an open
-    /// cut before a covered one (a niche's end reaches across the run's opening: the run takes that point). Every point of
-    /// the step uses it (assumed: the hubs lie within 0.4 m of the origin, and E01's bends have a 3.7 m radius). It lives
-    /// in the step's frame, never in FlightState, so a replay recomputes it. Zero allocations after the constructor.
+    /// each point. The opening is the world's own: the body's origin lies in it where the ground under it lies below the
+    /// lip within the cut's reach. The frame is the nearest centre-line segment of such a cut, an open cut before a
+    /// covered one (a niche's end reaches across the run's opening: the run takes that point). Every point of the step
+    /// uses it (assumed: the hubs lie within 0.4 m of the origin, and E01's bends have a 3.7 m radius). It lives in the
+    /// step's frame, never in FlightState, so a replay recomputes it. Zero allocations after the constructor.
     /// </summary>
     public sealed class CutFrame
     {
         const double Pi = 3.141592653589793;
+
+        /// <summary>The cut's reach past half its opening's width W, m: within W/2 + this of the centre line (and past its
+        /// end points by the cut's ends and this) the frame looks for the world's opening, and the ground under the origin
+        /// decides where it is (assumed: E01's `lip_crumble_m`, 0.1, how far its lip crumbles back; its world opening reaches
+        /// 0.049 m past the mean lip width's half at most, MapWindTests). The reach only bounds the search: it never sets
+        /// the opening's edge, and it keeps the run's reach out of most of a niche dug off its wall.</summary>
+        public const double OpeningReach = 0.1;
 
         readonly CutSpec[] _cuts;
         readonly int[] _first; // each cut's first segment; the last cut's end at the array's end
@@ -210,7 +219,7 @@ namespace Fpv450.Sim.Wind
                 CutSpec cut = cuts[c];
                 Double3[] line = cut.CentreLine;
                 _first[c] = k;
-                double arc = cut.EndFirst, margin = cut.Width / 2 + DetMath.Max(cut.EndFirst, cut.EndLast);
+                double arc = cut.EndFirst, margin = cut.Width / 2 + OpeningReach + DetMath.Max(cut.EndFirst, cut.EndLast);
                 _x0[c] = _z0[c] = double.PositiveInfinity;
                 _x1[c] = _z1[c] = double.NegativeInfinity;
                 for (int i = 0; i < line.Length; i++)
@@ -260,16 +269,20 @@ namespace Fpv450.Sim.Wind
         public double DriveHeight => _ho;
 
         /// <summary>
-        /// The frame at the body's origin (world plan x, z) over `ground` (the field's ground under it: over a hole the
-        /// soil's, FlightWorld.SoilUnder; −∞ for none): the nearest segment of the cut whose opening holds it, open before
-        /// covered, ties to the first in the setup's order. A segment's opening is the strip within W/2 of it, the end
-        /// segments' reaching past their end points by the cut's ends (square: the end walls), with a disc of W/2 about each
-        /// inner joint (a bend's outer corner). D is the lip less the ground there, the cut's own depth where there is none.
-        /// False, and no frame, where no opening holds the origin.
+        /// The frame at the body's origin (world plan x, z) over `ground` (the field's ground under it, as the core gives
+        /// it: SampleGround's height, over a hole the soil's, FlightWorld.SoilUnder; −∞ for none). The opening is the world's
+        /// own: the origin lies in a cut's opening where it is within the cut's reach (W/2 + OpeningReach of its centre line,
+        /// the line running on past its end points by the cut's ends) and the ground under it lies below that cut's lip
+        /// there. The edge then falls where the world's ground meets the lip, so the field's ground (the lip inside, the
+        /// world's at the lip outside) is continuous there. The frame is the nearest such segment, open before covered, ties
+        /// to the first in the setup's order. D is the cut's own depth, its floor at the centre line under the lip (the
+        /// record's), never the soil under the origin. False, and no frame, where no opening holds the origin (and where no
+        /// soil lies under it).
         /// </summary>
         internal bool Locate(double x, double z, double ground)
         {
             _active = _driven = false;
+            if (!(ground > double.NegativeInfinity)) return false;
             int bestCut = -1, bestSeg = -1;
             double bestDist = double.PositiveInfinity, bestU = 0;
             bool bestCovered = true;
@@ -279,27 +292,18 @@ namespace Fpv450.Sim.Wind
                 CutSpec cut = _cuts[c];
                 bool covered = cut.Covered;
                 if (covered && !bestCovered) continue;
-                double half = cut.Width / 2;
+                double reach = cut.Width / 2 + OpeningReach;
                 int first = _first[c], last = _first[c + 1] - 1;
                 for (int i = first; i <= last; i++)
                 {
                     double dx = x - _ax[i], dz = z - _az[i];
                     double u = dx * _tx[i] + dz * _tz[i], v = dz * _tx[i] - dx * _tz[i];
-                    double lo = i == first ? -cut.EndFirst : 0, hi = i == last ? _len[i] + cut.EndLast : _len[i], dist;
-                    if (u < lo)
-                    {
-                        if (i == first) continue;
-                        dist = DetMath.Sqrt(u * u + v * v);
-                    }
-                    else if (u > hi)
-                    {
-                        if (i == last) continue;
-                        double du = u - hi;
-                        dist = DetMath.Sqrt(du * du + v * v);
-                    }
-                    else dist = DetMath.Abs(v);
-                    if (!(dist <= half)) continue;
+                    double lo = i == first ? -cut.EndFirst : 0, hi = i == last ? _len[i] + cut.EndLast : _len[i];
+                    double du = u < lo ? u - lo : u > hi ? u - hi : 0, dist = du == 0 ? DetMath.Abs(v) : DetMath.Sqrt(du * du + v * v);
+                    if (!(dist <= reach)) continue;
                     if (bestCut >= 0 && covered == bestCovered && !(dist < bestDist)) continue;
+                    double along = DetMath.Min(DetMath.Max(u, 0), _len[i]);
+                    if (!(ground < _ay[i] + _dy[i] * along / _len[i])) continue; // the world's ground at or over the lip
                     bestCut = c;
                     bestSeg = i;
                     bestDist = dist;
@@ -310,14 +314,14 @@ namespace Fpv450.Sim.Wind
             if (bestCut < 0) return false;
             CutSpec best = _cuts[bestCut];
             int s = bestSeg;
-            double along = DetMath.Min(DetMath.Max(bestU, 0), _len[s]);
+            double at = DetMath.Min(DetMath.Max(bestU, 0), _len[s]);
             _active = true;
             _covered = best.Covered;
-            _lip = _ay[s] + _dy[s] * along / _len[s];
+            _lip = _ay[s] + _dy[s] * at / _len[s];
             _width = best.Width;
             _half = best.Width / 2;
             _length0 = _length[bestCut];
-            _depth = ground > double.NegativeInfinity ? _lip - ground : best.Depth;
+            _depth = best.Depth;
             _fx = _ax[s];
             _fz = _az[s];
             _ftx = _tx[s];

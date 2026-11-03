@@ -203,6 +203,10 @@ namespace Fpv450.Sim.Log
         ///    cavity each by its length over its depth, the field's fluctuation × τ·Λ), and still air under a covered cut's
         ///    roof, in place of model 20's open profile restarted at the floor. A flight that never enters a cut's opening,
         ///    or flies without cuts or in still or steady air, steps as in 26.
+        ///    Changed on its branch before any landing (D-072 keeps 30): the opening is the world's own, the origin within
+        ///    the cut's reach (W/2 + CutFrame.OpeningReach) with the ground under it below the lip, in place of the strip
+        ///    within W/2 of the centre line; and D is the cut's own depth at its centre line, never the lip less the soil
+        ///    under the origin.
         /// </summary>
         public const int ModelVersion = 30;
 
