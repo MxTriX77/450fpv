@@ -41,6 +41,7 @@ namespace Fpv450.Replay
             public double WallSeconds;
             public Exception Fault;
             public string Landing = "";
+            public string Line;
         }
 
         sealed class VirtualClock : IHostClock
@@ -228,7 +229,7 @@ namespace Fpv450.Replay
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, string tetherPath = null)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
@@ -293,6 +294,13 @@ namespace Fpv450.Replay
                 Rain = rain,
                 CameraPosition = spec.CameraPosition,
             };
+            // --line (p7d-tether 1.6): the fiber laid from the table's launch behind the start, drone.json's coil paying out.
+            if (tetherPath != null)
+            {
+                setup.Tether = TetherTable.Parse(File.ReadAllText(tetherPath));
+                setup.TetherCoilPart = spec.Coil.Part;
+                setup.TetherSpoolMass = spec.Coil.SpoolMass;
+            }
             var core = new FlightCore(setup);
             LogHeader header = LogHeader.For(setup, core);
             header.Build = Host.Build;
@@ -322,6 +330,11 @@ namespace Fpv450.Replay
                 Fault = fault ?? recorder.Fault,
                 Landing = pilot.Landing + $"; ends at {core.State.Position.Y - foot.Y - stand:F4} m over standing, {core.Trace.ContactsTouching} touching pairs, "
                     + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}",
+                Line = core.Tether == null ? null
+                    : $"tether.json 0x{setup.Tether.ContentHash:X16}, G₀ {core.Tether.PeelEnergy:F4} J/m: {core.Tether.PaidOut:F2} m paid out, "
+                        + $"{core.Tether.Chain.Count} nodes, {core.Tether.TrailCount} trail points; the chain's guards: {core.Tether.Chain.Corrections} extra solves, "
+                        + $"{core.Tether.Chain.Clips} clips, {core.Tether.Chain.SafeSteps} safe steps, {core.Tether.Chain.MergeClips} merge clips, "
+                        + $"{core.Tether.Chain.Wedges} wedges",
             };
         }
 

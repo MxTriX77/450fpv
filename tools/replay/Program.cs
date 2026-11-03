@@ -17,10 +17,11 @@ namespace Fpv450.Replay
             + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--drone <drone.json>]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--drone <drone.json>] [--line | --tether <tether.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
-            + "                                         in the map's own wind (its wakes and its belt's canopy)\n"
+            + "                                         in the map's own wind (its wakes and its belt's canopy); --line\n"
+            + "                                         flies it on the fiber (the repository's tether.json, or the file given)\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json, and tether.json, for a log with the line,\n"
             + "to its assets-src/tether.json";
@@ -122,8 +123,10 @@ namespace Fpv450.Replay
                 throw new ArgumentException("--rain is sunny, rain or severerain");
 
             string map = Option(args, "--map");
+            string tether = Option(args, "--tether") ?? (Array.IndexOf(args, "--line") >= 0
+                ? ScriptedFlight.RepositoryTether() ?? throw new ArgumentException("no tether.json found; pass --tether") : null);
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
-                Array.IndexOf(args, "--canopy") >= 0, map);
+                Array.IndexOf(args, "--canopy") >= 0, map, tether);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {map ?? "floor"}, {wind} wind, {rain}, "
@@ -132,6 +135,7 @@ namespace Fpv450.Replay
             Console.WriteLine($"  {r.Bytes} bytes: header {r.HeaderBytes} B, then {perStep:F1} B a step = {perStep * 60000 / 1e6:F2} MB a minute; "
                 + $"seed 0x{r.Seed:X16}, drone.json 0x{r.DroneHash:X16}; {r.WallSeconds:F2} s of wall time");
             Console.WriteLine("  landing: " + r.Landing);
+            if (r.Line != null) Console.WriteLine("  the line: " + r.Line);
             if (r.Fault != null)
             {
                 Console.WriteLine("  the log failed: " + r.Fault.Message);
