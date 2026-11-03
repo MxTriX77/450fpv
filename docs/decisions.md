@@ -614,3 +614,8 @@ The physics branches kept colliding: models 21–26 and formats 14–15 were eac
 - **The orchestrator assigns the numbers** when a physics branch merges another line or starts a change that moves the model. A number is used once on any pushed `unity/physics/*` branch, never twice.
 - **Assigned on 2026-11-03:** `p7a-ground` model 27, format 17; `p7d-tether` 28, 18; `p7f-damage` 29, 19 (taken when its first code lands). A later step in a line asks for its next pair.
 - **A landing on `unity/main`** that combines two numbered states takes a new number above both, and audits the goldens case by case.
+
+## D-073 A bound motor takes the ESC's drive without a current limit · Accepted
+From `p7f-damage` 1.1b. The damage design put a bind at Kt·I_lim = 0.42 N·m (40 A, D-051), but D-069 found that the class's ESC limits no current. Supersedes `p7f-damage` design 8's and its open question 3's 40 A policy.
+- **The drive into a slow or stalled rotor is the electrical chain's own:** the duty the ESC allows at that speed (BLHeli_S's and Bluejay's published low-speed power rules, derived in `p7f` 1.5), the pack's sagged voltage, and the winding, ESC and wiring resistance. On a full pack without such a rule, the stall torque is about Kt·V/R ≈ 2.4 N·m.
+- **The 40 A protection** stays only as the compared variant; G7's ESC-firmware question decides only whether it is flown (D-069).
