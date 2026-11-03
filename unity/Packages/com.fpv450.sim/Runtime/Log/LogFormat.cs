@@ -258,8 +258,12 @@ namespace Fpv450.Sim.Log
         ///    ground; one that touches no layer row no area law or stroke; one without the line (FlightSetup.Tether null) no
         ///    line, its record block zero. With none of them a flight steps as in 28 (as in 26 on the test range, where the
         ///    two Atan2 forms give the same bits).
+        /// 35: assigned elsewhere (D-072).
+        /// 36: Betaflight's yaw I (on 34; reference-notes/rate-tracking.md §6): the controller multiplies yaw's Ki by 2.5 after
+        ///    the scaling, as pid_init.c's pidInitConfig does without integrated yaw. A flight on i_yaw just under 12, whose
+        ///    Ki is 34's ITERM_SCALE × 30 bit for bit (GoldenFlights.Model34YawI), steps as in 34; the record is unchanged.
         /// </summary>
-        public const int ModelVersion = 34;
+        public const int ModelVersion = 36;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

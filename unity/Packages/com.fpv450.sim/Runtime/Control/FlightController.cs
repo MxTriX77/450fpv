@@ -20,7 +20,8 @@ namespace Fpv450.Sim.Control
     ///   arming rules on the arm switch and airmode's start (fc/core.c)
     /// - every loop: the gyro's and the D term's filter chain (FilterBank: the lowpasses, the notches, the RPM filter
     ///   and the dynamic notch), the RC smoothing's PT3 filters at the auto cutoffs (rc.c processRcSmoothingFilter),
-    ///   the PID with Betaflight's scaling on the filtered gyro, I-term relax, the I-term's windup and limit, D min,
+    ///   the PID with Betaflight's scaling on the filtered gyro (yaw's I × 2.5, as Betaflight runs it with integrated
+    ///   yaw off; integrated yaw is not modelled), I-term relax, the I-term's windup and limit, D min,
     ///   TPA, anti-gravity, the yaw P low-pass and the PID-sum limits (flight/pid.c pidController, pid_init.c), and
     ///   the mixer: the dynamic LPFs' throttle, throttle boost, the Quad X mix, airmode's desaturation and the DShot
     ///   endpoints with the idle and battery sag compensation (flight/mixer.c mixTable, calculateThrottleAndCurrent-
@@ -61,6 +62,7 @@ namespace Fpv450.Sim.Control
         // ---- Betaflight 4.5.0's constants (published; flight/pid.h, flight/pid_init.c, flight/pid.c, common/filter.c,
         // fc/rc.c, drivers/dshot.h, fc/rc_controls.h) ----
         const double PtermScale = 0.032029, ItermScale = 0.244381, DtermScale = 0.000529, FeedforwardScale = 0.013754;
+        const double YawItermFactor = 2.5; // pid_init.c pidInitConfig: pidCoefficient[FD_YAW].Ki *= 2.5f without integrated yaw
         const double PidMixerScaling = 1000;
         const double ItermRelaxSetpointThreshold = 40;
         const double AntiGravityKi = 0.34, AntiGravityKp = 0.0034;
@@ -137,6 +139,9 @@ namespace Fpv450.Sim.Control
                 _kf[a] = FeedforwardScale * (f[a] * 0.01);
                 _dMinPercent[a] = dMin[a] > 0 && dMin[a] < d[a] ? dMin[a] / d[a] : 0;
             }
+            // pid_init.c pidInitConfig, right after the scaling: yaw's Ki × 2.5 unless use_integrated_yaw. Integrated yaw is
+            // not modelled (its default is off, and none of the pilot's configs turns it on), so the factor always applies.
+            _ki[2] *= YawItermFactor;
             _dMinGyroGain = DMinGainFactor * settings.d_min_gain / DMinLowpassHz;
             _dMinSetpointGain = DMinSetpointGainFactor * settings.d_min_gain * settings.d_min_advance / 100 / DMinLowpassHz;
             _kRelax = settings.iterm_relax != ItermRelax.OFF ? Pt1Gain(settings.iterm_relax_cutoff) : 0;

@@ -199,7 +199,7 @@ namespace Fpv450.Sim.Tests
             double low = dshotMin + fc.dshot_idle_value * 0.0001 * range, high = dshotMax - range * (1 - fc.motor_output_limit / 100);
             mo.DutyPerUnit = (high - low) / range / 1000;
             mo.RollKi = 0.244381 * fc.i_roll; // pid.c's ITERM_SCALE (published, Betaflight 4.5)
-            mo.YawKi = 0.244381 * fc.i_yaw;
+            mo.YawKi = 0.244381 * fc.i_yaw * 2.5; // and pid_init.c's × 2.5 on yaw, integrated yaw off
             MassProperties body = spec.BuildMass(spec.Nominal).Properties;
             for (int i = 0; i < 4; i++)
             {

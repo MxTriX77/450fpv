@@ -279,7 +279,8 @@ namespace Fpv450.Sim.Tests
             // The floor's belt_bare in rain: the flight rests in its wet groove, climbs out of it, lands and bounces on it.
             // Without the cohesive pull (σ_a 0 in every set) it is model 27's flight, every record and event; with it, model
             // 32's. The flight touches no straw, so the straw row's wet block plays no part. Hashed over model 28's 1904 bytes
-            // since model 34 (the line's record; its block is zero without the line).
+            // since model 34 (the line's record; its block is zero without the line), on model 34's yaw I since model 36
+            // (GoldenFlights.Model34YawI).
             DroneSpec spec = Drone();
             SurfaceTable without = SoilScenarios.Table().Clone();
             for (int i = 0; i < without.Surfaces.Length; i++) without.Surfaces[i].Wet.Adhesion = without.Surfaces[i].Saturated.Adhesion = 0;
@@ -289,7 +290,7 @@ namespace Fpv450.Sim.Tests
                 var b = new System.Collections.Generic.List<double>();
                 double peak = 0;
                 int pulling = 0, firstPull = -1, ea = 0, eb = 0;
-                ulong with = GoldenFlights.FlyContact(spec, out FlightCore ca, rain: rain, layout: GoldenFlights.Model28Layout, after: core =>
+                ulong with = GoldenFlights.FlyContact(spec, out FlightCore ca, rain: rain, layout: GoldenFlights.Model28Layout, yawI: false, after: core =>
                 {
                     a.Add(core.State.Position.Y);
                     ea += core.Events.Count;
@@ -302,7 +303,7 @@ namespace Fpv450.Sim.Tests
                     }
                     peak = Math.Max(peak, pull);
                 });
-                ulong off = GoldenFlights.FlyContact(spec, out FlightCore cb, rain: rain, table: without, layout: GoldenFlights.Model28Layout, after: core => { b.Add(core.State.Position.Y); eb += core.Events.Count; });
+                ulong off = GoldenFlights.FlyContact(spec, out FlightCore cb, rain: rain, table: without, layout: GoldenFlights.Model28Layout, yawI: false, after: core => { b.Add(core.State.Position.Y); eb += core.Events.Count; });
                 int first = -1, rose = -1, roseOff = -1;
                 double most = 0;
                 for (int i = 0; i < a.Count; i++)
