@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from generators import drone
-from lib import meta
+from lib import geometry, meta
 from lib import params as params_lib
 
 REPO = Path(__file__).resolve().parents[3]
@@ -246,6 +246,36 @@ def test_coil_is_its_part_end_to_end(variant, spec):
     assert (mhi[1] if f.v[1] < 0 else mlo[1]) == pytest.approx(plate_face, abs=1e-9)
 
 
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_the_coil_pack_is_its_own_readable_mesh_holding_what_the_payout_moves(variant, built):
+    """p7d-tether 1.14: the player's CoilPack moves every vertex on the pack's outer surface (within the ribs' depth
+    under the full pack's radius, between its rear face and the hoop: CoilShape.D01's band, its 0.1 mm tolerance) as
+    the line pays out, and only the metadata's readable parts are imported readable. So each LOD's pack is its own
+    mesh, <variant>_LOD<n>_coil_pack, holding every such vertex, all but its two rims, and the LOD itself none."""
+    params = load(variant)
+    layout = drone.Layout(drone.load_spec(params), params)
+    f, _ = drone.mount_frame(params, layout, "coil")
+    c = layout.part("coil")["position_m"]
+    rp, (_, z1, z2, _) = drone.coil_radii(params, layout)
+    tol, rib = 1e-4, params["coil"]["rib_depth_m"]
+
+    def on_pack(v):
+        d = [v[a] - c[a] for a in range(3)]
+        z = sum(d[a] * f.w[a] for a in range(3))
+        r = math.hypot(sum(d[a] * f.u[a] for a in range(3)), sum(d[a] * f.v[a] for a in range(3)))
+        return z1 - tol <= z <= z2 + tol and rp - rib - tol <= r <= rp + tol
+
+    b = built[variant]
+    assert [(r["lod"], r["kind"]) for r in b["readable"]] == [(q, "coil_pack") for q in range(4)]
+    for q, (lod, readable) in enumerate(zip(b["lods"], b["readable"])):
+        pack = readable["mesh"]
+        assert not any(on_pack(v) for v in lod.vertices), f"LOD{q}: a vertex the payout moves outside the pack"
+        assert sum(on_pack(v) for v in pack.vertices) == len(pack.vertices) - 2 * drone.COIL_SEGMENTS[q], f"LOD{q}"
+        assert set(pack.slots()) == {"plastic"}
+    data = meta.assemble("D01", variant, "drone", params, b, {s: f"drone_{s}" for s in drone.PALETTES})
+    assert [r["name"] for r in data["readable"]] == [f"{variant}_LOD{q}_coil_pack" for q in range(4)]
+
+
 def test_payout_shrinks_the_pack_to_the_core():
     params = load("D01_legs_on")
     layout = drone.Layout(drone.load_spec(params), params)
@@ -398,14 +428,16 @@ def test_parts_are_closed_solids_with_outward_normals(spec):
     n = 12
     assert volume(parts["leg_rr"]) == pytest.approx(n / 2 * (leg["diameter_m"] / 2) ** 2 * math.sin(2 * math.pi / n)
                                                     * leg["length_m"])
-    for name in ("motor_rr", "prop_fl", "coil", "bottle", "skid_left", "plates", "clamp_rr", "tjoint_fr"):
+    for name in ("motor_rr", "prop_fl", "bottle", "skid_left", "plates", "clamp_rr", "tjoint_fr"):
         assert volume(parts[name]) > 0, name
+    assert volume(geometry.merged([parts["coil"], parts["coil_pack"]])) > 0  # the spool, its pack its own mesh
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_four_lods_lighter_each_and_the_same_size(variant, built):
     b = built[variant]
-    tris = [m.triangles() for m in b["lods"]]
+    tris = [m.triangles() + sum(r["mesh"].triangles() for r in b["readable"] if r["lod"] == q)
+            for q, m in enumerate(b["lods"])]  # what each LOD draws, its coil pack with it
     assert len(tris) == 4 and tris == sorted(tris, reverse=True) and len(set(tris)) == 4
     assert tris[0] < 25000 and tris[3] < 600  # AST-08: a hero asset; the far LOD a few hundred
     lo0, hi0 = b["lods"][0].bounds()
@@ -413,7 +445,7 @@ def test_four_lods_lighter_each_and_the_same_size(variant, built):
         lo, hi = m.bounds()
         assert lo == pytest.approx(lo0, abs=0.015) and hi == pytest.approx(hi0, abs=0.015)
     assert b["switch_distances_m"] == [0.0, 3.0, 10.0, 35.0] and b["cull_distance_m"] == 330.0
-    for m in b["lods"]:
+    for m in b["lods"] + [r["mesh"] for r in b["readable"]]:
         assert m.smooth == set(m.slots())
 
 
@@ -421,6 +453,7 @@ def test_build_is_deterministic():
     a, b = drone.build(load("D01_legs_on")), drone.build(load("D01_legs_on"))
     assert [m.vertices for m in a["lods"]] == [m.vertices for m in b["lods"]]
     assert [m.faces for m in a["lods"]] == [m.faces for m in b["lods"]]
+    assert [(r["lod"], r["mesh"].vertices, r["mesh"].faces) for r in a["readable"]] ==         [(r["lod"], r["mesh"].vertices, r["mesh"].faces) for r in b["readable"]]
     assert a["collision"] == b["collision"] and a["snag"] == b["snag"]
 
 

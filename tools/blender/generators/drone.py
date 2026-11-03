@@ -32,6 +32,9 @@ shapes; each is drawn as follows.
   same way up from that plate: the fiber pack's diameter the part's at full spool, shrinking with `payout` to the
   core as its volume leaves; the light grey rear cap with its recessed three-spoke hub and the line's hole, the black
   front hoop, the black tray and the grey rear bracket to the plate, two cable-tie hoops; the part's length end to end.
+  The pack (its rear face from the cap's rim, the ribbed winding, the hoop's rear face to its rim: every vertex the
+  player moves as the line pays out, p7d-tether 1.14's CoilPack) is its own mesh per LOD, `coil_pack` under the
+  metadata's `readable`, so the importer makes only it readable and the rest of the drone keeps no CPU copy.
 - **Bottle** (payload; legs_off.moved; payload_kg): a plain plastic bottle (D-050) sized by its water. The part is
   the water as a solid cylinder at the mass the spec's rule gives (the mass build's uniform cube-root scale of its
   size, its face toward the arm plane kept); the bottle's body is the part's diameter, centred on the part, and base
@@ -64,6 +67,7 @@ from lib.solids import (AXES, Frame, add, box, circle, cross, dot, lathe, normal
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 CORNERS = ("rr", "fr", "rl", "fl")  # Betaflight's motor order, the spec's motors[] and legs.parts
 LODS = 4
+PACK = "coil_pack"  # the coil's pack: its part and its readable meshes' kind (CoilShape.D01PackMesh in the player)
 # The palette recipes' columns, left to right (assets-src/materials/drone_<slot>.json); test_drone checks the order.
 PALETTES = {
     "carbon": ("plate", "edge", "tube"),
@@ -290,6 +294,7 @@ def build(params):
     spec = load_spec(params)
     layout = Layout(spec, params)
     parts = [part_meshes(params, layout, q) for q in range(LODS)]
+    packs = [(q, parts[q].pop(PACK)) for q in range(LODS) if PACK in parts[q]]  # their own meshes, beside their LODs
     lods = []
     for q in range(LODS):
         mesh = Mesh()
@@ -297,6 +302,8 @@ def build(params):
             _append(mesh, m)
         mesh.smooth = set(mesh.slots())
         lods.append(mesh)
+    for _, pack in packs:
+        pack.smooth = set(pack.slots())
     lod = params["lod"]
     if layout.bottle_only:
         return _build_bottle(params, layout, lods)
@@ -307,12 +314,15 @@ def build(params):
               f"(scale {layout.payload_scale:.4f}), payout {params['payout']:g}; "
               f"prop tips {spans['nose_first']:.4f} m nose-first, {spans['diagonal']:.4f} m on the diagonal "
               f"(DRN-02: 0.574 / 0.706 +-0.005), tip radius {spans['tip_radius']:.5f} m",
-              f"FPV lens at ({lens[0]:g}, {lens[1]:g}, {lens[2]:g}) m, 0 deg uptilt, facing +z"]
+              f"FPV lens at ({lens[0]:g}, {lens[1]:g}, {lens[2]:g}) m, 0 deg uptilt, facing +z",
+              f"coil pack its own readable mesh per LOD, {' / '.join(str(len(p.vertices)) for _, p in packs)} vertices"]
     return {
         "lods": lods,
+        "readable": [{"lod": q, "kind": PACK, "mesh": pack} for q, pack in packs],
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
         "cull_distance_m": lod["cull_m"],
-        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in sorted({s for m in lods for s in m.slots()})],
+        "materials": [{"slot": slot, "physics": PHYSICS[slot]}
+                      for slot in sorted({s for m in lods + [p for _, p in packs] for s in m.slots()})],
         "collision": collision,
         "gaps": [],
         "wind_volumes": [],
@@ -394,6 +404,7 @@ def part_meshes(params, layout, q):
             if side == "left" and params["skid_band"]:
                 add_part("skid_left_band", _skid_band, params, layout, side)
     add_part("coil", _coil, params, layout)
+    add_part(PACK, _coil_pack, params, layout)
     add_part("coil_mount", _coil_mount, params, layout)
     if layout.has("payload"):
         add_part("bottle", _bottle, params, layout)
@@ -971,18 +982,19 @@ def coil_radii(params, layout):
     return rp, (z0, z1, z2, z3)
 
 
-def _coil(m, q, params, layout):
-    """The spool (T's, under the frame by D-050): the light grey rear cap with the line's hole (and at LOD0 its
-    recessed three-spoke hub), the ribbed fiber pack, the black front hoop."""
-    f, _ = mount_frame(params, layout, "coil")
+COIL_SEGMENTS = (32, 20, 10, 6)  # the spool's lathe per LOD
+
+
+def coil_profile(params, layout, q):
+    """The spool's lathe profile at LOD q (T's, under the frame by D-050), its paints and where the pack runs in it,
+    profile[a] to profile[b]: from the cap's rim at the pack's rear face (the rear end at LOD3, which has no cap) to the
+    hoop's rim at its rear face. Both ends are creases, so the lathes of the three runs are the spool's own."""
     c = params["coil"]
     rp, (z0, z1, z2, z3) = coil_radii(params, layout)
     r_cap, r_hoop, r_hole = c["cap_d_m"] / 2, c["hoop_d_m"] / 2, c["hole_d_m"] / 2
-    seg = (32, 20, 10, 6)[q]
     if q == 3:
-        lathe(m, f, [(z0, 0.0), (z0, rp), (z2, rp), (z2, r_hoop), (z3, r_hoop), (z3, 0.0)], seg,
-              [PRINT, FIBER, BLACK, BLACK, BLACK])
-        return
+        return ([(z0, 0.0), (z0, rp), (z2, rp), (z2, r_hoop), (z3, r_hoop), (z3, 0.0)],
+                [PRINT, FIBER, BLACK, BLACK, BLACK], 1, 3)
     if q == 0:  # the recessed three-spoke hub round the line's hole
         r_boss, r_rec, depth = 0.010, 0.025, 0.008
         profile = [(z0 + 0.012, 0.0), (z0 + 0.012, r_hole), (z0, r_hole), (z0, r_boss), (z0 + depth, r_boss),
@@ -991,6 +1003,7 @@ def _coil(m, q, params, layout):
     else:
         profile = [(z0 + 0.012, 0.0), (z0 + 0.012, r_hole), (z0, r_hole), (z0, r_cap)]
         paints = [RECESS, PRINT, PRINT]
+    a = len(profile)
     profile += [(z1, r_cap), (z1, rp)]
     paints += [PRINT, FIBER]
     ribs = int(round(c["wound_m"] / c["rib_pitch_m"])) if q == 0 and c["rib_depth_m"] > 0 else 0
@@ -998,15 +1011,34 @@ def _coil(m, q, params, layout):
         groove = 0.5 - 0.5 * math.cos(2 * math.pi * k / 4)
         profile.append((z1 + (z2 - z1) * k / (ribs * 4), rp - c["rib_depth_m"] * groove))
         paints.append(FIBER)
+    b = len(profile) + 1
     profile += [(z2, rp), (z2, r_hoop), (z3, r_hoop), (z3, 0.0)]
     paints += [FIBER, BLACK, BLACK, BLACK]
-    lathe(m, f, profile, seg, paints)
+    return profile, paints, a, b
+
+
+def _coil(m, q, params, layout):
+    """The spool without its pack (coil_pack): the light grey rear cap with the line's hole (and at LOD0 its recessed
+    three-spoke hub), the black front hoop."""
+    f, _ = mount_frame(params, layout, "coil")
+    profile, paints, start, end = coil_profile(params, layout, q)
+    lathe(m, f, profile[:start + 1], COIL_SEGMENTS[q], paints[:start])
+    lathe(m, f, profile[end:], COIL_SEGMENTS[q], paints[end:])
     if q == 0:
+        _, (z0, _, _, _) = coil_radii(params, layout)
         for k in range(3):  # the spokes, flush with the rear face
             a = math.pi / 2 + k * 2 * math.pi / 3
             u, v = math.cos(a), math.sin(a)
             sf = Frame(f.at(0, 0, 0), f.dir(u, v, 0), f.dir(-v, u, 0), f.w)
             box(m, sf, (0.0095, -0.003, z0), (0.0255, 0.003, z0 + 0.008), PRINT)
+
+
+def _coil_pack(m, q, params, layout):
+    """The fiber pack, the spool's run between the cap's rim and the hoop's (coil_profile): its rear face, the ribbed
+    winding, the hoop's rear face."""
+    f, _ = mount_frame(params, layout, "coil")
+    profile, paints, start, end = coil_profile(params, layout, q)
+    lathe(m, f, profile[start:end + 1], COIL_SEGMENTS[q], paints[start:end])
 
 
 def _coil_mount(m, q, params, layout):

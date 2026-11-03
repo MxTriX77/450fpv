@@ -21,25 +21,25 @@
   "lods": [
     {
       "mesh": "D01_legs_on_LOD0",
-      "tris": 17382,
+      "tris": 12134,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD1",
-      "tris": 5460,
+      "tris": 5340,
       "switch_distance_m": 3.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD2",
-      "tris": 2208,
+      "tris": 2148,
       "switch_distance_m": 10.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD3",
-      "tris": 376,
+      "tris": 352,
       "switch_distance_m": 35.0,
       "thin_wire": false
     }
@@ -1238,6 +1238,32 @@
       ],
       "radius_m": 0.00225,
       "material": "plastic"
+    }
+  ],
+  "readable": [
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_coil_pack",
+      "kind": "coil_pack",
+      "tris": 5248
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_coil_pack",
+      "kind": "coil_pack",
+      "tris": 120
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_coil_pack",
+      "kind": "coil_pack",
+      "tris": 60
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_coil_pack",
+      "kind": "coil_pack",
+      "tris": 24
     }
   ]
 }
