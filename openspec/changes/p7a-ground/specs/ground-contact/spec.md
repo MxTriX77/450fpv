@@ -53,7 +53,7 @@ Each half-skid SHALL have a stick-point friction anchor whose holding limit is t
 
 #### Scenario: A re-landing finds its prints
 - **WHEN** the drone lands, lifts off and lands again on the same spot of crater_spoil, and then lands 0.3 m aside
-- **THEN** the second landing on the spot starts from the first's set and sinks less than the first, and the landing aside sinks as the first did within 2 %
+- **THEN** the second landing on the spot starts from the first's set and sinks less than the first, and the landing aside sinks as the first did within 5 % (the throttle's cut reaches the motors at the RC link's next frame, and one 4 ms frame of the cut moves the yield 4.6 %)
 
 ### Requirement: Uneven ground
 The ground SHALL not be the ground the pilot sees from above: the test range's zones add micro-relief, directional furrows and placed pitfalls, ruts and small craters, read through `SampleGround` from the ground function the floor is drawn from, and S04's pits lie under its draped straw. A part over a pitfall SHALL find no support until the pit's floor, furrows SHALL rock the drone across them and not along, and the log SHALL name each pitfall by its feature id and depth. Penetration of more than 0.25 m into the ground function outside a hole SHALL log `WorldBug terrain_deep`, and a support that falls 2 m below the plane over a hole with no soil shape found SHALL log `WorldBug bottomless`.

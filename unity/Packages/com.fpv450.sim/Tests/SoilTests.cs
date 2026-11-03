@@ -334,7 +334,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.Print[1], Is.True, "the second landing finds its print");
             Assert.That(r.Yield[1], Is.LessThan(r.Yield[0]), "and sinks less than the first");
             Assert.That(r.Print[2], Is.False);
-            Assert.That(r.Yield[2], Is.EqualTo(r.Yield[0]).Within(2).Percent, "the landing aside sinks as the first did");
+            Assert.That(r.Yield[2], Is.EqualTo(r.Yield[0]).Within(100 * SoilScenarios.AsideShare).Percent, "the landing aside sinks as the first did");
 
             // Known-wrong: the rigid ground has no prints and no yield, so it fails.
             SoilScenarios.Relanding rigid = SoilScenarios.Relandings(Drone(), SoilScenarios.Floor("crater_spoil"), default, rigid: true);

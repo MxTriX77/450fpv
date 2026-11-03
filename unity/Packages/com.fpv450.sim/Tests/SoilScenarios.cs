@@ -158,6 +158,13 @@ namespace Fpv450.Sim.Tests
             public bool[] Print;
         }
 
+        /// <summary>How near the landing aside's yield is the first's ("A re-landing finds its prints"), a share (derived): the
+        /// throttle's cut reaches the motors at the RC link's next 250 Hz frame, 0–4 ms after the touch, and one frame of the
+        /// cut moves a 0.3 m/s landing's yield on crater_spoil by 4.6 % (3.370 against 3.216 mm on D-066's drone, 3.455
+        /// against 3.297 on model 22's); with the cut held 0–7 ms past the touch the landing aside stays within −3.6 to
+        /// +2.3 % of the first. A landing that finds a print yields about 70 % less.</summary>
+        public const double AsideShare = 0.05;
+
         /// <summary>
         /// "A re-landing finds its prints": from a start 1 m over the spot (never on it), the pilot's landing on the spot
         /// (down at 0.3 m/s, the sticks held at 0.1 m and the throttle cut at the touch), 1 s at rest, up to 1 m again and the

@@ -154,7 +154,7 @@ namespace Fpv450.FlightBench
 
             Console.WriteLine("a re-landing finds its prints (crater_spoil, the pilot's 0.3 m/s landing, cut; again on the spot; then 0.3 m aside):");
             SoilScenarios.Relanding rl = SoilScenarios.Relandings(spec, SoilScenarios.Floor("crater_spoil"), default);
-            Row("the prints", !rl.Print[0] && rl.Print[1] && !rl.Print[2] && rl.Yield[1] < rl.Yield[0] && Math.Abs(rl.Yield[2] / rl.Yield[0] - 1) < 0.02,
+            Row("the prints", !rl.Print[0] && rl.Print[1] && !rl.Print[2] && rl.Yield[1] < rl.Yield[0] && Math.Abs(rl.Yield[2] / rl.Yield[0] - 1) < SoilScenarios.AsideShare,
                 $"the soil yields {rl.Yield[0] * 1e3:F3} mm, then {rl.Yield[1] * 1e3:F3} mm from its print's floor {rl.Floor[1] * 1e3:F3} mm down, then {rl.Yield[2] * 1e3:F3} mm aside");
 
             Console.WriteLine("the glide landing (the pilot's 0.5 m/s down and 0.3 m/s forward, held to the touch, cut):");
