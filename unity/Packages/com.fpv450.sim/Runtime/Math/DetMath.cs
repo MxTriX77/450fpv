@@ -214,5 +214,17 @@ namespace Fpv450.Sim
             return AtanHi[id] - ((t * (s1 + s2) - AtanLo[id]) - t);
         }
 
+        /// <summary>
+        /// The angle whose cosine is x, radians in [0, π], by the basic operations only (System.Math.Acos is not correctly
+        /// rounded): Atan2(√((1 − x)(1 + x)), x), the factored form keeping the sine's bits near ±1. x is clamped to [−1, 1]
+        /// (a cosine rounded past them); NaN gives NaN. Its error is Atan2's and one √'s: within 1.5e-15 rad of System.Math.Acos over
+        /// [−1, 1], and its cosine within 2 ulp of 1 near 1 (DetMathTests).
+        /// </summary>
+        public static double Acos(double x)
+        {
+            if (double.IsNaN(x)) return x;
+            x = x > 1 ? 1 : x < -1 ? -1 : x;
+            return Atan2(Sqrt((1 - x) * (1 + x)), x);
+        }
     }
 }

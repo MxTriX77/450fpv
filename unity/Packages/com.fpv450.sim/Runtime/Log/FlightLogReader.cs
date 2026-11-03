@@ -281,6 +281,13 @@ namespace Fpv450.Sim.Log
                     + " kg, legs " + (h.Loadout.Legs ? "on" : "off") + ", coil " + h.Loadout.CoilPaidOut.ToString("0.0", c) + " m paid out");
             else
                 w.WriteLine("  drone: a bench body, not from drone.json");
+            if (h.Blade != null)
+                w.WriteLine("  prop blade: " + h.Blade.Stations.Length + " stations from " + G(h.Blade.Stations[0]) + " R, " + (h.Blade.Conditioned ? "conditioned" : "dry")
+                    + ", density " + G(h.Blade.Density) + " kg/m3, flexural strength " + G(h.Blade.FlexuralStrength) + " Pa, crush " + G(h.Blade.CrushStrength)
+                    + " Pa, hardness " + G(h.Blade.Hardness) + " Pa");
+            if (h.Internals != null)
+                w.WriteLine("  motor internals: " + h.Internals.Length + " motors, gap " + G(h.Internals[0].Gap) + " m, shaft " + G(h.Internals[0].ShaftDiameter)
+                    + " m, bearings C0r " + G(h.Internals[0].BearingStaticRating) + " N");
             Sym3 i = h.Body.Inertia;
             w.WriteLine("  body: " + h.Parts.Length + " parts, " + h.Body.Mass.ToString("0.000", c) + " kg, CoM " + V(h.Body.CenterOfMass, "0.0000")
                 + " m, inertia xx " + G(i.XX) + " yy " + G(i.YY) + " zz " + G(i.ZZ) + " xy " + G(i.XY) + " xz " + G(i.XZ) + " yz " + G(i.YZ) + " kg.m2");
@@ -297,8 +304,8 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  aero: none (a bench body)");
             if (h.Contacts != null)
                 w.WriteLine("  contacts: " + h.Contacts.Shapes.Length + " shapes, margin " + G(h.Contacts.Margin) + " m, legs " + G(h.Contacts.LegStiffness)
-                    + " N/m and " + G(h.Contacts.LegDamping) + " N.s/m, a crash past " + G(h.Contacts.CrashAccel) + " m/s2 or a prop strike past "
-                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)"
+                    + " N/m and " + G(h.Contacts.LegDamping) + " N.s/m, a crash past " + G(h.Contacts.CrashAccel) + " m/s2; blade strikes "
+                    + (h.Contacts.BladeStrikes ? "on" : "off") + "; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)"
                     + (h.Contacts.Surfaces != null
                         ? "; surfaces.json 0x" + h.Contacts.Surfaces.Hash.ToString("X16", c) + " (" + h.Contacts.Surfaces.Surfaces.Length + " surfaces, "
                           + h.Contacts.Surfaces.Cover.Length + " cover kinds)"
@@ -455,6 +462,15 @@ namespace Fpv450.Sim.Log
                 case EventKind.VortexRingLeft:
                     return "rotor " + CornerName(e.Index) + (e.Kind == EventKind.VortexRingEntered ? " enters" : " leaves") + " its vortex ring at eta "
                         + G(e.A) + ", mu " + G(e.B) + " (v_h " + G(e.C) + " m/s" + (e.C > 0 ? ")" : ": the rotor stopped)");
+                case EventKind.BladeStrike:
+                    return PartName(e.Part) + " blade " + (e.Index & 15) + " " + ((StrikeMode)(e.Index >> 4)).ToString().ToLowerInvariant() + " on "
+                        + Where(e) + " at r " + G(e.B * 1000) + " mm: " + G(e.A) + " J, " + G(e.C) + " m/s into the face";
+                case EventKind.BladeDamaged:
+                    return PartName(e.Part) + " blade " + (e.Index & 15) + " damaged (" + ((StrikeMode)(e.Index >> 4)).ToString().ToLowerInvariant() + ") by "
+                        + Where(e) + ": tip at " + G(e.A) + " R, from " + G(e.C) + " R, " + G(e.B * 1000) + " g lost";
+                case EventKind.RotorJammed:
+                    return "rotor " + CornerName(e.Index) + " JAMMED on " + Where(e) + ": the pass needed " + G(e.A) + " J of its " + G(e.B) + " J, "
+                        + G(e.C * 100) + " % done";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

@@ -17,6 +17,12 @@ namespace Fpv450.Sim.Tests
     {
         static MaterialRow[] Materials(out ulong hash) => ContactScenarios.RepositoryMaterials(out hash);
 
+        static ulong MaterialsHash()
+        {
+            Materials(out ulong hash);
+            return hash;
+        }
+
         // ---- drone.json's contacts block ---------------------------------------------------------------------------------
 
         [Test]
@@ -111,6 +117,37 @@ namespace Fpv450.Sim.Tests
             Assert.That(Array.Exists(rows, r => r.Name == "timber" && r.Rigid), Is.True);
             Assert.Throws<FormatException>(() => PhysicsMaterials.Parse("{\"materials\": {\"x\": {\"friction_static\": 0.2, \"friction_kinetic\": 0.3}}}", out _));
             Assert.Throws<FormatException>(() => PhysicsMaterials.Parse("{\"materials\": {\"x\": {\"friction_static\": 0.4, \"friction_kinetic\": 0.3, \"stiffness_n_per_m\": 100}}}", out _));
+        }
+
+        // asset-pipeline (p7f-damage 1.1a) "Every row says what a blade meets", the loader's half (tools/blender's
+        // test_every_row_says_what_a_blade_meets is the validator's): every row's hardness, crush strength (0 for the file's
+        // null) and density are read; the hard rows are harder than the blade's props.blade hardness_pa, the soft ones softer;
+        // and a copy whose concrete row lacks hardness_pa is refused, naming the row and the field.
+        [Test]
+        public void EveryRowSaysWhatABladeMeets()
+        {
+            MaterialRow[] rows = Materials(out _);
+            double blade = RepositoryDrone.Spec().Blade.Hardness;
+            foreach (MaterialRow r in rows)
+            {
+                TestContext.Out.WriteLine($"{r.Name}: hardness {r.Hardness:E2} Pa ({r.Hardness / blade:F3} × the blade's), crush "
+                    + (r.CrushStrength == 0 ? "null" : r.CrushStrength.ToString("E2")) + $" Pa, density {r.Density} kg/m³");
+                Assert.That(r.Hardness, Is.GreaterThan(0), r.Name);
+                Assert.That(r.Density, Is.GreaterThan(0), r.Name);
+            }
+            foreach (string hard in new[] { "concrete", "masonry", "steel", "glass" })
+                Assert.That(Array.Find(rows, r => r.Name == hard).Hardness, Is.GreaterThan(blade), hard);
+            foreach (string soft in new[] { "timber", "bark", "rubber" })
+                Assert.That(Array.Find(rows, r => r.Name == soft).Hardness, Is.LessThan(blade), soft);
+            Assert.That(Array.FindAll(rows, r => r.CrushStrength == 0).Length, Is.EqualTo(5), "the thin compliant rows' null crush");
+
+            string text = File.ReadAllText(ContactScenarios.RepositoryFile(PhysicsMaterials.RelativePath));
+            int concrete = text.IndexOf("\"concrete\": {", StringComparison.Ordinal);
+            int at = text.IndexOf("\"hardness_pa\": {", concrete, StringComparison.Ordinal);
+            int end = text.IndexOf('}', at) + 1;
+            string without = text.Substring(0, at) + "\"no_hardness\": 0" + text.Substring(end);
+            var e = Assert.Throws<FormatException>(() => PhysicsMaterials.Parse(without, out _));
+            StringAssert.Contains("materials.concrete.hardness_pa: missing", e.Message);
         }
 
         [Test]
@@ -232,7 +269,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(h.RuntimeIds[0], Is.EqualTo(0));
             Assert.That(h.RuntimeObjects[0].Shapes[2].Center.X, Is.EqualTo(written.RuntimeObjects[0].Shapes[2].Center.X));
 
-            ReplayResult r = FlightReplay.Run(new MemoryStream(log), OpenWorld, RepositoryDrone.Spec().ContentHash);
+            ReplayResult r = FlightReplay.Run(new MemoryStream(log), OpenWorld, RepositoryDrone.Spec().ContentHash, materialsHash: MaterialsHash());
             TestContext.Out.WriteLine(r.Message);
             Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
             Assert.That(r.Events, Is.GreaterThanOrEqualTo(16), "the posts' contacts made and broken, replayed bit for bit");
@@ -241,6 +278,39 @@ namespace Fpv450.Sim.Tests
             FlightSummary.Read(new MemoryStream(log)).Print(summary);
             StringAssert.Contains("runtime object 0 'launch_stand'", summary.ToString());
             StringAssert.Contains("leaves 'launch_stand' shape", summary.ToString());
+        }
+
+        // asset-pipeline (p7f-damage 1.1a) "The materials hash covers the new fields": the stand's liftoff logs every row's
+        // hardness, crush strength and density under physics_materials.json's hash; one row's hardness_pa changed (concrete's,
+        // 4.5e8 to 4.6e8) changes the hash, and a replay of the log holding the changed table is refused, as is one holding
+        // none; holding the flight's own, it matches.
+        [Test]
+        public void TheMaterialsHashCoversTheNewFields()
+        {
+            byte[] log = StandFlight(out LogHeader written, 1000);
+            LogHeader h = new FlightLogReader(new MemoryStream(log)).Header;
+            Assert.That(h.Contacts.MaterialsHash, Is.EqualTo(MaterialsHash()));
+            for (int i = 0; i < written.Contacts.Materials.Length; i++)
+            {
+                MaterialRow a = written.Contacts.Materials[i], b = h.Contacts.Materials[i];
+                Assert.That((b.Name, b.Hardness, b.CrushStrength, b.Density), Is.EqualTo((a.Name, a.Hardness, a.CrushStrength, a.Density)), a.Name);
+            }
+
+            string text = File.ReadAllText(ContactScenarios.RepositoryFile(PhysicsMaterials.RelativePath));
+            const string from = "\"hardness_pa\": {\"value\": 4.5e8", to = "\"hardness_pa\": {\"value\": 4.6e8";
+            int at = text.IndexOf(from, text.IndexOf("\"concrete\": {", StringComparison.Ordinal), StringComparison.Ordinal);
+            MaterialRow[] changed = PhysicsMaterials.Parse(text.Substring(0, at) + to + text.Substring(at + from.Length), out ulong changedHash);
+            Assert.That(Array.Find(changed, r => r.Name == "concrete").Hardness, Is.EqualTo(4.6e8));
+            Assert.That(changedHash, Is.Not.EqualTo(MaterialsHash()), "the hash covers hardness_pa");
+
+            ulong drone = RepositoryDrone.Spec().ContentHash;
+            ReplayResult refused = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, materialsHash: changedHash);
+            TestContext.Out.WriteLine(refused.Message);
+            Assert.That(refused.Outcome, Is.EqualTo(ReplayOutcome.Refused));
+            StringAssert.Contains("physics_materials.json differs", refused.Message);
+            Assert.That(FlightReplay.Run(new MemoryStream(log), OpenWorld, drone).Outcome, Is.EqualTo(ReplayOutcome.Refused), "holding no table");
+            ReplayResult same = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, materialsHash: MaterialsHash());
+            Assert.That(same.Outcome, Is.EqualTo(ReplayOutcome.Match), same.Message);
         }
 
         // QA review-base finding 4: a cut between a step's record and its events is a cut, not a divergence.
@@ -264,7 +334,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(recordEnd, Is.GreaterThan(0), "the flight makes events after its start");
             var cut = new byte[recordEnd];
             Array.Copy(log, cut, recordEnd);
-            ReplayResult r = FlightReplay.Run(new MemoryStream(cut), OpenWorld, RepositoryDrone.Spec().ContentHash);
+            ReplayResult r = FlightReplay.Run(new MemoryStream(cut), OpenWorld, RepositoryDrone.Spec().ContentHash, materialsHash: MaterialsHash());
             TestContext.Out.WriteLine(r.Message + " / " + string.Join(" / ", r.Notes));
             Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.MatchCut), r.Message);
         }

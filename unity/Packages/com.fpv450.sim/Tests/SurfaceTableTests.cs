@@ -318,23 +318,26 @@ namespace Fpv450.Sim.Tests
             StringAssert.Contains("surfaces.json 0x" + table.Hash.ToString("X16"), summary.ToString());
 
             ulong drone = RepositoryDrone.Spec().ContentHash;
-            ReplayResult same = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, null, table.Hash);
+            ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
+            ReplayResult same = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, null, table.Hash, materialsHash: materials);
             Assert.That(same.Outcome, Is.EqualTo(ReplayOutcome.Match), same.Message);
 
             // One value changed (rubble's wet unload ratio, a labelled departure nothing derives from): refused before its first step.
             ulong other = SurfaceTable.Parse(Edit(Text(), "\"rubble\"|\"wet\"|\"unload_ratio\"", "\"value\": 1.5,", "\"value\": 1.6,")).Hash;
             Assert.That(other, Is.Not.EqualTo(table.Hash));
-            ReplayResult refused = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, null, other);
+            ReplayResult refused = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, null, other, materialsHash: materials);
             TestContext.Out.WriteLine(refused.Message);
             Assert.That(refused.Outcome, Is.EqualTo(ReplayOutcome.Refused));
             Assert.That(refused.Steps, Is.EqualTo(0));
             StringAssert.Contains("surfaces.json differs", refused.Message);
             StringAssert.Contains("0x" + table.Hash.ToString("X16"), refused.Message);
             StringAssert.Contains("0x" + other.ToString("X16"), refused.Message);
-            Assert.That(FlightReplay.Run(new MemoryStream(log), OpenWorld, drone).Outcome, Is.EqualTo(ReplayOutcome.Refused), "a replay without the file");
+            ReplayResult none = FlightReplay.Run(new MemoryStream(log), OpenWorld, drone, materialsHash: materials);
+            Assert.That(none.Outcome, Is.EqualTo(ReplayOutcome.Refused), "a replay without the file");
+            StringAssert.Contains("surfaces.json differs", none.Message);
 
             byte[] plain = Rest(null, out _);
-            Assert.That(FlightReplay.Run(new MemoryStream(plain), OpenWorld, drone, null, other).Outcome, Is.EqualTo(ReplayOutcome.Match),
+            Assert.That(FlightReplay.Run(new MemoryStream(plain), OpenWorld, drone, null, other, materialsHash: materials).Outcome, Is.EqualTo(ReplayOutcome.Match),
                 "a log without a table replays whatever file the replay holds");
         }
 

@@ -19,7 +19,11 @@ namespace Fpv450.Sim.Tests
     /// that hold them (the mixer's duty per PID unit); the yank each costs is the rate error the I term integrated to
     /// get there, I / ki (Betaflight's ki). BandOf runs it over 20 000 seeds' draws. The ESC lag spread and the props'
     /// unbalance add no steady moment (the unbalance's mean over a turn is zero); the unbalance keeps the body vibrating
-    /// at the rotors' frequencies, never still, its rate computed per rotor. The hands-off drone drifts off sideways, and
+    /// at the rotors' frequencies, never still, its rate computed per rotor. The blades' factory pitch offsets (p7f-damage
+    /// 1.2, prop.blade_pitch) add both: their mean a per-rotor thrust and torque offset (η_T, η_Q of the blades' elements,
+    /// DamagedRotor, at the hover's duty through the motor's steady state), a steady moment beside the Kv spread's; their
+    /// difference a 1/rev hub moment and in-plane drag turning with the unbalance's pull, at their own phase to it. The
+    /// hands-off drone drifts off sideways, and
     /// the drift's own air (the rotors' in-plane drag at their hubs above the CoM) takes a growing share of the roll
     /// moment, about 14 % at 4 s and a third by 30 s, so each seed's prediction is checked at YankAt, before it does.
     /// The suite asserts it (AsymmetryTests); tools/flightbench --scenarios prints it.
@@ -174,6 +178,14 @@ namespace Fpv450.Sim.Tests
             public Double3[] Arm = new Double3[4];
             public double[] Spin = new double[4];
             public Double3 Inertia;
+
+            /// <summary>The steady thrust's and torque's slopes against the torque ratio η_Q at the duty, N and N·m per unit
+            /// (the motor slows under the larger drag); the thrust ratio η_T moves the thrust by Thrust per unit at that speed.</summary>
+            public double ThrustPerTorqueRatio, TorquePerTorqueRatio;
+
+            /// <summary>Each rotor's blades as elements (DamagedRotor), for the pitch draws' η and 1/rev loads; null without
+            /// props.blade.</summary>
+            public DamagedRotor[] Blades;
         }
 
         /// <summary>The hover's linear model at the identical-rotor hover's operating point (its duty and bus voltage).</summary>
@@ -194,6 +206,16 @@ namespace Fpv450.Sim.Tests
             mo.TorquePerKv = (qk1 - qk0) / (2 * ek);
             mo.ThrustPerDuty = (td1 - td0) / (2 * ed);
             mo.TorquePerDuty = (qd1 - qd0) / (2 * ed);
+            Steady(prop, m, 1, mo.Duty, mo.Volts, out double te1, out double qe1, 1 + ek);
+            Steady(prop, m, 1, mo.Duty, mo.Volts, out double te0, out double qe0, 1 - ek);
+            mo.ThrustPerTorqueRatio = (te1 - te0) / (2 * ek);
+            mo.TorquePerTorqueRatio = (qe1 - qe0) / (2 * ek);
+            if (ps.Rotor != null)
+            {
+                mo.Blades = new DamagedRotor[4];
+                for (int i = 0; i < 4; i++)
+                    mo.Blades[i] = new DamagedRotor(ps.Rotor, ps.Props.Diameter / 2, ps.Props.Blades, ps.Motors[i].Clockwise ? -1 : 1, ps.Props.InflowAdvanceRatio);
+            }
             FcSettings fc = FcSettings.Default;
             const double dshotMin = 48, dshotMax = 2047, range = dshotMax - dshotMin;
             double low = dshotMin + fc.dshot_idle_value * 0.0001 * range, high = dshotMax - range * (1 - fc.motor_output_limit / 100);
@@ -222,13 +244,47 @@ namespace Fpv450.Sim.Tests
                 yaw += -mo.Spin[i] * mo.TorquePerKv * dk;            // a clockwise rotor's drag yaws the body left
                 rollAuthority += System.Math.Abs(mo.Arm[i].X) * mo.ThrustPerDuty * mo.DutyPerUnit;
 
-                // The unbalance at the hover's speed: its pull F = U·ω² turning in the disc's plane, whose moment about the
-                // CoM has amplitude |r_y|·F about x and z and |r_xz|·F about y; each axis's rate a sinusoid at ω, whose
-                // step-to-step change has RMS α/ω · 2 sin(ω·dt/2) / √2.
+                // The blades' pitch offsets at the hover (J 0): their η moves the rotor's thrust and torque at the duty, and
+                // their difference loads the hub once a revolution: a moment T·m and an in-plane drag Q·f (rotor frame).
+                double mp = 0, mq = 0, fp = 0, fq = 0;
+                if (d.BladePitch != null && mo.Blades != null)
+                {
+                    DamagedRotor b = mo.Blades[i];
+                    for (int k = 0; k < b.Blades; k++) b.Blade(k).Reset(d.BladePitch[i * b.Blades + k]);
+                    b.Rebuild();
+                    double etaT = b.ThrustRatio(0) - 1, etaQ = b.TorqueRatio(0) - 1;
+                    roll += mo.Arm[i].X * (mo.Thrust * etaT + mo.ThrustPerTorqueRatio * etaQ);
+                    yaw += -mo.Spin[i] * mo.TorquePerTorqueRatio * etaQ;
+                    b.HubMomentPerThrust(0, out mp, out mq);
+                    b.HubDragPerTorque(0, out fp, out fq);
+                    mp *= mo.Thrust;
+                    mq *= mo.Thrust;
+                    fp *= mo.Torque;
+                    fq *= mo.Torque;
+                }
+
+                // The unbalance at the hover's speed: its pull F = U·ω² turning in the disc's plane, with the blades' drag, the
+                // in-plane force f at the hub (at the rotor's angle 0: (F·cos α + Q·f_p, −F·sin α + Q·f_q), body x and z);
+                // its moment about the CoM with the blades' hub moment turns in the x–z plane with amplitude |(r_y·f_z + T·m_p,
+                // −r_y·f_x + T·m_q)| about x and z, and |r_xz|·|f| about y (both turn rigidly with the rotor); each axis's rate a
+                // sinusoid at ω, whose step-to-step change has RMS α/ω · 2 sin(ω·dt/2) / √2. Without the pitch draws: |r_y|·F.
                 double f = d.Unbalance[i] * mo.Speed * mo.Speed;
                 Double3 r = mo.Arm[i];
-                double ax = System.Math.Abs(r.Y) * f / mo.Inertia.X, az = System.Math.Abs(r.Y) * f / mo.Inertia.Z;
-                double ay = DetMath.Sqrt(r.X * r.X + r.Z * r.Z) * f / mo.Inertia.Y;
+                double ax, az, ay;
+                if (d.BladePitch == null || mo.Blades == null)
+                {
+                    ax = System.Math.Abs(r.Y) * f / mo.Inertia.X;
+                    az = System.Math.Abs(r.Y) * f / mo.Inertia.Z;
+                    ay = DetMath.Sqrt(r.X * r.X + r.Z * r.Z) * f / mo.Inertia.Y;
+                }
+                else
+                {
+                    double fx = f * System.Math.Cos(d.UnbalanceAngle[i]) + fp, fz = -f * System.Math.Sin(d.UnbalanceAngle[i]) + fq;
+                    double mx = r.Y * fz + mp, mz = -r.Y * fx + mq, axz = DetMath.Sqrt(mx * mx + mz * mz);
+                    ax = axz / mo.Inertia.X;
+                    az = axz / mo.Inertia.Z;
+                    ay = DetMath.Sqrt(r.X * r.X + r.Z * r.Z) * DetMath.Sqrt(fx * fx + fz * fz) / mo.Inertia.Y;
+                }
                 double step = 2 * System.Math.Sin(mo.Speed * FlightCore.Dt / 2) / mo.Speed;
                 vib2 += (ax * ax + ay * ay + az * az) * step * step / 2;
                 sumX += ax * step;
@@ -259,9 +315,12 @@ namespace Fpv450.Sim.Tests
         public const int BandDraws = 20000;
         public const double BandQuantile = 0.005;
 
-        public static Band BandOf(DroneSpec spec, Model mo)
+        /// <summary>The band over BandDraws seeds' draws; pitch false leaves the blades' pitch draws out (the band before
+        /// p7f-damage 1.2, printed beside the new).</summary>
+        public static Band BandOf(DroneSpec spec, Model mo, bool pitch = true)
         {
             MotorAsymmetry a = spec.BuildAsymmetry();
+            if (!pitch) a.BladePitchBound = 0;
             var roll = new List<double>(BandDraws);
             var yaw = new List<double>(BandDraws);
             var vib = new List<double>(BandDraws);
@@ -288,7 +347,7 @@ namespace Fpv450.Sim.Tests
         public sealed class Run
         {
             public Model Model;
-            public Band Band;
+            public Band Band, BandWithoutPitch;
             public Result[] On = new Result[5], Off = new Result[5];
             public Prediction[] Predicted = new Prediction[5];
         }
@@ -308,6 +367,7 @@ namespace Fpv450.Sim.Tests
                 run.Predicted[i] = Predict(run.Model, core.Draws);
             }
             run.Band = BandOf(spec, run.Model);
+            run.BandWithoutPitch = BandOf(spec, run.Model, false);
             return _run = run;
         }
 
@@ -356,6 +416,12 @@ namespace Fpv450.Sim.Tests
         /// <summary>Calm's floor (PHY-14): every 1 s block above the band's lowest vibration.</summary>
         public static bool NeverStill(in Result r, in Band b) => r.VibrationMin >= b.VibrationLo;
 
+        /// <summary>The I terms alone (the moments the controller holds) as AsPredicted judges them: the half the throttle ramp's
+        /// anti-gravity boost leaves alone (p7f-damage 1.2: with the blades' pitch draws the boost turns the angles of 4 of seeds
+        /// 1–30 past the floor, never their I terms).</summary>
+        public static bool MomentAsPredicted(in Result r, in Prediction p) =>
+            Near(DetMath.Abs(r.YankITerm.Roll), p.RollI, YankFloorDeg * p.RollKi) && Near(DetMath.Abs(r.YankITerm.Yaw), p.YawI, YankFloorDeg * p.YawKi);
+
         static bool Near(double measured, double predicted, double floor) =>
             measured >= 0.7 * predicted - floor && measured <= 1.3 * predicted + floor;
 
@@ -371,13 +437,15 @@ namespace Fpv450.Sim.Tests
 
         // A motor's steady speed at a duty and bus voltage with its Kv scaled: Kt·i = Kt·I0 + Q(ω), i = (d·V − Ke·ω)/R,
         // by bisection, with its thrust and torque there.
-        static void Steady(Propulsion prop, DroneMotor m, double kv, double duty, double volts, out double thrust, out double torque)
+        // (With its torque ratio etaQ: the prop's drag torque times it, its thrust at that speed the table's.)
+        static void Steady(Propulsion prop, DroneMotor m, double kv, double duty, double volts, out double thrust, out double torque, double etaQ = 1)
         {
-            double w = SteadySpeed(prop, m, kv, duty, volts);
+            double w = SteadySpeed(prop, m, kv, duty, volts, etaQ);
             prop.Aero(w, 0, out thrust, out torque);
+            torque *= etaQ;
         }
 
-        static double SteadySpeed(Propulsion prop, DroneMotor m, double kv, double duty, double volts)
+        static double SteadySpeed(Propulsion prop, DroneMotor m, double kv, double duty, double volts, double etaQ = 1)
         {
             double ke = 60 / (TwoPi * (m.Kv * kv));
             double lo = 0, hi = duty * volts / ke;
@@ -385,6 +453,7 @@ namespace Fpv450.Sim.Tests
             {
                 double w = (lo + hi) / 2;
                 prop.Aero(w, 0, out _, out double q);
+                q *= etaQ;
                 double net = ke * (duty * volts - ke * w) / m.Resistance - ke * m.NoLoadCurrent - q;
                 if (net > 0) lo = w; else hi = w;
             }

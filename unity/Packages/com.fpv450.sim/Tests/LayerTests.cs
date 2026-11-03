@@ -212,8 +212,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(core.State.Crashed, Is.False);
             Assert.That(carried, Is.True, "the mat passed its stroke and carried a skid onto its soil");
             Assert.That(allocated, Is.EqualTo(0), "0 B a step on the layer and its soil");
+            ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
             Log.ReplayResult r = Log.FlightReplay.Run(new MemoryStream(stream.ToArray()), id => id == "test-range" ? world : null, spec.ContentHash, null,
-                SoilScenarios.Table().Hash);
+                SoilScenarios.Table().Hash, materialsHash: materials);
             TestContext.WriteLine($"  replay: {r.Outcome}, {r.Steps} steps; {r.Message}");
             Assert.That(r.Outcome, Is.EqualTo(Log.ReplayOutcome.Match), r.Message);
             Assert.That(r.Steps, Is.EqualTo(2500));

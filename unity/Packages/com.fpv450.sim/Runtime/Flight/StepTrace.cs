@@ -156,6 +156,55 @@ namespace Fpv450.Sim.Flight
         /// <summary>A preallocated table of the world's or the line's was full: a bug in a producer or a world beyond its
         /// budget (Index: WorldBugCause). A: the table's size.</summary>
         WorldBug = 16,
+
+        /// <summary>
+        /// A blade's pass across a shape its disc cuts (p7f-damage design 4–6): Part's prop, Index the blade (low 4 bits) and the
+        /// pass's StrikeMode (high 4 bits), on (Object, Shape) of Material or Surface, Point where the blade meets it. A: the
+        /// pass's work, the energy it took from the rotor, J; B: the meeting radius r_m, m; C: the blade's speed into the face
+        /// at its entry, u_n, m/s.
+        /// </summary>
+        BladeStrike = 17,
+
+        /// <summary>
+        /// A pass changed a blade (p7f-damage design 1, 5): Part's prop, Index the blade (low 4 bits) and the StrikeMode (high 4
+        /// bits: crush, break, bend, wear), on (Object, Shape) of Material at Point. A: the blade's tip radius after it, r/R; B:
+        /// the mass it lost, kg; C: the inner edge of the changed stations, r/R (the new tip for a crush or a break, the bent
+        /// station for a set, the meeting radius for wear).
+        /// </summary>
+        BladeDamaged = 18,
+
+        /// <summary>
+        /// Index's rotor stopped on a shape its disc cuts (p7f-damage design 6): a pass needed more than the rotor's energy, so
+        /// it ended on the face, its damage cut short. Part's prop, on (Object, Shape) of Material at Point. A: the pass's work,
+        /// J; B: the rotor's energy before it, ½Jω², J; C: the share of the pass's work done, 0–1.
+        /// </summary>
+        RotorJammed = 19,
+
+        // 20–22 are reserved for p7f-damage (D-074).
+    }
+
+    /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>
+    public enum StrikeMode : byte
+    {
+        /// <summary>The face takes no blade damage here and the pass no work: the ground and the soil until p7a-ground's
+        /// surfaces, a thin compliant row (straw, foliage, twig shells, fabric, mesh: p7a's and p7d's), a row without what a
+        /// blade meets.</summary>
+        Glance = 0,
+
+        /// <summary>A harder face crushed the blade back to the meeting radius.</summary>
+        Crush = 1,
+
+        /// <summary>A section broke where its bending first passed its strength: everything beyond is lost.</summary>
+        Break = 2,
+
+        /// <summary>A tilted harder face bent the blade over it: an elastic slap, a flap set past the proportional limit.</summary>
+        Bend = 3,
+
+        /// <summary>The blade slid over a tilted harder face and wore its leading edge (Archard).</summary>
+        Wear = 4,
+
+        /// <summary>The blade carved a softer face: its crushing work and the flung mass.</summary>
+        Carve = 5,
     }
 
     /// <summary>WorldBug's Index.</summary>

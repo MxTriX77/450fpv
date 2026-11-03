@@ -35,6 +35,11 @@ namespace Fpv450.Sim.Flight
 
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _query.Geometry(obj, shape, out geometry);
 
+        /// <summary>A placed wire's chain (MapWorld.WirePoints: its point list in world space), or empty for any other shape and
+        /// on a world without wires (the stub). The blade strikes read a conductor's segments here (p7f-damage 1.3); the
+        /// interface gives only its chord (IWorldQuery.Geometry).</summary>
+        public ReadOnlySpan<Double3> WirePoints(int obj, int shape) => _query is MapWorld map ? map.WirePoints(obj, shape) : ReadOnlySpan<Double3>.Empty;
+
         /// <summary>The soil ray's reach, m (assumed: past any flight's height over a map and the wind profile's 100 m top).</summary>
         public const double SoilReach = 10000;
 

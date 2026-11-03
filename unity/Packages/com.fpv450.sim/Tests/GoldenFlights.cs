@@ -20,7 +20,9 @@ namespace Fpv450.Sim.Tests
     /// record and events, so it pins the whole state, the controller's included, bit for bit. The suite checks them on
     /// .NET and in Unity's EditMode (Mono), tools/flightbench --golden on .NET Release. A re-record raises
     /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md). Since model 36 (Betaflight's yaw I) every kept audit
-    /// against an earlier model flies model 34's yaw I (yawI false, Model34YawI).
+    /// against an earlier model flies model 34's yaw I (yawI false, Model34YawI). Since model 40 (the physics integration 2
+    /// with p7f-damage) every kept audit of the line's flies without props.blade (WithoutTheBlade, a freshly parsed spec), and
+    /// every kept audit of p7f-damage's without the line's mechanisms (no soil, no area laws, model 34's yaw I).
     /// </summary>
     public static class GoldenFlights
     {
@@ -237,7 +239,30 @@ namespace Fpv450.Sim.Tests
         // motors stopped) and the pose from step 21, the first armed step. On the open-loop script the yaw step (3.5–4.5 s)
         // turns it further, so it ends 5.68 m from model 34's end and within 23.0° of its attitude, 160.72 m up against
         // 162.72; armed, no crash.
-        public const ulong PoweredHash = 0xF0A7027AE1CD5556UL;
+        // On p7f-damage (off model 26), model 26: 0x53F1D10489702031. p7f-damage 1.2 (ModelVersion 29): re-recorded with the blades as elements, each blade's
+        // factory pitch offset (prop.blade_pitch, ±0.25°) and the flapping's blade inertia from props.blade (2.12e-5 kg·m², the
+        // rod's 4.30e-5). Audited (the kept test, WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s): with the pitch draws
+        // off and the rod's inertia, or without props.blade, it is model 26's pin bit for bit, every record and event. Each share
+        // alone moves it from step 21, the first armed step: the inertia alone (0x460DEB6D2296C4A2; the flapping's softer
+        // blade in Windy's air) by 5.51 m and 4.75° at most by 10 s on the open-loop script, 167.91 m up against 162.72; the
+        // pitch alone (0x3351ADE2171E74D3; each rotor's thrust offset and its 1/rev) by 2.29 m and 2.06°, 162.36 m up; both by
+        // 5.93 m and 4.69°, 167.60 m up, the pitch moving the inertia's flight by 1.79 m and 1.40°. Armed, no crash, no contact.
+        // Model 29: 0xB999E5FDE8815DAC. p7f-damage 1.3 (ModelVersion 35): re-recorded on the 2288-byte record, its blade strikes' 384
+        // bytes zero (no disc cuts anything 160–300 m up); over model 29's 1904 bytes model 29's pin, every record and event (the
+        // kept test, OverModel29sLayoutEachGoldenIsModel29s).
+        // Model 38: 0xF0A7027AE1CD5556 (the line), model 35: 0xC1053CA7562E61AC (p7f-damage). The physics integration 2 with
+        // p7f-damage (ModelVersion 40; the code is the parents' together): re-recorded with p7f's blades as elements, their
+        // pitch draws and the flapping's blade inertia from props.blade on the line's yaw I. Audited against each parent with
+        // the other side off (the kept tests WithoutTheBladeEachGoldenIsModel38s and WithoutTheLineEachGoldenIsModel35s):
+        // without props.blade, over the line's 2008 bytes, it is model 38's pin, every record and event, the strikes' block
+        // zero; on model 34's yaw I, over p7f's record (the fiber's 104 bytes skipped), model 35's, the fiber's block zero (160–
+        // 300 m up no soil, layer, line or cut acts, so the yaw I is the whole of the line's share). With the strikes off it is
+        // the same bits (no disc cuts anything). It moves from step 21, the first armed step, against the line's (the blades),
+        // and from step 2 against p7f's (the yaw I's disarmed loop; the pose from step 21), and keeps its course: armed, no
+        // crash, no contact, 167.03 m up at 10 s against 160.72 and 167.60, 7.88 m and 4.34 m from their ends, within 8.7° and
+        // 22.4° of their attitudes; the inertia alone (the pitch off) leaves it 1.95 m apart, the pitch alone (the rod's
+        // inertia) 6.78 m.
+        public const ulong PoweredHash = 0xDF1D314EF8AD6012UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -270,7 +295,18 @@ namespace Fpv450.Sim.Tests
         // Model 34: 0x947B8DD37255DDB4. Betaflight's yaw I (ModelVersion 36), audited as the powered flight: on model 34's yaw I
         // it is model 34's pin (the kept test). It moves from step 1 (the record) and step 21 (the pose), and ends 5.26 m from
         // model 34's end and within 23.0°, 162.62 m up against 164.73.
-        public const ulong RainPoweredHash = 0x470AA9C751367BC9UL;
+        // On p7f-damage (off model 26), model 26: 0x53B90D4307BF1534. p7f-damage 1.2 (ModelVersion 29), audited as the powered flight (model 26's pin under the
+        // kept test's switches): from step 21 the inertia alone (0xD29E350E00C73BA6) moves it by 6.05 m and 5.37° by 10 s, 170.41 m
+        // up against 164.73; the pitch alone (0xE9D26813D342FD33) by 1.67 m and 1.16°; both by 6.67 m and 5.71°, 170.63 m up;
+        // the film holds 9.67 g at 10 s (9.92), its flux on a path a few metres apart.
+        // Model 29: 0x8ABC28AF4D780FF7. p7f-damage 1.3 (ModelVersion 35): the 2288-byte record, the strikes' bytes zero; over model
+        // 29's 1904 bytes model 29's pin (the kept test); the film 9.67 g as model 29.
+        // Model 38: 0x470AA9C751367BC9 (the line), model 35: 0xA6DB29F570B76DF7 (p7f-damage). The physics integration 2 with
+        // p7f-damage (ModelVersion 40), audited as the powered flight (both kept tests): without props.blade model 38's pin
+        // over 2008 bytes, on model 34's yaw I model 35's over p7f's record, the strikes off the same bits. It moves from step
+        // 21 and step 2 and keeps its course: 169.23 m up against 162.62 and 170.63, 8.09 m and 3.72 m from their ends, within
+        // 9.2° and 22.2°; the film holds 9.79 g at 10 s (10.08 and 9.67).
+        public const ulong RainPoweredHash = 0x48979FA015B4A693UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -296,6 +332,30 @@ namespace Fpv450.Sim.Tests
         public const int Model19Layout = 1808;
         public const ulong Model19PoweredHash = 0xA1FF085091A019CDUL, Model19ContactHash = 0x8C1E6B066F143A67UL,
             Model19RainHash = 0xB10D9A860D4431C0UL, Model19TumbleHash = 0x2A0283BBFE59FD84UL;
+
+        /// <summary>p7f-damage 1.3's audit against model 29 (GoldenFlightTests.OverModel29sLayoutEachGoldenIsModel29s): model 29's
+        /// 1904-byte record (the record less the blade strikes' 384 bytes at its end) and its pins, which each golden whose discs
+        /// cut nothing keeps bit for bit; every older kept audit hashes over it too.</summary>
+        public const int Model29Layout = 1904;
+        public const ulong Model29PoweredHash = 0xB999E5FDE8815DACUL, Model29RainPoweredHash = 0x8ABC28AF4D780FF7UL,
+            Model29ContactHash = 0xFC78C0BDDEFA2725UL, Model29RangeHash = 0x8F038B8AAEC425E7UL, Model29TumbleHash = 0xBCBD33E6B6A94844UL;
+
+        /// <summary>The physics integration 2 with p7f-damage (model 40), its audit against the line (GoldenFlightTests.
+        /// WithoutTheBladeEachGoldenIsModel38s): the line's model 38 record, its first 2008 bytes (the record less the blade
+        /// strikes' 384 at its end), and its pins, which every golden flown on a drone.json without props.blade keeps bit for
+        /// bit, every record and event, the strikes' block zero on every record.</summary>
+        public const int Model38Layout = LogFormat.Model38StepSize;
+        public const ulong Model38PoweredHash = 0xF0A7027AE1CD5556UL, Model38RainPoweredHash = 0x470AA9C751367BC9UL,
+            Model38ContactHash = 0xEA8C1FA9BBE6A19EUL, Model38RangeHash = 0x5133425038BAA44EUL, Model38TetherHash = 0x318B90FF21403E3BUL,
+            Model38TumbleHash = 0x3FD62A50B3AF6C84UL;
+
+        /// <summary>Its audit against p7f-damage (GoldenFlightTests.WithoutTheLineEachGoldenIsModel35s): p7f-damage's model 35
+        /// record is the record less the fiber's 104 bytes at Model28Layout (Model35Skip), and its pins, which every golden flown
+        /// without the line's mechanisms (no surfaces.json, no area laws, no line, model 34's yaw I) keeps bit for bit, every
+        /// record and event, the fiber's block zero on every record.</summary>
+        public const int Model35Skip = LogFormat.Model38StepSize - LogFormat.Model28StepSize;
+        public const ulong Model35PoweredHash = 0xC1053CA7562E61ACUL, Model35RainPoweredHash = 0xA6DB29F570B76DF7UL,
+            Model35ContactHash = 0x6A44DA1874A49725UL, Model35RangeHash = 0x00CBE79581238DE7UL, Model35TumbleHash = 0x9931AD0B7F279044UL;
 
         /// <summary>The integration's audit against p7b-airframe--micro (GoldenFlightTests.WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs):
         /// that branch's model 23 pins over its 1840-byte record (model 19's 1808 bytes, then the own wake's 32), which each golden
@@ -468,7 +528,25 @@ namespace Fpv450.Sim.Tests
         // it is model 34's pin, every record and event (the kept test), and every older kept audit holds on it. It moves from
         // step 10, the first with the rotors turning, and keeps its course: within 0.5 mm and 0.07° of model 34's path, 4
         // impacts as model 34's, at rest at the same 0.2497 m on 4 pairs, 0.2 mm aside.
-        public const ulong ContactHash = 0xEA8C1FA9BBE6A19EUL;
+        // On p7f-damage (off model 26), model 26: 0xAAEA31DBFBB13710. p7f-damage 1.2 (ModelVersion 29), audited as the powered flight (model 26's pin under the
+        // kept test's switches). It moves from step 9, the first armed step, under either share: the inertia alone
+        // (0x448A9D8E4A535411; Calm's hover has little edgewise flow) by at most 1.0 mm and 0.06°; the pitch alone
+        // (0xD7986813EEECBEA6) by 17.2 mm and 0.86° (step 9467, the held bounce); both by 18.0 mm and 0.86°. It keeps its course: 5
+        // impacts, no crash, at rest at the same 0.2519 m on 8 pairs, 17.6 mm from model 26's resting place.
+        // Model 29: 0xFC78C0BDDEFA2725. p7f-damage 1.3 (ModelVersion 35): re-recorded on the 2288-byte record, its blade strikes' 384
+        // bytes zero: no disc cuts anything on the floor (0 passes), so over model 29's 1904 bytes it is model 29's pin, every record
+        // and event (the kept test, OverModel29sLayoutEachGoldenIsModel29s), the strikes on or off; 5 impacts, no crash, at rest
+        // 0.2519 m up on 8 pairs, as model 29.
+        // Model 38: 0xEA8C1FA9BBE6A19E (the line), model 35: 0x6A44DA1874A49725 (p7f-damage). The physics integration 2 with
+        // p7f-damage (ModelVersion 40): p7f's blades on the floor's belt_bare soil. Audited against each parent with the other
+        // side off (both kept tests): without props.blade, over 2008 bytes, model 38's pin, every record and event, the
+        // strikes' block zero; without surfaces.json on model 34's yaw I, over p7f's record, model 35's, the fiber's block
+        // zero. No disc cuts the floor or its soil (0 passes; the strikes off give the same bits). It moves from step 9, the
+        // first armed step, against the line's (the blades' pitch draws: the inertia alone leaves it 1.6 mm from it) and keeps
+        // its course: within 12.4 mm and 0.77° of the line's path, 4 impacts as the line's, at rest at the same 0.2497 m on 4
+        // pairs, 9.6 mm aside. Against p7f's it moves from step 2 (the soil; the yaw I alone leaves it 0.1 mm apart): within
+        // 47.1 mm and 1.9° of its path, 4 impacts against 5, at rest at 0.2497 m against 0.2519, 36.8 mm aside.
+        public const ulong ContactHash = 0xC3FBF4393BE70692UL;
 
         /// <summary>The parents' pins at the physics integration 2 (model 34), which its kept audits fly: p7d-tether's model 31
         /// contact, range and tether goldens over the whole 2008-byte record (WithoutTheGroundTheGoldenFlightsAreModel31s:
@@ -491,9 +569,6 @@ namespace Fpv450.Sim.Tests
         /// layer, no buried face).</summary>
         public const ulong Model33RangeOn38Hash = 0x83945BE7D69BFA11UL, Model34RangeOn38Hash = 0xC961D6B865107711UL;
 
-        /// <summary>The physics line's model 26 contact golden on the rigid floor, which the flight without surfaces.json keeps (the ground merge's audit, model 27).</summary>
-        public const ulong Model26ContactHash = 0xAAEA31DBFBB13710UL;
-
         /// <summary>
         /// The contact flight with the line (p7d-tether 1.6, first recorded with ModelVersion 31): FlyContact's flight on the
         /// stub's floor with tether.json's line laid from 3 m behind (the table's launch) and drone.json's coil, half paid out at
@@ -513,8 +588,15 @@ namespace Fpv450.Sim.Tests
         /// it is model 34's pin (the kept test). It moves from step 10 and keeps its course: within 0.5 mm and 0.08° of model
         /// 34's path, 4 impacts, at rest at the same 0.2497 m, 0.3 mm aside; the line as on model 34 (0.073 m paid out, no
         /// wedge), the chain's energy check taking 1 clip and 1 safe step (model 34: none and 2).
+        /// Model 38: 0x318B90FF21403E3B. The physics integration 2 with p7f-damage (ModelVersion 40), audited as the contact
+        /// flight: without props.blade, over 2008 bytes, model 38's pin, every record and event (WithoutTheBladeEachGoldenIsModel38s);
+        /// the strikes off the same bits; p7f-damage has no line, so it has no parent pin there. It moves from step 9 against
+        /// model 38's and keeps its course: within 12.5 mm and 0.80° of its path, 4 impacts, at rest at the same 0.2497 m, 9.3 mm
+        /// aside; against the contact golden without the line it moves from step 3, as since model 31, and stays within 6.8 mm
+        /// and 0.16° of it, at rest 1.2 mm aside; the line as on model 38 (0.073 m paid out, 15 nodes, the trail at 8 points, no
+        /// wedge), the chain's energy check taking no clip or safe step (model 38: 1 and 1).
         /// </summary>
-        public const ulong TetherHash = 0x318B90FF21403E3BUL;
+        public const ulong TetherHash = 0x40D840364F986978UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -554,7 +636,12 @@ namespace Fpv450.Sim.Tests
         // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
         // it is model 28's pin, Model28TumbleHash, bit for bit (the kept test). Betaflight's yaw I (ModelVersion 36): it has no
         // rotors and keeps its hash.
-        public const ulong TumbleHash = 0x3FD62A50B3AF6C84UL;
+        // On p7f-damage (off model 26), model 29: 0xBCBD33E6B6A94844. p7f-damage 1.3 (ModelVersion 35): the 2288-byte record, the strikes' bytes zero (no contacts);
+        // over model 29's 1904 bytes model 29's pin (the kept test), its checks unchanged.
+        // Model 38: 0x3FD62A50B3AF6C84 (the line), model 35: 0x9931AD0B7F279044 (p7f-damage). The physics integration 2 with
+        // p7f-damage (ModelVersion 40): the 2392-byte record, the fiber's and the strikes' blocks zero (no rotors, no contacts);
+        // over the line's 2008 bytes model 38's pin and over p7f's record model 35's (both kept tests), its checks unchanged.
+        public const ulong TumbleHash = 0x4C96AAB4C5453484UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -662,7 +749,27 @@ namespace Fpv450.Sim.Tests
         // model 36's pin bit for bit, every record and event, and so is every kept audit; without the area laws it is
         // unchanged (WithoutTheAreaLawsTheRangeGoldenIsModel32s: no layer, no buried face); the two kept audits flown with the
         // area laws move to Model33RangeOn38Hash and Model34RangeOn38Hash.
-        public const ulong RangeHash = 0x5133425038BAA44EUL;
+        // On p7f-damage (off model 26), model 26: 0xC79B60F487AEB8B6. p7f-damage 1.2 (ModelVersion 29), on the same content, audited as the contact flight (model
+        // 26's pin under the kept test's switches). From step 9 the inertia alone (0x22B183936CE51C3E) moves it by at most 0.2 mm
+        // and 0.04°; the pitch alone (0xA86D6A2518B1F903) by 22.0 mm and 0.43° (step 8915, the held bounce over the straw); both by
+        // 22.2 mm and 0.45°. It keeps its course: 3 impacts (4), no crash, at
+        // rest 0.2326 m up on 21 pairs (0.2323), 0.6 mm from model 26's resting place.
+        // Model 29: 0x8F038B8AAEC425E7. p7f-damage 1.3 (ModelVersion 35), on the same content: re-recorded on the 2288-byte record,
+        // the strikes' bytes zero: no disc cuts the straw or the soil (0 passes; the props stand 0.25 m over the skids), so over model
+        // 29's 1904 bytes it is model 29's pin, every record and event, the strikes on or off (the kept test); 3 impacts, no crash,
+        // at rest 0.2326 m up on 21 pairs, as model 29.
+        // Model 38: 0x5133425038BAA44E (the line), model 35: 0x00CBE79581238DE7 (p7f-damage). The physics integration 2 with
+        // p7f-damage (ModelVersion 40), on the same content: p7f's blades over the straw's area laws and buried face. Audited
+        // against each parent with the other side off (both kept tests): without props.blade, over 2008 bytes, model 38's pin,
+        // every record and event, the strikes' block zero; without the layers' area laws on model 34's yaw I, over p7f's
+        // record, model 35's, the fiber's block zero; without the map's cuts the same bits (WithoutTheCutsTheRangeGoldenIsTheSame),
+        // and with the strikes off the same bits (no disc cuts the straw or the soil, 0 passes: the props stand 0.25 m over the
+        // skids). It moves from step 9 against the line's (the blades' pitch draws; the inertia alone leaves it 0.2 mm from it)
+        // and keeps its course: 3 impacts as the line's, no crash, at rest 8.83 mm into the straw on 8 pairs (8.74 on 8),
+        // rolled 0.03° (0.08°), 4.2 mm from the line's resting place, within 23.2 mm and 0.51° of its path (the held bounce
+        // over the straw). Against p7f's it moves from step 2 (the area laws; the yaw I alone leaves it 0.4 mm apart): within
+        // 58.4 mm and 2.8° of its path, at rest on 8 pairs against 21, 49.5 mm from its resting place.
+        public const ulong RangeHash = 0xF6BBC45EC751E45FUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -719,6 +826,12 @@ namespace Fpv450.Sim.Tests
         /// 0xA1FF085091A019CD, 0xB10D9A860D4431C0, 0x8C1E6B066F143A67, 0x2A0283BBFE59FD84, 0x80C73DBA130C6903).</summary>
         public const ulong Model25PoweredHash = 0x67788361104F58BBUL, Model25RainPoweredHash = 0x4D876EF3F328F9ADUL,
             Model25ContactHash = 0x0F21FF2A28BA0E16UL, Model25TumbleHash = 0x6712A54D0FDA7F84UL, Model25RangeHash = 0x0D5350CB2E68C6B8UL;
+
+        /// <summary>p7f-damage 1.2's kept audit (GoldenFlightTests.WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s): with the
+        /// blades' pitch draws off and the flapping's inertia at the rod, or without props.blade, each golden flies model 26's
+        /// pins bit for bit, every record and event (the tumble has no rotors and keeps TumbleHash).</summary>
+        public const ulong Model26PoweredHash = 0x53F1D10489702031UL, Model26RainPoweredHash = 0x53B90D4307BF1534UL,
+            Model26ContactHash = 0xAAEA31DBFBB13710UL, Model26RangeHash = 0xC79B60F487AEB8B6UL;
 
         /// <summary>The audit against p7b-airframe--power (GoldenFlightTests.WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs):
         /// that branch's model 24 pins over model 19's 1808-byte record, which the powered, rain and tumble goldens flown on
@@ -833,7 +946,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize, bool yawI = true)
+            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -846,6 +959,7 @@ namespace Fpv450.Sim.Tests
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
             WithoutD064(setup, wake, motors, yawI);
+            edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -877,7 +991,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
-            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true)
+            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -900,6 +1014,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
             }
+            edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -960,7 +1075,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true)
+            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -980,6 +1095,7 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors, yawI);
+            edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -1103,6 +1219,31 @@ namespace Fpv450.Sim.Tests
         /// for bit; 12 itself rounds one ulp above it (FlightControllerTests.TheGainsCarryBetaflightsScaling). Every golden
         /// flown on it is model 34's, and every kept audit of an earlier model flies it.</summary>
         public const double Model34YawI = 11.999999999999998;
+
+        /// <summary>The spec without props.blade (p7f-damage 1.2's audit): no blades as elements, no pitch draws and the
+        /// flapping's uniform-rod inertia, so every golden flies model 26's bits. Pass a freshly parsed spec: it is changed in
+        /// place.</summary>
+        public static DroneSpec WithoutTheBlade(DroneSpec spec)
+        {
+            spec.Blade = null;
+            return spec;
+        }
+
+        /// <summary>p7f-damage 1.2's own share (the audit's switch): the blades' factory pitch draws off, so every rotor stays
+        /// sound and skips its blades' path.</summary>
+        public static void WithoutThePitch(FlightSetup setup)
+        {
+            if (setup.Asymmetry != null) setup.Asymmetry.BladePitchBound = 0;
+        }
+
+        /// <summary>The flapping's blade inertia back at model 26's uniform rod, m/N_b·R²/3 of the prop part (the audit's switch
+        /// for the inertia's share), in BuildFlapping's arithmetic.</summary>
+        public static Action<FlightSetup> WithTheRodsInertia(DroneSpec spec) => setup =>
+        {
+            if (setup.Flapping == null) return;
+            double radius = spec.Props.Diameter / 2, mass = spec.Parts[spec.PartIndex("prop_rr")].Mass;
+            setup.Flapping.BladeInertia = mass / spec.Props.Blades * radius * radius / 3;
+        };
 
         static ulong Fnv(ulong h, byte[] bytes, int from, int to)
         {

@@ -436,7 +436,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(pull, Is.GreaterThan(1), "the wet grooves held it as it lifted");
             Assert.That(core.State.Position.Y, Is.GreaterThan(SoilScenarios.Standing(spec) + 0.1), "and lifted off it");
             ulong table = SoilScenarios.Table().Hash;
-            Log.ReplayResult r = Log.FlightReplay.Run(new System.IO.MemoryStream(stream.ToArray()), id => id == "test-range" ? world : null, spec.ContentHash, null, table);
+            ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
+            Log.ReplayResult r = Log.FlightReplay.Run(new System.IO.MemoryStream(stream.ToArray()), id => id == "test-range" ? world : null, spec.ContentHash, null, table,
+                materialsHash: materials);
             TestContext.WriteLine($"  replay: {r.Outcome}, {r.Steps} steps; {r.Message}");
             Assert.That(r.Outcome, Is.EqualTo(Log.ReplayOutcome.Match), r.Message);
             Assert.That(r.Steps, Is.EqualTo(4000));

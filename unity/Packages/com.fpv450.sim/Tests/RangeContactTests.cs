@@ -272,7 +272,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.FirstObject, Is.EqualTo("L03_medium"));
             Assert.That(r.FirstMaterial, Is.EqualTo("cable"));
             Assert.That(r.First.Kind, Is.EqualTo(EventKind.PropStrike), "edge-on, a prop's rim meets it first");
-            Assert.That((r.Crashes > 0, r.Cause, r.Object), Is.EqualTo((true, CrashCause.PropStrike, "L03_medium")), "a rigid conductor at 10 m/s");
+            // Since model 35 a strike is no crash (p7f-damage 1.3): the conductor (cable, harder than the blades) breaks the front
+            // blades at their roots, and the flight ends when the body meets it, by acceleration, named by a body part.
+            Assert.That((r.Crashes > 0, r.Cause, r.Object), Is.EqualTo((true, CrashCause.Acceleration, "L03_medium")), "a rigid conductor at 10 m/s");
+            Assert.That(r.Part, Does.Not.StartWith("prop_"), "a body part");
         }
 
         // review-physics §6: climbing into a conductor that crosses the front discs, clear of every body shape above them.
@@ -601,7 +604,7 @@ namespace Fpv450.Sim.Tests
             byte[] log = stream.ToArray();
 
             FlightWorld Open(string id) => id == "test-range" ? new FlightWorld(MapWorld.Load(RangeScenarios.Root, id)) : null;
-            ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash, materialsHash: h);
             TestContext.Out.WriteLine(r.Message);
             Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
             Assert.That(r.Steps, Is.EqualTo(Steps));
@@ -612,7 +615,7 @@ namespace Fpv450.Sim.Tests
             int at = System.MemoryExtensions.IndexOf(new System.ReadOnlySpan<byte>(log, 0, (int)header.Length), new System.ReadOnlySpan<byte>(hash));
             Assert.That(at, Is.GreaterThan(0), "the header holds the world's hash");
             log[at] ^= 1;
-            ReplayResult tampered = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash);
+            ReplayResult tampered = FlightReplay.Run(new System.IO.MemoryStream(log), Open, spec.ContentHash, materialsHash: h);
             TestContext.Out.WriteLine(tampered.Message);
             Assert.That(tampered.Outcome, Is.EqualTo(ReplayOutcome.Refused), tampered.Message);
             StringAssert.Contains("the world differs: the log was flown on world 'test-range'", tampered.Message);
