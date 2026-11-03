@@ -121,8 +121,9 @@ namespace Fpv450.Sim.Tests
 
         public struct Resting
         {
-            /// <summary>How far the body settled below standing unloaded, m; its speed at the end, m/s.</summary>
-            public double Sink, Speed;
+            /// <summary>How far the body settled below standing unloaded, m; its speed at the end, m/s; its body rate's
+            /// magnitude at the end, rad/s.</summary>
+            public double Sink, Speed, Spin;
 
             /// <summary>The legs' loads at the end, N, and their sum over the weight; the air's upward force on the drone then
             /// (the body's, the coil's and the rotors' drag in the site's wind) over the weight, which the legs do not carry.</summary>
@@ -139,8 +140,8 @@ namespace Fpv450.Sim.Tests
             /// <summary>The supports' SampleGround at the end: how many report Hole.</summary>
             public int HoleSupports;
 
-            /// <summary>Contact events in the last second (0: no churn at rest), and of them a support's.</summary>
-            public int LateEvents, LateSupportEvents;
+            /// <summary>Contact events in the last second (0: no churn at rest).</summary>
+            public int LateEvents;
 
             public int Tunnels, Crashes, Lost;
         }
@@ -170,11 +171,7 @@ namespace Fpv450.Sim.Tests
                     if (e.Kind == EventKind.Crash) r.Crashes++;
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind != EventKind.ContactMade && e.Kind != EventKind.ContactBroken) continue;
-                    if (k >= steps - 1000)
-                    {
-                        r.LateEvents++;
-                        if (core.Contacts.Spec.Shapes[e.Index].Role == ContactRole.Support) r.LateSupportEvents++;
-                    }
+                    if (k >= steps - 1000) r.LateEvents++;
                     var key = (e.Index, e.Object, e.Shape);
                     if (e.Kind == EventKind.ContactMade) open[key] = e;
                     else open.Remove(key);
@@ -183,6 +180,7 @@ namespace Fpv450.Sim.Tests
             ref readonly FlightState s = ref core.State;
             r.Sink = site.Foot.Y + stand - s.Position.Y;
             r.Speed = DetMath.Sqrt(Double3.Dot(s.Velocity, s.Velocity));
+            r.Spin = DetMath.Sqrt(Double3.Dot(s.BodyRate, s.BodyRate));
             r.LegLoad = core.Trace.LegLoad;
             r.LoadOverWeight = (r.LegLoad[0] + r.LegLoad[1] + r.LegLoad[2] + r.LegLoad[3]) / (core.Body.Mass * 9.80665);
             r.AeroOverWeight = core.Trace.AeroForce.Y / (core.Body.Mass * 9.80665);

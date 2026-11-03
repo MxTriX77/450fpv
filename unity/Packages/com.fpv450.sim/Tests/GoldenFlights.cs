@@ -483,6 +483,14 @@ namespace Fpv450.Sim.Tests
         public const ulong Model34PoweredHash = 0x68F588AF6D73D471UL, Model34RainPoweredHash = 0x947B8DD37255DDB4UL,
             Model34ContactHash = 0xE4C64497E36A0322UL, Model34RangeHash = 0x1547C72C382DC357UL, Model34TetherHash = 0x0B0C0D39CDE821F4UL;
 
+        /// <summary>The two kept audits' range flights with the layers' area laws as model 38 flies them, with the buried face
+        /// (ContactModel.Buried): p7a-ground's model 33 over model 28's 1904 bytes (OverModel28sRecordEachGoldenIsModel33s) and
+        /// the flight on model 34's yaw I (OnModel34sYawIEachGoldenIsModel34s). With the buried face off (a temporary edit,
+        /// reverted, at physics-integration-2--latch) each is Model33RangeHash and Model34RangeHash bit for bit, every record and
+        /// event, so the buried face is the whole of each move; the audits flown without the area laws keep their pins (no
+        /// layer, no buried face).</summary>
+        public const ulong Model33RangeOn38Hash = 0x83945BE7D69BFA11UL, Model34RangeOn38Hash = 0xC961D6B865107711UL;
+
         /// <summary>The physics line's model 26 contact golden on the rigid floor, which the flight without surfaces.json keeps (the ground merge's audit, model 27).</summary>
         public const ulong Model26ContactHash = 0xAAEA31DBFBB13710UL;
 
@@ -644,7 +652,17 @@ namespace Fpv450.Sim.Tests
         // it is model 34's pin (the kept test), and without the map's cuts the same bits as with them. It moves from step 10
         // and keeps its course: within 1.3 mm and 0.19° of model 34's path, 4 impacts, at rest at the same 0.2443 m on 8 pairs,
         // 0.4 mm aside.
-        public const ulong RangeHash = 0x81A48D5C4B5E54DAUL;
+        // Model 36: 0x81A48D5C4B5E54DA. The buried face (ModelVersion 38, ContactModel.Buried): re-recorded on the same content.
+        // On S04's overlapping tiles a skid or support sunk into one tile lay inside a neighbour's side face, and model 36 took
+        // that face for a contact. It moves from step 41 (the settle into the straw) and keeps its course: 3 impacts (4), no
+        // crash, at rest 8.74 mm into the straw on 8 pairs (8.68 mm on 8), rolled 0.08° (0.09°), 1.0 mm from model 36's
+        // resting place, within 24.8 mm and 1.44° of its path (the drift of its liftoff off the mat at step 168, where model
+        // 36's buried side faces pushed the skids sideways as they lifted; largest at step 1974, 1.27 m up in the climb).
+        // Audited: with the buried face off (a temporary edit, reverted) it is
+        // model 36's pin bit for bit, every record and event, and so is every kept audit; without the area laws it is
+        // unchanged (WithoutTheAreaLawsTheRangeGoldenIsModel32s: no layer, no buried face); the two kept audits flown with the
+        // area laws move to Model33RangeOn38Hash and Model34RangeOn38Hash.
+        public const ulong RangeHash = 0x5133425038BAA44EUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>

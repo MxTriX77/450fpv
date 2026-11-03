@@ -262,8 +262,14 @@ namespace Fpv450.Sim.Log
         /// 36: Betaflight's yaw I (on 34; reference-notes/rate-tracking.md §6): the controller multiplies yaw's Ki by 2.5 after
         ///    the scaling, as pid_init.c's pidInitConfig does without integrated yaw. A flight on i_yaw just under 12, whose
         ///    Ki is 34's ITERM_SCALE × 30 bit for bit (GoldenFlights.Model34YawI), steps as in 34; the record is unchanged.
+        /// 37: assigned to p7g-legs (D-072).
+        /// 38: the buried face (on 36; ContactModel.Buried): a layer's contact (a row with an area law) whose point lies inside
+        ///    another shape of the same object and the same material is a face between two pieces of one layer, and carries
+        ///    nothing (S04's overlapping straw tiles: a part sunk in one lay inside a neighbour's side face, and the legs took
+        ///    that face's horizontal normal for a contact). A flight whose parts never meet such a face, and any flight
+        ///    without the layers' area laws, steps as in 36; the record is unchanged.
         /// </summary>
-        public const int ModelVersion = 36;
+        public const int ModelVersion = 38;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

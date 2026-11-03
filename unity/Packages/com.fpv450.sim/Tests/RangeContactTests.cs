@@ -106,10 +106,11 @@ namespace Fpv450.Sim.Tests
         // Re-measured by p7a-ground 1.12 against 1.6b's: the mat meets each half-skid by its area (3.03 × the reference foot's
         // 490 N/m, 1482.5 N/m) in series with a leg, so a quarter of the weight sinks a support 9.0 mm. 1.6b's row read per
         // part as the reference foot (490 N/m, the known-wrong) sinks it 10–26 mm (the leg tubes' ends, 15 mm over the skids'
-        // bottoms, taking a share once the skids are past them). Rigid straw would sink 1.2 mm. At 9 mm this spot's skids
-        // lie across overlapping tiles, and a skid capsule meets a neighbouring tile's side face, 7 mm into it along a
-        // horizontal normal, for a step at a time (the side-face latch 1.13 found, its own task): the drone rocks at under
-        // 1 mm/s and the skids' pairs churn. No support's pair does; the side-face task brings the skids' churn to 0.
+        // bottoms, taking a share once the skids are past them). Rigid straw would sink 1.2 mm. At 9 mm this spot's skids and
+        // supports lie across overlapping tiles, 2–5 mm inside a neighbouring tile's side face: a face buried in the mat
+        // (ContactModel's buried-face rule, the side-face fix). Taken as a contact (model 36, the known-wrong), a horizontal
+        // normal carried part of a corner's force: the legs carried 1.039 of the weight and the drone rocked at 0.4 mm/s and
+        // 0.005 rad/s, with 10 skid contact events in the last second, never at rest.
         [Test]
         public void OnS04sStrawItSinksIntoTheMat()
         {
@@ -124,14 +125,16 @@ namespace Fpv450.Sim.Tests
             double derived = Spec.BuildMass(Spec.Nominal).Properties.Mass * G / 4 * (1 / k0 + 1 / half);
             RangeScenarios.Resting foot = RangeScenarios.Rest(Spec, GoldenFlights.WithoutTheAreaLaws(), h, RangeScenarios.At(RangeScenarios.Straw, 0));
             TestContext.Out.WriteLine($"sank {r.Sink * 1e3:F3} mm against the derived {derived * 1e3:F3} (the half-skid's {half:F1} N/m with the leg), "
-                + $"{r.Speed * 1e3:F3} mm/s, {r.LateEvents} contact events in the last second ({r.LateSupportEvents} a support's); read per part as the reference "
+                + $"{r.Speed * 1e3:F3} mm/s, {r.Spin:E2} rad/s, {r.LateEvents} contact events in the last second; read per part as the reference "
                 + $"foot (1.6b's) {foot.Sink * 1e3:F3} mm, {foot.LateEvents} events");
             Assert.That(r.Sink, Is.EqualTo(derived).Within(5).Percent, "the weight's quarter on the half-skid's area law and the leg");
             Assert.That(foot.Sink, Is.InRange(0.010, 0.026), "known-wrong: 1.6b's mat read as the reference foot sinks it as before");
             Assert.That(foot.Sink, Is.Not.EqualTo(derived).Within(5).Percent, "and fails");
-            Assert.That(r.LateSupportEvents, Is.EqualTo(0), "no support's contact flickers at rest");
+            Assert.That(r.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight carried once, on the mat's top");
+            Assert.That(r.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
             Assert.That(foot.LateEvents, Is.EqualTo(0), "at 1.6b's depth no contact flickers");
-            Assert.That(r.Speed, Is.LessThan(2e-3), "at rest but for the side-face latch's rocking");
+            Assert.That(r.Speed, Is.LessThan(1e-3));
+            Assert.That(r.Spin, Is.LessThan(1e-3), "no rocking");
         }
 
         // ---- the landing --------------------------------------------------------------------------------------------------

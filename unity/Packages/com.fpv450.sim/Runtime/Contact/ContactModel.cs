@@ -30,6 +30,11 @@ namespace Fpv450.Sim.Contact
     /// its plane still shows penetration, after a flip or with the part's deepest core end past the shape's centre along
     /// the normal it came in by, is a Tunnel event: a physics bug, never pilot error.
     ///
+    /// A buried face is no contact (Buried, physics-integration-2's side-face latch): a layer's contact whose point lies
+    /// inside another shape of the same object and the same material is a face between two pieces of one layer (S04's
+    /// overlapping straw tiles: a tile's side within its neighbour), not the layer's surface. The mass runs on across it,
+    /// so it carries no normal stress of its own; the piece around it meets the part by its own face.
+    ///
     /// The laws:
     /// - A leg (K§7.1 step 8): one spring k and damper c per corner in series with what its foot touches. Its points are
     ///   its support spheres on SampleGround's ground and on objects (a sphere's contacts on coplanar pieces of one face are
@@ -1304,7 +1309,7 @@ namespace Fpv450.Sim.Contact
                 if (groundless && c.Object == WorldIds.Ground) continue; // the supports' ground is SampleGround's
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                bool same = capsule ? SameSupport(i, c) : Seam(j, found, groundless);
+                bool same = Buried(j, found) || (capsule ? SameSupport(i, c) : Seam(j, found, groundless));
                 if (k == _count[i])
                 {
                     if (same) continue;
@@ -1325,7 +1330,7 @@ namespace Fpv450.Sim.Contact
                 p.Seen = true;
                 if (same)
                 {
-                    p.Suppressed = true; // the support beside it carries this touch
+                    p.Suppressed = true; // the support beside it, or the piece around a buried face, carries this touch
                     continue;
                 }
                 p.Time = c.Time;
@@ -1437,6 +1442,63 @@ namespace Fpv450.Sim.Contact
                 if (Double3.Dot(c.Normal, d.Normal) > FacingAway && OnPlane(d.Normal, d.Point, c.Point)) return true;
             }
             return false;
+        }
+
+        // A face buried in its own layer (physics-integration-2's side-face latch, derived): contact j on a layer row's shape
+        // (one with an area law: straw, fabric, a sandbag's fill) whose point lies inside another of this result's shapes of
+        // the same object and the same material, deeper than SeamTolerance. A layer's overlapping pieces are one loose mass,
+        // continuous across the faces between them, so such a face carries no normal stress: the layer's surface is the
+        // union's, and the piece around the point meets the part by its own face. On S04's mat a skid sunk 9 mm into one tile
+        // lies 2–5 mm inside a neighbouring tile's side face; the query reports that side, the part's shortest way out of
+        // that tile, and without this rule the leg took it as a point with a horizontal normal: its share of the corner's
+        // force pushed the drone sideways (a skid's for a step at a time, as the query's nearest face of that tile switched; a
+        // support's for good), and a corner lifting out kept it, the latched plane (P1) held as the top face's normal,
+        // perpendicular to it, read as a flip. A real face is the layer's surface, inside no other piece of it, and counts:
+        // the mat's own cut edge, a rock of another material in the straw, a wall's face or a box's edge. Only a layer is
+        // entered past a part's radius by a valid contact: a rigid shape's inner face is reached only through its surface,
+        // which the tunnel rule must see, and a compliant row without an area law gives by bending, each piece its own member.
+        // Soil shapes keep design 5's own rule (p7a-ground 1.11).
+        bool Buried(int j, int found)
+        {
+            StaticContact c = _buf[j];
+            if (c.Object == WorldIds.Ground || c.Surface != WorldIds.NoSurface || c.Material >= _byMaterial.Length
+                || _byMaterial[c.Material].Law == AreaLaw.None) return false;
+            for (int q = 0; q < found; q++)
+            {
+                StaticContact d = _buf[q];
+                if (q == j || d.Object != c.Object || d.Shape == c.Shape || d.Material != c.Material || d.Surface != WorldIds.NoSurface) continue;
+                if (_world.Geometry(d.Object, d.Shape, out ShapeGeometry g) && Within(g, c.Point) > SeamTolerance) return true;
+            }
+            return false;
+        }
+
+        // How deep x lies inside shape g, m (at most 0 outside): to its nearest face for a box, a cylinder (axis AxisY) and the
+        // plane's half-space, to its surface for a sphere and a capsule (axis AxisY); a wire is a chain, no solid: never.
+        static double Within(in ShapeGeometry g, Double3 x)
+        {
+            Double3 d = x - g.Center;
+            switch (g.Kind)
+            {
+                case ShapeKind.Plane:
+                    return -Double3.Dot(d, g.AxisY);
+                case ShapeKind.Box:
+                {
+                    Double3 h = g.HalfExtents;
+                    double ix = h.X - DetMath.Abs(Double3.Dot(d, g.AxisX)), iy = h.Y - DetMath.Abs(Double3.Dot(d, g.AxisY));
+                    return DetMath.Min(DetMath.Min(ix, iy), h.Z - DetMath.Abs(Double3.Dot(d, g.AxisZ)));
+                }
+                case ShapeKind.Sphere:
+                    return g.Radius - d.Length();
+                case ShapeKind.Capsule:
+                    return g.Radius - (x - Closest(g.Center - g.AxisY * g.HalfLength, g.Center + g.AxisY * g.HalfLength, x)).Length();
+                case ShapeKind.Cylinder:
+                {
+                    double y = Double3.Dot(d, g.AxisY);
+                    return DetMath.Min(g.Radius - (d - g.AxisY * y).Length(), g.HalfLength - DetMath.Abs(y));
+                }
+                default:
+                    return double.NegativeInfinity;
+            }
         }
 
         // x lies on the plane through p with normal n, within SeamTolerance.

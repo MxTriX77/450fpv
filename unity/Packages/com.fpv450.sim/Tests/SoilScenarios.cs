@@ -675,6 +675,9 @@ namespace Fpv450.Sim.Tests
             /// over the lift's steps.</summary>
             public double Load, Weight;
             public long Allocated;
+
+            /// <summary>The contacts' force at the lift's end, world N (0 once every corner is off).</summary>
+            public Double3 EndForce;
         }
 
         /// <summary>
@@ -748,6 +751,7 @@ namespace Fpv450.Sim.Tests
                 Double3 f = default, m = default;
                 trace = new StepTrace();
                 model.Forces(ref s, mass.Properties, ref f, ref m, ref trace, events);
+                r.EndForce = f;
                 bool any = false;
                 for (int c = 0; c < 4; c++)
                 {

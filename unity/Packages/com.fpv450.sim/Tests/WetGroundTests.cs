@@ -232,6 +232,41 @@ namespace Fpv450.Sim.Tests
             for (int c = 0; c < 4; c++) Assert.That(dry.Peak[c], Is.EqualTo(0), "dry straw holds nothing");
         }
 
+        // The same lift on S04's own tiled mat on the range (physics-integration-2's side-face fix). Where the skids lie across
+        // overlapping tiles (RangeScenarios.Straw) each corner clings as on the one box; at the first patch's centre each corner
+        // that pressed the straw does (one stands over a gap between the tiles). At model 36 a support there lay inside a
+        // neighbouring tile's side face, a face buried in the mat that the contacts took for a surface: lifting out it kept
+        // that plane, 10.2 mm deep, pushing 8.30 N sideways with no vertical load past 20 mm of the lift, and never clung.
+        [Test]
+        public void WetStrawClingsOnS04sPatch()
+        {
+            DroneSpec spec = Drone();
+            MaterialRow straw = Straw();
+            var range = new FlightWorld(SoilScenarios.Range());
+            double hold = straw.WetAdhesion * 2 * R * L;
+            foreach (RainLevel rain in new[] { RainLevel.Rain, RainLevel.SevereRain })
+            {
+                AssertHeld(SoilScenarios.Unsticking(spec, range, RangeScenarios.Straw, rain), straw.WetAdhesion, straw.WetAdhesionRelease, 2 * R * L,
+                    "S04's overlapping tiles " + rain);
+                SoilScenarios.Unstick centre = SoilScenarios.Unsticking(spec, range, SoilScenarios.PatchCentre(range), rain);
+                int pressed = 0;
+                for (int c = 0; c < 4; c++)
+                {
+                    TestContext.WriteLine($"  the patch's centre {rain} corner {c}: pressed {centre.PressLoad[c]:F3} N, the pull peaks at {centre.Peak[c]:F4} N "
+                        + $"(σ_a·S {hold:F4}), last acts {centre.Released[c] * 1e3:F4} mm above the straw");
+                    if (!(centre.PressLoad[c] > 0)) continue;
+                    pressed++;
+                    Assert.That(centre.Peak[c], Is.EqualTo(hold).Within(1).Percent, "the patch's centre: a corner that pressed the straw clings");
+                    Assert.That(centre.Released[c], Is.InRange(straw.WetAdhesionRelease - 5e-5, straw.WetAdhesionRelease), "and lets go by δ_a");
+                }
+                Assert.That(pressed, Is.EqualTo(3), "the patch's centre: three corners on the straw (the premise)");
+                for (int c = 0; c < 4; c++) Assert.That(centre.Holding[c], Is.False, "the patch's centre: every corner let go");
+                Assert.That(centre.EndForce.Length(), Is.EqualTo(0), "and nothing pushes it sideways once it is off");
+            }
+            SoilScenarios.Unstick dry = SoilScenarios.Unsticking(spec, range, RangeScenarios.Straw, RainLevel.Sunny);
+            for (int c = 0; c < 4; c++) Assert.That(dry.Peak[c], Is.EqualTo(0), "dry straw holds nothing");
+        }
+
         // ---- Wet cover --------------------------------------------------------------------------------------------
 
         [Test]
