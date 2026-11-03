@@ -11,10 +11,13 @@ the soil box lies just under it (PR7 a), the old single mat box fails the audit 
 come in PR8's order, the mat boxes are the layout's, and the baked straws over a floor lie on it (N8), at the
 sheet's share and at bare.share 0.12. The loft: the lying straws stack
 above the mat's top, more on the crowns, never above a 20 cm mat; straws overhang a step's lip; the blades stand
-only over the green strips."""
+only over the green strips. The physics elements (p7a-ground 1.5): one record per drawn top-layer straw, floor straw,
+stem and twig on its tube's centre line, none for the body straws and blades, nothing anchored over a floor."""
 import copy
+import json
 import math
 import statistics
+import sys
 
 import pytest
 
@@ -24,8 +27,28 @@ from lib.audit import TOLERANCE_M
 
 
 @pytest.fixture(scope="module")
-def built(s04_params):
-    return ground_patch.build(s04_params)
+def drawn(s04_params):
+    """The S04 build with every strand the bake places noted in order, read from the bake's frame that places it
+    (lib.straw.place called by lying, tuft or blades): its kit kind, the layer a lying strand's ends rest in, whether
+    a lying strand's centre lies on the mat, its origin, and its first vertex and vertex count in the micro mesh."""
+    strands, real = [], straw.place
+
+    def place(target, variant, origin, axes, dv=0.0):
+        caller = sys._getframe(1)
+        local = caller.f_locals
+        strands.append({"kind": local["kind"] if caller.f_code.co_name in ("lying", "tuft") else "blade",
+                        "layer": local.get("layer"), "on_mat": local.get("on_mat", True), "origin": origin,
+                        "first": len(target.vertices), "vertices": len(variant.vertices)})
+        real(target, variant, origin, axes, dv)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(straw, "place", place)
+        return ground_patch.build(s04_params), strands
+
+
+@pytest.fixture(scope="module")
+def built(drawn):
+    return drawn[0]
 
 
 @pytest.fixture(scope="module")
@@ -341,7 +364,8 @@ def test_micro_mesh_holds_the_scatter_at_density_times_area(built, s04_params):
 def test_metadata_lists_the_micro_mesh_and_only_the_slab_shapes(built, s04_params, material_ids):
     data = meta.assemble("S04", "S04_patch", "ground_patch", s04_params, built,
                          {"ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw"})
-    assert meta.validate(data, material_ids) == []
+    assert meta.validate(data, material_ids, built["micro_elements"]) == []
+    assert data["micro_elements"]["file"] == "S04_patch.elements.json"
     assert data["micro"] == [{"lod": 0, "name": "S04_patch_LOD0_straw", "kind": "straw", "count": built["micro"][0]["count"],
                               "tris": built["micro"][0]["mesh"].triangles()}]
     assert [lod["mesh"] for lod in data["lods"]] == ["S04_patch_LOD0", "S04_patch_LOD1", "S04_patch_LOD2"]
@@ -459,13 +483,15 @@ def lying_straws(s04_params):
 
 def test_lying_straws_loft_over_the_crowns_and_stay_in_a_20cm_mat(s04_params, bare):
     """The loft: the lying straws over the mat rest above the mat's top, up to about loft_m, more of them and higher
-    on the relief's crowns than in its hollows (heaps), none above a MAT_MAX_M mat (a straw's centre may sit up to
-    its bow, BOW x straw_bend x its length x 2/pi, above the line between its ends); the mounds aside, where straws
-    lie on the earth."""
+    on the relief's crowns than in its hollows (heaps), none above a MAT_MAX_M mat (a straw's centre, the mean of its
+    two segments' three ring centres, may sit up to a third of its middle's reach above the midpoint of its ends: its
+    bow and wiggle, (BOW + WIGGLE) x straw_bend x its length, and its kink's swing of the far half, half its length x
+    sin(KINK_DEG x straw_bend)); the mounds aside, where straws lie on the earth."""
     relief = mat.relief(**mat.relief_inputs(s04_params))
     top = ground_patch.MAT_MAX_M - s04_params["mat_depth_m"]
     mounds = [c["center"] for c in ground_patch.build(s04_params)["collision"] if c["shape"] == "sphere"]
-    bow = straw.BOW * s04_params["straw_bend"] * s04_params["straw_len_m"]["max"] * 2 / math.pi
+    length, bend = s04_params["straw_len_m"]["max"], s04_params["straw_bend"]
+    bow = ((straw.BOW + straw.WIGGLE) * bend * length + length / 2 * math.sin(math.radians(straw.KINK_DEG * bend))) / 3
     crowns, hollows = [], []
     for x, y, z in lying_straws(s04_params):
         if patches.inside(bare, x, z) or math.hypot(x, z) > s04_params["bake_radius_m"] - s04_params["bake_feather_m"]:
@@ -520,3 +546,82 @@ def test_blades_stand_only_over_the_green_strips(built, s04_params, bare):
         x, _, z = mesh.vertices[min(i for f in faces[start:start + per] for i in f[0])]  # its foot
         assert any(mat.green_weight(strips, x + dx, z + dz) > 0 for dx in (-0.03, 0, 0.03) for dz in (-0.03, 0, 0.03))
         assert min(patches.distance((x, z), p["outline"]) for p in bare) > -0.05, f"a blade on a floor at {(x, z)}"
+
+
+def ring_centres(mesh, first, rings):
+    """The centres of a placed tube's rings (lib.straw: SIDES vertices round each spine point, in order)."""
+    return [[sum(mesh.vertices[first + i * straw.SIDES + j][a] for j in range(straw.SIDES)) / straw.SIDES
+             for a in range(3)] for i in range(rings)]
+
+
+def off_line(p, line):
+    """The distance from p to the polyline `line`."""
+    best = math.inf
+    for a, b in zip(line, line[1:]):
+        d = [b[k] - a[k] for k in range(3)]
+        t = max(0.0, min(1.0, sum((p[k] - a[k]) * d[k] for k in range(3)) / sum(c * c for c in d)))
+        best = min(best, math.dist(p, [a[k] + t * d[k] for k in range(3)]))
+    return best
+
+
+def test_the_physics_elements_are_the_drawn_ones(drawn, s04_params, bare):
+    """S04 "The physics elements are the drawn ones" and asset-pipeline "Micro elements are the drawn ones" (p7a-ground
+    1.5, design 8, AST-10): the records as written (rounded to the micrometre) are, in bake order, one per drawn
+    top-layer straw (the lip's included), straw on a floor, standing stem and twig, and none for a body straw in the mat
+    or a blade; each record's centre line is its tube's within 1e-6 m both ways (a headed stem's runs on to its seed
+    head's apex, on its last segment's line), its diameter the tube's base ring's; stems and the straws in the mat are
+    anchored, the floor's straws and the twigs loose; no anchored element is rooted over a bare patch's floor, no stem
+    stands on one, and only what lies strewn on a floor starts inside an outline."""
+    built, strands = drawn
+    mesh, rings = built["micro"][0]["mesh"], s04_params["segments"] + 1
+    records = json.loads(meta.elements_dumps("S04_patch", built["micro_elements"]))["elements"]
+
+    def body(s):
+        return s["kind"] == "straw" and s["layer"] is ground_patch.BODY_LAYER and s["on_mat"]
+
+    physical = [s for s in strands if s["kind"] != "blade" and not body(s)]
+    kinds = {"straw": "straw", "twig": "twig", "stem": "stem", "stem_head": "stem"}
+    assert len(records) == len(physical), "every drawn strand of a physical kind has exactly one record"
+    assert sum(s["vertices"] for s in strands) == len(mesh.vertices), "the spy saw every strand drawn"
+    rooted_on_floor = 0
+    for i, (e, s) in enumerate(zip(records, physical)):
+        assert e["kind"] == kinds[s["kind"]], f"record {i}"
+        assert s["vertices"] == rings * straw.SIDES + (4 if s["kind"] == "stem_head" else 0)
+        centres = ring_centres(mesh, s["first"], rings)
+        diameter = 2 * math.dist(mesh.vertices[s["first"]], centres[0])  # the tube's base ring, its first
+        line = e["points"]
+        if s["kind"] == "stem_head":
+            apex = mesh.vertices[s["first"] + rings * straw.SIDES + 3]
+            assert math.dist(line[-1], apex) <= 1e-6 and off_line(centres[-1], line[-2:]) <= 1e-6, f"record {i}"
+            centres[-1] = list(apex)
+        if s["kind"] in ("straw", "twig") and math.dist(line[0], centres[0]) > math.dist(line[0], centres[-1]):
+            centres.reverse()
+        assert len(line) == len(centres) and all(math.dist(p, c) <= 1e-6 for p, c in zip(line, centres)), \
+            f"record {i}: {line} is not its strand's centre line {centres}"
+        assert e["diameter_m"] == pytest.approx(diameter, abs=1e-6), f"record {i}"
+        if s["kind"] in ("straw", "twig"):  # its base: the end not over a floor, else the lower
+            ends = [(patches.inside(bare, p[0], p[2]), p[1]) for p in (line[0], line[-1])]
+            assert ends[0] <= ends[1], f"record {i} starts from {line[0]}, not its base"
+        assert e["parent"] == e["parent_shape"] == -1
+        expected = s["kind"] != "twig" and s["on_mat"]
+        assert e["anchored"] is expected, f"record {i}: {s['kind']} on the mat {s['on_mat']}"
+        if patches.inside(bare, line[0][0], line[0][2]):
+            assert not e["anchored"] and not s["on_mat"], f"record {i} is rooted over a floor"
+            rooted_on_floor += 1
+    assert not any(patches.inside(bare, s["origin"][0], s["origin"][2]) for s in strands
+                   if s["kind"] in ("stem", "stem_head")), "a stem stands on a floor"
+    counts = {kind: sum(1 for e in records if e["kind"] == kind) for kind in ("straw", "stem", "twig")}
+    assert built["micro_elements"] and all(counts.values())
+    print(f"micro_elements {counts} ({sum(1 for s in physical if s['kind'] == 'straw' and not s['on_mat'])} straws "
+          f"strewn on floors, {rooted_on_floor} records starting on a floor); visual only: "
+          f"{sum(1 for s in strands if body(s))} body straws, {sum(1 for s in strands if s['kind'] == 'blade')} blades")
+
+
+def test_the_committed_elements_are_the_generators(built, repo_root):
+    """The committed sidecar and the metadata's record of it are what the generator writes from the committed params,
+    so a params edit without a rebuild is caught (rebuild: pwsh tools/build_asset.ps1 S04)."""
+    folder = repo_root / "unity" / "Assets" / "_Project" / "Art" / "Models" / "surfaces" / "S04"
+    committed = json.loads((folder / "S04_patch.assetmeta.json").read_text(encoding="utf-8"))
+    assert committed["micro_elements"] == meta.elements_record("S04_patch", built["micro_elements"])
+    assert (folder / "S04_patch.elements.json").read_bytes().decode("utf-8") == \
+        meta.elements_dumps("S04_patch", built["micro_elements"]), "rebuild S04: its elements are stale"

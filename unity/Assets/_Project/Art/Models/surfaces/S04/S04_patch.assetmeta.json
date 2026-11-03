@@ -3,7 +3,7 @@
   "id": "S04",
   "variant": "S04_patch",
   "generator": "ground_patch",
-  "params_sha256": "9b5c7d47cd965f77d7527e6116d99f058d9ef37fbe181aa547dc42fa3163c05c",
+  "params_sha256": "a91948e5a49441bcd5be2e490595008289ac8366642e890ca11c202fb434d0aa",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -14,7 +14,7 @@
     ],
     "max": [
       6.0,
-      1.211018,
+      1.15078,
       6.0
     ]
   },
@@ -43,8 +43,8 @@
       "lod": 0,
       "name": "S04_patch_LOD0_straw",
       "kind": "straw",
-      "count": 20329,
-      "tris": 405792
+      "count": 20242,
+      "tris": 245648
     }
   ],
   "cull_distance_m": 400.0,
@@ -4227,5 +4227,14 @@
   "wires": [],
   "holes": [],
   "textures": [],
-  "snag": []
+  "snag": [],
+  "micro_elements": {
+    "file": "S04_patch.elements.json",
+    "sha256": "96bfea429fcacd08422596cb2d97ffa4c24c2c4dbb371af4e6e3829ff058eb66",
+    "counts": {
+      "straw": 8502,
+      "stem": 1912,
+      "twig": 72
+    }
+  }
 }
