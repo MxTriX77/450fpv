@@ -19,7 +19,8 @@ namespace Fpv450.Sim.Tests
     /// down on the slow glide path with the sticks held, bounces, and the throttle is cut. Each hash is every step's log
     /// record and events, so it pins the whole state, the controller's included, bit for bit. The suite checks them on
     /// .NET and in Unity's EditMode (Mono), tools/flightbench --golden on .NET Release. A re-record raises
-    /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md).
+    /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md). Since model 36 (Betaflight's yaw I) every kept audit
+    /// against an earlier model flies model 34's yaw I (yawI false, Model34YawI).
     /// </summary>
     public static class GoldenFlights
     {
@@ -229,7 +230,14 @@ namespace Fpv450.Sim.Tests
         // the packs at 0.8941 of 0.9 (the power branch's 0.8941).
         // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
         // it is model 28's pin, Model28PoweredHash, bit for bit (the kept test).
-        public const ulong PoweredHash = 0x68F588AF6D73D471UL;
+        // Model 34: 0x68F588AF6D73D471. Betaflight's yaw I (ModelVersion 36, reference-notes/rate-tracking.md §6): re-recorded
+        // with yaw's Ki × 2.5 (pid_init.c pidInitConfig, integrated yaw off). Audited: on model 34's yaw I (Model34YawI) it is
+        // model 34's pin, every record and event (the kept test OnModel34sYawIEachGoldenIsModel34s), and every older kept audit
+        // holds on it. With the factor the record moves from step 1 (fc.motor_mix_range: the disarmed loop's yaw sum, the
+        // motors stopped) and the pose from step 21, the first armed step. On the open-loop script the yaw step (3.5–4.5 s)
+        // turns it further, so it ends 5.68 m from model 34's end and within 23.0° of its attitude, 160.72 m up against
+        // 162.72; armed, no crash.
+        public const ulong PoweredHash = 0xF0A7027AE1CD5556UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -259,7 +267,10 @@ namespace Fpv450.Sim.Tests
         // m from their ends, within 19° and 8.0°; the film holds 9.92 g at 10 s (9.11 and 10.28).
         // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
         // it is model 28's pin, Model28RainHash, bit for bit (the kept test).
-        public const ulong RainPoweredHash = 0x947B8DD37255DDB4UL;
+        // Model 34: 0x947B8DD37255DDB4. Betaflight's yaw I (ModelVersion 36), audited as the powered flight: on model 34's yaw I
+        // it is model 34's pin (the kept test). It moves from step 1 (the record) and step 21 (the pose), and ends 5.26 m from
+        // model 34's end and within 23.0°, 162.62 m up against 164.73.
+        public const ulong RainPoweredHash = 0x470AA9C751367BC9UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -453,7 +464,11 @@ namespace Fpv450.Sim.Tests
         // (WithoutTheSoilTheContactGoldenIsModel26s). The floor has no cut, and its Calm field calls no Atan2. So it is model
         // 33's flight step for step; against p7d-tether's it moves from step 2 (the soil), 4 impacts against 5, at rest at
         // 0.2497 m against 0.2519, 28 mm aside, within 47 mm and 1.5 deg of its path; 92 events against 125.
-        public const ulong ContactHash = 0xE4C64497E36A0322UL;
+        // Model 34: 0xE4C64497E36A0322. Betaflight's yaw I (ModelVersion 36), audited as the powered flight: on model 34's yaw I
+        // it is model 34's pin, every record and event (the kept test), and every older kept audit holds on it. It moves from
+        // step 10, the first with the rotors turning, and keeps its course: within 0.5 mm and 0.07° of model 34's path, 4
+        // impacts as model 34's, at rest at the same 0.2497 m on 4 pairs, 0.2 mm aside.
+        public const ulong ContactHash = 0xEA8C1FA9BBE6A19EUL;
 
         /// <summary>The parents' pins at the physics integration 2 (model 34), which its kept audits fly: p7d-tether's model 31
         /// contact, range and tether goldens over the whole 2008-byte record (WithoutTheGroundTheGoldenFlightsAreModel31s:
@@ -461,6 +476,12 @@ namespace Fpv450.Sim.Tests
         /// 1904 bytes (OverModel28sRecordEachGoldenIsModel33s).</summary>
         public const ulong Model31ContactHash = 0x89EEA4CA37C2ACD0UL, Model31RangeHash = 0xE29C5993A913A2B6UL, Model31TetherHash = 0xA8BD64033E8EBFBDUL,
             Model33ContactHash = 0x37C4BFF09B9C22E2UL, Model33RangeHash = 0xCA3CC415DC86A197UL;
+
+        /// <summary>The physics integration 2's pins (model 34), which every golden flown on model 34's yaw I (Model34YawI) keeps
+        /// bit for bit, every record and event (GoldenFlightTests.OnModel34sYawIEachGoldenIsModel34s, the kept audit of
+        /// Betaflight's yaw I at model 36). The tumble has no rotors and keeps model 34's TumbleHash.</summary>
+        public const ulong Model34PoweredHash = 0x68F588AF6D73D471UL, Model34RainPoweredHash = 0x947B8DD37255DDB4UL,
+            Model34ContactHash = 0xE4C64497E36A0322UL, Model34RangeHash = 0x1547C72C382DC357UL, Model34TetherHash = 0x0B0C0D39CDE821F4UL;
 
         /// <summary>The physics line's model 26 contact golden on the rigid floor, which the flight without surfaces.json keeps (the ground merge's audit, model 27).</summary>
         public const ulong Model26ContactHash = 0xAAEA31DBFBB13710UL;
@@ -480,8 +501,12 @@ namespace Fpv450.Sim.Tests
         /// its skids 2.1–2.2 mm into the soil; the line as on model 31 (0.073 m paid out, 15 nodes, the trail at 8 points, no
         /// clip or wedge), the chain's energy check taking 2 safe steps (none on model 31). Against the contact golden without
         /// the line it moves from step 3, as on model 31, and stays within 6.7 mm and 0.04 deg of it, at rest 0.4 mm aside.
+        /// Model 34: 0x0B0C0D39CDE821F4. Betaflight's yaw I (ModelVersion 36), audited as the contact flight: on model 34's yaw I
+        /// it is model 34's pin (the kept test). It moves from step 10 and keeps its course: within 0.5 mm and 0.08° of model
+        /// 34's path, 4 impacts, at rest at the same 0.2497 m, 0.3 mm aside; the line as on model 34 (0.073 m paid out, no
+        /// wedge), the chain's energy check taking 1 clip and 1 safe step (model 34: none and 2).
         /// </summary>
-        public const ulong TetherHash = 0x0B0C0D39CDE821F4UL;
+        public const ulong TetherHash = 0x318B90FF21403E3BUL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -519,7 +544,8 @@ namespace Fpv450.Sim.Tests
         // 1808 bytes the power branch's 0x95E56C6BB49BB744 (the kept test); momentum within 1.7e-12, energy 3.5e-12, the CoM
         // 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s, the power branch's numbers.
         // Model 31 (p7d-tether 1.6): re-recorded on the 2008-byte record, the fiber's block zero; over model 28's 1904 bytes
-        // it is model 28's pin, Model28TumbleHash, bit for bit (the kept test).
+        // it is model 28's pin, Model28TumbleHash, bit for bit (the kept test). Betaflight's yaw I (ModelVersion 36): it has no
+        // rotors and keeps its hash.
         public const ulong TumbleHash = 0x3FD62A50B3AF6C84UL;
         public const int TumbleSteps = 10000;
 
@@ -614,7 +640,11 @@ namespace Fpv450.Sim.Tests
         // WindSetup.ForMap (the cavity off) the same bits, as it never enters a cut's opening (WithoutTheCutsTheRangeGoldenIsTheSame);
         // and with the physics line's series DetMath.Atan2 back (a temporary edit, reverted) the same bits. So it is model 33's
         // flight step for step, and against p7d-tether's the area laws' move above.
-        public const ulong RangeHash = 0x1547C72C382DC357UL;
+        // Model 34: 0x1547C72C382DC357. Betaflight's yaw I (ModelVersion 36), audited as the contact flight: on model 34's yaw I
+        // it is model 34's pin (the kept test), and without the map's cuts the same bits as with them. It moves from step 10
+        // and keeps its course: within 1.3 mm and 0.19° of model 34's path, 4 impacts, at rest at the same 0.2443 m on 8 pairs,
+        // 0.4 mm aside.
+        public const ulong RangeHash = 0x81A48D5C4B5E54DAUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -785,7 +815,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize)
+            int layout = LogFormat.StepSize, bool yawI = true)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -797,7 +827,7 @@ namespace Fpv450.Sim.Tests
             if (!asymmetry) setup.Asymmetry = null;
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
-            WithoutD064(setup, wake, motors);
+            WithoutD064(setup, wake, motors, yawI);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -829,7 +859,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
-            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false)
+            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -845,7 +875,7 @@ namespace Fpv450.Sim.Tests
             if (interference) setup.Interference = spec.BuildInterference();
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
-            WithoutD064(setup, wake, motors);
+            WithoutD064(setup, wake, motors, yawI);
             if (tether)
             {
                 setup.Tether = Tether.TetherTable.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
@@ -912,7 +942,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, MaterialRow[] materials = null)
+            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -931,7 +961,7 @@ namespace Fpv450.Sim.Tests
             if (interference) setup.Interference = spec.BuildInterference();
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
-            WithoutD064(setup, wake, motors);
+            WithoutD064(setup, wake, motors, yawI);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -1042,12 +1072,19 @@ namespace Fpv450.Sim.Tests
 
         // D-064's sources off for an audit against model 19: no rotor wake (wake), the motors' resistance, friction and inertia
         // undrawn (motors). The re-ingested wash's published numbers and its torque have no switch (their audit was a
-        // temporary edit, GoldenFlights' notes).
-        static void WithoutD064(FlightSetup setup, bool wake, bool motors)
+        // temporary edit, GoldenFlights' notes). yawI false: model 34's yaw I (Model34YawI).
+        static void WithoutD064(FlightSetup setup, bool wake, bool motors, bool yawI)
         {
             if (!wake) setup.RotorWake = null;
             if (!motors && setup.Asymmetry != null) setup.Asymmetry.ResistanceSigma = setup.Asymmetry.FrictionSigma = setup.Asymmetry.InertiaSigma = 0;
+            if (!yawI) setup.Settings.i_yaw = Model34YawI;
         }
+
+        /// <summary>Model 34's yaw I (the kept audits since model 36): FcSettings.Default's i_yaw 30 with Betaflight's × 2.5
+        /// undone. It is the double just under 12, whose yaw Ki, (ITERM_SCALE × i) × 2.5, is model 34's ITERM_SCALE × 30 bit
+        /// for bit; 12 itself rounds one ulp above it (FlightControllerTests.TheGainsCarryBetaflightsScaling). Every golden
+        /// flown on it is model 34's, and every kept audit of an earlier model flies it.</summary>
+        public const double Model34YawI = 11.999999999999998;
 
         static ulong Fnv(ulong h, byte[] bytes, int from, int to)
         {

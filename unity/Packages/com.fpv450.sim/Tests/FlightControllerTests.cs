@@ -78,7 +78,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // pid.h PTERM_SCALE, ITERM_SCALE, DTERM_SCALE, FEEDFORWARD_SCALE (Betaflight 4.5.0 lines 44–46 and 50) on the
-        // builder's PIDs (pid_init.c pidInitConfig, lines 275–278: F also × 0.01).
+        // builder's PIDs (pid_init.c pidInitConfig, lines 275–278: F also × 0.01; then yaw's I × 2.5 without integrated yaw).
         [Test]
         public void TheGainsCarryBetaflightsScaling()
         {
@@ -88,7 +88,12 @@ namespace Fpv450.Sim.Tests
             fc.Gains(1, out kp, out ki, out kd, out kf);
             Assert.That((kp, ki, kd, kf), Is.EqualTo((0.032029 * 60, 0.244381 * 20, 0.000529 * 65, 0.013754 * 0.5)));
             fc.Gains(2, out kp, out ki, out kd, out kf);
-            Assert.That((kp, ki, kd, kf), Is.EqualTo((0.032029 * 45, 0.244381 * 30, 0.0, 0.0)));
+            Assert.That((kp, ki, kd, kf), Is.EqualTo((0.032029 * 45, 0.244381 * 30 * 2.5, 0.0, 0.0)), "yaw's I × 2.5, integrated yaw off (pid_init.c)");
+            // The golden audits' undo (model 36): on i_yaw just under 12 the yaw Ki is model 34's ITERM_SCALE × 30, bit for bit.
+            FcSettings s = FcSettings.Default;
+            s.i_yaw = GoldenFlights.Model34YawI;
+            new FlightController(s, PropsIn).Gains(2, out _, out ki, out _, out _);
+            Assert.That(ki, Is.EqualTo(0.244381 * 30), "model 34's yaw Ki");
         }
 
         // rc.c initRcProcessing's 12-point table in Betaflight's integer arithmetic, for thr_mid 50 and thr_expo 10,
