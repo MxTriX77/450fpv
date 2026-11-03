@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
@@ -547,6 +548,461 @@ namespace Fpv450.Sim.Tests
             }
             TestContext.Out.WriteLine($"the map's wind, Severe seed 21, 4000 steps at 7 points: 0x{hash:X16}");
             Assert.That(hash, Is.EqualTo(PinnedMapWind));
+        }
+
+        // ---- The wind inside a cut (p7c-wind 1.10, design 10, D-071): E01's run on the test range ----
+
+        // QA's spots (review-integration.md S5, reproduced at model 26 to its printed digits): E01's run floor at
+        // RangeScenarios.Run, and the plane at the track's start point.
+        static Double3 PlaneSpot => RangeScenarios.Start("track").Position;
+
+        // The middle of E01's straight leg between its centre line's points 24 and 26, (61.214, −14.210) to (62.974,
+        // −13.720): the opening's axis there and the across direction (the frame's n̂).
+        static readonly Double3 Leg = new Double3(61.654, 0, -14.0875);
+        static readonly Double3 LegAxis = new Double3(1.760, 0, 0.490) * (1 / Math.Sqrt(1.760 * 1.760 + 0.490 * 0.490));
+        static Double3 LegAcross => new Double3(-LegAxis.Z, 0, LegAxis.X);
+
+        // The field's ground under a body's origin as the core gives it (FlightCore.BeginWind): over a hole the soil a ray
+        // straight down meets (FlightWorld.SoilUnder), elsewhere SampleGround's height.
+        sealed class Ground
+        {
+            readonly FlightWorld _w = new FlightWorld(Map);
+            readonly XZ[] _xz = new XZ[1];
+            readonly GroundSample[] _g = new GroundSample[1];
+            readonly Ray[] _ray = new Ray[1];
+            readonly RayHit[] _hit = new RayHit[1];
+
+            public double Under(Double3 p)
+            {
+                _xz[0] = new XZ(p.X, p.Z);
+                _w.SampleGround(_xz, _g);
+                return (_g[0].Flags & GroundFlags.Hole) != 0 ? _w.SoilUnder(p, _ray, _hit, out _) : _g[0].Height;
+            }
+        }
+
+        // The map's wind without its cuts: model 26's field, the open profile restarted at a cut's floor (the known-wrong).
+        static WindSetup WithoutCuts(WindLevel level)
+        {
+            WindSetup s = WindSetup.ForMap(Map, level);
+            s.Cuts = null;
+            return s;
+        }
+
+        [Test]
+        public void TheMapsCutsAreItsHoleRecords()
+        {
+            CutSpec[] cuts = MapWind.Cuts(Map);
+            Assert.That(cuts, Has.Length.EqualTo(Map.Cuts.Length).And.Length.EqualTo(4));
+            for (int k = 0; k < cuts.Length; k++)
+            {
+                CutRecord r = Map.Cuts[k];
+                Assert.That(cuts[k].CentreLine, Is.EqualTo(r.CentreLine));
+                Assert.That(new[] { cuts[k].Width, cuts[k].Depth, cuts[k].EndFirst, cuts[k].EndLast }, Is.EqualTo(new[] { r.LipWidth, r.Depth, r.EndFirst, r.EndLast }));
+                Assert.That(cuts[k].Covered, Is.EqualTo(r.Covered));
+            }
+            Assert.That(WindSetup.ForMap(Map, WindLevel.Calm).Cuts, Has.Length.EqualTo(4));
+            Assert.That(WindSetup.ForMap(Map, WindLevel.Steady).Cuts, Is.Null, "steady air never reads the ground");
+
+            // The frame at E01's run, by its wall (D the run's own, never the wall's local depth), its niche's mouth (the run
+            // takes it) and deep in the niche (past the run's reach), and Z04's shaft over its stair (its own 1.8 m).
+            using var field = new WindField(WindSetup.ForMap(Map, WindLevel.Severe), new FlightRandom(3));
+            var ground = new Ground();
+            Double3 niche = new Double3(-0.363, 0, 1.031) * (1 / 1.093); // niche_0's axis, from its first point by the run's line
+            foreach ((string where, Double3 p, bool active, bool covered, double depth) in new[]
+            {
+                ("E01's run floor", RangeScenarios.Run + new Double3(0, 0.5, 0), true, false, 1.5),
+                ("the leg's middle", Leg + new Double3(0, -0.75, 0), true, false, 1.5),
+                ("the leg over its wall's slope", Leg + LegAcross * 0.42 + new Double3(0, 0.5, 0), true, false, 1.5),
+                ("niche_0's mouth in the run", new Double3(52.98, -0.7, -14.102) + niche * -0.2, true, false, 1.5),
+                ("deep in niche_0", new Double3(52.98, -1.1, -14.102) + niche * 0.75, true, true, double.NaN),
+                ("Z04's shaft over its stair", new Double3(-162.75, -1.0, -60.25), true, false, 1.8),
+                ("the plane by the run", Leg + LegAcross * 3, false, false, double.NaN),
+            })
+            {
+                double g = ground.Under(p);
+                field.Begin(0, p, g);
+                CutFrame f = field.Cut;
+                TestContext.Out.WriteLine($"{where}: ground {g:F4}; frame {(f.Active ? $"{(f.Covered ? "covered" : "open")}, lip {f.Lip}, W {f.Width:F4}, D {f.Depth:F4}, S {f.Length:F3}" : "none")}");
+                Assert.That(f.Active, Is.EqualTo(active), where);
+                if (!active) continue;
+                Assert.That(f.Covered, Is.EqualTo(covered), where);
+                if (!double.IsNaN(depth)) Assert.That(f.Depth, Is.EqualTo(depth).Within(1e-9), where);
+            }
+        }
+
+        // The plan distance from (x, z) to a centre line that runs on past its end points by its ends.
+        static double FromLine(Double3[] line, double endFirst, double endLast, double x, double z)
+        {
+            double best = double.PositiveInfinity;
+            for (int i = 0; i + 1 < line.Length; i++)
+            {
+                double dx = line[i + 1].X - line[i].X, dz = line[i + 1].Z - line[i].Z, len = Math.Sqrt(dx * dx + dz * dz);
+                double px = x - line[i].X, pz = z - line[i].Z, u = (px * dx + pz * dz) / len, v = (pz * dx - px * dz) / len;
+                double lo = i == 0 ? -endFirst : 0, hi = i + 2 == line.Length ? len + endLast : len, du = u - Math.Min(Math.Max(u, lo), hi);
+                best = Math.Min(best, Math.Sqrt(du * du + v * v));
+            }
+            return best;
+        }
+
+        [Test]
+        public void ACutsOpeningIsTheWorldsOwn()
+        {
+            // Over E01's run and Z04's shaft, every 1 cm out to 0.75 m from the centre line and past its ends, the body 0.5 m
+            // over the lip: the frame holds the origin exactly where the world's ground under it lies below the lip (the
+            // world's own opening, crumble and all), always an open cut's from above (the niches' roofs are at the lip), and
+            // that opening lies inside the cuts' reach.
+            using var field = new WindField(new WindSetup { Level = WindLevel.Calm, Cuts = MapWind.Cuts(Map) }, new FlightRandom(1));
+            var ground = new Ground();
+            foreach (int c in new[] { 1, 0 })
+            {
+                CutRecord r = Map.Cuts[c];
+                Double3[] line = r.CentreLine;
+                Assert.That(Array.TrueForAll(line, p => p.Y == 0), r.Record + "'s lip is the plane's 0");
+                int samples = 0, open = 0, wrong = 0;
+                double reach = 0;
+                for (int i = 0; i + 1 < line.Length; i++)
+                {
+                    Double3 a = line[i], b = line[i + 1], t = (b - a) * (1 / (b - a).Length()), n = new Double3(-t.Z, 0, t.X);
+                    double lo = i == 0 ? -r.EndFirst - 0.3 : 0, hi = (b - a).Length() + (i + 2 == line.Length ? r.EndLast + 0.3 : 0);
+                    for (int iu = 0; lo + 0.01 * iu <= hi; iu++)
+                        for (int iv = -75; iv <= 75; iv++)
+                        {
+                            Double3 o = a + t * (lo + 0.01 * iu) + n * (0.01 * iv) + new Double3(0, 0.5, 0);
+                            double g = ground.Under(o);
+                            field.Begin(0, o, g);
+                            samples++;
+                            bool below = g > double.NegativeInfinity && g < 0;
+                            if (below) { open++; reach = Math.Max(reach, FromLine(line, r.EndFirst, r.EndLast, o.X, o.Z)); }
+                            if (field.Cut.Active != below || (below && field.Cut.Covered)) wrong++;
+                        }
+                }
+                TestContext.Out.WriteLine($"{r.Record}: the frame holds the origin at {open} of {samples} points, where the ground is below the lip, wrong at {wrong}; "
+                    + $"the world's opening reaches {reach:F4} m from the line, {reach - r.LipWidth / 2:F4} past W/2 (the reach {CutFrame.OpeningReach})");
+                Assert.That(wrong, Is.EqualTo(0), r.Record + ": the opening is the world's");
+                Assert.That(reach, Is.LessThan(r.LipWidth / 2 + CutFrame.OpeningReach), r.Record + ": the world's opening lies inside the cut's reach");
+            }
+        }
+
+        [Test]
+        public void AcrossE01sRunTheCutShelters()
+        {
+            // QA's measurement (S5): the map's Severe wind on seeds 1–3 for 120 s (every 10 ms), the mean horizontal speed at
+            // 0.5 and 1.0 m over E01's run floor and over the plane at the track. The known-wrong is model 26's field.
+            var ground = new Ground();
+            Double3 run = RangeScenarios.Run, plane = PlaneSpot;
+            double floor = ground.Under(run + new Double3(0, 1, 0));
+            double lo = double.PositiveInfinity, hi = 0, lo26 = double.PositiveInfinity, hi26 = 0;
+            for (ulong seed = 1; seed <= 3; seed++)
+                foreach (bool wrong in new[] { false, true })
+                {
+                    using var field = new WindField(wrong ? WithoutCuts(WindLevel.Severe) : WindSetup.ForMap(Map, WindLevel.Severe), new FlightRandom(seed));
+                    var inRun = new double[2];
+                    var onPlane = new double[2];
+                    int n = 0;
+                    for (long step = 0; step < 120000; step += 10, n++)
+                    {
+                        field.Begin(step, run + new Double3(0, 0.75, 0), floor);
+                        for (int k = 0; k < 2; k++)
+                        {
+                            Double3 v = field.At(new Double3(run.X, floor + 0.5 * (k + 1), run.Z));
+                            inRun[k] += Math.Sqrt(v.X * v.X + v.Z * v.Z);
+                        }
+                        field.Begin(step, plane + new Double3(0, 0.75, 0), 0);
+                        for (int k = 0; k < 2; k++)
+                        {
+                            Double3 v = field.At(new Double3(plane.X, 0.5 * (k + 1), plane.Z));
+                            onPlane[k] += Math.Sqrt(v.X * v.X + v.Z * v.Z);
+                        }
+                    }
+                    double r05 = inRun[0] / onPlane[0], r10 = inRun[1] / onPlane[1];
+                    TestContext.Out.WriteLine($"{(wrong ? "known-wrong, model 26's open profile from the floor" : "the cavity")}, Severe seed {seed} ({field.MeanSpeed:F2} m/s from "
+                        + $"{field.FromDeg:F0}°): the run / the plane at 0.5 m {inRun[0] / n:F2} / {onPlane[0] / n:F2} m/s ({r05:F3}), at 1.0 m {inRun[1] / n:F2} / {onPlane[1] / n:F2} ({r10:F3})");
+                    if (wrong)
+                    {
+                        lo26 = Math.Min(lo26, Math.Min(r05, r10));
+                        hi26 = Math.Max(hi26, Math.Max(r05, r10));
+                    }
+                    else
+                    {
+                        lo = Math.Min(lo, Math.Min(r05, r10));
+                        hi = Math.Max(hi, Math.Max(r05, r10));
+                    }
+                }
+            TestContext.Out.WriteLine($"the run over the plane: the cavity {lo:F3}–{hi:F3}; model 26 {lo26:F3}–{hi26:F3}");
+            Assert.That(hi, Is.LessThanOrEqualTo(0.25), "the cut shelters its floor");
+            Assert.That(hi26, Is.GreaterThan(0.25), "the known-wrong fails");
+            Assert.That(lo26, Is.GreaterThan(0.4), "QA's 0.47–1.20");
+        }
+
+        // A level drone's hubs (drone.json) with its nose along `axis`: body +Z the nose, +X its right, turned about +Y.
+        static Double3[] Hubs(Double3 axis)
+        {
+            PropulsionSpec propulsion = RepositoryDrone.Spec().BuildPropulsion();
+            var right = new Double3(axis.Z, 0, -axis.X);
+            var hubs = new Double3[4];
+            for (int i = 0; i < 4; i++)
+            {
+                Double3 b = propulsion.Motors[i].Position;
+                hubs[i] = right * b.X + new Double3(0, b.Y, 0) + axis * b.Z;
+            }
+            return hubs;
+        }
+
+        static WindPreset CalmStill()
+        {
+            WindPreset calm = WindPreset.Of(WindLevel.Calm);
+            calm.Intensity = 0;
+            return calm;
+        }
+
+        [Test]
+        public void OverE01sOpeningTheLipIsTheGround()
+        {
+            // The drone carried across E01's run at 0.5 m over the plane at 1 m/s (1 mm a step), level, its nose along the
+            // run, in the map's Calm wind with σ 0, then held 0.5 m over the opening's middle: over the opening (the world's,
+            // where the ground under the body lies below the lip) the field at every hub is the field of the same setup with
+            // the lip passed as the ground, bit for bit. The known-wrong,
+            // model 26's field, reads the field over the floor there.
+            Double3[] hubs = Hubs(LegAxis);
+            var ground = new Ground();
+            foreach (bool wrong in new[] { false, true })
+            {
+                using var field = new WindField(wrong ? WithoutCuts(WindLevel.Calm) : WindSetup.ForMap(Map, WindLevel.Calm), new FlightRandom(1), CalmStill());
+                using var lip = new WindField(WithoutCuts(WindLevel.Calm), new FlightRandom(1), CalmStill());
+                int over = 0, same = 0;
+                long step = 0;
+                for (int k = 0; k <= 4000; k++, step++)
+                {
+                    double n = -2 + 0.001 * k;
+                    Double3 o = Leg + LegAcross * n + new Double3(0, 0.5, 0);
+                    double g = ground.Under(o);
+                    field.Begin(step, o, g);
+                    lip.Begin(step, o, 0);
+                    if (!(g < 0)) continue; // over the world's opening: the ground under the body below the lip
+                    for (int i = 0; i < 4; i++)
+                    {
+                        over++;
+                        if (field.At(o + hubs[i]).Equals(lip.At(o + hubs[i]))) same++;
+                    }
+                }
+                // Held over the opening's middle for 2 s.
+                int held = 0, heldSame = 0;
+                double speed = 0, lipSpeed = 0;
+                for (int k = 0; k < 2000; k++, step++)
+                {
+                    Double3 o = Leg + new Double3(0, 0.5, 0);
+                    field.Begin(step, o, ground.Under(o));
+                    lip.Begin(step, o, 0);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Double3 v = field.At(o + hubs[i]), l = lip.At(o + hubs[i]);
+                        held++;
+                        if (v.Equals(l)) heldSame++;
+                        speed += Horizontal(v);
+                        lipSpeed += Horizontal(l);
+                    }
+                }
+                TestContext.Out.WriteLine($"{(wrong ? "known-wrong, model 26's field" : "the cavity")}, Calm seed 1 ({field.MeanSpeed:F3} m/s, σ 0): carried across, the lip's field "
+                    + $"at {same} of {over} hub samples over the opening; held, {heldSame} of {held}, the hubs {speed / held:F4} m/s against the lip's {lipSpeed / held:F4}");
+                if (!wrong)
+                {
+                    Assert.That(same, Is.EqualTo(over), "over the opening the field is the lip's, bit for bit");
+                    Assert.That(heldSame, Is.EqualTo(held));
+                }
+                else
+                {
+                    Assert.That(same, Is.LessThan(over), "it reads the field over the floor");
+                    Assert.That(speed, Is.GreaterThan(lipSpeed), "1.5 m higher");
+                }
+            }
+        }
+
+        [Test]
+        public void AtE01sOpeningsEdgeNoHubStepsTheWind()
+        {
+            // The drone carried across E01's run at 0.5 m over the plane at 1 m/s, from 1 m one side to 1 m the other, at the
+            // middle of every other centre-line segment, in the map's Calm and Severe winds with σ 0: the largest change of a
+            // hub's horizontal speed in one step. The spec's bound is 0.01 m/s. The known-wrong is the opening as a strip
+            // within W/2 (the mean lip width's half) of the centre line, as built first: E01's own opening leaves it by up to
+            // 5 cm, and there the ground the field uses steps from the lip to the wall's slope. Model 26's field follows the
+            // walls' slope at 1 mm a step: under the bound in Calm (QA's 0.2 → 0.6 m/s is that change over many steps), past
+            // it in Severe.
+            CutRecord run = Map.Cuts[1];
+            Double3[] line = run.CentreLine;
+            var ground = new Ground();
+            Assert.That(Array.TrueForAll(line, p => p.Y == 0), "the run's lip is the plane's 0");
+            foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Severe })
+            {
+                WindPreset smooth = WindPreset.Of(level);
+                smooth.Intensity = 0;
+                using var field = new WindField(WindSetup.ForMap(Map, level), new FlightRandom(1), smooth);
+                using var lip = new WindField(WithoutCuts(level), new FlightRandom(1), smooth);
+                using var open = new WindField(WithoutCuts(level), new FlightRandom(1), smooth);
+                string[] names = { "the cavity, the world's opening", "known-wrong, the strip within W/2", "model 26's field" };
+                var worst = new double[3];
+                var where = new string[3];
+                long step = 0;
+                for (int s = 0; s + 1 < line.Length; s += 2)
+                {
+                    Double3 a = line[s], b = line[s + 1], axis = (b - a) * (1 / (b - a).Length()), across = new Double3(-axis.Z, 0, axis.X);
+                    Double3[] hubs = Hubs(axis);
+                    var last = new Double3[3, 4];
+                    for (int k = 0; k <= 2000; k++, step++)
+                    {
+                        double n = -1 + 0.001 * k;
+                        Double3 o = (a + b) * 0.5 + across * n + new Double3(0, 0.5, 0);
+                        double g = ground.Under(o);
+                        field.Begin(step, o, g);
+                        lip.Begin(step, o, 0);
+                        open.Begin(step, o, g);
+                        WindField strip = InStrip(run, o.X, o.Z) ? lip : open; // the first build's frame: the lip as the ground in the strip
+                        for (int m = 0; m < 3; m++)
+                        {
+                            WindField f = m == 0 ? field : m == 1 ? strip : open;
+                            for (int i = 0; i < 4; i++)
+                            {
+                                Double3 v = f.At(o + hubs[i]);
+                                double change = Math.Abs(Horizontal(v) - Horizontal(last[m, i]));
+                                if (k > 0 && change > worst[m])
+                                {
+                                    worst[m] = change;
+                                    where[m] = $"segment {s} at {n:+0.000;-0.000} m (ground {g:F3})";
+                                }
+                                last[m, i] = v;
+                            }
+                        }
+                    }
+                }
+                for (int m = 0; m < 3; m++)
+                    TestContext.Out.WriteLine($"{level} seed 1, σ 0, {names[m]}: the largest one-step change of a hub's horizontal speed {worst[m]:F4} m/s, {where[m]}");
+                Assert.That(worst[0], Is.LessThanOrEqualTo(0.01), level + ": no step at the opening's edge");
+                Assert.That(worst[1], Is.GreaterThan(0.01), level + ": the strip's step where the world's opening leaves it");
+                if (level == WindLevel.Calm) Assert.That(worst[2], Is.LessThanOrEqualTo(0.01), "model 26 in Calm follows the slope under the bound");
+                else Assert.That(worst[2], Is.GreaterThan(0.01), "model 26 in Severe steps past the bound on the slope");
+            }
+        }
+
+        // The opening as first built (the known-wrong of the edge): within W/2 of an open cut's centre line, its end segments
+        // running square past their end points by its ends, with a disc of W/2 about each inner joint.
+        static bool InStrip(CutRecord r, double x, double z)
+        {
+            Double3[] line = r.CentreLine;
+            for (int i = 0; i + 1 < line.Length; i++)
+            {
+                double dx = line[i + 1].X - line[i].X, dz = line[i + 1].Z - line[i].Z, len = Math.Sqrt(dx * dx + dz * dz);
+                double px = x - line[i].X, pz = z - line[i].Z, u = (px * dx + pz * dz) / len, v = (pz * dx - px * dz) / len;
+                double lo = i == 0 ? -r.EndFirst : 0, hi = i + 2 == line.Length ? len + r.EndLast : len;
+                if ((u < lo && i == 0) || (u > hi && i + 2 == line.Length)) continue;
+                double du = u - Math.Min(Math.Max(u, lo), hi);
+                if (Math.Sqrt(du * du + v * v) <= r.LipWidth / 2) return true;
+            }
+            return false;
+        }
+
+        static double Horizontal(Double3 v) => Math.Sqrt(v.X * v.X + v.Z * v.Z);
+
+        // A flight on the test range in its own Severe wind (the bench's airframe: propulsion and drag), held at `hold` for
+        // `heldSeconds`, then climbing to 5 m over the plane for 10 s; the FNV hash of every hub's wind at every step, the
+        // bytes allocated on the step after the first second, and the steps a hub flew below a cut's lip.
+        static ulong FlyRange(Double3 hold, WindSetup wind, int heldSeconds, out long allocated, out int inCut)
+        {
+            FlightSetup setup = CrosswindScenario.Setup(RepositoryDrone.Spec(), wind, 0x450F);
+            setup.World = new FlightWorld(Map);
+            setup.StartPosition = hold;
+            var core = new FlightCore(setup);
+            try
+            {
+                CrosswindScenario.Arm(core);
+                var pilot = new SimPilot(core.Controller, hold) { PositionIntegral = 0.1 };
+                ulong hash = WorldHash.Offset;
+                allocated = 0;
+                inCut = 0;
+                int steps = (heldSeconds + 10) * 1000;
+                for (int k = 0; k < steps; k++)
+                {
+                    if (k == heldSeconds * 1000) pilot.Target = new Double3(hold.X, 5, hold.Z);
+                    StickSample stick = pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    core.Advance(stick);
+                    if (k >= 1000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                    CutFrame f = core.Wind.Cut;
+                    if (f != null && f.Active && !f.Covered && core.State.Position.Y < f.Lip) inCut++;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        Double3 v = core.Trace.RotorWind[i];
+                        foreach (double x in new[] { v.X, v.Y, v.Z })
+                        {
+                            ulong bits = (ulong)BitConverter.DoubleToInt64Bits(x);
+                            for (int b = 0; b < 8; b++) hash = (hash ^ (byte)(bits >> 8 * b)) * 0x100000001B3UL;
+                        }
+                    }
+                }
+                Assert.That(core.State.Crashed, Is.False);
+                return hash;
+            }
+            finally
+            {
+                core.Wind.Dispose();
+            }
+        }
+
+        [Test]
+        public void InE01sRunTheSameSeedGivesTheSameWindWithoutAllocating()
+        {
+            // Two flights with the same seed held 0.75 m over the run's floor for 60 s, then climbing out: the same wind at
+            // every hub, bit for bit, and 0 B on the step. A flight that never enters a cut's opening (held over the plane
+            // 3 m off the run) steps as model 26's field.
+            Double3 hold = Leg + new Double3(0, -0.75, 0);
+            // The second flight's allocation is the steady state's: the first one runs the step's code for the first time in
+            // this process (the JIT's tiers), and reads it (reported).
+            ulong a = FlyRange(hold, WindSetup.ForMap(Map, WindLevel.Severe), 60, out long first, out int inCut);
+            ulong b = FlyRange(hold, WindSetup.ForMap(Map, WindLevel.Severe), 60, out long allocated, out int inCut2);
+            Double3 off = Leg + LegAcross * 3 + new Double3(0, 0.75, 0);
+            ulong outside = FlyRange(off, WindSetup.ForMap(Map, WindLevel.Severe), 20, out _, out int never);
+            ulong outside26 = FlyRange(off, WithoutCuts(WindLevel.Severe), 20, out _, out _);
+            ulong inside26 = FlyRange(hold, WithoutCuts(WindLevel.Severe), 60, out _, out _);
+            TestContext.Out.WriteLine($"held in E01's run 60 s, then out: 0x{a:X16} and 0x{b:X16}, {inCut} steps below the lip, {allocated} B on the step ({first} B the first time); "
+                + $"model 26's field there 0x{inside26:X16}; held off the run 0x{outside:X16}, model 26's 0x{outside26:X16} ({never} steps in a cut)");
+            Assert.That(b, Is.EqualTo(a), "the same seed, the same wind at every hub");
+            Assert.That(inCut, Is.GreaterThan(59000).And.EqualTo(inCut2), "the flight held in the run");
+            Assert.That(allocated, Is.EqualTo(0));
+            Assert.That(never, Is.EqualTo(0));
+            Assert.That(outside, Is.EqualTo(outside26), "a flight that never enters a cut's opening steps as at model 26");
+            Assert.That(inside26, Is.Not.EqualTo(a), "the cut's own flow");
+        }
+
+        // The cavity's wind in E01's run at seven points over 4 s of Severe, every bit of it, pinned on .NET 10 for the Unity
+        // EditMode run on Mono (the same test), as PinnedMapWind: the body's origin 0.75 m over the floor of the leg's middle.
+        const ulong PinnedCutWind = 0xC73E7B7D2F312D6EUL;
+
+        [Test]
+        public void TheCutsWindIsTheSameBitsOnEveryRuntime()
+        {
+            using var wind = new WindField(WindSetup.ForMap(Map, WindLevel.Severe), new FlightRandom(21));
+            Double3 o = Leg + new Double3(0, -0.75, 0);
+            Double3[] points =
+            {
+                o, o + LegAxis * 0.2 + new Double3(0, 0.03, 0), o - LegAcross * 0.2, o + LegAcross * 0.3 + new Double3(0, -0.5, 0),
+                o + new Double3(0, 0.7, 0), o + new Double3(0, 1.2, 0), o + LegAxis * 0.3 + new Double3(0, 0.9, 0),
+            };
+            var ground = new Ground();
+            double g = ground.Under(o);
+            ulong hash = WorldHash.Offset;
+            for (long step = 0; step < 4000; step++)
+            {
+                wind.Begin(step, o, g);
+                foreach (Double3 p in points)
+                {
+                    Double3 v = wind.At(p);
+                    foreach (double x in new[] { v.X, v.Y, v.Z })
+                    {
+                        ulong bits = (ulong)BitConverter.DoubleToInt64Bits(x);
+                        for (int b = 0; b < 8; b++) hash = (hash ^ (byte)(bits >> 8 * b)) * 0x100000001B3UL;
+                    }
+                }
+            }
+            TestContext.Out.WriteLine($"the cavity's wind in E01's run, Severe seed 21, 4000 steps at 7 points: 0x{hash:X16}");
+            Assert.That(hash, Is.EqualTo(PinnedCutWind));
         }
     }
 }

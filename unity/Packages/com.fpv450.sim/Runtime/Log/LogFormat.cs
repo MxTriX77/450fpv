@@ -81,8 +81,12 @@ namespace Fpv450.Sim.Log
         /// draws with the others).
         /// 16: p7b-airframe--power's 15 merged onto the integration's 15: the build placement's header entry at tag 24, after
         ///    the interference's 22 and the own wake's 23; the record is 15's 1904 bytes.
+        /// 17–19: assigned to p7a-ground, p7d-tether and p7f-damage (D-072).
+        /// 20: p7c-wind 1.10 (design 10, D-071; assigned by D-072): the wind entry's cuts after its canopy strips, a count (0
+        ///    for none) and each cut's roof flag, opening at the lip, depth, ends and centre line; the record is 16's 1904
+        ///    bytes.
         /// </summary>
-        public const int Version = 16;
+        public const int Version = 20;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -192,8 +196,19 @@ namespace Fpv450.Sim.Log
         /// 26: p7b-airframe--power's 24 merged onto 25 (the code is the parents' together): D-066's power and mass and the
         ///    build's placement with the interference, D-064's micro-motion and 1.6c's stick spring. On model 22's drone (the
         ///    40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics) and without the placement a flight steps as in 25.
+        /// 27–29: assigned to p7a-ground, p7d-tether and p7f-damage (D-072).
+        /// 30: p7c-wind 1.10, the wind inside a cut (design 10, D-071; assigned by D-072; Cavity, CutFrame, WindSetup.Cuts,
+        ///    MapWind.Cuts): where the body's origin lies in a cut's opening, the field takes the lip as its ground above it,
+        ///    an open cut's own cavity flow below it (the field's mean at h_o over the lip across and along the cut, one 2-D
+        ///    cavity each by its length over its depth, the field's fluctuation × τ·Λ), and still air under a covered cut's
+        ///    roof, in place of model 20's open profile restarted at the floor. A flight that never enters a cut's opening,
+        ///    or flies without cuts or in still or steady air, steps as in 26.
+        ///    Changed on its branch before any landing (D-072 keeps 30): the opening is the world's own, the origin within
+        ///    the cut's reach (W/2 + CutFrame.OpeningReach) with the ground under it below the lip, in place of the strip
+        ///    within W/2 of the centre line; and D is the cut's own depth at its centre line, never the lip less the soil
+        ///    under the origin.
         /// </summary>
-        public const int ModelVersion = 26;
+        public const int ModelVersion = 30;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

@@ -205,7 +205,7 @@ namespace Fpv450.Replay
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double[] footAt = null)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
@@ -231,7 +231,8 @@ namespace Fpv450.Replay
                 };
             // --map: the map's first legs-on start point off a stand, its foot and heading (D-019's yaw: the body turned
             // about +y, the nose's bearing (sin, 0, cos), as ContactScenarios.Site turns it), and the map's own wind
-            // (WindSetup.ForMap: its obstacles' wakes and its belt's canopy, as the app flies it).
+            // (WindSetup.ForMap: its obstacles' wakes, its belt's canopy and its cuts' cavity flow, as the app flies it).
+            // --foot x,y,z,heading: that foot (world, m) and heading (degrees) instead, such as E01's run floor (p7c-wind 1.10).
             FlightWorld world = FlightWorld.Floor();
             Double3 foot = default, nose = new Double3(0, 0, 1);
             Quat attitude = Quat.Identity;
@@ -241,8 +242,14 @@ namespace Fpv450.Replay
                 StartPoint start = Array.Find(((MapWorld)world.Query).StartPoints, p => p.LegsOn && !p.Stand);
                 if (start.Id == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand");
                 foot = start.Position;
+                double headingDeg = start.HeadingDeg;
+                if (footAt != null)
+                {
+                    foot = new Double3(footAt[0], footAt[1], footAt[2]);
+                    headingDeg = footAt[3];
+                }
                 air = WindSetup.ForMap((MapWorld)world.Query, wind);
-                double heading = start.HeadingDeg * (Math.PI / 180);
+                double heading = headingDeg * (Math.PI / 180);
                 DetMath.SinCos(heading / 2, out double sin, out double cos);
                 attitude = new Quat(0, sin, 0, cos);
                 DetMath.SinCos(heading, out sin, out cos);

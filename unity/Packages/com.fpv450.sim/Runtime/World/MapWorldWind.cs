@@ -7,6 +7,18 @@
 // - A volume tilted off the vertical (a roof plane, a strut, a leaning car part) enters as the upright box that bounds
 //   it in the asset's frame (worldbench's WakeRange does the same): the wake grid's obstacles are upright (K§10.3).
 // - A part set into the ground keeps only what is above it (its base at 0); one with nothing above it is dropped.
+// The cut records (p7c-wind design 10, D-071, task 1.10a): each ground.holes record of the placement file, with what the
+// wind's cavity model reads, derived here from the files the content hash already covers (so the hash stays). Mirrored
+// by tools/map/make_test_range.py (cut_record), whose cut_problems is the map's check on the same fields.
+// - The centre line as the file gives it, each point's y the lip's height there; top_width_m and depth_m as the file
+//   gives them.
+// - Covered: a ray up from the centre line's middle (half its plan length along it), half the depth under the lip
+//   there, meets one of its object's fillers below the lip, or starts in one: fillers roof it (E01's niches).
+// - The lip width: an open record's opening at the lip, crumble included, is the mean narrowest_m of its object's
+//   level gaps (its openings in the ground: E01's slots) whose centre lies in its band. With none (Z04's stand-in, box
+//   walls without crumble), or for a covered record (no opening at its lip), it is its top_width_m.
+// - The ends: the opening past the first and the last centre-line points, along the end segments LipProbe under the
+//   lip, to its object's first filler (0 from inside one). One that meets none inside the band throws.
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -121,5 +133,182 @@ namespace Fpv450.Sim.World
             _windVolumes = volumes.ToArray();
             _windObject = objects.ToArray();
         }
+
+        // ---- The cut records ---------------------------------------------------------------------------------------
+
+        /// <summary>The ends are measured this far under the lip, m (assumed: below the tops of the hole contract's cut
+        /// faces, 3 mm under it in trench.py's LIP_DROP_M, so a ray there meets the cut's own walls).</summary>
+        public const double LipProbe = 0.01;
+
+        /// <summary>A gap whose normal lies within 2.6° of vertical is level, an opening in the ground (assumed).</summary>
+        private const double LevelGap = 0.999;
+
+        /// <summary>The hole contract's fillers, a cut's own shapes, are this surface (tools/blender/lib/holes.py, F-7).</summary>
+        private const string FillerSurface = "belt_bare";
+
+        private CutRecord[] _cuts = Array.Empty<CutRecord>();
+
+        /// <summary>The placement file's hole records in its order, with what the wind's cavity model reads (D-071).</summary>
+        public ReadOnlySpan<CutRecord> Cuts => _cuts;
+
+        /// <summary>A variant's level gaps (see LevelGap): each one's vertices' mean, local, and its narrowest_m.</summary>
+        private static void ParseLevelGaps(JsonNode root, string path, out Double3[] centres, out double[] narrowest)
+        {
+            var c = new List<Double3>();
+            var w = new List<double>();
+            JsonNode list = root.Member("gaps");
+            if (list != null)
+            {
+                if (list.Kind != JsonKind.Array) throw new FormatException(path + ": gaps is not an array");
+                for (int k = 0; k < list.Items.Count; k++)
+                {
+                    JsonNode gap = list.Items[k];
+                    string where = path + " gaps " + k;
+                    Double3 n = Vector(gap, "normal", where);
+                    if (n.Y * n.Y < LevelGap * LevelGap * Double3.Dot(n, n)) continue;
+                    JsonNode polygon = Need(gap, "polygon", JsonKind.Array, where);
+                    if (polygon.Items.Count == 0) throw new FormatException(where + ": a polygon needs a point");
+                    Double3 sum = default;
+                    foreach (JsonNode p in polygon.Items) sum = sum + Vector(p, where + " polygon");
+                    c.Add(sum * (1.0 / polygon.Items.Count));
+                    w.Add(Number(gap, "narrowest_m", where));
+                }
+            }
+            centres = c.ToArray();
+            narrowest = w.ToArray();
+        }
+
+        /// <summary>A hole record of the placement file (its centre line read, `radius` half its band) as a cut record.</summary>
+        private CutRecord PlaceCut(JsonNode hole, Double3[] line, double radius, Meta[] rowMeta, Double3[] rowPosition, Quat[] rowYaw,
+            string where)
+        {
+            double instance = Number(hole, "instance", where);
+            int obj = (int)instance;
+            if (obj != instance || obj < 0 || obj >= rowMeta.Length)
+                throw new FormatException(where + ": instance is not a row of the file");
+            var cut = new CutRecord
+            {
+                Object = obj,
+                Record = Text(hole, "record", where),
+                CentreLine = line,
+                TopWidth = Number(hole, "top_width_m", where),
+                Depth = Number(hole, "depth_m", where),
+            };
+            if (!(cut.TopWidth > 0 && cut.Depth > 0))
+                throw new FormatException(where + ": top_width_m and depth_m must be above 0");
+
+            // Covered: the ray up from the centre line's middle at half depth.
+            double half = 0;
+            for (int k = 0; k + 1 < line.Length; k++)
+                half += PlanLength(line[k + 1] - line[k]);
+            half *= 0.5;
+            Double3 mid = line[line.Length - 1];
+            for (int k = 0; k + 1 < line.Length; k++)
+            {
+                double s = PlanLength(line[k + 1] - line[k]);
+                if (s > 0 && s >= half)
+                {
+                    mid = line[k] + (line[k + 1] - line[k]) * (half / s);
+                    break;
+                }
+                half -= s;
+            }
+            double down = 0.5 * cut.Depth;
+            cut.Covered = Meet(obj, new Double3(mid.X, mid.Y - down, mid.Z), new Double3(0, 1, 0), down) < down;
+
+            // The lip width: an open record's level gaps in its band.
+            cut.LipWidth = cut.TopWidth;
+            if (!cut.Covered)
+            {
+                Meta meta = rowMeta[obj];
+                double sum = 0;
+                int count = 0;
+                for (int k = 0; k < meta.LevelGapCentre.Length; k++)
+                {
+                    Double3 c = rowPosition[obj] + rowYaw[obj].Rotate(meta.LevelGapCentre[k]);
+                    if (PlanDistance(c, line) <= radius)
+                    {
+                        sum += meta.LevelGapNarrowest[k];
+                        count++;
+                    }
+                }
+                if (count > 0)
+                    cut.LipWidth = sum / count;
+            }
+
+            // The ends.
+            Double3 first = line[0], last = line[line.Length - 1];
+            cut.EndFirst = Meet(obj, first - new Double3(0, LipProbe, 0), PlanUnit(first - line[1]), radius);
+            cut.EndLast = Meet(obj, last - new Double3(0, LipProbe, 0), PlanUnit(last - line[line.Length - 2]), radius);
+            if (double.IsPositiveInfinity(cut.EndFirst) || double.IsPositiveInfinity(cut.EndLast))
+                throw new FormatException(where + $" {cut.Record}: the opening past an end meets no filler inside its band");
+            return cut;
+        }
+
+        /// <summary>How far the ray o + t·d (d unit) runs to object obj's first filler: 0 when o lies in one, +∞ for none
+        /// within `max`.</summary>
+        private double Meet(int obj, Double3 o, Double3 d, double max)
+        {
+            double best = double.PositiveInfinity;
+            byte filler = SurfaceId(FillerSurface);
+            for (int k = _first[obj]; k < _first[obj + 1]; k++)
+            {
+                ref readonly ShapeGeometry s = ref _prims[k].Geometry;
+                if (s.Surface != filler) continue;
+                ShapeMath.Closest(s, o, o, 0, out Near near);
+                if (near.Distance <= 0) return 0;
+                double t = double.PositiveInfinity;
+                Double3 normal = default;
+                ShapeMath.RayPrim(s, o, d, ref t, ref normal);
+                if (t < best) best = t;
+            }
+            return best <= max ? best : double.PositiveInfinity;
+        }
+
+        private static double PlanLength(Double3 v) => DetMath.Sqrt(v.X * v.X + v.Z * v.Z);
+
+        private static Double3 PlanUnit(Double3 v) => new Double3(v.X, 0, v.Z) * (1 / PlanLength(v));
+
+        /// <summary>The plan distance from p to the polyline `line`, its ends included.</summary>
+        private static double PlanDistance(Double3 p, Double3[] line)
+        {
+            double best = double.PositiveInfinity;
+            for (int i = 0; i + 1 < line.Length; i++)
+            {
+                double dx = line[i + 1].X - line[i].X, dz = line[i + 1].Z - line[i].Z, px = p.X - line[i].X, pz = p.Z - line[i].Z;
+                double dd = dx * dx + dz * dz;
+                double t = dd > 0 ? (px * dx + pz * dz) / dd : 0;
+                t = t > 0 ? t < 1 ? t : 1 : 0;
+                double ex = px - dx * t, ez = pz - dz * t;
+                best = DetMath.Min(best, DetMath.Sqrt(ex * ex + ez * ez));
+            }
+            return best;
+        }
+    }
+
+    /// <summary>
+    /// A hole record for the wind's cavity model (p7c-wind design 10, D-071): a cut in the ground, held by MapWorld beside
+    /// its wind volumes and derived at load (MapWorldWind.cs, the cut records). World metres, D-019's frame.
+    /// </summary>
+    public struct CutRecord
+    {
+        /// <summary>The placed object it belongs to (a row's index) and its record's id in the asset ("run", "niche_0").</summary>
+        public int Object;
+        public string Record;
+
+        /// <summary>Its centre line, each point's Y the lip's height there.</summary>
+        public Double3[] CentreLine;
+
+        /// <summary>The cut's width at the top before any crumble (the spade's) and its depth under the lip, m.</summary>
+        public double TopWidth, Depth;
+
+        /// <summary>The opening's width at the lip, crumble included, m.</summary>
+        public double LipWidth;
+
+        /// <summary>The opening past the first and the last centre-line points, along the line, m.</summary>
+        public double EndFirst, EndLast;
+
+        /// <summary>Whether fillers roof it below the lip (still air under them).</summary>
+        public bool Covered;
     }
 }

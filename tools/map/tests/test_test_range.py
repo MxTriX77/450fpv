@@ -217,6 +217,65 @@ def test_the_ground_states_its_patches_and_holes(data, world):
             assert a is b or not gen.overlaps(a["footprint_m"], b["footprint_m"], -MM)
 
 
+def cut_records(data, world):
+    """Each hole record of the committed file with the fields the sim derives at load (gen.cut_record), and its row
+    and metadata."""
+    by_id = {r["id"]: r for r in data["instances"]}
+    out = {}
+    for hole in data["ground"]["holes"]:
+        row = by_id[hole["instance"]]
+        meta = world.assets.meta(row["asset"], row["variant"])
+        out[(row["variant"], hole["record"])] = (gen.cut_record(row, meta, hole), row, meta)
+    return out
+
+
+def test_the_cut_records_against_the_assets(data, world):
+    """p7c-wind 1.10a (design 10, D-071): E01's run 24.0 m of centre line, open, its lip width inside its slots'
+    0.903-0.981 m, its ends at its end walls; its niches covered; Z04's shaft open, 0.9 m between its walls with ends
+    of 0.25 m; S04's patches give no record; every record passes the map's checks."""
+    cuts = cut_records(data, world)
+    assert sorted(cuts) == [("E01_curving", "niche_0"), ("E01_curving", "niche_1"), ("E01_curving", "run"),
+                            ("Z04_cellar_shaft", "shaft")], "S04's patches and every other row give none"
+    for record, row, meta in cuts.values():
+        assert gen.cut_problems(record, row, meta) == [], record["record"]
+
+    run, row, meta = cuts[("E01_curving", "run")]
+    line = gen.asset_line(row, run)
+    length = sum(math.hypot(b[0] - a[0], b[2] - a[2]) for a, b in zip(line, line[1:]))
+    assert length == pytest.approx(24.0, abs=0.005), "the arc pieces' chords fall about 4 mm short; points in mm"
+    slots = [g["narrowest_m"] for g in meta["gaps"] if g["id"].startswith("slot_")]
+    assert len(slots) == 21 and min(slots) == 0.903018 and max(slots) == 0.980621
+    assert run["lip_width_m"] == pytest.approx(statistics.fmean(slots), abs=1e-12)
+    assert not run["covered"]
+    assert all(0.0 <= e <= MM for e in run["ends_m"]), "the end walls lean 0.7 mm into the cut at the probe"
+
+    for niche in ("niche_0", "niche_1"):
+        record = cuts[("E01_curving", niche)][0]
+        assert record["covered"] and record["lip_width_m"] == record["top_width_m"] == 0.8
+        assert record["ends_m"][1] == 0.0, "its back point lies in the soil"
+
+    shaft, row, meta = cuts[("Z04_cellar_shaft", "shaft")]
+    walls = meta["collision"][:4]  # the side walls along x, then the end walls along z
+    width = walls[1]["center"][0] - walls[1]["size"][0] / 2 - (walls[0]["center"][0] + walls[0]["size"][0] / 2)
+    assert shaft["lip_width_m"] == pytest.approx(width, abs=1e-12) and width == pytest.approx(0.9, abs=1e-12)
+    assert shaft["ends_m"] == pytest.approx([0.25, 0.25], abs=1e-12) and not shaft["covered"]
+
+
+def test_a_niche_marked_open_fails_the_roof_check(data, world):
+    """The known-wrong: E01's first niche marked open, under its fillers' roof."""
+    record, row, meta = cut_records(data, world)[("E01_curving", "niche_0")]
+    wrong = dict(record, covered=False)
+    assert any("covered is False" in p for p in gen.cut_problems(wrong, row, meta))
+
+
+def test_the_spade_width_fails_the_slots(data, world):
+    """The known-wrong: E01's run at its spade's 0.8 m (top_width_m), its crumble left out."""
+    record, row, meta = cut_records(data, world)[("E01_curving", "run")]
+    wrong = dict(record, lip_width_m=record["top_width_m"])
+    assert wrong["lip_width_m"] == 0.8
+    assert any("outside its slots' 0.903018-0.980621 m" in p for p in gen.cut_problems(wrong, row, meta))
+
+
 def test_every_span_hangs_on_its_ports(data, world):
     """Each conductor's ends lie within 5 mm of their ports' seats (a port plus one conductor radius along it), and
     no conductor leaves a port back across its pole by more than 5° (as the gallery's builder checks)."""
