@@ -162,4 +162,5 @@ Branch `unity/world/p6-world-query-gallery` off `unity/main` once `p1-g1-look-lo
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] review against spec scenarios: every `world-query` scenario run by QA, the golden in Debug and Release, pose parity over every station, the budgets on AC, the port's credit lines (D-027: nothing merged from `main`), hygiene
+- [x] 2.1 [qa-engineer] review against spec scenarios: every `world-query` scenario run by QA, the golden in Debug and Release, pose parity over every station, the budgets on AC, the port's credit lines (D-027: nothing merged from `main`), hygiene
+  - Approved at `0ccf424` (`review.md`, the 1.7 re-check): B4 and M1 closed, L4 accepted. Follow-ups that do not block: S3's capsule-cap graze and L6's two numbers in `IWorldQuery`. Physics' sign-off of the give-up rule stays open for `p6-flight-core--range`'s merge.

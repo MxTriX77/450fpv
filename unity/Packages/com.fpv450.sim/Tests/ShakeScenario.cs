@@ -81,11 +81,17 @@ namespace Fpv450.Sim.Tests
         public const double Rings = 0.3;
 
         /// <summary>From the hover a sharp step shows only the motors' spin-up kick: shorter than the pilot's shortest shake,
-        /// 0.3 s (PR-1; at most 0.14 s on 440 seeds a cell with model 22's 40 A protection, 0.08 s on seeds 1–40 without).</summary>
+        /// 0.3 s (PR-1). At model 26, on the class's ESC, the kick is D-064's motor spreads, which no current limit trims: at most
+        /// 0.16 s on seeds 1–40 and 0.20 s on 520 seeds a cell (1–40, 301–500, 701–740, 1001–1200, 1301–1340); 0.02 s with
+        /// the spreads off (1.10b's temporary edit).</summary>
         public const double KickSeconds = 0.3;
 
-        /// <summary>The shake lasts past the kick (KickSeconds, the pilot's shortest shake): what the re-ingested wash adds to
-        /// the motors' spin-up kick, which D-064's spreads show on a full punch with or without it.</summary>
+        /// <summary>The shake lasts past the kick (KickSeconds, the pilot's shortest shake). Below it a full punch shows the
+        /// motors' spin-up kick, ringed or ringless. Past it the shake has two causes (QA's integration review, B2): the
+        /// re-ingested wash, the main one, and D-064's motor spreads, which no current limit trims (D-066) and which alone carry
+        /// a ringless shake past it on 37 of 240 full punches on seeds 1–40 and on 19 of 40 in the pilot's cell, the empty
+        /// drone from 9 m/s (13 and 4 with the spreads off, QA's temporary switch). So the count past it is a rate of the
+        /// wash's share, not the wash alone.</summary>
         public static bool PastTheKick(in Result r) => r.Fields > 0 && r.Duration >= KickSeconds;
 
         /// <summary>"Nearly every": the share of a cell's flights a rate PHY-10 states holds on, where a bound is not true on
@@ -95,8 +101,9 @@ namespace Fpv450.Sim.Tests
         public const double NearlyEvery = 0.95;
 
         /// <summary>The pilot's "most" for the 0.3–0.7 s after a sudden drop (PR-1): this share of the seeds and the median
-        /// inside. On the class's ESC (D-066) the empty drone's full punch from 9 m/s holds it (39 of 40, the median 0.60 s
-        /// on seeds 1–40); from 5.3 m/s only the median (0.32 s, 25 of 40), from 2.5 m/s it barely shows.</summary>
+        /// inside. At model 26 the empty drone's full punch from 9 m/s holds it (40 of 40, the median 0.62 s on seeds 1–40),
+        /// and so does the one from 5.3 m/s (32 of 40, the median 0.38 s); from 2.5 m/s it shows on 32 of 40, mostly as the
+        /// kick (the median 0.20 s, past KickSeconds on 4).</summary>
         public const double Most = 0.7;
 
         /// <summary>The pilot's band on a group of seeds: at least Most of them inside 0.3–0.7 s, and the median.</summary>

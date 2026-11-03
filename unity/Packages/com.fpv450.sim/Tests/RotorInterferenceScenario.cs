@@ -36,7 +36,7 @@ namespace Fpv450.Sim.Tests
         public const double LeastLoss = 0.02, MostLoss = 0.20;
 
         /// <summary>The flights it is checked at: 10 m/s at 6° nose down and 15 m/s at 12° (each the still-air trim, derived
-        /// from the cruise's drag) and the slow flight of 2 m/s at 1°.</summary>
+        /// from the cruise's drag) and the slow flight at 1°, released at 2 m/s, which settles at 2.9 m/s (the spec's 3 m/s).</summary>
         public static readonly (double Pitch, double Speed)[] Forward = { (-6, 10), (-12, 15) };
         public const double SlowPitch = -1, SlowSpeed = 2;
 
