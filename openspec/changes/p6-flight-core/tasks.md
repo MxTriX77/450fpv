@@ -346,6 +346,76 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
       - **The own wake moves a landing number by 2.5 % at most** (the held level touch), under 1 % elsewhere. Held at the hover's thrust the skids are nearly unloaded, so which skid catches, and when, is set by each rotor's thrust: the motors' spreads (with 1.1's trims, through `BuildAsymmetry`) roll it, the cushion's gain (about 1 % at the hubs' 2.3 R; the held throttle is the airframe-less descent's) unloads it further, and the wake's 2.8 % thrust σ wanders it. On the coil, armed and cut, the wash and the cushion move it most (18.0° → 14.2° alone): the idling rotors, close over the ground, re-ingest their wash while the rate loop holds the rock.
       - **Not tuned, left for the pilot's G7 questions:** none of these is a mechanics check, and LandingTests' powered checks (only a pinned skid rolls the held drone over; armed, the controller holds the coil up) pass with each.
     - **At model 26, D-066's build,** the mechanics re-derive from the lighter packs and electronics (`LandingTests` restated, the model 22 build's numbers in each message): legs on 4.742 kg (4.832), the centre of mass 237.46 mm over the skids' axes; the tips 23.35° and 42.75° (23.39°, 42.80°); the falls from 1°, 5°, 10° past the tip 0.798, 0.518, 0.396 s against the mechanics' 0.806, 0.527, 0.406; runners trip past μ_k 0.905 (0.907); legs off 4.626 kg, 47.24 mm over the coil's axis, rolling at 5.374 /s (5.364): the rock from 0.1°, 0.5°, 1°, 2°, 5° in 1.113, 0.814, 0.685, 0.556, 0.383 s, 0.14–0.16 % under the rock about its contact and 0.22 % from 5° (0.85 ms, inside one step). The caught skid on dead legs within 1 % at 5–20° and 0.5 m/s down (the check), on the legs 0.94–0.97 of the mechanics. Powered, the class's ESC limits no current, so airmode's rate loop fights the ground harder: armed and cut, a level touch with no descent now tips only at 2.55 m/s (never at model 25), at 0.5 m/s down 2.17, 2.56, 1.53, 1.01 m/s at 0–15° (1.32, 1.32, 1.09, 0); held at the hover's thrust a smooth skid no longer tips at 0–10° of roll; the coil armed and cut is at 14.9° after 6 s, disarmed it reaches 20° in 0.649 s.
+  - **N4, the two powered columns QA could not explain** (`p7b-airframe` review-integration N4, at model 26, `2a27993b`). This is an investigation: no flight code changed. It was traced with an untracked probe: `LandingScenarios.Run`'s setup with a per-step trace, switched only through `FcSettings` and the setup. **Both columns come from `LandingScenarios.Run`, its powered start and how it judges a tip, not from the contact law or the controller.** Those are two harness bugs, each with a failing test in `LandingTests`, ignored with "N4: …".
+    - **The inputs:**
+      - D-066's build, legs on (derived, `LandingStability`): 4.742 kg (W 46.50 N); the centre of mass 237.46 mm over the skids' axes and 102.5 mm inboard (ρ 258.6 mm); the tip β 23.35°; I_P 0.36115 kg·m² about the skid.
+      - The left pair's lever about the right skid's axis: 159.81 + 102.5 = 262.3 mm (derived, drone.json).
+      - The hover (measured on the probe's steady hover): 45.1 N from the four rotors at duty 0.48; idle duty 0.055.
+      - The builder's roll I 20, so Ki 4.89 (pilot, fc-profiles §1).
+      - Anti-gravity at Betaflight 4.5.0's defaults (published; the profile is silent, D-023): gain 80, a 5 Hz PT2, P gain 100. Airmode on, active from 25 % throttle.
+      - Betaflight 4.5.0's `pid.c` and `fc/core.c`, re-read for N4:
+        - the I accelerator is the filtered throttle derivative × 80 × 0.34, added to Ki, not scaled to it
+        - the derivative is weighted (1 − θ)² when the throttle falls and 0.5·(1 − θ)³ when it rises
+        - with airmode latched, the I term is never reset at zero throttle
+      - `FlightController` matches all of it.
+    - **What the powered start does:**
+      - The throttle steps from 0 to the hover at step 16, with the floor 2 mm away (17 mm at 0.5 m/s down).
+      - The rotors take 0.14 s after the step to reach 90 % of the hover's thrust, and 0.25 s to reach 99 %.
+      - The touch comes at step 20 with no descent, or 27 at 0.5 m/s down. It carries 0.2 N or 1.6 N of the 45 N, at 0.196 or 0.763 m/s down.
+      - Anti-gravity is already excited by the step at the touch: 0.50 or 1.49 of its filter's output, peaking at 1.93 25 ms after the step.
+      - So "no descent" is a 0.2 m/s drop on idling rotors, and "0.5 m/s" is a 0.76 m/s drop. "Held at the hover's thrust" holds a throttle the rotors have not reached.
+    - **Column 1, armed and cut with no descent (0 m/s at 5–15°, 0.484 at 20°): the mechanism is right; the start is the bug.**
+      - **Mechanics.** On its low skid gravity rights the drone with M_g(φ) = W·ρ·sin(β − φ): 3.79, 2.78, 1.75 and 0.70 N·m at 5°, 10°, 15° and 20°.
+        - Holding it there takes the left pair lifting M_g / 0.2623 m: 14.4, 10.6, 6.7 and 2.7 N.
+        - At zero throttle, airmode drives the left pair at 2r of the duty above idle and leaves the right pair at idle, for a roll sum of 1000·r (Quad X, ±1).
+        - With thrust ∝ duty² (11.3 N a rotor at duty 0.48), that needs a roll sum of 175, 146, 110 and 59 (quasi-static).
+        - The sim's own threshold, found by bisecting anti-gravity's gain (I term at 150 ms, just over and under), is 123.3 at 15°, 103.8 at 17° and 68.2 at 20°: the hold plus the dynamics.
+      - **The sim.** The cut fires anti-gravity, peaking at 6.28 22 ms after the touch.
+        - At its peak the accelerator is 171, so the I gain is 176: 36 times the builder's Ki of 4.89. With Betaflight's default I of 80 it would be 10 times.
+        - It integrates the righting roll the touch starts. By 150 ms the I term holds 238, 192, 134 and 56 at 5°, 10°, 15° and 20°.
+        - It then bleeds at the bare Ki, 4.89 a degree, more slowly than the roll's need falls. So at 5–15° airmode lifts the high side and rolls the drone over its skid, still on the ground, at 1.17, 1.25 and 1.57 s.
+      - **Why 20° differs from 15°.** The windup is the integrated righting roll, so it scales with M_g. The roll sum that lifts the high side scales with √M_g plus the idle's offset, since thrust goes as the duty squared. Both shrink toward the tip, the windup faster.
+        - At the default gain they cross at 17.0°. The windup at 15–20° is 133.8, 118.9, 103.7, 88.1, 72.0 and 55.6; the thresholds are 123.3, 114.0, 103.8, 93.1, 81.2 and 68.2. The gain that tips at 17° is 80.1, against the default 80.
+        - The base column reads 0 at 16°, 16.5° and 17°, then 0.623, 0.554 and 0.484 m/s at 18°, 19° and 20°.
+        - Past the crossing the drone rights itself. A caught skid then needs a drift that beats the rate loop's resistance, more than the disarmed 0.110.
+      - **Switches** (critical speed at 0°, 5°, 10°, 15°, 20°, m/s):
+        - anti-gravity off: 2.530, 1.384, 0.679, 0.289, 0.108, monotonic
+        - D-064 off: 2.611, 0, 0, 0, 0.454
+        - Ki 0: still tips at 5° and 10°, because the accelerator alone winds it (Betaflight adds it to Ki)
+      - **The bug.** That windup needs the whole weight on the skid while anti-gravity peaks, and a pilot's approach cannot produce it:
+        - A cut from a spun-up hover peaks anti-gravity at 5.1 while the rotors still carry the weight.
+        - A cut early enough for the rotors to be idle at the touch lets anti-gravity decay first.
+        - The probe's steady approach: 0.33–0.42 s at the hover's throttle, the start drift backed off by g·tan φ so the touch comes with no drift, 45.1 N and anti-gravity 0 at the touch, 0.22–0.34 m/s down. Cut at the touch, the I term peaks at 144, 127, 107 and 73 at 5–20°, and **none tips with no drift**.
+        - Cut 3, 6, 10, 20 or 40 mm before the touch, 5° and 20° stay up too.
+        - The quasi-static needs are above the approach's peaks at 5–15°. At 20° the peak is level with the threshold's 72.7.
+      - **Failing test:** `ArmedAndCutFromAHoverItDoesNotTipWithoutDrift` (5°, 10°, 15°, no drift). All three tip now.
+    - **Column 2, held at the hover's thrust on μ 0.5 at 0.5 m/s down (0 from 10°): the touch never tips it; the judgement is the bug.**
+      - **Mechanics.** At 0.95 W the low skid carries a few percent of the weight. Pinning it at 10° takes μ 2.56 (`PinFriction`), so on μ 0.5 it skates and dynamic rollover cannot start. With its roll held by acro's rate loop, the drone at the hover's thrust is still flying: it drifts at g·tan φ, 1.73 m/s² at 10°. The touch should not tip it.
+      - **The sim.**
+        - The 0.76 m/s drop bounces the drone back into the air 56–59 ms after the touch, at every roll from 5° to 20°.
+        - The I term wound in the bounce (97 at 10°, with anti-gravity at 1.5–1.9 from the step) unwinds at the bare Ki, about 20° of roll, so the roll grows to about 21°.
+        - It lands again 0.72–0.77 s later at 1.45, 1.93 and 2.13 m/s at 10°, 15° and 20°, with 20.7–21.7° of roll. That trips it (the free μ 0.5 column tips at 0.125 m/s at 20°), and it is over 1.35–1.51 s after the first touch, inside the run's 3 s.
+        - At 5° it lands again at 0.62 m/s and 13°, and ends the 3 s at 58.9°, 1.1° short of the line. The column measures the window.
+        - From the steady approach (no anti-gravity, I term 7.8) the 10° touch still bounces, and the drone flies on at its held roll. It lands again at 1.8 m/s 1.34 s after the touch and at 4.1 m/s after 2.47 s, and is over at 2.9 s at 6 m/s.
+      - **The bug.** `Run` counts a tip at any time in its 3 s (`Over = MaxTilt > 60`), and `CriticalSpeed` bisects on it. So a held throttle's drift, and the landing at its speed, are read as the touch's.
+      - **Failing test:** `HeldAtTheHoverATouchIsJudgedOnItsOwn` (10°, 0.5 m/s down, no drift). It tips now.
+    - **Proposed fixes** (not applied; `LandingScenarios`, test code only):
+      1. **A steady approach.**
+         - Arm and step the throttle to the hover at the start, then fly at least 0.4 s before the touch, so the rotors are at the hover's thrust and anti-gravity has settled.
+         - Start high enough, with the drift backed off by g·tan φ over the approach (a braking flare) and the sink set, so that the touch comes at the asked lateral speed and descent. The probe iterates the start velocity five times.
+         - Report the touch's own speeds, thrust and anti-gravity state in `Outcome`, and bisect `CriticalSpeed` on the touch's lateral speed.
+         - "Cut" then chops at the touch from a hover, and "held" keeps a steady hover.
+      2. **Judge the touch alone.**
+         - The touch ends once the drone has been off the ground longer than a hop, 0.2 s (a 5 cm hop's flight).
+         - The pinned skid's hops last 21–38 ms and it rolls over 0.89–1.15 s after the first contact, so `WithThrustHeldOnlyAPinnedSkidRollsItOver` keeps its rollover. The held drift's flights last 0.67 s.
+         - Report a later tip apart, as a landing at the drift's speed.
+      - **What both fixes move:** every powered column (the held, caught row at 10° and 0.5 m/s down bounces for 0.67 s too), the coil's powered rows and `ArmedTheFlightControllerHoldsTheCoilUp`. Re-derive them.
+      - **A caveat for the bisection:** above about 2 m/s of drift the armed outcome is not monotonic in the lateral speed (from the steady approach at 10°: 2.6 m/s tips, 3.0 does not, 3.5 does). The bisection's crossing is one of several; say so in the table.
+    - **For G7.**
+      - With the start fixed, an armed touchdown with no drift does not tip at 5–20°. The pilot's "it falls more" is therefore not airmode's doing.
+      - The causes listed above stand: the ground's catch (soil, its groove, stems) and the centre of mass off the axis.
+      - What airmode really does at the touch is wind up the I term on the cut, about 140 at 5° from the steady approach. Betaflight keeps that I term while the drone sits, so the high side's motors stay at about a third of their duty and its legs carry 2–6 N of the 11.6 N each would carry level. That is why pilots disarm at once.
+    - **The checks:** `dotnet test tools/simtests` (the two new tests skipped, the rest unchanged), the two tests un-ignored and failing as quoted above, and `openspec validate p6-flight-core --strict`.
 - [x] 1.7 [physics-engineer] The budget and determinism (PLT-04):
   - **What:** `tools/flightbench --bench` on AC with the power mode printed: p50 and p99 step times, steady-state allocations, the world-query share.
   - **Verify:** p99 ≤ 300 µs and 0 allocations; a worker forced early or late changes only the logged hitches; the golden run identical in .NET and in the Unity editor (LOG-04's first half).
