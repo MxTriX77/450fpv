@@ -17,12 +17,13 @@ namespace Fpv450.Replay
             + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>] [--disarm-at-touch]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
             + "                                         (or the foot and heading --foot gives) in the map's own wind\n"
             + "                                         (its wakes, its belt's canopy and its cuts' cavity flow); --line\n"
-            + "                                         flies it on the fiber (the repository's tether.json, or the file given)\n"
+            + "                                         flies it on the fiber (the repository's tether.json, or the file given);\n"
+            + "                                         --disarm-at-touch disarms as the legs first touch, not 2.5 s after\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json and surfaces.json default to the repository's assets-src/drone/drone.json and assets-src/surfaces.json,\n"
             + "and tether.json, for a log with the line, to its assets-src/tether.json";
@@ -147,7 +148,7 @@ namespace Fpv450.Replay
             string tether = Option(args, "--tether") ?? (Array.IndexOf(args, "--line") >= 0
                 ? ScriptedFlight.RepositoryTether() ?? throw new ArgumentException("no tether.json found; pass --tether") : null);
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
-                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether);
+                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether, Array.IndexOf(args, "--disarm-at-touch") >= 0);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {map ?? "floor"}, {wind} wind, {rain}, "
