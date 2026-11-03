@@ -608,3 +608,9 @@ From QA's wind review of the physics line (`p7c-wind/review-integration.md`, S5)
 - **The physics engineer builds it in `p7c-wind` (a new 1.10)** after the line lands. The flow inside a cut comes from its depth below the lip (WLD-16: `SampleGround` keeps `TerrainHeight` at the lip over a hole) and its width along the wind, by published open and closed cavity-flow measurements (the shear layer over the cut, the recirculating cell, reattachment on the floor once the cut is long enough). Every number is cited or derived, never asked (D-024).
 - **The world builder** adds whatever per-hole data that model needs and the map doesn't already give.
 - **Until it lands,** the build's description lists the trench's shelter as not yet done.
+
+## D-072 Model and log-format numbers are assigned once, across every branch · Accepted
+The physics branches kept colliding: models 21–26 and formats 14–15 were each taken on more than one branch, so every merge had to re-number and re-audit.
+- **The orchestrator assigns the numbers** when a physics branch merges another line or starts a change that moves the model. A number is used once on any pushed `unity/physics/*` branch, never twice.
+- **Assigned on 2026-11-03:** `p7a-ground` model 27, format 17; `p7d-tether` 28, 18; `p7f-damage` 29, 19 (taken when its first code lands). A later step in a line asks for its next pair.
+- **A landing on `unity/main`** that combines two numbered states takes a new number above both, and audits the goldens case by case.
