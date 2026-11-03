@@ -1,6 +1,6 @@
 # QA review: the physics integration, its wind and world half
 
-**Verdict: changes requested, one small blocker (B1).** The wind and world half is ready to land once B1 is fixed. The rest are should-fix items for the open task 1.5, the physics engineer and the world builder, not blockers:
+**Verdict: changes requested, one small blocker (B1).** Superseded by "Re-check at 18a594e4" at the end: **approve**. The wind and world half is ready to land once B1 is fixed. The rest are should-fix items for the open task 1.5, the physics engineer and the world builder, not blockers:
 - **The map's wind reproduces.** The wakes behind H01_D, the belt's canopy and its porous lee pass on Mono and .NET, and each known-wrong fails. The course along the belt reads the belt with the map's obstacles and nearly the field without them.
 - **Severe's grade reproduces exactly:** 10 of 21 on seeds 1–10, the same ten targets as recorded. My own seeds 501–510 give 9 of 21 (T11a drops out).
 - **D-060's five items are in and checked.** Each fails its known-wrong.
@@ -429,4 +429,70 @@ flightbench: 10 bench cases registered; AC, Balanced plan, best performance mode
 posadka-step: … 58000 steps p50 26.50 µs, p99 70.20 µs, max 622.7 µs; the wake grid rebuilt 9 times (last 61 ms on the worker), 0 stalls; allocation 0 B: PASS (p99 ≤ 300 µs, 0 B, ≥ 2 rebuilds, no stall)
 map-step: … 58000 steps p50 28.10 µs, p99 67.50 µs, max 1209.9 µs; the wake grid rebuilt 9 times (last 43 ms on the worker), 0 stalls; allocation 0 B: PASS (p99 ≤ 300 µs, 0 B, ≥ 2 rebuilds, no stall)
   16 rows, 0 FAIL; the largest p99s 67.5, 70.2, 83.1, 89.9 µs
+```
+
+## Re-check at 18a594e4
+
+**Verdict: approve.** B1 is fixed as it asked, and the wind and world half is ready to land.
+- The S and L findings stay with their owners, and none blocks.
+- No file of theirs moved in the fixes.
+- S5 now has its decision on `unity/main`: D-071 builds the trench's cavity in `p7c-wind`.
+
+**Scope:**
+- `origin/unity/physics/physics-integration` at `18a594e4`, still model 26: 18 commits over `2a27993b`, which the flight review's re-check lists.
+- My half's part of them: `40b902d3`, the restore.
+- **How I checked:**
+  - everything run by me, in `.claude/worktrees/qa-pi-recheck` (logs in its `unity/Logs/qa-recheck/`, git-ignored)
+  - Unity EditMode in `.claude/worktrees/phys-int2` at `18a594e4`, read-only, after `git lfs checkout`
+
+**B1, fixed (`40b902d3`).**
+- **The restore is exactly `277f277c` undone:**
+  - 0.01 s in `WithTheAirframesEffectsSoilIsStillThePlane`
+  - 1e-3 m in `InASteadyCrosswindSoilIsStillThePlane`
+  - 0.01 s in `--contacts`' "E01's run, throttle cut, as the stub's" row
+- **The model-24 traces are gone.** The soil spot's 15 ms in the crosswind is older than `277f277c`, and is untouched.
+- **At the tip, on both runtimes:**
+
+  | Reading | .NET | Mono (EditMode) |
+  |---|---|---|
+  | E01's run, still air, cut: at rest | 0.419 s, stub 0.419 | 0.419 s, stub 0.419 |
+  | E01's run, steady 5 m/s from 270°, held: rose | 111.04 mm, plane 111.04 | 111.04 mm, plane 111.04 |
+  | `flightbench --contacts`, E01's run cut, as the stub's | 0.419 s, stub 0.419: PASS | |
+
+- **The restored tolerances guard something.** I switched `SameSupport`'s coplanar widening off, a temporary edit (the flight review's N7):
+  - The still-air cut then rests at 0.408 s against 0.419 s. That fails the restored 10 ms; the old 15 ms would have passed it.
+  - The crosswind's held rise reads 107.79 mm against 111.04 mm, and fails either way.
+
+**Unity EditMode on Mono:**
+- **The result:** 1025 tests, 1017 passed, 0 failed, 8 skipped. The 8 are the six `[Explicit]` probes and N4's two `[Ignore]` tests. The new case `OnFlushBoardsEachSupportIsOnePoint` passes.
+- **The pins equal .NET's:** every golden pin, the map's wind pin `0x0EF8A67AC398C411`, and E01's readings above.
+- **How it ran:** on AC, with Unity Hub running.
+  - My first launch redirected Unity's output with `*>`, so PowerShell returned at once and Unity ran on, detached. Its console log went nowhere.
+  - Its results file is complete: 648 s in the editor's Mono domain ("Unity Child Domain", clr 4.0.30319.42000). I waited on the process before reading it.
+
+**Not re-run:**
+- **The benches:** the fixes change no runtime line (two comment lines in `ContactModel.cs`).
+- **The wind harness and the grade (S2/S3, S8, S10):** no wind file moved.
+
+**Hygiene:** see the flight review's re-check.
+- The 18 commits are subject-only under their role identities, with no trailer.
+- No forbidden path; the tree scan finds 0 findings in 2286 files; `openspec validate --all --strict` passes 24 of 24.
+- The line merges into `unity/main` (81f3804e) without conflict.
+
+```
+$ dotnet test tools/simtests          Total tests: 398, Passed: 396, Skipped: 2; exit 0
+  WithTheAirframesEffectsSoilIsStillThePlane("run"): cut: ... at rest 0.419 s (stub 0.419), 28 contact events (stub 26)
+  InASteadyCrosswindSoilIsStillThePlane("run"): held: touch 0.4725 m/s (plane 0.4725), rose 111.04 mm (plane 111.04); cut: at rest 0.305 s (plane 0.305)
+$ dotnet run -c Release --project tools/flightbench -- --contacts
+  E01's run, throttle cut, as the stub's: ... at rest 0.419 s after it; 28 contact events, 0 tunnels, 0 crashes, 0 lost ...: PASS
+contacts: PASS
+$ QA_NO_WIDEN=1 (scratch worktree) dotnet test --filter <E01's cases> ; ... --contacts
+  WithTheAirframesEffectsSoilIsStillThePlane("run"): Expected 0.419 +/- 0.01, But was 0.408
+  InASteadyCrosswindSoilIsStillThePlane("run"): Expected 0.11104 +/- 0.001, But was 0.10779
+  contacts: FAIL (E01's run, throttle cut, as the stub's)
+PS> & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults <qa-pi-recheck>/unity/Logs/qa-recheck/editmode.xml -logFile -
+  <test-run total="1025" passed="1017" failed="0" skipped="8" duration="647.96">
+  WithTheAirframesEffectsSoilIsStillThePlane("run"): cut: ... at rest 0.419 s (stub 0.419)
+  InASteadyCrosswindSoilIsStillThePlane("run"): held: ... rose 111.04 mm (plane 111.04)
+  the map's wind, Severe seed 21, 4000 steps at 7 points: 0x0EF8A67AC398C411
 ```
