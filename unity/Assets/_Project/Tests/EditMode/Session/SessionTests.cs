@@ -822,6 +822,112 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines(), Has.Member("log " + rig.Session.LogPath));
         }
 
+        // D-079, p7f-damage 1.3 in the player: the app's flight carries props.blade's tables (the rotors flown as blade
+        // elements, the header's drone internals at tag 26), the merged physics_materials.json with what a blade meets, the
+        // strikes and each blade's factory pitch (the asymmetry's "prop.blade_pitch"). A steel wall's face stands 1 mm inside
+        // the front-left disc's rim of the drone on its legs, turned 45° so that fl leads and no other disc reaches it; the
+        // wall starts 30 mm over the disc, so the props spin up free. Armed, the drone climbs along the face: at the wall's
+        // foot the blades' passes chip and crush their tips back to it and push the drone off. That ends nothing, and no crash:
+        // the summary lists each blade's damage, worded by FlightSummary.Describe. (Pressed 1 mm into the face from rest, the
+        // idle's spin-up grinds and jams the rotor instead.) The log replays bit for bit with the repository's files
+        // (tools/replay's defaults), and R's restart flies whole props on its own draws.
+        [Test]
+        public void AWallGrazeDamagesABladeAndTheSummaryListsIt()
+        {
+            const double depth = 0.001;
+            const int fl = 3; // PropStrikes' corners: rr, fr, rl, fl
+            double radius = _spec.Props.Diameter / 2, face = 0;
+            Rig rig = Make(i => i.Adjust = s =>
+            {
+                s.StartAttitude = StrikeScenarios.Heading(StrikeScenarios.LeadHeading);
+                Double3 hub = s.StartAttitude.Rotate(_spec.Motors[fl].Position);
+                face = s.StartPosition.Z + hub.Z + radius - depth;
+                for (int c = 0; c < 4; c++)
+                    if (c != fl)
+                        Assert.That(s.StartPosition.Z + s.StartAttitude.Rotate(_spec.Motors[c].Position).Z + radius, Is.LessThan(face - 0.05), "only fl reaches the wall");
+                double low = s.StartPosition.Y + hub.Y + 0.03, high = 2.0;
+                ShapeGeometry wall = Box(new Double3(s.StartPosition.X + hub.X, (low + high) / 2, face + 0.1), new Double3(0.5, (high - low) / 2, 0.1),
+                    s.World.Query.MaterialId("steel"));
+                s.RuntimeObjects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("wall", new[] { wall }) }.ToArray();
+            });
+            rig.Session.Start();
+            FlightSetup setup = rig.Session.Setup;
+            FlightCore core = rig.Session.Core;
+            Assert.That(setup.Propulsion.Rotor, Is.Not.Null, "props.blade's tables: the rotors fly as blade elements");
+            Assert.That(setup.Asymmetry, Is.Not.Null, "the asymmetry, whose draws give each blade's factory pitch");
+            Assert.That((setup.Contacts.MaterialsHash, setup.Contacts.BladeStrikes), Is.EqualTo((_materialsHash, true)), "the merged table, the strikes on");
+            Assert.That(core.Strikes, Is.Not.Null, "the strikes fly");
+            double[] pitch = Pitches(core);
+            Assert.That(Array.TrueForAll(pitch, x => Math.Abs(x) <= setup.Asymmetry.BladePitchBound) && Array.Exists(pitch, x => x != 0), "each blade's factory pitch drawn");
+            Assert.That(Whole(core), "whole props at the start");
+
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.62; // lift off and climb along the wall
+            rig.Run(400);
+            BladeState a = core.Propulsion.Rotor(fl).Blade(0), b = core.Propulsion.Rotor(fl).Blade(1);
+            TestContext.WriteLine("fl's blades " + (a.TipRadius * radius * 1000).ToString("0.000") + " and " + (b.TipRadius * radius * 1000).ToString("0.000") + " mm; at "
+                + core.State.Position.ToString() + ", " + core.State.Velocity.Length().ToString("0.000") + " m/s, fl at " + core.State.RotorSpeed[fl].ToString("0") + " rad/s");
+            Assert.That(Math.Min(a.TipRadius, b.TipRadius), Is.LessThan(1), "a blade of fl cut back");
+            for (int c = 0; c < 3; c++)
+                Assert.That(core.Propulsion.Rotor(c).Blade(0).Whole && core.Propulsion.Rotor(c).Blade(1).Whole, "rotor " + c + " untouched");
+            Assert.That(core.State.Position.Z, Is.LessThan(setup.StartPosition.Z), "pushed off the wall");
+            Assert.That(core.State.Crashed, Is.False, "a graze is no crash");
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the damage ends nothing");
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            LogHeader h = p.Log.Header;
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, p.Log.CutReason);
+            Assert.That(h.Blade != null && h.Internals != null && h.Propulsion.Rotor != null, "the header carries the blade tables and the motors' internals");
+            Assert.That((h.Contacts.MaterialsHash, h.Contacts.BladeStrikes), Is.EqualTo((_materialsHash, true)));
+            Assert.That(Array.TrueForAll(h.Contacts.Materials, m => m.Hardness > 0 && m.Density > 0), "every row with what a blade meets");
+            Assert.That(p.HasCrash, Is.False);
+            Assert.That(p.Log.Count(EventKind.BladeDamaged), Is.GreaterThan(0));
+            int prop = _spec.PartIndex("prop_fl");
+            Assert.That(p.Damage.Count, Is.GreaterThan(0), "the summary has the damage");
+            foreach (PropDamage d in p.Damage)
+            {
+                Assert.That((d.Last.Event.Part, d.Slot == PropDamage.JamSlot), Is.EqualTo((prop, false)), "fl's blades, no jam");
+                Assert.That(d.Last.Event.A, Is.EqualTo(core.Propulsion.Rotor(fl).Blade(d.Slot).TipRadius), "the last event leaves the blade's tip");
+                string line = p.Describe(d);
+                Assert.That(p.Lines(), Has.Member(line));
+                StringAssert.StartsWith("damage at ", line);
+                StringAssert.Contains(p.Log.Describe(d.Last.Event), line, "worded by FlightSummary.Describe");
+                StringAssert.Contains("'wall' shape 0 (material steel)", line);
+            }
+
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+
+            Assert.That(rig.Session.Restart(), Is.True);
+            FlightCore again = rig.Session.Core;
+            Assert.That(again, Is.Not.SameAs(core));
+            Assert.That(Whole(again), "R's restart: whole props");
+            Assert.That(Pitches(again), Is.Not.EqualTo(pitch), "on the new flight's own factory pitch draws");
+            rig.Session.Dispose();
+        }
+
+        static double[] Pitches(FlightCore core)
+        {
+            var pitch = new double[8];
+            for (int c = 0; c < 4; c++)
+                for (int b = 0; b < 2; b++)
+                    pitch[c * 2 + b] = core.Propulsion.Rotor(c).Blade(b).FactoryPitch;
+            return pitch;
+        }
+
+        static bool Whole(FlightCore core)
+        {
+            for (int c = 0; c < 4; c++)
+                for (int b = 0; b < 2; b++)
+                    if (!core.Propulsion.Rotor(c).Blade(b).Whole || core.Propulsion.Rotor(c).Blade(b).TipRadius != 1) return false;
+            return true;
+        }
+
         // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 103° to face
         // R01_A's middle (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown at about 0.6 m into its
         // end, where the steel bumper is (at the flight model 19 the old 108° and lower throttle skimmed past it into a
