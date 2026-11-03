@@ -35,7 +35,12 @@ KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "
 # additive: schema 1 stays, and every other asset's file is unchanged.
 # A loose runtime object's mass in kg (p5-drone design 4: D02's launch stand, which physics places unanchored and may
 # tip or drag, D-022), when its generator returns one ("mass_kg"); positive. Optional and additive, as above.
-OPTIONAL_KEYS = ("stand_in", "mass_kg")
+# Parts of a LOD the player rewrites (D01's coil pack, which p7d-tether 1.14's CoilPack shrinks with the payout), under
+# "readable": a generator may return, per LOD, meshes drawn, bounded and audited with that LOD but exported as their own
+# objects, named <variant>_LOD<n>_<kind>, which the importer alone imports readable (a readable mesh asset beside the
+# prefab), so the rest of the model keeps no CPU copy (ArtImportSettings). Optional and additive, as above.
+OPTIONAL_KEYS = ("stand_in", "mass_kg", "readable")
+READABLE_KEYS = ("lod", "name", "kind", "tris")
 STAND_IN_SOURCE_KEYS = ("commit", "model", "model_sha256", "catalog_key")
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
@@ -188,7 +193,8 @@ def _labelled_problems(node, path, valid, what):
 def assemble(asset_id, variant, generator, params, built, visual_by_slot, impostor_lod=None):
     """The metadata of one variant from the generator's result `built` ({"lods": [Mesh...], "switch_distances_m",
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
-    optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
+    optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "readable": [{"lod",
+    "kind", "mesh": Mesh}] (named as a micro mesh, written only when there are some), "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
     "png"}, optionally "channels"], a stand-in's "stand_in" record and a loose object's "mass_kg") and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
@@ -205,7 +211,13 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
             raise ValueError(f"{variant}: a micro mesh names LOD {m['lod']}, which does not exist")
         micro.append({"lod": m["lod"], "name": f"{variant}_LOD{m['lod']}_{m['kind']}", "kind": m["kind"],
                       "count": int(m["count"]), "tris": m["mesh"].triangles()})
-    meshes = list(lods) + [m["mesh"] for m in built.get("micro", [])]
+    readable = []
+    for r in built.get("readable", []):
+        if not 0 <= r["lod"] < len(lods):
+            raise ValueError(f"{variant}: a readable part names LOD {r['lod']}, which does not exist")
+        readable.append({"lod": r["lod"], "name": f"{variant}_LOD{r['lod']}_{r['kind']}", "kind": r["kind"],
+                         "tris": r["mesh"].triangles()})
+    meshes = list(lods) + [m["mesh"] for m in built.get("micro", []) + built.get("readable", [])]
     lo = [min(m.bounds()[0][a] for m in meshes) for a in range(3)]
     hi = [max(m.bounds()[1][a] for m in meshes) for a in range(3)]
     bounds = {"min": lo, "max": hi}
@@ -238,6 +250,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
         meta["stand_in"] = built["stand_in"]
     if "mass_kg" in built:
         meta["mass_kg"] = float(built["mass_kg"])
+    if readable:
+        meta["readable"] = readable
     return _rounded(meta)
 
 
@@ -402,6 +416,17 @@ def validate(meta, material_ids):
         problems += _stand_in_problems(meta["stand_in"])
     if "mass_kg" in meta and not (_is_num(meta["mass_kg"]) and meta["mass_kg"] > 0):
         problems.append(f"mass_kg must be a positive number, got {meta['mass_kg']!r}")
+    names = {lod.get("mesh") for lod in lods} | {m.get("name") for m in meta["micro"] if isinstance(m, dict)}
+    for i, r in enumerate(meta.get("readable", [])):
+        ok = (isinstance(r, dict) and all(k in r for k in READABLE_KEYS)
+              and isinstance(r["lod"], int) and 0 <= r["lod"] < len(lods) and "impostor" not in lods[r["lod"]]
+              and isinstance(r["kind"], str) and r["kind"] and r["name"] == f"{meta['variant']}_LOD{r['lod']}_{r['kind']}"
+              and r["name"] not in names and isinstance(r["tris"], int) and r["tris"] > 0)
+        if not ok:
+            problems.append(f"readable[{i}]: needs {', '.join(READABLE_KEYS)}: a mesh LOD, a kind, its own name "
+                            f"<variant>_LOD<n>_<kind> and triangles: {r}")
+        else:
+            names.add(r["name"])
     return problems
 
 
@@ -471,13 +496,14 @@ def _hole_problems(holes):
 
 
 def check_against_fbx(meta, fbx_path):
-    """Problems where the metadata disagrees with the exported file as Unity will read it: a LOD or micro mesh
-    missing from the FBX, or the union of their bounds off the metadata bounds by more than a millimetre."""
+    """Problems where the metadata disagrees with the exported file as Unity will read it: a LOD, micro or readable
+    mesh missing from the FBX, or the union of their bounds off the metadata bounds by more than a millimetre."""
     found = fbxread.unity_bounds(fbx_path)
     problems = []
     lo, hi = [None] * 3, [None] * 3
-    # the importer builds an impostor's card from its record; the FBX holds the mesh LODs and the micro meshes
-    for name in [lod["mesh"] for lod in meta["lods"] if "impostor" not in lod] + [m["name"] for m in meta["micro"]]:
+    # the importer builds an impostor's card from its record; the FBX holds the mesh LODs, micro and readable meshes
+    for name in ([lod["mesh"] for lod in meta["lods"] if "impostor" not in lod] + [m["name"] for m in meta["micro"]]
+                 + [r["name"] for r in meta.get("readable", [])]):
         if name not in found:
             problems.append(f"{name} is not a mesh of {fbx_path}; it holds {', '.join(sorted(found))}")
             continue

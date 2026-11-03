@@ -37,6 +37,8 @@ namespace Fpv450.Assets
             // reach the catalog importer, which assigns the project's materials by those names.
             changed |= Set(importer.materialImportMode, ModelImporterMaterialImportMode.ImportStandard, v => importer.materialImportMode = v);
             changed |= Set(importer.materialLocation, ModelImporterMaterialLocation.InPrefab, v => importer.materialLocation = v);
+            // No CPU copy of a model; a part the player rewrites (the metadata's readable: D01's coil pack) is copied
+            // readable beside its prefab by the catalog importer, the rest of the model left as it is here.
             changed |= Set(importer.isReadable, false, v => importer.isReadable = v);
             changed |= Set(importer.meshCompression, ModelImporterMeshCompression.Off, v => importer.meshCompression = v);
             changed |= Set(importer.animationType, ModelImporterAnimationType.None, v => importer.animationType = v);

@@ -46,3 +46,17 @@ def test_either_kind_alone_goes_on_to_blender(export, corner_normals, vertex_nor
     mesh.smooth = {"bark"} if smooth else set()
     with pytest.raises(AttributeError, match="'bpy' has no attribute 'data'"):  # past the check, at Blender's first call
         export.add_lod("alone", mesh)
+
+
+def test_merged_keeps_each_meshs_faces_smoothing_normals_and_second_uvs():
+    """lib.geometry.merged (p7d-tether 1.14: a LOD with its readable parts, as build.py audits it): the meshes' faces in
+    order on their own vertices, their smooth slots, corner normals, vertex normals and second UVs moved with them."""
+    from lib.geometry import merged
+    a, b = quad(corner_normals=True), quad(vertex_normals=True)
+    a.smooth = {"bark"}
+    b.uv2 = {3: (0.5, 0.0)}
+    m = merged([a, b])
+    assert m.vertices == a.vertices + b.vertices
+    assert [f[0] for f in m.faces] == [[0, 1, 2, 3], [4, 5, 6, 7]]
+    assert m.smooth == {"bark"} and set(m.corner_normals) == {0} and m.uv2 == {7: (0.5, 0.0)}
+    assert m.normals == {i + 4: n for i, n in b.normals.items()}
