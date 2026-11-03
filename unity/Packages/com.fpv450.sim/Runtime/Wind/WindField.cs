@@ -273,10 +273,17 @@ namespace Fpv450.Sim.Wind
     ///   own volumes), the point is shared once: the canopy takes w of the mean, U·(w·U_c(z)/U + (1 − w)·P(z)·s), P the
     ///   open profile and s the wake grid's speed, and the wake eddies carry √(1 − w) of their excess. Outside every
     ///   strip, or above its blending height, the wakes alone.
+    /// - **The wind inside a cut** (p7c-wind 1.10, design 10, D-071; Cavity, CutFrame), when the setup has cuts: where the
+    ///   body's origin lies in a cut's opening (the world's own: within the cut's reach, the ground under it below the
+    ///   lip), the step's frame is that cut's. Above the lip the field takes the lip as its ground (its profile, wakes and
+    ///   canopy), never the floor. Below it, in an open cut, the cut's own cavity flow, D its depth at the centre line, driven
+    ///   by the field's mean at h_o = min(W, 1.5·D) over the lip at the origin (with its wakes and canopy share), with the
+    ///   field's fluctuation at the point, each part tapered, boosted and shared as at h_o, times τ·Λ; under a covered
+    ///   cut's roof, and in the walls, still air. Elsewhere the field as before, bit for bit.
     /// - **A gust front** (GustFront), only when the setup has one.
     /// Randomness enters only the wind's velocity, a physical parameter, and reaches the body only through the drag and
     /// rotor forces (flight-randomness): never the pose. Begin fixes a step's frame (its time, the drift, each mode's
-    /// phase offset, the ground); At answers for that frame. Zero allocations after the constructor.
+    /// phase offset, the ground, a cut's frame); At answers for that frame. Zero allocations after the constructor.
     /// </summary>
     public sealed class WindField : IDisposable
     {
@@ -326,6 +333,12 @@ namespace Fpv450.Sim.Wind
         // The wooded strips' canopy layers (p7c-wind 1.5), or null.
         readonly CanopyFlow[] _canopies;
 
+        // The cuts (p7c-wind 1.10), or null; in a cut's frame the fluctuation's shares at the drive's height: the open
+        // modes', a strip's eddies' (with the strip), and the wake eddies' (with 1 over the obstacle's height).
+        readonly CutFrame _cuts;
+        CanopyFlow _cutStrip;
+        double _cutOpen, _cutCanopy, _cutWake, _cutWakeInv;
+
         // The step's frame (Begin).
         double _t, _ground;
         bool _still; // a steady wind before its onset
@@ -340,8 +353,8 @@ namespace Fpv450.Sim.Wind
             Setup = setup;
             Preset = preset;
             _front = setup.Front?.Checked();
-            if ((setup.Wakes != null || setup.Canopies != null) && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
-                throw new ArgumentException("wakes and a canopy need a pilot's level", nameof(setup));
+            if ((setup.Wakes != null || setup.Canopies != null || setup.Cuts != null) && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
+                throw new ArgumentException("wakes, a canopy and cuts need a pilot's level", nameof(setup));
             if (setup.StartSecond != 0 && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
                 throw new ArgumentException("a start second needs a pilot's level", nameof(setup));
             switch (setup.Level)
@@ -430,6 +443,11 @@ namespace Fpv450.Sim.Wind
                 for (int i = 0; i < _canopies.Length; i++)
                     _canopies[i] = new CanopyFlow(setup.Canopies[i], preset, FromDeg, MeanSpeed, Profile, SigmaH, SigmaV, canopy);
             }
+            if (setup.Cuts != null)
+            {
+                if (setup.Cuts.Length == 0) throw new ArgumentException("a setup's cuts are null or at least one", nameof(setup));
+                _cuts = new CutFrame(setup.Cuts);
+            }
             if (setup.Wakes == null) return;
 
             // The wakes (p7c-wind 1.5): the grid for the history's first bearing, and the eddies from the counter-based
@@ -508,11 +526,66 @@ namespace Fpv450.Sim.Wind
             for (int m = 0; m < _wave.Length; m++)
                 _offset[m] = _phase[m] - (_wave[m].X * _drift.X + _wave[m].Z * _drift.Z);
             if (_canopies != null) foreach (CanopyFlow c in _canopies) c.Begin(_drift);
-            if (_wakes == null) return;
-            _wakes.Step(step, _fromDeg[j] + (_fromDeg[k] - _fromDeg[j]) * f);
-            for (int m = 0; m < _eddyDir.Length; m++)
-                _eddyOffset[m] = -(_eddyDir[m].X * _drift.X + _eddyDir[m].Z * _drift.Z);
+            if (_wakes != null)
+            {
+                _wakes.Step(step, _fromDeg[j] + (_fromDeg[k] - _fromDeg[j]) * f);
+                for (int m = 0; m < _eddyDir.Length; m++)
+                    _eddyOffset[m] = -(_eddyDir[m].X * _drift.X + _eddyDir[m].Z * _drift.Z);
+            }
+            if (_cuts != null) BeginCut(origin, ground);
         }
+
+        // A cut's frame (design 10): where the origin lies in a cut's opening the lip is the field's ground above it, and an
+        // open cut's drive is the field's mean at h_o over the lip at the origin, its fluctuation's shares read there too
+        // (Air's rules at that height: the profile's taper, a strip's plan weight and decay, the wake grid's speed and boost).
+        void BeginCut(in Double3 origin, double ground)
+        {
+            if (!_cuts.Locate(origin.X, origin.Z, ground)) return;
+            _ground = _cuts.Lip;
+            if (_cuts.Covered) return;
+            double h = DetMath.Min(_cuts.Width, Cavity.DriveHeightOverDepth * _cuts.Depth);
+            if (!(h - _d > _z0))
+            {
+                _cuts.Drive(default, h, _d, _z0, false); // a slit inside the cover's still layer has no drive
+                return;
+            }
+            var at = new Double3(origin.X, _ground + h, origin.Z);
+            double profile = Profile(h), taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight), speed;
+            _cutStrip = null;
+            _cutOpen = taper;
+            _cutCanopy = _cutWake = _cutWakeInv = 0;
+            CanopyFlow c = null;
+            double w = 0;
+            if (_canopies != null)
+                foreach (CanopyFlow strip in _canopies)
+                {
+                    if (!(h < strip.BlendingHeight)) continue;
+                    double ws = strip.Weight(at);
+                    if (ws > w) { w = ws; c = strip; }
+                }
+            WakeSample b = default;
+            if (_wakes != null) _wakes.Sample(at.X, at.Z, h, out b);
+            if (w > 0)
+            {
+                double r = c.Decay(h);
+                _cutStrip = c;
+                _cutOpen = taper * (1 - w * (1 - r));
+                _cutCanopy = taper * r * DetMath.Sqrt(w * c.Layer(h));
+                speed = _wakes == null ? profile + w * (c.Speed(h) / MeanSpeed - profile) : (1 - w) * profile * b.Speed + w * (c.Speed(h) / MeanSpeed);
+            }
+            else speed = _wakes == null ? profile : profile * b.Speed;
+            double b2 = b.Turbulence * b.Turbulence - 1;
+            if (_wakes != null && b2 > 0 && b.ObstacleHeight > 0)
+            {
+                _cutWake = DetMath.Sqrt(b2) * SigmaH * (taper * DetMath.Sqrt(1 - w));
+                _cutWakeInv = 1 / b.ObstacleHeight;
+            }
+            _cuts.Drive(_mean * speed, h, _d, _z0, true);
+        }
+
+        /// <summary>The step's cut frame (design 10), or null without cuts: whether the origin lies in an opening, and the
+        /// frame's lip, width, depth, axis and drive.</summary>
+        public CutFrame Cut => _cuts;
 
         /// <summary>The mean wind at the reference height in the step's frame, world m/s.</summary>
         public Double3 Mean => _level ? _mean : _still ? default : _steady;
@@ -555,6 +628,7 @@ namespace Fpv450.Sim.Wind
 
         Double3 Air(in Double3 point)
         {
+            if (_cuts != null && _cuts.Active && point.Y < _cuts.Lip) return InCut(point);
             double h = point.Y - _ground;
             if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or with no ground under it
             double profile = Profile(h);
@@ -597,6 +671,18 @@ namespace Fpv450.Sim.Wind
             double t2 = s.Turbulence * s.Turbulence - 1;
             if (!(t2 > 0) || !(s.ObstacleHeight > 0)) return wind;
             return wind + WakeEddies(point, 1 / s.ObstacleHeight) * (DetMath.Sqrt(t2) * SigmaH * taper);
+        }
+
+        // Below a cut's lip (design 10): the cavity's mean, and the field's fluctuation at the point with its shares at the
+        // drive's height, times τ·Λ (CutFrame.Flow); still in the walls, under a roof or without a drive.
+        Double3 InCut(in Double3 point)
+        {
+            Double3 mean = _cuts.Flow(point, out double scale);
+            if (!(scale > 0)) return mean;
+            Double3 fluctuation = Turbulence(point) * _cutOpen;
+            if (_cutStrip != null) fluctuation = fluctuation + _cutStrip.Eddies(point) * _cutCanopy;
+            if (_cutWake > 0) fluctuation = fluctuation + WakeEddies(point, _cutWakeInv) * _cutWake;
+            return mean + fluctuation * scale;
         }
 
         // The wake eddies' sum at a point for an obstacle of height 1/inv, each component of unit σ.

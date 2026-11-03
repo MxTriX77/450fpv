@@ -68,8 +68,31 @@ namespace Fpv450.Sim.Contact
         /// <summary>The damping ratio of that compliance; 0 for a rigid material.</summary>
         public double DampingRatio;
 
+        /// <summary>How a layer's Stiffness scales with a part's footprint (p7a-ground design 6); None for a row read per part as it stands.</summary>
+        public AreaLaw AreaLaw;
+
+        /// <summary>The layer's depth at which Stiffness was derived for the reference foot, m; 0 without an area law.</summary>
+        public double AreaReferenceDepth;
+
+        /// <summary>A slender member's Young's modulus for its cantilever bending (bark, deadwood), Pa; 0 for none.</summary>
+        public double ElasticModulus;
+
+        /// <summary>
+        /// The row's wet block (Rain and Severe rain alike): the wet stiffness, its ratio to Stiffness, μs and μk, and the
+        /// cohesive pull σ_a (Pa) with its release separation δ_a (m); every field 0 when HasWet is false.
+        /// </summary>
+        public bool HasWet;
+        public double WetStiffnessRatio, WetStiffness, WetStaticFriction, WetKineticFriction, WetAdhesion, WetAdhesionRelease;
+
         public readonly bool Rigid => Stiffness == 0;
     }
+
+    /// <summary>
+    /// A compliant layer's area law (p7a-ground design 6): mat, a loose layer spreading the load 2:1 through its depth
+    /// (k = E_m·A_s/D); punch, an elastic flat punch (k ∝ the footprint's equivalent diameter, Sneddon); winkler, a loose
+    /// fill (k ∝ the footprint's area).
+    /// </summary>
+    public enum AreaLaw : byte { None = 0, Mat = 1, Punch = 2, Winkler = 3 }
 
     /// <summary>
     /// The flight's contact model inputs (p6-flight-core design 7): drone.json's contact shapes at the pilot's loadout,
@@ -116,11 +139,15 @@ namespace Fpv450.Sim.Contact
         public MaterialRow[] Materials = new MaterialRow[0];
         public ulong MaterialsHash;
 
+        /// <summary>surfaces.json's table with its hash (p7a-ground 1.1); null for a flight without it.</summary>
+        public SurfaceTable Surfaces;
+
         public ContactSpec Clone()
         {
             var c = (ContactSpec)MemberwiseClone();
             c.Shapes = (ContactShape[])Shapes.Clone();
             c.Materials = (MaterialRow[])Materials.Clone();
+            c.Surfaces = Surfaces?.Clone();
             return c;
         }
 

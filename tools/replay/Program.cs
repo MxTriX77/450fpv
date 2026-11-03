@@ -13,15 +13,19 @@ namespace Fpv450.Replay
     {
         const string Usage =
             "usage:\n"
-            + "  replay <log> [--drone <drone.json>]   replay the flight; compare every record bit for bit, on the world\n"
+            + "  replay <log> [--drone <drone.json>] [--surfaces <surfaces.json>] [--tether <tether.json>]\n"
+            + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id>] [--drone <drone.json>]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>]\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
-            + "                                         in the map's own wind (its wakes and its belt's canopy)\n"
+            + "                                         (or the foot and heading --foot gives) in the map's own wind\n"
+            + "                                         (its wakes, its belt's canopy and its cuts' cavity flow); --line\n"
+            + "                                         flies it on the fiber (the repository's tether.json, or the file given)\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
-            + "drone.json defaults to the repository's assets-src/drone/drone.json";
+            + "drone.json and surfaces.json default to the repository's assets-src/drone/drone.json and assets-src/surfaces.json,\n"
+            + "and tether.json, for a log with the line, to its assets-src/tether.json";
 
         private static int Main(string[] args)
         {
@@ -69,6 +73,30 @@ namespace Fpv450.Replay
                 }
                 Console.WriteLine($"  drone.json {drone}: 0x{droneHash:X16}");
             }
+            ulong surfacesHash = 0;
+            string surfaces = Option(args, "--surfaces") ?? (h.Contacts?.Surfaces != null ? ScriptedFlight.RepositorySurfaces() : null);
+            if (surfaces != null)
+            {
+                surfacesHash = ScriptedFlight.SurfacesHash(surfaces, out string problem);
+                if (problem != null)
+                {
+                    Console.WriteLine("refused: " + problem);
+                    return (int)ReplayOutcome.Refused;
+                }
+                Console.WriteLine($"  surfaces.json {surfaces}: 0x{surfacesHash:X16}");
+            }
+            ulong tetherHash = 0;
+            string tether = Option(args, "--tether") ?? (h.Tether != null ? ScriptedFlight.RepositoryTether() : null);
+            if (tether != null)
+            {
+                tetherHash = ScriptedFlight.TetherHash(tether, out string problem);
+                if (problem != null)
+                {
+                    Console.WriteLine("refused: " + problem);
+                    return (int)ReplayOutcome.Refused;
+                }
+                Console.WriteLine($"  tether.json {tether}: 0x{tetherHash:X16}");
+            }
             FlightWorld world = ScriptedFlight.OpenWorld(h.WorldId, out string where);
             if (world == null)
             {
@@ -78,7 +106,7 @@ namespace Fpv450.Replay
             Console.WriteLine($"  world '{h.WorldId}' from {where}: 0x{world.ContentHash:X16}");
 
             var clock = Stopwatch.StartNew();
-            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa);
+            ReplayResult r = FlightReplay.Run(reader, world, droneHash, Host.Isa, surfacesHash, tetherHash);
             Console.WriteLine("  " + r.Message);
             foreach (string note in r.Notes) Console.WriteLine("  note: " + note);
             Console.WriteLine($"  replayed in {clock.Elapsed.TotalSeconds:F2} s on {LogHeader.CurrentRuntime()}, isa {Host.Isa}; exit {(int)r.Outcome} ({r.Outcome})");
@@ -107,9 +135,19 @@ namespace Fpv450.Replay
             if (!Enum.TryParse(Option(args, "--rain") ?? "sunny", true, out RainLevel rain) || !Enum.IsDefined(typeof(RainLevel), rain))
                 throw new ArgumentException("--rain is sunny, rain or severerain");
 
-            string map = Option(args, "--map");
+            string map = Option(args, "--map"), footText = Option(args, "--foot");
+            double[] foot = null;
+            if (footText != null)
+            {
+                if (map == null) throw new ArgumentException("--foot needs --map");
+                string[] parts = footText.Split(',');
+                if (parts.Length != 4) throw new ArgumentException("--foot is x,y,z,heading");
+                foot = Array.ConvertAll(parts, p => double.Parse(p, System.Globalization.CultureInfo.InvariantCulture));
+            }
+            string tether = Option(args, "--tether") ?? (Array.IndexOf(args, "--line") >= 0
+                ? ScriptedFlight.RepositoryTether() ?? throw new ArgumentException("no tether.json found; pass --tether") : null);
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
-                Array.IndexOf(args, "--canopy") >= 0, map);
+                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {map ?? "floor"}, {wind} wind, {rain}, "
@@ -118,6 +156,7 @@ namespace Fpv450.Replay
             Console.WriteLine($"  {r.Bytes} bytes: header {r.HeaderBytes} B, then {perStep:F1} B a step = {perStep * 60000 / 1e6:F2} MB a minute; "
                 + $"seed 0x{r.Seed:X16}, drone.json 0x{r.DroneHash:X16}; {r.WallSeconds:F2} s of wall time");
             Console.WriteLine("  landing: " + r.Landing);
+            if (r.Line != null) Console.WriteLine("  the line: " + r.Line);
             if (r.Fault != null)
             {
                 Console.WriteLine("  the log failed: " + r.Fault.Message);

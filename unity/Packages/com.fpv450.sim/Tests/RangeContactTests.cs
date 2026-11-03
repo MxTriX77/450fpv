@@ -46,9 +46,11 @@ namespace Fpv450.Sim.Tests
 
         // Without the same-face rule (a skid capsule's flat-face tie at its far core end counted as a third point) both
         // flicker: 1564 and 2768 contact events in the last second, never at rest, and 0.9964 and 0.9987 of the weight.
-        // Without the seam rule (ContactModel.Seam) E01's run under D-050's legs is 1.3 µm deeper than the plane, 1.001 of
-        // the weight (a support 2 mm past a filler's edge, its normal 10° off); with the edge alone dropped, 9 µm higher and
-        // pitched (a support on two fillers counted twice in its leg's split).
+        // Without the seam rule (ContactModel.Seam) E01's run rests on 16 soil pairs, two a support (a support 2 mm past a
+        // filler's edge meets that edge too, its normal 10° off). At model 26 that is only 0.443 µm deeper than the plane and
+        // 1.0001 of the weight (QA's integration review, B3; 1.3 µm and 1.001 at 1.6b's model), inside those tolerances, so
+        // one pair a support is what fails it. With the edge alone dropped (1.6b), 9 µm higher and pitched (a support on two
+        // fillers counted twice in its leg's split).
         [TestCase("soil")]
         [TestCase("run")]
         public void OnSoilItRestsAsOnThePlane(string where)
@@ -59,13 +61,55 @@ namespace Fpv450.Sim.Tests
             Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
             Assert.That(soil.Plane, Is.EqualTo(0), "no plane inside the patch or the band");
             Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count), "only soil shapes carry it");
-            Assert.That(soil.Soil, Is.GreaterThanOrEqualTo(8), "every support on soil");
+            Assert.That(soil.Pairs.Count, Is.EqualTo(8), "every support on soil, once (the seam rule)");
             Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, however many fillers a support stands on");
             Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
             Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
             Assert.That(soil.Speed, Is.LessThan(1e-4));
         }
 
+        // SameSupport's coplanar widening (a skid's contact on a face coplanar with its support's) has no case on the range:
+        // switched off, S04's soil and E01's run rest as before to 1 nm (QA's integration review, B3). So it has its own. Three
+        // timber boards lie flush on the stub's floor: the middle one 0.10 m wide under the skids' middles, the outer ones
+        // under the supports (the joints at ±0.1025 m, the ends at ±0.22). Each skid half's line contact on the middle board
+        // lies 0.05 m or more from every support sphere and on no support's board, so only its plane, the outer boards' top,
+        // makes it its support's. With the widening the drone rests on its eight supports as on one wide board; without it
+        // the four skid halves meet the middle board as four more of their legs' points. It starts 1 mm over the boards, so
+        // every contact is made in flight and logged (the start pose's are made before the first step).
+        [Test]
+        public void OnFlushBoardsEachSupportIsOnePoint()
+        {
+            RangeScenarios.Resting Boards(params (double Z0, double Z1)[] boards)
+            {
+                FlightWorld world = FlightWorld.Floor();
+                ushort timber = world.Query.MaterialId("timber");
+                var shapes = new ShapeGeometry[boards.Length];
+                for (int i = 0; i < boards.Length; i++)
+                    shapes[i] = new ShapeGeometry
+                    {
+                        Kind = ShapeKind.Box, Center = new Double3(0, 0.025, (boards[i].Z0 + boards[i].Z1) / 2), AxisX = new Double3(1, 0, 0),
+                        AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1), HalfExtents = new Double3(0.4, 0.025, (boards[i].Z1 - boards[i].Z0) / 2),
+                        Material = timber,
+                    };
+                var site = new ContactScenarios.Site(world, new Double3(0, 0.051, 0), 0) { Objects = new[] { new RuntimeObject("boards", shapes) } };
+                return Rest(site);
+            }
+            RangeScenarios.Resting one = Boards((-0.45, 0.45));
+            RangeScenarios.Resting three = Boards((-0.45, -0.05), (-0.05, 0.05), (0.05, 0.45));
+            Assert.That(one.Material, Is.EqualTo(one.Pairs.Count).And.EqualTo(8), "on one board, each support once (the premise)");
+            Assert.That(three.Material, Is.EqualTo(three.Pairs.Count).And.EqualTo(8), "on three, each support once and no skid's middle");
+            Assert.That(three.Sink, Is.EqualTo(one.Sink).Within(1e-9), "as on one board");
+            Assert.That(three.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
+            Assert.That(three.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
+        }
+
+        // Re-measured by p7a-ground 1.12 against 1.6b's: the mat meets each half-skid by its area (3.03 × the reference foot's
+        // 490 N/m, 1482.5 N/m) in series with a leg, so a quarter of the weight sinks a support 9.0 mm. 1.6b's row read per
+        // part as the reference foot (490 N/m, the known-wrong) sinks it 10–26 mm (the leg tubes' ends, 15 mm over the skids'
+        // bottoms, taking a share once the skids are past them). Rigid straw would sink 1.2 mm. At 9 mm this spot's skids
+        // lie across overlapping tiles, and a skid capsule meets a neighbouring tile's side face, 7 mm into it along a
+        // horizontal normal, for a step at a time (the side-face latch 1.13 found, its own task): the drone rocks at under
+        // 1 mm/s and the skids' pairs churn. No support's pair does; the side-face task brings the skids' churn to 0.
         [Test]
         public void OnS04sStrawItSinksIntoTheMat()
         {
@@ -73,12 +117,21 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.HoleSupports, Is.EqualTo(8), "over the patch (the premise)");
             Assert.That(r.Material, Is.EqualTo(r.Pairs.Count), "on the straw shapes alone");
             Assert.That(r.Plane + r.Soil, Is.EqualTo(0), "the mat holds it off the soil 0.125 m below");
-            // The mat's 490 N/m in series with a leg: 11.8 N sinks a support 25 mm on its own (physics_materials.json's
-            // straw row); the leg tubes' ends, 10 mm above the skids, carry part of it once the skids are past them. Rigid
-            // straw would sink 1.2 mm.
-            Assert.That(r.Sink, Is.InRange(0.010, 0.026));
-            Assert.That(r.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
-            Assert.That(r.Speed, Is.LessThan(1e-3));
+            MaterialRow[] m = Materials(out ulong h);
+            ContactSpec contacts = Spec.BuildContacts(Spec.Nominal, m, h);
+            MaterialRow straw = System.Array.Find(m, x => x.Name == "straw");
+            double half = LayerScenarios.HalfSkid(straw, SoilScenarios.MatDepth), k0 = contacts.LegStiffness;
+            double derived = Spec.BuildMass(Spec.Nominal).Properties.Mass * G / 4 * (1 / k0 + 1 / half);
+            RangeScenarios.Resting foot = RangeScenarios.Rest(Spec, GoldenFlights.WithoutTheAreaLaws(), h, RangeScenarios.At(RangeScenarios.Straw, 0));
+            TestContext.Out.WriteLine($"sank {r.Sink * 1e3:F3} mm against the derived {derived * 1e3:F3} (the half-skid's {half:F1} N/m with the leg), "
+                + $"{r.Speed * 1e3:F3} mm/s, {r.LateEvents} contact events in the last second ({r.LateSupportEvents} a support's); read per part as the reference "
+                + $"foot (1.6b's) {foot.Sink * 1e3:F3} mm, {foot.LateEvents} events");
+            Assert.That(r.Sink, Is.EqualTo(derived).Within(5).Percent, "the weight's quarter on the half-skid's area law and the leg");
+            Assert.That(foot.Sink, Is.InRange(0.010, 0.026), "known-wrong: 1.6b's mat read as the reference foot sinks it as before");
+            Assert.That(foot.Sink, Is.Not.EqualTo(derived).Within(5).Percent, "and fails");
+            Assert.That(r.LateSupportEvents, Is.EqualTo(0), "no support's contact flickers at rest");
+            Assert.That(foot.LateEvents, Is.EqualTo(0), "at 1.6b's depth no contact flickers");
+            Assert.That(r.Speed, Is.LessThan(2e-3), "at rest but for the side-face latch's rocking");
         }
 
         // ---- the landing --------------------------------------------------------------------------------------------------
@@ -253,7 +306,7 @@ namespace Fpv450.Sim.Tests
         // The two laws with the airframe's effects on, as a pilot's flight has them (p7b-airframe: the motors' asymmetry, the
         // vortex rings, the ground effect from the rotors' rays, the flapping, the modes). With the same-face rule off, a
         // skid's flat-face tie counts as a third point and the rest flickers (2016 and 3800 contact events in the last second
-        // on S04's soil and in E01's run); without the seam rule the run is 1.3 µm deeper than the plane; with every latched
+        // on S04's soil and in E01's run); without the seam rule the run rests on 16 soil pairs, two a support; with every latched
         // pass a tunnel, the crown logs 31 through V01_L's and V01_M's twigs.
         static ContactScenarios.Site Airframe(ContactScenarios.Site site)
         {
@@ -269,7 +322,7 @@ namespace Fpv450.Sim.Tests
             RangeScenarios.Resting soil = Rest(site);
             RangeScenarios.Resting plane = Rest(Airframe(RangeScenarios.At(RangeScenarios.Start("track"))));
             Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
-            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.GreaterThanOrEqualTo(8), "only soil shapes carry it, every support");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.EqualTo(8), "only soil shapes carry it, every support once");
             Assert.That(soil.LoadOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once");
             Assert.That(soil.Sink, Is.EqualTo(plane.Sink).Within(1e-6), "rigid ground at G7, as the plane");
             Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest");
@@ -286,11 +339,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(here.First.Surface, Is.Not.EqualTo(WorldIds.NoSurface), "the first touch is the ground's");
                 Assert.That(here.TouchSpeed, Is.EqualTo(stub.TouchSpeed).Within(1e-3));
                 Assert.That(here.SeparationHeight, Is.EqualTo(stub.SeparationHeight).Within(1e-3), "the ground's law is the stub floor's");
-                // At rest within 15 ms of the stub (the soil spot's tolerance in the crosswind, assumed): since model 24 D-064's
-                // motor spreads and its re-ingested wash on published numbers both act in the cut's spool-down, and on E01's run,
-                // whose floor fillers meet at seams under the supports (32 contact events against the stub's 26), the 0.01 m/s
-                // rest reading comes 11 ms earlier (0.414 against 0.425 s; equal with either source off, traced).
-                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.015).And.LessThanOrEqualTo(2));
+                if (cut) Assert.That(here.Settled, Is.EqualTo(stub.Settled).Within(0.01).And.LessThanOrEqualTo(2));
                 else Assert.That(here.Separated && here.SeparationHeight > 0.05, Is.True, "held: the legs throw it back into the air");
                 Assert.That(here.Tunnels + here.Crashes + here.Lost, Is.EqualTo(0));
             }
@@ -334,7 +383,7 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.Site plane = InTheAir(RangeScenarios.At(RangeScenarios.Start("track").Position, heading), wind);
             RangeScenarios.Resting soil = Rest(site), flat = Rest(plane);
             Assert.That(soil.HoleSupports, Is.EqualTo(8), "SampleGround reports Hole under every support (the premise)");
-            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.GreaterThanOrEqualTo(8), "only soil shapes carry it, every support");
+            Assert.That(soil.Soil, Is.EqualTo(soil.Pairs.Count).And.EqualTo(8), "only soil shapes carry it, every support once");
             Assert.That(soil.LoadOverWeight + soil.AeroOverWeight, Is.EqualTo(1).Within(1e-3), "the weight counted once, less the air's lift");
             Assert.That(soil.Sink, Is.EqualTo(flat.Sink).Within(1e-6), "as the plane in the same air: the seam rule");
             Assert.That(soil.LateEvents, Is.EqualTo(0), "no contact flickers at rest: the skid's same-face rule");
@@ -362,11 +411,7 @@ namespace Fpv450.Sim.Tests
                     else Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.015));
                     continue;
                 }
-                // Traced (model 24): the site, not the soil's law. E01's run is 0.64 m wide between its walls; held in the
-                // crosswind, the bounce drifts the rear-left rotor over a wall's foot, its ray meeting the ground up to 44 mm nearer
-                // than the plane's for 0.2 s (2.4 R against 2.7 R), where D-064's re-ingested wash and the cushion are stronger:
-                // 56.23 mm against 55.20. With the wash on model 19's numbers the two rise alike (42.89 mm). Within 2 mm (assumed).
-                Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(2e-3), "E01's fillers land as the plane");
+                Assert.That(here.SeparationHeight, Is.EqualTo(there.SeparationHeight).Within(1e-3), "E01's fillers land as the plane");
                 if (cut) Assert.That(here.Settled, Is.EqualTo(there.Settled).Within(0.01));
             }
         }
@@ -425,11 +470,7 @@ namespace Fpv450.Sim.Tests
                 height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
             TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
                 + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
-            // The leg assembly's tubes into a rod at speed are the class named above (D-066's model 23 flies these approaches
-            // about 30 mm higher, so the wire at 5.52 m in Severe meets L03's cable leg_fr first at 10.6 m/s, and leg_fl and
-            // skid_right pass it): logged as a bug, counted, never pilot error, until phase 7's breakage snaps them. Any other
-            // part's tunnel fails here.
-            Assert.That(p.OtherTunnels + p.Lost, Is.EqualTo(0), "no tunnel but a leg tube's into a rod");
+            Assert.That(p.Tunnels + p.Lost, Is.EqualTo(0));
         }
 
         // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets

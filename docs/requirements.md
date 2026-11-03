@@ -813,7 +813,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-10 Throttle-punch shake (PR-1).**
 - After a fast descent is arrested by a sharp throttle increase: a damped, high-frequency disturbance that lasts as long as the arrest (**0.3–0.7 s** for the empty drone's moderate descents, longer heavy or from a fast descent; D-069), seen mainly as **camera shake**.
 - It depends on descent rate, input abruptness and payload, and doesn't fire on every throttle increase. It varies between occurrences.
-- **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics (the rotors re-ingesting their wash through the arrest, D-069; the frame's modes add a band above it), and is never tuned to a pilot number.
+- **The pilot: it "doesn't happen much".** Its occurrence comes out of the physics, and is never tuned to a pilot number: mainly the rotors re-ingesting their wash through the arrest (D-069), then the motors' own spreads, which saturate at full duty (D-064, D-070); the frame's modes add a band above it. No ESC current limit trims it.
 - It publishes the camera-vibration signal.
 
 **PHY-11 Battery.** State of charge and sag over the flight. The heavy corner's margin falls with the sag and is gone at the cut-off. Low-voltage warnings go to the OSD (D-048).

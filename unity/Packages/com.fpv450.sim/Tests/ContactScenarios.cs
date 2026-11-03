@@ -91,6 +91,9 @@ namespace Fpv450.Sim.Tests
             public bool Airframe;
             public WindSetup? Wind;
 
+            /// <summary>Runtime objects the flight places in the world (null: none).</summary>
+            public RuntimeObject[] Objects;
+
             public Site(FlightWorld world, Double3 foot, double heading)
             {
                 World = world;
@@ -98,14 +101,16 @@ namespace Fpv450.Sim.Tests
                 Heading = heading;
                 Airframe = false;
                 Wind = null;
+                Objects = null;
             }
 
             public FlightWorld Open() => World ?? FlightWorld.Floor();
 
-            /// <summary>The setup in the site's air, with the airframe's effects on when Airframe asks for them.</summary>
+            /// <summary>The setup in the site's air and with its objects, with the airframe's effects on when Airframe asks for them.</summary>
             public FlightSetup Effects(FlightSetup setup, DroneSpec spec)
             {
                 if (Wind != null) setup.Wind = Wind.Value;
+                if (Objects != null) setup.RuntimeObjects = Objects;
                 if (!Airframe) return setup;
                 setup.Asymmetry = spec.BuildAsymmetry();
                 setup.VortexRing = spec.BuildVortexRing();
@@ -463,20 +468,6 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>The tunnel events' objects and materials, for a report.</summary>
             public List<string> TunnelThrough;
-
-            /// <summary>The tunnels by any part but the leg assembly's tubes (leg_, skid_, support_, tjoint_): those into a
-            /// rod at speed are the class RangeContactTests names (a soft tube that fast into a rod snaps in truth, phase 7's
-            /// breakage), logged as a bug and counted; any other is a new one.</summary>
-            public int OtherTunnels
-            {
-                get
-                {
-                    int n = 0;
-                    foreach (string t in TunnelThrough)
-                        if (!(t.StartsWith("leg_") || t.StartsWith("skid_") || t.StartsWith("support_") || t.StartsWith("tjoint_"))) n++;
-                    return n;
-                }
-            }
         }
 
         /// <summary>

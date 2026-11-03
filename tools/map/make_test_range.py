@@ -370,6 +370,130 @@ def grass(m, rng):
         blocked.append(cell)
 
 
+# ------------------------------------------------------------------------------------------------ the cut records
+# What the wind's cavity model reads of each hole record besides its centre line (each point's y the lip's height),
+# top_width_m and depth_m (p7c-wind design 10, D-071, task 1.10a). The sim's loader derives it at load time from the
+# files the content hash already covers (MapWorldWind.cs, PlaceCut), so the placement file and its hash stay as they
+# are; cut_record mirrors that derivation and cut_problems is the map's check on it. In the asset's frame, the record's
+# points carried back by the row's pose:
+# - covered: a ray up from the centre line's middle (half its plan length along it), half the record's depth under the
+#   lip there, meets one of the asset's fillers below the lip, or starts in one: fillers roof it (E01's niches).
+# - lip_width_m: an open record's opening at the lip, crumble included: the mean narrowest_m of the asset's level gaps
+#   (its openings in the ground: E01's slots) whose centre lies in the record's band. With none (Z04's stand-in, box
+#   walls without crumble), or for a covered record (no opening at its lip), its top_width_m.
+# - ends_m: the opening past the first and the last centre-line points, along the end segments LIP_PROBE_M under the
+#   lip, to the asset's first filler (0 from inside one); None when none closes it inside the band.
+FILLER = "surface:belt_bare"  # the hole contract's fillers, a cut's own shapes (tools/blender/lib/holes.py, F-7)
+LIP_PROBE_M = 0.01  # assumed: just under the lip, below the tops of the hole contract's cut faces (3 mm under it,
+                    # trench.py LIP_DROP_M), so a ray there meets the cut's own walls
+LEVEL_GAP = 0.999   # assumed: a gap whose normal lies within 2.6 degrees of vertical is level, an opening in the ground
+
+
+def ray_to_filler(meta, o, d, far):
+    """How far the ray o + t d (the asset's frame, d a unit vector) runs to the asset's first filler: 0 when o lies in
+    one, None when it meets none within `far`. The hole contract's fillers are boxes (F-5): the slab method."""
+    best = None
+    for shape in meta["collision"]:
+        if shape["material"] != FILLER:
+            continue
+        if shape["shape"] != "box":
+            raise SystemExit(f"{meta['variant']}: a filler is a {shape['shape']}, not a box (the hole contract, F-5)")
+        q = shape.get("rotation", [0.0, 0.0, 0.0, 1.0])
+        n = math.sqrt(sum(c * c for c in q))
+        m = quat_matrix([c / n for c in q])
+        lo, hi = -math.inf, math.inf
+        for j in range(3):
+            h = 0.5 * shape["size"][j]
+            oj = sum(m[i][j] * (o[i] - shape["center"][i]) for i in range(3))
+            dj = sum(m[i][j] * d[i] for i in range(3))
+            if dj == 0.0:
+                if abs(oj) > h:
+                    lo = math.inf
+                continue
+            a, b = (-h - oj) / dj, (h - oj) / dj
+            lo, hi = max(lo, min(a, b)), min(hi, max(a, b))
+        if lo <= hi and hi >= 0.0 and max(lo, 0.0) <= far and (best is None or max(lo, 0.0) < best):
+            best = max(lo, 0.0)
+    return best
+
+
+def asset_line(row, hole):
+    """A map hole record's centre line in its asset's frame, [x, y, z] each."""
+    px, py, pz = row["position_m"]
+    out = []
+    for p in hole["centre_line_m"]:
+        x, z = rotate(-row["yaw_deg"], p[0] - px, p[2] - pz)
+        out.append((x, p[1] - py, z))
+    return out
+
+
+def roofed(meta, line, depth):
+    """Whether a ray up from the centre line's middle, half the depth under the lip there, meets a filler below it."""
+    lengths = [math.hypot(b[0] - a[0], b[2] - a[2]) for a, b in zip(line, line[1:])]
+    half = 0.5 * sum(lengths)
+    mid = line[-1]
+    for a, b, s in zip(line, line[1:], lengths):
+        if s > 0 and s >= half:
+            mid = [a[i] + (b[i] - a[i]) * (half / s) for i in range(3)]
+            break
+        half -= s
+    t = ray_to_filler(meta, (mid[0], mid[1] - 0.5 * depth, mid[2]), (0.0, 1.0, 0.0), 0.5 * depth)
+    return t is not None and t < 0.5 * depth
+
+
+def level_gap_widths(meta, line, radius):
+    """The narrowest_m of the asset's level gaps whose centre (its vertices' mean) lies within `radius` of the line."""
+    widths = []
+    for gap in meta.get("gaps", []):
+        n = gap["normal"]
+        if n[1] * n[1] < LEVEL_GAP * LEVEL_GAP * (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]):
+            continue
+        cx = sum(p[0] for p in gap["polygon"]) / len(gap["polygon"])
+        cz = sum(p[2] for p in gap["polygon"]) / len(gap["polygon"])
+        if min(segment_distance(cx, cz, a, b) for a, b in zip(line, line[1:])) <= radius:
+            widths.append(gap["narrowest_m"])
+    return widths
+
+
+def cut_record(row, meta, hole):
+    """A map hole record with the fields the sim derives for it at load (see above): lip_width_m, ends_m, covered."""
+    line = asset_line(row, hole)
+    covered = roofed(meta, line, hole["depth_m"])
+    widths = [] if covered else level_gap_widths(meta, line, 0.5 * hole["band_width_m"])
+    ends = []
+    for p, q in ((line[0], line[1]), (line[-1], line[-2])):
+        dx, dz = p[0] - q[0], p[2] - q[2]
+        n = math.hypot(dx, dz)
+        ends.append(ray_to_filler(meta, (p[0], p[1] - LIP_PROBE_M, p[2]), (dx / n, 0.0, dz / n),
+                                  0.5 * hole["band_width_m"]))
+    return dict(hole, lip_width_m=sum(widths) / len(widths) if widths else hole["top_width_m"], ends_m=ends,
+                covered=covered)
+
+
+def cut_problems(record, row, meta):
+    """The map's checks on a hole record with its fields (task 1.10a): a lip width and a depth over 0; ends of 0 or more,
+    the opening inside its band; an open record's lip width inside its level gaps' narrowest_m (E01's slots); and
+    covered exactly when a ray up from its centre line's middle at half depth meets a filler below the lip. [] when
+    it passes."""
+    name = f"{row['variant']} #{row['id']} {record['record']}"
+    w, depth, ends, r = record["lip_width_m"], record["depth_m"], record["ends_m"], 0.5 * record["band_width_m"]
+    line = asset_line(row, record)
+    problems = []
+    if not (w > 0 and depth > 0):
+        problems.append(f"{name}: lip width {w} m and depth {depth} m, each must be over 0")
+    if any(e is None or not e >= 0 for e in ends):
+        problems.append(f"{name}: ends {ends}: each 0 m or more, closed by a filler inside the band")
+    elif any(math.hypot(e, 0.5 * w) > r for e in ends + [0.0]):
+        problems.append(f"{name}: the opening ({w} m wide, ends {ends}) leaves its band ({2 * r} m)")
+    widths = level_gap_widths(meta, line, r)
+    if widths and not record["covered"] and not min(widths) <= w <= max(widths):
+        problems.append(f"{name}: lip width {w} m outside its slots' {min(widths)}-{max(widths)} m")
+    if record["covered"] != roofed(meta, line, depth):
+        problems.append(f"{name}: covered is {record['covered']}, but a ray up from its centre line's middle at half "
+                        f"depth meets {'no' if record['covered'] else 'a'} filler below the lip")
+    return problems
+
+
 # ------------------------------------------------------------------------------------------------ ground and starts
 
 
@@ -385,12 +509,16 @@ def ground(m):
             patch_rects.append(rect)
             cuts.append([r3(c) for c in rect])
     for row in m.rows:
-        for hole in m.assets.meta(row["asset"], row["variant"])["holes"]:
+        meta = m.assets.meta(row["asset"], row["variant"])
+        for hole in meta["holes"]:
             line = [to_world(row, p) for p in hole["centre_line"]]
             holes.append({"instance": row["id"], "record": hole["id"],
                           "centre_line_m": [[r3(c) for c in p] for p in line],
                           "band_width_m": hole["band_width_m"], "top_width_m": hole["top_width_m"],
                           "depth_m": hole["depth_m"]})
+            problems = cut_problems(cut_record(row, meta, holes[-1]), row, meta)
+            if problems:
+                raise SystemExit("\n".join(problems))
             r = 0.5 * hole["band_width_m"]
             rect = [min(p[0] for p in line) - r, min(p[2] for p in line) - r,
                     max(p[0] for p in line) + r, max(p[2] for p in line) + r]

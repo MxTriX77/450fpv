@@ -9,6 +9,7 @@ using System.Text;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
@@ -85,9 +86,13 @@ namespace Fpv450.Sim.Log
     ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
-    ///   physics materials' rows with physics_materials.json's hash (none for a flight without contacts)
+    ///   physics materials' rows with physics_materials.json's hash, and surfaces.json's table with its hash when the
+    ///   flight has one (p7a-ground 1.1; none for a flight without contacts)
     /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
     ///   pose and order; their material ids are the world's, named by the world entry)
+    /// - the fiber's table (p7d-tether 1.1): tether.json's every row with its label, and the file's hash (none for a
+    ///   flight without the line); and the line's launch (1.6): its coil part and the empty spool's mass, the laid layout
+    ///   when one was given, the two-way switch (the spool's draw and stream are the randomness's)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
     ///   product name and its report intervals before the flight (p6-input-app 1.1); the host µs of step 0, so a step's
@@ -104,8 +109,13 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "RotorWake", "Flapping", "Interference", "Modes", "Placement",
+            "RotorWake", "Flapping", "Interference", "Modes", "Placement", "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass",
+            "TetherTwoWay",
         };
+
+        /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
+        public static readonly string[] TetherFieldsLogged = { "ContentHash", "Rows" };
+        public static readonly string[] TetherRowFieldsLogged = { "Name", "Label", "Kind", "Values" };
 
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
         public static readonly string[] ModesFieldsLogged =
@@ -144,10 +154,36 @@ namespace Fpv450.Sim.Log
         {
             "Margin", "CrashAccel", "CrashPropSpeed", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
+            "Surfaces",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
-        public static readonly string[] MaterialRowFieldsLogged = { "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio" };
+        public static readonly string[] MaterialRowFieldsLogged =
+        {
+            "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "AreaLaw", "AreaReferenceDepth", "ElasticModulus", "HasWet",
+            "WetStiffnessRatio", "WetStiffness", "WetStaticFriction", "WetKineticFriction", "WetAdhesion", "WetAdhesionRelease",
+        };
+
+        /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
+        public static readonly string[] SurfaceTableFieldsLogged = { "ReferenceWidth", "FirmLayer", "Wetting", "Surfaces", "Cover", "Hash" };
+        public static readonly string[] SurfaceRowFieldsLogged = { "Name", "Dry", "Wet", "Saturated" };
+        public static readonly string[] SoilSetFieldsLogged =
+        {
+            "Rigid", "Bearing", "CohesiveShare", "CohesiveModulus", "FrictionalModulus", "UnloadRatio", "MaxSink", "Damping", "StaticFriction",
+            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius",
+        };
+        public static readonly string[] CoverRowFieldsLogged = { "Kind", "Dry", "Wet" };
+        public static readonly string[] CoverSetFieldsLogged =
+        {
+            "ModulusMin", "ModulusMax", "WallShare", "Density", "DryMassPerArea", "DryMatterContent", "MassPerArea", "PetioleDiameter",
+            "HookReleaseMin", "HookReleaseMax", "CutEnergy", "RollFriction", "DampingRatio",
+        };
+        public static readonly string[] WettingFieldsLogged =
+        {
+            "BearingWet", "BearingSaturated", "UnloadRatioWet", "UnloadRatioSaturated", "MaxSinkWet", "MaxSinkSaturated", "FrictionWet",
+            "FrictionSaturated", "AdhesionWet", "AdhesionSaturated", "InterfaceAdhesionWet", "InterfaceAdhesionSaturated", "AdhesionReleaseWet",
+            "AdhesionReleaseSaturated", "CoverHookReleaseWet", "StrawModulusWet", "StrawCutEnergyWet", "StrawDensityWet", "LeafWaterFilm",
+        };
         public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
         public static readonly string[] ShapeGeometryFieldsLogged =
             { "Kind", "Center", "AxisX", "AxisY", "AxisZ", "HalfExtents", "Radius", "HalfLength", "Material", "Surface", "SpanA", "SpanB", "Sag" };
@@ -166,11 +202,12 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
+        public static readonly string[] CutFieldsLogged = { "CentreLine", "Width", "Depth", "EndFirst", "EndLast", "Covered" };
         public static readonly string[] AsymmetryFieldsLogged =
         {
             "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm", "ResistanceBound", "ResistanceSigma",
@@ -191,7 +228,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24;
+            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -257,6 +294,17 @@ namespace Fpv450.Sim.Log
 
         /// <summary>The airframe's modes; null for a rigid airframe.</summary>
         public AirframeModesSpec Modes;
+
+        /// <summary>tether.json's rows and hash; null for a flight without the line. A replay builds its table from these
+        /// rows once its own file's hash matches (FlightReplay).</summary>
+        public TetherTable Tether;
+
+        /// <summary>The line's launch with the table (FlightSetup's): the laid layout (null: the table's), the coil's part and
+        /// its empty spool's mass, the known-wrong two-way spool.</summary>
+        public Double3[] TetherLayout;
+        public int TetherCoilPart = -1;
+        public double TetherSpoolMass;
+        public bool TetherTwoWay;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -333,6 +381,11 @@ namespace Fpv450.Sim.Log
                 Flapping = setup.Flapping?.Clone(),
                 Interference = setup.Interference?.Clone(),
                 Modes = setup.Modes?.Clone(),
+                Tether = setup.Tether,
+                TetherLayout = (Double3[])setup.TetherLayout?.Clone(),
+                TetherCoilPart = setup.TetherCoilPart,
+                TetherSpoolMass = setup.TetherSpoolMass,
+                TetherTwoWay = setup.TetherTwoWay,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -434,6 +487,11 @@ namespace Fpv450.Sim.Log
                 Flapping = Flapping?.Clone(),
                 Interference = Interference?.Clone(),
                 Modes = Modes?.Clone(),
+                Tether = Tether,
+                TetherLayout = (Double3[])TetherLayout?.Clone(),
+                TetherCoilPart = TetherCoilPart,
+                TetherSpoolMass = TetherSpoolMass,
+                TetherTwoWay = TetherTwoWay,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -682,6 +740,19 @@ namespace Fpv450.Sim.Log
                 foreach (CanopyStrip c in strips)
                     foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
                         e.Write(x);
+                // The cuts (p7c-wind 1.10, format 20): a count, 0 for none; each its roof flag, opening, depth and ends, then
+                // its centre line.
+                CutSpec[] cuts = Wind.Cuts ?? new CutSpec[0];
+                e.Write((ushort)cuts.Length);
+                foreach (CutSpec c in cuts)
+                {
+                    e.Write(c.Covered);
+                    foreach (double x in new[] { c.Width, c.Depth, c.EndFirst, c.EndLast })
+                        e.Write(x);
+                    e.Write(c.CentreLine.Length);
+                    foreach (Double3 p in c.CentreLine)
+                        V3(e, p);
+                }
             });
             Entry(w, TagContacts, e =>
             {
@@ -716,8 +787,18 @@ namespace Fpv450.Sim.Log
                     e.Write(m.KineticFriction);
                     e.Write(m.Stiffness);
                     e.Write(m.DampingRatio);
+                    // p7a-ground 1.1 (format 17; 14 on p7a-ground): the area law, the slender member's modulus and the wet block.
+                    e.Write((byte)m.AreaLaw);
+                    e.Write(m.AreaReferenceDepth);
+                    e.Write(m.ElasticModulus);
+                    e.Write(m.HasWet);
+                    foreach (double v in new[] { m.WetStiffnessRatio, m.WetStiffness, m.WetStaticFriction, m.WetKineticFriction, m.WetAdhesion, m.WetAdhesionRelease })
+                        e.Write(v);
                 }
                 e.Write(c.MaterialsHash);
+                // surfaces.json's table and hash after its flag (format 17; 14 on p7a-ground).
+                e.Write(c.Surfaces != null);
+                if (c.Surfaces != null) WriteSurfaces(e, c.Surfaces);
             });
             Entry(w, TagRain, e =>
             {
@@ -845,6 +926,33 @@ namespace Fpv450.Sim.Log
                 {
                     e.Write(k.Stations[i]);
                     e.Write(k.Chords[i]);
+                }
+            });
+            Entry(w, TagTether, e =>
+            {
+                e.Write(Tether != null);
+                if (Tether == null) return;
+                e.Write(Tether.ContentHash);
+                e.Write((ushort)Tether.Rows.Length);
+                foreach (TetherRow row in Tether.Rows)
+                {
+                    Text(e, row.Name);
+                    e.Write(row.Label);
+                    e.Write((byte)row.Kind);
+                    e.Write((ushort)row.Values.Length);
+                    foreach (double x in row.Values) e.Write(x);
+                }
+                e.Write(TetherCoilPart);
+                e.Write(TetherSpoolMass);
+                e.Write(TetherTwoWay);
+                e.Write(TetherLayout != null);
+                if (TetherLayout == null) return;
+                e.Write((ushort)TetherLayout.Length);
+                foreach (Double3 p in TetherLayout)
+                {
+                    e.Write(p.X);
+                    e.Write(p.Y);
+                    e.Write(p.Z);
                 }
             });
             Entry(w, TagRuntimeObjects, e =>
@@ -1104,6 +1212,24 @@ namespace Fpv450.Sim.Log
                                     Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
                                 };
                         }
+                        int cuts = r.ReadUInt16();
+                        if (cuts > 0)
+                        {
+                            Wind.Cuts = new CutSpec[cuts];
+                            for (int i = 0; i < cuts; i++)
+                            {
+                                var c = new CutSpec
+                                {
+                                    Covered = r.ReadBoolean(), Width = r.ReadDouble(), Depth = r.ReadDouble(), EndFirst = r.ReadDouble(),
+                                    EndLast = r.ReadDouble(),
+                                };
+                                int points = r.ReadInt32();
+                                if (points < 2 || points > 4096) throw new FlightLogException("the header's cut " + i + " has " + points + " centre-line points");
+                                c.CentreLine = new Double3[points];
+                                for (int k = 0; k < points; k++) c.CentreLine[k] = V3(r);
+                                Wind.Cuts[i] = c;
+                            }
+                        }
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
@@ -1230,6 +1356,32 @@ namespace Fpv450.Sim.Log
                             PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(),
                         };
                         break;
+                    case TagTether:
+                        if (!r.ReadBoolean())
+                        {
+                            Tether = null;
+                            break;
+                        }
+                        ulong tetherHash = r.ReadUInt64();
+                        var rows = new TetherRow[r.ReadUInt16()];
+                        for (int i = 0; i < rows.Length; i++)
+                        {
+                            rows[i] = new TetherRow { Name = Text(r), Label = r.ReadByte(), Kind = (TetherValueKind)r.ReadByte() };
+                            rows[i].Values = new double[r.ReadUInt16()];
+                            for (int k = 0; k < rows[i].Values.Length; k++) rows[i].Values[k] = r.ReadDouble();
+                        }
+                        Tether = new TetherTable(rows, tetherHash);
+                        TetherCoilPart = r.ReadInt32();
+                        TetherSpoolMass = r.ReadDouble();
+                        TetherTwoWay = r.ReadBoolean();
+                        TetherLayout = null;
+                        if (r.ReadBoolean())
+                        {
+                            TetherLayout = new Double3[r.ReadUInt16()];
+                            for (int i = 0; i < TetherLayout.Length; i++)
+                                TetherLayout[i] = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
+                        }
+                        break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];
                         RuntimeIds = new int[RuntimeObjects.Length];
@@ -1332,10 +1484,108 @@ namespace Fpv450.Sim.Log
                 c.Materials[i] = new MaterialRow
                 {
                     Name = Text(r), StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Stiffness = r.ReadDouble(), DampingRatio = r.ReadDouble(),
+                    AreaLaw = (AreaLaw)r.ReadByte(), AreaReferenceDepth = r.ReadDouble(), ElasticModulus = r.ReadDouble(), HasWet = r.ReadBoolean(),
+                    WetStiffnessRatio = r.ReadDouble(), WetStiffness = r.ReadDouble(), WetStaticFriction = r.ReadDouble(), WetKineticFriction = r.ReadDouble(),
+                    WetAdhesion = r.ReadDouble(), WetAdhesionRelease = r.ReadDouble(),
                 };
             c.MaterialsHash = r.ReadUInt64();
+            if (r.ReadBoolean()) c.Surfaces = ReadSurfaces(r);
             return c;
         }
+
+        // ---- surfaces.json's table (p7a-ground 1.1, format 17; 14 on p7a-ground) ----
+
+        static void WriteSurfaces(BinaryWriter e, SurfaceTable t)
+        {
+            e.Write(t.ReferenceWidth);
+            e.Write(t.FirmLayer);
+            Wetting w = t.Wetting;
+            foreach (double v in new[]
+                     {
+                         w.BearingWet, w.BearingSaturated, w.UnloadRatioWet, w.UnloadRatioSaturated, w.MaxSinkWet, w.MaxSinkSaturated, w.FrictionWet,
+                         w.FrictionSaturated, w.AdhesionWet, w.AdhesionSaturated, w.InterfaceAdhesionWet, w.InterfaceAdhesionSaturated, w.AdhesionReleaseWet,
+                         w.AdhesionReleaseSaturated, w.CoverHookReleaseWet, w.StrawModulusWet, w.StrawCutEnergyWet, w.StrawDensityWet, w.LeafWaterFilm,
+                     })
+                e.Write(v);
+            e.Write((byte)t.Surfaces.Length);
+            foreach (SurfaceRow s in t.Surfaces)
+            {
+                Text(e, s.Name);
+                WriteSoil(e, s.Dry);
+                WriteSoil(e, s.Wet);
+                WriteSoil(e, s.Saturated);
+            }
+            e.Write((byte)t.Cover.Length);
+            foreach (CoverRow k in t.Cover)
+            {
+                e.Write((byte)k.Kind);
+                WriteCover(e, k.Dry);
+                WriteCover(e, k.Wet);
+            }
+            e.Write(t.Hash);
+        }
+
+        static void WriteSoil(BinaryWriter e, in SoilSet s)
+        {
+            e.Write(s.Rigid);
+            foreach (double v in new[]
+                     {
+                         s.Bearing, s.CohesiveShare, s.CohesiveModulus, s.FrictionalModulus, s.UnloadRatio, s.MaxSink, s.Damping, s.StaticFriction,
+                         s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius,
+                     })
+                e.Write(v);
+        }
+
+        static void WriteCover(BinaryWriter e, in CoverSet c)
+        {
+            foreach (double v in new[]
+                     {
+                         c.ModulusMin, c.ModulusMax, c.WallShare, c.Density, c.DryMassPerArea, c.DryMatterContent, c.MassPerArea, c.PetioleDiameter,
+                         c.HookReleaseMin, c.HookReleaseMax, c.CutEnergy, c.RollFriction, c.DampingRatio,
+                     })
+                e.Write(v);
+        }
+
+        static SurfaceTable ReadSurfaces(BinaryReader r)
+        {
+            var t = new SurfaceTable
+            {
+                ReferenceWidth = r.ReadDouble(), FirmLayer = r.ReadDouble(),
+                Wetting = new Wetting
+                {
+                    BearingWet = r.ReadDouble(), BearingSaturated = r.ReadDouble(), UnloadRatioWet = r.ReadDouble(), UnloadRatioSaturated = r.ReadDouble(),
+                    MaxSinkWet = r.ReadDouble(), MaxSinkSaturated = r.ReadDouble(), FrictionWet = r.ReadDouble(), FrictionSaturated = r.ReadDouble(),
+                    AdhesionWet = r.ReadDouble(), AdhesionSaturated = r.ReadDouble(), InterfaceAdhesionWet = r.ReadDouble(),
+                    InterfaceAdhesionSaturated = r.ReadDouble(), AdhesionReleaseWet = r.ReadDouble(), AdhesionReleaseSaturated = r.ReadDouble(),
+                    CoverHookReleaseWet = r.ReadDouble(), StrawModulusWet = r.ReadDouble(), StrawCutEnergyWet = r.ReadDouble(),
+                    StrawDensityWet = r.ReadDouble(), LeafWaterFilm = r.ReadDouble(),
+                },
+            };
+            t.Surfaces = new SurfaceRow[r.ReadByte()];
+            for (int i = 0; i < t.Surfaces.Length; i++)
+                t.Surfaces[i] = new SurfaceRow { Name = Text(r), Dry = ReadSoil(r), Wet = ReadSoil(r), Saturated = ReadSoil(r) };
+            t.Cover = new CoverRow[r.ReadByte()];
+            for (int i = 0; i < t.Cover.Length; i++)
+                t.Cover[i] = new CoverRow { Kind = (CoverKind)r.ReadByte(), Dry = ReadCover(r), Wet = ReadCover(r) };
+            t.Hash = r.ReadUInt64();
+            return t;
+        }
+
+        static SoilSet ReadSoil(BinaryReader r) => new SoilSet
+        {
+            Rigid = r.ReadBoolean(), Bearing = r.ReadDouble(), CohesiveShare = r.ReadDouble(), CohesiveModulus = r.ReadDouble(),
+            FrictionalModulus = r.ReadDouble(), UnloadRatio = r.ReadDouble(), MaxSink = r.ReadDouble(), Damping = r.ReadDouble(),
+            StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Adhesion = r.ReadDouble(), InterfaceAdhesion = r.ReadDouble(),
+            AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(),
+        };
+
+        static CoverSet ReadCover(BinaryReader r) => new CoverSet
+        {
+            ModulusMin = r.ReadDouble(), ModulusMax = r.ReadDouble(), WallShare = r.ReadDouble(), Density = r.ReadDouble(),
+            DryMassPerArea = r.ReadDouble(), DryMatterContent = r.ReadDouble(), MassPerArea = r.ReadDouble(), PetioleDiameter = r.ReadDouble(),
+            HookReleaseMin = r.ReadDouble(), HookReleaseMax = r.ReadDouble(), CutEnergy = r.ReadDouble(), RollFriction = r.ReadDouble(),
+            DampingRatio = r.ReadDouble(),
+        };
 
         static PropulsionSpec ReadPropulsion(BinaryReader r)
         {

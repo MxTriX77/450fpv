@@ -1,5 +1,6 @@
 using System;
 using Fpv450.Sim.Control;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 
 namespace Fpv450.Sim.Flight
@@ -77,6 +78,26 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The contacts (DroneSpec.BuildContacts, 1.6): null for none (a bench's free body, a flight in open air).</summary>
         public Contact.ContactSpec Contacts;
+
+        /// <summary>The fiber's table (tether.json, p7d-tether 1.1): null for a flight without the line. With it the flight
+        /// flies the line (FiberLine, 1.6): its coil beneath paying out through the rear cap, its span and its laid trail. The
+        /// header records its rows and hash.</summary>
+        public Tether.TetherTable Tether;
+
+        /// <summary>The line as the pilot laid it before the start, world m: from its anchor (the first point) along the
+        /// ground to the point beneath the exit, which the line then rises from (each point set on the ground). Null: the
+        /// table's launch, straight from launch.anchor_behind_start_m behind the start.</summary>
+        public Double3[] TetherLayout;
+
+        /// <summary>The coil's part in the mass model and its empty spool's mass, kg (DroneSpec's coil): the line on the coil
+        /// is (the part's mass − the spool's)/μ, and the part loses μ per metre paid out. −1: no coil part (the line's mass
+        /// leaves no part, and the coil never runs out).</summary>
+        public int TetherCoilPart = -1;
+        public double TetherSpoolMass;
+
+        /// <summary>The known-wrong two-way spool (p7d-tether design 16), which takes line back at the static hold: a bench's
+        /// model, never a pilot's flight.</summary>
+        public bool TetherTwoWay;
 
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
@@ -161,6 +182,8 @@ namespace Fpv450.Sim.Flight
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
         StickSample _stick; // the last step's sample in force, published with the signals (FeedSignals.Sticks)
+        readonly Tether.FiberLine _tether; // the fiber (FlightSetup.Tether), or null
+        readonly Double3[] _tetherHubs;
 
         // The feed's field window: sums over the steps so far, and the last whole field's values.
         Corners _sumHz, _sumAmps, _fieldHz, _fieldAmps;
@@ -254,9 +277,19 @@ namespace Fpv450.Sim.Flight
                 RuntimeIds[i] = World.Query.AddObject(objects[i].Name, objects[i].Shapes);
             if (setup.Contacts != null)
             {
-                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass);
+                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass, Contact.SurfaceTable.MoistureOf(setup.Rain));
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
+            }
+
+            // The fiber (p7d-tether 1.6), laid at the start pose; its draws after every other model's.
+            if (setup.Tether != null)
+            {
+                if (setup.TetherCoilPart >= _mass.PartCount) throw new ArgumentException("the line's coil part is not a part of the mass model", nameof(setup));
+                _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt);
+                _tetherHubs = new Double3[4];
+                if (setup.Propulsion != null)
+                    for (int i = 0; i < 4; i++) _tetherHubs[i] = setup.Propulsion.Motors[i].Position;
             }
         }
 
@@ -327,6 +360,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>The contact model, or null for a flight without contacts.</summary>
         public Contact.ContactModel Contacts => _contacts;
 
+        /// <summary>The fiber (p7d-tether 1.6), or null for a flight without the line.</summary>
+        public Tether.FiberLine Tether => _tether;
+
         /// <summary>One 1 ms step with the stick sample in force (StickSample, "the timing contract").</summary>
         public void Advance(in StickSample stick)
         {
@@ -348,6 +384,7 @@ namespace Fpv450.Sim.Flight
             force = force + airWorld;
             moment = moment + airMoment;
             if (_contacts != null) _contacts.Forces(ref s, body, ref force, ref moment, ref _trace, _events);
+            if (_tether != null) TetherForce(s, body, ref force, ref moment);
 
             // The airframe's modes under the rotors' thrust and the relief of the body's whole load (AirframeModes).
             if (_modes != null)
@@ -364,11 +401,34 @@ namespace Fpv450.Sim.Flight
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
 
+            // The line steps with the drone where it now is (its force acts in the next step); at a rebuild mark the coil's
+            // mass and the airframe's modes follow, the body's motion kept (RigidBody: the state is the body origin's).
+            if (_tether != null)
+            {
+                _tether.Step(s, _tetherHubs, _rotorThrust, _wind, _events, ref _trace.Tether);
+                if (_tether.MassChanged)
+                {
+                    _mass.SetPartMass(_tether.CoilPart, _tether.CoilMass);
+                    _modes?.Rebuild(_mass, ref s.ModeShape, ref s.ModeRate);
+                }
+            }
+
             // The film takes the water the drops brought this step; the next step flies its mass.
             if (_rain == null) return;
             _rain.Fill(_rainMassRate, Dt);
             _mass.SetPartMass(_filmPart, _rain.FilmMass);
             _trace.FilmMass = _rain.FilmMass;
+        }
+
+        // The line's pull at the exit (FiberLine.Force, from the last step's end) and its moment about the centre of mass.
+        void TetherForce(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
+        {
+            Double3 f = _tether.Force;
+            Double3 m = Double3.Cross(_tether.ExitBody - body.CenterOfMass, s.Attitude.InverseRotate(f));
+            force = force + f;
+            moment = moment + m;
+            _trace.Tether.Force = f;
+            _trace.Tether.Moment = m;
         }
 
         // The camera mount's acceleration over the step, body m/s²: the body origin's (from its velocities), the turn's at the
@@ -661,6 +721,13 @@ namespace Fpv450.Sim.Flight
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
                 CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
             };
+            if (_tether == null) return;
+            CableChain line = _tether.Chain;
+            int n = line.Count < FiberNodes.Capacity ? line.Count : FiberNodes.Capacity;
+            for (int i = 0; i < n; i++) pose.FiberNodes[i] = line[i].Position;
+            pose.FiberNodeCount = n;
+            pose.FiberTrailCount = _tether.TrailCount;
+            pose.FiberPaidOut = _tether.PaidOut;
         }
 
         /// <summary>The feed signals of the current state (FeedSignals says which are live).</summary>

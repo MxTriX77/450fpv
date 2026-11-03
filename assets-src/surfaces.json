@@ -1,0 +1,698 @@
+{
+  "schema": 1,
+  "owner": "physics-engineer",
+  "about": "The ground surfaces' mechanics as the drone's parts meet them (p7a-ground design 1; PHY-01, D-021, D-024): for each of the thirteen surfaces S01–S13, in MapWorld.SurfaceIds' and lib/meta.SURFACE_IDS' order, a dry, a wet and a saturated set (Sunny reads dry, Rain wet, Severe rain saturated), and for each kind the world's drawn elements are made of (straw, stem, twig, leaf) a dry and a wet set (Rain and Severe rain both read wet). The soil is Bekker's linear pressure–sinkage, p = (k_c/b + k_phi)·z (n = 1), under Wong's load and unload rule. The relief, the pitfalls and the elements themselves are the world's (map data and asset records), never this table's, and nothing about the ground is drawn: an element's value inside a [min, max] range comes from its own Id's hash. K§7.2's mats (meadow thatch, leaf litter, ash) are not here: no such ground is on the test range (D-047), and a straw layer is a shape of physics_materials.json's straw. Physics-owned: values change here with physics sign-off; the log records the rows and the file's hash, and a replay refuses a log flown with another file. Every number is labelled where it stands (pilot, measured, published, derived or assumed) with its source or reason; a value labelled derived meets its formula ('fields') or the loader refuses the file; the wet and saturated sets start from the dry set by the named factors of 'wetting', and a value that departs from them is labelled with its own reason.",
+  "fields": {
+    "labelled number": "{\"value\": <a number, or [min, max], a range an element draws from by its own Id's hash>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source, reason or formula>\"}; the note is required",
+    "constants.reference_width_m": "b_ref, Bekker's width b at which bearing_n_per_m3 is stated: the K§7.2 reference foot's. b is the smaller dimension of a contact (a rectangle's width, a circle's radius), so a half-skid's is its groove's chord and a sphere's its footprint's radius",
+    "constants.firm_layer_n_per_m3": "the firm layer past max_sink_m: it adds this modulus × the footprint × the sink past max_sink_m",
+    "wetting": "the named factors and values the wet and saturated sets are derived by: a soil's bearing, unload ratio, maximum sink and both frictions × wetting.<name>_<level>, its cohesive share, damping and lip as the dry set's, its adhesions and release as wetting's values; a rigid surface's frictions × the friction factor; a cover kind's hook release × cover_hook_release_wet, straw's modulus, cut energy and density × their factors, a leaf's fresh mass per area + leaf_water_film_kg_m2, and the rest as the dry set's",
+    "surfaces.<id>.<set>": "a soil set holds every field below; a rigid set (asphalt, a concrete slab) holds only friction_static and friction_kinetic, and the part's own spring carries it",
+    "bearing_n_per_m3": "the virgin-loading modulus at b_ref, k_c/b_ref + k_phi (N/m³; K§7.2's bearing)",
+    "cohesive_share": "the share of bearing_n_per_m3 that is k_c/b_ref, the part that falls as a contact widens",
+    "k_c_n_per_m2": "Bekker's cohesive modulus (n = 1): cohesive_share × bearing_n_per_m3 × reference_width_m",
+    "k_phi_n_per_m3": "Bekker's frictional modulus (n = 1): (1 − cohesive_share) × bearing_n_per_m3",
+    "unload_ratio": "Wong's unload and reload stiffness over the virgin loading's, over the groove's footprint at its deepest sink (at least 1; 1 is elastic)",
+    "max_sink_m": "the sink past which the firm layer adds its modulus",
+    "damping_ns_per_m3": "viscous damping per footprint area: the force is this × the footprint × the sink's rate",
+    "friction_static": "μs of the drone's polymer and carbon parts on the surface; a part's anchor holds to μs·Fn + interface_adhesion_pa·S + the groove's passive resistance",
+    "friction_kinetic": "μk, the same pairing; the anchor slides at μk·Fn plus the same two",
+    "adhesion_pa": "σ_a: the normal pull per wetted footprint on a part that has loaded the soil, as it lifts, falling linearly to nothing at adhesion_release_m from the groove's set (a cohesive zone); 0 when dry",
+    "interface_adhesion_pa": "c_a: the shear adhesion per wetted footprint added to the anchor's limits (τ = c_a + σ·tan δ); 0 when dry",
+    "adhesion_release_m": "δ_a: the separation at which the adhesion lets go; above 0 wherever adhesion_pa is",
+    "lip_edge_radius_m": "the radius the fiber bends over at a groove's or a cut's lip (p7d-tether)",
+    "cover.<kind>": "straw, stem and twig hold elastic_modulus_pa, wall_share, density_kg_m3, hook_release_n, cut_energy_j_per_m2 and damping_ratio, and straw and twig roll_friction; a leaf holds its masses, petiole_diameter_m and cut_energy_j_per_m2",
+    "elastic_modulus_pa": "[min, max]: the tissue's Young's modulus (Pa)",
+    "wall_share": "the hollow wall's thickness over the diameter; 0.5 is a solid section",
+    "density_kg_m3": "the wall tissue's density: the mass a blade brings to its speed is this × the section × one chord",
+    "hook_release_n": "[min, max]: the pull at which a hooked element lets go (it slips off, pulls out or breaks)",
+    "cut_energy_j_per_m2": "e_s: the energy per section area to cut through it (a leaf's at its petiole)",
+    "roll_friction": "μ across a loose element's axis as it rolls under a part",
+    "damping_ratio": "ζ of an element's bending",
+    "dry_mass_per_area_kg_m2": "a leaf's dry mass per area (LMA)",
+    "dry_matter_content": "a leaf's dry mass over its fresh mass",
+    "mass_per_area_kg_m2": "a leaf's fresh mass per area: dry_mass_per_area_kg_m2 / dry_matter_content; wet, plus the film",
+    "petiole_diameter_m": "a leaf's stalk, where its cut is taken"
+  },
+  "constants": {
+    "reference_width_m": {"value": 0.0075, "label": "derived", "note": "the K§7.2 reference foot is a flat 15 mm disc (surfaces-review §1–§2); Bekker's b is the smaller dimension of a contact, a rectangle's width or a circular plate's radius (Bekker 1969; Wong 2008, the published convention), so b_ref = 0.015 m / 2; p7a-ground design 1 wrote 0.015 m (the diameter), and the published convention is kept here"},
+    "firm_layer_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "carried (K§7.1 step 3, surfaces-review §1): the firm subsoil a sink past max_sink_m meets"}
+  },
+  "wetting": {
+    "bearing_wet": {"value": 0.3, "label": "assumed", "note": "the published order: Wong 2008 tabulates loams and clays whose Bekker moduli fall severalfold to more than tenfold between a drier and a wetter state; 0.3 assumed for ground wetted by rain from above"},
+    "bearing_saturated": {"value": 0.15, "label": "assumed", "note": "half the wet factor again for ground at saturation (assumed), toward the wettest tabulated states' order of magnitude (Wong 2008)"},
+    "unload_ratio_wet": {"value": 1.5, "label": "assumed", "note": "a wetter soil is more plastic and keeps more of its sink as set (assumed; the published direction: a loam's plastic range is crossed as it wets)"},
+    "unload_ratio_saturated": {"value": 1.5, "label": "assumed", "note": "as unload_ratio_wet (assumed, p7a-ground design 1); a named factor of its own so the two can be tuned apart"},
+    "max_sink_wet": {"value": 2.0, "label": "assumed", "note": "a wetted top layer stays soft to a greater depth before the firm subsoil (assumed)"},
+    "max_sink_saturated": {"value": 2.0, "label": "assumed", "note": "as max_sink_wet (assumed, p7a-ground design 1); a named factor of its own"},
+    "friction_wet": {"value": 0.8, "label": "assumed", "note": "soil on a smooth part passes from friction to adhesion to lubrication as its moisture rises (Nichols 1931, the published phases): the friction coefficient falls as a film forms while the interface adhesion takes over; 0.8 assumed"},
+    "friction_saturated": {"value": 0.6, "label": "assumed", "note": "past the sticky point the film lubricates (Nichols 1931's third phase); 0.6 assumed"},
+    "adhesion_wet_pa": {"value": 3000.0, "label": "assumed", "note": "soil's normal adhesion to a part is of the order of kPa (Fountaine 1954, the published order); 3 kPa assumed: a corner's half-skid with a 2.2e-3 m² wetted footprint (z ≥ r) is held by 6.6 N as it lifts, of the order of its 12.7 N share of 5.18 kg (derived)"},
+    "adhesion_saturated_pa": {"value": 5000.0, "label": "assumed", "note": "an object lifted from a saturated bed meets breakout suction as well (Vesic 1971; Foda 1982, published); 5 kPa assumed: 11 N on a 2.2e-3 m² footprint (derived)"},
+    "interface_adhesion_wet_pa": {"value": 2000.0, "label": "assumed", "note": "the shear adhesion on a smooth part, c_a = α·c, with Tomlinson 1957's adhesion factor α of 0.5–1 for soft clays (published) and a wet loam's cohesion of a few kPa (Wong 2008's wetter states); 2 kPa assumed"},
+    "interface_adhesion_saturated_pa": {"value": 1000.0, "label": "assumed", "note": "past the sticky point the film lubricates the shear (Nichols 1931's third phase) while the normal suction grows; 1 kPa assumed"},
+    "adhesion_release_wet_m": {"value": 0.002, "label": "assumed", "note": "the separation at which the film parts (a cohesive zone, Dugdale 1960, Barenblatt 1962): 2 mm assumed, so the work to part is ½·σ_a·δ_a·S, 6.6 mJ on 2.2e-3 m² (derived)"},
+    "adhesion_release_saturated_m": {"value": 0.003, "label": "assumed", "note": "3 mm assumed for the deeper, wetter groove: 16.5 mJ on 2.2e-3 m² (derived)"},
+    "cover_hook_release_wet": {"value": 1.5, "label": "assumed", "note": "a wet element clings to a part and holds harder before it slips off (assumed, p7a-ground design 1)"},
+    "straw_modulus_wet": {"value": 0.7, "label": "assumed", "note": "dead straw softens as it takes up water: its Young's modulus falls with moisture content (Tavakoli et al. 2009, the published direction); 0.7 assumed. Live stems and twigs are already at full turgor, and rain wets only their surface, so they keep their dry modulus (assumed)"},
+    "straw_cut_energy_wet": {"value": 1.5, "label": "assumed", "note": "wetter straw is tougher to shear: its shear strength and specific shearing energy rise with moisture (Tavakoli et al. 2009, the published direction); 1.5 assumed; live tissue keeps its dry value (assumed)"},
+    "straw_density_wet": {"value": 1.3, "label": "assumed", "note": "dead straw takes up rain: from about 10 % to about 40 % moisture on a dry basis (assumed) its mass rises 1.4/1.1 = 1.27 (derived), so 1.3"},
+    "leaf_water_film_kg_m2": {"value": 0.2, "label": "assumed", "note": "a wet leaf carries a film of water: canopy interception storage is of the order of 0.1–0.3 mm per unit leaf area (the published order of forest interception studies), so 0.2 mm, 0.2 kg/m² of leaf (assumed)"}
+  },
+  "surfaces": {
+    "meadow_sod": {
+      "about": "S01: root-bound sod over loam",
+      "dry": {
+        "bearing_n_per_m3": {"value": 7.0e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 20.2 mm (derived), K§7.2's 20 mm"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a root-bound loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 26250.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 3.5e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.05, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 3.7e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.55, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.45, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 7875.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 4.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.1, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 3.7e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.44, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 3937.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 5.25e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 4.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.1, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 3.7e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.33, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.27, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "dry_crust": {
+      "about": "S02: a dry, crusted silty field: little sink, the bounce case",
+      "dry": {
+        "bearing_n_per_m3": {"value": 5.0e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 2.83 mm (derived), K§7.2's 2.8 mm"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a dried loam crust; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 1.875e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.5e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 1.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.01, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 2.5e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 1.5e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 56250.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 2.25, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.02, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 2.5e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.56, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 28125.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 2.25, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.02, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 2.5e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.42, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "crater_spoil": {
+      "about": "S03: the loose, churned spoil of a shelled patch: a thud with no bounce",
+      "dry": {
+        "bearing_n_per_m3": {"value": 2.8e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 50.5 mm (derived), K§7.2's 51 mm"},
+        "cohesive_share": {"value": 0.3, "label": "assumed", "note": "churned spoil, its structure broken, so less of its stiffness is cohesive than a loam's; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 6300.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.96e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 8, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.12, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 3.2e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.8, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); above Potyondy 1961's smooth-interface band (tan δ ≈ 0.3–0.7 at δ/φ 0.5–0.9, φ 30–40°, derived): K§7.2's value held the foot's ploughing too, which the groove's passive resistance now carries, so p7a-ground 1.10 measures the overlap"},
+        "friction_kinetic": {"value": 0.65, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); above Potyondy 1961's smooth-interface band (tan δ ≈ 0.3–0.7 at δ/φ 0.5–0.9, φ 30–40°, derived): K§7.2's value held the foot's ploughing too, which the groove's passive resistance now carries, so p7a-ground 1.10 measures the overlap"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 8.4e5, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 1890.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 5.88e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 12.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.24, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 3.2e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.64, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.52, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 4.2e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 945.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.94e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 12.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.24, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 3.2e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.39, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "belt_straw": {
+      "about": "S04: soft, moist loam under the tree belt's straw (the test range's plane)",
+      "dry": {
+        "bearing_n_per_m3": {"value": 4.7e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 30.1 mm (derived), K§7.2's 30 mm"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a moist loam (p7a-ground design 2's one half); Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 17625.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.35e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.08, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 1.8e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.4, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 1.41e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 5287.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 7.05e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 7.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.16, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 1.8e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.32, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 7.05e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 2643.75, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 3.525e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 7.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.16, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 1.8e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.24, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "belt_bare": {
+      "about": "S05: firm, bare loam in the belt",
+      "dry": {
+        "bearing_n_per_m3": {"value": 1.4e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 10.1 mm (derived), K§7.2's 10 mm"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a firm loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 52500.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 7.0e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.03, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 3.5e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.4, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 4.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 15750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 4.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.06, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 3.5e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.32, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 7875.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 4.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.06, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 3.5e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.24, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "tilled": {
+      "about": "S06: loose tilled loam (its furrows are the zone's relief, map data)",
+      "dry": {
+        "bearing_n_per_m3": {"value": 4.0e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 35.4 mm (derived), K§7.2's 35 mm"},
+        "cohesive_share": {"value": 0.3, "label": "assumed", "note": "a loam loosened by tillage, its structure broken; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 9000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.8e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 8, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.1, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 3.3e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.75, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 1.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 2700.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 8.4e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 12.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.2, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 3.3e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.6, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 6.0e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 1350.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 4.2e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 12.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.2, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 3.3e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.45, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "burnt_field": {
+      "about": "S07: a burnt field's crusted loam under its ash",
+      "dry": {
+        "bearing_n_per_m3": {"value": 2.5e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 5.66 mm (derived), not in K§7.2's list"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a crusted loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 93750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.25e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 2, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.02, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 3.6e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 28125.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.04, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 3.6e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 14062.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.875e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.04, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 3.6e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "weeds": {
+      "about": "S08: firm loam under weeds",
+      "dry": {
+        "bearing_n_per_m3": {"value": 1.4e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 10.1 mm (derived), K§7.2's 10 mm"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a firm, rooted loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 52500.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 7.0e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.04, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 4.4e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 4.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 15750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 4.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.08, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 4.4e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 7875.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 4.5, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.08, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 4.4e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "yard_litter": {
+      "about": "S09: compacted yard soil under leaf litter",
+      "dry": {
+        "bearing_n_per_m3": {"value": 3.5e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 4.04 mm (derived), K§7.2's 4.0 mm"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a compacted loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 1.3125e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.75e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 2, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.015, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 4.2e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 1.05e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 39375.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 5.25e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.03, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 4.2e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 5.25e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 19687.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.625e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 3.0, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.03, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 4.2e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "rubble": {
+      "about": "S10: brick and mortar debris: granular and nearly rigid",
+      "dry": {
+        "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 1.41 mm (derived), K§7.2's 1.4 mm"},
+        "cohesive_share": {"value": 0.1, "label": "assumed", "note": "granular debris, as a sand, whose stiffness is almost all frictional; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 75000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 9.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 1.5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "max_sink_m": {"value": 0.005, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "damping_ns_per_m3": {"value": 2.4e5, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); surfaces-review §4 expects the soft soils' to fall in tuning, where it overlaps their plastic loss"},
+        "friction_static": {"value": 0.7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4); the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4)"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry bearing (a departure from wetting's factor)"},
+        "cohesive_share": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 75000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 9.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 1.5, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry unload ratio"},
+        "max_sink_m": {"value": 0.005, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry maximum sink"},
+        "damping_ns_per_m3": {"value": 2.4e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.56, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry lack of adhesion"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry lack of interface adhesion"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry bearing (a departure from wetting's factor)"},
+        "cohesive_share": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 75000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 9.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 1.5, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry unload ratio"},
+        "max_sink_m": {"value": 0.005, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry maximum sink"},
+        "damping_ns_per_m3": {"value": 2.4e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.42, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry lack of adhesion"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry lack of interface adhesion"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "asphalt": {
+      "about": "S11: asphalt, rigid: the part's own spring carries it",
+      "dry": {
+        "friction_static": {"value": 0.5, "label": "assumed", "note": "a polymer or carbon part on rough asphalt aggregate: concrete's 0.60/0.50 (physics_materials.json) a little lower for the bitumen binder and the loose grit and glass crumbs a war-worn road carries (K§7.2), assumed"},
+        "friction_kinetic": {"value": 0.4, "label": "assumed", "note": "a polymer or carbon part on rough asphalt aggregate: concrete's 0.60/0.50 (physics_materials.json) a little lower for the bitumen binder and the loose grit and glass crumbs a war-worn road carries (K§7.2), assumed"}
+      },
+      "wet": {
+        "friction_static": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.32, "label": "derived", "note": "the dry set's × wetting.friction_wet"}
+      },
+      "saturated": {
+        "friction_static": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.24, "label": "derived", "note": "the dry set's × wetting.friction_saturated"}
+      }
+    },
+    "concrete_slab": {
+      "about": "S12: a concrete slab, rigid: the part's own spring carries it",
+      "dry": {
+        "friction_static": {"value": 0.6, "label": "assumed", "note": "carried from physics_materials.json's concrete row, the same polymer-on-cast-concrete pairing (the published 0.5–0.7 band), assumed"},
+        "friction_kinetic": {"value": 0.5, "label": "assumed", "note": "carried from physics_materials.json's concrete row, the same polymer-on-cast-concrete pairing (the published 0.5–0.7 band), assumed"}
+      },
+      "wet": {
+        "friction_static": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"}
+      },
+      "saturated": {
+        "friction_static": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"}
+      }
+    },
+    "dirt_track": {
+      "about": "S13: a wheel-compacted silt loam track, its ruts the zone's relief (map data)",
+      "dry": {
+        "bearing_n_per_m3": {"value": 1.4e8, "label": "assumed", "note": "new (p7a-ground design 1): a dry, wheel-compacted silt loam marks under the 15 mm reference foot's 25 N (141 kPa) by about 1 mm, its loose dust and crumb (assumed); the compacted body beneath, of the order of E 20–50 MPa (the published order for compacted silts and stiff clays), gives under 0.1 mm as an elastic punch, π·a·(1 − ν²)·q/(2E) (Boussinesq's rigid disc, derived); so bearing = 25 N/(π·0.0075²·1 mm) = 1.41e8 N/m³, rounded to 1.4e8 (1.01 mm, derived): the stiffest soil of the table, a skid on it is carried by its leg"},
+        "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a compacted silt loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
+        "k_c_n_per_m2": {"value": 5.25e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 7.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 1.5, "label": "assumed", "note": "a compacted soil is nearly elastic, as dry_crust and rubble (K§7.2's 1.5)"},
+        "max_sink_m": {"value": 0.003, "label": "assumed", "note": "the loose dust and crumb over the compacted body, past which the firm layer adds"},
+        "damping_ns_per_m3": {"value": 2.5e5, "label": "assumed", "note": "dry_crust's (K§7.2), the nearest firm, dry row"},
+        "friction_static": {"value": 0.6, "label": "assumed", "note": "a dusty compacted silt loam, as the K§7.2 loams' 0.6/0.5; the drone's smooth carbon skids on soil: Potyondy 1961's interface ratios δ/φ of 0.5–0.9 for smooth to rough construction materials, at φ 30–40°, give tan δ ≈ 0.3–0.7 (derived)"},
+        "friction_kinetic": {"value": 0.5, "label": "assumed", "note": "as the K§7.2 loams' 0.5"},
+        "adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "interface_adhesion_pa": {"value": 0.0, "label": "assumed", "note": "dry: no water film, Nichols 1931's friction phase"},
+        "adhesion_release_m": {"value": 0.0, "label": "assumed", "note": "dry: no adhesion to release"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"}
+      },
+      "wet": {
+        "bearing_n_per_m3": {"value": 4.2e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 1.575e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 2.1e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 2.25, "label": "derived", "note": "the dry set's × wetting.unload_ratio_wet"},
+        "max_sink_m": {"value": 0.006, "label": "derived", "note": "the dry set's × wetting.max_sink_wet"},
+        "damping_ns_per_m3": {"value": 2.5e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.48, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "friction_kinetic": {"value": 0.4, "label": "derived", "note": "the dry set's × wetting.friction_wet"},
+        "adhesion_pa": {"value": 3000.0, "label": "derived", "note": "wetting.adhesion_wet_pa"},
+        "interface_adhesion_pa": {"value": 2000.0, "label": "derived", "note": "wetting.interface_adhesion_wet_pa"},
+        "adhesion_release_m": {"value": 0.002, "label": "derived", "note": "wetting.adhesion_release_wet_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      },
+      "saturated": {
+        "bearing_n_per_m3": {"value": 2.1e7, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "k_c_n_per_m2": {"value": 78750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
+        "k_phi_n_per_m3": {"value": 1.05e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
+        "unload_ratio": {"value": 2.25, "label": "derived", "note": "the dry set's × wetting.unload_ratio_saturated"},
+        "max_sink_m": {"value": 0.006, "label": "derived", "note": "the dry set's × wetting.max_sink_saturated"},
+        "damping_ns_per_m3": {"value": 2.5e5, "label": "derived", "note": "the dry set's"},
+        "friction_static": {"value": 0.36, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "friction_kinetic": {"value": 0.3, "label": "derived", "note": "the dry set's × wetting.friction_saturated"},
+        "adhesion_pa": {"value": 5000.0, "label": "derived", "note": "wetting.adhesion_saturated_pa"},
+        "interface_adhesion_pa": {"value": 1000.0, "label": "derived", "note": "wetting.interface_adhesion_saturated_pa"},
+        "adhesion_release_m": {"value": 0.003, "label": "derived", "note": "wetting.adhesion_release_saturated_m"},
+        "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"}
+      }
+    }
+  },
+  "cover": {
+    "straw": {
+      "dry": {
+        "elastic_modulus_pa": {"value": [4.8e9, 6.6e9], "label": "published", "note": "wheat straw's Young's modulus, 4.8–6.6 GPa (O'Dogherty et al. 1995)"},
+        "wall_share": {"value": 0.12, "label": "assumed", "note": "a wheat straw's wall is a few tenths of a millimetre on a 3–4 mm stem, about an eighth of the diameter"},
+        "density_kg_m3": {"value": 500.0, "label": "assumed", "note": "the dry wall tissue: a 3.5 mm straw with a 0.4 mm wall (3.9e-6 m² of wall) weighs about 2 g a metre (derived), the order of a dry wheat straw's mass for its length"},
+        "hook_release_n": {"value": [1.0, 5.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's straw)"},
+        "cut_energy_j_per_m2": {"value": 15000.0, "label": "assumed", "note": "the published order of straw and forage shearing, 10–60 kJ/m² of section (Persson 1987; Tavakoli et al. 2009 for wheat straw), dry straw toward its low end"},
+        "roll_friction": {"value": 0.05, "label": "assumed", "note": "carried (K§7.3): a loose straw or twig rolls under a part across its axis"},
+        "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a straw or stem bending as a cantilever"}
+      },
+      "wet": {
+        "elastic_modulus_pa": {"value": [3.36e9, 4.62e9], "label": "derived", "note": "the dry set's × wetting.straw_modulus_wet"},
+        "wall_share": {"value": 0.12, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 650.0, "label": "derived", "note": "the dry set's × wetting.straw_density_wet"},
+        "hook_release_n": {"value": [1.5, 7.5], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
+        "cut_energy_j_per_m2": {"value": 22500.0, "label": "derived", "note": "the dry set's × wetting.straw_cut_energy_wet"},
+        "roll_friction": {"value": 0.05, "label": "derived", "note": "the dry set's"},
+        "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "stem": {
+      "dry": {
+        "elastic_modulus_pa": {"value": [1.0e9, 4.0e9], "label": "assumed", "note": "the solid-section moduli K§7.2's grass and straw stems imply, 0.5–4 GPa (surfaces-review §2 issue 5), within the order of herbaceous stems' (Niklas 1992)"},
+        "wall_share": {"value": 0.2, "label": "assumed", "note": "many weed stems are hollow or pithy; the pith carries little, so a wall of a fifth of the diameter"},
+        "density_kg_m3": {"value": 800.0, "label": "assumed", "note": "green herbaceous tissue, mostly water with air spaces"},
+        "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass)"},
+        "cut_energy_j_per_m2": {"value": 30000.0, "label": "assumed", "note": "a green, fibrous stalk: the published order of stalk shearing, 10–60 kJ/m² (Persson 1987), above dry straw"},
+        "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending"}
+      },
+      "wet": {
+        "elastic_modulus_pa": {"value": [1.0e9, 4.0e9], "label": "derived", "note": "the dry set's"},
+        "wall_share": {"value": 0.2, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 800.0, "label": "derived", "note": "the dry set's"},
+        "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
+        "cut_energy_j_per_m2": {"value": 30000.0, "label": "derived", "note": "the dry set's"},
+        "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "twig": {
+      "dry": {
+        "elastic_modulus_pa": {"value": [7.0e9, 1.28e10], "label": "published", "note": "the green moduli of temperate hardwoods, about 7–13 GPa (Forest Products Laboratory 2021, Wood Handbook FPL-GTR-282, Table 5-3a; black locust 12.8); a young twig's juvenile wood, pith and bark sit toward the low end"},
+        "wall_share": {"value": 0.5, "label": "derived", "note": "a twig is solid wood: the wall reaches its centre"},
+        "density_kg_m3": {"value": 950.0, "label": "assumed", "note": "green wood: the Wood Handbook's green-volume specific gravity of 0.4–0.66 for temperate hardwoods at a twig's green moisture of 50–100 % of its dry mass gives 600–1300 kg/m³ (ρ = G·(1 + MC)·1000, derived); 950 for a twig high in water"},
+        "hook_release_n": {"value": [0.3, 3.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's twigs)"},
+        "cut_energy_j_per_m2": {"value": 80000.0, "label": "assumed", "note": "green wood cut across its grain by a blunt, fast edge: above stalks, the order of woody stems in Persson 1987"},
+        "roll_friction": {"value": 0.05, "label": "assumed", "note": "carried (K§7.3): a twig under a part is a rigid roller"},
+        "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a crown twig or a stem bending as a cantilever"}
+      },
+      "wet": {
+        "elastic_modulus_pa": {"value": [7.0e9, 1.28e10], "label": "derived", "note": "the dry set's"},
+        "wall_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 950.0, "label": "derived", "note": "the dry set's"},
+        "hook_release_n": {"value": [0.45, 4.5], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
+        "cut_energy_j_per_m2": {"value": 80000.0, "label": "derived", "note": "the dry set's"},
+        "roll_friction": {"value": 0.05, "label": "derived", "note": "the dry set's"},
+        "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "leaf": {
+      "dry": {
+        "dry_mass_per_area_kg_m2": {"value": 0.06, "label": "assumed", "note": "Wright et al. 2004's leaf mass per area of temperate broadleaves, 30–120 g/m² (published); a thin leaflet toward the low side, 60 g/m²"},
+        "dry_matter_content": {"value": 0.3, "label": "assumed", "note": "the published order of temperate woody species' leaf dry-matter content, 0.2–0.4 g/g (e.g. Wilson et al. 1999)"},
+        "mass_per_area_kg_m2": {"value": 0.2, "label": "derived", "note": "the fresh leaf: dry_mass_per_area_kg_m2 / dry_matter_content; a blade strikes the leaf with its water, so a 4 cm² leaflet is 0.08 g (p7a-ground design 8–9 took the dry 0.02 g)"},
+        "petiole_diameter_m": {"value": 0.001, "label": "assumed", "note": "a leaflet's stalk, where a blade cuts it free"},
+        "cut_energy_j_per_m2": {"value": 30000.0, "label": "assumed", "note": "the petiole, a green stalk, as stems"}
+      },
+      "wet": {
+        "dry_mass_per_area_kg_m2": {"value": 0.06, "label": "derived", "note": "the dry set's"},
+        "dry_matter_content": {"value": 0.3, "label": "derived", "note": "the dry set's"},
+        "mass_per_area_kg_m2": {"value": 0.4, "label": "derived", "note": "the dry set's + wetting.leaf_water_film_kg_m2"},
+        "petiole_diameter_m": {"value": 0.001, "label": "derived", "note": "the dry set's"},
+        "cut_energy_j_per_m2": {"value": 30000.0, "label": "derived", "note": "the dry set's"}
+      }
+    }
+  }
+}

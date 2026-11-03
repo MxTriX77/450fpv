@@ -9,6 +9,7 @@ using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Tests;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
@@ -16,10 +17,11 @@ namespace Fpv450.Replay
 {
     // The scripted flight that exercises the log end to end (physics-log, "Replay matches the flight"): drone.json at
     // its nominal loadout with its Betaflight 4.5 controller and propulsion (1.4), its drag in a stand-in wind (1.5;
-    // Windy unless asked otherwise) and its contacts (1.6), from rest on the stub's floor, or on a map's legs-on start
-    // point facing its heading (--map, 1.6b). A pilot watching the published pose (SimPilot, as a pilot watches the feed)
-    // arms, climbs to 20 m, flies a circuit with a sharp reverse every 15 s, comes back, lands on the slow glide path
-    // with the sticks held, cuts the throttle after the touch and disarms. It is
+    // Windy unless asked otherwise) and its contacts (1.6; with surfaces.json's table, p7a-ground 1.1, which the header
+    // records and the replay checks), from rest on the stub's floor, or on a map's legs-on start point facing its heading
+    // (--map, 1.6b). A pilot watching the published pose (SimPilot, as a pilot watches the feed) arms, climbs to 20 m,
+    // flies a circuit with a sharp reverse every 15 s, comes back, lands on the slow glide path with the sticks held, cuts
+    // the throttle after the touch and disarms. It is
     // flown either through the scheduler on a virtual clock, with three 40 ms process stalls for the hitches, or in real
     // time on the flight thread with the stick reports from an input thread. Both log through the ring and the flush
     // worker; the replay only needs the logged sticks.
@@ -40,6 +42,7 @@ namespace Fpv450.Replay
             public double WallSeconds;
             public Exception Fault;
             public string Landing = "";
+            public string Line;
         }
 
         sealed class VirtualClock : IHostClock
@@ -87,6 +90,9 @@ namespace Fpv450.Replay
         /// <summary>The repository's drone.json, found from the working directory upwards; null when there is none.</summary>
         public static string RepositoryDrone() => Repository(Path.Combine("assets-src", "drone", "drone.json"));
 
+        /// <summary>The repository's surfaces.json (p7a-ground 1.1), found the same way; null when there is none.</summary>
+        public static string RepositorySurfaces() => Repository(Path.Combine("assets-src", "surfaces.json"));
+
         static string Repository(string relative)
         {
             for (string dir = Directory.GetCurrentDirectory(); dir != null; dir = Path.GetDirectoryName(dir))
@@ -112,6 +118,47 @@ namespace Fpv450.Replay
             catch (IOException e)
             {
                 problem = "drone.json cannot be read: " + e.Message;
+            }
+            return 0;
+        }
+
+        /// <summary>SurfaceTable.Hash of the file, or 0 with problem set when it cannot be read or is not valid.</summary>
+        public static ulong SurfacesHash(string path, out string problem)
+        {
+            try
+            {
+                problem = null;
+                return SurfaceTable.Parse(File.ReadAllText(path)).Hash;
+            }
+            catch (FormatException e)
+            {
+                problem = e.Message;
+            }
+            catch (IOException e)
+            {
+                problem = "surfaces.json cannot be read: " + e.Message;
+            }
+            return 0;
+        }
+
+        /// <summary>The repository's tether.json, found from the working directory upwards; null when there is none.</summary>
+        public static string RepositoryTether() => Repository(TetherTable.RelativePath);
+
+        /// <summary>TetherTable.ContentHash of the file, or 0 with problem set when it cannot be read or is not valid.</summary>
+        public static ulong TetherHash(string path, out string problem)
+        {
+            try
+            {
+                problem = null;
+                return TetherTable.Parse(File.ReadAllText(path)).ContentHash;
+            }
+            catch (TetherTableException e)
+            {
+                problem = e.Message;
+            }
+            catch (IOException e)
+            {
+                problem = "tether.json cannot be read: " + e.Message;
             }
             return 0;
         }
@@ -205,14 +252,16 @@ namespace Fpv450.Replay
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double[] footAt = null, string tetherPath = null)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
                 ?? throw new FileNotFoundException("assets-src/physics_materials.json was not found");
             MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(materialsPath), out ulong materialsHash);
+            SurfaceTable surfaces = SurfaceTable.Parse(File.ReadAllText(RepositorySurfaces()
+                ?? throw new FileNotFoundException("assets-src/surfaces.json was not found")));
             Loadout loadout = spec.Nominal;
-            ContactSpec contacts = spec.BuildContacts(loadout, materials, materialsHash);
+            ContactSpec contacts = spec.BuildContacts(loadout, materials, materialsHash, surfaces);
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Role == ContactRole.Support) stand = Math.Max(stand, s.Radius - s.A.Y);
@@ -231,7 +280,8 @@ namespace Fpv450.Replay
                 };
             // --map: the map's first legs-on start point off a stand, its foot and heading (D-019's yaw: the body turned
             // about +y, the nose's bearing (sin, 0, cos), as ContactScenarios.Site turns it), and the map's own wind
-            // (WindSetup.ForMap: its obstacles' wakes and its belt's canopy, as the app flies it).
+            // (WindSetup.ForMap: its obstacles' wakes, its belt's canopy and its cuts' cavity flow, as the app flies it).
+            // --foot x,y,z,heading: that foot (world, m) and heading (degrees) instead, such as E01's run floor (p7c-wind 1.10).
             FlightWorld world = FlightWorld.Floor();
             Double3 foot = default, nose = new Double3(0, 0, 1);
             Quat attitude = Quat.Identity;
@@ -241,8 +291,14 @@ namespace Fpv450.Replay
                 StartPoint start = Array.Find(((MapWorld)world.Query).StartPoints, p => p.LegsOn && !p.Stand);
                 if (start.Id == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand");
                 foot = start.Position;
+                double headingDeg = start.HeadingDeg;
+                if (footAt != null)
+                {
+                    foot = new Double3(footAt[0], footAt[1], footAt[2]);
+                    headingDeg = footAt[3];
+                }
                 air = WindSetup.ForMap((MapWorld)world.Query, wind);
-                double heading = start.HeadingDeg * (Math.PI / 180);
+                double heading = headingDeg * (Math.PI / 180);
                 DetMath.SinCos(heading / 2, out double sin, out double cos);
                 attitude = new Quat(0, sin, 0, cos);
                 DetMath.SinCos(heading, out sin, out cos);
@@ -270,6 +326,13 @@ namespace Fpv450.Replay
                 Rain = rain,
                 CameraPosition = spec.CameraPosition,
             };
+            // --line (p7d-tether 1.6): the fiber laid from the table's launch behind the start, drone.json's coil paying out.
+            if (tetherPath != null)
+            {
+                setup.Tether = TetherTable.Parse(File.ReadAllText(tetherPath));
+                setup.TetherCoilPart = spec.Coil.Part;
+                setup.TetherSpoolMass = spec.Coil.SpoolMass;
+            }
             var core = new FlightCore(setup);
             LogHeader header = LogHeader.For(setup, core);
             header.Build = Host.Build;
@@ -299,6 +362,11 @@ namespace Fpv450.Replay
                 Fault = fault ?? recorder.Fault,
                 Landing = pilot.Landing + $"; ends at {core.State.Position.Y - foot.Y - stand:F4} m over standing, {core.Trace.ContactsTouching} touching pairs, "
                     + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}",
+                Line = core.Tether == null ? null
+                    : $"tether.json 0x{setup.Tether.ContentHash:X16}, G₀ {core.Tether.PeelEnergy:F4} J/m: {core.Tether.PaidOut:F2} m paid out, "
+                        + $"{core.Tether.Chain.Count} nodes, {core.Tether.TrailCount} trail points; the chain's guards: {core.Tether.Chain.Corrections} extra solves, "
+                        + $"{core.Tether.Chain.Clips} clips, {core.Tether.Chain.SafeSteps} safe steps, {core.Tether.Chain.MergeClips} merge clips, "
+                        + $"{core.Tether.Chain.Wedges} wedges",
             };
         }
 

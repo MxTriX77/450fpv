@@ -155,35 +155,64 @@ namespace Fpv450.Sim
             return p * System.BitConverter.Int64BitsToDouble((n + 1023) << 52);
         }
 
-        const double Pi = 3.141592653589793, HalfPi = 1.5707963267948966, SixthPi = 0.5235987755982988;
-        const double Sqrt3 = 1.7320508075688772, TanTwelfthPi = 0.2679491924311228; // 2 − √3
+        // ---- Atan2 (p7d-tether 1.1): fdlibm 5.3's algorithm and constants (Sun Microsystems, 1993, published), on the
+        // basic operations only. Each constant's bits match fdlibm's hex comment; the splits of π/2, π and atan(½, 1, 3/2)
+        // into a head and a tail are re-derived exactly (the 1.1 as-built note). Exp and Log are p7c-wind's, above. The
+        // physics line's series Atan2 (the map's wind: a belt's bearing, a wind volume's yaw) gave way to this one at the
+        // merge, model 28: it was 4 ulp off on the circle sweep and lost the signs of zero and the infinities (p7d-tether
+        // 1.1's note on the merge onto the physics line). ----
+
+        // atan x ≈ x − x·(aT0·x² + … + aT10·x^22) on |x| ≤ 7/16 (Remez), and atan of the reduction points ½, 1, 3/2 and ∞
+        // as a head and a tail.
+        static readonly double[] AtanHi = { 4.63647609000806093515e-01, 7.85398163397448278999e-01, 9.82793723247329054082e-01, 1.57079632679489655800e+00 };
+        static readonly double[] AtanLo = { 2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17, 6.12323399573676603587e-17 };
+        const double AT0 = 3.33333333333329318027e-01, AT1 = -1.99999999998764832476e-01, AT2 = 1.42857142725034663711e-01,
+            AT3 = -1.11111104054623557880e-01, AT4 = 9.09088713343650656196e-02, AT5 = -7.69187620504482999495e-02,
+            AT6 = 6.66107313738753120669e-02, AT7 = -5.83357013379057348645e-02, AT8 = 4.97687799461593236017e-02,
+            AT9 = -3.65315727442169155270e-02, AT10 = 1.62858201153657823623e-02;
+
+        // π in two parts and π/2.
+        const double Pi = 3.1415926535897931160e+00, PiLo = 1.2246467991473531772e-16, HalfPi = 1.57079632679489655800e+00;
 
         /// <summary>
-        /// The angle of (x, y) from +x towards +y, radians in [−π, π], by the basic operations only (System.Math.Atan2
-        /// is not correctly rounded). t = min(|x|, |y|)/max(|x|, |y|) in [0, 1]; above tan(π/12) it is turned back by
-        /// π/6, t' = (√3·t − 1)/(t + √3), so |t'| ≤ tan(π/12); atan t' by its series to t'^29 (the next term below 4e-18
-        /// of it); then the octant and the signs. (0, 0) gives 0; NaN gives NaN.
+        /// The angle of the point (x, y) from the +x axis, in (−π, π], as System.Math.Atan2(y, x) defines it (the signs of
+        /// zero and the infinities included), by the basic operations only so every runtime gives the same bits. fdlibm's
+        /// method: atan |y/x| with |y/x| reduced about ½, 1, 3/2 or ∞ to |t| ≤ 7/16 and a degree-11 Remez form in t², then
+        /// placed in its quadrant with π's tail. NaN in either gives NaN.
         /// </summary>
         public static double Atan2(double y, double x)
         {
-            if (double.IsNaN(x) || double.IsNaN(y)) return double.NaN;
-            double ax = Abs(x), ay = Abs(y);
-            if (ax == 0 && ay == 0) return 0;
-            bool steep = ay > ax;
-            double t = steep ? ax / ay : ay / ax, offset = 0;
-            if (t > TanTwelfthPi)
+            if (double.IsNaN(x) || double.IsNaN(y)) return x + y;
+            bool yNegative = y < 0 || (y == 0 && 1 / y < 0), xNegative = x < 0 || (x == 0 && 1 / x < 0);
+            double ay = yNegative ? -y : y, ax = xNegative ? -x : x, angle; // angle: the turn from +x, before y's sign
+            if (ay == 0) angle = xNegative ? Pi : 0;
+            else if (ax == 0) angle = HalfPi;
+            else if (ax > double.MaxValue) angle = ay > double.MaxValue ? (xNegative ? 3 * AtanHi[1] : AtanHi[1]) : (xNegative ? Pi : 0);
+            else if (ay > double.MaxValue) angle = HalfPi;
+            else
             {
-                t = (Sqrt3 * t - 1) / (t + Sqrt3);
-                offset = SixthPi;
+                double z = AtanNonNegative(ay / ax); // |y/x| may overflow to ∞ (π/2) or underflow to 0: both still right
+                angle = xNegative ? Pi - (z - PiLo) : z;
             }
-            double t2 = t * t;
-            double a = t * (1 + t2 * (-1.0 / 3 + t2 * (1.0 / 5 + t2 * (-1.0 / 7 + t2 * (1.0 / 9 + t2 * (-1.0 / 11 + t2 * (1.0 / 13
-                + t2 * (-1.0 / 15 + t2 * (1.0 / 17 + t2 * (-1.0 / 19 + t2 * (1.0 / 21 + t2 * (-1.0 / 23 + t2 * (1.0 / 25
-                + t2 * (-1.0 / 27 + t2 * (1.0 / 29)))))))))))))));
-            double r = offset + a;
-            if (steep) r = HalfPi - r;
-            if (x < 0) r = Pi - r;
-            return y < 0 ? -r : r;
+            return yNegative ? -angle : angle;
         }
+
+        // atan t for t ≥ 0 (fdlibm's atan): t ≥ 2^66 is π/2; else t is reduced about 0, ½, 1, 3/2 or ∞ to |u| ≤ 7/16.
+        static double AtanNonNegative(double t)
+        {
+            if (t >= 7.378697629483820646e+19) return AtanHi[3] + AtanLo[3];
+            int id;
+            if (t < 0.4375) id = -1;
+            else if (t < 0.6875) { id = 0; t = (2 * t - 1) / (2 + t); }
+            else if (t < 1.1875) { id = 1; t = (t - 1) / (t + 1); }
+            else if (t < 2.4375) { id = 2; t = (t - 1.5) / (1 + 1.5 * t); }
+            else { id = 3; t = -1 / t; }
+            double z = t * t, w = z * z;
+            double s1 = z * (AT0 + w * (AT2 + w * (AT4 + w * (AT6 + w * (AT8 + w * AT10)))));
+            double s2 = w * (AT1 + w * (AT3 + w * (AT5 + w * (AT7 + w * AT9))));
+            if (id < 0) return t - t * (s1 + s2);
+            return AtanHi[id] - ((t * (s1 + s2) - AtanLo[id]) - t);
+        }
+
     }
 }

@@ -594,3 +594,58 @@ From `p7b-airframe` 1.10 (D-066), on published specs: the class's ESC (SpeedyBee
 - **The throttle-punch shake's cause is the rotors re-ingesting their wash.** With the rings off it shows on 84 of 240 punches against 186. Its tilt is 0.13–3.35° (was 1.3–10.7° with 40 A), and the arrest takes about half as long. The pilot's 0.3–0.7 s holds from 9 m/s (median 0.60 s); from 2.5 m/s it barely shows, which fits "doesn't happen much".
 - **The mass build stands** (published within 2–4 %): 4.09 kg ready to fly without a bottle (coil full), 3.74 kg with the coil half paid out. On the pilot's flown curve a hover takes 37 % of the stick empty, 45 % with 1 kg and 53 % with 2 kg on a full pack. The pilot's 30–45 % holds up to a 1 kg bottle; at 2 kg the class's single 6S3P pack (about 1 kg lighter) would be needed.
 - **G7's ESC-firmware question** now decides only whether the protection variant is flown.
+
+## D-070 The punch-out shake has two causes at model 26: the wash first, the motors' spreads second · Accepted
+From QA's review of the physics line (`p7b-airframe/review-integration.md`, B2). Restates D-069's evidence at model 26; D-069's ESC finding stands.
+- **The wash stays the main cause.** With the rings off, the shake shows on 149 of 240 punches against 206 (seeds 1–40; 148–173 against 206–220 on four other sets). D-069's 84 of 240 was the power branch's number.
+- **D-064's motor spreads are a second cause.** At full duty every motor saturates, so the loop can't trim their spread. In the pilot's own case (the empty drone's full punch from 9 m/s) without the ring, 16–24 of 40 flights still shake 0.3–0.7 s; with the spreads off as well, 4 of 40.
+- **No current limit trims either cause**, so G7's ESC-firmware question still decides only whether the protection variant is flown.
+- The tests judge the wash by the shake past the motors' spin-up kick, on seed sets sized to a false-failure rate under 1 % (D-053's rule).
+
+## D-071 The trench's cavity is built in `p7c-wind`, from published cavity flows · Accepted
+From QA's wind review of the physics line (`p7c-wind/review-integration.md`, S5). PHY-13 and `p7c-wind`'s proposal promise the cavity under a trench lip, but nothing decided it. At model 26, model 20's hole rule restarts the open profile at a cut's floor, so in the map's Severe wind E01's run reads 0.47–1.20 of the open field at the same height over its floor.
+- **It is built, not deferred.** A launch or landing in a cut is a flight the pilot makes, and a cut's shelter is physical (fidelity is never simplified).
+- **The physics engineer builds it in `p7c-wind` (a new 1.10)** after the line lands. The flow inside a cut comes from its depth below the lip (WLD-16: `SampleGround` keeps `TerrainHeight` at the lip over a hole) and its width along the wind, by published open and closed cavity-flow measurements (the shear layer over the cut, the recirculating cell, reattachment on the floor once the cut is long enough). Every number is cited or derived, never asked (D-024).
+- **The world builder** adds whatever per-hole data that model needs and the map doesn't already give.
+- **Until it lands,** the build's description lists the trench's shelter as not yet done.
+
+## D-072 Model and log-format numbers are assigned once, across every branch · Accepted
+The physics branches kept colliding: models 21–26 and formats 14–15 were each taken on more than one branch, so every merge had to re-number and re-audit.
+- **The orchestrator assigns the numbers** when a physics branch merges another line or starts a change that moves the model. A number is used once on any pushed `unity/physics/*` branch, never twice.
+- **Assigned on 2026-11-03:** `p7a-ground` model 27, format 17; `p7d-tether` 28, 18; `p7f-damage` 29, 19 (taken when its first code lands). A later step in a line asks for its next pair.
+- **A landing on `unity/main`** that combines two numbered states takes a new number above both, and audits the goldens case by case.
+
+## D-073 A bound motor takes the ESC's drive without a current limit · Accepted
+From `p7f-damage` 1.1b. The damage design put a bind at Kt·I_lim = 0.42 N·m (40 A, D-051), but D-069 found that the class's ESC limits no current. Supersedes `p7f-damage` design 8's and its open question 3's 40 A policy.
+- **The drive into a slow or stalled rotor is the electrical chain's own:** the duty the ESC allows at that speed (BLHeli_S's and Bluejay's published low-speed power rules, derived in `p7f` 1.5), the pack's sagged voltage, and the winding, ESC and wiring resistance. On a full pack without such a rule, the stall torque is about Kt·V/R ≈ 2.4 N·m.
+- **The 40 A protection** stays only as the compared variant; G7's ESC-firmware question decides only whether it is flown (D-069).
+
+## D-074 Log event kinds are assigned once, like the model numbers · Accepted
+`p7d-tether` 1.6 appended event kinds 14–16 (`Payout`, `TetherWedge`, `WorldBug`) above `unity/main`'s 13; `p7a` and `p7f` would have appended the same numbers. Extends D-072 to `StepTrace`'s event kinds.
+- **Taken:** 14–16 by `p7d-tether`. The next free kind is 17; the orchestrator assigns each new one when a task asks.
+
+## D-075 The fiber reaches a disc only by a modelled flow: the fountain and the ground vortex · Accepted
+From `p7d-tether` 1.6. Design 4's rotor air has inflow only on the intake side, so a line lying under the rear never moves toward a rim at a punch (0.24–0.29 m away, no disc crossed). The scenario's "toward the nearest disc's edge" is right about the risk but needs a physical path, never a pull toward the rim.
+- **The path is built from published measurements:** in ground effect the wall jets of neighbouring rotors meet under the body and rise as a fountain that the discs re-ingest on their inboard side; in forward flight near the ground a ground vortex rolls up ahead of the wake. Both are measured for multirotors, tandem rotors and jet lift in ground effect, and the brownout studies track particles along them.
+- **A new task, `p7d` 1.6b,** builds both into `RotorAir` after 1.6; until it lands, the punch scenario asserts what the field gives and prints the rim distance.
+
+## D-076 The rates and throttle default to the pilot's FpvPrep profiles · Accepted
+The pilot's feedback on the model-26 build: roll and yaw are "super slow", it is "ultra smooth and slow", and the throttle should be "a bit more powerful": lift off "a little bit earlier". Supersedes D-023's blend (the flown set moved 25 % toward the factory set, throttle 60 %).
+- **The rates are the pilot's own:** the rate profile they fly, read from FpvPrep's presets and the saved configs of their quads (`C:\.dev\FpvPrepConfigurator`: `presets/`, `quads/*_after.txt`; their diffs carry several rate profiles, so the flown one is found, not guessed). The roll, pitch and yaw rates, expo and feedforward use Betaflight's CLI names, as before.
+- **The defaults win over a stale save:** `fc-settings.json` written by an older default set is migrated to the new defaults; a value the pilot changed in the app is kept.
+- **The throttle curve** comes from the pilot's own `thr_mid` and `thr_expo` values, chosen so liftoff comes a little earlier than in the model-26 build. The build prints liftoff and hover stick at 0, 1 and 2 kg before and after. The physics (D-066's mass and power) does not change.
+
+## D-077 The setup loads only the test range · Accepted
+The pilot: "remove the field option, we only load the one with many houses". The setup offers no map choice; the floor map stays a test fixture only.
+
+## D-078 R restarts the flight, C toggles the camera's noise, X the OSD's sticks · Accepted
+The pilot asked for all three. R restarts the flight at once from the same setup and start point (it doesn't interrupt anything else, D-063). C toggles the analog feed's noise for the rest of the session; the OSD and the picture stay. X toggles Betaflight's stick overlay on the OSD (both sticks' positions).
+
+## D-080 The OSD shows the throttle on the right · Accepted
+The pilot sent Betaflight's throttle element as they fly it: the throttle glyph, then the value in percent. It goes on the OSD's right side, in the footage-exact font (D-057's OSD), from the sim's own throttle (the stick after the curve, as Betaflight shows it); the sample's value is never copied.
+
+## D-079 Crashes damage the props and legs; crashes and landing falls come a bit more often · Accepted
+The pilot on the model-26 build: the camera is "mega good", the flying "almost top notch", but a prop strike on a wall is "too gameish". The drone bounces off realistically, but the props don't break. "In real life the drone crashes a bit more often (more reasons for it), and it falls when landing a bit more often."
+- **Each prop has a health:** `p7f-damage`'s blade state (tip radius, chord left, pitch and flap sets) is that health, and `DamagedRotor` (1.2) already flies it. `p7f` 1.3, blade strikes on shapes, is now the priority physics task.
+- **The legs take damage too (a new change, `p7g-legs`):** a leg bends, breaks or comes off the drone when a landing is too hard or not parallel enough to the ground. Its loads, strengths and mounts are researched for the class's legs, never asked (D-024). A bent or missing leg changes the next landing.
+- **"More reasons to crash and to fall"** comes from the physics still being built, never from tuning toward a rate: `p7a`'s grooves, held legs and vegetation, `p7f`'s strikes, `p7d`'s line and wires, and the legs. `pilot-questions.md`'s G7 airmode question is answered: landings still fall a bit too rarely.

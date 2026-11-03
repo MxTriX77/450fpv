@@ -22,7 +22,7 @@ The physics SHALL read every ground surface's mechanics from one physics-owned t
 - **THEN** the replay is refused before its first step, naming both hashes
 
 ### Requirement: Elasto-plastic soil under a part
-A part on soil (a half-skid, a support or coil sphere, an arm, the stand's base) SHALL meet Winkler's foundation, a force of the soil's modulus times the volume the part displaces, with Wong's load and unload rule over the groove the part has pressed (a conforming groove, so unloading follows the footprint at the deepest sink), a firm layer past the maximum sink and viscous damping; each leg SHALL be in series with its soil at equal force, solved each step by a fixed number of Newton steps, and the law SHALL apply to the ground function and every soil shape alike (`Surface != 0`), using only + − × ÷ √.
+A part on soil (a half-skid, a support or coil sphere, an arm, the stand's base) SHALL meet Winkler's foundation, a force of the soil's modulus times the volume the part displaces, with Wong's load and unload rule over the groove the part has pressed (applied to every soil column under the part, so an unload ratio of 1 is elastic), a firm layer past the maximum sink and viscous damping; each leg SHALL be in series with its soil at equal force, solved each step by a fixed number of Newton steps, and the law SHALL apply to the ground function and every soil shape alike (`Surface != 0`), using only + − × ÷ √.
 
 #### Scenario: A resting drone sinks as the rows say
 - **WHEN** the drone (legs on, 5.18 kg) rests disarmed for 3 s on each surface of the test range, dry, with wind and asymmetry off
@@ -30,7 +30,7 @@ A part on soil (a half-skid, a support or coil sphere, an arm, the stand's base)
 
 #### Scenario: Soil keeps a plastic set
 - **WHEN** a flat 15 mm disc is loaded to 25 N on crater_spoil and unloaded, three times in the same print, and a half-skid the same way
-- **THEN** for both the sink recovered on each unload is smaller than the sink applied, the retained set grows on the first loading and grows by less than 5 % of it on the third; the disc's second and third reloadings are stiffer than its first loading by the surface's unload ratio within 1e-9 relative, and the half-skid's follow its groove's unload line k_u·S_m within 1e-9 relative
+- **THEN** for both the sink recovered on each unload is smaller than the sink applied, the retained set grows on the first loading and grows by less than 5 % of it on the third; the disc's second and third reloadings are stiffer than its first loading by the surface's unload ratio within 1e-9 relative, and the half-skid's follow Wong's rule column by column, the virgin law at z_m − ratio·(z_m − z), within 1e-9 relative
 
 #### Scenario: Loose soil swallows a fast landing
 - **WHEN** the drone lands at 1.5 m/s with the throttle cut at the touch on the shelled patch's `crater_spoil` and on the track's `dirt_track`, dry, and the same with a known-wrong elastic soil (the unload ratio 1)
@@ -53,7 +53,7 @@ Each half-skid SHALL have a stick-point friction anchor whose holding limit is t
 
 #### Scenario: A re-landing finds its prints
 - **WHEN** the drone lands, lifts off and lands again on the same spot of crater_spoil, and then lands 0.3 m aside
-- **THEN** the second landing on the spot starts from the first's set and sinks less than the first, and the landing aside sinks as the first did within 2 %
+- **THEN** the second landing on the spot starts from the first's set and sinks less than the first, and the landing aside sinks as the first did within 5 % (the throttle's cut reaches the motors at the RC link's next frame, and one 4 ms frame of the cut moves the yield 4.6 %)
 
 ### Requirement: Uneven ground
 The ground SHALL not be the ground the pilot sees from above: the test range's zones add micro-relief, directional furrows and placed pitfalls, ruts and small craters, read through `SampleGround` from the ground function the floor is drawn from, and S04's pits lie under its draped straw. A part over a pitfall SHALL find no support until the pit's floor, furrows SHALL rock the drone across them and not along, and the log SHALL name each pitfall by its feature id and depth. Penetration of more than 0.25 m into the ground function outside a hole SHALL log `WorldBug terrain_deep`, and a support that falls 2 m below the plane over a hole with no soil shape found SHALL log `WorldBug bottomless`.
@@ -86,15 +86,19 @@ A soil contact whose point lies inside another soil shape of the same object by 
 - **THEN** the wall's face acts as its own pair along its normal
 
 ### Requirement: Compliant layers by area, stroke and slender members
-A compliant material row SHALL be applied per touching part by its area law (`mat`: the 2:1 spread at the layer's depth; `punch`: the footprint's equivalent diameter; `winkler`: the footprint's area), from the row's reference part and depth. A compliant pair SHALL compress at most 80 % of the shape's thickness along its normal, past which the layer is solid and carries the part onto the soil or rigid shape found beneath it, or onto the part's own spring when there is none. A `bark` or `deadwood` capsule with a cantilever record SHALL bend as a cantilever from its root, 3EI/x³ at the chain length x to the contact, and be rigid past ten times the part's own spring.
+A layer row (a material row with an area law) SHALL be applied per touching part by its footprint and its area law (`mat`: the 2:1 spread at the layer's depth; `punch`: the footprint's equivalent diameter; `winkler`: the footprint's area), from the row's reference part and depth. A layer's pair SHALL compress at most 80 % of the shape's thickness along its normal, past which the layer is solid and carries the part onto its own object's soil or rigid shape found beneath it, or onto the part's own spring when there is none. A `bark` or `deadwood` capsule with a cantilever record SHALL bend as a cantilever from its root, 3EI/x³ at the chain length x to the contact, and be rigid past ten times the part's own spring.
 
 #### Scenario: A skid meets the straw by its area
-- **WHEN** a half-skid and a 15 mm reference foot each press S04's 0.125 m straw box, and the same with a known-wrong model without the area law
-- **THEN** the half-skid's stiffness is 3.03 times the foot's 490 N/m within 1 %, and without the law it is the foot's, so a resting drone sinks about three times deeper, and fails
+- **WHEN** the drone and a drone on 15 mm reference feet (one at each T-joint) are each pressed level into S04's 0.125 m straw to their weight, and the same with a known-wrong straw row without its area law
+- **THEN** each half-skid's layer stiffness is 3.03 times the foot's 490 N/m within 1 %, and without the law it is the foot's, so the drone presses about three times deeper (2.76 × with the leg in series), and fails
 
 #### Scenario: A hard landing on a mattress stops at its stroke
-- **WHEN** a corner lands at 6 g on a 0.15 m `fabric` box over a rigid floor, and on a 0.125 m `straw` box over S04's soil box, and the same with a known-wrong model without the stroke limit
-- **THEN** no fabric pair compresses more than 0.12 m, the straw's further sink past its 0.1 m goes into the soil by the soil's law, and without the limit the fabric pair passes 0.2 m, so it fails
+- **WHEN** the drone is pressed level past each layer's stroke load (a 1 m drop onto a mattress peaks near 10 g): to 10 g on a 0.15 m `fabric` box over a rigid floor, and to 20 g on S04's 0.125 m `straw` over its soil box, and the same with a known-wrong model without the stroke limit
+- **THEN** each corner's fabric compresses 0.12 m and no more, the leg alone taking the rest; the straw stops at its 0.1 m and the further sink goes into the soil by the soil's law; and without the limit each layer compresses past its own thickness, so it fails
+
+#### Scenario: A rest on wet straw stays level
+- **WHEN** the range golden's flight comes down on S04's straw in Rain with surfaces.json (wet straw's 294 N/m at the reference foot), and the same with a known-wrong straw row without its area law
+- **THEN** it rests within 2° of level, and without the law it rolls past 10°, so it fails
 
 #### Scenario: A limb bends from its root
 - **WHEN** a skid rests on a V01 limb at chain lengths of 0.3, 0.6 and 1.0 m from its root, with a known-wrong rigid limb
@@ -110,6 +114,10 @@ In Rain every surface SHALL take its wet set and in Severe rain its saturated se
 #### Scenario: Rain softens the ground
 - **WHEN** the drone rests on each range surface dry, in Rain and in Severe rain
 - **THEN** each wetter set sinks the skids deeper than the drier, and the log header names the rain level and the rows
+
+#### Scenario: Wet straw clings as it lifts
+- **WHEN** the drone is pressed into a level straw mat to its weight and lifted at 10 mm/s, dry, in Rain and in Severe rain
+- **THEN** in rain each corner meets the straw row's wet stiffness under its half-skid (by its area law) in series with its leg, and its pull rises to the row's wet σ_a times the half-skid's footprint within 1 %, falls to zero by its δ_a and does ½·σ_a·δ_a times the footprint of work within 1 %; dry straw holds nothing
 
 ### Requirement: Vegetation acts on the body and legs
 The elements the physics reads SHALL be the ones drawn (S04's top-layer straws, standing stems and twigs; V01's and V13's crown twigs and leaves), returned by `MicroDetailNear` with stable ids and their mechanics from the surfaces table, each element's value drawn by its own id within its row's range, never by the flight. Standing stems and crown twigs SHALL push as rooted cantilevers capped at slide-off and buckling, so the body and legs feel drag and jitter in weeds, straw and crowns (D-059); where a crown has elements its `twig` shell SHALL no longer push; a twig under a skid SHALL roll across its axis; an anchored element that lies over a part at their first touch SHALL be able to hook it, pulling back toward its base until its release force, keyed by its id across cache swaps. Every force SHALL be an element's own; nothing SHALL be added to the pose. The element cache SHALL refresh on the worker at a fixed step after its request, so a late worker changes only the logged hitches.

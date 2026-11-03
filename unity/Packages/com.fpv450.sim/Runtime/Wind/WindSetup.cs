@@ -40,14 +40,19 @@ namespace Fpv450.Sim.Wind
         /// map's belt to both once, as strips and as its porous obstacles, and WindField shares each point between them.</summary>
         public CanopyStrip[] Canopies;
 
+        /// <summary>The cuts in the ground whose wind is a cavity flow (p7c-wind 1.10, design 10, Cavity), or null for none.
+        /// A pilot's level only: Still and Steady air never read the ground.</summary>
+        public CutSpec[] Cuts;
+
         public static WindSetup Of(WindLevel level) => new WindSetup { Level = level };
 
         /// <summary>
         /// A pilot's level over a map with the map's own obstacles (MapWind.Of): the wakes of its houses, cars, fences,
-        /// poles and single trees, and its tree belt's canopy flow and porous wake. The obstacles are the world's, never
-        /// drawn; the flight's seed draws the wind's direction, strength and eddies as for any level. Still and Steady air
-        /// have no wakes: Of(level). Load time: it reads the map's placed volumes; the wake grid itself is built when the
-        /// flight's WindField is (its worker, off the flight thread after the first grid).
+        /// poles and single trees, its tree belt's canopy flow and porous wake, and the cavity flow in its cuts
+        /// (MapWind.Cuts). The obstacles and cuts are the world's, never drawn; the flight's seed draws the wind's
+        /// direction, strength and eddies as for any level. Still and Steady air have none: Of(level). Load time: it reads
+        /// the map's placed volumes and hole records; the wake grid itself is built when the flight's WindField is (its
+        /// worker, off the flight thread after the first grid).
         /// </summary>
         public static WindSetup ForMap(MapWorld map, WindLevel level)
         {
@@ -57,6 +62,7 @@ namespace Fpv450.Sim.Wind
             MapWind obstacles = MapWind.Of(map);
             setup.Wakes = obstacles.Wakes;
             setup.Canopies = obstacles.Strips;
+            setup.Cuts = MapWind.Cuts(map);
             return setup;
         }
 

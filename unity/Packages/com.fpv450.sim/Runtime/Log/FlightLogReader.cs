@@ -298,7 +298,11 @@ namespace Fpv450.Sim.Log
             if (h.Contacts != null)
                 w.WriteLine("  contacts: " + h.Contacts.Shapes.Length + " shapes, margin " + G(h.Contacts.Margin) + " m, legs " + G(h.Contacts.LegStiffness)
                     + " N/m and " + G(h.Contacts.LegDamping) + " N.s/m, a crash past " + G(h.Contacts.CrashAccel) + " m/s2 or a prop strike past "
-                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)");
+                    + G(h.Contacts.CrashPropSpeed) + " m/s; physics_materials.json 0x" + h.Contacts.MaterialsHash.ToString("X16", c) + " (" + h.Contacts.Materials.Length + " rows)"
+                    + (h.Contacts.Surfaces != null
+                        ? "; surfaces.json 0x" + h.Contacts.Surfaces.Hash.ToString("X16", c) + " (" + h.Contacts.Surfaces.Surfaces.Length + " surfaces, "
+                          + h.Contacts.Surfaces.Cover.Length + " cover kinds)"
+                        : ""));
             else
                 w.WriteLine("  contacts: none");
             if (h.Asymmetry != null)
@@ -534,6 +538,11 @@ namespace Fpv450.Sim.Log
                 foreach (CanopyStrip c in h.Wind.Canopies)
                     text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
                         + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
+            if (h.Wind.Cuts != null)
+                foreach (CutSpec c in h.Wind.Cuts)
+                    text += "; a cut's cavity flow (p7c-wind 1.10" + (c.Covered ? ", covered" : "") + "): " + G(c.Width) + " m wide at the lip, "
+                        + G(c.Depth) + " m deep, " + c.CentreLine.Length + " centre-line points from " + G(c.CentreLine[0].X) + ", "
+                        + G(c.CentreLine[0].Z) + " m, ends " + G(c.EndFirst) + " and " + G(c.EndLast) + " m";
             return text;
         }
 
