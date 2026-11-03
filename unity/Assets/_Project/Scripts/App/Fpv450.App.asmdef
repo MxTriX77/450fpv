@@ -10,6 +10,7 @@
         "Fpv450.UI.Osd",
         "Fpv450.Feed",
         "Fpv450.Feed.Core",
+        "Fpv450.Fiber",
         "Fpv450.World",
         "Unity.InputSystem",
         "Unity.RenderPipelines.Core.Runtime",
