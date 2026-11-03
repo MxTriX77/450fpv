@@ -62,6 +62,26 @@ namespace Fpv450.Sim.Tests
             return s;
         }
 
+        /// <summary>
+        /// "The baseline shake is bounded away from imperceptible", paired by seed: on[n] and off[n] are seed n's band with the
+        /// factory draws and the same seed's without them (the same rotor-wake stream). The draws' own 1/rev band on a seed is
+        /// √(on² − off²), 0 where they lower the band; own returns them sorted. Holds when the draws raise the band on at least
+        /// 99.5 % of the seeds and their own band's 0.5th percentile is above zero. The absolute band is not compared across
+        /// seeds: each rotor's own wake (D-064) varies between seeds more than the draws add.
+        /// </summary>
+        public static bool BoundedAway(double[] on, double[] off, out int raised, out double[] own)
+        {
+            own = new double[on.Length];
+            raised = 0;
+            for (int n = 0; n < on.Length; n++)
+            {
+                own[n] = Math.Sqrt(Math.Max(on[n] * on[n] - off[n] * off[n], 0));
+                if (on[n] > off[n]) raised++;
+            }
+            Array.Sort(own);
+            return raised >= 0.995 * on.Length && own[(int)(0.005 * on.Length)] > 0;
+        }
+
         /// <summary>One blade of a rotor trimmed by a length (m), or both, through the propulsion's fixture path.</summary>
         public static Action<Propulsion> Trim(int corner, double oneBlade, double otherBlade = 0) => p =>
         {

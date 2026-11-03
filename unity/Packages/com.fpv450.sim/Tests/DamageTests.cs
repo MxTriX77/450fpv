@@ -352,21 +352,31 @@ namespace Fpv450.Sim.Tests
         }
 
         // "The baseline shake is bounded away from imperceptible", the suite's look (tools/flightbench --factory flies the 20 000
-        // seeds, its band, its shares and FactoryBandHigh): on seeds 1–3 the hover with the factory draws shakes the camera's
-        // 50–200 Hz band more than the same seed's hover without them (perfect props, the known-wrong, are that floor), its own
-        // 1/rev share √(band² − band_off²) printed; the floor is each rotor's own wake (D-064) at the arms' mode near 60 Hz.
+        // seeds, its band, its shares and FactoryBandHigh), paired by seed by the bench's rule (DamageScenario.BoundedAway): on
+        // seeds 1–3 the factory draws raise the camera's 50–200 Hz band above the same seed's hover without them on at least
+        // 99.5 % of the seeds (all three), and their own 1/rev band √(band² − band_off²) is above zero at its 0.5th percentile.
+        // The known-wrong, perfect props (both draws off), raises it on none. The absolute band is not compared across seeds:
+        // its floor is each rotor's own wake (D-064) at the arms' mode near 60 Hz, which varies between seeds more than the
+        // draws add.
         [Test]
         public void TheFactoryImbalanceShakesAboveTheSameHoverWithout()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            for (ulong seed = 1; seed <= 3; seed++)
+            var on = new double[3];
+            var off = new double[3];
+            for (int n = 0; n < 3; n++)
             {
-                DamageScenario.Result on = DamageScenario.Hover(DamageScenario.Setup(spec, seed));
-                DamageScenario.Result off = DamageScenario.Hover(DamageScenario.Setup(spec, seed, false, false));
-                double line = Math.Sqrt(on.Band * on.Band - off.Band * off.Band);
-                TestContext.Out.WriteLine($"seed {seed}: band {on.Band:E3} m/s² with the factory draws, {off.Band:E3} without; their own 1/rev share {line:E3}");
-                Assert.That(on.Band, Is.GreaterThan(off.Band), "seed " + seed);
+                ulong seed = (ulong)n + 1;
+                on[n] = DamageScenario.Hover(DamageScenario.Setup(spec, seed)).Band;
+                off[n] = DamageScenario.Hover(DamageScenario.Setup(spec, seed, false, false)).Band;
+                TestContext.Out.WriteLine($"seed {seed}: band {on[n]:E3} m/s² with the factory draws, {off[n]:E3} without; "
+                    + $"their own 1/rev band {Math.Sqrt(Math.Max(on[n] * on[n] - off[n] * off[n], 0)):E3}");
             }
+            bool away = DamageScenario.BoundedAway(on, off, out int raised, out double[] own);
+            bool perfect = DamageScenario.BoundedAway(off, off, out int perfectRaised, out _);
+            TestContext.Out.WriteLine($"raised on {raised} of 3 seeds, the own band's 0.5th percentile {own[0]:E3}; perfect props raise it on {perfectRaised}");
+            Assert.That(away, Is.True, "the factory draws raise the band on at least 99.5 % of the seeds, their own band's 0.5th percentile above zero");
+            Assert.That(perfect, Is.False, "the known-wrong perfect props");
         }
 
         // "A symmetric trim speeds its rotor up" (Pose et al. 2024's symmetric and one-tip findings): the drone hovers 10 s in
