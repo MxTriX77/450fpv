@@ -3,7 +3,7 @@
   "id": "D01",
   "variant": "D01_legs_on",
   "generator": "drone",
-  "params_sha256": "b6d882e9cb58c8183c6c2ee43f3a0528f134435034f39c4833da9142621dd023",
+  "params_sha256": "d0bf38967ec41399c7cdc3f4c87e849f557b18b4f449aa7cd4daef71c7aab32a",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -14,32 +14,32 @@
     ],
     "max": [
       0.286911,
-      0.109624,
+      0.0455,
       0.225
     ]
   },
   "lods": [
     {
       "mesh": "D01_legs_on_LOD0",
-      "tris": 19026,
+      "tris": 17382,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD1",
-      "tris": 6176,
+      "tris": 5460,
       "switch_distance_m": 3.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD2",
-      "tris": 2536,
+      "tris": 2208,
       "switch_distance_m": 10.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD3",
-      "tris": 480,
+      "tris": 376,
       "switch_distance_m": 35.0,
       "thin_wire": false
     }
@@ -47,11 +47,6 @@
   "micro": [],
   "cull_distance_m": 330.0,
   "materials": [
-    {
-      "slot": "bottle",
-      "visual": "drone_bottle",
-      "physics": "plastic"
-    },
     {
       "slot": "carbon",
       "visual": "drone_carbon",
@@ -1028,60 +1023,6 @@
         0.0,
         0.0,
         1.0
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "cylinder",
-      "center": [
-        0.0,
-        0.068,
-        -0.0425
-      ],
-      "radius": 0.04,
-      "height": 0.115,
-      "rotation": [
-        0.707107,
-        0.0,
-        0.0,
-        0.707107
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "cylinder",
-      "center": [
-        0.0,
-        0.068,
-        0.045
-      ],
-      "radius": 0.02625,
-      "height": 0.06,
-      "rotation": [
-        0.707107,
-        0.0,
-        0.0,
-        0.707107
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "cylinder",
-      "center": [
-        0.0,
-        0.068,
-        0.0875
-      ],
-      "radius": 0.015,
-      "height": 0.025,
-      "rotation": [
-        0.707107,
-        0.0,
-        0.0,
-        0.707107
       ],
       "material": "plastic",
       "landable": false

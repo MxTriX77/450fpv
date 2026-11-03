@@ -33,7 +33,9 @@ KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "
 # the model's path and LFS object id, the catalog key) and the first attempt's snag flag, which asset space has no
 # field for (its snag records say where a member catches; Godot's flag says the whole object does). Optional and
 # additive: schema 1 stays, and every other asset's file is unchanged.
-OPTIONAL_KEYS = ("stand_in",)
+# A loose runtime object's mass in kg (p5-drone design 4: D02's launch stand, which physics places unanchored and may
+# tip or drag, D-022), when its generator returns one ("mass_kg"); positive. Optional and additive, as above.
+OPTIONAL_KEYS = ("stand_in", "mass_kg")
 STAND_IN_SOURCE_KEYS = ("commit", "model", "model_sha256", "catalog_key")
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
@@ -130,7 +132,7 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
-    "png"}, optionally "channels"] and a stand-in's "stand_in" record) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
+    "png"}, optionally "channels"], a stand-in's "stand_in" record and a loose object's "mass_kg") and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
     writes from its "png" bytes; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when given."""
     lods = built["lods"]
@@ -176,6 +178,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
     }
     if "stand_in" in built:
         meta["stand_in"] = built["stand_in"]
+    if "mass_kg" in built:
+        meta["mass_kg"] = float(built["mass_kg"])
     return _rounded(meta)
 
 
@@ -338,6 +342,8 @@ def validate(meta, material_ids):
             problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
     if "stand_in" in meta:
         problems += _stand_in_problems(meta["stand_in"])
+    if "mass_kg" in meta and not (_is_num(meta["mass_kg"]) and meta["mass_kg"] > 0):
+        problems.append(f"mass_kg must be a positive number, got {meta['mass_kg']!r}")
     return problems
 
 

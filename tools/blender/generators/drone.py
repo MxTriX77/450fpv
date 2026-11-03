@@ -32,10 +32,14 @@ shapes; each is drawn as follows.
   same way up from that plate: the fiber pack's diameter the part's at full spool, shrinking with `payout` to the
   core as its volume leaves; the light grey rear cap with its recessed three-spoke hub and the line's hole, the black
   front hoop, the black tray and the grey rear bracket to the plate, two cable-tie hoops; the part's length end to end.
-- **Bottle** (payload; legs_off.moved; payload_kg): a plain plastic bottle (D-050) filling the part's cylinder at the
-  mass the spec's rule gives (the Layout's cube-root scale, growing away from the arm plane): its body the part's
-  diameter, base to cap the part's length, a rounded base, a shoulder, the neck's support ring and the cap; strapped
-  rigidly to its plate by two straps through the plate; absent at 0 kg.
+- **Bottle** (payload; legs_off.moved; payload_kg): a plain plastic bottle (D-050) sized by its water. The part is
+  the water as a solid cylinder at the mass the spec's rule gives (the mass build's uniform cube-root scale of its
+  size, its face toward the arm plane kept); the bottle's body is the part's diameter, centred on the part, and base
+  to cap it is as long as it must be to hold the part's volume below its cap (bottle_length): a rounded base, a
+  shoulder, the neck's support ring and the cap; strapped rigidly to its plate by two straps through the plate;
+  absent at 0 kg. The `bottle` layout draws it alone at the spec's own mass, its origin where it meets its plate
+  (bottle_pivot), so one prefab serves every mass of the setup: the player scales it uniformly there by
+  (m / the spec's mass)^(1/3), as the mass build scales the part (D01_bottle; the legs variants draw none).
 - **Legs** (leg_*), **clamps** (clamp_*), **T-joints** (tjoint_*), **skids** (skid_*): the leg tubes and skids the
   parts' cylinders exactly (the skids hollow, open-ended, a lime band on the port skid), the clamps the parts' size
   turned along the arm and trimmed to clear the packs, the T-joints the parts' plan, flat-bottomed on the ground.
@@ -92,8 +96,9 @@ PARAMS = {
     "spec": {"type": "str", "range": "a component spec under assets-src, relative to the repo root",
              "default": "assets-src/drone/drone.json", "effect": "every dimension (DRN-03)"},
     "seed": {"type": "int", "range": (0, 2**31 - 1), "default": 1, "effect": "the cable ties' turn"},
-    "layout": {"type": "str", "range": "legs_on | legs_off", "default": "legs_on",
-               "effect": "legs_off: the spec's legs_off build (legs, T-joints and skids off, coil and payload moved)"},
+    "layout": {"type": "str", "range": "legs_on | legs_off | bottle", "default": "legs_on",
+               "effect": "legs_off: the spec's legs_off build (legs, T-joints and skids off, coil and payload moved); "
+                         "bottle: the bottle and its straps alone, its origin where it sits on its plate"},
     "arm.thickness_m": {"type": "float", "range": (0.005, 0.008), "default": 0.006, "effect": "the arm plate"},
     "arm.width_m": {"type": "float", "range": (0.020, 0.032), "default": 0.025, "effect": "the arm strip's width"},
     "arm.mount_width_m": {"type": "float", "range": (0.028, 0.040), "default": 0.032,
@@ -187,18 +192,26 @@ class Layout:
         if pay:
             if params["payload_kg"] <= 0:
                 del self.parts["payload"]
-            else:  # the mass build's rule: uniform cube-root scale, the face toward the frame kept
-                s = (params["payload_kg"] / pay["mass_kg"]) ** (1.0 / 3.0)
-                y = pay["position_m"][1]
-                pay["position_m"] = [pay["position_m"][0], y + math.copysign((s - 1) * pay["diameter_m"] / 2, y),
-                                     pay["position_m"][2]]
-                self.payload_scale = s
+            else:  # the part stays the spec's; the bottle drawn from it is scaled (scaled_payload, bottle_pivot)
+                self.payload_scale = (params["payload_kg"] / pay["mass_kg"]) ** (1.0 / 3.0)
         self.hubs = [value(m["position_m"]) for m in spec["motors"]]
         self.spins = [1.0 if m["spin"] == "cw" else -1.0 for m in spec["motors"]]
         self.prop_d = value(spec["props"]["diameter_m"])
         self.blades = int(value(spec["props"]["blades"]))
         self.pitch = value(spec["props"]["pitch_m"])
         self.legs_off = legs_off
+        self.bottle_only = params["layout"] == "bottle"
+
+    def scaled_payload(self):
+        """The payload part as the mass build sets it at this variant's payload (DroneSpec.ScaleAwayFromArmPlane):
+        its size scaled uniformly by payload_scale, its face toward the arm plane kept. The bottle is drawn from the
+        spec's part and scaled the same way about that face (bottle_pivot)."""
+        pay = dict(self.parts["payload"])
+        s, (x, y, z) = self.payload_scale, pay["position_m"]
+        pay["position_m"] = [x, y + math.copysign(1.0, y) * (s - 1) * pay["diameter_m"] / 2, z]
+        pay["diameter_m"] *= s
+        pay["length_m"] *= s
+        return pay
 
     def has(self, name):
         return name in self.parts
@@ -235,8 +248,8 @@ def check(params):
     """Cross-parameter rules: the layout, the spec present with the build asked for, the payload inside the spec's
     setting, the spool's ends inside its length, the motor mount at least the arm's width, the LODs in order."""
     problems = []
-    if params["layout"] not in ("legs_on", "legs_off"):
-        return [f"'layout' must be legs_on or legs_off, got {params['layout']!r}"]
+    if params["layout"] not in ("legs_on", "legs_off", "bottle"):
+        return [f"'layout' must be legs_on, legs_off or bottle, got {params['layout']!r}"]
     try:
         spec = load_spec(params)
     except (OSError, ValueError) as e:
@@ -258,6 +271,11 @@ def check(params):
         problems.append("the bottle's neck, its cap and its body (the spec's diameter) must grow in that order")
     if pay and b["base_r_m"] + b["shoulder_m"] + NECK_M + b["cap_h_m"] >= value(pay["length_m"]):
         problems.append("the bottle's base, shoulder, neck and cap leave no body inside its length")
+    if params["layout"] == "bottle":  # the player scales this one prefab to every mass (bottle_pivot)
+        if not pay or params["payload_kg"] != value(pay["mass_kg"]):
+            problems.append("the bottle layout draws the spec's own payload part: 'payload_kg' must be its mass_kg")
+        if "payload" in spec["legs_off"]["moved"]:
+            problems.append("the bottle layout serves both builds only while legs_off leaves the payload in place")
     if params["arm"]["mount_width_m"] < params["arm"]["width_m"]:
         problems.append("'arm.mount_width_m' is narrower than 'arm.width_m'")
     lod = params["lod"]
@@ -279,8 +297,10 @@ def build(params):
             _append(mesh, m)
         mesh.smooth = set(mesh.slots())
         lods.append(mesh)
-    spans = prop_spans(parts[0], layout)
     lod = params["lod"]
+    if layout.bottle_only:
+        return _build_bottle(params, layout, lods)
+    spans = prop_spans(parts[0], layout)
     collision = _collision(params, layout)
     lens = (0.0, params["camera"]["lens_y_m"], params["camera"]["lens_z_m"])
     report = [f"{'legs off' if layout.legs_off else 'legs on'}, payload {params['payload_kg']:g} kg "
@@ -301,6 +321,45 @@ def build(params):
     }
 
 
+def bottle_pivot(params, layout):
+    """Where the bottle meets its plate: the spec's payload part's face toward the arm plane, under its centre (on
+    the upper plate's top in drone.json). The mass build scales the part about this point (DroneSpec.
+    ScaleAwayFromArmPlane keeps that face), so the bottle layout puts its origin here and the player scales it by its
+    transform alone."""
+    part = layout.part("payload")
+    f, _ = mount_frame(params, layout, "payload")
+    return tuple(part["position_m"][a] - f.v[a] * part["diameter_m"] / 2 for a in range(3))
+
+
+def _build_bottle(params, layout, lods):
+    """The bottle layout: the bottle and its straps at the spec's own payload mass, everything moved so the origin
+    is bottle_pivot; the player sets localPosition to the pivot and localScale to the cube root of the mass ratio."""
+    pivot = bottle_pivot(params, layout)
+    for mesh in lods:
+        mesh.vertices = [tuple(v[a] - pivot[a] for a in range(3)) for v in mesh.vertices]
+    collision = [dict(s, center=[s["center"][a] - pivot[a] for a in range(3)]) for s in _bottle_shapes(params, layout)]
+    part, lod = layout.part("payload"), params["lod"]
+    length = bottle_length(params, layout)
+    held = water_volume(_profile_points(params, part["diameter_m"] / 2, length, 0, ring=False)[:-4])
+    report = [f"bottle at the spec's {part['mass_kg']:g} kg: body {part['diameter_m']:.4f} m across, "
+              f"{length:.4f} m base to cap, holding {held * 1000:.4f} l (the part's "
+              f"{math.pi * (part['diameter_m'] / 2) ** 2 * part['length_m'] * 1000:.4f} l)",
+              f"origin at its underside on its plate, the drone's ({pivot[0]:g}, {pivot[1]:g}, {pivot[2]:g}) m: "
+              f"the player sets localPosition there and localScale to (m / {part['mass_kg']:g} kg)^(1/3), "
+              "hidden at 0 kg"]
+    return {
+        "lods": lods,
+        "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
+        "cull_distance_m": lod["cull_m"],
+        "materials": [{"slot": slot, "physics": PHYSICS[slot]} for slot in sorted({s for m in lods for s in m.slots()})],
+        "collision": collision,
+        "gaps": [],
+        "wind_volumes": [],
+        "snag": [],
+        "report": report,
+    }
+
+
 def part_meshes(params, layout, q):
     """{part: Mesh} of one LOD (q = 0..3), each drawn in asset space; build merges them."""
     out = {}
@@ -310,6 +369,11 @@ def part_meshes(params, layout, q):
         fn(m, q, *args)
         if m.faces:
             out[name] = m
+
+    if layout.bottle_only:
+        add_part("bottle", _bottle, params, layout)
+        add_part("bottle_straps", _bottle_straps, params, layout)
+        return out
 
     for i, corner in enumerate(CORNERS):
         add_part(f"arm_{corner}", _arm, params, layout, corner, i)
@@ -997,13 +1061,35 @@ def _saddle(a, d, R, n):
 
 # --- bottle -------------------------------------------------------------------------------------------------------
 
-def bottle_profile(params, layout, q=0):
-    """A plain plastic bottle (D-050) filling the payload part's cylinder: its body the part's diameter, base to cap
-    the part's length, a rounded base, a shoulder to the neck, the neck's support ring and the cap; [(c, r)] along
-    its axis from the base, and the paint per segment."""
+def bottle_length(params, layout):
+    """The bottle's length base to cap, sized by its water (D-050): the payload part is the water as a solid cylinder
+    (drone.json), so the drawn bottle (LOD0's profile, revolved) holds the part's volume, π R² L, below its cap. Only
+    the straight body's length depends on it, so one correction from the part's length is exact."""
     part = layout.part("payload")
-    b = params["bottle"]
     R, L = part["diameter_m"] / 2, part["length_m"]
+    trial = _profile_points(params, R, L, 0, ring=False)
+    held = water_volume(trial[:-4])  # base to the cap's foot
+    return L + (math.pi * R * R * L - held) / (math.pi * R * R)
+
+
+def water_volume(points):
+    """The volume a profile [(c, r)] encloses revolved about its axis, c increasing: its frustums."""
+    return sum(math.pi / 3 * (c1 - c0) * (r0 * r0 + r0 * r1 + r1 * r1)
+               for (c0, r0), (c1, r1) in zip(points, points[1:]))
+
+
+def bottle_profile(params, layout, q=0):
+    """A plain plastic bottle (D-050) on the payload part's axis and centred on it: its body the part's diameter,
+    base to cap bottle_length (its water the part's), a rounded base, a shoulder to the neck, the neck's support ring
+    and the cap; [(c, r)] along its axis from the base, and the paint per segment."""
+    part = layout.part("payload")
+    pts = _profile_points(params, part["diameter_m"] / 2, bottle_length(params, layout), q, ring=q <= 1)
+    paints = [BODY] * (len(pts) - 5) + [CAP] * 4
+    return pts, paints
+
+
+def _profile_points(params, R, L, q, ring):
+    b = params["bottle"]
     rn, rc = b["neck_d_m"] / 2, b["cap_d_m"] / 2
     c0, c4 = -L / 2, L / 2
     c3 = c4 - b["cap_h_m"]  # the cap's foot
@@ -1019,22 +1105,28 @@ def bottle_profile(params, layout, q=0):
     for k in range(1, n_sh + 1):  # the shoulder: a smooth fall from R to the neck (half a cosine)
         t = k / n_sh
         pts.append((c1 + (c2 - c1) * t, rn + (R - rn) * (0.5 + 0.5 * math.cos(math.pi * t))))
-    if q <= 1:  # the neck's support ring
+    if ring:  # the neck's support ring
         pts += [(c2, rn + RING_M), (c2 + 0.002, rn + RING_M), (c2 + 0.002, rn)]
     pts += [(c3, rn), (c3, rc), (c4 - 0.001, rc), (c4, rc - 0.001), (c4, 0.0)]
-    paints = [BODY] * (len(pts) - 5) + [CAP] * 4
-    return pts, paints
+    return pts
 
 
 def _bottle(m, q, params, layout):
     f, _ = mount_frame(params, layout, "payload")
     prof, paints = bottle_profile(params, layout, q)
     lathe(m, f, prof, (32, 16, 10, 6)[q], paints)
+    _scale_about(m, bottle_pivot(params, layout), layout.payload_scale)
+
+
+def _scale_about(m, pivot, s):
+    """The payload's mass rule on a drawn mesh: uniform scale s about the bottle's pivot (Layout.scaled_payload)."""
+    if s != 1.0:
+        m.vertices = [tuple(pivot[a] + s * (v[a] - pivot[a]) for a in range(3)) for v in m.vertices]
 
 
 def bottle_strap_stations(params, layout):
     """The bottle's two straps' stations along its axis: a third and two thirds along its body."""
-    L = layout.part("payload")["length_m"]
+    L = bottle_length(params, layout)
     b = params["bottle"]
     body = L - b["cap_h_m"] - NECK_M - b["shoulder_m"]
     return [-L / 2 + body * k / 3 for k in (1, 2)]
@@ -1053,6 +1145,7 @@ def _bottle_straps(m, q, params, layout):
     for station in bottle_strap_stations(params, layout):
         sf = Frame(f.at(0, 0, station), f.u, f.v, f.w)
         ribbon(m, sf, path, STRAP_W_M, STRAP_T_M, (STRAP, STRAP, STRAP), closed=True)
+    _scale_about(m, bottle_pivot(params, layout), layout.payload_scale)
 
 
 # --- collision and snag ---------------------------------------------------------------------------------------------
@@ -1160,17 +1253,24 @@ def _collision(params, layout):
     shapes.append(_cylinder(f.at(0, 0, z2), f.at(0, 0, z3), c["hoop_d_m"] / 2, plastic))
     shapes.append(_frame_box(f, (-SADDLE_HALF_M, -d, z1), (SADDLE_HALF_M, -c["hoop_d_m"] / 2 * 0.85, z3), plastic))
     shapes.append(_frame_box(f, (-SADDLE_HALF_M, -d, z0), (SADDLE_HALF_M, -c["cap_d_m"] / 2 * 0.85, z1), plastic))
-    if layout.has("payload"):  # the bottle: its body, its shoulder, its neck and cap
-        f, _ = mount_frame(params, layout, "payload")
-        prof, _ = bottle_profile(params, layout)
-        part, b = layout.part("payload"), params["bottle"]
-        R, L = part["diameter_m"] / 2, part["length_m"]
-        c1 = L / 2 - b["cap_h_m"] - NECK_M - b["shoulder_m"]
-        c2 = c1 + b["shoulder_m"]
-        shapes.append(_cylinder(f.at(0, 0, -L / 2), f.at(0, 0, c1), R, PHYSICS["bottle"]))
-        shapes.append(_cylinder(f.at(0, 0, c1), f.at(0, 0, c2), (R + b["neck_d_m"] / 2) / 2, PHYSICS["bottle"]))
-        shapes.append(_cylinder(f.at(0, 0, c2), f.at(0, 0, L / 2), b["cap_d_m"] / 2, PHYSICS["bottle"]))
+    if layout.has("payload"):
+        shapes += _bottle_shapes(params, layout)
     return shapes
+
+
+def _bottle_shapes(params, layout):
+    """The bottle: its body, its shoulder, its neck and cap, scaled with it."""
+    f, _ = mount_frame(params, layout, "payload")
+    part, b = layout.part("payload"), params["bottle"]
+    R, L = part["diameter_m"] / 2, bottle_length(params, layout)
+    c1 = L / 2 - b["cap_h_m"] - NECK_M - b["shoulder_m"]
+    c2 = c1 + b["shoulder_m"]
+    pivot, s = bottle_pivot(params, layout), layout.payload_scale
+    return [dict(c, center=[pivot[a] + s * (c["center"][a] - pivot[a]) for a in range(3)], radius=c["radius"] * s,
+                 height=c["height"] * s)
+            for c in (_cylinder(f.at(0, 0, -L / 2), f.at(0, 0, c1), R, PHYSICS["bottle"]),
+                      _cylinder(f.at(0, 0, c1), f.at(0, 0, c2), (R + b["neck_d_m"] / 2) / 2, PHYSICS["bottle"]),
+                      _cylinder(f.at(0, 0, c2), f.at(0, 0, L / 2), b["cap_d_m"] / 2, PHYSICS["bottle"]))]
 
 
 def _snag(params, layout):

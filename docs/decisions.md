@@ -565,3 +565,32 @@ The pilot, 2026-11-02: "in real life motors may be different just by 0.0004%, ra
   - each motor's and ESC's own dynamics (time constant, friction, low-throttle and idle behaviour), drawn per motor per flight
   - the legs' stick-slip at liftoff (`p7a-ground`)
 - **Graded like the wind:** each target is met against the footage and fails a known-wrong model (a perfectly steady rotor), and nothing is tuned to pass.
+
+## D-065 The feed's noise is the camera's, not a radio link's · Accepted
+The pilot, 2026-11-02: "the noise is ok, although those black sticks among other noise effect type - that's unnecessary. remember it's not radio, it's optic fiber, so most of noise comes from the analog camera's encoding, not from link quality".
+- **Removed:** the link-type artefacts. That means the black streaks or "sticks", and the free-running dropouts to the blue screen (they were D-026's port of a radio link's behaviour).
+- **Kept:** the analog camera's own encoding noise (luma and chroma noise, the PAL encoding's artefacts), which the pilot finds right.
+- **A picture loss now comes only from the fiber** (a break or a margin dip, `p7d-tether`). This supersedes my answer 1 in `p7d-tether`'s design.
+
+## D-066 The drone's power, mass and rates follow published builds and the pilot's profiles · Accepted
+The pilot, 2026-11-02: the rates feel "overly smooth"; cargo drones' "motors are pretty powerful because drones like this are designed to lift some unusually high weight"; "such drones lift off at 30-45 [% throttle] (based on the exact model)", not at 80 %; a loaded drone is about 3.5–4 kg in total. The setup's weight is the bottle only.
+- **The mass build** is re-derived from published specifications of comparable heavy 10-inch fiber drones (VISION names Viriy 10 Opto, BOMBUS Opto, OTU, Beshketnyk), with their takeoff mass and payload and each component's published mass. It is checked against the pilot's 3.5–4 kg loaded total.
+- **The power:** the motors' thrust comes from published test data for the class (10-inch props, 6S), and the ESC rating and current limit from the class's published ESCs. This revisits D-051's assumed 40 A. The pilot's 30–45 % liftoff throttle is the check, never a tuning target alone.
+- **The rates and throttle defaults** come from the pilot's FpvPrep profiles (D-023), without the extra throttle softening.
+
+## D-067 Landing stability is computed: toppling and the coil's tilt · Accepted
+The pilot, 2026-11-02: in real life they fall on landing "quite more often than i do in this game"; the sim "tolerates excessive angles of how i position the legs corresponding to the ground"; landing on the coil "does tilt, but it tilts super slowly, in real life it happens a bit faster". There are no figures; "calculate thoroughly".
+- **Computed, not tuned:** the physics engineer derives the toppling condition and time from rigid-body mechanics (the support polygon, the centre of mass height and the inertia, the skids catching on the ground, the leg and contact stiffness and damping, friction), then compares the sim with the analytic answer and fixes the cause.
+- **The coil (legs off):** its tilt rate is checked against an inverted-pendulum rock about its contact.
+
+## D-068 The micro-motion's published level is kept before its spectrum is measured · Accepted
+From `p7b-airframe` 1.10 (D-064). The three sources, each from published measurements, take the camera's micro-motion from about 1000× too quiet to inside the footage at 1–4 Hz, and lower hovers are livelier, as in E, C, D, F and H. Above 4 Hz it reads 1.5–2.1× over the footage, and `p7c-wind`'s T6d pitch now fails (Severe 0.071°, Windy 0.063°, ceiling 0.044°).
+- **The published level is kept.** The cause is named: the shape of a 10-inch two-blade prop's thrust spectrum below the rev (its corner is borrowed and its roll-off first order), not the level. A too-lively picture at 4–15 Hz is closer to the pilot's account than the old 1000× too-quiet one.
+- **Next:** the spectrum's shape from a published thrust history (Shetty & Selig 2011's static APC 10×5) or a thrust-stand recording, and a floor on the harness pilot's stick noise, so that the hover's yaw is not too still.
+
+## D-069 The class's ESCs limit no current; the punch-out shake is the wash's · Accepted
+From `p7b-airframe` 1.10 (D-066), on published specs: the class's ESC (SpeedyBee BLS 60A, BLHeli_S J-H-50; 60 A continuous) senses no current, nor does Bluejay, and BLHeli_32's protection is opt-in. Supersedes D-051's cause and D-053's tilt numbers.
+- **`drone.json`'s ESC limit is "none".** Full thrust is 14.17 kgf (3.55 kgf a motor at 47.8 A, inside the ESC's 60 A); the 40 A protection is kept only as a compared variant.
+- **The throttle-punch shake's cause is the rotors re-ingesting their wash.** With the rings off it shows on 84 of 240 punches against 186. Its tilt is 0.13–3.35° (was 1.3–10.7° with 40 A), and the arrest takes about half as long. The pilot's 0.3–0.7 s holds from 9 m/s (median 0.60 s); from 2.5 m/s it barely shows, which fits "doesn't happen much".
+- **The mass build stands** (published within 2–4 %): 4.09 kg ready to fly without a bottle (coil full), 3.74 kg with the coil half paid out. On the pilot's flown curve a hover takes 37 % of the stick empty, 45 % with 1 kg and 53 % with 2 kg on a full pack. The pilot's 30–45 % holds up to a 1 kg bottle; at 2 kg the class's single 6S3P pack (about 1 kg lighter) would be needed.
+- **G7's ESC-firmware question** now decides only whether the protection variant is flown.

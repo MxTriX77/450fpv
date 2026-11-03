@@ -14,7 +14,7 @@
     "rib_pitch_m": 0.0075, "rib_depth_m": 0.0006
   },
   "payout": 0.0,
-  "payload_kg": 1.0,
+  "payload_kg": 0.0,
   "bottle": {"neck_d_m": 0.025, "cap_d_m": 0.030, "cap_h_m": 0.015, "shoulder_m": 0.06, "base_r_m": 0.012},
   "pack": {"corner_r_m": 0.008},
   "straps": 2,
