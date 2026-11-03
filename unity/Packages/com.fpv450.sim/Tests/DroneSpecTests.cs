@@ -144,6 +144,7 @@ namespace Fpv450.Sim.Tests
         [TestCase("'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl']", "'removed': ['leg_rr', 'leg_fr', 'leg_rl', 'leg_fl', 'cargo']", "legs_off.removed[4]: the coil and the payload are the loadout's", TestName = "A legs-off build that removes the payload is refused")]
         [TestCase("'moved': {'spool'", "'moved': {'leg_rr'", "legs_off.moved.leg_rr: is removed as well", TestName = "A legs-off build that moves a removed part is refused")]
         [TestCase("'moved': {'spool'", "'moved': {'reel'", "legs_off.moved.reel: no part is named 'reel'", TestName = "A legs-off move of no part is refused")]
+        [TestCase("'esc_current_limit_a': {'value': 40", "'esc_current_limit_a': {'value': 'off'", "esc_current_limit_a.value: must be above 0, or \"none\"", TestName = "A current limit of words other than none is refused")]
         public void TheValidatorRefuses(string find, string replace, string expected)
         {
             find = find.Replace('\'', '"');
@@ -151,6 +152,17 @@ namespace Fpv450.Sim.Tests
             string json = ReplaceFirst(Valid, find, replace.Replace('\'', '"'));
             var e = Assert.Throws<DroneSpecException>(() => DroneSpec.Parse(json));
             Assert.That(string.Join("\n", e.Problems), Does.Contain(expected));
+        }
+
+        // D-066: an ESC that senses no current has no limit, "none", which reads as +∞ (Propulsion never limits it).
+        [Test]
+        public void AnEscWithNoCurrentLimitReadsAsNone()
+        {
+            string find = "\"esc_current_limit_a\": {\"value\": 40";
+            Assert.That(Valid.Contains(find), Is.True);
+            DroneSpec spec = DroneSpec.Parse(Valid.Replace(find, "\"esc_current_limit_a\": {\"value\": \"none\""));
+            foreach (DroneMotor m in spec.Motors) Assert.That(double.IsPositiveInfinity(m.EscCurrentLimit), Is.True);
+            Assert.That(DroneSpec.Parse(Valid).Motors[0].EscCurrentLimit, Is.EqualTo(40));
         }
 
         [Test]

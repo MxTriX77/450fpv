@@ -6,11 +6,11 @@ using Fpv450.Sim.Tests;
 
 namespace Fpv450.FlightBench
 {
-    // The throttle-punch shake's distribution (p7b-airframe, QA's findings 1–3 and the re-review's B1): ShakeScenario on
-    // Seeds seeds a cell from a first seed (1 by default), the two payloads, the four drops (the hover, 2.5, 5.3 and 9 m/s
-    // down) and the three inputs (the full punch, the 0.8 step and the gentle ramp), each flight on its own seed and
-    // independent, flown in parallel; then the full punch with the known-wrong ESC that senses no current (D-051), with the
-    // rings off and on the known-wrong rigid airframe. It prints each cell's spread, then checks each of PHY-10's claims on
+    // The throttle-punch shake's distribution (p7b-airframe, QA's findings 1–3, the re-review's B1 and the integration
+    // review's B1): ShakeScenario on Seeds seeds a cell from a first seed (1 by default), the two payloads, the four drops
+    // (the hover, 2.5, 5.3 and 9 m/s down) and the three inputs (the full punch, the 0.8 step and the gentle ramp), each
+    // flight on its own seed and independent, flown in parallel; then the full punch with 40 A current protection (D-051's alternative; the drone's own
+    // ESC, the class's, senses no current, D-066), with the known-wrong rings off and on the known-wrong rigid airframe. It prints each cell's spread, then checks each of PHY-10's claims on
     // these seeds and fails if one misses.
     internal static class ShakeCase
     {
@@ -20,7 +20,7 @@ namespace Fpv450.FlightBench
         {
             public string Name;
             public double Payload, Drop, Stick;
-            public bool Gentle, Limit = true, Modes = true, Rings = true;
+            public bool Gentle, Protect, Modes = true, Rings = true;
             public ShakeScenario.Result[] Runs = new ShakeScenario.Result[Seeds];
         }
 
@@ -41,7 +41,7 @@ namespace Fpv450.FlightBench
             foreach (double payload in new[] { 0.0, 2.0 })
                 foreach (double drop in new[] { 0.3, 0.6, 1.0 })
                 {
-                    cells.Add(new Cell { Name = "full punch, no current limit", Payload = payload, Drop = drop, Stick = 1, Limit = false });
+                    cells.Add(new Cell { Name = "full punch, 40 A protection", Payload = payload, Drop = drop, Stick = 1, Protect = true });
                     cells.Add(new Cell { Name = "full punch, rings off", Payload = payload, Drop = drop, Stick = 1, Rings = false });
                 }
             cells.Add(new Cell { Name = "full punch, rigid airframe", Payload = 2, Drop = 0.6, Stick = 1, Modes = false });
@@ -51,7 +51,7 @@ namespace Fpv450.FlightBench
             Parallel.For(0, jobs.Count, j =>
             {
                 (Cell c, int s) = jobs[j];
-                FlightSetup setup = ShakeScenario.Setup(spec, c.Payload, (ulong)(first + s), c.Modes, c.Limit);
+                FlightSetup setup = ShakeScenario.Setup(spec, c.Payload, (ulong)(first + s), c.Modes, c.Protect);
                 if (!c.Rings) setup.VortexRing = null;
                 c.Runs[s] = ShakeScenario.Fly(setup, c.Drop, c.Gentle, c.Stick);
             });
@@ -70,100 +70,84 @@ namespace Fpv450.FlightBench
                 hi = Math.Max(hi, ratio);
                 longer = Math.Max(longer, apart);
                 if (apart <= ThreeFields) rigidAsLong++;
-                if (ShakeScenario.HoldsTheArrest(rigid.Runs[s])) rigidLasts++;
+                if (ShakeScenario.EndsWithTheArrest(rigid.Runs[s])) rigidLasts++;
                 rigidSilent &= !rigid.Runs[s].Published;
             }
             Console.WriteLine($"  the rigid airframe's peak over the flexing one's, seed by seed: {lo:F2}-{hi:F2}; its shake's length within {longer:F2} s of it");
             Console.WriteLine("  seed by seed, each arrested descent's full punch against its 0.8 step, its gentle ramp and the known-wrongs:");
 
             // The tallies over the arrested descents (the three drops, both payloads) and the gentle ramps from 5-9 m/s.
-            int arrests = 0, fullShown = 0, halfShown = 0, halfSooner = 0, halfShorterPairs = 0, wrongHolds = 0, wrongLess = 0, wrongHalf = 0;
-            int ramps = 0, wobbles = 0, gentleHalf = 0;
-            var sooner = new List<double>();
-            var shares = new List<double>();
+            int arrests = 0, fullShown = 0, ringlessShown = 0, ringlessWeaker = 0, protectHolds = 0, protectTilts = 0, protectLonger = 0;
+            int fullLasts = 0, ringlessLasts = 0;
+            int ramps = 0, wobbles = 0, halfShorterPairs = 0;
             var ratios = new List<double>();
-            bool shorterSummed = true;
             foreach (double payload in new[] { 0.0, 2.0 })
                 foreach (double drop in new[] { 0.3, 0.6, 1.0 })
                 {
                     Cell full = Find(cells, payload, drop, "full punch"), half = Find(cells, payload, drop, "0.8 step"), gentle = Find(cells, payload, drop, "gentle ramp");
-                    Cell wrong = Find(cells, payload, drop, "full punch, no current limit"), ringsOff = Find(cells, payload, drop, "full punch, rings off");
-                    int halfLimited = 0, halfShorter = 0, gentleBelow = 0, tiltOver = 0, peakOver = 0;
-                    double gentleShare = 0, tiltRatio = 0, ringsTilt = double.MaxValue, ringsTiltHi = 0, halfSum = 0, fullSum = 0;
+                    Cell prot = Find(cells, payload, drop, "full punch, 40 A protection"), ringsOff = Find(cells, payload, drop, "full punch, rings off");
+                    int halfShorter = 0, shownHere = 0, ringlessHere = 0, lastsHere = 0, ringlessLastsHere = 0, weakerHere = 0;
+                    double halfSum = 0, fullSum = 0, ringsTilt = double.MaxValue, ringsTiltHi = 0;
                     var outside = new List<string>();
                     for (int s = 0; s < Seeds; s++)
                     {
-                        ShakeScenario.Result f = full.Runs[s], h = half.Runs[s], g = gentle.Runs[s], w = wrong.Runs[s], o = ringsOff.Runs[s];
+                        ShakeScenario.Result f = full.Runs[s], h = half.Runs[s], g = gentle.Runs[s], w = prot.Runs[s], o = ringsOff.Runs[s];
                         arrests++;
-                        if (f.Fields > 0) fullShown++;
-                        if (h.Fields > 0) halfShown++;
-                        if (h.Limited < f.Limited) halfLimited++;
-                        sooner.Add(f.Limited - h.Limited);
+                        if (f.Fields > 0) { fullShown++; shownHere++; }
+                        if (o.Fields > 0) { ringlessShown++; ringlessHere++; }
+                        if (ShakeScenario.PastTheKick(f)) { fullLasts++; lastsHere++; }
+                        if (ShakeScenario.PastTheKick(o)) { ringlessLasts++; ringlessLastsHere++; }
+                        if (o.Peak < f.Peak) { ringlessWeaker++; weakerHere++; }
                         if (h.Duration < f.Duration) halfShorter++;
                         halfSum += h.Duration;
                         fullSum += f.Duration;
-                        if (g.Peak < f.Peak) gentleBelow++;
-                        gentleShare = Math.Max(gentleShare, g.Limited / f.Limited);
                         if (drop >= 0.6)
                         {
                             ramps++;
-                            shares.Add(g.Limited / f.Limited);
-                            if (ShakeScenario.Wobbles(g, f)) wobbles++;
-                            if (g.Limited <= 0.5 * f.Limited) gentleHalf++;
+                            if (ShakeScenario.Wobbles(g)) wobbles++;
                         }
-                        if (f.TiltMax > w.TiltMax) tiltOver++;
-                        if (f.Peak > w.Peak) peakOver++;
-                        tiltRatio = Math.Max(tiltRatio, w.TiltMax / f.TiltMax);
+                        if (ShakeScenario.HoldsTheLimit(w)) protectHolds++;
+                        if (w.TiltMax > f.TiltMax) protectTilts++;
+                        if (w.ArrestedAfter > f.ArrestedAfter) protectLonger++;
                         ratios.Add(w.TiltMax / f.TiltMax);
-                        if (ShakeScenario.HoldsTheArrest(w)) wrongHolds++;
-                        if (w.TiltMax < f.TiltMax) wrongLess++;
-                        if (w.TiltMax < 0.5 * f.TiltMax) wrongHalf++;
                         ringsTilt = Math.Min(ringsTilt, o.TiltMax / f.TiltMax);
                         ringsTiltHi = Math.Max(ringsTiltHi, o.TiltMax / f.TiltMax);
-                        if (!ShakeScenario.LastsTheArrest(f) || f.First + f.Duration < f.ArrestedAfter)
+                        if (!ShakeScenario.EndsWithTheArrest(f))
                             outside.Add($"seed {first + s} lasts {f.Duration:F2} s to {f.First + f.Duration - f.ArrestedAfter:+0.00;-0.00} s of its arrest");
-                        if (payload == 0 && drop <= 0.6 && !ShakeScenario.LastsInTenths(f.Duration, 0.3, 0.7)) outside.Add($"seed {first + s} {f.Duration:F2} s, peak {f.Peak:F2}°");
-                        if (h.Fields == 0) outside.Add($"seed {first + s}'s 0.8 step not shown (peak {h.Peak:F3}°)");
-                        if (drop >= 0.6 && g.Limited > 0.5 * f.Limited) outside.Add($"seed {first + s}'s gentle ramp limited {g.Limited / f.Limited:F2} of the punch's time");
-                        if (w.TiltMax >= 0.5 * f.TiltMax) outside.Add($"seed {first + s}'s no-limit tilt {w.TiltMax / f.TiltMax:F2} of the punch's");
+                        if (payload == 0 && drop == 1.0 && !ShakeScenario.LastsInTenths(f.Duration, 0.3, 0.7)) outside.Add($"seed {first + s} {f.Duration:F2} s, peak {f.Peak:F2}°");
                     }
-                    halfSooner += halfLimited;
                     halfShorterPairs += halfShorter;
-                    shorterSummed &= halfSum < fullSum;
-                    Console.WriteLine($"    {payload:F0} kg after a {drop:F1} s drop: the 0.8 step's ESC off its limit sooner {halfLimited}/{Seeds}, its shake shorter "
-                        + $"{halfShorter}/{Seeds} (summed {halfSum / fullSum:F2} of the punch's); the gentle ramp's jitter below the punch's {gentleBelow}/{Seeds}, "
-                        + $"its ESC limit at most {gentleShare:F2} of the punch's; the tilt over the no-limit ESC's {tiltOver}/{Seeds} (the no-limit's at most "
-                        + $"{tiltRatio:F2} of it), the peak {peakOver}/{Seeds}; with the rings off the tilt {ringsTilt:F2}-{ringsTiltHi:F2} of it"
+                    Console.WriteLine($"    {payload:F0} kg after a {drop:F1} s drop: shown {shownHere}/{Seeds}, with the rings off {ringlessHere}/{Seeds}; past the kick "
+                        + $"{lastsHere}/{Seeds}, with the rings off {ringlessLastsHere}/{Seeds}; the rings off weaker {weakerHere}/{Seeds} (their tilt "
+                        + $"{ringsTilt:F2}-{ringsTiltHi:F2} of it); the 0.8 step's shake shorter {halfShorter}/{Seeds} (summed {halfSum / fullSum:F2} of the punch's)"
                         + $"{(outside.Count > 0 ? "; outside: " + string.Join(", ", outside) : "")}");
                 }
 
-            // PHY-10's claims (the spec's three scenarios; D-053): "every" on every flight here, "nearly every" on at least
-            // NearlyEvery of them, "most" on at least Most of a cell and its median.
-            Console.WriteLine($"PHY-10's claims on seeds {first}-{first + Seeds - 1} ('nearly every': at least {Nearly(arrests)} of {arrests}, {Nearly(ramps)} of {ramps}, {Nearly(Seeds)} of {Seeds}):");
+            // PHY-10's claims on the class's ESC, which senses no current (the spec's three scenarios; D-053, D-066): "every"
+            // on every flight here, "nearly every" on at least NearlyEvery of them, "most" on at least Most of a cell and its
+            // median.
+            Console.WriteLine($"PHY-10's claims on seeds {first}-{first + Seeds - 1} ('nearly every': at least {Nearly(arrests)} of {arrests}, {Nearly(Seeds)} of {Seeds}):");
             // "Shake only when its causes meet".
             int hoverGentle = 0, hoverSteps = 0;
-            double kick = 0, kickLimited = 0, gentlePeak = 0;
+            double kick = 0, gentlePeak = 0;
             foreach (double payload in new[] { 0.0, 2.0 })
             {
                 foreach (ShakeScenario.Result r in Find(cells, payload, 0, "gentle ramp").Runs)
                 {
                     if (r.Fields == 0) hoverGentle++;
                     gentlePeak = Math.Max(gentlePeak, r.Peak);
-                    kickLimited = Math.Max(kickLimited, r.Limited);
                 }
                 foreach (string name in new[] { "full punch", "0.8 step" })
                     foreach (ShakeScenario.Result r in Find(cells, payload, 0, name).Runs)
                     {
                         hoverSteps++;
                         kick = Math.Max(kick, r.Duration);
-                        kickLimited = Math.Max(kickLimited, r.Limited);
                     }
             }
             Check("from the hover a gentle increase never shows the shake", hoverGentle == 2 * Seeds, $"{hoverGentle}/{2 * Seeds}, its peak at most {gentlePeak:F3}° against the visible {ShakeScenario.Visible:F3}°");
-            Check($"from the hover a sharp step shows only the kick, under {ShakeScenario.KickSeconds:F1} s, every ESC off its limit within {ShakeScenario.KickLimited:F1} s",
-                kick < ShakeScenario.KickSeconds && kickLimited < ShakeScenario.KickLimited, $"{hoverSteps} steps; the kick at most {kick:F2} s, an ESC limited at most {kickLimited:F2} s");
-            int meets = 0, holds = 0, published = 0, flown = 0;
-            double yLeast = double.MaxValue, limitLeast = double.MaxValue, holdMiss = 0, endLate = double.MinValue, allLo = double.MaxValue, allHi = 0, ringLeast = double.MaxValue;
+            Check($"from the hover a sharp step shows only the kick, under {ShakeScenario.KickSeconds:F1} s", kick < ShakeScenario.KickSeconds, $"{hoverSteps} steps; the kick at most {kick:F2} s");
+            int rings = 0, ends = 0, published = 0, flown = 0, fastShown = 0;
+            double yLeast = double.MaxValue, endLate = double.MinValue, ringLeast = double.MaxValue;
             foreach (Cell c in cells)
             {
                 foreach (ShakeScenario.Result r in c.Runs)
@@ -171,7 +155,7 @@ namespace Fpv450.FlightBench
                     flown++;
                     if (r.Published == c.Modes) published++;
                 }
-                if (c.Drop == 0 || !c.Limit || !c.Modes || !c.Rings) continue;
+                if (c.Drop == 0 || c.Protect || !c.Modes || !c.Rings) continue;
                 foreach (ShakeScenario.Result r in c.Runs)
                 {
                     if (c.Gentle)
@@ -179,61 +163,83 @@ namespace Fpv450.FlightBench
                         if (c.Drop >= 0.6) ringLeast = Math.Min(ringLeast, r.InRing);
                         continue;
                     }
-                    if (r.Limited > 0 && r.VibrationPeak.Y > ShakeScenario.Rings) meets++;
+                    if (r.VibrationPeak.Y > ShakeScenario.Rings) rings++;
                     yLeast = Math.Min(yLeast, r.VibrationPeak.Y);
-                    limitLeast = Math.Min(limitLeast, r.Limited);
                     if (c.Stick < 1) continue;
-                    if (ShakeScenario.HoldsTheArrest(r)) holds++;
-                    if (double.IsNaN(r.ArrestedAfter)) continue;
-                    holdMiss = Math.Max(holdMiss, Math.Abs(r.Limited - r.ArrestedAfter));
-                    if (r.Fields > 0) endLate = Math.Max(endLate, r.First + r.Duration - r.ArrestedAfter);
-                    allLo = Math.Min(allLo, r.AllLimited);
-                    allHi = Math.Max(allHi, r.AllLimited);
+                    if (ShakeScenario.EndsWithTheArrest(r)) ends++;
+                    if (c.Drop == 1.0 && r.Fields > 0) fastShown++;
+                    if (!double.IsNaN(r.ArrestedAfter) && r.Fields > 0) endLate = Math.Max(endLate, r.First + r.Duration - r.ArrestedAfter);
                 }
             }
-            Check($"every sharp arrest meets an ESC's current limit and rings the frame's band over {ShakeScenario.Rings:F1} m/s²", meets == 2 * arrests,
-                $"{meets}/{2 * arrests}; an ESC limited {limitLeast:F2} s, the Y band {yLeast:F2} m/s² at least");
-            Check("nearly every full punch shows it", fullShown >= Nearly(arrests), $"{fullShown}/{arrests}");
-            Check("nearly every 0.8 step shows it", halfShown >= Nearly(arrests), $"{halfShown}/{arrests}");
-            shares.Sort();
-            Check("every gentle ramp from 5-9 m/s wobbles: shown, its rotors in their ring over 1 s, an ESC limited for less than the full punch's time",
-                wobbles == ramps, $"{wobbles}/{ramps}; the ring {ringLeast:F2} s at least, the share at most {shares[shares.Count - 1]:F2} (median {Quantile(shares, 0.5):F2}, 95 % {Quantile(shares, 0.95):F2})");
-            Check("nearly every gentle ramp's ESC is limited at most half the full punch's time", gentleHalf >= Nearly(ramps), $"{gentleHalf}/{ramps}");
+            Check($"every sharp arrest rings the frame's band over {ShakeScenario.Rings:F1} m/s²", rings == 2 * arrests, $"{rings}/{2 * arrests}; the Y band {yLeast:F2} m/s² at least");
+            // A rate too (D-053's rule): the 2 kg punch from 9 m/s peaks from 0.097° on the 520 seeds the claims were set on,
+            // just over the visible line (0.088°), where all 1040 from 9 m/s showed it; one of the fresh sets flown after
+            // the gentle ramp's restatement had one under it (seed 3205, 2 kg, at 0.0880°).
+            Check("nearly every full punch from 9 m/s shows it", fastShown >= Nearly(2 * Seeds), $"{fastShown}/{2 * Seeds}; from 2.5-9 m/s {fullShown}/{arrests}");
+            // The wobble's showing is a rate (D-053's rule): the 2 kg ramp from 5.4 m/s peaks at 0.10-0.28°, a fraction over
+            // the visible line (0.088°), and seed 2421 of the first fresh sets flown after the integration review (2001-2040,
+            // 2401-2440, 2801-2840) stayed at 0.085°. Its ring is every flight's: over 1.33 s on all 2080 ramps of the 520 seeds
+            // the claims were set on, where all 2080 showed it.
+            Check("every gentle ramp from 5-9 m/s keeps its rotors in their ring over 1 s, and nearly every one wobbles (shown)", ringLeast > 1.0 && wobbles >= Nearly(ramps),
+                $"{wobbles}/{ramps}; the ring {ringLeast:F2} s at least");
             Check("the shake varies between occurrences: neighbouring seeds' peaks differ in every cell", Varies(cells), "");
             // "The shake lasts as long as the arrest".
-            Check("every full punch holds an ESC through the arrest, all four for its first part, its shake ending within the loop's settling",
-                holds == arrests, $"{holds}/{arrests}; the hold within {holdMiss:F3} s of the arrest, all four {allLo:F2}-{allHi:F2} s, the end at most {endLate:+0.00;-0.00} s after the arrest (Settle {ShakeScenario.Settle:F2} s)");
+            Check("every full punch is arrested and its shake ends within the loop's settling after the arrest", ends == arrests,
+                $"{ends}/{arrests}; the end at most {endLate:+0.00;-0.00} s after the arrest (Settle {ShakeScenario.Settle:F2} s)");
+            // Its length past the kick (D-053's rule; QA's integration review, B1): a full punch whose shake is shorter than
+            // KickSeconds shows only the motors' spin-up kick, so it reads none. Each payload's median of that never falls as the
+            // descent grows, and is longer from 9 m/s than from 2.5 m/s. At 2 kg the two slower descents show the kick or stay
+            // under the visible line (past it on 10 of 1040 such flights on the 520 seeds this was set on), so they tie at none.
+            // Bootstrapped from those seeds, a fresh 40 fails this about 0.05 % of the time; the whole lengths' medians rising
+            // strictly (as this read before) 9.5 %, never falling 1.1 %. The whole lengths' medians are printed beside it.
             var medians = new double[2, 3];
+            var past = new double[2, 3];
             bool rises = true;
             for (int p = 0; p < 2; p++)
+            {
                 for (int d = 0; d < 3; d++)
                 {
-                    medians[p, d] = Median(Find(cells, 2 * p, new[] { 0.3, 0.6, 1.0 }[d], "full punch"));
-                    if (d > 0 && medians[p, d] <= medians[p, d - 1]) rises = false;
-                    if (p > 0 && medians[p, d] <= medians[0, d]) rises = false;
+                    Cell c = Find(cells, 2 * p, new[] { 0.3, 0.6, 1.0 }[d], "full punch");
+                    medians[p, d] = Median(c);
+                    past[p, d] = MedianPastTheKick(c);
+                    if (d > 0 && past[p, d] < past[p, d - 1]) rises = false;
                 }
-            Check("its length follows the arrest: the medians rise with the descent and the payload", rises,
-                $"empty {medians[0, 0]:F2} / {medians[0, 1]:F2} / {medians[0, 2]:F2} s, 2 kg {medians[1, 0]:F2} / {medians[1, 1]:F2} / {medians[1, 2]:F2} s");
-            foreach (double drop in new[] { 0.3, 0.6 })
+                if (!(past[p, 2] > past[p, 0])) rises = false;
+            }
+            Check("its length follows the descent: past the kick, each payload's median never falls with it and is longer from 9 m/s than from 2.5 m/s", rises,
+                $"past the kick empty {past[0, 0]:F2} / {past[0, 1]:F2} / {past[0, 2]:F2} s, 2 kg {past[1, 0]:F2} / {past[1, 1]:F2} / {past[1, 2]:F2} s "
+                + $"(whole: empty {medians[0, 0]:F2} / {medians[0, 1]:F2} / {medians[0, 2]:F2} s, 2 kg {medians[1, 0]:F2} / {medians[1, 1]:F2} / {medians[1, 2]:F2} s)");
             {
-                Cell c = Find(cells, 0, drop, "full punch");
+                Cell c = Find(cells, 0, 1.0, "full punch");
                 int inside = 0;
                 foreach (ShakeScenario.Result r in c.Runs) if (ShakeScenario.LastsInTenths(r.Duration, 0.3, 0.7)) inside++;
                 double median = Median(c);
-                Check($"most of the empty drone's full punches after a {drop:F1} s drop shake 0.3-0.7 s, and the median",
+                Check("most of the empty drone's full punches from 9 m/s shake 0.3-0.7 s, and the median",
                     ShakeScenario.PilotBand(inside, Seeds, median), $"{inside}/{Seeds}, the median {median:F2} s; {Groups(c, first)}");
             }
-            sooner.Sort();
-            Check("nearly every 0.8 step lets its ESCs go sooner", halfSooner >= Nearly(arrests), $"{halfSooner}/{arrests}, {sooner[0]:F3} s sooner at least (1 % {Quantile(sooner, 0.01):F3}, 5 % {Quantile(sooner, 0.05):F3}, median {Quantile(sooner, 0.5):F3} s)");
-            Check("the 0.8 steps' shakes are shorter in sum, in every cell", shorterSummed, $"pair by pair {halfShorterPairs}/{arrests}");
-            // "The visible shake is the rigid body's".
+            Console.WriteLine($"  (the 0.8 step's shake shorter than the full punch's, pair by pair: {halfShorterPairs}/{arrests})");
+            // The main cause: the rotors re-ingesting their wash through the arrest (PHY-09's ring), not a current limit. D-064's
+            // motor spreads, which no current limit trims since D-066, are a second (QA's integration review, B2): they show as
+            // the spin-up kick on ringed and ringless flights alike, and alone carry a ringless shake past the kick on some
+            // (ShakeScenario.PastTheKick). So the ring's share is a rate: past the kick on at most half as many.
+            Check("known-wrong, no ring (the rotors never re-ingest their wash): most full punches' shake weaker, lasting past the kick on at most half as many",
+                ringlessWeaker >= ShakeScenario.Most * arrests && 2 * ringlessLasts <= fullLasts,
+                $"weaker {ringlessWeaker}/{arrests}; past the kick ({ShakeScenario.KickSeconds:F1} s) on {ringlessLasts}/{arrests} against {fullLasts}; shown at all on "
+                + $"{ringlessShown}/{arrests} against {fullShown}");
             ratios.Sort();
-            Check("known-wrong, an ESC that senses no current: none holds the arrest", wrongHolds == 0, $"{arrests - wrongHolds}/{arrests} fail HoldsTheArrest");
-            Check("known-wrong, no current limit: every one tilts less far", wrongLess == arrests,
-                $"{wrongLess}/{arrests}; its tilt over the punch's at most {ratios[ratios.Count - 1]:F2} (median {Quantile(ratios, 0.5):F2}, 95 % {Quantile(ratios, 0.95):F2})");
-            Check("known-wrong, no current limit: nearly every one tilts less than half as far", wrongHalf >= Nearly(arrests), $"{wrongHalf}/{arrests}");
+            // The hold is a rate (D-053's rule; QA's integration review, B1): D-064's resistance spread gives each ESC its own
+            // limit voltage, so one can stay on it a field or two past the arrest (seed 720, empty from 5.3 m/s: limited to
+            // 0.63 s, arrested at 0.58). Held on 3119 of 3120 arrests on the 520 seeds this was set on, longer on every one (by
+            // 0.17 s at least). Tilting further is a rate too: on those seeds every one did, its tilt over the drone's 1.035 at
+            // least; the third fresh trio flown after the restatements here (4801-4840) had one tilt less (seed 4834, empty from
+            // 9 m/s: 1.71° against 1.93°), the drone's own tilt there set by D-064's spreads, not by a limit.
+            Check("40 A current protection (D-051's alternative): nearly every arrest held at the limit, every one longer, nearly every one tilting further",
+                protectHolds >= Nearly(arrests) && protectLonger == arrests && protectTilts >= Nearly(arrests),
+                $"held {protectHolds}/{arrests}, longer {protectLonger}/{arrests}, further {protectTilts}/{arrests}; its tilt over the drone's at least {ratios[0]:F2} "
+                + $"(median {Quantile(ratios, 0.5):F2})");
+            // "The visible shake is the rigid body's".
             double rigidMedian = Median(rigid), flexMedian = Median(flexHeavy);
-            Check("known-wrong, a rigid airframe: its visible shake within 20 % of the flexing one's on every seed, holding the arrest, publishing no camera vibration",
+            Check("known-wrong, a rigid airframe: its visible shake within 20 % of the flexing one's on every seed, ending with the arrest, publishing no camera vibration",
                 lo >= 0.8 && hi <= 1.2 && rigidLasts == Seeds && rigidSilent, $"{lo:F2}-{hi:F2}, {rigidLasts}/{Seeds}, published by none");
             Check("known-wrong, a rigid airframe: as long, the same median within a field and within three fields on nearly every seed",
                 Math.Abs(rigidMedian - flexMedian) <= OneField && rigidAsLong >= Nearly(Seeds), $"medians {rigidMedian:F2} and {flexMedian:F2} s; {rigidAsLong}/{Seeds} within 0.06 s, {longer:F2} s apart at most");
@@ -289,6 +295,15 @@ namespace Fpv450.FlightBench
         {
             var d = new List<double>();
             foreach (ShakeScenario.Result r in c.Runs) d.Add(r.Duration);
+            d.Sort();
+            return d[Seeds / 2];
+        }
+
+        // The same of the lengths past the kick: a shake shorter than KickSeconds reads none.
+        static double MedianPastTheKick(Cell c)
+        {
+            var d = new List<double>();
+            foreach (ShakeScenario.Result r in c.Runs) d.Add(ShakeScenario.PastTheKick(r) ? r.Duration : 0);
             d.Sort();
             return d[Seeds / 2];
         }

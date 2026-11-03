@@ -63,6 +63,9 @@ namespace Fpv450.Sim.Tests
                 Seed = seed, World = FlightWorld.Floor(), Mass = mass, Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Wind = WindSetup.Of(WindLevel.Still), Asymmetry = spec.BuildAsymmetry(), StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
             };
+            // The ring's wobble is set against the same flight without it: the motors' own spool-down spread (D-064) wobbles
+            // both and is graded by GroundMicroMotionProbe, so this flight keeps design 1's tolerances only.
+            setup.Asymmetry.ResistanceSigma = setup.Asymmetry.FrictionSigma = setup.Asymmetry.InertiaSigma = 0;
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (knownWrong)
             {

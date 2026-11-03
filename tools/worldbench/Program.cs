@@ -17,7 +17,7 @@ namespace Fpv450.WorldBench
     //                     10-degree rebuild under a 1 kHz loop, on AC only (PLT-07)
     // --wakes-range DIR   the wake grid over the test range's placements, from a checkout of p6-test-range at DIR
     // Worlds: the floor stub (p6-world-query-gallery task 1.1, golden/floor.txt) and the test range (tasks 1.4 and 1.5,
-    // golden/test-range.txt; TestRange.cs), the map of D-047; and the wake grid (golden/wakes.txt).
+    // golden/test-range.txt; TestRange.cs), the map of D-047; and the wake grid over its synthetic layout (golden/wakes.txt).
     internal static partial class Program
     {
         private const int GoldenCount = 10000;
@@ -242,20 +242,20 @@ namespace Fpv450.WorldBench
             const string config = "Release";
 #endif
             Console.WriteLine($"worldbench --golden ({config}, .NET {Environment.Version}, {RuntimeInformation.OSDescription}, {RuntimeInformation.ProcessArchitecture})");
-            int failures = GoldenFile("floor", FloorCases(), record,
-                "# worldbench golden: the floor stub (p6-world-query-gallery 1.1). FNV-1a 64 over every result field's bits.");
-            failures += GoldenFile("test-range", TestRangeCases(), record,
-                "# worldbench golden: the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand. FNV-1a 64 over every result field's bits.");
-            failures += GoldenFile("wakes", WakeBench.Cases(), record,
-                "# worldbench golden: the wake grid over its synthetic layout (p7c-wind 1.3). FNV-1a 64 over every cell's and sample's bits; WakeGrid.Version bumps with a re-record.");
+            int failures = GoldenFile("floor", "the floor stub (p6-world-query-gallery 1.1)", FloorCases(), record)
+                + GoldenFile("test-range", "the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand", TestRangeCases(), record)
+                + GoldenFile("wakes", "the wake grid over its synthetic layout (p7c-wind 1.3)", WakeBench.Cases(), record,
+                    "every cell's and sample's bits; WakeGrid.Version bumps with a re-record");
             if (record)
                 return failures == 0 ? 0 : 1;
             Console.WriteLine(failures == 0 ? "worldbench: ALL PASS" : $"worldbench: {failures} FAILED");
             return failures == 0 ? 0 : 1;
         }
 
-        /// <summary>Checks one world's cases against golden/&lt;world&gt;.txt, or records them there; returns the failures.</summary>
-        private static int GoldenFile(string world, List<(string Name, string Value, bool Agree)> cases, bool record, string header)
+        /// <summary>Checks one world's cases against golden/&lt;world&gt;.txt, or records them there; returns the failures.
+        /// The file's header names what it holds and the bits its hashes cover.</summary>
+        private static int GoldenFile(string world, string what, List<(string Name, string Value, bool Agree)> cases, bool record,
+            string bits = "every result field's bits")
         {
             string path = GoldenPath(world);
             int failures = 0;
@@ -274,7 +274,7 @@ namespace Fpv450.WorldBench
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 var lines = new List<string>
                 {
-                    header,
+                    $"# worldbench golden: {what}. FNV-1a 64 over {bits}.",
                     "# Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record",
                 };
                 foreach (var c in cases)

@@ -35,11 +35,30 @@ namespace Fpv450.Sim.Wind
         /// <summary>A gust front (p7c-wind 1.4's per-rotor scenario), or null for none (every other flight).</summary>
         public GustFront Front;
 
-        /// <summary>A wooded strip whose canopy flow the field carries (p7c-wind 1.5, WindField's canopy layer), or null
-        /// for none. Not with Wakes: the wake grid would read the same trees as a thin obstacle.</summary>
-        public CanopyStrip Canopy;
+        /// <summary>The wooded strips whose canopy flow the field carries (p7c-wind 1.5, WindField's canopy layer), or null
+        /// for none; they never overlap. With Wakes, the wake grid must not hold the strips' own trees: MapWind gives a
+        /// map's belt to both once, as strips and as its porous obstacles, and WindField shares each point between them.</summary>
+        public CanopyStrip[] Canopies;
 
         public static WindSetup Of(WindLevel level) => new WindSetup { Level = level };
+
+        /// <summary>
+        /// A pilot's level over a map with the map's own obstacles (MapWind.Of): the wakes of its houses, cars, fences,
+        /// poles and single trees, and its tree belt's canopy flow and porous wake. The obstacles are the world's, never
+        /// drawn; the flight's seed draws the wind's direction, strength and eddies as for any level. Still and Steady air
+        /// have no wakes: Of(level). Load time: it reads the map's placed volumes; the wake grid itself is built when the
+        /// flight's WindField is (its worker, off the flight thread after the first grid).
+        /// </summary>
+        public static WindSetup ForMap(MapWorld map, WindLevel level)
+        {
+            if (map == null) throw new ArgumentNullException(nameof(map));
+            WindSetup setup = Of(level);
+            if (level == WindLevel.Still || level == WindLevel.Steady) return setup;
+            MapWind obstacles = MapWind.Of(map);
+            setup.Wakes = obstacles.Wakes;
+            setup.Canopies = obstacles.Strips;
+            return setup;
+        }
 
         public static WindSetup SteadyFrom(double fromDeg, double speed) =>
             new WindSetup { Level = WindLevel.Steady, SteadySpeed = speed, SteadyFromDeg = fromDeg };
@@ -74,8 +93,8 @@ namespace Fpv450.Sim.Wind
     /// AxisDeg (degrees from north toward east), Length along that axis and Width across it, m; its canopy's height h,
     /// m (the tall trees'), and its frontal area index λ (the trees' and the scrub's frontal area per ground area, so
     /// Raupach (1994)'s canopy area index is 2λ). WindField's canopy layer derives the flow inside and above it from
-    /// these. The log header records every value. The harness's strip (WindHarness.Strip) is one, until the world's
-    /// woodlands carry theirs.
+    /// these. The log header records every value. The harness's strip (WindHarness.Strip) is one; a map's belt gives
+    /// one per section (MapWind).
     /// </summary>
     public sealed class CanopyStrip
     {

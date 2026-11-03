@@ -99,6 +99,28 @@ namespace Fpv450.Sim.Tests
             Assert.That(DetMath.Exp(-800), Is.EqualTo(0.0));
         }
 
+        // p7c-wind (the map's wind): the angle of a belt's axis and of a wind volume turned about the vertical.
+        [Test]
+        public void Atan2_AgreesWithTheRuntimesToAFewUlpOfPi()
+        {
+            double worst = 0;
+            for (int i = 0; i < 20000; i++)
+            {
+                DetMath.SinCos(i * 0.000314159 * 1.0007 - 3.14, out double s, out double c);
+                double r = 0.3 + i % 13;
+                double a = DetMath.Atan2(s * r, c * r), reference = Math.Atan2(s * r, c * r);
+                worst = Math.Max(worst, Math.Abs(a - reference));
+            }
+            TestContext.WriteLine($"worst atan2 {worst:E2} (absolute, against System.Math)");
+            Assert.That(worst, Is.LessThanOrEqualTo(1.4e-15));
+            Assert.That(DetMath.Atan2(0, 1), Is.EqualTo(0.0));
+            Assert.That(DetMath.Atan2(1, 0), Is.EqualTo(Math.PI / 2));
+            Assert.That(DetMath.Atan2(0, -1), Is.EqualTo(Math.PI));
+            Assert.That(DetMath.Atan2(-1, -1), Is.EqualTo(-3 * Math.PI / 4).Within(4.5e-16));
+            Assert.That(DetMath.Atan2(0, 0), Is.EqualTo(0.0));
+            Assert.That(double.IsNaN(DetMath.Atan2(double.NaN, 1)), Is.True);
+        }
+
         // sin and cos of 250° (−0.9396926207859082, −0.3420201433256694), recorded on .NET 10 and Mono alike.
         const long PinnedS3 = unchecked((long)0xBFEE11F642522D1AUL), PinnedC3 = unchecked((long)0xBFD5E3A8748A0C01UL);
     }

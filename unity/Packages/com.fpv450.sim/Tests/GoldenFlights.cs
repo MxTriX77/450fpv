@@ -178,7 +178,56 @@ namespace Fpv450.Sim.Tests
         // the powered, contact, rain and tumble goldens and the still-air audit are model 17's, every record and event. At
         // 11.5 the Windy flight moves from step 1 (the strength draw, 4.83 m/s in Windy's band) and ends 148.12 m up,
         // 102 events, armed, no crash.
-        public const ulong PoweredHash = 0xFE81E38EFCBD2F4EUL;
+        // Model 18: 0xFE81E38EFCBD2F4E. D-060: re-recorded with ModelVersion 19 (the open field's z0 0.03 → 0.10 m, σ_u/U
+        // 0.135 → 0.164). Audited: with z0 0.03 m and σ_u/U 0.135 (a temporary edit, reverted) the powered, contact, rain and
+        // tumble goldens are model 18's, every record and event. With class 4's roughness the Windy flight moves from step 1
+        // (the turbulence's amplitude and the profile) and keeps its course: armed, no crash, 148.28 m up against 148.12,
+        // 2.5 m from model 18's end and within 8 mrad of its attitude. Then the turbulence carried from the 1 m cut to the
+        // discs' 0.5 m (ModelVersion 19 still; the branch had not landed): with the cut back at 1 m and 128 and 64 modes (a
+        // temporary edit, reverted) every golden is the class-4 step's (powered 0xD28B561A9782C097, contact
+        // 0xA05AEB00620769BF, rain 0xCCAE77686A84020E); to 0.5 m the Windy flight moves from step 1 and keeps its course:
+        // armed, no crash, 147.90 m up, 0.59 m from the class-4 step's end and within 8.3 mrad.
+        // Model 19: 0xA1FF085091A019CD. p7b-airframe 1.3d: re-recorded with ModelVersion 21 (the 1872-byte record, the rotors'
+        // wakes in its setup), audited case by case: without the wake, over model 19's 1808 bytes, it is model 19's pin bit
+        // for bit, record and events (a kept test, WithoutTheWakeEachGoldenIsModel19s). With it the flight moves from step 24,
+        // the first with thrust in Windy's air, and keeps its course: armed, no crash, 156.18 m up against 147.90 and 8.31 m from
+        // model 19's end on the open-loop script. The largest interference, 6.8 m/s, falls where its physics says: the first
+        // second's fall at low thrust across the crosswind (the discs' net flow near 0, the wakes swept flat across the downwind
+        // rotors, out of their rings) and the dive after 6.5 s (28 m/s nearly edgewise).
+        // Model 19 on p7b-airframe--micro: 0xA1FF085091A019CD. D-064: re-recorded with ModelVersion 23 (the 1840-byte record:
+        // model 19's 1808 bytes, then the rotors' wakes, 32) with the rotors' own wakes in its setup and the motors' resistance,
+        // friction and inertia drawn, 0x5073BC74B404B3AA. Audited: without them, over model 19's 1808 bytes, every record and
+        // event is model 19's (the kept test, WithoutD064TheGoldenFlightsAreModel19s; 193–300 m up no surface is in reach, so the
+        // re-ingested wash's new numbers never act). With them it moves from step 21, the first armed step (the wakes wander from
+        // the rotors' first turn; the motors' spreads alone move it from the same step), and keeps its course: armed, no crash,
+        // 149.00 m up against 147.90 at 10 s, 1.16 m from model 19's end and within 1.9° of its attitude (the motors' spreads
+        // alone: 0.83 m, 0.24°).
+        // Model 24 (the physics integration): re-recorded on the 1904-byte record (model 19's 1808 bytes, the interference's 64,
+        // the own wake's 32) with both in its setup. Audited against each parent with the other switched off: without the
+        // interference, over the micro branch's 1840 bytes, it is that branch's 0x5073BC74B404B3AA bit for bit, record and events
+        // (the kept test, WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs); without D-064's sources (no own wake, the
+        // motors' spreads at 0, the wash on model 19's numbers and its torque at the freestream's inflow) and with the
+        // interference's stream back at wake.rotor (temporary switches, reverted), over the first 1872 bytes, the rotor-wake
+        // branch's 0x2C064B70711ED0ED; without either, model 19's (the kept test). Against the micro branch's flight it moves
+        // from step 25, against the rotor-wake branch's from step 21, the first armed step; it keeps its course: armed, no
+        // crash, 157.26 m up against 149.00 and 156.18, 8.26 m and 1.17 m from their ends, within 7.8° and 1.8°. The largest
+        // interference 7.04 m/s (6.8 on its branch); each rotor's own wake within 0.129 v_h.
+        // Model 22 on p7b-airframe--power: 0xA1FF085091A019CD. D-066: re-recorded with ModelVersion 23 (the class's ESC, no current limit; the
+        // published 1.4 A no-load current; the packs 0.88 kg and the electronics 0.24 kg). Audited: on model 22's drone
+        // (WithModel22Drone) every golden is model 22's, every record and event (OnModel22sDroneEachGoldenIsModel22s, kept). On
+        // model 23's the Windy flight moves from step 1 (the lighter body) and keeps its course on the open-loop script, which
+        // the 90 g lighter drone climbs harder: armed, no crash, 153.53 m up against 147.90 at 10 s, 16.7 m from model 22's end,
+        // the packs at 0.8941 of 0.9 against 0.8949.
+        // Model 25: 0x67788361104F58BB. The power merge (ModelVersion 26): re-recorded with D-066's drone under the
+        // interference, D-064 and 1.6c's spring (the exact build, no placement). Audited against each parent with the other
+        // side off: on model 22's drone (WithModel22Drone) it is model 25's pin bit for bit, every record and event (the kept
+        // test, OnModel22sDroneEachGoldenIsModel25s); without the interference and D-064's sources, over model 19's 1808
+        // bytes, the power branch's 0xCC20DE164C858267 (the kept test, WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs).
+        // It moves from step 1 against model 25 (the lighter body) and from step 21, the first armed step, against the power
+        // branch's, and keeps its course: armed, no crash, 162.72 m up against 157.26 and 153.53 at 10 s on the open-loop
+        // script (the lighter drone climbs harder, as on its branch), 20.1 m and 9.9 m from their ends, within 21° and 7.8°;
+        // the packs at 0.8941 of 0.9 (the power branch's 0.8941).
+        public const ulong PoweredHash = 0x53F1D10489702031UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -186,12 +235,51 @@ namespace Fpv450.Sim.Tests
         // powered flight: with main's terms off it is model 10's bit for bit; on the merge the film holds 9.50 g at 10 s.
         // Model 17: 0x5FA1F49E82CBC0D5. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight: in Calm's
         // stronger band it moves from step 1; the film holds 9.57 g at 10 s.
-        public const ulong RainPoweredHash = 0xE5D4C472F6CA12D2UL;
+        // Model 18: 0xE5D4C472F6CA12D2. D-060 (ModelVersion 19), audited as the powered flight: it moves from step 1 and keeps
+        // its course, 148.90 m up against 148.97, 0.58 m from model 18's end; the film holds 9.59 g at 10 s. To 0.5 m it
+        // moves from step 1: 148.69 m up, 0.24 m from the class-4 step's end; the film holds 9.60 g.
+        // Model 19: 0xB10D9A860D4431C0. p7b-airframe 1.3d (ModelVersion 21), audited as the powered flight: without the wake it
+        // is model 19's pin; with it it moves from step 21 and keeps its course, 157.38 m up against 148.69, 8.80 m from model
+        // 19's end; the film holds 9.06 g (9.60), its flux on a path a few metres apart.
+        // Model 19 on p7b-airframe--micro: D-064 (ModelVersion 23), 0x789866FBE53F0C70, audited as the powered flight (the kept
+        // test): it moves from step 21 and keeps its course, 149.95 m up against 148.69, 1.82 m from model 19's end and within
+        // 3.3°; the film holds 9.57 g at 10 s against 9.60.
+        // Model 24: re-recorded with both, audited as the powered flight (the micro branch's 0x789866FBE53F0C70 without the
+        // interference, the kept test; the rotor-wake branch's 0x113E39E1C2C3C447 without D-064 under the temporary switches;
+        // model 19's without either). It moves from step 22 against the first and step 21 against the second and keeps its
+        // course: 158.09 m up against 149.95 and 157.38, 8.16 m and 0.95 m from their ends, within 7.3° and 1.9°; the film holds
+        // 9.11 g at 10 s (9.57 and 9.06).
+        // Model 22 on p7b-airframe--power: 0xB10D9A860D4431C0. D-066 (ModelVersion 23), audited as the powered flight: it moves from step 1 and keeps
+        // its course, 155.36 m up against 148.69; the film holds 10.28 g at 10 s against 9.60.
+        // Model 25: 0x4D876EF3F328F9AD. The power merge (ModelVersion 26), audited as the powered flight (model 25's pin on
+        // model 22's drone, the kept test; the power branch's 0xACF1742E51117659 without the integration's sources, the kept
+        // test). It moves from step 1 and step 21 and keeps its course: 164.73 m up against 158.09 and 155.36, 19.8 m and 9.8
+        // m from their ends, within 19° and 8.0°; the film holds 9.92 g at 10 s (9.11 and 10.28).
+        public const ulong RainPoweredHash = 0x53B90D4307BF1534UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
-        /// model 15 in still air over its 1656-byte layout, the powered and contact goldens (pinned from main's code with
-        /// their air set still, a temporary edit), and its tumble's pin.</summary>
-        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15StillContactHash = 0x557DEBE410FAEEA1UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
+        /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
+        /// a temporary edit), and its tumble's pin. The contact flight's model 15 pin, 0x557DEBE410FAEEA1, holds with the stick
+        /// anchor at the contact point; with 1.6c's stick spring on the slip (p6-flight-core--landing's model 23, its kept
+        /// test there) it is 0x78A919AAD7858813: 5 impacts, no crash, at rest at the same 0.2518 m, 0.38 mm aside. Since model
+        /// 24 both need D-064's wash off, which has no switch, so both are temporary-edit audits (ContactHash's notes).</summary>
+        public const ulong Model15StillPoweredHash = 0xABF47E6E55E48EB8UL, Model15TumbleHash = 0xFB841727FADDC7A7UL;
+
+        /// <summary>The audits against model 19 (GoldenFlightTests.WithoutTheWakeEachGoldenIsModel19s, p7b-airframe 1.3d, and
+        /// WithoutD064TheGoldenFlightsAreModel19s, D-064): model 19's 1808-byte record (the record less the interference's 64
+        /// bytes and the own wake's 32 at its end) and its pins, which each golden flown without the interference, or without
+        /// D-064's sources, keeps bit for bit.</summary>
+        public const int Model19Layout = 1808;
+        public const ulong Model19PoweredHash = 0xA1FF085091A019CDUL, Model19ContactHash = 0x8C1E6B066F143A67UL,
+            Model19RainHash = 0xB10D9A860D4431C0UL, Model19TumbleHash = 0x2A0283BBFE59FD84UL;
+
+        /// <summary>The integration's audit against p7b-airframe--micro (GoldenFlightTests.WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs):
+        /// that branch's model 23 pins over its 1840-byte record (model 19's 1808 bytes, then the own wake's 32), which each golden
+        /// flown without the interference keeps bit for bit. Since model 25 the contact flight's is with 1.6c's stick spring
+        /// (0xDFC291AE4872A3B7); the branch's own 0xFF836F92A12B4AB0 holds with the stick anchor at the contact point (a
+        /// temporary edit, reverted; ContactHash's notes).</summary>
+        public const ulong MicroPoweredHash = 0x5073BC74B404B3AAUL, MicroContactHash = 0xDFC291AE4872A3B7UL, MicroRainHash = 0x789866FBE53F0C70UL,
+            MicroTumbleHash = 0xDB5DEEA6285B6184UL;
 
         // 1.6: first recorded with ModelVersion 4 as 0x8B568804552379E6.
         // 1.6 and 1.4b merged: re-recorded with ModelVersion 5. Audited against 1.6: with every filter off and the PID
@@ -272,18 +360,63 @@ namespace Fpv450.Sim.Tests
         // Model 17: 0x4D5A4F57872D01F7. p7c-wind 1.5's re-grade (ModelVersion 18), audited as the powered flight. In Calm's
         // band, 1.32 times model 17's, it moves from step 1 and keeps its course: 5 impacts, no crash, at rest on 8 touching
         // pairs at 0.2518 m, 51 mm from where it rose; 125 events.
-        // Model 18: 0x1152D64875230761. p7a-ground 1.10: re-recorded with ModelVersion 23, the floor's belt_bare now
+        // Model 18: 0x1152D64875230761. D-060 (ModelVersion 19), audited as the powered flight. It moves from step 1 (on its
+        // legs the hubs, 0.288 m up, are now under d + z0 = 0.30 m, in the cover's still air) and keeps its course: within
+        // 20 mm of model 18's path and 1.2 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 20 mm aside. To 0.5 m it
+        // is the class-4 step's to step 290 (still air at the hubs on the floor) and moves from step 291, as they rise into
+        // the field: within 2.7 mm and 1.3 mrad, 5 impacts, no crash, at rest at the same 0.2518 m, 0.8 mm aside.
+        // Model 19: 0x8C1E6B066F143A67. p7b-airframe 1.3d (ModelVersion 21), audited as the powered flight: without the wake it
+        // is model 19's pin; with it it moves from step 9, the first armed step, and keeps its course: Calm's hover skews the
+        // wakes little (the largest interference 0.12 m/s), 5 impacts, no crash, at rest at the same 0.2518 m, 3 mm from model
+        // 19's resting place.
+        // Model 19 on p7b-airframe--micro: D-064, re-recorded with ModelVersion 23 with the rotors' own wakes and the motors'
+        // new spreads, and the re-ingested wash on published numbers (Dekker et al. 2023's loop, Healy et al. 2021's level)
+        // moving the torque too, 0xFF836F92A12B4AB0. Audited: with the wash's model 19 numbers and its torque at the freestream's
+        // inflow (a temporary edit in Propulsion and GroundEffectSpec, reverted) and without the wakes and the spreads, over the
+        // first 1808 bytes, every record and event is model 19's. Against that same flight on the new wash (D-064's sources off)
+        // it moves from step 9, the first armed step, and keeps its course: 5 impacts, no crash, at rest at the same 0.2518 m,
+        // 44 mm aside, the heading 0.15° apart.
+        // Model 24: re-recorded with both, audited as the powered flight: without the interference the micro branch's
+        // 0xFF836F92A12B4AB0 (the kept test); without D-064's sources under the temporary switches the rotor-wake branch's
+        // 0x67D93616B88664A4, and with neither model 19's 0x8C1E6B066F143A67 (and, on main's drag in still air over main's
+        // layout, model 15's 0x557DEBE410FAEEA1). It moves from step 10 against the first and step 9, the first armed step,
+        // against the second, and keeps its course: 5 impacts, no crash, at rest at the same 0.2518 m on 8 pairs, 3.3 mm and
+        // 25 mm from their resting places, within 0.16° and 1.5° (the held bounce); the largest interference 0.125 m/s.
+        // Model 22 on p6-flight-core--landing: 0x8C1E6B066F143A67. 1.6c's stick spring on the slip (ModelVersion 23, D-067):
+        // with the old anchor at the contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new,
+        // 0x5B8655B7F91E4D75: 5 impacts, no crash, at rest at the same 0.2518 m, 0.24 mm aside: on its skids nothing rolls,
+        // so the bits move only by the rule's arithmetic.
+        // Model 24: 0xA93D2534E875790F. The landing's merge (ModelVersion 25): re-recorded with 1.6c's stick spring under the
+        // interference and D-064. Audited against each parent with the other side off (temporary edits, reverted): with the
+        // stick anchor back at the contact point it is model 24's pin bit for bit; without the interference and D-064's
+        // sources (the wash on model 19's numbers and its torque at the freestream's inflow), over the first 1808 bytes, the
+        // landing branch's 0x5B8655B7F91E4D75; with neither model 22's 0x8C1E6B066F143A67, and on main's drag in still air
+        // over main's layout the landing's 0x78A919AAD7858813 and, with the old anchor, model 15's 0x557DEBE410FAEEA1. It
+        // moves from step 3 against model 24 (the skids stand on the floor from the first step: the rule's arithmetic) and
+        // from step 9, the first armed step, against the landing's, and keeps its course: 5 impacts, no crash, at rest at the
+        // same 0.2518 m on 8 pairs, 0.64 mm and 26.9 mm aside, within 0.66 mm and 0.013° of model 24's path and 31 mm and
+        // 1.4° of the landing's (the held bounce).
+        // Model 22 on p7b-airframe--power: 0x8C1E6B066F143A67. D-066 (ModelVersion 23), audited as the powered flight: it keeps its course, 5 impacts,
+        // no crash, at rest on 8 contacts at 0.2519 m against 0.2518, 18 mm aside.
+        // Model 25: 0x0F21FF2A28BA0E16. The power merge (ModelVersion 26): re-recorded with D-066's drone. Audited: on model
+        // 22's drone it is model 25's pin bit for bit (the kept test); without the interference and D-064's sources, with the
+        // wash on model 19's numbers, its torque at the freestream's inflow and the stick anchor at the contact point
+        // (temporary edits, reverted), over 1808 bytes, the power branch's 0xAF0C71C9193B4326. It moves from step 1 against
+        // model 25 (the lighter body) and from step 3 against the power branch's (1.6c's spring on the standing skids), and
+        // keeps its course: 5 impacts, no crash, at rest at 0.2519 m on 8 pairs (0.2518 and 0.2519), 59 mm and 42 mm aside,
+        // within 117 mm and 1.5° of model 25's path and 49 mm and 1.5° of the power branch's (the held bounce).
+        // Model 18 on p7a-ground: 0x1152D64875230761. p7a-ground 1.10: re-recorded with ModelVersion 23, the floor's belt_bare now
         // surfaces.json's soil (the setup carries the table; the record's layout is model 18's). Audited: without the table
-        // the flight is model 18's, every record and event (WithoutTheSoilTheContactGoldenIsModel18s, kept). With it the
+        // the flight is model 18's, every record and event (WithoutTheSoilTheContactGoldenIsModel18s, restated at model 27). With it the
         // flight moves from step 2, the first whose forces take the soil: the skids sink into belt_bare from the start.
         // It keeps its course: the same climb (0.7424 m at 1 s against 0.7420), the held bounce lower on the soil (its top
         // 0.4094 m against 0.4511), 3 impacts against 5, at most 53.8 mm from model 18's path, no crash, at rest on its
         // skids 3.9 mm deeper (0.2479 m against 0.2518; the half-skids 3.5–4.3 mm in, 5.3–5.6 mm at the deepest); 91
         // events against 125.
-        public const ulong ContactHash = 0xA248F9B82CF85639UL;
+        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
 
-        /// <summary>Model 18's contact golden on the rigid floor, which the flight without surfaces.json keeps (p7a-ground 1.10's audit).</summary>
-        public const ulong Model18ContactHash = 0x1152D64875230761UL;
+        /// <summary>The physics line's model 26 contact golden on the rigid floor, which the flight without surfaces.json keeps (the ground merge's audit, model 27).</summary>
+        public const ulong Model26ContactHash = 0xAAEA31DBFBB13710UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -307,8 +440,96 @@ namespace Fpv450.Sim.Tests
         // Model 15 on unity/main: 0xFB841727FADDC7A7. p7c-wind merged with unity/main (ModelVersion 17): the 1808-byte record,
         // p7c-wind's bytes zero but the camera's air (the free body's own motion at the lens); over main's 1656 bytes it is
         // model 15's (the kept test), and models 13's and 14's on their files. It has no air: model 18 keeps it.
-        public const ulong TumbleHash = 0x2A0283BBFE59FD84UL;
+        // Model 17–19: 0x2A0283BBFE59FD84. p7b-airframe 1.3d (ModelVersion 21): the 1872-byte record, the wake's bytes zero (no
+        // propulsion); over model 19's 1808 bytes it is model 19's pin (the kept test), and models 13's to 15's on their files.
+        // On p7b-airframe--micro, D-064 (ModelVersion 23): the record's 32 wake bytes, zero (no rotors), 0xDB5DEEA6285B6184; over
+        // model 19's 1808 bytes it is model 19's (the kept test).
+        // Model 24: the 1904-byte record, the interference's and the own wake's bytes zero (no propulsion): over the first 1872
+        // bytes the rotor-wake branch's pin, over the micro branch's 1840 its pin (the kept test), over 1808 model 19's (the kept
+        // test).
+        // Model 22 on p7b-airframe--power: 0x2A0283BBFE59FD84. D-066 (ModelVersion 23): the L4 body is the lighter packs' and electronics' (4.742 kg);
+        // momentum within 1.7e-12, energy 3.5e-12, the CoM 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s.
+        // Model 25: 0x6712A54D0FDA7F84. The power merge (ModelVersion 26): D-066's lighter L4 body (4.742 kg) on the 1904-byte
+        // record, the interference's and the own wake's bytes zero: on model 22's drone model 25's pin (the kept test), over
+        // 1808 bytes the power branch's 0x95E56C6BB49BB744 (the kept test); momentum within 1.7e-12, energy 3.5e-12, the CoM
+        // 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s, the power branch's numbers.
+        public const ulong TumbleHash = 0xBCBD33E6B6A94844UL;
         public const int TumbleSteps = 10000;
+
+        // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
+        // version 2): a change of the map or its assets moves the content hash first, so an audit tells the world's change
+        // from the physics'. Model 7: 0x778DD7ED57A37F62 on content 0xD6DE238216CEB4B9. The merge with p7b-airframe
+        // (ModelVersion 16): the content moves by physics_materials.json's new carbon_composite row alone (every worldbench
+        // query hash unchanged); the flight by D-050's drone, the airframe's effects (FlyContact's five) and the seam rule.
+        // Audited (the kept test): every mechanism off on 1.6b's drone.json over 1.6b's layout, without the seam rule (a
+        // temporary edit) it is model 7's bit for bit, with it 0x613987892649445F.
+        // Model 16: 0x292C0858705902B6. The merge with unity/main (ModelVersion 19, p7c-wind's field at model 18): re-recorded
+        // on the 1808-byte record (p7c-wind's 152 bytes at 1296) in the Calm field with p7c-wind 1.6's derived rotor drag
+        // (0.044), on the same content. Audited against the range branch: with main's tuned drag (0.25), over the range
+        // branch's 1656 bytes, in still air it is model 16's still-air flight bit for bit, every record and event
+        // (0xDC85BA160EB0415C, a kept test until model 22), and in a steady 5 m/s from 270° model 16's 0x156C9858A7790315 with the
+        // record's wind slot written as model 16's stand-in carried it, 0 (a temporary check). Against unity/main the stub's
+        // goldens and audits keep main's model 18 pins: 1.6b's laws change no flight on the floor. At model 19 the Calm field
+        // blew nothing here: SampleGround reports Hole over S04 and the field took a hole as sheltered (WindField.Begin), so the
+        // flight was the same in still air and in Windy's field, bit for bit (a check). It moved from model 16's by the
+        // stand-in's Calm air, which blew over the hole, the derived drag and the record: 5 impacts, no crash, at rest
+        // 19.15 mm into the straw on 18 pairs (model 16: 21.98 mm on 17). Model 19: 0xE4B13EDD65CFF0B2.
+        // Model 20 (the wind over a hole, FlightWorld.SoilUnder): re-recorded on the same content and query version 4, where
+        // the Calm field now blows over S04 from the straw mat's top: 5 impacts, no crash, at rest 21.19 mm into the straw on
+        // 19 pairs. Audited: with the old rule (the hole's −∞ taken as sheltered, a temporary switch) it is model 19's pin bit
+        // for bit, so the wind over the hole is the whole change; in still air it is model 16's (0xDC85BA160EB0415C, the
+        // kept test), and Calm and still air now differ. Read from the first soil shape alone (the mat's soil box, 0.125 m
+        // under the plane's height, a known-wrong) it was 0xCE9BEF5615932EFB, 7 impacts, 0.233 m up on 21 pairs.
+        // Model 20: 0x7A21A5FA04DD30E0. The merge with p7c-wind--d060 (ModelVersion 21: D-060's class-4 z0 and σ_u/U, the
+        // turbulence to 0.5 m): re-recorded on the same content and query version 4, where the Calm field over S04 now
+        // carries D-060's profile and turbulence: 5 impacts, no crash, at rest 19.10 mm into the straw on 18 pairs. Audited
+        // against both parents (temporary switches, reverted): with z0 0.03 m, σ_u/U 0.135 and the 1 m cut every golden is
+        // the range branch's model 20 (range 0x7A21A5FA04DD30E0, powered 0xFE81E38EFCBD2F4E, contact 0x1152D64875230761,
+        // rain 0xE5D4C472F6CA12D2); with 19's rule over a hole the stub's goldens are p7c-wind--d060's pins and the range
+        // flight is model 19's 0xE4B13EDD65CFF0B2, so the change is D-060's field blowing over the hole, nothing else.
+        // Model 21: 0x10A035F9F29042CC. The merge with p7c-wind--map-wakes (ModelVersion 22): re-recorded in the map's own
+        // Calm wind (WindSetup.ForMap, the player's: the obstacles' wakes and the belt's canopy) on the same content: 4
+        // impacts, no crash, at rest 19.09 mm into the straw on 18 pairs. Audited: in WindSetup.Of(Calm), the open field
+        // the golden flew before, it is model 21's pin bit for bit (a check before the switch), and in still air model 16's
+        // (the kept test); flown twice, the same bits with the wake grid's worker.
+        // Model 22: 0x80C73DBA130C6903. The physics integration (ModelVersion 24): re-recorded in the map's own Calm wind
+        // (WindSetup.ForMap, kept) on the same content with the interference and D-064 in its setup: 3 impacts (4), no crash,
+        // at rest on 19 pairs (18), 0.6 mm deeper in the straw. Audited (temporary switches, reverted): with the interference
+        // alone (D-064's sources off, the wash on model 19's numbers, the stream at wake.rotor) it is the rotor-wake merge's
+        // 0x818AFC9F9B03EFA3, with neither model 22's pin bit for bit, and on main's drag in still air over the range branch's
+        // 1656 bytes model 16's 0xDC85BA160EB0415C (a kept test until model 22: D-064's wash has no switch). Without the
+        // interference it is 0x64DBB622DE602158 (no parent flew D-064 on the range). It moves from step 10 against that flight
+        // and from step 9 against model 22's, and keeps its course: within 1.0 mm and 0.10° of the first, 34 mm and 3.3° of
+        // the second (step 8624, the held bounce over the straw).
+        // Model 22 on p6-flight-core--landing: 0x80C73DBA130C6903. 1.6c's stick spring on the slip (ModelVersion 23, D-067):
+        // with the old anchor at the contact point (a temporary edit, reverted) it is model 22's pin bit for bit; with the new,
+        // 0x7BD729C0B5F2DFD4 on the same content: 5 impacts (4), no crash, at rest 21.24 mm into the straw on 19 pairs (19.09
+        // mm on 18), 1.0 mm aside: the straw's boxes are compliant, so its pairs press and slip more than the plane's. There
+        // the still-air audit against model 16 (main's drag over the range branch's 1656 bytes, a kept test on that branch)
+        // read 0xF19A1EDCA011C4D2 with the new spring: 5 impacts, no crash, at rest 19.11 mm into the straw on 18 pairs
+        // (19.17 mm), 2.7 mm aside; model 16's 0xDC85BA160EB0415C with the old anchor.
+        // Model 24: 0xAF27BC78A59ECD98. The landing's merge (ModelVersion 25): re-recorded in the map's own Calm wind
+        // (WindSetup.ForMap, kept) on the same content with 1.6c's stick spring under the interference and D-064: 3 impacts
+        // (3), no crash, at rest 19.53 mm into the straw on 20 pairs (19.66 mm on 19). Audited (temporary edits, reverted):
+        // with the stick anchor at the contact point it is model 24's pin bit for bit; without the interference and D-064's
+        // sources, over the first 1808 bytes, the landing branch's 0x7BD729C0B5F2DFD4; with neither model 22's pin, and in
+        // still air on main's drag over the range branch's 1656 bytes the landing's 0xF19A1EDCA011C4D2 and, with the old
+        // anchor, model 16's 0xDC85BA160EB0415C. Without the interference it reads 0x1E7B91861E59753F (0x64DBB622DE602158
+        // with the old anchor; no parent flew D-064 on the range). It moves from step 3 against model 24 and from step 9
+        // against the landing's, and keeps its course: at rest 1.6 mm and 17.6 mm aside, within 1.8 mm and 0.30° of model
+        // 24's path, 35 mm and 4.2° of the landing's (step 8625, the held bounce over the straw).
+        // Model 22 on p7b-airframe--power: 0x80C73DBA130C6903. D-066 (ModelVersion 23), audited as the powered flight: it keeps its course, 4 impacts,
+        // no crash, at rest on 18 pairs at 0.2342 m against 0.2339, within 1 mm.
+        // Model 25: 0x0D5350CB2E68C6B8. The power merge (ModelVersion 26), in WindSetup.ForMap's Calm (kept): re-recorded with
+        // D-066's drone: 4 impacts, no crash, at rest 20.69 mm into the straw on 21 pairs (model 25: 19.53 on 20; the power
+        // branch: 18.82 on 18). Audited as the contact flight: model 25's pin on model 22's drone (the kept test), the power
+        // branch's 0xFBAC3E4D67B45ACD under the temporary edits over 1808 bytes. It moves from step 1 and step 3 and keeps its
+        // course: at rest 6.9 mm and 24 mm from their resting places, within 114 mm and 3.1° of model 25's path and 34 mm and
+        // 3.5° of the power branch's (the held bounce over the straw).
+        public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
+
+        public const ulong RangeContent = 0x6114242E06475FB5UL;
+        public const int RangeSteps = 12000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
         /// those of models 7–11 with model 11's pack table on it.</summary>
@@ -353,6 +574,34 @@ namespace Fpv450.Sim.Tests
             return spec;
         }
 
+        /// <summary>D-066's kept audit (GoldenFlightTests.OnModel22sDroneEachGoldenIsModel25s): on WithModel22Drone each golden
+        /// flies the landing's merge's model 25 pins bit for bit, every record and event (on p7b-airframe--power, model 22's:
+        /// 0xA1FF085091A019CD, 0xB10D9A860D4431C0, 0x8C1E6B066F143A67, 0x2A0283BBFE59FD84, 0x80C73DBA130C6903).</summary>
+        public const ulong Model25PoweredHash = 0x67788361104F58BBUL, Model25RainPoweredHash = 0x4D876EF3F328F9ADUL,
+            Model25ContactHash = 0x0F21FF2A28BA0E16UL, Model25TumbleHash = 0x6712A54D0FDA7F84UL, Model25RangeHash = 0x0D5350CB2E68C6B8UL;
+
+        /// <summary>The audit against p7b-airframe--power (GoldenFlightTests.WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs):
+        /// that branch's model 24 pins over model 19's 1808-byte record, which the powered, rain and tumble goldens flown on
+        /// drone.json without the interference and D-064's sources keep bit for bit (they touch nothing, so 1.6c's spring and
+        /// D-064's wash never act). Its contact and range pins, 0xAF0C71C9193B4326 and 0xFBAC3E4D67B45ACD, need D-064's wash and
+        /// 1.6c's spring off too, temporary edits (ContactHash's and RangeHash's notes).</summary>
+        public const ulong PowerPoweredHash = 0xCC20DE164C858267UL, PowerRainHash = 0xACF1742E51117659UL, PowerTumbleHash = 0x95E56C6BB49BB744UL;
+
+        /// <summary>The spec with model 22's drone (drone.json before D-066): the ESCs' assumed 40 A current limit, the
+        /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg. Pass a freshly parsed
+        /// spec: it is changed in place.</summary>
+        public static DroneSpec WithModel22Drone(DroneSpec spec)
+        {
+            for (int i = 0; i < spec.Motors.Length; i++)
+            {
+                spec.Motors[i].EscCurrentLimit = 40;
+                spec.Motors[i].NoLoadCurrent = 1.0;
+            }
+            foreach (DronePack pack in spec.Packs) spec.Parts[pack.Part].Mass = 0.92;
+            spec.Parts[spec.PartIndex("electronics")].Mass = 0.25;
+            return spec;
+        }
+
         /// <summary>The spec with the trunk's ESC lag (drone.json's 5 ms before p7b-airframe 1.0) on every motor. Pass a
         /// freshly parsed spec: it is changed in place.</summary>
         public static DroneSpec WithTheTrunksEscLag(DroneSpec spec)
@@ -394,7 +643,9 @@ namespace Fpv450.Sim.Tests
                 Asymmetry = spec.BuildAsymmetry(),
                 VortexRing = spec.BuildVortexRing(),
                 GroundEffect = spec.BuildGroundEffect(),
+                RotorWake = spec.BuildRotorWake(),
                 Flapping = spec.BuildFlapping(),
+                Interference = spec.BuildInterference(),
                 Modes = spec.BuildModes(),
                 StartPosition = new Double3(0, 300, 0),
                 StartPackCharge = 0.9,
@@ -426,12 +677,16 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies the powered golden flight; returns its hash, with the core's last state for a report. With
         /// skipAt and skipBytes the hash leaves out each record's bytes from skipAt on, skipBytes of them (a parent model's
-        /// layout, for an audit); onRecord sees each step's record before it is hashed (an audit's step-by-step comparison).</summary>
+        /// layout, for an audit), and with layout it covers each record's first layout bytes only (a parent's shorter record);
+        /// wake false flies it without the rotors' wakes (p7b-airframe 1.3d); onRecord sees each step's record before it is
+        /// hashed (an audit's step-by-step comparison).</summary>
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny)
+            Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
+            int layout = LogFormat.StepSize)
         {
             FlightSetup setup = PoweredSetup(spec);
+            if (!interference) setup.Interference = null;
             if (wind != null) setup.Wind = wind.Value;
             setup.Rain = rain;
             if (!modes) setup.Modes = null;
@@ -440,6 +695,7 @@ namespace Fpv450.Sim.Tests
             if (!asymmetry) setup.Asymmetry = null;
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
+            WithoutD064(setup, wake, motors);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -450,8 +706,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(stick);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
                 onRecord?.Invoke(record);
-                hash = Fnv(hash, record, 0, skipAt);
-                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                hash = Fnv(hash, record, 0, skipAt < layout ? skipAt : layout);
+                hash = Fnv(hash, record, skipAt + skipBytes, layout);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
@@ -465,11 +721,12 @@ namespace Fpv450.Sim.Tests
         /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. The floor's belt_bare is surfaces.json's soil (p7a-ground 1.10);
-        /// soil false flies model 18's rigid floor. Returns its hash, with the core for a report.
+        /// soil false flies the rigid floor (model 26's flight). Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, bool soil = true)
+            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
+            bool soil = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -481,7 +738,10 @@ namespace Fpv450.Sim.Tests
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
             if (flapping) setup.Flapping = spec.BuildFlapping();
+            if (interference) setup.Interference = spec.BuildInterference();
             if (modes) setup.Modes = spec.BuildModes();
+            setup.RotorWake = spec.BuildRotorWake();
+            WithoutD064(setup, wake, motors);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -515,14 +775,87 @@ namespace Fpv450.Sim.Tests
                 after?.Invoke(core);
                 LogFormat.EncodeStep(record, core.State, stick, core.Trace);
                 onRecord?.Invoke(record);
-                hash = Fnv(hash, record, 0, skipAt);
-                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                hash = Fnv(hash, record, 0, skipAt < layout ? skipAt : layout);
+                hash = Fnv(hash, record, skipAt + skipBytes, layout);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
                     hash = Fnv(hash, e, 0, e.Length);
                 }
             }
+            return hash;
+        }
+
+        /// <summary>
+        /// Flies the test range's contact golden (1.6b, D-044): FlyContact's flight on S04 #707's straw mat, where
+        /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
+        /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
+        /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
+        /// throttle is cut and it settles into the straw again. In the map's own Calm wind (WindSetup.ForMap since model 22,
+        /// as the player flies it: the obstacles' wakes and the belt's canopy; over the hole from the mat's top since model
+        /// 20), the field disposed at the end (its wake grid's worker), with the airframe's effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
+        /// step's record before it is hashed). Returns its hash, with the core for a report.
+        /// </summary>
+        public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
+            bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
+            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+        {
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
+            ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
+            double stand = ContactScenarios.Standing(contacts);
+            Double3 foot = RangeScenarios.Straw;
+            FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
+            setup.World = new FlightWorld(RangeScenarios.World);
+            setup.Wind = wind ?? WindSetup.ForMap(RangeScenarios.World, WindLevel.Calm);
+            if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
+            if (ring) setup.VortexRing = spec.BuildVortexRing();
+            if (ground) setup.GroundEffect = spec.BuildGroundEffect();
+            if (flapping) setup.Flapping = spec.BuildFlapping();
+            if (interference) setup.Interference = spec.BuildInterference();
+            if (modes) setup.Modes = spec.BuildModes();
+            setup.RotorWake = spec.BuildRotorWake();
+            WithoutD064(setup, wake, motors);
+            core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
+            var record = new byte[LogFormat.StepSize];
+            var e = new byte[LogFormat.EventSize];
+            ulong hash = 0xCBF29CE484222325UL;
+            StickSample held = default;
+            int holdAt = -1;
+            for (int k = 0; k < RangeSteps; k++)
+            {
+                ref readonly FlightState s = ref core.State;
+                StickSample stick;
+                if (k < 16) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8 };
+                else if (holdAt < 0)
+                {
+                    if (k >= 4000) pilot.Target = foot + new Double3(0, stand + 1 - 0.5 * (k - 4000) * FlightCore.Dt, 0);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                    if (k >= 4000 && s.Position.Y - (foot.Y + stand) < 0.1)
+                    {
+                        holdAt = k;
+                        held = stick;
+                        held.Roll = held.Pitch = held.Yaw = 0;
+                    }
+                }
+                else
+                {
+                    stick = held;
+                    stick.HostUs = k * FlightCore.StepUs;
+                    if (k - holdAt >= 1500) stick.Throttle = 0;
+                }
+                core.Advance(stick);
+                LogFormat.EncodeStep(record, core.State, stick, core.Trace);
+                onRecord?.Invoke(record);
+                hash = Fnv(hash, record, 0, skipAt < layout ? skipAt : layout);
+                hash = Fnv(hash, record, skipAt + skipBytes, layout);
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    LogFormat.EncodeEvent(e, core.State.Step, core.Events[i]);
+                    hash = Fnv(hash, e, 0, e.Length);
+                }
+            }
+            core.Wind.Dispose();
             return hash;
         }
 
@@ -552,7 +885,8 @@ namespace Fpv450.Sim.Tests
         /// It guards the gyroscopic term on a body that has one, where the free-body golden's cube has none: a step that
         /// leaves out the momentum's transport into the new axes, or turns at the start's rate, fails its checks.
         /// </summary>
-        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks, int skipAt = LogFormat.StepSize, int skipBytes = 0)
+        public static ulong FlyTumble(DroneSpec spec, out FlightCore core, out TumbleChecks checks, int skipAt = LogFormat.StepSize, int skipBytes = 0,
+            int layout = LogFormat.StepSize)
         {
             FlightSetup setup = TumbleSetup(spec);
             core = new FlightCore(setup);
@@ -571,8 +905,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(StickSample.Neutral);
                 ref readonly FlightState s = ref core.State;
                 LogFormat.EncodeStep(record, s, StickSample.Neutral, core.Trace);
-                hash = Fnv(hash, record, 0, skipAt);
-                hash = Fnv(hash, record, skipAt + skipBytes, record.Length);
+                hash = Fnv(hash, record, 0, skipAt < layout ? skipAt : layout);
+                hash = Fnv(hash, record, skipAt + skipBytes, layout);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     LogFormat.EncodeEvent(e, s.Step, core.Events[i]);
@@ -587,6 +921,15 @@ namespace Fpv450.Sim.Tests
                 checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
+        }
+
+        // D-064's sources off for an audit against model 19: no rotor wake (wake), the motors' resistance, friction and inertia
+        // undrawn (motors). The re-ingested wash's published numbers and its torque have no switch (their audit was a
+        // temporary edit, GoldenFlights' notes).
+        static void WithoutD064(FlightSetup setup, bool wake, bool motors)
+        {
+            if (!wake) setup.RotorWake = null;
+            if (!motors && setup.Asymmetry != null) setup.Asymmetry.ResistanceSigma = setup.Asymmetry.FrictionSigma = setup.Asymmetry.InertiaSigma = 0;
         }
 
         static ulong Fnv(ulong h, byte[] bytes, int from, int to)

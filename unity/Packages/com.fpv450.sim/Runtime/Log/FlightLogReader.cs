@@ -323,11 +323,17 @@ namespace Fpv450.Sim.Log
             if (h.GroundEffect != null)
                 w.WriteLine("  ground effect: Cheeseman-Bennett below, Hsiao-Chirarattananon alpha0 " + G(h.GroundEffect.CeilingAlpha)
                     + " above, rays " + G(h.GroundEffect.Reach) + " R, held at " + G(h.GroundEffect.LowestHeight) + " R; wash sigma "
-                    + G(h.GroundEffect.RecirculationSigma) + " v_h within " + G(h.GroundEffect.RecirculationBound) + " below "
-                    + G(h.GroundEffect.RecirculationOnset) + " R, loop " + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air "
-                    + G(h.GroundEffect.AirDensity) + " kg/m3" + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
+                    + G(h.GroundEffect.RecirculationSigma) + " of thrust at " + G(h.GroundEffect.RecirculationReference) + " R within "
+                    + G(h.GroundEffect.RecirculationBound) + " below " + G(h.GroundEffect.RecirculationOnset) + " R, loop "
+                    + G(h.GroundEffect.RecirculationLoop) + " (z + R)/v_h; air " + G(h.GroundEffect.AirDensity) + " kg/m3"
+                    + (h.GroundEffect.RecirculationSigma > 0 ? "" : "; KNOWN-WRONG: no recirculation"));
             else
                 w.WriteLine("  ground effect: off");
+            if (h.RotorWake != null)
+                w.WriteLine("  rotor wake: thrust sigma " + G(h.RotorWake.ThrustSigma) + " in hover, corner f R/v_h " + G(h.RotorWake.CornerFrequency)
+                    + ", within " + G(h.RotorWake.Bound) + " sigma; air " + G(h.RotorWake.AirDensity) + " kg/m3");
+            else
+                w.WriteLine("  rotor wake: off (KNOWN-WRONG for a pilot's flight: a perfectly steady rotor)");
             if (h.Modes != null)
                 w.WriteLine("  modes: arms " + G(h.Modes.ArmWidth * 1000) + " x " + G(h.Modes.ArmThickness * 1000) + " mm plate of " + G(h.Modes.ArmModulus / 1e9)
                     + " GPa over " + G(h.Modes.ArmLength) + " m, " + G(h.Modes.ArmStiffness) + " N/m, damping " + G(h.Modes.ArmDamping) + "; mounts "
@@ -342,6 +348,15 @@ namespace Fpv450.Sim.Log
                     + G(h.Flapping.Radius) + " m, " + h.Flapping.Stations.Length + " stations; air " + G(h.Flapping.AirDensity) + " kg/m3");
             else
                 w.WriteLine("  flapping: off");
+            if (h.Interference != null)
+                w.WriteLine("  rotor interference: Coleman's skewed vortex cylinder on R " + G(h.Interference.Radius) + " m, " + h.Interference.Stations.Length
+                    + " stations; table " + h.Interference.SkewNodes + " skews by " + G(h.Interference.SkewStep) + " in tan(chi/2), offsets by "
+                    + G(h.Interference.OffsetStep) + " in sin(phi/2); formed from " + G(h.Interference.TransportOnset) + " to " + G(h.Interference.TransportWhole)
+                    + " v_h of transport; fluctuation sigma " + G(h.Interference.FluctuationSigma) + " within "
+                    + G(h.Interference.FluctuationBound) + ", eddies " + G(h.Interference.FluctuationScale) + " R; air " + G(h.Interference.AirDensity) + " kg/m3"
+                    + (h.Interference.FluctuationSigma > 0 ? "" : "; KNOWN-WRONG: no fluctuation"));
+            else
+                w.WriteLine("  rotor interference: off");
             for (int n = 0; n < h.RuntimeObjects.Length; n++)
                 w.WriteLine("  runtime object " + (n < h.RuntimeIds.Length ? h.RuntimeIds[n] : -1) + " '" + h.RuntimeObjects[n].Name + "': "
                     + h.RuntimeObjects[n].Shapes.Length + " shapes");
@@ -519,10 +534,10 @@ namespace Fpv450.Sim.Log
                 text += "; a gust front (p7c-wind 1.4's scenario" + (f.Uniform ? ", the known-wrong uniform field" : "") + "): from " + G(f.Start.X) + ", "
                     + G(f.Start.Z) + " m along " + G(f.Normal.X) + ", " + G(f.Normal.Z) + " at " + G(f.Speed) + " m/s, " + V(f.Delta, "0.000")
                     + " m/s behind it over " + G(f.Width) + " m";
-            CanopyStrip c = h.Wind.Canopy;
-            if (c != null)
-                text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
-                    + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
+            if (h.Wind.Canopies != null)
+                foreach (CanopyStrip c in h.Wind.Canopies)
+                    text += "; a wooded strip's canopy (p7c-wind 1.5): " + G(c.Height) + " m tall, λ " + G(c.FrontalAreaIndex) + ", " + G(c.Length) + " × "
+                        + G(c.Width) + " m about " + G(c.CentreX) + ", " + G(c.CentreZ) + " m, its axis at " + G(c.AxisDeg) + " deg";
             return text;
         }
 
