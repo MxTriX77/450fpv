@@ -9,7 +9,9 @@ namespace Fpv450.FlightBench
     // D-067's landing stability (p6-flight-core 1.6c): LandingStability's rigid-body answer from the mass build and the
     // contact shapes, against the sim's scripted touchdowns (LandingScenarios, which LandingTests asserts) over a grid of
     // roll errors, lateral speeds and descents, on the stub's floor and at the test range's soil, run and straw; free,
-    // disarmed, armed with the throttle cut, and with the hover's throttle held; and the coil's rock, legs off.
+    // disarmed, armed with the throttle cut, and with the hover's throttle held; and the coil's rock, legs off. Since
+    // p7g-legs 1.2 the legs give across their tubes, which the rigid-body answer has not: its checks fly them rigid across
+    // (LandingScenarios.RigidAcross, model 37's leg law), and the soft legs' own numbers are printed beside.
     internal static class LandingCase
     {
         static bool _ok = true;
@@ -35,18 +37,23 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"legs on: {a.Mass:F3} kg, centre of mass {a.SkidHeight * 1e3:F2} mm over the skids' axes, {a.Track * 1e3:F1} mm inboard; "
                 + $"I_roll {a.RollInertia:F5}, about the skid {a.PivotInertia:F5} kg·m², the fall's rate {a.FallRate:F3} /s");
             Console.WriteLine($"  static tip: roll {a.StaticRollTipDeg:F2}°, pitch over the front ends {a.StaticPitchTipDeg:F2}°");
-            double tipped = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg + 0.05, 60);
-            double held = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg - 0.05, 60);
+            var rigid = LandingScenarios.RigidAcross();
+            ContactSpec legs = spec.BuildContacts(on, m, h);
+            double side = legs.LegSideStiffness * (legs.FrictionStiffnessRatio * legs.LegStiffness) / (legs.LegSideStiffness + legs.FrictionStiffnessRatio * legs.LegStiffness);
+            Console.WriteLine($"  on the legs' side give ({side:F0} N/m across each foot) the quasi-static roll tip is {a.SoftRollTipDeg(side):F2}° (LandingStability.SoftRollTipDeg)");
+            double tipped = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg + 0.05, 60, rigid);
+            double held = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg - 0.05, 60, rigid);
             Row("the roll tip", !double.IsPositiveInfinity(tipped) && double.IsPositiveInfinity(held),
                 $"0.05° inside it rights itself ({S(held)}), 0.05° past it falls to 60° in {S(tipped)} s");
             foreach (double past in new[] { 1.0, 5, 10 })
             {
-                double sim = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg + past, 74.9), mech = a.FallTime(past, 74.9);
+                double sim = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg + past, 74.9, rigid), mech = a.FallTime(past, 74.9);
                 Row($"the fall from {past}° past the tip to the motor cans (74.9°)", Math.Abs(sim / mech - 1) < 0.03, $"{sim:F3} s, mechanics {mech:F3} s");
             }
 
             Console.WriteLine("  touchdowns: the lowest lateral speed (m/s) that tips the drone over; the caught skid's mechanics and its friction ratio J_t/J_n");
-            Console.WriteLine("    roll  descent | mechanics (J_t/J_n) | dead legs, caught | free, caught | free, μ 0.5/0.4 | disarmed | armed, cut | held, μ 0.5 | held, caught");
+            Console.WriteLine("    the mechanics' columns rigid across (dead legs, caught; free, caught), the rest on the soft legs");
+            Console.WriteLine("    roll  descent | mechanics (J_t/J_n) | dead legs, caught | free, caught | soft, caught | free, μ 0.5/0.4 | disarmed | armed, cut | held, μ 0.5 | held, caught");
             foreach (double descent in new[] { 0.0, 0.5 })
                 foreach (double roll in new[] { 0.0, 5, 10, 15, 20 })
                 {
@@ -54,8 +61,10 @@ namespace Fpv450.FlightBench
                     double mech = a.CaughtSkidSpeed(roll, descent);
                     var caught = t;
                     caught.Edit = LandingScenarios.GroundFriction(10);
+                    double soft = LandingScenarios.CriticalSpeed(spec, m, h, caught);
+                    caught.Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
                     double fc = LandingScenarios.CriticalSpeed(spec, m, h, caught);
-                    caught.Edit = LandingScenarios.DeadLegsCaught(a.Mass);
+                    caught.Edit = LandingScenarios.RigidAcross(LandingScenarios.DeadLegsCaught(a.Mass));
                     double fd = LandingScenarios.CriticalSpeed(spec, m, h, caught);
                     double fs = LandingScenarios.CriticalSpeed(spec, m, h, t);
                     t.Power = LandingScenarios.Power.Disarmed;
@@ -66,7 +75,7 @@ namespace Fpv450.FlightBench
                     double hs = LandingScenarios.CriticalSpeed(spec, m, h, t);
                     t.Edit = LandingScenarios.GroundFriction(10);
                     double hc = LandingScenarios.CriticalSpeed(spec, m, h, t);
-                    Console.WriteLine($"    {roll,4:F0}° {descent,5:F1}    | {mech,9:F3} ({a.CatchFriction(roll, descent, mech),4:F2})   | {S(fd),17} | {S(fc),12} | {S(fs),15} | {S(dis),8} | {S(cut),10} | {S(hs),11} | {S(hc),12}");
+                    Console.WriteLine($"    {roll,4:F0}° {descent,5:F1}    | {mech,9:F3} ({a.CatchFriction(roll, descent, mech),4:F2})   | {S(fd),17} | {S(fc),12} | {S(soft),12} | {S(fs),15} | {S(dis),8} | {S(cut),10} | {S(hs),11} | {S(hc),12}");
                     if (roll > 0 && descent > 0)
                         Row($"    the caught skid at {roll}°, {descent} m/s down", Math.Abs(fd / mech - 1) < 0.01 && Math.Abs(fc / mech - 1) < 0.15,
                             $"on dead legs {fd:F3}, on the legs {fc:F3}, against {mech:F3}");
@@ -76,16 +85,16 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  forward along the skids (free, 0.5 m/s down): sliding runners trip only past μ_k {a.SlidingTripFriction:F2}");
             foreach (double pitch in new[] { 0.0, 10, 20 })
             {
-                var t = new LandingScenarios.Touch { Legs = true, PitchDeg = pitch, Descent = 0.5, Forward = true };
+                var t = new LandingScenarios.Touch { Legs = true, PitchDeg = pitch, Descent = 0.5, Forward = true, Edit = rigid };
                 double smooth = LandingScenarios.CriticalSpeed(spec, m, h, t);
-                t.Edit = LandingScenarios.GroundFriction(10);
+                t.Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
                 double caught = LandingScenarios.CriticalSpeed(spec, m, h, t), mech = a.CaughtEndSpeed(pitch, 0.5);
-                t.Edit = LandingScenarios.DeadLegsCaught(a.Mass);
+                t.Edit = LandingScenarios.RigidAcross(LandingScenarios.DeadLegsCaught(a.Mass));
                 double dead = LandingScenarios.CriticalSpeed(spec, m, h, t);
                 Row($"    {pitch}° nose-down", double.IsPositiveInfinity(smooth) && Math.Abs(caught / mech - 1) < 0.15 && (pitch == 0 || Math.Abs(dead / mech - 1) < 0.01),
                     $"μ 0.5/0.4 {S(smooth)} m/s; the ends caught {S(caught)} m/s, on dead legs {S(dead)}, mechanics {mech:F3}");
             }
-            var frictionless = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Edit = LandingScenarios.GroundFriction(0.001) };
+            var frictionless = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(0.001)) };
             Row("known-wrong, a frictionless skid", double.IsPositiveInfinity(LandingScenarios.CriticalSpeed(spec, m, h, frictionless)),
                 $"never catches (mechanics: a caught skid tips at {a.CaughtSkidSpeed(10, 0.5):F3} m/s)");
 

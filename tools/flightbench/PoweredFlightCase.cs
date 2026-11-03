@@ -26,6 +26,9 @@ namespace Fpv450.FlightBench
         // p7g-legs 1.1's audit (model 37): model 26's legs, the CFRP legs' masses, the assumed 10 kN/m spring and its damper.
         static DroneSpec M26() => GoldenFlights.WithModel26Legs(Drone());
 
+        // p7g-legs 1.2's audit (model 39): model 37's leg law, without the legs' side give and their failure law.
+        static DroneSpec M37() => GoldenFlights.WithModel37Legs(Drone());
+
         public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
 
         /// <summary>The repository's drone.json, found from the working directory up.</summary>
@@ -44,8 +47,10 @@ namespace Fpv450.FlightBench
         public static bool Golden()
         {
             ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
-            ulong with = GoldenFlights.FlyPowered(Drone(), out _, 992, 120);
-            ulong without = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, false);
+            // The record less the contacts' 120 bytes and, since model 39, the legs' state (zero without contacts).
+            const int legs = GoldenFlights.Model37Layout;
+            ulong with = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, layout: legs);
+            ulong without = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, false, layout: legs);
             bool ok = hash == GoldenFlights.PoweredHash && with == without && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
@@ -80,9 +85,10 @@ namespace Fpv450.FlightBench
             // contact flight's re-ingested wash moved to published numbers, so its audit was a temporary edit (GoldenFlights).
             // D-066's audit (model 23 on p7b-airframe--power), kept: on model 22's drone every golden is model 22's there and the
             // landing's merge's model 25 here (the merge at model 26), every record and event.
-            ulong p22 = GoldenFlights.FlyPowered(M22(), out _), c22 = GoldenFlights.FlyContact(M22(), out _), g22 = GoldenFlights.FlyRange(M22(), out _);
-            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
-            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _);
+            ulong p22 = GoldenFlights.FlyPowered(M22(), out _, layout: legs), c22 = GoldenFlights.FlyContact(M22(), out _, layout: legs),
+                g22 = GoldenFlights.FlyRange(M22(), out _, layout: legs);
+            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: legs);
+            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _, layout: legs);
             bool m22 = p22 == GoldenFlights.Model25PoweredHash && c22 == GoldenFlights.Model25ContactHash && g22 == GoldenFlights.Model25RangeHash
                 && w22 == GoldenFlights.Model25RainPoweredHash && t22 == GoldenFlights.Model25TumbleHash;
             Console.WriteLine($"model 22's drone (the 40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics): powered 0x{p22:X16}, contact 0x{c22:X16}, "
@@ -114,18 +120,19 @@ namespace Fpv450.FlightBench
             // bytes (the record less the interference's 64 at 1808), each golden is its pin; since model 25 the contact flight's
             // is with 1.6c's stick spring (GoldenFlights.MicroContactHash).
             const int at = GoldenFlights.Model19Layout, skip = 64;
-            ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false);
-            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false);
-            ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false);
-            ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip);
+            ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false, layout: legs);
+            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false, layout: legs);
+            ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: legs);
+            ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip, legs);
             bool uok = mp == GoldenFlights.MicroPoweredHash && mc == GoldenFlights.MicroContactHash && mr == GoldenFlights.MicroRainHash
                 && mt == GoldenFlights.MicroTumbleHash;
             Console.WriteLine($"without the interference, over the micro branch's 1840 bytes: powered 0x{mp:X16}, contact 0x{mc:X16}, rain 0x{mr:X16}, "
                 + $"tumble 0x{mt:X16} ({(uok ? "its model 23's, bit for bit" : "NOT its model 23's")}): {(uok ? "PASS" : "FAIL")}");
             // p7g-legs 1.1's audit (model 37), kept: on model 26's legs every golden is model 26's, every record and event.
-            ulong p26 = GoldenFlights.FlyPowered(M26(), out _), c26 = GoldenFlights.FlyContact(M26(), out _), g26 = GoldenFlights.FlyRange(M26(), out _);
-            ulong w26 = GoldenFlights.FlyPowered(M26(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
-            ulong t26 = GoldenFlights.FlyTumble(M26(), out _, out _);
+            ulong p26 = GoldenFlights.FlyPowered(M26(), out _, layout: legs), c26 = GoldenFlights.FlyContact(M26(), out _, layout: legs),
+                g26 = GoldenFlights.FlyRange(M26(), out _, layout: legs);
+            ulong w26 = GoldenFlights.FlyPowered(M26(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: legs);
+            ulong t26 = GoldenFlights.FlyTumble(M26(), out _, out _, layout: legs);
             bool m26 = p26 == GoldenFlights.Model26PoweredHash && c26 == GoldenFlights.Model26ContactHash && g26 == GoldenFlights.Model26RangeHash
                 && w26 == GoldenFlights.Model26RainPoweredHash && t26 == GoldenFlights.Model26TumbleHash;
             Console.WriteLine($"model 26's legs (CFRP 11 and 20 g, the assumed 10 kN/m and 45 N.s/m, the leg shapes 6600 N/m): powered 0x{p26:X16}, contact 0x{c26:X16}, "
@@ -140,7 +147,17 @@ namespace Fpv450.FlightBench
             bool pok = pp == GoldenFlights.PowerPoweredHash && pr == GoldenFlights.PowerRainHash && pt == GoldenFlights.PowerTumbleHash;
             Console.WriteLine($"without the interference and D-064's sources, over 1808 bytes: powered 0x{pp:X16}, rain 0x{pr:X16}, tumble 0x{pt:X16} "
                 + $"({(pok ? "the power branch's, bit for bit" : "NOT the power branch's")}): {(pok ? "PASS" : "FAIL")}");
-            return ok && cok && rangeOk && rok && tok && m22 && m26 && mok && eok && aok && uok && pok;
+            // p7g-legs 1.2's audit (model 39), kept: without the legs' side give and their law, over model 37's 1904 bytes, every
+            // golden is model 37's, every record and event.
+            ulong p37 = GoldenFlights.FlyPowered(M37(), out _, layout: legs), c37 = GoldenFlights.FlyContact(M37(), out _, layout: legs),
+                g37 = GoldenFlights.FlyRange(M37(), out _, layout: legs);
+            ulong w37 = GoldenFlights.FlyPowered(M37(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: legs);
+            ulong t37 = GoldenFlights.FlyTumble(M37(), out _, out _, layout: legs);
+            bool m37 = p37 == GoldenFlights.Model37PoweredHash && c37 == GoldenFlights.Model37ContactHash && g37 == GoldenFlights.Model37RangeHash
+                && w37 == GoldenFlights.Model37RainPoweredHash && t37 == GoldenFlights.Model37TumbleHash;
+            Console.WriteLine($"model 37's leg law (no side give, no failure law): powered 0x{p37:X16}, contact 0x{c37:X16}, range 0x{g37:X16}, rain 0x{w37:X16}, "
+                + $"tumble 0x{t37:X16} ({(m37 ? "model 37's, bit for bit" : "NOT model 37's")}): {(m37 ? "PASS" : "FAIL")}");
+            return ok && cok && rangeOk && rok && tok && m22 && m26 && m37 && mok && eok && aok && uok && pok;
         }
 
         public static bool Bench()
