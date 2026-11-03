@@ -198,6 +198,9 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  the band from the tolerances ({AsymmetryScenario.BandDraws} seeds' draws, {AsymmetryScenario.BandQuantile * 100:F1}–"
                 + $"{100 - AsymmetryScenario.BandQuantile * 100:F1} %): roll {band.RollRateLo:E2}–{band.RollRateHi:E2} °/s, yaw {band.YawRateLo:E2}–"
                 + $"{band.YawRateHi:E2} °/s, vibration {band.VibrationLo:E2}–{band.VibrationHi:E2} rad/s per step");
+            AsymmetryScenario.Band before = run.BandWithoutPitch;
+            Console.WriteLine($"  without the blades' pitch draws (before p7f-damage 1.2): roll {before.RollRateLo:E2}–{before.RollRateHi:E2} °/s, yaw {before.YawRateLo:E2}–"
+                + $"{before.YawRateHi:E2} °/s, vibration {before.VibrationLo:E2}–{before.VibrationHi:E2} rad/s per step");
             for (int i = 0; i < AsymmetryScenario.Seeds.Length; i++)
             {
                 AsymmetryScenario.Result on = run.On[i], off = run.Off[i];
