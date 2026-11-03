@@ -78,9 +78,12 @@ namespace Fpv450.FlightBench
             // contact flight's re-ingested wash moved to published numbers, so its audit was a temporary edit (GoldenFlights).
             // D-066's audit (model 23 on p7b-airframe--power), kept: on model 22's drone every golden is model 22's there and the
             // landing's merge's model 25 here (the merge at model 26), every record and event.
-            ulong p22 = GoldenFlights.FlyPowered(M22(), out _), c22 = GoldenFlights.FlyContact(M22(), out _), g22 = GoldenFlights.FlyRange(M22(), out _);
-            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
-            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _);
+            // Since model 35 every kept audit hashes over model 29's 1904 bytes (the record less p7f-damage 1.3's blade strikes).
+            const int m29 = GoldenFlights.Model29Layout;
+            ulong p22 = GoldenFlights.FlyPowered(M22(), out _, layout: m29), c22 = GoldenFlights.FlyContact(M22(), out _, layout: m29),
+                g22 = GoldenFlights.FlyRange(M22(), out _, layout: m29);
+            ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m29);
+            ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _, layout: m29);
             bool m22 = p22 == GoldenFlights.Model25PoweredHash && c22 == GoldenFlights.Model25ContactHash && g22 == GoldenFlights.Model25RangeHash
                 && w22 == GoldenFlights.Model25RainPoweredHash && t22 == GoldenFlights.Model25TumbleHash;
             Console.WriteLine($"model 22's drone (the 40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics): powered 0x{p22:X16}, contact 0x{c22:X16}, "
@@ -112,10 +115,10 @@ namespace Fpv450.FlightBench
             // bytes (the record less the interference's 64 at 1808), each golden is its pin; since model 25 the contact flight's
             // is with 1.6c's stick spring (GoldenFlights.MicroContactHash).
             const int at = GoldenFlights.Model19Layout, skip = 64;
-            ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false);
-            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false);
-            ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false);
-            ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip);
+            ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false, layout: m29);
+            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false, layout: m29);
+            ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, layout: m29);
+            ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip, m29);
             bool uok = mp == GoldenFlights.MicroPoweredHash && mc == GoldenFlights.MicroContactHash && mr == GoldenFlights.MicroRainHash
                 && mt == GoldenFlights.MicroTumbleHash;
             Console.WriteLine($"without the interference, over the micro branch's 1840 bytes: powered 0x{mp:X16}, contact 0x{mc:X16}, rain 0x{mr:X16}, "
@@ -134,19 +137,35 @@ namespace Fpv450.FlightBench
             // golden is model 26's; each switch alone gives the share of the move it makes, printed (GoldenFlights' notes).
             DroneSpec d = Drone();
             Action<FlightSetup> rod = GoldenFlights.WithTheRodsInertia(d), nopitch = GoldenFlights.WithoutThePitch, both = s => { nopitch(s); rod(s); };
-            ulong a26 = GoldenFlights.FlyPowered(d, out _, edit: both), b26 = GoldenFlights.FlyContact(d, out _, edit: both), c26 = GoldenFlights.FlyRange(d, out _, edit: both);
-            ulong r26 = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: both);
+            ulong a26 = GoldenFlights.FlyPowered(d, out _, edit: both, layout: m29), b26 = GoldenFlights.FlyContact(d, out _, edit: both, layout: m29),
+                c26 = GoldenFlights.FlyRange(d, out _, edit: both, layout: m29);
+            ulong r26 = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: both, layout: m29);
             bool sok = a26 == GoldenFlights.Model26PoweredHash && b26 == GoldenFlights.Model26ContactHash && c26 == GoldenFlights.Model26RangeHash
                 && r26 == GoldenFlights.Model26RainPoweredHash;
             Console.WriteLine($"the blades' pitch off and the rod's inertia: powered 0x{a26:X16}, contact 0x{b26:X16}, range 0x{c26:X16}, rain 0x{r26:X16} "
                 + $"({(sok ? "model 26's, bit for bit" : "NOT model 26's")}): {(sok ? "PASS" : "FAIL")}");
-            ulong ip = GoldenFlights.FlyPowered(d, out _, edit: nopitch), ic = GoldenFlights.FlyContact(d, out _, edit: nopitch), ig = GoldenFlights.FlyRange(d, out _, edit: nopitch);
-            ulong ir = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: nopitch);
-            ulong qp = GoldenFlights.FlyPowered(d, out _, edit: rod), qc = GoldenFlights.FlyContact(d, out _, edit: rod), qg = GoldenFlights.FlyRange(d, out _, edit: rod);
-            ulong qr = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: rod);
+            ulong ip = GoldenFlights.FlyPowered(d, out _, edit: nopitch, layout: m29), ic = GoldenFlights.FlyContact(d, out _, edit: nopitch, layout: m29),
+                ig = GoldenFlights.FlyRange(d, out _, edit: nopitch, layout: m29);
+            ulong ir = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: nopitch, layout: m29);
+            ulong qp = GoldenFlights.FlyPowered(d, out _, edit: rod, layout: m29), qc = GoldenFlights.FlyContact(d, out _, edit: rod, layout: m29),
+                qg = GoldenFlights.FlyRange(d, out _, edit: rod, layout: m29);
+            ulong qr = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: rod, layout: m29);
             Console.WriteLine($"  the flapping's blade inertia alone (pitch off): powered 0x{ip:X16}, contact 0x{ic:X16}, range 0x{ig:X16}, rain 0x{ir:X16}");
             Console.WriteLine($"  the blades' pitch alone (the rod's inertia): powered 0x{qp:X16}, contact 0x{qc:X16}, range 0x{qg:X16}, rain 0x{qr:X16}");
-            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && sok;
+            // p7f-damage 1.3's audit (model 35), kept: the goldens' discs cut nothing, so over model 29's 1904 bytes every golden is
+            // model 29's pin, every record and event; with the strikes off (ContactSpec.BladeStrikes) the whole record is model 35's.
+            ulong p29 = GoldenFlights.FlyPowered(d, out FlightCore pc, layout: m29), c29 = GoldenFlights.FlyContact(d, out FlightCore cc, layout: m29);
+            ulong g29 = GoldenFlights.FlyRange(d, out FlightCore gc, layout: m29), t29 = GoldenFlights.FlyTumble(d, out _, out _, layout: m29);
+            ulong r29 = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m29);
+            Action<FlightSetup> off = s => { if (s.Contacts != null) s.Contacts.BladeStrikes = false; };
+            ulong coff = GoldenFlights.FlyContact(d, out _, edit: off), goff = GoldenFlights.FlyRange(d, out _, edit: off);
+            bool zok = p29 == GoldenFlights.Model29PoweredHash && c29 == GoldenFlights.Model29ContactHash && g29 == GoldenFlights.Model29RangeHash
+                && t29 == GoldenFlights.Model29TumbleHash && r29 == GoldenFlights.Model29RainPoweredHash && coff == GoldenFlights.ContactHash && goff == GoldenFlights.RangeHash
+                && cc.Strikes != null && cc.Strikes.Passes == 0 && gc.Strikes.Passes == 0;
+            Console.WriteLine($"over model 29's 1904 bytes: powered 0x{p29:X16}, contact 0x{c29:X16}, range 0x{g29:X16}, rain 0x{r29:X16}, tumble 0x{t29:X16} "
+                + $"({(zok ? "model 29's, bit for bit" : "NOT model 29's")}), {cc.Strikes?.Passes} and {gc.Strikes?.Passes} blade passes in the contact and range flights; "
+                + $"the strikes off: contact 0x{coff:X16}, range 0x{goff:X16} (the pins): {(zok ? "PASS" : "FAIL")}");
+            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && sok && zok;
         }
 
         public static bool Bench()

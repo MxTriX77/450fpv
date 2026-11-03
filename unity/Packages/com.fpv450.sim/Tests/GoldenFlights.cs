@@ -235,7 +235,10 @@ namespace Fpv450.Sim.Tests
         // blade in Windy's air) by 5.51 m and 4.75° at most by 10 s on the open-loop script, 167.91 m up against 162.72; the
         // pitch alone (0x3351ADE2171E74D3; each rotor's thrust offset and its 1/rev) by 2.29 m and 2.06°, 162.36 m up; both by
         // 5.93 m and 4.69°, 167.60 m up, the pitch moving the inertia's flight by 1.79 m and 1.40°. Armed, no crash, no contact.
-        public const ulong PoweredHash = 0xB999E5FDE8815DACUL;
+        // Model 29: 0xB999E5FDE8815DAC. p7f-damage 1.3 (ModelVersion 35): re-recorded on the 2288-byte record, its blade strikes' 384
+        // bytes zero (no disc cuts anything 160–300 m up); over model 29's 1904 bytes model 29's pin, every record and event (the
+        // kept test, OverModel29sLayoutEachGoldenIsModel29s).
+        public const ulong PoweredHash = 0xC1053CA7562E61ACUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -267,7 +270,9 @@ namespace Fpv450.Sim.Tests
         // kept test's switches): from step 21 the inertia alone (0xD29E350E00C73BA6) moves it by 6.05 m and 5.37° by 10 s, 170.41 m
         // up against 164.73; the pitch alone (0xE9D26813D342FD33) by 1.67 m and 1.16°; both by 6.67 m and 5.71°, 170.63 m up;
         // the film holds 9.67 g at 10 s (9.92), its flux on a path a few metres apart.
-        public const ulong RainPoweredHash = 0x8ABC28AF4D780FF7UL;
+        // Model 29: 0x8ABC28AF4D780FF7. p7f-damage 1.3 (ModelVersion 35): the 2288-byte record, the strikes' bytes zero; over model
+        // 29's 1904 bytes model 29's pin (the kept test); the film 9.67 g as model 29.
+        public const ulong RainPoweredHash = 0xA6DB29F570B76DF7UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -284,6 +289,13 @@ namespace Fpv450.Sim.Tests
         public const int Model19Layout = 1808;
         public const ulong Model19PoweredHash = 0xA1FF085091A019CDUL, Model19ContactHash = 0x8C1E6B066F143A67UL,
             Model19RainHash = 0xB10D9A860D4431C0UL, Model19TumbleHash = 0x2A0283BBFE59FD84UL;
+
+        /// <summary>p7f-damage 1.3's audit against model 29 (GoldenFlightTests.OverModel29sLayoutEachGoldenIsModel29s): model 29's
+        /// 1904-byte record (the record less the blade strikes' 384 bytes at its end) and its pins, which each golden whose discs
+        /// cut nothing keeps bit for bit; every older kept audit hashes over it too.</summary>
+        public const int Model29Layout = 1904;
+        public const ulong Model29PoweredHash = 0xB999E5FDE8815DACUL, Model29RainPoweredHash = 0x8ABC28AF4D780FF7UL,
+            Model29ContactHash = 0xFC78C0BDDEFA2725UL, Model29RangeHash = 0x8F038B8AAEC425E7UL, Model29TumbleHash = 0xBCBD33E6B6A94844UL;
 
         /// <summary>The integration's audit against p7b-airframe--micro (GoldenFlightTests.WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs):
         /// that branch's model 23 pins over its 1840-byte record (model 19's 1808 bytes, then the own wake's 32), which each golden
@@ -422,7 +434,11 @@ namespace Fpv450.Sim.Tests
         // (0x448A9D8E4A535411; Calm's hover has little edgewise flow) by at most 1.0 mm and 0.06°; the pitch alone
         // (0xD7986813EEECBEA6) by 17.2 mm and 0.86° (step 9467, the held bounce); both by 18.0 mm and 0.86°. It keeps its course: 5
         // impacts, no crash, at rest at the same 0.2519 m on 8 pairs, 17.6 mm from model 26's resting place.
-        public const ulong ContactHash = 0xFC78C0BDDEFA2725UL;
+        // Model 29: 0xFC78C0BDDEFA2725. p7f-damage 1.3 (ModelVersion 35): re-recorded on the 2288-byte record, its blade strikes' 384
+        // bytes zero: no disc cuts anything on the floor (0 passes), so over model 29's 1904 bytes it is model 29's pin, every record
+        // and event (the kept test, OverModel29sLayoutEachGoldenIsModel29s), the strikes on or off; 5 impacts, no crash, at rest
+        // 0.2519 m up on 8 pairs, as model 29.
+        public const ulong ContactHash = 0x6A44DA1874A49725UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -459,7 +475,9 @@ namespace Fpv450.Sim.Tests
         // record, the interference's and the own wake's bytes zero: on model 22's drone model 25's pin (the kept test), over
         // 1808 bytes the power branch's 0x95E56C6BB49BB744 (the kept test); momentum within 1.7e-12, energy 3.5e-12, the CoM
         // 5.1e-11 m from its parabola, the rate wandering 5.46 rad/s, the power branch's numbers.
-        public const ulong TumbleHash = 0xBCBD33E6B6A94844UL;
+        // Model 29: 0xBCBD33E6B6A94844. p7f-damage 1.3 (ModelVersion 35): the 2288-byte record, the strikes' bytes zero (no contacts);
+        // over model 29's 1904 bytes model 29's pin (the kept test), its checks unchanged.
+        public const ulong TumbleHash = 0x9931AD0B7F279044UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -537,7 +555,11 @@ namespace Fpv450.Sim.Tests
         // and 0.04°; the pitch alone (0xA86D6A2518B1F903) by 22.0 mm and 0.43° (step 8915, the held bounce over the straw); both by
         // 22.2 mm and 0.45°. It keeps its course: 3 impacts (4), no crash, at
         // rest 0.2326 m up on 21 pairs (0.2323), 0.6 mm from model 26's resting place.
-        public const ulong RangeHash = 0x8F038B8AAEC425E7UL;
+        // Model 29: 0x8F038B8AAEC425E7. p7f-damage 1.3 (ModelVersion 35), on the same content: re-recorded on the 2288-byte record,
+        // the strikes' bytes zero: no disc cuts the straw or the soil (0 passes; the props stand 0.25 m over the skids), so over model
+        // 29's 1904 bytes it is model 29's pin, every record and event, the strikes on or off (the kept test); 3 impacts, no crash,
+        // at rest 0.2326 m up on 21 pairs, as model 29.
+        public const ulong RangeHash = 0x00CBE79581238DE7UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
