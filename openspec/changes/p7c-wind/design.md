@@ -31,7 +31,7 @@
    - **The rule at a point:** inside a strip and below its blending height, the strip's plan weight w (0 at its edge, 1 a canopy height inside) is the canopy's share and 1 − w the wake grid's: the mean is U·(w·U_c(z)/U + (1 − w)·P(z)·s), P the open profile and s the wake grid's speed; the open modes fall with the canopy's σ as before; the canopy's eddies carry √w of their excess and the wake eddies √(1 − w) of theirs. Outside every strip, or above its blending height, the wake grid alone. Behind the belt the wake grid's nearest-obstacle rule makes the belt's porous wake the lee's, and an obstacle upwind of the belt never adds to the canopy.
    - **The strips share** the stream `wind.canopy` (counter-based, each at its own scales); the log header holds the layout and every strip (format 14).
    - **Not modelled:** the canopy's adjustment where the wind enters a narrow belt (the plan weight's edge ramp stands for it: the test range's 17–18 m belt never passes w ≈ 0.94), the slow-down upwind of the belt, and an obstacle's wake under the belt's.
-10. **The wind inside a cut** (D-071; PHY-13, WLD-16; QA's S5 in `review-integration.md`). Model 20 restarts the open profile at a cut's floor. So in the map's Severe wind E01's run blows 0.47–1.20 of the open field at the same height over its floor (QA, seeds 1–3), and a body crossing its edge steps the hubs' mean (Calm 0.2 → 0.6 m/s in one step). The cut's own flow replaces that rule.
+10. **The wind inside a cut** (D-071; PHY-13, WLD-16; QA's S5 in `review-integration.md`). Model 20 restarts the open profile at a cut's floor. So in the map's Severe wind E01's run blows 0.47–1.20 of the open field at the same height over its floor (QA, seeds 1–3), and a body crossing its edge sees the hubs' mean in Calm go from about 0.2 to 0.6 m/s as the ground under it drops to the floor (QA called it one step; it follows the walls' slope at 1 mm a step, at most 0.007 m/s a step in Calm and 0.047 in Severe). The cut's own flow replaces that rule.
    - **The cuts on the test range** (`maps/test-range/placements.json`'s `ground.holes`, the assets' metadata and params; measured off the files):
      - **E01's run:** 24.0 m of centre line in legs of about 5 m with 35° bends (heading −23° to +19°), 1.5 m deep, a spade top of 0.8 m and a floor of 0.6 m (`top_w_m`, `bottom_w_m`), 0.90–0.98 m across at the crumbled lip (its slot gaps; `lip_crumble_m` 0.1). Parapets of 0.45 m (field side) and 0.3 m (belt side) stand 0.3 m back from the lip. H/W is 1.5–1.9 at the lip and 2.3 at the floor.
      - **Its two niches:** cubbies 0.8 × 0.6 × 0.7 m at the floor, roofed by the fillers (records 1.35 m deep, 1.1 m of centre line).
@@ -47,12 +47,17 @@
      - **Turbulence:** inside canyons of W/H 1–2 the streamwise variance is nearly an order of magnitude below the flow's above them (Di Bernardino, Monti, Leuzzi and Querzoli 2015, BLM 155, water channel; read).
      - **Oblique wind:** the along-street flux scales with the external wind's component along the street, for most incidences, with spiral streamlines (Soulhac, Perkins and Salizzoni 2008, BLM 126; abstract only). The cross and along components each drive their own flow.
      - **Not the canyon regimes:** Oke (1987/1988)'s skimming (H/W > 0.7), wake interference (0.3–0.7) and isolated roughness (< 0.3) describe arrays of buildings. A cut in open ground is a cavity in a wall, so Hotta's regimes apply.
-   - **The frame** (per step, at the body's origin): the nearest centre-line segment of the cut whose opening holds the origin. It gives:
+   - **The opening is the world's own** (per step, at the body's origin). The origin lies in a cut's opening where it is within the cut's reach and the ground under it lies below that cut's lip there. The ground is the one the field already reads: `SampleGround`'s height, and over a hole the soil under the body (the core's `SoilUnder`, model 20).
+     - The reach is W/2 + 0.1 m of the centre line, which runs on past its end points by the cut's ends (`CutFrame.OpeningReach`, assumed: E01's `lip_crumble_m`). It only bounds the search. The test range's own opening reaches 0.049 m past E01's W/2 at most (0.520 m from its line, read every 1 cm), its crumbled lip a few centimetres off the centre line, and Z04's box walls exactly W/2.
+     - So the edge falls where the world's ground meets the lip. Inside, the field takes the lip as its ground; outside, the world's ground is the lip. The field's ground is continuous there, with no smoothing band.
+     - A strip within W/2 of the centre line (the mean lip width) misses the world's opening by up to 5 cm. Where the strip ends, the ground under the body is already the wall's slope (down to −0.38 m), and the field steps. That strip is the edge scenario's known-wrong.
+     - Where no soil lies under the origin (−∞, inside a shape), no opening holds it.
+   - **The frame** is the nearest centre-line segment of such a cut, an open cut before a covered one. It gives:
      - the axis t̂ and the across direction n̂
      - the lip height y_lip (the centre line's height there)
      - the opening's width W at the lip
      - the origin's arc length s, and the cut's length S (centre line plus its ends)
-     - the depth D = y_lip − the floor under the body (the core's `SoilUnder`, as model 20; the record's depth where it finds none)
+     - the depth D: the cut's own, its floor at the centre line under the lip (the record's `depth_m`), never the soil under the origin. A rotor over a battered or crumbled wall then reads the cell, not the still air below the wall's local depth.
 
      Every point of the step uses this frame (assumed: the hubs lie within 0.4 m of the origin, and E01's bends have a 3.7 m radius). Only a pilot's level has it: Still and Steady are uniform air and never read the ground.
    - **The drive:** Ū_o, the field's own mean at (x₀, y_lip + h_o, z₀), horizontal, with its wakes and canopy share, at h_o = min(W, 1.5·D).
@@ -73,7 +78,7 @@
        - It grows in over one more bubble length, × min(1, (ξ − X_R)/X_R) (assumed: the step literature's recovery takes tens of heights; it is kept short so a long cut's floor reads the open profile model 20 gives).
        - Within D of the downwind wall it is × (L − ξ)/D (assumed: a wall's stagnation spans about its own height; Hotta's L/D 6 has the wall 0.8 D past reattachment).
        - w comes from continuity (∫P has a closed form).
-     - **Transitional, 5 ≤ L/D < 6:** (1 − f)·open + f·closed, f = L/D − 5 (derived from Hotta's bounds).
+     - **Transitional, 5 ≤ L/D < 6:** (1 − f)·open + f·closed, f = L/D − 5 (derived from Hotta's bounds). The closed share holds X_R at L/D 6's 5.2 D, never past L (assumed: Hotta measured no reattachment below 6, and 5.2 D is the first measured point).
    - **The mean at P:** Λ·(u_⊥·n̂ + u_∥·t̂ + (w_⊥ + w_∥)·ŷ) + (1 − Λ)·(the field at the lip).
      - Λ = min(1, η/δ_s), δ_s = W/7.2 (derived: the separated layer's spread, one depth in Hotta's 7.2).
      - The field at the lip is still: the cover's d + z0 is the field's own layer. The cut is continuous with it.
@@ -85,10 +90,12 @@
    - **Above the opening** (y ≥ y_lip) the field takes the lip as its ground (the profile, the wakes and the canopy), never the floor: the drone over the opening flies the field over the plane. Below the lip outside the opening (in the walls) the field is 0, as below any ground.
    - **Covered cuts** (the niches): below their roof the air is still (assumed: a 0.6 m mouth onto a cell whose own floor flow is 0.06 A). Where an open cut and a covered one both hold a point, the open one takes it.
    - **Quasi-steady:** the cell follows the mean within the step (derived: its turnover π·L/A is about 2.6 s in Severe, against the meander's 2 min). The cavity adds no draw: its randomness is the field's.
-   - **First readings** (derived from the model at Severe's centre of 9.5 m/s, without wakes; P over z0 0.10 m and d 0.20 m):
-     - E01's U_o is 2.9 m/s at h_o 0.8 m, so A is 0.96 m/s across.
-     - With the wind across, at 1.0 and 0.5 m over the floor in the opening's middle: 0.10 and 0.19 m/s. The plane gives 3.37 and 1.78 m/s at those heights, so 0.03 and 0.11 of it.
-     - At any bearing and anywhere in the opening: at most 0.24 m/s at 1.0 m and 0.19 m/s at 0.5 m (0.07 and 0.11 of the plane). 0.1 m below the lip, up to 1.2 m/s with the wind along the run.
+   - **First readings** (derived from the model at Severe's centre of 9.5 m/s, without wakes; P over z0 0.10 m and d 0.20 m; `CavityTests`):
+     - **At W 0.8 m** (the spade's top width, the spec's synthetic section, 1.5 m deep):
+       - E01's U_o is 2.9 m/s at h_o 0.8 m, so A is 0.96 m/s across.
+       - With the wind across, at 1.0 and 0.5 m over the floor in the opening's middle: 0.10 and 0.19 m/s. The plane gives 3.37 and 1.78 m/s at those heights, so 0.03 and 0.11 of it.
+       - At any bearing and anywhere in the opening, as the formulas give it: at most 0.278 m/s at 1.0 m and 0.19 m/s at 0.5 m (0.083 and 0.11 of the plane). 0.1 m below the lip, up to 1.441 m/s with the wind along the run. The first draft printed 0.24 and 1.2 m/s, which the formulas do not give. The spec's bound of 0.1 of the plane at 1.0 m holds.
+     - **At the map's W 0.9425 m** (E01's lip width, 1.10a's record; what the map flies): h_o is W, U_o 3.25 m/s and A 1.07 m/s across. In the opening's middle, 0.007 m/s at 1.0 m over the floor (the cell turns there) and 0.31 m/s at 0.5 m, the return 0.29 A (0.20 A at 0.8 m); 0.002 and 0.18 of the plane.
      - Model 26 reads 0.47–1.20 (QA).
      - Across cuts 1.0 m deep, the flow 0.4 m over the floor stays reversed up to L/D 5.5, and turns forward at 5.2, 5.8, 6.8 and 7.0 D for L/D 6, 8, 10 and 20.
    - **What the world gives** (1.10a): per hole record, held by `MapWorld` beside its wind volumes and read by `MapWind` into `WindSetup.Cuts`:
@@ -106,6 +113,7 @@
      - `DetMath` only, no FMA, and 0 B in steady state: the cuts and their boxes are built at setup. The frame lives in the step's frame (`Begin`), not in `FlightState`, so replay recomputes it.
    - **Logged:** the header lists each cut (`LogFormat.Version` + 1), and `ModelVersion` goes up by one. The record's wind at each hub already shows the cell. A flight that never enters a cut's opening steps as in 26.
    - **Not modelled:**
+     - the world's opening below the lip: the cavity's section is the W-wide slot about the centre line, so a point below the lip more than W/2 off it is in the walls (still air) even where E01's crumbled lip leaves air there; the world's opening sets only where the frame holds the body
      - the parapets' own lee over the opening (E01's mounds carry no wind volumes)
      - the cell's intermittent switching (Roshko: d/b 0.5–0.87 and above 2)
      - the two-vortex state below the critical Reynolds number (E01 in Calm, 4.4 × 10⁴, where the cut's flow stays under 0.05 m/s)
