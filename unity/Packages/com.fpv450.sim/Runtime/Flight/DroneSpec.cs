@@ -112,10 +112,17 @@ namespace Fpv450.Sim.Flight
         /// <summary>The blades' and the hub's moment of inertia about the shaft, kg·m², on a prop of this radius.</summary>
         public double Inertia(double radius, int blades)
         {
+            double ro = HubDiameter / 2, ri = HubBore / 2;
+            return blades * BladeInertia(radius) + HubMass / 2 * (ro * ro + ri * ri);
+        }
+
+        /// <summary>One blade's moment of inertia about the shaft, kg·m², on a prop of this radius: its flap inertia about
+        /// the hub's centre too (RotorFlappingSpec.BladeInertia), Σ ρ·fill·c·t·r²·dr over the spans.</summary>
+        public double BladeInertia(double radius)
+        {
             double sum = 0;
             for (int k = 0; k < Stations.Length; k++) sum += Fill[k] * Chord[k] * Thickness[k] * Stations[k] * Stations[k];
-            double ro = HubDiameter / 2, ri = HubBore / 2;
-            return blades * Density * radius * radius * radius * Span * sum + HubMass / 2 * (ro * ro + ri * ri);
+            return Density * radius * radius * radius * Span * sum;
         }
     }
 
@@ -376,17 +383,29 @@ namespace Fpv450.Sim.Flight
             props.InflowAdvanceRatio = (double[])Props.InflowAdvanceRatio.Clone();
             props.InflowThrustRatio = (double[])Props.InflowThrustRatio.Clone();
             props.InflowTorqueRatio = (double[])Props.InflowTorqueRatio.Clone();
-            return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs };
+            return new PropulsionSpec { Motors = (DroneMotor[])Motors.Clone(), Props = props, Packs = packs, Rotor = BuildRotor() };
+        }
+
+        /// <summary>The props' blades as elements (DamagedRotorSpec, p7f-damage 1.2): props.blade with the flapping's sections
+        /// (RotorFlappingSpec's lift slope and zero-lift angle), so the drone has one blade; null for a file without
+        /// props.blade.</summary>
+        public DamagedRotorSpec BuildRotor()
+        {
+            if (Blade == null) return null;
+            var sections = new RotorFlappingSpec();
+            return new DamagedRotorSpec { Blade = Blade, LiftSlope = sections.LiftSlope, ZeroLiftAngle = sections.ZeroLiftAngle };
         }
 
         /// <summary>The flight's airframe drag: a copy of the aero block.</summary>
         public AeroSpec BuildAero() => Aero.Clone();
 
         /// <summary>The motors' asymmetry at its researched tolerances (MotorAsymmetry), the props' mass from the parts
-        /// (the rear right prop's, "prop_rr"; the four are alike) and the service speed at the props' reference rpm.</summary>
+        /// (the rear right prop's, "prop_rr"; the four are alike), the service speed at the props' reference rpm, and the
+        /// blades' pitch offsets for the props' blades, none for a file without props.blade (no elements to fly them).</summary>
         public MotorAsymmetry BuildAsymmetry()
         {
-            var a = new MotorAsymmetry { ServiceRpm = Props.ReferenceRpm };
+            var a = new MotorAsymmetry { ServiceRpm = Props.ReferenceRpm, Blades = Props.Blades };
+            if (Blade == null) a.BladePitchBound = 0;
             foreach (DronePart p in Parts)
                 if (p.Name == "prop_rr") a.PropMass = p.Mass;
             return a;
@@ -426,10 +445,11 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>
         /// The rotors' flapping (RotorFlappingSpec) on the props' sheet, in the aero block's air: the radius and blades from
-        /// the props; a blade's flap inertia from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3 (derived, as the
-        /// mass build's rod); the chord at 19 stations from 0.1 R to the tip, linear through the sheet's 18 mm at 0.1 R
-        /// (assumed), 26 mm at 0.3 R and 8 mm at the tip (the sheet, docs/object-sheets/drone.md); the angle there the
-        /// props' helix less the zero-lift angle.
+        /// the props; a blade's flap inertia from props.blade's table (PropBlade.BladeInertia, p7f-damage 1.2: the drone has
+        /// one blade), or, for a file without the table, from the prop's part ("prop_rr") as a uniform rod, m/N_b·R²/3
+        /// (derived, as the mass build's rod); the chord at 19 stations from 0.1 R to the tip, linear through the sheet's
+        /// 18 mm at 0.1 R (assumed), 26 mm at 0.3 R and 8 mm at the tip (the sheet, docs/object-sheets/drone.md); the angle
+        /// there the props' helix less the zero-lift angle.
         /// </summary>
         public RotorFlappingSpec BuildFlapping()
         {
@@ -439,7 +459,7 @@ namespace Fpv450.Sim.Flight
             var f = new RotorFlappingSpec
             {
                 AirDensity = Aero.AirDensity, Radius = radius, Blades = Props.Blades,
-                BladeInertia = mass / Props.Blades * radius * radius / 3,
+                BladeInertia = Blade != null ? Blade.BladeInertia(radius) : mass / Props.Blades * radius * radius / 3,
                 Stations = new double[19], Chords = new double[19], Angles = new double[19],
             };
             for (int k = 0; k < 19; k++)

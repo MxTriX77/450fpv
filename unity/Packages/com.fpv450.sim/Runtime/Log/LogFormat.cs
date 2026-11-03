@@ -85,8 +85,12 @@ namespace Fpv450.Sim.Log
         /// 19: p7f-damage 1.1b, the header's drone internals entry (tag 25): drone.json's hash, its props.blade (the stations'
         ///    chord, thickness, section angle and fill, the hub and the blade's material) and its motors[].internals; the
         ///    records are 16's.
+        /// 20–22 are assigned to other lines (D-072).
+        /// 23: p7f-damage 1.2, the header's propulsion entry with the props' blades as elements (PropulsionSpec.Rotor: the blade's
+        ///    table, the sections' lift slope, zero-lift angle and profile drag) and the asymmetry entry with the blades' pitch
+        ///    bound and count (MotorAsymmetry.BladePitchBound, Blades; the draws are the randomness entry's); the records are 19's.
         /// </summary>
-        public const int Version = 19;
+        public const int Version = 23;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -196,8 +200,15 @@ namespace Fpv450.Sim.Log
         /// 26: p7b-airframe--power's 24 merged onto 25 (the code is the parents' together): D-066's power and mass and the
         ///    build's placement with the interference, D-064's micro-motion and 1.6c's stick spring. On model 22's drone (the
         ///    40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics) and without the placement a flight steps as in 25.
+        /// 27 and 28 are assigned to p7a-ground and p7d-tether (D-072).
+        /// 29: p7f-damage 1.2 (D-072's number): the damaged rotor (DamagedRotor: blade-element momentum theory on what is left of
+        ///    each blade, the thrust and torque through η, the rotor's J less the material lost, the lost material's pull, the
+        ///    blades' unequal lift and drag and the flap sets' couple at each sub-step) and each blade's factory pitch offset
+        ///    (prop.blade_pitch, ±0.25°), with the flapping's blade inertia from props.blade's table (2.12e-5 kg·m², not the
+        ///    uniform rod's 4.3e-5). A flight on a drone.json without props.blade (no rotor spec, no pitch draws, the rod)
+        ///    steps as in 26; so does one with the pitch bound at 0 and the flapping's inertia at the rod.
         /// </summary>
-        public const int ModelVersion = 26;
+        public const int ModelVersion = 29;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

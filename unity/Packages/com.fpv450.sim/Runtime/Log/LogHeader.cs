@@ -158,7 +158,11 @@ namespace Fpv450.Sim.Log
             { "Name", "Kind", "Material", "Mass", "Position", "Size", "Diameter", "Length", "Axis" };
 
         /// <summary>The propulsion's fields the header records, checked against the structs by the suite.</summary>
-        public static readonly string[] PropulsionFieldsLogged = { "Motors", "Props", "Packs" };
+        public static readonly string[] PropulsionFieldsLogged = { "Motors", "Props", "Packs", "Rotor" };
+
+        /// <summary>The props' blades as elements' fields the header records (format 23, p7f-damage 1.2), checked against
+        /// DamagedRotorSpec by the suite; its Blade with BladeFieldsLogged.</summary>
+        public static readonly string[] RotorFieldsLogged = { "Blade", "LiftSlope", "ZeroLiftAngle", "ProfileDrag" };
         public static readonly string[] MotorFieldsLogged =
             { "Position", "Clockwise", "Kv", "Resistance", "NoLoadCurrent", "RotorInertia", "MagnetPoles", "EscTau", "EscCurrentLimit" };
         public static readonly string[] PropsFieldsLogged =
@@ -175,7 +179,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] AsymmetryFieldsLogged =
         {
             "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm", "ResistanceBound", "ResistanceSigma",
-            "FrictionBound", "FrictionSigma", "InertiaBound", "InertiaSigma",
+            "FrictionBound", "FrictionSigma", "InertiaBound", "InertiaSigma", "BladePitchBound", "Blades",
         };
         public static readonly string[] PlacementFieldsLogged =
         {
@@ -644,23 +648,21 @@ namespace Fpv450.Sim.Log
                     e.Write(k.CellResistance);
                     Numbers(e, k.Ocv);
                 }
+                // The props' blades as elements (format 23, p7f-damage 1.2).
+                DamagedRotorSpec rotor = Propulsion.Rotor;
+                e.Write(rotor != null);
+                if (rotor == null) return;
+                WriteBlade(e, rotor.Blade);
+                e.Write(rotor.LiftSlope);
+                e.Write(rotor.ZeroLiftAngle);
+                e.Write(rotor.ProfileDrag);
             });
             Entry(w, TagDroneInternals, e =>
             {
                 // drone.json's hash, the file these tables are read from (format 19, p7f-damage 1.1b).
                 e.Write(DroneHash);
                 e.Write(Blade != null);
-                if (Blade != null)
-                {
-                    PropBlade b = Blade;
-                    foreach (double[] column in new[] { b.Stations, b.Chord, b.Thickness, b.SectionAngle, b.Fill })
-                        Numbers(e, column);
-                    foreach (double x in new[] { b.HubDiameter, b.HubThickness, b.HubBore })
-                        e.Write(x);
-                    e.Write(b.Conditioned);
-                    foreach (double x in new[] { b.Density, b.FlexuralModulus, b.FlexuralStrength, b.CrushStrength, b.FractureEnergy, b.ProportionalLimit, b.Hardness })
-                        e.Write(x);
-                }
+                if (Blade != null) WriteBlade(e, Blade);
                 MotorInternals[] motors = Internals ?? new MotorInternals[0];
                 e.Write((ushort)motors.Length);
                 foreach (MotorInternals m in motors)
@@ -800,6 +802,8 @@ namespace Fpv450.Sim.Log
                 e.Write(Asymmetry.FrictionSigma);
                 e.Write(Asymmetry.InertiaBound);
                 e.Write(Asymmetry.InertiaSigma);
+                e.Write(Asymmetry.BladePitchBound);
+                e.Write(Asymmetry.Blades);
             });
             Entry(w, TagPlacement, e =>
             {
@@ -1113,16 +1117,7 @@ namespace Fpv450.Sim.Log
                     case TagDroneInternals:
                         tablesHash = r.ReadUInt64();
                         sawTables = true;
-                        Blade = r.ReadBoolean()
-                            ? new PropBlade
-                            {
-                                Stations = Numbers(r), Chord = Numbers(r), Thickness = Numbers(r), SectionAngle = Numbers(r), Fill = Numbers(r),
-                                HubDiameter = r.ReadDouble(), HubThickness = r.ReadDouble(), HubBore = r.ReadDouble(), Conditioned = r.ReadBoolean(),
-                                Density = r.ReadDouble(), FlexuralModulus = r.ReadDouble(), FlexuralStrength = r.ReadDouble(),
-                                CrushStrength = r.ReadDouble(), FractureEnergy = r.ReadDouble(), ProportionalLimit = r.ReadDouble(),
-                                Hardness = r.ReadDouble(),
-                            }
-                            : null;
+                        Blade = r.ReadBoolean() ? ReadBlade(r) : null;
                         int motors = r.ReadUInt16();
                         Internals = motors > 0 ? new MotorInternals[motors] : null;
                         for (int i = 0; i < motors; i++)
@@ -1203,7 +1198,8 @@ namespace Fpv450.Sim.Log
                                 KvBound = r.ReadDouble(), KvSigma = r.ReadDouble(), EscLagBound = r.ReadDouble(), BalanceGrade = r.ReadDouble(),
                                 PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(), ResistanceBound = r.ReadDouble(),
                                 ResistanceSigma = r.ReadDouble(), FrictionBound = r.ReadDouble(), FrictionSigma = r.ReadDouble(),
-                                InertiaBound = r.ReadDouble(), InertiaSigma = r.ReadDouble(),
+                                InertiaBound = r.ReadDouble(), InertiaSigma = r.ReadDouble(), BladePitchBound = r.ReadDouble(),
+                                Blades = r.ReadInt32(),
                             }
                             : null;
                         break;
@@ -1450,8 +1446,34 @@ namespace Fpv450.Sim.Log
                     CellResistance = r.ReadDouble(), Ocv = Numbers(r),
                 };
             }
+            if (r.ReadBoolean())
+                spec.Rotor = new DamagedRotorSpec
+                {
+                    Blade = ReadBlade(r), LiftSlope = r.ReadDouble(), ZeroLiftAngle = r.ReadDouble(), ProfileDrag = r.ReadDouble(),
+                };
             return spec;
         }
+
+        // A blade's table (props.blade): its stations' columns, the hub and the material.
+        static void WriteBlade(BinaryWriter e, PropBlade b)
+        {
+            foreach (double[] column in new[] { b.Stations, b.Chord, b.Thickness, b.SectionAngle, b.Fill })
+                Numbers(e, column);
+            foreach (double x in new[] { b.HubDiameter, b.HubThickness, b.HubBore })
+                e.Write(x);
+            e.Write(b.Conditioned);
+            foreach (double x in new[] { b.Density, b.FlexuralModulus, b.FlexuralStrength, b.CrushStrength, b.FractureEnergy, b.ProportionalLimit, b.Hardness })
+                e.Write(x);
+        }
+
+        static PropBlade ReadBlade(BinaryReader r) => new PropBlade
+        {
+            Stations = Numbers(r), Chord = Numbers(r), Thickness = Numbers(r), SectionAngle = Numbers(r), Fill = Numbers(r),
+            HubDiameter = r.ReadDouble(), HubThickness = r.ReadDouble(), HubBore = r.ReadDouble(), Conditioned = r.ReadBoolean(),
+            Density = r.ReadDouble(), FlexuralModulus = r.ReadDouble(), FlexuralStrength = r.ReadDouble(),
+            CrushStrength = r.ReadDouble(), FractureEnergy = r.ReadDouble(), ProportionalLimit = r.ReadDouble(),
+            Hardness = r.ReadDouble(),
+        };
 
         static void Numbers(BinaryWriter w, double[] xs)
         {

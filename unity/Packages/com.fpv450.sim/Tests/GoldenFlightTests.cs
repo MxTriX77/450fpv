@@ -103,7 +103,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void InStillAirTheGoldenFlightsAreModel15s()
         {
-            DroneSpec spec = GoldenFlights.WithModel22Drone(GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel22Drone(GoldenFlights.WithRotorDrag(RepositoryDrone.Text(), GoldenFlights.TunedHForce)));
             WindSetup still = WindSetup.Of(WindLevel.Still);
             const int at = GoldenFlights.Model19Layout;
             Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, RotorWindBytesAt, WindBytes, wind: still, interference: false, wake: false, motors: false,
@@ -115,11 +115,12 @@ namespace Fpv450.Sim.Tests
         // D-066 (model 23 on p7b-airframe--power), its audit, kept: on model 22's drone (the 40 A limit, the 1.0 A no-load
         // current, the 0.92 kg packs and the 0.25 kg electronics put back) every golden is model 22's there and, since the
         // merge at model 26, the landing's merge's model 25 here, every record and event (the goldens fly the exact build, no
-        // placement). Each older kept audit flies model 22's drone first.
+        // placement). Each older kept audit flies model 22's drone first. Since model 29 every older kept audit flies without
+        // props.blade (GoldenFlights.WithoutTheBlade, p7f-damage 1.2).
         [Test]
         public void OnModel22sDroneEachGoldenIsModel25s()
         {
-            DroneSpec Model22() => GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec Model22() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text())));
             Assert.That(GoldenFlights.FlyPowered(Model22(), out _), Is.EqualTo(GoldenFlights.Model25PoweredHash), "powered");
             Assert.That(GoldenFlights.FlyPowered(Model22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
                 Is.EqualTo(GoldenFlights.Model25RainPoweredHash), "rain");
@@ -135,7 +136,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
             const int at = GoldenFlights.Model19Layout;
             Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, wake: false, motors: false, layout: at),
                 Is.EqualTo(GoldenFlights.PowerPoweredHash), "powered");
@@ -170,7 +171,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutEitherTheGoldenFlightsAreModel19s()
         {
-            DroneSpec spec = GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text())));
             const int at = GoldenFlights.Model19Layout;
             Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, wake: false, motors: false, layout: at),
                 Is.EqualTo(GoldenFlights.Model19PoweredHash), "powered");
@@ -186,12 +187,37 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheInterferenceTheGoldenFlightsAreTheMicroBranchs()
         {
-            DroneSpec spec = GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel22Drone(DroneSpec.Parse(RepositoryDrone.Text())));
             Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, interference: false), Is.EqualTo(GoldenFlights.MicroPoweredHash), "powered");
             Assert.That(GoldenFlights.FlyContact(spec, out _, InterferenceAt, InterferenceBytes, interference: false), Is.EqualTo(GoldenFlights.MicroContactHash), "contact");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, InterferenceAt, InterferenceBytes, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain,
                 interference: false), Is.EqualTo(GoldenFlights.MicroRainHash), "rain");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, InterferenceAt, InterferenceBytes), Is.EqualTo(GoldenFlights.MicroTumbleHash), "tumble");
+        }
+
+        // p7f-damage 1.2's audit, kept (prop-motor-damage's "The intact blade is the published table"): with the blades' factory
+        // pitch off and the flapping's inertia at model 26's uniform rod, the rotors carry their blades as elements but stay
+        // sound, skip their path and fly the published table: every golden is model 26's, every record and event; so is every
+        // golden on a drone.json without props.blade (no elements, no pitch draws, the rod).
+        [Test]
+        public void WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            System.Action<FlightSetup> model26 = s =>
+            {
+                GoldenFlights.WithoutThePitch(s);
+                GoldenFlights.WithTheRodsInertia(spec)(s);
+            };
+            Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore core, edit: model26), Is.EqualTo(GoldenFlights.Model26PoweredHash), "powered");
+            Assert.That(core.Propulsion.Rotor(0), Is.Not.Null, "the blades as elements, sound");
+            Assert.That(core.Propulsion.Damaged, Is.EqualTo(0));
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: model26),
+                Is.EqualTo(GoldenFlights.Model26RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, edit: model26), Is.EqualTo(GoldenFlights.Model26ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, edit: model26), Is.EqualTo(GoldenFlights.Model26RangeHash), "range");
+            DroneSpec bladeless = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            Assert.That(GoldenFlights.FlyPowered(bladeless, out _), Is.EqualTo(GoldenFlights.Model26PoweredHash), "powered without props.blade");
+            Assert.That(GoldenFlights.FlyContact(bladeless, out _), Is.EqualTo(GoldenFlights.Model26ContactHash), "contact without props.blade");
         }
 
         // p7b-airframe 1.3's check, kept without model 9's pin (it flew the stand-in's air): 193–300 m up the powered golden's

@@ -569,6 +569,42 @@ namespace Fpv450.Sim.Tests
             Assert.That(bench.Internals, Is.Null);
         }
 
+        // p7f-damage 1.2 (format 23): the propulsion entry carries the props' blades as elements (the blade's table and the
+        // sections' constants) and the asymmetry entry the blades' pitch bound and count, so a replay rebuilds the same rotors and
+        // draws the same pitch offsets; a propulsion without them reads back without them.
+        [Test]
+        public void TheHeaderKeepsTheBladesAsElementsAndThePitchBound()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            FlightSetup setup = GoldenFlights.PoweredSetup(spec);
+            var core = new FlightCore(setup);
+            LogHeader back = LogHeader.Read(new MemoryStream(Header(setup, core, spec).Encode()));
+            Assert.That(back.Unknown, Is.Empty);
+            DamagedRotorSpec a = setup.Propulsion.Rotor, b = back.Propulsion.Rotor;
+            Assert.That(b, Is.Not.Null);
+            foreach (string f in LogHeader.RotorFieldsLogged)
+            {
+                if (f == "Blade") continue;
+                FieldInfo info = typeof(DamagedRotorSpec).GetField(f);
+                Assert.That(info.GetValue(b), Is.EqualTo(info.GetValue(a)), "rotor." + f);
+            }
+            foreach (string f in LogHeader.BladeFieldsLogged)
+            {
+                FieldInfo info = typeof(PropBlade).GetField(f);
+                Assert.That(info.GetValue(b.Blade), Is.EqualTo(info.GetValue(a.Blade)), "rotor.blade." + f);
+            }
+            Assert.That((back.Asymmetry.BladePitchBound, back.Asymmetry.Blades), Is.EqualTo((setup.Asymmetry.BladePitchBound, setup.Asymmetry.Blades)));
+            var problems = new List<string>();
+            var replayed = new FlightCore(back.ToSetup(setup.World, problems));
+            Assert.That(problems, Is.Empty);
+            Assert.That(replayed.Draws.BladePitch, Is.EqualTo(core.Draws.BladePitch), "the replay draws the same pitch offsets");
+            for (int i = 0; i < 4; i++)
+                Assert.That(replayed.Propulsion.Rotor(i).ThrustRatio(0), Is.EqualTo(core.Propulsion.Rotor(i).ThrustRatio(0)), "rotor " + i + "'s tables");
+
+            LogHeader bare = LogHeader.Read(new MemoryStream(LogHeader.For(Setup(BootstrapDrone.Spec()), new FlightCore(Setup(BootstrapDrone.Spec()))).Encode()));
+            Assert.That(bare.Propulsion.Rotor, Is.Null, "a bootstrap drone has no blade");
+        }
+
         [Test]
         public void TheRecordsCoverTheStateAndTheSetup()
         {
@@ -598,6 +634,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(AirframeModesSpec)), Is.EquivalentTo(LogHeader.ModesFieldsLogged));
             Assert.That(InstanceFields(typeof(PropBlade)), Is.EquivalentTo(LogHeader.BladeFieldsLogged));
             Assert.That(InstanceFields(typeof(MotorInternals)), Is.EquivalentTo(LogHeader.InternalsFieldsLogged));
+            Assert.That(InstanceFields(typeof(DamagedRotorSpec)), Is.EquivalentTo(LogHeader.RotorFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })

@@ -227,7 +227,15 @@ namespace Fpv450.Sim.Tests
         // branch's, and keeps its course: armed, no crash, 162.72 m up against 157.26 and 153.53 at 10 s on the open-loop
         // script (the lighter drone climbs harder, as on its branch), 20.1 m and 9.9 m from their ends, within 21° and 7.8°;
         // the packs at 0.8941 of 0.9 (the power branch's 0.8941).
-        public const ulong PoweredHash = 0x53F1D10489702031UL;
+        // Model 26: 0x53F1D10489702031. p7f-damage 1.2 (ModelVersion 29): re-recorded with the blades as elements, each blade's
+        // factory pitch offset (prop.blade_pitch, ±0.25°) and the flapping's blade inertia from props.blade (2.12e-5 kg·m², the
+        // rod's 4.30e-5). Audited (the kept test, WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s): with the pitch draws
+        // off and the rod's inertia, or without props.blade, it is model 26's pin bit for bit, every record and event. Each share
+        // alone moves it from step 21, the first armed step: the inertia alone (0x460DEB6D2296C4A2; the flapping's softer
+        // blade in Windy's air) by 5.51 m and 4.75° at most by 10 s on the open-loop script, 167.91 m up against 162.72; the
+        // pitch alone (0x3351ADE2171E74D3; each rotor's thrust offset and its 1/rev) by 2.29 m and 2.06°, 162.36 m up; both by
+        // 5.93 m and 4.69°, 167.60 m up, the pitch moving the inertia's flight by 1.79 m and 1.40°. Armed, no crash, no contact.
+        public const ulong PoweredHash = 0xB999E5FDE8815DACUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -255,7 +263,11 @@ namespace Fpv450.Sim.Tests
         // model 22's drone, the kept test; the power branch's 0xACF1742E51117659 without the integration's sources, the kept
         // test). It moves from step 1 and step 21 and keeps its course: 164.73 m up against 158.09 and 155.36, 19.8 m and 9.8
         // m from their ends, within 19° and 8.0°; the film holds 9.92 g at 10 s (9.11 and 10.28).
-        public const ulong RainPoweredHash = 0x53B90D4307BF1534UL;
+        // Model 26: 0x53B90D4307BF1534. p7f-damage 1.2 (ModelVersion 29), audited as the powered flight (model 26's pin under the
+        // kept test's switches): from step 21 the inertia alone (0xD29E350E00C73BA6) moves it by 6.05 m and 5.37° by 10 s, 170.41 m
+        // up against 164.73; the pitch alone (0xE9D26813D342FD33) by 1.67 m and 1.16°; both by 6.67 m and 5.71°, 170.63 m up;
+        // the film holds 9.67 g at 10 s (9.92), its flux on a path a few metres apart.
+        public const ulong RainPoweredHash = 0x8ABC28AF4D780FF7UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -405,7 +417,12 @@ namespace Fpv450.Sim.Tests
         // model 25 (the lighter body) and from step 3 against the power branch's (1.6c's spring on the standing skids), and
         // keeps its course: 5 impacts, no crash, at rest at 0.2519 m on 8 pairs (0.2518 and 0.2519), 59 mm and 42 mm aside,
         // within 117 mm and 1.5° of model 25's path and 49 mm and 1.5° of the power branch's (the held bounce).
-        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
+        // Model 26: 0xAAEA31DBFBB13710. p7f-damage 1.2 (ModelVersion 29), audited as the powered flight (model 26's pin under the
+        // kept test's switches). It moves from step 9, the first armed step, under either share: the inertia alone
+        // (0x448A9D8E4A535411; Calm's hover has little edgewise flow) by at most 1.0 mm and 0.06°; the pitch alone
+        // (0xD7986813EEECBEA6) by 17.2 mm and 0.86° (step 9467, the held bounce); both by 18.0 mm and 0.86°. It keeps its course: 5
+        // impacts, no crash, at rest at the same 0.2519 m on 8 pairs, 17.6 mm from model 26's resting place.
+        public const ulong ContactHash = 0xFC78C0BDDEFA2725UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -515,7 +532,12 @@ namespace Fpv450.Sim.Tests
         // branch's 0xFBAC3E4D67B45ACD under the temporary edits over 1808 bytes. It moves from step 1 and step 3 and keeps its
         // course: at rest 6.9 mm and 24 mm from their resting places, within 114 mm and 3.1° of model 25's path and 34 mm and
         // 3.5° of the power branch's (the held bounce over the straw).
-        public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
+        // Model 26: 0xC79B60F487AEB8B6. p7f-damage 1.2 (ModelVersion 29), on the same content, audited as the contact flight (model
+        // 26's pin under the kept test's switches). From step 9 the inertia alone (0x22B183936CE51C3E) moves it by at most 0.2 mm
+        // and 0.04°; the pitch alone (0xA86D6A2518B1F903) by 22.0 mm and 0.43° (step 8915, the held bounce over the straw); both by
+        // 22.2 mm and 0.45°. It keeps its course: 3 impacts (4), no crash, at
+        // rest 0.2326 m up on 21 pairs (0.2323), 0.6 mm from model 26's resting place.
+        public const ulong RangeHash = 0x8F038B8AAEC425E7UL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
@@ -568,6 +590,12 @@ namespace Fpv450.Sim.Tests
         /// 0xA1FF085091A019CD, 0xB10D9A860D4431C0, 0x8C1E6B066F143A67, 0x2A0283BBFE59FD84, 0x80C73DBA130C6903).</summary>
         public const ulong Model25PoweredHash = 0x67788361104F58BBUL, Model25RainPoweredHash = 0x4D876EF3F328F9ADUL,
             Model25ContactHash = 0x0F21FF2A28BA0E16UL, Model25TumbleHash = 0x6712A54D0FDA7F84UL, Model25RangeHash = 0x0D5350CB2E68C6B8UL;
+
+        /// <summary>p7f-damage 1.2's kept audit (GoldenFlightTests.WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s): with the
+        /// blades' pitch draws off and the flapping's inertia at the rod, or without props.blade, each golden flies model 26's
+        /// pins bit for bit, every record and event (the tumble has no rotors and keeps TumbleHash).</summary>
+        public const ulong Model26PoweredHash = 0x53F1D10489702031UL, Model26RainPoweredHash = 0x53B90D4307BF1534UL,
+            Model26ContactHash = 0xAAEA31DBFBB13710UL, Model26RangeHash = 0xC79B60F487AEB8B6UL;
 
         /// <summary>The audit against p7b-airframe--power (GoldenFlightTests.WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs):
         /// that branch's model 24 pins over model 19's 1808-byte record, which the powered, rain and tumble goldens flown on
@@ -672,7 +700,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize)
+            int layout = LogFormat.StepSize, Action<FlightSetup> edit = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -685,6 +713,7 @@ namespace Fpv450.Sim.Tests
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
             WithoutD064(setup, wake, motors);
+            edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -713,7 +742,8 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
+            Action<FlightSetup> edit = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -728,6 +758,7 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors);
+            edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -784,7 +815,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
-            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, Action<FlightSetup> edit = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -801,6 +832,7 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors);
+            edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
@@ -917,6 +949,31 @@ namespace Fpv450.Sim.Tests
             if (!wake) setup.RotorWake = null;
             if (!motors && setup.Asymmetry != null) setup.Asymmetry.ResistanceSigma = setup.Asymmetry.FrictionSigma = setup.Asymmetry.InertiaSigma = 0;
         }
+
+        /// <summary>The spec without props.blade (p7f-damage 1.2's audit): no blades as elements, no pitch draws and the
+        /// flapping's uniform-rod inertia, so every golden flies model 26's bits. Pass a freshly parsed spec: it is changed in
+        /// place.</summary>
+        public static DroneSpec WithoutTheBlade(DroneSpec spec)
+        {
+            spec.Blade = null;
+            return spec;
+        }
+
+        /// <summary>p7f-damage 1.2's own share (the audit's switch): the blades' factory pitch draws off, so every rotor stays
+        /// sound and skips its blades' path.</summary>
+        public static void WithoutThePitch(FlightSetup setup)
+        {
+            if (setup.Asymmetry != null) setup.Asymmetry.BladePitchBound = 0;
+        }
+
+        /// <summary>The flapping's blade inertia back at model 26's uniform rod, m/N_b·R²/3 of the prop part (the audit's switch
+        /// for the inertia's share), in BuildFlapping's arithmetic.</summary>
+        public static Action<FlightSetup> WithTheRodsInertia(DroneSpec spec) => setup =>
+        {
+            if (setup.Flapping == null) return;
+            double radius = spec.Props.Diameter / 2, mass = spec.Parts[spec.PartIndex("prop_rr")].Mass;
+            setup.Flapping.BladeInertia = mass / spec.Props.Blades * radius * radius / 3;
+        };
 
         static ulong Fnv(ulong h, byte[] bytes, int from, int to)
         {

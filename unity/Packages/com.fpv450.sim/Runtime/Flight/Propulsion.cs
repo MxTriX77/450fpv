@@ -12,6 +12,11 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Two, in parallel on the ESCs' bus (PHB-03).</summary>
         public DronePack[] Packs;
+
+        /// <summary>The props' blades as elements (DamagedRotorSpec, p7f-damage 1.2): each rotor's thrust, torque, inertia and
+        /// 1/rev loads follow its blades' state; null for none (a bench's props, a drone.json without props.blade), whose
+        /// rotors are always the published table's.</summary>
+        public DamagedRotorSpec Rotor;
     }
 
     /// <summary>What the rotors did over a step's sub-steps, for the rigid body, the log and the feed.</summary>
@@ -89,6 +94,11 @@ namespace Fpv450.Sim.Flight
     ///   the other rotors' wakes' downwash or upwash at its disc, scaled by its fluctuation; AdvanceInterference moves that once a step.
     /// - the motors' own dynamics (MotorAsymmetry, D-064): each winding's resistance, each motor's friction and each rotor's
     ///   inertia as the flight drew them.
+    /// - the blades (DamagedRotor, p7f-damage 1.2), with PropulsionSpec.Rotor: a rotor whose blades are off the sheet (a
+    ///   damage, or the factory pitch offsets the asymmetry draws, prop.blade_pitch) takes its thrust and torque times its
+    ///   tables' η at their advance ratios, its J less the material lost, and, beside the unbalance at each sub-step, the lost
+    ///   material's pull, its blades' unequal lift and drag (a hub moment and an in-plane force) and its flap sets' couple,
+    ///   all turning with RotorAngle. A sound rotor with no pitch offset skips all of it: the published table, bit for bit.
     /// </summary>
     public sealed class Propulsion
     {
@@ -143,6 +153,13 @@ namespace Fpv450.Sim.Flight
         readonly double[] _interferenceInduced = new double[4], _interferenceSkew = new double[4], _interferenceDx = new double[4], _interferenceDz = new double[4];
         readonly double[] _interferenceSpeed = new double[4];
         Corners _interferenceInflow;
+
+        // The blades (null: none): each rotor's, the rotors off their sound path (bit 1 << corner), each rotor's J with sound
+        // blades, and the step's 1/rev aerodynamic loads per rotor in its frame (DamagedRotor.Loads): moment and force, p and q.
+        readonly DamagedRotor[] _rotors;
+        int _damaged;
+        readonly double[] _soundInertia = new double[4];
+        readonly double[] _momentP = new double[4], _momentQ = new double[4], _forceP = new double[4], _forceQ = new double[4];
 
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
@@ -227,6 +244,25 @@ namespace Fpv450.Sim.Flight
                 _ringGain[i] = _surfaceGain[i] = 1;
                 _groundAt[i] = _ceilingAt[i] = double.PositiveInfinity;
             }
+            // The blades: each rotor's, with the factory pitch offsets drawn for it (rotor-major), into its tables.
+            double[] pitch = draws?.BladePitch;
+            if (spec.Rotor != null)
+            {
+                _rotors = new DamagedRotor[4];
+                for (int i = 0; i < 4; i++)
+                {
+                    _soundInertia[i] = _inertia[i];
+                    _rotors[i] = new DamagedRotor(spec.Rotor, p.Diameter / 2, p.Blades, _reaction[i], p.InflowAdvanceRatio);
+                    for (int b = 0; b < p.Blades; b++)
+                        _rotors[i].Blade(b).Reset(pitch == null ? 0 : pitch[i * p.Blades + b]);
+                    Rebuild(i);
+                }
+            }
+            else if (pitch != null)
+            {
+                for (int k = 0; k < pitch.Length; k++)
+                    if (pitch[k] != 0) throw new ArgumentException("the blades' factory pitch needs the props' blade (PropulsionSpec.Rotor)", nameof(draws));
+            }
             if (interference != null)
             {
                 _interference = interference.Clone();
@@ -292,6 +328,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>A rotor's thrust at its present speed with this step's inflow, N (after BeginStep, then each sub-step).</summary>
         public double Thrust(int corner) => _thrust[corner];
 
+        /// <summary>A rotor's drag torque at its present speed with this step's inflow, N·m (after BeginStep, then each sub-step).</summary>
+        public double Torque(int corner) => _torque[corner];
+
         /// <summary>
         /// Each rotor's distance along its axis to the surface below it (the ground or a shape) and above it, m, +∞ for none
         /// within the rays' reach (FlightCore's rays and SampleGround): RotorInflow's ground and ceiling from then on.
@@ -323,8 +362,53 @@ namespace Fpv450.Sim.Flight
         /// <summary>A rotor's thrust at the last sub-step without its ring's fluctuation, N (the ring's v_h is of it).</summary>
         public double MeanThrust(int corner) => _meanThrust[corner];
 
-        /// <summary>Whether a prop carries an unbalance (MotorAsymmetry), so the rotors pull their hubs.</summary>
-        public bool Unbalanced => _unbalanced;
+        /// <summary>Whether a prop carries an unbalance (MotorAsymmetry) or a rotor's blades are off the sheet (DamagedRotor), so
+        /// the rotors load their hubs once a revolution.</summary>
+        public bool Unbalanced => _unbalanced || _damaged != 0;
+
+        /// <summary>A rotor's blades (DamagedRotor), or null without PropulsionSpec.Rotor.</summary>
+        public DamagedRotor Rotor(int corner) => _rotors?[corner];
+
+        /// <summary>The rotors whose blades are off the sheet, bit 1 &lt;&lt; corner.</summary>
+        public int Damaged => _damaged;
+
+        /// <summary>A rotor's moment of inertia about its shaft now, kg·m²: the drawn J less the material its blades lost.</summary>
+        public double Inertia(int corner) => _inertia[corner];
+
+        /// <summary>
+        /// A rotor's blades as they now are into its tables, its J and its 1/rev loads (a damaging step, a fixture, the flight's
+        /// start): from the next BeginStep on. A rotor back to sound blades without pitch offsets takes the published table
+        /// again, bit for bit.
+        /// </summary>
+        public void Rebuild(int corner)
+        {
+            DamagedRotor r = _rotors[corner];
+            r.Rebuild();
+            if (r.Sound)
+            {
+                _damaged &= ~(1 << corner);
+                _inertia[corner] = _soundInertia[corner];
+                _momentP[corner] = _momentQ[corner] = _forceP[corner] = _forceQ[corner] = 0;
+                return;
+            }
+            _damaged |= 1 << corner;
+            _inertia[corner] = _soundInertia[corner] - r.LostInertia;
+        }
+
+        /// <summary>
+        /// A rotor's once-per-revolution loads at its angle (rad) and speed (rad/s) with this step's thrust and torque (after
+        /// BeginStep, then each sub-step), body axes: the props' pull on the hub, its factory unbalance (MotorAsymmetry) and
+        /// its blades' lost material, N; its blades' unequal drag, an in-plane force at the hub, N; and the pure couples, their
+        /// unequal lift's hub moment and the flap sets' centrifugal moment, N·m. Each sub-step adds them (SubStep).
+        /// </summary>
+        public void OneRevLoads(int corner, double angle, double speed, out Double3 pull, out Double3 drag, out Double3 couple)
+        {
+            pull = _unbalanced ? FactoryPull(corner, angle, speed) : default;
+            drag = couple = default;
+            if ((_damaged & (1 << corner)) == 0) return;
+            BladeLoads(corner, angle, speed, out Double3 lost, out drag, out couple);
+            pull = pull + lost;
+        }
 
         /// <summary>A rotor's hub, body m.</summary>
         public Double3 Hub(int corner) => _hub[corner];
@@ -687,20 +771,50 @@ namespace Fpv450.Sim.Flight
 
         // A rotor turns by the sub-step's mean speed, its angle kept in [0, 2π); an unbalanced prop's residual U, at its
         // angle on the rotor, pulls the hub outward with U·ω² in the disc's plane. A clockwise rotor turns positively
-        // about +y (DetMath.cs), so the unbalance at angle θ from body +x points along (cos θ, 0, −sin θ).
+        // about +y (DetMath.cs), so the unbalance at angle θ from body +x points along (cos θ, 0, −sin θ). A rotor whose
+        // blades are off the sheet adds its blades' loads (BladeLoads) at the same angle and speed.
         void Turn(ref FlightState s, int i, double w, double next, double h, ref RotorLoads loads)
         {
             double angle = s.RotorAngle[i] + (w + next) * 0.5 * h;
             while (angle >= TwoPi) angle -= TwoPi;
             s.RotorAngle[i] = angle;
-            if (!_unbalanced) return;
+            if (_unbalanced)
+            {
+                Double3 f = FactoryPull(i, angle, next);
+                loads.UnbalanceForce = loads.UnbalanceForce + f;
+                loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hub[i], f);
+            }
+            if ((_damaged & (1 << i)) == 0) return;
+            BladeLoads(i, angle, next, out Double3 lost, out Double3 drag, out Double3 couple);
+            Double3 g = lost + drag;
+            loads.UnbalanceForce = loads.UnbalanceForce + g;
+            loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hub[i], g) + couple;
+        }
+
+        // The factory unbalance's pull at the rotor's angle and speed, body N.
+        Double3 FactoryPull(int i, double angle, double speed)
+        {
             double theta = _unbalanceAngle[i] - _reaction[i] * angle;
             DetMath.SinCos(theta, out double sin, out double cos);
-            double pull = _unbalance[i] * next * next;
-            var f = new Double3(pull * cos, 0, -pull * sin);
-            loads.UnbalanceForce = loads.UnbalanceForce + f;
-            loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hub[i], f);
+            double pull = _unbalance[i] * speed * speed;
+            return new Double3(pull * cos, 0, -pull * sin);
         }
+
+        // A damaged rotor's loads at its angle ψ and speed ω, body axes (DamagedRotor): its lost material's pull ω²·U, its
+        // blades' drag at the hub and its couples (their lift's hub moment and the flap sets' ω²·C). The rotor's frame (p along
+        // blade 0, q along blade 0 × +y) turns with ψ: blade 0 lies along (cos ψ, 0, s·sin ψ), s the reaction sign, so a
+        // vector (p, q) is (p·cos ψ − s·q·sin ψ, 0, s·p·sin ψ + q·cos ψ) in the body.
+        void BladeLoads(int i, double angle, double speed, out Double3 lost, out Double3 drag, out Double3 couple)
+        {
+            DamagedRotor r = _rotors[i];
+            DetMath.SinCos(angle, out double sin, out double cos);
+            double s = _reaction[i], w2 = speed * speed;
+            lost = InBody(r.UnbalanceP * w2, r.UnbalanceQ * w2, cos, s * sin);
+            drag = InBody(_forceP[i], _forceQ[i], cos, s * sin);
+            couple = InBody(_momentP[i] + r.CoupleP * w2, _momentQ[i] + r.CoupleQ * w2, cos, s * sin);
+        }
+
+        static Double3 InBody(double p, double q, double cos, double sin) => new Double3(p * cos - q * sin, 0, p * sin + q * cos);
 
         // The bus voltage: V = vth − rth·(load·V − emf + power/V), the larger root of
         // (1 + rth·load)·V² − (vth + rth·emf)·V + rth·power = 0; with no limited ESC, the linear solve.
@@ -739,6 +853,15 @@ namespace Fpv450.Sim.Flight
             if ((_ring == null && _ground == null && _wake == null) || !(w > 0))
             {
                 Aero(w, _inflow[i], out thrust, out torque);
+                if ((_damaged & (1 << i)) != 0)
+                {
+                    if (w > 0)
+                    {
+                        double advance0 = _inflow[i] / (w * (_diameter / TwoPi));
+                        Blades(i, advance0, advance0, ref thrust, ref torque);
+                    }
+                    else _momentP[i] = _momentQ[i] = _forceP[i] = _forceQ[i] = 0;
+                }
                 _meanThrust[i] = thrust;
                 return;
             }
@@ -750,10 +873,29 @@ namespace Fpv450.Sim.Flight
             double j = held + (_ringInflow[i] + own) * _ringAdvance / w;
             double mean = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, j) * w2;
             if (_ground != null) mean *= _surfaceGain[i];
-            _meanThrust[i] = mean;
-            thrust = mean * _ringGain[i];
             double jq = own == 0 ? advance : held + own * _ringAdvance / w;
             torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, jq) * w2;
+            bool damaged = (_damaged & (1 << i)) != 0;
+            if (damaged)
+            {
+                _rotors[i].Ratios(j, jq, out double etaT, out double etaQ);
+                mean *= etaT;
+                torque *= etaQ;
+            }
+            _meanThrust[i] = mean;
+            thrust = mean * _ringGain[i];
+            if (damaged) _rotors[i].Loads(j, jq, thrust, torque, out _momentP[i], out _momentQ[i], out _forceP[i], out _forceQ[i]);
+        }
+
+        // A damaged rotor's thrust and torque times its tables' η at their advance ratios (jt the thrust's, jq the torque's),
+        // and its 1/rev aerodynamic loads at them (DamagedRotor.Loads), for BladeLoads.
+        void Blades(int i, double jt, double jq, ref double thrust, ref double torque)
+        {
+            DamagedRotor r = _rotors[i];
+            r.Ratios(jt, jq, out double etaT, out double etaQ);
+            thrust *= etaT;
+            torque *= etaQ;
+            r.Loads(jt, jq, thrust, torque, out _momentP[i], out _momentQ[i], out _forceP[i], out _forceQ[i]);
         }
 
         // A ratio against the advance ratio: the table, its first segment continued below 0 to the descent limit.
