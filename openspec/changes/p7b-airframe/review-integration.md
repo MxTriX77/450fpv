@@ -1,6 +1,6 @@
 # QA review: the physics integration, flight half
 
-**Verdict: changes requested.**
+**Verdict: changes requested.** Superseded by "Re-check at 18a594e4" at the end: **approve**.
 
 The physics holds:
 - Every golden re-record at models 24, 25 and 26 has a cause I proved by experiment. I reproduced all six of the physics engineer's temporary-edit audits bit for bit with my own switches, and no stored input changed.
@@ -408,3 +408,282 @@ Change 'p6-flight-core' is valid
 - **Paths:** nothing under `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`, and no footage. `tools/reference/` is the analysts' tool source, which `.gitignore` allows.
 - **OPSEC:** the tree scan finds nothing (2284 files, 0 findings).
 - **This review's commit:** this file and the spec line, staged by path, under the QA identity. My harness, logs and switches stay untracked in `.qa-logs/`.
+
+## Re-check at 18a594e4
+
+**Verdict: approve.** The four blocking findings are fixed as asked. The fix agent's three further restatements hold under D-053's rule. Nothing below blocks the landing on `unity/main`. Four new findings (N7–N10) are not blocking; they go to the next pass.
+
+**Scope:**
+- `origin/unity/physics/physics-integration` at `18a594e4`, still `LogFormat.ModelVersion` 26. 18 commits over `2a27993b`:
+  - the two reviews (`bbdaa8d4`, `f42f0421`, `c718d7fd`, the wind one merged as `b5596083`)
+  - `--qa-fixes`' commits (`58453f55..0f701d73`)
+  - N4's trace (`de0eb78f`), merged as `18a594e4`, which brings exactly its lines
+- The runtime's only change is two comment lines in `ContactModel.cs` (no other line). No golden source changed.
+
+**How I checked:**
+- I ran everything below myself, in `.claude/worktrees/qa-pi-recheck`. Logs are in its `unity/Logs/qa-recheck/` (git-ignored, never committed).
+- Unity EditMode ran in `.claude/worktrees/phys-int2` at `18a594e4`, read-only, after `git lfs checkout`.
+- My temporary switches and one scratch test ran in a separate scratch worktree at `18a594e4`, since removed. They are kept beside the logs as `qa-temp-switches.diff` and `QaEndTail.cs.txt`.
+- **Fresh seeds, none flown before:**
+  - `--shake` on 7301–7340 and 9101–9140, then 25 more sets, 10001–10040 to 12401–12440: 27 sets, 1080 seeds
+  - the shake's end after the arrest on 20001–24000, every cell
+- The host was shared: other agents' `dotnet test` runs overlapped mine. None of these checks is timed.
+
+### The blocking findings
+
+**B1 (`--shake` fails on fresh seeds): fixed.**
+- **The rise:** "its length follows the descent" is judged past the kick (`MedianPastTheKick`). Each payload's median never falls, and is longer from 9 m/s than from 2.5 m/s.
+- **The hold:** "every arrest held" is now "nearly every" (at least 95 %).
+- **All 27 of my fresh sets pass every claim** (`campaign-analysis.txt`). On the same sets the old claims fail: the strict rise of the whole lengths on 3 of 27, "every arrest held" on 2 of 27.
+- **The rise's margins**, the medians past the kick:
+  - empty: 0.00 / 0.32–0.40 / 0.58–0.64 s
+  - 2 kg: 0.00 / 0.00 / 0.30–0.40 s
+  - The 2 kg median from 9 m/s needs 20 of 40 past the kick, and gets 25–34.
+- **The hold:** 3 misses in 6480 arrests. The worst set reads 238 of 240 (228 needed).
+- **The ringless known-wrong fails the new rise.** At 2 kg it never lasts past the kick, so its three medians tie at none (seeds 9101–9140: past the kick on 3, 0 and 0 of 40).
+
+**B2 (two causes): fixed.**
+- **The test:** `TheShakeLastsAboutTheArrest` judges the known-wrong as `--shake` does, on seeds 1–40 of the six descents. It reads weaker 206/240, and past the kick on 37/240 against 106. The reading is the same on .NET, on .NET held to 3 processors and on Mono (below).
+- **Its false-failure rate, from my 27 sets:**
+  - weaker on 183–215 of 240 (168 needed)
+  - the margin, ringed − 2 × ringless past the kick, 4–48, mean 28.8, sd 10.9
+  - so about 0.4 % (the normal tail, continuity-corrected), against the author's bootstrapped 0.57 %. Both are under 1 %.
+- **The comments:** `PastTheKick`, `ShakeTests` and `ShakeCase` name D-064's spreads as the second cause.
+- **The orchestrator's half is on `unity/main`:** D-070 restates D-069's numbers at model 26, and PHY-10 names both causes.
+
+**B3 (the seam rule's known-wrong): fixed.** Each soil rest now asserts 8 pairs.
+- **With the rule off** (my switch `QA_NO_SEAM`: `Seam` returns false):
+  - three cases fail on 16 pairs: `OnSoilItRestsAsOnThePlane("run")`, `WithTheAirframesEffectsSoilIsStillThePlane("run")` and `InASteadyCrosswindSoilIsStillThePlane("run")`
+  - so does `--contacts`' "E01's run, resting, each support once" row
+  - every S04 case passes either way, with one patch shape under every support
+- **With the rule on,** all seven cases and `--contacts` pass.
+- The widening's new case is judged below.
+
+**B4 (the tunnel exception): fixed.**
+- `InTheWindNoTunnelThroughARigidShape` asserts `p.Tunnels + p.Lost == 0` again.
+- `OtherTunnels` is gone, with no reference left.
+- All nine cases log 0 tunnels and 0 lost, on .NET and on Mono.
+
+### The three further restatements, judged by D-053's rule
+
+Each failed once on one of the author's fresh sets and became "nearly every" (at least 95 %). I judged them on my 27 other fresh sets:
+
+| Claim | The miss that moved it | Misses on my sets | Sets the old "every" fails | Sets the new claim fails | Its known-wrong |
+|---|---|---|---|---|---|
+| The gentle ramp's wobble shows, from 5–9 m/s | 0.085° against the visible 0.088° (2 kg, 5.4 m/s) | 0 of 4320 ramps | 0 of 27 | 0 of 27 | The ring over 1 s stays every flight's claim (1.33 s at least); ringless rotors have none |
+| A full punch from 9 m/s shows the shake | 0.0880° (2 kg) | 2 of 2160 | 2 of 27 | 0 of 27 | Ringless rotors show it on 43–63 of 80 (76 needed) |
+| With 40 A protection the drone tilts further | 1.71° against 1.93° (empty, 9 m/s) | 7 of 6480; the ratio from 0.79 | 7 of 27 | 0 of 27 | A limit that changed nothing tilts further on none (the comparison is strict); the per-set median ratio is 3.97–5.04 |
+
+**Judgement:**
+- **Each is still physics.** Each miss is a continuous reading at a line, not a broken mechanism:
+  - Two are a visibility line crossed by a hair (0.085° and 0.0880° against 0.088°), in the 2 kg cells, where the shake is weakest.
+  - The third compares two variants seed by seed. With D-064's spreads, the drone's own tilt can beat the protected one's on a rare flight. The protected drone still tilts 4–5 times as far at the median.
+- **Each false-failure rate is under 1 %:**
+  - Binomial on my per-flight rates, a fresh 40 seeds fails the 9 m/s claim about 1.5e-8 of the time, and the hold and the tilt far less (under 1e-10).
+  - The ramp has 1 miss in about 8800 ramps (the author's and mine). Its false-failure rate is also under 1e-10.
+- **The old "every" claims failed at over 1 %,** on the same rates: 7 % (the 9 m/s showing), 23 % (the tilt), 10 % (the hold), and about 2 % (the ramp, from its single miss). So D-053's rule required each restatement. None hides a fault.
+- **Each is still a check.** Each fails a known-wrong, as the table shows. Against misses of about 0.1 %, the 95 % line is loose. But it is the spec's "nearly every". The printed counts and the tilt ratio's median are what show a regression.
+- **The suite** (`ShakeOnlyWhenItsCausesMeet`) now asserts per flight only what the spec says of every flight: the ramp's ring, and the protected arrest longer and ending with its shake. That is its comment's own rule; the rates are `--shake`'s.
+
+### The spec lines 83, 87, 91 and 95
+
+- **87 and 95** say what the code checks:
+  - "nearly every" for the 9 m/s punch's showing, the ramp's wobble, the 40 A hold and its tilt
+  - "every" for the ring and the longer arrest
+  - "past 0.3 s (the pilot's shortest shake, longer than the motors' spin-up kick from the hover)", and "main cause"
+- **91** says what `--shake` checks. Its whole-length medians are the seeds 1–40 readings of my first review (N1).
+- **83** fixes N1's stale clause.
+- **Wording nits in 83 and 91** are N9 below.
+- `openspec validate --all --strict`: 24 passed, 0 failed.
+
+### `Parallel.For` in `ShakeTests.TheShakeLastsAboutTheArrest`
+
+**It is deterministic.**
+- Each of the 480 flights builds its own `FlightSetup`, world (`FlightWorld.Floor()` makes a new one on each call) and `FlightCore`. Each writes only its own slot of `runs[ringless, cell, seed]`.
+- The counts are taken afterwards, serially, in index order. `TestContext` is not touched inside the loop.
+- The sim core's static state is read-only:
+  - constant tables, set in static initialisers
+  - `RotorInterferenceSpec.Table`'s cache, built under a lock
+  - `DroneSpec`'s builders return new objects
+- `flightbench --shake` has flown its flights the same way since it was written.
+- **Shown by runs.** Three runs print the same two lines:
+  - .NET on every processor
+  - .NET with `DOTNET_PROCESSOR_COUNT=3`
+  - Mono in EditMode
+  - The lines: "10 of 10 in 0.3–0.7 s, 0.54–0.68 s, median 0.62 s"; "weaker 206/240; past the kick (0.3 s) on 37/240 against 106".
+
+**It is allocation-safe.**
+- The loop allocates only in the test (closures, results, each flight's core), never in a step.
+- The suite's zero-allocation checks count `GC.GetAllocatedBytesForCurrentThread` on their own thread. NUnit runs the tests one at a time (no `Parallelizable` anywhere), so idle pool threads cannot reach them.
+- Both checks pass on .NET and on Mono: `StepAndSampleAllocateNothing` and `TheSameSeedGivesTheSameWindWithoutAllocating`.
+
+**On Mono** the test passes in 10.6 s (14.2 s on .NET, which shared the CPU).
+
+### The new boards case and `ContactScenarios.Site.Objects`
+
+- **`Site.Objects` changes no other site.** It is null by default, and `Effects` sets `RuntimeObjects` only when it is set, so the goldens and `--contacts` read as before. The stand's sites set their stand after `Effects`, so they keep it.
+- **The case is sound.** Its geometry matches its comment:
+  - three timber boards, 0.05 m thick and flush, the joints at ±0.05 m
+  - the supports at ±0.1025 and ±0.22 m, all on the outer boards
+  - The drone starts 1 mm over them, so every pair is made in flight and counted.
+- **With the widening on:** 8 pairs on one board and on three, 2.161 mm both, 1.0000 of the weight, 0 late events.
+- **With the widening off** (my switch `QA_NO_WIDEN`, which drops `SameSupport`'s `OnPlane` clause): the case fails on 12 pairs and 0.9997 of the weight, as the author recorded.
+
+**N7 (new, not blocking): the widening also acts in E01's run, in its landings.** With it off, three more checks fail:
+- `WithTheAirframesEffectsSoilIsStillThePlane("run")`: the cut comes to rest at 0.408 s against the stub's 0.419 s, 11 ms off, outside the restored 10 ms
+- `InASteadyCrosswindSoilIsStillThePlane("run")`: held, it rises 107.79 mm against the plane's 111.04 mm
+- `--contacts`' "E01's run, throttle cut, as the stub's" row
+
+The rests do not move, and that is all B3 and the record measured. So two texts hold only at rest:
+- the new comment on `SameSupport`: "the range's soil and run have no such piece under the skids"
+- 1.6b's note: "moved nothing there"
+
+**Fix:** say that the run's landings meet such a piece too. The widening now has four guards, and the restored 10 ms is one of them: at 15 ms the cut would pass.
+
+### The remaining "every" claims and the mode as a whole
+
+**N8 (not blocking): the shake's end after the arrest has a thinner margin than the record says.**
+- **The record:** the shake ends "at most 0.27 s after the arrest (0.31)", on the author's 520 seeds and every set flown since.
+- **My 27 sets:** the latest end is 0.30 s on 3 sets, and 0.28–0.29 s on 2.
+- **My 4000 seeds a cell** (20001–24000, `QaEndTail`):
+  - Every cell ends by 0.26 s, except the empty drone from 9 m/s.
+  - There it reaches 0.301 s: 0.27 s or more on 11 flights, 0.29 s or more on 5, and none over 0.31 s.
+- **No flight broke it,** in 5080 flights of that cell. The tail stops at 0.30 s instead of thinning past it. So it is still an "every" claim by D-053's rule.
+- **But the margin is 9 ms, not 40.** Fix: record it. If a model change moves this tail, this is the next claim to judge.
+
+**N10 (not blocking): the rigid airframe's "as long" is the tightest rate in `--shake`.**
+- **The reading:** "within three fields on nearly every seed" reads 38–40 of 40 on my sets (38 needed), 11 misses in 1080.
+- **Its rate:** a fresh set fails it about 0.8 % of the time (binomial). With 11 misses, the rate itself is uncertain, about 0.1–3.5 %.
+- **The mode as a whole:** with the ringless row's 0.4 %, `--shake` fails spuriously about 1.2 % of the time. Every other claim is under 0.01 %.
+- **Not part of this fix,** and each claim alone is under 1 %. Fix: size it (80 seeds, or the cells pooled) when the shake is next touched.
+
+**N9 (not blocking): two wordings in the spec.**
+- **Line 91:** "a shake shorter than the kick (0.3 s)". 0.3 s is the pilot's shortest shake, which bounds the kick (the kick is at most 0.20 s on my sets); line 95 says it right. And at 2 kg the two slower descents show "only the kick" or stay under the visible line.
+- **Line 83:** "or at 2 kg" reads as every 2 kg descent. But the 2 kg punch from 9 m/s lasts past the kick on 25–34 of 40. It means 2 kg from 2.5–5.4 m/s.
+
+### The earlier non-blocking findings
+
+- **N1, done.** Lines 83 and 91, `KickSeconds`' and `Most`'s docs, and 1.11's tip times now carry model 26's numbers. The kick on my sets is at most 0.14–0.20 s, as `KickSeconds` now says.
+- **N2, done.** `--scenarios`' ringless row is on seeds 1–40: "weaker 206/240; past the kick (0.3 s) on 37/240 against 106: fails, as it must".
+- **N3, done.** This is the wind review's B1; see its re-check.
+- **N4, traced.** The note is under `p6-flight-core` 1.6c. Its two failing tests carry `[Ignore]` with their reasons, and are skipped on both runtimes. The harness fix is a later change, not judged here.
+- **N5, done.** The row reads "slow flight takes little: under 2 % at 2.9 m/s", 1.8 %.
+- **N6:** unchanged, no action.
+
+### Spec scenarios and requirements, the rows that changed
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| Shake only when its causes meet | pass | 27 of 27 fresh sets; the kick at most 0.20 s, the band 0.53 m/s² at least, the ramp's ring 1.33 s at least |
+| The shake lasts as long as the arrest | **pass** (was fail) | the rise past the kick on 27 of 27; the pilot's band 37–40 of 40, medians 0.58–0.64 s; the end at most 0.30 s (N8) |
+| The visible shake is the rigid body's | **pass** (was fail) | 40 A held on 238–240 and tilting further on 239–240 of 240; ringless weaker on 183–215, past the kick on 27–51 against 94–111; the rigid airframe 0.96–1.11 of the peak, as long on 38–40 of 40 (N10) |
+
+| ID | Status | Why |
+|---|---|---|
+| PHY-10 | **met** (was partly met) | Every claim holds on 27 fresh sets, and the cause is stated as two (D-070). N8 and N10 are margins to keep an eye on |
+
+The other rows are unchanged.
+
+### Commands and output (trimmed)
+
+```
+$ git worktree add .claude/worktrees/qa-pi-recheck -b unity/qa/physics-integration--recheck origin/unity/physics/physics-integration
+HEAD is now at 18a594e4 test(physics): take n4's trace of the landing harness
+$ git diff 2a27993b HEAD -- unity/Packages/com.fpv450.sim/Runtime     (lines that are not comments: 0)
+$ diff <(git diff 2a27993b de0eb78f) <(git diff 0f701d73 18a594e4)    (changed lines only: identical)
+
+$ dotnet test tools/simtests
+Total tests: 398, Passed: 396, Skipped: 2 (N4's two [Ignore]); Total time: 22.3 Minutes; exit 0
+  ShakeTests.TheShakeLastsAboutTheArrest: from 9 m/s: 10 of 10 in 0.3–0.7 s, 0.54–0.68 s, median 0.62 s
+                                          no ring, seeds 1–40 of the six descents: weaker 206/240; past the kick (0.3 s) on 37/240 against 106
+  RangeContactTests.OnFlushBoardsEachSupportIsOnePoint: sank 2.161 mm, 1.0000 of the weight, 8 pairs (8 material), one board and three
+  RangeContactTests.InTheWindNoTunnelThroughARigidShape: nine cases, each "0 tunnels (), 0 lost"
+$ DOTNET_PROCESSOR_COUNT=3 dotnet test tools/simtests --filter ShakeTests.TheShakeLastsAboutTheArrest
+  the same two lines; Passed
+
+$ dotnet run -c Release --project tools/flightbench -- --shake 7301
+  nearly every full punch from 9 m/s shows it: 80/80; from 2.5-9 m/s 210/240: PASS
+  every gentle ramp from 5-9 m/s keeps its rotors in their ring over 1 s, and nearly every one wobbles (shown): 160/160; the ring 1.35 s at least: PASS
+  every full punch is arrested and its shake ends within the loop's settling after the arrest: 240/240; the end at most +0.24 s after the arrest (Settle 0.31 s): PASS
+  its length follows the descent: ... past the kick empty 0.00 / 0.36 / 0.58 s, 2 kg 0.00 / 0.00 / 0.34 s (whole: empty 0.20 / 0.36 / 0.58 s, 2 kg 0.04 / 0.10 / 0.34 s): PASS
+  known-wrong, no ring ...: weaker 210/240; past the kick (0.3 s) on 37/240 against 105; shown at all on 153/240 against 210: PASS
+  40 A current protection ...: held 240/240, longer 240/240, further 240/240; its tilt over the drone's at least 1.73 (median 4.70): PASS
+shake: PASS (exit 0)
+$ ... --shake 9101
+  past the kick empty 0.00 / 0.36 / 0.62 s, 2 kg 0.00 / 0.00 / 0.40 s; ringless weaker 190/240, past the kick on 47/240 against 111;
+  40 A held 240/240, further 240/240, the ratio at least 1.14 (median 3.98); the end at most +0.24 s
+shake: PASS (exit 0)
+$ for f in 10001 10101 ... 12401: ... --shake $f      25 of 25 exit 0
+$ python parse_shake.py fb-shake7301.txt fb-shake9101.txt campaign/shake-*.txt
+27 sets of 40 seeds; sets passing: 27/27
+  gentle from the hover, peak at most 0.003° (0.088); the kick at most 0.20 s (0.3); Y band at least 0.53 m/s² (0.3);
+  end after the arrest at most +0.30 s (0.31); ramp ring at least 1.33 s (1.0); 40 A longer 240/240; rigid peak ratio 0.96-1.11 (0.8-1.2)
+  fast: 2 misses in 2160 flights; worst set 79/80 (nearly every needs 76); sets failing the old 'every 9 m/s punch shown': 2/27
+  wob: 0 misses in 4320 flights; worst set 160/160 (152); sets failing the old 'every ramp shown': 0/27
+  held: 3 misses in 6480 flights; worst set 238/240 (228); sets failing the old 'every arrest held': 2/27
+  further: 7 misses in 6480 flights; worst set 239/240 (228); sets failing the old 'every one tilts further': 7/27
+  40 A tilt ratio: least 0.79, the sets' medians 3.97-5.04
+  2 kg from 9 m/s past the kick: 25-34/40 (its median > 0 needs 20)
+  ringless: weaker 183-215/240 (168); margin D - 2R 4-48, mean 28.8, sd 10.9; P(D - 2R < 0) 0.37 %
+  rigid as long: 38-40/40 (38), 11 misses in 1080
+  the old strict rise of the whole lengths' medians fails on 3 of 27; ringless from 9 m/s shown on 43-63 of 80
+
+$ ... --scenarios
+  slow flight takes little: under 2 % at 2.9 m/s: 2.9 m/s at -1.0°: rear 1.8 % under front ...: PASS
+  known-wrong: no ring ..., the six arrested descents on seeds 1-40: ... weaker 206/240; past the kick (0.3 s) on 37/240 against 106: fails, as it must
+scenarios: PASS (exit 0)
+$ ... --contacts
+  E01's run, resting, each support once: ... 8 open pairs: 0 plane, 8 soil ...: PASS
+  E01's run, throttle cut, as the stub's: ... at rest 0.419 s after it (the stub's 0.419) ...: PASS
+contacts: PASS (39 rows, exit 0)
+$ ... --golden
+  powered 0x53F1D10489702031, contact 0xAAEA31DBFBB13710, range 0xC79B60F487AEB8B6, rain 0x53B90D4307BF1534, tumble 0xBCBD33E6B6A94844 (each matches);
+  every kept audit (model 22's drone, model 15, 13 and 14, 19, the micro branch, the power branch) bit for bit: PASS (exit 0)
+$ ... --landing          every row PASS, exit 0 (the falls 0.798 / 0.518 / 0.396 s against 0.806 / 0.527 / 0.406)
+
+# the temporary switches (scratch worktree, qa-temp-switches.diff)
+$ QA_NO_SEAM=1 dotnet test --filter <the seven soil and boards cases>
+  Failed OnSoilItRestsAsOnThePlane("run"): Expected 8, But was 16
+  Failed WithTheAirframesEffectsSoilIsStillThePlane("run"), InASteadyCrosswindSoilIsStillThePlane("run"): Expected 16 and 8, But was 16
+  the four S04 cases and the boards: Passed
+$ QA_NO_SEAM=1 ... --contacts      E01's run, resting, each support once: 16 open pairs: FAIL; contacts: FAIL
+$ QA_NO_WIDEN=1 dotnet test --filter <the same>
+  Failed OnFlushBoardsEachSupportIsOnePoint: Expected 12 and 8, But was 12 (sank 2.162 mm, 0.9997 of the weight)
+  Failed WithTheAirframesEffectsSoilIsStillThePlane("run"): Expected 0.419 +/- 0.01, But was 0.408
+  Failed InASteadyCrosswindSoilIsStillThePlane("run"): Expected 0.11104 +/- 0.001, But was 0.10779
+$ QA_NO_WIDEN=1 ... --contacts     E01's run, throttle cut, as the stub's: FAIL; contacts: FAIL
+$ (no switch) the same seven cases and --contacts: all Passed, PASS
+
+# the shake's end after the arrest, 4000 seeds a cell (QaEndTail, scratch)
+$ QA_ALL=1 QA_FIRST=20001 dotnet test --filter QaEndTail
+  0 kg, drop 1.0 s: shown 4000/4000; end after the arrest max +0.301; over Settle 0.31: 0; >= 0.28: 5; >= 0.30: 2;
+    histogram 0.20:237 0.21:113 0.22:63 0.23:97 0.24:137 0.25:137 0.26:57 0.27:6 0.29:3 0.30:2
+  0 kg 0.3 / 0.6 s: max +0.196 / +0.259; 2 kg 0.3 / 0.6 / 1.0 s: max +0.166 / +0.143 / +0.141; none over Settle
+
+# Unity EditMode, .claude/worktrees/phys-int2 at 18a594e4 (git lfs checkout; Unity Hub running; AC)
+PS> & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testResults <qa-pi-recheck>/unity/Logs/qa-recheck/editmode.xml -logFile -
+  1025 tests: 1017 passed, 0 failed, 8 skipped (the six [Explicit] probes, N4's two [Ignore]); 648 s; clr 4.0.30319.42000, "Unity Child Domain"
+  ShakeTests.TheShakeLastsAboutTheArrest: Passed, 10.6 s; the same two lines as .NET
+  powered 0x53F1D10489702031, contact 0xAAEA31DBFBB13710, range 0xC79B60F487AEB8B6, tumble 0xBCBD33E6B6A94844, the map's wind 0x0EF8A67AC398C411: each .NET's
+
+$ python tools/hygiene/precommit.py --tree HEAD     2286 files scanned, 0 findings
+$ openspec validate --all --strict                  Totals: 24 passed, 0 failed (24 items)
+$ git merge-tree --write-tree origin/unity/main HEAD   (unity/main at 81f3804e) e5a85a67…, no conflict
+```
+
+### Hygiene of the 18 new commits
+
+- **Identities, author and committer alike:**
+  - 13 by `Physics Engineer <physics@450fpv.local>`, plus the wind review's merge (`b5596083`)
+  - 3 by `QA Engineer <qa@450fpv.local>`
+  - 1 by `Orchestrator <orchestrator@450fpv.local>`: the merge `18a594e4`
+- **Messages:**
+  - every one a single `type(scope): summary` subject, at most 71 characters
+  - no body, no trailer, no co-author, Claude or Anthropic line
+  - one nit: `de0eb78f`'s subject capitalises "N4's" against AGENTS.md's lower case (the merge above it writes "n4's")
+- **"Tests and texts only" holds:** the runtime diff is two comment lines.
+- **Paths:** nothing under `reference/`, `Library/`, `Temp/`, `Logs/` or `UserSettings/`.
+- **OPSEC:**
+  - The tree scan is clean: 2286 files, 0 findings.
+  - In the added lines, the only date-shaped string is the name of the repo's own handover file in `docs/`, quoted in the wind review.
+- **This re-check's commit:** the two review files, staged by path, under the QA identity. My logs, switches and scratch test stay out of git.
