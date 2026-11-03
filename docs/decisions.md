@@ -649,3 +649,9 @@ The pilot on the model-26 build: the camera is "mega good", the flying "almost t
 - **Each prop has a health:** `p7f-damage`'s blade state (tip radius, chord left, pitch and flap sets) is that health, and `DamagedRotor` (1.2) already flies it. `p7f` 1.3, blade strikes on shapes, is now the priority physics task.
 - **The legs take damage too (a new change, `p7g-legs`):** a leg bends, breaks or comes off the drone when a landing is too hard or not parallel enough to the ground. Its loads, strengths and mounts are researched for the class's legs, never asked (D-024). A bent or missing leg changes the next landing.
 - **"More reasons to crash and to fall"** comes from the physics still being built, never from tuning toward a rate: `p7a`'s grooves, held legs and vegetation, `p7f`'s strikes, `p7d`'s line and wires, and the legs. `pilot-questions.md`'s G7 airmode question is answered: landings still fall a bit too rarely.
+
+## D-081 Straw is drawn at a distance, not only up close · Accepted
+The pilot on the latest build: "straws render only when you fly close to them". S04's micro mesh is drawn only inside its near ring, with nothing standing in for it beyond, so the straw pops in.
+- **The near ring keeps the real strands** (the physics elements, AST-10). Beyond it, the straw is drawn by the asset's lighter LODs and the far layer (WLD micro-detail rendering), blended so it never pops.
+- **Only the look changes:** physics reads the elements, never the stand-ins (D-028: a stand-in for the look is allowed where it plays no physical role).
+- **Judged** on S04's review sheet at 1.5 / 10 / 50 / 200 m against letter H, with the frame rate on AC (PLT-07).
