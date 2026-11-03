@@ -317,12 +317,13 @@ namespace Fpv450.Tests.Session
                 Assert.AreEqual(Dump(_tether.Rows), Dump(h.Tether.Rows), where + ": every row");
                 Assert.That((h.TetherCoilPart, h.TetherSpoolMass, h.TetherTwoWay, h.TetherLayout), Is.EqualTo((s.TetherCoilPart, s.TetherSpoolMass, false, (Double3[])null)));
 
-                // tools/replay's defaults: the repository's surfaces.json and tether.json, by their hashes.
+                // tools/replay's defaults: the repository's surfaces.json, tether.json and physics_materials.json, by their hashes.
                 ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
                 ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
                 ReplayResult replay;
                 using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile);
+                    replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                        materialsHash: _materialsHash);
                 TestContext.WriteLine(where + ": " + replay.Message);
                 Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), where + ": " + replay.Message);
                 rig.Session.Dispose();
@@ -593,7 +594,7 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
             ReplayResult replay;
             using (FileStream f = File.OpenRead(log))
-                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash);
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
             if (!restart) return;
 
@@ -874,7 +875,7 @@ namespace Fpv450.Tests.Session
             // The log replays on the map it names.
             ReplayResult replay;
             using (FileStream f = File.OpenRead(rig.Session.LogPath))
-                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash);
+                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, materialsHash: _materialsHash);
             TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
         }

@@ -399,7 +399,7 @@ namespace Fpv450.App
                 {
                     using (var f = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                         return FlightReplay.Run(f, id => id == inputs.WorldId ? inputs.World() : null, inputs.Drone.ContentHash,
-                            surfacesHash: inputs.Surfaces?.Hash ?? 0, tetherHash: inputs.Tether?.ContentHash ?? 0);
+                            surfacesHash: inputs.Surfaces?.Hash ?? 0, tetherHash: inputs.Tether?.ContentHash ?? 0, materialsHash: inputs.MaterialsHash);
                 });
                 yield return Until(() => replay.IsCompleted, 60);
                 ReplayResult r = replay.IsCompleted && !replay.IsFaulted ? replay.Result : null;

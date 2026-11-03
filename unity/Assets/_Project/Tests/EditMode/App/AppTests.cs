@@ -100,6 +100,12 @@ namespace Fpv450.Tests.App
 
         static Vector3 V(in Double3 v) => new Vector3((float)v.X, (float)v.Y, (float)v.Z);
 
+        static ulong MaterialsHash()
+        {
+            PhysicsMaterials.Parse(File.ReadAllText(AppData.File(PhysicsMaterials.RelativePath)), out ulong hash);
+            return hash;
+        }
+
         [Test]
         public void TheFeedReadsThePhysicsWhereItIsLive()
         {
@@ -265,7 +271,7 @@ namespace Fpv450.Tests.App
 
                 ReplayResult replay;
                 using (FileStream f = File.OpenRead(log))
-                    replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash);
+                    replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash, materialsHash: MaterialsHash());
                 TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
                 Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
                 Assert.That(replay.Steps, Is.GreaterThan(1500));
