@@ -78,6 +78,7 @@ namespace Fpv450.FlightBench
 
             // The tallies over the arrested descents (the three drops, both payloads) and the gentle ramps from 5-9 m/s.
             int arrests = 0, fullShown = 0, ringlessShown = 0, ringlessWeaker = 0, protectHolds = 0, protectTilts = 0, protectLonger = 0;
+            int fullLasts = 0, ringlessLasts = 0;
             int ramps = 0, wobbles = 0, halfShorterPairs = 0;
             var ratios = new List<double>();
             foreach (double payload in new[] { 0.0, 2.0 })
@@ -85,7 +86,7 @@ namespace Fpv450.FlightBench
                 {
                     Cell full = Find(cells, payload, drop, "full punch"), half = Find(cells, payload, drop, "0.8 step"), gentle = Find(cells, payload, drop, "gentle ramp");
                     Cell prot = Find(cells, payload, drop, "full punch, 40 A protection"), ringsOff = Find(cells, payload, drop, "full punch, rings off");
-                    int halfShorter = 0, shownHere = 0, ringlessHere = 0;
+                    int halfShorter = 0, shownHere = 0, ringlessHere = 0, lastsHere = 0, ringlessLastsHere = 0, weakerHere = 0;
                     double halfSum = 0, fullSum = 0, ringsTilt = double.MaxValue, ringsTiltHi = 0;
                     var outside = new List<string>();
                     for (int s = 0; s < Seeds; s++)
@@ -94,7 +95,9 @@ namespace Fpv450.FlightBench
                         arrests++;
                         if (f.Fields > 0) { fullShown++; shownHere++; }
                         if (o.Fields > 0) { ringlessShown++; ringlessHere++; }
-                        if (o.Peak < f.Peak) ringlessWeaker++;
+                        if (ShakeScenario.PastTheKick(f)) { fullLasts++; lastsHere++; }
+                        if (ShakeScenario.PastTheKick(o)) { ringlessLasts++; ringlessLastsHere++; }
+                        if (o.Peak < f.Peak) { ringlessWeaker++; weakerHere++; }
                         if (h.Duration < f.Duration) halfShorter++;
                         halfSum += h.Duration;
                         fullSum += f.Duration;
@@ -114,7 +117,8 @@ namespace Fpv450.FlightBench
                         if (payload == 0 && drop == 1.0 && !ShakeScenario.LastsInTenths(f.Duration, 0.3, 0.7)) outside.Add($"seed {first + s} {f.Duration:F2} s, peak {f.Peak:F2}°");
                     }
                     halfShorterPairs += halfShorter;
-                    Console.WriteLine($"    {payload:F0} kg after a {drop:F1} s drop: shown {shownHere}/{Seeds}, with the rings off {ringlessHere}/{Seeds} (their tilt "
+                    Console.WriteLine($"    {payload:F0} kg after a {drop:F1} s drop: shown {shownHere}/{Seeds}, with the rings off {ringlessHere}/{Seeds}; past the kick "
+                        + $"{lastsHere}/{Seeds}, with the rings off {ringlessLastsHere}/{Seeds}; the rings off weaker {weakerHere}/{Seeds} (their tilt "
                         + $"{ringsTilt:F2}-{ringsTiltHi:F2} of it); the 0.8 step's shake shorter {halfShorter}/{Seeds} (summed {halfSum / fullSum:F2} of the punch's)"
                         + $"{(outside.Count > 0 ? "; outside: " + string.Join(", ", outside) : "")}");
                 }
@@ -193,10 +197,13 @@ namespace Fpv450.FlightBench
                     ShakeScenario.PilotBand(inside, Seeds, median), $"{inside}/{Seeds}, the median {median:F2} s; {Groups(c, first)}");
             }
             Console.WriteLine($"  (the 0.8 step's shake shorter than the full punch's, pair by pair: {halfShorterPairs}/{arrests})");
-            // The cause: the rotors re-ingesting their wash through the arrest (PHY-09's ring), not a current limit.
-            Check("known-wrong, no ring (the rotors never re-ingest their wash): most full punches' shake weaker, shown on at most half as many",
-                ringlessWeaker >= ShakeScenario.Most * arrests && 2 * ringlessShown <= fullShown,
-                $"weaker {ringlessWeaker}/{arrests}; shown on {ringlessShown}/{arrests} against {fullShown}");
+            // The cause: the rotors re-ingesting their wash through the arrest (PHY-09's ring), not a current limit. The motors'
+            // spin-up kick (D-064's spreads, unequalised by a current limit since D-066) shows on ringed and ringless flights
+            // alike, so the ring's share is the shake past the kick.
+            Check("known-wrong, no ring (the rotors never re-ingest their wash): most full punches' shake weaker, lasting past the kick on at most half as many",
+                ringlessWeaker >= ShakeScenario.Most * arrests && 2 * ringlessLasts <= fullLasts,
+                $"weaker {ringlessWeaker}/{arrests}; past the kick ({ShakeScenario.KickSeconds:F1} s) on {ringlessLasts}/{arrests} against {fullLasts}; shown at all on "
+                + $"{ringlessShown}/{arrests} against {fullShown}");
             ratios.Sort();
             Check("40 A current protection (D-051's alternative): every arrest held at the limit, longer and tilting further",
                 protectHolds == arrests && protectLonger == arrests && protectTilts == arrests,

@@ -84,6 +84,10 @@ namespace Fpv450.Sim.Tests
         /// 0.3 s (PR-1; at most 0.14 s on 440 seeds a cell with model 22's 40 A protection, 0.08 s on seeds 1–40 without).</summary>
         public const double KickSeconds = 0.3;
 
+        /// <summary>The shake lasts past the kick (KickSeconds, the pilot's shortest shake): what the re-ingested wash adds to
+        /// the motors' spin-up kick, which D-064's spreads show on a full punch with or without it.</summary>
+        public static bool PastTheKick(in Result r) => r.Fields > 0 && r.Duration >= KickSeconds;
+
         /// <summary>"Nearly every": the share of a cell's flights a rate PHY-10 states holds on, where a bound is not true on
         /// every seed (QA's re-review, B1; D-053). Its claims hold on 99 % or more of 440 seeds a cell (1–40, 301–500 and
         /// 1001–1200), so a fresh 40 seeds misses one about 0.5 % of the time at most (the rigid airframe's "within three

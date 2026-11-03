@@ -16,6 +16,9 @@ namespace Fpv450.FlightBench
     {
         static bool _ok = true;
 
+        /// <summary>The seeds the shake's ringless known-wrong is judged on, each of the six arrested descents (a rate).</summary>
+        const ulong RinglessSeeds = 20;
+
         static void Row(string name, bool pass, string detail, bool knownWrong = false)
         {
             bool good = knownWrong ? !pass : pass;
@@ -296,6 +299,7 @@ namespace Fpv450.FlightBench
             for (int i = 0; i < modes.Count; i++) hz.Append($"{(i > 0 ? ", " : "")}{modes.Frequency(i):F1}");
             Console.WriteLine($"  the airframe's modes at 1 kg: {hz} Hz");
             ShakeScenario.Result heavy = default;
+            int punches = 0, ringlessWeaker = 0, ringedLasts = 0, ringlessLasts = 0;
             foreach (double payload in new[] { 0.0, 2.0 })
                 foreach (double drop in new[] { 0.0, 0.3, 0.6, 1.0 })
                 {
@@ -311,16 +315,33 @@ namespace Fpv450.FlightBench
                     Row($"{payload:F0} kg, {(drop == 0 ? "from the hover" : $"after a {drop:F1} s drop")}", ok,
                         $"sharp: {ShakeScenario.Describe(sharp)}; gentle: {ShakeScenario.Describe(gentle)}");
                     if (drop == 0) continue;
-                    FlightSetup ringless = ShakeScenario.Setup(spec, payload, 1);
-                    ringless.VortexRing = null;
-                    ShakeScenario.Result noRing = ShakeScenario.Fly(ringless, drop, false);
-                    Row($"known-wrong: no ring (the rotors never re-ingest their wash), {payload:F0} kg after a {drop:F1} s drop", noRing.Peak >= sharp.Peak,
-                        $"peak {noRing.Peak:F3}° against the punch's {sharp.Peak:F3}°; " + ShakeScenario.Describe(noRing), knownWrong: true);
+                    // Known-wrong: no ring. The motors' spin-up kick (D-064's spreads, no current limit to equalise them)
+                    // shows with or without the re-ingested wash, so one flight cannot tell them apart (seed 1 from 5.3 m/s:
+                    // the ringless shake as long and stronger); the wash's share is a rate, judged below on RinglessSeeds seeds
+                    // (--shake: on 40 a cell).
+                    for (ulong seed = 1; seed <= RinglessSeeds; seed++)
+                    {
+                        ShakeScenario.Result ringed = seed == 1 ? sharp : ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, seed), drop, false);
+                        FlightSetup ringless = ShakeScenario.Setup(spec, payload, seed);
+                        ringless.VortexRing = null;
+                        ShakeScenario.Result noRing = ShakeScenario.Fly(ringless, drop, false);
+                        punches++;
+                        if (noRing.Peak < ringed.Peak) ringlessWeaker++;
+                        if (ShakeScenario.PastTheKick(ringed)) ringedLasts++;
+                        if (ShakeScenario.PastTheKick(noRing)) ringlessLasts++;
+                        if (seed == 1)
+                            Console.WriteLine($"  no ring, {payload:F0} kg after a {drop:F1} s drop, seed 1: peak {noRing.Peak:F3}° against the punch's {sharp.Peak:F3}°; "
+                                + ShakeScenario.Describe(noRing));
+                    }
                     ShakeScenario.Result prot = ShakeScenario.Fly(ShakeScenario.Setup(spec, payload, 1, protection: true), drop, false);
                     Row($"40 A current protection, {payload:F0} kg after a {drop:F1} s drop: held at the limit, longer, tilting further",
                         ShakeScenario.HoldsTheLimit(prot) && prot.ArrestedAfter > sharp.ArrestedAfter && prot.TiltMax > sharp.TiltMax,
                         $"tilt {prot.TiltMax:F2}° against the drone's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(prot));
                 }
+            Row($"known-wrong: no ring (the rotors never re-ingest their wash), the six arrested descents on seeds 1-{RinglessSeeds}: most full punches' shake weaker, "
+                + "lasting past the kick on at most half as many",
+                !(ringlessWeaker >= ShakeScenario.Most * punches && 2 * ringlessLasts <= ringedLasts),
+                $"weaker {ringlessWeaker}/{punches}; past the kick ({ShakeScenario.KickSeconds:F1} s) on {ringlessLasts}/{punches} against {ringedLasts}", knownWrong: true);
             ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
             Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.EndsWithTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
                 && stiff.Peak / heavy.Peak <= 1.2, $"peak {stiff.Peak / heavy.Peak:F2} of the flexing airframe's; " + ShakeScenario.Describe(stiff));
