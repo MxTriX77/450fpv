@@ -1,0 +1,16 @@
+{
+    "name": "Fpv450.Fiber",
+    "rootNamespace": "Fpv450.Fiber",
+    "references": [
+        "Fpv450.Sim"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
