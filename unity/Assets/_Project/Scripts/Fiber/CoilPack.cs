@@ -28,10 +28,17 @@ namespace Fpv450.Fiber
         /// <summary>The line on a full coil, m (drone.json's coil.fiber_length_m).</summary>
         public double FiberLength;
 
+        /// <summary>The end of the names of the model's meshes that hold the pack: only they are read; null reads every mesh.</summary>
+        public string PackMesh;
+
         // D01's look (p5-drone): assets-src/drone/D01_legs_on.json and D01_legs_off.json, "coil" (assumed there; the core
         // is the volume a 0.25 mm line of 10 km fills at a square lay, π(R² − r_c²)·0.15 m = 6.3e-4 m³ against 6.25e-4 m³),
         // drawn at "payout" 0. Keep them in step with those files.
         public const float D01CoreDiameterM = 0.039f, D01WoundM = 0.15f, D01HoopLengthM = 0.015f, D01RibDepthM = 0.0006f;
+
+        /// <summary>D01's pack meshes: drone.py writes each LOD's pack as its own object, &lt;variant&gt;_LOD&lt;n&gt;_coil_pack
+        /// (its PACK; the metadata's readable parts), the only meshes of the model the catalog importer makes readable.</summary>
+        public const string D01PackMesh = "_coil_pack";
 
         /// <summary>The D01 model's pack, from drone.json's coil part (its centre, axis, diameter and length) and coil block (the
         /// line on a full spool) and the look's coil stations above.</summary>
@@ -49,6 +56,7 @@ namespace Fpv450.Fiber
                 CoreRadius = D01CoreDiameterM / 2,
                 RibDepth = D01RibDepthM,
                 FiberLength = spec.Coil.FiberLength,
+                PackMesh = D01PackMesh,
             };
         }
 
@@ -67,8 +75,9 @@ namespace Fpv450.Fiber
     /// The coil's wound pack on the drone model, drawn at the line left on it (p7d-tether 1.14, DRN-05): every vertex of the
     /// model's meshes on the pack's outer surface (within its ribs' depth under its radius, between its rear face and the
     /// front hoop: the ribbed pack, its rear face's rim and the hoop's inner rim) moves radially by the pack's shrink, so the
-    /// faces stay closed and the ribs keep their depth. The meshes that hold the pack are cloned for this model (each must
-    /// be readable: Read/Write on its import); Dispose gives the model its own meshes back. 0 B a Show.
+    /// faces stay closed and the ribs keep their depth. Only the shape's pack meshes are read (D01's readable copies of its
+    /// coil_pack objects; the rest of the model is never read and need not be readable); those that hold the pack are
+    /// cloned for this model; Dispose gives the model its own meshes back. 0 B a Show.
     /// </summary>
     public sealed class CoilPack : IDisposable
     {
@@ -92,7 +101,7 @@ namespace Fpv450.Fiber
             foreach (MeshFilter filter in model.GetComponentsInChildren<MeshFilter>(true))
             {
                 Mesh mesh = filter.sharedMesh;
-                if (mesh == null) continue;
+                if (mesh == null || shape.PackMesh != null && !mesh.name.EndsWith(shape.PackMesh, StringComparison.Ordinal)) continue;
                 if (!mesh.isReadable)
                 {
                     Unreadable++;
@@ -140,7 +149,7 @@ namespace Fpv450.Fiber
             ShownRadius = shape.Radius;
         }
 
-        /// <summary>The pack's vertices found on readable meshes, and the meshes that could not be read.</summary>
+        /// <summary>The pack's vertices found on readable meshes, and the pack meshes that could not be read.</summary>
         public int Vertices { get; }
         public int Unreadable { get; }
 
