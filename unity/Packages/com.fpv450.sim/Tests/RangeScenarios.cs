@@ -109,12 +109,13 @@ namespace Fpv450.Sim.Tests
             throw new System.ArgumentException("no approach '" + name + "'");
         }
 
-        public static ContactScenarios.PoleStrike Into(DroneSpec spec, MaterialRow[] materials, ulong hash, in Approach a, bool airframe = false)
+        public static ContactScenarios.PoleStrike Into(DroneSpec spec, MaterialRow[] materials, ulong hash, in Approach a, bool airframe = false,
+            List<FlightEvent> events = null)
         {
             int target = Placed(a.Variant, a.Occurrence);
             ContactScenarios.Site site = At(a.Foot, a.HeadingDeg);
             site.Airframe = airframe;
-            return ContactScenarios.Into(spec, materials, hash, site, a.Height, a.Speed, _ => target, null, a.ClimbSteps, a.ClimbRate);
+            return ContactScenarios.Into(spec, materials, hash, site, a.Height, a.Speed, _ => target, null, a.ClimbSteps, a.ClimbRate, events);
         }
 
         // ---- Resting ----------------------------------------------------------------------------------------------------

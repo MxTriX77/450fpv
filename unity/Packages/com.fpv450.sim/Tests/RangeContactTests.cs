@@ -253,7 +253,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.FirstObject, Is.EqualTo("L03_medium"));
             Assert.That(r.FirstMaterial, Is.EqualTo("cable"));
             Assert.That(r.First.Kind, Is.EqualTo(EventKind.PropStrike), "edge-on, a prop's rim meets it first");
-            Assert.That((r.Crashes > 0, r.Cause, r.Object), Is.EqualTo((true, CrashCause.PropStrike, "L03_medium")), "a rigid conductor at 10 m/s");
+            // Since model 35 a strike is no crash (p7f-damage 1.3): the conductor (cable, harder than the blades) breaks the front
+            // blades at their roots, and the flight ends when the body meets it, by acceleration, named by a body part.
+            Assert.That((r.Crashes > 0, r.Cause, r.Object), Is.EqualTo((true, CrashCause.Acceleration, "L03_medium")), "a rigid conductor at 10 m/s");
+            Assert.That(r.Part, Does.Not.StartWith("prop_"), "a body part");
         }
 
         // review-physics §6: climbing into a conductor that crosses the front discs, clear of every body shape above them.
