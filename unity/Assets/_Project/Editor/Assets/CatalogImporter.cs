@@ -647,6 +647,8 @@ namespace Fpv450.Assets
         internal const string CrazedGlassShader = "Fpv450/CrazedGlass";
         internal const string CrackMaskRole = "crack_mask";
         internal const string DamageMaskRole = "damage_mask";
+        internal const string BaseMapRole = "base_map";
+        internal const string MaskMapRole = "mask_map";
 
         /// <summary>
         /// The slot materials with each crazed pane's and each layered surface's own. The metadata's optional
@@ -663,13 +665,19 @@ namespace Fpv450.Assets
         /// with the plain paint and an unmasked facade with its bare adobe, and a pane or layered material left from a
         /// build in which that slot had its mask is deleted. Refused: another role, a slot without a material in the
         /// metadata, two masks of one role on one slot, a crack mask on a slot whose recipe is not transparent, a damage
-        /// mask on a slot whose recipe lists no layers, and a damage mask whose channels are not its recipe's.
+        /// mask on a slot whose recipe lists no layers, and a damage mask whose channels are not its recipe's. A slot with a
+        /// <c>base_map</c> (D-081: S04's far layer, its straws drawn into the slab's base map) draws with its recipe's
+        /// material over that map, <c>&lt;variant&gt;_&lt;slot&gt;_base.mat</c> beside the prefab (<see cref="EnsureBaseMapMaterial"/>),
+        /// and over its <c>mask_map</c> in place of the recipe's packed mask when it has one; a base map never shares its
+        /// slot with a crack or damage mask, and a mask map comes only with a base map.
         /// </summary>
         static Dictionary<string, Material> WithMaskedSlots(string prefabPath, string variant, Dictionary<string, object> metaJson,
             string metaPath, Dictionary<string, Material> materialBySlot)
         {
             var crackMasks = new Dictionary<string, Dictionary<string, object>>();
             var damageMasks = new Dictionary<string, Dictionary<string, object>>();
+            var baseMaps = new Dictionary<string, Dictionary<string, object>>();
+            var maskMaps = new Dictionary<string, Dictionary<string, object>>();
             string folder = Path.GetDirectoryName(prefabPath).Replace('\\', '/');
             string metaFolder = Path.GetDirectoryName(metaPath).Replace('\\', '/');
             if (metaJson.TryGetValue("textures", out object texturesValue))
@@ -677,14 +685,21 @@ namespace Fpv450.Assets
                 {
                     var entry = Json.Obj(item, $"{metaPath} textures");
                     string role = Json.Str(entry, "role", $"{metaPath} textures");
-                    if (role != CrackMaskRole && role != DamageMaskRole)
-                        throw new FormatException($"{metaPath}: unknown texture role \"{role}\" (the importer knows \"{CrackMaskRole}\" and \"{DamageMaskRole}\")");
+                    if (role != CrackMaskRole && role != DamageMaskRole && role != BaseMapRole && role != MaskMapRole)
+                        throw new FormatException($"{metaPath}: unknown texture role \"{role}\" (the importer knows \"{CrackMaskRole}\", \"{DamageMaskRole}\", \"{BaseMapRole}\" and \"{MaskMapRole}\")");
                     string slot = Json.Str(entry, "slot", $"{metaPath} textures");
                     if (!materialBySlot.ContainsKey(slot))
                         throw new FormatException($"{metaPath}: a {role} names slot \"{slot}\", which has no material in the metadata");
-                    if (!(role == CrackMaskRole ? crackMasks : damageMasks).TryAdd(slot, entry))
-                        throw new FormatException($"{metaPath}: two {(role == CrackMaskRole ? "crack" : "damage")} masks on slot \"{slot}\"");
+                    var byRole = role == BaseMapRole ? baseMaps : role == MaskMapRole ? maskMaps : role == CrackMaskRole ? crackMasks : damageMasks;
+                    if (!byRole.TryAdd(slot, entry))
+                        throw new FormatException($"{metaPath}: two {role} textures on slot \"{slot}\"");
                 }
+            foreach (string slot in maskMaps.Keys)
+                if (!baseMaps.ContainsKey(slot))
+                    throw new FormatException($"{metaPath}: slot \"{slot}\" has a mask map but no base map; a mask map lies under a base map's material");
+            foreach (string slot in baseMaps.Keys)
+                if (crackMasks.ContainsKey(slot) || damageMasks.ContainsKey(slot))
+                    throw new FormatException($"{metaPath}: slot \"{slot}\" has a base map and a mask; a base map lies under its recipe's own material only");
 
             Dictionary<string, object> manifest = damageMasks.Count == 0 ? null : Json.Obj(Json.Parse(ReadRepoFile(ManifestFile)), ManifestFile);
             var result = new Dictionary<string, Material>();
@@ -692,8 +707,10 @@ namespace Fpv450.Assets
             {
                 string panePath = $"{folder}/{variant}_{slot.Key}_crazed.mat";
                 string layeredPath = $"{folder}/{variant}_{slot.Key}_layered.mat";
+                string basePath = $"{folder}/{variant}_{slot.Key}_base.mat";
                 bool crazed = crackMasks.TryGetValue(slot.Key, out Dictionary<string, object> crack);
                 bool layered = damageMasks.TryGetValue(slot.Key, out Dictionary<string, object> damage);
+                bool based = baseMaps.TryGetValue(slot.Key, out Dictionary<string, object> baseMap);
                 if (crazed)
                 {
                     string what = $"{metaPath} crack mask of slot {slot.Key}";
@@ -709,9 +726,22 @@ namespace Fpv450.Assets
                         CrackMask($"{metaFolder}/{Json.Str(damage, "file", what)}"), Json.Vec2(damage, "uv_min", what), Json.Vec2(damage, "uv_max", what),
                         layeredPath, what);
                 }
+                else if (based)
+                {
+                    string what = $"{metaPath} base map of slot {slot.Key}";
+                    Texture2D packed = null;
+                    if (maskMaps.TryGetValue(slot.Key, out Dictionary<string, object> maskMap))
+                    {
+                        if (Json.Vec2(maskMap, "uv_min", what) != Json.Vec2(baseMap, "uv_min", what) || Json.Vec2(maskMap, "uv_max", what) != Json.Vec2(baseMap, "uv_max", what))
+                            throw new FormatException($"{what}: its mask map lies over other UVs than the base map; URP/Lit lays both by the base map's");
+                        packed = CrackMask($"{metaFolder}/{Json.Str(maskMap, "file", what)}");
+                    }
+                    result[slot.Key] = EnsureBaseMapMaterial(slot.Value, BaseMap($"{metaFolder}/{Json.Str(baseMap, "file", what)}"), packed,
+                        Json.Vec2(baseMap, "uv_min", what), Json.Vec2(baseMap, "uv_max", what), basePath, what);
+                }
                 else
                     result[slot.Key] = slot.Value;
-                foreach ((string path, bool kept) in new[] { (panePath, crazed), (layeredPath, layered) })
+                foreach ((string path, bool kept) in new[] { (panePath, crazed), (layeredPath, layered), (basePath, based) })
                     if (!kept && AssetDatabase.LoadAssetAtPath<Material>(path) != null)
                         AssetDatabase.DeleteAsset(path);
             }
@@ -796,6 +826,59 @@ namespace Fpv450.Assets
             if (changed)
                 EditorUtility.SetDirty(material);
             return material;
+        }
+
+        /// <summary>
+        /// A slot's material over a generator's base map (D-081), at <paramref name="path"/>, created or updated in place: the
+        /// recipe's material <paramref name="recipe"/> with every property, keyword and queue it has, its <c>_BaseMap</c> the
+        /// <paramref name="map"/>, laid over the slot's UVs (the asset's metres) from <paramref name="uvMin"/> to
+        /// <paramref name="uvMax"/>, and, given a <paramref name="mask"/>, that packed mask as its metallic-smoothness and
+        /// occlusion maps (URP/Lit samples both with the base map's UVs), so it needs a recipe that reads a mask. The recipe
+        /// stays the source of everything else, its normal map and detail included.
+        /// </summary>
+        static Material EnsureBaseMapMaterial(Material recipe, Texture2D map, Texture2D mask, Vector2 uvMin, Vector2 uvMax, string path, string what)
+        {
+            if (mask != null && (recipe.GetTexture("_MetallicGlossMap") == null || recipe.GetTexture("_OcclusionMap") == null))
+                throw new FormatException($"{what}: its recipe {recipe.name} reads no packed mask for a mask map to replace");
+            if (!recipe.HasProperty("_BaseMap"))
+                throw new FormatException($"{what}: its recipe {recipe.name} draws with {recipe.shader.name}, which has no _BaseMap");
+            Vector2 size = uvMax - uvMin;
+            if (size.x <= 0f || size.y <= 0f)
+                throw new FormatException($"{what}: uv_max must lie above and right of uv_min, not {uvMin} to {uvMax}");
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(recipe);
+                AssetDatabase.CreateAsset(material, path);
+            }
+            material.shader = recipe.shader;
+            material.CopyPropertiesFromMaterial(recipe);
+            var scale = new Vector2(1f / size.x, 1f / size.y);
+            material.SetTexture("_BaseMap", map);
+            material.SetTextureScale("_BaseMap", scale);
+            material.SetTextureOffset("_BaseMap", -Vector2.Scale(uvMin, scale));
+            if (mask != null)
+            {
+                material.SetTexture("_MetallicGlossMap", mask);
+                material.SetTexture("_OcclusionMap", mask);
+            }
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
+        /// <summary>A generator's base map beside the metadata: sRGB colour (its name's <c>_albedo</c>, <see cref="ArtImportSettings"/>), clamped at the asset's edge.</summary>
+        static Texture2D BaseMap(string path)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter
+                ?? throw new FileNotFoundException($"{path} is not a texture in the asset database: run the Blender build first");
+            if (!importer.sRGBTexture)
+                throw new FormatException($"{path}: a base map imports as sRGB colour; its name ends in _albedo");
+            if (importer.wrapMode != TextureWrapMode.Clamp)
+            {
+                importer.wrapMode = TextureWrapMode.Clamp;
+                importer.SaveAndReimport();
+            }
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path) ?? throw new FileNotFoundException($"{path} did not import as a texture");
         }
 
         // --- layered surfaces (p1-r01-vaz-sedan, design decision 5; p1-h01-adobe-house, design decision 2; tech-artist) ---
@@ -974,7 +1057,7 @@ namespace Fpv450.Assets
                 var thin = new List<string>();
                 Renderer[][] renderers = EnsureLods(root, meta, metaJson, AssetDatabase.GetAssetPath(source), fbxPath, materialBySlot, wireSlots, keep, thin,
                     prefabPath);
-                EnsureLodGroup(root, meta, renderers, LodBounds(metaJson, meta.bounds, prefabPath));
+                EnsureLodGroup(root, meta, renderers, LodBounds(metaJson, meta.bounds, prefabPath), FadeShare(metaJson, prefabPath));
                 EnsureColliders(root, meta, keep, prefabPath);
                 for (int i = root.transform.childCount - 1; i >= 0; i--)
                 {
@@ -1256,21 +1339,30 @@ namespace Fpv450.Assets
         /// switching at 8 m: 1.3) would be clamped and switch late; there s is reduced until that first height is
         /// 1. Only the ratio s / d reaches Unity, so every switch distance is kept either way. The bounds are
         /// <paramref name="frame"/>, the object's own (<see cref="LodBounds"/>), and the group's reference point their
-        /// centre, so the switches are measured from the object.
+        /// centre, so the switches are measured from the object. With a <paramref name="fadeShare"/> (the metadata's
+        /// <c>lod_fade_share</c>, D-081) the group cross-fades: each LOD that hands over to a next one dissolves into it from
+        /// (1 - share) of the next one's switch distance to the switch, Unity's dithered cross-fade over that band of
+        /// screen heights (<see cref="FadeWidth"/>), and s is reduced until the first band's start is on screen (height
+        /// 1); the cull is never faded. Without one every switch is at once, <c>LODFadeMode.None</c>.
         /// </summary>
-        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers, Bounds frame)
+        static void EnsureLodGroup(GameObject root, AssetPhysicsMeta meta, Renderer[][] renderers, Bounds frame, float fadeShare)
         {
             float firstFar = renderers.Length > 1 ? meta.lods[1].switchDistanceM : meta.cullDistanceM;
+            float firstNear = renderers.Length > 1 ? (1f - fadeShare) * firstFar : firstFar;
             float size = Mathf.Min(Mathf.Max(frame.size.x, frame.size.y, frame.size.z),
-                2f * firstFar * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
+                2f * firstNear * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
             var lods = new LOD[renderers.Length];
             for (int i = 0; i < lods.Length; i++)
             {
                 float farDistance = i + 1 < lods.Length ? meta.lods[i + 1].switchDistanceM : meta.cullDistanceM;
                 lods[i] = new LOD(RelativeHeight(size, farDistance), renderers[i]);
             }
+            for (int i = 0; fadeShare > 0f && i + 1 < lods.Length; i++)
+                lods[i].fadeTransitionWidth = FadeWidth(i == 0 ? 1f : lods[i - 1].screenRelativeTransitionHeight,
+                    lods[i].screenRelativeTransitionHeight, RelativeHeight(size, (1f - fadeShare) * meta.lods[i + 1].switchDistanceM));
             LODGroup group = Ensure<LODGroup>(root);
-            group.fadeMode = LODFadeMode.None;
+            group.fadeMode = fadeShare > 0f ? LODFadeMode.CrossFade : LODFadeMode.None;
+            group.animateCrossFading = false;
             group.SetLODs(lods); // recomputes the size and reference point from the renderers, so they are set after it
             group.localReferencePoint = frame.center;
             group.size = size;
@@ -1292,6 +1384,24 @@ namespace Fpv450.Assets
 
         static float RelativeHeight(float size, float distance) =>
             size / (2f * distance * Mathf.Tan(VerticalFovDeg * 0.5f * Mathf.Deg2Rad));
+
+        /// <summary>
+        /// A LOD's <c>fadeTransitionWidth</c>: Unity cross-fades a LOD into the next over the far end of its range of
+        /// screen heights, from <paramref name="end"/> (its transition height) up to <paramref name="start"/>, given as a
+        /// share of the range, which runs up to <paramref name="near"/> (the previous LOD's height, 1 for LOD0).
+        /// </summary>
+        internal static float FadeWidth(float near, float end, float start) => Mathf.Clamp01((start - end) / (near - end));
+
+        /// <summary>The metadata's optional <c>lod_fade_share</c> (tools/blender/lib/meta.py), 0 without one.</summary>
+        static float FadeShare(Dictionary<string, object> json, string what)
+        {
+            if (!json.ContainsKey("lod_fade_share"))
+                return 0f;
+            float share = Json.Num(json, "lod_fade_share", what);
+            if (!(share >= 0f && share < 1f))
+                throw new FormatException($"{what}: lod_fade_share must lie in [0, 1), got {share}");
+            return share;
+        }
 
         /// <summary>
         /// One child per primitive, placed and rotated as the metadata says, with the matching Unity collider. A

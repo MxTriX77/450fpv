@@ -435,6 +435,22 @@ def test_textures_validated(k01_params, material_ids, edit, expected):
     assert any(expected in p for p in problems), problems
 
 
+def test_a_lod_fade_share_is_carried_last_and_held_to_0_1(k01_params, material_ids):
+    """D-081: a generator's "lod_fade_share" lands after every schema key (an optional one), and a base_map and a
+    mask_map are texture roles; a share outside [0, 1) is refused, and without one the file is unchanged."""
+    assert "lod_fade_share" not in k01_meta(k01_params)
+    built = debris_brick.build(k01_params)
+    built["lod_fade_share"] = 0.25
+    built["textures"] = [{"role": role, "slot": "brick", "name": name, "uv_min": (-6.0, -6.0), "uv_max": (6.0, 6.0),
+                          "png": b"\x89PNG"} for role, name in (("base_map", "far_albedo"), ("mask_map", "far_mask"))]
+    data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
+    assert data["lod_fade_share"] == 0.25 and meta.validate(data, material_ids) == []
+    assert list(json.loads(meta.dumps(data)))[-1] == "lod_fade_share"
+    for bad in (1.0, -0.1, "0.25"):
+        data["lod_fade_share"] = bad
+        assert any(p.startswith("lod_fade_share must be a number in [0, 1)") for p in meta.validate(data, material_ids))
+
+
 def test_committed_metadata_matches_committed_params(k01_params, material_ids, k01_out):
     path = k01_out / "K01_whole.assetmeta.json"
     committed = json.loads(path.read_text(encoding="utf-8"))
