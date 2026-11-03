@@ -1,6 +1,7 @@
 """build.py end to end in headless Blender, when the pinned Blender is installed: K01 builds into a scratch root
 with its audit printed, the outputs agree with the spec scenarios, a second run writes byte-identical files, an
-out-of-range param and a mesh grown beyond its box are refused before anything is written, and an impostor asked for
+out-of-range param, a mesh grown beyond its box and a malformed micro element are refused before anything is
+written, the micro elements' sidecar is written beside the metadata and removed when gone, and an impostor asked for
 is rendered once as a 1k albedo, a 1k normal atlas, the occlusion per texel in its alpha, and a 1k smoothness atlas.
 The version pin, the
 staged file's retried replace and the textures a build writes and removes are checked without Blender."""
@@ -375,3 +376,53 @@ def test_mesh_grown_beyond_its_box_fails_the_audit_and_writes_nothing(blender, r
     assert ") nearest collision[0] exceeds the tolerance 50 mm" in output
     assert "FBX export" not in output
     assert not (tmp_path / "unity").exists()
+
+
+def k01_with_elements(root, elements):
+    """A driver building K01 in `root` with these micro_elements records added to its generator's result."""
+    return textwrap.dedent(f"""
+        import sys
+        sys.path.insert(0, {build.HERE!r})
+        import build
+        from generators import debris_brick
+        original = debris_brick.build
+        def with_elements(params):
+            built = original(params)
+            built["micro_elements"] = {elements!r}
+            return built
+        debris_brick.build = with_elements
+        sys.exit(build.main(["K01", "--root", {str(root)!r}]))
+        """)
+
+
+STRAW = {"kind": "straw", "points": [[0.0, 0.07, 0.0], [0.2, 0.07, 0.01]], "diameter_m": 0.003, "anchored": True,
+         "parent": -1, "parent_shape": -1}
+
+
+def test_a_malformed_element_is_refused_and_writes_nothing(blender, repo_root, tmp_path):
+    """asset-pipeline "A malformed element is rejected" (p7a-ground 1.5): K01 built with a micro element of zero
+    diameter is refused by the validator, naming the record and the rule, before the audit and any file."""
+    shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
+    code, output = run_build(blender, tmp_path, k01_with_elements(tmp_path, [dict(STRAW, diameter_m=0.0)]))
+    assert code == 1, output
+    assert "ERROR: K01_whole: micro_elements[0]: diameter_m must be positive, got 0.0" in output
+    assert "audit" not in output and "FBX export" not in output
+    assert not (tmp_path / "unity").exists()
+
+
+def test_the_elements_sidecar_is_written_beside_the_metadata_and_removed_when_gone(blender, repo_root, tmp_path):
+    """p7a-ground 1.5: a build with micro_elements writes <variant>.elements.json beside the metadata, which names it
+    with its SHA-256 and counts, and prints the counts by kind; a build without them removes the sidecar and its .meta."""
+    shutil.copytree(repo_root / "assets-src", tmp_path / "assets-src")
+    code, output = run_build(blender, tmp_path, k01_with_elements(tmp_path, [STRAW]))
+    assert code == 0, output
+    assert "micro_elements 1 straw in K01_whole.elements.json" in output
+    sidecar = tmp_path / OUT / "K01_whole.elements.json"
+    data = json.loads((tmp_path / OUT / "K01_whole.assetmeta.json").read_text(encoding="utf-8"))
+    assert data["micro_elements"] == {"file": sidecar.name, "sha256": hashlib.sha256(sidecar.read_bytes()).hexdigest(),
+                                      "counts": {"straw": 1}}
+    assert json.loads(sidecar.read_text(encoding="utf-8"))["elements"] == [STRAW]
+    (tmp_path / OUT / "K01_whole.elements.json.meta").write_text("guid", encoding="utf-8")
+    code, output = run_build(blender, tmp_path)
+    assert code == 0, output
+    assert sorted(p.name for p in (tmp_path / OUT).iterdir()) == ["K01_whole.assetmeta.json", "K01_whole.fbx"]
