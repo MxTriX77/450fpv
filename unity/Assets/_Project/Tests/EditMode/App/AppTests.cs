@@ -119,6 +119,7 @@ namespace Fpv450.Tests.App
                 MotorCurrentA = new Corners { RearRight = 10.1, FrontRight = 10.2, RearLeft = 10.3, FrontLeft = 10.6 },
                 CameraAngularVelocity = new Double3(0.1, -0.2, 0.3),
                 LinkMarginDb = 3, // not live: the stub's
+                Sticks = new StickSample { Throttle = 0.5, Arm = true },
             };
             feed.Update(s, true, 12.4, 250, 75.3);
             Assert.That(feed.SourceOf(FeedSignal.PackVolts), Is.EqualTo(SignalSource.Physics));
@@ -140,6 +141,7 @@ namespace Fpv450.Tests.App
             StringAssert.Contains("0.25", grid, "the distance home, km");
             StringAssert.Contains("23.5", grid, "the pack from the physics");
             StringAssert.Contains("41.20", grid, "the current from the physics");
+            StringAssert.Contains(FlightOsd.SymThr + " 47", grid, "the throttle from the sticks the flight flew (D-080)");
         }
 
         static string Grid(FlightFeedSignals feed)
@@ -225,7 +227,7 @@ namespace Fpv450.Tests.App
         public void VSwitchesOnlyTheView()
         {
             Assert.That(FlightScene.ViewKey, Is.EqualTo(Key.V));
-            Assert.That(FlightScene.FeedKey, Is.Not.EqualTo(Key.V).And.Not.EqualTo(Key.C), "the review feed's key left V; C is retired");
+            Assert.That(FlightScene.FeedKey, Is.Not.EqualTo(Key.V).And.Not.EqualTo(Key.C), "the review feed's key left V; C is the noise's (D-078)");
 
             var body = new GameObject("Drone").transform;
             var eye = new GameObject("FpvCamera").transform;
@@ -267,6 +269,88 @@ namespace Fpv450.Tests.App
                 Object.DestroyImmediate(scene.gameObject);
                 Object.DestroyImmediate(body.gameObject);
                 if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
+        // D-078: the app's keys over the flight are none of the flight's (KeyboardFallback's): each held alone, the flight
+        // reads no key. None is V, F or Esc, and no two are the same.
+        [Test]
+        public void TheAppsKeysNeverReachTheFlight()
+        {
+            Assert.That(FlightScene.RestartKey, Is.EqualTo(Key.R));
+            Assert.That(FlightScene.NoiseKey, Is.EqualTo(Key.C));
+            Assert.That(FlightScene.SticksKey, Is.EqualTo(Key.X));
+            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey, FlightScene.SticksKey };
+            Assert.That(keys, Is.Unique);
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>("D-078 test keyboard");
+            keyboard.MakeCurrent();
+            try
+            {
+                foreach (Key key in keys)
+                {
+                    Assert.That(key, Is.Not.EqualTo(FlightScene.ViewKey).And.Not.EqualTo(FlightScene.FeedKey).And.Not.EqualTo(Key.Escape));
+                    InputSystem.QueueStateEvent(keyboard, new KeyboardState(key));
+                    InputSystem.Update();
+                    Assert.That(keyboard[key].isPressed, key + " held");
+                    Assert.That(KeyboardFallback.ReadKeys(), Is.EqualTo(KeyboardKeys.None), key + " is not a flight key");
+                }
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(keyboard);
+            }
+        }
+
+        // D-078: C turns the feed's noise off and on for the rest of the app's run: the next flight's scene keeps it, and
+        // the view stays as it was.
+        [Test]
+        public void CTogglesTheNoiseForTheRun()
+        {
+            bool before = FlightScene.FeedNoise;
+            Assert.That(before, Is.True, "on at the app's start");
+            FlightScene first = new GameObject("Flight").AddComponent<FlightScene>(), next = null;
+            try
+            {
+                first.Pressed(false, false, true);
+                Assert.That(FlightScene.FeedNoise, Is.False, "C: off");
+                Assert.That(first.Chase, Is.False, "the view stays");
+                next = new GameObject("Flight 2").AddComponent<FlightScene>();
+                Assert.That(FlightScene.FeedNoise, Is.False, "the next flight's scene keeps it");
+                next.Pressed(false, false, true);
+                Assert.That(FlightScene.FeedNoise, Is.True, "C again: on");
+            }
+            finally
+            {
+                if (FlightScene.FeedNoise != before) first.Pressed(false, false, true);
+                Object.DestroyImmediate(first.gameObject);
+                if (next != null) Object.DestroyImmediate(next.gameObject);
+            }
+        }
+
+        // D-078: X turns Betaflight's stick overlay on the OSD on and off for the rest of the app's run: the scene's OSD
+        // draws it, the next flight's scene keeps it, and the noise and the view stay as they were.
+        [Test]
+        public void XTogglesTheOsdsSticksForTheRun()
+        {
+            bool before = FlightScene.StickOverlay, noise = FlightScene.FeedNoise;
+            Assert.That(before, Is.False, "off at the app's start");
+            FlightScene first = new GameObject("Flight").AddComponent<FlightScene>(), next = null;
+            try
+            {
+                first.Pressed(false, false, false, true);
+                Assert.That(FlightScene.StickOverlay && first.Osd.StickOverlay, "X: on, in the OSD");
+                Assert.That((FlightScene.FeedNoise, first.Chase), Is.EqualTo((noise, false)), "the noise and the view stay");
+                next = new GameObject("Flight 2").AddComponent<FlightScene>();
+                next.Pressed(false, false);
+                Assert.That(next.Osd.StickOverlay, Is.True, "the next flight's scene keeps it");
+                next.Pressed(false, false, false, true);
+                Assert.That(FlightScene.StickOverlay || next.Osd.StickOverlay, Is.False, "X again: off");
+            }
+            finally
+            {
+                if (FlightScene.StickOverlay != before) first.Pressed(false, false, false, true);
+                Object.DestroyImmediate(first.gameObject);
+                if (next != null) Object.DestroyImmediate(next.gameObject);
             }
         }
 

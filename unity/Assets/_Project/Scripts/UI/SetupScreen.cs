@@ -11,7 +11,8 @@ namespace Fpv450.UI
 
     /// <summary>
     /// The setup (APP-03, PRD-04): the payload, the legs (off: the launch stand), the time of day, the wind, the rain
-    /// and the start point, and nothing else; then Fly. It edits Choices in place; the caller saves them on Fly.
+    /// and the start point, and nothing else; then Fly. It edits Choices in place; the caller saves them on Fly. The start
+    /// is offered only when the world lists more than one: the test range's is its houses' alone (D-077), so no row.
     /// </summary>
     public sealed class SetupScreen
     {
@@ -61,7 +62,7 @@ namespace Fpv450.UI
             });
             Row("Wind", () => c.Wind = WindLevels[AppStyle.Segments(Math.Max(0, Array.IndexOf(WindLevels, c.Wind)), Winds, AppStyle.S(44))]);
             Row("Rain", () => c.Rain = (Rain)AppStyle.Segments((int)c.Rain, Rains, AppStyle.S(44)));
-            Row("Start", () =>
+            if (Starts.Length > 1) Row("Start", () =>
             {
                 var names = new string[Starts.Length];
                 int at = 0;

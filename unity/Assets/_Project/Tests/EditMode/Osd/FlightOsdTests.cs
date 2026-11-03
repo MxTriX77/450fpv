@@ -7,6 +7,7 @@ using Fpv450.Feed;
 using Fpv450.Input.Radio;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.UI;
 using NUnit.Framework;
@@ -78,15 +79,90 @@ namespace Fpv450.Tests.Osd
             for (int r = 0; r < FeedOsd.Rows; r++) expected[r] = Row();
             expected[0] = Row((0, "AIR"), (23, ">12m"));
             expected[7] = Row((13, "{|}"));
-            expected[10] = Row((0, "! SAFE !"));
+            expected[10] = Row((0, "! SAFE !"), (24, FlightOsd.SymThr + "  0")); // no stick sample yet: the throttle down
             expected[11] = Row((0, "["), (1, "01:15"), (24, "0MAH")); // 41.2 A for 20 ms: 0.23 mAh, "%4d"
             expected[12] = Row((0, "$"), (1, "3.91в"), (7, "SVINORIZ 10 OPTO"), (24, "0.25")); // 2347 / 6 = 391
             expected[13] = Row((0, "$"), (1, "23.5в"), (22, "41.20"), (27, "a")); // 23.47 rounds to 23.5; " 41.20"
             for (int r = 0; r < FeedOsd.Rows; r++)
                 Assert.That(osd.Row(r), Is.EqualTo(expected[r]), "row " + r);
+            // Betaflight's symbols the ROM does not draw yet (FlightOsd.Symbols) are the tech artist's to add.
             for (int r = 0; r < FeedOsd.Rows; r++)
                 foreach (char c in osd.Row(r))
-                    Assert.That(c == ' ' || FeedFont.Has(c), $"'{c}' in row {r} has no glyph");
+                    Assert.That(c == ' ' || FeedFont.Has(c) || FlightOsd.Symbols.IndexOf(c) >= 0, $"'{c}' in row {r} has no glyph");
+        }
+
+        // D-080: the throttle element as Betaflight 4.5's: calculateThrottlePercent of the stick's own channel, from
+        // min_check (1050 µs by default) to 2000 in integers, before the curve; "%c%3d" at the right of row 10.
+        [Test]
+        public void TheThrottleReadsAsBetaflightsElement()
+        {
+            Assert.That(FlightOsd.ThrottlePercent(1000, 1050), Is.EqualTo(0), "under min_check");
+            Assert.That(FlightOsd.ThrottlePercent(1050, 1050), Is.EqualTo(0));
+            Assert.That(FlightOsd.ThrottlePercent(1059.9, 1050), Is.EqualTo(0), "the channel truncated to 1059 µs: 9 · 100 / 950 = 0.9, truncated");
+            Assert.That(FlightOsd.ThrottlePercent(1060, 1050), Is.EqualTo(1), "10 · 100 / 950 = 1.05");
+            Assert.That(FlightOsd.ThrottlePercent(1500, 1050), Is.EqualTo(47), "450 · 100 / 950 = 47.4");
+            Assert.That(FlightOsd.ThrottlePercent(1999.9, 1050), Is.EqualTo(99), "the channel truncated to 1999 µs");
+            Assert.That(FlightOsd.ThrottlePercent(2000, 1050), Is.EqualTo(100));
+            Assert.That(FlightOsd.ThrottlePercent(2100, 1050), Is.EqualTo(100), "the channel constrained to 2000");
+            Assert.That(FlightOsd.ThrottlePercent(1500, 1000), Is.EqualTo(50), "another min_check");
+            Assert.That(FlightOsd.ThrottleText(0), Is.EqualTo(FlightOsd.SymThr + "  0"));
+            Assert.That(FlightOsd.ThrottleText(47), Is.EqualTo(FlightOsd.SymThr + " 47"));
+            Assert.That(FlightOsd.ThrottleText(100), Is.EqualTo(FlightOsd.SymThr + "100"));
+            Assert.That(new FlightOsd().MinCheck, Is.EqualTo(FcSettings.Default.min_check), "the default settings' min_check");
+
+            FlightOsd osd = Osd();
+            osd.MinCheck = 1050;
+            osd.Sticks(new StickSample { Throttle = 0.5 }); // its channel 1500 µs
+            osd.Build(0, NoLinkLoss);
+            Assert.That(osd.Row(10), Is.EqualTo(Row((0, "! SAFE !"), (24, FlightOsd.SymThr + " 47"))));
+            osd.Sticks(new StickSample { Throttle = 1 });
+            osd.Build(4, NoLinkLoss);
+            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + " 47"), "it changes at the OSD's next refresh (12 Hz), not before");
+            osd.Build(5, NoLinkLoss);
+            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + "100"));
+        }
+
+        // D-078: X's stick overlay as Betaflight 4.5 draws it (osd_elements.c), mode 2: each stick a 7 × 5 cross with its
+        // cursor over it, one of three sprites a row, at the stick's position; nothing while it is off.
+        [Test]
+        public void TheStickOverlayDrawsBothSticksAsBetaflightDoes()
+        {
+            const char V = FlightOsd.SymStickVertical, Hi = FlightOsd.SymStickSpriteHigh, Mid = FlightOsd.SymStickSpriteMid, Lo = FlightOsd.SymStickSpriteLow;
+            string Cross(char centre) => new string(FlightOsd.SymStickHorizontal, 3) + centre + new string(FlightOsd.SymStickHorizontal, 3);
+            string v = V.ToString();
+            FlightOsd osd = Osd();
+            void Sticks(double throttle, double yaw, double pitch, double roll, int field, params string[] rows)
+            {
+                osd.Sticks(new StickSample { Throttle = throttle, Yaw = yaw, Pitch = pitch, Roll = roll });
+                osd.Build(field, NoLinkLoss);
+                for (int r = 0; r < rows.Length; r++)
+                    if (rows[r] != null) Assert.That(osd.Row(2 + r), Is.EqualTo(rows[r]), $"({throttle}, {yaw}, {pitch}, {roll}): row {2 + r}");
+            }
+
+            osd.Build(0, NoLinkLoss);
+            for (int r = 2; r <= 6; r++) Assert.That(osd.Row(r).Trim(), Is.Empty, "off: nothing, row " + r);
+            osd.StickOverlay = true;
+            // Centred, the throttle down: the left cursor at its axis's foot (low in its cell), the right at the centre.
+            Sticks(0, 0, 0, 0, 5,
+                Row((5, v), (23, v)),
+                Row((5, v), (23, v)),
+                Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(Mid))),
+                Row((5, v), (23, v)),
+                Row((5, Lo.ToString()), (23, v)));
+            // Full throttle and left yaw: top left; full back pitch and right roll: bottom right, the last column (1999 µs).
+            Sticks(1, -1, -1, 1, 9,
+                Row((2, Hi.ToString()), (5, v), (23, v)),
+                Row((5, v), (23, v)),
+                Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(FlightOsd.SymStickCenter))),
+                Row((5, v), (23, v)),
+                Row((5, v), (23, v), (26, Lo.ToString())));
+            // Half throttle is mid-cell at the centre; a little forward pitch is the centre row's high sprite, a little back
+            // its low one: three positions a row.
+            Sticks(0.5, 0, 0.11, 0, 13, null, null, Row((2, Cross(Mid)), (20, Cross(Hi))));
+            Sticks(0.5, 0, -0.11, 0, 17, null, null, Row((2, Cross(Mid)), (20, Cross(Lo))));
+            osd.StickOverlay = false;
+            osd.Build(21, NoLinkLoss);
+            for (int r = 2; r <= 6; r++) Assert.That(osd.Row(r).Trim(), Is.Empty, "off again, row " + r);
         }
 
         [Test]

@@ -46,6 +46,10 @@ namespace Fpv450.Feed
         /// The flight drives the feed's fields (p7e-camera-feel): while true, the rig leaves its field to <see cref="Drive"/>.
         public bool Driven { get; set; }
 
+        /// The analog noise is on (D-078: the pilot's C turns it off for the session; the picture and the OSD stay). Not
+        /// read yet: the feed's noise terms must honour it (the tech artist's).
+        public bool Noise { get; set; } = true;
+
         /// The render's coverage in half-widths while running: the lens's, plus the shutter's margin with a track.
         public float RenderCoverage { get; private set; }
 

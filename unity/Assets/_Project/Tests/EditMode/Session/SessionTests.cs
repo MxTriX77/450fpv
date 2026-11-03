@@ -68,24 +68,25 @@ namespace Fpv450.Tests.Session
             Assert.That(world.Id, Is.EqualTo("test-range"), "MapWorld's map id, which the log records so replay reopens it");
             Assert.That(world.Open().Query, Is.InstanceOf<MapWorld>());
             Assert.That(world.Open().ContentHash, Is.EqualTo(MapWorld.Load(root, "test-range").ContentHash));
-            Assert.That(world.StartPoints.Length, Is.EqualTo(2));
-            StartPoint track = world.StartPoints[0], field = world.StartPoints[1];
-            Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo(("track", -178.0, -40.0, false)));
-            Assert.That((field.Name, field.X, field.Z, field.Stand), Is.EqualTo(("field", 40.0, 45.0, true)));
+            // D-077: the app flies from the houses' start only; the map's field start stays the benches'.
+            Assert.That(Array.ConvertAll(MapWorld.Load(root, "test-range").StartPoints, p => p.Id), Is.EqualTo(new[] { "track", "field" }));
+            Assert.That(world.StartPoints.Length, Is.EqualTo(1));
+            StartPoint track = world.StartPoints[0];
+            Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo((FlightWorlds.HousesStart, -178.0, -40.0, false)));
             Assert.That(track.Yaw, Is.EqualTo(Math.PI / 2).Within(1e-15), "heading 90°: east");
-            Assert.That(field.Yaw, Is.EqualTo(Math.PI).Within(1e-15), "heading 180°: south");
 
-            foreach (StartPoint at in world.StartPoints)
+            foreach (bool legs in new[] { true, false })
             {
+                StartPoint at = track;
                 SessionInputs inputs = Inputs();
                 world.ApplyTo(inputs);
-                inputs.Choices = new FlightChoices { StartPoint = at.Name, Legs = !at.Stand };
+                inputs.Choices = new FlightChoices { StartPoint = "field", Legs = legs }; // an older setup's start: the houses'
                 FlightSetup setup = SessionSetup.Build(inputs, 1, out Loadout loadout, out StartPoint start);
                 Assert.That(start.Name, Is.EqualTo(at.Name));
                 Assert.That(setup.StartPosition.X, Is.EqualTo(at.X).Within(1e-12));
                 Assert.That(setup.StartPosition.Z, Is.EqualTo(at.Z).Within(1e-12));
                 RuntimeObject[] objects = setup.RuntimeObjects ?? new RuntimeObject[0];
-                if (!at.Stand)
+                if (legs)
                 {
                     Assert.That(objects, Is.Empty, at.Name + ": legs on, no stand");
                     continue;
@@ -568,6 +569,63 @@ namespace Fpv450.Tests.Session
                     Assert.That(step.Stick.HostUs, Is.InRange(hostUs - 3 * FlightCore.StepUs, hostUs), "step " + index + "'s stick");
                 }
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+        }
+
+        // D-078: R restarts a flight in the air, not paused, at once: the same setup and the same start point (the second
+        // of two), a new seed and log, step 0 at rest where the first began; the first ended by the pilot.
+        [Test]
+        public void RestartInTheAirIsTheSameSetupFromTheSameStart()
+        {
+            var second = new StartPoint { Name = "second", X = 3, Z = -2, Yaw = 1 };
+            Rig rig = Make(i =>
+            {
+                i.StartPoints = new[] { StartPoint.Origin, second };
+                i.Choices = new FlightChoices { Payload = 1.3, Legs = false, TimeOfDay = 6.5, Wind = WindLevel.Windy, Rain = Rain.Rain, StartPoint = "second" };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.75;
+            rig.Run(500);
+            FlightSetup first = rig.Session.Setup;
+            ulong seed = rig.Session.Seed;
+            string log = rig.Session.LogPath;
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
+            Assert.That(rig.Session.Core.State.Position.Y - first.StartPosition.Y, Is.GreaterThan(0.05), "in the air");
+
+            Assert.That(rig.Session.Restart(), Is.True, "the radio is in: the new flight starts at once");
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Flying, 2)));
+            Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");
+            Assert.That(rig.Session.LogPath, Is.Not.EqualTo(log), "a new log");
+            Assert.That(rig.Session.StartPoint.Name, Is.EqualTo("second"), "the same start point");
+            FlightChoices c = rig.Session.Choices;
+            Assert.That((c.Payload, c.Legs, c.TimeOfDay, c.Wind, c.Rain, c.StartPoint), Is.EqualTo((1.3, false, 6.5, WindLevel.Windy, Rain.Rain, "second")), "the same setup");
+            Assert.That((rig.Session.Loadout.Payload, rig.Session.Loadout.Legs), Is.EqualTo((1.3, false)));
+            Assert.That(rig.Session.Setup.StartPosition, Is.EqualTo(first.StartPosition), "at rest where the first began");
+            Assert.That(rig.Session.Setup.StartAttitude, Is.EqualTo(first.StartAttitude));
+            Assert.That(rig.Session.Setup.RuntimeObjects.Length, Is.EqualTo(1), "on its launch stand again: the legs are off");
+            Assert.That(rig.Session.Core.State.Step, Is.EqualTo(0));
+            Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot), "the first flight ended by the pilot");
+        }
+
+        // D-078, D-080: each step publishes the stick sample it flew with its signals, for the OSD's sticks and throttle:
+        // the test radio's report through the raw map, stamped no later than the step.
+        [Test]
+        public void EachStepPublishesTheSticksItFlew()
+        {
+            Rig rig = Make();
+            rig.Session.Start();
+            Assert.That(rig.Session.Poses.Read().Signals.Sticks, Is.EqualTo(StickSample.Neutral), "neutral before the first step");
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.4;
+            rig.Radio.Pitch = 0.5;
+            rig.Run(20);
+            FeedSignals signals = rig.Session.Poses.Read().Signals;
+            StickSample s = signals.Sticks;
+            const double Count = 1.0 / 2047;
+            Assert.That(s.Throttle, Is.EqualTo(0.4).Within(Count));
+            Assert.That(s.Pitch, Is.EqualTo(0.5).Within(Count));
+            Assert.That(Math.Abs(s.Roll) <= Count && Math.Abs(s.Yaw) <= Count && s.Arm && !s.Failsafe, "roll and yaw centred, the switch on");
+            Assert.That(s.HostUs, Is.InRange(rig.Clock.Now - 3 * FlightCore.StepUs, rig.Clock.Now), "step " + signals.Step + "'s sample");
         }
 
         // ---- What the flight meets: each logged, none an end (D-063) ---------------------------------------------------

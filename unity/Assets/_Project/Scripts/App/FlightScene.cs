@@ -28,7 +28,9 @@ namespace Fpv450.App
     /// - over the picture: the arming hint, the pause (Esc) and the post-flight summary, read from the log off the frame,
     ///   which shows only once the pilot has ended the flight (D-063); nothing else is drawn over a flight
     /// V switches between the FPV view and the third-person chase view in every build (D-055); only the camera moves,
-    /// still through the feed and its OSD. Review builds add F (the feed off and on).
+    /// still through the feed and its OSD. Review builds add F (the feed off and on). R restarts the flight at once from
+    /// the same setup and start point; C turns the feed's noise and X Betaflight's stick overlay on the OSD off and on,
+    /// each for the rest of the app's run (D-078).
     /// In the FPV view the camera takes each PAL field at its own sim time (p7e-camera-feel): the scene is drawn once per
     /// whole field, with the camera at the field's reference instant on the flexing frame (FieldCamera), each line read
     /// through the field's rolling-shutter track, and held until the next field; the feed's fields follow the flight's.
@@ -42,9 +44,14 @@ namespace Fpv450.App
         /// along +z at 0° uptilt.</summary>
         public Vector3 CameraMount { get; private set; }
 
-        /// <summary>The keys over the flight (D-055): V the view in every build, F the feed in review builds. Neither is
-        /// one of KeyboardFallback's, so the flight never sees them.</summary>
-        public const Key ViewKey = Key.V, FeedKey = Key.F;
+        /// <summary>The keys over the flight (D-055, D-078): V the view in every build, F the feed in review builds, R the
+        /// restart, C the feed's noise, X the OSD's sticks. None is one of KeyboardFallback's, so the flight never sees them.</summary>
+        public const Key ViewKey = Key.V, FeedKey = Key.F, RestartKey = Key.R, NoiseKey = Key.C, SticksKey = Key.X;
+
+        /// <summary>The feed's noise (C) and the OSD's stick overlay (X), D-078: on and off at the app's start, then the
+        /// pilot's for the rest of the run, across flights, restarts and the menu.</summary>
+        public static bool FeedNoise { get; private set; } = true;
+        public static bool StickOverlay { get; private set; }
 
         /// <summary>The chase view's offset behind and above the drone on its heading, m, and its pitch down, degrees.</summary>
         public static readonly Vector3 ChaseOffset = new Vector3(0f, 0.7f, -2.2f);
@@ -148,6 +155,7 @@ namespace Fpv450.App
             _camera.farClipPlane = 3000f;
             _camera.clearFlags = CameraClearFlags.Skybox;
             _camera.allowHDR = true;
+            _signals.Osd.StickOverlay = StickOverlay;
             UniversalAdditionalCameraData data = _camera.GetUniversalAdditionalCameraData();
             data.renderPostProcessing = false;
             data.antialiasing = AntialiasingMode.None;
@@ -161,6 +169,7 @@ namespace Fpv450.App
             _rig = go.AddComponent<FpvCamera>(); // it begins at Start, once it has its settings and signals
             _rig.settings = settings;
             _rig.Signals = _signals;
+            _rig.Noise = FeedNoise;
             if (CameraFeel) _rig.Shutter = _shutter;
             else Debug.Log("[Flight] -camerafeel 0: the camera at the render clock's pose, read as rendered (p7e-camera-feel's before)");
             if (_look != null) _look.viewCamera = _camera;
@@ -376,6 +385,7 @@ namespace Fpv450.App
             Pose = RestPose;
             _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
             _signals.Osd.Reset(); // a fresh pack: the filters and the charge used start again
+            _signals.Osd.MinCheck = setup.Settings.min_check; // the throttle element's 0 %
             Look(session.Choices);
         }
 
@@ -432,20 +442,41 @@ namespace Fpv450.App
         }
 
         // This frame's keys over the flight (LateUpdate reads them first): V the view in every build (D-055), F the feed
-        // in review builds. Neither reaches the flight, whose keys are KeyboardFallback's.
+        // in review builds, R the restart, C the noise and X the OSD's sticks (D-078). None reaches the flight, whose keys
+        // are KeyboardFallback's.
         void Keys()
         {
             Keyboard k = Keyboard.current;
             if (k == null || Covered) return;
-            Pressed(k[ViewKey].wasPressedThisFrame, AppData.Review && k[FeedKey].wasPressedThisFrame);
+            Pressed(k[ViewKey].wasPressedThisFrame, AppData.Review && k[FeedKey].wasPressedThisFrame, k[NoiseKey].wasPressedThisFrame,
+                k[SticksKey].wasPressedThisFrame);
+            if (k[RestartKey].wasPressedThisFrame) Restart();
         }
 
-        /// <summary>What this frame's presses of the view key and the feed key do: the view flips between the lens and
-        /// the chase view, the feed goes off or on. Nothing else.</summary>
-        public void Pressed(bool view, bool feed)
+        /// <summary>
+        /// R (D-078): the flight again at once, from the same setup and start point, with a new seed and log. A flight
+        /// flying or paused ends by the pilot and the next starts, as the pause's Restart does (D-063: nothing else ends
+        /// it); after End flight it is the summary's Fly again. A flight already waiting for the radio is left to wait.
+        /// </summary>
+        public void Restart()
+        {
+            FlightSession session = Host != null ? Host.Session : null;
+            if (session == null || Host.WaitingForRadio) return;
+            if (session.State == SessionState.Flying || session.State == SessionState.Paused) Host.Restart();
+            else if (session.State == SessionState.Ended) Host.Fly();
+        }
+
+        /// <summary>What this frame's presses of the view, feed, noise and sticks keys do: the view flips between the lens
+        /// and the chase view, the feed goes off or on, its noise off or on (the picture and the OSD stay), the OSD's stick
+        /// overlay on or off. Nothing else.</summary>
+        public void Pressed(bool view, bool feed, bool noise = false, bool sticks = false)
         {
             if (view) Chase = !Chase;
             if (feed && _rig != null) _rig.enabled = !_rig.enabled;
+            if (noise) FeedNoise = !FeedNoise;
+            if (sticks) StickOverlay = !StickOverlay;
+            if (_rig != null) _rig.Noise = FeedNoise;
+            _signals.Osd.StickOverlay = StickOverlay;
         }
 
         /// <summary>Esc over the flight (AppFlow routes it, one action a press): pause and resume, and the menu while no
