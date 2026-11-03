@@ -63,6 +63,7 @@ Order: 1.1 → 1.2 → 1.3 → 1.4, then 1.5 (the app) once 1.3's `PoseFrame` st
   - the detached and parted pieces as loose bodies in the 50 Hz side record
   - the exact rebuild of the build and the airframe's modes
   - `PoseFrame`'s leg states and set angles
+  - the axial load's geometric softening of the side give (P·Δ) and the joints' Coulomb friction in the side give (design 3, added after 1.2)
 
   Verify: "The build follows a lost leg", "The next landing feels a damaged leg".
 - [ ] 1.4 [physics-engineer] The harness, the log and the budget (design 7), after 1.3:

@@ -71,6 +71,8 @@ See proposal.md for why.
      - This is a contact-law change: the model moves and the log format with it, by the numbers assigned at 1.2.
      - The leg contact shapes' penetration spring (6600 N/m) stays as it is.
    - **T-joint.** Pull-out and rotation of the skid in the T-joint, by the same friction law; a plastic T-joint's fracture past its section's capacity.
+   - **The axial load softens the side give (P·Δ, added after 1.2).** A leg carrying an axial load P loses side stiffness by its geometric stiffness, P over the leg's free length (with the end-fixity factor of the buckling law). At about 47 N a leg's side give would vanish, and every landing's peak passes that. So a heavily loaded leg is free to sway or fold sideways, and the side give never goes below zero: past it the leg is in the buckled branch.
+   - **The joints' friction damps the sway (added after 1.2).** The clamp jaws and the T-joint slip a little under side load. Their Coulomb friction, from 1.1's preloads and μ, is a damping source in series with the tube's own loss factor (η 0.03, published). It is modelled, never replaced by a tuned ζ. The sway's decay after a landing in wind is printed, against 1.2's 4.6 s with the tube's loss alone.
    - All laws are closed forms in + − × ÷ √. No transcendental functions are needed.
 
 4. **A broken or detached piece is a loose body.**
