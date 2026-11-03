@@ -40,7 +40,9 @@ namespace Fpv450.FlightBench
             var rigid = LandingScenarios.RigidAcross();
             ContactSpec legs = spec.BuildContacts(on, m, h);
             double side = legs.LegSideStiffness * (legs.FrictionStiffnessRatio * legs.LegStiffness) / (legs.LegSideStiffness + legs.FrictionStiffnessRatio * legs.LegStiffness);
-            Console.WriteLine($"  on the legs' side give ({side:F0} N/m across each foot) the quasi-static roll tip is {a.SoftRollTipDeg(side):F2}° (LandingStability.SoftRollTipDeg)");
+            Console.WriteLine($"  on 1.2's side give ({side:F0} N/m across each foot) the quasi-static roll tip is {a.SoftRollTipDeg(side):F2}° (LandingStability.SoftRollTipDeg)");
+            double tip13 = a.SoftRollTipDeg(legs.LegTubeSideStiffness, legs.FrictionStiffnessRatio * legs.LegStiffness, legs.LegSwayLoad, out double feet);
+            Console.WriteLine($"  on 1.3's (the tube's {legs.LegTubeSideStiffness:F0} N/m less P·Δ against its {legs.LegSwayLoad:F1} N sway load, the jaws held) it is {tip13:F2}°, the feet {feet * 1e3:F1} mm in");
             double tipped = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg + 0.05, 60, rigid);
             double held = LandingScenarios.RollTime(spec, m, h, true, a.StaticRollTipDeg - 0.05, 60, rigid);
             Row("the roll tip", !double.IsPositiveInfinity(tipped) && double.IsPositiveInfinity(held),
