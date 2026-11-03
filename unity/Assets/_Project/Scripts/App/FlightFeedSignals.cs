@@ -20,14 +20,15 @@ namespace Fpv450.App
         SimSignals _s;
 
         /// <summary>
-        /// Main thread, once a frame: the latest step's signals, and the OSD's flight values (the arm state; m, m, s). The
-        /// OSD's battery samples the physics' field means from its first whole field (step FlightCore.FieldSteps: before
-        /// it they are 0 V and 0 A), or the stub's steady pack.
+        /// Main thread, once a frame: the latest step's signals, and the OSD's flight values (the arm state; m, m, s) and
+        /// the sticks the step flew. The OSD's battery samples the physics' field means from its first whole field (step
+        /// FlightCore.FieldSteps: before it they are 0 V and 0 A), or the stub's steady pack.
         /// </summary>
         public void Update(in SimSignals signals, bool armed, double altitudeM, double distanceM, double flightSeconds)
         {
             _s = signals;
             Osd.Flight(armed, altitudeM, distanceM, flightSeconds);
+            Osd.Sticks(signals.Sticks);
             if (!Live(FeedSignal.PackVolts)) Osd.Sample(0, PackVolts, MotorCurrentTotalA);
             else if (signals.Step >= FlightCore.FieldSteps) Osd.Sample(signals.Step / FlightCore.FieldSteps, PackVolts, MotorCurrentTotalA);
         }

@@ -606,6 +606,27 @@ namespace Fpv450.Tests.Session
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot), "the first flight ended by the pilot");
         }
 
+        // D-078, D-080: each step publishes the stick sample it flew with its signals, for the OSD's sticks and throttle:
+        // the test radio's report through the raw map, stamped no later than the step.
+        [Test]
+        public void EachStepPublishesTheSticksItFlew()
+        {
+            Rig rig = Make();
+            rig.Session.Start();
+            Assert.That(rig.Session.Poses.Read().Signals.Sticks, Is.EqualTo(StickSample.Neutral), "neutral before the first step");
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.4;
+            rig.Radio.Pitch = 0.5;
+            rig.Run(20);
+            FeedSignals signals = rig.Session.Poses.Read().Signals;
+            StickSample s = signals.Sticks;
+            const double Count = 1.0 / 2047;
+            Assert.That(s.Throttle, Is.EqualTo(0.4).Within(Count));
+            Assert.That(s.Pitch, Is.EqualTo(0.5).Within(Count));
+            Assert.That(Math.Abs(s.Roll) <= Count && Math.Abs(s.Yaw) <= Count && s.Arm && !s.Failsafe, "roll and yaw centred, the switch on");
+            Assert.That(s.HostUs, Is.InRange(rig.Clock.Now - 3 * FlightCore.StepUs, rig.Clock.Now), "step " + signals.Step + "'s sample");
+        }
+
         // ---- What the flight meets: each logged, none an end (D-063) ---------------------------------------------------
 
         // app-flow "A crash into the car", without the scene: a steel box named R01_A over the drone, full throttle. The

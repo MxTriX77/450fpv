@@ -277,7 +277,8 @@ namespace Fpv450.Tests.App
         {
             Assert.That(FlightScene.RestartKey, Is.EqualTo(Key.R));
             Assert.That(FlightScene.NoiseKey, Is.EqualTo(Key.C));
-            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey };
+            Assert.That(FlightScene.SticksKey, Is.EqualTo(Key.X));
+            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey, FlightScene.SticksKey };
             Assert.That(keys, Is.Unique);
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>("D-078 test keyboard");
             keyboard.MakeCurrent();
@@ -319,6 +320,33 @@ namespace Fpv450.Tests.App
             finally
             {
                 if (FlightScene.FeedNoise != before) first.Pressed(false, false, true);
+                Object.DestroyImmediate(first.gameObject);
+                if (next != null) Object.DestroyImmediate(next.gameObject);
+            }
+        }
+
+        // D-078: X turns Betaflight's stick overlay on the OSD on and off for the rest of the app's run: the scene's OSD
+        // draws it, the next flight's scene keeps it, and the noise and the view stay as they were.
+        [Test]
+        public void XTogglesTheOsdsSticksForTheRun()
+        {
+            bool before = FlightScene.StickOverlay, noise = FlightScene.FeedNoise;
+            Assert.That(before, Is.False, "off at the app's start");
+            FlightScene first = new GameObject("Flight").AddComponent<FlightScene>(), next = null;
+            try
+            {
+                first.Pressed(false, false, false, true);
+                Assert.That(FlightScene.StickOverlay && first.Osd.StickOverlay, "X: on, in the OSD");
+                Assert.That((FlightScene.FeedNoise, first.Chase), Is.EqualTo((noise, false)), "the noise and the view stay");
+                next = new GameObject("Flight 2").AddComponent<FlightScene>();
+                next.Pressed(false, false);
+                Assert.That(next.Osd.StickOverlay, Is.True, "the next flight's scene keeps it");
+                next.Pressed(false, false, false, true);
+                Assert.That(FlightScene.StickOverlay || next.Osd.StickOverlay, Is.False, "X again: off");
+            }
+            finally
+            {
+                if (FlightScene.StickOverlay != before) first.Pressed(false, false, false, true);
                 Object.DestroyImmediate(first.gameObject);
                 if (next != null) Object.DestroyImmediate(next.gameObject);
             }

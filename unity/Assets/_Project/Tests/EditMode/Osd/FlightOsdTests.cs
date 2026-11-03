@@ -7,6 +7,7 @@ using Fpv450.Feed;
 using Fpv450.Input.Radio;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.UI;
 using NUnit.Framework;
@@ -87,6 +88,49 @@ namespace Fpv450.Tests.Osd
             for (int r = 0; r < FeedOsd.Rows; r++)
                 foreach (char c in osd.Row(r))
                     Assert.That(c == ' ' || FeedFont.Has(c), $"'{c}' in row {r} has no glyph");
+        }
+
+        // D-078: X's stick overlay as Betaflight 4.5 draws it (osd_elements.c), mode 2: each stick a 7 × 5 cross with its
+        // cursor over it, one of three sprites a row, at the stick's position; nothing while it is off.
+        [Test]
+        public void TheStickOverlayDrawsBothSticksAsBetaflightDoes()
+        {
+            const char V = FlightOsd.SymStickVertical, Hi = FlightOsd.SymStickSpriteHigh, Mid = FlightOsd.SymStickSpriteMid, Lo = FlightOsd.SymStickSpriteLow;
+            string Cross(char centre) => new string(FlightOsd.SymStickHorizontal, 3) + centre + new string(FlightOsd.SymStickHorizontal, 3);
+            string v = V.ToString();
+            FlightOsd osd = Osd();
+            void Sticks(double throttle, double yaw, double pitch, double roll, int field, params string[] rows)
+            {
+                osd.Sticks(new StickSample { Throttle = throttle, Yaw = yaw, Pitch = pitch, Roll = roll });
+                osd.Build(field, NoLinkLoss);
+                for (int r = 0; r < rows.Length; r++)
+                    if (rows[r] != null) Assert.That(osd.Row(2 + r), Is.EqualTo(rows[r]), $"({throttle}, {yaw}, {pitch}, {roll}): row {2 + r}");
+            }
+
+            osd.Build(0, NoLinkLoss);
+            for (int r = 2; r <= 6; r++) Assert.That(osd.Row(r).Trim(), Is.Empty, "off: nothing, row " + r);
+            osd.StickOverlay = true;
+            // Centred, the throttle down: the left cursor at its axis's foot (low in its cell), the right at the centre.
+            Sticks(0, 0, 0, 0, 5,
+                Row((5, v), (23, v)),
+                Row((5, v), (23, v)),
+                Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(Mid))),
+                Row((5, v), (23, v)),
+                Row((5, Lo.ToString()), (23, v)));
+            // Full throttle and left yaw: top left; full back pitch and right roll: bottom right, the last column (1999 µs).
+            Sticks(1, -1, -1, 1, 9,
+                Row((2, Hi.ToString()), (5, v), (23, v)),
+                Row((5, v), (23, v)),
+                Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(FlightOsd.SymStickCenter))),
+                Row((5, v), (23, v)),
+                Row((5, v), (23, v), (26, Lo.ToString())));
+            // Half throttle is mid-cell at the centre; a little forward pitch is the centre row's high sprite, a little back
+            // its low one: three positions a row.
+            Sticks(0.5, 0, 0.11, 0, 13, null, null, Row((2, Cross(Mid)), (20, Cross(Hi))));
+            Sticks(0.5, 0, -0.11, 0, 17, null, null, Row((2, Cross(Mid)), (20, Cross(Lo))));
+            osd.StickOverlay = false;
+            osd.Build(21, NoLinkLoss);
+            for (int r = 2; r <= 6; r++) Assert.That(osd.Row(r).Trim(), Is.Empty, "off again, row " + r);
         }
 
         [Test]
