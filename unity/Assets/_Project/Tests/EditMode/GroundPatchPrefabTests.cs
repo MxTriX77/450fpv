@@ -162,6 +162,8 @@ namespace Fpv450.Tests.EditMode
                 Assert.That(m.GetTexture("_BaseMap").name, Is.EqualTo(map), m.name);
                 Assert.That(m.GetTextureScale("_BaseMap"), Is.EqualTo(new Vector2(1f / 12f, 1f / 12f)), m.name);
                 Assert.That(m.GetTextureOffset("_BaseMap"), Is.EqualTo(new Vector2(0.5f, 0.5f)), m.name);
+                Assert.That((m.GetTexture("_MainTex").name, m.GetTextureScale("_MainTex"), m.GetTextureOffset("_MainTex")),
+                    Is.EqualTo((map, m.GetTextureScale("_BaseMap"), m.GetTextureOffset("_BaseMap"))), $"{m.name} _MainTex: URP's copy of the base map, after a rebuild too");
                 foreach (string packed in new[] { "_MetallicGlossMap", "_OcclusionMap" })
                     Assert.That(m.GetTexture(packed).name, Is.EqualTo(mask), $"{m.name} {packed}: the straws' occlusion and smoothness over the ground's");
                 var maskImporter = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(m.GetTexture("_OcclusionMap")));

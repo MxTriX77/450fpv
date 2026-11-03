@@ -857,6 +857,14 @@ namespace Fpv450.Assets
             material.SetTexture("_BaseMap", map);
             material.SetTextureScale("_BaseMap", scale);
             material.SetTextureOffset("_BaseMap", -Vector2.Scale(uvMin, scale));
+            // URP keeps _MainTex on _BaseMap (BaseShaderGUI.SetMaterialKeywords) only when it creates the material; set here,
+            // an update in place matches a first build, where CopyPropertiesFromMaterial would keep the recipe's.
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", map);
+                material.SetTextureScale("_MainTex", scale);
+                material.SetTextureOffset("_MainTex", -Vector2.Scale(uvMin, scale));
+            }
             if (mask != null)
             {
                 material.SetTexture("_MetallicGlossMap", mask);
