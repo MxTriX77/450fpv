@@ -18,6 +18,8 @@ namespace Fpv450.UI
     /// <item>0, to 26: the altitude, "&gt;" and whole metres above the rest pose.</item>
     /// <item>7, 13–15: the reticle.</item>
     /// <item>10, 0–7: the armament label "! SAFE !" (D-011), always.</item>
+    /// <item>10, 24–27: the throttle (D-080), Betaflight's element: its glyph, then the percent as "%3d", from the stick
+    /// sample the flight flies (FeedSignals.Sticks) by Betaflight's calculateThrottlePercent.</item>
     /// <item>11, 0–5: the flight timer, MM:SS of flight time.</item>
     /// <item>11, to 27: the charge used, mAh, integrated from the current (Betaflight's mAh drawn), its unit "MAH".</item>
     /// <item>12, 0–5: a battery mark and the average cell voltage; 7–22: the name "Svinoriz 10 Opto" (D-011), or a warning
@@ -73,14 +75,17 @@ namespace Fpv450.UI
         /// Betaflight 4.5's symbols this model writes that the feed's ROM (FeedFont) does not draw yet, each U+E000 plus its
         /// code in Betaflight's font (drivers/osd_symbols.h); until the ROM has them they draw blank.
         /// </summary>
-        public const char SymStickSpriteHigh = '', SymStickSpriteMid = '', SymStickSpriteLow = '',
-            SymStickCenter = '', SymStickVertical = '', SymStickHorizontal = '';
+        public const char SymThr = '\uE004', SymStickSpriteHigh = '\uE008', SymStickSpriteMid = '\uE009', SymStickSpriteLow = '\uE00A',
+            SymStickCenter = '\uE00B', SymStickVertical = '\uE016', SymStickHorizontal = '\uE017';
 
         /// <summary>Every symbol above, for the ROM's check.</summary>
-        public const string Symbols = "";
+        public const string Symbols = "\uE004\uE008\uE009\uE00A\uE00B\uE016\uE017";
 
         /// <summary>The cells in series: Propulsion.SeriesCells, PackLow's.</summary>
         public int Cells;
+
+        /// <summary>The flight's min_check, µs (FcSettings): the throttle element's 0 %.</summary>
+        public double MinCheck = FcSettings.Default.min_check;
 
         /// <summary>Betaflight's stick overlay, both sticks (X, D-078; off until the pilot turns it on).</summary>
         public bool StickOverlay;
@@ -226,6 +231,7 @@ namespace Fpv450.UI
             PutRight(RowTop, ColAltEnd, ">" + Math.Max(0, (int)Math.Round(r.AltitudeM)).ToString(Invariant) + "m");
             Put(RowReticle, ColReticle, "{|}");
             Put(RowArmed, ColLeft, Armament);
+            PutRight(RowArmed, ColRightEnd, ThrottleText(ThrottlePercent(PwmRangeMin + 1000 * r.Sticks.Throttle, MinCheck)));
 
             int seconds = (int)r.ElapsedSeconds;
             Put(RowTimer, ColLeft, "[");
@@ -306,6 +312,20 @@ namespace Fpv450.UI
         }
 
         static string Centi(int centi) => (centi / 100).ToString(Invariant) + "." + (centi % 100).ToString("00", Invariant);
+
+        /// <summary>
+        /// Betaflight 4.5's calculateThrottlePercent (fc/core.c, 3D off) of a throttle channel's rcData, µs: the channel
+        /// constrained to 1000–2000 into an int, then (channel − min_check) · 100 / (2000 − min_check) in integers,
+        /// constrained to 0–100. The stick's own channel, before the throttle curve, as the OSD's element reads it.
+        /// </summary>
+        public static int ThrottlePercent(double rcData, double minCheck)
+        {
+            int channel = (int)Math.Max(PwmRangeMin, Math.Min(PwmRangeMax, rcData)), min = (int)minCheck;
+            return Math.Max(0, Math.Min(100, (channel - min) * 100 / (PwmRangeMax - min)));
+        }
+
+        /// <summary>osdElementThrottlePosition's "%c%3d": the throttle glyph, then the percent right-aligned in three.</summary>
+        public static string ThrottleText(int percent) => SymThr + percent.ToString(Invariant).PadLeft(3);
 
         /// <summary>Betaflight's pt1FilterGain at its 50 Hz battery tasks: ω / (ω + 1), ω = 2π f dT.</summary>
         public static double Pt1Gain(double cutoffHz)

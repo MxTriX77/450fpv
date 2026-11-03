@@ -119,6 +119,7 @@ namespace Fpv450.Tests.App
                 MotorCurrentA = new Corners { RearRight = 10.1, FrontRight = 10.2, RearLeft = 10.3, FrontLeft = 10.6 },
                 CameraAngularVelocity = new Double3(0.1, -0.2, 0.3),
                 LinkMarginDb = 3, // not live: the stub's
+                Sticks = new StickSample { Throttle = 0.5, Arm = true },
             };
             feed.Update(s, true, 12.4, 250, 75.3);
             Assert.That(feed.SourceOf(FeedSignal.PackVolts), Is.EqualTo(SignalSource.Physics));
@@ -140,6 +141,7 @@ namespace Fpv450.Tests.App
             StringAssert.Contains("0.25", grid, "the distance home, km");
             StringAssert.Contains("23.5", grid, "the pack from the physics");
             StringAssert.Contains("41.20", grid, "the current from the physics");
+            StringAssert.Contains(FlightOsd.SymThr + " 47", grid, "the throttle from the sticks the flight flew (D-080)");
         }
 
         static string Grid(FlightFeedSignals feed)

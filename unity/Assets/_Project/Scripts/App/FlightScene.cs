@@ -385,6 +385,7 @@ namespace Fpv450.App
             Pose = RestPose;
             _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
             _signals.Osd.Reset(); // a fresh pack: the filters and the charge used start again
+            _signals.Osd.MinCheck = setup.Settings.min_check; // the throttle element's 0 %
             Look(session.Choices);
         }
 

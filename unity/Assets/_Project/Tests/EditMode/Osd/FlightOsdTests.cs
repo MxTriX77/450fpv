@@ -79,15 +79,47 @@ namespace Fpv450.Tests.Osd
             for (int r = 0; r < FeedOsd.Rows; r++) expected[r] = Row();
             expected[0] = Row((0, "AIR"), (23, ">12m"));
             expected[7] = Row((13, "{|}"));
-            expected[10] = Row((0, "! SAFE !"));
+            expected[10] = Row((0, "! SAFE !"), (24, FlightOsd.SymThr + "  0")); // no stick sample yet: the throttle down
             expected[11] = Row((0, "["), (1, "01:15"), (24, "0MAH")); // 41.2 A for 20 ms: 0.23 mAh, "%4d"
             expected[12] = Row((0, "$"), (1, "3.91в"), (7, "SVINORIZ 10 OPTO"), (24, "0.25")); // 2347 / 6 = 391
             expected[13] = Row((0, "$"), (1, "23.5в"), (22, "41.20"), (27, "a")); // 23.47 rounds to 23.5; " 41.20"
             for (int r = 0; r < FeedOsd.Rows; r++)
                 Assert.That(osd.Row(r), Is.EqualTo(expected[r]), "row " + r);
+            // Betaflight's symbols the ROM does not draw yet (FlightOsd.Symbols) are the tech artist's to add.
             for (int r = 0; r < FeedOsd.Rows; r++)
                 foreach (char c in osd.Row(r))
-                    Assert.That(c == ' ' || FeedFont.Has(c), $"'{c}' in row {r} has no glyph");
+                    Assert.That(c == ' ' || FeedFont.Has(c) || FlightOsd.Symbols.IndexOf(c) >= 0, $"'{c}' in row {r} has no glyph");
+        }
+
+        // D-080: the throttle element as Betaflight 4.5's: calculateThrottlePercent of the stick's own channel, from
+        // min_check (1050 µs by default) to 2000 in integers, before the curve; "%c%3d" at the right of row 10.
+        [Test]
+        public void TheThrottleReadsAsBetaflightsElement()
+        {
+            Assert.That(FlightOsd.ThrottlePercent(1000, 1050), Is.EqualTo(0), "under min_check");
+            Assert.That(FlightOsd.ThrottlePercent(1050, 1050), Is.EqualTo(0));
+            Assert.That(FlightOsd.ThrottlePercent(1059.9, 1050), Is.EqualTo(0), "the channel truncated to 1059 µs: 9 · 100 / 950 = 0.9, truncated");
+            Assert.That(FlightOsd.ThrottlePercent(1060, 1050), Is.EqualTo(1), "10 · 100 / 950 = 1.05");
+            Assert.That(FlightOsd.ThrottlePercent(1500, 1050), Is.EqualTo(47), "450 · 100 / 950 = 47.4");
+            Assert.That(FlightOsd.ThrottlePercent(1999.9, 1050), Is.EqualTo(99), "the channel truncated to 1999 µs");
+            Assert.That(FlightOsd.ThrottlePercent(2000, 1050), Is.EqualTo(100));
+            Assert.That(FlightOsd.ThrottlePercent(2100, 1050), Is.EqualTo(100), "the channel constrained to 2000");
+            Assert.That(FlightOsd.ThrottlePercent(1500, 1000), Is.EqualTo(50), "another min_check");
+            Assert.That(FlightOsd.ThrottleText(0), Is.EqualTo(FlightOsd.SymThr + "  0"));
+            Assert.That(FlightOsd.ThrottleText(47), Is.EqualTo(FlightOsd.SymThr + " 47"));
+            Assert.That(FlightOsd.ThrottleText(100), Is.EqualTo(FlightOsd.SymThr + "100"));
+            Assert.That(new FlightOsd().MinCheck, Is.EqualTo(FcSettings.Default.min_check), "the default settings' min_check");
+
+            FlightOsd osd = Osd();
+            osd.MinCheck = 1050;
+            osd.Sticks(new StickSample { Throttle = 0.5 }); // its channel 1500 µs
+            osd.Build(0, NoLinkLoss);
+            Assert.That(osd.Row(10), Is.EqualTo(Row((0, "! SAFE !"), (24, FlightOsd.SymThr + " 47"))));
+            osd.Sticks(new StickSample { Throttle = 1 });
+            osd.Build(4, NoLinkLoss);
+            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + " 47"), "it changes at the OSD's next refresh (12 Hz), not before");
+            osd.Build(5, NoLinkLoss);
+            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + "100"));
         }
 
         // D-078: X's stick overlay as Betaflight 4.5 draws it (osd_elements.c), mode 2: each stick a 7 × 5 cross with its
