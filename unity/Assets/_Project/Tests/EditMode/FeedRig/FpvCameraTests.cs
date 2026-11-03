@@ -175,6 +175,45 @@ namespace Fpv450.Feed.Tests
             }
         }
 
+        /// D-078, the pilot's C: with the noise off the rig hands the pass <see cref="FeedUniforms.WithoutNoise"/>, and the
+        /// shader has the variant the feature switches to; on, the uniforms are a fresh scheduler's, bit for bit. Turned
+        /// off and on every 5 s over a minute, the schedule runs on as if the noise had never been off.
+        [Test]
+        public void CTakesTheNoiseOutAndPutsItBackUnchanged()
+        {
+            Shader shader = AssetDatabase.LoadAssetAtPath<Shader>(FeedSetup.ShaderPath);
+            Assert.That(shader.keywordSpace.FindKeyword(FeedFeature.NoiseOffKeyword).isValid, Is.True, "the pass's variant");
+
+            var go = new GameObject("FpvCameraNoiseTest");
+            FeedSettings s = ScriptableObject.CreateInstance<FeedSettings>();
+            try
+            {
+                go.AddComponent<Camera>();
+                var rig = go.AddComponent<FpvCamera>();
+                rig.settings = s;
+                rig.Begin();
+                Assert.That(rig.Noise, Is.True, "on by default");
+                var reference = new FeedEvents(s.seed) { GodotLinkArtefacts = s.godotLinkArtefacts };
+                int off = 0;
+                for (int field = 1; field <= 3000; field++)
+                {
+                    rig.Noise = field % 500 >= 250;
+                    rig.Step(field);
+                    reference.AdvanceTo(field, FeedSignalScale.MotorCurrent(rig.Signals.MotorCurrentTotalA));
+                    FeedUniforms expected = FeedUniforms.From(reference, s.seed, s.gain, rig.Signals);
+                    Assert.That(rig.Feed.Uniforms, Is.EqualTo(rig.Noise ? expected : expected.WithoutNoise()), "field " + field);
+                    off += rig.Noise ? 0 : 1;
+                }
+                Assert.That(off, Is.EqualTo(1500));
+                rig.End();
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(s);
+            }
+        }
+
         /// Every quality level's URP renderer carries the feed feature with the feed shader, and the shader has its
         /// three blits in order.
         [Test]

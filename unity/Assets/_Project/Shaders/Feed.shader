@@ -25,6 +25,9 @@
 // read and averaged over its exposure (shutter_tex), on the scene only; with _Shutter.x = 0 the read is the one above.
 // One removal (D-065, the camera's noise, not a radio link's): the tear's black wedge is drawn only with _TearWedge = 1,
 // Godot's feed in the A/B; the feed draws its tear as a shear alone.
+// One switch (D-078, the pilot's C): the Field pass's FEED_NOISE_OFF variant compiles N1's grain and N2's impulses out,
+// and FeedUniforms.WithoutNoise zeroes N3, N4, the tear and the degrade. Without the keyword the pass is the one above,
+// token for token.
 Shader "Hidden/Fpv450/Feed"
 {
     Properties
@@ -368,6 +371,7 @@ Shader "Hidden/Fpv450/Feed"
             float ph = GD_TWO_PI * (SC_CYCLES * xs + ph_line);
             float sub = u * sin(ph) + v * vsw * cos(ph) - n3;
 
+            #if !defined(FEED_NOISE_OFF)
             // N1, gd:285
             sub += (hash(float3(floor(xs * SC_SAMPLES * 0.5), line_, fw)) - 0.5) * 2.0 * grain_sigma;
 
@@ -379,6 +383,7 @@ Shader "Hidden/Fpv450/Feed"
                 sub += 0.30 * sin(ph + GD_TWO_PI * hash(float3(cell, line_, fw + 29.0)))
                     + (imp < imp_rate * 0.4 ? 0.10 : -0.10);
             }
+            #endif
 
             comp[ig] = luma_of(c) + sub;
             comp_c[ig] = yc + sub;
@@ -517,6 +522,7 @@ Shader "Hidden/Fpv450/Feed"
             #pragma vertex Vert
             #pragma fragment FragField
             #pragma target 4.5
+            #pragma multi_compile_local _ FEED_NOISE_OFF
             float4 FragField(Varyings i) : SV_Target
             {
                 float row = floor((1.0 - i.texcoord.y) * _FieldSize.y);

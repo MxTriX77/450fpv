@@ -17,6 +17,26 @@ namespace Fpv450.Feed
         /// 1 draws the black wedge a tear cuts in from the right edge (gd:382-385), the "black sticks"; 0 leaves the
         /// tear its sideways shear alone. 1 only with <see cref="FeedEvents.GodotLinkArtefacts"/> (D-065).
         public float TearWedge;
+        /// D-078, the pilot's C: true takes the analog noise out (<see cref="WithoutNoise"/>), and the pass draws the
+        /// variant without N1's grain and N2's impulses (<c>FEED_NOISE_OFF</c>). False, the default, is the feed as ported.
+        public bool NoiseOff;
+
+        /// <summary>
+        /// These uniforms with the analog noise off (D-078, the pilot's C): N3's rolling bars, N4's diagonal
+        /// interference, N8's tear and the quality drop's degrade at 0, and <see cref="NoiseOff"/> set for N1 and N2.
+        /// The picture, the OSD and the losses keep every other value. The scheduler never sees the switch, so turning
+        /// the noise back on resumes the same schedule.
+        /// </summary>
+        public FeedUniforms WithoutNoise()
+        {
+            FeedUniforms u = this;
+            u.N3Amp = 0f;
+            u.N4Amp = 0f;
+            u.TearAmp = 0f;
+            u.Degrade = 0f;
+            u.NoiseOff = true;
+            return u;
+        }
 
         /// <summary>
         /// The uniforms for the field <paramref name="events"/> stands at, in VideoFeed.cs:141-169's order.

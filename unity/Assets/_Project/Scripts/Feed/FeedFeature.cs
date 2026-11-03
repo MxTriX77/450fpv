@@ -17,6 +17,10 @@ namespace Fpv450.Feed
     {
         public const int EncodePass = 0, FieldPass = 1, OutputPass = 2;
 
+        /// The Field pass's variant with the analog noise off (D-078, <see cref="FeedUniforms.NoiseOff"/>): N1's grain and
+        /// N2's impulses compiled out. Without the keyword the pass is the ported one, token for token.
+        public const string NoiseOffKeyword = "FEED_NOISE_OFF";
+
         [SerializeField] Shader shader;
 
         Material material;
@@ -204,6 +208,10 @@ namespace Fpv450.Feed
                 m.SetFloat(TearTop, u.TearTop);
                 m.SetFloat(GrainBoost, u.GrainBoost);
                 m.SetFloat(TearWedge, u.TearWedge);
+                if (u.NoiseOff)
+                    m.EnableKeyword(NoiseOffKeyword);
+                else
+                    m.DisableKeyword(NoiseOffKeyword);
                 m.SetTexture(OsdCodes, o.OsdCodes != null ? o.OsdCodes : Texture2D.blackTexture);
                 m.SetTexture(OsdGlyphs, o.OsdGlyphs != null ? o.OsdGlyphs : Texture2D.blackTexture);
                 m.SetFloat(OsdCells, o.OsdCells);
