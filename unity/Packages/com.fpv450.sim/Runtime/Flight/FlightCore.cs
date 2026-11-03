@@ -186,6 +186,7 @@ namespace Fpv450.Sim.Flight
         readonly StepEvents _events = new StepEvents();
         readonly Tether.FiberLine _tether; // the fiber (FlightSetup.Tether), or null
         readonly Double3[] _tetherHubs;
+        StickSample _stick; // the last step's sample in force, published with the signals (FeedSignals.Sticks)
 
         // The feed's field window: sums over the steps so far, and the last whole field's values.
         Corners _sumHz, _sumAmps, _fieldHz, _fieldAmps;
@@ -374,6 +375,7 @@ namespace Fpv450.Sim.Flight
         public void Advance(in StickSample stick)
         {
             ref FlightState s = ref _state;
+            _stick = stick;
             _events.Clear();
             s.BladeStrikes = default;
             Corners angles = s.RotorAngle; // where the blades start the step, for their passes (PropStrikes)
@@ -730,6 +732,7 @@ namespace Fpv450.Sim.Flight
                 RotorSpeed = s.RotorSpeed,
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
+                CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
             };
             if (_tether == null) return;
             CableChain line = _tether.Chain;
@@ -753,6 +756,7 @@ namespace Fpv450.Sim.Flight
                 AirVelocityAtCamera = AirAtCamera(s),
                 RainRateMmPerHour = _rain != null ? _rain.RateMmPerHour : 0,
                 Crashed = _state.Crashed,
+                Sticks = _stick,
             };
             if (_contacts != null)
             {

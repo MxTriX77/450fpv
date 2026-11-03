@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Fpv450.App.Session;
@@ -10,9 +11,11 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using NUnit.Framework;
+using StartPoint = Fpv450.App.Session.StartPoint;
 
 namespace Fpv450.Tests.Session
 {
@@ -54,7 +57,116 @@ namespace Fpv450.Tests.Session
             }
         }
 
+        // ---- The test range's starts (1.4b) -------------------------------------------------------------------------------
+
+        [Test]
+        public void TheTestRangeListsItsStartsAndFliesOnItsMap()
+        {
+            string root = RepositoryRoot();
+            Assert.That(Path.GetFullPath(FlightWorlds.PlacementsPath(root)), Is.EqualTo(Path.GetFullPath(RepositoryFile("maps/test-range/placements.json"))));
+            FlightWorldChoice world = FlightWorlds.TestRange(root);
+            Assert.That(world.Id, Is.EqualTo("test-range"), "MapWorld's map id, which the log records so replay reopens it");
+            Assert.That(world.Open().Query, Is.InstanceOf<MapWorld>());
+            Assert.That(world.Open().ContentHash, Is.EqualTo(MapWorld.Load(root, "test-range").ContentHash));
+            // D-077: the app flies from the houses' start only; the map's field start stays the benches'.
+            Assert.That(Array.ConvertAll(MapWorld.Load(root, "test-range").StartPoints, p => p.Id), Is.EqualTo(new[] { "track", "field" }));
+            Assert.That(world.StartPoints.Length, Is.EqualTo(1));
+            StartPoint track = world.StartPoints[0];
+            Assert.That((track.Name, track.X, track.Z, track.Stand), Is.EqualTo((FlightWorlds.HousesStart, -178.0, -40.0, false)));
+            Assert.That(track.Yaw, Is.EqualTo(Math.PI / 2).Within(1e-15), "heading 90°: east");
+
+            foreach (bool legs in new[] { true, false })
+            {
+                StartPoint at = track;
+                SessionInputs inputs = Inputs();
+                world.ApplyTo(inputs);
+                inputs.Choices = new FlightChoices { StartPoint = "field", Legs = legs }; // an older setup's start: the houses'
+                FlightSetup setup = SessionSetup.Build(inputs, 1, out Loadout loadout, out StartPoint start);
+                Assert.That(start.Name, Is.EqualTo(at.Name));
+                Assert.That(setup.StartPosition.X, Is.EqualTo(at.X).Within(1e-12));
+                Assert.That(setup.StartPosition.Z, Is.EqualTo(at.Z).Within(1e-12));
+                RuntimeObject[] objects = setup.RuntimeObjects ?? new RuntimeObject[0];
+                if (legs)
+                {
+                    Assert.That(objects, Is.Empty, at.Name + ": legs on, no stand");
+                    continue;
+                }
+                Assert.That(objects.Length, Is.EqualTo(1));
+                Assert.That(objects[0].Name, Is.EqualTo(LaunchStand.Name));
+                double x = 0, z = 0;
+                for (int c = 0; c < 4; c++)
+                {
+                    x += objects[0].Shapes[c].Center.X / 4;
+                    z += objects[0].Shapes[c].Center.Z / 4;
+                }
+                Assert.That(x, Is.EqualTo(at.X).Within(1e-9), "the stand's posts about the start");
+                Assert.That(z, Is.EqualTo(at.Z).Within(1e-9));
+            }
+        }
+
         // ---- Setup to FlightSetup ---------------------------------------------------------------------------------------
+
+        // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
+        // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
+        // choices. A field FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        // The build's placement (D-066) is a pilot's flight's, as the replay's pilot flies it (ScriptedFlight); the golden
+        // keeps the file's exact build, so the app's is compared with drone.json's own.
+        [Test]
+        public void TheFlightFliesTheGoldensEffects()
+        {
+            var choices = new HashSet<string> { "Seed", "Settings", "World", "Mass", "Wind", "Rain", "Contacts", "RuntimeObjects",
+                "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge" };
+            foreach (bool legs in new[] { true, false })
+            {
+                Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
+                rig.Session.Start();
+                FlightSetup app = rig.Session.Setup, golden = GoldenFlights.PoweredSetup(_spec);
+                if (golden.Placement == null) golden.Placement = _spec.BuildPlacement();
+                var effects = new List<string>();
+                foreach (FieldInfo f in typeof(FlightSetup).GetFields(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (choices.Contains(f.Name)) continue;
+                    effects.Add(f.Name);
+                    Assert.That(f.GetValue(golden), Is.Not.Null, f.Name + ": the golden flies it");
+                    Assert.AreEqual(Dump(f.GetValue(golden)), Dump(f.GetValue(app)), f.Name + " (legs " + legs + "): as the golden flies it");
+                }
+                if (legs) TestContext.WriteLine("the golden's effects, each flown by the app as the golden flies it: " + string.Join(", ", effects));
+                rig.Session.Dispose();
+            }
+        }
+
+        // The rotor interference table (about 1.3 s) is built by Prepare, off the frame behind the loading screen: the
+        // flight's propulsion then flies that very table, so its FlightCore builds none.
+        [Test]
+        public void TheFlightFliesThePreparedInterferenceTable()
+        {
+            RotorInterferenceTable prepared = SessionSetup.Prepare(_spec);
+            Assert.That(prepared, Is.Not.Null);
+            Rig rig = Make(i => i.Choices = new FlightChoices { Wind = WindLevel.Calm });
+            rig.Session.Start();
+            object propulsion = typeof(FlightCore).GetField("_propulsion", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(rig.Session.Core);
+            object flown = propulsion.GetType().GetField("_interferenceTable", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(propulsion);
+            Assert.That(flown, Is.SameAs(prepared), "the flight's table is the prepared one");
+            rig.Session.Dispose();
+        }
+
+        // Every value an object holds, its fields' in order, doubles bit for bit.
+        static string Dump(object v, int depth = 0)
+        {
+            if (v == null) return "null";
+            Type t = v.GetType();
+            if (v is double d) return BitConverter.DoubleToInt64Bits(d).ToString("X16");
+            if (v is float s) return BitConverter.SingleToInt32Bits(s).ToString("X8");
+            if (t.IsPrimitive || t.IsEnum || v is string) return v.ToString();
+            if (depth > 8) return t.Name;
+            var b = new System.Text.StringBuilder(t.Name).Append('{');
+            if (v is Array a)
+                foreach (object e in a) b.Append(Dump(e, depth + 1)).Append(',');
+            else
+                foreach (FieldInfo f in t.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+                    b.Append(f.Name).Append('=').Append(Dump(f.GetValue(v), depth + 1)).Append(',');
+            return b.Append('}').ToString();
+        }
 
         [Test]
         public void TheSetupBecomesTheFlight()
@@ -158,45 +270,81 @@ namespace Fpv450.Tests.Session
             radio.Arm = false;
             long offAt = rig.Clock.Now;
             rig.Run(100);
-            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Disarm));
-            long endHostUs = rig.Session.StartUs + (rig.Session.End.Step - 1) * FlightCore.StepUs;
-            TestContext.WriteLine("switch off at host " + offAt + " us; the flight ended at step " + rig.Session.End.Step + " (host " + endHostUs + " us, the RC frame's)");
-            Assert.That(endHostUs - offAt, Is.InRange(0, 5 * FlightCore.StepUs), "the disarm at the next RC frame");
+            Assert.That(core.State.Armed, Is.False, "off disarms");
 
+            // D-062: a disarm ends nothing. The drone stays under physics, and the switch re-arms it.
+            rig.Run(400);
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "disarmed, still flying");
+            radio.Arm = true;
+            rig.Run(100);
+            Assert.That(core.State.Armed, Is.True, "on again with the throttle down: re-armed");
+            radio.Throttle = 0.3;
+            rig.Run(300);
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
+            long steps = core.State.Step;
+            rig.Session.EndFlight(); // the pause's End flight
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+
+            // The log keeps the arm, the disarm and the re-arm: each step's state.
             PostFlight p = rig.Session.ReadSummary();
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((rig.Session.End.Kind, rig.Session.End.Step)), "the summary's end is the session's");
-            Assert.That(p.Log.Last.State.Step, Is.EqualTo(rig.Session.End.Step), "the log stops at the end's step");
-            Assert.That(p.Cause(), Is.EqualTo("disarmed"));
+            var changes = new List<(long, bool)>();
+            bool armed = false;
+            using (FlightLogReader r = FlightLogReader.Open(rig.Session.LogPath))
+                while (r.Next())
+                {
+                    if (r.Kind != LogFormat.StepBlock) continue;
+                    r.ReadStep(out LoggedStep step);
+                    if (step.State.Armed == armed) continue;
+                    armed = step.State.Armed;
+                    changes.Add((step.State.Step, armed));
+                }
+            long offStep = changes.Count > 1 ? changes[1].Item1 : 0;
+            long offHostUs = rig.Session.StartUs + (offStep - 1) * FlightCore.StepUs;
+            TestContext.WriteLine("switch off at host " + offAt + " us; disarmed at step " + offStep + " (host " + offHostUs + " us, the RC frame's); arm changes " +
+                                  string.Join(", ", changes) + "; " + string.Join(" | ", p.Lines()));
+            Assert.That(changes.ConvertAll(c => c.Item2), Is.EqualTo(new[] { true, false, true }), "armed, disarmed, re-armed, in the log");
+            Assert.That(offHostUs - offAt, Is.InRange(0, 5 * FlightCore.StepUs), "the disarm at the next RC frame");
+            Assert.That((p.End.Kind, p.Log.Last.State.Step), Is.EqualTo((FlightEndKind.Pilot, steps)), "the summary's end is the pilot's, at the last step");
+            Assert.That(p.Cause(), Is.EqualTo("ended by the pilot"));
         }
 
         // ---- The failsafe -----------------------------------------------------------------------------------------------
 
+        // D-063: the failsafe ends nothing. The controller disarms (the OSD's DISARMED), the drone stays under physics,
+        // and the summary lists the failsafe once the pilot ends the flight.
         [Test]
-        public void TheFailsafeEndsAnArmedFlight()
+        public void TheFailsafeDisarmsAndTheFlightGoesOn()
         {
             Rig rig = Make();
             rig.Session.Start();
             rig.ArmCycle();
             rig.Radio.Throttle = 0.3;
             rig.Run(200);
+            FlightCore core = rig.Session.Core;
             rig.Radio.Lost = true;
             long lostAt = rig.Clock.Now + FlightCore.StepUs; // the next pass sees it
-            rig.Run(20);
-            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
+            for (int ms = 0; ms < 20 && core.State.Armed; ms++) rig.Run(1);
+            Assert.That(core.State.Armed, Is.False, "the failsafe disarms");
             // The failsafe sample is in force from the first step at or after the loss; the controller reads the sticks,
             // its arm switch among them, at its 250 Hz RC frame, so it disarms at the next frame: within 4 steps.
-            long endHostUs = rig.Session.StartUs + (rig.Session.End.Step - 1) * FlightCore.StepUs;
-            Assert.That(endHostUs - lostAt, Is.InRange(0, FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep * FlightCore.StepUs - 1),
-                "disarmed at the RC frame after the loss");
+            long off = core.State.Step;
+            long offHostUs = rig.Session.StartUs + (off - 1) * FlightCore.StepUs;
+            Assert.That(offHostUs - lostAt, Is.InRange(0, FlightSession.RcFrameSteps * FlightCore.StepUs - 1), "disarmed at the RC frame after the loss");
+            rig.Run(500);
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the failsafe ends nothing");
+            Assert.That((core.State.Step, core.State.Armed), Is.EqualTo((off + 500, false)), "disarmed, and stepping on under physics");
 
+            rig.Session.EndFlight(); // the pause's End flight
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
             PostFlight p = rig.Session.ReadSummary();
-            TestContext.WriteLine("lost at host " + lostAt + " us; disarmed at the step at host " + endHostUs + " us; " + string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+            TestContext.WriteLine("lost at host " + lostAt + " us; disarmed at the step at host " + offHostUs + " us; " + string.Join(" | ", p.Lines()));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, off + 500)));
             Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
             Assert.That(p.Log.Failsafes[0].Stick.HostUs, Is.EqualTo(lostAt));
-            StringAssert.StartsWith("failsafe", p.Cause());
+            Assert.That(Disarms(rig.Session.LogPath), Is.EqualTo(new[] { off }), "the log's one disarm");
+            Assert.That(p.Incidents.ConvertAll(i => (i.Kind, i.Step)), Is.EqualTo(new[] { (FlightIncidentKind.Failsafe, p.Log.Failsafes[0].State.Step) }));
+            Assert.That(p.Cause(), Is.EqualTo("ended by the pilot"));
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
         }
 
         [Test]
@@ -226,8 +374,9 @@ namespace Fpv450.Tests.Session
 
         // QA's probes E3a and E3b (interim review, finding 1): armed at throttle 0.3, paused, the cable pulled during the
         // pause; E3b plugs it back in with the switch on 200 ms later, before Resume. Both are the failsafe: in force for
-        // the first RC frame after Resume, logged once with the loss's stamp, and the summary says so. E3f (finding 8):
-        // E3b, paused again 1, 2 or 3 ms after Resume, before that RC frame has run, and resumed 50 ms later.
+        // the first RC frame after Resume, logged once with the loss's stamp, the drone disarmed and still flying (D-063),
+        // and the summary lists it. E3f (finding 8): E3b, paused again 1, 2 or 3 ms after Resume, before that RC frame
+        // has run, and resumed 50 ms later.
         [TestCase(false, 0, TestName = "E3a: a radio lost during a pause is the failsafe")]
         [TestCase(true, 0, TestName = "E3b: a radio lost during a pause and plugged back in before Resume is the failsafe")]
         [TestCase(true, 1, TestName = "E3f: E3b paused again 1 ms after Resume is the failsafe")]
@@ -271,19 +420,20 @@ namespace Fpv450.Tests.Session
             }
             rig.Run(100);
 
-            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Ended));
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Failsafe));
-            long rcFrame = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
-            Assert.That(rig.Session.End.Step - k, Is.InRange(1, rcFrame), "disarmed at the first RC frame after Resume");
+            Assert.That((rig.Session.State, rig.Session.Core.State.Armed), Is.EqualTo((SessionState.Flying, false)), "disarmed, still flying");
+            rig.Session.EndFlight();
+            List<long> off = Disarms(rig.Session.LogPath);
+            Assert.That(off.Count, Is.EqualTo(1), "one disarm");
+            Assert.That(off[0] - k, Is.InRange(1, FlightSession.RcFrameSteps), "disarmed at the first RC frame after Resume");
 
             PostFlight p = rig.Session.ReadSummary();
-            TestContext.WriteLine((pausedAgainAfterMs > 0 ? "E3f " + pausedAgainAfterMs + " ms" : pluggedBackIn ? "E3b" : "E3a") + ": paused after step " + k + ", lost at host " + lostAt + " us; end at step " + rig.Session.End.Step + "; " + string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Failsafe, rig.Session.End.Step)));
+            TestContext.WriteLine((pausedAgainAfterMs > 0 ? "E3f " + pausedAgainAfterMs + " ms" : pluggedBackIn ? "E3b" : "E3a") + ": paused after step " + k + ", lost at host " + lostAt + " us; disarmed at step " + off[0] + "; " + string.Join(" | ", p.Lines()));
+            Assert.That(p.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
             Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
             Assert.That((p.Log.Failsafes[0].State.Step, p.Log.Failsafes[0].Stick.HostUs), Is.EqualTo((k + 1, lostAt)), "logged at the first step after Resume, with the loss's stamp");
             Assert.That(p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause).Count,
                 Is.EqualTo(pausedAgainAfterMs > 0 ? 2 : 1), "each pause logged");
-            StringAssert.StartsWith("failsafe", p.Cause());
+            Assert.That(p.Cause(), Is.EqualTo("ended by the pilot"));
             Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
 
             ReplayResult replay;
@@ -291,6 +441,79 @@ namespace Fpv450.Tests.Session
                 replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
             TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+        }
+
+        // QA's probe Q2 (review, finding 14): armed at throttle 0.3, paused, the cable pulled, then Restart or End flight,
+        // after the paused frames drained the loss or in the frame it came. Neither throws, and the loss is the failsafe:
+        // the first RC frame after the pause runs before the end with the loss in force, so the log has it with its stamp
+        // and the drone's disarm, and the summary lists it. Restart without the radio leaves the session Ended; the next
+        // flight starts once the radio is back, with the switch to cycle again.
+        [TestCase(true, true, TestName = "Q2: Restart after a radio lost during a pause logs the failsafe and waits for the radio")]
+        [TestCase(false, true, TestName = "Q2: End flight after a radio lost during a pause logs the failsafe")]
+        [TestCase(false, false, TestName = "Q2: End flight in the frame the radio is lost during a pause logs the failsafe")]
+        public void EndingAPauseThatLostTheRadioIsTheFailsafe(bool restart, bool drained)
+        {
+            Rig rig = Make(i => i.Choices = new FlightChoices { Payload = 1.0, Legs = true });
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.3;
+            rig.Run(300);
+            rig.Session.Pause();
+            long k = rig.Session.Core.State.Step;
+            rig.Run(100);
+            rig.Radio.Lost = true;
+            long lostAt;
+            if (drained)
+            {
+                lostAt = rig.Clock.Now + FlightCore.StepUs; // the next pass sees it
+                rig.Run(100);
+            }
+            else
+            {
+                rig.Clock.Now += FlightCore.StepUs; // the input thread's pass, and no frame since
+                lostAt = rig.Clock.Now;
+                rig.Plugged = null;
+                rig.Reader.Pump(0);
+            }
+            Assert.That(rig.Reader.Connected, Is.False, "the cable is out");
+            ulong seed = rig.Session.Seed;
+            string log = rig.Session.LogPath;
+            Double3 first = rig.Session.Setup.StartPosition;
+            if (restart) Assert.That(rig.Session.Restart(), Is.False, "no radio: the new flight waits for it");
+            else rig.Session.EndFlight();
+
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Ended, 1)));
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+            List<long> off = Disarms(log);
+            Assert.That(off.Count, Is.EqualTo(1), "one disarm");
+            Assert.That(off[0] - k, Is.InRange(1, FlightSession.RcFrameSteps), "disarmed at the first RC frame after the pause");
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine("Q2 " + (restart ? "Restart" : "End flight") + (drained ? "" : " in the loss's frame") + ": paused after step " + k + ", lost at host " + lostAt
+                                  + " us; disarmed at step " + off[0] + ", end at step " + rig.Session.End.Step + "; " + string.Join(" | ", p.Lines()));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, rig.Session.End.Step)));
+            Assert.That(p.Log.Failsafes.Count, Is.EqualTo(1));
+            Assert.That((p.Log.Failsafes[0].State.Step, p.Log.Failsafes[0].Stick.HostUs), Is.EqualTo((k + 1, lostAt)), "logged at the first step after the pause, with the loss's stamp");
+            List<LoggedEvent> after = p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Step > k);
+            Assert.That(after.ConvertAll(e => ((HitchCause)e.Event.Index, e.Step)), Is.EqualTo(new[] { (HitchCause.Pause, k + 1) }), "the pause logged, and no late pass");
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(log))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            if (!restart) return;
+
+            var back = new TestRadio(rig.Clock) { Arm = true, Throttle = 0.3 };
+            rig.Radio = back;
+            rig.Plugged = back;
+            for (int i = 0; i < 100 && !rig.Reader.Connected; i++) rig.Run(1);
+            Assert.That(rig.Reader.Connected, Is.True, "back");
+            rig.Session.Start(); // the host's, once the radio is in
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Flying, 2)));
+            Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");
+            Assert.That(rig.Session.LogPath, Is.Not.EqualTo(log), "a new log");
+            Assert.That(rig.Session.Setup.StartPosition, Is.EqualTo(first), "from the start point");
+            rig.Run(50);
+            Assert.That(rig.Session.Core.State.Armed, Is.False, "the new flight needs the switch cycled");
         }
 
         // ---- Pause and restart ------------------------------------------------------------------------------------------
@@ -317,7 +540,7 @@ namespace Fpv450.Tests.Session
             ulong seed = rig.Session.Seed;
             string log = rig.Session.LogPath;
 
-            rig.Session.Restart();
+            Assert.That(rig.Session.Restart(), Is.True, "the radio is in: the new flight starts at once");
             Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
             Assert.That(rig.Session.Flights, Is.EqualTo(2));
             Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");
@@ -348,9 +571,68 @@ namespace Fpv450.Tests.Session
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot));
         }
 
-        // ---- The end conditions -----------------------------------------------------------------------------------------
+        // D-078: R restarts a flight in the air, not paused, at once: the same setup and the same start point (the second
+        // of two), a new seed and log, step 0 at rest where the first began; the first ended by the pilot.
+        [Test]
+        public void RestartInTheAirIsTheSameSetupFromTheSameStart()
+        {
+            var second = new StartPoint { Name = "second", X = 3, Z = -2, Yaw = 1 };
+            Rig rig = Make(i =>
+            {
+                i.StartPoints = new[] { StartPoint.Origin, second };
+                i.Choices = new FlightChoices { Payload = 1.3, Legs = false, TimeOfDay = 6.5, Wind = WindLevel.Windy, Rain = Rain.Rain, StartPoint = "second" };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.75;
+            rig.Run(500);
+            FlightSetup first = rig.Session.Setup;
+            ulong seed = rig.Session.Seed;
+            string log = rig.Session.LogPath;
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying));
+            Assert.That(rig.Session.Core.State.Position.Y - first.StartPosition.Y, Is.GreaterThan(0.05), "in the air");
 
-        // app-flow "A crash into the car", without the scene: a steel box named R01_A over the drone, full throttle.
+            Assert.That(rig.Session.Restart(), Is.True, "the radio is in: the new flight starts at once");
+            Assert.That((rig.Session.State, rig.Session.Flights), Is.EqualTo((SessionState.Flying, 2)));
+            Assert.That(rig.Session.Seed, Is.Not.EqualTo(seed), "a new seed");
+            Assert.That(rig.Session.LogPath, Is.Not.EqualTo(log), "a new log");
+            Assert.That(rig.Session.StartPoint.Name, Is.EqualTo("second"), "the same start point");
+            FlightChoices c = rig.Session.Choices;
+            Assert.That((c.Payload, c.Legs, c.TimeOfDay, c.Wind, c.Rain, c.StartPoint), Is.EqualTo((1.3, false, 6.5, WindLevel.Windy, Rain.Rain, "second")), "the same setup");
+            Assert.That((rig.Session.Loadout.Payload, rig.Session.Loadout.Legs), Is.EqualTo((1.3, false)));
+            Assert.That(rig.Session.Setup.StartPosition, Is.EqualTo(first.StartPosition), "at rest where the first began");
+            Assert.That(rig.Session.Setup.StartAttitude, Is.EqualTo(first.StartAttitude));
+            Assert.That(rig.Session.Setup.RuntimeObjects.Length, Is.EqualTo(1), "on its launch stand again: the legs are off");
+            Assert.That(rig.Session.Core.State.Step, Is.EqualTo(0));
+            Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot), "the first flight ended by the pilot");
+        }
+
+        // D-078, D-080: each step publishes the stick sample it flew with its signals, for the OSD's sticks and throttle:
+        // the test radio's report through the raw map, stamped no later than the step.
+        [Test]
+        public void EachStepPublishesTheSticksItFlew()
+        {
+            Rig rig = Make();
+            rig.Session.Start();
+            Assert.That(rig.Session.Poses.Read().Signals.Sticks, Is.EqualTo(StickSample.Neutral), "neutral before the first step");
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.4;
+            rig.Radio.Pitch = 0.5;
+            rig.Run(20);
+            FeedSignals signals = rig.Session.Poses.Read().Signals;
+            StickSample s = signals.Sticks;
+            const double Count = 1.0 / 2047;
+            Assert.That(s.Throttle, Is.EqualTo(0.4).Within(Count));
+            Assert.That(s.Pitch, Is.EqualTo(0.5).Within(Count));
+            Assert.That(Math.Abs(s.Roll) <= Count && Math.Abs(s.Yaw) <= Count && s.Arm && !s.Failsafe, "roll and yaw centred, the switch on");
+            Assert.That(s.HostUs, Is.InRange(rig.Clock.Now - 3 * FlightCore.StepUs, rig.Clock.Now), "step " + signals.Step + "'s sample");
+        }
+
+        // ---- What the flight meets: each logged, none an end (D-063) ---------------------------------------------------
+
+        // app-flow "A crash into the car", without the scene: a steel box named R01_A over the drone, full throttle. The
+        // crash ends nothing: with the throttle down the drone falls from the box and lies on the floor, under physics,
+        // until the pilot's End flight, and the summary lists the crash.
         [Test]
         public void ACrashIntoR01ANamesThePartTheObjectAndTheMaterial()
         {
@@ -362,21 +644,44 @@ namespace Fpv450.Tests.Session
             });
             rig.Session.Start();
             rig.ArmCycle();
+            FlightCore core = rig.Session.Core;
             rig.Radio.Throttle = 1;
-            rig.Run(3000);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Crash));
+            for (int ms = 0; ms < 3000 && !core.State.Crashed; ms++) rig.Run(1);
+            Assert.That(core.State.Crashed, "crashed into the box");
+            long crashed = core.State.Step;
+            double crashY = core.State.Position.Y;
+            rig.Radio.Throttle = 0;
+            // With the airframe's effects it lands hopping (airmode's motors against the floor), so the floor is the
+            // steps it touches below the box, not one instant's contact.
+            int floor = 0;
+            for (int ms = 0; ms < 1500; ms++)
+            {
+                rig.Run(1);
+                if (core.Trace.ContactsTouching > 0 && crashY - core.State.Position.Y > 0.5) floor++;
+            }
+            double rest = rig.Session.Setup.StartPosition.Y;
+            TestContext.WriteLine("crashed at step " + crashed + ", " + crashY.ToString("0.000") + " m; 1.5 s later " + core.State.Position.Y.ToString("0.000") + " m (standing "
+                                  + rest.ToString("0.000") + " m), " + core.State.Velocity.Length().ToString("0.000") + " m/s, on the floor " + floor + " of the 1500 steps");
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
+            Assert.That(core.State.Step, Is.EqualTo(crashed + 1500), "stepping on under physics");
+            Assert.That(floor > 0 && Math.Abs(core.State.Position.Y - rest) < 0.02, "fell from the box onto the floor, and lies there");
+            rig.Session.EndFlight(); // the pause's End flight
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
 
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join("\n", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Crash, rig.Session.End.Step)));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, rig.Session.End.Step)));
             Assert.That(p.HasCrash);
             Assert.That(p.CrashObject, Is.EqualTo("R01_A"));
             Assert.That(p.CrashMaterial, Is.EqualTo("steel"));
             Assert.That(Array.Exists(_spec.Parts, part => part.Name == p.CrashPart), "the part is drone.json's: " + p.CrashPart);
-            StringAssert.Contains("R01_A", p.Cause());
+            Assert.That((p.Incidents[0].Kind, p.Incidents[0].Step, p.Crash.Step), Is.EqualTo((FlightIncidentKind.Crash, crashed, crashed)), "the crash, first");
+            string line = p.Describe(p.Incidents[0]);
+            Assert.That(p.Lines(), Has.Member(line));
+            StringAssert.StartsWith("crash at ", line);
+            StringAssert.Contains("hit R01_A (steel)", line);
 
             // The summary against the log and the flight: time, distance (the published poses' path), battery, seed.
-            FlightCore core = rig.Session.Core;
             Assert.That(core.State.Step, Is.EqualTo(rig.Session.End.Step), "one step a tick, so the core stopped at the end");
             Assert.That(p.Seconds, Is.EqualTo(rig.Session.End.Seconds));
             Assert.That(p.Distance, Is.EqualTo(rig.Distance).Within(1e-9), "the distance");
@@ -386,8 +691,66 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines(), Has.Member("log " + rig.Session.LogPath));
         }
 
+        // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 103° to face
+        // R01_A's middle (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown at about 0.6 m into its
+        // end, where the steel bumper is (at the flight model 19 the old 108° and lower throttle skimmed past it into a
+        // fence; with the airframe's effects on, the level 0.52 flew over the bumper into the body's sheet metal, and 0.51
+        // meets the bumper at 101°, 103° and 105°). The summary names the placed car by MapWorld.ObjectName, through the
+        // log's world id and hash; without the world, or with another, it is "object N".
         [Test]
-        public void UpsideDownOnTheGroundEndsTheFlight()
+        public void ACrashIntoTheRangesCarNamesIt()
+        {
+            FlightWorldChoice range = FlightWorlds.TestRange(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                range.ApplyTo(i);
+                i.Choices = new FlightChoices { StartPoint = "track", Legs = true, Payload = 1.0 };
+                i.Adjust = s =>
+                {
+                    DetMath.SinCos(103 * Math.PI / 360, out double sin, out double cos);
+                    s.StartAttitude = new Quat(0, sin, 0, cos);
+                };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            FlightCore core = rig.Session.Core;
+            for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
+            {
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.51; // lift, then low and level
+                rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
+                rig.Run(10);
+            }
+            Assert.That(core.State.Crashed, "crashed");
+            rig.Radio.Throttle = 0;
+            rig.Radio.Pitch = 0;
+            rig.Run(1000); // D-063: the drone stays under physics after the crash, until the pilot ends the flight
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join(" | ", p.Lines()));
+            Assert.That(p.Log.Header.WorldId, Is.EqualTo("test-range"));
+            Assert.That(p.HasCrash);
+            Assert.That(p.CrashObject, Is.EqualTo("R01_A"));
+            Assert.That(p.CrashMaterial, Is.EqualTo("steel"), "the bumper");
+            Assert.That(Array.Exists(_spec.Parts, part => part.Name == p.CrashPart), "the part is drone.json's: " + p.CrashPart);
+            Assert.That(p.Incidents[0].Kind, Is.EqualTo(FlightIncidentKind.Crash));
+            StringAssert.Contains("hit R01_A (steel)", p.Describe(p.Incidents[0]));
+
+            string unnamed = "object " + p.Crash.Event.Object;
+            Assert.That(PostFlight.Read(rig.Session.LogPath).CrashObject, Is.EqualTo(unnamed), "no world to open");
+            Assert.That(PostFlight.Read(rig.Session.LogPath, id => FlightWorld.Floor().Query).CrashObject, Is.EqualTo(unnamed), "another world's hash");
+
+            // The log replays on the map it names.
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash);
+            TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+        }
+
+        [Test]
+        public void UpsideDownOnTheGroundIsListedAndTheFlightGoesOn()
         {
             Rig rig = Make(i => i.Adjust = s =>
             {
@@ -402,27 +765,58 @@ namespace Fpv450.Tests.Session
             });
             rig.Session.Start();
             rig.Run(3000);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.UpsideDown));
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "upside down ends nothing");
+            rig.Session.EndFlight();
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.UpsideDown, rig.Session.End.Step)));
-            Assert.That(p.End.Seconds, Is.GreaterThanOrEqualTo(FlightEndRule.UpsideDownSteps * FlightCore.Dt));
+            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.Pilot, rig.Session.End.Step)));
+            Assert.That(p.Incidents.ConvertAll(i => i.Kind), Is.EqualTo(new[] { FlightIncidentKind.UpsideDown }), "one rest, listed once");
+            Assert.That(p.Incidents[0].Step, Is.InRange(PostFlight.UpsideDownSteps, PostFlight.UpsideDownSteps + 100), "held 1 s from its first touch");
+            Assert.That(p.Lines(), Has.Member(p.Describe(p.Incidents[0])));
         }
 
+        // D-063: the cut-off ends nothing, and the OSD keeps reading the pack: past empty its voltage falls on (the pack
+        // collapses, Propulsion.OpenCircuitVolts) while the drone stays under physics, until the pilot ends the flight.
         [Test]
-        public void TheBatteryCutOffEndsTheFlight()
+        public void TheBatteryCutOffIsListedAndThePackSagsOn()
         {
             Rig rig = Make(i => i.Adjust = s => s.StartPackCharge = 0.0005);
             rig.Session.Start();
             rig.ArmCycle();
             rig.Radio.Throttle = 0.35;
-            rig.Run(10000);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.BatteryCutoff));
             FlightCore core = rig.Session.Core;
-            Assert.That(Math.Min(core.State.PackCharge0, core.State.PackCharge1), Is.LessThanOrEqualTo(FlightEndRule.BatteryCutoffCharge));
+            for (int ms = 0; ms < 10000 && Math.Min(core.State.PackCharge0, core.State.PackCharge1) > PostFlight.BatteryCutoffCharge; ms++) rig.Run(1);
+            Assert.That(Math.Min(core.State.PackCharge0, core.State.PackCharge1), Is.LessThanOrEqualTo(PostFlight.BatteryCutoffCharge), "the cut-off");
+            long cutoff = core.State.Step;
+            rig.Run(40);
+            double atCutoff = rig.Session.Poses.Read().Signals.PackVolts;
+            rig.Run(1000);
+            double after = rig.Session.Poses.Read().Signals.PackVolts;
+            TestContext.WriteLine("cut-off at step " + cutoff + ": the pack " + atCutoff.ToString("0.00") + " V, 1 s later " + after.ToString("0.00") + " V");
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the cut-off ends nothing");
+            Assert.That(after, Is.LessThan(atCutoff), "the pack sags on, and the OSD reads it");
+            rig.Session.EndFlight();
             PostFlight p = rig.Session.ReadSummary();
             TestContext.WriteLine(string.Join(" | ", p.Lines()));
-            Assert.That((p.End.Kind, p.End.Step), Is.EqualTo((FlightEndKind.BatteryCutoff, rig.Session.End.Step)));
+            Assert.That(p.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+            Assert.That(p.Incidents.ConvertAll(i => (i.Kind, i.Step)), Has.Member((FlightIncidentKind.BatteryCutoff, cutoff)));
+            Assert.That(p.Lines().FindAll(l => l.StartsWith("battery cut-off at ")).Count, Is.EqualTo(1), "the summary lists it");
+        }
+
+        // The steps at which the log's drone went from armed to disarmed.
+        static List<long> Disarms(string log)
+        {
+            var steps = new List<long>();
+            bool armed = false;
+            using (FlightLogReader r = FlightLogReader.Open(log))
+                while (r.Next())
+                {
+                    if (r.Kind != LogFormat.StepBlock) continue;
+                    r.ReadStep(out LoggedStep s);
+                    if (armed && !s.State.Armed) steps.Add(s.State.Step);
+                    armed = s.State.Armed;
+                }
+            return steps;
         }
 
         // ---- Persistence ------------------------------------------------------------------------------------------------
@@ -482,7 +876,8 @@ namespace Fpv450.Tests.Session
             rig.Run(500, KeyboardKeys.ThrottleUp);
             rig.Run(1, KeyboardKeys.ArmToggle);
             rig.Run(20);
-            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Disarm));
+            Assert.That((core.State.Armed, rig.Session.State), Is.EqualTo((false, SessionState.Flying)), "Enter disarms, and the flight goes on (D-062)");
+            rig.Session.EndFlight();
             PostFlight p = rig.Session.ReadSummary();
             Assert.That(p.Log.Header.Input, Is.EqualTo(InputSource.Keyboard));
             Assert.That(p.Lines(), Has.Member("keyboard: never tune from this flight"));
@@ -500,6 +895,45 @@ namespace Fpv450.Tests.Session
             Rig none = Make(radio: false);
             Assert.Throws<InvalidOperationException>(() => none.Session.Start(), "no radio, and no keyboard in the pilot's build");
         }
+
+        // The log header carries the host's ISA flags as tools/replay's Host.Isa writes them (LOG-04), so a replay of the
+        // app's log on the same machine notes no ISA difference.
+        [Test]
+        public void TheLogHeaderCarriesTheHostsIsa()
+        {
+            Rig rig = Make(i => i.KeyboardAllowed = true, radio: false);
+            rig.Session.Start();
+            rig.Run(30);
+            rig.Run(1, KeyboardKeys.ArmToggle);
+            rig.Run(50);
+            rig.Run(1, KeyboardKeys.ArmToggle);
+            rig.Run(20);
+            rig.Session.EndFlight();
+            Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
+            string isa = rig.Session.ReadSummary().Log.Header.Isa;
+            TestContext.WriteLine("isa " + isa);
+            Assert.That(isa, Is.EqualTo(HostIsa.Flags));
+            Assert.That(isa, Does.StartWith("x64 sse2"), "the players are Windows x64");
+#if NET5_0_OR_GREATER
+            Assert.That(isa, Is.EqualTo(ReplayIsa()), "tools/replay's own detection, from .NET's intrinsics");
+#endif
+        }
+
+#if NET5_0_OR_GREATER
+        // tools/replay's Host.DetectIsa, verbatim (Unity's Mono has no System.Runtime.Intrinsics).
+        static string ReplayIsa()
+        {
+            var flags = new List<string> { System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant() };
+            if (System.Runtime.Intrinsics.X86.Sse2.IsSupported) flags.Add("sse2");
+            if (System.Runtime.Intrinsics.X86.Sse41.IsSupported) flags.Add("sse4.1");
+            if (System.Runtime.Intrinsics.X86.Avx.IsSupported) flags.Add("avx");
+            if (System.Runtime.Intrinsics.X86.Avx2.IsSupported) flags.Add("avx2");
+            if (System.Runtime.Intrinsics.X86.Fma.IsSupported) flags.Add("fma");
+            if (System.Runtime.Intrinsics.X86.Avx512F.IsSupported) flags.Add("avx512f");
+            if (System.Runtime.Intrinsics.Arm.AdvSimd.IsSupported) flags.Add("advsimd");
+            return string.Join(" ", flags);
+        }
+#endif
 
         // ---- The flight thread ------------------------------------------------------------------------------------------
 
@@ -529,8 +963,12 @@ namespace Fpv450.Tests.Session
                     + " ms, " + session.Hitches + " hitches; started " + ((session.StartUs - t0) / 1000.0).ToString("0.0") + " ms after Start returned");
                 Assert.That(s.Complete, s.CutReason);
                 Assert.That(s.Steps, Is.InRange(flown / 1000 - 30, flown / 1000 + 1), "about a step a ms");
-                Assert.That(session.PausedUs, Is.InRange(190000, 400000));
-                Assert.That(s.Events.Exists(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause), "the pause logged");
+                // No wall-time ceiling: a loaded host oversleeps (410 ms seen for the 200), and Resume moves a late schedule
+                // further. The log decides: one Pause hitch, carrying exactly the shift the session applied.
+                Assert.That(session.PausedUs, Is.GreaterThanOrEqualTo(190000), "the 200 ms sleep, less the timer's granularity");
+                var pauses = s.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Pause);
+                Assert.That(pauses.Count, Is.EqualTo(1), "the pause logged");
+                Assert.That(pauses[0].Event.B, Is.EqualTo(session.PausedUs), "the log carries the pause the steps were moved by");
             }
         }
 
@@ -638,7 +1076,8 @@ namespace Fpv450.Tests.Session
 
             readonly ManualClock _clock;
             long _next = long.MinValue;
-            public double Throttle; // roll, pitch and yaw centred
+            public double Throttle; // 0–1
+            public double Pitch; // −1–1; roll and yaw centred
             public bool Arm, Lost;
 
             public TestRadio(ManualClock clock) => _clock = clock;
@@ -654,7 +1093,8 @@ namespace Fpv450.Tests.Session
                 if (Lost) return RadioRead.Lost;
                 if (_clock.Now < _next) return RadioRead.Timeout;
                 _next = _clock.Now + 2000;
-                report.Axes[0] = report.Axes[1] = report.Axes[3] = 1024;
+                report.Axes[0] = report.Axes[3] = 1024;
+                report.Axes[1] = (int)Math.Round(1023.5 + Pitch * 1023.5);
                 report.Axes[2] = (int)Math.Round(Throttle * 2047);
                 report.Axes[4] = Arm ? 2047 : 0;
                 for (int i = 5; i < 8; i++) report.Axes[i] = 1024;
@@ -672,6 +1112,9 @@ namespace Fpv450.Tests.Session
             Kind = ShapeKind.Box, Center = centre, AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1),
             HalfExtents = half, Material = material,
         };
+
+        static string RepositoryRoot() =>
+            Path.GetFullPath(Path.Combine(Path.GetDirectoryName(RepositoryFile("maps/test-range/placements.json")), "..", ".."));
 
         // A repository file, found up from this file's own path (the .NET tools compile it in place) or from Unity's
         // project folder (unity/, the editor's working directory).

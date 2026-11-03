@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Fpv450.App.Session;
 using Fpv450.Input;
+using Fpv450.Input.Radio;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using UnityEngine;
@@ -11,9 +13,11 @@ namespace Fpv450.App
 {
     /// <summary>
     /// The flight session in a scene (design 6): it builds a FlightSession from the user's profile folder (the last
-    /// setup, the settings, the active calibration) on the app's radio, starts a flight once the radio is connected
-    /// (or after StartWaitSeconds on the development keyboard), ticks it once a frame and ends it when disabled. The
-    /// scene's drone, camera and screens (p6-input-app 1.4b) read Session: its Poses, its State and its summary.
+    /// setup, the settings, the active calibration) on the app's radio over the test range (FlightWorlds.TestRange),
+    /// prepares its flights off the frame (SessionSetup.Prepare, Preparing), then
+    /// starts a flight once the radio is connected (or after StartWaitSeconds on the development keyboard), ticks it
+    /// once a frame and ends it when disabled. FlightScene draws it: Session's Poses, State and summary. Without a radio
+    /// where the keyboard may not fly, it waits for one; it never gives up on the pilot's radio.
     /// </summary>
     public sealed class FlightSessionHost : MonoBehaviour
     {
@@ -24,48 +28,65 @@ namespace Fpv450.App
 
         public FlightSession Session { get; private set; }
 
+        /// <summary>What the session flies; set Inputs.Choices before a flight started from the summary's setup.</summary>
+        public SessionInputs Inputs { get; private set; }
+
+        /// <summary>The keyboard fallback's keys each frame: the physical keys, or a smoke test's script.</summary>
+        public Func<KeyboardKeys> Keys = KeyboardFallback.ReadKeys;
+
         /// <summary>Why no flight could start, or a profile file that could not be read; empty when all is well.</summary>
         public readonly List<string> Problems = new List<string>();
+
+        // A flight is wanted: the first once enabled, then one for each Fly. It starts when it can.
+        bool _wanted;
+
+        // The flight's preparation off the frame (SessionSetup.Prepare: the rotor interference table, about 1.3 s).
+        Task _prepared;
+
+        /// <summary>The first flight is being prepared off the frame; AppFlow keeps the loading screen up meanwhile, and no
+        /// flight starts.</summary>
+        public bool Preparing => _prepared != null && !_prepared.IsCompleted;
+
+        /// <summary>A flight is wanted (the first, a Fly or a Restart), no radio is connected and the keyboard may not fly:
+        /// the scene asks for the radio.</summary>
+        public bool WaitingForRadio => Session != null && _wanted && !AppRadio.Reader.Connected && !Inputs.KeyboardAllowed;
 
         void OnEnable()
         {
             _enabledAt = Time.unscaledTime;
+            _wanted = true;
             Problems.Clear();
             try
             {
-                DroneSpec drone = DroneSpec.Parse(File.ReadAllText(RepositoryFile("assets-src/drone/drone.json")));
-                MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(RepositoryFile(PhysicsMaterials.RelativePath)), out ulong hash);
+                DroneSpec drone = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile)));
+                MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(AppData.File(PhysicsMaterials.RelativePath)), out ulong hash);
                 SessionInputs inputs = SessionInputs.FromProfile(Application.persistentDataPath, drone, materials, hash, Problems);
+                FlightWorlds.TestRange(AppData.Root).ApplyTo(inputs);
                 inputs.Reader = AppRadio.Reader;
                 inputs.KeyboardAllowed = KeyboardFallback.Allowed;
                 inputs.Build = Application.version;
+                Inputs = inputs;
                 Session = new FlightSession(inputs);
+                _prepared = Task.Run(() =>
+                {
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    SessionSetup.Prepare(drone);
+                    Debug.Log("[FlightSessionHost] the rotor interference table in " + watch.ElapsedMilliseconds + " ms, off the frame");
+                });
             }
             catch (Exception e)
             {
                 Problems.Add(e.Message);
-                Debug.LogWarning("[FlightSessionHost] " + e.Message);
+                Debug.LogError("[FlightSessionHost] " + e.Message);
             }
         }
 
         void Update()
         {
             if (Session == null) return;
-            if (Session.State == SessionState.Ready && (AppRadio.Reader.Connected || Time.unscaledTime - _enabledAt >= StartWaitSeconds))
-            {
-                try
-                {
-                    Session.Start();
-                }
-                catch (InvalidOperationException e)
-                {
-                    Problems.Add(e.Message);
-                    Session.Dispose();
-                    Session = null;
-                    return;
-                }
-            }
-            Session.Tick(KeyboardFallback.ReadKeys());
+            if (_wanted && !Preparing && (AppRadio.Reader.Connected || (Inputs.KeyboardAllowed && Time.unscaledTime - _enabledAt >= StartWaitSeconds)))
+                Begin();
+            Session?.Tick(Keys());
         }
 
         void OnDisable()
@@ -74,12 +95,46 @@ namespace Fpv450.App
             Session = null;
         }
 
+        /// <summary>A new flight after the last has ended (the summary's Fly again, the setup's Fly): it starts once the
+        /// radio is in, at once when it is (or on the development keyboard).</summary>
+        public void Fly()
+        {
+            if (Session == null || Session.State == SessionState.Flying || Session.State == SessionState.Paused) return;
+            _wanted = true;
+        }
+
+        void Begin()
+        {
+            _wanted = false;
+            try
+            {
+                Session.Start();
+                Logged();
+            }
+            catch (Exception e)
+            {
+                Problems.Add(e.Message);
+                Debug.LogError("[FlightSessionHost] " + e.Message);
+                Session.Dispose();
+                Session = null;
+            }
+        }
+
         public void Pause() => Session?.Pause();
         public void Resume() => Session?.Resume();
-        public void Restart() => Session?.Restart();
 
-        // drone.json and physics_materials.json from the repository, beside unity/ (the editor's case; the built player's
-        // copy comes with 1.4b).
-        static string RepositoryFile(string relative) => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", relative));
+        /// <summary>Ends the flight by the pilot and starts a new one from the start point (APP-04); without the radio the
+        /// new one is wanted, as Fly's, and starts once the radio is in.</summary>
+        public void Restart()
+        {
+            if (Session == null) return;
+            if (Session.Restart()) Logged();
+            else _wanted = true;
+        }
+
+        void Logged() =>
+            Debug.Log("[Flight] flight " + Session.Flights + " at '" + Session.StartPoint.Name + "' on " + Session.Input + ", legs "
+                      + (Session.Choices.Legs ? "on" : "off") + ", payload " + Session.Choices.Payload.ToString("0.0") + " kg, wind " + Session.Choices.Wind
+                      + ", seed 0x" + Session.Seed.ToString("X16") + ", log " + Session.LogPath);
     }
 }

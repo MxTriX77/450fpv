@@ -3,6 +3,7 @@
     "rootNamespace": "Fpv450.Tests.Session",
     "references": [
         "Fpv450.Sim",
+        "Fpv450.Sim.Tests",
         "Fpv450.Input.Radio",
         "Fpv450.App.Session",
         "UnityEngine.TestRunner",

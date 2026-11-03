@@ -1,0 +1,36 @@
+{
+  "material": "drone_carbon",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "plate": "#17191c",
+      "edge": "#20252d",
+      "tube": "#464748"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.45
+  },
+  "inputs_sha256": "68ff23c9502b7c612c67fc717a6a6492bb02fdac689452e6aaaf473eef13bbb7",
+  "size": [
+    64,
+    64
+  ],
+  "columns": [
+    "plate",
+    "edge",
+    "tube"
+  ]
+}

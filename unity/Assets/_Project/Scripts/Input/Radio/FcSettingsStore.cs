@@ -91,16 +91,56 @@ namespace Fpv450.Input.Radio
     /// <summary>
     /// The pilot's flight-controller settings (INP-03, INP-07, APP-05): fc-settings.json in the user's profile folder
     /// (Unity's persistentDataPath), beside calibration.json, as Betaflight CLI names and CLI values. With no file the
-    /// settings are FcSettings.Default, the sim default column. The file holds every row the screen edits and any
+    /// settings are PlayerDefault. The file holds every row the screen edits and any
     /// other FcSettings field that is not its default, so a setting the screen does not show yet survives a save and an
     /// imported `diff all` can write the same form. Reading takes any FcSettings field by its CLI name, checks the rows
     /// against Betaflight's ranges and the whole set against the flight controller, and starts from the defaults for
     /// every name the file leaves out. Saving writes a temporary file and then swaps it in, as CalibrationStore does.
+    /// The format's number names the defaults a file was written with (D-076): a file of an older format is read with
+    /// today's defaults in place of every value that was a default then, and every other value, one the pilot changed,
+    /// kept. Reading writes nothing; the next change saves it in today's format.
     /// </summary>
     public static class FcSettingsStore
     {
         public const string FileName = "fc-settings.json";
-        const string Format = "fpv450 fc settings 1";
+        const string Format = "fpv450 fc settings 2", Format1 = "fpv450 fc settings 1";
+
+        /// <summary>
+        /// The player's defaults (D-076; fc-profiles.md §2b): FcSettings.Default with the rate profile the pilot flies, as
+        /// FpvPrep's presets and the pilot's saved quad configs hold it in their active rate profile: the rates, the
+        /// deadband, the RC smoothing and the feedforward's shaping; the feedforward gains of the builder whose PIDs the
+        /// sim flies (fc-profiles §1); and the throttle curve the pilot's saved configs hold most, `thr_mid` 100 and
+        /// `thr_expo` 36. The sim core's FcSettings.Default stays the controller of its tests and golden flights.
+        /// </summary>
+        public static FcSettings PlayerDefault
+        {
+            get
+            {
+                FcSettings s = FcSettings.Default;
+                s.roll_rc_rate = s.pitch_rc_rate = 5; s.roll_srate = s.pitch_srate = 22; s.roll_expo = s.pitch_expo = 45;
+                s.yaw_rc_rate = 8; s.yaw_srate = 24; s.yaw_expo = 20;
+                s.thr_mid = 100; s.thr_expo = 36;
+                s.deadband = 4; s.yaw_deadband = 5;
+                s.rc_smoothing_auto_factor = 80;
+                s.f_roll = 80; s.f_pitch = 80; s.f_yaw = 0;
+                s.feedforward_transition = 40; s.feedforward_jitter_factor = 12; s.feedforward_boost = 0;
+                return s;
+            }
+        }
+
+        // The defaults format 1 was written with: the sim core's FcSettings.Default, then D-066's player default (its
+        // rates as today's, the throttle 100 / 100). A value in a format-1 file equal to that field's in either was a
+        // default; any other value the pilot changed.
+        static readonly object[] Format1Defaults = { FcSettings.Default, Format1PlayerDefault() };
+
+        static FcSettings Format1PlayerDefault()
+        {
+            FcSettings s = FcSettings.Default;
+            s.roll_rc_rate = s.pitch_rc_rate = 5; s.roll_srate = s.pitch_srate = 22; s.roll_expo = s.pitch_expo = 45;
+            s.yaw_rc_rate = 8; s.yaw_srate = 24; s.yaw_expo = 20;
+            s.thr_mid = 100; s.thr_expo = 100;
+            return s;
+        }
 
         static Dictionary<string, FieldInfo> _fields;
 
@@ -124,7 +164,7 @@ namespace Fpv450.Input.Radio
         {
             error = null;
             string path = PathIn(directory);
-            if (!File.Exists(path)) return FcSettings.Default;
+            if (!File.Exists(path)) return PlayerDefault;
             try
             {
                 return FromJson(File.ReadAllText(path, Encoding.UTF8));
@@ -132,7 +172,7 @@ namespace Fpv450.Input.Radio
             catch (Exception e)
             {
                 error = FileName + " could not be read (" + e.Message + "): the defaults are in use, and the next change replaces it.";
-                return FcSettings.Default;
+                return PlayerDefault;
             }
         }
 
@@ -156,7 +196,7 @@ namespace Fpv450.Input.Radio
                 Member(b, ref first, row.Name, row.Get(settings));
                 written.Add(row.Name);
             }
-            object value = settings, defaults = FcSettings.Default;
+            object value = settings, defaults = PlayerDefault;
             foreach (FieldInfo f in typeof(FcSettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
                 object v = f.GetValue(value);
@@ -169,13 +209,16 @@ namespace Fpv450.Input.Radio
         public static FcSettings FromJson(string json)
         {
             Dictionary<string, object> root = JsonRead.Object(MiniJson.Parse(json), FileName);
-            if (JsonRead.Text(root, "format") != Format) throw new FormatException(FileName + " is not " + Format);
+            string format = JsonRead.Text(root, "format");
+            if (format != Format && format != Format1) throw new FormatException(FileName + " is not " + Format);
             Dictionary<string, object> set = JsonRead.Object(JsonRead.Member(root, "settings"), "'settings'");
-            object box = FcSettings.Default;
+            object box = PlayerDefault;
             foreach (KeyValuePair<string, object> kv in set)
             {
                 FieldInfo f = Field(kv.Key) ?? throw new FormatException("no Betaflight setting '" + kv.Key + "' here");
-                f.SetValue(box, Value(f, kv.Key, kv.Value));
+                object v = Value(f, kv.Key, kv.Value);
+                if (format == Format1 && Array.Exists(Format1Defaults, d => Same(v, f.GetValue(d)))) continue; // today's default
+                f.SetValue(box, v);
             }
             var settings = (FcSettings)box;
             foreach (FcSettingRow row in FcSettingRow.Rows)

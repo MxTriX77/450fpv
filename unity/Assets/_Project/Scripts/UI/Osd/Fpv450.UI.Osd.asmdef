@@ -1,0 +1,17 @@
+{
+    "name": "Fpv450.UI.Osd",
+    "rootNamespace": "Fpv450.UI",
+    "references": [
+        "Fpv450.Sim",
+        "Fpv450.Feed.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

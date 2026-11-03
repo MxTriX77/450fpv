@@ -42,6 +42,10 @@ namespace Fpv450.Sim.Flight
         /// between lifts).</summary>
         public int FiberTrailCount;
 
+        /// <summary>The frame's elastic turn at the camera, body rad (small angles about x, y, z; AirframeModes.FrameTurn),
+        /// 0 for a rigid airframe: the camera on the flexing frame (p7e-camera-feel, FieldCamera.Attitude). Render-side.</summary>
+        public Double3 CameraTurn;
+
         public readonly double TimeS => Step * FlightCore.Dt;
 
         /// <summary>
@@ -72,6 +76,7 @@ namespace Fpv450.Sim.Flight
                 FiberNodes = b.FiberNodes,
                 FiberNodeCount = b.FiberNodeCount,
                 FiberTrailCount = b.FiberTrailCount,
+                CameraTurn = a.CameraTurn + (b.CameraTurn - a.CameraTurn) * t,
             };
         }
     }

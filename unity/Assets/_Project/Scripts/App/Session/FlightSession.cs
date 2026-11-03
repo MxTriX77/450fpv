@@ -25,7 +25,11 @@ namespace Fpv450.App.Session
         /// <summary>The heading, rad: positive turns north towards east, as the drone's yaw.</summary>
         public double Yaw;
 
-        /// <summary>The floor's one start point until the test range lists its own.</summary>
+        /// <summary>The world lists it as a start from the launch stand (legs off); otherwise from the ground. A hint for
+        /// the screens and the smoke test: the setup's legs decide what the flight stands on.</summary>
+        public bool Stand;
+
+        /// <summary>The floor's one start point, for tests (the test range lists its own).</summary>
         public static StartPoint Origin => new StartPoint { Name = "origin" };
     }
 
@@ -59,11 +63,14 @@ namespace Fpv450.App.Session
 
         public string Build = "";
 
-        /// <summary>A new world per flight: the world-query stub's floor until the test range's queries land.</summary>
+        /// <summary>A new world per flight: the world-query stub's floor for tests; the app's is the test range (FlightWorlds).</summary>
         public Func<FlightWorld> World = FlightWorld.Floor;
 
         public string WorldId = "floor";
         public StartPoint[] StartPoints = { StartPoint.Origin };
+
+        /// <summary>The flights' world by a log's world id (the summary's names), or null for another id.</summary>
+        public IWorldQuery OpenWorld(string id) => id == WorldId ? World().Query : null;
 
         /// <summary>Each flight's seed; null for a random one.</summary>
         public Func<ulong> NewSeed;
@@ -109,9 +116,11 @@ namespace Fpv450.App.Session
     /// - **runs** on the flight thread (FlightScheduler) under the 1 ms timer period, which the session holds while it
     ///   lives; Pause stops the stepping and Resume goes on with every later step's host time moved by the pause, logged
     ///   as a Pause hitch. A radio lost during the pause is the failsafe in force for the first RC frame after it, even
-    ///   when plugged back in before Resume, so the log has it with its stamp and the end rule sees it
-    /// - **ends** on the first of FlightEndRule's conditions, found on the flight thread as each step goes to the log; the
-    ///   log stops at that step, so PostFlight finds the same end. Restart, EndFlight and Dispose end it by the pilot.
+    ///   when plugged back in before Resume, so the log has it with its stamp and an armed drone disarms; the pilot's end
+    ///   of a paused flight runs that frame first
+    /// - **ends only by the pilot** (D-063): Restart, EndFlight and Dispose. A crash, an upside-down rest, the failsafe
+    ///   or the battery cut-off ends nothing: the drone stays under physics, each step goes to the log, and PostFlight
+    ///   lists them when the pilot ends the flight. A failed flight thread ends it too (Fault).
     /// The session never starts or stops the app's radio (the app does, on quit and on a domain reload); it sets the
     /// reader's inbox for each flight and clears it at the end.
     /// </summary>
@@ -131,7 +140,6 @@ namespace Fpv450.App.Session
         FlightCore _core;
         FlightScheduler _scheduler;
         FlightRecorder _log;
-        EndProbe _probe;
         StickInbox _inbox;
         KeyboardSticks _keyboard;
         long _startUs, _shiftUs, _pausedAtUs, _hitches;
@@ -188,10 +196,16 @@ namespace Fpv450.App.Session
         /// </summary>
         public void Start()
         {
+            if (!TryStart()) throw new InvalidOperationException("no radio is connected");
+        }
+
+        // Start's work; false, with nothing changed, when no radio is connected and the keyboard may not fly.
+        bool TryStart()
+        {
             if (State == SessionState.Flying || State == SessionState.Paused) throw new InvalidOperationException("a flight is under way");
             RadioReader reader = _in.Reader;
             bool radio = reader != null && reader.Connected;
-            if (!radio && !_in.KeyboardAllowed) throw new InvalidOperationException("no radio is connected");
+            if (!radio && !_in.KeyboardAllowed) return false;
 
             ulong seed = _in.NewSeed != null ? _in.NewSeed() : RandomSeed();
             FlightSetup setup = SessionSetup.Build(_in, seed, out Loadout loadout, out StartPoint start);
@@ -199,6 +213,7 @@ namespace Fpv450.App.Session
             LogHeader header = LogHeader.For(setup, core);
             header.SetDrone(_in.Drone, loadout);
             header.Build = _in.Build ?? "";
+            header.Isa = HostIsa.Flags;
             header.WorldId = _in.WorldId ?? "";
             header.Input = radio ? reader.Source : InputSource.Keyboard;
             header.InputDevice = radio ? reader.DeviceName : "keyboard";
@@ -210,7 +225,6 @@ namespace Fpv450.App.Session
 
             _core = core;
             _log = log;
-            _probe = new EndProbe(log);
             _inbox = new StickInbox();
             _keyboard = null;
             if (radio)
@@ -240,11 +254,12 @@ namespace Fpv450.App.Session
             Flights++;
             Step(startUs);
             State = SessionState.Flying;
+            return true;
         }
 
         /// <summary>
         /// Once a frame on the scene's thread: the keyboard's sample when it flies (keys held now), the steps due when
-        /// not threaded, the radio's samples drained while paused, and the end once the flight thread has found it.
+        /// not threaded, the radio's samples drained while paused, and the end once the flight thread has failed.
         /// </summary>
         public void Tick(KeyboardKeys keys = KeyboardKeys.None)
         {
@@ -263,21 +278,15 @@ namespace Fpv450.App.Session
             {
                 _keyboard.Update(KeyboardKeys.None, now, out _); // the pause's time does not move the throttle
             }
-            else if (_inbox.Drain(now, out StickSample lost) && !_lostWhilePaused)
+            else
             {
-                // The flight thread is stopped: this thread is the inbox's consumer. The first loss is kept for Resume.
-                _pausedLoss = lost;
-                _lostWhilePaused = true;
+                DrainPaused(now);
             }
 
             if (_scheduler.Fault != null)
             {
                 Fault = _scheduler.Fault;
                 Finish(new FlightEnd { Kind = FlightEndKind.Fault, Step = _core.State.Step });
-            }
-            else if (_probe.Ended)
-            {
-                Finish(_probe.End);
             }
         }
 
@@ -300,37 +309,39 @@ namespace Fpv450.App.Session
         public void Resume()
         {
             if (State != SessionState.Paused) return;
-            if (_scheduler.Fault != null || _probe.Ended)
+            if (_scheduler.Fault != null)
             {
-                Tick(); // it ended before the pause
+                Tick(); // it failed before the pause
                 return;
             }
-            long now = _in.Clock.NowUs();
-            long k = _core.State.Step;
-            long start = _startUs + _shiftUs + (now - _pausedAtUs);
-            if (start + k * FlightCore.StepUs < now) start = now - k * FlightCore.StepUs;
-            long moved = start - _startUs - _shiftUs;
-            _shiftUs += moved;
-            _log.RecordPause(k + 1, moved);
-            if (_lostWhilePaused)
-            {
-                if (_heldToStep <= k) _heldToStep = k + RcFrameSteps; // a new loss; a kept one keeps its steps
-                _inbox.Hold(_pausedLoss, start + _heldToStep * FlightCore.StepUs);
-            }
-            Step(start);
+            Step(Unpause());
             State = SessionState.Flying;
         }
 
-        /// <summary>Ends the flight by the pilot and starts a new one from the start point, with a new seed and log.</summary>
-        public void Restart()
+        /// <summary>
+        /// Ends the flight by the pilot and starts a new one from the start point, with a new seed and log, when one can
+        /// start; true when it did. Without a radio where the keyboard may not fly, the session stays Ended and the next
+        /// Start begins the new flight (the host's, once the radio is in).
+        /// </summary>
+        public bool Restart()
         {
             EndFlight();
-            Start();
+            return TryStart();
         }
 
-        /// <summary>Ends a flight under way by the pilot (quit, back to the menu).</summary>
+        /// <summary>
+        /// Ends a flight under way by the pilot (the pause's End flight and Restart, quit, back to the menu). A radio lost
+        /// during the pause is still the failsafe (INP-05): the first RC frame after the pause runs here, with the loss in
+        /// force, as Resume would have it, so the log has the failsafe with its stamp and an armed drone disarms; the
+        /// summary lists it.
+        /// </summary>
         public void EndFlight()
         {
+            if (State == SessionState.Paused && _scheduler.Fault == null)
+            {
+                DrainPaused(_in.Clock.NowUs());
+                if (_lostWhilePaused) RunHeldFrame(Unpause());
+            }
             if (State == SessionState.Flying || State == SessionState.Paused)
                 Finish(new FlightEnd { Kind = FlightEndKind.Pilot, Step = _core.State.Step });
         }
@@ -339,7 +350,7 @@ namespace Fpv450.App.Session
         public PostFlight ReadSummary()
         {
             if (State != SessionState.Ended) throw new InvalidOperationException("the flight has not ended");
-            return PostFlight.Read(LogPath);
+            return PostFlight.Read(LogPath, _in.OpenWorld);
         }
 
         public void Dispose()
@@ -352,10 +363,49 @@ namespace Fpv450.App.Session
         // A scheduler for the steps from the core's state on, step 0 at startUs (a resumed flight's moved start).
         void Step(long startUs)
         {
-            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _probe);
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log);
             if (_in.Threaded) _scheduler.Start(startUs);
             else _scheduler.Begin(startUs);
             _stepping = true;
+        }
+
+        // While paused the flight thread is stopped, so this thread is the inbox's consumer. The first loss is kept.
+        void DrainPaused(long now)
+        {
+            if (_inbox.Drain(now, out StickSample lost) && !_lostWhilePaused)
+            {
+                _pausedLoss = lost;
+                _lostWhilePaused = true;
+            }
+        }
+
+        // The end of a pause: step 0's host time moved by it (a step already due when it began is due now), the move
+        // logged before the next step as a Pause hitch, and a loss the pause drained held for the first RC frame after it.
+        long Unpause()
+        {
+            long now = _in.Clock.NowUs();
+            long k = _core.State.Step;
+            long start = _startUs + _shiftUs + (now - _pausedAtUs);
+            if (start + k * FlightCore.StepUs < now) start = now - k * FlightCore.StepUs;
+            long moved = start - _startUs - _shiftUs;
+            _shiftUs += moved;
+            _log.RecordPause(k + 1, moved);
+            if (_lostWhilePaused)
+            {
+                if (_heldToStep <= k) _heldToStep = k + RcFrameSteps; // a new loss; a kept one keeps its steps
+                _inbox.Hold(_pausedLoss, start + _heldToStep * FlightCore.StepUs);
+            }
+            return start;
+        }
+
+        // A paused flight's held RC frame, on this thread, one step a pass at its own host time (no hitch), until the
+        // frame has run.
+        void RunHeldFrame(long startUs)
+        {
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log);
+            _scheduler.Begin(startUs);
+            while (_core.State.Step < _heldToStep)
+                _scheduler.RunDue(_scheduler.StepHostUs(_core.State.Step));
         }
 
         void StopStepping()
@@ -368,6 +418,7 @@ namespace Fpv450.App.Session
         void Finish(FlightEnd end)
         {
             if (_stepping) StopStepping();
+            _core.Wind.Dispose(); // a map's wake grid: its worker thread and about 17 MB
             if (_keyboard == null && _in.Reader != null && _in.Reader.Inbox == _inbox) _in.Reader.Inbox = null;
             _log.Close(_inbox.Dropped);
             LogFault = _log.Fault;
@@ -381,32 +432,6 @@ namespace Fpv450.App.Session
             using (RandomNumberGenerator rng = RandomNumberGenerator.Create()) rng.GetBytes(bytes);
             return BitConverter.ToUInt64(bytes, 0);
         }
-
-        // On the flight thread, between the scheduler and the log: each step to the log, then the end rule; once the
-        // flight has ended nothing more is logged, so the log stops at the end's step.
-        sealed class EndProbe : IFlightRecorder
-        {
-            readonly FlightRecorder _log;
-            readonly FlightEndRule _rule = new FlightEndRule();
-            volatile bool _ended;
-
-            public EndProbe(FlightRecorder log) => _log = log;
-
-            public bool Ended => _ended;
-            public FlightEnd End => _rule.End;
-
-            public void RecordStep(in FlightState state, in StickSample stick, in StepTrace trace, StepEvents events)
-            {
-                if (_ended) return;
-                _log.RecordStep(state, stick, trace, events);
-                if (_rule.Step(state, stick, trace)) _ended = true;
-            }
-
-            public void RecordHitch(in Hitch hitch)
-            {
-                if (!_ended) _log.RecordHitch(hitch);
-            }
-        }
     }
 
     /// <summary>The setup's choices as a flight (APP-03, design 6).</summary>
@@ -414,7 +439,8 @@ namespace Fpv450.App.Session
     {
         /// <summary>
         /// The FlightSetup of inputs' choices: drone.json's mass, propulsion, aero and contacts at the loadout (the
-        /// payload, the legs, the coil full at take-off), the wind level, the settings, a new world, and the start point:
+        /// payload, the legs, the coil full at take-off), the wind level (over a map, with its wakes and its belt's
+        /// canopy: WindSetup.ForMap), the rain, the airframe's effects as the powered golden's, the settings, a new world, and the start point:
         /// legs on, the drone standing on the ground there, its skids unloaded; legs off, the launch stand placed there
         /// as a runtime object and the drone resting on its posts; both at the start point's heading.
         /// </summary>
@@ -438,8 +464,24 @@ namespace Fpv450.App.Session
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
-                Wind = WindSetup.Of(c.Wind),
+                Wind = world.Query is MapWorld map ? WindSetup.ForMap(map, c.Wind) : WindSetup.Of(c.Wind),
+                Rain = c.Rain == Rain.SevereRain ? RainLevel.SevereRain : c.Rain == Rain.Rain ? RainLevel.Rain : RainLevel.Sunny,
+                CameraPosition = spec.CameraPosition,
                 Contacts = contacts,
+                // The airframe's effects, as the powered golden flies them (GoldenFlights.PoweredSetup): the motors'
+                // asymmetry (drawn from the flight's seed; Calm keeps it, only the wind harness grades Calm without it),
+                // the vortex rings, the ground and ceiling effect, each rotor's wake unsteadiness (D-064), flapping, the
+                // rotors in each other's wake (its table built once, behind the loading screen: Prepare), and the
+                // airframe's modes; and, as the replay's pilot flies it (ScriptedFlight), the build as the pilot's hands
+                // set it (D-066).
+                Asymmetry = spec.BuildAsymmetry(),
+                Placement = spec.BuildPlacement(),
+                VortexRing = spec.BuildVortexRing(),
+                GroundEffect = spec.BuildGroundEffect(),
+                RotorWake = spec.BuildRotorWake(),
+                Flapping = spec.BuildFlapping(),
+                Interference = spec.BuildInterference(),
+                Modes = spec.BuildModes(),
                 StartAttitude = new Quat(0, sin, 0, cos),
             };
             if (c.Legs)
@@ -453,6 +495,18 @@ namespace Fpv450.App.Session
             }
             inputs.Adjust?.Invoke(setup);
             return setup;
+        }
+
+        /// <summary>
+        /// Builds the rotor interference table of the drone's layout (RotorInterferenceSpec.Table, about 1.3 s), which the
+        /// sim caches for the process, so every flight's FlightCore finds it built: run it off the frame, behind the
+        /// loading screen, before the first flight (FlightSessionHost). Returns the table.
+        /// </summary>
+        public static RotorInterferenceTable Prepare(DroneSpec spec)
+        {
+            var hubs = new Double3[4];
+            for (int i = 0; i < 4; i++) hubs[i] = spec.Motors[i].Position; // Propulsion's hubs
+            return spec.BuildInterference().Table(hubs);
         }
 
         /// <summary>The body origin's height over the ground of the legs-on drone standing on its skids, unloaded.</summary>

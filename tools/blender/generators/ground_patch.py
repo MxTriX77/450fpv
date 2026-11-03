@@ -8,7 +8,17 @@ surface; four walls and a bottom close it. The cells under
 a mound are refined REFINE x REFINE so the grid follows the mound sphere's steep rim within the audit's tolerance;
 the refined vertices on an edge shared with a coarse cell lie on that edge (T-junctions, no cracks). Its UVs are
 metres, u = x and v = z, which is how the belt_straw ground recipe lays its unique base map (tiling 1/size_m, offset
-0.5). LOD1 is the same slab without the micro mesh, LOD2 the slab with a flat 2 x 2 top.
+0.5). LOD1 is the same slab without the micro mesh, its SLOT faces in FAR_SLOT, LOD2 the slab with a flat 2 x 2 top
+in FAR_SLOT.
+
+The far layer (D-081; AST-10's far density layer): the straws are drawn at every distance. Beyond the bake the slab's
+base map shows them: one more scatter of the same kit by the same rules (_bake) over the whole patch, from its own
+seed (FAR_SEED), which lib.far_layer renders from above in Blender and lays over the ground recipe's albedo, as two
+base maps of the slab's UVs: the far map in FAR_SLOT with the whole scatter, and the near map in SLOT, LOD0's, with
+the scatter faded out by the bake's own feather, so LOD0 shows the baked straws inside the bake and the painted ones
+beyond it, and LOD1 and LOD2 show the painted ones over the whole patch. That scatter is drawn into the two maps only:
+it is no mesh of the asset, no micro mesh, no micro_elements record and nothing physics reads. Each LOD dissolves into the next over the last
+lod.fade_share of its switch distance (the importer's cross-fade), so no switch pops.
 
 The bare soil patches (lib.patches, the layout tools/assets/derive.py stamps the bare mask from, so the map and the
 mesh never disagree) are where the mat is missing: over each patch's convex step outline the top drops vertically
@@ -85,6 +95,8 @@ from lib import mat, patches, straw
 from lib.geometry import Mesh
 
 SLOT = "ground"
+FAR_SLOT = "far"         # LOD1's and LOD2's ground: the ground's material over the far layer's base map (D-081)
+FAR_SEED = "far layer"   # the far layer's scatter draws from its own stream, so the bake and its elements never move
 SOIL_SLOT = "soil"       # a mound's bare earth
 EDGE_SLOT = "edge"       # a step's wall and lip: the mat's cut edge, the mat's own map with the mat's physics (R6)
 SOIL_M = 0.3             # the soil box below the mat: F-5 behind the floors' top (carried; review-physics PR1)
@@ -222,11 +234,15 @@ PARAMS = {
     "mound_material": {"type": "str", "range": "surface:<id> or an id of assets-src/physics_materials.json",
                        "default": "surface:crater_spoil", "effect": "material of the mound spheres"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 8.0,
-                          "effect": "distance from which LOD1, the slab without the straws, shows"},
+                          "effect": "distance from which LOD1 shows: the slab without the baked straws, the far "
+                                    "layer's painted ones in their stead"},
     "lod.lod2_switch_m": {"type": "float", "range": (0.1, 500.0), "default": 60.0,
                           "effect": "distance from which LOD2, the flat slab, shows; beyond lod1_switch_m"},
     "lod.cull_m": {"type": "float", "range": (1.0, 2000.0), "default": 400.0,
                    "effect": "distance beyond which the patch is culled; beyond lod2_switch_m"},
+    "lod.fade_share": {"type": "float", "range": (0.0, 0.9), "default": 0.25,
+                       "effect": "each LOD dissolves into the next over this last share of the next one's switch "
+                                 "distance (D-081: LOD0 from 6 m to 8 m at the defaults); 0 switches at once"},
 }
 RANGES = ("mound_w_m", "mound_h_m", "straw_len_m", "straw_d_mm", "stem_h_m", "twig_len_m", "twig_d_mm", "blade_h_m")
 
@@ -313,20 +329,48 @@ def build(params):
     _lip(slab, bare, height, depth, random.Random(f"bare lip {params['seed']}"))
     micro = Mesh()
     count, elements = _bake(rng, params, micro, height, surface, relief, bare, strips)
+
+    def far_scatter():
+        """The far layer's scatter (module docstring), drawn into the base maps only: the bake's kit and rules over a
+        circle through the patch's corners, unfeathered, from FAR_SEED's stream. Its strands are no micro_elements
+        records: the records _bake returns for them are dropped here."""
+        far = Mesh()
+        _bake(random.Random(f"{FAR_SEED} {params['seed']}"),
+              dict(params, bake_radius_m=size / 2 * math.sqrt(2), bake_feather_m=0.0),
+              far, height, surface, relief, bare, strips)
+        return far
+
     lod = params["lod"]
+    flat = _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT, slab_m)
     return {
-        "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT, slab_m)],
+        "lods": [slab, _far_slot(slab), _far_slot(flat)],
         "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro}],
         "micro_elements": elements,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
+        "lod_fade_share": lod["fade_share"],
+        "far_layer": {"scatter": far_scatter, "near_slot": SLOT, "far_slot": FAR_SLOT, "size_m": size,
+                      "bake_radius_m": params["bake_radius_m"], "bake_feather_m": params["bake_feather_m"]},
         "materials": [{"slot": SLOT, "physics": params["physics_material"]},
                       {"slot": SOIL_SLOT, "physics": params["mound_material"]},
                       {"slot": straw.SLOT, "physics": params["mat_material"]},
-                      {"slot": EDGE_SLOT, "physics": params["mat_material"]}],
+                      {"slot": EDGE_SLOT, "physics": params["mat_material"]},
+                      {"slot": FAR_SLOT, "physics": params["physics_material"]}],
         "collision": _collision(params, bare, mounds),
         "gaps": [], "wind_volumes": [], "snag": [],
     }
+
+
+def _far_slot(mesh):
+    """A copy of `mesh` with its SLOT faces in FAR_SLOT: the same geometry drawn over the far layer's base map."""
+    copy = Mesh()
+    copy.vertices = list(mesh.vertices)
+    copy.faces = [(indices, normal, uvs, FAR_SLOT if slot == SLOT else slot) for indices, normal, uvs, slot in mesh.faces]
+    copy.smooth = set(mesh.smooth)
+    copy.corner_normals = dict(mesh.corner_normals)
+    copy.normals = dict(mesh.normals)
+    copy.uv2 = dict(mesh.uv2)
+    return copy
 
 
 # --- collision ----------------------------------------------------------------------------------------------------

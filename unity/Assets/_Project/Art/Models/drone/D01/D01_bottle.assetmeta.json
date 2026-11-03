@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "id": "D01",
+  "variant": "D01_bottle",
+  "generator": "drone",
+  "params_sha256": "9843766c95055085d4b30c7125b7795486ad5ec2837dc2c192ab3411107ba453",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.0415,
+      -0.0045,
+      -0.128149
+    ],
+    "max": [
+      0.0415,
+      0.081624,
+      0.128149
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "D01_bottle_LOD0",
+      "tris": 1644,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D01_bottle_LOD1",
+      "tris": 716,
+      "switch_distance_m": 3.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D01_bottle_LOD2",
+      "tris": 328,
+      "switch_distance_m": 10.0,
+      "thin_wire": false
+    },
+    {
+      "mesh": "D01_bottle_LOD3",
+      "tris": 104,
+      "switch_distance_m": 35.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 120.0,
+  "materials": [
+    {
+      "slot": "bottle",
+      "visual": "drone_bottle",
+      "physics": "plastic"
+    },
+    {
+      "slot": "strap",
+      "visual": "drone_strap",
+      "physics": "fabric"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.04,
+        -0.0425
+      ],
+      "radius": 0.04,
+      "height": 0.171299,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.04,
+        0.073149
+      ],
+      "radius": 0.02625,
+      "height": 0.06,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        0.04,
+        0.115649
+      ],
+      "radius": 0.015,
+      "height": 0.025,
+      "rotation": [
+        0.707107,
+        0.0,
+        0.0,
+        0.707107
+      ],
+      "material": "plastic",
+      "landable": false
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": []
+}

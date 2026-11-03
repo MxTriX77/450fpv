@@ -23,7 +23,9 @@ variant whose params set `impostor: true` (p1-v01-locust design decision 3) also
 occlusion in its alpha and the smoothness atlas that lib/impostor.py renders from LOD0 after the FBX, staged the same
 way, and its metadata lists the impostor as the last
 LOD; atlases the metadata records as up to date are not rendered again, and those the params no longer ask for are
-removed. A generator's textures (its "textures", lib.meta) are written beside the metadata as <variant>_<name>.png,
+removed. A generator's far layer (its "far_layer", lib.far_layer: S04's straws in its slab's base maps, D-081) is
+rendered first, and its maps join its textures. A generator's textures (its "textures", lib.meta) are written beside
+the metadata as <variant>_<name>.png,
 and a texture the variant's previous metadata listed under "textures" that the build no longer writes is removed with
 its .meta; no other file is (write_textures). A staged file replaces its final name, tried again for a few seconds
 while Windows denies access to it. A rejected build changes no file. It refuses any Blender other than the pinned
@@ -65,6 +67,12 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     built = generator.build(params)
     for line in built.get("report", ()):
         print(f"{variant}: {line}")
+    if "far_layer" in built:  # D-081: its straws drawn into the slab's base maps, which join its textures
+        from lib import far_layer
+        started = time.perf_counter()
+        maps, line = far_layer.render(root, built["far_layer"], catalog.visuals(catalog_entry, variant))
+        built["textures"] = list(built.get("textures", [])) + maps
+        print(f"{variant}: {line}, in {time.perf_counter() - started:.1f} s")
     out_dir = catalog.output_dir(root, catalog_entry, asset_id)
     meta_path = os.path.join(out_dir, variant + ".assetmeta.json")
     atlas_path = os.path.join(out_dir, variant + "_impostor.png")
