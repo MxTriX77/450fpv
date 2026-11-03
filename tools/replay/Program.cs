@@ -22,6 +22,10 @@ namespace Fpv450.Replay
             + "                                         in the map's own wind (its wakes and its belt's canopy);\n"
             + "                                         --descent: its last metres' descent (0.5 m/s; 1.9 lands hard\n"
             + "                                         enough to bend a leg, p7g-legs 1.2)\n"
+            + "  replay --record <log> --legs [--drone <drone.json>]\n"
+            + "                                         p7g-legs 1.3's damage flight: the free body up into a bar that\n"
+            + "                                         slides leg_rr out, a fabric cushion over it, down onto a straw\n"
+            + "                                         pad: one leg lost, one broken, two bent, their pieces loose\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json defaults to the repository's assets-src/drone/drone.json";
 
@@ -97,6 +101,16 @@ namespace Fpv450.Replay
         static int Record(string[] args)
         {
             string path = args[1];
+            if (Array.IndexOf(args, "--legs") >= 0)
+            {
+                string legsDrone = Option(args, "--drone") ?? ScriptedFlight.RepositoryDrone()
+                    ?? throw new ArgumentException("no drone.json found; pass --drone");
+                ScriptedFlight.Recorded d = ScriptedFlight.FlyLegs(path, legsDrone);
+                Console.WriteLine($"record {Path.GetFileName(path)}: the legs' damage flight on '{ScriptedFlight.PadsWorld}', {d.Counts.Steps} steps, "
+                    + $"{d.Counts.Events} events, {d.Bytes} bytes; seed 0x{d.Seed:X16}, drone.json 0x{d.DroneHash:X16}");
+                Console.WriteLine("  " + d.Landing);
+                return d.Fault == null ? 0 : 1;
+            }
             string seconds = Option(args, "--seconds");
             double duration = seconds == null ? 120 : double.Parse(seconds, System.Globalization.CultureInfo.InvariantCulture);
             if (!(duration > 0 && duration <= 3600)) throw new ArgumentException("--seconds must be in (0, 3600]");
