@@ -559,6 +559,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(InstanceFields(typeof(RotorWakeSpec)), Is.EquivalentTo(LogHeader.RotorWakeFieldsLogged));
             Assert.That(InstanceFields(typeof(RotorInterferenceSpec)), Is.EquivalentTo(LogHeader.InterferenceFieldsLogged));
             Assert.That(InstanceFields(typeof(AirframeModesSpec)), Is.EquivalentTo(LogHeader.ModesFieldsLogged));
+            Assert.That(InstanceFields(typeof(Fpv450.Sim.Tether.TetherTable)), Is.EquivalentTo(LogHeader.TetherFieldsLogged));
+            Assert.That(InstanceFields(typeof(Fpv450.Sim.Tether.TetherRow)), Is.EquivalentTo(LogHeader.TetherRowFieldsLogged));
+            Assert.That(InstanceFields(typeof(Fpv450.Sim.Tether.TetherTrace)), Is.EquivalentTo(LogFormat.TetherTraceFieldsLogged));
 
             foreach ((LogField[] fields, int size) in new[] { (LogFormat.StepFields, LogFormat.StepSize), (LogFormat.EventFields, LogFormat.EventSize),
                          (LogFormat.EndFields, LogFormat.EndSize) })

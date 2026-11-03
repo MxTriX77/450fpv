@@ -115,34 +115,99 @@ namespace Fpv450.Sim.Flight
     /// matrix with the rigid body free, M̃ = M − Bᵀ·M_rr⁻¹·B (B the rigid motion each one's mass rides), and their stiffness
     /// K; K·φ = ω²·M̃·φ by Cholesky and Jacobi's rotations (basic operations and square roots only), the modes mass-normalised,
     /// each damped by its share of the dampers (classical damping). Each step moves the modes by semi-implicit Euler, the
-    /// damping implicit. Holds constants only: the modes' state is the FlightState's.
+    /// damping implicit. Holds constants only: the modes' state is the FlightState's. Rebuild solves them again for a new
+    /// mass model (the coil as the fiber pays out, p7d-tether 1.6) into the same buffers, allocating nothing.
     /// </summary>
     public sealed class AirframeModes
     {
         public const int MaxModes = 10;
 
-        readonly int _n;
-        readonly double[] _omega2, _twoZetaOmega, _frequency;
-        readonly double[,] _tipForce;   // [mode, corner]: the modal force a newton of a rotor's thrust makes
-        readonly double[,] _relief;     // [mode, 6]: the modal force a newton (body) or a newton-metre about the CoM makes
-        readonly double[,] _frame;      // [6, mode]: the frame's elastic translation (body m) and turn (rad) a unit mode makes
-        readonly double[,] _hub;        // [corner, mode]: each hub's elastic displacement along +y a unit mode makes
-        readonly Double3 _camera;       // the camera from the CoM, body m
+        readonly AirframeModesSpec _spec;
+        readonly Double3[] _hubs;
+        int _n;
+        readonly double[] _omega2 = new double[MaxModes], _twoZetaOmega = new double[MaxModes], _frequency = new double[MaxModes];
+        readonly double[,] _tipForce = new double[MaxModes, 4]; // [mode, corner]: the modal force a newton of a rotor's thrust makes
+        readonly double[,] _relief = new double[MaxModes, 6];   // [mode, 6]: the modal force a newton (body) or a newton-metre about the CoM makes
+        readonly double[,] _frame = new double[6, MaxModes];    // [6, mode]: the frame's elastic translation (body m) and turn (rad) a unit mode makes
+        readonly double[,] _hub = new double[4, MaxModes];      // [corner, mode]: each hub's elastic displacement along +y a unit mode makes
+        Double3 _camera;                                         // the camera from the CoM, body m
+
+        // The solve's buffers, kept for Rebuild: each degree of freedom's mass, point, direction, stiffness and damper; B and
+        // M_rr⁻¹·B; M̃; its Cholesky factor and inverse; the eigenproblem; Φ (and the last build's, for the state's map).
+        readonly double[] _m = new double[MaxModes], _k = new double[MaxModes], _c = new double[MaxModes];
+        readonly Double3[] _r = new Double3[MaxModes], _u = new Double3[MaxModes];
+        readonly double[,] _b = new double[6, MaxModes], _mb = new double[6, MaxModes];
+        readonly double[,] _mt = new double[MaxModes, MaxModes], _l = new double[MaxModes, MaxModes], _linv = new double[MaxModes, MaxModes];
+        readonly double[,] _am = new double[MaxModes, MaxModes], _v = new double[MaxModes, MaxModes], _vs = new double[MaxModes, MaxModes];
+        readonly double[,] _phi = new double[MaxModes, MaxModes];
+        readonly double[] _lambda = new double[MaxModes], _sorted = new double[MaxModes];
+        readonly int[] _order = new int[MaxModes];
+        readonly double[] _x = new double[MaxModes], _xd = new double[MaxModes];
 
         public AirframeModes(AirframeModesSpec spec, MassModel mass, Double3[] hubs)
         {
-            if (spec == null) throw new ArgumentNullException(nameof(spec));
+            _spec = spec ?? throw new ArgumentNullException(nameof(spec));
+            _hubs = (Double3[])hubs.Clone();
+            Build(mass);
+        }
+
+        /// <summary>
+        /// The modes again for the mass model as it now is (a part's mass changed), the state carried by each degree of
+        /// freedom's elastic deflection and its rate, x = Φ·q, so q' = Φ'ᵀ·M̃'·x (Φ'ᵀ·M̃'·Φ' = I): the frame keeps its shape
+        /// and motion across the rebuild. A body whose degrees of freedom changed in number starts its modes at rest.
+        /// </summary>
+        public void Rebuild(MassModel mass, ref ModeSet q, ref ModeSet rate)
+        {
+            int was = _n;
+            for (int a = 0; a < was; a++)
+            {
+                double x = 0, xd = 0;
+                for (int mode = 0; mode < was; mode++)
+                {
+                    x += _phi[a, mode] * q[mode];
+                    xd += _phi[a, mode] * rate[mode];
+                }
+                _x[a] = x;
+                _xd[a] = xd;
+            }
+            Build(mass);
+            q = default;
+            rate = default;
+            if (_n != was) return;
+            for (int mode = 0; mode < _n; mode++)
+            {
+                double y = 0, yd = 0;
+                for (int a = 0; a < _n; a++)
+                {
+                    double w = 0;
+                    for (int e = 0; e < _n; e++) w += _mt[a, e] * _phi[e, mode];
+                    y += w * _x[a];
+                    yd += w * _xd[a];
+                }
+                q[mode] = y;
+                rate[mode] = yd;
+            }
+        }
+
+        void Build(MassModel mass)
+        {
+            AirframeModesSpec spec = _spec;
+            Double3[] hubs = _hubs;
             ref readonly MassProperties body = ref mass.Properties;
             Double3 com = body.CenterOfMass;
             Sym3 inv = body.InverseInertia;
             double invM = body.InverseMass;
+            Array.Clear(_l, 0, _l.Length);
+            Array.Clear(_linv, 0, _linv.Length);
+            Array.Clear(_am, 0, _am.Length);
+            Array.Clear(_v, 0, _v.Length);
+            Array.Clear(_vs, 0, _vs.Length);
+            Array.Clear(_phi, 0, _phi.Length);
+            Array.Clear(_mt, 0, _mt.Length);
 
             // The elastic degrees of freedom: each one's mass, its point from the CoM, its direction, stiffness and damper.
-            var m = new double[MaxModes];
-            var r = new Double3[MaxModes];
-            var u = new Double3[MaxModes];
-            var k = new double[MaxModes];
-            var c = new double[MaxModes];
+            double[] m = _m, k = _k, c = _c;
+            Double3[] r = _r, u = _u;
             int n = 0;
             for (int i = 0; i < 4; i++)
             {
@@ -153,8 +218,9 @@ namespace Fpv450.Sim.Flight
                 c[n] = 2 * spec.ArmDamping * DetMath.Sqrt(k[n] * m[n]);
                 n++;
             }
-            foreach (int part in new[] { spec.PayloadPart, spec.CoilPart })
+            for (int which = 0; which < 2; which++)
             {
+                int part = which == 0 ? spec.PayloadPart : spec.CoilPart;
                 if (part < 0 || !(mass.Part(part).Mass > 0)) continue;
                 ref readonly DronePart p = ref mass.Part(part);
                 for (int axis = 0; axis < 3; axis++)
@@ -170,7 +236,7 @@ namespace Fpv450.Sim.Flight
             _n = n;
 
             // B's columns: the rigid motion (translation, turn about the CoM) each degree of freedom's mass rides, m·u and m·r×u.
-            var b = new double[6, n];
+            double[,] b = _b;
             for (int a = 0; a < n; a++)
             {
                 Double3 ru = Double3.Cross(r[a], u[a]);
@@ -182,7 +248,7 @@ namespace Fpv450.Sim.Flight
                 b[5, a] = m[a] * ru.Z;
             }
             // M_rr⁻¹·B, 6 × n.
-            var mb = new double[6, n];
+            double[,] mb = _mb;
             for (int a = 0; a < n; a++)
             {
                 mb[0, a] = b[0, a] * invM;
@@ -193,7 +259,7 @@ namespace Fpv450.Sim.Flight
                 mb[4, a] = w.Y;
                 mb[5, a] = w.Z;
             }
-            var mt = new double[n, n];
+            double[,] mt = _mt;
             for (int a = 0; a < n; a++)
                 for (int e = 0; e < n; e++)
                 {
@@ -203,7 +269,7 @@ namespace Fpv450.Sim.Flight
                 }
 
             // Cholesky, M̃ = L·Lᵀ; A = L⁻¹·K·L⁻ᵀ (K diagonal); A = V·Λ·Vᵀ; Φ = L⁻ᵀ·V, so Φᵀ·M̃·Φ = I and Φᵀ·K·Φ = Λ.
-            var l = new double[n, n];
+            double[,] l = _l;
             for (int i = 0; i < n; i++)
                 for (int j = 0; j <= i; j++)
                 {
@@ -211,8 +277,9 @@ namespace Fpv450.Sim.Flight
                     for (int q = 0; q < j; q++) s -= l[i, q] * l[j, q];
                     l[i, j] = i == j ? DetMath.Sqrt(s) : s / l[j, j];
                 }
-            var linv = LowerInverse(l, n);
-            var am = new double[n, n];
+            double[,] linv = _linv;
+            LowerInverse(l, n, linv);
+            double[,] am = _am;
             for (int i = 0; i < n; i++)
                 for (int j = 0; j < n; j++)
                 {
@@ -220,8 +287,10 @@ namespace Fpv450.Sim.Flight
                     for (int q = 0; q < n; q++) s += linv[i, q] * k[q] * linv[j, q];
                     am[i, j] = s;
                 }
-            Jacobi(am, n, out double[] lambda, out double[,] v);
-            var phi = new double[n, n]; // [dof, mode]
+            Jacobi(am, n, _v, _lambda, _order, _sorted, _vs);
+            double[] lambda = _sorted;
+            double[,] v = _vs;
+            double[,] phi = _phi; // [dof, mode]
             for (int a = 0; a < n; a++)
                 for (int mode = 0; mode < n; mode++)
                 {
@@ -230,13 +299,6 @@ namespace Fpv450.Sim.Flight
                     phi[a, mode] = s;
                 }
 
-            _omega2 = new double[n];
-            _twoZetaOmega = new double[n];
-            _frequency = new double[n];
-            _tipForce = new double[n, 4];
-            _relief = new double[n, 6];
-            _frame = new double[6, n];
-            _hub = new double[4, n];
             for (int mode = 0; mode < n; mode++)
             {
                 double w2 = lambda[mode], w = DetMath.Sqrt(w2);
@@ -262,11 +324,11 @@ namespace Fpv450.Sim.Flight
                     _hub[i, mode] = phi[i, mode] + _frame[1, mode] + _frame[5, mode] * r[i].X - _frame[3, mode] * r[i].Z;
             }
             _camera = spec.Camera - com;
-            Count = n;
+            _n = n;
         }
 
         /// <summary>The modes this body has: 4 with no payload or coil, up to MaxModes.</summary>
-        public int Count { get; }
+        public int Count => _n;
 
         /// <summary>A mode's natural frequency, Hz (lowest first), and its damping ratio.</summary>
         public double Frequency(int mode) => _frequency[mode];
@@ -336,10 +398,9 @@ namespace Fpv450.Sim.Flight
             return t + Double3.Cross(a, _camera);
         }
 
-        // The inverse of a lower-triangular matrix, by forward substitution.
-        static double[,] LowerInverse(double[,] l, int n)
+        // The inverse of a lower-triangular matrix, by forward substitution, into x (zeroed by the caller).
+        static void LowerInverse(double[,] l, int n, double[,] x)
         {
-            var x = new double[n, n];
             for (int col = 0; col < n; col++)
                 for (int i = col; i < n; i++)
                 {
@@ -347,14 +408,13 @@ namespace Fpv450.Sim.Flight
                     for (int q = col; q < i; q++) s -= l[i, q] * x[q, col];
                     x[i, col] = s / l[i, i];
                 }
-            return x;
         }
 
-        // A symmetric matrix's eigenvalues (ascending) and unit eigenvectors (columns), by cyclic Jacobi rotations in a
-        // fixed order (Golub and Van Loan's symmetric Schur decomposition): basic operations and square roots only.
-        static void Jacobi(double[,] a, int n, out double[] lambda, out double[,] v)
+        // A symmetric matrix's eigenvalues (ascending, into sorted) and unit eigenvectors (columns, into vs), by cyclic Jacobi
+        // rotations in a fixed order (Golub and Van Loan's symmetric Schur decomposition): basic operations and square roots
+        // only. v and vs zeroed by the caller.
+        static void Jacobi(double[,] a, int n, double[,] v, double[] lambda, int[] order, double[] sorted, double[,] vs)
         {
-            v = new double[n, n];
             for (int i = 0; i < n; i++) v[i, i] = 1;
             for (int sweep = 0; sweep < 100; sweep++)
             {
@@ -393,8 +453,6 @@ namespace Fpv450.Sim.Flight
                         }
                     }
             }
-            lambda = new double[n];
-            var order = new int[n];
             for (int i = 0; i < n; i++)
             {
                 lambda[i] = a[i, i];
@@ -408,15 +466,11 @@ namespace Fpv450.Sim.Flight
                 while (j >= 0 && (lambda[order[j]] > lambda[o])) order[j + 1] = order[j--];
                 order[j + 1] = o;
             }
-            var sorted = new double[n];
-            var vs = new double[n, n];
             for (int i = 0; i < n; i++)
             {
                 sorted[i] = lambda[order[i]];
                 for (int j = 0; j < n; j++) vs[j, i] = v[j, order[i]];
             }
-            lambda = sorted;
-            v = vs;
         }
     }
 }

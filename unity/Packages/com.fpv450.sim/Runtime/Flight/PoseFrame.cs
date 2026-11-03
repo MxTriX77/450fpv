@@ -30,8 +30,17 @@ namespace Fpv450.Sim.Flight
         /// <summary>Leg compression per corner, m, positive when compressed (0 until 1.6; p5-drone draws the flex).</summary>
         public Corners LegCompression;
 
-        /// <summary>Fiber paid out from the spool, m (0 until 7d; p5-drone draws the coil).</summary>
+        /// <summary>Fiber paid out from the coil this flight, m (p7d-tether 1.6; p5-drone draws the coil, its pack shrinking).</summary>
         public double FiberPaidOut;
+
+        /// <summary>The fiber's active nodes, world m, from the touchdown (node 0, the laid trail's last point) to the exit,
+        /// and their count (p7d-tether 1.6, DRN-05: the line drawn through them).</summary>
+        public FiberNodes FiberNodes;
+        public int FiberNodeCount;
+
+        /// <summary>The laid trail's points published with this pose (FlightCore.Tether.Trail, read up to this count; append-only
+        /// between lifts).</summary>
+        public int FiberTrailCount;
 
         public readonly double TimeS => Step * FlightCore.Dt;
 
@@ -59,7 +68,103 @@ namespace Fpv450.Sim.Flight
                 Armed = b.Armed,
                 LegCompression = Corners.Lerp(a.LegCompression, b.LegCompression, t),
                 FiberPaidOut = a.FiberPaidOut + (b.FiberPaidOut - a.FiberPaidOut) * t,
+                // b's: a split or a merge between the two steps changes which material each node is.
+                FiberNodes = b.FiberNodes,
+                FiberNodeCount = b.FiberNodeCount,
+                FiberTrailCount = b.FiberTrailCount,
             };
+        }
+    }
+
+
+    /// <summary>The fiber's active nodes in a pose, inline (a value type, so a published pose never shares them with the
+    /// flight thread): up to Capacity, the table's span.max_nodes.</summary>
+    public struct FiberNodes
+    {
+        public const int Capacity = 32;
+
+        public Double3 N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N18, N19, N20, N21, N22, N23, N24, N25, N26, N27, N28, N29, N30, N31;
+
+        public Double3 this[int i]
+        {
+            readonly get
+            {
+                switch (i)
+                {
+                    case 0: return N0;
+                    case 1: return N1;
+                    case 2: return N2;
+                    case 3: return N3;
+                    case 4: return N4;
+                    case 5: return N5;
+                    case 6: return N6;
+                    case 7: return N7;
+                    case 8: return N8;
+                    case 9: return N9;
+                    case 10: return N10;
+                    case 11: return N11;
+                    case 12: return N12;
+                    case 13: return N13;
+                    case 14: return N14;
+                    case 15: return N15;
+                    case 16: return N16;
+                    case 17: return N17;
+                    case 18: return N18;
+                    case 19: return N19;
+                    case 20: return N20;
+                    case 21: return N21;
+                    case 22: return N22;
+                    case 23: return N23;
+                    case 24: return N24;
+                    case 25: return N25;
+                    case 26: return N26;
+                    case 27: return N27;
+                    case 28: return N28;
+                    case 29: return N29;
+                    case 30: return N30;
+                    case 31: return N31;
+                    default: throw new System.ArgumentOutOfRangeException(nameof(i));
+                }
+            }
+            set
+            {
+                switch (i)
+                {
+                    case 0: N0 = value; break;
+                    case 1: N1 = value; break;
+                    case 2: N2 = value; break;
+                    case 3: N3 = value; break;
+                    case 4: N4 = value; break;
+                    case 5: N5 = value; break;
+                    case 6: N6 = value; break;
+                    case 7: N7 = value; break;
+                    case 8: N8 = value; break;
+                    case 9: N9 = value; break;
+                    case 10: N10 = value; break;
+                    case 11: N11 = value; break;
+                    case 12: N12 = value; break;
+                    case 13: N13 = value; break;
+                    case 14: N14 = value; break;
+                    case 15: N15 = value; break;
+                    case 16: N16 = value; break;
+                    case 17: N17 = value; break;
+                    case 18: N18 = value; break;
+                    case 19: N19 = value; break;
+                    case 20: N20 = value; break;
+                    case 21: N21 = value; break;
+                    case 22: N22 = value; break;
+                    case 23: N23 = value; break;
+                    case 24: N24 = value; break;
+                    case 25: N25 = value; break;
+                    case 26: N26 = value; break;
+                    case 27: N27 = value; break;
+                    case 28: N28 = value; break;
+                    case 29: N29 = value; break;
+                    case 30: N30 = value; break;
+                    case 31: N31 = value; break;
+                    default: throw new System.ArgumentOutOfRangeException(nameof(i));
+                }
+            }
         }
     }
 

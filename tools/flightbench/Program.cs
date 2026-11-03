@@ -16,7 +16,7 @@ namespace Fpv450.FlightBench
         {
             if (args.Length == 1 && args[0] == "--golden")
             {
-                Console.WriteLine("flightbench: 5 golden cases registered");
+                Console.WriteLine("flightbench: 6 golden cases registered");
                 bool ok = FreeBodyCase.Golden();
                 ok &= PoweredFlightCase.Golden();
                 return ok ? 0 : 1;
