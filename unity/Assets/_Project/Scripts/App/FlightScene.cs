@@ -75,6 +75,10 @@ namespace Fpv450.App
         public PoseFrame RestPose;
         public int ShownFlight { get; private set; }
 
+        /// <summary>The current flight's drawn bottle (D01_bottle on the drone) and stand (D02); null when it has none.</summary>
+        public Transform Bottle { get; private set; }
+        public Transform Stand => _stand != null ? _stand.transform : null;
+
         /// <summary>The ended flight's summary once read; null while reading or flying.</summary>
         public PostFlight Summary { get; private set; }
 
@@ -344,6 +348,7 @@ namespace Fpv450.App
             _reading = null; // a read the pilot flew again before it finished is the last flight's
             if (_model != null) Destroy(_model);
             if (_stand != null) Destroy(_stand);
+            Bottle = null;
             GameObject prefab = _models != null ? _models.For(session.Loadout.Legs) : null;
             if (prefab != null)
             {
@@ -354,9 +359,9 @@ namespace Fpv450.App
                 float scale = DroneModels.BottleScale(session.Loadout.Payload);
                 if (scale > 0 && _models.bottle != null)
                 {
-                    Transform bottle = Drawn(_models.bottle, _model.transform).transform;
-                    bottle.localPosition = DroneModels.BottleSeat;
-                    bottle.localScale = new Vector3(scale, scale, scale);
+                    Bottle = Drawn(_models.bottle, _model.transform).transform;
+                    Bottle.localPosition = DroneModels.BottleSeat;
+                    Bottle.localScale = new Vector3(scale, scale, scale);
                 }
             }
             foreach (RuntimeObject o in session.Setup.RuntimeObjects ?? new RuntimeObject[0])

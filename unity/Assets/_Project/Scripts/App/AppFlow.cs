@@ -496,6 +496,16 @@ namespace Fpv450.App
                 double rest = _flight.Pose.Position.Y;
                 Check(Math.Abs(rest - _flight.RestPose.Position.Y) < 0.01, "at rest at " + rest.ToString("0.000") + " m (start " + _flight.RestPose.Position.Y.ToString("0.000") + " m)");
                 Check(_flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal), "the OSD reads DISARMED at rest: " + Osd());
+                // p5-drone's bottle on its seat at the payload's size, and D02 at the stand's foot and heading.
+                Transform bottle = _flight.Bottle, drawn = _flight.Stand;
+                Check(bottle != null && (bottle.localPosition - DroneModels.BottleSeat).magnitude < 1e-6f
+                      && Mathf.Abs(bottle.localScale.x - DroneModels.BottleScale(session.Loadout.Payload)) < 1e-6f,
+                      "D01_bottle on its seat at " + session.Loadout.Payload.ToString("0.0") + " kg's size" + (bottle != null ? ", scale " + bottle.localScale.x.ToString("0.000") : ""));
+                if (start.Stand)
+                    Check(drawn != null && Mathf.Abs(drawn.position.x - (float)start.X) < 1e-3f && Mathf.Abs(drawn.position.z - (float)start.Z) < 1e-3f
+                          && Quaternion.Angle(drawn.rotation, Quaternion.Euler(0f, (float)(start.Yaw * 180 / Math.PI), 0f)) < 0.1f,
+                          "D02 at the stand's foot and heading" + (drawn != null ? ", " + drawn.position.ToString("0.000") + " at " + drawn.eulerAngles.y.ToString("0.0") + "°, the drone " + (rest - drawn.position.y).ToString("0.000") + " m above its foot" : ""));
+                else Check(drawn == null, "no stand with the legs on");
                 yield return Shot("rest_" + start.Name);
                 yield return PressV("at rest at " + where);
                 yield return Shot("chase_" + start.Name);
