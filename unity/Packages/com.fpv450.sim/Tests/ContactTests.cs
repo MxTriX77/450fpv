@@ -151,7 +151,7 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.Liftoff r = ContactScenarios.FromStand(RepositoryDrone.Spec(), m, h);
             TestContext.Out.WriteLine($"{r.Made} made, {r.Broken} broken, off at throttle {r.Throttle:F3} (duty {r.Duty:F3}) {r.Time:F3} s into the ramp");
             Assert.That(r.MadeSteel, Is.EqualTo(8), "each arm's two edges on its post, in steel");
-            Assert.That(r.RestDepth, Is.EqualTo(4.716 * 9.80665 / (8 * 18000)).Within(2e-6), "resting m·g/(8·k_up) deep: the arms' out-of-plane give");
+            Assert.That(r.RestDepth, Is.EqualTo(4.626 * 9.80665 / (8 * 18000)).Within(2e-6), "resting m·g/(8·k_up) deep: the arms' out-of-plane give");
             Assert.That(r.BrokenSteel, Is.EqualTo(r.Broken));
             Assert.That(r.Broken, Is.GreaterThanOrEqualTo(8), "it leaves all four posts");
             Assert.That(r.Duty, Is.InRange(0.45, 0.65), "near hover's duty (1.4: 47–49 % at L4)");

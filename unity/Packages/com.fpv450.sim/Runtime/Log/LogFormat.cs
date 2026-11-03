@@ -67,9 +67,22 @@ namespace Fpv450.Sim.Log
         /// 6–9 on p7c-wind's branch: 6 the wind field's header entry and the record's wind at the body's origin (where the
         /// stand-in's gust was) and at each hub (1.4), 7 the header's wake layout (1.5), 8 the header's rain and camera and
         /// the record's rain force, film and air at the camera (1.7), 9 the header's canopy strip and the presets by name
-        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's.
+        /// (1.5). 13: the two merged, p7c-wind's record fields before the airframe's. 14: the header's canopy strips as a
+        /// count and the strips (p7c-wind, the map's wind: a map's belt has one a section), where 13 had a flag and one.
+        /// 14 on p7b-airframe--rotor-wake: the rotors' wakes in the step record (p7b-airframe 1.3d: each rotor's added
+        /// inflow from the others' wakes and its fluctuation) and the header's wake entry.
+        /// 14 on p7b-airframe--micro (D-064): the record's rotor wakes at its end, the header's rotor wake entry, the
+        /// asymmetry's motor dynamics and the recirculation's reference height.
+        /// 15: the physics integration, the three 14s together: the header's canopy strips; the record's rotor-rotor
+        /// interference (64 bytes after model 19's 1808) and then each rotor's own wake (32), 1904 bytes; the header's
+        /// interference entry (tag 22) and own-wake entry (tag 23), the asymmetry's motor dynamics and the recirculation's
+        /// reference height.
+        /// 15 on p7b-airframe--power: the header's build placement (tag 22, D-066: BuildTolerance's bounds and parts; its
+        /// draws with the others).
+        /// 16: p7b-airframe--power's 15 merged onto the integration's 15: the build placement's header entry at tag 24, after
+        ///    the interference's 22 and the own wake's 23; the record is 15's 1904 bytes.
         /// </summary>
-        public const int Version = 13;
+        public const int Version = 16;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -123,14 +136,64 @@ namespace Fpv450.Sim.Log
         ///    film in the mass model; a Sunny flight steps as in 8).
         /// 10: p7c-wind 1.5 (a wooded strip's canopy flow, CanopyFlow: its mean profile, its σ and its own eddies; a flight
         ///    without a canopy strip steps as in 9).
-        /// 16: taken by p6-flight-core's range branch.
+        /// 16: p6-flight-core 1.6b on its range branch, off model 15 (a skid capsule on the face its support spheres stand
+        ///    on, or on a piece coplanar with it, is their support; a sphere's contact on a seam of coplanar shapes is the
+        ///    face's, ContactModel.Seam; leaving a compliant shape is no tunnel; a flight on the stub's floor steps as in 15).
         /// 17: p7c-wind and unity/main merged (main's model 15 with p7c-wind's field, wakes, canopy and rain and its
         ///    derived rotor in-plane drag, 0.044 N per m/s, over D-050's silhouette; the steady wind's onset carried into
         ///    the field; the camera's lens one point, drone.json's camera.lens_m, for the modes and the air at the lens).
         /// 18: p7c-wind 1.5's re-grade on the merge (Severe's centre tuned until T0 passes, 7.2 → 9.5 m/s at 35 m; Windy 4.75
         ///    and Calm 1.425 from it; a flight at model 17's centres steps as in 17).
+        /// 19: 1.6b's range branch and unity/main merged (model 18's wind field, wakes, canopy and rain with model 16's
+        ///    contacts: the skids on soil faces, the seam rule, no tunnel out of a compliant shape; the code is the two
+        ///    parents' together, so a flight on the stub's floor steps as in 18).
+        /// 20: the wind over a hole (FlightWorld.SoilUnder): where SampleGround reports Hole the field's profile, roughness and
+        ///    wakes read the soil a ray straight down meets (S04's straw and soil, E01's fillers), not a sheltered −∞; a
+        ///    flight that never flies over a hole, or flies in still or steady air, steps as in 19).
+        /// 21: p7c-wind--d060 merged onto 20 (D-060's open field, p7c-wind 1.5, which that branch logged as 19): z0 from the
+        ///    landscape's class (Davenport–Wieringa class 4, 0.10 m, not the stubble's 0.03 m) and σ_u/U derived from it (0.164
+        ///    for 0.135), and the turbulence carried to the discs' 0.5 m (138 open modes, 71 canopy modes; the 1 m cut had 128
+        ///    and 64), with 20's wind over a hole; a flight with z0 0.03 m, σ_u/U 0.135 and the 1 m cut steps as in 20, and a
+        ///    flight on the stub's floor as on p7c-wind--d060's 19.
+        /// 21 on p7c-wind--map-wakes (off 19, before 20's hole rule and D-060's field): the map's wind (MapWind,
+        ///    WindSetup.ForMap): canopy strips together with wakes, each point shared between a strip's canopy (its plan weight
+        ///    w) and the wake grid (1 − w), and several strips sharing wind.canopy's draws; a flight with strips or wakes alone
+        ///    steps as in 19, and one with neither too.
+        /// 22: p7c-wind--map-wakes merged onto 21 (the code is the parents' together): the map's wind with 20's wind over a
+        ///    hole and D-060's field; a flight with strips or wakes alone, or neither, steps as in 21.
+        /// 19–21 on p7b-airframe--rotor-wake (off p7c-wind--d060's 19, D-060's open field): 20 left to the range branch; 21
+        ///    p7b-airframe 1.3d (the rotors in each other's wake, RotorWakeSpec there: Coleman's skewed vortex cylinder behind
+        ///    each rotor, its downwash on the rotors behind and its upwash beside and ahead, and its own fluctuation from the
+        ///    stream wake.rotor; a flight without the wake steps as in 19).
+        /// 19–23 on p7b-airframe--micro (off p7c-wind--d060's 19): 20–22 left to the other lines; 23 D-064's micro-motion
+        ///    (p7b-airframe 1.10: each rotor's own wake unsteadiness, RotorWakeSpec, from the stream rotor.wake; the re-ingested
+        ///    wash on published numbers, Dekker et al. 2023's onset and loop and Healy et al. 2021's level, answering in the
+        ///    torque too; and each motor's resistance, friction and inertia drawn per flight; a flight without the wake, with
+        ///    the motors' new spreads at 0 and model 19's recirculation steps as in 19). p7a-ground's branch also took 23.
+        /// 24: the physics integration: p7b-airframe--rotor-wake's 21 and p7b-airframe--micro's 23 merged onto 22 (the code
+        ///    is the parents' together): the rotor-rotor interference (RotorInterferenceSpec, its fluctuation from the stream
+        ///    rotor.interference, renamed from wake.rotor) and D-064's micro-motion with the map's wind. A flight without the
+        ///    interference steps as on the micro branch's 23 with 22's wind; one without D-064 (no own wake, the motors'
+        ///    spreads at 0, model 19's recirculation) steps as in 22 with the interference; one without either as in 22.
+        /// 23 on p6-flight-core--landing (off 22): 1.6c (D-067): the friction's stick spring stretches with the touching
+        ///    material's slip (its point velocity on the contact's tangent plane over the step), not with the contact point's
+        ///    move, so a rounded part rolls where it rolled as slip before: the coil rocks about its contact instead of pivoting
+        ///    on its axis; a flight that touches nothing steps as in 22.
+        /// 25: p6-flight-core--landing's 23 merged onto 24 (the code is the parents' together): 1.6c's stick spring under the
+        ///    interference and D-064's micro-motion. A flight with the stick anchor at the contact point steps as in 24; one
+        ///    that touches nothing steps as in 24 too.
+        /// 23–24 on p7b-airframe--power (off 22): 23 D-066, the drone's power and mass from published builds of its class
+        ///    (drone.json: the class's ESC, which senses no current, so no current limit, "none", for the assumed 40 A; the
+        ///    motors' published 1.4 A no-load current for the assumed 1.0; the packs 0.92 → 0.88 kg and the electronics 0.25 →
+        ///    0.24 kg from published cells, packs and the stack); on model 22's drone a flight steps as in 22. 24 the build's
+        ///    placement (BuildTolerance, PHY-24): the bottle, the packs, the coil and the leads where the pilot's hands set them
+        ///    this flight, drawn from "build.placement", so the centre of mass sits a few millimetres off the exact build's; a
+        ///    flight without it steps as in 23.
+        /// 26: p7b-airframe--power's 24 merged onto 25 (the code is the parents' together): D-066's power and mass and the
+        ///    build's placement with the interference, D-064's micro-motion and 1.6c's stick spring. On model 22's drone (the
+        ///    40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics) and without the placement a flight steps as in 25.
         /// </summary>
-        public const int ModelVersion = 18;
+        public const int ModelVersion = 26;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -143,14 +206,14 @@ namespace Fpv450.Sim.Log
         /// the touching pairs (1.6), then the controller's filter outputs and battery (1.4b), then the wind at each hub
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
-        /// airframe's modes (1.4).</summary>
-        public const int StepSize = 1808, EventSize = 72, EndSize = 48;
+        /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064).</summary>
+        public const int StepSize = 1904, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -164,7 +227,7 @@ namespace Fpv450.Sim.Log
             {
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
-                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance",
+                "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow",
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -289,6 +352,11 @@ namespace Fpv450.Sim.Log
             // The airframe's modes (p7b-airframe 1.4), lowest first; 0 past the body's count.
             for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_shape" + m, "m kg^0.5, mass-normalised", LogFieldType.F64);
             for (int m = 0; m < AirframeModes.MaxModes; m++) b.Add("mode_rate" + m, "m kg^0.5/s", LogFieldType.F64);
+            // The rotors in each other's wake (p7b-airframe 1.3d).
+            b.Corners("interference_inflow", "m/s, the other rotors' wakes' added inflow through the disc, + down; 0 without the interference");
+            b.Corners("interference_share", "the wakes' fluctuation, a share of that inflow");
+            // Each rotor's own wake (D-064).
+            b.Corners("wake_inflow", "the rotor's own wake inflow through the disc over v_h");
             return b.Done(StepSize);
         }
 
@@ -423,6 +491,9 @@ namespace Fpv450.Sim.Log
             w.C4(s.WashInflow);
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeShape[m]);
             for (int m = 0; m < AirframeModes.MaxModes; m++) w.F64(s.ModeRate[m]);
+            w.C4(t.InterferenceInflow);
+            w.C4(s.InterferenceShare);
+            w.C4(s.WakeInflow);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -529,6 +600,9 @@ namespace Fpv450.Sim.Log
             s.WashInflow = r.C4();
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeShape[m] = r.F64();
             for (int m = 0; m < AirframeModes.MaxModes; m++) s.ModeRate[m] = r.F64();
+            t.InterferenceInflow = r.C4();
+            s.InterferenceShare = r.C4();
+            s.WakeInflow = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

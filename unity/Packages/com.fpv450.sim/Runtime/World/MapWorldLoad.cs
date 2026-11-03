@@ -16,6 +16,7 @@
 // - The broad phase: an object of more than TreeShapes shapes gets a tree over their bounds
 //   (BuildTree) and is listed in the 2 m grid's cells by its bounds; every other object's
 //   shapes are listed there each by its own.
+// - Each variant's wind volumes placed at its rows' poses, and each row's group, for the wind (MapWorldWind.cs).
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -45,6 +46,7 @@ namespace Fpv450.Sim.World
             public Double3[][] WirePoints;
             public double[] WireRadius, WireSag;
             public ushort[] WireMaterial;
+            public WindRecord[] Wind;
         }
 
         /// <summary>The map maps/&lt;mapId&gt;/placements.json of the repository at `root`, with its metadata and the material table.</summary>
@@ -108,6 +110,8 @@ namespace Fpv450.Sim.World
             var rowMeta = new Meta[instances.Items.Count];
             var rowPosition = new Double3[rowMeta.Length];
             var rowYaw = new Quat[rowMeta.Length];
+            var rowYawRad = new double[rowMeta.Length];
+            var rowGroup = new string[rowMeta.Length];
             _names = new string[rowMeta.Length];
             int shapeCount = 0, wirePointCount = 0;
             for (int i = 0; i < rowMeta.Length; i++)
@@ -125,8 +129,11 @@ namespace Fpv450.Sim.World
                 }
                 rowMeta[i] = meta;
                 rowPosition[i] = Vector(row, "position_m", where);
+                rowYawRad[i] = Number(row, "yaw_deg", where) * (2 * HalfDegree);
                 DetMath.SinCos(Number(row, "yaw_deg", where) * HalfDegree, out double sin, out double cos);
                 rowYaw[i] = new Quat(0, sin, 0, cos);
+                JsonNode group = row.Member("group");
+                rowGroup[i] = group != null && group.Kind == JsonKind.String ? group.Text : null;
                 _names[i] = variant;
                 shapeCount += meta.Shapes.Length + meta.WirePoints.Length;
                 foreach (Double3[] points in meta.WirePoints)
@@ -163,6 +170,7 @@ namespace Fpv450.Sim.World
                 }
             }
             _first[rowMeta.Length] = at;
+            PlaceWind(rowMeta, rowPosition, rowYawRad, rowGroup);
 
             // The ground: the plane, the patches' footprints and the hole bands.
             JsonNode ground = Need(root, "ground", JsonKind.Object, file);
@@ -433,6 +441,7 @@ namespace Fpv450.Sim.World
                 WireRadius = new double[wires.Items.Count],
                 WireSag = new double[wires.Items.Count],
                 WireMaterial = new ushort[wires.Items.Count],
+                Wind = ParseWind(root, path),
             };
             for (int s = 0; s < collision.Items.Count; s++)
             {

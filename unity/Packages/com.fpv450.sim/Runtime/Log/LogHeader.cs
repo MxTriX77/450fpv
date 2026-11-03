@@ -80,7 +80,7 @@ namespace Fpv450.Sim.Log
     /// - the propulsion: the motors, the props with their curves, the packs (none for a bench's free body)
     /// - the airframe's drag (none for a bench's body), and the wind: its model ("field", p7c-wind 1.4), its level,
     ///   its start second and the level's preset by name (its per-flight draws are the randomness's), with the
-    ///   wakes' obstacles, the gust front and the canopy strip when the flight has them
+    ///   wakes' obstacles, the gust front and the canopy strips when the flight has them
     /// - the rain (p7c-wind 1.7): its level and its preset by name (its per-flight draws, the rate and the film's
     ///   thickness, are the randomness's), and the camera's lens position the feed's air velocity is taken at
     /// - the flight controller's settings, every field by its CLI name
@@ -104,7 +104,7 @@ namespace Fpv450.Sim.Log
         {
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
-            "Flapping", "Modes",
+            "RotorWake", "Flapping", "Interference", "Modes", "Placement",
         };
 
         /// <summary>The modes' fields the header records, checked against AirframeModesSpec by the suite.</summary>
@@ -117,15 +117,26 @@ namespace Fpv450.Sim.Log
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
         public static readonly string[] GroundEffectFieldsLogged =
         {
-            "Reach", "LowestHeight", "CeilingAlpha", "RecirculationOnset", "RecirculationSigma", "RecirculationBound",
-            "RecirculationLoop", "AirDensity",
+            "Reach", "LowestHeight", "CeilingAlpha", "RecirculationOnset", "RecirculationSigma", "RecirculationReference",
+            "RecirculationBound", "RecirculationLoop", "AirDensity",
         };
+
+        /// <summary>The rotor wake's fields the header records, checked against RotorWakeSpec by the suite.</summary>
+        public static readonly string[] RotorWakeFieldsLogged =
+            { "ThrustSigma", "CornerFrequency", "Bound", "AirDensity" };
 
         /// <summary>The flapping's fields the header records, checked against RotorFlappingSpec by the suite.</summary>
         public static readonly string[] FlappingFieldsLogged =
         {
             "LiftSlope", "ZeroLiftAngle", "BendingFrequency", "Southwell", "SkewGain", "Radius", "Blades", "BladeInertia",
             "Stations", "Chords", "Angles", "AirDensity",
+        };
+
+        /// <summary>The wake's fields the header records, checked against RotorInterferenceSpec by the suite.</summary>
+        public static readonly string[] InterferenceFieldsLogged =
+        {
+            "Radius", "AirDensity", "Stations", "Chords", "SkewStep", "SkewNodes", "OffsetStep", "TransportOnset", "TransportWhole",
+            "FluctuationSigma", "FluctuationBound", "FluctuationScale",
         };
 
         /// <summary>The contacts' fields the header records, checked against the types by the suite.</summary>
@@ -155,12 +166,21 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopy" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
-        public static readonly string[] AsymmetryFieldsLogged = { "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm" };
+        public static readonly string[] AsymmetryFieldsLogged =
+        {
+            "KvBound", "KvSigma", "EscLagBound", "BalanceGrade", "PropMass", "ServiceRpm", "ResistanceBound", "ResistanceSigma",
+            "FrictionBound", "FrictionSigma", "InertiaBound", "InertiaSigma",
+        };
+        public static readonly string[] PlacementFieldsLogged =
+        {
+            "BottleAcross", "BottleAlong", "PackAlong", "PackOut", "CoilAcross", "CoilAlong", "WiringMass", "WiringAcross",
+            "BottlePart", "CoilPart", "WiringPart", "PackParts",
+        };
         public static readonly string[] VortexRingFieldsLogged =
         {
             "EntryRate", "ExitRate", "PeakRate", "EndRate", "EntryInflow", "PeakInflow", "EscapeInPlane", "InflowLag", "FluctuationSigma",
@@ -171,7 +191,7 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21;
+            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -217,14 +237,23 @@ namespace Fpv450.Sim.Log
         /// <summary>The motors' asymmetry's tolerances; null for identical rotors (its draws are in Draws).</summary>
         public MotorAsymmetry Asymmetry;
 
+        /// <summary>The build's placement tolerances; null for the exact build (its draws are in Draws).</summary>
+        public BuildTolerance Placement;
+
         /// <summary>The rotors' vortex rings; null for none (their stream is in the randomness entry).</summary>
         public VortexRingSpec VortexRing;
 
         /// <summary>The rotors' ground and ceiling effect; null for none (the wash's stream is in the randomness entry).</summary>
         public GroundEffectSpec GroundEffect;
 
+        /// <summary>The rotors' own wake unsteadiness; null for perfectly steady rotors (its stream is in the randomness entry).</summary>
+        public RotorWakeSpec RotorWake;
+
         /// <summary>The rotors' flapping; null for none.</summary>
         public RotorFlappingSpec Flapping;
+
+        /// <summary>The rotors in each other's wake; null for none (its fluctuation's stream is in the randomness entry).</summary>
+        public RotorInterferenceSpec Interference;
 
         /// <summary>The airframe's modes; null for a rigid airframe.</summary>
         public AirframeModesSpec Modes;
@@ -297,9 +326,12 @@ namespace Fpv450.Sim.Log
                 CameraPosition = setup.CameraPosition,
                 Contacts = setup.Contacts?.Clone(),
                 Asymmetry = setup.Asymmetry?.Clone(),
+                Placement = setup.Placement?.Clone(),
                 VortexRing = setup.VortexRing?.Clone(),
                 GroundEffect = setup.GroundEffect?.Clone(),
+                RotorWake = setup.RotorWake?.Clone(),
                 Flapping = setup.Flapping?.Clone(),
+                Interference = setup.Interference?.Clone(),
                 Modes = setup.Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
@@ -339,7 +371,7 @@ namespace Fpv450.Sim.Log
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
                 new NamedValue("reference_height_m", p.ReferenceHeight), new NamedValue("cover_height_m", p.CoverHeight),
-                new NamedValue("roughness_over_cover", p.RoughnessRatio), new NamedValue("displacement_over_cover", p.DisplacementRatio),
+                new NamedValue("roughness_m", p.Roughness), new NamedValue("displacement_over_cover", p.DisplacementRatio),
                 new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
                 new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
                 new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
@@ -395,9 +427,12 @@ namespace Fpv450.Sim.Log
                 CameraPosition = CameraPosition,
                 Contacts = Contacts?.Clone(),
                 Asymmetry = Asymmetry?.Clone(),
+                Placement = Placement?.Clone(),
                 VortexRing = VortexRing?.Clone(),
                 GroundEffect = GroundEffect?.Clone(),
+                RotorWake = RotorWake?.Clone(),
                 Flapping = Flapping?.Clone(),
+                Interference = Interference?.Clone(),
                 Modes = Modes?.Clone(),
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
@@ -641,12 +676,12 @@ namespace Fpv450.Sim.Log
                     e.Write(g.Width);
                     e.Write(g.Uniform);
                 }
-                // The canopy strip (p7c-wind 1.5, format 9) after its flag.
-                CanopyStrip c = Wind.Canopy;
-                e.Write(c != null);
-                if (c == null) return;
-                foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
-                    e.Write(x);
+                // The canopy strips (p7c-wind 1.5, format 9; format 14 a count, 0 for none: a map's belt has one a section).
+                CanopyStrip[] strips = Wind.Canopies ?? new CanopyStrip[0];
+                e.Write((ushort)strips.Length);
+                foreach (CanopyStrip c in strips)
+                    foreach (double x in new[] { c.CentreX, c.CentreZ, c.AxisDeg, c.Length, c.Width, c.Height, c.FrontalAreaIndex })
+                        e.Write(x);
             });
             Entry(w, TagContacts, e =>
             {
@@ -705,6 +740,30 @@ namespace Fpv450.Sim.Log
                 e.Write(Asymmetry.BalanceGrade);
                 e.Write(Asymmetry.PropMass);
                 e.Write(Asymmetry.ServiceRpm);
+                e.Write(Asymmetry.ResistanceBound);
+                e.Write(Asymmetry.ResistanceSigma);
+                e.Write(Asymmetry.FrictionBound);
+                e.Write(Asymmetry.FrictionSigma);
+                e.Write(Asymmetry.InertiaBound);
+                e.Write(Asymmetry.InertiaSigma);
+            });
+            Entry(w, TagPlacement, e =>
+            {
+                e.Write(Placement != null);
+                if (Placement == null) return;
+                e.Write(Placement.BottleAcross);
+                e.Write(Placement.BottleAlong);
+                e.Write(Placement.PackAlong);
+                e.Write(Placement.PackOut);
+                e.Write(Placement.CoilAcross);
+                e.Write(Placement.CoilAlong);
+                e.Write(Placement.WiringMass);
+                e.Write(Placement.WiringAcross);
+                e.Write(Placement.BottlePart);
+                e.Write(Placement.CoilPart);
+                e.Write(Placement.WiringPart);
+                e.Write((ushort)Placement.PackParts.Length);
+                foreach (int p in Placement.PackParts) e.Write(p);
             });
             Entry(w, TagVortexRing, e =>
             {
@@ -725,9 +784,17 @@ namespace Fpv450.Sim.Log
                 GroundEffectSpec g = GroundEffect;
                 foreach (double x in new[]
                          {
-                             g.Reach, g.LowestHeight, g.CeilingAlpha, g.RecirculationOnset, g.RecirculationSigma, g.RecirculationBound,
-                             g.RecirculationLoop, g.AirDensity,
+                             g.Reach, g.LowestHeight, g.CeilingAlpha, g.RecirculationOnset, g.RecirculationSigma,
+                             g.RecirculationReference, g.RecirculationBound, g.RecirculationLoop, g.AirDensity,
                          })
+                    e.Write(x);
+            });
+            Entry(w, TagRotorWake, e =>
+            {
+                e.Write(RotorWake != null);
+                if (RotorWake == null) return;
+                RotorWakeSpec k = RotorWake;
+                foreach (double x in new[] { k.ThrustSigma, k.CornerFrequency, k.Bound, k.AirDensity })
                     e.Write(x);
             });
             Entry(w, TagFlapping, e =>
@@ -760,6 +827,25 @@ namespace Fpv450.Sim.Log
                     e.Write(x);
                 e.Write(m.PayloadPart);
                 e.Write(m.CoilPart);
+            });
+            Entry(w, TagInterference, e =>
+            {
+                e.Write(Interference != null);
+                if (Interference == null) return;
+                RotorInterferenceSpec k = Interference;
+                foreach (double x in new[]
+                         {
+                             k.Radius, k.AirDensity, k.SkewStep, k.OffsetStep, k.TransportOnset, k.TransportWhole, k.FluctuationSigma,
+                             k.FluctuationBound, k.FluctuationScale,
+                         })
+                    e.Write(x);
+                e.Write(k.SkewNodes);
+                e.Write((ushort)k.Stations.Length);
+                for (int i = 0; i < k.Stations.Length; i++)
+                {
+                    e.Write(k.Stations[i]);
+                    e.Write(k.Chords[i]);
+                }
             });
             Entry(w, TagRuntimeObjects, e =>
             {
@@ -1007,12 +1093,17 @@ namespace Fpv450.Sim.Log
                             {
                                 Start = V3(r), Normal = V3(r), Delta = V3(r), Speed = r.ReadDouble(), Width = r.ReadDouble(), Uniform = r.ReadBoolean(),
                             };
-                        if (r.ReadBoolean())
-                            Wind.Canopy = new CanopyStrip
-                            {
-                                CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
-                                Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
-                            };
+                        int strips = r.ReadUInt16();
+                        if (strips > 0)
+                        {
+                            Wind.Canopies = new CanopyStrip[strips];
+                            for (int i = 0; i < strips; i++)
+                                Wind.Canopies[i] = new CanopyStrip
+                                {
+                                    CentreX = r.ReadDouble(), CentreZ = r.ReadDouble(), AxisDeg = r.ReadDouble(), Length = r.ReadDouble(),
+                                    Width = r.ReadDouble(), Height = r.ReadDouble(), FrontalAreaIndex = r.ReadDouble(),
+                                };
+                        }
                         break;
                     case TagContacts:
                         Contacts = r.ReadBoolean() ? ReadContacts(r) : null;
@@ -1028,9 +1119,26 @@ namespace Fpv450.Sim.Log
                             ? new MotorAsymmetry
                             {
                                 KvBound = r.ReadDouble(), KvSigma = r.ReadDouble(), EscLagBound = r.ReadDouble(), BalanceGrade = r.ReadDouble(),
-                                PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(),
+                                PropMass = r.ReadDouble(), ServiceRpm = r.ReadDouble(), ResistanceBound = r.ReadDouble(),
+                                ResistanceSigma = r.ReadDouble(), FrictionBound = r.ReadDouble(), FrictionSigma = r.ReadDouble(),
+                                InertiaBound = r.ReadDouble(), InertiaSigma = r.ReadDouble(),
                             }
                             : null;
+                        break;
+                    case TagPlacement:
+                        if (!r.ReadBoolean())
+                        {
+                            Placement = null;
+                            break;
+                        }
+                        Placement = new BuildTolerance
+                        {
+                            BottleAcross = r.ReadDouble(), BottleAlong = r.ReadDouble(), PackAlong = r.ReadDouble(), PackOut = r.ReadDouble(),
+                            CoilAcross = r.ReadDouble(), CoilAlong = r.ReadDouble(), WiringMass = r.ReadDouble(), WiringAcross = r.ReadDouble(),
+                            BottlePart = r.ReadInt32(), CoilPart = r.ReadInt32(), WiringPart = r.ReadInt32(),
+                        };
+                        Placement.PackParts = new int[r.ReadUInt16()];
+                        for (int k = 0; k < Placement.PackParts.Length; k++) Placement.PackParts[k] = r.ReadInt32();
                         break;
                     case TagVortexRing:
                         VortexRing = r.ReadBoolean()
@@ -1048,8 +1156,18 @@ namespace Fpv450.Sim.Log
                             ? new GroundEffectSpec
                             {
                                 Reach = r.ReadDouble(), LowestHeight = r.ReadDouble(), CeilingAlpha = r.ReadDouble(),
-                                RecirculationOnset = r.ReadDouble(), RecirculationSigma = r.ReadDouble(), RecirculationBound = r.ReadDouble(),
+                                RecirculationOnset = r.ReadDouble(), RecirculationSigma = r.ReadDouble(),
+                                RecirculationReference = r.ReadDouble(), RecirculationBound = r.ReadDouble(),
                                 RecirculationLoop = r.ReadDouble(), AirDensity = r.ReadDouble(),
+                            }
+                            : null;
+                        break;
+                    case TagRotorWake:
+                        RotorWake = r.ReadBoolean()
+                            ? new RotorWakeSpec
+                            {
+                                ThrustSigma = r.ReadDouble(), CornerFrequency = r.ReadDouble(), Bound = r.ReadDouble(),
+                                AirDensity = r.ReadDouble(),
                             }
                             : null;
                         break;
@@ -1074,6 +1192,27 @@ namespace Fpv450.Sim.Log
                             Flapping.Stations[i] = r.ReadDouble();
                             Flapping.Chords[i] = r.ReadDouble();
                             Flapping.Angles[i] = r.ReadDouble();
+                        }
+                        break;
+                    case TagInterference:
+                        if (!r.ReadBoolean())
+                        {
+                            Interference = null;
+                            break;
+                        }
+                        Interference = new RotorInterferenceSpec
+                        {
+                            Radius = r.ReadDouble(), AirDensity = r.ReadDouble(), SkewStep = r.ReadDouble(), OffsetStep = r.ReadDouble(),
+                            TransportOnset = r.ReadDouble(), TransportWhole = r.ReadDouble(), FluctuationSigma = r.ReadDouble(), FluctuationBound = r.ReadDouble(), FluctuationScale = r.ReadDouble(),
+                            SkewNodes = r.ReadInt32(),
+                        };
+                        int wakeStations = r.ReadUInt16();
+                        Interference.Stations = new double[wakeStations];
+                        Interference.Chords = new double[wakeStations];
+                        for (int i = 0; i < wakeStations; i++)
+                        {
+                            Interference.Stations[i] = r.ReadDouble();
+                            Interference.Chords[i] = r.ReadDouble();
                         }
                         break;
                     case TagModes:

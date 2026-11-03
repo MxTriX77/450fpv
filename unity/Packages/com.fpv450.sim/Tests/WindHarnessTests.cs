@@ -9,7 +9,8 @@ namespace Fpv450.Sim.Tests
     // p7c-wind 1.2, K§8.5's acceptance harness (WindHarness, HarnessPilot): the tracker's angles are the ZYX angles;
     // the simulated pilot's test flight, at the cruise clip P's pitch flies (p7c-wind 1.6), reproduces the crosswind
     // lean p6-flight-core 1.5's scenario gives there, and a drone without drag (a known-wrong model) fails it; the camera log is track_attitude.py's CSV at 29.917 Hz
-    // as wind_stats.py's reader takes it; the start rule finds a stretch with the wind on the left. tools/flightbench
+    // as wind_stats.py's reader takes it, each frame at the recorder's field pick; the start rule finds a stretch with the
+    // wind on the left. tools/flightbench
     // --wind-harness flies the same code and writes the files.
     public sealed class WindHarnessTests
     {
@@ -149,6 +150,132 @@ namespace Fpv450.Sim.Tests
                 Assert.That(Math.Abs(((h[s] - drawn) % 360 + 540) % 360 - 180), Is.LessThan(90), "second " + s);
             var late = new WindField(new WindSetup { Level = WindLevel.Severe, StartSecond = start }, new FlightRandom(9));
             Assert.That(late.FromDegAt(0), Is.EqualTo(h[start]));
+        }
+
+        // D-060, K§8.4: the nominal pilot's split per stretch reads clip P's roll share of the thrust tilt over the field,
+        // 0.80 (wind_stats.py's cov(roll, e)/var(e) on the residuals about the 0.6 s trend, e = roll + k·heading); K§8.5's
+        // single 0.64 everywhere (the harness before D-060, the known-wrong) reads about 0.51 there.
+        [Test]
+        public void TheSplitReadsClipPsRollShare()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double Share(WindHarness.Pilot pilot)
+            {
+                double cov = 0, var = 0;
+                for (int i = 0; i < 5; i++)
+                {
+                    WindHarness.Run r = WindHarness.Fly(spec, WindLevel.Severe, (ulong)i + 1, i, 5, pilot);
+                    double heading = 0, pitch = 0;
+                    var roll = new System.Collections.Generic.List<double>();
+                    var head = new System.Collections.Generic.List<double>();
+                    void Close()
+                    {
+                        double[] a = MicroMotion.Residual(roll.ToArray(), HarnessPilot.CameraHz), h = MicroMotion.Residual(head.ToArray(), HarnessPilot.CameraHz);
+                        double k = -Math.Sin(pitch * DegToRad);
+                        for (int j = 0; j < a.Length; j++)
+                        {
+                            double e = a[j] + k * h[j];
+                            cov += a[j] * e;
+                            var += e * e;
+                        }
+                        roll.Clear();
+                        head.Clear();
+                    }
+                    pitch = r.MeanPitchDeg;
+                    foreach (WindHarness.Sample x in r.Samples)
+                    {
+                        heading += x.YawRateDps / HarnessPilot.CameraHz;
+                        if (x.Usable && !x.InBelt)
+                        {
+                            roll.Add(x.RollDeg);
+                            head.Add(heading);
+                        }
+                        else if (roll.Count > 0) Close();
+                    }
+                    if (roll.Count > 0) Close();
+                }
+                return cov / var;
+            }
+            WindHarness.Pilot nominal = WindHarness.Pilots[0];
+            var single = new WindHarness.Pilot { Name = "single", FieldSplit = 0.64, BeltSplit = 0.64 };
+            double share = Share(nominal), wrong = Share(single);
+            TestContext.Out.WriteLine($"field roll share, Severe seeds 1–5: {share:F3} at s {nominal.FieldSplit} (P 0.80); K§8.5's single 0.64: {wrong:F3}");
+            Assert.That(share, Is.EqualTo(0.80).Within(0.06));
+            Assert.That(Math.Abs(wrong - 0.80), Is.GreaterThan(0.06), "the single 0.64 split does not read P's share");
+        }
+
+        // D-060: the harness pilot's stick noise is the optimal-control model's motor noise. On a command of known variance
+        // (a 1 Hz sinusoid, σ_c² = A²/2) its variance is π·ρ_u·σ_c² through the neuromotor lag, (1 − a)/(1 + a)·π·ρ_u·σ_c²/Δt
+        // at the 250 Hz reports (a = e^(−Δt/τ_n)), with ρ_u at −25 dB, and its lag-1 correlation is a. The observation
+        // noise's −20 dB in its place (3.2× the variance) fails; without UseRemnant the pilot is noiseless (the grade's
+        // known-wrong family).
+        [Test]
+        public void TheStickNoiseIsTheModelsMotorNoise()
+        {
+            double Variance(double db, out double lag1)
+            {
+                var pilot = new HarnessPilot(null) { MotorNoiseDb = db };
+                pilot.UseRemnant(7);
+                const double amplitude = 40; // °/s
+                double sum = 0, sum2 = 0, cross = 0, last = 0;
+                int n = 0;
+                for (long k = 0; k < 250 * 300; k++)
+                {
+                    double noise = pilot.Motor(1, amplitude * Math.Sin(2 * Math.PI * k / 250.0), k, true);
+                    if (k >= 250 * 30)
+                    {
+                        sum += noise;
+                        sum2 += noise * noise;
+                        cross += noise * last;
+                        n++;
+                    }
+                    last = noise;
+                }
+                double mean = sum / n, v = sum2 / n - mean * mean;
+                lag1 = (cross / n - mean * mean) / v;
+                return v / (amplitude * amplitude / 2);
+            }
+            double dt = 0.004, a = Math.Exp(-dt / 0.1);
+            double expected = (1 - a) / (1 + a) * Math.PI * Math.Pow(10, -2.5) / dt;
+            double got = Variance(-25, out double lag1), wrong = Variance(-20, out _);
+            TestContext.Out.WriteLine($"stick noise over the command's variance: {got:F4} (the model's {expected:F4}); lag-1 correlation {lag1:F4} ({a:F4}); "
+                + $"at −20 dB {wrong:F4}");
+            Assert.That(got / expected, Is.EqualTo(1).Within(0.1));
+            Assert.That(lag1, Is.EqualTo(a).Within(0.01));
+            Assert.That(Math.Abs(wrong / expected - 1), Is.GreaterThan(0.1), "−20 dB is not the motor noise's ratio");
+        }
+
+        // D-060, hover-micro-motion.md §2.3: each logged frame shows the newest whole PAL field at its horizon row, as the
+        // recorder writes it at its 29.917 Hz ticks, so the frames' instants jitter by a field (σ 20/√12 = 5.8 ms) against
+        // the tracker's uniform clock. The uniform clock (the harness before D-060, the known-wrong) has no such spread.
+        [Test]
+        public void TheFramesShowTheRecordersFieldPick()
+        {
+            const int frames = 1800; // a minute
+            var lag = new double[frames];
+            var uniform = new double[frames];
+            for (int f = 1; f < frames; f++)
+            {
+                double tick = f * 1000 / HarnessPilot.CameraHz; // ms after the release
+                long pick = WindHarness.FieldStep(f);
+                Assert.That((pick - 5) % 20, Is.EqualTo(0), "a field's horizon row, frame " + f);
+                Assert.That(pick - 5 + 20, Is.LessThanOrEqualTo(tick), "a whole field by the tick, frame " + f);
+                Assert.That(pick - 5 + 40, Is.GreaterThan(tick), "the newest, frame " + f);
+                lag[f] = tick - pick;
+                uniform[f] = Math.Ceiling(tick - 1e-9) - tick;
+            }
+            static double Spread(double[] x)
+            {
+                double m = 0, v = 0;
+                for (int i = 1; i < x.Length; i++) m += x[i] / (x.Length - 1);
+                for (int i = 1; i < x.Length; i++) v += (x[i] - m) * (x[i] - m) / (x.Length - 2);
+                return Math.Sqrt(v);
+            }
+            bool AField(double sigma) => Math.Abs(sigma / (20 / Math.Sqrt(12)) - 1) <= 0.1;
+            double picked = Spread(lag), clock = Spread(uniform);
+            TestContext.Out.WriteLine($"the frames' instants jitter by σ {picked:F2} ms (a field's 5.77); the uniform clock's {clock:F2} ms");
+            Assert.That(AField(picked), Is.True);
+            Assert.That(AField(clock), Is.False, "the uniform clock (the known-wrong) has no field's jitter");
         }
     }
 }

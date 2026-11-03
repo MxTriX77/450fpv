@@ -43,11 +43,18 @@ namespace Fpv450.Sim.Wind
         public double ReferenceHeight;
 
         /// <summary>The cover's height, m (assumed: stubble and low crop, clip P's open fields; 1.3's wake grid brings
-        /// the world's own).</summary>
+        /// the world's own). Below d + z0 the field is still.</summary>
         public double CoverHeight;
 
-        /// <summary>z0 and d over the cover's height (published rules of thumb, K§6.7: z0 ≈ 0.1·h, d ≈ 0.67·h).</summary>
-        public double RoughnessRatio, DisplacementRatio;
+        /// <summary>d over the cover's height (published rule of thumb, K§6.7: d ≈ 0.67·h): the stubble's 0.2 m.</summary>
+        public double DisplacementRatio;
+
+        /// <summary>z0, m: the landscape's effective roughness, not the stubble's (published: Davenport–Wieringa class 4,
+        /// "roughly open", z0 0.10 m: open farmland with low crops and obstacles such as tree rows at 20 heights or more
+        /// apart, Wieringa 1992, Davenport et al. 2000, WMO-No. 8's table; recalled, not re-read). The field at 35 m answers
+        /// to the fetch's kilometres upwind, clip P's farmland with its belts, so its u* and σ follow from them
+        /// (D-060; hover-micro-motion.md §4 row 2). The stubble's own z0 ≈ 0.1·h = 0.03 m is the known-wrong.</summary>
+        public double Roughness;
 
         /// <summary>The log law's top, m: above it the mean holds (assumed: the neutral surface layer's depth, about a
         /// tenth of a 1 km boundary layer).</summary>
@@ -59,9 +66,16 @@ namespace Fpv450.Sim.Wind
 
         // ---- the turbulence (K§6.7 layer 2): von Kármán, as random Fourier modes ----
 
-        /// <summary>σ_u/U = σ_v/U at every height (assumed: the middle of K§6.7's 0.12–0.15; the neutral surface layer's
-        /// σ_u ≈ 2.4·u*, constant with height (published, Panofsky and Dutton), gives 0.136 at 35 m over z0 = 0.03 m).</summary>
+        /// <summary>σ_u/U = σ_v/U at every height (derived, SurfaceIntensity: the neutral surface layer's σ_u = 2.4·u*
+        /// over the log law's u* = κ·U/ln((z_ref − d)/z0) at the reference height: 0.164 over class 4's z0 0.10 m; the
+        /// stubble's 0.03 m gave 0.136, the first attempt's K§6.7 assumed 0.12–0.15).</summary>
         public double Intensity;
+
+        /// <summary>σ_u/u* in the neutral surface layer, constant with height (published: Panofsky and Dutton 1984).</summary>
+        public const double SurfaceSigmaU = 2.4;
+
+        /// <summary>Von Kármán's constant (published).</summary>
+        public const double Karman = 0.4;
 
         /// <summary>σ_w/σ_u (derived: MIL-HDBK-1797's low-altitude (0.177 + 0.000823·h)^0.4 at h = 35 m = 114.8 ft).</summary>
         public double VerticalRatio;
@@ -75,12 +89,14 @@ namespace Fpv450.Sim.Wind
         /// isotropic scale of w is h, at 35 m; K§6.7's "L_w ≈ the height").</summary>
         public double VerticalScale;
 
-        /// <summary>The modes (assumed: about 34 per decade of wavenumber, so the drone's 0.1–20 Hz sees a near-normal
-        /// sum).</summary>
+        /// <summary>The modes (assumed: about 34 per decade of wavenumber, so the drone's 0.1–40 Hz sees a near-normal sum;
+        /// 128 to the 1 m cut, 138 to 0.5 m keeps the modes per e-fold, derived).</summary>
         public int Modes;
 
-        /// <summary>The shortest wavelength, m (assumed: a rotor's 0.254 m disc averages shorter eddies' inflow, and they
-        /// carry 0.7 % of the variance).</summary>
+        /// <summary>The shortest wavelength, m (derived, D-060: twice a rotor's 0.254 m disc. The disc averages shorter
+        /// eddies' inflow, and a hub's point sample of them would overstate what it feels; down to 2D the inertial range
+        /// reaches the rotors' 0.32–0.45 m spacing, the per-rotor gradient that moves the camera above 4 Hz. The 1 m cut
+        /// before it is the known-wrong: at the 20.6 m/s cruise it leaves the encounter's 20–30 Hz almost empty).</summary>
         public double ShortestWavelength;
 
         /// <summary>The longest scale as a fraction of the spectrum's knee: k_min = this / (1.339·L_u) (assumed: the
@@ -109,7 +125,8 @@ namespace Fpv450.Sim.Wind
         /// Finnigan (1994)'s h/3, recalled) is the isotropic form's lateral scale, half its L).</summary>
         public double CanopyScaleU, CanopyScaleW;
 
-        /// <summary>The canopy eddies' random Fourier modes (assumed: about 23 per decade over their 2.7 decades).</summary>
+        /// <summary>The canopy eddies' random Fourier modes (assumed: about 23 per decade over their 3.1 decades to the
+        /// 0.5 m cut on the harness's 17.5 m strip; 64 to the 1 m cut, derived to keep the modes per e-fold).</summary>
         public int CanopyModes;
 
         /// <summary>The canopy eddies' convection velocity over U(h) (published: U_c ≈ 1.8·U(h), Finnigan, Shaw and Patton
@@ -149,16 +166,16 @@ namespace Fpv450.Sim.Wind
             MeanHi = centre * (1 + Band);
             ReferenceHeight = 35;
             CoverHeight = 0.3;
-            RoughnessRatio = 0.1;
             DisplacementRatio = 0.67;
+            Roughness = 0.10;
             ProfileTop = 100;
             TaperHeight = 1;
-            Intensity = 0.135;
+            Intensity = SurfaceIntensity(Roughness, DisplacementRatio * CoverHeight, ReferenceHeight);
             VerticalRatio = 0.594;
             HorizontalScale = 167;
             VerticalScale = 35;
-            Modes = 128;
-            ShortestWavelength = 1;
+            Modes = 138;
+            ShortestWavelength = 0.5;
             LongestFraction = 0.25;
             WakeEddyMin = 0.6;
             WakeEddyMax = 2.4;
@@ -168,7 +185,7 @@ namespace Fpv450.Sim.Wind
             CanopySigmaW = 1.1;
             CanopyScaleU = 1.0;
             CanopyScaleW = 0.6;
-            CanopyModes = 64;
+            CanopyModes = 71;
             CanopyConvection = 1.8;
             CanopyDecay = 0.5;
             BlendingHeights = 3;
@@ -196,15 +213,17 @@ namespace Fpv450.Sim.Wind
             }
         }
 
-        /// <summary>z0, m.</summary>
-        public double Roughness => RoughnessRatio * CoverHeight;
+        /// <summary>σ_u/U at a reference height over a roughness z0 and a displacement d (m): 2.4·κ / ln((z_ref − d)/z0),
+        /// the neutral surface layer's (derived).</summary>
+        public static double SurfaceIntensity(double z0, double d, double referenceHeight) =>
+            SurfaceSigmaU * Karman / DetMath.Log((referenceHeight - d) / z0);
 
         /// <summary>d, m.</summary>
         public double Displacement => DisplacementRatio * CoverHeight;
 
         internal void Check()
         {
-            if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(RoughnessRatio > 0) || !(DisplacementRatio >= 0)
+            if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(Roughness > 0) || !(DisplacementRatio >= 0)
                 || !(ReferenceHeight > Displacement + Roughness) || !(ProfileTop >= ReferenceHeight) || !(TaperHeight > 0)
                 || !(Intensity >= 0) || !(VerticalRatio >= 0) || !(HorizontalScale > 0) || !(VerticalScale > 0) || Modes < 1
                 || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(WakeEddyMin > 0 && WakeEddyMax >= WakeEddyMin) || WakeModes < 1
@@ -229,7 +248,8 @@ namespace Fpv450.Sim.Wind
     ///   velocity is linear and its drift (the integral) exact.
     /// - **The mean profile:** the drawn strength U (wind.strength, uniform in the level's band) at the reference
     ///   height, scaled by the log law ln((z − d)/z0) / ln((z_ref − d)/z0), z the height over the ground under the
-    ///   body, held above ProfileTop, 0 at and below d + z0 (inside the cover). Horizontal.
+    ///   body, z0 the landscape's and d the cover's, held above ProfileTop, 0 at and below d + z0 (inside the cover).
+    ///   Horizontal.
     /// - **The turbulence:** von Kármán's isotropic spectrum E(k) = C·σ²·(k/k_e)^4 / (1 + (k/k_e)²)^(17/6),
     ///   k_e = 1/(1.339·L), C·k_e·½B(5/2, 1/3) = 1.5 (so ∫E = 1.5·σ² and its 1-D spectra are MIL-HDBK-1797's), as
     ///   Modes random Fourier modes in log-spaced bands from k_min to 2π/ShortestWavelength: per mode a wavenumber
@@ -246,9 +266,13 @@ namespace Fpv450.Sim.Wind
     ///   / (λ·H) + φ), κ̂ uniform on the sphere, ĉ across it (vorticity, no divergence) at a uniform angle, λ uniform in
     ///   WakeEddyMin–WakeEddyMax, φ uniform (wind.wake's draws 5·m to 5·m + 4, counter-based), a = √(6/WakeModes), so each
     ///   component has unit σ; H is the sample's ObstacleHeight. Frozen and advected with the drift, as the open modes.
-    /// - **A wooded strip's canopy flow** (p7c-wind 1.5, CanopyFlow), when the setup has one (never with wakes): inside
-    ///   the strip and below its blending height, the canopy's mean profile blended in by the plan weight w, the open
-    ///   modes scaled by 1 − w·(1 − r), r the canopy's fall of σ below its top, and its own eddies by r·√(w·layer).
+    /// - **Wooded strips' canopy flow** (p7c-wind 1.5, CanopyFlow), when the setup has them: inside a strip and below its
+    ///   blending height, the canopy's mean profile blended in by the plan weight w, the open modes scaled by
+    ///   1 − w·(1 − r), r the canopy's fall of σ below its top, and its own eddies by r·√(w·layer). With wakes too (a
+    ///   map's, MapWind: the belt's plants are the strips and, for its lee, one porous obstacle per strip, never their
+    ///   own volumes), the point is shared once: the canopy takes w of the mean, U·(w·U_c(z)/U + (1 − w)·P(z)·s), P the
+    ///   open profile and s the wake grid's speed, and the wake eddies carry √(1 − w) of their excess. Outside every
+    ///   strip, or above its blending height, the wakes alone.
     /// - **A gust front** (GustFront), only when the setup has one.
     /// Randomness enters only the wind's velocity, a physical parameter, and reaches the body only through the drag and
     /// rotor forces (flight-randomness): never the pose. Begin fixes a step's frame (its time, the drift, each mode's
@@ -299,8 +323,8 @@ namespace Fpv450.Sim.Wind
         readonly double[] _eddyScale, _eddyPhase, _eddyOffset;
         readonly GustFront _front;
 
-        // A wooded strip's canopy layer (p7c-wind 1.5), or null.
-        readonly CanopyFlow _canopy;
+        // The wooded strips' canopy layers (p7c-wind 1.5), or null.
+        readonly CanopyFlow[] _canopies;
 
         // The step's frame (Begin).
         double _t, _ground;
@@ -316,10 +340,8 @@ namespace Fpv450.Sim.Wind
             Setup = setup;
             Preset = preset;
             _front = setup.Front?.Checked();
-            if ((setup.Wakes != null || setup.Canopy != null) && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
+            if ((setup.Wakes != null || setup.Canopies != null) && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
                 throw new ArgumentException("wakes and a canopy need a pilot's level", nameof(setup));
-            if (setup.Wakes != null && setup.Canopy != null)
-                throw new ArgumentException("a canopy strip with wakes is not modelled: the wake grid would read its trees as a thin obstacle", nameof(setup));
             if (setup.StartSecond != 0 && (setup.Level == WindLevel.Still || setup.Level == WindLevel.Steady))
                 throw new ArgumentException("a start second needs a pilot's level", nameof(setup));
             switch (setup.Level)
@@ -400,8 +422,14 @@ namespace Fpv450.Sim.Wind
                 bound2 += DetMath.Abs(_amp[m].Z);
             }
             Bound = new Double3(bound0, bound1, bound2);
-            if (setup.Canopy != null)
-                _canopy = new CanopyFlow(setup.Canopy, preset, FromDeg, MeanSpeed, Profile, SigmaH, SigmaV, random);
+            if (setup.Canopies != null)
+            {
+                if (setup.Canopies.Length == 0) throw new ArgumentException("a setup's strips are null or at least one", nameof(setup));
+                SeedStream canopy = random.Open("wind.canopy");
+                _canopies = new CanopyFlow[setup.Canopies.Length];
+                for (int i = 0; i < _canopies.Length; i++)
+                    _canopies[i] = new CanopyFlow(setup.Canopies[i], preset, FromDeg, MeanSpeed, Profile, SigmaH, SigmaV, canopy);
+            }
             if (setup.Wakes == null) return;
 
             // The wakes (p7c-wind 1.5): the grid for the history's first bearing, and the eddies from the counter-based
@@ -451,8 +479,8 @@ namespace Fpv450.Sim.Wind
 
         /// <summary>
         /// Fixes the frame of the step that starts at `step`: its time, the mean wind at the reference height and its
-        /// drift, each mode's phase offset, the body's origin (world) and the ground's height under it (m; not finite
-        /// in a hole, which the field takes as sheltered until 1.3's cavity).
+        /// drift, each mode's phase offset, the body's origin (world) and the ground's height under it (m: over a hole the
+        /// soil's, FlightWorld.SoilUnder; −∞ for no ground under it, which the field takes as sheltered).
         /// </summary>
         public void Begin(long step, in Double3 origin, double ground)
         {
@@ -479,7 +507,7 @@ namespace Fpv450.Sim.Wind
             _drift = new Double3(_cx[j] + (_vx[j] + 0.5 * ax * f) * f, 0, _cz[j] + (_vz[j] + 0.5 * az * f) * f);
             for (int m = 0; m < _wave.Length; m++)
                 _offset[m] = _phase[m] - (_wave[m].X * _drift.X + _wave[m].Z * _drift.Z);
-            _canopy?.Begin(_drift);
+            if (_canopies != null) foreach (CanopyFlow c in _canopies) c.Begin(_drift);
             if (_wakes == null) return;
             _wakes.Step(step, _fromDeg[j] + (_fromDeg[k] - _fromDeg[j]) * f);
             for (int m = 0; m < _eddyDir.Length; m++)
@@ -516,8 +544,11 @@ namespace Fpv450.Sim.Wind
             return new Double3(x, y, z);
         }
 
-        /// <summary>The wind's canopy layer, or null without a canopy strip.</summary>
-        public CanopyFlow Canopy => _canopy;
+        /// <summary>The first strip's canopy layer, or null without a canopy strip.</summary>
+        public CanopyFlow Canopy => _canopies?[0];
+
+        /// <summary>Every strip's canopy layer in the setup's order, or null without one.</summary>
+        public CanopyFlow[] Canopies => _canopies;
 
         // The open field's mean at a height over the ground, over the reference height's.
         double Profile(double h) => DetMath.Log((DetMath.Min(h, _top) - _d) / _z0) / _logRef;
@@ -525,20 +556,38 @@ namespace Fpv450.Sim.Wind
         Double3 Air(in Double3 point)
         {
             double h = point.Y - _ground;
-            if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or sheltered in a hole
+            if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or with no ground under it
             double profile = Profile(h);
             double taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight);
-            if (_canopy != null && h < _canopy.BlendingHeight)
+            if (_canopies != null)
             {
-                // The strip's layer (CanopyFlow): its mean blended in by the plan weight, the open modes falling with its
-                // σ inside, its eddies carrying the rest.
-                double w = _canopy.Weight(point);
+                // The strip whose layer holds the point (CanopyFlow; a map's strips never overlap): its mean blended in by
+                // the plan weight, the open modes falling with its σ inside, its eddies carrying the rest.
+                CanopyFlow c = null;
+                double w = 0;
+                foreach (CanopyFlow strip in _canopies)
+                {
+                    if (!(h < strip.BlendingHeight)) continue;
+                    double ws = strip.Weight(point);
+                    if (ws > w) { w = ws; c = strip; }
+                }
                 if (w > 0)
                 {
-                    double r = _canopy.Decay(h);
-                    double speed = profile + w * (_canopy.Speed(h) / MeanSpeed - profile);
-                    return _mean * speed + Turbulence(point) * (taper * (1 - w * (1 - r)))
-                        + _canopy.Eddies(point) * (taper * r * DetMath.Sqrt(w * _canopy.Layer(h)));
+                    double r = c.Decay(h);
+                    Double3 open = Turbulence(point) * (taper * (1 - w * (1 - r)));
+                    Double3 canopy = c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
+                    if (_wakes == null)
+                    {
+                        double speed = profile + w * (c.Speed(h) / MeanSpeed - profile);
+                        return _mean * speed + open + canopy;
+                    }
+                    // With wakes (MapWind's rule): the canopy takes w of the mean and the wake grid the rest, and the wake
+                    // eddies √(1 − w) of their excess, so the belt is counted once.
+                    _wakes.Sample(point.X, point.Z, h, out WakeSample b);
+                    Double3 mixed = _mean * ((1 - w) * profile * b.Speed + w * (c.Speed(h) / MeanSpeed)) + open + canopy;
+                    double b2 = b.Turbulence * b.Turbulence - 1;
+                    if (!(b2 > 0) || !(b.ObstacleHeight > 0)) return mixed;
+                    return mixed + WakeEddies(point, 1 / b.ObstacleHeight) * (DetMath.Sqrt(b2) * SigmaH * (taper * DetMath.Sqrt(1 - w)));
                 }
             }
             Double3 turbulence = Turbulence(point) * taper;
@@ -547,7 +596,12 @@ namespace Fpv450.Sim.Wind
             Double3 wind = _mean * (profile * s.Speed) + turbulence;
             double t2 = s.Turbulence * s.Turbulence - 1;
             if (!(t2 > 0) || !(s.ObstacleHeight > 0)) return wind;
-            double inv = 1 / s.ObstacleHeight;
+            return wind + WakeEddies(point, 1 / s.ObstacleHeight) * (DetMath.Sqrt(t2) * SigmaH * taper);
+        }
+
+        // The wake eddies' sum at a point for an obstacle of height 1/inv, each component of unit σ.
+        Double3 WakeEddies(in Double3 point, double inv)
+        {
             Double3 eddies = default;
             for (int m = 0; m < _eddyDir.Length; m++)
             {
@@ -556,7 +610,7 @@ namespace Fpv450.Sim.Wind
                 DetMath.SinCos(along * _eddyScale[m] * inv + _eddyPhase[m], out _, out double cos);
                 eddies = eddies + _eddyAmp[m] * cos;
             }
-            return wind + eddies * (DetMath.Sqrt(t2) * SigmaH * taper);
+            return eddies;
         }
 
         /// <summary>The wind's velocity of a speed blowing from a bearing, world (+X east, +Z north), m/s.</summary>

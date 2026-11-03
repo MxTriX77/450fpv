@@ -8,7 +8,7 @@
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in (now a test fixture); this researched file sets false",
     "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read). A part is a mass shape: its inertia, not its look (the props and arms say how they map)",
-    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command lag: the DShot frame, the PWM and the winding's L/R as one first-order lag), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command lag: the DShot frame, the PWM and the winding's L/R as one first-order lag), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives; \"none\" for an ESC that senses no current); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load",
     "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends; h_force_n_per_m_s (the rotor's in-plane drag, the H-force, per m/s of its hub's in-plane airspeed at reference_rpm, growing in proportion to the rotor's speed)",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
     "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end, where it meets level ground), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m (the foot's curvature); legs off is legs_off's build",
@@ -125,19 +125,19 @@
     },
     {
       "name": "electronics", "kind": "box", "material": "electronics",
-      "mass_kg": {"value": 0.25, "label": "assumed", "note": "the stack 45 g, capacitor 10 g, camera 6 g (5.9 g published), fiber module 50 g, wiring and connectors 100 g, straps and ties 40 g: 0.25 kg (0.18–0.30, the sheet)"},
+      "mass_kg": {"value": 0.24, "label": "assumed", "note": "D-066: the stack 34 g (published: the class's SpeedyBee F405 V4 flight controller 10.5 g and its BLS 60A 4-in-1 ESC 23.5 g, fpv24.com; the stack the Amaga / Vyriy 10 Opto build lists), capacitor 10 g, camera 6 g (5.9 g published), fiber module 50 g, wiring and connectors 100 g, straps and ties 40 g (assumed): 0.24 kg (0.18–0.30, the sheet); model 22 had the stack at an assumed 45 g, 0.25 kg"},
       "position_m": {"value": [0, 0.015, 0.01], "label": "assumed", "note": "the 30.5 mm stack between the plates with the camera at the front (the sheet): fitted between the top plate's top at y +0.005 and the upper plate's underside at +0.025 as the drone model draws them (p5-drone, plates), centred at +0.015 (derived); fore-aft as the sheet"},
       "size_m": {"value": [0.06, 0.02, 0.10], "label": "assumed", "note": "the sheet's plan; its height the 20 mm between the plates (derived), which the FC and ESC stack and the 19 mm camera fill (assumed)"}
     },
     {
       "name": "pack_left", "kind": "box", "material": "li_ion",
-      "mass_kg": {"value": 0.92, "label": "derived", "note": "6S2P of Molicel P50B: 12 cells of 71 g (published) = 0.852 kg, plus 8 % nickel strip, wrap and leads (assumed, the sheet)"},
+      "mass_kg": {"value": 0.88, "label": "derived", "note": "D-066: 6S2P of Molicel P50B, 12 cells of 70.5 g (published: 70 g nkon.nl, 71 ± 1 g akkuteile.de) = 0.846 kg, plus the strip, wrap, leads and balance lead of a published 6S2P 21700 pack, 0.03 kg (the Flywoo Explorer 6S2P P45B, 860.7 g, unmannedtechshop.co.uk, over its 12 cells of 68–70 g, published: 21–45 g); published cells and packs span 0.84–0.92 kg; model 22 had an assumed 8 % on 71 g cells, 0.92 kg. The two packs, 1.76 kg, are the pilot's 6S4P (20 Ah) and T's two 12-cell packs; the class's published builds fly one 6S3P of 4 Ah cells (12 Ah, about 1.2–1.3 kg, derived: 18 cells of a 21700's 66–71 g; the Amaga / Vyriy 10 Opto's LiitoKala Lii-40A 12 000 mAh, the Malyuk10's 6S3P, published)"},
       "position_m": {"value": [-0.0735, -0.043, 0], "label": "measured", "note": "along the port side between that side's legs, the top 0.02 m below the arm top (T); the inner face at x −0.050 (the sheet)"},
       "size_m": {"value": [0.047, 0.045, 0.22], "label": "derived", "note": "the cells Ø21.45 × 70.05 mm (published) 2 across, 2 high and 3 along, wrapped; T measures 0.20–0.28 m long and 0.045 m tall"}
     },
     {
       "name": "pack_right", "kind": "box", "material": "li_ion",
-      "mass_kg": {"value": 0.92, "label": "derived", "note": "as pack_left"},
+      "mass_kg": {"value": 0.88, "label": "derived", "note": "as pack_left"},
       "position_m": {"value": [0.0735, -0.043, 0], "label": "measured", "note": "the starboard side, as pack_left"},
       "size_m": {"value": [0.047, 0.045, 0.22], "label": "derived", "note": "as pack_left"}
     },
@@ -259,45 +259,45 @@
       "position_m": {"value": [0.15981, 0.035, -0.15981], "label": "derived", "note": "the prop hub over the motor's axis on the 452 mm wheelbase (published), in the prop plane 0.03 m above the arm top (T): with the 0.254 m props the tips span 0.574 m nose-first and 0.706 m on the diagonal (DRN-02)"},
       "spin": "cw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "3115 900 KV (Surpass Hobby Bat S3115, K§5.1; Flash Hobby Arthur, rated 3–6S)"},
-      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "the Flash Hobby Arthur 3115 900 KV bench on 6S (published, flyingtech.co.uk, its FH1050 rows): (d·V − Ke·ω)/(I/d) = 0.106 Ω at 50 % (25.12 V, 9027 rpm, 11.93 A), 0.107 at 70 %, 0.110 at 80 %, 0.127 at 100 % (24.62 V, 14 691 rpm, 65.26 A); 0.11, a warm winding through the hover-to-cruise range: the winding's own 0.046 Ω (published) plus the ESC, the leads and heat. At full throttle the model then turns about 4 % fast against the 100 % row"},
-      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "a 3115-class 900 KV motor's idle current, about 1 A at 10 V; not published for these motors. Its torque Kt·I0, 0.011 N·m, is 6 % of the hover drag torque"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "the Flash Hobby Arthur 3115 900 KV bench on 6S (published, flyingtech.co.uk, its FH1050 rows): (d·V − Ke·ω)/(I/d) = 0.106 Ω at 50 % (25.12 V, 9027 rpm, 11.93 A), 0.107 at 70 %, 0.110 at 80 %, 0.127 at 100 % (24.62 V, 14 691 rpm, 65.26 A); 0.11, a warm winding through the hover-to-cruise range: the winding's own 0.046 Ω (published) plus the ESC, the leads and heat. At full throttle the model then turns about 4 % fast against the 100 % row. The T-Motor Velox V3115 900 KV bench (published, uav-en.tmotor.com, C10.5×5×3 on 6S: its 42.7 mΩ winding) gives 0.082–0.095 Ω from 30 to 70 %, 0.102 at 80 % and 0.122 at 100 % (21.07 V, 11 873 rpm, 64.37 A) by the same sum (D-066)"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "D-066: the class's T-Motor Velox V3115 900 KV, 1.4 A at 10 V (uav-en.tmotor.com; 1.57 A in getfpv.com's listing); not published for the Surpass or the Flash Hobby 3115. Its bench (C10.5×5×3 on 6S, published) bears the DC model out: Kt·(I/d − 1.4 A) is its measured torque within 3 % from 30 to 70 % throttle. Its torque Kt·I0, 0.015 N·m, is 9 % of the hover drag torque; model 22 had an assumed 1.0 A"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "±30 %: the 16 g prop about 4.7e-5 (UMN's measured APC 12x3.8SF with its motor and adaptor, 1.12e-4, scaled by m·D² to 16 g and 10 inches; a uniform rod would be 8.6e-5) plus the bell, about 35 g of magnets and can at 17 mm, 1.2e-5. With R and the prop's load it makes τ_m about 40 ms at hover (design 5's 40–60 ms)"},
       "magnet_poles": {"value": 14, "label": "published", "note": "12N14P (Flash Hobby Arthur 3115, the sheet's research table): 7 pole pairs"},
       "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "p7b-airframe 1.0: the command's way from the flight controller to the motor's torque as one first-order lag, the sum of its delays (their first moment: within 0.1° of their phase below 60 Hz). The DShot300 frame, 53 µs (published: 16 bits at 300 kbit/s, sent every 250 µs, fc-profiles §1); the ESC takes the duty up at once (published sources: Bluejay sets its PWM registers in the frame's interrupt, AM32 in its 20 kHz loop, within 50 µs); the 24 kHz PWM's next period and its mean, about 42 µs (AM32's nominal 24 kHz, its source): about 0.1 ms in all (derived). Then the winding's current rise L/R, 0.3 ms (assumed, 0.1–0.6 ms: no inductance is published for these motors). The duty is not slewed: BLHeli_32's Maximum Acceleration (0.1–25.5 %/ms or maximum, its manual) is left at maximum, no limit, as ESC vendors advise; Bluejay has none (its source); AM32's ramp (16 %/ms above 40 k erpm, 6 below, 2 at start: its source) moves the filtered 200 °/s step by under 0.1 point and is left out. Design 5's 5 ms (assumed) gave that step 40.9 % overshoot (roll) against 29.2 % here; 0.2–0.7 ms gives 28.7–30.0 %"},
-      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "the policy (p6-flight-core 1.5): the motor's published 40 A maximum (Surpass Hobby Bat S3115 900 KV, K§5.1; K§5.3's realistic maximum current) set as the ESC's current protection, which BLHeli_32 applies per ESC and fast enough to hold the current during accelerations too (its manual); AM32's limit is optional and Bluejay or BLHeli_S ESCs sense no current. Without it the model's motor draws 47.5 A at full duty on a full pack and 115 A in a spin-up from idle to full; with it the full-duty thrust falls from 14.24 to 11.93 kgf (K§5.3: 9.0–12.5), the yaw acceleration over full yaw's first 50 ms from hover from about 1650 to 1290 °/s² and the steady yaw authority from 796 to 745 °/s²; hover and liftoff draw far less and are untouched. A higher value models an ESC without a limit (G7 asks the pilot how the yaw kick feels)"}
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "D-066, the class's published ESC: the Amaga / Vyriy 10 Opto build's SpeedyBee F405 V4 stack and its BLS 60A 4-in-1 (60 A a motor continuous, 80 A for 10 s, BLHeli_S J-H-50; fpv24.com, kiborg.com.ua), whose firmware senses no current and so limits none: BLHeli_S and Bluejay have no current limit, and BLHeli_32's current protection needs a sensing resistor and is off unless set. It replaces p6-flight-core 1.5's assumed policy, the motor's 40 A set as BLHeli_32's protection (D-051), kept as a variant (ShakeScenario.Protection). The firmware's one power limit, Bluejay's low-rpm protection (rpm power slope 9 by default, its source: the duty held to 9 × (255 div Comm_Period4x_H) of 255 below about 5000 rpm on these 7-pole-pair motors), acts only in the spin-up from idle and is left out (assumed). On a full pack the motor now draws 47.7 A at full duty, inside the ESC's 60 A, for 14.17 kgf in all (3.54 a motor: the published 3115 900 KV benches give 3.5–4.2 kgf a motor at full throttle on 6S, uav-en.tmotor.com, flyingtech.co.uk); 128 A for a few milliseconds of a spin-up from idle to full; the steady yaw authority at hover 831 °/s² and full yaw's first 50 ms 1959 °/s² (with 40 A protection 11.80 kgf and 1495 °/s²)"}
     },
     {
       "position_m": {"value": [0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "ccw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
       "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
-      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
       "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
-      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.035, -0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "ccw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
       "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
-      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
       "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
-      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "as motors[0]"}
     },
     {
       "position_m": {"value": [-0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
       "spin": "cw",
       "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
       "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
-      "no_load_current_a": {"value": 1.0, "label": "assumed", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "as motors[0]"},
       "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
       "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
       "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
-      "esc_current_limit_a": {"value": 40, "label": "assumed", "note": "as motors[0]"}
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "as motors[0]"}
     }
   ],
   "props": {
