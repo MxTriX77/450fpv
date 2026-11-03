@@ -81,12 +81,20 @@ namespace Fpv450.Sim.Log
         /// draws with the others).
         /// 16: p7b-airframe--power's 15 merged onto the integration's 15: the build placement's header entry at tag 24, after
         ///    the interference's 22 and the own wake's 23; the record is 15's 1904 bytes.
-        /// 17–19: assigned to p7a-ground, p7d-tether and p7f-damage (D-072).
+        /// 14 on p7a-ground (off 13): p7a-ground 1.1, the contacts entry's material rows with their area law, slender
+        ///    member's modulus and wet block, and surfaces.json's table and hash after its flag (the record layouts are 13's).
+        /// 17: p7a-ground's 14 merged onto 16: the contacts entry's material fields and surfaces.json's table with 16's
+        ///    entries; the record is 16's 1904 bytes.
+        /// 18–19: assigned to p7d-tether and p7f-damage (D-072).
         /// 20: p7c-wind 1.10 (design 10, D-071; assigned by D-072): the wind entry's cuts after its canopy strips, a count (0
         ///    for none) and each cut's roof flag, opening at the lip, depth, ends and centre line; the record is 16's 1904
         ///    bytes.
+        /// 22–23: assigned to p7a-ground (unused: its 1.12 and 1.13 changed no layout) and p7f-damage (D-072).
+        /// 24: the physics integration 2 (unity/physics/physics-integration-2, assigned by D-072): p7c-wind's 20 and
+        ///    p7a-ground's 17 merged onto 16: the wind entry's cuts (20's) and the contacts entry's material fields and
+        ///    surfaces.json's table (17's) together; the record is 16's 1904 bytes.
         /// </summary>
-        public const int Version = 20;
+        public const int Version = 24;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -196,7 +204,14 @@ namespace Fpv450.Sim.Log
         /// 26: p7b-airframe--power's 24 merged onto 25 (the code is the parents' together): D-066's power and mass and the
         ///    build's placement with the interference, D-064's micro-motion and 1.6c's stick spring. On model 22's drone (the
         ///    40 A limit, 1.0 A no-load, 0.92 kg packs, 0.25 kg electronics) and without the placement a flight steps as in 25.
-        /// 27–29: assigned to p7a-ground, p7d-tether and p7f-damage (D-072).
+        /// 19–22 on p7a-ground (off 18): taken by the lines above. 23 p7a-ground 1.10 (the soil under the half-skids:
+        ///    Winkler's elasto-plastic law with Wong's rule per column, in series with the leg, the groove's anchor and the
+        ///    footprint ring, surfaces.json's sets at the flight's rain; the surface's own friction on the ground; a flight
+        ///    without surfaces.json steps as in 18).
+        /// 27: p7a-ground's 23 merged onto 26 (the code is the parents' together): 1.10's soil under 1.6b's seam rule, the
+        ///    landing's stick spring (D-067), the interference, D-064's micro-motion and D-066's power, mass and placement.
+        ///    A flight without surfaces.json steps as in 26.
+        /// 28–29: assigned to p7d-tether and p7f-damage (D-072).
         /// 30: p7c-wind 1.10, the wind inside a cut (design 10, D-071; assigned by D-072; Cavity, CutFrame, WindSetup.Cuts,
         ///    MapWind.Cuts): where the body's origin lies in a cut's opening, the field takes the lip as its ground above it,
         ///    an open cut's own cavity flow below it (the field's mean at h_o over the lip across and along the cut, one 2-D
@@ -207,8 +222,21 @@ namespace Fpv450.Sim.Log
         ///    the cut's reach (W/2 + CutFrame.OpeningReach) with the ground under it below the lip, in place of the strip
         ///    within W/2 of the centre line; and D is the cut's own depth at its centre line, never the lip less the soil
         ///    under the origin.
+        /// 31: assigned to p7d-tether (D-072).
+        /// 32: p7a-ground 1.13 (wet ground: a wet groove's cohesive pull on its half-skid as it lifts, Soil.Cohesion, in the
+        ///    leg's series solve as a tension; wet straw's row, softer, gripping harder and clinging; the cover kinds' wet
+        ///    sets for the elements). A Sunny flight, and any flight without surfaces.json, steps as in 27.
+        /// 33: p7a-ground 1.12's compliant layers (design 6): a layer row (straw, fabric, sandbag) meets each touching part by
+        ///    its footprint, by the row's area law, and compresses at most Layer.StrokeShare of its thickness, past which it is
+        ///    solid and carries the half-skid onto its own object's soil beneath, or leaves the part's own spring. A flight
+        ///    that touches no layer steps as in 32.
+        /// 34: the physics integration 2 (unity/physics/physics-integration-2, assigned by D-072; the code is the parents'
+        ///    together): p7c-wind's 30 (the wind inside a cut) and p7a-ground's 33 (the soil under a part, wet ground and
+        ///    the compliant layers' area laws and stroke) merged onto 26. A flight without surfaces.json steps as on p7c-wind's
+        ///    30; one that never enters a cut's opening, or flies without cuts, as on p7a-ground's 33; one with neither as in
+        ///    26.
         /// </summary>
-        public const int ModelVersion = 30;
+        public const int ModelVersion = 34;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

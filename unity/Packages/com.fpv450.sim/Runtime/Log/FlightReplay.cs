@@ -50,18 +50,19 @@ namespace Fpv450.Sim.Log
     /// The headless bit-exact replay (design 10, LOG-02): rebuilds the flight from the log's header, steps it with the
     /// logged stick samples, and compares each step's record and events, byte for byte, with the log's. No clock, no
     /// thread, no Unity: the same FlightCore.Advance as the flight. Hitches are timing, not physics, so they are not
-    /// compared. A log of another world (content hash or QueryVersion), another drone.json, another model version or
-    /// another FcSettings layout is refused before its first step, naming what differs. A different build, runtime or
-    /// ISA is only noted: the core's arithmetic is meant to give the same bits on every x64 host (LOG-04), and a
-    /// divergence then names its step and field.
+    /// compared. A log of another world (content hash or QueryVersion), another drone.json, another surfaces.json (when
+    /// the flight logged one), another model version or another FcSettings layout is refused before its first step,
+    /// naming what differs. A different build, runtime or ISA is only noted: the core's arithmetic is meant to give the
+    /// same bits on every x64 host (LOG-04), and a divergence then names its step and field.
     /// </summary>
     public static class FlightReplay
     {
         /// <summary>
         /// Replays the log on stream. openWorld opens the world the header names (null when it cannot); droneHash is
-        /// DroneSpec.ContentHash of the drone.json the replay holds, 0 for none; isa is this host's ISA flags.
+        /// DroneSpec.ContentHash of the drone.json the replay holds, 0 for none; isa is this host's ISA flags;
+        /// surfacesHash is SurfaceTable.Hash of the surfaces.json the replay holds, 0 for none.
         /// </summary>
-        public static ReplayResult Run(Stream log, Func<string, FlightWorld> openWorld, ulong droneHash, string isa = null)
+        public static ReplayResult Run(Stream log, Func<string, FlightWorld> openWorld, ulong droneHash, string isa = null, ulong surfacesHash = 0)
         {
             FlightLogReader reader;
             try
@@ -75,11 +76,11 @@ namespace Fpv450.Sim.Log
             FlightWorld world = openWorld(reader.Header.WorldId);
             if (world == null)
                 return Refuse("this replay cannot open the world '" + reader.Header.WorldId + "' the log was flown in");
-            return Run(reader, world, droneHash, isa);
+            return Run(reader, world, droneHash, isa, surfacesHash);
         }
 
         /// <summary>Replays the log reader has opened, on world (opened for its header's WorldId).</summary>
-        public static ReplayResult Run(FlightLogReader log, FlightWorld world, ulong droneHash, string isa = null)
+        public static ReplayResult Run(FlightLogReader log, FlightWorld world, ulong droneHash, string isa = null, ulong surfacesHash = 0)
         {
             LogHeader h = log.Header;
             CultureInfo c = CultureInfo.InvariantCulture;
@@ -95,6 +96,11 @@ namespace Fpv450.Sim.Log
             if (h.DroneHash != droneHash)
                 return Refuse("drone.json differs: the log was flown with drone.json 0x" + h.DroneHash.ToString("X16", c)
                     + ", this replay has 0x" + droneHash.ToString("X16", c));
+            // The table rebuilds from the header; the file the replay holds must be the flight's (p7a-ground 1.1).
+            ulong surfaces = h.Contacts?.Surfaces?.Hash ?? 0;
+            if (surfaces != 0 && surfaces != surfacesHash)
+                return Refuse("surfaces.json differs: the log was flown with surfaces.json 0x" + surfaces.ToString("X16", c)
+                    + ", this replay has 0x" + surfacesHash.ToString("X16", c));
             var problems = new List<string>();
             FlightSetup setup = h.ToSetup(world, problems);
             if (problems.Count > 0)

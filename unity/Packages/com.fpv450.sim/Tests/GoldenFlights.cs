@@ -405,7 +405,33 @@ namespace Fpv450.Sim.Tests
         // model 25 (the lighter body) and from step 3 against the power branch's (1.6c's spring on the standing skids), and
         // keeps its course: 5 impacts, no crash, at rest at 0.2519 m on 8 pairs (0.2518 and 0.2519), 59 mm and 42 mm aside,
         // within 117 mm and 1.5° of model 25's path and 49 mm and 1.5° of the power branch's (the held bounce).
-        public const ulong ContactHash = 0xAAEA31DBFBB13710UL;
+        // Model 18 on p7a-ground: 0x1152D64875230761. p7a-ground 1.10: re-recorded with ModelVersion 23, the floor's belt_bare now
+        // surfaces.json's soil (the setup carries the table; the record's layout is model 18's). Audited: without the table
+        // the flight is model 18's, every record and event (WithoutTheSoilTheContactGoldenIsModel18s, restated at model 27). With it the
+        // flight moves from step 2, the first whose forces take the soil: the skids sink into belt_bare from the start.
+        // It keeps its course: the same climb (0.7424 m at 1 s against 0.7420), the held bounce lower on the soil (its top
+        // 0.4094 m against 0.4511), 3 impacts against 5, at most 53.8 mm from model 18's path, no crash, at rest on its
+        // skids 3.9 mm deeper (0.2479 m against 0.2518; the half-skids 3.5–4.3 mm in, 5.3–5.6 mm at the deepest); 91
+        // events against 125.
+        // Model 26: 0xAAEA31DBFBB13710. The ground merge (ModelVersion 27): re-recorded with p7a-ground 1.10's soil under the
+        // physics line's model 26 (the floor's belt_bare as surfaces.json's soil; D-066's drone, the interference, D-064 and
+        // 1.6c's stick spring). Audited against each parent with the other side off: without surfaces.json it is model 26's
+        // pin, every record and event (WithoutTheSoilTheContactGoldenIsModel26s, kept); on model 22's drone without the
+        // interference and D-064's sources, over 1808 bytes, with the wash on model 19's numbers and its torque at the
+        // freestream's inflow, the stick anchor at the contact point and D-060's field back at z0 0.03 m, σ_u/U 0.135 and the
+        // 1 m cut (temporary edits, reverted), p7a-ground's model 23 pin 0xA248F9B82CF85639, and without the table model 18's
+        // 0x1152D64875230761. It moves from step 2 against model 26 (the first whose forces take the soil) and from step 1
+        // against p7a-ground's (the lighter body), and keeps its course: the climb as model 26's (0.8202 m at 1 s against
+        // 0.8238), no crash; the first touchdown, at 1.55 m/s, sinks the deepest node 5.52 mm (p7a-ground's 5.69 at 1.71 m/s);
+        // D-064's own wake gives the held bounce a fourth impact (4 against p7a-ground's 3; 5 on model 26's rigid floor), which
+        // sets the skids down 24.6 mm from that touchdown, past half a groove's width, on fresh soil (p7a-ground's 5.2 mm,
+        // inside its grooves; without the own wake 3 impacts and 7.4 mm), so it rests on its skids 2.0–2.3 mm in (the grooves
+        // 2.8–3.3 mm at the deepest) at 0.2497 m against p7a-ground's 0.2479 and model 26's 0.2519, 28 mm from both; within
+        // 47 mm and 1.5° of model 26's path and 105 mm and 1.2° of p7a-ground's (the held bounce); 92 events against 125 and 91.
+        public const ulong ContactHash = 0x37C4BFF09B9C22E2UL;
+
+        /// <summary>The physics line's model 26 contact golden on the rigid floor, which the flight without surfaces.json keeps (the ground merge's audit, model 27).</summary>
+        public const ulong Model26ContactHash = 0xAAEA31DBFBB13710UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -515,7 +541,21 @@ namespace Fpv450.Sim.Tests
         // branch's 0xFBAC3E4D67B45ACD under the temporary edits over 1808 bytes. It moves from step 1 and step 3 and keeps its
         // course: at rest 6.9 mm and 24 mm from their resting places, within 114 mm and 3.1° of model 25's path and 34 mm and
         // 3.5° of the power branch's (the held bounce over the straw).
-        public const ulong RangeHash = 0xC79B60F487AEB8B6UL;
+        // Model 26: 0xC79B60F487AEB8B6, carried to model 32 (1.10's soil and 1.13's rain act on no layer, and the golden flies
+        // without surfaces.json). p7a-ground 1.12 (ModelVersion 33): re-recorded with the layers' area laws on the same
+        // content: the mat meets each half-skid at 3.03 × the reference foot's 490 N/m, so the drone settles 9 mm into the
+        // straw at the start and moves from step 2; 4 impacts (4), no crash, at rest 8.74 mm into the straw on 8 pairs
+        // (20.69 mm on 21: the leg tubes' ends no longer reach the mat), rolled 0.10° (−1.34°), 52 mm from model 32's resting
+        // place and within 65 mm of its path. Audited: without the area laws (WithoutTheAreaLaws) it is model 32's pin bit
+        // for bit, every record and event, and in Rain with surfaces.json 1.13's 0x20B0DB29D33AD18E (the kept test
+        // WithoutTheAreaLawsTheRangeGoldenIsModel32s): neither reaches a layer's stroke and the seam's facing test changes
+        // nothing there, so the area law is the whole move. That Rain flight now rests rolled −0.15° (17.6°) as
+        // 0x4AB00DBB3EA1721E.
+        public const ulong RangeHash = 0xCA3CC415DC86A197UL;
+
+        /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
+        /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
+        public const ulong Model32RangeHash = 0xC79B60F487AEB8B6UL, Model32RainRangeHash = 0x20B0DB29D33AD18EUL;
 
         public const ulong RangeContent = 0x6114242E06475FB5UL;
         public const int RangeSteps = 12000;
@@ -575,6 +615,16 @@ namespace Fpv450.Sim.Tests
         /// D-064's wash never act). Its contact and range pins, 0xAF0C71C9193B4326 and 0xFBAC3E4D67B45ACD, need D-064's wash and
         /// 1.6c's spring off too, temporary edits (ContactHash's and RangeHash's notes).</summary>
         public const ulong PowerPoweredHash = 0xCC20DE164C858267UL, PowerRainHash = 0xACF1742E51117659UL, PowerTumbleHash = 0x95E56C6BB49BB744UL;
+
+        /// <summary>physics_materials.json's rows with every layer's area law dropped (p7a-ground 1.12's audit, model 33): each
+        /// layer row read per part as its reference foot, as before 1.12. A flight that never reaches a layer's stroke steps on
+        /// them as model 32's.</summary>
+        public static MaterialRow[] WithoutTheAreaLaws()
+        {
+            MaterialRow[] rows = (MaterialRow[])ContactScenarios.RepositoryMaterials(out _).Clone();
+            for (int i = 0; i < rows.Length; i++) rows[i].AreaLaw = AreaLaw.None;
+            return rows;
+        }
 
         /// <summary>The spec with model 22's drone (drone.json before D-066): the ESCs' assumed 40 A current limit, the
         /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg. Pass a freshly parsed
@@ -709,16 +759,21 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
-        /// later the throttle is cut and it comes to rest. Returns its hash, with the core for a report.
+        /// later the throttle is cut and it comes to rest. The floor's belt_bare is surfaces.json's soil (p7a-ground 1.10);
+        /// soil false flies the rigid floor (model 26's flight); rain flies it in that rain (1.13's audit: the wet set, the
+        /// rain's drops and film), on table if given. Returns its hash, with the core for a report.
         /// </summary>
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
-            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+            Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
+            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, new Double3(0, stand, 0));
+            if (soil) setup.Contacts = spec.BuildContacts(spec.Nominal, materials, mh, table ?? SoilScenarios.Table()); // p7a-ground 1.10
+            setup.Rain = rain;
             setup.Wind = wind ?? WindSetup.Of(WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
@@ -774,23 +829,30 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// Flies the test range's contact golden (1.6b, D-044): FlyContact's flight on S04 #707's straw mat, where
-        /// SampleGround reports Hole and the mat's straw boxes (490 N/m, over the patch's soil) are all the ground: legs on,
+        /// SampleGround reports Hole and the mat's straw boxes (490 N/m at the reference foot, 3.03 × that under a half-skid by
+        /// its area since 1.12, over the patch's soil) are all the ground: legs on,
         /// settling into the straw, the closed-loop pilot up to a metre for 4 s, then down at 0.5 m/s; with the skids 0.1 m
         /// over the straw the sticks are held (roll, pitch and yaw centred) and the mat takes the bounce; 1.5 s later the
         /// throttle is cut and it settles into the straw again. In the map's own Calm wind (WindSetup.ForMap since model 22,
         /// as the player flies it: the obstacles' wakes and the belt's canopy; over the hole from the mat's top since model
         /// 20), the field disposed at the end (its wake grid's worker), with the airframe's effects on as FlyContact's (its toggles, its parent layout's skip and its air, for an audit; onRecord sees each
-        /// step's record before it is hashed). Returns its hash, with the core for a report.
+        /// step's record before it is hashed). rain and table fly it in that rain with surfaces.json (1.13's audit of wet
+        /// straw); materials, physics_materials.json's rows edited (1.12's known-wrong straw without its area law). Returns its
+        /// hash, with the core for a report.
         /// </summary>
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
-            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize)
+            bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
+            SurfaceTable table = null, MaterialRow[] materials = null)
         {
-            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
+            materials ??= ContactScenarios.RepositoryMaterials(out _);
+            ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
             Double3 foot = RangeScenarios.Straw;
             FlightSetup setup = ContactScenarios.Setup(spec, materials, mh, true, foot + new Double3(0, stand, 0));
+            if (table != null) setup.Contacts = spec.BuildContacts(spec.Nominal, materials, mh, table); // 1.13's audit: wet straw needs the table
+            setup.Rain = rain;
             setup.World = new FlightWorld(RangeScenarios.World);
             setup.Wind = wind ?? WindSetup.ForMap(RangeScenarios.World, WindLevel.Calm);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();

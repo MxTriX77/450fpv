@@ -53,12 +53,25 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"contact-flight: {GoldenFlights.ContactSteps} steps, hash 0x{contact:X16} "
                 + $"({(contact == GoldenFlights.ContactHash ? "matches" : $"golden 0x{GoldenFlights.ContactHash:X16}")}), {c.Contacts.ImpactCount} impacts, "
                 + $"ends {c.State.Position.Y:F4} m up on {c.Trace.ContactsTouching} touching pairs: {(cok ? "PASS" : "FAIL")}");
+            // p7a-ground 1.10's audit, restated at the ground merge (model 27): without surfaces.json the contact flight is the
+            // physics line's model 26 flight on the rigid floor.
+            ulong rigid = GoldenFlights.FlyContact(Drone(), out _, soil: false);
+            bool sok = rigid == GoldenFlights.Model26ContactHash;
+            cok &= sok;
+            Console.WriteLine($"contact-flight without surfaces.json: hash 0x{rigid:X16} ({(sok ? "model 26's, bit for bit" : "NOT model 26's")}): {(sok ? "PASS" : "FAIL")}");
             ulong content = Fpv450.Sim.Tests.RangeScenarios.World.ContentHash;
             ulong range = GoldenFlights.FlyRange(Drone(), out FlightCore g);
             bool rangeOk = content == GoldenFlights.RangeContent && range == GoldenFlights.RangeHash && g.Contacts.ImpactCount >= 1 && !g.State.Crashed;
             Console.WriteLine($"range-flight: the test range 0x{content:X16} ({(content == GoldenFlights.RangeContent ? "as recorded" : $"recorded on 0x{GoldenFlights.RangeContent:X16}: the map moved")}), "
                 + $"{GoldenFlights.RangeSteps} steps on S04's straw, hash 0x{range:X16} ({(range == GoldenFlights.RangeHash ? "matches" : $"golden 0x{GoldenFlights.RangeHash:X16}")}), "
                 + $"{g.Contacts.ImpactCount} impacts, ends {g.State.Position.Y:F4} m up on {g.Trace.ContactsTouching} touching pairs: {(rangeOk ? "PASS" : "FAIL")}");
+            // p7a-ground 1.12's audit (model 33): without the layers' area laws the range flight is model 32's, dry and in Rain.
+            ulong r32 = GoldenFlights.FlyRange(Drone(), out _, materials: GoldenFlights.WithoutTheAreaLaws());
+            ulong w32 = GoldenFlights.FlyRange(Drone(), out _, rain: RainLevel.Rain, table: Fpv450.Sim.Tests.SoilScenarios.Table(), materials: GoldenFlights.WithoutTheAreaLaws());
+            bool a32 = r32 == GoldenFlights.Model32RangeHash && w32 == GoldenFlights.Model32RainRangeHash;
+            rangeOk &= a32;
+            Console.WriteLine($"range-flight without the layers' area laws: 0x{r32:X16}, in Rain with surfaces.json 0x{w32:X16} "
+                + $"({(a32 ? "model 32's, bit for bit" : "NOT model 32's")}): {(a32 ? "PASS" : "FAIL")}");
             ulong rain = GoldenFlights.FlyPowered(Drone(), out FlightCore r, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
             bool rok = rain == GoldenFlights.RainPoweredHash && r.Rain.FilmMass > 0;
             Console.WriteLine($"rain-flight: {GoldenFlights.PoweredSteps} steps in Calm and Severe rain, hash 0x{rain:X16} "
@@ -77,7 +90,7 @@ namespace Fpv450.FlightBench
             // contact flight's re-ingested wash moved to published numbers, so its audit was a temporary edit (GoldenFlights).
             // D-066's audit (model 23 on p7b-airframe--power), kept: on model 22's drone every golden is model 22's there and the
             // landing's merge's model 25 here (the merge at model 26), every record and event.
-            ulong p22 = GoldenFlights.FlyPowered(M22(), out _), c22 = GoldenFlights.FlyContact(M22(), out _), g22 = GoldenFlights.FlyRange(M22(), out _);
+            ulong p22 = GoldenFlights.FlyPowered(M22(), out _), c22 = GoldenFlights.FlyContact(M22(), out _, soil: false), g22 = GoldenFlights.FlyRange(M22(), out _, materials: GoldenFlights.WithoutTheAreaLaws());
             ulong w22 = GoldenFlights.FlyPowered(M22(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain);
             ulong t22 = GoldenFlights.FlyTumble(M22(), out _, out _);
             bool m22 = p22 == GoldenFlights.Model25PoweredHash && c22 == GoldenFlights.Model25ContactHash && g22 == GoldenFlights.Model25RangeHash
@@ -112,7 +125,7 @@ namespace Fpv450.FlightBench
             // is with 1.6c's stick spring (GoldenFlights.MicroContactHash).
             const int at = GoldenFlights.Model19Layout, skip = 64;
             ulong mp = GoldenFlights.FlyPowered(M22(), out _, at, skip, interference: false);
-            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false);
+            ulong mc = GoldenFlights.FlyContact(M22(), out _, at, skip, interference: false, soil: false);
             ulong mr = GoldenFlights.FlyPowered(M22(), out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false);
             ulong mt = GoldenFlights.FlyTumble(M22(), out _, out _, at, skip);
             bool uok = mp == GoldenFlights.MicroPoweredHash && mc == GoldenFlights.MicroContactHash && mr == GoldenFlights.MicroRainHash

@@ -139,8 +139,8 @@ namespace Fpv450.Sim.Tests
             /// <summary>The supports' SampleGround at the end: how many report Hole.</summary>
             public int HoleSupports;
 
-            /// <summary>Contact events in the last second (0: no churn at rest).</summary>
-            public int LateEvents;
+            /// <summary>Contact events in the last second (0: no churn at rest), and of them a support's.</summary>
+            public int LateEvents, LateSupportEvents;
 
             public int Tunnels, Crashes, Lost;
         }
@@ -170,7 +170,11 @@ namespace Fpv450.Sim.Tests
                     if (e.Kind == EventKind.Crash) r.Crashes++;
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind != EventKind.ContactMade && e.Kind != EventKind.ContactBroken) continue;
-                    if (k >= steps - 1000) r.LateEvents++;
+                    if (k >= steps - 1000)
+                    {
+                        r.LateEvents++;
+                        if (core.Contacts.Spec.Shapes[e.Index].Role == ContactRole.Support) r.LateSupportEvents++;
+                    }
                     var key = (e.Index, e.Object, e.Shape);
                     if (e.Kind == EventKind.ContactMade) open[key] = e;
                     else open.Remove(key);
