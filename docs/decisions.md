@@ -594,3 +594,10 @@ From `p7b-airframe` 1.10 (D-066), on published specs: the class's ESC (SpeedyBee
 - **The throttle-punch shake's cause is the rotors re-ingesting their wash.** With the rings off it shows on 84 of 240 punches against 186. Its tilt is 0.13–3.35° (was 1.3–10.7° with 40 A), and the arrest takes about half as long. The pilot's 0.3–0.7 s holds from 9 m/s (median 0.60 s); from 2.5 m/s it barely shows, which fits "doesn't happen much".
 - **The mass build stands** (published within 2–4 %): 4.09 kg ready to fly without a bottle (coil full), 3.74 kg with the coil half paid out. On the pilot's flown curve a hover takes 37 % of the stick empty, 45 % with 1 kg and 53 % with 2 kg on a full pack. The pilot's 30–45 % holds up to a 1 kg bottle; at 2 kg the class's single 6S3P pack (about 1 kg lighter) would be needed.
 - **G7's ESC-firmware question** now decides only whether the protection variant is flown.
+
+## D-070 The punch-out shake has two causes at model 26: the wash first, the motors' spreads second · Accepted
+From QA's review of the physics line (`p7b-airframe/review-integration.md`, B2). Restates D-069's evidence at model 26; D-069's ESC finding stands.
+- **The wash stays the main cause.** With the rings off, the shake shows on 149 of 240 punches against 206 (seeds 1–40; 148–173 against 206–220 on four other sets). D-069's 84 of 240 was the power branch's number.
+- **D-064's motor spreads are a second cause.** At full duty every motor saturates, so the loop can't trim their spread. In the pilot's own case (the empty drone's full punch from 9 m/s) without the ring, 16–24 of 40 flights still shake 0.3–0.7 s; with the spreads off as well, 4 of 40.
+- **No current limit trims either cause**, so G7's ESC-firmware question still decides only whether the protection variant is flown.
+- The tests judge the wash by the shake past the motors' spin-up kick, on seed sets sized to a false-failure rate under 1 % (D-053's rule).
