@@ -96,11 +96,14 @@ namespace Fpv450.Input.Radio
     /// imported `diff all` can write the same form. Reading takes any FcSettings field by its CLI name, checks the rows
     /// against Betaflight's ranges and the whole set against the flight controller, and starts from the defaults for
     /// every name the file leaves out. Saving writes a temporary file and then swaps it in, as CalibrationStore does.
+    /// The format's number names the defaults a file was written with (D-076): a file of an older format is read with
+    /// today's defaults in place of every value that was a default then, and every other value, one the pilot changed,
+    /// kept. Reading writes nothing; the next change saves it in today's format.
     /// </summary>
     public static class FcSettingsStore
     {
         public const string FileName = "fc-settings.json";
-        const string Format = "fpv450 fc settings 1";
+        const string Format = "fpv450 fc settings 2", Format1 = "fpv450 fc settings 1";
 
         /// <summary>
         /// The player's defaults (D-066, D-023; fc-profiles.md §2, the player default column): FcSettings.Default with
@@ -118,6 +121,20 @@ namespace Fpv450.Input.Radio
                 s.thr_mid = 100; s.thr_expo = 100;
                 return s;
             }
+        }
+
+        // The defaults format 1 was written with: the sim core's FcSettings.Default, then D-066's player default (its
+        // rates as today's, the throttle 100 / 100). A value in a format-1 file equal to that field's in either was a
+        // default; any other value the pilot changed.
+        static readonly object[] Format1Defaults = { FcSettings.Default, Format1PlayerDefault() };
+
+        static FcSettings Format1PlayerDefault()
+        {
+            FcSettings s = FcSettings.Default;
+            s.roll_rc_rate = s.pitch_rc_rate = 5; s.roll_srate = s.pitch_srate = 22; s.roll_expo = s.pitch_expo = 45;
+            s.yaw_rc_rate = 8; s.yaw_srate = 24; s.yaw_expo = 20;
+            s.thr_mid = 100; s.thr_expo = 100;
+            return s;
         }
 
         static Dictionary<string, FieldInfo> _fields;
@@ -187,13 +204,16 @@ namespace Fpv450.Input.Radio
         public static FcSettings FromJson(string json)
         {
             Dictionary<string, object> root = JsonRead.Object(MiniJson.Parse(json), FileName);
-            if (JsonRead.Text(root, "format") != Format) throw new FormatException(FileName + " is not " + Format);
+            string format = JsonRead.Text(root, "format");
+            if (format != Format && format != Format1) throw new FormatException(FileName + " is not " + Format);
             Dictionary<string, object> set = JsonRead.Object(JsonRead.Member(root, "settings"), "'settings'");
             object box = PlayerDefault;
             foreach (KeyValuePair<string, object> kv in set)
             {
                 FieldInfo f = Field(kv.Key) ?? throw new FormatException("no Betaflight setting '" + kv.Key + "' here");
-                f.SetValue(box, Value(f, kv.Key, kv.Value));
+                object v = Value(f, kv.Key, kv.Value);
+                if (format == Format1 && Array.Exists(Format1Defaults, d => Same(v, f.GetValue(d)))) continue; // today's default
+                f.SetValue(box, v);
             }
             var settings = (FcSettings)box;
             foreach (FcSettingRow row in FcSettingRow.Rows)

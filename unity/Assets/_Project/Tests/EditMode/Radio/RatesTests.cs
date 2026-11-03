@@ -12,7 +12,8 @@ namespace Fpv450.Tests.Radio
     // tx-input (p6-input-app 1.3, INP-03, INP-07, APP-05): the defaults, the player default column (D-066), through the
     // settings file and the screen's rows, the previews against the flight controller's own RC path and against
     // Betaflight's formula written out here, and the settings file: a restart reads it back bit for bit, a corrupt one
-    // falls back to the defaults with a message.
+    // falls back to the defaults with a message, and one written with an older default set takes today's defaults and
+    // keeps what the pilot changed.
     public sealed class RatesTests
     {
         static readonly bool[] Spins = { true, false, false, true };
@@ -201,12 +202,12 @@ namespace Fpv450.Tests.Radio
         [Test]
         public void ACorruptFileFallsBackToTheDefaultsWithAMessage()
         {
-            string Settings(string body) => "{\n  \"format\": \"fpv450 fc settings 1\",\n  \"settings\": {\n    " + body + "\n  }\n}\n";
+            string Settings(string body) => "{\n  \"format\": \"fpv450 fc settings 2\",\n  \"settings\": {\n    " + body + "\n  }\n}\n";
             (string what, string text, string message)[] cases =
             {
-                ("cut short", "{\n  \"format\": \"fpv450 fc settings 1\",\n  \"settings\": {\n    \"roll_rc_rate\": 5.5,", "JSON line"),
+                ("cut short", "{\n  \"format\": \"fpv450 fc settings 2\",\n  \"settings\": {\n    \"roll_rc_rate\": 5.5,", "JSON line"),
                 ("not text", "\u0001\u0002\u0003", "JSON line 1"),
-                ("another file", "{ \"format\": \"fpv450 calibration 1\", \"settings\": {} }", "is not fpv450 fc settings 1"),
+                ("another file", "{ \"format\": \"fpv450 calibration 1\", \"settings\": {} }", "is not fpv450 fc settings 2"),
                 ("out of range", Settings("\"roll_rc_rate\": 300"), "'roll_rc_rate' 300 is outside Betaflight's 1–200"),
                 ("not whole", Settings("\"thr_mid\": 50.5"), "'thr_mid' 50.5 is not a whole number"),
                 ("a name Betaflight lacks", Settings("\"rol_rc_rate\": 5.5"), "no Betaflight setting 'rol_rc_rate'"),
@@ -228,6 +229,67 @@ namespace Fpv450.Tests.Radio
                     StringAssert.Contains(message, error, what);
                     StringAssert.EndsWith("the defaults are in use, and the next change replaces it.", error, what);
                     Assert.AreEqual(text, File.ReadAllText(FcSettingsStore.PathIn(dir)), what + ": the file is left as it was until a change is saved");
+                }
+            }
+            finally
+            {
+                Clean(dir);
+            }
+        }
+
+        // D-076: the defaults win over a stale save. Format 1 was written with the sim core's FcSettings.Default (before
+        // D-066) or with D-066's player default; reading one, today's defaults replace every value that was a default
+        // then, and a value the pilot changed stays. A file in today's format keeps every value, even an old default's.
+        // Reading writes nothing; the next save writes today's format, which reads back the same.
+        [Test]
+        public void AnOlderDefaultSetGivesWayAndThePilotsChangesStay()
+        {
+            string Json(string format, params string[] members) =>
+                "{\n  \"format\": \"" + format + "\",\n  \"settings\": {\n    " + string.Join(",\n    ", members) + "\n  }\n}\n";
+            string[] rows55 = { "\"roll_rc_rate\": 5.5", "\"roll_srate\": 22.5", "\"roll_expo\": 34", "\"pitch_rc_rate\": 5.5", "\"pitch_srate\": 22.5",
+                "\"pitch_expo\": 34", "\"yaw_rc_rate\": 8.5", "\"yaw_srate\": 26", "\"yaw_expo\": 15" };
+            string[] rows50 = { "\"roll_rc_rate\": 5", "\"roll_srate\": 22", "\"roll_expo\": 45", "\"pitch_rc_rate\": 5", "\"pitch_srate\": 22",
+                "\"pitch_expo\": 45", "\"yaw_rc_rate\": 8" };
+
+            FcSettings midMoved = FcSettingsStore.PlayerDefault;
+            midMoved.thr_mid = 78;
+            FcSettings yawMoved = FcSettingsStore.PlayerDefault;
+            yawMoved.yaw_srate = 30; yawMoved.thr_expo = 80; yawMoved.airmode = false;
+            FcSettings oldValues = FcSettingsStore.PlayerDefault;
+            oldValues.roll_rc_rate = oldValues.pitch_rc_rate = 5.5; oldValues.roll_srate = oldValues.pitch_srate = 22.5; oldValues.roll_expo = oldValues.pitch_expo = 34;
+            oldValues.yaw_rc_rate = 8.5; oldValues.yaw_srate = 26; oldValues.yaw_expo = 15; oldValues.thr_mid = 50; oldValues.thr_expo = 10; oldValues.deadband = 2;
+            (string what, string text, FcSettings expected)[] cases =
+            {
+                // The rows as the build before D-066 wrote them, thr_mid moved from its 50 (the shape of the pilot's own save).
+                ("format 1 before D-066, thr_mid moved",
+                    Json("fpv450 fc settings 1", rows55.Concat(new[] { "\"thr_mid\": 78", "\"thr_expo\": 10" }).ToArray()), midMoved),
+                // The rows as D-066's build wrote them, yaw's max rate and thr_expo moved; and two settings off the screen,
+                // one at its default then (deadband 2) and one changed (airmode).
+                ("format 1 from D-066, yaw_srate and thr_expo moved",
+                    Json("fpv450 fc settings 1", rows50.Concat(new[] { "\"yaw_srate\": 30", "\"yaw_expo\": 20", "\"thr_mid\": 100", "\"thr_expo\": 80",
+                        "\"deadband\": 2", "\"airmode\": false" }).ToArray()), yawMoved),
+                // Today's format: the same values are the pilot's now.
+                ("format 2 holding old defaults' values",
+                    Json("fpv450 fc settings 2", rows55.Concat(new[] { "\"thr_mid\": 50", "\"thr_expo\": 10", "\"deadband\": 2" }).ToArray()), oldValues),
+            };
+            string dir = TempDir();
+            try
+            {
+                Directory.CreateDirectory(dir);
+                foreach ((string what, string text, FcSettings expected) in cases)
+                {
+                    string path = FcSettingsStore.PathIn(dir);
+                    File.WriteAllText(path, text);
+                    FcSettings s = FcSettingsStore.Load(dir, out string error);
+                    Assert.IsNull(error, what);
+                    AssertSame(expected, s, what);
+                    Assert.AreEqual(text, File.ReadAllText(path), what + ": reading writes nothing");
+                    TestContext.WriteLine(what + ": " + string.Join(", ", FcSettingRow.Rows.Select(r => r.Name + " " + r.Get(s).ToString("R", CultureInfo.InvariantCulture))));
+
+                    FcSettingsStore.Save(dir, s);
+                    StringAssert.StartsWith("{\n  \"format\": \"fpv450 fc settings 2\",", File.ReadAllText(path), what + ": saved in today's format");
+                    AssertSame(s, FcSettingsStore.Load(dir, out error), what + ": saved and read back");
+                    Assert.IsNull(error, what);
                 }
             }
             finally
