@@ -93,7 +93,9 @@ namespace Fpv450.FlightBench
         static readonly Variant[] Variants =
         {
             new Variant { Name = "as built" },
-            new Variant { Name = "Betaflight's yaw I: x2.5 (pid_init.c)", YawOnly = true, Settings = s => { s.i_yaw *= 2.5; return s; } },
+            // Model 34's controller, before Betaflight's yaw I (pid_init.c's x2.5, the controller's since model 36): the
+            // golden audits' i_yaw, whose yaw Ki is model 34's bit for bit.
+            new Variant { Name = "model 34's yaw I: x2.5 undone", YawOnly = true, Settings = s => { s.i_yaw = GoldenFlights.Model34YawI; return s; } },
             new Variant { Name = "no gyro or D-term filters", Settings = s =>
             {
                 s.gyro_lpf1_dyn_min_hz = s.gyro_lpf1_static_hz = s.gyro_lpf2_static_hz = 0;
@@ -117,16 +119,16 @@ namespace Fpv450.FlightBench
             new Variant { Name = "rigid airframe (no modes)", Setup = s => s.Modes = null },
             new Variant { Name = "airmode off", Settings = s => { s.airmode = false; return s; } },
             new Variant { Name = "pidsum_limit_yaw 1000", YawOnly = true, Settings = s => { s.pidsum_limit_yaw = 1000; return s; } },
-            // The pilot's other builds, as Betaflight flies them (the yaw I x2.5): the OTU10 configs' set (the section-1 set
-            // x1.2 on roll and pitch, feedforward 80), and the yaw of the Beshketnyk 10x8 configs (P 50, I 85, F 100).
+            // The pilot's other builds, as Betaflight flies them (the yaw I x2.5, the controller's own since model 36): the
+            // OTU10 configs' set (the section-1 set x1.2 on roll and pitch, feedforward 80), and the yaw of the Beshketnyk 10x8
+            // configs (P 50, I 85, F 100).
             new Variant { Name = "OTU10's PIDs, Betaflight's yaw I", Settings = s =>
             {
                 s.p_roll = 78; s.i_roll = 24; s.d_roll = 84; s.d_min_roll = 72;
                 s.p_pitch = 72; s.i_pitch = 24; s.d_pitch = 78; s.d_min_pitch = 72;
-                s.i_yaw *= 2.5;
                 return s;
             } },
-            new Variant { Name = "Beshketnyk 10x8's yaw, Betaflight's yaw I", YawOnly = true, Settings = s => { s.p_yaw = 50; s.i_yaw = 85 * 2.5; s.f_yaw = 100; return s; } },
+            new Variant { Name = "Beshketnyk 10x8's yaw, Betaflight's yaw I", YawOnly = true, Settings = s => { s.p_yaw = 50; s.i_yaw = 85; s.f_yaw = 100; return s; } },
             new Variant { Name = "drag torque kappa x1.25", YawOnly = true, Setup = s => s.Propulsion.Props.TorqueRatio *= 1.25 },
         };
 
@@ -322,7 +324,7 @@ namespace Fpv450.FlightBench
                         jobs.Add(new Job { Settings = "player default", Fc = player, Variant = Variants[0], Payload = payload, Axis = axis, Stick = stick });
                         jobs.Add(new Job { Settings = "model 26 as flown", Fc = pilots, Variant = Variants[0], Payload = payload, Axis = axis, Stick = stick });
                         if (axis == 2)
-                            jobs.Add(new Job { Settings = "player default, Betaflight's yaw I", Fc = player, Variant = Variants[1], Payload = payload, Axis = axis, Stick = stick });
+                            jobs.Add(new Job { Settings = "player default, model 34's yaw I", Fc = player, Variant = Variants[1], Payload = payload, Axis = axis, Stick = stick });
                         if (payload > 0)
                             jobs.Add(new Job { Settings = "player default, cruise 18 m/s", Fc = player, Variant = Variants[0], Payload = payload, Axis = axis, Stick = stick, Cruise = 18 });
                     }
@@ -349,7 +351,7 @@ namespace Fpv450.FlightBench
 
             Console.WriteLine($"rate tracking: the session's drone (legs on, the coil full, a full pack, Calm), hovered {HoverSeconds:0} s 100 m up, "
                 + $"then a stick step at the hover's throttle; each cell the mean of {Seeds.Length} seeds (0x{Seeds[0]:X}..0x{Seeds[Seeds.Length - 1]:X}); rates in deg/s, times in ms");
-            foreach (string settings in new[] { "player default", "model 26 as flown", "player default, Betaflight's yaw I", "player default, cruise 18 m/s" })
+            foreach (string settings in new[] { "player default", "model 26 as flown", "player default, model 34's yaw I", "player default, cruise 18 m/s" })
             {
                 Console.WriteLine();
                 Console.WriteLine($"## {settings}");
