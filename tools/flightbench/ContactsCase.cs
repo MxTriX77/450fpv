@@ -79,6 +79,7 @@ namespace Fpv450.FlightBench
 
             Range(spec, materials, hash);
             Soil(spec);
+            WetGround(spec, materials);
 
             Console.WriteLine($"{Name}: {(_ok ? "PASS" : "FAIL")}");
             return _ok;
@@ -182,13 +183,19 @@ namespace Fpv450.FlightBench
                 double hover = SoilScenarios.HoverThrottle(spec, place.World, place.At);
                 foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain, RainLevel.SevereRain })
                 {
-                    int held = 0, soil = 0;
-                    double hold = 0, sink = 0;
+                    int held = 0, soil = 0, stuck = 0;
+                    double hold = 0, sink = 0, pull = 0, down = 0;
                     for (ulong seed = 1; seed <= 4; seed++)
                     {
                         SoilScenarios.Liftoff l = SoilScenarios.Lift(spec, place.World, place.At, hover, rain, seed, true);
                         if (l.Held >= 0) held++;
+                        if (l.Stuck > 0)
+                        {
+                            stuck++;
+                            down = Math.Max(down, -l.EndLoad);
+                        }
                         hold = Math.Max(hold, l.Hold);
+                        pull = Math.Max(pull, l.Pull);
                         for (int c = 0; c < 4; c++)
                         {
                             sink = Math.Max(sink, l.Sink[c]);
@@ -196,13 +203,94 @@ namespace Fpv450.FlightBench
                         }
                     }
                     string detail = $"{place.Name}, {rain}: hover {hover:F3}, {soil} of 16 half-skids in soil at rest, the deepest {sink * 1e3:F2} mm; {held} of 4 held, "
-                        + $"the last corner at most {hold * 1e3:F0} ms after the others";
+                        + $"the last corner at most {hold * 1e3:F0} ms after the others; a corner pulled down by at most {pull:F2} N; {stuck} of 4 still down at the ramp's end"
+                        + (stuck > 0 ? $", the ground pulling the drone down by up to {down:F2} N (all the thrust over the weight)" : "");
                     if (rain == RainLevel.Sunny && place.World != range) Row("no held leg on the dry track", held == 0, detail);
                     else Console.WriteLine("  (information) " + detail);
                 }
             }
-            Console.WriteLine("  (information) the pilot's \"most of the time in rain\" needs a pull against the lift, the cohesive pull σ_a·S_m over δ_a (design 7, task 1.13):"
-                + " the anchor's c_a·S_m acts along the ground and lets go with the normal force. The dry track's \"sometimes\" needs the leg spread (1.17) and hooks (1.14).");
+            Console.WriteLine("  (information) in rain the wet groove's cohesive pull (1.13) holds each half-skid by up to σ_a·S_m against the lift: 6.6 N wet and 11 N saturated"
+                + " on a soft soil sunk past the tube's radius, four of them 26 and 44 N; where the four exceed the ramp's thrust over the weight the drone stays down"
+                + " (design 13's protocol and σ_a are both assumed: 1.17 grades them). On S04 the tiled mat's side faces keep a corner touching as it lifts, so the cling"
+                + " never acts there. The dry track's \"sometimes\" needs the leg spread (1.17) and hooks (1.14).");
+        }
+
+        // p7a-ground 1.13: wet ground (design 7), its scenarios with their known-wrong models (WetGroundTests asserts them).
+        static void WetGround(DroneSpec spec, MaterialRow[] materials)
+        {
+            const double R = 0.005, L = 0.22;
+            SurfaceTable table = SoilScenarios.Table();
+            Console.WriteLine("wet ground (p7a-ground 1.13): a wet groove's cohesive pull as its half-skid lifts, wet straw, the cover's wet sets");
+
+            Console.WriteLine("a wet skid is held as it lifts (belt_straw, pressed to the weight, lifted at 10 mm/s; each corner's pull against σ_a·S_m, its work against ½·σ_a·δ_a·S_m):");
+            foreach (RainLevel rain in new[] { RainLevel.Rain, RainLevel.SevereRain })
+            {
+                SoilSet set = Array.Find(table.Surfaces, x => x.Name == "belt_straw").Set(SurfaceTable.MoistureOf(rain));
+                SoilScenarios.Unstick u = SoilScenarios.Unsticking(spec, SoilScenarios.Floor("belt_straw"), default, rain);
+                Row(rain.ToString(), Held(u, set.Adhesion, set.AdhesionRelease, 2 * R * L, out string detail), detail);
+            }
+            SoilScenarios.Unstick dry = SoilScenarios.Unsticking(spec, SoilScenarios.Floor("belt_straw"), default, RainLevel.Sunny);
+            Row("dry: no pull", Math.Max(Math.Max(dry.Peak[0], dry.Peak[1]), Math.Max(dry.Peak[2], dry.Peak[3])) == 0, "the pull at most 0 N");
+            SoilScenarios.Unstick wrong = SoilScenarios.Unsticking(spec, SoilScenarios.Floor("belt_straw"), default, RainLevel.Rain,
+                SoilScenarios.With("belt_straw", x => { x.Adhesion = 0; return x; }));
+            double target = Array.Find(table.Surfaces, x => x.Name == "belt_straw").Wet.Adhesion * 2 * R * L;
+            Row("known-wrong: 1.10's wet soil, no cohesive pull (c_a along the ground only)", Math.Abs(wrong.Peak[0] / target - 1) < 0.01,
+                $"the pull peaks at {wrong.Peak[0]:F3} N against σ_a·S_m {target:F3}", knownWrong: true);
+
+            Console.WriteLine("wet straw (a level straw mat, S04's row and depth; pressed to the weight, lifted at 10 mm/s):");
+            MaterialRow straw = Array.Find(materials, m => m.Name == "straw");
+            Double3 top = new Double3(0, SoilScenarios.MatDepth, 0);
+            SoilScenarios.Unstick dryMat = SoilScenarios.Unsticking(spec, SoilScenarios.MatFloor(), top, RainLevel.Sunny, place: SoilScenarios.PlaceMat);
+            foreach (RainLevel rain in new[] { RainLevel.Rain, RainLevel.SevereRain })
+            {
+                SoilScenarios.Unstick u = SoilScenarios.Unsticking(spec, SoilScenarios.MatFloor(), top, rain, place: SoilScenarios.PlaceMat);
+                bool pass = Held(u, straw.WetAdhesion, straw.WetAdhesionRelease, 2 * R * L, out string detail);
+                double kw = u.PressLoad[0] / u.Press[0], kd = dryMat.PressLoad[0] / dryMat.Press[0];
+                pass &= u.Press[0] > dryMat.Press[0] && kw < kd;
+                Row(rain.ToString(), pass, $"{u.Press[0] * 1e3:F2} mm in at the weight against dry {dryMat.Press[0] * 1e3:F2}, a corner's {kw:F1} N/m against {kd:F1}; " + detail);
+            }
+            Row("dry straw: no cling", Math.Max(Math.Max(dryMat.Peak[0], dryMat.Peak[1]), Math.Max(dryMat.Peak[2], dryMat.Peak[3])) == 0, "the pull at most 0 N");
+
+            Console.WriteLine("rain softens the ground (3 s disarmed on each soil; the T-joints' sinks dry / Rain / Severe rain):");
+            foreach (string name in new[] { "dirt_track", "belt_straw", "tilled", "crater_spoil" })
+            {
+                double last = 0;
+                bool pass = true;
+                string line = "";
+                foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain, RainLevel.SevereRain })
+                {
+                    SoilScenarios.Rest r = SoilScenarios.Resting(spec, SoilScenarios.Floor(name), default, rain);
+                    double sink = Math.Max(Math.Max(r.Skids[0].Sink1, r.Skids[1].Sink1), Math.Max(r.Skids[2].Sink1, r.Skids[3].Sink1));
+                    pass &= sink > last * 1.01;
+                    line += $"{sink * 1e3:F3} ";
+                    last = sink;
+                }
+                Row(name, pass, line.TrimEnd() + " mm");
+            }
+
+            Console.WriteLine("the cover's wet sets (the elements read them, 1.14 and 1.15):");
+            CoverSet cd = table.Cover[(int)CoverKind.Straw].Dry, cw = table.Cover[(int)CoverKind.Straw].Wet;
+            Row("straw", cw.HookReleaseMax > cd.HookReleaseMax && cw.CutEnergy > cd.CutEnergy,
+                $"hook release {cd.HookReleaseMin:F2}–{cd.HookReleaseMax:F2} N dry, {cw.HookReleaseMin:F2}–{cw.HookReleaseMax:F2} wet; cut energy {cd.CutEnergy:F0} J/m² dry, {cw.CutEnergy:F0} wet");
+        }
+
+        // A lift's pull against σ_a·S, its release by δ_a and its work against ½·σ_a·δ_a·S, every corner.
+        static bool Held(SoilScenarios.Unstick u, double sigma, double release, double footprint, out string detail)
+        {
+            bool pass = u.Allocated == 0;
+            double worstPeak = 0, worstWork = 0, released = double.PositiveInfinity, peak = 0;
+            for (int c = 0; c < 4; c++)
+            {
+                double p = u.Peak[c] / (sigma * footprint) - 1, w = u.Work[c] / (0.5 * sigma * release * footprint) - 1;
+                if (Math.Abs(p) > Math.Abs(worstPeak)) worstPeak = p;
+                if (Math.Abs(w) > Math.Abs(worstWork)) worstWork = w;
+                released = Math.Min(released, u.Released[c]);
+                peak = Math.Max(peak, u.Peak[c]);
+                pass &= Math.Abs(p) < 0.01 && Math.Abs(w) < 0.01 && u.Released[c] < release && u.Released[c] > release - 5e-5 && !u.Holding[c];
+            }
+            detail = $"the pull peaks at {peak:F4} N (σ_a·S_m {sigma * footprint:F4}, worst {worstPeak * 100:F3} %), last acts {released * 1e3:F4} mm past the set "
+                + $"(δ_a {release * 1e3:F1}), work within {worstWork * 100:F3} % of ½·σ_a·δ_a·S_m {0.5 * sigma * release * footprint * 1e3:F3} mJ; {u.Allocated} B allocated";
+            return pass;
         }
 
         static string Rest(RangeScenarios.Resting r) =>
