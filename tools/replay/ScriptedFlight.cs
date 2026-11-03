@@ -431,6 +431,47 @@ namespace Fpv450.Replay
             };
         }
 
+        /// <summary>
+        /// The tipped landing (p7f-damage 1.3's soil carve, `--record --tip [--disarm]`): on the test range's S04 soil at its track
+        /// start, in rain, StrikeScenarios.TippedLanding's flight with surfaces.json: from a hover, 0.5 m/s down and 2.5 m/s across
+        /// the skids, the throttle cut (or the drone disarmed) at the touch, so the drone rolls over and its lower props carve the
+        /// soil; every step logged as it is flown (no scheduler: the replay needs only the sticks).
+        /// </summary>
+        public static Recorded FlyTip(string path, string dronePath, RainLevel rain, bool disarm, out string outcome)
+        {
+            DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
+            SurfaceTable surfaces = SurfaceTable.Parse(File.ReadAllText(RepositorySurfaces()
+                ?? throw new FileNotFoundException("assets-src/surfaces.json was not found")));
+            FlightRecorder recorder = null;
+            LogHeader header = null;
+            var wall = Stopwatch.StartNew();
+            FlightWorld world = Fpv450.Sim.Tests.StrikeScenarios.BeltWorld(out Double3 at);
+            Fpv450.Sim.Tests.StrikeScenarios.TipResult t = Fpv450.Sim.Tests.StrikeScenarios.TippedLanding(spec, world, at, rain, surfaces, disarm,
+                started: (setup, core) =>
+                {
+                    header = LogHeader.For(setup, core);
+                    header.Build = Host.Build;
+                    header.Isa = Host.Isa;
+                    header.WorldId = "test-range";
+                    header.SetDrone(spec, spec.Nominal);
+                    recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
+                },
+                stepped: (core, stick) => recorder.RecordStep(core.State, stick, core.Trace, core.Events));
+            recorder.Close();
+            outcome = t.Describe();
+            return new Recorded
+            {
+                Counts = recorder.Counts,
+                Bytes = new FileInfo(path).Length,
+                HeaderBytes = header.Length,
+                Seed = header.Seed,
+                DroneHash = header.DroneHash,
+                WallSeconds = wall.Elapsed.TotalSeconds,
+                Fault = recorder.Fault,
+                Landing = "tipped over onto S04's soil",
+            };
+        }
+
         static Exception Virtual(FlightCore core, StickInbox inbox, PoseBuffer poses, FlightRecorder recorder, long steps, Pilot pilot)
         {
             var clock = new VirtualClock { Now = StartUs };

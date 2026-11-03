@@ -316,8 +316,15 @@ namespace Fpv450.Sim.Log
         ///    one without the line's mechanisms (no surfaces.json, no area laws, no line, model 34's yaw I; no cut entered)
         ///    steps as in 35. A blade strike on surfaces.json's soil is still a Glance (p7f-damage 1.1a's soil half and 1.3's
         ///    carve against its rows are open).
+        /// 41–42: assigned elsewhere (D-072).
+        /// 43: the blades on the ground (p7f-damage 1.1a's soil half and 1.3's soil carve on the physics integration 2, assigned by
+        ///    D-072): with surfaces.json a disc's pass over the ground or a soil shape meets its surface's set at the flight's
+        ///    moisture: a soil is carved at c·N_c (Prandtl's 2 + π) with its bulk density's fling, its sand wearing the leading
+        ///    edge by Archard in the severe class (the pass's share, and a jammed carve's grind by the work it pays, put on at its
+        ///    end); a rigid surface is a face by its own hardness (asphalt's aggregate, the slab's concrete: hard targets). A
+        ///    flight whose discs never cut the ground or a soil shape, or any flight without surfaces.json, steps as in 40.
         /// </summary>
-        public const int ModelVersion = 40;
+        public const int ModelVersion = 43;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

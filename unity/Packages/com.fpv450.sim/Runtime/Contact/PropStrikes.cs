@@ -14,9 +14,12 @@ namespace Fpv450.Sim.Contact
     ///   radial line leaves it again inside the tip (a rod, a pole, a conductor inside the rim) is met by the blade's leading
     ///   edge; one that holds the line past the tip (a wall, a slab, a trunk's face) by its tip.
     /// - Who yields (Rabinowicz's rule, published): a row harder than the blade (physics_materials.json's hardness_pa against
-    ///   props.blade's) is a hard target and the blade yields; a softer one is carved. The ground and the soil (no row until
-    ///   p7a-ground's surfaces.json), a thin compliant row (no crush strength: p7a's elements and p7d's fabric and mesh), and a
-    ///   material the table lacks take no blade damage here: the pass is logged (Glance) and does no work.
+    ///   props.blade's) is a hard target and the blade yields; a softer one is carved. The ground and the soil shapes are their
+    ///   surface's set in surfaces.json at the flight's moisture (p7f-damage 1.1a): a soil is carved at its bearing pressure
+    ///   p = c·N_c (N_c = 2 + π, Prandtl's) and flings its bulk density, its sand wearing the leading edge (below); a rigid
+    ///   surface (asphalt, a concrete slab) is a face by its own hardness. Without surfaces.json the ground and the soil, a thin
+    ///   compliant row (no crush strength: p7a's elements and p7d's fabric and mesh), and a material the table lacks take no
+    ///   blade damage here: the pass is logged (Glance) and does no work.
     /// - A hard face past the tip: the blade either bends flatwise over it, k_f·p·cot β (p its tip's depth past the face along
     ///   n, k_f = K_β/R² the rotating flap stiffness, K_β = I_b·(ω₀² + (K_s − 1)·Ω²) as the flapping's), or crushes back to it,
     ///   σ_c·A(r_m); the smaller wins (assumed: the path of least resistance).
@@ -37,7 +40,10 @@ namespace Fpv450.Sim.Contact
     ///   t·cos θ) times the area it sweeps inside (the circular segment past r_m for a face past the tip, the disc across its
     ///   radial chord for a shape inside the rim), and flings the mass it meets, Σ ρ·dV·(ω·r)² (closed form over the area):
     ///   E = p·V + m_f·v². The cutting force E over the path inside bends the inner stations edgewise; the blade is whole unless
-    ///   one breaks. The world is not changed (assumed: a carved groove is not stored).
+    ///   one breaks. The world is not changed (assumed: a carved groove is not stored). In soil, its sand bears its share s of
+    ///   that force on the leading edge along the path, and wears it by Archard, V = k·(s·E/path)·path/H_b (k the severe class's,
+    ///   ContactSpec.WearCoefficient, while the sand's quartz is harder than the blade), off the stations in the soil; a jammed
+    ///   carve's grind wears by the work it pays, put on the blade when the grind ends.
     /// - Each pass's work E leaves the rotor in the step, ω' = √(ω² − 2E/J); with E ≥ ½Jω² the rotor stops on the face
     ///   (RotorJammed), held at the face's entry, its damage cut short by the energy it had: a crush reaches that share of its
     ///   depth, a break does not happen, a carve keeps the rest of its work, which the motor's spin-up pays step by step until
@@ -56,6 +62,11 @@ namespace Fpv450.Sim.Contact
     public sealed class PropStrikes
     {
         const double Pi = 3.141592653589793, TwoPi = 6.283185307179586;
+
+        /// <summary>Prandtl's bearing capacity factor N_c = 2 + π (published): a soil's bearing pressure is c·N_c, as
+        /// physics_materials.json's sandbag row derives its crush.</summary>
+        public const double BearingFactor = 2 + Pi;
+
         static readonly string[] CornerIds = { "rr", "fr", "rl", "fl" };
         static readonly Double3 Up = new Double3(0, 1, 0);
 
@@ -70,16 +81,23 @@ namespace Fpv450.Sim.Contact
         readonly int[] _discs;
         readonly MaterialRow[] _rows;
         readonly bool[] _known;
+        readonly MaterialRow[] _surfaces; // world surface id → what a blade meets there (Name null: none, a Glance)
+        readonly double[] _sand;          // world surface id → its sand's wear per joule of a carve's work, m³/J
         readonly double[] _strength;
         readonly double[] _area, _flat, _edge, _stiff, _mass; // per station, the whole chord: A, M_f, M_e, EI_f/span, mass
         readonly Pending[] _pending = new Pending[4];
 
-        /// <summary>A rotor stopped in a carve: the work still to do and where it is (design 6).</summary>
+        /// <summary>A rotor stopped in a carve: the work still to do and where it is (design 6); in soil, the sand's wear per joule
+        /// of it (m³/J), what the grind has worn so far (m³), from where (r/R), and what it carves.</summary>
         struct Pending
         {
             public bool Active;
             public int Object, Shape, Blade;
             public double Left, Work, Entry, Psi;
+            public double WearRate, Worn, From;
+            public ushort Material;
+            public byte Surface;
+            public Double3 Point;
         }
 
         /// <summary>The last pass, for a test: its rotor, blade and mode, the meeting radius, the work and the rotor's speeds
@@ -144,6 +162,32 @@ namespace Fpv450.Sim.Contact
                 }
             }
 
+            // The world's surfaces by id at the flight's moisture, as the contacts read them (p7f-damage 1.1a): a soil is a soft
+            // face at its bearing pressure c·N_c with its bulk density, its sand's wear per joule of a carve k·s/H_b (severe while
+            // quartz is harder than the blade); a rigid surface is a face by its own hardness, crush strength and density. None
+            // without surfaces.json: then the ground and the soil glance.
+            _surfaces = new MaterialRow[256];
+            _sand = new double[256];
+            SurfaceTable table = _spec.Surfaces;
+            double severe = table != null && table.SandHardness > _b.Hardness ? _spec.WearCoefficient : 0;
+            for (int id = 1; id < 256; id++)
+            {
+                if (!contacts.SurfaceSet((byte)id, out SoilSet set)) continue;
+                double p = set.Cohesion * BearingFactor;
+                _surfaces[id] = set.Rigid
+                    ? new MaterialRow
+                    {
+                        Name = q.SurfaceName((byte)id), StaticFriction = set.StaticFriction, KineticFriction = set.KineticFriction, Hardness = set.Hardness,
+                        CrushStrength = set.CrushStrength, Density = set.Density,
+                    }
+                    : new MaterialRow
+                    {
+                        Name = q.SurfaceName((byte)id), StaticFriction = set.StaticFriction, KineticFriction = set.KineticFriction, Hardness = p, CrushStrength = p,
+                        Density = set.BulkDensity,
+                    };
+                _sand[id] = set.Rigid ? 0 : severe * set.SandShare / _b.Hardness;
+            }
+
             // The stations' sections, the whole chord: area, flatwise and edgewise strength, the flatwise stiffness over a span.
             _area = new double[_stations];
             _flat = new double[_stations];
@@ -188,7 +232,7 @@ namespace Fpv450.Sim.Contact
                 int c = d.Corner, pairs = _contacts.DiscPairs(i);
                 if (pairs == 0)
                 {
-                    _pending[c].Active = false;
+                    if (_pending[c].Active && Finish(i, d, ref _pending[c], events)) changed |= 1 << c;
                     continue;
                 }
                 Double3 hub = now.Position + now.Attitude.Rotate(d.A);
@@ -200,7 +244,7 @@ namespace Fpv450.Sim.Contact
                     skipObject = _pending[c].Object;
                     skipShape = _pending[c].Shape;
                     skipBlade = _pending[c].Blade;
-                    Grind(i, d, c, ref now, body, hub, axis, events, ref impulse, ref angular);
+                    if (Grind(i, d, c, ref now, body, hub, axis, events, ref impulse, ref angular)) changed |= 1 << c;
                 }
                 for (int k = 0; k < pairs && now.RotorSpeed[c] > 0; k++)
                 {
@@ -243,8 +287,10 @@ namespace Fpv450.Sim.Contact
                 Corner = c, Blade = b, Radius = rm, Exit = double.PositiveInfinity, SpeedBefore = omega, Inertia = J, TipBefore = tip, TipAfter = tip,
                 Point = m.Point, Normal = nrm, Station = -1, Tilt = DetMath.Abs(Double3.Dot(nrm, axis)),
             };
-            bool known = surface == WorldIds.NoSurface && obj != WorldIds.Ground && material < _known.Length && _known[material];
-            MaterialRow row = known ? _rows[material] : default;
+            // The face: a surface's set (the ground, a soil shape) or a material's row.
+            bool soil = surface != WorldIds.NoSurface;
+            bool known = soil ? _surfaces[surface].Name != null : obj != WorldIds.Ground && material < _known.Length && _known[material];
+            MaterialRow row = !known ? default : soil ? _surfaces[surface] : _rows[material];
             if (!known || !(row.CrushStrength > 0))
             {
                 rec.Mode = StrikeMode.Glance;
@@ -296,6 +342,9 @@ namespace Fpv450.Sim.Contact
                 double fling = row.Density * height * omega * omega * second;
                 work = row.CrushStrength * area * height + fling;
                 rec.Fling = fling;
+                // The soil's sand: its share of the cutting force on the leading edge along the path, by Archard (k·s/H_b per joule).
+                wear = soil ? _sand[surface] * work : 0;
+                rec.Wear = wear;
                 double cut = path > 0 ? work / path : 0;
                 rec.PeakForce = cut;
                 broke = Breaks(blade, f, rm, rc, cut, 0, out rec.PeakMoment, out rec.Margin);
@@ -426,6 +475,7 @@ namespace Fpv450.Sim.Contact
                     _pending[c] = new Pending
                     {
                         Active = true, Object = obj, Shape = shape, Blade = b, Left = work - energy, Work = work, Entry = psi - alpha, Psi = psi,
+                        WearRate = soil ? _sand[surface] : 0, From = rm / R, Material = material, Surface = surface, Point = m.Point,
                     };
                 }
             }
@@ -491,8 +541,9 @@ namespace Fpv450.Sim.Contact
             return damaged;
         }
 
-        // A rotor stopped in a carve: the motor's spin-up pays the work still to do (design 6).
-        void Grind(int i, in ContactShape d, int c, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, StepEvents events,
+        // A rotor stopped in a carve: the motor's spin-up pays the work still to do (design 6), and in soil its sand wears the
+        // blade by that work; true when the grind's end changed the blade.
+        bool Grind(int i, in ContactShape d, int c, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, StepEvents events,
             ref Double3 impulse, ref Double3 angular)
         {
             ref Pending p = ref _pending[c];
@@ -508,14 +559,11 @@ namespace Fpv450.Sim.Contact
             BladeCut.Meeting m = default;
             bool still = at >= 0 && Geometry(p.Object, p.Shape, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)
                 && BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m) && m.Radius < blade.TipRadius * _radius;
-            if (!still)
-            {
-                p.Active = false;
-                return;
-            }
+            if (!still) return Finish(i, d, ref p, events);
             double omega = now.RotorSpeed[c], J = _propulsion.Inertia(c), s = _spin[c], energy = 0.5 * J * omega * omega;
             double used = DetMath.Min(energy, p.Left), after = energy > p.Left ? DetMath.Sqrt(omega * omega - 2 * p.Left / J) : 0;
             p.Left -= used;
+            p.Worn += p.WearRate * used;
             double rc = 0.5 * (m.Radius + blade.TipRadius * _radius);
             int ks = Station(rc / _radius);
             double theta = _b.SectionAngle[ks] + blade.FactoryPitch + blade.PitchSet[ks];
@@ -529,7 +577,6 @@ namespace Fpv450.Sim.Contact
             now.RotorSpeed[c] = after;
             bool through = !(p.Left > 0);
             Hold(ref now, c, p.Blade, through ? p.Psi : p.Entry + (p.Psi - p.Entry) * (1 - p.Left / p.Work));
-            if (through) p.Active = false;
             var rec = new PassRecord
             {
                 Corner = c, Blade = p.Blade, Mode = StrikeMode.Carve, Radius = m.Radius, Exit = double.PositiveInfinity, Work = p.Work, Used = used,
@@ -541,6 +588,20 @@ namespace Fpv450.Sim.Contact
             Last = rec;
             Record?.Add(rec);
             Passes++;
+            return through && Finish(i, d, ref p, events);
+        }
+
+        // A carve's grind ends, through or its shape gone: the sand's wear over the work it paid goes on the blade, from where the
+        // carve met it, with one BladeDamaged; true when that changed the blade.
+        bool Finish(int i, in ContactShape d, ref Pending p, StepEvents events)
+        {
+            p.Active = false;
+            if (!(p.Worn > 0)) return false;
+            BladeState blade = _propulsion.Rotor(d.Corner).Blade(p.Blade);
+            double before = Mass(blade);
+            if (!Wear(blade, p.From, p.Worn)) return false;
+            Damaged(i, d, p.Blade, StrikeMode.Wear, p.Object, p.Shape, p.Material, p.Surface, p.Point, blade.TipRadius, before - Mass(blade), p.From, events);
+            return true;
         }
 
         // A pass's contact time over an arc (rad) at the rotor's speed, held to the step: a slowly turning blade presses the face

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using NUnit.Framework;
 
@@ -324,7 +325,7 @@ namespace Fpv450.Sim.Tests
         // "Props that touch the ground bog down", against the materials table's soil-like row (sandbag: dry sand's c·N_c and
         // density): 2 and 10 mm into its top under a disc rolled 30°. Each pass's work is p·V + m_f·v² within 1e-9 of the closed
         // form, the flung mass dominates, the 10 mm dig stops the rotor within its first two passes. The ground's own soil (the
-        // dirt track, S04's bare soil) and its sand's wear follow p7a-ground's surfaces.json.
+        // dirt track, S04's) and its sand's wear: PropsThatTouchTheGroundBogDown.
         [Test]
         public void PropsThatTouchSoilBogDown()
         {
@@ -362,6 +363,138 @@ namespace Fpv450.Sim.Tests
                 if (depth == 0.010) Assert.That(first, Is.InRange(0, 1), "the 10 mm dig stops the rotor within its first two passes");
             }
         }
+
+        // "Props that touch the ground bog down", restated on surfaces.json's soils (p7f-damage 1.1a's soil half, 1.3's soil carve):
+        // a disc rolled 30° reaching 2 and 10 mm into the dirt track's ground (a stub floor of S13), S04's (the range's plane at its
+        // track start) and a soil shape of S04 (a runtime box with the belt_straw surface, as S04's patches have), dry, in Rain and
+        // in Severe rain. Each carve's work is p·V + m_f·v² within 1e-9 of the closed form at the rain's set (p = c·N_c, ρ the bulk
+        // density), the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, the sand wears the leading
+        // edges by Archard (V = k·s·W/H_b on every carve, BladeDamaged Wear), and the wetter soil, denser, takes more from the same
+        // first pass. The known-wrong, model 40's Glance (the same rig without surfaces.json), takes no work and never stops the
+        // rotor, so it fails.
+        [Test]
+        public void PropsThatTouchTheGroundBogDown()
+        {
+            DroneSpec spec = Spec;
+            SurfaceTable table = SoilScenarios.Table();
+            PropBlade b = spec.Blade;
+            double k = new ContactSpec().WearCoefficient, nc = PropStrikes.BearingFactor;
+            Assert.That(nc, Is.EqualTo(5.14).Within(0.002), "Prandtl's N_c");
+            var range = new FlightWorld(RangeScenarios.World);
+            Double3 belt = SoilScenarios.TrackStart(range), sky = StrikeScenarios.Sky + new Double3(0, -0.5, 0);
+            byte beltId = MapWorld.SurfaceId("belt_straw");
+            var soilBox = new ShapeGeometry
+            {
+                Kind = ShapeKind.Box, Center = sky + new Double3(0, -0.25, 0), AxisX = new Double3(1, 0, 0), AxisY = Up, AxisZ = new Double3(0, 0, 1),
+                HalfExtents = new Double3(1, 0.25, 1), Surface = beltId,
+            };
+            var faces = new (string Name, string Surface, Func<FlightWorld> World, Double3 Top, RuntimeObject[] Objects)[]
+            {
+                ("the dirt track", "dirt_track", () => SoilScenarios.Floor("dirt_track"), default, null),
+                ("S04's ground", "belt_straw", () => new FlightWorld(RangeScenarios.World), belt, null),
+                ("S04's soil box", "belt_straw", () => new FlightWorld(RangeScenarios.World), sky, StrikeScenarios.One(soilBox)),
+            };
+            foreach (var face in faces)
+            {
+                double first2 = 0;
+                foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain, RainLevel.SevereRain })
+                {
+                    SoilSet set = Array.Find(table.Surfaces, s => s.Name == face.Surface).Set(SurfaceTable.MoistureOf(rain));
+                    double p = set.Cohesion * nc;
+                    foreach (double depth in new[] { 0.002, 0.010 })
+                    {
+                        StrikeScenarios.Rig rig = StrikeScenarios.Into(spec, face.Objects, face.Top, Up, Rolled(), depth, face.Top.Y, 1.0, 200, world: face.World(),
+                            table: table, rain: rain);
+                        List<PropStrikes.PassRecord> passes = Passes(rig).FindAll(r => r.Mode != StrikeMode.Glance);
+                        // Each blade's first carve meets it unworn (chord share 1), so its whole closed form is checked there; on
+                        // every carve the crush and the fling share one swept volume (the frontal height the fling implies), and
+                        // the sand's wear is Archard's on the pass's work.
+                        double worst = 0, worstSplit = 0, worstWear = 0;
+                        int closedForms = 0, splits = 0;
+                        var unworn = new bool[spec.Props.Blades];
+                        foreach (PropStrikes.PassRecord r in passes)
+                        {
+                            if (r.Mode != StrikeMode.Carve || r.Grind || r.Exit < r.TipBefore * R) continue;
+                            double rt = r.TipBefore * R, a = Math.Acos(r.Radius / rt), t = Math.Tan(a);
+                            double area = rt * rt * (a - Math.Sin(a) * Math.Cos(a));
+                            double second = Math.Pow(rt, 4) * a / 2 - Math.Pow(r.Radius, 4) * (t + t * t * t / 3) / 2;
+                            double implied = r.Fling / (set.BulkDensity * r.SpeedBefore * r.SpeedBefore * second);
+                            worstSplit = Math.Max(worstSplit, Math.Abs(r.Work - r.Fling - p * area * implied) / (r.Work - r.Fling));
+                            worstWear = Math.Max(worstWear, Math.Abs(r.Wear - k * set.SandShare * r.Work / b.Hardness) / r.Wear);
+                            splits++;
+                            Assert.That(r.Fling, Is.GreaterThan(r.Work - r.Fling), "the flung mass dominates");
+                            if (unworn[r.Blade]) continue;
+                            unworn[r.Blade] = true;
+                            int st = (int)((0.5 * (r.Radius + rt) / R - (b.Stations[0] - 0.5 * b.Span)) / b.Span);
+                            BladeState s = rig.Core.Propulsion.Rotor(3).Blade(r.Blade);
+                            double theta = b.SectionAngle[st] + s.FactoryPitch + s.PitchSet[st];
+                            double hf = b.Chord[st] * Math.Sin(theta) + b.Thickness[st] * Math.Cos(theta);
+                            double closed = p * area * hf + set.BulkDensity * hf * r.SpeedBefore * r.SpeedBefore * second;
+                            worst = Math.Max(worst, Math.Abs(r.Work - closed) / closed);
+                            closedForms++;
+                        }
+                        int first = passes.FindIndex(r => r.Jammed), worn = 0;
+                        foreach (FlightEvent e in rig.Log)
+                            if (e.Kind == EventKind.BladeDamaged && (StrikeMode)(e.Index >> 4) == StrikeMode.Wear) worn++;
+                        double chord = 1;
+                        for (int bl = 0; bl < spec.Props.Blades; bl++)
+                            for (int j = 0; j < b.Stations.Length; j++) chord = Math.Min(chord, rig.Core.Propulsion.Rotor(3).Blade(bl).ChordShare[j]);
+                        TestContext.Out.WriteLine($"{face.Name} ({face.Surface}, {rain}: c·N_c {p / 1e3:F2} kPa, ρ {set.BulkDensity:F1} kg/m³, sand {set.SandShare:F2}) "
+                            + $"{depth * 1e3} mm: {passes.Count} passes, the first jam at pass {first}; {closedForms} unworn against p·V + m_f·v², the worst {worst:E2}, "
+                            + $"{splits} split within {worstSplit:E2}; Archard's wear within {worstWear:E2}, {worn} wear events, the leading edge's chord share down to {chord:F6}");
+                        foreach (PropStrikes.PassRecord r in passes.GetRange(0, Math.Min(3, passes.Count))) TestContext.Out.WriteLine("  " + StrikeScenarios.Line(r));
+                        Assert.That(closedForms, Is.GreaterThan(0), face.Name + " is carved");
+                        Assert.That(worst, Is.LessThan(1e-9));
+                        Assert.That(worstSplit, Is.LessThan(1e-9));
+                        Assert.That(worstWear, Is.LessThan(1e-9));
+                        Assert.That(worn, Is.GreaterThan(0), "the sand wears the leading edge");
+                        Assert.That(chord, Is.LessThan(1));
+                        if (depth == 0.010) Assert.That(first, Is.InRange(0, 1), "the 10 mm dig stops the rotor within its first two passes");
+                        if (depth != 0.002) continue;
+                        Assert.That(passes[0].Work, Is.GreaterThan(first2), "the wetter soil is denser and takes more from the same pass");
+                        first2 = passes[0].Work;
+                    }
+                }
+                // The known-wrong: model 40's Glance, the same 10 mm dig without surfaces.json.
+                StrikeScenarios.Rig wrong = StrikeScenarios.Into(spec, face.Objects, face.Top, Up, Rolled(), 0.010, face.Top.Y, 1.0, 200, world: face.World());
+                List<PropStrikes.PassRecord> glances = Passes(wrong);
+                TestContext.Out.WriteLine($"{face.Name}, the known-wrong Glance: {glances.Count} passes, all glances {glances.TrueForAll(r => r.Mode == StrikeMode.Glance)}, "
+                    + $"jams {wrong.Count(EventKind.RotorJammed)}");
+                Assert.That(glances.Count, Is.GreaterThan(0), "the disc meets the ground");
+                Assert.That(glances.TrueForAll(r => r.Mode == StrikeMode.Glance && r.Work == 0), Is.True);
+                Assert.That(wrong.Count(EventKind.RotorJammed), Is.EqualTo(0), "the Glance never bogs the prop down, so it fails");
+            }
+        }
+
+        // The pilot's landing tipped over onto the dirt track and S04's soil, Sunny and in Rain, the throttle cut at the touch or
+        // the drone disarmed (prop-motor-damage's "Props that touch the ground bog down" when the drone tips over on landing):
+        // it rolls onto its side, its lower props carve the soil and stop in it; the known-wrong, the rigid ground without
+        // surfaces.json, only glances.
+        [TestCase("track", RainLevel.Sunny, false)]
+        [TestCase("track", RainLevel.Rain, false)]
+        [TestCase("belt", RainLevel.Sunny, false)]
+        [TestCase("belt", RainLevel.Rain, false)]
+        [TestCase("track", RainLevel.Sunny, true)]
+        [TestCase("track", RainLevel.Rain, true)]
+        [TestCase("belt", RainLevel.Sunny, true)]
+        [TestCase("belt", RainLevel.Rain, true)]
+        public void ATippedLandingDigsItsPropsIn(string site, RainLevel rain, bool disarm)
+        {
+            DroneSpec spec = Spec;
+            StrikeScenarios.TipResult r = StrikeScenarios.TippedLanding(spec, World(site, out Double3 at), at, rain, SoilScenarios.Table(), disarm);
+            StrikeScenarios.TipResult wrong = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, null, disarm);
+            TestContext.Out.WriteLine($"{site} in {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
+            TestContext.Out.WriteLine("  the known-wrong (no surfaces.json): " + wrong.Describe());
+            Assert.That(r.MaxTilt, Is.GreaterThan(45), "the landing tips onto its side");
+            Assert.That(r.InSoil, Is.GreaterThan(0), "its props carve the soil");
+            Assert.That(r.Work, Is.GreaterThan(0));
+            Assert.That(r.Jams, Is.GreaterThan(0), "and stop in it");
+            Assert.That(r.Tunnels, Is.EqualTo(0));
+            Assert.That(wrong.Glances, Is.GreaterThan(0), "the known-wrong's props meet the ground");
+            Assert.That(wrong.Passes, Is.EqualTo(0), "and only glance");
+        }
+
+        static FlightWorld World(string site, out Double3 at) => site == "track" ? StrikeScenarios.TrackWorld(out at) : StrikeScenarios.BeltWorld(out at);
 
         // "Who yields is decided by the material": the same 5 mm entry at hover speed into concrete, steel, masonry, timber, bark,
         // rubber and S04's straw (its boxes' row): the hard three damage the blade, the soft three are carved and leave it whole
