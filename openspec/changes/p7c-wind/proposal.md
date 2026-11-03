@@ -1,7 +1,7 @@
 # Proposal: p7c-wind
 
-**Owner:** physics-engineer · **Also building:** world-builder (the wake grid, task 1.3) · **Reviewers:** qa-engineer (the statistical harness and the known-wrong models); **the pilot at G7**
-**Requirements:** PHY-13, PHY-13a, PHY-14, PHY-15, PHY-16, PHY-17, PHY-17a, PLT-04, TST-03 · **Decisions:** D-011 (levels), D-021 (rain), D-024 (computed, never asked), D-037 (the stats tools ported), D-042 (wind is part of G7), D-044 (the test range) · **VISION:** §2 point 3 ("turbulence ... through narrow holes or among dense woods in a severe wind")
+**Owner:** physics-engineer · **Also building:** world-builder (the wake grid, task 1.3; the cut records, 1.10a) · **Reviewers:** qa-engineer (the statistical harness and the known-wrong models); **the pilot at G7**
+**Requirements:** PHY-13, PHY-13a, PHY-14, PHY-15, PHY-16, PHY-17, PHY-17a, PLT-04, TST-03 · **Decisions:** D-011 (levels), D-021 (rain), D-024 (computed, never asked), D-037 (the stats tools ported), D-042 (wind is part of G7), D-044 (the test range), D-071 (the trench's cavity) · **VISION:** §2 point 3 ("turbulence ... through narrow holes or among dense woods in a severe wind")
 **Source:** `docs/knowledge.md` §6.5, §6.7 and §8 (clip P's measurements, the model, the simulated pilot, the K§8.6 targets); `p6-flight-core` 1.5's stand-in wind and its as-built note; `godot-final`'s `wind_stats.py`, `wind_history_fixture.py` and `rain_stats.py` (to port).
 
 ## Why

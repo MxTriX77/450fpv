@@ -1,6 +1,6 @@
 # Tasks: p7c-wind
 
-Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-flight-core` has landed its 1.6, or off the flight core's tip with its sub-branches merged in. Task 1.1 starts at once (plain Python). 1.2 follows 1.1. 1.3 (world-builder) needs `p6-world-query-gallery` 1.4. 1.4 needs 1.2 and uses a synthetic belt until 1.3 lands. 1.5 follows 1.4 and 1.3, 1.6 runs with 1.5, and 1.7 and 1.8 come last.
+Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-flight-core` has landed its 1.6, or off the flight core's tip with its sub-branches merged in. Task 1.1 starts at once (plain Python). 1.2 follows 1.1. 1.3 (world-builder) needs `p6-world-query-gallery` 1.4. 1.4 needs 1.2 and uses a synthetic belt until 1.3 lands. 1.5 follows 1.4 and 1.3, 1.6 runs with 1.5, and 1.7 and 1.8 come last. 1.10 (D-071, the cavity) follows the physics integration's landing: its synthetic cuts start at once, and its map scenarios wait for 1.10a (world-builder, the cut records).
 
 ## 1. Build
 
@@ -332,6 +332,36 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
       - **Not kept, a tunnel** (`p6-flight-core` 1.6b's record): `InTheWindNoTunnelThroughARigidShape("wire", 5.52, Severe)` logs one, the suite's only failure.
       - **Verified:** `dotnet test tools/simtests` 367 of 368; `flightbench --golden`, `--scenarios`, `--contacts`, `--shake`, `--probe` and `--wind-harness calm|windy|severe` PASS; `worldbench --golden` PASS; `replay --record --map test-range --wind severe` (the map's own wind) 120 000 steps and 335 events bit for bit, landing at 0.491 m/s, no crash; on the floor in Severe 295 events, with `--wakes` 307, bit for bit; `python -m pytest tools/wind tools/flightbench`, the OPSEC scan and `openspec validate --strict` pass. `flightbench --bench` on AC ("AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz"; other agents on the host): 16 PASS, 0 B; powered p99 137.8 µs, posadka-step p50 48.0 / p99 121.5 µs, map-step p50 50.6 / p99 137.6 µs (9 rebuilds, 0 stalls), canopy-step inside p99 80.7 µs, S04's straw p99 182.3 µs.
       - **Model 24, the physics integration** (`unity/physics/physics-integration`): `p7b-airframe` 1.3d's rotor interference and 1.10's micro-motion (D-064) merged onto this line, the range golden still in `WindSetup.ForMap`; Severe 10 of 21, T6d's pitch failing by D-068 (`p7b-airframe` 1.10's notes).
+- [ ] 1.10 [physics-engineer] The wind inside a cut (design 10; D-071, PHY-13, WLD-16; QA's S5): build design 10. Its synthetic cuts start at once; its E01 scenarios wait for 1.10a.
+  - **The parts:**
+    - `CutSpec` and `WindSetup.Cuts` beside the strips; `MapWind.Cuts(map)` from 1.10a's records, and `WindSetup.ForMap` carries them
+    - in `WindField.Begin`, the cut frame at the body's origin and its drive Ū_o at h_o over the lip
+    - in `WindField.Air`, the cavity below the lip, the lip as the ground above the opening, still air below a covered cut's roof, and the turbulence × τ·Λ
+    - the cuts in the log header (`LogFormat.Version` + 1, `ModelVersion` + 1)
+    - no new draw
+    - every constant a named, labelled parameter: c_v, h_o's 1.5, τ_in, the regime bounds 5 and 6, Hotta's X_R table, the recovery length, the wall region, δ_s's 7.2
+  - **Tests:** `Tests/CavityTests.cs` on synthetic cuts (the field given its floor, as `WakeFieldTests` does), `MapWindTests`' E01 cases, `flightbench --bench`'s map-step held in E01's run, and `replay --record --map test-range` through the run.
+  - **Verify:**
+    - the "across a deep cut", "a cut's regimes by its length over its depth", "oblique wind and a cut's ends", "over the opening and at its edge" and "the cavity's bits and cost" scenarios
+    - the known-wrong models fail each, as test-side switches never in a player's setup: model 26's open profile from the floor, model 19's still hole, and one 2-D cavity along the wind's line (L = W/sin θ) at 2° to the cut
+    - design 10's first readings reproduced to the printed digits (E01 across at 9.5 m/s: 0.10 and 0.19 m/s at 1.0 and 0.5 m over the floor; the turns at 5.2, 5.8, 6.8 and 7.0 D)
+    - the goldens audited: a flight that never enters a cut's opening steps as in 26; re-record the range golden only if it moves, audited against model 26 with the cuts switched off
+    - `dotnet test tools/simtests`; `flightbench --golden`, `--scenarios`, `--wind-harness severe` (every CSV byte for byte model 26's: the harness's floor has no cut) and `--bench` on AC; `openspec validate p7c-wind --strict`
+- [ ] 1.10a [world-builder] The cut records (design 10, D-071): `MapWorld` holds each hole record for the wind, at load time, beside its wind volumes (`MapWorldWind`).
+  - **Each record carries:**
+    - its centre line with each point's lip height (the placement file's y)
+    - `top_width_m` and `depth_m`, now loaded (the loader reads only the band today)
+    - three new fields:
+      - `lip_width_m`: the opening at the lip, crumble included (E01's slot gaps give 0.90–0.98 m, against the spade's 0.8)
+      - `ends_m`: the opening past the first and last centre-line points (Z04's walls give 0.25 and 0.25)
+      - `covered`: fillers roof the band (E01's two niches)
+  - **Source:** derive the new fields from the assets' own data, which the hash already covers (the gaps' slots, the fillers' shapes), either at load or in `tools/map/make_test_range.py`; the world builder's call. A field written at compile time moves the content hash; audit that move.
+  - **Validation:** the map's checks (`make_test_range.py` and `tools/map/tests`; there is no `validate.py` before phase 3) cover the fields: each opening inside its band, a width over 0, a depth over 0, ends of 0 or more, and a covered band's roof (a ray up from its centre line at half depth meets a filler below the lip).
+  - **Verify:**
+    - the records against the assets: E01's run 24.0 m of centre line, a lip width inside its slots' 0.903–0.981 m, its ends at its end walls; Z04 0.9 m wide with ends of 0.25 m; the niches covered, the run and the shaft open
+    - the known-wrongs fail: a niche marked open fails the roof check, and the spade width fails the slots
+    - S04's patches give no record
+    - `python -m pytest tools/map`, `dotnet test tools/simtests`, and `worldbench --golden` (re-recorded only if the hash moves, audited)
 
 ## 2. Review
 

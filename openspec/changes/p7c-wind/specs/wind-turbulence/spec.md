@@ -69,3 +69,26 @@ The field's sampling SHALL stay within PLT-04's share of the step, with the wake
 #### Scenario: The cost of the wind
 - **WHEN** `flightbench --bench` runs Severe over the posadka on AC with the power mode printed
 - **THEN** the step's p99 stays at or under 300 µs with 0 B allocated, and a direction change of 10° recomputes the wake grid without a hitch on the flight thread
+
+### Requirement: The wind inside a cut is a cavity flow
+Below a cut's lip, a flight in a pilot's level SHALL fly the cut's own flow, never the open profile restarted at its floor. The flow SHALL be driven by the field's mean above the lip, split into the components across and along the cut, and SHALL take one of two forms by the cut's length over its depth along each component: a recirculating cell, or a bubble that reattaches on the floor. The field's turbulence SHALL be reduced inside. Above the opening, the field SHALL take the lip as its ground. The cuts SHALL be derived from the world's hole records, never drawn.
+
+#### Scenario: Across a deep cut
+- **WHEN** the map's Severe wind blows over the test range on seeds 1–3 for 120 s, read at 0.5 m and 1.0 m over E01's run floor and at the same heights over the plane at QA's spots (`review-integration.md` S5), and again in a steady preset (σ 0) blowing across a straight cut of E01's section (0.8 × 1.5 m)
+- **THEN** the run's mean horizontal speed is at most 0.25 of the plane's at the same height over the local ground. Across the straight cut, the flow 0.1 m below the lip runs with the wind and the flow from 0.5 m below the lip to the floor runs against it, up the upwind wall and down the downwind wall (one vortex). Model 26's open profile from the floor (0.47–1.20 of the plane, downwind at every depth) fails each
+
+#### Scenario: A cut's regimes by its length over its depth
+- **WHEN** a steady preset (σ 0, 9.5 m/s at 35 m) blows across straight cuts 1.0 m deep and 0.5, 1, 2, 4, 6, 8, 10 and 20 m wide, read 0.4 m over the floor along the wind
+- **THEN** up to 4 m wide the floor flow is reversed across the whole cut (one cell). At 6, 8, 10 and 20 m it turns forward at 5.2, 5.8, 6.8 and 7.0 depths from the upwind wall, ± 0.1 depth (Hotta et al. 1998's 5.2, 5.8 and 6.8, and the step's 7.2). The open profile from the floor (forward everywhere) and a still hole (model 19: no flow) each fail
+
+#### Scenario: Oblique wind and a cut's ends
+- **WHEN** a steady preset (σ 0) blows at 90°, 60°, 30°, 10° and 2° to the axis of a straight 24 m cut of E01's section with closed ends
+- **THEN** the cross cell scales with the sine of the angle and the along flow with its cosine, within 1e-9 relative. The along flow is at most 0.1 of the plane's at 1.0 m over the floor and falls to 0 at the end walls. One 2-D cavity on the wind's line (length W/sin θ) reads at least 0.4 of the plane at 1.0 m over the floor at 2°, and fails
+
+#### Scenario: Over the opening and at its edge
+- **WHEN** the drone is carried across E01's run at 0.5 m over the plane and 1 m/s in the map's Calm wind (σ 0), and held 0.5 m over the run's opening
+- **THEN** over the opening the field at every point above the lip is, bit for bit, the field of the same setup with the lip passed as the ground. No hub's mean changes by more than 0.01 m/s in one step at the opening's edge. Model 20's profile from the floor fails each: QA saw 0.2 → 0.6 m/s in one step, and it reads the field over the opening 1.5 m higher
+
+#### Scenario: The cavity's bits and cost
+- **WHEN** two flights with the same seed fly the map's Severe wind through E01's run (held in it 60 s, then climbing out), and `flightbench --bench`'s map-step holds the drone in the run on AC with the power mode printed
+- **THEN** the wind at every hub is bit-identical between the two flights, and replay reproduces every step and event bit for bit. The step allocates 0 B and its p99 stays at or under 300 µs. A flight that never enters a cut's opening steps as at model 26
