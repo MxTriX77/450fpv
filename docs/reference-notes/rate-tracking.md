@@ -1,10 +1,10 @@
 # Rate tracking: how the drone follows its flight controller's setpoint
 
-For the pilot's model-26 feedback (D-076): "yaw and roll are currently super slow… ultra smooth and slow", while "the way the drone flies is very nice". D-076 showed the setpoint is not the cause: the pilot's real profile (rate profile 0, 50 / 220 / 0.45 roll and pitch, 80 / 240 / 0.20 yaw) is slightly gentler than the 55 / 225 / 0.34 and 85 / 260 / 0.15 model 26 flew. This note measures the response itself, on the sim core, headless. Labels: *pilot*, *measured* (on the sim, or in a log), *published*, *derived*, *assumed*. Nothing here is fixed yet.
+For the pilot's model-26 feedback (D-076): "yaw and roll are currently super slow… ultra smooth and slow", while "the way the drone flies is very nice". D-076 showed the setpoint is not the cause: the pilot's real profile (rate profile 0, 50 / 220 / 0.45 roll and pitch, 80 / 240 / 0.20 yaw) is slightly gentler than the 55 / 225 / 0.34 and 85 / 260 / 0.15 model 26 flew. This note measures the response itself, on the sim core, headless. Labels: *pilot*, *measured* (on the sim, or in a log), *published*, *derived*, *assumed*. §1–§7 were measured on model 26 (model 34 gives the same numbers, §8). **The yaw I fix of §6 is applied at model 36** (§8); nothing else here is changed.
 
 ## 0. The answer
 
-1. **Yaw is slow, and part of it is a controller bug.** Betaflight 4.5 multiplies the yaw I gain by 2.5 whenever integrated yaw is off (published: `src/main/flight/pid_init.c`, `pidInitConfig`, right after the P/I/D/F scaling: `pidRuntime.pidCoefficient[FD_YAW].Ki *= 2.5f;` unless `use_integrated_yaw`). Integrated yaw is off by default, and none of the pilot's saved configs turns it on. The sim's `FlightController` scales yaw I like roll's and leaves out the 2.5.
+1. **Yaw is slow, and part of it is a controller bug (fixed at model 36, §8).** Betaflight 4.5 multiplies the yaw I gain by 2.5 whenever integrated yaw is off (published: `src/main/flight/pid_init.c`, `pidInitConfig`, right after the P/I/D/F scaling: `pidRuntime.pidCoefficient[FD_YAW].Ki *= 2.5f;` unless `use_integrated_yaw`). Integrated yaw is off by default, and none of the pilot's saved configs turns it on. The sim's `FlightController` scales yaw I like roll's and leaves out the 2.5.
    - **As built,** a full-stick yaw step reaches 90 % of its rate in 255–273 ms (0–2 kg, measured). It then hangs 14–16 % above the setpoint for most of a second, and takes 254–268 ms to stop after the stick is centred.
    - **With Betaflight's yaw I:** 147–180 ms to 90 %, 3–4 % over, 142–163 ms to stop.
    - **In the pilot's own model-26 flights** the yaw rate trails the stick's setpoint by 108–148 ms (measured, §4).
@@ -20,7 +20,7 @@ For the pilot's model-26 feedback (D-076): "yaw and roll are currently super slo
      - The yaw authority itself is the class's: 840–890 °/s² at the PID-sum limit (derived), against FpvPrep's 500–800 °/s² for these sizes (fc-profiles §3).
      - Nothing saturates as built.
    - **D-064's spreads, the rotor inertia from p7f 1.2's blades, airmode and the airframe's modes** each move these numbers by 6 ms or less.
-4. **The verdict:** roll and pitch track as the class does on the builder's PIDs and filters. Yaw does not track as Betaflight would on the same settings. The wrong element is the controller's yaw I, by Betaflight's own source. The fix is in §5. It is described here, not applied.
+4. **The verdict:** roll and pitch track as the class does on the builder's PIDs and filters. Yaw did not track as Betaflight would on the same settings. The wrong element was the controller's yaw I, by Betaflight's own source. The fix is in §6, applied at model 36 (§8).
 5. **Even after the fix, the OTU builder's yaw tune (P 45, I 30, F 0) is the gentlest in the pilot's fleet.** The Beshketnyk builds the pilot also configures fly yaw P 50–80, I 55–150 and F 45–100 (§4b). That is a choice of defaults (D-023), not physics, and it waits for the pilot's word on the fixed yaw.
 
 ## 1. The harness
@@ -262,7 +262,7 @@ The OTU yaw has the lowest I and no feedforward. None of these configs sets `use
 - the variant (§2.3, §3): Betaflight's yaw I alone takes the rise from 255–273 to 147–180 ms and the stop from 254–268 to 142–163 ms, and removes the floaty 14–16 % hang
 - the pilot's flights (§4): a 110–150 ms yaw lag
 
-**The fix (not applied):**
+**The fix** (applied at model 36, §8):
 1. **In `FlightController`'s constructor, after the P/I/D/F scaling, multiply yaw's Ki by 2.5,** as `pidInitConfig` does when `use_integrated_yaw` is off. The sim does not model integrated yaw; Betaflight's default and every config of the pilot's has it off. Name it in the class's comment as Betaflight's.
 2. **The flight model moves,** so:
    - a model number from the orchestrator (D-072)
@@ -284,3 +284,95 @@ dotnet run -c Release --project tools/flightbench -- --rate-log <flight logs...>
 ```
 
 `--rate-tracking` runs in about 12 s (all cells in parallel). Every number in §2 and §3 is its output. `--rate-log` reads logs of format 16 (model 26).
+
+## 8. The fix, applied (model 36)
+
+`FlightController` now multiplies yaw's Ki by 2.5 right after Betaflight's scaling, as `pid_init.c` `pidInitConfig` does without `use_integrated_yaw` (published). The sim has no integrated-yaw switch and none was added: integrated yaw is off in Betaflight's default and in every config of the pilot's, so the factor always applies. `LogFormat.ModelVersion` 36 (D-072); the log format stays 24, since no record field changed.
+
+### 8.1 Yaw before and after (measured, `--rate-tracking`)
+
+Before is model 34 on `unity/physics/physics-integration-2` (it gives §2's model 26 numbers cell for cell); after is model 36. Times in ms, rates in °/s.
+
+**The player default:**
+
+| Bottle | Stick | Rate t90 | Peak (overshoot) | Steady err | Turn: sim / stick's own | Stop | Axis sat |
+|---|---|---|---|---|---|---|---|
+| 0 kg | 1.0 | 255 → **147** | 283.4 (18.1 %) → 286.9 (19.5 %) | +13.5 → **+3.3 %** | 180°: 792 → **748** / 750 | 256 → **142** | 0 → 2.8 % |
+| 0 kg | 0.5 | 250 → **140** | 84.1 (17.8 %) → 85.4 (19.6 %) | +15.4 → **+4.6 %** | 45°: 688 → **631** / 630 | 269 → **136** | 0 → 0 % |
+| 1 kg | 1.0 | 257 → **154** | 286.5 (19.4 %) → 292.4 (21.8 %) | +14.1 → **+3.2 %** | 180°: 791 → **745** / 750 | 254 → **147** | 0 → 7.7 % |
+| 1 kg | 0.5 | 253 → **146** | 85.0 (19.0 %) → 86.9 (21.6 %) | +16.3 → **+4.5 %** | 45°: 688 → **629** / 630 | 268 → **140** | 0 → 0 % |
+| 2 kg | 1.0 | 273 → **180** | 291.9 (21.6 %) → 303.2 (26.3 %) | +16.1 → **+4.0 %** | 180°: 796 → **743** / 750 | 268 → **163** | 0 → 16.7 % |
+| 2 kg | 0.5 | 268 → **159** | 86.5 (21.1 %) → 88.9 (24.4 %) | +18.3 → **+5.5 %** | 45°: 695 → **628** / 630 | 282 → **151** | 0 → 0 % |
+
+**Model 26 as the pilot flew it** (the sim default column, full stick):
+
+| Bottle | Rate t90 | Peak (overshoot) | Steady err | Turn: sim / stick's own | Stop | Axis sat |
+|---|---|---|---|---|---|---|
+| 0 kg | 254 → **156** | 307.2 (18.2 %) → 312.6 (20.2 %) | +13.5 → +3.4 % | 180°: 742 → 694 / 692 | 256 → 144 | 0 → 12.0 % |
+| 1 kg | 256 → **169** | 310.6 (19.5 %) → 320.9 (23.4 %) | +14.2 → +3.4 % | 180°: 741 → 691 / 692 | 254 → 153 | 0 → 16.2 % |
+| 2 kg | 272 → **201** | 316.4 (21.7 %) → 323.8 (24.5 %) | +16.2 → +4.6 % | 180°: 747 → 704 / 692 | 268 → 180 | 0 → 19.7 % |
+
+**At cruise (18 m/s, the player default):** 1 kg full stick 249 → 154 ms, stop 248 → 160; 2 kg 268 → 182 ms, stop 263 → 173.
+
+**Reading it:**
+- **The as-built yaw is now §2.3's, cell for cell,** and the bench's "model 34's yaw I" variant (the ×2.5 undone, on the golden audits' `i_yaw`) gives the old as-built cells exactly. The fix is the one §2.3 measured, nothing more.
+- **A yaw turn now ends with the stick** (7 ms early to 12 ms late against its own time, where it was 41–65 ms late), the floaty 13–18 % hang is gone (3–6 %), and the stop takes 136–180 ms against 254–282.
+- **At full stick the yaw now meets the mixer's limits:** 3–17 % of a player-default hold, 12–20 % on the sim default's faster 260 °/s (§3: yaw saturates first, K§5.3).
+- **Roll and pitch:** every t90 is unchanged in every table. Peaks, overshoot and steady error move by 0.1 at most, stop times by 1 ms at most, but one variant cell: 2 kg roll with the rotor inertia halved stops in 107 ms against 114.
+
+### 8.2 What limits yaw now (full stick, the player default; t90 / stop, ms)
+
+| Change | Yaw 1 kg | Yaw 2 kg |
+|---|---|---|
+| as built (model 36) | 154 / 147 | 180 / 163 |
+| model 34's yaw I (×2.5 undone) | 257 / 254 | 273 / 268 |
+| no gyro or D-term filters | 168 / 164 | 187 / 177 |
+| feedforward off | 154 / 147 | 180 / 163 |
+| P, I, D, D min × 1.5 | 150 / 138 | 178 / 164 |
+| OTU10's set (§4b) | 157 / 147 | 180 / 164 |
+| Beshketnyk 10x8's yaw (§4b) | 147 / 139 | 176 / 166 |
+| rotor inertia × 0.907 (p7f 1.2's blades) | 162 / 152 | 190 / 170 |
+| rotor inertia × 0.5 | 211 / 187 | 236 / 205 |
+| D-064's spreads off | 150 / 147 | 179 / 163 |
+| rigid airframe (no modes) | 154 / 147 | 180 / 163 |
+| airmode off | 159 / 151 | 180 / 163 |
+| `pidsum_limit_yaw` 1000 | 155 / 147 | 177 / 162 |
+| drag torque κ × 1.25 | 147 / 143 | 170 / 157 |
+
+- **The gains no longer carry the rise alone.** × 1.5 on every gain now takes 2–4 ms off (50–57 ms before the fix).
+- **The plant now shows.** The rotors' spin-up reaction matters more: halving the rotor inertia slows yaw by 56–57 ms (16–19 before). p7f 1.2's blades slow it by 8–10 ms.
+- **The props' drag torque** (κ × 1.25) takes 7–10 ms off.
+- **The yaw PID-sum limit** now clips at 1–2 kg (the axis-saturation share, 7.7 % and 16.7 %, goes to 0 with `pidsum_limit_yaw` 1000), but it is worth 3 ms of rise at most.
+- **The filter chain** shortens the rise by 7–14 ms (14–16 before the fix).
+
+### 8.3 The goldens (the audit)
+
+Flying `i_yaw` 12 does not give model 34's Ki bit for bit: (ITERM_SCALE × 12) × 2.5 rounds one ulp above ITERM_SCALE × 30. The double just under 12 (11.999999999999998, `GoldenFlights.Model34YawI`) gives it exactly, and `FlightControllerTests.TheGainsCarryBetaflightsScaling` pins that.
+
+- **The kept audit** (`GoldenFlightTests.OnModel34sYawIEachGoldenIsModel34s`, and `flightbench --golden`'s last line): on model 34's yaw I, the powered, rain, contact, range and tether goldens are model 34's pins, every record and event.
+- **Every older kept audit** (models 15–33 and the parent branches') now flies model 34's yaw I and holds bit for bit. So does `WetGroundTests`' rain audit.
+- **The tumble** has no rotors and keeps its hash.
+- **No stored input changed:** drone.json, the maps, surfaces.json and tether.json are untouched.
+- **How each golden moves with the factor:**
+  - **Powered** (and rain): the record from step 1 (the disarmed loop's yaw sum in `fc.motor_mix_range`; the motors are stopped) and the pose from step 21, the first armed step. The open-loop script's yaw step turns further, so it ends 5.68 m (rain: 5.26 m) from model 34's end and within 23.0°. Armed, no crash.
+  - **Contact, range and tether:** from step 10, the first with the rotors turning. They keep their course within 0.5 / 1.3 / 0.5 mm and 0.07 / 0.19 / 0.08° of model 34's path, with the same impacts and the same resting height.
+
+### 8.4 The other suites (measured)
+
+- **`--contacts`, `--landing`, `--shake` (seeds 1–40):** PASS.
+  - Landing: only the powered columns move, by 0.1 m/s at most. Every mechanics column is unchanged.
+- **`--scenarios`: one row now fails, the gust front** (p7c-wind 1.4, PR-3). The yaw answer dropped from 2.04 to 1.97 °/s (the passage's peak less the hold's), under the row's assumed 2 °/s floor. The stronger yaw I resists the rear hubs' drag torque.
+  - It is still 60× the uniform field's 0.03 °/s, and the peaks still coincide (pitch +116 ms, yaw +62 ms).
+  - The floor's own note calls it "twice the hold's own wobble", but the hold's measured wobble is 0.32 °/s in pitch and 0.095 °/s in yaw (measured, both models). So 2 °/s is about 20× the yaw wobble, not twice it.
+  - The floor is p7c-wind's acceptance number, so it is left as it is here and raised for a decision.
+- **The wind harness, Severe** (5 seeds, `tools/wind/grade_levels.py`): 12 of 21 targets pass before and after, the same ones.
+  - **T5 field** (the yaw residual outside the belt): 0.458 → 0.331° (band 0.22–0.66), PASS; its known-wrong (steady) 0.115 → 0.078, fails as it must.
+  - **T5 belt:** 1.360 → 1.148° (band 0.8–2.5), PASS; its known-wrong (no belt) 0.587 → 0.474, fails as it must.
+  - **T10b** (roll against yaw rate): whole 0.497 → 0.603, belt 0.681 → 0.777, still in band.
+  - **T11b s0:** 1.285 → 1.123, still in band.
+- **`tools/replay`:** a 120 s scripted flight on the test range in Severe, recorded at model 36, replays bit for bit (120 000 steps, 159 events).
+
+### 8.5 Left open
+
+- **§6 item 3's pinning test** (the yaw step's 90 % rise at 1 kg, 154 ms ± a band) is not added. The bench shows the number, and the gains test pins the factor.
+- **§6 item 4 stands:** ask the pilot at the next gate whether yaw now feels like their quads. The yaw tune (OTU against Beshketnyk defaults) remains a decision, not a fix.
