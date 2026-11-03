@@ -15,7 +15,9 @@ the audit), checks the hole-filler contract of an asset that cuts the ground (li
 "joints", which it must report for every interior point of its holes' centre lines), prints the generator's own lines
 (its "lines", if any), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
-frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says. A
+frame (lib/frame.py), the FBX staged beside its final name and moved once it reads back as the metadata says, and
+a generator's micro_elements, the drawn elements physics reads, as <variant>.elements.json beside the metadata, which
+names it with its SHA-256 (lib.meta; a sidecar the build no longer writes is removed with its .meta). A
 variant whose params set `impostor: true` (p1-v01-locust design decision 3) also gets <variant>_impostor.png,
 <variant>_impostor_normal.png and <variant>_impostor_smoothness.png, the albedo atlas, the normal atlas with the
 occlusion in its alpha and the smoothness atlas that lib/impostor.py renders from LOD0 after the FBX, staged the same
@@ -79,7 +81,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
         if old:  # up to date: the atlases stand
             record.update({key: old[key] for key in ("atlas_sha256", "normals_sha256", "smoothness_sha256")})
     data = meta.assemble(asset_id, variant, catalog_entry["generator"], params, built, visual_by_slot, impostor_lod)
-    _refuse(variant, meta.validate(data, material_ids))
+    elements = built.get("micro_elements")
+    _refuse(variant, meta.validate(data, material_ids, elements))
     started = time.perf_counter()
     stand_in = getattr(generator, "STAND_IN", False)  # a Godot stand-in (p6-test-range design 3): its collision
     if stand_in:                                      # against its mesh's bounds, no hole contract
@@ -123,7 +126,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
                 record["atlas_sha256"] = impostor.file_sha256(staged_atlas)
                 record["normals_sha256"] = impostor.file_sha256(staged_normals)
                 record["smoothness_sha256"] = impostor.file_sha256(staged_smoothness)
-                _refuse(variant, meta.validate(data, material_ids))
+                _refuse(variant, meta.validate(data, material_ids, elements))
                 print(f"{variant}: impostor rendered in {time.perf_counter() - started:.1f} s")
             card = record["card"]
             print(f"{variant}: impostor {record['atlas']}, {record['normals']} and {record['smoothness']} "
@@ -146,14 +149,16 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
         if fresh and not os.listdir(out_dir):
             os.rmdir(out_dir)
     listed = listed_textures(meta_path)  # read before the metadata it lists them in is replaced
+    write_elements(out_dir, variant, data, elements)
     meta.write(meta_path, data)
     write_textures(out_dir, variant, built.get("textures", []), listed)
     size =[round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
     wires = f"  {len(data['wires'])} wires" if data["wires"] else ""
+    records = f"  {meta.elements_line(data['micro_elements'])}" if "micro_elements" in data else ""
     return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
-            f"{len(data['collision'])} collision shapes{wires}  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
+            f"{len(data['collision'])} collision shapes{wires}{records}  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
             "metadata written")
 
 
@@ -182,6 +187,19 @@ def write_textures(out_dir, variant, textures, listed):
             if os.path.exists(os.path.join(out_dir, stale)):
                 os.remove(os.path.join(out_dir, stale))
     return written
+
+
+def write_elements(out_dir, variant, data, elements):
+    """Writes the micro_elements sidecar the metadata names (lib.meta) beside it, or, when it names none, removes a
+    sidecar an earlier build wrote, with its .meta."""
+    from lib import meta
+    path = os.path.join(out_dir, meta.elements_file(variant))
+    if "micro_elements" in data:
+        meta.write_elements(path, variant, elements)
+        return
+    for stale in (path, path + ".meta"):
+        if os.path.exists(stale):
+            os.remove(stale)
 
 
 def replace(staged, path, tries=REPLACE_TRIES, wait_s=REPLACE_WAIT_S):

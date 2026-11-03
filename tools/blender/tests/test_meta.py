@@ -1,8 +1,10 @@
 """lib.meta and lib.catalog: schema-1 validation, the conventions of design decision 6 (physics review R2), the
 closed physics-material list (R3) on shapes, slots and snag records (a record without its member's material, or with
 an unknown one, is refused: p1-v01-locust review-physics PR4), the deterministic writer, params_sha256, a variant's
-material overrides (p1-v01-locust design decision 7), and the committed K01 metadata against the committed params."""
+material overrides (p1-v01-locust design decision 7), the micro_elements sidecar the metadata names and hashes and
+its malformed records refused by name (p7a-ground 1.5), and the committed K01 metadata against the committed params."""
 import copy
+import hashlib
 import json
 
 import pytest
@@ -488,6 +490,109 @@ def test_textures_validated(k01_params, material_ids, edit, expected):
     edit(data["textures"][0])
     problems = meta.validate(data, material_ids)
     assert any(expected in p for p in problems), problems
+
+
+ELEMENTS = [  # a stem rooted in K01's box, a straw lying loose, a twig grown from the box and a leaf from the twig
+    {"kind": "stem", "points": [[0.0, 0.0, 0.0], [0.01, 0.2, 0.0], [0.03, 0.5, 0.0]], "diameter_m": 0.004,
+     "anchored": True, "parent": -1, "parent_shape": -1},
+    {"kind": "straw", "points": [[0.1, 0.07, 0.0], [0.5, 0.07, 0.1]], "diameter_m": 0.003, "anchored": False,
+     "parent": -1, "parent_shape": -1},
+    {"kind": "twig", "points": [[0.1, 0.065, 0.0], [0.2, 0.2, 0.0], [0.25, 0.3, 0.05]], "diameter_m": 0.006,
+     "anchored": True, "parent": -1, "parent_shape": 0},
+    {"kind": "leaf", "points": [[0.25, 0.3, 0.05], [0.28, 0.33, 0.05]], "diameter_m": 0.001, "area_m2": 0.0004,
+     "anchored": True, "parent": 2, "parent_shape": -1},
+]
+
+
+def elements_meta(params, elements=None):
+    """K01's metadata with micro_elements (ELEMENTS unless given) and the records, as build.py holds them."""
+    built = debris_brick.build(params)
+    built["micro_elements"] = copy.deepcopy(ELEMENTS if elements is None else elements)
+    return meta.assemble("K01", "K01_whole", "debris_brick", params, built, VISUALS), built["micro_elements"]
+
+
+def test_micro_elements_live_in_a_sidecar_the_metadata_names_and_hashes(k01_params, material_ids):
+    """p7a-ground 1.5 (asset-pipeline "Asset metadata contract"): a generator's micro_elements are written to
+    <variant>.elements.json, one record per line, keys in ELEMENT_KEYS order and rounded as the metadata is; the
+    metadata names the file with its SHA-256 and the counts by kind, after the other keys, so any change to an
+    element changes the metadata's text, which the world's content hash covers; without elements the key is absent
+    and the metadata unchanged."""
+    data, elements = elements_meta(k01_params)
+    assert meta.validate(data, material_ids, elements) == []
+    text = meta.elements_dumps("K01_whole", elements)
+    assert data["micro_elements"] == {"file": "K01_whole.elements.json",
+                                      "sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                                      "counts": {"straw": 1, "stem": 1, "twig": 1, "leaf": 1}}
+    assert list(json.loads(meta.dumps(data)))[-1] == "micro_elements"
+    lines = text.split("\n")
+    assert lines[0] == '{"schema": 1, "variant": "K01_whole", "units": "m", "frame": "unity-lh-yup", "elements": ['
+    assert len(lines) == len(ELEMENTS) + 3 and lines[-2] == "]}" and lines[-1] == ""
+    assert json.loads(text)["elements"] == ELEMENTS
+    assert list(json.loads(lines[4].rstrip(","))) == [*meta.ELEMENT_KEYS, "area_m2"]
+    nudged = copy.deepcopy(ELEMENTS)
+    nudged[1]["points"][1][0] += 2e-6
+    assert meta.dumps(elements_meta(k01_params, nudged)[0]) != meta.dumps(data), "a moved element moves the metadata"
+    rounded = copy.deepcopy(ELEMENTS)
+    rounded[1]["points"][1][0] += 4e-7
+    assert meta.dumps(elements_meta(k01_params, rounded)[0]) == meta.dumps(data), "below the micrometre it rounds away"
+    line = "micro_elements 1 straw, 1 stem, 1 twig, 1 leaf in K01_whole.elements.json"
+    assert meta.elements_line(data["micro_elements"]) == line
+    assert "micro_elements" not in k01_meta(k01_params)
+
+
+def edited(index, **fields):
+    def edit(elements):
+        elements[index].update(fields)
+    return edit
+
+
+@pytest.mark.parametrize("edit, expected", [
+    (edited(1, diameter_m=0.0), "micro_elements[1]: diameter_m must be positive, got 0.0"),
+    (edited(1, points=[[0.1, 0.07, 0.0], [0.1, 0.07, 0.0]]), "micro_elements[1]: points must be distinct"),
+    (edited(0, points=[[0.0, 0.0, 0.0], [0.03, 0.5, 0.0], [0.0000004, 0.0, 0.0]]),
+     "micro_elements[0]: points must be distinct"),  # equal once rounded to the micrometre, as written
+    (edited(0, kind="grass"), "micro_elements[0]: kind must be one of straw, stem, twig, leaf, got 'grass'"),
+    (edited(3, parent=3), "micro_elements[3]: parent must be -1 or the index of an earlier element (below 3), got 3"),
+    (edited(3, parent=7), "micro_elements[3]: parent must be -1 or the index of an earlier element (below 3), got 7"),
+    (edited(2, parent_shape=1), "micro_elements[2]: parent_shape must be -1 or the index of a collision shape "
+                                "(below 1), got 1"),
+    (edited(2, parent_shape=-2), "micro_elements[2]: parent_shape must be -1 or the index of a collision shape"),
+    (edited(3, parent_shape=0), "micro_elements[3]: parent and parent_shape are both set"),
+    (edited(2, anchored=False), "micro_elements[2]: an element grown from a parent is anchored"),
+    (edited(1, points=[[0.1, 0.07, 0.0]]), "micro_elements[1]: points must be its centre line as two or three"),
+    (edited(1, points=[[0.0, 0.0, 0.0], [0.1, 0.0, 0.0], [0.2, 0.0, 0.0], [0.3, 0.0, 0.0]]),
+     "micro_elements[1]: points must be its centre line as two or three"),
+    (edited(1, anchored=1), "micro_elements[1]: anchored must be a boolean"),
+    (edited(3, area_m2=0.0), "micro_elements[3]: a leaf needs a positive area_m2"),
+    (edited(1, area_m2=0.001), "micro_elements[1]: area_m2 belongs to a leaf only"),
+    (edited(1, hooks=True), "micro_elements[1]: unknown keys hooks"),
+    (lambda e: e[1].pop("anchored"), "micro_elements[1]: needs anchored"),
+])
+def test_a_malformed_element_is_rejected_naming_the_record_and_the_rule(k01_params, material_ids, edit, expected):
+    """asset-pipeline "A malformed element is rejected" (its element part, p7a-ground 1.5)."""
+    elements = copy.deepcopy(ELEMENTS)
+    edit(elements)
+    data, elements = elements_meta(k01_params, elements)
+    problems = meta.validate(data, material_ids, elements)
+    assert any(expected in p for p in problems), problems
+
+
+def test_elements_that_are_not_the_named_ones_are_rejected(k01_params, material_ids):
+    """The metadata's record holds the sidecar to its records: other records, other counts, another file or none
+    given are refused."""
+    data, elements = elements_meta(k01_params)
+    other = copy.deepcopy(elements)
+    other[0]["diameter_m"] = 0.005
+    assert meta.validate(data, material_ids, other) == [
+        f"micro_elements: sha256 {data['micro_elements']['sha256']} is not the records' "
+        f"{meta.elements_record('K01_whole', other)['sha256']}"]
+    assert any("counts" in p for p in meta.validate(data, material_ids, elements[:3]))
+    assert meta.validate(data, material_ids) == ["micro_elements: the records of K01_whole.elements.json are needed as a "
+                                                 "list to validate it"]
+    data["micro_elements"]["file"] = "K01.elements.json"
+    assert any("file must be 'K01_whole.elements.json'" in p for p in meta.validate(data, material_ids, elements))
+    data["micro_elements"]["counts"] = {"grass": 1}
+    assert any(p.startswith("micro_elements needs file, sha256") for p in meta.validate(data, material_ids, elements))
 
 
 def test_committed_metadata_matches_committed_params(k01_params, material_ids, k01_out):

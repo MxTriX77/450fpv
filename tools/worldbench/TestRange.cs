@@ -231,8 +231,44 @@ namespace Fpv450.WorldBench
             }
             cases.Add(("test-range.rays", Hex(rayBatched.Value), rayBatched.Value == rayOne.Value));
             Console.WriteLine($"  test-range.rays: {onGround} of {rays.Length} rays hit the plane, {onObjects} a shape ({onWires} a wire)");
+
+            // MicroDetailNear (p7a-ground 1.9): spheres of 0.05-2 m over the spots, each kind mask in turn, into the cache's
+            // 8192 and into a buffer of 16 (the overflow: the true count, the canonical prefix). S04's patch holds elements;
+            // the crown has none until p7a-ground 1.7, the other spots none.
+            var micro = new MicroElement[8192];
+            var few = new MicroElement[16];
+            Hasher microHash = new Hasher(), fewHash = new Hasher();
+            var ms = new Stream(1900);
+            int queried = 0, found = 0, largest = 0, past = 0;
+            bool prefix = true;
+            for (int i = 0; i < MicroCount; i++, queried++)
+            {
+                Double3 c = In(ref ms, spots[i % spots.Length]);
+                double r = ms.In(0.05, 2);
+                var kinds = (MicroKind)(1 + i % 15);
+                int n = world.MicroDetailNear(c, r, kinds, micro);
+                microHash.Add(n);
+                for (int k = 0; k < Math.Min(n, micro.Length); k++)
+                    microHash.Add(micro[k]);
+                int m = world.MicroDetailNear(c, r, kinds, few);
+                fewHash.Add(m);
+                for (int k = 0; k < Math.Min(m, few.Length); k++)
+                {
+                    fewHash.Add(few[k]);
+                    prefix &= few[k].Id == micro[k].Id && few[k].P1.X.Equals(micro[k].P1.X);
+                }
+                prefix &= m == n;
+                found += n;
+                largest = Math.Max(largest, n);
+                past += m > few.Length ? 1 : 0;
+            }
+            cases.Add(("test-range.micro", Hex(microHash.Value), true));
+            cases.Add(("test-range.micro_overflow", Hex(fewHash.Value), prefix));
+            Console.WriteLine($"  test-range.micro: {queried} spheres, {found} elements (up to {largest} in one); {past} overflow a buffer of {few.Length}");
             return cases;
         }
+
+        private const int MicroCount = 2000;
 
         // ---- Bench ---------------------------------------------------------------------------------------------------
 
@@ -553,6 +589,8 @@ namespace Fpv450.WorldBench
                 }
             }
 
+            failures += MicroBench(world, crown, patch, inCrown);
+
             // K§10.4's 100 000 capsules and rays, in physics' pattern: its swept queries and rotor rays over the six paths
             // (both passes), per 100 000.
             double perSweeps = physics.SweepTicks * 1e3 / Stopwatch.Frequency * 100000 / physics.Sweeps;
@@ -588,6 +626,63 @@ namespace Fpv450.WorldBench
             failures += samplesMs < 10 && a1 == a0 ? 0 : 1;
             Console.WriteLine(failures == 0 ? "worldbench: bench done, every budget met (judged on AC only)" : $"worldbench: {failures} over budget or allocating");
             return failures == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// MicroDetailNear at r = 2 m (p7a-ground 1.9; K§10.4: under 0.25 ms on the densest cover), into the cache's 8192:
+        /// along a path over S04's patch (the drone's centre 0.2-0.6 m over the mat), at the seam between two patches (two
+        /// instances' elements) and in V01_L's crown. Judged at p99; the max is printed beside it.
+        /// </summary>
+        private static int MicroBench(MapWorld world, int crown, int patch, in Spot inCrown)
+        {
+            const int queries = 20000;
+            const double budget = 250;
+            world.Geometry(patch, 0, out ShapeGeometry soil);              // the soil box: its centre is the patch's
+            int next = patch + 1;
+            while (world.ObjectName(next) != "S04_patch" || !world.Geometry(next, 0, out ShapeGeometry n) || n.Center.Z != soil.Center.Z)
+                next++;
+            world.Geometry(next, 0, out ShapeGeometry neighbour);
+            Double3 middle = (soil.Center + neighbour.Center) * 0.5;
+            var over = new Spot("patch", new Double3(soil.Center.X - 3, 0.2, soil.Center.Z - 3), new Double3(soil.Center.X + 3, 0.6, soil.Center.Z + 3));
+            var seam = new Spot("seam", new Double3(middle.X - 0.5, 0.2, middle.Z - 0.5), new Double3(middle.X + 0.5, 0.6, middle.Z + 0.5));
+            Spot crownSpot = inCrown;
+            (string Name, Func<int, Double3> At)[] paths =
+            {
+                ($"over S04's patch (object {patch})", s => Lissajous(over, s)),
+                ($"at the seam of S04's objects {patch} and {next}", s => Lissajous(seam, s)),
+                ($"inside V01_L's crown (object {crown})", s => Lissajous(crownSpot, s)),
+            };
+            var results = new MicroElement[8192];
+            var times = new long[queries];
+            double us = 1e6 / Stopwatch.Frequency;
+            int failures = 0;
+            foreach (var path in paths)
+            {
+                long found = 0, most = 0, allocated = 0;
+                for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
+                {
+                    found = most = 0;
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    for (int s = 0; s < queries; s++)
+                    {
+                        Double3 c = path.At(25 * s); // a step of 25 ms between queries: the cache's refresh at most 40 Hz
+                        long start = Stopwatch.GetTimestamp();
+                        int n = world.MicroDetailNear(c, 2, MicroKind.All, results);
+                        times[s] = Stopwatch.GetTimestamp() - start;
+                        found += n;
+                        most = Math.Max(most, n);
+                    }
+                    allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                }
+                Array.Sort(times);
+                double p99 = times[queries * 99 / 100] * us;
+                bool over99 = !(p99 < budget);
+                failures += over99 || allocated != 0 ? 1 : 0;
+                Console.WriteLine($"  MicroDetailNear r = 2 m {path.Name}: median {times[queries / 2] * us:F2} us, p99 {p99:F2} us, "
+                    + $"max {times[queries - 1] * us:F1} us, {(double)found / queries:F0} elements a query (up to {most}), {allocated} B; "
+                    + $"the {budget:F0} us budget {(over99 ? "MISSED" : "met")} at p99");
+            }
+            return failures;
         }
     }
 }

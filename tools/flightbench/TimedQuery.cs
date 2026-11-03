@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using Fpv450.Sim;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.World;
@@ -53,6 +54,9 @@ namespace Fpv450.FlightBench
             return found;
         }
 
+        public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>
+            _world.MicroDetailNear(centre, radius, kinds, results);
+        public bool Feature(int obj, int shape, out GroundFeature feature) => _world.Feature(obj, shape, out feature);
         public int AddObject(string name, ReadOnlySpan<ShapeGeometry> shapes) => _world.AddObject(name, shapes);
         public void ResetRuntimeObjects() => _world.ResetRuntimeObjects();
         public string ObjectName(int obj) => _world.ObjectName(obj);
