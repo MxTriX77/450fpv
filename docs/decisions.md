@@ -628,3 +628,24 @@ From `p7f-damage` 1.1b. The damage design put a bind at Kt·I_lim = 0.42 N·m (4
 From `p7d-tether` 1.6. Design 4's rotor air has inflow only on the intake side, so a line lying under the rear never moves toward a rim at a punch (0.24–0.29 m away, no disc crossed). The scenario's "toward the nearest disc's edge" is right about the risk but needs a physical path, never a pull toward the rim.
 - **The path is built from published measurements:** in ground effect the wall jets of neighbouring rotors meet under the body and rise as a fountain that the discs re-ingest on their inboard side; in forward flight near the ground a ground vortex rolls up ahead of the wake. Both are measured for multirotors, tandem rotors and jet lift in ground effect, and the brownout studies track particles along them.
 - **A new task, `p7d` 1.6b,** builds both into `RotorAir` after 1.6; until it lands, the punch scenario asserts what the field gives and prints the rim distance.
+
+## D-076 The rates and throttle default to the pilot's FpvPrep profiles · Accepted
+The pilot's feedback on the model-26 build: roll and yaw are "super slow", it is "ultra smooth and slow", and the throttle should be "a bit more powerful": lift off "a little bit earlier". Supersedes D-023's blend (the flown set moved 25 % toward the factory set, throttle 60 %).
+- **The rates are the pilot's own:** the rate profile they fly, read from FpvPrep's presets and the saved configs of their quads (`C:\.dev\FpvPrepConfigurator`: `presets/`, `quads/*_after.txt`; their diffs carry several rate profiles, so the flown one is found, not guessed). The roll, pitch and yaw rates, expo and feedforward use Betaflight's CLI names, as before.
+- **The defaults win over a stale save:** `fc-settings.json` written by an older default set is migrated to the new defaults; a value the pilot changed in the app is kept.
+- **The throttle curve** comes from the pilot's own `thr_mid` and `thr_expo` values, chosen so liftoff comes a little earlier than in the model-26 build. The build prints liftoff and hover stick at 0, 1 and 2 kg before and after. The physics (D-066's mass and power) does not change.
+
+## D-077 The setup loads only the test range · Accepted
+The pilot: "remove the field option, we only load the one with many houses". The setup offers no map choice; the floor map stays a test fixture only.
+
+## D-078 R restarts the flight, C toggles the camera's noise, X the OSD's sticks · Accepted
+The pilot asked for all three. R restarts the flight at once from the same setup and start point (it doesn't interrupt anything else, D-063). C toggles the analog feed's noise for the rest of the session; the OSD and the picture stay. X toggles Betaflight's stick overlay on the OSD (both sticks' positions).
+
+## D-080 The OSD shows the throttle on the right · Accepted
+The pilot sent Betaflight's throttle element as they fly it: the throttle glyph, then the value in percent. It goes on the OSD's right side, in the footage-exact font (D-057's OSD), from the sim's own throttle (the stick after the curve, as Betaflight shows it); the sample's value is never copied.
+
+## D-079 Crashes damage the props and legs; crashes and landing falls come a bit more often · Accepted
+The pilot on the model-26 build: the camera is "mega good", the flying "almost top notch", but a prop strike on a wall is "too gameish". The drone bounces off realistically, but the props don't break. "In real life the drone crashes a bit more often (more reasons for it), and it falls when landing a bit more often."
+- **Each prop has a health:** `p7f-damage`'s blade state (tip radius, chord left, pitch and flap sets) is that health, and `DamagedRotor` (1.2) already flies it. `p7f` 1.3, blade strikes on shapes, is now the priority physics task.
+- **The legs take damage too (a new change, `p7g-legs`):** a leg bends, breaks or comes off the drone when a landing is too hard or not parallel enough to the ground. Its loads, strengths and mounts are researched for the class's legs, never asked (D-024). A bent or missing leg changes the next landing.
+- **"More reasons to crash and to fall"** comes from the physics still being built, never from tuning toward a rate: `p7a`'s grooves, held legs and vegetation, `p7f`'s strikes, `p7d`'s line and wires, and the legs. `pilot-questions.md`'s G7 airmode question is answered: landings still fall a bit too rarely.
