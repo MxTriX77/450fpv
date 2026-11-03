@@ -141,7 +141,7 @@ namespace Fpv450.FlightBench
             foreach (RangeScenarios.Approach a in RangeScenarios.Approaches)
             {
                 ContactScenarios.PoleStrike p = RangeScenarios.Into(spec, materials, hash, a);
-                Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s" : $"{a.Speed} m/s at {a.Height} m")})", p.Tunnels == 0 && p.Lost == 0, Strike(p));
+Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s" : $"{a.Speed} m/s at {a.Height} m")})", p.Tunnels == 0 && p.Lost == 0, Strike(p));
             }
             RangeScenarios.OnWire wire = RangeScenarios.OntoWire(spec, materials, hash);
             Row("a skid across a conductor at 2 m/s", wire.Tunnels == 0 && wire.Lost == 0,
@@ -167,7 +167,9 @@ namespace Fpv450.FlightBench
                 Row(name + ", throttle held, as the stub's", Math.Abs(held.SeparationHeight - stubHeld.SeparationHeight) <= 1e-3 && held.Tunnels == 0 && held.Crashes == 0
                     && held.Lost == 0, Land(held) + First(held));
                 ContactScenarios.Landing cut = ContactScenarios.Land(spec, materials, hash, true, site: site);
-                Row(name + ", throttle cut, as the stub's", Math.Abs(cut.Settled - stubCut.Settled) <= 0.01 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
+                // Within 15 ms since model 24 (RangeContactTests.WithTheAirframesEffectsSoilIsStillThePlane's trace: E01's run
+                // comes to rest 11 ms before the stub under D-064's spool-down).
+                Row(name + ", throttle cut, as the stub's", Math.Abs(cut.Settled - stubCut.Settled) <= 0.015 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
                     Land(cut) + First(cut));
             }
             ContactScenarios.Site straw = RangeScenarios.At(RangeScenarios.Straw, 0);

@@ -31,6 +31,11 @@ namespace Fpv450.Sim.Flight
         /// drawn from at the start. Null for four identical rotors (Calm's wind grading, a bench).</summary>
         public MotorAsymmetry Asymmetry;
 
+        /// <summary>The build's placement (BuildTolerance, D-066, PHY-24): where the bottle, the packs, the coil and the
+        /// leads sit this flight, drawn at the start, so the centre of mass is a few millimetres off the exact build's.
+        /// Null for the exact build (the goldens, a bench).</summary>
+        public BuildTolerance Placement;
+
         /// <summary>The rotors' vortex rings (VortexRingSpec, p7b-airframe 1.2): null for none, as a bench's rotors and the
         /// goldens' audits fly.</summary>
         public VortexRingSpec VortexRing;
@@ -39,9 +44,17 @@ namespace Fpv450.Sim.Flight
         /// none, as a bench's rotors and the goldens' audits fly.</summary>
         public GroundEffectSpec GroundEffect;
 
+        /// <summary>Each rotor's own wake unsteadiness in free air (RotorWakeSpec, D-064): null for a perfectly steady rotor, as a
+        /// bench's rotors and the goldens' audits fly.</summary>
+        public RotorWakeSpec RotorWake;
+
         /// <summary>The rotors' edgewise-flow moments, blade flapping and the dissymmetry of lift (RotorFlappingSpec,
         /// p7b-airframe 1.3c): null for none, as a bench's rotors and the goldens' audits fly.</summary>
         public RotorFlappingSpec Flapping;
+
+        /// <summary>The rotors in each other's wake, the rear rotors in the front rotors' in forward flight (RotorInterferenceSpec,
+        /// p7b-airframe 1.3d): null for none, as a bench's rotors and the goldens' audits fly.</summary>
+        public RotorInterferenceSpec Interference;
 
         /// <summary>The airframe's elastic modes, the arms' bending and the payload's and the coil's mounts (AirframeModesSpec,
         /// p7b-airframe 1.4): null for a rigid airframe, as a bench and the goldens' audits fly.</summary>
@@ -161,6 +174,13 @@ namespace Fpv450.Sim.Flight
             _settings = setup.Settings;
             MassModel mass = (setup.Mass ?? throw new ArgumentException("the setup needs a mass model", nameof(setup))).Clone();
             Random = new FlightRandom(setup.Seed);
+            // The build's placement first, so the airframe's modes and the body see the flight's own centre of mass.
+            Placement = setup.Placement?.Clone();
+            if (Placement != null)
+            {
+                PlacementOffsets = Placement.DrawFor(Random);
+                Placement.Apply(mass, PlacementOffsets);
+            }
             if (setup.Aero != null)
             {
                 if (setup.Aero.CoilPart >= mass.PartCount || (setup.Aero.CoilPart >= 0 && mass.Part(setup.Aero.CoilPart).Kind != PartKind.Cylinder))
@@ -200,8 +220,15 @@ namespace Fpv450.Sim.Flight
                 SeedStream ring = VortexRing != null ? Random.Open("vrs.thrust") : default;
                 GroundEffect = setup.GroundEffect?.Clone();
                 SeedStream wash = GroundEffect != null ? Random.Open("ground.recirc") : default;
+                RotorWake = setup.RotorWake?.Clone();
+                SeedStream wake = RotorWake != null ? Random.Open("rotor.wake") : default;
                 Flapping = setup.Flapping?.Clone();
-                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash) { Flapping = Flapping };
+                Interference = setup.Interference?.Clone();
+                SeedStream interference = Interference != null ? Random.Open("rotor.interference") : default;
+                _propulsion = new Propulsion(setup.Propulsion, Draws, VortexRing, ring, GroundEffect, wash, RotorWake, wake, Interference, interference)
+                {
+                    Flapping = Flapping,
+                };
                 ModesSpec = setup.Modes?.Clone();
                 if (ModesSpec != null)
                 {
@@ -250,6 +277,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The motors' asymmetry, or null for identical rotors; and its per-flight draws.</summary>
         public MotorAsymmetry Asymmetry { get; }
+
+        /// <summary>The build's placement and this flight's offsets (null for the exact build).</summary>
+        public BuildTolerance Placement { get; }
+        public BuildTolerance.Offsets PlacementOffsets { get; }
         public MotorAsymmetry.Draws Draws { get; }
 
         /// <summary>The rotors' vortex rings, or null for none.</summary>
@@ -258,8 +289,14 @@ namespace Fpv450.Sim.Flight
         /// <summary>The rotors' ground and ceiling effect, or null for none.</summary>
         public GroundEffectSpec GroundEffect { get; }
 
+        /// <summary>The rotors' own wake unsteadiness, or null for perfectly steady rotors.</summary>
+        public RotorWakeSpec RotorWake { get; }
+
         /// <summary>The rotors' flapping, or null for none.</summary>
         public RotorFlappingSpec Flapping { get; }
+
+        /// <summary>The rotors in each other's wake, or null for none.</summary>
+        public RotorInterferenceSpec Interference { get; }
 
         /// <summary>The airframe's modes' spec and the modes this body has, or null for a rigid airframe.</summary>
         public AirframeModesSpec ModesSpec { get; }
@@ -544,6 +581,16 @@ namespace Fpv450.Sim.Flight
 
             // The re-ingested wash moves once a step too (Propulsion.AdvanceWash), from the step's heights and v_h.
             if (_propulsion.HasGround) _propulsion.AdvanceWash(ref s, Dt);
+
+            // And each rotor's own wake (Propulsion.AdvanceWake, D-064), from the step's v_h and in-plane airspeed.
+            if (_propulsion.HasWake) _propulsion.AdvanceWake(ref s, Dt);
+
+            // The wakes' interference this step for the record, and their fluctuation moves once a step (Propulsion.AdvanceInterference).
+            if (_propulsion.HasInterference)
+            {
+                _trace.InterferenceInflow = _propulsion.InterferenceInflow;
+                _propulsion.AdvanceInterference(ref s, Dt);
+            }
 
             Field(s, amps, loads.Volts);
         }

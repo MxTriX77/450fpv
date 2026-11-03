@@ -35,7 +35,8 @@ namespace Fpv450.Sim.Flight
         /// <summary>The ESC's command filter τ_esc, s.</summary>
         public double EscTau;
 
-        /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion).</summary>
+        /// <summary>The ESC's current limit, A: the motor's current never exceeds it while it drives (Propulsion);
+        /// +∞ for an ESC that senses no current (drone.json's "none").</summary>
         public double EscCurrentLimit;
     }
 
@@ -308,11 +309,23 @@ namespace Fpv450.Sim.Flight
             return a;
         }
 
+        /// <summary>The build's placement tolerances (BuildTolerance, D-066) on this file's bottle, coil, electronics (the
+        /// leads' carrier) and packs.</summary>
+        public BuildTolerance BuildPlacement()
+        {
+            var packs = new int[Packs.Length];
+            for (int k = 0; k < packs.Length; k++) packs[k] = Packs[k].Part;
+            return new BuildTolerance { BottlePart = Payload.Part, CoilPart = Coil.Part, WiringPart = PartIndex("electronics"), PackParts = packs };
+        }
+
         /// <summary>The rotors' vortex rings at the published boundaries (VortexRingSpec), in the aero block's air.</summary>
         public VortexRingSpec BuildVortexRing() => new VortexRingSpec { AirDensity = Aero.AirDensity };
 
         /// <summary>The rotors' ground and ceiling effect and recirculation (GroundEffectSpec), in the aero block's air.</summary>
         public GroundEffectSpec BuildGroundEffect() => new GroundEffectSpec { AirDensity = Aero.AirDensity };
+
+        /// <summary>Each rotor's own wake unsteadiness at the published levels (RotorWakeSpec, D-064), in the aero block's air.</summary>
+        public RotorWakeSpec BuildRotorWake() => new RotorWakeSpec { AirDensity = Aero.AirDensity };
 
         /// <summary>The airframe's modes (AirframeModesSpec, p7b-airframe 1.4): each arm's tip mass from its corner's motor,
         /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), the payload's and the coil's parts, and the camera at the
@@ -354,6 +367,14 @@ namespace Fpv450.Sim.Flight
                 f.Angles[k] = f.HelixAngle(Props.Pitch, x);
             }
             return f;
+        }
+
+        /// <summary>The rotors in each other's wake (RotorInterferenceSpec, p7b-airframe 1.3d) in the aero block's air: the radius from the
+        /// props, the target disc weighted along the blade by the flapping's chord (the sheet's).</summary>
+        public RotorInterferenceSpec BuildInterference()
+        {
+            RotorFlappingSpec f = BuildFlapping();
+            return new RotorInterferenceSpec { AirDensity = Aero.AirDensity, Radius = f.Radius, Stations = f.Stations, Chords = f.Chords };
         }
 
         /// <summary>
@@ -671,7 +692,7 @@ namespace Fpv450.Sim.Flight
                     motor.MagnetPoles = Count(m, "magnet_poles", path, 2);
                     if (motor.MagnetPoles % 2 != 0) Fail(path + ".magnet_poles", "poles come in pairs");
                     motor.EscTau = Positive(m, "esc_tau_s", path);
-                    motor.EscCurrentLimit = Positive(m, "esc_current_limit_a", path);
+                    motor.EscCurrentLimit = LimitOrNone(m, "esc_current_limit_a", path);
                 }
                 // The diagonal pairs spin alike and the two pairs oppositely, so the rotor torques cancel at hover.
                 if (System.Array.IndexOf(spins, null) < 0
@@ -990,6 +1011,20 @@ namespace Fpv450.Sim.Flight
                 double x = Number(o, key, path);
                 if (!double.IsNaN(x) && !(x > 0)) { Fail(path + "." + key, "must be above 0"); return double.NaN; }
                 return x;
+            }
+
+            // A limit above 0, or "none" for no limit at all (+∞).
+            double LimitOrNone(JsonNode o, string key, string path)
+            {
+                JsonNode v = Labelled(o, key, path);
+                if (v == null) return double.NaN;
+                if (v.Kind == JsonKind.String && v.Text == "none") return double.PositiveInfinity;
+                if (v.Kind != JsonKind.Number || !(v.Number > 0))
+                {
+                    Fail(path + "." + key + ".value", "must be above 0, or \"none\"");
+                    return double.NaN;
+                }
+                return v.Number;
             }
 
             double NonNegative(JsonNode o, string key, string path)

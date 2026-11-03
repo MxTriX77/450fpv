@@ -243,6 +243,7 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
         - Calm's T2 and T4 read on Severe's runs, as before.
     - **Still missing at model 19 (not tuned away):**
       - Pitch's 1–4 Hz and spread: T2 0.09° against 0.19–0.38, and T6c. The stick noise does not close them. D-060's next flight-model item, the rear rotors in the front rotors' wake, is named for it.
+        - **Built as `p7b-airframe` 1.3d** (`ModelVersion` 21, `LogFormat.Version` 14; the harness flies it with the whole airframe, `--wrong nowake` its known-wrong, graded on T2, T6b and T6c). Severe, seeds 1–10 / 101–110, model 19 → 21: T2 0.087 → 0.107 / 0.097 → 0.116° [0.28]; T6c's 1–2 Hz 0.064 → 0.081 / 0.073 → 0.088° [0.18], its share 0.50 both; T6b 0.039 / 0.041° unchanged [0.114]; T10b 0.477 / 0.577 → 0.480 / 0.577 and 0.517 / 0.553 → 0.518 / 0.563 [0.57 / 0.77]. About a fifth of pitch's gap closes; it stays 2.4–2.6× low. Why, and what is left: 1.3d's notes.
       - The belt's absolute spreads (T3, T4) and T7's belt share, now that the field carries P's roll.
       - T6b, T8's median, T9b (pitch kurtosis 2.9 against 3.3–5.5), T10a, and T0b's windward share.
     - **Verified:**
@@ -330,6 +331,7 @@ Complex tier (D-033). Branch `unity/physics/p7c-wind` off `unity/main` once `p6-
       - **Along the belt** (`--map test-range`, 10 seeds, nominal, now with the stick noise and the split per stretch): T5 belt 0.98° against the field's 0.38° (×2.57), T3/T1 1.22, T4/T2 1.34, T11a 1.49, T7 64 % of the roll events over the belt. This branch read 1.50° / 0.69°, 2.01, 1.72, 2.09 and 93 % before D-060. `--wrong nomap` fails each. Not yet split by D-060 item.
       - **Not kept, a tunnel** (`p6-flight-core` 1.6b's record): `InTheWindNoTunnelThroughARigidShape("wire", 5.52, Severe)` logs one, the suite's only failure.
       - **Verified:** `dotnet test tools/simtests` 367 of 368; `flightbench --golden`, `--scenarios`, `--contacts`, `--shake`, `--probe` and `--wind-harness calm|windy|severe` PASS; `worldbench --golden` PASS; `replay --record --map test-range --wind severe` (the map's own wind) 120 000 steps and 335 events bit for bit, landing at 0.491 m/s, no crash; on the floor in Severe 295 events, with `--wakes` 307, bit for bit; `python -m pytest tools/wind tools/flightbench`, the OPSEC scan and `openspec validate --strict` pass. `flightbench --bench` on AC ("AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz"; other agents on the host): 16 PASS, 0 B; powered p99 137.8 µs, posadka-step p50 48.0 / p99 121.5 µs, map-step p50 50.6 / p99 137.6 µs (9 rebuilds, 0 stalls), canopy-step inside p99 80.7 µs, S04's straw p99 182.3 µs.
+      - **Model 24, the physics integration** (`unity/physics/physics-integration`): `p7b-airframe` 1.3d's rotor interference and 1.10's micro-motion (D-064) merged onto this line, the range golden still in `WindSetup.ForMap`; Severe 10 of 21, T6d's pitch failing by D-068 (`p7b-airframe` 1.10's notes).
 
 ## 2. Review
 

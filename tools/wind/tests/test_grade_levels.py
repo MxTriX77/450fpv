@@ -30,6 +30,7 @@ def test_every_condition_has_a_target_and_a_known_wrong_model():
     assert all(fam for _, _, fam in gl.TARGETS)
     fams = {name: fam for name, _, fam in gl.TARGETS}
     assert "noiseless" in fams["T2"] and "noiseless" in fams["T6c"]   # D-060: the stick noise's known-wrong
+    assert all("nowake" in fams[t] for t in ("T2", "T6b", "T6c"))     # p7b-airframe 1.3d: the rotors' wakes' known-wrong
 
 
 def test_the_verdicts_read_bands_and_ratios():

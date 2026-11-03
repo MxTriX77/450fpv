@@ -7,7 +7,8 @@ namespace Fpv450.FlightBench
     // aero and wind scenarios (p6-flight-core 1.5) with their known-wrong models, `--contacts` the ground-contact scenarios
     // on the stub (1.6) and on the test range (1.6b), `--wind-harness` K§8.5's acceptance harness (p7c-wind 1.2), `--shake
     // [first seed]` the throttle-punch shake's distribution on 40 seeds a cell (1–40 by default) and PHY-10's claims on
-    // them, failing if one misses. `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
+    // them, failing if one misses. `--landing` holds the touchdowns' toppling and the coil's rock against rigid-body
+    // mechanics (1.6c, D-067). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail.
     internal static class Program
     {
@@ -55,6 +56,11 @@ namespace Fpv450.FlightBench
                 Console.WriteLine("flightbench: the ground-contact scenarios on the stub (p6-flight-core 1.6) and the test range (1.6b)");
                 return ContactsCase.Run() ? 0 : 1;
             }
+            if (args.Length == 1 && args[0] == "--landing")
+            {
+                Console.WriteLine("flightbench: landing stability against rigid-body mechanics (p6-flight-core 1.6c, D-067)");
+                return LandingCase.Run() ? 0 : 1;
+            }
             if (args.Length >= 1 && args[0] == "--wind-harness")
                 return WindHarnessCase.Run(args);
             if (args.Length >= 1 && args[0] == "--probe")
@@ -63,7 +69,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...]");
             return 2;
         }
     }

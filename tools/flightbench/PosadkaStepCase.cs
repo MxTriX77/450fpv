@@ -39,7 +39,9 @@ namespace Fpv450.FlightBench
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
+            setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();
             const double h = WakeGridFixture.MapleTop;
             using var probe = new WindField(wind, new FlightRandom(Seed));
@@ -60,7 +62,9 @@ namespace Fpv450.FlightBench
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
+            setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();
             CanopyStrip west = MapWind.Of(map).Belts[0].Strip;
             var hold = new Double3(west.CentreX, 0.75 * west.Height, west.CentreZ + west.Width / 2 - 2);

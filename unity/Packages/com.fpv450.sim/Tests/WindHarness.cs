@@ -45,9 +45,14 @@ namespace Fpv450.Sim.Tests
         public const double Seconds = 39, DiscardSeconds = 5, BeltStartSeconds = 9, BeltSeconds = 7;
 
         /// <summary>The release speed along the course, m/s (derived, p7c-wind 1.6: the airspeed clip P's 22.7° of pitch
-        /// settles at in still air, HeldPitchAirspeed: 20.57 m/s on D-050's silhouette, 18.82 on D-043's; PHY-17a's published
-        /// cruise is 17–22).</summary>
-        public const double ReleaseSpeed = 20.6;
+        /// settles at in still air, HeldPitchAirspeed: 20.38 m/s on D-066's model 23, 20.57 on model 22's D-050 silhouette,
+        /// 18.82 on D-043's; PHY-17a's published cruise is 17–22).</summary>
+        public const double ReleaseSpeed = 20.4;
+
+        /// <summary>The cruise D-060's field checks meet the turbulence at, m/s: model 22's release, 20.6. The field does not
+        /// depend on the drone, so D-066's lighter cruise (ReleaseSpeed) does not move them; at 20.4 the 0.7–1 m eddies' share
+        /// of von Kármán's energy sits on its band's 0.70 floor.</summary>
+        public const double FieldCheckSpeed = 20.6;
 
         /// <summary>The runs' field heights spread evenly over this band, m above the floor (assumed, wind.md §6.2;
         /// belt-geometry-p.md did not measure P's field stretch).</summary>
@@ -300,7 +305,7 @@ namespace Fpv450.Sim.Tests
         /// the belt's strip. `steady` is the known-wrong fixed vector: the drawn strength from the drawn direction at every
         /// point and time, without turbulence, profile, direction changes or the strip.</summary>
         public static FlightSetup Setup(DroneSpec spec, WindLevel level, ulong seed, double height, bool belt, bool drag,
-            out double courseDeg, out double fromDeg, int startSecond = 0, bool steady = false)
+            out double courseDeg, out double fromDeg, int startSecond = 0, bool steady = false, bool interference = true)
         {
             var drawn = new WindField(WindSetup.Of(level), new FlightRandom(seed));
             fromDeg = drawn.FromDeg;
@@ -314,7 +319,8 @@ namespace Fpv450.Sim.Tests
             if (steady) wind = WindSetup.SteadyFrom(fromDeg, drawn.MeanSpeed);
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);
-            if (level == WindLevel.Calm) setup.Asymmetry = null; // PHY-14, K§8.6: Calm is flown with the asymmetry off
+            if (!interference) setup.Interference = null; // p7b-airframe 1.3d's known-wrong: no rotor-rotor interaction
+            if (level == WindLevel.Calm) { setup.Asymmetry = null; setup.RotorWake = null; } // PHY-14, K§8.6: Calm is flown with the airframe's floor off (its asymmetry and its rotors' own wakes, D-064)
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = along * ReleaseSpeed;
             // Yaw onto the course (about +Y, the heading grows), then the nose down (about body +x).
@@ -325,13 +331,16 @@ namespace Fpv450.Sim.Tests
         }
 
         // The whole airframe a pilot's flight has (p7b-airframe): the motors' asymmetry on the seed's draws, the vortex rings,
-        // the ground effect, the rotors' flapping and the airframe's modes.
+        // the ground effect, the rotors' own wakes (D-064), the rotors' flapping, the rotors in each other's wake (1.3d) and the
+        // airframe's modes.
         static void Airframe(DroneSpec spec, FlightSetup setup)
         {
             setup.Asymmetry = spec.BuildAsymmetry();
             setup.VortexRing = spec.BuildVortexRing();
             setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
             setup.Flapping = spec.BuildFlapping();
+            setup.Interference = spec.BuildInterference();
             setup.Modes = spec.BuildModes();
         }
 
@@ -339,7 +348,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
-            bool steady = false, bool remnant = true)
+            bool steady = false, bool remnant = true, bool interference = true)
         {
             double height = HeightOf(i, n), low = BeltHeightOf(i, n), climb = ClimbSecondsOf(i, n), seconds = Seconds + climb;
             double[] history = History(level, seed, 120, out double drawn);
@@ -347,7 +356,7 @@ namespace Fpv450.Sim.Tests
             if (start < 0)
                 throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + seconds + " s within 90° of its drawn direction");
             FlightSetup setup = Setup(spec, level, seed, low, belt && !steady, drag, out double courseDeg, out double fromDeg,
-                steady ? 0 : start, steady);
+                steady ? 0 : start, steady, interference);
             BeltStretch(out double beltFrom, out double beltTo);
             var run = new Run
             {
@@ -487,7 +496,7 @@ namespace Fpv450.Sim.Tests
             wind.StartSecond = start;
             FlightSetup setup = CrosswindScenario.Setup(spec, wind, seed, drag, drag);
             Airframe(spec, setup);
-            if (level == WindLevel.Calm) setup.Asymmetry = null;
+            if (level == WindLevel.Calm) { setup.Asymmetry = null; setup.RotorWake = null; } // as Setup's Calm
             setup.StartPosition = new Double3(east ? x0 - lead : x1 + lead, height, z);
             setup.StartVelocity = new Double3(east ? ReleaseSpeed : -ReleaseSpeed, 0, 0);
             DetMath.SinCos(courseDeg * DegToRad / 2, out double sy, out double cy);

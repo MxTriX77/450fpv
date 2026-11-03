@@ -258,9 +258,12 @@ namespace Fpv450.Replay
                 Contacts = contacts,
                 Wind = air,
                 Asymmetry = spec.BuildAsymmetry(), // a pilot's flight: the motors as this seed drew them (p7b-airframe 1.1)
+                Placement = spec.BuildPlacement(), // and the build as the pilot's hands set it (D-066, PHY-24)
                 VortexRing = spec.BuildVortexRing(), // and the rotors' vortex rings (1.2)
                 GroundEffect = spec.BuildGroundEffect(), // and their ground and ceiling effect and recirculation (1.3)
+                RotorWake = spec.BuildRotorWake(), // and each rotor's own wake unsteadiness (D-064)
                 Flapping = spec.BuildFlapping(), // and their edgewise-flow moments (1.3c)
+                Interference = spec.BuildInterference(), // and each other's wake (1.3d)
                 Modes = spec.BuildModes(), // and the airframe's modes (1.4)
                 StartPosition = foot + new Double3(0, stand, 0),
                 StartAttitude = attitude,
