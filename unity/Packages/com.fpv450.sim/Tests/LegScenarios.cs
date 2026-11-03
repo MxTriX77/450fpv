@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Tests
             public double MaxTilt, TouchSpeed;
             public int Tunnels, Crashes;
 
-            /// <summary>The even split's peak load (the known-wrong): a quarter of the contacts' force along the legs, N.</summary>
+            /// <summary>The even split's peak load (the known-wrong): a quarter of the legs' load along them, N.</summary>
             public double EvenAxial;
 
             /// <summary>The flight's records and events, the legs' judged moment left out (FNV-1a 64).</summary>
@@ -155,7 +155,9 @@ namespace Fpv450.Sim.Tests
                     o.PeakMoment[c] = Math.Max(o.PeakMoment[c], tr.LegMoment[c]);
                     o.PeakAxial[c] = Math.Max(o.PeakAxial[c], tr.LegLoad[c]);
                 }
-                o.EvenAxial = Math.Max(o.EvenAxial, Double3.Dot(tr.ContactForce, up) / 4);
+                // The even split of the legs' own load (1.3: once a broken leg's piece leaves, the frame's own impacts are not the
+                // legs' to split).
+                o.EvenAxial = Math.Max(o.EvenAxial, (tr.LegLoad[0] + tr.LegLoad[1] + tr.LegLoad[2] + tr.LegLoad[3]) / 4);
             }
             for (int c = 0; c < 4; c++)
             {

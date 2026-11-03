@@ -477,13 +477,18 @@ namespace Fpv450.Sim.Tests
         // leg_fl parts at its clamp 4 ms before its tube passes the cable; at 5.52 m the four legs part on the cable and the
         // skids then pass it, 0.1 m into it on their legs' side give. No tunnel goes through an intact leg's part. Severe's
         // crown logs none (it did, through support_fr_end after leg_fr broke, with the side give at the legs' assumed ζ 0.2).
+        // Model 41 (p7g-legs 1.3): the parted pieces leave the contacts, and at 5.475 m in Severe the tunnel is gone; at 5.52 m
+        // the four legs part on the cable, and one tunnel is left (of 2), skid_fr through the cable at 6.9 m/s, 2 ms after
+        // leg_rr cracks: its half hangs from leg_rr's T-joint once leg_fr parts, the skid's 303 N/m cantilever turning its
+        // shapes out of what it touches a step behind. On the hanging halves as a penetration spring the crown in Windy and
+        // Severe logged one each and 18 lost contacts; their turn made geometric closes them.
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
         [TestCase("crown", 10.0, WindLevel.Severe, 0)]
         [TestCase("wire", 5.47, WindLevel.Severe, 0)]
-        [TestCase("wire", 5.475, WindLevel.Severe, 1)]
+        [TestCase("wire", 5.475, WindLevel.Severe, 0)]
         [TestCase("wire", 5.51, WindLevel.Severe, 0)]
-        [TestCase("wire", 5.52, WindLevel.Severe, 2)]
+        [TestCase("wire", 5.52, WindLevel.Severe, 1)]
         [TestCase("wire", 5.475, WindLevel.Windy, 0)]
         [TestCase("wire", 5.475, WindLevel.Still, 0)]
         public void InTheWindNoTunnelThroughARigidShape(string name, double height, WindLevel level, int legTunnels)

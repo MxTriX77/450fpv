@@ -152,9 +152,13 @@ namespace Fpv450.Sim.Tests
         {
             // At 1.1 m/s down: level, then rolled right side down 10°, 20° and 30°, seeds 1–40. The rolled touch loads the first
             // skid's legs alone: the body turns about its centre of mass on their struts, and they bend across under it and bow.
-            // The known-wrong splits the contacts' force evenly over the four legs, along them. At the pilot's normal 0.5 m/s the
-            // shares are a step (level and 10° intact on every seed, 20° and 30° damaged on all, most legs broken); at 1.1 m/s the
+            // The known-wrong splits the legs' load evenly over the four, along them. At the pilot's normal 0.5 m/s the shares are
+            // a step (level and 10° intact on every seed, 20° and 30° damaged on all, most legs broken); at 1.1 m/s the
             // strengths' spread shows at 10° (33 of 40 seeds, none broken), and level stays intact.
+            // Model 41 (p7g-legs 1.3): past its 47 N sway load a leg's side give is gone and the axial load on its deflection
+            // bends it at the clamp (P·δ), so the second skid's legs, landing loaded while the body still rolls about their stuck
+            // feet, crack too (80 of 80 at every roll: about 240 N on 8 mm); the first-touching legs' share still rises with the
+            // roll (41, 66, 80 of 80; broken 0, 28, 80), and level stays intact.
             const double speed = 1.1;
             double[] rolls = { 0, 10, 20, 30 }, shares = new double[4];
             int[] firsts = new int[4], broken = new int[4];
@@ -187,7 +191,6 @@ namespace Fpv450.Sim.Tests
                     Assert.That(damaged, Is.EqualTo(0), "level, every leg intact");
                     continue;
                 }
-                Assert.That(first, Is.GreaterThanOrEqualTo(other), $"{roll}°: the first-touching legs take the damage");
                 Assert.That(even, Is.LessThanOrEqualTo(levelEven), $"{roll}°: the known-wrong even split damages no more legs rolled than level");
                 Assert.That(shares[r], Is.GreaterThanOrEqualTo(shares[r - 1]), $"{roll}°: a share at least the last roll's");
                 Assert.That(firsts[r] + broken[r], Is.GreaterThanOrEqualTo(firsts[r - 1] + broken[r - 1]), $"{roll}°: the first-touching legs' damage rises");

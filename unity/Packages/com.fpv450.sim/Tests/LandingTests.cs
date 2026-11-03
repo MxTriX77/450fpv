@@ -80,25 +80,31 @@ namespace Fpv450.Sim.Tests
             // feet, under the centre of mass, before the bend that would make their force vertical builds, and rock the body back
             // onto both skids from past the quasi-static tip, so the set-down's tip lies between the two (D-067's set-down at
             // rest is the rigid legs' protocol; the landings' tips are 1.4's grid, printed here beside the rigid ones).
+            // p7g-legs 1.3: the side give's parts, the tube's 268 N/m less the axial load's softening (each low leg's (W/2)·cos φ
+            // against its 47 N sway load) in series with the anchor, the jaws held. The set-downs fly the elastic legs (the law
+            // off): past about 30° the low skid's legs part at once on the weight's share across their tilted struts, which 1.3
+            // takes off the drone, and it settles on its frame instead of tipping; the side give's own tip is this test's.
             LandingStability a = LegsOn();
             MaterialRow[] m = Materials(out ulong h);
             ContactSpec c = Spec.BuildContacts(Spec.Nominal, m, h);
-            double side = c.LegSideStiffness * (c.FrictionStiffnessRatio * c.LegStiffness) / (c.LegSideStiffness + c.FrictionStiffnessRatio * c.LegStiffness);
-            double soft = a.SoftRollTipDeg(side), weight = Spec.BuildMass(Spec.Nominal).Properties.Mass * 9.80665;
-            double feet = weight * Math.Sin(soft * Math.PI / 180) / (2 * side);
+            double anchor = c.FrictionStiffnessRatio * c.LegStiffness;
+            double soft = a.SoftRollTipDeg(c.LegTubeSideStiffness, anchor, c.LegSwayLoad, out double feet);
+            double side = c.LegSideStiffness * anchor / (c.LegSideStiffness + anchor);
+            double unsoftened = a.SoftRollTipDeg(side);
             Assert.That(Math.Tan(soft * Math.PI / 180), Is.EqualTo((a.Track - feet) / a.SkidHeight).Within(1e-9), "the centre of mass over the bent feet");
             Assert.That(soft, Is.LessThan(a.StaticRollTipDeg - 3), "statically the soft legs tip sooner than the rigid ones");
+            Func<ContactSpec, ContactSpec> elastic = e => { e.Legs = null; return e; };
             double lo = 10, hi = 40;
-            Assert.That(RollTime(true, lo, 60), Is.EqualTo(double.PositiveInfinity), $"set down at {lo}° it rights itself");
-            Assert.That(RollTime(true, hi, 60), Is.LessThan(10), $"set down at {hi}° it falls");
+            Assert.That(RollTime(true, lo, 60, elastic), Is.EqualTo(double.PositiveInfinity), $"set down at {lo}° it rights itself");
+            Assert.That(RollTime(true, hi, 60, elastic), Is.LessThan(10), $"set down at {hi}° it falls");
             while (hi - lo > 0.02)
             {
                 double mid = (lo + hi) / 2;
-                if (RollTime(true, mid, 60) < 10) hi = mid;
+                if (RollTime(true, mid, 60, elastic) < 10) hi = mid;
                 else lo = mid;
             }
-            TestContext.Out.WriteLine($"the roll tip: {a.StaticRollTipDeg:F2}° rigid across; {soft:F2}° quasi-static on the legs' {side:F0} N/m (the feet {feet * 1e3:F1} mm in); "
-                + $"set down at rest with unbent legs, the sim falls from {hi:F2}°");
+            TestContext.Out.WriteLine($"the roll tip: {a.StaticRollTipDeg:F2}° rigid across; {soft:F2}° quasi-static on the tube's {c.LegTubeSideStiffness:F0} N/m less P·Δ "
+                + $"(the feet {feet * 1e3:F1} mm in; 1.2's {side:F0} N/m chain without it, {unsoftened:F2}°); set down at rest with unbent legs, the sim falls from {hi:F2}°");
             Assert.That(hi, Is.GreaterThan(soft).And.LessThan(a.StaticRollTipDeg), "between the quasi-static tip and the rigid legs'");
             // D-067's grid on the soft legs, beside the rigid one (for the as-built note).
             foreach (double tilt in new[] { 10.0, 20 })

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
@@ -201,12 +202,13 @@ namespace Fpv450.Sim.Tests
         /// starts standing on its skids over the site's foot, whose height is the ground's there.
         /// </summary>
         public static Landing Land(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, bool cut, double descentSpeed = 0.5, double forward = 0,
-            Site site = default)
+            Site site = default, Func<ContactSpec, ContactSpec> edit = null, Action<FlightCore, double> watch = null)
         {
             ContactSpec probe = spec.BuildContacts(spec.Nominal, materials, materialsHash);
             double stand = Standing(probe);
             Double3 foot = site.Foot;
             FlightSetup setup = Setup(spec, materials, materialsHash, true, site, site.Open(), foot + new Double3(0, stand, 0));
+            if (edit != null) setup.Contacts = edit(setup.Contacts);
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0)) { Heading = site.Nose() };
@@ -266,6 +268,7 @@ namespace Fpv450.Sim.Tests
                 }
                 if (touch < 0) continue;
                 double t1 = (n.Step - touch) * FlightCore.Dt;
+                watch?.Invoke(core, t1);
                 ref readonly StepTrace tr = ref core.Trace;
                 int loaded = 0;
                 for (int c = 0; c < 4; c++)
@@ -396,7 +399,8 @@ namespace Fpv450.Sim.Tests
         /// K§7.5's tunnel event: the drone as a free body (no propulsion) with its contacts, sideways at speed (+x) into a
         /// 9 mm steel rod across its path at its leg tubes' height, 0.1 m ahead of them, for 80 ms. At a walking pace the
         /// tubes' sideways bending stops the body; at 40 m/s its 6.6 kN/m cannot, the tubes pass through, and the log must
-        /// say so. Returns the tunnel events.
+        /// say so. Returns the tunnel events. The legs' law is off (the elastic legs): with it the tubes part at their clamps on
+        /// the rod and leave the contacts (p7g-legs 1.3), so no tube is left to tunnel, and the log's rule is this test's.
         /// </summary>
         public static int Overdriven(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, double speed, out string detail)
         {
@@ -404,6 +408,7 @@ namespace Fpv450.Sim.Tests
             const double height = 2, below = 0.215;
             double lead = 0;
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, materialsHash);
+            contacts.Legs = null;
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Name.StartsWith("leg_", System.StringComparison.Ordinal)) lead = DetMath.Max(lead, s.A.X + s.Radius);
             var rod = new ShapeGeometry

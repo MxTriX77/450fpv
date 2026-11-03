@@ -42,6 +42,12 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>A change to the contacts (a known-wrong model), or null.</summary>
             public Func<ContactSpec, ContactSpec> Edit;
+
+            /// <summary>The lateral speed's way: negative against body +x (or +z), else along it (p7g-legs 1.3: each side in turn).</summary>
+            public double Sign;
+
+            /// <summary>A change to the flight before its first step (a damaged leg, p7g-legs 1.3), or null.</summary>
+            public Action<FlightCore> Prepare;
         }
 
         public struct Outcome
@@ -91,7 +97,8 @@ namespace Fpv450.Sim.Tests
             bool powered = t.Power != Power.Free;
             // Powered, the arming and airmode's start take 16 steps before the touch.
             double clear = powered ? 0.002 + 0.03 * t.Descent : 0.001;
-            Double3 v = heading.Rotate(t.Forward ? new Double3(0, 0, t.Lateral) : new Double3(t.Lateral, 0, 0)) + new Double3(0, -t.Descent, 0);
+            double lateral = t.Sign < 0 ? -t.Lateral : t.Lateral;
+            Double3 v = heading.Rotate(t.Forward ? new Double3(0, 0, lateral) : new Double3(lateral, 0, 0)) + new Double3(0, -t.Descent, 0);
             var setup = new FlightSetup
             {
                 Seed = 0x450F, World = site.Open(), Mass = spec.BuildMass(loadout), Contacts = contacts,
@@ -111,6 +118,7 @@ namespace Fpv450.Sim.Tests
                 hold = HoverThrottle(spec, materials, hash);
             }
             var core = new FlightCore(setup);
+            t.Prepare?.Invoke(core);
             var o = new Outcome { Reached = double.PositiveInfinity };
             bool touched = false;
             long touch = 0;
