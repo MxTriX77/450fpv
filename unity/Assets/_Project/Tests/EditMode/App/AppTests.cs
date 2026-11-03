@@ -23,6 +23,10 @@ namespace Fpv450.Tests.App
     // The app's screens and player (p6-input-app 1.4b): what of them runs without a scene.
     public sealed class AppTests
     {
+        /// <summary>physics_materials.json's hash at the physics integration 2 with p7f-damage (model 40): both sides' fields on
+        /// every row (p7f-damage 1.3's integration note).</summary>
+        const ulong MergedMaterialsHash = 0x2932AC6166D91022UL;
+
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
         // drone, the test range's map, and surfaces.json and tether.json byte for byte the repository's, so a pilot's log
         // carries the hashes tools/replay checks against the repository's files by default.
@@ -44,11 +48,23 @@ namespace Fpv450.Tests.App
                 FlightWorldChoice range = FlightWorlds.TestRange(copies);
                 Assert.That(range.Id, Is.EqualTo("test-range"));
                 Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "the same map as the repository's");
-                foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath })
+                foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath, PhysicsMaterials.RelativePath })
                 {
                     Assert.That(files, Does.Contain(table), "the player carries " + table);
                     Assert.That(File.ReadAllBytes(Path.Combine(copies, table)), Is.EqualTo(File.ReadAllBytes(AppData.File(table))), table + " byte for byte");
                 }
+                // D-079: the merged physics_materials.json, every row with what a blade meets (p7f-damage 1.1a), at its hash;
+                // a row without the blade's fields is refused.
+                string json = File.ReadAllText(Path.Combine(copies, PhysicsMaterials.RelativePath));
+                MaterialRow[] rows = PhysicsMaterials.Parse(json, out ulong hash);
+                TestContext.WriteLine("physics_materials.json: " + rows.Length + " rows, 0x" + hash.ToString("X16"));
+                Assert.That(hash, Is.EqualTo(MergedMaterialsHash), "the physics integration 2's merged table");
+                Assert.That(System.Array.TrueForAll(rows, r => r.Hardness > 0 && r.Density > 0), "every row's hardness and density");
+                int at = json.IndexOf("\"hardness_pa\"", System.StringComparison.Ordinal);
+                Assert.That(at, Is.GreaterThan(0));
+                string stripped = json.Substring(0, at) + "\"hardness_pa_gone\"" + json.Substring(at + "\"hardness_pa\"".Length);
+                var refused = Assert.Throws<System.FormatException>(() => PhysicsMaterials.Parse(stripped, out _));
+                StringAssert.Contains("hardness_pa", refused.Message);
             }
             finally
             {
