@@ -9,7 +9,8 @@ namespace Fpv450.FlightBench
     // [first seed]` the throttle-punch shake's distribution on 40 seeds a cell (1–40 by default) and PHY-10's claims on
     // them, failing if one misses. `--landing` holds the touchdowns' toppling and the coil's rock against rigid-body
     // mechanics (1.6c, D-067). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
-    // --break <piece>` runs it with a known-wrong piece, which must fail.
+    // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
+    // drone and prints the setpoint against the achieved rate and what limits it; `--rate-log <log>...` reads flight logs so.
     internal static class Program
     {
         private static int Main(string[] args)
@@ -63,13 +64,20 @@ namespace Fpv450.FlightBench
             }
             if (args.Length >= 1 && args[0] == "--wind-harness")
                 return WindHarnessCase.Run(args);
+            if (args.Length == 1 && args[0] == "--rate-tracking")
+            {
+                Console.WriteLine("flightbench: how the drone tracks its controller's setpoint (reference-notes/rate-tracking.md)");
+                return RateTrackingCase.Run() ? 0 : 1;
+            }
+            if (args.Length >= 2 && args[0] == "--rate-log")
+                return RateTrackingCase.RunLogs(args[1..]) ? 0 : 1;
             if (args.Length >= 1 && args[0] == "--probe")
             {
                 var piece = ContactProbeCase.Break.None;
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
             return 2;
         }
     }
