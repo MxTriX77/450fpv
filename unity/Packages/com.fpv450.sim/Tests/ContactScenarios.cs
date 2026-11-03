@@ -468,20 +468,6 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>The tunnel events' objects and materials, for a report.</summary>
             public List<string> TunnelThrough;
-
-            /// <summary>The tunnels by any part but the leg assembly's tubes (leg_, skid_, support_, tjoint_): those into a
-            /// rod at speed are the class RangeContactTests names (a soft tube that fast into a rod snaps in truth, phase 7's
-            /// breakage), logged as a bug and counted; any other is a new one.</summary>
-            public int OtherTunnels
-            {
-                get
-                {
-                    int n = 0;
-                    foreach (string t in TunnelThrough)
-                        if (!(t.StartsWith("leg_") || t.StartsWith("skid_") || t.StartsWith("support_") || t.StartsWith("tjoint_"))) n++;
-                    return n;
-                }
-            }
         }
 
         /// <summary>

@@ -462,11 +462,7 @@ namespace Fpv450.Sim.Tests
                 height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate);
             TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
                 + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
-            // The leg assembly's tubes into a rod at speed are the class named above (D-066's model 23 flies these approaches
-            // about 30 mm higher, so the wire at 5.52 m in Severe meets L03's cable leg_fr first at 10.6 m/s, and leg_fl and
-            // skid_right pass it): logged as a bug, counted, never pilot error, until phase 7's breakage snaps them. Any other
-            // part's tunnel fails here.
-            Assert.That(p.OtherTunnels + p.Lost, Is.EqualTo(0), "no tunnel but a leg tube's into a rod");
+            Assert.That(p.Tunnels + p.Lost, Is.EqualTo(0));
         }
 
         // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets
