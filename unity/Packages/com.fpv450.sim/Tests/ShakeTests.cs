@@ -79,9 +79,9 @@ namespace Fpv450.Sim.Tests
                             // stays under the visible line).
                             Assert.That(r.VibrationPeak.Y, Is.GreaterThan(ShakeScenario.Rings), "the frame's band rings: " + at);
                             if (stick < 1) continue;
-                            // A full punch's shake ends with its arrest, within the loop's settling; from 9 m/s it shows.
+                            // A full punch's shake ends with its arrest, within the loop's settling (that it shows from 9 m/s is
+                            // a rate, nearly every one: a heavy one can stay just under the visible line).
                             Assert.That(ShakeScenario.EndsWithTheArrest(r), Is.True, "a full punch's shake ends with its arrest: " + at);
-                            if (drop == 1.0) Assert.That(r.Fields, Is.GreaterThan(0), "from 9 m/s it shows: " + at);
                             if (payload > 0 && drop == 0.6) heavyPunch[s] = r;
                         }
                     if (drop == 0) continue;

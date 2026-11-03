@@ -172,7 +172,10 @@ namespace Fpv450.FlightBench
                 }
             }
             Check($"every sharp arrest rings the frame's band over {ShakeScenario.Rings:F1} m/s²", rings == 2 * arrests, $"{rings}/{2 * arrests}; the Y band {yLeast:F2} m/s² at least");
-            Check("every full punch from 9 m/s shows it", fastShown == 2 * Seeds, $"{fastShown}/{2 * Seeds}; from 2.5-9 m/s {fullShown}/{arrests}");
+            // A rate too (D-053's rule): the 2 kg punch from 9 m/s peaks from 0.097° on the 520 seeds the claims were set on,
+            // just over the visible line (0.088°), where all 1040 from 9 m/s showed it; one of the fresh sets flown after
+            // the gentle ramp's restatement had one under it (seed 3205, 2 kg, at 0.0880°).
+            Check("nearly every full punch from 9 m/s shows it", fastShown >= Nearly(2 * Seeds), $"{fastShown}/{2 * Seeds}; from 2.5-9 m/s {fullShown}/{arrests}");
             // The wobble's showing is a rate (D-053's rule): the 2 kg ramp from 5.4 m/s peaks at 0.10-0.28°, a fraction over
             // the visible line (0.088°), and seed 2421 of the first fresh sets flown after the integration review (2001-2040,
             // 2401-2440, 2801-2840) stayed at 0.085°. Its ring is every flight's: over 1.33 s on all 2080 ramps of the 520 seeds

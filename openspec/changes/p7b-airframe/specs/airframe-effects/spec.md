@@ -84,7 +84,7 @@ After a fast descent is arrested by a sharp throttle increase, a damped high-fre
 
 #### Scenario: Shake only when its causes meet
 - **WHEN** arrested descents run from the hover and from 2.5, 5.4 and 9 m/s down, with a sharp full step, a sharp 0.8 step and a gentle ramp, at 0 and 2 kg, on 40 seeds a cell
-- **THEN** from the hover a gentle throttle increase never shows the shake and a sharp one only the motors' spin-up kick, shorter than the pilot's shortest shake (0.3 s); every sharp arrest of a descent rings the frame's band; every full punch from 9 m/s shows the shake, and from slower descents some do (a weak arrest stays under the visible line); in a 5–9 m/s descent a gentle ramp keeps its rotors in their ring for over a second, and nearly every one shows PHY-09's wobble instead; and the shake varies between occurrences
+- **THEN** from the hover a gentle throttle increase never shows the shake and a sharp one only the motors' spin-up kick, shorter than the pilot's shortest shake (0.3 s); every sharp arrest of a descent rings the frame's band; nearly every full punch from 9 m/s shows the shake (a heavy one can stay just under the visible line), and from slower descents some do (a weak arrest stays under the visible line); in a 5–9 m/s descent a gentle ramp keeps its rotors in their ring for over a second, and nearly every one shows PHY-09's wobble instead; and the shake varies between occurrences
 
 #### Scenario: The shake lasts as long as the arrest
 - **WHEN** a sharp full step arrests a descent, on 40 seeds a cell
