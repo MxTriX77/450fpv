@@ -85,8 +85,12 @@ namespace Fpv450.Sim.Log
         ///    byte, its set, its stiffness factor and its clamp's moment, 2072 bytes), event kinds 23–27 (LegSet, LegCracked,
         ///    LegBroken, LegDetached, SkidLoose; D-074), and the header's contacts entry with the legs' side give and their
         ///    failure law's data after the materials' hash.
+        /// 31: p7g-legs 1.3 (D-072's number): each corner's state in the legs' 4 reserved bytes (CornerState), then after 27's
+        ///    2072 bytes each leg's side give this step, its jaws' turn and its hanging skid half's fold (2296 bytes); the side
+        ///    record of the loose pieces, a LooseBlock at 50 Hz (LoosePieces.RecordSize each); event kind 28 (PieceDropped,
+        ///    D-074); and the header's contacts entry with the side give's parts and the legs' skids, bores and loose pieces.
         /// </summary>
-        public const int Version = 27;
+        public const int Version = 31;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -207,10 +211,25 @@ namespace Fpv450.Sim.Log
         ///    (LegDamage: the clamp's slip and twist, buckling, the edge's crack and set, parting by strain, the T-joint), each
         ///    leg's strengths drawn from leg.strength.&lt;leg&gt;. Without the side give and the law (LegSideStiffness 0, Legs null)
         ///    a flight steps as in 37; with the side give alone, as with the law until a leg passes a capacity.
+        /// 41: p7g-legs 1.3 (D-072's number), a damaged leg changes the drone: a set turns the leg's shapes and its skid half about
+        ///    its clamp's edge (its held feet's anchors carried with them), a crack's factor flies on the tube's stiffnesses, a
+        ///    broken leg keeps its stub, a parted or detached piece leaves the contacts and the build (rebuilt exactly, the
+        ///    airframe's modes solved again) and flies loose, and a skid half whose leg let go hangs from the other T-joint on
+        ///    its cantilever, folding past its first yield; the axial load softens the side give (P·Δ, 12P/(π²L), never below
+        ///    0) and the clamp's jaws hold it by their friction (μ·P·D), their bed turning only as it slips. On 1.2's chain
+        ///    (no side give's parts) and with no leg past a capacity, a flight steps as in 39 but for the T-joint's socket
+        ///    moment's rounding.
         /// </summary>
-        public const int ModelVersion = 39;
+        public const int ModelVersion = 41;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
+
+        /// <summary>The side record (p7g-legs 1.3): one loose piece's state after a step whose index is a multiple of LooseSteps,
+        /// after that step's record and events, a block a flying or resting piece (LoosePieces.Encode, LooseFields).</summary>
+        public const ushort LooseBlock = 4;
+
+        /// <summary>The side record's period, steps: 50 Hz.</summary>
+        public const int LooseSteps = 20;
 
         /// <summary>A block's kind and payload length, u16 each.</summary>
         public const int BlockHeaderSize = 4;
@@ -222,8 +241,8 @@ namespace Fpv450.Sim.Log
         /// (p7c-wind 1.4), then the rain's force and film and the air at the camera (p7c-wind 1.7), then the rotors' angles
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the legs'
-        /// state (p7g-legs 1.2).</summary>
-        public const int StepSize = 2072, EventSize = 72, EndSize = 48;
+        /// state (p7g-legs 1.2), then each leg's side give, jaws and hanging fold (1.3).</summary>
+        public const int StepSize = 2296, EventSize = 72, EndSize = 48;
 
         // What the step record covers, checked against the structs by the suite: a field added to one of them must be
         // logged (a new layout) or the suite fails.
@@ -244,7 +263,8 @@ namespace Fpv450.Sim.Log
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow",
-                "LegState", "LegSet", "LegStiffnessFactor", "LegMoment",
+                "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold",
+                "Loose", // the side record's (LooseBlock)
             };
 
         static readonly string[] CornerNames = { "rear_right", "front_right", "rear_left", "front_left" };
@@ -252,6 +272,7 @@ namespace Fpv450.Sim.Log
         public static readonly LogField[] StepFields = BuildStepFields();
         public static readonly LogField[] EventFields = BuildEventFields();
         public static readonly LogField[] EndFields = BuildEndFields();
+        public static readonly LogField[] LooseFields = BuildLooseFields();
 
         // After the tables: static fields initialise in this order.
         static readonly int StickAt = OffsetOf(StepFields, "stick.host_us"), FlagsAt = OffsetOf(StepFields, "flags");
@@ -376,11 +397,33 @@ namespace Fpv450.Sim.Log
             b.Corners("wake_inflow", "the rotor's own wake inflow through the disc over v_h");
             // The legs (p7g-legs 1.2).
             foreach (string c in CornerNames) b.Add("leg_state." + c, "LegFlags: 1 set, 2 cracked, 4 broken, 8 detached, 16 bowed, 32 twisted, 64 skid loose", LogFieldType.U8);
-            b.Add("leg.reserved", "zero", LogFieldType.Pad, 4);
+            foreach (string c in CornerNames) b.Add("corner_state." + c, "CornerState: 1 its skid half hanging, 2 its skid gone, 4 its tube a stub, 8 its tube gone, 16 folded", LogFieldType.U8);
             foreach (string c in CornerNames) b.Vec("leg_set." + c, "rad, body: x and z the bend at the clamp (the foot's way times the set angle), y the twist in the clamp");
             b.Corners("leg_stiffness", "the leg's stiffness over an intact one's by its state");
             b.Corners("leg_moment", "N.m, the moment at the clamp's edge the legs' law judged; 0 without it");
+            // A damaged leg (p7g-legs 1.3).
+            b.Corners("leg_side_give", "N/m, the side give with the anchor in series this step: the tube's less P.delta, or a hanging half's cantilever");
+            foreach (string c in CornerNames) b.Vec("leg_jaw." + c, "m, body, the jaws' turn at the foot: the side spring's rest moved by their friction slipping");
+            foreach (string c in CornerNames) b.Vec("skid_fold." + c, "rad, body rotation vector, a hanging skid half's fold about the other leg's bore");
             return b.Done(StepSize);
+        }
+
+        static LogField[] BuildLooseFields()
+        {
+            var b = new Layout();
+            b.Add("step", "the step it is after", LogFieldType.I64);
+            b.Add("slot", "the piece's slot (its PieceDropped event's index)", LogFieldType.U8);
+            b.Add("at_rest", "1 once it lies still and stops stepping", LogFieldType.U8);
+            b.Add("parts", "LegChange mask: bit c a whole tube, 4 + c below a break, 8 + c a T-joint, 12 right skid, 13 left", LogFieldType.U16);
+            b.Add("reserved", "zero", LogFieldType.Pad, 4);
+            b.Vec("position", "m, world, the piece's frame (the drone's body frame as it left)");
+            b.Add("attitude.x", "frame to world", LogFieldType.F64);
+            b.Add("attitude.y", "frame to world", LogFieldType.F64);
+            b.Add("attitude.z", "frame to world", LogFieldType.F64);
+            b.Add("attitude.w", "frame to world", LogFieldType.F64);
+            b.Vec("velocity", "m/s, world, of the frame's origin");
+            b.Vec("body_rate", "rad/s, the frame's axes");
+            return b.Done(Contact.LoosePieces.RecordSize);
         }
 
         static LogField[] BuildEventFields()
@@ -518,10 +561,13 @@ namespace Fpv450.Sim.Log
             w.C4(s.InterferenceShare);
             w.C4(s.WakeInflow);
             for (int c = 0; c < 4; c++) w.U8((byte)(t.LegState >> (8 * c)));
-            w.Zero(4);
+            for (int c = 0; c < 4; c++) w.U8((byte)(t.CornerState >> (8 * c)));
             for (int c = 0; c < 4; c++) w.V3(t.LegSet[c]);
             w.C4(t.LegStiffnessFactor);
             w.C4(t.LegMoment);
+            w.C4(t.LegSideGive);
+            for (int c = 0; c < 4; c++) w.V3(t.LegJaw[c]);
+            for (int c = 0; c < 4; c++) w.V3(t.SkidFold[c]);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -632,10 +678,13 @@ namespace Fpv450.Sim.Log
             s.InterferenceShare = r.C4();
             s.WakeInflow = r.C4();
             for (int c = 0; c < 4; c++) t.LegState |= (uint)r.U8() << (8 * c);
-            r.Skip(4);
+            for (int c = 0; c < 4; c++) t.CornerState |= (uint)r.U8() << (8 * c);
             for (int c = 0; c < 4; c++) t.LegSet[c] = r.V3();
             t.LegStiffnessFactor = r.C4();
             t.LegMoment = r.C4();
+            t.LegSideGive = r.C4();
+            for (int c = 0; c < 4; c++) t.LegJaw[c] = r.V3();
+            for (int c = 0; c < 4; c++) t.SkidFold[c] = r.V3();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

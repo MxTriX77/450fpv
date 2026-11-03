@@ -29,6 +29,7 @@ namespace Fpv450.Sim.Log
         const int FlushPeriodMs = 2;
         const int StepBlockSize = LogFormat.BlockHeaderSize + LogFormat.StepSize;
         const int EventBlockSize = LogFormat.BlockHeaderSize + LogFormat.EventSize;
+        const int LooseBlockSize = LogFormat.BlockHeaderSize + Contact.LoosePieces.RecordSize;
 
         readonly Stream _stream;
         readonly bool _ownsStream;
@@ -95,7 +96,9 @@ namespace Fpv450.Sim.Log
             if (_closed || Volatile.Read(ref _fault) != null) return;
             int count = events == null ? 0 : events.Count;
             int lost = events == null ? 0 : events.Lost;
-            if (!Reserve(StepBlockSize + (count + (lost > 0 ? 1 : 0)) * EventBlockSize, state.Step)) return;
+            Contact.LoosePieces loose = state.Step % LogFormat.LooseSteps == 0 ? trace.Loose : null;
+            int pieces = loose == null ? 0 : loose.Count;
+            if (!Reserve(StepBlockSize + (count + (lost > 0 ? 1 : 0)) * EventBlockSize + pieces * LooseBlockSize, state.Step)) return;
 
             LogFormat.EncodeBlockHeader(_block, LogFormat.StepBlock, LogFormat.StepSize);
             LogFormat.EncodeStep(_block.AsSpan(LogFormat.BlockHeaderSize), state, stick, trace);
@@ -109,6 +112,14 @@ namespace Fpv450.Sim.Log
                 e.A = lost;
                 PutEvent(state.Step, e);
                 _counts.EventsLost += lost;
+            }
+            // The side record at 50 Hz (p7g-legs 1.3): each loose piece after the step's events.
+            for (int slot = 0; pieces > 0 && slot < Contact.LoosePieces.Slots; slot++)
+            {
+                if (!loose.Active(slot)) continue;
+                LogFormat.EncodeBlockHeader(_block, LogFormat.LooseBlock, Contact.LoosePieces.RecordSize);
+                loose.Encode(slot, _block.AsSpan(LogFormat.BlockHeaderSize));
+                Put(LooseBlockSize);
             }
             Volatile.Write(ref _written, _cursor);
         }
