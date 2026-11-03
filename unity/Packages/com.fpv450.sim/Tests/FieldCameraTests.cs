@@ -133,7 +133,11 @@ namespace Fpv450.Sim.Tests
                 + $"error: field camera {track.FieldError / track.Spread:P2}, render clock's rigid pose {track.ClockError / track.Spread:P2}, "
                 + $"30 ms lag {track.LagError / track.Spread:P2}");
             Assert.That(track.Skips, Is.EqualTo(0), "no field skipped");
-            Assert.That(track.Spread, Is.GreaterThan(0.05), "the punch turns the camera");
+            // The floor, rad/s (measured, seed 1): at model 26 the punch's spread is 0.046, 42 times the hover's 0.0011 before
+            // it. The class's ESC limits no current (D-069), so the mixer keeps its authority at full throttle and what turns
+            // the camera is the motors' spreads at full duty (D-070). Model 22's 40 A limit took that authority away: 0.20
+            // (0.24 with the protection variant at model 26, 0.045 with model 22's drone.json and no limit).
+            Assert.That(track.Spread, Is.GreaterThan(0.02), "the punch turns the camera");
             Assert.That(track.FieldError, Is.LessThanOrEqualTo(0.02 * track.Spread), "the field camera tracks the sim");
             Assert.That(track.ClockError, Is.GreaterThan(0.2 * track.Spread), "the render clock's rigid pose is caught");
             Assert.That(track.LagError, Is.GreaterThan(0.2 * track.Spread), "a smoothed camera is caught");
