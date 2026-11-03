@@ -156,6 +156,12 @@ namespace Fpv450.WorldBench
             }
 
             public void Add(in RayHit h) { Add(h.Distance); Add(h.Point); Add(h.Normal); Add(h.Object); Add(h.Shape); Add(h.Material); Add(h.Surface); }
+
+            public void Add(in MicroElement e)
+            {
+                Add(e.Id); Add((long)e.Kind); Add(e.Anchored ? 1L : 0L); Add((long)e.PointCount); Add(e.P0); Add(e.P1); Add(e.P2);
+                Add(e.Diameter); Add(e.Area); Add(e.Parent); Add(e.ParentShape);
+            }
         }
 
         private static string Hex(ulong v) => v.ToString("x16", CultureInfo.InvariantCulture);
