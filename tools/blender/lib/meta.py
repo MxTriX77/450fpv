@@ -39,8 +39,11 @@ KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "
 # "readable": a generator may return, per LOD, meshes drawn, bounded and audited with that LOD but exported as their own
 # objects, named <variant>_LOD<n>_<kind>, which the importer alone imports readable (a readable mesh asset beside the
 # prefab), so the rest of the model keeps no CPU copy (ArtImportSettings). Optional and additive, as above.
-OPTIONAL_KEYS = ("stand_in", "mass_kg", "readable")
 READABLE_KEYS = ("lod", "name", "kind", "tris")
+# The LOD switches' cross-fade (D-081: S04's straws dissolve into its far layer, never pop): "lod_fade_share", when the
+# generator returns one, in [0, 1): each mesh LOD dissolves into the next from (1 - share) of the next one's switch
+# distance to the switch itself, and the importer cross-fades the LOD group over those bands. Optional and additive.
+OPTIONAL_KEYS = ("stand_in", "mass_kg", "readable", "lod_fade_share")
 STAND_IN_SOURCE_KEYS = ("commit", "model", "model_sha256", "catalog_key")
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
@@ -90,7 +93,10 @@ TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
 # patch) returns "lod_bounds", the object's own box, written as bounds.lod; the importer centres the LOD group on it and
 # sizes it by its longest side, so switches are measured from the object, not its scatter. Optional: absent, the
 # bounds serve; schema 1 stays.
-TEXTURE_ROLES = ("crack_mask", "damage_mask")
+# A "base_map" (D-081, S04's far layer) is a slot's albedo in place of its recipe's base map, and a "mask_map" its
+# packed mask (metallic R, occlusion G, smoothness A) in place of the recipe's, each laid over the slot's UVs as its
+# uv_min and uv_max say: the importer draws that slot with the recipe's material over these maps.
+TEXTURE_ROLES = ("crack_mask", "damage_mask", "base_map", "mask_map")
 TEXTURE_CHANNELS = 4
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
@@ -196,7 +202,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "readable": [{"lod",
     "kind", "mesh": Mesh}] (named as a micro mesh, written only when there are some), "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
-    "png"}, optionally "channels"], a stand-in's "stand_in" record and a loose object's "mass_kg") and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
+    "png"}, optionally "channels"], a stand-in's "stand_in" record, a loose object's "mass_kg" and the LOD switches'
+    "lod_fade_share") and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
     writes from its "png" bytes; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when given."""
     lods = built["lods"]
@@ -252,6 +259,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
         meta["mass_kg"] = float(built["mass_kg"])
     if readable:
         meta["readable"] = readable
+    if "lod_fade_share" in built:
+        meta["lod_fade_share"] = float(built["lod_fade_share"])
     return _rounded(meta)
 
 
@@ -414,6 +423,8 @@ def validate(meta, material_ids):
             problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
     if "stand_in" in meta:
         problems += _stand_in_problems(meta["stand_in"])
+    if "lod_fade_share" in meta and not (_is_num(meta["lod_fade_share"]) and 0 <= meta["lod_fade_share"] < 1):
+        problems.append(f"lod_fade_share must be a number in [0, 1), got {meta['lod_fade_share']!r}")
     if "mass_kg" in meta and not (_is_num(meta["mass_kg"]) and meta["mass_kg"] > 0):
         problems.append(f"mass_kg must be a positive number, got {meta['mass_kg']!r}")
     names = {lod.get("mesh") for lod in lods} | {m.get("name") for m in meta["micro"] if isinstance(m, dict)}
