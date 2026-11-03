@@ -174,8 +174,8 @@ namespace Fpv450.Sim.Log
         public static readonly string[] SoilSetFieldsLogged =
         {
             "Rigid", "Bearing", "CohesiveShare", "CohesiveModulus", "FrictionalModulus", "UnloadRatio", "MaxSink", "Damping", "StaticFriction",
-            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius", "Cohesion", "BulkDensity", "SandShare", "Hardness",
-            "CrushStrength", "Density",
+            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius", "Cohesion", "BulkDensity", "SandShare", "StoneFraction",
+            "StoneDiameter", "Hardness", "CrushStrength", "Density",
         };
         public static readonly string[] CoverRowFieldsLogged = { "Kind", "Dry", "Wet" };
         public static readonly string[] CoverSetFieldsLogged =
@@ -1633,7 +1633,7 @@ namespace Fpv450.Sim.Log
                      {
                          s.Bearing, s.CohesiveShare, s.CohesiveModulus, s.FrictionalModulus, s.UnloadRatio, s.MaxSink, s.Damping, s.StaticFriction,
                          s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius, s.Cohesion, s.BulkDensity, s.SandShare,
-                         s.Hardness, s.CrushStrength, s.Density,
+                         s.StoneFraction, s.StoneDiameter, s.Hardness, s.CrushStrength, s.Density,
                      })
                 e.Write(v);
         }
@@ -1681,7 +1681,8 @@ namespace Fpv450.Sim.Log
             FrictionalModulus = r.ReadDouble(), UnloadRatio = r.ReadDouble(), MaxSink = r.ReadDouble(), Damping = r.ReadDouble(),
             StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Adhesion = r.ReadDouble(), InterfaceAdhesion = r.ReadDouble(),
             AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(), Cohesion = r.ReadDouble(), BulkDensity = r.ReadDouble(),
-            SandShare = r.ReadDouble(), Hardness = r.ReadDouble(), CrushStrength = r.ReadDouble(), Density = r.ReadDouble(),
+            SandShare = r.ReadDouble(), StoneFraction = r.ReadDouble(), StoneDiameter = r.ReadDouble(), Hardness = r.ReadDouble(),
+            CrushStrength = r.ReadDouble(), Density = r.ReadDouble(),
         };
 
         static CoverSet ReadCover(BinaryReader r) => new CoverSet

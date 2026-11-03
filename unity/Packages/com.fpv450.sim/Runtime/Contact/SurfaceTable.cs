@@ -15,7 +15,7 @@ namespace Fpv450.Sim.Contact
     /// One moisture set of a ground surface (surfaces.json, p7a-ground design 1): Bekker's linear pressure–sinkage at a
     /// contact of width b, p = (k_c/b + k_φ)·z, under Wong's load and unload rule, with the firm layer past the maximum
     /// sink, viscous damping, the friction of the drone's parts and the wet soil's adhesion, and what a blade meets in it
-    /// (p7f-damage 1.1a: its cohesion, bulk density and sand share). A rigid set (asphalt, a concrete slab) has friction and
+    /// (p7f-damage 1.1a: its cohesion, bulk density and sand share; 1.3: its stones). A rigid set (asphalt, a concrete slab) has friction and
     /// what a blade meets on its face (hardness, crush strength and density, physics_materials.json's fields), every soil
     /// field 0.
     /// </summary>
@@ -48,6 +48,11 @@ namespace Fpv450.Sim.Contact
         /// flings) and its sand share by mass (the share of a carve's load its quartz grains bear on the leading edge); 0 for a
         /// rigid set.</summary>
         public double Cohesion, BulkDensity, SandShare;
+
+        /// <summary>A soil's rock fragments of 2 mm and more by volume and their representative diameter, m (p7f-damage 1.3: a blade's
+        /// pass meets one with the probability its swept volume gives, a hard target by the table's sand hardness); 0 for a rigid
+        /// set.</summary>
+        public double StoneFraction, StoneDiameter;
 
         /// <summary>A rigid set's face (physics_materials.json's fields): its indentation hardness and the pressure it resists a
         /// carving blade (Pa), and its density (kg/m³); 0 for a soil set.</summary>
@@ -165,7 +170,7 @@ namespace Fpv450.Sim.Contact
         {
             "bearing_n_per_m3", "cohesive_share", "k_c_n_per_m2", "k_phi_n_per_m3", "unload_ratio", "max_sink_m", "damping_ns_per_m3",
             "friction_static", "friction_kinetic", "adhesion_pa", "interface_adhesion_pa", "adhesion_release_m", "lip_edge_radius_m",
-            "cohesion_pa", "bulk_density_kg_m3", "sand_share",
+            "cohesion_pa", "bulk_density_kg_m3", "sand_share", "stone_fraction", "stone_diameter_m",
         };
 
         static readonly string[] RigidFields = { "friction_static", "friction_kinetic", "hardness_pa", "crush_strength_pa", "density_kg_m3" };
@@ -339,6 +344,8 @@ namespace Fpv450.Sim.Contact
             s.Cohesion = r.Number(o, "cohesion_pa", path, out string lco, 0, true);
             s.BulkDensity = r.Number(o, "bulk_density_kg_m3", path, out string lbd, 0, true);
             s.SandShare = r.Number(o, "sand_share", path, out string lss, 0, false, 1);
+            s.StoneFraction = r.Number(o, "stone_fraction", path, out string lsf, 0, false, 1);
+            s.StoneDiameter = r.Number(o, "stone_diameter_m", path, out string lsd, 0, true);
             if (s.Adhesion > 0 && !(s.AdhesionRelease > 0)) r.Fail(path + ".adhesion_release_m", "must be above 0 where adhesion_pa is");
 
             r.Derived(lkc, s.CohesiveModulus, s.CohesiveShare * s.Bearing * t.ReferenceWidth, path + ".k_c_n_per_m2",
@@ -375,6 +382,8 @@ namespace Fpv450.Sim.Contact
                 r.Derived(lbd, s.BulkDensity, dry.BulkDensity + w.WaterContentWet * t.WaterDensity, path + ".bulk_density_kg_m3",
                     "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3");
             r.Derived(lss, s.SandShare, dry.SandShare, path + ".sand_share", "the dry set's");
+            r.Derived(lsf, s.StoneFraction, dry.StoneFraction, path + ".stone_fraction", "the dry set's");
+            r.Derived(lsd, s.StoneDiameter, dry.StoneDiameter, path + ".stone_diameter_m", "the dry set's");
             return s;
         }
 

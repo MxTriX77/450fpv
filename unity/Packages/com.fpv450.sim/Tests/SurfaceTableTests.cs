@@ -49,6 +49,14 @@ namespace Fpv450.Sim.Tests
 
         static SurfaceRow Surface(SurfaceTable t, string name) => Array.Find(t.Surfaces, s => s.Name == name);
 
+        // A surface's stone fraction edited in all three sets (the wet and saturated ones derive from the dry).
+        static string Stones(string json, string surface, string old, string replacement)
+        {
+            foreach (string level in new[] { "dry", "wet", "saturated" })
+                json = Edit(json, "\"" + surface + "\"|\"" + level + "\"|\"stone_fraction\"", "\"value\": " + old + ",", "\"value\": " + replacement + ",");
+            return json;
+        }
+
         // ---- "Every row labelled and loaded" -----------------------------------------------------------------------------
 
         [Test]
@@ -127,17 +135,21 @@ namespace Fpv450.Sim.Tests
                     {
                         Assert.That(x.Hardness, Is.GreaterThan(blade), at + ": a hard target");
                         Assert.That(x.CrushStrength > 0 && x.Density > 0, Is.True, at);
-                        Assert.That(x.Cohesion + x.BulkDensity + x.SandShare, Is.EqualTo(0), at + ": no soil");
+                        Assert.That(x.Cohesion + x.BulkDensity + x.SandShare + x.StoneFraction + x.StoneDiameter, Is.EqualTo(0), at + ": no soil");
                         TestContext.Out.WriteLine($"{at}: hardness {x.Hardness / 1e6:F0} MPa ({x.Hardness / blade:F1} × the blade's), crush {x.CrushStrength / 1e6:F1} MPa, {x.Density:F0} kg/m³");
                         continue;
                     }
                     Assert.That(x.Cohesion, Is.GreaterThan(0), at);
                     Assert.That(x.BulkDensity, Is.GreaterThan(0).And.LessThan(t.ParticleDensity), at);
                     Assert.That(x.SandShare, Is.InRange(0.0, 1.0), at);
+                    // p7f-damage 1.3: the rock fragments (FAO 2006: the particles past 2 mm), a volume fraction, and their size;
+                    // a stone is a hard target by the sand's quartz.
+                    Assert.That(x.StoneFraction, Is.InRange(0.0, 1.0), at);
+                    Assert.That(x.StoneDiameter, Is.GreaterThanOrEqualTo(0.002), at + ": a rock fragment is 2 mm or more");
                     Assert.That(x.Cohesion * nc, Is.LessThan(1e-3 * blade), at + ": a soft target, carved");
                     Assert.That(x.Hardness + x.CrushStrength + x.Density, Is.EqualTo(0), at + ": no face");
                     TestContext.Out.WriteLine($"{at}: c {x.Cohesion / 1e3:F2} kPa, c·N_c {x.Cohesion * nc / 1e3:F2} kPa ({x.Cohesion * nc / blade:E1} × the blade's), "
-                        + $"ρ {x.BulkDensity:F1} kg/m³, sand {x.SandShare:F2}");
+                        + $"ρ {x.BulkDensity:F1} kg/m³, sand {x.SandShare:F2}, stones {x.StoneFraction * 100:F1} % of {x.StoneDiameter * 1e3:F1} mm");
                 }
             }
             MaterialRow concrete = Array.Find(PhysicsMaterials.Parse(MaterialsText(), out _), r => r.Name == "concrete");
@@ -153,6 +165,12 @@ namespace Fpv450.Sim.Tests
             StringAssert.Contains("surfaces.asphalt.dry.hardness_pa: missing", Assert.Throws<FormatException>(() => SurfaceTable.Parse(noHardness)).Message);
             string soilFace = Edit(Text(), "\"dirt_track\"|\"dry\"", "\"sand_share\"", "\"hardness_pa\": {\"value\": 1e9, \"label\": \"assumed\", \"note\": \"x\"}, \"sand_share\"");
             StringAssert.Contains("surfaces.dirt_track.dry.hardness_pa: is not a field of the schema", Assert.Throws<FormatException>(() => SurfaceTable.Parse(soilFace)).Message);
+            string noStones = Edit(Text(), "\"tilled\"|\"wet\"", "\"stone_fraction\"", "\"stone_fractionx\"");
+            StringAssert.Contains("surfaces.tilled.wet.stone_fraction: missing", Assert.Throws<FormatException>(() => SurfaceTable.Parse(noStones)).Message);
+            string slabStones = Edit(Text(), "\"concrete_slab\"|\"dry\"", "\"hardness_pa\"",
+                "\"stone_fraction\": {\"value\": 0.1, \"label\": \"assumed\", \"note\": \"x\"}, \"hardness_pa\"");
+            StringAssert.Contains("surfaces.concrete_slab.dry.stone_fraction: is not a field of the schema",
+                Assert.Throws<FormatException>(() => SurfaceTable.Parse(slabStones)).Message);
         }
 
         // ---- the loader refuses bad files --------------------------------------------------------------------------------
@@ -182,6 +200,10 @@ namespace Fpv450.Sim.Tests
         [TestCase("\"dirt_track\"|\"dry\"|\"bulk_density_kg_m3\"", "1600.0", "2100.0", "surfaces.dirt_track.dry.bulk_density_kg_m3: leaves a porosity of")]
         [TestCase("\"weeds\"|\"dry\"|\"sand_share\"", "0.4", "1.4", "surfaces.weeds.dry.sand_share: must be at least 0 and at most 1")]
         [TestCase("\"constants\"|\"sand_hardness_pa\"", "\"value\": 1.1e10", "\"value\": 0", "constants.sand_hardness_pa: must be above 0")]
+        [TestCase("\"dirt_track\"|\"saturated\"|\"stone_fraction\"", "0.035", "0.04", "surfaces.dirt_track.saturated.stone_fraction: is labelled derived")]
+        [TestCase("\"rubble\"|\"wet\"|\"stone_diameter_m\"", "0.035", "0.02", "surfaces.rubble.wet.stone_diameter_m: is labelled derived")]
+        [TestCase("\"belt_straw\"|\"dry\"|\"stone_fraction\"", "0.01", "1.2", "surfaces.belt_straw.dry.stone_fraction: must be at least 0 and at most 1")]
+        [TestCase("\"meadow_sod\"|\"dry\"|\"stone_diameter_m\"", "0.0035", "0", "surfaces.meadow_sod.dry.stone_diameter_m: must be above 0")]
         public void TheLoaderRefusesABadFile(string anchors, string old, string replacement, string expected)
         {
             string bad = Edit(Text(), anchors, old, replacement);
@@ -231,7 +253,9 @@ namespace Fpv450.Sim.Tests
                     Close(x.Damping, dry.Damping, at + "damping");
                     Close(x.LipEdgeRadius, dry.LipEdgeRadius, at + "lip");
                     Close(x.SandShare, dry.SandShare, at + "sand share");
-                    formulas += 4;
+                    Close(x.StoneFraction, dry.StoneFraction, at + "stone fraction");
+                    Close(x.StoneDiameter, dry.StoneDiameter, at + "stone diameter");
+                    formulas += 6;
                     if (s.Name == "rubble")
                     {
                         // The table's one labelled departure: granular debris drains, so it keeps its dry soil and holds no film.
@@ -429,6 +453,7 @@ namespace Fpv450.Sim.Tests
                 Is.EqualTo((table.Wetting.CohesionWet, table.Wetting.CohesionSaturated, table.Wetting.WaterContentWet)));
             SoilSet track = Surface(logged, "dirt_track").Saturated, slab = Surface(logged, "concrete_slab").Wet;
             Assert.That((track.Cohesion, track.BulkDensity, track.SandShare), Is.EqualTo((9000.0, Surface(table, "dirt_track").Saturated.BulkDensity, 0.2)));
+            Assert.That((track.StoneFraction, track.StoneDiameter), Is.EqualTo((0.035, 0.011)), "p7f-damage 1.3's stones are logged");
             Assert.That((slab.Hardness, slab.CrushStrength, slab.Density), Is.EqualTo((4.5e8, 2.5e7, 2400.0)));
 
             ulong drone = RepositoryDrone.Spec().ContentHash;
@@ -437,6 +462,7 @@ namespace Fpv450.Sim.Tests
                      {
                          Edit(Text(), "\"rubble\"|\"wet\"|\"cohesion_pa\"", "\"value\": 1000.0,", "\"value\": 1100.0,"),
                          Edit(Text(), "\"constants\"|\"sand_hardness_pa\"", "\"value\": 1.1e10", "\"value\": 1.2e10"),
+                         Stones(Text(), "belt_straw", "0.01", "0.02"),
                      })
             {
                 ulong other = SurfaceTable.Parse(edited).Hash;

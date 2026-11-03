@@ -6,7 +6,7 @@
     "labelled number": "{\"value\": <a number, or [min, max], a range an element draws from by its own Id's hash>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source, reason or formula>\"}; the note is required",
     "constants.reference_width_m": "b_ref, Bekker's width b at which bearing_n_per_m3 is stated: the K§7.2 reference foot's. b is the smaller dimension of a contact (a rectangle's width, a circle's radius), so a half-skid's is its groove's chord and a sphere's its footprint's radius",
     "constants.firm_layer_n_per_m3": "the firm layer past max_sink_m: it adds this modulus × the footprint × the sink past max_sink_m",
-    "wetting": "the named factors and values the wet and saturated sets are derived by: a soil's bearing, unload ratio, maximum sink, both frictions and cohesion × wetting.<name>_<level>, its bulk density the dry set's with wetting.water_content_wet's water (wet) or its pores full (saturated), its cohesive share, sand share, damping and lip as the dry set's, a rigid set's blade fields as the dry set's, its adhesions and release as wetting's values; a rigid surface's frictions × the friction factor; a cover kind's hook release × cover_hook_release_wet, straw's modulus, cut energy and density × their factors, a leaf's fresh mass per area + leaf_water_film_kg_m2, and the rest as the dry set's",
+    "wetting": "the named factors and values the wet and saturated sets are derived by: a soil's bearing, unload ratio, maximum sink, both frictions and cohesion × wetting.<name>_<level>, its bulk density the dry set's with wetting.water_content_wet's water (wet) or its pores full (saturated), its cohesive share, sand share, stones, damping and lip as the dry set's, a rigid set's blade fields as the dry set's, its adhesions and release as wetting's values; a rigid surface's frictions × the friction factor; a cover kind's hook release × cover_hook_release_wet, straw's modulus, cut energy and density × their factors, a leaf's fresh mass per area + leaf_water_film_kg_m2, and the rest as the dry set's",
     "surfaces.<id>.<set>": "a soil set holds every field below but hardness_pa, crush_strength_pa and density_kg_m3; a rigid set (asphalt, a concrete slab) holds only friction_static, friction_kinetic and those three, and the part's own spring carries it",
     "bearing_n_per_m3": "the virgin-loading modulus at b_ref, k_c/b_ref + k_phi (N/m³; K§7.2's bearing)",
     "cohesive_share": "the share of bearing_n_per_m3 that is k_c/b_ref, the part that falls as a contact widens",
@@ -27,6 +27,8 @@
     "cohesion_pa": "c: the soil's cohesion (Pa); a blade carves it at its bearing pressure, p_t = c·N_c, N_c = 2 + π (Prandtl's, 5.14), over the volume it sweeps (p7f-damage design 5)",
     "bulk_density_kg_m3": "ρ: the soil's mass per volume with its water, the mass a carving blade flings (m_f = ρ·V); the dry set's is its dry bulk density",
     "sand_share": "the soil's sand fraction (0.05–2 mm) by mass, the share of a carve's load its quartz grains bear against the blade's leading edge, which wears by Archard (V = k·F·s/H_b, k ContactSpec.WearCoefficient); silt and clay abrade far less, abrasive wear falling steeply below a critical particle size of the order of 100 µm (Misra and Finnie 1981, the size effect, published)",
+    "stone_fraction": "the soil's rock fragments of 2 mm and more (gravel, brick and concrete bits, a shell's splinters) by volume (FAO 2006, Guidelines for Soil Description: rock fragments are the particles past 2 mm): a blade's pass through the soil meets one with the probability 1 − e^(−λ), λ the fraction × the volume within a stone's radius of what the pass sweeps over a stone's volume (p7f-damage 1.3, PropStrikes; drawn from the flight's soil.stones stream, PHY-24), and a stone is a hard target by constants.sand_hardness_pa (quartz) and its mass by constants.particle_density_kg_m3. Clods are not stones: a soil's own aggregates, of the order of tens to a few hundred kPa in tension when air-dry (Dexter and Kroesbergen 1985, the published order), far below the blade's hardness, so the carve's c·N_c and bulk density stand for them",
+    "stone_diameter_m": "the rock fragments' representative size, their class's geometric middle (FAO 2006, Table 27: fine gravel 2–6 mm, medium 6–20, coarse 20–60)",
     "hardness_pa": "a rigid set's face: its indentation hardness (Pa), physics_materials.json's field: harder than props.blade's, a hard target",
     "crush_strength_pa": "a rigid set's face: the pressure it resists a blade carving it (Pa), physics_materials.json's field; a hard target's is not read",
     "cover.<kind>": "straw, stem and twig hold elastic_modulus_pa, wall_share, density_kg_m3, hook_release_n, cut_energy_j_per_m2 and damping_ratio, and straw and twig roll_friction; a leaf holds its masses, petiole_diameter_m and cut_energy_j_per_m2",
@@ -92,7 +94,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 6000.0, "label": "assumed", "note": "a loam's few kPa (Wong 2008, Theory of Ground Vehicles, Table 2.3: Grenville loam 3.1, North Gower clayey loam 6.1 kPa), with the sod's roots binding it"},
         "bulk_density_kg_m3": {"value": 1200.0, "label": "assumed", "note": "a root-bound, organic topsoil: light, inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "a loam topsoil on fine parent material (loess-like silts carry almost no rock fragments): FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -110,7 +114,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 3600.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1450.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -128,7 +134,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1800.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1747.16981132, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "dry_crust": {
@@ -149,7 +157,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 20000.0, "label": "assumed", "note": "a dried, crusted silt: its suction stiffens it, above the tabulated loams (1.4–13.8 kPa) toward the drier clays' 68.95 kPa (Wong 2008, Theory of Ground Vehicles, Table 2.3)"},
         "bulk_density_kg_m3": {"value": 1450.0, "label": "assumed", "note": "a crusted silt loam: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.2, "label": "assumed", "note": "the sand fraction (0.05–2 mm) near the USDA silt loam class's middle (silt loam: 0–50 % sand, 50–88 % silt; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.2, "label": "assumed", "note": "the sand fraction (0.05–2 mm) near the USDA silt loam class's middle (silt loam: 0–50 % sand, 50–88 % silt; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "a silty field's topsoil, as meadow_sod: FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.5e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -167,7 +177,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 12000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1700.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -185,7 +197,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 6000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1902.83018868, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "crater_spoil": {
@@ -206,7 +220,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 1000.0, "label": "assumed", "note": "churned spoil, its structure broken: of the order of the table's lowest, dry sand's 1.04 kPa (Wong 2008, Theory of Ground Vehicles, Table 2.3)"},
         "bulk_density_kg_m3": {"value": 1100.0, "label": "assumed", "note": "loose, churned spoil: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed, the churned loam's"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed, the churned loam's"},
+        "stone_fraction": {"value": 0.1, "label": "assumed", "note": "the churned spoil of a shelled patch: subsoil, brick and the shell's splinters thrown up with it (a splinter's mass and hardness taken as a stone's): FAO 2006's \"common\" class (5–15 % by volume, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.011, "label": "assumed", "note": "medium gravel (6–20 mm, FAO 2006, Table 27) at its geometric middle, 11 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 8.4e5, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -224,7 +240,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 600.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1350.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.011, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 4.2e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -242,7 +260,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 300.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1684.90566038, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.011, "label": "derived", "note": "the dry set's"}
       }
     },
     "belt_straw": {
@@ -263,7 +283,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 3000.0, "label": "assumed", "note": "a soft, moist loam: of the order of Wong 2008, Theory of Ground Vehicles, Table 2.3's Grenville loam, 3.1 kPa"},
         "bulk_density_kg_m3": {"value": 1150.0, "label": "assumed", "note": "a soft loam under the belt's litter, rich in organic matter: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "the belt's loam, as meadow_sod: FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.41e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -281,7 +303,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1800.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1400.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 7.05e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -299,7 +323,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 900.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1716.03773585, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "belt_bare": {
@@ -320,7 +346,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 6000.0, "label": "assumed", "note": "a firm bare loam: of the order of Wong 2008, Theory of Ground Vehicles, Table 2.3's North Gower clayey loam, 6.1 kPa"},
         "bulk_density_kg_m3": {"value": 1350.0, "label": "assumed", "note": "a firm loam: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "the belt's loam, as meadow_sod: FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 4.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -338,7 +366,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 3600.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1600.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -356,7 +386,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1800.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1840.56603774, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "tilled": {
@@ -377,7 +409,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 2000.0, "label": "assumed", "note": "a loose tilled loam: between Wong 2008, Theory of Ground Vehicles, Table 2.3's sandy loams at 1.38–1.72 kPa and its Grenville loam, 3.1 kPa"},
         "bulk_density_kg_m3": {"value": 1050.0, "label": "assumed", "note": "loose after tillage (1.0–1.2 Mg/m³, the published order for tilled topsoil): inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "a ploughed loam, as meadow_sod: its clods are the soil's own aggregates, not stones (fields.stone_fraction): FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -395,7 +429,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1200.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1300.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 6.0e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -413,7 +449,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 600.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1653.77358491, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "burnt_field": {
@@ -434,7 +472,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 10000.0, "label": "assumed", "note": "a crusted loam: above the firm loams' 3.1–6.1 kPa (Wong 2008, Theory of Ground Vehicles, Table 2.3), below dry_crust's crust"},
         "bulk_density_kg_m3": {"value": 1300.0, "label": "assumed", "note": "a crusted loam: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "a field's loam, as meadow_sod: FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -452,7 +492,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 6000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1550.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -470,7 +512,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 3000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1809.43396226, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "weeds": {
@@ -491,7 +535,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 6000.0, "label": "assumed", "note": "a firm loam, as belt_bare: of the order of Wong 2008, Theory of Ground Vehicles, Table 2.3's North Gower clayey loam, 6.1 kPa"},
         "bulk_density_kg_m3": {"value": 1350.0, "label": "assumed", "note": "a firm loam, as belt_bare: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.01, "label": "assumed", "note": "a loam, as meadow_sod: FAO 2006's \"very few\" class (0–2 % by volume, Guidelines for Soil Description, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.0035, "label": "assumed", "note": "fine gravel (2–6 mm, FAO 2006, Guidelines for Soil Description, Table 27) at its geometric middle, 3.5 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 4.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -509,7 +555,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 3600.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1600.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -527,7 +575,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1800.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1840.56603774, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.01, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.0035, "label": "derived", "note": "the dry set's"}
       }
     },
     "yard_litter": {
@@ -548,7 +598,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 15000.0, "label": "assumed", "note": "compacted yard soil: of the order of Wong 2008, Theory of Ground Vehicles, Table 2.3's firmest sandy loam, 13.8 kPa"},
         "bulk_density_kg_m3": {"value": 1550.0, "label": "assumed", "note": "compacted by feet and wheels, toward the restricting range: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.4, "label": "assumed", "note": "the sand fraction (0.05–2 mm) at the USDA loam class's middle (loam: 23–52 % sand, 28–50 % silt, 7–27 % clay; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.035, "label": "assumed", "note": "a village yard's trodden soil with its brick bats and gravel: FAO 2006's \"few\" class (2–5 % by volume, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.011, "label": "assumed", "note": "medium gravel (6–20 mm, FAO 2006, Table 27) at its geometric middle, 11 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.05e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -566,7 +618,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 9000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1800.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.035, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.011, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 5.25e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -584,7 +638,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 4500.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1965.09433962, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.4, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.035, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.011, "label": "derived", "note": "the dry set's"}
       }
     },
     "rubble": {
@@ -605,7 +661,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 1000.0, "label": "assumed", "note": "granular brick and mortar debris is nearly cohesionless: of the order of Wong 2008, Theory of Ground Vehicles, Table 2.3's dry sand, 1.04 kPa"},
         "bulk_density_kg_m3": {"value": 1400.0, "label": "assumed", "note": "loose brick and mortar debris: crushed brick's loose bulk density is of the order of 1.2–1.5 Mg/m³ (assumed inside it)"},
-        "sand_share": {"value": 0.75, "label": "assumed", "note": "the debris's hard grit: the mortar's sand, about 3 parts to 1 of binder by volume (the published mix order), and the brick's fired grains"}
+        "sand_share": {"value": 0.75, "label": "assumed", "note": "the debris's hard grit: the mortar's sand, about 3 parts to 1 of binder by volume (the published mix order), and the brick's fired grains"},
+        "stone_fraction": {"value": 0.6, "label": "assumed", "note": "brick and mortar debris: its fragments are most of it: FAO 2006's \"abundant\" class (40–80 % by volume, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.035, "label": "assumed", "note": "coarse gravel (20–60 mm, FAO 2006, Table 27) at its geometric middle, 35 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry bearing (a departure from wetting's factor)"},
@@ -623,7 +681,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1000.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry set's (a departure from wetting's factor)"},
         "bulk_density_kg_m3": {"value": 1400.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry set's (a departure from wetting's water)"},
-        "sand_share": {"value": 0.75, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.75, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.6, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.035, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry bearing (a departure from wetting's factor)"},
@@ -641,7 +701,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 1000.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry set's (a departure from wetting's factor)"},
         "bulk_density_kg_m3": {"value": 1400.0, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry set's (a departure from wetting's water)"},
-        "sand_share": {"value": 0.75, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.75, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.6, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.035, "label": "derived", "note": "the dry set's"}
       }
     },
     "asphalt": {
@@ -710,7 +772,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "assumed", "note": "carried (physics_materials.json's straw edge, the soil-lip figure): the radius the fiber bends over at a groove's lip (p7d-tether)"},
         "cohesion_pa": {"value": 30000.0, "label": "assumed", "note": "a wheel-compacted dry silt loam: above the tabulated loams (1.4–13.8 kPa) toward the drier clays' 68.95 kPa (Wong 2008, Theory of Ground Vehicles, Table 2.3)"},
         "bulk_density_kg_m3": {"value": 1600.0, "label": "assumed", "note": "wheel-compacted, at the restricting range's foot: inside the published order: loams and silt loams below 1.40 Mg/m³ where roots grow freely, 1.55–1.80 where they are restricted (USDA NRCS 2008, Soil Quality Indicators: Bulk Density); dry, Sunny's little water neglected (assumed)"},
-        "sand_share": {"value": 0.2, "label": "assumed", "note": "the sand fraction (0.05–2 mm) near the USDA silt loam class's middle (silt loam: 0–50 % sand, 50–88 % silt; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"}
+        "sand_share": {"value": 0.2, "label": "assumed", "note": "the sand fraction (0.05–2 mm) near the USDA silt loam class's middle (silt loam: 0–50 % sand, 50–88 % silt; Soil Science Division Staff 2017, Soil Survey Manual), the texture assumed"},
+        "stone_fraction": {"value": 0.035, "label": "assumed", "note": "a rural track's compacted silt loam with the gravel and crushed brick that fill its ruts: FAO 2006's \"few\" class (2–5 % by volume, Table 26) at its middle"},
+        "stone_diameter_m": {"value": 0.011, "label": "assumed", "note": "medium gravel (6–20 mm, FAO 2006, Table 27) at its geometric middle, 11 mm"}
       },
       "wet": {
         "bearing_n_per_m3": {"value": 4.2e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
@@ -728,7 +792,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 18000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_wet"},
         "bulk_density_kg_m3": {"value": 1850.0, "label": "derived", "note": "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3"},
-        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.035, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.011, "label": "derived", "note": "the dry set's"}
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 2.1e7, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
@@ -746,7 +812,9 @@
         "lip_edge_radius_m": {"value": 0.02, "label": "derived", "note": "the dry set's"},
         "cohesion_pa": {"value": 9000.0, "label": "derived", "note": "the dry set's × wetting.cohesion_saturated"},
         "bulk_density_kg_m3": {"value": 1996.22641509, "label": "derived", "note": "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3: its pores full"},
-        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"}
+        "sand_share": {"value": 0.2, "label": "derived", "note": "the dry set's"},
+        "stone_fraction": {"value": 0.035, "label": "derived", "note": "the dry set's"},
+        "stone_diameter_m": {"value": 0.011, "label": "derived", "note": "the dry set's"}
       }
     }
   },

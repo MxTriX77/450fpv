@@ -131,8 +131,12 @@ namespace Fpv450.Sim.Log
         ///    cohesion's wet and saturated factors and the wet set's water after the wetting's values; and each set's cohesion,
         ///    bulk density and sand share (a soil's) and hardness, crush strength and density (a rigid set's) after its lip; the
         ///    records are 30's.
+        /// 34: assigned elsewhere (D-072).
+        /// 35: the soils' stones (p7f-damage 1.3's tip slide on the physics integration 2, assigned by D-072): each soil set of
+        ///    surfaces.json's table in the contacts entry gains its stone fraction and diameter after its sand share; the records
+        ///    are 30's.
         /// </summary>
-        public const int Version = 33;
+        public const int Version = 35;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
