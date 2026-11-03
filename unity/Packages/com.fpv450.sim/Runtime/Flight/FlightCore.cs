@@ -160,6 +160,7 @@ namespace Fpv450.Sim.Flight
         ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
+        StickSample _stick; // the last step's sample in force, published with the signals (FeedSignals.Sticks)
 
         // The feed's field window: sums over the steps so far, and the last whole field's values.
         Corners _sumHz, _sumAmps, _fieldHz, _fieldAmps;
@@ -330,6 +331,7 @@ namespace Fpv450.Sim.Flight
         public void Advance(in StickSample stick)
         {
             ref FlightState s = ref _state;
+            _stick = stick;
             _events.Clear();
             BeginWind(s);
 
@@ -674,6 +676,7 @@ namespace Fpv450.Sim.Flight
                 AirVelocityAtCamera = AirAtCamera(s),
                 RainRateMmPerHour = _rain != null ? _rain.RateMmPerHour : 0,
                 Crashed = _state.Crashed,
+                Sticks = _stick,
             };
             if (_contacts != null)
             {
