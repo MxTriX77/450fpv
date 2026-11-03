@@ -282,7 +282,7 @@ namespace Fpv450.App
         /// then two flights from the houses' start, the one the setup offers (D-077): on the legs, then from the launch
         /// stand (legs off) in Rain, the second set from the first's summary through Setup. Each flight carries
         /// surfaces.json's ground (the rain's at its wet set), the map's cuts and the fiber line, which draws in the air
-        /// and is laid again by a restart. With the development
+        /// and is laid again by a restart, and the props' blade tables and strikes, whole at each start (D-079). With the development
         /// keyboard each flight is flown by a script of its keys: armed, climbed, paused (no step while paused),
         /// restarted (the stand's, before arming, from the pause: a new seed and log), the throttle down, disarmed in the
         /// air with no end and no summary (D-062), re-armed, flown on, ended from the pause's End flight, and the summary
@@ -521,6 +521,16 @@ namespace Fpv450.App
                       built.TetherCoilPart == host.Inputs.Drone.Coil.Part && !built.TetherTwoWay && built.TetherLayout == null,
                       "the flight carries surfaces.json's ground, the map's " + (built.Wind.Cuts != null ? built.Wind.Cuts.Length : 0) + " cuts and the line from the launch, " +
                       _flight.Pose.FiberNodeCount + " nodes, the trail " + _flight.Pose.FiberTrailCount + " points");
+                // D-079, the props break (p7f-damage): props.blade's tables, each blade's factory pitch draw, the merged
+                // physics_materials.json with what a blade meets and the strikes; whole props (the stand's flight is a restart's).
+                bool whole = built.Propulsion.Rotor != null && session.Core.Propulsion.Rotor(0) != null;
+                for (int rotor = 0; whole && rotor < 4; rotor++)
+                    for (int blade = 0; blade < session.Core.Propulsion.Rotor(rotor).Blades; blade++)
+                        whole &= session.Core.Propulsion.Rotor(rotor).Blade(blade).Whole;
+                Check(whole && built.Asymmetry != null && built.Contacts.BladeStrikes && session.Core.Strikes != null &&
+                      built.Contacts.MaterialsHash == host.Inputs.MaterialsHash && built.Contacts.Materials.Length == host.Inputs.Materials.Length,
+                      "the flight carries the blade tables, the strikes and physics_materials.json 0x" + built.Contacts.MaterialsHash.ToString("X16") +
+                      " (" + built.Contacts.Materials.Length + " rows), its props whole");
                 if (session.Choices.Rain != Rain.Sunny)
                 {
                     CoverRow straw = built.Contacts.Surfaces.Cover[(int)CoverKind.Straw];
