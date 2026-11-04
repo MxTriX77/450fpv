@@ -180,7 +180,15 @@ namespace Fpv450.Sim.Flight
         /// </summary>
         RotorJammed = 19,
 
-        // 20–22 are reserved for p7f-damage (D-074).
+        /// <summary>
+        /// A soil carve's pass met a stone (p7f-damage 1.3's tip slide: surfaces.json's stone fraction, the "soil.stones" draw):
+        /// Part's prop, Index the blade (low 4 bits) and what the stone did (high 4 bits, StrikeMode: Break, Crush for a notch or
+        /// a sever, Glance for an elastic push), on (Object, Shape) of Surface at Point, the stone's place on the leading edge.
+        /// A: the energy it took from the rotor, J; B: the stone's diameter, m; C: the blade's speed into it, m/s.
+        /// </summary>
+        StoneStrike = 20,
+
+        // 21–22 are reserved for p7f-damage (D-074).
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>

@@ -202,9 +202,11 @@ namespace Fpv450.Sim.Tests
         {
             MaterialRow[] m = Materials(out ulong h);
             ContactScenarios.PoleStrike r = ContactScenarios.IntoPole(RepositoryDrone.Spec(), m, h);
-            TestContext.Out.WriteLine($"crash ({r.Cause}) by {r.Part} on {r.Object} ({r.Material}) at {r.Speed:F2} m/s flying {r.FlightSpeed:F2} m/s; "
-                + $"peak {r.PeakAccel:F0} m/s², impulse {r.Impulse:F2} N·s; {r.Tunnels} tunnels");
-            Assert.That(r.FlightSpeed, Is.EqualTo(10).Within(1), "at 10 m/s");
+            TestContext.Out.WriteLine($"crash ({r.Cause}) by {r.Part} on {r.Object} ({r.Material}) at {r.Speed:F2} m/s flying {r.FlightSpeed:F2} m/s "
+                + $"(at the first touch {r.FirstFlightSpeed:F2}); peak {r.PeakAccel:F0} m/s², impulse {r.Impulse:F2} N·s; {r.Tunnels} tunnels");
+            // The approach is the scenario's 10 m/s; the props' carve of the pole then pushes the drone as it may (p7f-damage 1.3's
+            // tip slide: the face's push, 11.0 m/s at the crash on model 45, 10.8 on model 43).
+            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1), "at 10 m/s");
             Assert.That(r.Object, Is.EqualTo("L01_straight"));
             Assert.That(r.Material, Is.EqualTo("timber"));
             Assert.That(r.Part, Is.Not.Null.And.Not.Empty, "named by the part that hit");

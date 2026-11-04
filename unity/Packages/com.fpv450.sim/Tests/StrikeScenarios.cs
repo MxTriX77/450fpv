@@ -283,18 +283,19 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>A tipped landing's blades: the passes that did work and the glances, those of them in the soil (the ground or
         /// a soil shape: carves, and a jammed pass short of a break), the work the passes took (J), the jams, the damage events
-        /// (wear, breaks) and the mass lost (kg), the shortest blade left (r/R); and the landing's largest and last tilt (°), its
-        /// speed at the end (m/s), how far it slid along the ground from the touch (m), its crashes and tunnels.</summary>
+        /// (wear, breaks) and the mass lost (kg), the shortest blade left (r/R), the stones the passes met (p7f-damage 1.3's tip
+        /// slide); and the landing's largest and last tilt (°), its speed at the end (m/s), how far it slid along the ground from
+        /// the touch (m), its crashes and tunnels.</summary>
         public struct TipResult
         {
-            public int Passes, Glances, InSoil, Jams, Damaged, Worn, Broken, Crashes, Tunnels;
+            public int Passes, Glances, InSoil, Jams, Damaged, Worn, Broken, Stones, Crashes, Tunnels;
             public double Work, Lost, ShortestTip, MaxTilt, EndTilt, EndSpeed, Slide;
             public bool Over;
             public string TunnelBy, CrashBy;
 
             public string Describe() =>
                 $"{(Over ? "over" : "upright")} (tilt {MaxTilt:F1}°, {EndTilt:F1}° at the end): {Passes} passes that did work ({InSoil} in the soil), "
-                + $"{Glances} glances, {Work:F2} J; {Jams} jams; {Damaged} damage events ({Worn} wear, {Broken} breaks), {Lost * 1e6:F1} mg lost, "
+                + $"{Glances} glances, {Work:F2} J; {Stones} stones met; {Jams} jams; {Damaged} damage events ({Worn} wear, {Broken} breaks), {Lost * 1e6:F1} mg lost, "
                 + $"the shortest blade {ShortestTip * 127:F2} mm; slid {Slide:F2} m, {EndSpeed:F2} m/s at the end; {Crashes} crashes{(CrashBy != null ? " (" + CrashBy + ")" : "")}, "
                 + $"{Tunnels} tunnels{(TunnelBy != null ? " (" + TunnelBy + ")" : "")}";
         }
@@ -308,13 +309,16 @@ namespace Fpv450.Sim.Tests
         /// authority) or disarms; flown 3 s past the touch. The skid catches and the drone rolls onto its lower props near the
         /// hover's speed. In rain, on surfaces.json's soil (table; null flies the rigid ground, where the blades glance: the
         /// known-wrong). started sees the setup and the core before the first step, stepped the core and its stick after each (a
-        /// recorder's).
+        /// recorder's). tipSlide false flies model 43's carve (ContactSpec.TipSlide: the blade's own speed, cot θ of the whole
+        /// impulse, no stones, no immersed disc, no plough; the slide p7f-damage 1.3's integration note found, the known-wrong).
         /// </summary>
         public static TipResult TippedLanding(DroneSpec spec, FlightWorld world, Double3 at, RainLevel rain, SurfaceTable table, bool disarm,
-            double lateral = 2.5, System.Action<FlightSetup, FlightCore> started = null, System.Action<FlightCore, StickSample> stepped = null)
+            double lateral = 2.5, System.Action<FlightSetup, FlightCore> started = null, System.Action<FlightCore, StickSample> stepped = null,
+            bool tipSlide = true)
         {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain, table: table, rigid: table == null);
+            setup.Contacts.TipSlide = tipSlide;
             var core = new FlightCore(setup);
             started?.Invoke(setup, core);
             var r = new TipResult { ShortestTip = 1 };
@@ -385,6 +389,14 @@ namespace Fpv450.Sim.Tests
             return r;
         }
 
+        /// <summary>The tipped landing stops (p7f-damage 1.3's tip slide): 3 s after the touch the drone is at rest on the ground,
+        /// under StopSpeed. Model 43's carve slid on at 13.0–13.6 m/s (the known-wrong).</summary>
+        public static bool TipStops(in TipResult r) => r.EndSpeed < StopSpeed;
+
+        /// <summary>The speed a stopped landing is under 3 s after its touch, m/s: 0.5 (assumed: a body at rest on soil, its
+        /// residual a contact's rocking, far below the slide's 13 m/s).</summary>
+        public const double StopSpeed = 0.5;
+
         static void Count(DroneSpec spec, FlightCore core, in FlightEvent e, ref TipResult r)
         {
             var mode = (StrikeMode)(e.Index >> 4);
@@ -401,6 +413,11 @@ namespace Fpv450.Sim.Tests
                 if (mode == StrikeMode.Wear) r.Worn++;
                 if (mode == StrikeMode.Break) r.Broken++;
                 r.Lost += e.B;
+            }
+            if (e.Kind == EventKind.StoneStrike)
+            {
+                r.Stones++;
+                r.Work += e.A;
             }
             if (e.Kind == EventKind.RotorJammed) r.Jams++;
             if (e.Kind == EventKind.Crash && r.Crashes++ == 0)

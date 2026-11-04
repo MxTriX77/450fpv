@@ -155,7 +155,7 @@ namespace Fpv450.Sim.Log
         {
             "Margin", "CrashAccel", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
-            "Surfaces", "BladeStrikes", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
+            "Surfaces", "BladeStrikes", "TipSlide", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
             "FlapFrequency", "FlapSouthwell",
         };
         public static readonly string[] ContactShapeFieldsLogged =
@@ -825,6 +825,7 @@ namespace Fpv450.Sim.Log
                     e.Write(v);
                 e.Write(c.RingSegments);
                 e.Write(c.BladeStrikes);
+                e.Write(c.TipSlide);
                 foreach (double v in new[] { c.WearCoefficient, c.StrengthSigma, c.StrengthBound, c.SectionForm, c.PlasticShare, c.SlapWidth,
                     c.FlapFrequency, c.FlapSouthwell })
                     e.Write(v);
@@ -1562,7 +1563,7 @@ namespace Fpv450.Sim.Log
                 Margin = r.ReadDouble(), CrashAccel = r.ReadDouble(), ImpactWindow = r.ReadDouble(),
                 ImpactSpeed = r.ReadDouble(), FrictionStiffnessRatio = r.ReadDouble(), DampingMassShare = r.ReadDouble(),
                 GroundStaticFriction = r.ReadDouble(), GroundKineticFriction = r.ReadDouble(), LegStiffness = r.ReadDouble(), LegDamping = r.ReadDouble(),
-                RingSegments = r.ReadInt32(), BladeStrikes = r.ReadBoolean(), WearCoefficient = r.ReadDouble(), StrengthSigma = r.ReadDouble(),
+                RingSegments = r.ReadInt32(), BladeStrikes = r.ReadBoolean(), TipSlide = r.ReadBoolean(), WearCoefficient = r.ReadDouble(), StrengthSigma = r.ReadDouble(),
                 StrengthBound = r.ReadDouble(), SectionForm = r.ReadDouble(), PlasticShare = r.ReadDouble(), SlapWidth = r.ReadDouble(),
                 FlapFrequency = r.ReadDouble(), FlapSouthwell = r.ReadDouble(),
             };

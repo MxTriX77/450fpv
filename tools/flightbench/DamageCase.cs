@@ -19,8 +19,9 @@ namespace Fpv450.FlightBench
     // printed as rates here, not asserted; the run fails only on a tunnel (a physics bug) or a cell with no strike. A crash is
     // printed with its cause: the scripted pilot holds the drone to the wall, so a deep press can end a flight. The range's
     // ground is surfaces.json's soil (since model 43). Then the pilot's landings tipped over onto the dirt track and S04's soil,
-    // Sunny and in Rain, the throttle cut or disarmed at the touch, with surfaces.json and without it (the Glance, the
-    // known-wrong): their blades' passes, carves, jams and damage.
+    // Sunny and in Rain, the throttle cut or disarmed at the touch, with surfaces.json, with model 43's carve (ContactSpec.TipSlide
+    // off: the slide p7f-damage 1.3 found) and without surfaces.json (the Glance): their blades' passes, carves, stones, jams and
+    // damage; a landing must stop (StrikeScenarios.TipStops).
     internal static class DamageCase
     {
         public static bool Run(int seeds)
@@ -82,13 +83,15 @@ namespace Fpv450.FlightBench
                     {
                         StrikeScenarios.TipResult r = StrikeScenarios.TippedLanding(spec, World(site, out Double3 at), at, rain, SoilScenarios.Table(), disarm);
                         StrikeScenarios.TipResult wrong = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, null, disarm);
-                        tipped &= r.Tunnels == 0 && r.InSoil > 0 && r.Jams > 0;
+                        StrikeScenarios.TipResult slid = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, tipSlide: false);
+                        tipped &= r.Tunnels == 0 && r.InSoil > 0 && r.Jams > 0 && StrikeScenarios.TipStops(r);
                         Console.WriteLine($"    {site}, {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
+                        Console.WriteLine("      model 43's carve (ContactSpec.TipSlide off): " + slid.Describe());
                         Console.WriteLine("      without surfaces.json: " + wrong.Describe());
                     }
                 }
             }
-            Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each carves and stops a prop, no tunnel)");
+            Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each carves and stops a prop, no tunnel, and stops on the ground: StrikeScenarios.TipStops)");
             return ok && tipped;
         }
 

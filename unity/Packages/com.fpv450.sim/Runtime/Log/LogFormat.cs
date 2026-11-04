@@ -133,8 +133,9 @@ namespace Fpv450.Sim.Log
         ///    records are 30's.
         /// 34: assigned elsewhere (D-072).
         /// 35: the soils' stones (p7f-damage 1.3's tip slide on the physics integration 2, assigned by D-072): each soil set of
-        ///    surfaces.json's table in the contacts entry gains its stone fraction and diameter after its sand share; the records
-        ///    are 30's.
+        ///    surfaces.json's table in the contacts entry gains its stone fraction and diameter after its sand share, and the
+        ///    contacts entry the tip slide's switch (ContactSpec.TipSlide) after the strikes'; the event StoneStrike (20,
+        ///    p7f-damage's, D-074); the records are 30's.
         /// </summary>
         public const int Version = 35;
 
@@ -327,8 +328,19 @@ namespace Fpv450.Sim.Log
         ///    edge by Archard in the severe class (the pass's share, and a jammed carve's grind by the work it pays, put on at its
         ///    end); a rigid surface is a face by its own hardness (asphalt's aggregate, the slab's concrete: hard targets). A
         ///    flight whose discs never cut the ground or a soil shape, or any flight without surfaces.json, steps as in 40.
+        /// 44: assigned elsewhere (D-072).
+        /// 45: the tip slide (p7f-damage 1.3 on the physics integration 2, assigned by D-072): a carve meets the face at the blade's
+        ///    speed through it, its own and the body's there, so the body's motion loads or unloads the pass (the attack, the
+        ///    frontal height, the swept volume and the fling) and pays its share, and the pass's axial push is its leading face's,
+        ///    c·cos θ/h, not cot θ of the whole drag; a jammed carve's held blade ploughs the soil as the body moves it (Coulomb's
+        ///    clamp) and breaks where its held load passes a section's strength, and logs a BladeStrike only on a step that pays
+        ///    the rotor's work or breaks it; the disc's part inside a carved face makes no thrust or air torque (its blades'
+        ///    shares, DamagedRotor.Immersed, from the next step); a soil pass meets a stone with the probability its swept volume
+        ///    and the soil's stone fraction give ("soil.stones"), a hard target by quartz's hardness that breaks or notches the
+        ///    leading edge by 1.3's head-on rule, held to the stone's mass (StoneStrike, 20). A flight whose discs never cut a
+        ///    softer face steps as in 43.
         /// </summary>
-        public const int ModelVersion = 43;
+        public const int ModelVersion = 45;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

@@ -468,6 +468,10 @@ namespace Fpv450.Sim.Log
                 case EventKind.BladeDamaged:
                     return PartName(e.Part) + " blade " + (e.Index & 15) + " damaged (" + ((StrikeMode)(e.Index >> 4)).ToString().ToLowerInvariant() + ") by "
                         + Where(e) + ": tip at " + G(e.A) + " R, from " + G(e.C) + " R, " + G(e.B * 1000) + " g lost";
+                case EventKind.StoneStrike:
+                    return PartName(e.Part) + " blade " + (e.Index & 15) + " met a " + G(e.B * 1000) + " mm stone in " + Where(e) + " at "
+                        + G(e.C) + " m/s: " + ((StrikeMode)(e.Index >> 4) == StrikeMode.Glance ? "pushed aside" : ((StrikeMode)(e.Index >> 4)).ToString().ToLowerInvariant())
+                        + ", " + G(e.A) + " J";
                 case EventKind.RotorJammed:
                     return "rotor " + CornerName(e.Index) + " JAMMED on " + Where(e) + ": the pass needed " + G(e.A) + " J of its " + G(e.B) + " J, "
                         + G(e.C * 100) + " % done";

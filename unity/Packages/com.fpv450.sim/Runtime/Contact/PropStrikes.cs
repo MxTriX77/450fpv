@@ -36,18 +36,27 @@ namespace Fpv450.Sim.Contact
     /// - A hard shape inside the rim: the leading edge strikes it head on, crushed across the shape's width w at its thickness,
     ///   F = σ_c·t·w; F bends the inner stations edgewise and breaks the first that fails, else the shape severs the blade at r_m
     ///   (its work σ_c·t·w·c, the slot crushed through the chord).
-    /// - A soft face: the blade carves it at its crush pressure p over the volume it sweeps, its frontal height (c·sin θ +
-    ///   t·cos θ) times the area it sweeps inside (the circular segment past r_m for a face past the tip, the disc across its
+    /// - A soft face: the blade carves it at its crush pressure p over the volume it sweeps, its frontal height (c·|sin α| +
+    ///   t·|cos α|) times the area it sweeps inside (the circular segment past r_m for a face past the tip, the disc across its
     ///   radial chord for a shape inside the rim), and flings the mass it meets, Σ ρ·dV·(ω·r)² (closed form over the area):
-    ///   E = p·V + m_f·v². The cutting force E over the path inside bends the inner stations edgewise; the blade is whole unless
+    ///   E = p·V + m_f·v², at the blade's speed through the face (the tip slide, model 45): its own and the body's at the
+    ///   carve's centroid, u = (ω·r_c + v·ê_t, v·axis), α = θ − atan2(u_a, u_t), V and the fling × |u|/(ω·r_c) and its cube.
+    ///   The crush presses the leading face along its normal (c/h of its drag) and the edge along −u; the fling leaves along
+    ///   u. The rotor pays the face's impulse along its motion, −I_t·ω·r_c, the body the rest (a body running through the soil
+    ///   faster than the blades screw can drive the rotor); the axial push is the face's (1.3's cot θ of the whole impulse is
+    ///   model 43's); a pass slower than the step gives the body, and a drive the rotor, the step's share of its arc. The
+    ///   cutting force along the motion bends the inner stations edgewise; the blade is whole unless
     ///   one breaks. The world is not changed (assumed: a carved groove is not stored). In soil, its sand bears its share s of
     ///   that force on the leading edge along the path, and wears it by Archard, V = k·(s·E/path)·path/H_b (k the severe class's,
     ///   ContactSpec.WearCoefficient, while the sand's quartz is harder than the blade), off the stations in the soil; a jammed
-    ///   carve's grind wears by the work it pays, put on the blade when the grind ends.
+    ///   carve's grind wears by the work it pays, put on the blade when the grind ends. A soil pass first meets a stone with
+    ///   the probability its swept volume and the soil's stone fraction give (Stone, "soil.stones"); the disc's part past a
+    ///   carved face's chord makes no thrust or air torque from the next step (Immerse, DamagedRotor.Immersed).
     /// - Each pass's work E leaves the rotor in the step, ω' = √(ω² − 2E/J); with E ≥ ½Jω² the rotor stops on the face
     ///   (RotorJammed), held at the face's entry, its damage cut short by the energy it had: a crush reaches that share of its
-    ///   depth, a break does not happen, a carve keeps the rest of its work, which the motor's spin-up pays step by step until
-    ///   the blade is through (the blade held where the work has carried it).
+    ///   depth, a break does not happen, a carve keeps the rest of its crush (a stopped blade flings nothing), which the
+    ///   motor's spin-up pays step by step until the blade is through (the blade held where the work has carried it), while the
+    ///   body's motion drags the held blade through the soil (Grind's plough) and may break it.
     /// - The body takes the rotor's lost angular momentum ΔL = J·(ω − ω') as the reaction −s·ΔL about its axis (s Propulsion's
     ///   reaction sign), the face's tangential impulse ΔL/r_c at the meeting point against the blade's motion, and the face's
     ///   push: along n for a hard face (F_n·t_c), along the axis for a carve (the tangential impulse × cot θ: the pitched face's
@@ -83,6 +92,10 @@ namespace Fpv450.Sim.Contact
         readonly bool[] _known;
         readonly MaterialRow[] _surfaces; // world surface id → what a blade meets there (Name null: none, a Glance)
         readonly double[] _sand;          // world surface id → its sand's wear per joule of a carve's work, m³/J
+        readonly double[] _stones, _stoneSize; // world surface id → its stones' volume fraction (0: none, or none harder than the blade) and diameter, m
+        readonly double _stoneDensity;
+        readonly SeedStream _stoneStream;  // "soil.stones": one draw a soil carve's pass, keyed by the draws so far
+        ulong _stoneDraws;
         readonly double[] _strength;
         readonly double[] _area, _flat, _edge, _stiff, _mass; // per station, the whole chord: A, M_f, M_e, EI_f/span, mass
         readonly Pending[] _pending = new Pending[4];
@@ -103,16 +116,19 @@ namespace Fpv450.Sim.Contact
         /// <summary>The last pass, for a test: its rotor, blade and mode, the meeting radius, the work and the rotor's speeds
         /// around it, the rotor's J, the face's impulse on the drone (world N·s) at its point and the reaction about the axis
         /// (body N·m·s), the blade's tip before and after (r/R), the speed into the face and the forces the mode decided on; Grind
-        /// for a stopped carve's step (its Work the pass's whole work, Used this step's share).</summary>
+        /// for a stopped carve's step (its Work the pass's whole work, Used this step's share, Plough the body's work on the held
+        /// blade); for a carve, the body's velocity at its centroid and the blade's direction of motion (world), its speed
+        /// through the face over its own (Ratio) and its attack there (rad), and in soil the stones it was expected to meet, λ;
+        /// Stone for a stone the pass met (Radius where, Exit its diameter).</summary>
         public struct PassRecord
         {
             public int Corner, Blade;
             public StrikeMode Mode;
             public double Radius, Exit, Work, Used, SpeedBefore, SpeedAfter, Inertia, TipBefore, TipAfter, SpeedIn, Tilt;
-            public double CrushForce, BendForce, PeakForce, PeakMoment, Margin, Wear, Friction, Fling;
+            public double CrushForce, BendForce, PeakForce, PeakMoment, Margin, Wear, Friction, Fling, Ratio, Attack, Plough, Stones;
             public int Station;
-            public bool Jammed, Grind;
-            public Double3 Impulse, Point, Normal, Reaction;
+            public bool Jammed, Grind, Stone;
+            public Double3 Impulse, Point, Normal, Reaction, Body, Motion;
         }
 
         public PassRecord Last;
@@ -122,6 +138,9 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The passes so far and the work they took, J.</summary>
         public long Passes { get; private set; }
+
+        /// <summary>The soil passes that drew for a stone so far ("soil.stones": the next draw's index).</summary>
+        public ulong StoneDraws => _stoneDraws;
 
         public PropStrikes(ContactModel contacts, FlightWorld world, Propulsion propulsion, PropulsionSpec propulsionSpec, FlightRandom random)
         {
@@ -168,6 +187,8 @@ namespace Fpv450.Sim.Contact
             // without surfaces.json: then the ground and the soil glance.
             _surfaces = new MaterialRow[256];
             _sand = new double[256];
+            _stones = new double[256];
+            _stoneSize = new double[256];
             SurfaceTable table = _spec.Surfaces;
             double severe = table != null && table.SandHardness > _b.Hardness ? _spec.WearCoefficient : 0;
             for (int id = 1; id < 256; id++)
@@ -186,6 +207,17 @@ namespace Fpv450.Sim.Contact
                         Density = set.BulkDensity,
                     };
                 _sand[id] = set.Rigid ? 0 : severe * set.SandShare / _b.Hardness;
+                // Its stones (p7f-damage 1.3's tip slide): hard targets by the sand's quartz when that is harder than the blade.
+                if (set.Rigid || table == null || !(table.SandHardness > _b.Hardness)) continue;
+                _stones[id] = set.StoneFraction;
+                _stoneSize[id] = set.StoneDiameter;
+            }
+            bool stony = false;
+            for (int id = 1; id < 256; id++) stony |= _spec.TipSlide && _stones[id] > 0;
+            if (stony)
+            {
+                _stoneDensity = table.ParticleDensity;
+                _stoneStream = random.Open("soil.stones");
             }
 
             // The stations' sections, the whole chord: area, flatwise and edgewise strength, the flatwise stiffness over a span.
@@ -233,6 +265,7 @@ namespace Fpv450.Sim.Contact
                 if (pairs == 0)
                 {
                     if (_pending[c].Active && Finish(i, d, ref _pending[c], events)) changed |= 1 << c;
+                    Immerse(c, double.PositiveInfinity);
                     continue;
                 }
                 Double3 hub = now.Position + now.Attitude.Rotate(d.A);
@@ -246,11 +279,19 @@ namespace Fpv450.Sim.Contact
                     skipBlade = _pending[c].Blade;
                     if (Grind(i, d, c, ref now, body, hub, axis, events, ref impulse, ref angular)) changed |= 1 << c;
                 }
-                for (int k = 0; k < pairs && now.RotorSpeed[c] > 0; k++)
+                double chord = double.PositiveInfinity; // the nearest carved face across the disc: its part past the chord is in it
+                for (int k = 0; k < pairs; k++)
                 {
                     _contacts.DiscPair(i, k, out int obj, out int shape, out ushort material, out byte surface);
                     if (!Geometry(obj, shape, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)) continue;
                     if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m)) continue;
+                    if (_spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
+                    {
+                        // A softer face that holds the radial line past the rim (the soil, a trunk's face): a segment of the disc.
+                        BladeCut.Along(g, chain, hub, axis, m.Direction, d.HalfThickness, _radius, out _, out double rout, out _, out _);
+                        if (!(rout < _radius)) chord = m.Radius;
+                    }
+                    if (!(now.RotorSpeed[c] > 0)) continue;
                     double psi = Azimuth(now.Attitude, m.Direction, c);
                     for (int b = 0; b < _blades && now.RotorSpeed[c] > 0; b++)
                     {
@@ -261,6 +302,7 @@ namespace Fpv450.Sim.Contact
                             changed |= 1 << c;
                     }
                 }
+                Immerse(c, chord);
             }
             if (impulse.X != 0 || impulse.Y != 0 || impulse.Z != 0 || angular.X != 0 || angular.Y != 0 || angular.Z != 0)
             {
@@ -274,7 +316,7 @@ namespace Fpv450.Sim.Contact
         // One blade's pass across a pair; true when it changed the blade.
         bool Pass(int i, in ContactShape d, int c, int b, ref FlightState now, in MassProperties body, int obj, int shape, ushort material, byte surface,
             in ShapeGeometry g, ReadOnlySpan<Double3> chain, Double3 hub, Double3 axis, in BladeCut.Meeting m, double psi, StepEvents events,
-            ref Double3 impulse, ref Double3 angular)
+            ref Double3 impulse, ref Double3 angular, bool drawn = false, double stones = 0)
         {
             BladeState blade = _propulsion.Rotor(c).Blade(b);
             double R = _radius, tip = blade.TipRadius, rtip = tip * R, rm = m.Radius;
@@ -289,9 +331,7 @@ namespace Fpv450.Sim.Contact
             };
             // The face: a surface's set (the ground, a soil shape) or a material's row.
             bool soil = surface != WorldIds.NoSurface;
-            bool known = soil ? _surfaces[surface].Name != null : obj != WorldIds.Ground && material < _known.Length && _known[material];
-            MaterialRow row = !known ? default : soil ? _surfaces[surface] : _rows[material];
-            if (!known || !(row.CrushStrength > 0))
+            if (!Face(obj, material, surface, out MaterialRow row))
             {
                 rec.Mode = StrikeMode.Glance;
                 rec.SpeedAfter = omega;
@@ -307,7 +347,8 @@ namespace Fpv450.Sim.Contact
             bool inside = rout < rtip, hard = row.Hardness > _b.Hardness;
             rec.Exit = rout;
             double mu = row.KineticFriction, crush = _b.CrushStrength * f;
-            double work, pushN = 0, axial = 0, rc = rm, alpha, newTip = tip;
+            double work, rotorWork = double.NaN, pushN = 0, axial = 0, cot = double.NaN, rc = rm, alpha, newTip = tip, rotorShare = 1;
+            double carveCrush = 0;
             int broke = -1, set = -1;
             double phi = 0, wear = 0;
             StrikeMode mode;
@@ -337,24 +378,75 @@ namespace Fpv450.Sim.Contact
                 }
                 int k = Station(rc / R);
                 double chord = _b.Chord[k] * blade.ChordShare[k], theta = _b.SectionAngle[k] + blade.FactoryPitch + blade.PitchSet[k];
-                DetMath.SinCos(theta, out double st, out double ct);
-                double height = chord * st + _b.Thickness[k] * ct;
-                double fling = row.Density * height * omega * omega * second;
-                work = row.CrushStrength * area * height + fling;
+                // The blade's motion through the face at the carve's centroid: its own, ω·r_c along its motion, and the body's
+                // there (the tip slide: a drone moving along its rotor's axis advances its blades into the soil or out of it); the
+                // body's share along the blade's span slides it along itself and sweeps nothing (assumed). Its speed over its own
+                // scales the volume swept (by it) and the fling (by its cube); its attack sets the frontal height and splits the
+                // crush's force between the leading face and edge (Section). The flung mass leaves at the blade's velocity through the
+                // soil (design 5's m_f·v², the swept soil brought to it), so its reaction is along that motion only. A body at rest
+                // leaves the carve's work as design 5 has it, bit for bit.
+                Double3 moving = _spec.TipSlide ? PointVelocity(now, hub + dir * rc) : default;
+                double ut = omega * rc + Double3.Dot(moving, motion), ua = Double3.Dot(moving, axis), speed = DetMath.Sqrt(ut * ut + ua * ua);
+                double ratio = speed / (omega * rc), cb = ut / speed, sb = ua / speed;
+                Section(chord, _b.Thickness[k], theta, ut, ua, speed, out double height, out double gt, out double ga, out double attack);
+                if (soil && !drawn && _spec.TipSlide && _stones[surface] > 0)
+                {
+                    // The soil's stones (the tip slide): the pass meets one with the probability 1 − e^(−λ) of what it sweeps (Stone),
+                    // drawn once a pass; met, the stone takes its energy and its damage first, then the pass carves on with what is
+                    // left of the rotor and the blade.
+                    double w = _stoneSize[surface];
+                    stones = _stones[surface] * (height + w) * (area + 0.5 * w * path) * ratio / (Pi * w * w * w / 6);
+                    double draw = (_stoneStream.BitsAt(_stoneDraws++) >> 11) * (1.0 / 9007199254740992.0);
+                    if (draw < 1 - DetMath.Exp(-stones))
+                    {
+                        bool struck = Stone(i, d, c, b, ref now, body, obj, shape, material, surface, hub, dir, motion, rc, stones, events, ref impulse, ref angular);
+                        if (now.RotorSpeed[c] > 0)
+                            struck |= Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, hub, axis, m, psi, events, ref impulse, ref angular, true, stones);
+                        return struck;
+                    }
+                }
+                rec.Stones = stones;
+                double fling = row.Density * height * omega * omega * second * ratio * ratio * ratio;
+                double crushing = row.CrushStrength * area * height * ratio;
+                carveCrush = crushing;
+                work = crushing + fling;
                 rec.Fling = fling;
+                rec.Ratio = ratio;
+                rec.Attack = attack;
+                rec.Body = moving;
+                rec.Motion = motion;
                 // The soil's sand: its share of the cutting force on the leading edge along the path, by Archard (k·s/H_b per joule).
                 wear = soil ? _sand[surface] * work : 0;
                 rec.Wear = wear;
-                double cut = path > 0 ? work / path : 0;
+                // The face's impulse on the blade over the pass, (E_crush·g + E_fling·(−û))/|u|: the rotor pays its share along the
+                // blade's own motion, −I_t·ω·r_c; the body the rest (the impulse on it, below), which a body moving through the soil
+                // faster than the blades screw can even turn into the rotor's (the soil on the trailing face). The axial impulse is
+                // the leading face's: 1.3's cot θ of the whole impulse gave the edge's and the fling's shares a face's push.
+                // Both act over the pass's arc, t = 2α/ω; a pass slower than the step delivers only the step's share of the face's
+                // push on the body and of a drive into the rotor (held to the step, as 1.3's hard push: a crawling blade's arc past
+                // the step is the next steps'), so a slow blade in soil the body runs through is not one kick.
+                double along = crushing * gt - fling * cb, hold = 2 * alpha > omega * FlightCore.Dt ? omega * FlightCore.Dt / (2 * alpha) : 1;
+                rotorShare = -along / work * (omega * rc / speed);
+                axial = (crushing * ga - fling * sb) / speed * hold;
+                if (!_spec.TipSlide)
+                {
+                    // Model 43's carve (the known-wrong): the tangential impulse × cot θ of the whole drag (below).
+                    DetMath.SinCos(theta, out double st0, out double ct0);
+                    cot = ct0 / (st0 > 1e-12 ? st0 : 1e-12);
+                }
+                double cut = path > 0 ? DetMath.Abs(along) / (path * ratio) : 0;
                 rec.PeakForce = cut;
                 broke = Breaks(blade, f, rm, rc, cut, 0, out rec.PeakMoment, out rec.Margin);
+                rotorWork = _spec.TipSlide ? work * rotorShare : work;
+                if (rotorWork < 0) rotorWork *= hold;
                 if (broke >= 0)
                 {
                     mode = StrikeMode.Break;
                     newTip = _b.Stations[broke];
-                    work += _b.FractureEnergy * f * _area[broke] * blade.ChordShare[broke];
+                    double fracture = _b.FractureEnergy * f * _area[broke] * blade.ChordShare[broke];
+                    work += fracture;
+                    rotorWork += fracture;
                 }
-                axial = ct / (st > 1e-12 ? st : 1e-12); // cot θ: the pitched face's push per tangential impulse
                 rec.SpeedIn = DetMath.Max(0, -Double3.Dot(nrm, motion * (omega * rtip) + at));
             }
             else if (!inside)
@@ -452,13 +544,15 @@ namespace Fpv450.Sim.Contact
                 }
             }
             rec.Station = broke >= 0 ? broke : set;
+            if (double.IsNaN(rotorWork)) rotorWork = work;
 
-            // The rotor's energy: a dip, or a stop on the face with the damage cut short (design 6).
+            // The rotor's energy: a dip, or a stop on the face with the damage cut short (design 6). A carve's body share is the
+            // body's (its impulse, below); a body moving through the soil faster than its blades screw can even drive the rotor.
             double energy = 0.5 * J * omega * omega, share = 1, after;
-            bool jam = !(work < energy);
+            bool jam = !(rotorWork < energy);
             if (jam)
             {
-                share = work > 0 ? energy / work : 1;
+                share = rotorWork > 0 ? energy / rotorWork : 1;
                 after = 0;
                 if (mode == StrikeMode.Crush) newTip = tip - share * (tip - newTip);
                 if (mode == StrikeMode.Break)
@@ -470,21 +564,27 @@ namespace Fpv450.Sim.Contact
                 }
                 phi *= share;
                 wear *= share;
-                if (mode == StrikeMode.Carve)
+                // The rest of a jammed carve is carved at the motor's crawl, not at the jam's speed: only its crush is left (a
+                // stopped blade flings nothing; the tip slide), the rotor's share of it.
+                double rest = _spec.TipSlide ? carveCrush * rotorShare : rotorWork;
+                if (mode == StrikeMode.Carve && rest > 0)
                 {
                     _pending[c] = new Pending
                     {
-                        Active = true, Object = obj, Shape = shape, Blade = b, Left = work - energy, Work = work, Entry = psi - alpha, Psi = psi,
+                        Active = true, Object = obj, Shape = shape, Blade = b, Left = _spec.TipSlide ? rest * (1 - share) : rotorWork - energy, Work = rest,
+                        Entry = psi - alpha, Psi = psi,
                         WearRate = soil ? _sand[surface] : 0, From = rm / R, Material = material, Surface = surface, Point = m.Point,
                     };
                 }
             }
-            else after = DetMath.Sqrt(omega * omega - 2 * work / J);
-            double used = jam ? energy : work;
+            else after = DetMath.Sqrt(omega * omega - 2 * rotorWork / J);
+            double used = jam ? energy : rotorWork;
 
-            // The impulses: the reaction about the axis, the tangential one at the meeting point, the face's push.
+            // The impulses: the reaction about the axis, the tangential one at the meeting point, the face's push (a hard face's
+            // along n, a carve's along the axis: its face's share, Section).
             double lost = J * (omega - after), tangential = rc > 0 ? lost / rc : 0;
-            Double3 external = motion * -tangential + nrm * (pushN * share) + axis * (tangential * axial);
+            Double3 external = motion * -tangential + nrm * (pushN * share)
+                + axis * (double.IsNaN(cot) ? axial * share : tangential * cot);
             Double3 reaction = new Double3(0, -s * lost, 0);
             impulse = impulse + external;
             angular = angular + reaction + Double3.Cross(now.Attitude.InverseRotate(m.Point - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(external));
@@ -529,7 +629,7 @@ namespace Fpv450.Sim.Contact
             {
                 FlightEvent e = Of(EventKind.RotorJammed, d, obj, shape, material, surface, m.Point);
                 e.Index = (byte)c;
-                e.A = work;
+                e.A = rotorWork;
                 e.B = energy;
                 e.C = share;
                 events.Add(e);
@@ -538,6 +638,138 @@ namespace Fpv450.Sim.Contact
             Last = rec;
             Record?.Add(rec);
             Passes++;
+            return damaged;
+        }
+
+        // A soil carve's pass meets a stone (the tip slide, p7f-damage 1.3): the soil's rock fragments (surfaces.json's stone
+        // fraction f_s and diameter w) sit in it at random, so the pass meets one with the probability 1 − e^(−λ), λ = f_s·V/(πw³/6),
+        // V the volume within a stone's radius of what it sweeps: (h + w)·(A + w·path/2)·(its speed over its own), the carve's
+        // frontal height and area grown by a stone (its centre in the soil, so past the tip and not over the chord), drawn from
+        // "soil.stones" in Pass, before the carve (PHY-24: the stones' number in a pass is the soil's fraction, a physical
+        // parameter; where and what the ground is stays the world's). The first stone only (assumed: a later one meets an edge
+        // the first has struck). It sits at the carve's centroid r_c on the leading edge, a hard target by quartz's hardness, met at the blade's speed through
+        // the soil there, u: 1.3's head-on rule, F = σ_c·t·w (the leading edge crushed across it), held to what the stone's
+        // mass can react, u·√(k·m_s) (an elastic impact on the edge's contact stiffness k = E_b·w, Boussinesq's rigid punch's
+        // order with ν² left out: assumed; a slow blade only pushes a stone aside); F bends the inner stations edgewise and
+        // breaks the first that fails; else, at the crush, the leading edge is crushed until the stone has the blade's speed,
+        // a notch ½·m_s·u²/F deep across w (through the chord: the blade severed at r_c); the stone is flung at the blade's
+        // speed, m_s·u² (half its energy, half the crush's), with a break's fracture G_c·A. The rotor pays it (a stop on the
+        // stone without the break, as 1.3's), the body takes its tangential impulse. True when it changed the blade.
+        bool Stone(int i, in ContactShape d, int c, int b, ref FlightState now, in MassProperties body, int obj, int shape, ushort material, byte surface,
+            Double3 hub, Double3 dir, Double3 motion, double rc, double stones, StepEvents events, ref Double3 impulse, ref Double3 angular)
+        {
+            double w = _stoneSize[surface], R = _radius;
+            BladeState blade = _propulsion.Rotor(c).Blade(b);
+            double tip = blade.TipRadius, omega = now.RotorSpeed[c];
+            if (!(rc < tip * R) || !(omega > 0)) return false;
+            Double3 point = hub + dir * rc;
+            double u = omega * rc + Double3.Dot(PointVelocity(now, point), motion);
+            if (!(u > 0)) return false;
+            double J = _propulsion.Inertia(c), s = _spin[c], f = _strength[c * _blades + b];
+            int k = Station(rc / R);
+            double ms = _stoneDensity * Pi * w * w * w / 6;
+            double crush = _b.CrushStrength * f * _b.Thickness[k] * w, elastic = u * DetMath.Sqrt(_b.FlexuralModulus * w * ms);
+            double force = DetMath.Min(crush, elastic);
+            var rec = new PassRecord
+            {
+                Corner = c, Blade = b, Mode = StrikeMode.Glance, Radius = rc, Exit = w, SpeedBefore = omega, Inertia = J, TipBefore = tip, TipAfter = tip,
+                Point = point, Station = -1, Stone = true, SpeedIn = u, CrushForce = crush, PeakForce = force, Motion = motion, Stones = stones,
+            };
+            int broke = Breaks(blade, f, rc, rc, force, 0, out rec.PeakMoment, out rec.Margin);
+            double work = ms * u * u, notch = 0, newTip = tip;
+            if (broke >= 0)
+            {
+                rec.Mode = StrikeMode.Break;
+                newTip = _b.Stations[broke];
+                work += _b.FractureEnergy * f * _area[broke] * blade.ChordShare[broke];
+            }
+            else if (!(elastic < crush))
+            {
+                rec.Mode = StrikeMode.Crush;
+                notch = 0.5 * ms * u * u / crush;
+            }
+            double energy = 0.5 * J * omega * omega, share = 1, after;
+            bool jam = !(work < energy);
+            if (jam)
+            {
+                share = energy / work;
+                after = 0;
+                if (rec.Mode == StrikeMode.Break)
+                {
+                    // Short of the fracture's work the section holds: the edge is crushed as far as the energy took the stone.
+                    rec.Mode = StrikeMode.Crush;
+                    broke = -1;
+                    newTip = tip;
+                    notch = 0.5 * ms * u * u / crush;
+                }
+                notch *= share;
+            }
+            else after = DetMath.Sqrt(omega * omega - 2 * work / J);
+            rec.Station = broke;
+
+            // The impulses: the rotor's lost angular momentum, the stone's push against the blade's motion at r_c.
+            double lost = J * (omega - after), tangential = lost / rc;
+            Double3 external = motion * -tangential;
+            Double3 reaction = new Double3(0, -s * lost, 0);
+            impulse = impulse + external;
+            angular = angular + reaction + Double3.Cross(now.Attitude.InverseRotate(point - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(external));
+            now.RotorSpeed[c] = after;
+
+            // The damage: a break, or the notch (or the blade severed where the notch passes its chord).
+            double before = Mass(blade);
+            bool damaged = false;
+            if (notch > 0)
+            {
+                double left = _b.Chord[k] * blade.ChordShare[k];
+                if (!(notch < left)) newTip = rc / R;
+                else
+                {
+                    double lo = (rc - 0.5 * w) / R, hi = (rc + 0.5 * w) / R;
+                    for (int j = 0; j < _stations; j++)
+                    {
+                        double a = _b.Stations[j] - 0.5 * _span, z = DetMath.Min(a + _span, DetMath.Min(hi, blade.TipRadius));
+                        double o = z - DetMath.Max(a, lo);
+                        if (!(o > 0)) continue;
+                        double share2 = blade.ChordShare[j] - notch / _b.Chord[j] * (o / _span);
+                        blade.ChordShare[j] = share2 > 0 ? share2 : 0;
+                    }
+                    damaged = true;
+                    Damaged(i, d, b, StrikeMode.Crush, obj, shape, material, surface, point, blade.TipRadius, before - Mass(blade), lo, events);
+                }
+            }
+            if (newTip < tip)
+            {
+                blade.Trim(newTip);
+                damaged = true;
+                Damaged(i, d, b, rec.Mode == StrikeMode.Break ? StrikeMode.Break : StrikeMode.Crush, obj, shape, material, surface, point, blade.TipRadius,
+                    before - Mass(blade), newTip, events);
+            }
+            double used = jam ? energy : work;
+            rec.Work = work;
+            rec.Used = used;
+            rec.SpeedAfter = after;
+            rec.TipAfter = blade.TipRadius;
+            rec.Jammed = jam;
+            rec.Impulse = external;
+            rec.Reaction = reaction;
+            FlightEvent e = Of(EventKind.StoneStrike, d, obj, shape, material, surface, point);
+            e.Index = (byte)(b | ((int)rec.Mode << 4));
+            e.A = used;
+            e.B = w;
+            e.C = u;
+            events.Add(e);
+            if (jam)
+            {
+                FlightEvent j = Of(EventKind.RotorJammed, d, obj, shape, material, surface, point);
+                j.Index = (byte)c;
+                j.A = work;
+                j.B = energy;
+                j.C = share;
+                events.Add(j);
+            }
+            Slot(ref now, c, b, material, used, external.Length(), rc);
+            Last = rec;
+            Record?.Add(rec);
             return damaged;
         }
 
@@ -564,31 +796,96 @@ namespace Fpv450.Sim.Contact
             double used = DetMath.Min(energy, p.Left), after = energy > p.Left ? DetMath.Sqrt(omega * omega - 2 * p.Left / J) : 0;
             p.Left -= used;
             p.Worn += p.WearRate * used;
-            double rc = 0.5 * (m.Radius + blade.TipRadius * _radius);
+            double rtip = blade.TipRadius * _radius, rc = 0.5 * (m.Radius + rtip);
             int ks = Station(rc / _radius);
+            double chord = _b.Chord[ks] * blade.ChordShare[ks], thick = _b.Thickness[ks];
             double theta = _b.SectionAngle[ks] + blade.FactoryPitch + blade.PitchSet[ks];
             DetMath.SinCos(theta, out double st, out double ct);
             Double3 motion = Double3.Cross(axis, m.Direction) * -s;
             double lost = J * (omega - after), tangential = lost / rc;
-            Double3 external = motion * -tangential + axis * (tangential * ct / (st > 1e-12 ? st : 1e-12));
+            // The spin-up's push on the pitched face: its face's share along the axis, c·cos θ/h of the tangential (Section's).
+            Double3 external = motion * -tangential + axis * (_spec.TipSlide ? tangential * chord * ct / (chord * st + thick * ct) : tangential * ct / (st > 1e-12 ? st : 1e-12));
             Double3 reaction = new Double3(0, -s * lost, 0);
+
+            // The plough (the tip slide): the held blade, stopped in the soil, meets it at the body's speed there as the body moves
+            // (the carve's relative speed with the blade's own 0): (p + ρ·u²) over its frontal area across that motion, h·L, L its
+            // span in the soil, from the face's chord along the held blade to its tip, at its span's middle; the crush on the leading
+            // face and edge, the fling along the motion, as a pass's. The impulse over the step is held to what stops the blade's
+            // point along its motion (Coulomb's clamp: the soil's crush resists a slide, it never drives one back). The load is
+            // held, not a pass's 0.3–0.7 ms against the blade's 6 ms flap mode, so its edgewise and flatwise bending are checked
+            // as they stand (1.3's sections): a station past its strength breaks.
+            DetMath.SinCos(now.RotorAngle[c] + TwoPi * p.Blade / _blades, out double sp, out double cp);
+            Double3 bladeDir = now.Attitude.Rotate(new Double3(cp, 0, s * sp));
+            double reach = Double3.Dot(bladeDir, m.Direction), ploughed = 0;
+            Double3 plough = default, pushed = default;
+            int broke = -1;
+            double moment = 0, margin = 0;
+            if (_spec.TipSlide && reach * rtip > m.Radius && Face(p.Object, p.Material, p.Surface, out MaterialRow row))
+            {
+                double rin = m.Radius / reach, rp = 0.5 * (rin + rtip);
+                int kp = Station(rp / _radius);
+                double cpl = _b.Chord[kp] * blade.ChordShare[kp], tp = _b.Thickness[kp];
+                double thp = _b.SectionAngle[kp] + blade.FactoryPitch + blade.PitchSet[kp];
+                Double3 motionP = Double3.Cross(axis, bladeDir) * -s;
+                pushed = hub + bladeDir * rp;
+                Double3 moving = PointVelocity(now, pushed);
+                double ut = Double3.Dot(moving, motionP), ua = Double3.Dot(moving, axis), speed = DetMath.Sqrt(ut * ut + ua * ua);
+                if (speed > 0)
+                {
+                    // The leading face's normal pressure, p·c·L along its inward normal, and the edge's crush and the fling along −û,
+                    // each held to what stops the blade's point along its own direction (the face's normal approach u·|sin α|, the
+                    // motion's u): a plastic pressure never pushes the blade back out.
+                    Section(cpl, tp, thp, ut, ua, speed, out double height, out _, out _, out double attack);
+                    DetMath.SinCos(attack, out double sa, out double ca);
+                    DetMath.SinCos(thp, out double st2, out double ct2);
+                    double side = sa < 0 ? -1 : 1, span = rtip - rin;
+                    double normal = row.CrushStrength * cpl * span, drag = (row.CrushStrength * tp * DetMath.Abs(ca) + row.Density * speed * speed * height) * span;
+                    Double3 lead = motionP * (side * st2) - axis * (side * ct2), along = motionP * (ut / speed) + axis * (ua / speed);
+                    double jn = Held(normal * FlightCore.Dt, speed * DetMath.Abs(sa), lead, pushed, now, body);
+                    double jd = Held(drag * FlightCore.Dt, speed, along, pushed, now, body);
+                    plough = lead * -jn + along * -jd;
+                    ploughed = jn * speed * DetMath.Abs(sa) + jd * speed;
+                    double ft = Double3.Dot(plough, motionP) / FlightCore.Dt, fa = Double3.Dot(plough, axis) / FlightCore.Dt; // the soil's force on the blade, N
+                    broke = Breaks(blade, _strength[c * _blades + p.Blade], rin, rp, DetMath.Abs(ft), DetMath.Abs(fa), out moment, out margin);
+                }
+            }
             impulse = impulse + external;
             angular = angular + reaction + Double3.Cross(now.Attitude.InverseRotate(m.Point - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(external));
+            if (ploughed > 0)
+            {
+                impulse = impulse + plough;
+                angular = angular + Double3.Cross(now.Attitude.InverseRotate(pushed - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(plough));
+                external = external + plough;
+            }
             now.RotorSpeed[c] = after;
             bool through = !(p.Left > 0);
             Hold(ref now, c, p.Blade, through ? p.Psi : p.Entry + (p.Psi - p.Entry) * (1 - p.Left / p.Work));
             var rec = new PassRecord
             {
-                Corner = c, Blade = p.Blade, Mode = StrikeMode.Carve, Radius = m.Radius, Exit = double.PositiveInfinity, Work = p.Work, Used = used,
-                SpeedBefore = omega, SpeedAfter = after, Inertia = J, TipBefore = blade.TipRadius, TipAfter = blade.TipRadius, Point = m.Point,
-                Normal = m.Normal, Impulse = external, Reaction = reaction, Jammed = !through, Station = -1, Grind = true,
+                Corner = c, Blade = p.Blade, Mode = broke >= 0 ? StrikeMode.Break : StrikeMode.Carve, Radius = m.Radius, Exit = double.PositiveInfinity,
+                Work = p.Work, Used = used, SpeedBefore = omega, SpeedAfter = after, Inertia = J, TipBefore = blade.TipRadius, TipAfter = blade.TipRadius,
+                Point = m.Point, Normal = m.Normal, Impulse = external, Reaction = reaction, Jammed = !through && broke < 0, Station = broke, Grind = true,
+                Plough = ploughed, PeakMoment = moment, Margin = margin, Motion = motion,
             };
-            Strike(i, d, p.Blade, p.Object, p.Shape, material, surface, rec, events);
-            Slot(ref now, c, p.Blade, material, used, external.Length(), m.Radius);
+            bool changed = false;
+            if (broke >= 0)
+            {
+                // The held blade snaps where its section fails: the rotor is free of the face.
+                double before = Mass(blade);
+                blade.Trim(_b.Stations[broke]);
+                rec.TipAfter = blade.TipRadius;
+                Damaged(i, d, p.Blade, StrikeMode.Break, p.Object, p.Shape, material, surface, m.Point, blade.TipRadius, before - Mass(blade),
+                    blade.TipRadius, events);
+                changed = true;
+                through = true;
+            }
+            // The step is logged when it pays work from the rotor or breaks the blade; the plough's work is in the step's slot.
+            if (used > 0 || broke >= 0 || !_spec.TipSlide) Strike(i, d, p.Blade, p.Object, p.Shape, material, surface, rec, events);
+            Slot(ref now, c, p.Blade, material, used + ploughed, external.Length(), m.Radius);
             Last = rec;
             Record?.Add(rec);
             Passes++;
-            return through && Finish(i, d, ref p, events);
+            return (through && Finish(i, d, ref p, events)) || changed;
         }
 
         // A carve's grind ends, through or its shape gone: the sand's wear over the work it paid goes on the blade, from where the
@@ -602,6 +899,54 @@ namespace Fpv450.Sim.Contact
             if (!Wear(blade, p.From, p.Worn)) return false;
             Damaged(i, d, p.Blade, StrikeMode.Wear, p.Object, p.Shape, p.Material, p.Surface, p.Point, blade.TipRadius, before - Mass(blade), p.From, events);
             return true;
+        }
+
+        // What a blade meets on a pair: a surface's set (the ground, a soil shape) or a material's row; false for none, a Glance
+        // (the ground and the soil without surfaces.json, a thin compliant row without crush strength, a material the table lacks).
+        bool Face(int obj, ushort material, byte surface, out MaterialRow row)
+        {
+            bool soil = surface != WorldIds.NoSurface;
+            bool known = soil ? _surfaces[surface].Name != null : obj != WorldIds.Ground && material < _known.Length && _known[material];
+            row = !known ? default : soil ? _surfaces[surface] : _rows[material];
+            return known && row.CrushStrength > 0;
+        }
+
+        // A blade section of chord c, thickness t and pitch θ (its chord line's, the leading edge toward +axis) moving through a
+        // softer face at (u_t, u_a) relative to it, along the blade's motion and the rotor's axis (|u| its speed): its attack α = θ
+        // − atan2(u_a, u_t), its frontal height across that motion h = c·|sin α| + t·|cos α| (design 5's, at the relative
+        // speed), and the face's crushing force on it per newton of that crush's drag along −u, (g_t, g_a): the leading face (the
+        // lower one at a positive attack) pressed along its normal at the face's bearing pressure, c/h of the drag (its share
+        // c·|sin α|/h along −u), and the leading edge pushed along −u, t·|cos α|/h (the edge pushes only along the motion: 1.3's
+        // cot θ of the whole drag gave the edge's share a face's push). A blade turning in soil at rest: g_t −1, g_a c·cos θ/h.
+        static void Section(double chord, double thick, double theta, double ut, double ua, double speed, out double height, out double gt,
+            out double ga, out double attack)
+        {
+            attack = theta - DetMath.Atan2(ua, ut);
+            DetMath.SinCos(attack, out double sa, out double ca);
+            DetMath.SinCos(theta, out double st, out double ct);
+            double edge = thick * DetMath.Abs(ca), side = sa < 0 ? -1 : 1;
+            height = chord * DetMath.Abs(sa) + edge;
+            gt = -(side * chord * st + edge * (ut / speed)) / height;
+            ga = (side * chord * ct - edge * (ua / speed)) / height;
+        }
+
+        // An impulse (N·s) along −direction at a point of the body, held to what stops the point's approach speed along it (the
+        // point's effective mass along it, 1/m + (r × d)·I⁻¹·(r × d)).
+        static double Held(double impulse, double approach, Double3 direction, Double3 point, in FlightState now, in MassProperties body)
+        {
+            Double3 arm = now.Attitude.InverseRotate(point - now.Position) - body.CenterOfMass;
+            Double3 lever = Double3.Cross(arm, now.Attitude.InverseRotate(direction));
+            double give = body.InverseMass + Double3.Dot(lever, body.InverseInertia * lever);
+            return DetMath.Min(impulse, approach / give);
+        }
+
+        // The disc's part past the nearest carved face's chord (m; +∞ for none) makes no thrust: its shares go to the rotor for
+        // the next step (DamagedRotor.Immersed).
+        void Immerse(int c, double chord)
+        {
+            double thrust = 0, torque = 0;
+            if (chord < _radius) _propulsion.Rotor(c).Immersed(chord, out thrust, out torque);
+            if (thrust != _propulsion.ImmersedThrust(c) || torque != _propulsion.ImmersedTorque(c)) _propulsion.SetImmersed(c, thrust, torque);
         }
 
         // A pass's contact time over an arc (rad) at the rotor's speed, held to the step: a slowly turning blade presses the face

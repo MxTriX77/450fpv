@@ -231,7 +231,7 @@ namespace Fpv450.Sim.Tests
         public void IntoThePole()
         {
             ContactScenarios.PoleStrike r = Into("pole");
-            Assert.That(r.FlightSpeed, Is.EqualTo(10).Within(1));
+            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1), "the approach at 10 m/s (the carve's push then moves it, p7f-damage 1.3)");
             Assert.That(r.Object, Is.EqualTo("L01_straight"));
             Assert.That(r.Material, Is.EqualTo("timber"));
             Assert.That(r.Part, Is.Not.Null.And.Not.Empty);

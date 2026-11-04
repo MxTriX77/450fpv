@@ -142,6 +142,15 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool BladeStrikes = true;
 
+        /// <summary>
+        /// The tip slide's physics (p7f-damage 1.3, model 45, PropStrikes): a carve at the blade's speed through the face (its own
+        /// and the body's), its axial push the leading face's, a slow pass held to the step, a jammed carve's rest its crush only,
+        /// the held blade's plough, the disc's part in a carved face making no thrust, the soil's stones; a grind logged only on a
+        /// step that pays the rotor's work. On for every flight; off only for an audit and the known-wrong against model 43's carve
+        /// (the blade's own speed, cot θ of the whole impulse, no stones), which a flight with it off steps as.
+        /// </summary>
+        public bool TipSlide = true;
+
         /// <summary>Archard's wear coefficient k of the blade sliding on a harder face, V = k·F_n·s/H_b: 3e-3 (assumed, p7f-damage
         /// design 5: inside Lancaster 1969's published 1e-3–1e-2 for polymers abraded by harder asperities, its middle on a log
         /// scale; set by 1.3, which 1.1a left unset).</summary>
