@@ -12,8 +12,8 @@ namespace Fpv450.Sim.Tests
     /// <summary>
     /// p7g-legs 1.4, "Replay through a broken and a detached leg" (leg-damage): tools/replay's damage flight (ScriptedFlight.FlyLegs,
     /// recorded here in memory) loses leg_rr up into a bar and bends and then breaks the other three (its rebound lands the
-    /// two-legged drone at 2.4 m/s on the straw); a drifting touch (0.5 m/s down, 0.35 m/s across, seed 1) leaves leg_fr bent
-    /// and on. Each log replays headless bit for bit, every record, event and loose-piece record; the damage flight's events
+    /// two-legged drone at 2.4 m/s on the straw); a drifting touch (0.5 m/s down rolled 10° with 0.6 m/s across, seed 2) leaves
+    /// leg_rr bent 2.03° and on. Each log replays headless bit for bit, every record, event and loose-piece record; the damage flight's events
     /// name each leg's change in step order; and a replay holding drone.json with one strength bound changed is refused
     /// before its first step. On model 49 no flight was found that ends with one leg bent and on beside one broken and one
     /// lost (the damage flight on seeds 1–40, its pad, cushion and speed varied): a landing hard enough to follow a lost leg
@@ -138,18 +138,18 @@ namespace Fpv450.Sim.Tests
             Assert.That(refused.Steps, Is.EqualTo(0));
             StringAssert.Contains("drone.json differs", refused.Message);
 
-            // The drifting touch: bent and on.
+            // The drifting touch: bent and on, by a set a pilot sees (past 1°).
             MaterialRow[] rows = ContactScenarios.RepositoryMaterials(out ulong rowsHash);
-            var touch = new LegScenarios.Touch { Velocity = new Double3(0.35, -0.5, 0), Seed = 1 };
+            var touch = new LegScenarios.Touch { RollDeg = 10, Velocity = new Double3(0.6, -0.5, 0), Seed = 2 };
             byte[] drift = Record(LegScenarios.Setup(spec, rows, rowsHash, touch), "floor", spec, 3000, out FlightCore landed);
             int bentOn = 0;
             for (int c = 0; c < 4; c++)
             {
                 LegFlags f = landed.Contacts.Legs.Flags(c);
                 TestContext.Out.WriteLine($"the drifting touch, leg_{LegDamage.Names[c]}: {f}, set {LegScenarios.SetDegrees(landed.Contacts.Legs.Set(c)):F4}°");
-                if ((f & LegFlags.Set) != 0 && (f & (LegFlags.Broken | LegFlags.Detached)) == 0) bentOn++;
+                if ((f & LegFlags.Set) != 0 && (f & (LegFlags.Broken | LegFlags.Detached)) == 0 && LegScenarios.SetDegrees(landed.Contacts.Legs.Set(c)) > 1) bentOn++;
             }
-            Assert.That(bentOn, Is.GreaterThanOrEqualTo(1), "a leg bent and on");
+            Assert.That(bentOn, Is.GreaterThanOrEqualTo(1), "a leg bent past 1° and on");
             ReplayResult bentReplay = FlightReplay.Run(new MemoryStream(drift), id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash, materialsHash: materials);
             TestContext.Out.WriteLine(bentReplay.Message);
             Assert.That(bentReplay.Outcome, Is.EqualTo(ReplayOutcome.Match), bentReplay.Message);
