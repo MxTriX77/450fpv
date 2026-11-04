@@ -152,6 +152,18 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public double LegTubeSideStiffness, LegJawSideStiffness, LegSwayLoad, LegTubeAxialStiffness;
 
+        /// <summary>
+        /// The leg across its tube as a lever (p7g-legs 1.4, the geometric sway; m): the pseudo-rigid-body model's link from its
+        /// characteristic pivot to the foot (Howell and Midha 1995: a cantilever with an end force is a rigid link of γL on a
+        /// torsional spring, γ ≈ 0.85, K_Θ ≈ 2.65, published), here γL = LegSwayLoad / LegTubeSideStiffness = π²L/12 (γ 0.822,
+        /// K_Θ = 3γ = 2.467, derived: the lever keeps 1.1's 3EI/L³ at the foot and the column's π²EI/(4L²) exactly). The foot
+        /// swings on the link's circle, so a leaning leg rises off its rest (L − √(δ² + (L − a)²) of its push a), its axial
+        /// force acts along the leaned link and its bending (K = k_t·(γL)², by the crack's factor) across it: the axial load's
+        /// softening is the link's statics, past the sway load a negative give (the leg vaults the body over its held foot) and
+        /// at large leans its stiffening, never clamped at 0. 0 for 1.3's linear softening (model 46, its audit).
+        /// </summary>
+        public double LegLeverLength;
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;

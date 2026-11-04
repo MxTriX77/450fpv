@@ -693,6 +693,8 @@ namespace Fpv450.Sim.Flight
                 c.LegJawSideStiffness = Legs.Clamp.JawStiffness / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
                 c.LegSwayLoad = SwayFactor * Legs.Tube.Modulus.Value * Legs.Tube.SecondMoment / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
                 c.LegTubeAxialStiffness = Legs.Tube.AxialStiffness;
+                // p7g-legs 1.4: the leg across its tube as a lever, γL = π²L/12 (derived from the two above).
+                c.LegLeverLength = c.LegSwayLoad / c.LegTubeSideStiffness;
                 if (loadout.Legs) c.Legs = BuildLegDamage();
             }
             c.Materials = (Contact.MaterialRow[])materials.Clone();

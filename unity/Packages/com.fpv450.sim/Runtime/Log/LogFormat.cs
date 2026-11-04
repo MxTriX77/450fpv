@@ -151,8 +151,13 @@ namespace Fpv450.Sim.Log
         ///    the tether entry stays at tag 25 and the drone internals entry at 26; the events 14–16 (p7d-tether's), 17–19
         ///    (p7f-damage's; 20–22 reserved for it) and 23–28 (LegSet, LegCracked, LegBroken, LegDetached, SkidLoose,
         ///    PieceDropped: p7g-legs', D-074).
+        /// 37–38: assigned elsewhere (D-072).
+        /// 39: p7g-legs 1.4 on the physics integration 2 (unity/physics/physics-integration-2--legs-harness, assigned by D-072):
+        ///    after 36's 2784 bytes each leg's lean on its lever (leg_lean, the foot's offset across the tube; 32 bytes, 2816 in
+        ///    all), and the contacts entry's legs' side give with the lever's length (ContactSpec.LegLeverLength) after the tube's
+        ///    EA/L; no new event kind.
         /// </summary>
-        public const int Version = 36;
+        public const int Version = 39;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -385,8 +390,17 @@ namespace Fpv450.Sim.Log
         ///    (drone.json without legs.tube, clamp and tjoint, the 10 kN/m spring) a flight steps as in 44; with the line's
         ///    mechanisms off (no surfaces.json, no area laws, no line, no props.blade, model 34's yaw I, the ESCs freewheeling)
         ///    as in 41.
+        /// 47–48: assigned elsewhere (D-072).
+        /// 49: p7g-legs 1.4 (on 46; the physics integration 2's legs harness, assigned by D-072): the leg across its tube as a
+        ///    lever (ContactSpec.LegLeverLength, the pseudo-rigid-body model's link of π²L/12 from its pivot to the foot, its
+        ///    torsional spring keeping 1.1's 3EI/L³), so the axial load's softening is the link's statics at each point's push this
+        ///    step, in place of 1.3's linear k_t·(1 − P/P_sway) on the step before's load clamped at 0: past the sway load a leg's
+        ///    give across is negative (it vaults the body over its held foot) and at a large lean it stiffens; a leaning foot
+        ///    rises on the link's circle, which unloads the leg's axial spring; a set leg's lean is measured from its own turned
+        ///    axis. On the soil the foot's rise is an axial rest of the series solve and the lever's secant its give across. With
+        ///    LegLeverLength 0 a flight steps as in 46 over its 2784 bytes, the lean 0; on model 26's legs (no tube) as in 44.
         /// </summary>
-        public const int ModelVersion = 46;
+        public const int ModelVersion = 49;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -409,7 +423,7 @@ namespace Fpv450.Sim.Log
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
         /// leg's side give, jaws and hanging fold (1.3).</summary>
-        public const int StepSize = 2784, EventSize = 72, EndSize = 48;
+        public const int StepSize = 2816, EventSize = 72, EndSize = 48;
 
         /// <summary>The record before the fiber's block (model 28's, format 18), over which a flight without the line keeps
         /// model 28's bits; it is also p7f-damage's model 29 record, before the blades' strikes, and p7g-legs' model 37 record,
@@ -423,6 +437,10 @@ namespace Fpv450.Sim.Log
         /// <summary>The record before the legs' block (models 40–44's, formats 30–34: through the blades' strikes), over which a
         /// flight on model 26's legs keeps model 44's bits.</summary>
         public const int Model44StepSize = 2392;
+
+        /// <summary>The record before the legs' lean (models 46's, format 36: through the legs' block), over which a flight with
+        /// the lever off keeps model 46's bits.</summary>
+        public const int Model46StepSize = 2784;
 
         /// <summary>The legs' block (p7g-legs 1.2 and 1.3: its 2296 bytes less model 26's 1904), at Model44StepSize here and at
         /// Model28StepSize in p7g-legs' format 31.</summary>
@@ -447,7 +465,7 @@ namespace Fpv450.Sim.Log
                 "RotorCommand", "PackVolts0", "PackVolts1", "PackAmps0", "PackAmps1", "NetForce", "NetMoment", "AeroForce", "AeroMoment",
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow", "Tether",
-                "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold",
+                "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold", "LegLean",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -621,9 +639,10 @@ namespace Fpv450.Sim.Log
             b.Corners("leg_stiffness", "the leg's stiffness over an intact one's by its state");
             b.Corners("leg_moment", "N.m, the moment at the clamp's edge the legs' law judged; 0 without it");
             // A damaged leg (p7g-legs 1.3).
-            b.Corners("leg_side_give", "N/m, the side give with the anchor in series this step: the tube's less P.delta, or a hanging half's cantilever");
+            b.Corners("leg_side_give", "N/m, the side give with the anchor in series this step: the lever's secant (negative past the sway load; the tube's less P.delta at model 46), or a hanging half's cantilever");
             foreach (string c in CornerNames) b.Vec("leg_jaw." + c, "m, body, the jaws' turn at the foot: the side spring's rest moved by their friction slipping");
             foreach (string c in CornerNames) b.Vec("skid_fold." + c, "rad, body rotation vector, a hanging skid half's fold about the other leg's bore");
+            b.Corners("leg_lean", "m, the leg's lean on its lever: its foot's offset across the tube from its rest, its points' shares; 0 off the lever or the ground");
             return b.Done(StepSize);
         }
 
@@ -813,6 +832,7 @@ namespace Fpv450.Sim.Log
             w.C4(t.LegSideGive);
             for (int c = 0; c < 4; c++) w.V3(t.LegJaw[c]);
             for (int c = 0; c < 4; c++) w.V3(t.SkidFold[c]);
+            w.C4(t.LegLean);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -954,6 +974,7 @@ namespace Fpv450.Sim.Log
             t.LegSideGive = r.C4();
             for (int c = 0; c < 4; c++) t.LegJaw[c] = r.V3();
             for (int c = 0; c < 4; c++) t.SkidFold[c] = r.V3();
+            t.LegLean = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

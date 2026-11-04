@@ -89,6 +89,7 @@ namespace Fpv450.Sim.Log
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
     ///   physics materials' rows (with what a blade meets, p7f-damage 1.1a) with physics_materials.json's hash, and
     ///   surfaces.json's table with its hash when the flight has one (p7a-ground 1.1; none for a flight without contacts)
+    ///   and the legs' side give, its parts and their lever (p7g-legs 1.2–1.4) and the failure law's data and bounds
     /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
     ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the fiber's table (p7d-tether 1.1): tether.json's every row with its label, and the file's hash (none for a
@@ -158,7 +159,7 @@ namespace Fpv450.Sim.Log
             "Surfaces", "BladeStrikes", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
             "FlapFrequency", "FlapSouthwell",
             "LegSideStiffness", "LegSideDampingRatio", "Legs",
-            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness",
+            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -884,6 +885,7 @@ namespace Fpv450.Sim.Log
                 e.Write(c.LegJawSideStiffness);
                 e.Write(c.LegSwayLoad);
                 e.Write(c.LegTubeAxialStiffness);
+                e.Write(c.LegLeverLength); // p7g-legs 1.4 (format 39): the lever
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -1639,6 +1641,7 @@ namespace Fpv450.Sim.Log
             c.LegJawSideStiffness = r.ReadDouble();
             c.LegSwayLoad = r.ReadDouble();
             c.LegTubeAxialStiffness = r.ReadDouble();
+            c.LegLeverLength = r.ReadDouble();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
