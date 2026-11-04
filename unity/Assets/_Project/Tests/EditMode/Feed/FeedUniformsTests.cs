@@ -50,14 +50,15 @@ namespace Fpv450.Feed.Tests
             Assert.That(new[] { u.Gain, u.LinkMargin, u.MotorCurrent }, Is.EqualTo(new[] { 1f, 1f, 0f }));
         }
 
-        /// The tear's black wedge, the pilot's "black sticks", is Godot's link artefact: drawn only in the A/B
-        /// against Godot (D-065).
+        /// The tear's black wedge, the pilot's "black sticks", is off (D-065, kept by D-085) and drawn only in the
+        /// A/B against Godot; the dropouts' timer is on by default (D-085) and is not the wedge's switch.
         [Test]
         public void OnlyGodotsFeedDrawsTheTearsWedge()
         {
             var events = new FeedEvents(1);
+            Assert.That((events.DropoutTimer, events.TearWedge), Is.EqualTo((true, false)), "the defaults");
             Assert.That(FeedUniforms.From(events, 1, 1f, 1f, 0f).TearWedge, Is.Zero);
-            events.GodotLinkArtefacts = true;
+            events.TearWedge = true;
             Assert.That(FeedUniforms.From(events, 1, 1f, 1f, 0f).TearWedge, Is.EqualTo(1f));
         }
 

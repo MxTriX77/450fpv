@@ -23,7 +23,7 @@
 // OSD keeps its straight horizon while the real one bends (gd:28-30). With k1 = 0 and coverage 1 it is Godot's read.
 // A second, off in the A/B (p7e-camera-feel): the camera's read, each field row turned by the camera's rotation at its
 // read and averaged over its exposure (shutter_tex), on the scene only; with _Shutter.x = 0 the read is the one above.
-// One removal (D-065, the camera's noise, not a radio link's): the tear's black wedge is drawn only with _TearWedge = 1,
+// One removal (D-065, which D-085 keeps for the wedge alone): the tear's black wedge is drawn only with _TearWedge = 1,
 // Godot's feed in the A/B; the feed draws its tear as a shear alone.
 // One switch (D-078, the pilot's C): the Field pass's FEED_NOISE_OFF variant compiles N1's grain and N2's impulses out,
 // and FeedUniforms.WithoutNoise zeroes N3, N4, the tear and the degrade. Without the keyword the pass is the one above,
@@ -73,7 +73,7 @@ Shader "Hidden/Fpv450/Feed"
     float _TearTop;         // gd:67
     float _GrainBoost;      // gd:68
     // D-065: 1 draws the tear's black wedge (gd:382-385, the pilot's "black sticks"), Godot's link artefact, only in
-    // the FEED-00 A/B (FeedEvents.GodotLinkArtefacts); 0 leaves the tear its shear alone.
+    // the FEED-00 A/B (FeedEvents.TearWedge); 0 leaves the tear its shear alone.
     float _TearWedge;
 
     // O1 (the port's addition): x = k1, y = the render's coverage in half-widths at the corner (1 + k1 r²), z = the

@@ -16,13 +16,13 @@ namespace Fpv450.Feed
 
         /// Runs a fresh scheduler from `seed` over fields 1 to `fields` at a constant `motorCurrent` (0–1), firing a
         /// terminal loss at `cutField` (0 for none) the way the Godot feed's `--video-field a-b+cut|+hardcut` did,
-        /// and hands every field to `visit`. `godot` runs it with Godot's link artefacts, its free-running dropouts
-        /// (<see cref="FeedEvents.GodotLinkArtefacts"/>), as the A/B against the Godot feed needs; without them
-        /// (D-065) only the cut loses the picture.
+        /// and hands every field to `visit`. `dropoutTimer` is <see cref="FeedEvents.DropoutTimer"/>: on, as the feed
+        /// and the A/B against the Godot feed run (D-085); off, only the cut loses the picture. The tear's wedge
+        /// moves no draw, so the schedule is the same with it or without.
         public static void Run(int seed, int fields, float motorCurrent, int cutField, bool abrupt,
-            Action<FeedEvents> visit, bool godot = false)
+            Action<FeedEvents> visit, bool dropoutTimer = true)
         {
-            var events = new FeedEvents(seed) { GodotLinkArtefacts = godot };
+            var events = new FeedEvents(seed) { DropoutTimer = dropoutTimer };
             for (int f = 1; f <= fields; f++)
             {
                 if (f == cutField)
@@ -45,7 +45,7 @@ namespace Fpv450.Feed
         /// A digest of the whole run over the same values as <see cref="Row"/>, taken from their bits rather than
         /// their text, so it doesn't depend on the runtime's number formatting: FNV-1a, 64-bit.
         public static ulong Digest(int seed, int fields, float motorCurrent, int cutField, bool abrupt,
-            bool godot = false)
+            bool dropoutTimer = true)
         {
             ulong h = 14695981039346656037UL;
             Run(seed, fields, motorCurrent, cutField, abrupt, e =>
@@ -60,13 +60,13 @@ namespace Fpv450.Feed
                              l.BlackA, l.BlackB, l.SnowLevel, l.SnowChroma, l.Tell, l.TearAmp, l.TearTop, l.GrainBoost,
                          })
                     h = Mix(h, BitConverter.SingleToInt32Bits(v));
-            }, godot);
+            }, dropoutTimer);
             return h;
         }
 
         /// What the Godot feed printed when a field was pinned (VideoFeed.cs:233): the quality drops and recovering
         /// dropouts per minute, and the first fields of the first dropouts and deep drops, to aim a still at.
-        public static string Summary(int seed, int fields, float motorCurrent, bool godot = false)
+        public static string Summary(int seed, int fields, float motorCurrent, bool dropoutTimer = true)
         {
             int dropStarts = 0, dropoutStarts = 0;
             bool wasDrop = false, wasLoss = false;
@@ -87,13 +87,13 @@ namespace Fpv450.Feed
                 wasLoss = lost;
                 if (e.Degrade > 0.75f && deepListed++ < 5) // VideoFeed.cs:251
                     deep += e.Field + " ";
-            }, godot);
+            }, dropoutTimer);
             double minutes = fields / 50.0 / 60.0;
             return string.Format(CultureInfo.InvariantCulture,
                 "seed {0}, {1} fields ({2:0.0} min): {3:0.0} quality drops/min, {4:0.0} dropouts/min "
                 + "({7}); dropouts start at fields [{5}], deep drops at [{6}]",
                 seed, fields, minutes, dropStarts / minutes, dropoutStarts / minutes, dropouts.Trim(), deep.Trim(),
-                godot ? "Godot's timer, 3-6 asked for (D-026)" : "only the fiber drops out, D-065");
+                dropoutTimer ? "Godot's timer, 3-6 asked for (D-026, D-085)" : "the timer off, only a cut");
         }
 
         static string F(float v) => v.ToString("R", CultureInfo.InvariantCulture);

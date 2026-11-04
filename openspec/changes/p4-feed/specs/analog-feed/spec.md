@@ -1,14 +1,14 @@
 ## ADDED Requirements
 
 ### Requirement: A faithful port of the Godot feed
-The feed SHALL port the Godot feed the pilot chose (`docs/legacy/video-feed-godot/`), keeping its algorithms, constants, rates and structure (FEED-00, D-026), with Godot's plumbing replaced by a URP full-screen pass in HLSL and C# ports of `FeedEvents`, `FeedLoss`, `FeedOsd` and `FeedFont`. The two link-type artefacts D-065 removed (the free-running recovering dropouts and the tear's black wedge) SHALL come back with one switch, Godot's link artefacts, which the A/B against Godot runs with.
+The feed SHALL port the Godot feed the pilot chose (`docs/legacy/video-feed-godot/`), keeping its algorithms, constants, rates and structure (FEED-00, D-026), with Godot's plumbing replaced by a URP full-screen pass in HLSL and C# ports of `FeedEvents`, `FeedLoss`, `FeedOsd` and `FeedFont`. The free-running recovering dropouts SHALL run on Godot's timer by default (D-085), and the tear's black wedge, which D-065 removed, SHALL come back with its own switch, which only the A/B against Godot turns on.
 
 #### Scenario: The same seed, the same schedule
-- **WHEN** the Unity and Godot event schedulers run with the same seed for 15 000 fields, Unity's with Godot's link artefacts
+- **WHEN** the Unity and Godot event schedulers run with the same seed for 15 000 fields, Unity's as the feed runs by default
 - **THEN** their schedules (quality drops, recovering dropouts, N3, N4 and every loss state, field by field) are identical
 
 #### Scenario: The same seed and field, matching stills
-- **WHEN** stills are captured in Unity, with Godot's link artefacts, and in the Godot original at the same seed and field, for the baseline, a deep quality drop, N3, N4, every loss state, the tell, the tear and the OSD
+- **WHEN** stills are captured in Unity, with the tear's wedge on, and in the Godot original at the same seed and field, for the baseline, a deep quality drop, N3, N4, every loss state, the tell, the tear and the OSD
 - **THEN** each pair matches stage by stage on a side-by-side sheet, and their per-channel mean differs by at most 2 % of full scale
 
 ### Requirement: The camera and the pipeline
@@ -19,18 +19,18 @@ The FPV camera SHALL render at field resolution with extra FOV (D-017) and the p
 - **THEN** the radial distortion's k1 lies within ±0.03 of K§11's measured value
 
 ### Requirement: Losses, recovery and snow
-The receiver's states SHALL be the Godot feed's: staged loss, hard cut, and recovering dropouts, with a clean recovery: the picture and the OSD come back clean, and receiver text appears only on blue screens (FEED-05, FEED-06). Snow SHALL be near-binary white dashes on black, one field line tall, colour-killed after the first 1–2 fields, under the receiver text, and never grey Gaussian noise (FEED-07). The noise SHALL be the analog camera's, never a radio link's (D-065): nothing SHALL lose the picture on its own, a recovering dropout SHALL come only from the fiber's margin dip and a terminal loss only from its break (`p7d-tether`), and a tear SHALL shear the lines without the black wedge. There SHALL always be a tell before the picture goes.
+The receiver's states SHALL be the Godot feed's: staged loss, hard cut, and recovering dropouts, with a clean recovery: the picture and the OSD come back clean, and receiver text appears only on blue screens (FEED-05, FEED-06). Snow SHALL be near-binary white dashes on black, one field line tall, colour-killed after the first 1–2 fields, under the receiver text, and never grey Gaussian noise (FEED-07). Recovering dropouts SHALL come from Godot's timer, as the port had them (D-026, D-085), and the fiber's margin dip SHALL fire the same sequence on top; a terminal loss SHALL come only from the fiber's break (`p7d-tether`), never a timer. A tear SHALL shear the lines without the black wedge, the "black sticks" (D-065). There SHALL always be a tell before the picture goes.
 
-#### Scenario: The feed never loses the picture on its own
+#### Scenario: The dropouts run on Godot's timer
 - **WHEN** the feed runs for 15 000 fields with an intact fiber and no event
-- **THEN** every field shows the picture, with no tell, tear, dropout or terminal loss, while N1–N4 and the quality drops run as before
+- **THEN** its recovering dropouts start on the Godot feed's fields for the same seed, about 4 a minute, each with its tell and back to the picture, and no terminal loss or snow shows
 
 #### Scenario: No black sticks
-- **WHEN** a fiber loss's tell tears the picture
+- **WHEN** a dropout's or a fiber loss's tell tears the picture
 - **THEN** the lines shear sideways and no black wedge cuts in from the edge
 
 #### Scenario: A recovering dropout comes back clean
-- **WHEN** a recovering dropout fires on the fiber's margin dip and ends
+- **WHEN** a recovering dropout fires, on the timer or on the fiber's margin dip, and ends
 - **THEN** the next clean field shows the picture and the OSD with no receiver text and no residual snow, and the dropout's length is inside the Godot feed's range
 
 ### Requirement: Signals drive the feed

@@ -140,8 +140,8 @@ namespace Fpv450.Feed
         public FeedLoss(Random rng) => _rng = rng;
 
         /// The recovering dropout of N12: a tell, a short outage, then the picture back. This is what the pilot's
-        /// "occasional cut" is. Since D-065 it is the fiber's margin dip that fires it (p7d-tether); Godot's timer
-        /// fires it only with <see cref="FeedEvents.GodotLinkArtefacts"/>.
+        /// "occasional cut" is. Godot's timer fires it (<see cref="FeedEvents.DropoutTimer"/>, D-085), and the
+        /// fiber's margin dip fires it on top (p7d-tether).
         public void StartDropout()
         {
             _count = 0;

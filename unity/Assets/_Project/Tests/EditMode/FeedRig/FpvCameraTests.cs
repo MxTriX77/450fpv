@@ -77,9 +77,9 @@ namespace Fpv450.Feed.Tests
 
                 rig.Step(1365);
                 Assert.That(rig.Feed.Uniforms.Field, Is.EqualTo(1365f));
-                // Godot's timer put seed 1's first tearing dropout tell here; D-065 took the timer out.
+                // Godot's timer puts seed 1's first tearing dropout tell here (D-085): the shear, without the wedge.
                 Assert.That(new[] { rig.Feed.Uniforms.TearAmp, rig.Feed.Uniforms.LossState, rig.Feed.Uniforms.TearWedge },
-                    Is.EqualTo(new[] { 0f, 0f, 0f }));
+                    Is.EqualTo(new[] { 0.6356117f, 0f, 0f }));
                 rig.Step(600); // back: replayed from the seed
                 Assert.That(rig.Events.Field, Is.EqualTo(600));
 
@@ -193,7 +193,7 @@ namespace Fpv450.Feed.Tests
                 rig.settings = s;
                 rig.Begin();
                 Assert.That(rig.Noise, Is.True, "on by default");
-                var reference = new FeedEvents(s.seed) { GodotLinkArtefacts = s.godotLinkArtefacts };
+                var reference = new FeedEvents(s.seed) { DropoutTimer = s.dropoutTimer, TearWedge = s.tearWedge };
                 int off = 0;
                 for (int field = 1; field <= 3000; field++)
                 {
