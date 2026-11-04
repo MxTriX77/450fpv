@@ -159,7 +159,10 @@ namespace Fpv450.Sim.Tests
             // bends it at the clamp (P·δ), so the second skid's legs, landing loaded while the body still rolls about their stuck
             // feet, crack too (80 of 80 at every roll: about 240 N on 8 mm); the first-touching legs' share still rises with the
             // roll (41, 66, 80 of 80; broken 0, 28, 80), and level stays intact.
-            const double speed = 1.1;
+            // Model 49 (p7g-legs 1.4): on the lever a heavily loaded leaning leg's clamp moment is the link's statics, small, not P·δ
+            // on an unbounded give, so at 1.1 m/s 10° and 20° leave every leg intact (0, 0, 0, 100 % of seeds, level to 30°: the
+            // step is back) and the strengths' spread shows at 1.5 m/s, where level is still intact; the touch is flown there.
+            const double speed = 1.5;
             double[] rolls = { 0, 10, 20, 30 }, shares = new double[4];
             int[] firsts = new int[4], broken = new int[4];
             int levelEven = -1;

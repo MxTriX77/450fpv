@@ -461,7 +461,7 @@ namespace Fpv450.Sim.Contact
             Double3 lateral = loads.LawLateral;
             if (_jawStiffness > 0)
             {
-                double kc = loads.LawTouching ? loads.LateralStiffness : 0;
+                double kc = loads.LawTouching ? Restoring(loads.LateralStiffness) : 0;
                 Double3 r = lateral + pDelta * (1 / Lever(leg)) - _jaw[leg] * _jawStiffness;
                 double size = r.Length();
                 if (size > _jawFriction[leg])
@@ -499,7 +499,7 @@ namespace Fpv450.Sim.Contact
                 double env = _envelope[leg], top = PartingRatio(leg, s);
                 Double3 way = mu * (1 / m);
                 double relievable = 0;
-                double kl = loads.LateralStiffness, lever = Lever(leg);
+                double kl = Restoring(loads.LateralStiffness), lever = Lever(leg);
                 if (loads.LawTouching && kl > 0)
                 {
                     relievable = Double3.Dot(lateral, way);
@@ -564,6 +564,11 @@ namespace Fpv450.Sim.Contact
                 Emit(events, EventKind.SkidLoose, leg, LegMode.TJointFracture, cause, socket, _socketMoment[leg], speed);
             }
         }
+
+        // The give across a turn or a set relieves (p7g-legs 1.4): a restoring one's; on its lever past the sway load a leg's give
+        // is negative, a vault that a move of the foot's rest does not relieve (the bow takes the load past it), so none, as 1.3's
+        // give clamped at 0 had it.
+        static double Restoring(double k) => k > 0 ? k : 0;
 
         /// <summary>The leg's moment at the clamp's edge in the last step, N·m (the record's leg_moment).</summary>
         public double Moment(int leg) => _moment[leg];
