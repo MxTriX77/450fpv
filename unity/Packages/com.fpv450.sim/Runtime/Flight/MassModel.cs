@@ -65,8 +65,9 @@ namespace Fpv450.Sim.Flight
     /// <summary>
     /// The mass build (PHB-02, DRN-03, design 3): the drone's parts summed by the parallel-axis theorem into the mass,
     /// the centre of mass and the full inertia tensor (K§6.3: never three tuned scalars). A part's mass may change
-    /// (the payload setting, the coil as it pays out, a leg left off at 0 kg) and the build runs again at once. Its
-    /// shapes and positions are fixed. The rebuild allocates nothing, so the flight thread may run it inside a step.
+    /// (the payload setting, the coil as it pays out, a leg left off at 0 kg) and the build runs again at once; a part may
+    /// be replaced whole (a broken leg's stub, p7g-legs 1.3). The rebuild allocates nothing, so the flight thread may run it
+    /// inside a step.
     /// </summary>
     public sealed class MassModel
     {
@@ -115,6 +116,21 @@ namespace Fpv450.Sim.Flight
             _parts[part].Mass = mass;
             Build();
         }
+
+        /// <summary>
+        /// Replaces one part whole, its mass, centre and shape (a leg broken to its stub, a loose piece's parts; p7g-legs 1.3),
+        /// and rebuilds unless told not to (several parts changed together, then Rebuild once). Allocates nothing.
+        /// </summary>
+        public void SetPart(int part, in DronePart value, bool rebuild = true)
+        {
+            if (!(value.Mass >= 0)) throw new ArgumentOutOfRangeException(nameof(value), "a part's mass is 0 or more");
+            _parts[part] = value;
+            _inertiaPerKg[part] = value.InertiaPerKg();
+            if (rebuild) Build();
+        }
+
+        /// <summary>The build again from the parts as they are (after SetPart without a rebuild).</summary>
+        public void Rebuild() => Build();
 
         // M = Σ m_i; c = Σ m_i·p_i / M; I = Σ m_i·(I_i/kg + |d_i|²·1 − d_i·d_iᵀ), d_i = p_i − c. In part order, so the
         // same masses give the same bits.

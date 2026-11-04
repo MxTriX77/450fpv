@@ -262,7 +262,30 @@ namespace Fpv450.Sim.Tests
         // crash, no contact, 167.03 m up at 10 s against 160.72 and 167.60, 7.88 m and 4.34 m from their ends, within 8.7° and
         // 22.4° of their attitudes; the inertia alone (the pitch off) leaves it 1.95 m apart, the pitch alone (the rod's
         // inertia) 6.78 m.
-        public const ulong PoweredHash = 0xDF1D314EF8AD6012UL;
+        // On p7g-legs (off model 26), model 26: 0x53F1D10489702031. p7g-legs 1.1 (ModelVersion 37): re-recorded with the class's plastic legs (drone.json's
+        // legs block: the PVC-U legs and skids 6.6 g lighter, each leg's spring derived from its section, 52.3 kN/m). Audited:
+        // on model 26's legs (WithModel26Legs) it is model 26's pin bit for bit, every record and event (the kept test,
+        // OnModel26sLegsEachGoldenIsModel26s). It moves from step 1 (the lighter body; 300 m up the spring never acts) and
+        // keeps its course: armed, no crash, 162.65 m up against 162.72 at 10 s, 273 mm from model 26's end and within 0.33°
+        // of its attitude; the packs at 0.8941 of 0.9 (the same).
+        // Model 37: 0xCD0A523E1C9B94F8. p7g-legs 1.2 (ModelVersion 39): re-recorded on the 2072-byte record (the legs' state after
+        // model 37's 1904 bytes). Audited: over model 37's 1904 bytes it is model 37's pin bit for bit, every record and event,
+        // with the legs' side give and their law (it touches nothing 300 m up) and without them (the kept test,
+        // WithoutTheFootsGiveEachGoldenIsModel37s); the legs' bytes hold four intact legs at full stiffness, their moment 0.
+        // Model 39: 0x4907E4D57EB9EB98. p7g-legs 1.3 (ModelVersion 41): re-recorded on the 2296-byte record (each leg's side give,
+        // jaws and hanging fold after model 39's 2072 bytes). Audited: over model 39's 2072 bytes it is model 39's pin bit for bit,
+        // every record and event (the kept test, OverModel39sRecordTheFlightsThatTouchNothingAreModel39s); the new bytes hold each
+        // leg's side give untouched (the tube's 268 N/m with the anchor in series), the jaws and folds 0.
+        // Model 44: 0xDF1D314EF8AD6012 (the line), model 41: 0xCA9A9F3EF97C2118 (p7g-legs). The physics integration 2 with
+        // p7g-legs (ModelVersion 46; the code is the parents' together): re-recorded on the 2784-byte record with p7g's PVC-U
+        // legs. Audited against each parent with the other side off (the kept tests OnModel26sLegsEachGoldenIsModel44s and
+        // WithoutTheLineEachGoldenIsModel41s): on model 26's legs, over the line's 2392 bytes, it is model 44's pin, every record
+        // and event; without the line's mechanisms (no props.blade, model 34's yaw I), over p7g's record (the fiber's and the
+        // strikes' 488 bytes skipped), model 41's, both blocks zero. It moves from step 1 against the line's (the lighter body:
+        // the legs and skids 6.6 g lighter; 300 m up nothing touches) and keeps its course: armed, no crash, no contact, 167.13 m
+        // up at 10 s against 167.03, 318 mm from its end and within 0.41° of its attitude; against p7g's from step 3 (the
+        // yaw I's disarmed loop, the blades from step 21), 4.67 m and 0.80° from its end (162.65 m up). Every leg intact.
+        public const ulong PoweredHash = 0xAE194731E398F0A4UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -306,7 +329,18 @@ namespace Fpv450.Sim.Tests
         // over 2008 bytes, on model 34's yaw I model 35's over p7f's record, the strikes off the same bits. It moves from step
         // 21 and step 2 and keeps its course: 169.23 m up against 162.62 and 170.63, 8.09 m and 3.72 m from their ends, within
         // 9.2° and 22.2°; the film holds 9.79 g at 10 s (10.08 and 9.67).
-        public const ulong RainPoweredHash = 0x48979FA015B4A693UL;
+        // On p7g-legs (off model 26), model 26: 0x53B90D4307BF1534. p7g-legs 1.1 (ModelVersion 37), audited as the powered flight (model 26's pin on model
+        // 26's legs, the kept test): it moves from step 1 and keeps its course, 164.76 m up against 164.73, 204 mm from model
+        // 26's end and within 0.21°; the film holds 9.93 g at 10 s (9.92).
+        // Model 37: 0x15C2A0EF0C503D48. p7g-legs 1.2 (ModelVersion 39), audited as the powered flight: over 1904 bytes model 37's
+        // pin with the law and without it; the legs' bytes intact.
+        // Model 39: 0x5AE2CBA32972DD28. p7g-legs 1.3 (ModelVersion 41), audited as the powered flight: over model 39's 2072 bytes
+        // model 39's pin (the kept test, OverModel39sRecordTheFlightsThatTouchNothingAreModel39s); it touches nothing in its 10 s.
+        // Model 44: 0x48979FA015B4A693 (the line), model 41: 0x724D775C852F6B48 (p7g-legs). The physics integration 2 with
+        // p7g-legs (ModelVersion 46), audited as the powered flight (both kept tests). It moves from step 1 against the line's
+        // and keeps its course: 169.24 m up against 169.23, 148 mm from its end and within 0.29°; against p7g's 4.56 m apart
+        // (164.76 m up); the film holds 9.80 g at 10 s (9.79 and 9.93).
+        public const ulong RainPoweredHash = 0xED60FDA3FF1868A9UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -348,6 +382,23 @@ namespace Fpv450.Sim.Tests
         public const ulong Model38PoweredHash = 0xF0A7027AE1CD5556UL, Model38RainPoweredHash = 0x470AA9C751367BC9UL,
             Model38ContactHash = 0xEA8C1FA9BBE6A19EUL, Model38RangeHash = 0x5133425038BAA44EUL, Model38TetherHash = 0x318B90FF21403E3BUL,
             Model38TumbleHash = 0x3FD62A50B3AF6C84UL;
+
+        /// <summary>The physics integration 2 with p7g-legs (model 46), its audit against the line (GoldenFlightTests.
+        /// OnModel26sLegsEachGoldenIsModel44s): the line's model 44 record, its first 2392 bytes (the record less the legs' 392 at
+        /// its end), and its pins, which every golden flown on model 26's legs (WithModel26Legs: no side give, no failure law,
+        /// the 10 kN/m spring) keeps bit for bit, every record and event.</summary>
+        public const int Model44Layout = LogFormat.Model44StepSize;
+        public const ulong Model44PoweredHash = 0xDF1D314EF8AD6012UL, Model44RainPoweredHash = 0x48979FA015B4A693UL,
+            Model44ContactHash = 0xC3FBF4393BE70692UL, Model44RangeHash = 0xF6BBC45EC751E45FUL, Model44TetherHash = 0x40D840364F986978UL,
+            Model44TumbleHash = 0x4C96AAB4C5453484UL;
+
+        /// <summary>Its audit against p7g-legs (GoldenFlightTests.WithoutTheLineEachGoldenIsModel41s): p7g-legs' model 41 record is
+        /// the record less the fiber's 104 and the blade strikes' 384 bytes at Model28Layout (Model41Skip), and its pins, which
+        /// every golden flown without the line's mechanisms (no surfaces.json, no area laws, no line, no props.blade, model 34's
+        /// yaw I) keeps bit for bit, every record and event.</summary>
+        public const int Model41Skip = LogFormat.Model44StepSize - LogFormat.Model28StepSize;
+        public const ulong Model41PoweredHash = 0xCA9A9F3EF97C2118UL, Model41RainPoweredHash = 0x724D775C852F6B48UL,
+            Model41ContactHash = 0xB7391628EDE527ADUL, Model41TumbleHash = 0xA6914F6702FE98F3UL, Model41RangeHash = 0x1FB746560EDFD45AUL;
 
         /// <summary>Its audit against p7f-damage (GoldenFlightTests.WithoutTheLineEachGoldenIsModel35s): p7f-damage's model 35
         /// record is the record less the fiber's 104 bytes at Model28Layout (Model35Skip), and its pins, which every golden flown
@@ -546,7 +597,41 @@ namespace Fpv450.Sim.Tests
         // its course: within 12.4 mm and 0.77° of the line's path, 4 impacts as the line's, at rest at the same 0.2497 m on 4
         // pairs, 9.6 mm aside. Against p7f's it moves from step 2 (the soil; the yaw I alone leaves it 0.1 mm apart): within
         // 47.1 mm and 1.9° of its path, 4 impacts against 5, at rest at 0.2497 m against 0.2519, 36.8 mm aside.
-        public const ulong ContactHash = 0xC3FBF4393BE70692UL;
+        // On p7g-legs (off model 26), model 26: 0xAAEA31DBFBB13710. p7g-legs 1.1 (ModelVersion 37): re-recorded with the plastic legs. Audited: on model
+        // 26's legs it is model 26's pin bit for bit (the kept test). It moves from step 1 (the lighter body on the derived
+        // 52.3 kN/m spring and its 103 N·s/m damper, the skids standing on the floor from the first step) and keeps its
+        // course: 6 impacts against 5, no crash, at rest at 0.2528 m against 0.2519 (the stiffer
+        // spring sinks 0.24 mm under a leg's share, the assumed 10 kN/m 1.24 mm), 74 mm aside, within 80 mm and 1.8° of model
+        // 26's path (the held bounce).
+        // Model 37: 0xA3B92A5D52CFE546. p7g-legs 1.2 (ModelVersion 39): re-recorded with the legs' side give and their failure
+        // law. Audited: without them (WithModel37Legs), over 1904 bytes, it is model 37's pin bit for bit (the kept test). With
+        // them it moves from step 3 (the skids standing on the floor: their springs across the legs, 262 N/m with the anchor in
+        // series, from the first steps) and keeps its course: 8 impacts (6), no crash, at rest at the same 0.2528 m on 8 pairs,
+        // 163.6 mm from model 37's resting place, within 165 mm and 6.5° of its path (the held bounce, where the soft legs sway
+        // at the tube's own ζ 0.015). The held bounce comes down spinning at 4.3 rad/s about z, so leg_fr's corner touches at 2.6
+        // m/s and its tube bows past the buckling load: it cracks and keeps a set of 0.065° (1.90 N·m past 1.69, step 8916); the
+        // other three stay intact. On the legs' assumed ζ 0.2 carried across (a temporary edit) the side damper alone cracked all
+        // four at that touch.
+        // Model 39: 0xFCA3F1141457625C. p7g-legs 1.3 (ModelVersion 41): re-recorded with a damaged leg changing the drone and the
+        // side give's parts (the tube's give less P·Δ, the jaws held by their friction, the crack flown). Audited: model 37's pin
+        // without the legs' law over 1904 bytes (the kept test, as before). It moves from step 3 (the skids standing: the side
+        // give 265 N/m with the jaws held against 1.2's 260 with their bed) and keeps its course: 8 impacts (8), no crash, at
+        // rest at the same 0.2528 m on 8 pairs, 169.8 mm from model 37's resting place (39: 163.6) and 1.06° from its attitude.
+        // The held bounce's spinning 2.6 m/s corner touch now loads every leg past its sway load, and P·δ at the clamps cracks
+        // all four with sets of 0.039°, 0.121°, 0.003° and 0.002° (39: leg_fr alone, 0.065°); none parts, so no piece drops.
+        // Model 44: 0xC3FBF4393BE70692 (the line), model 41: 0xB7391628EDE527AD (p7g-legs). The physics integration 2 with
+        // p7g-legs (ModelVersion 46): p7g's PVC-U legs, their side give and their law on the floor's belt_bare soil (the soil's
+        // leg coupling, ContactModel.SoilTrial). Audited against each parent with the other side off (both kept tests): on
+        // model 26's legs, over 2392 bytes, model 44's pin, every record and event; without surfaces.json, props.blade and the
+        // line's yaw I, over p7g's record, model 41's. Its shares (the switches): on p7g's legs without their side give and law
+        // (WithModel37Legs) it leaves the line's flight from step 1 (the lighter body on the stiffer spring); the side give moves
+        // it from step 3 (the skids standing in the soil: the groove's anchor in series with the tube's give), by at most 98.5 mm
+        // and 1.82°; with the law off (Legs null) every byte of the line's 2392 is the same (no leg passes a capacity), and so
+        // with the strikes off (no disc cuts the floor). It keeps its course: 3 impacts against the line's 4, no crash, at rest at
+        // 0.2494 m against 0.2497 on 4 pairs (the soil's half-skids), 79.7 mm from the line's resting place and within 97.1 mm
+        // and 1.66° of its path, the deepest nodes 2.9–5.7 mm into the soil, the side give at rest 201 N/m; against p7g's (8
+        // impacts on the rigid floor, its spinning corner touch cracking all four) 11.8 mm from its rest. Every leg intact.
+        public const ulong ContactHash = 0x1AAB934D74816482UL;
 
         /// <summary>The parents' pins at the physics integration 2 (model 34), which its kept audits fly: p7d-tether's model 31
         /// contact, range and tether goldens over the whole 2008-byte record (WithoutTheGroundTheGoldenFlightsAreModel31s:
@@ -595,8 +680,15 @@ namespace Fpv450.Sim.Tests
         /// aside; against the contact golden without the line it moves from step 3, as since model 31, and stays within 6.8 mm
         /// and 0.16° of it, at rest 1.2 mm aside; the line as on model 38 (0.073 m paid out, 15 nodes, the trail at 8 points, no
         /// wedge), the chain's energy check taking no clip or safe step (model 38: 1 and 1).
+        /// Model 44: 0x40D840364F986978. The physics integration 2 with p7g-legs (ModelVersion 46), audited as the contact
+        /// flight: on model 26's legs, over 2392 bytes, model 44's pin, every record and event (OnModel26sLegsEachGoldenIsModel44s);
+        /// the law off the same 2392 bytes, the strikes off the same bits; p7g-legs has no line, so it has no parent pin there.
+        /// It moves from step 1 against model 44's and keeps its course: within 96.4 mm and 1.67° of its path, 3 impacts against
+        /// 4, at rest at 0.2494 m against 0.2497, 77.7 mm aside; against the contact golden without the line it moves from step
+        /// 3, as since model 31, and stays within 6.8 mm and 0.06° of it, at rest 0.9 mm aside; the line paying out 0.075 m, 15
+        /// nodes, the trail at 7 points, no clip or wedge, the chain's energy check taking 1 safe step. Every leg intact.
         /// </summary>
-        public const ulong TetherHash = 0x40D840364F986978UL;
+        public const ulong TetherHash = 0xFE34B0491C406118UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -641,7 +733,20 @@ namespace Fpv450.Sim.Tests
         // Model 38: 0x3FD62A50B3AF6C84 (the line), model 35: 0x9931AD0B7F279044 (p7f-damage). The physics integration 2 with
         // p7f-damage (ModelVersion 40): the 2392-byte record, the fiber's and the strikes' blocks zero (no rotors, no contacts);
         // over the line's 2008 bytes model 38's pin and over p7f's record model 35's (both kept tests), its checks unchanged.
-        public const ulong TumbleHash = 0x4C96AAB4C5453484UL;
+        // On p7g-legs (off model 26), model 26: 0xBCBD33E6B6A94844. p7g-legs 1.1 (ModelVersion 37): the L4 body with the plastic legs (4.735 kg; roll
+        // 0.0436, pitch 0.0466, yaw 0.0590 kg·m²): on model 26's legs model 26's pin (the kept test); 8.9 mm and 0.20° from
+        // model 26's end at 10 s; momentum within 1.4e-12, energy 2.7e-12, the CoM 5.1e-11 m from its parabola, the rate
+        // wandering 5.49 rad/s (5.46).
+        // Model 37: 0x5FBFA89AF2217693. p7g-legs 1.2 (ModelVersion 39): the 2072-byte record, the legs' bytes zero (no contacts):
+        // over 1904 bytes model 37's pin (the kept test); its checks as before.
+        // Model 39: 0x7F9A35ED00445E73. p7g-legs 1.3 (ModelVersion 41): the 2296-byte record; over model 39's 2072 bytes model
+        // 39's pin (the kept test); its checks as before.
+        // Model 44: 0x4C96AAB4C5453484 (the line), model 41: 0xA6914F6702FE98F3 (p7g-legs). The physics integration 2 with
+        // p7g-legs (ModelVersion 46): the 2784-byte record on p7g's L4 body (4.7354 kg), the fiber's, strikes' and legs' blocks
+        // zero (no rotors, no contacts); on model 26's legs over 2392 bytes model 44's pin, over p7g's record model 41's (both
+        // kept tests); its checks as p7g's (momentum 1.4e-12, energy 2.7e-12, the CoM 5.1e-11 m from its parabola, wandering
+        // 5.493 rad/s).
+        public const ulong TumbleHash = 0x24B0961BC802C1D3UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -769,7 +874,29 @@ namespace Fpv450.Sim.Tests
         // rolled 0.03° (0.08°), 4.2 mm from the line's resting place, within 23.2 mm and 0.51° of its path (the held bounce
         // over the straw). Against p7f's it moves from step 2 (the area laws; the yaw I alone leaves it 0.4 mm apart): within
         // 58.4 mm and 2.8° of its path, at rest on 8 pairs against 21, 49.5 mm from its resting place.
-        public const ulong RangeHash = 0xF6BBC45EC751E45FUL;
+        // On p7g-legs (off model 26), model 26: 0xC79B60F487AEB8B6. p7g-legs 1.1 (ModelVersion 37), on the same content: re-recorded with the plastic legs.
+        // Audited as the contact flight (model 26's pin on model 26's legs, the kept test): it moves from step 1 and keeps its
+        // course: 5 impacts against 4, no crash, at rest 0.2319 m up on S04's straw against 0.2323 (0.4 mm deeper), 1.1 mm
+        // from model 26's resting place and within 0.50° of its attitude.
+        // Model 37: 0x89E6F89885BD7282. p7g-legs 1.2 (ModelVersion 39), on the same content: re-recorded with the legs' side give
+        // and their law. Audited as the contact flight (model 37's pin without them over 1904 bytes, the kept test): it moves from
+        // step 3 and keeps its course: 4 impacts against 5, no crash, at rest 0.2338 m up on S04's straw against 0.2319 (19.2 mm
+        // into the straw) on 18 pairs (21), 18.2 mm from model 37's resting place, within 21 mm and 4.6° of its path; every leg
+        // intact.
+        // Model 39: 0xDCC264386AF9748F. p7g-legs 1.3 (ModelVersion 41), on the same content: re-recorded as the contact flight.
+        // Audited as it (model 37's pin without the legs' law over 1904 bytes, the kept test): it moves from step 3 and keeps its
+        // course: 4 impacts (4), no crash, at rest 0.2338 m up on 18 pairs (the same), 18.4 mm from model 37's resting place
+        // (39: 18.2) and 2.55° from its attitude; every leg intact.
+        // Model 44: 0xF6BBC45EC751E45F (the line), model 41: 0x1FB746560EDFD45A (p7g-legs). The physics integration 2 with
+        // p7g-legs (ModelVersion 46), on the same content: p7g's legs on S04's straw's area laws and buried face. Audited
+        // against each parent with the other side off (both kept tests), and without the map's cuts the same bits
+        // (WithoutTheCutsTheRangeGoldenIsTheSame); with the strikes off the same bits (0 passes), and with the law off the
+        // line's 2392 bytes the same. On p7g's legs without their side give (WithModel37Legs) it leaves the line's from step 1,
+        // and the side give moves it from step 3, by at most 13.2 mm and 0.67°. It keeps its course: 3 impacts as the line's, no
+        // crash, at rest 7.89 mm into the straw on 8 pairs (the line's 8.83 on 8), 16.4 mm from the line's resting place, within
+        // 23.6 mm and 0.75° of its path; against p7g's (the straw without its area law, 4 impacts on 18 pairs) 21.7 mm from its
+        // rest. Every leg intact.
+        public const ulong RangeHash = 0x5CB64C5900F44C2BUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -833,9 +960,10 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>p7f-damage 1.2's kept audit (GoldenFlightTests.WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s): with the
         /// blades' pitch draws off and the flapping's inertia at the rod, or without props.blade, each golden flies model 26's
-        /// pins bit for bit, every record and event (the tumble has no rotors and keeps TumbleHash).</summary>
+        /// pins bit for bit, every record and event (the tumble has no rotors and keeps TumbleHash); and p7g-legs 1.1's
+        /// (GoldenFlightTests.OnModel26sLegsEachGoldenIsModel26s): on WithModel26Legs each golden flies model 26's pins.</summary>
         public const ulong Model26PoweredHash = 0x53F1D10489702031UL, Model26RainPoweredHash = 0x53B90D4307BF1534UL,
-            Model26ContactHash = 0xAAEA31DBFBB13710UL, Model26RangeHash = 0xC79B60F487AEB8B6UL;
+            Model26ContactHash = 0xAAEA31DBFBB13710UL, Model26TumbleHash = 0xBCBD33E6B6A94844UL, Model26RangeHash = 0xC79B60F487AEB8B6UL;
 
         /// <summary>The audit against p7b-airframe--power (GoldenFlightTests.WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs):
         /// that branch's model 24 pins over model 19's 1808-byte record, which the powered, rain and tumble goldens flown on
@@ -854,11 +982,62 @@ namespace Fpv450.Sim.Tests
             return rows;
         }
 
+        /// <summary>The spec with model 26's legs (drone.json before p7g-legs 1.1): 10/8 mm CFRP legs and skids of 11 and 20 g,
+        /// each leg's assumed 10 kN/m spring and its 45 N·s/m damper, and the leg shapes' 6600 N/m every way. Pass a freshly
+        /// parsed spec: it is changed in place.</summary>
+        public static DroneSpec WithModel26Legs(DroneSpec spec)
+        {
+            foreach (string name in new[] { "leg_rr", "leg_fr", "leg_rl", "leg_fl", "skid_right", "skid_left" })
+            {
+                ref DronePart p = ref spec.Parts[spec.PartIndex(name)];
+                p.Mass = name.StartsWith("leg_", StringComparison.Ordinal) ? 0.011 : 0.020;
+                p.Material = "carbon";
+            }
+            spec.Legs.Stiffness = 10000;
+            spec.Legs.Damping = 45;
+            WithModel37Legs(spec); // model 26 had no section, so no side give and no failure law
+            for (int i = 0; i < spec.Contacts.Shapes.Length; i++)
+            {
+                ref ContactShape s = ref spec.Contacts.Shapes[i];
+                bool leg = s.Role == ContactRole.Body && s.Name.StartsWith("leg_", StringComparison.Ordinal);
+                if (leg) s.Stiffness = s.StiffnessUp = 6600;
+                if (leg || s.Role == ContactRole.Support || s.Role == ContactRole.Skid) s.Material = "carbon_composite";
+            }
+            return spec;
+        }
+
+        /// <summary>p7g-legs 1.2's kept audit (GoldenFlightTests.WithoutTheFootsGiveEachGoldenIsModel37s): model 37's record, the
+        /// record before the legs' state (2072 − 168 bytes), and its pins, which each golden flown without the legs' side give
+        /// and their failure law (WithModel37Legs) keeps bit for bit.</summary>
+        public const int Model37Layout = 1904;
+
+        /// <summary>p7g-legs 1.3's kept audit (GoldenFlightTests.OverModel39sRecordTheFlightsThatTouchNothingAreModel39s): model
+        /// 39's record, the record before the side give, jaws and folds (2296 − 224 bytes), and its pins. Since model 46 the legs'
+        /// block follows the line's 2392 bytes, so its 2072 bytes are the first 1904 and then the legs' state: hashed with
+        /// Model41Skip at Model28Layout, to this end.</summary>
+        public const int Model39Layout = LogFormat.Model44StepSize + 168;
+        public const ulong Model39PoweredHash = 0x4907E4D57EB9EB98UL, Model39RainPoweredHash = 0x5AE2CBA32972DD28UL,
+            Model39ContactHash = 0xFCA3F1141457625CUL, Model39TumbleHash = 0x7F9A35ED00445E73UL, Model39RangeHash = 0xDCC264386AF9748FUL;
+        public const ulong Model37PoweredHash = 0xCD0A523E1C9B94F8UL, Model37RainPoweredHash = 0x15C2A0EF0C503D48UL,
+            Model37ContactHash = 0xA3B92A5D52CFE546UL, Model37TumbleHash = 0x5FBFA89AF2217693UL, Model37RangeHash = 0x89E6F89885BD7282UL;
+
+        /// <summary>The spec without the legs' side give and their failure law (model 37's leg law: one spring along the
+        /// contact's normal, the stick anchor alone across it): the legs block without its build, so BuildContacts sets neither.
+        /// Pass a freshly parsed spec: it is changed in place.</summary>
+        public static DroneSpec WithModel37Legs(DroneSpec spec)
+        {
+            spec.Legs.Tube = null;
+            spec.Legs.Clamp = null;
+            spec.Legs.TJoint = null;
+            return spec;
+        }
+
         /// <summary>The spec with model 22's drone (drone.json before D-066): the ESCs' assumed 40 A current limit, the
-        /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg. Pass a freshly parsed
-        /// spec: it is changed in place.</summary>
+        /// motors' assumed 1.0 A no-load current, the packs at 0.92 kg and the electronics at 0.25 kg, on model 26's legs
+        /// (WithModel26Legs: model 22's drone had them). Pass a freshly parsed spec: it is changed in place.</summary>
         public static DroneSpec WithModel22Drone(DroneSpec spec)
         {
+            WithModel26Legs(spec);
             for (int i = 0; i < spec.Motors.Length; i++)
             {
                 spec.Motors[i].EscCurrentLimit = 40;

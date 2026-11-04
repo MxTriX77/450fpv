@@ -265,14 +265,18 @@ namespace Fpv450.Sim.Tests
         /// "A sunk skid resists sideways more than along": the legs-on drone held level with its skids' cores depth below
         /// the floor's surface (body y), its contacts settled for 0.5 s at rest, then moved 30 mm along direction (world,
         /// horizontal: +x across the skids, +z along them) over 1 s with its velocity zero (quasi-static). Reads the
-        /// contacts' force each step through ContactModel alone.
+        /// contacts' force each step through ContactModel alone. Since model 46 (p7g-legs on the line) the legs are rigid across
+        /// their tubes here and in Breakaway (LandingScenarios.RigidAcross: model 37's leg law, no side give, no failure law), as
+        /// D-067's mechanics fly them: the scenarios measure the groove's hold, and the tube's own side give, about 200 N/m at a
+        /// foot with the anchor in series, would take the push's 30 mm (the bisection's 50 mm) long before the groove's 20–80 N.
         /// </summary>
         public static Push Drag(DroneSpec spec, FlightWorld world, double depth, Double3 direction, RainLevel rain = RainLevel.Sunny, bool rigid = false)
         {
             FlightSetup setup = Setup(spec, world, default, rain, rigid: rigid);
+            setup.Contacts = LandingScenarios.RigidAcross()(setup.Contacts); // the groove's hold, the legs rigid across (Drag)
             MassModel mass = setup.Mass;
             world.Query.ResetRuntimeObjects();
-            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain));
+            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain), random: new FlightRandom(setup.Seed));
             var events = new StepEvents();
             var s = new FlightState { Attitude = Quat.Identity, Position = new Double3(0, Standing(spec) - depth, 0) };
             model.Sense(s, ref s, events);
@@ -370,9 +374,10 @@ namespace Fpv450.Sim.Tests
         static bool Holds(DroneSpec spec, FlightWorld world, double depth, Double3 direction, double d, RainLevel rain, bool rigid, out double tangential, out double normal)
         {
             FlightSetup setup = Setup(spec, world, default, rain, rigid: rigid);
+            setup.Contacts = LandingScenarios.RigidAcross()(setup.Contacts); // the groove's hold, the legs rigid across (Drag)
             MassModel mass = setup.Mass;
             world.Query.ResetRuntimeObjects();
-            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain));
+            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain), random: new FlightRandom(setup.Seed));
             var events = new StepEvents();
             var s = new FlightState { Attitude = Quat.Identity, Position = new Double3(0, Standing(spec) - depth, 0) };
             model.Sense(s, ref s, events);
@@ -568,10 +573,12 @@ namespace Fpv450.Sim.Tests
         /// flown 2 s past it. ground is the stub floor or the range.
         /// </summary>
         public static Landing Land(DroneSpec spec, FlightWorld world, Double3 at, double descent, double forward = 0, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, bool rigid = false)
+            SurfaceTable table = null, bool rigid = false, Func<ContactSpec, ContactSpec> legs = null)
         {
             double stand = Standing(spec);
-            var core = new FlightCore(Setup(spec, world, at + new Double3(0, stand, 0), rain, table: table, rigid: rigid));
+            FlightSetup setup = Setup(spec, world, at + new Double3(0, stand, 0), rain, table: table, rigid: rigid);
+            if (legs != null) setup.Contacts = legs(setup.Contacts);
+            var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, at + new Double3(0, stand + 1, 0));
             int k = 0;
@@ -694,7 +701,7 @@ namespace Fpv450.Sim.Tests
             MassModel mass = setup.Mass;
             world.Query.ResetRuntimeObjects();
             place?.Invoke(world);
-            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain));
+            var model = new ContactModel(setup.Contacts, world, mass.Properties.Mass, SurfaceTable.MoistureOf(rain), random: new FlightRandom(setup.Seed));
             var events = new StepEvents();
             var s = new FlightState { Attitude = Quat.Identity, Position = at + new Double3(0, Standing(spec) + 0.001, 0) };
             model.Sense(s, ref s, events);

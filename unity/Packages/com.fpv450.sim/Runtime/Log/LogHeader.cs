@@ -157,6 +157,17 @@ namespace Fpv450.Sim.Log
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
             "Surfaces", "BladeStrikes", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
             "FlapFrequency", "FlapSouthwell",
+            "LegSideStiffness", "LegSideDampingRatio", "Legs",
+            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness",
+        };
+
+        /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
+        public static readonly string[] LegFieldsLogged =
+        {
+            "Parts", "TJointParts", "Clamp", "Foot", "SocketLever", "FreeLength", "OuterDiameter", "InnerDiameter", "Modulus", "CrackedFactor",
+            "BoltDiameter", "GripLength", "ScrewDiameter", "SocketDiameter", "YieldStress", "Elongation", "EdgeFactor", "ClampTorque", "NutFactor",
+            "Friction", "TJointTorque", "Interlayer",
+            "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -866,6 +877,43 @@ namespace Fpv450.Sim.Log
                 // surfaces.json's table and hash after its flag (format 17; 14 on p7a-ground).
                 e.Write(c.Surfaces != null);
                 if (c.Surfaces != null) WriteSurfaces(e, c.Surfaces);
+                // The legs' side give and their failure law (format 27 and 31 on p7g-legs), after surfaces.json's table.
+                e.Write(c.LegSideStiffness);
+                e.Write(c.LegSideDampingRatio);
+                e.Write(c.LegTubeSideStiffness);
+                e.Write(c.LegJawSideStiffness);
+                e.Write(c.LegSwayLoad);
+                e.Write(c.LegTubeAxialStiffness);
+                e.Write(c.Legs != null);
+                if (c.Legs == null) return;
+                LegDamageSpec l = c.Legs;
+                for (int k = 0; k < 4; k++)
+                {
+                    e.Write(l.Parts[k]);
+                    e.Write(l.TJointParts[k]);
+                    V3(e, l.Clamp[k]);
+                    V3(e, l.Foot[k]);
+                }
+                foreach (double v in new[] { l.SocketLever, l.FreeLength, l.OuterDiameter, l.InnerDiameter, l.Modulus, l.CrackedFactor, l.BoltDiameter,
+                    l.GripLength, l.ScrewDiameter, l.SocketDiameter })
+                    e.Write(v);
+                foreach (LegBound b in new[] { l.YieldStress, l.Elongation, l.EdgeFactor, l.ClampTorque, l.NutFactor, l.Friction, l.TJointTorque, l.Interlayer })
+                {
+                    e.Write(b.Value);
+                    e.Write(b.Min);
+                    e.Write(b.Max);
+                }
+                for (int k = 0; k < 4; k++)
+                {
+                    e.Write(l.SkidParts[k]);
+                    e.Write(l.Sibling[k]);
+                    V3(e, l.Bore[k]);
+                }
+                e.Write(l.AirDensity);
+                e.Write(l.LooseDrag);
+                e.Write(l.RestSpeed);
+                e.Write(l.RestRate);
+                e.Write(l.RestSteps);
             });
             Entry(w, TagRain, e =>
             {
@@ -1585,8 +1633,55 @@ namespace Fpv450.Sim.Log
                 };
             c.MaterialsHash = r.ReadUInt64();
             if (r.ReadBoolean()) c.Surfaces = ReadSurfaces(r);
+            c.LegSideStiffness = r.ReadDouble();
+            c.LegSideDampingRatio = r.ReadDouble();
+            c.LegTubeSideStiffness = r.ReadDouble();
+            c.LegJawSideStiffness = r.ReadDouble();
+            c.LegSwayLoad = r.ReadDouble();
+            c.LegTubeAxialStiffness = r.ReadDouble();
+            if (!r.ReadBoolean()) return c;
+            var l = new LegDamageSpec();
+            for (int k = 0; k < 4; k++)
+            {
+                l.Parts[k] = r.ReadInt32();
+                l.TJointParts[k] = r.ReadInt32();
+                l.Clamp[k] = V3(r);
+                l.Foot[k] = V3(r);
+            }
+            l.SocketLever = r.ReadDouble();
+            l.FreeLength = r.ReadDouble();
+            l.OuterDiameter = r.ReadDouble();
+            l.InnerDiameter = r.ReadDouble();
+            l.Modulus = r.ReadDouble();
+            l.CrackedFactor = r.ReadDouble();
+            l.BoltDiameter = r.ReadDouble();
+            l.GripLength = r.ReadDouble();
+            l.ScrewDiameter = r.ReadDouble();
+            l.SocketDiameter = r.ReadDouble();
+            l.YieldStress = Bound(r);
+            l.Elongation = Bound(r);
+            l.EdgeFactor = Bound(r);
+            l.ClampTorque = Bound(r);
+            l.NutFactor = Bound(r);
+            l.Friction = Bound(r);
+            l.TJointTorque = Bound(r);
+            l.Interlayer = Bound(r);
+            for (int k = 0; k < 4; k++)
+            {
+                l.SkidParts[k] = r.ReadInt32();
+                l.Sibling[k] = r.ReadInt32();
+                l.Bore[k] = V3(r);
+            }
+            l.AirDensity = r.ReadDouble();
+            l.LooseDrag = r.ReadDouble();
+            l.RestSpeed = r.ReadDouble();
+            l.RestRate = r.ReadDouble();
+            l.RestSteps = r.ReadInt32();
+            c.Legs = l;
             return c;
         }
+
+        static LegBound Bound(BinaryReader r) => new LegBound { Value = r.ReadDouble(), Min = r.ReadDouble(), Max = r.ReadDouble() };
 
         // ---- surfaces.json's table (p7a-ground 1.1, format 17; 14 on p7a-ground) ----
 

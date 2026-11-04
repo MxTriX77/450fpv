@@ -65,7 +65,12 @@ namespace Fpv450.Sim.Tests
             Assert.That(rain.FilmCapacity, Is.EqualTo(1000 * rain.FilmThickness * rain.WettedArea).Within(1e-12));
             Assert.That(r.FilmMass, Is.GreaterThan(0));
             Assert.That(r.FilmMass, Is.LessThanOrEqualTo(rain.FilmCapacity));
-            Assert.That(r.Core.Body.Mass - r.DryMass, Is.EqualTo(r.FilmMass).Within(1e-12), "the film is the body's");
+            // The flight's dive meets the floor at 20 m/s at 18.4 s, where its legs part and their pieces drop (p7g-legs 1.3): the
+            // dry build is the start's less what dropped.
+            double dropped = 0;
+            for (int i = 0; i < Contact.LoosePieces.Slots; i++)
+                if (r.Core.Loose != null && r.Core.Loose.Active(i)) dropped += r.Core.Loose.Body(i).Mass;
+            Assert.That(r.Core.Body.Mass - (r.DryMass - dropped), Is.EqualTo(r.FilmMass).Within(1e-12), "the film is the body's");
             Assert.That(r.Core.Trace.FilmMass, Is.EqualTo(r.FilmMass));
         }
 

@@ -74,6 +74,12 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>Every ESC's disarm rule in place of drone.json's (a compared variant), or null.</summary>
             public EscDisarm? Esc;
+
+            /// <summary>The lateral speed's way: negative against body +x (or +z), else along it (p7g-legs 1.3: each side in turn).</summary>
+            public double Sign;
+
+            /// <summary>A change to the flight before its first step (a damaged leg, p7g-legs 1.3), or null.</summary>
+            public Action<FlightCore> Prepare;
         }
 
         public struct Outcome
@@ -145,10 +151,11 @@ namespace Fpv450.Sim.Tests
             if (t.Edit != null) contacts = t.Edit(contacts);
             ContactScenarios.Site site = t.Site ?? new ContactScenarios.Site(null, default, 0);
             Quat heading = site.Attitude(), q = (heading * Tilt(t.RollDeg, t.PitchDeg)).Normalized();
-            Double3 along = heading.Rotate(t.Forward ? new Double3(0, 0, 1) : new Double3(1, 0, 0));
+            double way = t.Sign < 0 ? -1 : 1, signed = t.Sign < 0 ? -t.Lateral : t.Lateral; // p7g-legs 1.3: each side in turn
+            Double3 along = heading.Rotate(t.Forward ? new Double3(0, 0, way) : new Double3(way, 0, 0));
             var f = new Flight(spec, t, loadout, contacts, site, along);
             if (t.Power == Power.Free)
-                return f.Fly(q, 0.001, heading.Rotate(t.Forward ? new Double3(0, 0, t.Lateral) : new Double3(t.Lateral, 0, 0)) + new Double3(0, -t.Descent, 0), false, 0);
+                return f.Fly(q, 0.001, heading.Rotate(t.Forward ? new Double3(0, 0, signed) : new Double3(signed, 0, 0)) + new Double3(0, -t.Descent, 0), false, 0);
 
             // The approach: each round flies it and moves the start by what it missed at its steady part's start (SpinUpSeconds
             // after the step): the throttle by the sink's acceleration from there (thrust ∝ the throttle² near the hover), the
@@ -158,7 +165,7 @@ namespace Fpv450.Sim.Tests
             // the asked one.
             double descent = Math.Max(t.Descent, PoweredMinDescent), T = ApproachSeconds, ts = SpinUpSeconds;
             double lean = (t.Forward ? t.PitchDeg : t.RollDeg) * Math.PI / 180;
-            double lateral = t.Lateral - G * Math.Tan(lean) * T, sink = -descent, clear = descent * T + 0.3;
+            double lateral = t.Lateral - way * G * Math.Tan(lean) * T, sink = -descent, clear = descent * T + 0.3;
             double throttle = HoverThrottle(spec, materials, hash) / Math.Sqrt(Math.Cos(lean));
             Quat start = q;
             for (int r = 0; r < ApproachRounds; r++)
@@ -231,6 +238,7 @@ namespace Fpv450.Sim.Tests
                     setup.StartPackCharge = 0.9;
                 }
                 var core = new FlightCore(setup);
+                _t.Prepare?.Invoke(core);
                 var o = new Outcome
                 {
                     Reached = double.PositiveInfinity, TouchEnded = double.PositiveInfinity, LaterSpeed = double.NaN, Throttle = hold,
@@ -398,12 +406,28 @@ namespace Fpv450.Sim.Tests
             return c;
         };
 
-        /// <summary>A caught skid on dead legs: the ground's pair at μ 10 and each leg's damper at ζ √2 on a quarter of the
-        /// mass (overdamped, so a leg returns none of the touch), the rigid-body mechanics' own plastic catch.</summary>
+        /// <summary>A caught skid on dead legs: the ground's pair at μ 10 and each leg at 10 kN/m with its damper at ζ √2 on a
+        /// quarter of the mass (overdamped, so a leg returns none of the touch), the rigid-body mechanics' own plastic catch.
+        /// The catch does not depend on the leg's spring, and the device keeps model 26's 10 kN/m: on p7g-legs 1.1's derived
+        /// 52.3 kN/m the overdamped damper (729 N·s/m) passes the explicit step's stability on a skid end's small effective
+        /// mass, and the catch tips the drone at no speed at all past 30–40 kN/m (a sweep of 10–52.3 kN/m at ζ 0.7, 1 and √2:
+        /// within 0.6 % of the mechanics to 20 kN/m at every ζ, and at ζ 0.7 to 52.3 kN/m).</summary>
         public static Func<ContactSpec, ContactSpec> DeadLegsCaught(double mass) => c =>
         {
             c = GroundFriction(10)(c);
+            c.LegStiffness = 10000;
             c.LegDamping = 2 * Math.Sqrt(2) * Math.Sqrt(c.LegStiffness * mass / 4);
+            return c;
+        };
+
+        /// <summary>The legs rigid across their tubes, as LandingStability's mechanics has them: model 37's one spring along the
+        /// contact's normal and the stick anchor alone across it (no side give, no failure law), then edit if any.</summary>
+        public static Func<ContactSpec, ContactSpec> RigidAcross(Func<ContactSpec, ContactSpec> edit = null) => c =>
+        {
+            c = (edit != null ? edit(c) : c).Clone();
+            c.LegSideStiffness = 0;
+            c.LegSideDampingRatio = 0;
+            c.Legs = null;
             return c;
         };
 

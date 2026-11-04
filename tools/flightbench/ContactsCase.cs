@@ -160,10 +160,16 @@ namespace Fpv450.FlightBench
                 $"the soil yields {rl.Yield[0] * 1e3:F3} mm, then {rl.Yield[1] * 1e3:F3} mm from its print's floor {rl.Floor[1] * 1e3:F3} mm down, then {rl.Yield[2] * 1e3:F3} mm aside");
 
             Console.WriteLine("the glide landing (the pilot's 0.5 m/s down and 0.3 m/s forward, held to the touch, cut):");
-            SoilScenarios.Landing gt = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
-            SoilScenarios.Landing gd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
-            SoilScenarios.Landing rt = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, rigid: true);
-            SoilScenarios.Landing rd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, rigid: true);
+            // Since model 46 the soil's catch is judged with the legs rigid across (SoilTests.TheGlideLandingPitchesFurtherOnSoftGround).
+            Func<ContactSpec, ContactSpec> rigidAcross = LandingScenarios.RigidAcross();
+            SoilScenarios.Landing gt = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, legs: rigidAcross);
+            SoilScenarios.Landing gd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, legs: rigidAcross);
+            SoilScenarios.Landing rt = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, rigid: true, legs: rigidAcross);
+            SoilScenarios.Landing rd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, rigid: true, legs: rigidAcross);
+            SoilScenarios.Landing st = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
+            SoilScenarios.Landing sd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
+            Console.WriteLine($"  (information) on the legs' side give: tilled {st.NoseDown:F3}° ({st.PeakSink * 1e3:F2} mm in), dirt track {sd.NoseDown:F3}° "
+                + $"({sd.PeakSink * 1e3:F2} mm): the bending legs absorb the catch");
             Row("tilled stumbles more than the dirt track", gt.NoseDown > gd.NoseDown && gt.Crashes + gd.Crashes == 0,
                 $"nose down {gt.NoseDown:F3}° ({gt.PeakSink * 1e3:F2} mm in) against {gd.NoseDown:F3}° ({gd.PeakSink * 1e3:F2} mm)");
             Row("known-wrong: the rigid ground with plain friction", Math.Abs(rt.NoseDown - rd.NoseDown) >= 0.5 * (gt.NoseDown - gd.NoseDown),
@@ -447,7 +453,10 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                 Row(name + ", throttle held, as the stub's", Math.Abs(held.SeparationHeight - stubHeld.SeparationHeight) <= 1e-3 && held.Tunnels == 0 && held.Crashes == 0
                     && held.Lost == 0, Land(held) + First(held));
                 ContactScenarios.Landing cut = ContactScenarios.Land(spec, materials, hash, true, site: site);
-                Row(name + ", throttle cut, as the stub's", Math.Abs(cut.Settled - stubCut.Settled) <= 0.01 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
+                // Since model 46 the rest's time is the idle rotors' forcing on the soft legs (RangeContactTests'
+                // WithTheAirframesEffectsSoilIsStillThePlane): both rest within 2.5 s at the stub's height.
+                Row(name + ", throttle cut, as the stub's", !double.IsNaN(cut.Settled) && cut.Settled <= 2.5 && !double.IsNaN(stubCut.Settled)
+                    && Math.Abs(cut.Core.State.Position.Y - at.Foot.Y - stubCut.Core.State.Position.Y) <= 1e-3 && cut.Tunnels == 0 && cut.Crashes == 0 && cut.Lost == 0,
                     Land(cut) + First(cut));
             }
             ContactScenarios.Site straw = RangeScenarios.At(RangeScenarios.Straw, 0);

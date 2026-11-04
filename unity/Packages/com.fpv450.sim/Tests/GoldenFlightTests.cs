@@ -29,8 +29,9 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ThePoweredFlightTouchesNothing()
         {
-            ulong with = GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, ContactBytesAt, ContactBytes);
-            ulong without = GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore bare, ContactBytesAt, ContactBytes, false);
+            // Since model 39 the legs' state block (a flight without contacts leaves it zero) is left out with them.
+            ulong with = GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore core, ContactBytesAt, ContactBytes, layout: LegAt);
+            ulong without = GoldenFlights.FlyPowered(RepositoryDrone.Spec(), out FlightCore bare, ContactBytesAt, ContactBytes, false, layout: LegAt);
             Assert.That(core.Contacts, Is.Not.Null, "the flight carries its contacts");
             Assert.That(bare.Contacts, Is.Null);
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
@@ -75,7 +76,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheSoilTheContactGoldenIsModel26s()
         {
-            Assert.That(GoldenFlights.FlyContact(GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text())), out _, soil: false,
+            Assert.That(GoldenFlights.FlyContact(GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))), out _, soil: false,
                     layout: GoldenFlights.Model28Layout, yawI: false),
                 Is.EqualTo(GoldenFlights.Model26ContactHash), "over model 28's 1904 bytes since model 34 (the line's record)");
         }
@@ -96,7 +97,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(s.Crashed, Is.False);
             Assert.That(core.Trace.ContactsTouching, Is.GreaterThanOrEqualTo(8), "it ends at rest in the straw");
             Assert.That(sink, Is.EqualTo(0.009).Within(15).Percent, "sunk into the mat as at rest there (RangeContactTests: 9.0 mm by the half-skid's area)");
-            Assert.That(speed, Is.LessThan(2e-3), "at rest (1.15 mm/s at 12 s on D-066's model 23, under 1 mm/s on model 22)");
+            // Since model 46 (p7g-legs on the line) the legs' side sway on the straw decays at the tube's own ζ (about 4 s) under
+            // the idle rotors: 3.87 mm/s at 12 s (without props.blade 3.67; on p7g's legs without their side give 0.16; on model
+            // 26's legs 0.70), under the landings' 1 cm/s rest.
+            Assert.That(speed, Is.LessThan(5e-3), "at rest (1.15 mm/s at 12 s on D-066's model 23, under 1 mm/s on model 22)");
             Assert.That(GoldenFlights.FlyRange(spec, out _), Is.EqualTo(hash), "a second flight gives the same bits");
             Assert.That(hash, Is.EqualTo(GoldenFlights.RangeHash), "the pinned golden (a re-record is audited and raises the model version)");
         }
@@ -108,7 +112,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheAreaLawsTheRangeGoldenIsModel32s()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // since model 46 on model 26's legs
             const int at = GoldenFlights.Model28Layout; // since model 34 the record's end is the line's block
             Assert.That(GoldenFlights.FlyRange(spec, out _, materials: GoldenFlights.WithoutTheAreaLaws(), layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model32RangeHash), "dry");
             Assert.That(GoldenFlights.FlyRange(spec, out _, rain: RainLevel.Rain, table: SoilScenarios.Table(), materials: GoldenFlights.WithoutTheAreaLaws(), layout: at, yawI: false),
@@ -135,6 +139,115 @@ namespace Fpv450.Sim.Tests
                 layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model15StillPoweredHash), "powered");
             Assert.That(core.Contacts.ImpactCount, Is.EqualTo(0));
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, RotorWindBytesAt, WindBytes, at), Is.EqualTo(GoldenFlights.Model15TumbleHash), "tumble");
+        }
+
+        // p7g-legs 1.2 (model 39), its audit, kept: without the legs' side give and their failure law (WithModel37Legs), over
+        // model 37's 1904 bytes (the record less the legs' state), every golden is model 37's, every record and event, so the
+        // leg law is the whole change. Since model 46 (the physics integration 2) each flies without the line's mechanisms (no
+        // soil, no area laws, no props.blade, model 34's yaw I; no line, no cut), as WithoutTheLineEachGoldenIsModel41s.
+        [Test]
+        public void WithoutTheFootsGiveEachGoldenIsModel37s()
+        {
+            DroneSpec Model37() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel37Legs(DroneSpec.Parse(RepositoryDrone.Text())));
+            const int at = GoldenFlights.Model37Layout;
+            Assert.That(GoldenFlights.FlyPowered(Model37(), out _, layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model37PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(Model37(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, yawI: false),
+                Is.EqualTo(GoldenFlights.Model37RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(Model37(), out _, layout: at, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model37ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model37(), out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model37TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyRange(Model37(), out _, layout: at, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
+                Is.EqualTo(GoldenFlights.Model37RangeHash), "range");
+            // With them, the flights that touch nothing are model 37's too.
+            DroneSpec now = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            Assert.That(GoldenFlights.FlyPowered(now, out _, layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model37PoweredHash), "powered, with the law");
+            Assert.That(GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, yawI: false),
+                Is.EqualTo(GoldenFlights.Model37RainPoweredHash), "rain, with the law");
+            Assert.That(GoldenFlights.FlyTumble(now, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model37TumbleHash), "tumble, with the law");
+        }
+
+        // p7g-legs 1.3 (model 41), its audit, kept: the flights that touch nothing (powered, rain, tumble) are model 39's over its
+        // 2072 bytes, every record and event, with the side give's parts and a damaged leg's change in place; the contact and
+        // range flights' moves are their pins' audits (GoldenFlights). Since model 46 without the line's mechanisms, model 39's
+        // record the first 1904 bytes and then the legs' state (the fiber's and the strikes' blocks skipped).
+        [Test]
+        public void OverModel39sRecordTheFlightsThatTouchNothingAreModel39s()
+        {
+            DroneSpec now = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            const int at = GoldenFlights.Model28Layout, skip = GoldenFlights.Model41Skip, end = GoldenFlights.Model39Layout;
+            Assert.That(GoldenFlights.FlyPowered(now, out _, at, skip, layout: end, yawI: false), Is.EqualTo(GoldenFlights.Model39PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(now, out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: end, yawI: false),
+                Is.EqualTo(GoldenFlights.Model39RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyTumble(now, out _, out _, at, skip, end), Is.EqualTo(GoldenFlights.Model39TumbleHash), "tumble");
+        }
+
+        // p7g-legs 1.1 (model 37), its audit, kept: on model 26's legs (WithModel26Legs: the CFRP legs' and skids' 11 and 20 g,
+        // the assumed 10 kN/m spring and its 45 N·s/m damper, the leg shapes' 6600 N/m, no side give) every golden is model
+        // 26's over its 1904 bytes, every record and event, so the legs' data is the whole change. Since model 46 without the
+        // line's mechanisms.
+        [Test]
+        public void OnModel26sLegsEachGoldenIsModel26s()
+        {
+            DroneSpec Model26() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text())));
+            const int at = GoldenFlights.Model37Layout;
+            Assert.That(GoldenFlights.FlyPowered(Model26(), out _, layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model26PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(Model26(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, yawI: false),
+                Is.EqualTo(GoldenFlights.Model26RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(Model26(), out _, layout: at, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model26ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyTumble(Model26(), out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model26TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyRange(Model26(), out _, layout: at, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
+                Is.EqualTo(GoldenFlights.Model26RangeHash), "range");
+        }
+
+        // The physics integration 2 with p7g-legs (model 46), its audit against the line (model 44), kept: on model 26's legs
+        // (WithModel26Legs: no side give, no failure law, the CFRP masses and the 10 kN/m spring), over the line's 2392 bytes,
+        // every golden is model 44's pin, every record and event: p7g-legs' code (the side give's path, the law, the damaged
+        // leg's geometry, the loose pieces, the soil's leg coupling) changes no flight without the legs' build, and drone.json's
+        // legs are the whole of each move against the line. No leg on model 26's legs ever changes state.
+        [Test]
+        public void OnModel26sLegsEachGoldenIsModel44s()
+        {
+            DroneSpec spec = GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()));
+            const int at = GoldenFlights.Model44Layout;
+            uint states = 0;
+            void Legs(byte[] record)
+            {
+                for (int i = at; i < at + 8; i++) states |= record[i]; // each leg's state byte and each corner's
+            }
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: at, onRecord: Legs), Is.EqualTo(GoldenFlights.Model44PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, onRecord: Legs),
+                Is.EqualTo(GoldenFlights.Model44RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore contact, layout: at, onRecord: Legs), Is.EqualTo(GoldenFlights.Model44ContactHash), "contact, on the soil");
+            Assert.That(contact.Contacts.Legs, Is.Null, "no failure law on model 26's legs");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Legs), Is.EqualTo(GoldenFlights.Model44RangeHash), "range, with the area laws");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, layout: at, onRecord: Legs), Is.EqualTo(GoldenFlights.Model44TetherHash), "tether");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model44TumbleHash), "tumble");
+            Assert.That(states, Is.EqualTo(0u), "every leg intact, every corner whole");
+        }
+
+        // Its audit against p7g-legs (model 41), kept: without the line's mechanisms (no surfaces.json, no area laws, no line, no
+        // props.blade, model 34's yaw I; no golden enters a cut), over p7g-legs' record (the record less the fiber's 104 and the
+        // strikes' 384 bytes at 1904), every golden is model 41's pin, every record and event, and the two blocks are zero on
+        // every record: the line's code changes no flight without its mechanisms, and they are the whole of each move against
+        // p7g-legs.
+        [Test]
+        public void WithoutTheLineEachGoldenIsModel41s()
+        {
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            const int at = GoldenFlights.Model28Layout, skip = GoldenFlights.Model41Skip;
+            int nonZero = 0;
+            void Line(byte[] record)
+            {
+                for (int i = at; i < at + skip; i++) if (record[i] != 0) nonZero++;
+            }
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, onRecord: Line, yawI: false), Is.EqualTo(GoldenFlights.Model41PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Line, yawI: false),
+                Is.EqualTo(GoldenFlights.Model41RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, at, skip, onRecord: Line, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model41ContactHash),
+                "contact, on the rigid floor");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, at, skip, onRecord: Line, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
+                Is.EqualTo(GoldenFlights.Model41RangeHash), "range, without the area laws");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip), Is.EqualTo(GoldenFlights.Model41TumbleHash), "tumble");
+            Assert.That(nonZero, Is.EqualTo(0), "the fiber's and the strikes' blocks of a flight without the line and props.blade");
         }
 
         // D-066 (model 23 on p7b-airframe--power), its audit, kept: on model 22's drone (the 40 A limit, the 1.0 A no-load
@@ -164,7 +277,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheIntegrationTheGoldenFlightsAreThePowerBranchs()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // the branch flew them
             const int at = GoldenFlights.Model19Layout;
             Assert.That(GoldenFlights.FlyPowered(spec, out _, interference: false, wake: false, motors: false, layout: at, yawI: false),
                 Is.EqualTo(GoldenFlights.PowerPoweredHash), "powered");
@@ -192,6 +305,7 @@ namespace Fpv450.Sim.Tests
         const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
         const int InterferenceAt = ModeAt + ModeBytes, InterferenceBytes = 64, WakeAt = InterferenceAt + InterferenceBytes, WakeBytes = 32;
         const int FiberAt = WakeAt + WakeBytes, FiberBytes = 104, StrikesAt = FiberAt + FiberBytes, StrikesBytes = 384;
+        const int LegAt = StrikesAt + StrikesBytes, LegBytes = 168, DamageAt = LegAt + LegBytes, DamageBytes = 224;
 
         // The audits of p7b-airframe 1.3d and D-064, kept on the integration (model 24): without the interference, the rotor
         // wakes and the motors' resistance, friction and inertia spreads, over model 19's 1808 bytes, the powered, rain and
@@ -232,7 +346,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void OverModel28sRecordEachGoldenIsModel28s()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // since model 46 on model 26's legs
             const int at = GoldenFlights.Model28Layout;
             int nonZero = 0;
             void Tail(byte[] record)
@@ -258,7 +372,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void OverModel28sRecordEachGoldenIsModel33s()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // since model 46 on model 26's legs
             const int at = GoldenFlights.Model28Layout;
             int nonZero = 0;
             void Tail(byte[] record)
@@ -277,7 +391,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheGroundTheGoldenFlightsAreModel31s()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // since model 46 on model 26's legs
             const int at = GoldenFlights.Model38Layout; // since model 40 the record's end is the blade strikes
             Assert.That(GoldenFlights.FlyContact(spec, out _, soil: false, yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model31ContactHash), "contact, on the rigid floor");
             Assert.That(GoldenFlights.FlyRange(spec, out _, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model31RangeHash),
@@ -307,7 +421,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void OnModel34sYawIEachGoldenIsModel34s()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // since model 46 on model 26's legs
             const int at = GoldenFlights.Model38Layout; // since model 40 the record's end is the blade strikes
             Assert.That(GoldenFlights.FlyPowered(spec, out _, yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model34PoweredHash), "powered");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, yawI: false, layout: at),
@@ -339,7 +453,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithThePitchOffAndTheRodsInertiaEachGoldenIsModel26s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text())); // since model 46
             System.Action<FlightSetup> model26 = s =>
             {
                 GoldenFlights.WithoutThePitch(s);
@@ -354,7 +468,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyContact(spec, out _, edit: model26, layout: at, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model26ContactHash), "contact");
             Assert.That(GoldenFlights.FlyRange(spec, out _, edit: model26, layout: at, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
                 Is.EqualTo(GoldenFlights.Model26RangeHash), "range");
-            DroneSpec bladeless = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec bladeless = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text())));
             Assert.That(GoldenFlights.FlyPowered(bladeless, out _, layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model26PoweredHash), "powered without props.blade");
             Assert.That(GoldenFlights.FlyContact(bladeless, out _, layout: at, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model26ContactHash), "contact without props.blade");
         }
@@ -366,12 +480,12 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void OverModel29sLayoutEachGoldenIsModel29s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text())), now = RepositoryDrone.Spec(); // since model 46
             const int at = GoldenFlights.Model29Layout;
             bool zero = true;
             System.Action<byte[]> strikes = record =>
             {
-                for (int i = GoldenFlights.Model38Layout; i < LogFormat.StepSize; i++) zero &= record[i] == 0;
+                for (int i = GoldenFlights.Model38Layout; i < GoldenFlights.Model44Layout; i++) zero &= record[i] == 0;
             };
             System.Action<FlightSetup> off = s => { if (s.Contacts != null) s.Contacts.BladeStrikes = false; };
             Assert.That(GoldenFlights.FlyPowered(spec, out _, onRecord: strikes, layout: at, yawI: false), Is.EqualTo(GoldenFlights.Model29PoweredHash), "powered");
@@ -385,9 +499,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(range.Strikes.Passes, Is.EqualTo(0));
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model29TumbleHash), "tumble");
             Assert.That(zero, Is.True, "the strikes' bytes are zero");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, edit: off), Is.EqualTo(GoldenFlights.ContactHash), "contact, the strikes off");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, edit: off), Is.EqualTo(GoldenFlights.RangeHash), "range, the strikes off");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, edit: off), Is.EqualTo(GoldenFlights.TetherHash), "tether, the strikes off");
+            Assert.That(GoldenFlights.FlyContact(now, out _, edit: off), Is.EqualTo(GoldenFlights.ContactHash), "contact, the strikes off");
+            Assert.That(GoldenFlights.FlyRange(now, out _, edit: off), Is.EqualTo(GoldenFlights.RangeHash), "range, the strikes off");
+            Assert.That(GoldenFlights.FlyContact(now, out _, tether: true, edit: off), Is.EqualTo(GoldenFlights.TetherHash), "tether, the strikes off");
         }
 
         // The physics integration 2 with p7f-damage (model 40), its audit against the line (model 38), kept: on a drone.json
@@ -398,12 +512,12 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheBladeEachGoldenIsModel38s()
         {
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(DroneSpec.Parse(RepositoryDrone.Text()));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text()))); // since model 46 on model 26's legs
             const int at = GoldenFlights.Model38Layout;
             int nonZero = 0;
             void Tail(byte[] record)
             {
-                for (int i = at; i < LogFormat.StepSize; i++) if (record[i] != 0) nonZero++;
+                for (int i = at; i < GoldenFlights.Model44Layout; i++) if (record[i] != 0) nonZero++;
             }
             Assert.That(GoldenFlights.FlyPowered(spec, out FlightCore p, layout: at, onRecord: Tail), Is.EqualTo(GoldenFlights.Model38PoweredHash), "powered");
             Assert.That(p.Strikes, Is.Null, "no strikes without the blade's table");
@@ -423,21 +537,21 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheLineEachGoldenIsModel35s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
-            const int at = GoldenFlights.Model28Layout, skip = GoldenFlights.Model35Skip;
+            DroneSpec spec = GoldenFlights.WithModel26Legs(DroneSpec.Parse(RepositoryDrone.Text())); // since model 46
+            const int at = GoldenFlights.Model28Layout, skip = GoldenFlights.Model35Skip, end = GoldenFlights.Model44Layout;
             int nonZero = 0;
             void Fiber(byte[] record)
             {
                 for (int i = at; i < at + skip; i++) if (record[i] != 0) nonZero++;
             }
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, onRecord: Fiber, yawI: false), Is.EqualTo(GoldenFlights.Model35PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Fiber, yawI: false),
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, layout: end, onRecord: Fiber, yawI: false), Is.EqualTo(GoldenFlights.Model35PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, layout: end, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Fiber, yawI: false),
                 Is.EqualTo(GoldenFlights.Model35RainPoweredHash), "rain");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, at, skip, onRecord: Fiber, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model35ContactHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out _, at, skip, layout: end, onRecord: Fiber, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model35ContactHash),
                 "contact, on the rigid floor");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, at, skip, onRecord: Fiber, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
+            Assert.That(GoldenFlights.FlyRange(spec, out _, at, skip, layout: end, onRecord: Fiber, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
                 Is.EqualTo(GoldenFlights.Model35RangeHash), "range, without the area laws");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip), Is.EqualTo(GoldenFlights.Model35TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip, end), Is.EqualTo(GoldenFlights.Model35TumbleHash), "tumble");
             Assert.That(nonZero, Is.EqualTo(0), "the fiber's block of a flight without the line");
         }
 
@@ -485,7 +599,14 @@ namespace Fpv450.Sim.Tests
                 "p7f-damage 1.3's blade strikes follow the fiber's block (model 40)");
             Assert.That(StrikesAt, Is.EqualTo(GoldenFlights.Model38Layout), "model 38's record is the record before them");
             Assert.That(FiberAt, Is.EqualTo(GoldenFlights.Model29Layout), "and model 29's the record before the fiber's block");
-            Assert.That(LogFormat.StepSize - StrikesAt, Is.EqualTo(StrikesBytes), "to the record's end");
+            Assert.That(GoldenFlights.Model44Layout - StrikesAt, Is.EqualTo(StrikesBytes), "to model 44's record's end");
+            Assert.That(LegAt, Is.EqualTo(GoldenFlights.Model44Layout), "model 44's record is the record before the legs'");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, LegAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "leg_state.rear_right")),
+                "p7g-legs 1.2's legs follow the blade strikes (model 46)");
+            Assert.That(DamageAt, Is.EqualTo(GoldenFlights.Model39Layout), "p7g-legs' model 39 record ends before a damaged leg's (its first 1904 bytes, then the legs' state)");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, DamageAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "leg_side_give.rear_right")),
+                "p7g-legs 1.3's side give, jaws and folds follow the legs' state");
+            Assert.That(LogFormat.StepSize - DamageAt, Is.EqualTo(DamageBytes), "to the record's end");
         }
     }
 }

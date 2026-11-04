@@ -9,9 +9,14 @@ namespace Fpv450.Sim.Tests
     /// D-067 (p6-flight-core 1.6c): the sim's toppling and the coil's rock against rigid-body mechanics (LandingStability),
     /// on the stub's rigid floor, as free bodies (the mechanics' own case) unless a test says otherwise. Each check fails
     /// a known-wrong model: a frictionless skid, a coil on an axle, and the armed flight controller's hold.
+    /// Since p7g-legs 1.2 the legs give across their tubes (262 N/m at the foot), which the rigid-body mechanics does not
+    /// have: its checks fly the legs rigid across (Rigid, model 37's leg law, the mechanics' own assumption), and the legs'
+    /// own tip is held against its closed form (OnTheirSideGiveTheLegsTipTheDroneSooner).
     /// </summary>
     public class LandingTests
     {
+        static readonly Func<ContactSpec, ContactSpec> Rigid = LandingScenarios.RigidAcross();
+
         static DroneSpec Spec => RepositoryDrone.Spec();
 
         static MaterialRow[] Materials(out ulong hash) => ContactScenarios.RepositoryMaterials(out hash);
@@ -53,16 +58,66 @@ namespace Fpv450.Sim.Tests
         public void TheDroneTipsWhereItsCentreOfMassPassesOverTheSkid()
         {
             LandingStability a = LegsOn();
-            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.35).Within(0.01), "the roll tip, D-066's nominal build (23.39° on model 22's)");
-            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.75).Within(0.01), "the pitch tip over the front ends (42.80° on model 22's)");
-            // Set down at rest just inside and just past each tip.
-            Assert.That(RollTime(true, a.StaticRollTipDeg - 0.05, 60), Is.EqualTo(double.PositiveInfinity), "inside the roll tip it rights itself");
-            Assert.That(RollTime(true, a.StaticRollTipDeg + 0.05, 60), Is.LessThan(10), "past it, it falls");
-            var t = new LandingScenarios.Touch { Legs = true, Seconds = 4 };
+            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.33).Within(0.01), "the roll tip, p7g-legs 1.1's plastic legs (23.35° on model 26's, 23.39° on model 22's)");
+            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.72).Within(0.01), "the pitch tip over the front ends (42.75° on model 26's, 42.80° on model 22's)");
+            // Set down at rest just inside and just past each tip (rigid across: the soft legs' own tip is below).
+            Assert.That(RollTime(true, a.StaticRollTipDeg - 0.05, 60, Rigid), Is.EqualTo(double.PositiveInfinity), "inside the roll tip it rights itself");
+            Assert.That(RollTime(true, a.StaticRollTipDeg + 0.05, 60, Rigid), Is.LessThan(10), "past it, it falls");
+            var t = new LandingScenarios.Touch { Legs = true, Seconds = 4, Edit = Rigid };
             t.PitchDeg = a.StaticPitchTipDeg - 0.05;
             Assert.That(Run(t).Over, Is.False, "inside the pitch tip");
             t.PitchDeg = a.StaticPitchTipDeg + 0.05;
             Assert.That(Run(t).Over, Is.True, "past the pitch tip");
+        }
+
+        [Test]
+        public void OnTheirSideGiveTheLegsTipTheDroneSooner()
+        {
+            // Quasi-static: on its low skid each leg carries half the weight up its foot; the share across the tilted leg bends the
+            // foot in under the body (the leg's 262 N/m in series with the stick anchor), so the centre of mass stands over the
+            // feet at a smaller roll than over the skid (LandingStability.SoftRollTipDeg; rigid across, the known-wrong, 23.3°).
+            // Set down at rest with the legs unbent, the side mode races the fall: the struts push along the legs through the
+            // feet, under the centre of mass, before the bend that would make their force vertical builds, and rock the body back
+            // onto both skids from past the quasi-static tip, so the set-down's tip lies between the two (D-067's set-down at
+            // rest is the rigid legs' protocol; the landings' tips are 1.4's grid, printed here beside the rigid ones).
+            // p7g-legs 1.3: the side give's parts, the tube's 268 N/m less the axial load's softening (each low leg's (W/2)·cos φ
+            // against its 47 N sway load) in series with the anchor, the jaws held. The set-downs fly the elastic legs (the law
+            // off): past about 30° the low skid's legs part at once on the weight's share across their tilted struts, which 1.3
+            // takes off the drone, and it settles on its frame instead of tipping; the side give's own tip is this test's.
+            LandingStability a = LegsOn();
+            MaterialRow[] m = Materials(out ulong h);
+            ContactSpec c = Spec.BuildContacts(Spec.Nominal, m, h);
+            double anchor = c.FrictionStiffnessRatio * c.LegStiffness;
+            double soft = a.SoftRollTipDeg(c.LegTubeSideStiffness, anchor, c.LegSwayLoad, out double feet);
+            double side = c.LegSideStiffness * anchor / (c.LegSideStiffness + anchor);
+            double unsoftened = a.SoftRollTipDeg(side);
+            Assert.That(Math.Tan(soft * Math.PI / 180), Is.EqualTo((a.Track - feet) / a.SkidHeight).Within(1e-9), "the centre of mass over the bent feet");
+            Assert.That(soft, Is.LessThan(a.StaticRollTipDeg - 3), "statically the soft legs tip sooner than the rigid ones");
+            Func<ContactSpec, ContactSpec> elastic = e => { e.Legs = null; return e; };
+            double lo = 10, hi = 40;
+            Assert.That(RollTime(true, lo, 60, elastic), Is.EqualTo(double.PositiveInfinity), $"set down at {lo}° it rights itself");
+            Assert.That(RollTime(true, hi, 60, elastic), Is.LessThan(10), $"set down at {hi}° it falls");
+            while (hi - lo > 0.02)
+            {
+                double mid = (lo + hi) / 2;
+                if (RollTime(true, mid, 60, elastic) < 10) hi = mid;
+                else lo = mid;
+            }
+            TestContext.Out.WriteLine($"the roll tip: {a.StaticRollTipDeg:F2}° rigid across; {soft:F2}° quasi-static on the tube's {c.LegTubeSideStiffness:F0} N/m less P·Δ "
+                + $"(the feet {feet * 1e3:F1} mm in; 1.2's {side:F0} N/m chain without it, {unsoftened:F2}°); set down at rest with unbent legs, the sim falls from {hi:F2}°");
+            Assert.That(hi, Is.GreaterThan(soft).And.LessThan(a.StaticRollTipDeg), "between the quasi-static tip and the rigid legs'");
+            // D-067's grid on the soft legs, beside the rigid one (for the as-built note).
+            foreach (double tilt in new[] { 10.0, 20 })
+            {
+                var t = new LandingScenarios.Touch { Legs = true, RollDeg = tilt, Descent = 0.5, Edit = LandingScenarios.GroundFriction(10) };
+                double softCaught = Critical(t);
+                t.Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
+                TestContext.Out.WriteLine($"a caught skid at {tilt}° of roll, 0.5 m/s down: tips at {softCaught:F3} m/s on the soft legs, {Critical(t):F3} rigid across, the mechanics {a.CaughtSkidSpeed(tilt, 0.5):F3}");
+            }
+            var smooth = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5 };
+            double softSmooth = Critical(smooth);
+            smooth.Edit = Rigid;
+            TestContext.Out.WriteLine($"the floor's μ at 10°, 0.5 m/s down: tips at {softSmooth:F3} m/s on the soft legs, {Critical(smooth):F3} rigid across");
         }
 
         [Test]
@@ -71,7 +126,7 @@ namespace Fpv450.Sim.Tests
             LandingStability a = LegsOn();
             foreach (double past in new[] { 1.0, 5, 10 })
             {
-                double sim = RollTime(true, a.StaticRollTipDeg + past, 74.9), mechanics = a.FallTime(past, 74.9);
+                double sim = RollTime(true, a.StaticRollTipDeg + past, 74.9, Rigid), mechanics = a.FallTime(past, 74.9);
                 Assert.That(sim / mechanics, Is.EqualTo(1).Within(0.03), past + "° past the tip: " + sim + " s against " + mechanics);
             }
         }
@@ -81,9 +136,11 @@ namespace Fpv450.Sim.Tests
         {
             // On dead legs (overdamped, so they return nothing of the touch) a caught skid is the mechanics' plastic catch, and
             // the sim gives its speed to 1 %, sideways and fore-aft; on the repository's legs (ζ 0.2) the legs' spring gives
-            // back part of the touch as rotation, and a caught skid tips the drone up to 12 % sooner.
+            // back part of the touch as rotation, and a caught skid tips the drone up to 14 % sooner on p7g-legs 1.1's derived
+            // 52.3 kN/m (10° and 20°: 0.918 and 0.936 of the mechanics in roll, 0.863 and 0.901 nose-down), up to 10 % on model
+            // 26's assumed 10 kN/m (0.960, 0.975, 0.896, 0.934).
             LandingStability a = LegsOn();
-            Func<ContactSpec, ContactSpec> dead = LandingScenarios.DeadLegsCaught(a.Mass), caught = LandingScenarios.GroundFriction(10);
+            Func<ContactSpec, ContactSpec> dead = LandingScenarios.RigidAcross(LandingScenarios.DeadLegsCaught(a.Mass)), caught = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
             foreach (double tilt in new[] { 10.0, 20 })
             {
                 var side = new LandingScenarios.Touch { Legs = true, RollDeg = tilt, Descent = 0.5, Edit = dead };
@@ -92,8 +149,8 @@ namespace Fpv450.Sim.Tests
                 Assert.That(Critical(side) / roll, Is.EqualTo(1).Within(0.01), $"{tilt}° of roll on dead legs, against {roll:F3}");
                 Assert.That(Critical(ahead) / pitch, Is.EqualTo(1).Within(0.01), $"{tilt}° nose-down on dead legs, against {pitch:F3}");
                 side.Edit = ahead.Edit = caught;
-                Assert.That(Critical(side) / roll, Is.EqualTo(1).Within(0.12), $"{tilt}° of roll on the legs");
-                Assert.That(Critical(ahead) / pitch, Is.EqualTo(1).Within(0.12), $"{tilt}° nose-down on the legs");
+                Assert.That(Critical(side) / roll, Is.EqualTo(1).Within(0.15), $"{tilt}° of roll on the legs");
+                Assert.That(Critical(ahead) / pitch, Is.EqualTo(1).Within(0.15), $"{tilt}° nose-down on the legs");
             }
         }
 
@@ -106,9 +163,9 @@ namespace Fpv450.Sim.Tests
             double mu = Spec.Contacts.GroundStaticFriction;
             Assert.That(a.CatchFriction(10, 0, a.CaughtSkidSpeed(10, 0)), Is.GreaterThan(mu));
             Assert.That(a.CatchFriction(10, 0.5, a.CaughtSkidSpeed(10, 0.5)), Is.LessThan(mu));
-            double slips = Critical(new LandingScenarios.Touch { Legs = true, RollDeg = 10 });
+            double slips = Critical(new LandingScenarios.Touch { Legs = true, RollDeg = 10, Edit = Rigid });
             Assert.That(slips, Is.GreaterThan(a.CaughtSkidSpeed(10, 0)), "it slips first");
-            double catches = Critical(new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5 });
+            double catches = Critical(new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Edit = Rigid });
             Assert.That(catches / a.CaughtSkidSpeed(10, 0.5), Is.EqualTo(1).Within(0.10), "it catches");
         }
 
@@ -117,7 +174,7 @@ namespace Fpv450.Sim.Tests
         {
             // The known-wrong: with no friction nothing stops the skid, so no lateral speed tips the drone below its static tip.
             LandingStability a = LegsOn();
-            double sim = Critical(new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Edit = LandingScenarios.GroundFriction(0.001) });
+            double sim = Critical(new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(0.001)) });
             Assert.That(sim, Is.EqualTo(double.PositiveInfinity), "it skates at 4 m/s");
             Assert.That(Math.Abs(sim / a.CaughtSkidSpeed(10, 0.5) - 1), Is.Not.LessThanOrEqualTo(0.10), "it fails the caught skid's check");
         }
@@ -130,11 +187,11 @@ namespace Fpv450.Sim.Tests
             // groove, a clod) the skids tip it at the mechanics' speed.
             LandingStability a = LegsOn();
             Assert.That(a.SlidingTripFriction, Is.EqualTo(0.905).Within(0.001), "D-066's build (0.907 on model 22's)");
-            var t = new LandingScenarios.Touch { Legs = true, PitchDeg = 10, Descent = 0.5, Forward = true };
+            var t = new LandingScenarios.Touch { Legs = true, PitchDeg = 10, Descent = 0.5, Forward = true, Edit = Rigid };
             Assert.That(Critical(t), Is.EqualTo(double.PositiveInfinity), "the runners slide");
-            t.Edit = LandingScenarios.GroundFriction(10);
+            t.Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
             double sim = Critical(t), mechanics = a.CaughtEndSpeed(10, 0.5);
-            Assert.That(sim / mechanics, Is.EqualTo(1).Within(0.12), $"caught ends: {sim:F3} m/s against {mechanics:F3}");
+            Assert.That(sim / mechanics, Is.EqualTo(1).Within(0.15), $"caught ends: {sim:F3} m/s against {mechanics:F3} (the legs' give-back, ACaughtSkidTipsItAtTheRigidBodySpeed)");
         }
 
         [Test]
@@ -147,10 +204,10 @@ namespace Fpv450.Sim.Tests
             LandingStability a = LegsOn();
             Assert.That(a.RolloverDeg(0.95), Is.LessThan(2.0));
             Assert.That(LandingStability.PinFriction(10, 0.95), Is.GreaterThan(2.0));
-            var t = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Power = LandingScenarios.Power.Held };
+            var t = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Power = LandingScenarios.Power.Held, Edit = Rigid };
             LandingScenarios.Outcome smooth = Run(t);
             Assert.That(smooth.Over || smooth.LaterOver, Is.False, $"the smooth skid skates (its next landing at {smooth.LaterSpeed:F2} m/s)");
-            t.Edit = LandingScenarios.GroundFriction(10);
+            t.Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
             LandingScenarios.Outcome pinned = Run(t);
             Assert.That(pinned.Over || pinned.LaterOver, Is.True, $"the pinned skid rolls over (its next landing at {pinned.LaterSpeed:F2} m/s)");
         }

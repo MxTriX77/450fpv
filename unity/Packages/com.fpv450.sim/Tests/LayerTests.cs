@@ -175,7 +175,10 @@ namespace Fpv450.Sim.Tests
                 if (without[i].Name == "straw") without[i].AreaLaw = AreaLaw.None;
             GoldenFlights.FlyRange(spec, out FlightCore wrong, rain: RainLevel.Rain, table: SoilScenarios.Table(), materials: without);
             TestContext.WriteLine($"  known-wrong (straw without its area law), Rain: rests rolled {Roll(wrong.State):F3}°");
-            Assert.That(Math.Abs(Roll(wrong.State)), Is.GreaterThan(10), "known-wrong: the reference foot's stiffness rolls it over on wet straw");
+            // Since model 46 (p7g-legs on the line) the known-wrong rests rolled 5.5° on the PVC-U legs (17.1° on model 26's
+            // legs, 7.6° on p7g-legs' 52.3 kN/m legs without their side give: the legs' data, not the soil's coupling, moves
+            // it): still well outside the level rest the area law gives.
+            Assert.That(Math.Abs(Roll(wrong.State)), Is.GreaterThan(4), "known-wrong: the reference foot's stiffness tilts it on wet straw, far from level");
         }
 
         // ---- Determinism, replay and allocations ---------------------------------------------------------------------

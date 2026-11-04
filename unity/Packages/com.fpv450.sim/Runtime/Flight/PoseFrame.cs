@@ -1,3 +1,5 @@
+using System;
+
 namespace Fpv450.Sim.Flight
 {
     /// <summary>
@@ -46,6 +48,19 @@ namespace Fpv450.Sim.Flight
         /// 0 for a rigid airframe: the camera on the flexing frame (p7e-camera-feel, FieldCamera.Attitude). Render-side.</summary>
         public Double3 CameraTurn;
 
+        /// <summary>
+        /// The legs as the app draws them (p7g-legs 1.3): each leg's state (Contact.LegFlags) and each corner's
+        /// (Contact.CornerState), a byte a corner, rear right in the low byte; each leg's set (body rad: x and z its bend at the
+        /// clamp's edge, the foot's way times the angle; y its twist in the clamp; LegDamage.SetRotation turns it about the
+        /// clamp's edge), kept as it was when the leg left; and each hanging skid half's fold about the other leg's bore (body
+        /// rotation vector). Intact legs are all 0.
+        /// </summary>
+        public uint LegState, CornerState;
+        public Corners3 LegSet, SkidFold;
+
+        /// <summary>The pieces the legs dropped, where each one is now.</summary>
+        public LoosePoses Loose;
+
         public readonly double TimeS => Step * FlightCore.Dt;
 
         /// <summary>
@@ -77,7 +92,71 @@ namespace Fpv450.Sim.Flight
                 FiberNodeCount = b.FiberNodeCount,
                 FiberTrailCount = b.FiberTrailCount,
                 CameraTurn = a.CameraTurn + (b.CameraTurn - a.CameraTurn) * t,
+                LegState = b.LegState,
+                CornerState = b.CornerState,
+                LegSet = b.LegSet,
+                SkidFold = b.SkidFold,
+                Loose = b.Loose,
             };
+            for (int i = 0; i < LoosePoses.Slots; i++)
+            {
+                LoosePose pa = a.Loose[i], pb = b.Loose[i];
+                if (pa.Parts == 0 || pa.Parts != pb.Parts) continue;
+                Quat la = pa.Attitude, lb = pb.Attitude;
+                if (Quat.Dot(la, lb) < 0) lb = new Quat(-lb.X, -lb.Y, -lb.Z, -lb.W);
+                pb.Position = pa.Position + (pb.Position - pa.Position) * t;
+                pb.Attitude = new Quat(la.X + (lb.X - la.X) * t, la.Y + (lb.Y - la.Y) * t, la.Z + (lb.Z - la.Z) * t, la.W + (lb.W - la.W) * t).Normalized();
+                result.Loose[i] = pb;
+            }
+        }
+    }
+
+    /// <summary>One dropped piece as the app draws it (p7g-legs 1.3): its parts (Contact.LegChange's mask: bit c a leg's whole
+    /// tube, 4 + c its part below the break, 8 + c a T-joint, 12 the right skid, 13 the left; 0 for an empty slot) and its frame,
+    /// the drone's body frame as it left (each part as the drone drew it then, turned by its leg's set).</summary>
+    public struct LoosePose
+    {
+        public int Parts;
+        public Double3 Position;
+        public Quat Attitude;
+        public bool AtRest;
+    }
+
+    /// <summary>The dropped pieces' slots (Contact.LoosePieces.Slots), a value type so a pose stays a snapshot.</summary>
+    public struct LoosePoses
+    {
+        public const int Slots = 6;
+
+        public LoosePose P0, P1, P2, P3, P4, P5;
+
+        public LoosePose this[int i]
+        {
+            readonly get
+            {
+                switch (i)
+                {
+                    case 0: return P0;
+                    case 1: return P1;
+                    case 2: return P2;
+                    case 3: return P3;
+                    case 4: return P4;
+                    case 5: return P5;
+                    default: throw new ArgumentOutOfRangeException(nameof(i));
+                }
+            }
+            set
+            {
+                switch (i)
+                {
+                    case 0: P0 = value; break;
+                    case 1: P1 = value; break;
+                    case 2: P2 = value; break;
+                    case 3: P3 = value; break;
+                    case 4: P4 = value; break;
+                    case 5: P5 = value; break;
+                    default: throw new ArgumentOutOfRangeException(nameof(i));
+                }
+            }
         }
     }
 
