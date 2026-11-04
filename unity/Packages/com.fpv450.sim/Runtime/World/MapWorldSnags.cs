@@ -87,7 +87,7 @@ namespace Fpv450.Sim.World
                 {
                     ulong low = bits & (0UL - bits);
                     bits ^= low;
-                    int k = (w << 6) | Lowest[(low * DeBruijn) >> 58];
+                    int k = (w << 6) | Lowest[(int)((low * DeBruijn) >> 58)];
                     if (_snagBox[k].Overlaps(reach))
                         count = Segments(k, centre, radius, marks, results, count);
                 }
@@ -129,7 +129,7 @@ namespace Fpv450.Sim.World
                 {
                     ulong low = bits & (0UL - bits);
                     bits ^= low;
-                    int i = (w << 6) | Lowest[(low * DeBruijn) >> 58];
+                    int i = (w << 6) | Lowest[(int)((low * DeBruijn) >> 58)];
                     if (!s.SegmentBox[i].Overlaps(near))
                         continue;
                     int record = s.SegmentRecord[i], p = s.SegmentPoint[i];
