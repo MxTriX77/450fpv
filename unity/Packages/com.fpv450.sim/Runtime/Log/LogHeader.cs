@@ -160,7 +160,7 @@ namespace Fpv450.Sim.Log
             "Surfaces", "BladeStrikes", "TipSlide", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
             "FlapFrequency", "FlapSouthwell",
             "LegSideStiffness", "LegSideDampingRatio", "Legs",
-            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength",
+            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength", "HangingGive",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -169,7 +169,7 @@ namespace Fpv450.Sim.Log
             "Parts", "TJointParts", "Clamp", "Foot", "SocketLever", "FreeLength", "OuterDiameter", "InnerDiameter", "Modulus", "CrackedFactor",
             "BoltDiameter", "GripLength", "ScrewDiameter", "SocketDiameter", "YieldStress", "Elongation", "EdgeFactor", "ClampTorque", "NutFactor",
             "Friction", "TJointTorque", "Interlayer",
-            "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps",
+            "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps", "StubStiffness", "StubStiffnessUp",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -894,6 +894,7 @@ namespace Fpv450.Sim.Log
                 e.Write(c.LegSwayLoad);
                 e.Write(c.LegTubeAxialStiffness);
                 e.Write(c.LegLeverLength); // p7g-legs 1.4 (format 39): the lever
+                e.Write(c.HangingGive); // p7g-legs (format 41): a hanging half's whole give geometric
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -924,6 +925,8 @@ namespace Fpv450.Sim.Log
                 e.Write(l.RestSpeed);
                 e.Write(l.RestRate);
                 e.Write(l.RestSteps);
+                e.Write(l.StubStiffness); // p7g-legs (format 41): a broken leg's stub's contact spring
+                e.Write(l.StubStiffnessUp);
             });
             Entry(w, TagRain, e =>
             {
@@ -1652,6 +1655,7 @@ namespace Fpv450.Sim.Log
             c.LegSwayLoad = r.ReadDouble();
             c.LegTubeAxialStiffness = r.ReadDouble();
             c.LegLeverLength = r.ReadDouble();
+            c.HangingGive = r.ReadBoolean();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
@@ -1690,6 +1694,8 @@ namespace Fpv450.Sim.Log
             l.RestSpeed = r.ReadDouble();
             l.RestRate = r.ReadDouble();
             l.RestSteps = r.ReadInt32();
+            l.StubStiffness = r.ReadDouble();
+            l.StubStiffnessUp = r.ReadDouble();
             c.Legs = l;
             return c;
         }

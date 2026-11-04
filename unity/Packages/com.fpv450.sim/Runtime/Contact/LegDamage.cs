@@ -103,6 +103,11 @@ namespace Fpv450.Sim.Contact
         public double RestSpeed = 0.005, RestRate = 0.05;
         public int RestSteps = 200;
 
+        /// <summary>A broken leg's stub in its clamp (p7g-legs, model 51): its contact spring across the legs' axis and along it,
+        /// N/m, the clamp's mount (DroneLegs.StubStiffness: the plate arm under the clamp bending in its plane and out of it,
+        /// derived), which the tube's shape takes at the step it parts; 0 keeps the free tube's (model 50's, the audit).</summary>
+        public double StubStiffness, StubStiffnessUp;
+
         const double Pi = 3.141592653589793;
 
         /// <summary>The fixed–pinned column's first buckling load factor, β² (β the root of tan β = β; Timoshenko and Gere).</summary>

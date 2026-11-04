@@ -325,6 +325,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The arm under the clamp bending out of its plane, N/m: the give the clamp's mount adds to a leg.</summary>
         public double MountStiffness;
 
+        /// <summary>The arm under the clamp bending in its plane, N/m (p7g-legs, model 51): with MountStiffness, the contact spring of
+        /// a broken leg's stub held in the clamp.</summary>
+        public double MountSideStiffness;
+
         /// <summary>The hand's torque on the wing nut, N·m; the nut factor K; the jaws' friction on the tube; the stress
         /// concentration factor at the clamp's edge.</summary>
         public LegBound Torque, NutFactor, Friction, EdgeFactor;
@@ -725,6 +729,7 @@ namespace Fpv450.Sim.Flight
                 YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
                 ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
                 TJointTorque = Legs.TJoint.Torque, Interlayer = Legs.TJoint.InterlayerStrength,
+                StubStiffness = Legs.Clamp.MountSideStiffness, StubStiffnessUp = Legs.Clamp.MountStiffness,
             };
             for (int c = 0; c < 4; c++)
             {
@@ -1315,13 +1320,14 @@ namespace Fpv450.Sim.Flight
             {
                 var c = new LegClamp();
                 if (!IsObject(p, at)) return c;
-                Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "torque_n_m",
-                    "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
+                Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "mount_side_stiffness_n_per_m",
+                    "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
                 c.Material = Text(p, "material", at, PrintMaterials);
                 c.Modulus = Positive(p, "modulus_pa", at);
                 c.GripLength = Positive(p, "grip_length_m", at);
                 c.BoltDiameter = Positive(p, "bolt_diameter_m", at);
                 c.MountStiffness = Positive(p, "mount_stiffness_n_per_m", at);
+                c.MountSideStiffness = Positive(p, "mount_side_stiffness_n_per_m", at);
                 c.Torque = Bounded(p, "torque_n_m", "torque_bounds_n_m", at);
                 c.NutFactor = Bounded(p, "nut_factor", "nut_factor_bounds", at);
                 c.Friction = Bounded(p, "friction", "friction_bounds", at);

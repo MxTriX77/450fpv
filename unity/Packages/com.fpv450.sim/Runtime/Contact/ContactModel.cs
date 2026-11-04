@@ -319,6 +319,9 @@ namespace Fpv450.Sim.Contact
         // The hanging skid's cantilever: its tube's EI, and the lever from a bore to the other leg's (derived, 1.1's section).
         readonly double _skidBending, _skidLever, _skidContact;
         readonly Double3[] _elastic = new Double3[4];   // a hanging half's elastic turn about its holder's bore (body rotation vector)
+        // A hanging half's elastic move along its deepest point's normal past what its turn gives (body m, ContactSpec.HangingGive):
+        // the rest of its chain's give, the holding leg's across its tube and the stick anchor's in series with them.
+        readonly Double3[] _hangShift = new Double3[4], _shiftApplied = new Double3[4];
 
         // The impact window.
         int _impactLeft, _impacts;
@@ -834,14 +837,16 @@ namespace Fpv450.Sim.Contact
             closing += depth * Double3.Dot(PointVelocity(s, p.Point), p.N);
         }
 
-        // A hanging half's point's move along its normal by the half's elastic turn about the holding leg's bore (body), m:
-        // what its overlap without that turn adds to its depth.
+        // A hanging half's point's move along its normal by the half's elastic turn about the holding leg's bore (body), and by its
+        // elastic move past the turn (HangingGive), m: what its overlap without them adds to its depth.
         double Unturned(int c, in Pair p, in FlightState s)
         {
-            if (Same(_elastic[c], default)) return 0;
+            if (Same(_elastic[c], default) && Same(_shiftApplied[c], default)) return 0;
             int h = _spec.Legs.Sibling[c];
             Double3 bore = Rotated(_spec.Legs.Bore[h], h), at = s.Attitude.InverseRotate(p.Point - s.Position) - bore;
-            Double3 moved = at - Turn(_elastic[c]).Conjugate().Rotate(at);
+            if (!_spec.HangingGive) return Double3.Dot(p.N, s.Attitude.Rotate(at - Turn(_elastic[c]).Conjugate().Rotate(at)));
+            at = at - _shiftApplied[c];
+            Double3 moved = at - Turn(_elastic[c]).Conjugate().Rotate(at) + _shiftApplied[c];
             return Double3.Dot(p.N, s.Attitude.Rotate(moved));
         }
 
@@ -1165,7 +1170,7 @@ namespace Fpv450.Sim.Contact
             // The hanging halves first: each one's fold at its bore, and its force and couple onto the leg that holds it.
             if (_legs != null)
                 for (int c = 0; c < 4; c++)
-                    if ((_corner[c] & CornerState.Hanging) != 0) Hang(c, s, events);
+                    if ((_corner[c] & CornerState.Hanging) != 0) Hang(c, s, up, events);
             for (int c = 0; c < 4; c++)
             {
                 // A leg is judged while its tube is whole (its own points too while it holds its skid half); a stub or a
@@ -1211,11 +1216,11 @@ namespace Fpv450.Sim.Contact
         // bore's edge) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
         // the bore (from the next step its shapes, and its held points' anchors with them), and this step's force is relieved
         // by it. Its force and its couple about the bore load the holding leg (Judge).
-        void Hang(int c, in FlightState s, StepEvents events)
+        void Hang(int c, in FlightState s, Double3 up, StepEvents events)
         {
             LegDamageSpec l = _spec.Legs;
             int holder = l.Sibling[c];
-            Double3 law = default, bore = World(s, Rotated(l.Bore[holder], holder));
+            Double3 law = default, bore = World(s, HangBore(c));
             Double3 couple = default, deepAt = default, deepN = default;
             int causeShape = -1, causePair = -1;
             double strong = 0, deepest = 0;
@@ -1292,12 +1297,40 @@ namespace Fpv450.Sim.Contact
             // The elastic turn: the massless half gives |F|/k_cantilever, its deepest point moved that far out along its normal
             // by the least turn about the bore, φ = (r × n)·δ/|r × n|² (none untouched).
             _elastic[c] = default;
+            _hangShift[c] = default;
             double carried = law.Length(), kc = HangingStiffness;
             if (deepest > 0 && carried > 0 && kc > 0)
             {
-                Double3 r = s.Attitude.InverseRotate(deepAt - bore), axis = Double3.Cross(r, s.Attitude.InverseRotate(deepN));
+                Double3 r = s.Attitude.InverseRotate(deepAt - bore), n = s.Attitude.InverseRotate(deepN), axis = Double3.Cross(r, n);
                 double a2 = Double3.Dot(axis, axis);
-                if (a2 > 0) _elastic[c] = axis * (carried / kc / a2);
+                if (!_spec.HangingGive)
+                {
+                    if (a2 > 0) _elastic[c] = axis * (carried / kc / a2);
+                }
+                else
+                {
+                    // The whole give of the half's chain but its contact spring's, along the deepest point's normal (p7g-legs, model
+                    // 51), from the chain's springs at the deepest point's overlap g (its dampers act beside the chain, never
+                    // bending it): the push g·n along the legs' axis (k_a) and across it (k_l) is the springs' force F; the
+                    // cantilever gives F·n/k_c, by the turn φ = (r × n)·δ/|r|² across the half (r·n's share of it, which no turn
+                    // about the bore gives, by the move); the rest of the chain across the axis, the holding leg's give across its
+                    // tube and the stick anchor in series (1/k_l − 1/k_0), gives its share of the push across by the move. Each
+                    // point's overlap without them is what the chain reads (Unturned); its shapes stand out of what they touch by
+                    // the contact spring's share alone (and the touching material's own, a compliant row's).
+                    double k0 = Series(_skidContact, kc), ka = _axial[c], kl = _side[c];
+                    Double3 push = deepN * deepest;
+                    double a = Double3.Dot(up, push);
+                    Double3 lat = push - up * a;
+                    double give = Double3.Dot(up * (ka * a) + lat * kl, deepN) / kc;
+                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0;
+                    if (r2 > 0 && give > 0)
+                    {
+                        _elastic[c] = axis * (give / r2);
+                        along = give * (rn * rn / r2);
+                    }
+                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0);
+                    _hangShift[c] = n * along;
+                }
             }
             _hangForce[c] = law;
             _hangCouple[c] = s.Attitude.InverseRotate(couple);
@@ -1579,11 +1612,19 @@ namespace Fpv450.Sim.Contact
             if ((_corner[c] & CornerState.Hanging) == 0) return Rotated(p, c);
             int h = _spec.Legs.Sibling[c];
             Double3 bore = Rotated(_spec.Legs.Bore[h], h), q = Rotated(p, h);
-            return bore + _foldTurn[c].Rotate(q - bore);
+            if (!_spec.HangingGive) return bore + _foldTurn[c].Rotate(q - bore);
+            return bore + _foldTurn[c].Rotate(q - bore) + _shiftApplied[c];
         }
 
         // A hanging half's whole turn about its holder's bore: its fold and its elastic give.
         Double3 HangTurn(int c) => _fold[c] + _elastic[c];
+
+        // The bore a hanging half turns about now (body): its holder's, by that leg's set, and moved with the half (HangingGive).
+        Double3 HangBore(int c)
+        {
+            int h = _spec.Legs.Sibling[c];
+            return _spec.HangingGive ? Rotated(_spec.Legs.Bore[h], h) + _shiftApplied[c] : Rotated(_spec.Legs.Bore[h], h);
+        }
 
         // The shapes moved by the legs' sets and the hanging halves' folds since they last moved, each touching point's anchor
         // carried with it so a held foot stays where the ground holds it.
@@ -1604,15 +1645,17 @@ namespace Fpv450.Sim.Contact
                 bool move;
                 if (leg >= 0) move = _moved[leg] && (_corner[leg] & (CornerState.Stub | CornerState.TubeGone)) == 0;
                 else if (c < 0 || _base[i].Role != ContactRole.Support && _base[i].Role != ContactRole.Skid) continue;
-                else if ((_corner[c] & CornerState.Hanging) != 0) move = _moved[_spec.Legs.Sibling[c]] || !Same(HangTurn(c), _foldApplied[c]);
+                else if ((_corner[c] & CornerState.Hanging) != 0)
+                    move = _moved[_spec.Legs.Sibling[c]] || !Same(HangTurn(c), _foldApplied[c]) || !Same(_hangShift[c], _shiftApplied[c]);
                 else move = _moved[c];
                 if (move) Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
             }
             for (int c = 0; c < 4; c++)
             {
-                if (Same(HangTurn(c), _foldApplied[c])) continue;
+                if (Same(HangTurn(c), _foldApplied[c]) && Same(_hangShift[c], _shiftApplied[c])) continue;
                 _foldApplied[c] = HangTurn(c);
                 _foldTurn[c] = Turn(HangTurn(c));
+                _shiftApplied[c] = _hangShift[c];
                 for (int i = 0; i < _shapes.Length; i++)
                     if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
                         Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
@@ -1712,6 +1755,12 @@ namespace Fpv450.Sim.Contact
                                 ref ContactShape t = ref _shapes[tube];
                                 t.A = _wasA[tube] = _base[tube].A;
                                 t.B = _wasB[tube] = l.Clamp[c];
+                                // The stub is no free tube: it is held in the clamp, so a touch on it meets the clamp's mount.
+                                if (l.StubStiffness > 0)
+                                {
+                                    t.Stiffness = l.StubStiffness;
+                                    t.StiffnessUp = l.StubStiffnessUp;
+                                }
                                 ch.Stubs |= 1 << c;
                             }
                         }
@@ -1728,6 +1777,7 @@ namespace Fpv450.Sim.Contact
                     {
                         int c = pass == 0 ? a : b;
                         if (_legs.SkidMode(c) == LegMode.TJointFracture) ch.Parts[piece] |= 1 << (8 + c);
+                        if (_spec.HangingGive && (_corner[c] & CornerState.Hanging) != 0) Unload(c, s);
                         for (int i = 0; i < _shapes.Length; i++)
                             if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
                                 Leave(i, ch, piece, s, events);
@@ -1750,6 +1800,21 @@ namespace Fpv450.Sim.Contact
             }
             for (int c = 0; c < 4; c++) _followed[c] = _legs.Flags(c);
             return ch;
+        }
+
+        // A hanging half that leaves with its skid is unloaded: its elastic give springs back (its fold stays), so the piece
+        // leaves whole, the half where its skid's other half holds it (HangingGive).
+        void Unload(int c, in FlightState s)
+        {
+            _elastic[c] = default;
+            _hangShift[c] = default;
+            if (Same(HangTurn(c), _foldApplied[c]) && Same(_hangShift[c], _shiftApplied[c])) return;
+            _foldApplied[c] = HangTurn(c);
+            _foldTurn[c] = Turn(HangTurn(c));
+            _shiftApplied[c] = default;
+            for (int i = 0; i < _shapes.Length; i++)
+                if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
+                    Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
         }
 
         // Leg c holds its half of the skid: it is on, and its T-joint holds the skid.

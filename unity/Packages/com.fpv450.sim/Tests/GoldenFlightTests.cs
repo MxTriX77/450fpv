@@ -273,6 +273,38 @@ namespace Fpv450.Sim.Tests
             Assert.That(nonZero, Is.EqualTo(0), "the lean of a flight that touches nothing");
         }
 
+        // The hanging half and the stub (model 51), its audit, kept: no golden parts a leg, so none has a hanging half or a stub
+        // (every corner state zero on every record), and with the fix off (WithoutTheHangingGive: model 50's turn alone and the
+        // free tube's spring on a stub) and on every golden is model 50's pin over the whole record, every record and event: no
+        // golden was re-recorded. The flights the fix moves are those whose legs part (the crown in Windy, the damage cell's seed 3,
+        // the legs' replay): RangeContactTests.WithoutTheHangingGiveTheWindyCrownIsModel50s pins one of them to model 50's Tunnel.
+        [Test]
+        public void WithoutTheHangingGiveEachGoldenIsModel50s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            int corners = 0;
+            int at = -1;
+            foreach (LogField f in LogFormat.StepFields)
+                if (f.Name == "corner_state.rear_right") at = f.Offset;
+            Assert.That(at, Is.GreaterThan(0));
+            void Whole(byte[] record)
+            {
+                for (int i = at; i < at + 4; i++) corners |= record[i];
+            }
+            foreach (Action<FlightSetup> edit in new[] { null, GoldenFlights.WithoutTheHangingGive })
+            {
+                string how = edit == null ? "with the fix" : "without it";
+                Assert.That(GoldenFlights.FlyContact(spec, out _, onRecord: Whole, edit: edit), Is.EqualTo(GoldenFlights.ContactHash), "contact, " + how);
+                Assert.That(GoldenFlights.FlyRange(spec, out _, onRecord: Whole, edit: edit), Is.EqualTo(GoldenFlights.RangeHash), "range, " + how);
+                Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, onRecord: Whole, edit: edit), Is.EqualTo(GoldenFlights.TetherHash), "tether, " + how);
+            }
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, onRecord: Whole), Is.EqualTo(GoldenFlights.PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Whole),
+                Is.EqualTo(GoldenFlights.RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.TumbleHash), "tumble");
+            Assert.That(corners, Is.EqualTo(0), "no golden parts a leg: no hanging half, no stub");
+        }
+
         // Its audit against p7g-legs (model 41), kept: without the line's mechanisms (no surfaces.json, no area laws, no line, no
         // props.blade, model 34's yaw I; no golden enters a cut), over p7g-legs' record (the record less the fiber's 104 and the
         // strikes' 384 bytes at 1904), every golden is model 41's pin, every record and event, and the two blocks are zero on
