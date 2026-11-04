@@ -10,7 +10,9 @@ namespace Fpv450.FlightBench
     // them, failing if one misses. `--landing` holds the touchdowns' toppling and the coil's rock against rigid-body
     // mechanics (1.6c, D-067). `--factory [seeds] [first]` flies the factory imbalance's baseline shake on 20 000 seeds by
     // default (p7f-damage 1.2). `--damage [seeds]` flies the damage harness's first cells along H01_D's wall, 8 seeds a cell by
-    // default (p7f-damage 1.3). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
+    // default (p7f-damage 1.3). `--legs [seeds]` flies the legs' outcomes over touchdown speed, roll and drift, 40 seeds a
+    // cell by default, with the clamp's preload and the tube's yield held at their bounds and the known-wrong models
+    // (p7g-legs 1.4). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
     // drone and prints the setpoint against the achieved rate and what limits it; `--rate-log <log>...` reads flight logs so.
     internal static class Program
@@ -83,6 +85,15 @@ namespace Fpv450.FlightBench
                     return DamageCase.Run(seeds) ? 0 : 1;
                 }
             }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--legs")
+            {
+                int seeds = 40;
+                if (args.Length < 2 || int.TryParse(args[1], out seeds) && seeds >= 1)
+                {
+                    Console.WriteLine("flightbench: the legs' outcomes over touchdown speed, roll and drift (p7g-legs 1.4), " + seeds + " seeds a cell");
+                    return LegsCase.Run(seeds) ? 0 : 1;
+                }
+            }
             if (args.Length >= 1 && args[0] == "--wind-harness")
                 return WindHarnessCase.Run(args);
             if (args.Length == 1 && args[0] == "--rate-tracking")
@@ -98,7 +109,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
             return 2;
         }
     }
