@@ -159,13 +159,17 @@ namespace Fpv450.Sim.Log
         ///    the tether entry stays at tag 25 and the drone internals entry at 26; the events 14–16 (p7d-tether's), 17–19
         ///    (p7f-damage's; 20–22 reserved for it) and 23–28 (LegSet, LegCracked, LegBroken, LegDetached, SkidLoose,
         ///    PieceDropped: p7g-legs', D-074).
-        /// 37: assigned elsewhere (D-072).
+        /// 37: the fountain and the ground vortex on the line (p7d-tether 1.6b, D-075;
+        ///    unity/physics/physics-integration-2--fountain, on 34; assigned by D-074): the tether entry gains the
+        ///    known-wrong design 4 air's switch (FlightSetup.TetherDesign4Air, a bool) after the two-way spool's;
+        ///    tether.json's rotor_air block gains its ten rows (the entry writes every row, so its layout is otherwise
+        ///    34's); the record is 34's 2392 bytes; no new event kind.
         /// 38: the physics integration 2 with the tip slide and the fountain (unity/physics/physics-integration-2--int48,
-        ///    assigned by D-072): 35 merged onto 36: surfaces.json's table in the contacts entry carries 33's and 35's
-        ///    fields (what a blade meets, the soils' stones), the contacts entry 35's tip slide switch after the strikes'
-        ///    and then 36's legs' fields; the record is 36's 2784 bytes and the loose pieces' side record 36's; the events
-        ///    14–16 (p7d-tether's), 17–20 (p7f-damage's: StoneStrike 20, 35's; 21–22 reserved for it) and 23–28
-        ///    (p7g-legs').
+        ///    assigned by D-072): 35 and 37 merged onto 36: surfaces.json's table in the contacts entry carries 33's and 35's
+        ///    fields (what a blade meets, the soils' stones), the contacts entry 35's tip slide switch after the strikes' and
+        ///    then 36's legs' fields, and the tether entry 37's design 4 air switch after the two-way spool's (tether.json's
+        ///    rotor_air rows with it); the record is 36's 2784 bytes and the loose pieces' side record 36's; the events 14–16
+        ///    (p7d-tether's), 17–20 (p7f-damage's: StoneStrike 20, 35's; 21–22 reserved for it) and 23–28 (p7g-legs').
         /// </summary>
         public const int Version = 38;
 
@@ -416,14 +420,21 @@ namespace Fpv450.Sim.Log
         ///    (drone.json without legs.tube, clamp and tjoint, the 10 kN/m spring) a flight steps as in 44; with the line's
         ///    mechanisms off (no surfaces.json, no area laws, no line, no props.blade, model 34's yaw I, the ESCs freewheeling)
         ///    as in 41.
-        /// 47: assigned elsewhere (D-072).
+        /// 47: the fountain and the ground vortex on the line (p7d-tether 1.6b, D-075,
+        ///    unity/physics/physics-integration-2--fountain, on 44; RotorAir): where two rotors' wall jets meet, their
+        ///    normal momentum (fountain_momentum_ratio of it) rises as a self-similar plane jet from the ground to the
+        ///    discs' plane, fading out of the hover-like regime; each landing wake in a stream along the ground rolls a
+        ///    ground vortex ahead of it (a straight Scully vortex and its image, placed and sized from Wolf et al. 2022's
+        ///    flight test), unless another rotor's landing shadows it. Only the line's air changes: a flight without the
+        ///    line steps as in 44, and so does one with it on design 4's field (FlightSetup.TetherDesign4Air).
         /// 48: the physics integration 2 with the tip slide and the fountain (unity/physics/physics-integration-2--int48,
-        ///    assigned by D-072; the code is the parents' together): 45's blades on the ground (43's carve, 45's tip slide
-        ///    and stones) merged onto 46. With surfaces.json a disc that cuts the ground or a soil shape carves it (it
-        ///    glanced in 46); a disarmed rotor in the soil brakes by its ESC's rule (44's) against the carve, and a carve's
-        ///    body push and plough reach the legs' contacts (46's). A flight whose discs never cut a softer face steps as
-        ///    in 46; with the tip slide off (ContactSpec.TipSlide) a carve is 43's; without surfaces.json every pass on the
-        ///    ground glances (40's).
+        ///    assigned by D-072; the code is the parents' together): 45's blades on the ground (43's carve, 45's tip slide and
+        ///    stones) and 47's fountain and ground vortex merged onto 46. With surfaces.json a disc that cuts the ground or a
+        ///    soil shape carves it (it glanced in 46); a disarmed rotor in the soil brakes by its ESC's rule (44's) against the
+        ///    carve, and a carve's body push and plough reach the legs' contacts (46's); the line's air has 47's fountain and
+        ///    ground vortex, on the legs' liftoff. A flight whose discs never cut a softer face and that flies no line, or flies
+        ///    it on design 4's field (FlightSetup.TetherDesign4Air), steps as in 46; with the tip slide off
+        ///    (ContactSpec.TipSlide) a carve is 43's; without surfaces.json every pass on the ground glances (40's).
         /// </summary>
         public const int ModelVersion = 48;
 

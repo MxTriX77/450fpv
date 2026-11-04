@@ -67,11 +67,19 @@ The span SHALL be at most 32 active nodes from the exit to where the line comes 
 - **THEN** the airborne line's mass per metre and diameter follow the table's films, and it settles faster and trails lower in rain than dry
 
 ### Requirement: The rotors' air moves the line
-Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow toward the disc above it (the vortex cylinder's axial law inside its radius, a sink of the disc's flux outside), its wake below it, and a radial wall jet when the disc is near the ground.
+Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow toward the disc above it (the vortex cylinder's axial law inside its radius, a sink of the disc's flux outside), its wake below it, and a radial wall jet when the disc is near the ground. Where two rotors' wall jets meet, their momentum SHALL rise as a fountain up to the discs' plane, and a wake landing in a stream along the ground SHALL roll up a ground vortex ahead of it, each built from published measurements (D-075).
 
 #### Scenario: A line under a punch is lifted and drawn
 - **WHEN** the drone sits legs-on on the field start with the line laid under it and goes to full throttle from rest, and again at hover thrust
 - **THEN** at full throttle the line beside the skids is lifted by the wall jet and moves toward the nearest disc's edge faster than at hover, the logged drag on each node matches the field's law at its position within 1 %, and a node that crosses a turning disc cuts the line
+
+#### Scenario: Without the fountain the line stays off the discs
+- **WHEN** the same punch is flown on the rotors' air without the fountain and the ground vortex (the known-wrong)
+- **THEN** the line beside the skids stays more than 0.2 m from every rim and approaches them slower than with the fountain
+
+#### Scenario: The fountain and the ground vortex follow their measurements
+- **WHEN** the field is built for the measured rotors: two rotors one diameter apart tip to tip at H/R 4 and 2, twin rotors at h/R 1 with tip gaps of 2.2, 0.95 and 0.45 R, and a full-scale rotor at h/R 1 at μ* 0.55 and 0.80
+- **THEN** the fountain reaches 3R at H/R 4 and the discs' plane at H/R 2, the wall jets meet where measured within 0.05 R and move toward the weaker rotor, and the ground vortex stands where measured with the speed under it within 10 %, under the disc ahead of the hub for μ* 0.7–0.9, ahead of the disc up to 0.55, and gone at hover and from μ* 1.19
 
 #### Scenario: A known-wrong still air near the props
 - **WHEN** the very-sharp-liftoff set of "The pilot's accounts" is flown with the rotors' air removed from the line
