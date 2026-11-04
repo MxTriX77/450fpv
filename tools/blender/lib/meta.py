@@ -67,12 +67,14 @@ PORT_KEYS = ("id", "position", "direction", "max_diameter_m")
 # Conductors that are map objects rather than collision shapes (same requirement; D-007): per conductor the material
 # slot its tube is drawn in (a slot of physics `cable`), its diameter, mass per metre and sag below the chord at
 # mid-span (PHY-22 derives T = w L^2 / 8 f and k = 4 T / L from them), its axial stiffness EA and rated breaking
-# force (past the slack the span stretches, then breaks: task 1.5's reading §2.2), material `cable`, its damage state
-# and the sampled centre line, two points at least. The map compiler copies them into objects.json; the audit holds
-# the tube to the points. Schema 1 stays: the key is additive and always present, [] when none.
-WIRE_KEYS = ("slot", "diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n", "material",
-             "damage", "points")
-WIRE_NUMBERS = ("diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n")
+# force (past the slack the span stretches, then breaks: task 1.5's reading §2.2), its bending stiffness EI (how
+# tightly it bends round what it meets: p7d-tether design 15), material `cable`, its damage state and the sampled
+# centre line, two points at least. The map compiler copies them into objects.json; the audit holds the tube to the
+# points. Schema 1 stays: the key is additive and always present, [] when none.
+WIRE_KEYS = ("slot", "diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n",
+             "bending_stiffness_n_m2", "material", "damage", "points")
+WIRE_NUMBERS = ("diameter_m", "mass_kg_per_m", "sag_m", "axial_stiffness_n", "breaking_force_n",
+                "bending_stiffness_n_m2")
 WIRE_MATERIAL = "cable"
 WIRE_DAMAGE = ("intact", "cut", "down")  # the lines sheet's states per conductor (§L03)
 # Cuts in the ground (p1-e01-trench, "Holes in the metadata"): per cut an id, its ordered centre line ([x, y, z] in
@@ -463,8 +465,8 @@ def validate(meta, material_ids, elements=None):
         if w["material"] != WIRE_MATERIAL:
             problems.append(f"wires[{i}]: material must be {WIRE_MATERIAL!r}, got {w['material']!r}")
         if not (all(w[k] > 0 for k in WIRE_NUMBERS if k != "sag_m") and w["sag_m"] >= 0):
-            problems.append(f"wires[{i}]: diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be "
-                            "positive and sag_m at least 0")
+            problems.append(f"wires[{i}]: diameter_m, mass_kg_per_m, axial_stiffness_n, breaking_force_n and "
+                            "bending_stiffness_n_m2 must be positive and sag_m at least 0")
         if w["damage"] not in WIRE_DAMAGE:
             problems.append(f"wires[{i}]: damage must be one of {', '.join(WIRE_DAMAGE)}, got {w['damage']!r}")
         if slots.get(w["slot"]) != WIRE_MATERIAL:

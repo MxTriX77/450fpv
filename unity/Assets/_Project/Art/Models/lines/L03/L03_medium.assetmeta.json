@@ -53,6 +53,7 @@
       "sag_m": 0.8,
       "axial_stiffness_n": 3118500.0,
       "breaking_force_n": 8198.0,
+      "bending_stiffness_n_m2": 1.75345,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -470,6 +471,7 @@
       "sag_m": 0.8,
       "axial_stiffness_n": 3118500.0,
       "breaking_force_n": 8198.0,
+      "bending_stiffness_n_m2": 1.75345,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -887,6 +889,7 @@
       "sag_m": 0.8,
       "axial_stiffness_n": 3118500.0,
       "breaking_force_n": 8198.0,
+      "bending_stiffness_n_m2": 1.75345,
       "material": "cable",
       "damage": "intact",
       "points": [
@@ -1304,6 +1307,7 @@
       "sag_m": 0.8,
       "axial_stiffness_n": 3118500.0,
       "breaking_force_n": 8198.0,
+      "bending_stiffness_n_m2": 1.75345,
       "material": "cable",
       "damage": "intact",
       "points": [
