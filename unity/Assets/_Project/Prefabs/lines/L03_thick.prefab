@@ -83,6 +83,7 @@ MonoBehaviour:
     sagM: 0.4
     axialStiffnessN: 2016000
     breakingForceN: 5299.7173
+    bendingStiffnessNM2: 0.442904
     material: cable
     damage: intact
     points:

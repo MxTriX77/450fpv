@@ -92,6 +92,20 @@
 // Radius), and MapWorld.WirePoints(object, shape) the chain itself. A ray that starts
 // inside any segment of a wire does not hit that wire, so a rotor ray re-cast from inside
 // a conductor goes on to what lies past it.
+//
+// Wires left to physics (p7d-tether task 1.2, design 9 and 12; QueryVersion 6). StaticContacts
+// and Raycast take a QueryFilter: with NoWires they skip every wire shape, so a ray goes on to
+// what lies beyond it; with None (the default) every caller sees wires as before, bit for bit.
+// WiresNear gives physics the conductors themselves: every placed wire whose swing envelope
+// meets a sphere. The envelope is its rest chain inflated by its radius and its blow-out at 45°
+// (assumed, design 12): turned about its chord by θ, a point d from the chord moves 2·d·sin(θ/2),
+// so for |θ| ≤ 45° by at most 2·d_max·sin 22.5°, d_max the chain's farthest point from its chord.
+// A conductor is returned when the centre lies within radius + its radius + that blow-out of its
+// rest chain. Its ends are paired at load with the placed ports: an end hangs from the port whose
+// seat (its position plus the conductor's radius along its direction, the pole-wires reading §1)
+// lies nearest it within 5 mm, the first in canonical order on a tie; an end with none is a world
+// bug, named at load in MapWorld.WorldBugs, and reads FittingKind.None. Its neighbour at an end is
+// the first other conductor, in canonical order, with an end on the same port.
 
 using System;
 
@@ -123,17 +137,26 @@ namespace Fpv450.Sim.World
         /// every runtime object within `margin` (m): at most one per (object, shape), under the Time rule
         /// above, in canonical order (object, then shape; the ground first). Returns the
         /// true count, which exceeds results.Length on overflow; the buffer then holds the
-        /// first contacts in canonical order.
+        /// first contacts in canonical order. QueryFilter.NoWires leaves every wire out (above).
         /// </summary>
-        int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results);
+        int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
+            QueryFilter filter = QueryFilter.None);
 
         /// <summary>
         /// The first surface each ray enters within maxDistance (m, finite): the ground
         /// (from above only, and never over a patch or inside a hole band), shapes and wires.
         /// A ray that starts inside a shape (or any segment of a wire) does not hit it. A tie
-        /// keeps the first in canonical order.
+        /// keeps the first in canonical order. QueryFilter.NoWires leaves every wire out, so the
+        /// ray goes on to what lies beyond it.
         /// </summary>
-        void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits);
+        void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None);
+
+        /// <summary>
+        /// Every placed conductor whose swing envelope (above) meets the sphere at `centre` of `radius` (m), with its
+        /// record's fields, its rest chain and its two ends, in canonical order (object, then shape). Returns the true
+        /// count, which exceeds results.Length on overflow; the buffer then holds the first conductors in canonical order.
+        /// </summary>
+        int WiresNear(Double3 centre, double radius, Span<Conductor> results);
 
         /// <summary>The world-space geometry of (object, shape); false for a pair that does not exist.</summary>
         bool Geometry(int obj, int shape, out ShapeGeometry geometry);

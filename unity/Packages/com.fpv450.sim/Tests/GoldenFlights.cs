@@ -906,7 +906,9 @@ namespace Fpv450.Sim.Tests
         // 0x6114242E06475FB5 alone: every worldbench query hash is unchanged and physics reads none of it. With p7a-ground
         // 1.5's micro_elements beside it (S04's metadata names its sidecar; the strands bent once) it is 0xFBE06530579BCBC7:
         // every worldbench query hash, MicroDetailNear's included, and every flight golden unchanged; no flight reads them yet.
-        public const ulong RangeContent = 0xFBE06530579BCBC7UL;
+        // With p7d-tether 1.4's bending_stiffness_n_m2 in L03_medium's four wire records it is 0xF07BA3CC79D02169: every
+        // worldbench query hash and the range flight unchanged; the loader reads none of it yet.
+        public const ulong RangeContent = 0xF07BA3CC79D02169UL;
         public const int RangeSteps = 12000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
