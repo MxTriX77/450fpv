@@ -173,7 +173,10 @@ namespace Fpv450.Sim.Tests
             // The hover after the return lasts until the slack can rest (p7g-legs 1.4: 4 s left the 10 m line's slack in the air,
             // and whether its first point reached the ground in time turned on the legs' sub-millimetre stance at the takeoff):
             // the line's fall from the flight's 10 m at its terminal 1.4 m/s (White's fit, "A falling line settles") takes 7.1 s.
-            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 8, turn = climb + outFor;
+            // p7d-tether 1.7: 14 s. With the contacts the line's near metre meets the drone's parts in the reverse (the stack and
+            // the coil's belly), which changes where the slack lies when it lands, and 8 s left its first point creeping at 8 mm/s,
+            // over trail.freeze_speed_m_s; it rests and freezes within 14 s.
+            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 14, turn = climb + outFor;
             var r = new OutBack { LeastAfterTurn = double.PositiveInfinity, SlackLeast = double.PositiveInfinity };
             double last = 0, stand = Stand(setup);
             Plan flight = OutAndBack(stand, 10, climb, 10, turn, 10);
@@ -678,6 +681,8 @@ namespace Fpv450.Sim.Tests
             /// first segment, and of the moment from that force at the exit about the CoM.</summary>
             public double ForceError, MomentError;
             public int Steps;
+            /// <summary>The largest reaction of a drone part the line pressed on, N (p7d-tether 1.7; in the expected force above).</summary>
+            public double PartReaction;
             /// <summary>Hovering with the line taut: the most exit tension, N. Held (the coil empty): the most exit tension, N, the
             /// time it emptied, s, how far the drone flew on past where it emptied, m, its most pitch toward the hold (rad, + nose
             /// toward it), and the moment's pitch about body x at the most tension, N·m.</summary>
@@ -695,6 +700,11 @@ namespace Fpv450.Sim.Tests
         {
             var r = new Pull { EmptyAt = double.NaN };
             Double3 expectedForce = default, exitBody = default;
+            // p7d-tether 1.7: the line's force on the drone is the exit's pull and the reactions of the parts it presses on
+            // (FiberContacts), each taken at the step's end and applied in the next.
+            var reactionForce = new Double3[64];
+            var reactionPoint = new Double3[64];
+            int reactions = 0;
             bool have = false;
             double mu = Table().Number("fiber.mass_per_m_kg");
             Action<FlightCore> check = core =>
@@ -711,6 +721,15 @@ namespace Fpv450.Sim.Tests
                 Double3 outward = line[line.Count - 2].Position - line[line.Count - 1].Position;
                 double sdot = tr.PayoutSpeed;
                 expectedForce = outward * ((tr.ExitTension - (sdot > 0 ? mu * sdot * sdot : 0)) / outward.Length());
+                FiberContacts parts = f.Contacts;
+                reactions = parts == null ? 0 : parts.ReactionCount;
+                for (int i = 0; i < reactions; i++)
+                {
+                    reactionForce[i] = parts.ReactionForce(i);
+                    reactionPoint[i] = parts.ReactionPoint(i);
+                    expectedForce = expectedForce + reactionForce[i];
+                    if (reactionForce[i].Length() > r.PartReaction) r.PartReaction = reactionForce[i].Length();
+                }
                 exitBody = f.ExitBody;
                 have = true;
             };
@@ -720,7 +739,11 @@ namespace Fpv450.Sim.Tests
             Action<FlightCore> moment = core =>
             {
                 ref readonly TetherTrace tr = ref core.Trace.Tether;
-                Double3 m = Double3.Cross(exitBody - bodyBefore.CenterOfMass, attitudeBefore.InverseRotate(tr.Force));
+                Double3 exit = tr.Force;
+                for (int i = 0; i < reactions; i++) exit = exit - reactionForce[i];
+                Double3 m = Double3.Cross(exitBody - bodyBefore.CenterOfMass, attitudeBefore.InverseRotate(exit));
+                for (int i = 0; i < reactions; i++)
+                    m = m + Double3.Cross(reactionPoint[i] - bodyBefore.CenterOfMass, attitudeBefore.InverseRotate(reactionForce[i]));
                 double me = (tr.Moment - m).Length() / DetMath.Max(m.Length(), 1e-300);
                 if (m.Length() > 0 && me > r.MomentError) r.MomentError = me;
             };

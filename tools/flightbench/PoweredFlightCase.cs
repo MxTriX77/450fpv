@@ -212,13 +212,20 @@ namespace Fpv450.FlightBench
                 + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "
                 + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
                 + $"{l.Tether.Chain.Wedges} wedges, ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+            // p7d-tether 1.7's audit: without the fiber's contacts (FlightSetup.TetherWithoutContacts) the line's flight is model
+            // 50's, every record and event.
+            ulong line50 = GoldenFlights.FlyContact(Drone(), out FlightCore l50, tether: true, fiberContacts: false);
+            bool k50 = line50 == GoldenFlights.Model50TetherHash && l50.Tether.Contacts == null;
+            lok &= k50;
+            Console.WriteLine($"tether-flight without the fiber's contacts: 0x{line50:X16} ({(k50 ? "model 50's, bit for bit" : "NOT model 50's")}); "
+                + $"with them {l.Tether.Contacts?.Inserted} contact nodes put in, {l.Tether.Contacts?.QueriesTotal} shape queries: {(k50 ? "PASS" : "FAIL")}");
             // The physics integration 2 with the tip slide and the fountain (model 48), its audit against the line (model 46): on
             // design 4's field (no fountain, no ground vortex; p7d-tether 1.6b's audit against 44 when it was alone) the line's
             // flight is model 46's, every record and event; no golden's disc cuts the soil, so with the tip slide off (model 43's
             // carve) the contact, range and tether goldens are their pins. Since model 50 (the lever on the line) design 4's air
             // gives p7g-legs 1.4's model 49 tether pin over the whole record, and with the lever off too model 46's over 2784 bytes.
-            ulong line46 = GoldenFlights.FlyContact(Drone(), out FlightCore l46, tether: true, recirculation: false),
-                line46off = GoldenFlights.FlyContact(Drone(), out _, tether: true, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever);
+            ulong line46 = GoldenFlights.FlyContact(Drone(), out FlightCore l46, tether: true, fiberContacts: false, recirculation: false),
+                line46off = GoldenFlights.FlyContact(Drone(), out _, tether: true, fiberContacts: false, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever);
             Action<FlightSetup> slideOff = s => s.Contacts.TipSlide = false;
             ulong cso = GoldenFlights.FlyContact(Drone(), out FlightCore cs, edit: slideOff), gso = GoldenFlights.FlyRange(Drone(), out FlightCore gs, edit: slideOff),
                 lso = GoldenFlights.FlyContact(Drone(), out FlightCore ls, tether: true, edit: slideOff);
@@ -230,7 +237,7 @@ namespace Fpv450.FlightBench
                 + $"the lever off too 0x{line46off:X16} ({(line46off == GoldenFlights.Model46TetherHash ? "model 46's" : "NOT model 46's")}); "
                 + $"the tip slide off: contact 0x{cso:X16}, range 0x{gso:X16}, tether 0x{lso:X16} (the pins), {carved} blade passes: {(l44 ? "PASS" : "FAIL")}");
             // The physics integration 2's audit against p7d-tether (model 34): on the rigid floor the line's flight is model 31's.
-            ulong line31 = GoldenFlights.FlyContact(Bare(), out _, tether: true, soil: false, yawI: false, layout: m38, recirculation: false);
+            ulong line31 = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, soil: false, yawI: false, layout: m38, recirculation: false);
             bool l31 = line31 == GoldenFlights.Model31TetherHash;
             lok &= l31;
             Console.WriteLine($"tether-flight without surfaces.json: 0x{line31:X16} ({(l31 ? "model 31's, bit for bit" : "NOT model 31's")}): {(l31 ? "PASS" : "FAIL")}");
@@ -240,7 +247,7 @@ namespace Fpv450.FlightBench
             ulong y34p = GoldenFlights.FlyPowered(Bare(), out _, yawI: false, layout: m38), y34c = GoldenFlights.FlyContact(Bare(), out _, yawI: false, layout: m38),
                 y34g = GoldenFlights.FlyRange(Bare(), out _, yawI: false, layout: m38),
                 y34r = GoldenFlights.FlyPowered(Bare(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, yawI: false, layout: m38),
-                y34l = GoldenFlights.FlyContact(Bare(), out _, tether: true, yawI: false, layout: m38, recirculation: false);
+                y34l = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, yawI: false, layout: m38, recirculation: false);
             bool y34 = y34p == GoldenFlights.Model34PoweredHash && y34c == GoldenFlights.Model34ContactHash && y34g == GoldenFlights.Model34RangeOn38Hash
                 && y34r == GoldenFlights.Model34RainPoweredHash && y34l == GoldenFlights.Model34TetherHash;
             Console.WriteLine($"on model 34's yaw I (i_yaw {GoldenFlights.Model34YawI:R}): powered 0x{y34p:X16}, contact 0x{y34c:X16}, range 0x{y34g:X16}, "
@@ -302,7 +309,7 @@ namespace Fpv450.FlightBench
             ulong b38p = GoldenFlights.FlyPowered(Bare(), out _, layout: m38, onRecord: Strikes),
                 b38r = GoldenFlights.FlyPowered(Bare(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m38, onRecord: Strikes),
                 b38c = GoldenFlights.FlyContact(Bare(), out _, layout: m38, onRecord: Strikes), b38g = GoldenFlights.FlyRange(Bare(), out _, layout: m38, onRecord: Strikes),
-                b38l = GoldenFlights.FlyContact(Bare(), out _, tether: true, layout: m38, onRecord: Strikes, recirculation: false),
+                b38l = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, layout: m38, onRecord: Strikes, recirculation: false),
                 b38t = GoldenFlights.FlyTumble(Bare(), out _, out _, layout: m38);
             bool k38 = b38p == GoldenFlights.Model38PoweredHash && b38r == GoldenFlights.Model38RainPoweredHash && b38c == GoldenFlights.Model38ContactHash
                 && b38g == GoldenFlights.Model38RangeHash && b38l == GoldenFlights.Model38TetherHash && b38t == GoldenFlights.Model38TumbleHash && strikesTail == 0;
@@ -361,8 +368,8 @@ namespace Fpv450.FlightBench
             ulong e44p = GoldenFlights.FlyPowered(l26, out _, layout: m44, onRecord: LegStates),
                 e44r = GoldenFlights.FlyPowered(l26, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m44, onRecord: LegStates),
                 e44c = GoldenFlights.FlyContact(l26, out _, layout: m44, onRecord: LegStates), e44g = GoldenFlights.FlyRange(l26, out _, layout: m44, onRecord: LegStates),
-                e44l = GoldenFlights.FlyContact(l26, out _, tether: true, layout: m44, onRecord: LegStates, recirculation: false),
-                e47l = GoldenFlights.FlyContact(l26, out _, tether: true, layout: m44, onRecord: LegStates),
+                e44l = GoldenFlights.FlyContact(l26, out _, tether: true, fiberContacts: false, layout: m44, onRecord: LegStates, recirculation: false),
+                e47l = GoldenFlights.FlyContact(l26, out _, tether: true, fiberContacts: false, layout: m44, onRecord: LegStates),
                 e44t = GoldenFlights.FlyTumble(l26, out _, out _, layout: m44);
             bool k44 = e44p == GoldenFlights.Model44PoweredHash && e44r == GoldenFlights.Model44RainPoweredHash && e44c == GoldenFlights.Model44ContactHash
                 && e44g == GoldenFlights.Model44RangeHash && e44l == GoldenFlights.Model44TetherHash && e44t == GoldenFlights.Model44TumbleHash && legStates == 0;
@@ -403,7 +410,7 @@ namespace Fpv450.FlightBench
             DroneSpec now = Drone();
             ulong n46c = GoldenFlights.FlyContact(now, out _, layout: m46, onRecord: Lean, edit: noLever),
                 n46g = GoldenFlights.FlyRange(now, out _, layout: m46, onRecord: Lean, edit: noLever),
-                n46l = GoldenFlights.FlyContact(now, out _, tether: true, layout: m46, onRecord: Lean, edit: noLever),
+                n46l = GoldenFlights.FlyContact(now, out _, tether: true, fiberContacts: false, layout: m46, onRecord: Lean, edit: noLever),
                 n46p = GoldenFlights.FlyPowered(now, out _, layout: m46, onRecord: Lean),
                 n46r = GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m46, onRecord: Lean),
                 n46t = GoldenFlights.FlyTumble(now, out _, out _, layout: m46);

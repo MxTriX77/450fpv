@@ -749,8 +749,21 @@ namespace Fpv450.Sim.Tests
         /// model 48's from step 3 (the standing skids on their levers): within 2.0 mm and 0.82°, 71 events against 65, at rest
         /// 0.2495 m as 48's, 1.2 mm aside; the largest lean 9.5 mm; the line as on both (0.075 m paid out, 15 nodes, the trail at 7
         /// points, no clip or wedge), the chain's energy check taking 1 safe step (48: none, 49: 1). Every leg intact.
+        /// Model 50: 0x316A98D76AD4F03F (Model50TetherHash). p7d-tether 1.7 (ModelVersion 53): re-recorded with the fiber's contacts.
+        /// Audited: without them (FlightSetup.TetherWithoutContacts) it is model 50's pin, every record and event
+        /// (FiberContactTests.WithoutTheFiberContactsEachGoldenIsModel50s, flightbench --golden), and no other golden flies the
+        /// line. With them the line's first contact is at step 309, the motors' spool-up: the rear pair's fountain lifts the piece
+        /// rising to the exit into the stack's plates, the coil's belly and the payload's aft (θ up to 1.42 rad at 0.15 N), where
+        /// it is held; the drone leaves model 50's path at step 660 (the parts' reactions, up to 0.146 N over 90 steps) and stays
+        /// within 0.59 mm and 0.006° of it, 3 impacts as 50's, at rest 0.2495 m up as 50's, 0.10 mm aside; 158 events against 71
+        /// (the FiberContact and FiberSlip events); the line 0.0757 m paid out against 0.0753, 17 nodes against 15 (3 contact nodes
+        /// put in), the trail at 7 points, 1 safe step, no clip or wedge, as 50's; 77 shape queries over the flight.
         /// </summary>
-        public const ulong TetherHash = 0x316A98D76AD4F03FUL;
+        public const ulong TetherHash = 0xEE08B86460CF0AFBUL;
+
+        /// <summary>The tether golden at model 50 (the legs' lever on the line), which the flight without the fiber's contacts
+        /// keeps (p7d-tether 1.7, FiberContactTests.WithoutTheFiberContactsEachGoldenIsModel50s).</summary>
+        public const ulong Model50TetherHash = 0x316A98D76AD4F03FUL;
 
         /// <summary>The physics integration 2 with the tip slide and the fountain (model 48), its audits against the parents'
         /// tether pins: the line's model 46 (TetherHash at model 46, design 4's field), which the contact flight with the line on
@@ -1262,7 +1275,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true)
+            bool recirculation = true, bool fiberContacts = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1285,6 +1298,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
+                setup.TetherWithoutContacts = !fiberContacts; // p7d-tether 1.7: false flies the plane alone, models 31–50's line
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);

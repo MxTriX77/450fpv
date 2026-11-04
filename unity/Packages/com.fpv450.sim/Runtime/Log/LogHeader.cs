@@ -113,7 +113,7 @@ namespace Fpv450.Sim.Log
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
             "RotorWake", "Flapping", "Interference", "Modes", "Placement", "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass",
-            "TetherTwoWay", "TetherDesign4Air",
+            "TetherTwoWay", "TetherDesign4Air", "TetherWithoutContacts",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -177,7 +177,7 @@ namespace Fpv450.Sim.Log
         {
             "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "AreaLaw", "AreaReferenceDepth", "ElasticModulus", "HasWet",
             "WetStiffnessRatio", "WetStiffness", "WetStaticFriction", "WetKineticFriction", "WetAdhesion", "WetAdhesionRelease", "Hardness",
-            "CrushStrength", "Density",
+            "CrushStrength", "Density", "EdgeRadius",
         };
 
         /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
@@ -348,6 +348,7 @@ namespace Fpv450.Sim.Log
         public double TetherSpoolMass;
         public bool TetherTwoWay;
         public bool TetherDesign4Air;
+        public bool TetherWithoutContacts;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -430,6 +431,7 @@ namespace Fpv450.Sim.Log
                 TetherSpoolMass = setup.TetherSpoolMass,
                 TetherTwoWay = setup.TetherTwoWay,
                 TetherDesign4Air = setup.TetherDesign4Air,
+                TetherWithoutContacts = setup.TetherWithoutContacts,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -539,6 +541,7 @@ namespace Fpv450.Sim.Log
                 TetherSpoolMass = TetherSpoolMass,
                 TetherTwoWay = TetherTwoWay,
                 TetherDesign4Air = TetherDesign4Air,
+                TetherWithoutContacts = TetherWithoutContacts,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -881,6 +884,8 @@ namespace Fpv450.Sim.Log
                     e.Write(m.Hardness);
                     e.Write(m.CrushStrength);
                     e.Write(m.Density);
+                    // p7d-tether 1.7 (format 43): the arris the fiber bends over.
+                    e.Write(m.EdgeRadius);
                 }
                 e.Write(c.MaterialsHash);
                 // surfaces.json's table and hash after its flag (format 17; 14 on p7a-ground).
@@ -1073,6 +1078,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherSpoolMass);
                 e.Write(TetherTwoWay);
                 e.Write(TetherDesign4Air);
+                e.Write(TetherWithoutContacts);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1523,6 +1529,7 @@ namespace Fpv450.Sim.Log
                         TetherSpoolMass = r.ReadDouble();
                         TetherTwoWay = r.ReadBoolean();
                         TetherDesign4Air = r.ReadBoolean();
+                        TetherWithoutContacts = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {
@@ -1641,7 +1648,7 @@ namespace Fpv450.Sim.Log
                     AreaLaw = (AreaLaw)r.ReadByte(), AreaReferenceDepth = r.ReadDouble(), ElasticModulus = r.ReadDouble(), HasWet = r.ReadBoolean(),
                     WetStiffnessRatio = r.ReadDouble(), WetStiffness = r.ReadDouble(), WetStaticFriction = r.ReadDouble(), WetKineticFriction = r.ReadDouble(),
                     WetAdhesion = r.ReadDouble(), WetAdhesionRelease = r.ReadDouble(),
-                    Hardness = r.ReadDouble(), CrushStrength = r.ReadDouble(), Density = r.ReadDouble(),
+                    Hardness = r.ReadDouble(), CrushStrength = r.ReadDouble(), Density = r.ReadDouble(), EdgeRadius = r.ReadDouble(),
                 };
             c.MaterialsHash = r.ReadUInt64();
             if (r.ReadBoolean()) c.Surfaces = ReadSurfaces(r);

@@ -33,6 +33,20 @@ namespace Fpv450.Sim.Flight
 
         public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits) => _query.Raycast(rays, maxDistance, hits);
 
+        /// <summary>StaticContacts with a filter (the fiber's: QueryFilter.NoWires, physics meeting the conductors through
+        /// WiresNear, p7d-tether 1.7).</summary>
+        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results, QueryFilter filter) =>
+            _query.StaticContacts(previous, current, margin, results, filter);
+
+        /// <summary>The world's elements, snag record segments and conductors near a point (IWorldQuery), for the fiber's caches
+        /// (p7d-tether 1.7).</summary>
+        public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>
+            _query.MicroDetailNear(centre, radius, kinds, results);
+
+        public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _query.SnagsNear(centre, radius, results);
+
+        public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _query.WiresNear(centre, radius, results);
+
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _query.Geometry(obj, shape, out geometry);
 
         /// <summary>A placed wire's chain (MapWorld.WirePoints: its point list in world space), or empty for any other shape and
