@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
@@ -201,12 +202,13 @@ namespace Fpv450.Sim.Tests
         /// starts standing on its skids over the site's foot, whose height is the ground's there.
         /// </summary>
         public static Landing Land(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, bool cut, double descentSpeed = 0.5, double forward = 0,
-            Site site = default)
+            Site site = default, Func<ContactSpec, ContactSpec> edit = null, Action<FlightCore, double> watch = null)
         {
             ContactSpec probe = spec.BuildContacts(spec.Nominal, materials, materialsHash);
             double stand = Standing(probe);
             Double3 foot = site.Foot;
             FlightSetup setup = Setup(spec, materials, materialsHash, true, site, site.Open(), foot + new Double3(0, stand, 0));
+            if (edit != null) setup.Contacts = edit(setup.Contacts);
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0)) { Heading = site.Nose() };
@@ -266,6 +268,7 @@ namespace Fpv450.Sim.Tests
                 }
                 if (touch < 0) continue;
                 double t1 = (n.Step - touch) * FlightCore.Dt;
+                watch?.Invoke(core, t1);
                 ref readonly StepTrace tr = ref core.Trace;
                 int loaded = 0;
                 for (int c = 0; c < 4; c++)
@@ -396,7 +399,8 @@ namespace Fpv450.Sim.Tests
         /// K§7.5's tunnel event: the drone as a free body (no propulsion) with its contacts, sideways at speed (+x) into a
         /// 9 mm steel rod across its path at its leg tubes' height, 0.1 m ahead of them, for 80 ms. At a walking pace the
         /// tubes' sideways bending stops the body; at 40 m/s its 6.6 kN/m cannot, the tubes pass through, and the log must
-        /// say so. Returns the tunnel events.
+        /// say so. Returns the tunnel events. The legs' law is off (the elastic legs): with it the tubes part at their clamps on
+        /// the rod and leave the contacts (p7g-legs 1.3), so no tube is left to tunnel, and the log's rule is this test's.
         /// </summary>
         public static int Overdriven(DroneSpec spec, MaterialRow[] materials, ulong materialsHash, double speed, out string detail)
         {
@@ -404,6 +408,7 @@ namespace Fpv450.Sim.Tests
             const double height = 2, below = 0.215;
             double lead = 0;
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, materialsHash);
+            contacts.Legs = null;
             foreach (ContactShape s in contacts.Shapes)
                 if (s.Name.StartsWith("leg_", System.StringComparison.Ordinal)) lead = DetMath.Max(lead, s.A.X + s.Radius);
             var rod = new ShapeGeometry
@@ -468,6 +473,13 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>The tunnel events' objects and materials, for a report.</summary>
             public List<string> TunnelThrough;
+
+            /// <summary>The tunnels and the legs' events (p7g-legs 1.2) in order, with their steps, for a report; each leg's break's
+            /// step (−1 none); and how many tunnels went through a part of a leg that had broken by then (its supports, skid
+            /// capsule or tube).</summary>
+            public List<string> Order;
+            public long[] Broke;
+            public int ThroughBroken;
         }
 
         /// <summary>
@@ -500,7 +512,7 @@ namespace Fpv450.Sim.Tests
             int aim = target(core);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, height, 0)) { Heading = site.Nose() };
-            var r = new PoleStrike { Touched = new List<string>(), TunnelThrough = new List<string>() };
+            var r = new PoleStrike { Touched = new List<string>(), TunnelThrough = new List<string>(), Order = new List<string>(), Broke = new long[] { -1, -1, -1, -1 } };
             long crashed = -1;
             double lastSpeed = 0, lastHeight = 0;
             for (int k = 0; k < 20000; k++)
@@ -523,7 +535,18 @@ namespace Fpv450.Sim.Tests
                     {
                         r.Tunnels++;
                         r.TunnelThrough.Add(spec.Parts[e.Part].Name + " through " + world.Query.ObjectName(e.Object) + " " + (world.Query.MaterialName(e.Material) ?? world.Query.SurfaceName(e.Surface)));
+                        ContactShape shape = core.Contacts.Spec.Shapes[e.Index];
+                        int leg = shape.Corner;
+                        if (shape.Role == ContactRole.Body) leg = core.Contacts.Legs == null ? -1 : System.Array.IndexOf(core.Contacts.Legs.Spec.Parts, shape.Part);
+                        if (shape.Role != ContactRole.Disc && leg >= 0 && r.Broke[leg] >= 0) r.ThroughBroken++;
                     }
+                    if (e.Kind == EventKind.LegBroken && core.Contacts.Legs != null)
+                        for (int c = 0; c < 4; c++)
+                            if (core.Contacts.Legs.Spec.Parts[c] == e.Part && r.Broke[c] < 0) r.Broke[c] = core.State.Step;
+                    if (e.Kind == EventKind.Tunnel || e.Kind >= EventKind.LegSet && e.Kind <= EventKind.SkidLoose)
+                        r.Order.Add("step " + core.State.Step + ": " + e.Kind + " " + spec.Parts[e.Part].Name + (e.Kind == EventKind.Tunnel
+                            ? " (" + core.Contacts.Spec.Shapes[e.Index].Name + ", " + e.A.ToString("F3") + " m deep at " + e.B.ToString("F2") + " m/s)"
+                            : " (" + (LegMode)e.Index + ", " + e.A.ToString("F2") + " past " + e.B.ToString("F2") + ")"));
                     if (e.Kind == EventKind.ContactsLost) r.Lost++;
                     if (e.Kind == EventKind.Impact && crashed >= 0 && r.ImpactPart == null)
                     {

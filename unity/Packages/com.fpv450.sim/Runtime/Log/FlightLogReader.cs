@@ -102,7 +102,8 @@ namespace Fpv450.Sim.Log
                 int length = BinaryPrimitives.ReadUInt16LittleEndian(_head.AsSpan(2));
                 int expected = kind == LogFormat.StepBlock ? LogFormat.StepSize
                     : kind == LogFormat.EventBlock ? LogFormat.EventSize
-                    : kind == LogFormat.EndBlock ? LogFormat.EndSize : -1;
+                    : kind == LogFormat.EndBlock ? LogFormat.EndSize
+                    : kind == LogFormat.LooseBlock ? Contact.LoosePieces.RecordSize : -1;
                 if (kind == 0) return Cut(start, "a block of kind 0: the rest of the file is not log data");
                 if (expected >= 0 && length != expected)
                     return Cut(start, "a " + KindName(kind) + " block of " + length + " bytes, not " + expected);
@@ -154,7 +155,8 @@ namespace Fpv450.Sim.Log
         }
 
         static string KindName(ushort kind) =>
-            kind == LogFormat.StepBlock ? "step" : kind == LogFormat.EventBlock ? "event" : kind == LogFormat.EndBlock ? "end" : "kind " + kind;
+            kind == LogFormat.StepBlock ? "step" : kind == LogFormat.EventBlock ? "event" : kind == LogFormat.EndBlock ? "end"
+            : kind == LogFormat.LooseBlock ? "loose piece" : "kind " + kind;
     }
 
     /// <summary>
@@ -248,7 +250,7 @@ namespace Fpv450.Sim.Log
                     s.HasSteps = true;
                     s.Steps++;
                 }
-                else
+                else if (reader.Kind == LogFormat.EventBlock)
                 {
                     reader.ReadEvent(out LoggedEvent e);
                     s.Events.Add(e);
@@ -471,6 +473,24 @@ namespace Fpv450.Sim.Log
                 case EventKind.RotorJammed:
                     return "rotor " + CornerName(e.Index) + " JAMMED on " + Where(e) + ": the pass needed " + G(e.A) + " J of its " + G(e.B) + " J, "
                         + G(e.C * 100) + " % done";
+                case EventKind.LegSet:
+                    return "LEG SET: " + PartName(e.Part) + " yields (" + LegModeName(e.Index) + ") at " + G(e.A) + " N.m past " + G(e.B) + " N.m, loaded by "
+                        + Where(e) + " at " + V(e.Point, "0.000") + " m, touched at " + G(e.C) + " m/s";
+                case EventKind.LegCracked:
+                    return "LEG CRACKED: " + PartName(e.Part) + " at its clamp's edge (" + LegModeName(e.Index) + "), " + G(e.A) + " N.m past " + G(e.B)
+                        + " N.m, loaded by " + Where(e) + ", touched at " + G(e.C) + " m/s";
+                case EventKind.LegBroken:
+                    return "LEG BROKEN: " + PartName(e.Part) + " parted at its clamp's edge (" + LegModeName(e.Index) + "), " + G(e.A) + " N.m past "
+                        + G(e.B) + " N.m, loaded by " + Where(e) + " at " + V(e.Point, "0.000") + " m, touched at " + G(e.C) + " m/s";
+                case EventKind.LegDetached:
+                    return "LEG OFF: " + PartName(e.Part) + " slid out of its clamp (" + LegModeName(e.Index) + "), pulled " + G(e.A) + " N past "
+                        + G(e.B) + " N, by " + Where(e) + ", touched at " + G(e.C) + " m/s";
+                case EventKind.SkidLoose:
+                    return "SKID LOOSE: " + PartName(e.Part) + " let its skid go (" + LegModeName(e.Index) + "), " + G(e.A) + " past " + G(e.B)
+                        + ", loaded by " + Where(e) + ", touched at " + G(e.C) + " m/s";
+                case EventKind.PieceDropped:
+                    return "PIECE DROPPED: " + PartName(e.Part) + "'s piece (parts 0x" + ((int)e.C).ToString("X4", CultureInfo.InvariantCulture) + ") flies loose in slot "
+                        + e.Index + ", " + G(e.A * 1000) + " g at " + G(e.B) + " m/s from " + V(e.Point, "0.000") + " m";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);
@@ -573,6 +593,9 @@ namespace Fpv450.Sim.Log
 
         static string CornerName(byte corner) =>
             corner == 0 ? "rear right" : corner == 1 ? "front right" : corner == 2 ? "rear left" : corner == 3 ? "front left" : "#" + corner;
+
+        static string LegModeName(byte mode) =>
+            Enum.IsDefined(typeof(Contact.LegMode), mode) ? ((Contact.LegMode)mode).ToString().ToLowerInvariant() : "mode " + mode;
 
         static string Names(NamedId[] names)
         {

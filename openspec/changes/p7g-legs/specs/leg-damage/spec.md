@@ -55,7 +55,7 @@ A bent leg SHALL move its contact shapes and its foot by its set angle. A cracke
 
 #### Scenario: The next landing feels a damaged leg
 - **WHEN** the drone lands at 0.5 m/s down with 0.3 m/s of drift toward each side in turn, intact, then with one leg bent by its first set angle from the harsh-landing scenario, then with that leg missing
-- **THEN** the lowest drift speed that tips it is printed for each, the bent and missing builds tip at a lower drift speed than the intact one toward the damaged side, and the known-wrong that leaves the contact shapes in place after a bend tips like the intact one
+- **THEN** the lowest drift speed that tips it is printed for each; the missing build tips at a lower drift speed than the intact one toward the damaged side; the bent build tips at a different speed from the intact one, sooner when its foot is set inward and later when it splays outward, as the stance it leaves decides (restated after 1.3: a set splays a leg's foot outward on a level harsh landing); and the known-wrong that leaves the contact shapes in place after a bend tips like the intact one
 
 ### Requirement: Leg damage is random only in its strengths, and it is logged and replayed
 Each leg's strengths SHALL be drawn once per flight within published bounds, from named seeded streams, and logged (PHY-24). A leg's state, its set angle and its stiffness SHALL be in the step record, and each change of state SHALL be an event with its cause. Replay SHALL be bit for bit through every failure. The damage law SHALL allocate nothing per step and fit the step's budget.

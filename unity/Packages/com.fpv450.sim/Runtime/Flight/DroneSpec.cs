@@ -218,6 +218,142 @@ namespace Fpv450.Sim.Flight
         public double Damping;
 
         public double FootRadius;
+
+        /// <summary>What the legs are built of (p7g-legs 1.1): the tube, the clamp under each arm and the T-joint on each skid;
+        /// null for a file without them (the fixtures).</summary>
+        public LegTube Tube;
+        public LegClamp Clamp;
+        public LegTJoint TJoint;
+
+        /// <summary>A leg's give along its tube, N/m, in series: the tube's own EA/L, the arm bending under the clamp (the tube's top
+        /// bears on the arm's underside, so a push never loads the clamp's grip) and the skid's ring squeezed in the T-joint.</summary>
+        public double VerticalStiffness => 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness + 1 / Tube.RingStiffness(TJoint.SkidGrip));
+
+        /// <summary>A leg's give across its tube at the foot, N/m, in series: the tube bending from the clamp, 3EI/L³, and the
+        /// clamp's jaws letting the tube turn, its foot moving L² over their rotational stiffness.</summary>
+        public double SideStiffness => 1 / (1 / Tube.BendingStiffness + Tube.FreeLength * Tube.FreeLength / Clamp.JawStiffness);
+    }
+
+    /// <summary>A leg value and its bounds: the published spread a flight's draw stays within (p7g-legs design 6).</summary>
+    public struct LegBound
+    {
+        public double Value, Min, Max;
+    }
+
+    /// <summary>
+    /// The legs' and skids' tube, one stock for both (p7g-legs 1.1): its section and its material's published values, and
+    /// the closed forms (+ − × ÷ only) of a thin-walled round tube that the stiffness and the failure laws read.
+    /// </summary>
+    public sealed class LegTube
+    {
+        const double Pi = 3.141592653589793;
+
+        /// <summary>The thin ring's diametral give under two opposite loads, δ = (π/4 − 2/π)·P·R³/(EI) (Roark, published).</summary>
+        const double RingFactor = Pi / 4 - 2 / Pi;
+
+        /// <summary>The first buckling load of a column fixed at one end and pinned at the other, 20.19·EI/L² (published:
+        /// Timoshenko and Gere, the root of tan x = x squared).</summary>
+        const double FixedPinned = 20.19;
+
+        public string Material;
+
+        /// <summary>The section, m; the free length between the clamp's bottom and the T-joint's top, m.</summary>
+        public double OuterDiameter, InnerDiameter, FreeLength;
+
+        /// <summary>A cracked tube's stiffness over an intact one's.</summary>
+        public double CrackedStiffness;
+
+        /// <summary>The material's mechanical loss factor η (p7g-legs 1.2): the leg's bending across damps at ζ = η/2.</summary>
+        public double LossFactor;
+
+        /// <summary>Young's modulus, Pa; the yield stress, Pa; the ultimate (bending) stress, Pa; the elongation at break; the
+        /// density, kg/m³.</summary>
+        public LegBound Modulus, YieldStress, UltimateStress, Elongation, Density;
+
+        public double Area => Pi * (OuterDiameter * OuterDiameter - InnerDiameter * InnerDiameter) / 4;
+
+        public double SecondMoment
+        {
+            get
+            {
+                double d2 = OuterDiameter * OuterDiameter, i2 = InnerDiameter * InnerDiameter;
+                return Pi * (d2 * d2 - i2 * i2) / 64;
+            }
+        }
+
+        /// <summary>The plastic section modulus, (D³ − d³)/6, m³.</summary>
+        public double PlasticModulus => (OuterDiameter * OuterDiameter * OuterDiameter - InnerDiameter * InnerDiameter * InnerDiameter) / 6;
+
+        /// <summary>EA/L over the free length, N/m.</summary>
+        public double AxialStiffness => Modulus.Value * Area / FreeLength;
+
+        /// <summary>3EI/L³ at the foot, the tube fixed at the clamp, N/m.</summary>
+        public double BendingStiffness => 3 * Modulus.Value * SecondMoment / (FreeLength * FreeLength * FreeLength);
+
+        /// <summary>The moment that first yields the outer fibre, σ_y·I/c, N·m.</summary>
+        public double YieldMoment => YieldStress.Value * SecondMoment / (OuterDiameter / 2);
+
+        /// <summary>The fully plastic moment, σ_y·Z_p, N·m.</summary>
+        public double PlasticMoment => YieldStress.Value * PlasticModulus;
+
+        /// <summary>The axial load that buckles the free length, fixed at the clamp and pinned at the foot, N.</summary>
+        public double BucklingLoad => FixedPinned * Modulus.Value * SecondMoment / (FreeLength * FreeLength);
+
+        /// <summary>The tube's ring squeezed across its diameter over a length, N/m: the wall's E·t³/12 per metre over the ring
+        /// factor and the mean radius cubed.</summary>
+        public double RingStiffness(double length)
+        {
+            double t = (OuterDiameter - InnerDiameter) / 2, r = (OuterDiameter + InnerDiameter) / 4;
+            return Modulus.Value * t * t * t / 12 * length / (RingFactor * r * r * r);
+        }
+
+        /// <summary>The mass of a length of the tube, kg.</summary>
+        public double Mass(double length) => Density.Value * Area * length;
+    }
+
+    /// <summary>
+    /// A leg's clamp under its arm (p7g-legs 1.1): a printed split block whose wing-nut bolt squeezes two jaws on the tube.
+    /// The bolt's preload is the hand's torque over the nut factor and the bolt's diameter, P = T/(K·d).
+    /// </summary>
+    public sealed class LegClamp
+    {
+        public string Material;
+
+        /// <summary>The jaws' modulus, Pa; the tube's length in the jaws, m; the bolt's diameter, m.</summary>
+        public double Modulus, GripLength, BoltDiameter;
+
+        /// <summary>The arm under the clamp bending out of its plane, N/m: the give the clamp's mount adds to a leg.</summary>
+        public double MountStiffness;
+
+        /// <summary>The hand's torque on the wing nut, N·m; the nut factor K; the jaws' friction on the tube; the stress
+        /// concentration factor at the clamp's edge.</summary>
+        public LegBound Torque, NutFactor, Friction, EdgeFactor;
+
+        /// <summary>The bolt's preload, N.</summary>
+        public double Preload => Torque.Value / (NutFactor.Value * BoltDiameter);
+
+        /// <summary>The pull the two jaws hold before the tube slides, 2μP, N.</summary>
+        public double SlipForce => 2 * Friction.Value * Preload;
+
+        /// <summary>The twist about the tube's axis the jaws hold before it turns, μ·P·D (two jaws at D/2), N·m.</summary>
+        public double TwistMoment(double tubeDiameter) => Friction.Value * Preload * tubeDiameter;
+
+        /// <summary>The jaws' rotational stiffness to the tube turning in them, N·m/rad: the grip as an elastic bed of the jaws'
+        /// modulus, E·g³/12.</summary>
+        public double JawStiffness => Modulus * GripLength * GripLength * GripLength / 12;
+    }
+
+    /// <summary>A leg's T-joint on its skid (p7g-legs 1.1): a printed block, the leg in its socket, the skid through its bore
+    /// held by a pinch screw.</summary>
+    public sealed class LegTJoint
+    {
+        public string Material;
+
+        /// <summary>The socket's outer diameter, m; the skid's length in the bore, m; the pinch screw's diameter, m.</summary>
+        public double SocketDiameter, SkidGrip, ScrewDiameter;
+
+        /// <summary>The pinch screw's torque, N·m; the print's strength across its layers, Pa.</summary>
+        public LegBound Torque, InterlayerStrength;
     }
 
     /// <summary>The legs-off build (D-043): the parts that come off with the legs, and the parts that move.</summary>
@@ -357,7 +493,7 @@ namespace Fpv450.Sim.Flight
         public Contact.ContactSpec Contacts;
 
         /// <summary>The drone side's contact materials (a closed list; physics signs off additions): the sheet's
-        /// carbon_composite for the arms, plates, legs and skids (p5-drone 1.2), polymer, aluminium.</summary>
+        /// carbon_composite for the arms and plates (p5-drone 1.2), polymer (the plastic legs and skids, p7g-legs 1.1), aluminium.</summary>
         public static readonly string[] ContactMaterials = { "carbon_composite", "polymer", "aluminium" };
 
         /// <summary>The file's own loadout: its payload and coil masses, legs on.</summary>
@@ -546,6 +682,19 @@ namespace Fpv450.Sim.Flight
             c.Shapes = shapes.ToArray();
             c.LegStiffness = Legs.Stiffness;
             c.LegDamping = Legs.Damping;
+            if (Legs.Tube != null)
+            {
+                // p7g-legs 1.2: the side give from the section (1.1's 262 N/m, derived), damped at the tube's own ζ = η/2 (its
+                // published loss factor); the failure law with the legs on.
+                c.LegSideStiffness = Legs.SideStiffness;
+                c.LegSideDampingRatio = Legs.Tube.LossFactor / 2;
+                // p7g-legs 1.3: the side give's parts, the axial load's softening and the crack flown (design 3).
+                c.LegTubeSideStiffness = Legs.Tube.BendingStiffness;
+                c.LegJawSideStiffness = Legs.Clamp.JawStiffness / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
+                c.LegSwayLoad = SwayFactor * Legs.Tube.Modulus.Value * Legs.Tube.SecondMoment / (Legs.Tube.FreeLength * Legs.Tube.FreeLength);
+                c.LegTubeAxialStiffness = Legs.Tube.AxialStiffness;
+                if (loadout.Legs) c.Legs = BuildLegDamage();
+            }
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
             c.Surfaces = surfaces?.Clone();
@@ -555,6 +704,52 @@ namespace Fpv450.Sim.Flight
             c.FlapSouthwell = f.Southwell;
             return c;
         }
+
+        /// <summary>
+        /// The legs' failure data (p7g-legs 1.2) from the legs block: each leg's part and T-joint ("tjoint_rr", …), its clamp's
+        /// bottom edge ("clamp_rr"'s underside) and its foot (its T-joint's underside, the skid's) on the leg's axis, the tube,
+        /// the clamp and the T-joint with their labelled strengths and bounds (1.1). Null for a file without the build.
+        /// </summary>
+        public Contact.LegDamageSpec BuildLegDamage()
+        {
+            if (Legs.Tube == null) return null;
+            string[] corners = { "rr", "fr", "rl", "fl" };
+            var d = new Contact.LegDamageSpec
+            {
+                FreeLength = Legs.Tube.FreeLength, OuterDiameter = Legs.Tube.OuterDiameter, InnerDiameter = Legs.Tube.InnerDiameter,
+                Modulus = Legs.Tube.Modulus.Value, CrackedFactor = Legs.Tube.CrackedStiffness,
+                BoltDiameter = Legs.Clamp.BoltDiameter, GripLength = Legs.Clamp.GripLength,
+                ScrewDiameter = Legs.TJoint.ScrewDiameter, SocketDiameter = Legs.TJoint.SocketDiameter,
+                YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
+                ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
+                TJointTorque = Legs.TJoint.Torque, Interlayer = Legs.TJoint.InterlayerStrength,
+            };
+            for (int c = 0; c < 4; c++)
+            {
+                DronePart leg = Parts[Legs.Parts[c]], clamp = Parts[PartIndex("clamp_" + corners[c])];
+                int tjoint = PartIndex("tjoint_" + corners[c]);
+                DronePart joint = Parts[tjoint];
+                d.Parts[c] = Legs.Parts[c];
+                d.TJointParts[c] = tjoint;
+                d.Clamp[c] = new Double3(leg.Position.X, clamp.Position.Y - clamp.Size.Y / 2, leg.Position.Z);
+                d.Foot[c] = new Double3(leg.Position.X, joint.Position.Y - joint.Size.Y / 2, leg.Position.Z);
+                d.SocketLever = joint.Size.Y;
+                // p7g-legs 1.3: the skid through this leg's T-joint (the one on its side), its axis under the leg, and the leg
+                // on the same skid.
+                int skid = PartIndex(leg.Position.X >= 0 ? "skid_right" : "skid_left");
+                d.SkidParts[c] = skid;
+                d.Bore[c] = new Double3(leg.Position.X, Parts[skid].Position.Y, leg.Position.Z);
+            }
+            for (int c = 0; c < 4; c++)
+                for (int k = 0; k < 4; k++)
+                    if (k != c && d.SkidParts[k] == d.SkidParts[c]) d.Sibling[c] = k;
+            d.AirDensity = Aero != null ? Aero.AirDensity : 0;
+            return d;
+        }
+
+        /// <summary>The sway-buckling factor of a column fixed at one end and free to sway at the other, π²/4 (published: Euler's
+        /// cantilever; Timoshenko and Gere): the free length's side give vanishes at π²EI/(4L²) (p7g-legs 1.3).</summary>
+        public const double SwayFactor = 2.4674011002723395;
 
         // A part scaled uniformly by s about the middle of its face toward the arm plane: its sizes times s, and its
         // centre moved away from the plane by its half-extent along y times (s − 1). s = 1 leaves every bit as it was.
@@ -618,6 +813,9 @@ namespace Fpv450.Sim.Flight
         sealed class Reader
         {
             public readonly List<string> Problems = new List<string>();
+
+            // True while reading the legs' block of a file that says what they are built of: every value needs its note.
+            bool _notes;
 
             // Betaflight's Quad X corners and their sides (+x right, +z forward).
             static readonly string[] Corner = { "rear right", "front right", "rear left", "front left" };
@@ -1049,7 +1247,10 @@ namespace Fpv450.Sim.Flight
             {
                 DroneLegs legs = spec.Legs;
                 if (!IsObject(p, "legs")) return;
-                Members(p, "legs", "parts", "stiffness_n_per_m", "damping_n_s_per_m", "foot_radius_m");
+                Members(p, "legs", "parts", "stiffness_n_per_m", "damping_n_s_per_m", "foot_radius_m", "tube", "clamp", "tjoint");
+                // A block that says what the legs are built of carries a note on every value, its source (p7g-legs 1.1).
+                bool built = p.Member("tube") != null || p.Member("clamp") != null || p.Member("tjoint") != null;
+                _notes = built;
                 JsonNode names = Required(p, "parts", "legs");
                 if (names != null && IsArray(names, "legs.parts", 4))
                 {
@@ -1071,6 +1272,89 @@ namespace Fpv450.Sim.Flight
                 legs.Stiffness = Positive(p, "stiffness_n_per_m", "legs");
                 legs.Damping = NonNegative(p, "damping_n_s_per_m", "legs");
                 legs.FootRadius = Positive(p, "foot_radius_m", "legs");
+                if (built)
+                {
+                    JsonNode n;
+                    if ((n = Required(p, "tube", "legs")) != null) legs.Tube = ReadLegTube(n, "legs.tube");
+                    if ((n = Required(p, "clamp", "legs")) != null) legs.Clamp = ReadLegClamp(n, "legs.clamp");
+                    if ((n = Required(p, "tjoint", "legs")) != null) legs.TJoint = ReadLegTJoint(n, "legs.tjoint");
+                }
+                _notes = false;
+            }
+
+            // The legs' build (p7g-legs 1.1): the materials a closed list, physics signing off additions.
+            static readonly string[] TubeMaterials = { "pvc_u" }, PrintMaterials = { "petg_printed" };
+
+            LegTube ReadLegTube(JsonNode p, string at)
+            {
+                var t = new LegTube();
+                if (!IsObject(p, at)) return t;
+                Members(p, at, "material", "outer_diameter_m", "inner_diameter_m", "free_length_m", "cracked_stiffness_factor", "loss_factor",
+                    "modulus_pa", "modulus_bounds_pa", "yield_stress_pa", "yield_stress_bounds_pa", "ultimate_stress_pa", "ultimate_stress_bounds_pa",
+                    "elongation_at_break", "elongation_at_break_bounds", "density_kg_m3", "density_bounds_kg_m3");
+                t.Material = Text(p, "material", at, TubeMaterials);
+                t.OuterDiameter = Positive(p, "outer_diameter_m", at);
+                t.InnerDiameter = NonNegative(p, "inner_diameter_m", at);
+                if (!double.IsNaN(t.InnerDiameter + t.OuterDiameter) && !(t.InnerDiameter < t.OuterDiameter))
+                    Fail(at + ".inner_diameter_m", "must be below outer_diameter_m");
+                t.FreeLength = Positive(p, "free_length_m", at);
+                t.CrackedStiffness = Positive(p, "cracked_stiffness_factor", at);
+                if (t.CrackedStiffness > 1) Fail(at + ".cracked_stiffness_factor", "a crack never stiffens the tube: at most 1");
+                t.LossFactor = Positive(p, "loss_factor", at);
+                t.Modulus = Bounded(p, "modulus_pa", "modulus_bounds_pa", at);
+                t.YieldStress = Bounded(p, "yield_stress_pa", "yield_stress_bounds_pa", at);
+                t.UltimateStress = Bounded(p, "ultimate_stress_pa", "ultimate_stress_bounds_pa", at);
+                t.Elongation = Bounded(p, "elongation_at_break", "elongation_at_break_bounds", at);
+                t.Density = Bounded(p, "density_kg_m3", "density_bounds_kg_m3", at);
+                return t;
+            }
+
+            LegClamp ReadLegClamp(JsonNode p, string at)
+            {
+                var c = new LegClamp();
+                if (!IsObject(p, at)) return c;
+                Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "torque_n_m",
+                    "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
+                c.Material = Text(p, "material", at, PrintMaterials);
+                c.Modulus = Positive(p, "modulus_pa", at);
+                c.GripLength = Positive(p, "grip_length_m", at);
+                c.BoltDiameter = Positive(p, "bolt_diameter_m", at);
+                c.MountStiffness = Positive(p, "mount_stiffness_n_per_m", at);
+                c.Torque = Bounded(p, "torque_n_m", "torque_bounds_n_m", at);
+                c.NutFactor = Bounded(p, "nut_factor", "nut_factor_bounds", at);
+                c.Friction = Bounded(p, "friction", "friction_bounds", at);
+                c.EdgeFactor = Bounded(p, "edge_stress_factor", "edge_stress_factor_bounds", at);
+                if (c.EdgeFactor.Min < 1) Fail(at + ".edge_stress_factor_bounds", "a stress raiser never lowers the stress: at least 1");
+                return c;
+            }
+
+            LegTJoint ReadLegTJoint(JsonNode p, string at)
+            {
+                var j = new LegTJoint();
+                if (!IsObject(p, at)) return j;
+                Members(p, at, "material", "socket_outer_diameter_m", "skid_grip_length_m", "screw_diameter_m", "torque_n_m", "torque_bounds_n_m",
+                    "interlayer_strength_pa", "interlayer_strength_bounds_pa");
+                j.Material = Text(p, "material", at, PrintMaterials);
+                j.SocketDiameter = Positive(p, "socket_outer_diameter_m", at);
+                j.SkidGrip = Positive(p, "skid_grip_length_m", at);
+                j.ScrewDiameter = Positive(p, "screw_diameter_m", at);
+                j.Torque = Bounded(p, "torque_n_m", "torque_bounds_n_m", at);
+                j.InterlayerStrength = Bounded(p, "interlayer_strength_pa", "interlayer_strength_bounds_pa", at);
+                return j;
+            }
+
+            // A value above 0 and its bounds, [min, max] around it, both above 0.
+            LegBound Bounded(JsonNode o, string key, string boundsKey, string path)
+            {
+                var b = new LegBound { Value = Positive(o, key, path), Min = double.NaN, Max = double.NaN };
+                double[] mm = Numbers(o, boundsKey, path, 2);
+                if (mm.Length == 0) return b;
+                if (mm.Length != 2) { Fail(path + "." + boundsKey + ".value", "must be [min, max]"); return b; }
+                b.Min = mm[0];
+                b.Max = mm[1];
+                if (!(b.Min > 0 && b.Min <= b.Max)) Fail(path + "." + boundsKey, "must be [min, max] with 0 < min ≤ max");
+                else if (!double.IsNaN(b.Value) && !(b.Value >= b.Min && b.Value <= b.Max)) Fail(path + "." + boundsKey, "must hold " + key);
+                return b;
             }
 
             DroneCoil ReadCoil(JsonNode p, DroneSpec spec)
@@ -1258,6 +1542,7 @@ namespace Fpv450.Sim.Flight
                 JsonNode note = n.Member("note");
                 if (note != null && note.Kind != JsonKind.String) Fail(path + ".note", "must be words");
                 else if (_noted && (note == null || note.Text.Length == 0)) Fail(path + ".note", "missing: a value here carries its source or its reason");
+                if (note == null && _notes) { Fail(path + ".note", "missing: every value of the legs' build carries its source"); ok = false; }
                 JsonNode value = n.Member("value");
                 if (value == null) { Fail(path + ".value", "missing"); ok = false; }
                 return ok ? value : null;

@@ -25,10 +25,19 @@ namespace Fpv450.FlightBench
         // since model 29 without props.blade (p7f-damage 1.2), as every older kept audit.
         static DroneSpec M22() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel22Drone(Drone()));
 
+        // p7g-legs 1.1's audit (model 37): model 26's legs, the CFRP legs' masses, the assumed 10 kN/m spring and its damper;
+        // since model 46 without props.blade, as p7g-legs' audits fly without the line's mechanisms.
+        static DroneSpec M26() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(Drone()));
+
+        // p7g-legs 1.2's audit (model 39): model 37's leg law, without the legs' side give and their failure law; since model 46
+        // without props.blade.
+        static DroneSpec M37() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel37Legs(Drone()));
+
         public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
 
-        // The line's audits since model 40 (the physics integration 2 with p7f-damage): drone.json without props.blade.
-        static DroneSpec Bare() => GoldenFlights.WithoutTheBlade(Drone());
+        // The line's audits since model 40 (the physics integration 2 with p7f-damage): drone.json without props.blade; since
+        // model 46 (with p7g-legs) on model 26's legs.
+        static DroneSpec Bare() => GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(Drone()));
 
         /// <summary>The repository's drone.json, found from the working directory up.</summary>
         public static string DroneText() => Repository("assets-src/drone/drone.json");
@@ -46,8 +55,11 @@ namespace Fpv450.FlightBench
         public static bool Golden()
         {
             ulong hash = GoldenFlights.FlyPowered(Drone(), out FlightCore core);
-            ulong with = GoldenFlights.FlyPowered(Drone(), out _, 992, 120);
-            ulong without = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, false);
+            // The record less the contacts' 120 bytes and, since model 39, the legs' state (zero without contacts; since model 46
+            // after the line's 2392 bytes).
+            const int legs = GoldenFlights.Model44Layout;
+            ulong with = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, layout: legs);
+            ulong without = GoldenFlights.FlyPowered(Drone(), out _, 992, 120, false, layout: legs);
             bool ok = hash == GoldenFlights.PoweredHash && with == without && core.State.Armed;
             Console.WriteLine($"{Name}: {GoldenFlights.PoweredSteps} steps, hash 0x{hash:X16} "
                 + $"({(hash == GoldenFlights.PoweredHash ? "matches" : $"golden 0x{GoldenFlights.PoweredHash:X16}")}), armed {core.State.Armed}, "
@@ -64,6 +76,7 @@ namespace Fpv450.FlightBench
             const int m28 = GoldenFlights.Model28Layout; // since model 31 the record's end is the fiber's block
             const int m38 = GoldenFlights.Model38Layout; // since model 40 the blade strikes follow it; the line's audits fly without props.blade
             const int m29 = GoldenFlights.Model29Layout; // p7f-damage's model 29 record: the line's model 28 record, 1904 bytes
+            const int m44 = GoldenFlights.Model44Layout; // since model 46 the legs' block follows the strikes
             ulong rigid = GoldenFlights.FlyContact(Bare(), out _, soil: false, yawI: false, layout: m38),
                 rigid28 = GoldenFlights.FlyContact(Bare(), out _, soil: false, layout: m28, yawI: false);
             bool sok = rigid == GoldenFlights.Model31ContactHash && rigid28 == GoldenFlights.Model26ContactHash;
@@ -160,7 +173,7 @@ namespace Fpv450.FlightBench
                 + $"tumble 0x{mt:X16} ({(uok ? "its model 23's, bit for bit" : "NOT its model 23's")}): {(uok ? "PASS" : "FAIL")}");
             // The merge's audit against p7b-airframe--power (its model 24): on drone.json without the interference and D-064's
             // sources, over model 19's 1808 bytes, the powered, rain and tumble goldens are its pins.
-            DroneSpec bare = GoldenFlights.WithoutTheBlade(Drone());
+            DroneSpec bare = Bare(); // since model 46 on model 26's legs
             ulong pp = GoldenFlights.FlyPowered(bare, out _, interference: false, wake: false, motors: false, layout: m19, yawI: false);
             ulong pr = GoldenFlights.FlyPowered(bare, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, interference: false, wake: false,
                 motors: false, layout: m19, yawI: false);
@@ -216,7 +229,7 @@ namespace Fpv450.FlightBench
                 + $"rain 0x{y34r:X16}, tether 0x{y34l:X16} ({(y34 ? "model 34's, bit for bit; the range with model 38's buried face" : "NOT model 34's")}): {(y34 ? "PASS" : "FAIL")}");
             // p7f-damage 1.2's audit (model 29), kept: with the blades' pitch draws off and the flapping's inertia at the rod, every
             // golden is model 26's (since model 40 without the line's mechanisms: no soil, no area laws, model 34's yaw I); each switch alone gives the share of the move it makes, printed (GoldenFlights' notes).
-            DroneSpec d = Drone();
+            DroneSpec d = GoldenFlights.WithModel26Legs(Drone()); // since model 46 on model 26's legs
             Action<FlightSetup> rod = GoldenFlights.WithTheRodsInertia(d), nopitch = GoldenFlights.WithoutThePitch, both = s => { nopitch(s); rod(s); };
             MaterialRow[] layerless = GoldenFlights.WithoutTheAreaLaws();
             ulong a26 = GoldenFlights.FlyPowered(d, out _, edit: both, layout: m29, yawI: false),
@@ -246,8 +259,8 @@ namespace Fpv450.FlightBench
                 t29 = GoldenFlights.FlyTumble(d, out _, out _, layout: m29);
             ulong r29 = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m29, yawI: false);
             Action<FlightSetup> off = s => { if (s.Contacts != null) s.Contacts.BladeStrikes = false; };
-            ulong coff = GoldenFlights.FlyContact(d, out _, edit: off), goff = GoldenFlights.FlyRange(d, out _, edit: off),
-                loff = GoldenFlights.FlyContact(d, out _, tether: true, edit: off);
+            ulong coff = GoldenFlights.FlyContact(Drone(), out _, edit: off), goff = GoldenFlights.FlyRange(Drone(), out _, edit: off),
+                loff = GoldenFlights.FlyContact(Drone(), out _, tether: true, edit: off);
             bool zok = p29 == GoldenFlights.Model29PoweredHash && c29 == GoldenFlights.Model29ContactHash && g29 == GoldenFlights.Model29RangeHash
                 && t29 == GoldenFlights.Model29TumbleHash && r29 == GoldenFlights.Model29RainPoweredHash && coff == GoldenFlights.ContactHash && goff == GoldenFlights.RangeHash
                 && loff == GoldenFlights.TetherHash
@@ -262,7 +275,7 @@ namespace Fpv450.FlightBench
             int strikesTail = 0, fiber = 0;
             void Strikes(byte[] record)
             {
-                for (int i = m38; i < Fpv450.Sim.Log.LogFormat.StepSize; i++) if (record[i] != 0) strikesTail++;
+                for (int i = m38; i < m44; i++) if (record[i] != 0) strikesTail++;
             }
             void Fiber(byte[] record)
             {
@@ -279,17 +292,80 @@ namespace Fpv450.FlightBench
                 + $"tether 0x{b38l:X16}, tumble 0x{b38t:X16} ({(k38 ? "the line's model 38, bit for bit" : "NOT model 38's")}), {strikesTail} non-zero bytes in the "
                 + $"strikes' block: {(k38 ? "PASS" : "FAIL")}");
             const int fiberBytes = GoldenFlights.Model35Skip;
-            ulong l35p = GoldenFlights.FlyPowered(d, out _, m28, fiberBytes, onRecord: Fiber, yawI: false),
-                l35r = GoldenFlights.FlyPowered(d, out _, m28, fiberBytes, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Fiber, yawI: false),
-                l35c = GoldenFlights.FlyContact(d, out _, m28, fiberBytes, onRecord: Fiber, soil: false, yawI: false),
-                l35g = GoldenFlights.FlyRange(d, out _, m28, fiberBytes, onRecord: Fiber, materials: layerless, yawI: false),
-                l35t = GoldenFlights.FlyTumble(d, out _, out _, m28, fiberBytes);
+            ulong l35p = GoldenFlights.FlyPowered(d, out _, m28, fiberBytes, layout: m44, onRecord: Fiber, yawI: false),
+                l35r = GoldenFlights.FlyPowered(d, out _, m28, fiberBytes, layout: m44, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Fiber, yawI: false),
+                l35c = GoldenFlights.FlyContact(d, out _, m28, fiberBytes, layout: m44, onRecord: Fiber, soil: false, yawI: false),
+                l35g = GoldenFlights.FlyRange(d, out _, m28, fiberBytes, layout: m44, onRecord: Fiber, materials: layerless, yawI: false),
+                l35t = GoldenFlights.FlyTumble(d, out _, out _, m28, fiberBytes, m44);
             bool k35 = l35p == GoldenFlights.Model35PoweredHash && l35r == GoldenFlights.Model35RainPoweredHash && l35c == GoldenFlights.Model35ContactHash
                 && l35g == GoldenFlights.Model35RangeHash && l35t == GoldenFlights.Model35TumbleHash && fiber == 0;
             Console.WriteLine($"without the line's mechanisms, over p7f-damage's record: powered 0x{l35p:X16}, rain 0x{l35r:X16}, contact 0x{l35c:X16}, "
                 + $"range 0x{l35g:X16}, tumble 0x{l35t:X16} ({(k35 ? "p7f-damage's model 35, bit for bit" : "NOT model 35's")}), {fiber} non-zero bytes in the fiber's "
                 + $"block: {(k35 ? "PASS" : "FAIL")}");
-            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35;
+            // p7g-legs' audits, kept (since model 46 each without the line's mechanisms: no soil, no area laws, no props.blade,
+            // model 34's yaw I; no line, no cut). 1.1's (model 37): on model 26's legs every golden is model 26's over 1904 bytes.
+            ulong q26 = GoldenFlights.FlyPowered(M26(), out _, layout: m28, yawI: false), x26 = GoldenFlights.FlyContact(M26(), out _, layout: m28, soil: false, yawI: false),
+                h26 = GoldenFlights.FlyRange(M26(), out _, layout: m28, materials: layerless, yawI: false);
+            ulong v26 = GoldenFlights.FlyPowered(M26(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m28, yawI: false);
+            ulong u26 = GoldenFlights.FlyTumble(M26(), out _, out _, layout: m28);
+            bool m26 = q26 == GoldenFlights.Model26PoweredHash && x26 == GoldenFlights.Model26ContactHash && h26 == GoldenFlights.Model26RangeHash
+                && v26 == GoldenFlights.Model26RainPoweredHash && u26 == GoldenFlights.Model26TumbleHash;
+            Console.WriteLine($"model 26's legs (CFRP 11 and 20 g, the assumed 10 kN/m and 45 N.s/m, the leg shapes 6600 N/m): powered 0x{q26:X16}, contact 0x{x26:X16}, "
+                + $"range 0x{h26:X16}, rain 0x{v26:X16}, tumble 0x{u26:X16} ({(m26 ? "model 26's, bit for bit" : "NOT model 26's")}): {(m26 ? "PASS" : "FAIL")}");
+            // 1.2's (model 39): without the legs' side give and their law, over model 37's 1904 bytes, every golden is model 37's.
+            ulong p37 = GoldenFlights.FlyPowered(M37(), out _, layout: m28, yawI: false), c37 = GoldenFlights.FlyContact(M37(), out _, layout: m28, soil: false, yawI: false),
+                g37 = GoldenFlights.FlyRange(M37(), out _, layout: m28, materials: layerless, yawI: false);
+            ulong w37 = GoldenFlights.FlyPowered(M37(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m28, yawI: false);
+            ulong t37 = GoldenFlights.FlyTumble(M37(), out _, out _, layout: m28);
+            bool m37 = p37 == GoldenFlights.Model37PoweredHash && c37 == GoldenFlights.Model37ContactHash && g37 == GoldenFlights.Model37RangeHash
+                && w37 == GoldenFlights.Model37RainPoweredHash && t37 == GoldenFlights.Model37TumbleHash;
+            Console.WriteLine($"model 37's leg law (no side give, no failure law): powered 0x{p37:X16}, contact 0x{c37:X16}, range 0x{g37:X16}, rain 0x{w37:X16}, "
+                + $"tumble 0x{t37:X16} ({(m37 ? "model 37's, bit for bit" : "NOT model 37's")}): {(m37 ? "PASS" : "FAIL")}");
+            // 1.3's (model 41): the flights that touch nothing are model 39's over its 2072 bytes (the first 1904, then the legs' state).
+            DroneSpec legsNow = GoldenFlights.WithoutTheBlade(Drone());
+            const int legSkip = GoldenFlights.Model41Skip, m39 = GoldenFlights.Model39Layout;
+            ulong p39 = GoldenFlights.FlyPowered(legsNow, out _, m28, legSkip, layout: m39, yawI: false),
+                w39 = GoldenFlights.FlyPowered(legsNow, out _, m28, legSkip, layout: m39, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, yawI: false),
+                t39 = GoldenFlights.FlyTumble(legsNow, out _, out _, m28, legSkip, m39);
+            bool k39 = p39 == GoldenFlights.Model39PoweredHash && w39 == GoldenFlights.Model39RainPoweredHash && t39 == GoldenFlights.Model39TumbleHash;
+            Console.WriteLine($"over model 39's record, the flights that touch nothing: powered 0x{p39:X16}, rain 0x{w39:X16}, tumble 0x{t39:X16} "
+                + $"({(k39 ? "model 39's, bit for bit" : "NOT model 39's")}): {(k39 ? "PASS" : "FAIL")}");
+            // The physics integration 2 with p7g-legs (model 46): on model 26's legs every golden is the line's model 44 pin over its
+            // 2392 bytes, every leg intact; without the line's mechanisms every golden is p7g-legs' model 41 pin over its record (the
+            // record less the fiber's and the strikes' 488 bytes at 1904), both blocks zero. So each parent's mechanisms are the
+            // whole of each move against the other.
+            uint legStates = 0;
+            void LegStates(byte[] record)
+            {
+                for (int i = m44; i < m44 + 8; i++) legStates |= record[i];
+            }
+            DroneSpec l26 = GoldenFlights.WithModel26Legs(Drone());
+            ulong e44p = GoldenFlights.FlyPowered(l26, out _, layout: m44, onRecord: LegStates),
+                e44r = GoldenFlights.FlyPowered(l26, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m44, onRecord: LegStates),
+                e44c = GoldenFlights.FlyContact(l26, out _, layout: m44, onRecord: LegStates), e44g = GoldenFlights.FlyRange(l26, out _, layout: m44, onRecord: LegStates),
+                e44l = GoldenFlights.FlyContact(l26, out _, tether: true, layout: m44, onRecord: LegStates),
+                e44t = GoldenFlights.FlyTumble(l26, out _, out _, layout: m44);
+            bool k44 = e44p == GoldenFlights.Model44PoweredHash && e44r == GoldenFlights.Model44RainPoweredHash && e44c == GoldenFlights.Model44ContactHash
+                && e44g == GoldenFlights.Model44RangeHash && e44l == GoldenFlights.Model44TetherHash && e44t == GoldenFlights.Model44TumbleHash && legStates == 0;
+            Console.WriteLine($"on model 26's legs, over the line's 2392 bytes: powered 0x{e44p:X16}, rain 0x{e44r:X16}, contact 0x{e44c:X16}, range 0x{e44g:X16}, "
+                + $"tether 0x{e44l:X16}, tumble 0x{e44t:X16} ({(k44 ? "the line's model 44, bit for bit" : "NOT model 44's")}), leg states 0x{legStates:X2}: {(k44 ? "PASS" : "FAIL")}");
+            int lineBlocks = 0;
+            void LineBlocks(byte[] record)
+            {
+                for (int i = m28; i < m44; i++) if (record[i] != 0) lineBlocks++;
+            }
+            ulong l41p = GoldenFlights.FlyPowered(legsNow, out _, m28, legSkip, onRecord: LineBlocks, yawI: false),
+                l41r = GoldenFlights.FlyPowered(legsNow, out _, m28, legSkip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: LineBlocks, yawI: false),
+                l41c = GoldenFlights.FlyContact(legsNow, out _, m28, legSkip, onRecord: LineBlocks, soil: false, yawI: false),
+                l41g = GoldenFlights.FlyRange(legsNow, out _, m28, legSkip, onRecord: LineBlocks, materials: layerless, yawI: false),
+                l41t = GoldenFlights.FlyTumble(legsNow, out _, out _, m28, legSkip);
+            bool k41 = l41p == GoldenFlights.Model41PoweredHash && l41r == GoldenFlights.Model41RainPoweredHash && l41c == GoldenFlights.Model41ContactHash
+                && l41g == GoldenFlights.Model41RangeHash && l41t == GoldenFlights.Model41TumbleHash && lineBlocks == 0;
+            Console.WriteLine($"without the line's mechanisms, over p7g-legs' record: powered 0x{l41p:X16}, rain 0x{l41r:X16}, contact 0x{l41c:X16}, "
+                + $"range 0x{l41g:X16}, tumble 0x{l41t:X16} ({(k41 ? "p7g-legs' model 41, bit for bit" : "NOT model 41's")}), {lineBlocks} non-zero bytes in the fiber's "
+                + $"and the strikes' blocks: {(k41 ? "PASS" : "FAIL")}");
+            return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
+                && m26 && m37 && k39 && k44 && k41;
         }
 
         public static bool Bench()

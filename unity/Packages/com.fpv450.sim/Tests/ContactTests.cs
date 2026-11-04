@@ -41,7 +41,7 @@ namespace Fpv450.Sim.Tests
                 if (s.Role == ContactRole.Support)
                 {
                     Assert.That(s.A.Y - s.Radius, Is.EqualTo(-0.253).Within(1e-12), s.Name + ": the skid's bottom (p5-drone 1.2)");
-                    Assert.That(s.Material, Is.EqualTo("carbon_composite"));
+                    Assert.That(s.Material, Is.EqualTo("polymer"), "the plastic skid (p7g-legs 1.1)");
                 }
                 if (s.Name == "arm_rr_a")
                 {
@@ -170,7 +170,8 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.Landing held = ContactScenarios.Land(RepositoryDrone.Spec(), m, h, false);
             ContactScenarios.Landing cut = ContactScenarios.Land(RepositoryDrone.Spec(), m, h, true);
             TestContext.Out.WriteLine($"held: touch {held.TouchSpeed:F3} m/s, left at {held.LeaveSpeed:F3} m/s, rose {held.SeparationHeight * 1e3:F1} mm; "
-                + $"cut: rose {cut.SeparationHeight * 1e3:F1} mm, at rest {cut.Settled:F3} s after the touch");
+                + $"cut: rose {cut.SeparationHeight * 1e3:F1} mm, at rest {cut.Settled:F3} s after the touch "
+                + "(model 26's assumed 10 kN/m legs: left at 0.281 m/s, rose 209.5 mm; cut: rose 2.8 mm, at rest 0.239 s)");
             Assert.That(held.TouchSpeed, Is.EqualTo(0.5).Within(0.05), "the slow glide path's 0.5 m/s");
             Assert.That(held.Separated, Is.True, "held: the legs throw it back into the air (manifesto §2.6)");
             Assert.That(held.SeparationHeight, Is.GreaterThan(0.05), "and visibly so");
@@ -203,8 +204,12 @@ namespace Fpv450.Sim.Tests
             MaterialRow[] m = Materials(out ulong h);
             ContactScenarios.PoleStrike r = ContactScenarios.IntoPole(RepositoryDrone.Spec(), m, h);
             TestContext.Out.WriteLine($"crash ({r.Cause}) by {r.Part} on {r.Object} ({r.Material}) at {r.Speed:F2} m/s flying {r.FlightSpeed:F2} m/s; "
-                + $"peak {r.PeakAccel:F0} m/s², impulse {r.Impulse:F2} N·s; {r.Tunnels} tunnels");
-            Assert.That(r.FlightSpeed, Is.EqualTo(10).Within(1), "at 10 m/s");
+                + $"first touch by {r.FirstPart} flying {r.FirstFlightSpeed:F2} m/s; peak {r.PeakAccel:F0} m/s², impulse {r.Impulse:F2} N·s; {r.Tunnels} tunnels; "
+                + string.Join(" | ", r.Order));
+            // Since model 46 (p7g-legs on the line) the front legs' tubes part on the pole a step or two after the prop's strike
+            // (74 N·m at their clamps' edges, past 3.1–3.3), their pieces leave, and the payload makes the crash a few
+            // milliseconds later, the drone pitched by the strike (|v| 11.2 m/s): the flight's speed is judged at the first touch.
+            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1), "at 10 m/s");
             Assert.That(r.Object, Is.EqualTo("L01_straight"));
             Assert.That(r.Material, Is.EqualTo("timber"));
             Assert.That(r.Part, Is.Not.Null.And.Not.Empty, "named by the part that hit");

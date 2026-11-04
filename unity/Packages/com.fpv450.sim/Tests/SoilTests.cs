@@ -360,13 +360,20 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheGlideLandingPitchesFurtherOnSoftGround()
         {
+            // Since model 46 (p7g-legs on the line) the soil's catch is judged with the legs rigid across their tubes
+            // (LandingScenarios.RigidAcross, as D-067's mechanics and the groove's scenarios): on the PVC-U legs' side give the
+            // bending legs absorb the skid's catch (p7g-legs 1.3's caught skid), and the stumble reverses, printed beside.
             DroneSpec spec = Drone();
-            SoilScenarios.Landing tilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
-            SoilScenarios.Landing track = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
-            SoilScenarios.Landing rigidTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, rigid: true);
-            SoilScenarios.Landing rigidTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, rigid: true);
+            System.Func<ContactSpec, ContactSpec> rigidAcross = LandingScenarios.RigidAcross();
+            SoilScenarios.Landing tilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, legs: rigidAcross);
+            SoilScenarios.Landing track = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, legs: rigidAcross);
+            SoilScenarios.Landing rigidTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, rigid: true, legs: rigidAcross);
+            SoilScenarios.Landing rigidTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, rigid: true, legs: rigidAcross);
+            SoilScenarios.Landing softTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
+            SoilScenarios.Landing softTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
             TestContext.WriteLine($"  the glide: tilled {tilled.NoseDown:F3}° nose down ({tilled.PeakSink * 1e3:F2} mm), dirt track {track.NoseDown:F3}° "
-                + $"({track.PeakSink * 1e3:F2} mm); rigid ground {rigidTilled.NoseDown:F3}° and {rigidTrack.NoseDown:F3}°");
+                + $"({track.PeakSink * 1e3:F2} mm); rigid ground {rigidTilled.NoseDown:F3}° and {rigidTrack.NoseDown:F3}°; on the legs' side give tilled "
+                + $"{softTilled.NoseDown:F3}° ({softTilled.PeakSink * 1e3:F2} mm), dirt track {softTrack.NoseDown:F3}° ({softTrack.PeakSink * 1e3:F2} mm)");
             Assert.That(tilled.NoseDown, Is.GreaterThan(track.NoseDown));
             Assert.That(Math.Abs(rigidTilled.NoseDown - rigidTrack.NoseDown), Is.LessThan(0.5 * (tilled.NoseDown - track.NoseDown)),
                 "the rigid ground with plain friction cannot tell them apart, so it fails");

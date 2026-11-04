@@ -17,7 +17,7 @@ namespace Fpv450.Replay
             + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>] [--disarm-at-touch]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>] [--disarm-at-touch] [--descent M/S]\n"
             + "  replay --record <log> --graze [--drone <drone.json>]\n"
             + "                                         fly the test range's wall graze (p7f-damage 1.3: a blade strike\n"
             + "                                         that chips the front-left blades, the drone flying on) and log it\n"
@@ -26,7 +26,13 @@ namespace Fpv450.Replay
             + "                                         (or the foot and heading --foot gives) in the map's own wind\n"
             + "                                         (its wakes, its belt's canopy and its cuts' cavity flow); --line\n"
             + "                                         flies it on the fiber (the repository's tether.json, or the file given);\n"
-            + "                                         --disarm-at-touch disarms as the legs first touch, not 2.5 s after\n"
+            + "                                         --disarm-at-touch disarms as the legs first touch, not 2.5 s after;\n"
+            + "                                         --descent: its last metres' descent (0.5 m/s; 1.9 lands hard\n"
+            + "                                         enough to bend a leg, p7g-legs 1.2)\n"
+            + "  replay --record <log> --legs [--drone <drone.json>]\n"
+            + "                                         p7g-legs 1.3's damage flight: the free body up into a bar that\n"
+            + "                                         slides leg_rr out, a fabric cushion over it, down onto a straw\n"
+            + "                                         pad: one leg lost, one broken, two bent, their pieces loose\n"
             + "exit: 0 match, 1 diverged, 2 usage, 3 refused, 4 unreadable, 5 matched a cut log\n"
             + "drone.json, physics_materials.json and surfaces.json default to the repository's assets-src/drone/drone.json,\n"
             + "assets-src/physics_materials.json and assets-src/surfaces.json, and tether.json, for a log with the line, to its\n"
@@ -140,6 +146,16 @@ namespace Fpv450.Replay
         static int Record(string[] args)
         {
             string path = args[1];
+            if (Array.IndexOf(args, "--legs") >= 0)
+            {
+                string legsDrone = Option(args, "--drone") ?? ScriptedFlight.RepositoryDrone()
+                    ?? throw new ArgumentException("no drone.json found; pass --drone");
+                ScriptedFlight.Recorded d = ScriptedFlight.FlyLegs(path, legsDrone);
+                Console.WriteLine($"record {Path.GetFileName(path)}: the legs' damage flight on '{ScriptedFlight.PadsWorld}', {d.Counts.Steps} steps, "
+                    + $"{d.Counts.Events} events, {d.Bytes} bytes; seed 0x{d.Seed:X16}, drone.json 0x{d.DroneHash:X16}");
+                Console.WriteLine("  " + d.Landing);
+                return d.Fault == null ? 0 : 1;
+            }
             string seconds = Option(args, "--seconds");
             double duration = seconds == null ? 120 : double.Parse(seconds, System.Globalization.CultureInfo.InvariantCulture);
             if (!(duration > 0 && duration <= 3600)) throw new ArgumentException("--seconds must be in (0, 3600]");
@@ -173,8 +189,11 @@ namespace Fpv450.Replay
                 Console.WriteLine("  the log failed: " + g.Fault.Message);
                 return 1;
             }
+            string descent = Option(args, "--descent");
+            double last = descent == null ? 0.5 : double.Parse(descent, System.Globalization.CultureInfo.InvariantCulture);
+            if (!(last > 0 && last <= 2)) throw new ArgumentException("--descent must be in (0, 2] m/s");
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
-                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether, Array.IndexOf(args, "--disarm-at-touch") >= 0);
+                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether, Array.IndexOf(args, "--disarm-at-touch") >= 0, last);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {map ?? "floor"}, {wind} wind, {rain}, "

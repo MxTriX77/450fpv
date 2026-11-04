@@ -83,7 +83,7 @@ namespace Fpv450.Sim.Tests
             world.Query.ResetRuntimeObjects();
             place?.Invoke(world);
             double mass = setup.Mass.Properties.Mass, foot = -ContactScenarios.Standing(setup.Contacts);
-            var model = new ContactModel(setup.Contacts, world, mass, moisture, stroke);
+            var model = new ContactModel(setup.Contacts, world, mass, moisture, stroke, new FlightRandom(setup.Seed));
             var events = new StepEvents();
             var s = new FlightState { Attitude = Quat.Identity, Position = top + new Double3(0, -foot + 0.001, 0) };
             model.Sense(s, ref s, events);

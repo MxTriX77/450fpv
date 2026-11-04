@@ -63,6 +63,11 @@ namespace Fpv450.Replay
                 where = "the stub's floor";
                 return FlightWorld.Floor();
             }
+            if (id == PadsWorld)
+            {
+                where = "the stub's floor with the damage flight's fabric and straw";
+                return Pads();
+            }
             if (id.Length == 0 || !id.All(c => c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-' || c == '_'))
             {
                 where = "it is not a map id";
@@ -204,9 +209,11 @@ namespace Fpv450.Replay
             StickSample _held;
             bool _holding;
             double _slowFrom = -1, _slowY, _touchAt = -1;
+            readonly double _descent;
 
-            public Pilot(FlightCore core, Double3 foot, Double3 nose, double stand)
+            public Pilot(FlightCore core, Double3 foot, Double3 nose, double stand, double descent)
             {
+                _descent = descent;
                 _p = new SimPilot(core.Controller, foot + new Double3(0, stand, 0)) { Period = 1, Heading = nose };
                 _foot = foot;
                 _stand = stand;
@@ -252,7 +259,7 @@ namespace Fpv450.Replay
                             _slowFrom = t;
                             _slowY = clearance;
                         }
-                        if (_slowFrom >= 0) y = _slowY - 0.8 - 0.5 * (t - _slowFrom);
+                        if (_slowFrom >= 0) y = _slowY - 0.8 - _descent * (t - _slowFrom);
                         _p.Target = _foot + new Double3(0, _stand + y, 0);
                     }
                     s = _p.Sticks(pose, hostUs);
@@ -277,9 +284,22 @@ namespace Fpv450.Replay
 
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
+        // Each leg's state and set angle at the end (p7g-legs 1.2), or "elastic" without the legs' law.
+        static string Legs(FlightCore core)
+        {
+            if (core.Contacts?.Legs == null) return "elastic";
+            var parts = new string[LegDamage.Legs];
+            for (int c = 0; c < LegDamage.Legs; c++)
+            {
+                Double3 set = core.Contacts.Legs.Set(c);
+                parts[c] = $"{LegDamage.Names[c]} {core.Contacts.Legs.Flags(c)} {Math.Sqrt(set.X * set.X + set.Z * set.Z) * 180 / Math.PI:F2}°";
+            }
+            return string.Join(", ", parts);
+        }
+
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
             RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double[] footAt = null, string tetherPath = null,
-            bool disarmAtTouch = false)
+            bool disarmAtTouch = false, double descent = 0.5)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = RepositoryMaterials()
@@ -369,7 +389,7 @@ namespace Fpv450.Replay
 
             var inbox = new StickInbox();
             var poses = new PoseBuffer();
-            var pilot = new Pilot(core, foot, nose, stand) { DisarmAtTouch = disarmAtTouch };
+            var pilot = new Pilot(core, foot, nose, stand, descent) { DisarmAtTouch = disarmAtTouch };
             var wall = Stopwatch.StartNew();
             var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
             Exception fault;
@@ -388,7 +408,7 @@ namespace Fpv450.Replay
                 WallSeconds = wall.Elapsed.TotalSeconds,
                 Fault = fault ?? recorder.Fault,
                 Landing = pilot.Landing + $"; ends at {core.State.Position.Y - foot.Y - stand:F4} m over standing, {core.Trace.ContactsTouching} touching pairs, "
-                    + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}",
+                    + $"{core.Contacts.ImpactCount} impacts, armed {core.State.Armed}, crashed {core.State.Crashed}; legs {Legs(core)}",
                 Line = core.Tether == null ? null
                     : $"tether.json 0x{setup.Tether.ContentHash:X16}, G₀ {core.Tether.PeelEnergy:F4} J/m: {core.Tether.PaidOut:F2} m paid out, "
                         + $"{core.Tether.Chain.Count} nodes, {core.Tether.TrailCount} trail points; the chain's guards: {core.Tether.Chain.Corrections} extra solves, "
@@ -432,6 +452,72 @@ namespace Fpv450.Replay
                 WallSeconds = wall.Elapsed.TotalSeconds,
                 Fault = recorder.Fault,
                 Landing = "none (a hover beside the wall)",
+            };
+        }
+
+        /// <summary>The stub's floor with the materials of the legs' damage flight's cushion and pad (p7g-legs 1.3).</summary>
+        public const string PadsWorld = "floor-pads";
+
+        static FlightWorld Pads() => new FlightWorld(new FloorWorld(0, "belt_bare", "steel", "timber", "fabric", "straw"));
+
+        static RuntimeObject Slab(FlightWorld world, string name, string material, Double3 centre, Double3 half) => new RuntimeObject(name, new[]
+        {
+            new ShapeGeometry
+            {
+                Kind = ShapeKind.Box, Center = centre, AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1),
+                HalfExtents = half, Material = world.Query.MaterialId(material),
+            },
+        });
+
+        /// <summary>
+        /// p7g-legs 1.3's damage flight (the spec's "Replay through a broken and a detached leg"): the drone's free body (no
+        /// propulsion, the throttle cut) at its nominal loadout, seed 11, 0.385 m up over a 0.125 m straw pad, rising at 6 m/s
+        /// with leg_rr's skid overhang under a steel bar (1.2's "A leg comes off": its clamp lets the tube slide out), a 1.5 m
+        /// fabric cushion (the damped mattress row) 0.1 m over the drone's top to take the rise, then down onto the pad: leg_rr
+        /// lost, leg_fr broken, leg_rl and leg_fl bent, their pieces loose. 4 s, logged through the recorder.
+        /// </summary>
+        public static Recorded FlyLegs(string path, string dronePath)
+        {
+            DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
+            string materialsPath = Repository(Path.Combine("assets-src", "physics_materials.json"))
+                ?? throw new FileNotFoundException("assets-src/physics_materials.json was not found");
+            MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(materialsPath), out ulong materialsHash);
+            FlightWorld world = Pads();
+            const double pad = 0.125, y0 = 0.26 + pad, gap = 0.1;
+            Double3 foot = spec.BuildContacts(spec.Nominal, materials, materialsHash).Legs.Foot[0];
+            double skidTop = y0 + foot.Y + 0.015;
+            var setup = new FlightSetup
+            {
+                Seed = 11, World = world, Mass = spec.BuildMass(spec.Nominal), Contacts = spec.BuildContacts(spec.Nominal, materials, materialsHash),
+                StartPosition = new Double3(0, y0, 0), StartVelocity = new Double3(0, 6, 0),
+                RuntimeObjects = new[]
+                {
+                    Slab(world, "bar", "steel", new Double3(foot.X, skidTop + 0.012, foot.Z - 0.06), new Double3(0.03, 0.01, 0.01)),
+                    Slab(world, "cushion", "fabric", new Double3(0, y0 + 0.11 + gap + 0.75, 0), new Double3(1.5, 0.75, 1.5)),
+                    Slab(world, "pad", "straw", new Double3(0, pad / 2, 0), new Double3(1.5, pad / 2, 1.5)),
+                },
+            };
+            var core = new FlightCore(setup);
+            LogHeader header = LogHeader.For(setup, core);
+            header.Build = Host.Build;
+            header.Isa = Host.Isa;
+            header.WorldId = PadsWorld;
+            header.SetDrone(spec, spec.Nominal);
+            var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
+            var wall = Stopwatch.StartNew();
+            for (int k = 0; k < 4000; k++)
+            {
+                var stick = new StickSample { HostUs = StartUs + k * FlightCore.StepUs };
+                core.Advance(stick);
+                recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+            }
+            recorder.Close();
+            int pieces = core.Loose.Count;
+            return new Recorded
+            {
+                Counts = recorder.Counts, Bytes = new FileInfo(path).Length, HeaderBytes = header.Length, Seed = setup.Seed, DroneHash = header.DroneHash,
+                WallSeconds = wall.Elapsed.TotalSeconds, Fault = recorder.Fault,
+                Landing = $"legs {Legs(core)}; {pieces} pieces loose; crashed {core.State.Crashed}",
             };
         }
 
