@@ -792,7 +792,12 @@ namespace Fpv450.Sim.Tests
             Assert.That(a, Is.EqualTo(PinnedBusy), "recorded on .NET 10");
         }
 
-        const ulong PinnedBusy = 0x5BCF01C10EFF9831UL;
+        // 1.5's pin 0x5BCF01C10EFF9831; p7d-tether 1.7 re-recorded it: the busy line carries two capstan contacts, whose hold
+        // now slips across the line by Coulomb (SettleContact; across the line's direction in the contact's tangent plane).
+        // Audited: with that one rule reverted (a temporary edit: a capstan's hold never slips) the line is 1.5's pin bit for
+        // bit and every chain test passes, so the members' new caller fields (Glide, Free, Kinematic off here), the split's
+        // copied certificate and the line's tangent change no bit.
+        const ulong PinnedBusy = 0x112D5EE7424B4F52UL;
 
         static ulong BusyHash()
         {

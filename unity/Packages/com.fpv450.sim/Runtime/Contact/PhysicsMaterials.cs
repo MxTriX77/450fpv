@@ -53,6 +53,7 @@ namespace Fpv450.Sim.Contact
                         Hardness = Labelled(m, "hardness_pa", path, problems, false),
                         CrushStrength = Labelled(m, "crush_strength_pa", path, problems, true),
                         Density = Labelled(m, "density_kg_m3", path, problems, false),
+                        EdgeRadius = EdgeRadius(m, path, problems),
                     };
                     if (row.KineticFriction > row.StaticFriction) problems.Add(path + ": friction_kinetic is above friction_static");
                     bool hasK = m.Member("stiffness_n_per_m") != null, hasZ = m.Member("damping_ratio") != null;
@@ -103,6 +104,24 @@ namespace Fpv450.Sim.Contact
             row.WetAdhesion = r.Number(wet, "adhesion_pa", wp, out _);
             row.WetAdhesionRelease = r.Number(wet, "adhesion_release_m", wp, out _);
             if (row.WetAdhesion > 0 && !(row.WetAdhesionRelease > 0)) r.Fail(wp + ".adhesion_release_m", "must be above 0 where adhesion_pa is");
+        }
+
+        // edge_radius_m: required, a number above 0 or null (read as 0: round or homogenised members; p7d-tether 1.7).
+        static double EdgeRadius(JsonNode o, string path, List<string> problems)
+        {
+            JsonNode n = o.Member("edge_radius_m");
+            if (n == null)
+            {
+                problems.Add(path + ".edge_radius_m: missing");
+                return 0;
+            }
+            if (n.Kind == JsonKind.Null) return 0;
+            if (n.Kind != JsonKind.Number || !(n.Number > 0))
+            {
+                problems.Add(path + ".edge_radius_m: must be a number above 0 or null");
+                return 0;
+            }
+            return n.Number;
         }
 
         // A plain number ≥ 0; an absent optional one is 0 (rigid).

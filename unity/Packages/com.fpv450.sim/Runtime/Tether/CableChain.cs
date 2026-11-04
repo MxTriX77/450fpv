@@ -22,6 +22,35 @@ namespace Fpv450.Sim.Tether
         /// <summary>The caller's: a member re-found every step (the ground's plane under the node), so the node may be merged
         /// away with it on (its hold is lost with it, which only lowers the energy).</summary>
         public bool Remeshable;
+        /// <summary>The caller's, a capstan's: its point is held along the member as well (a barb's notch), so the hold never
+        /// slips; without it a capstan's hold slips across the line by Coulomb's law (the line sliding along a twig, a wire,
+        /// a skid), while along the line material slides through the node by the capstan.</summary>
+        public bool Notch;
+        /// <summary>The caller's, a capstan's on a moving member (a part of the drone): its hold along the line slips too, once
+        /// the pull along the line passes what the wrap there holds, T_lo·(e^(μs·θ) − 1), down to T_lo·(e^(μk·θ) − 1) (θ the
+        /// line's turn at the node, T_lo the lower tension beside it), so a member sliding along a straight line glides by it
+        /// rather than dragging the node's line at its own speed, while a wrap holds as the capstan does.</summary>
+        public bool Glide;
+        /// <summary>The caller's, a gliding member's, for this step: the line slips by it, so its hold does not act along the
+        /// line in the solve (only across it and along the normal): set when the wrap could not bring the node to the member's
+        /// speed along the line within the step (FiberContacts' predictive Coulomb rule).</summary>
+        public bool Free;
+        /// <summary>The caller's: whether the node is predicted to reach this member within the step is judged by its own motion
+        /// (x + v·dt against the member's end-of-step place), not the explicit prediction with the line's forces (which over a
+        /// stiff taut segment reaches centimetres, and would hold a node off a member it never reaches), or by its gap being
+        /// within KinematicBand (a node the line's own pull draws in against a member it rests by); a touch it still misses is
+        /// taken by the correction pass, as any other.</summary>
+        public bool Kinematic;
+        /// <summary>The caller's: which member this is (its class and identity, opaque to the chain), and where the node first
+        /// touched it, m (a barb's lock, a hook's attach point). They move with the node.</summary>
+        public ulong Member;
+        public byte MemberKind;
+        public Double3 Origin;
+        /// <summary>The caller's, opaque to the chain: the arris's radius the line bends over there, m; the force and the press
+        /// at which the member lets go, N and m (0: never); the node's material coordinate when it was set this step (a capstan's
+        /// slide shows as a change); whether it was set afresh this step, and whether line was sliding through it.</summary>
+        public double Edge, Cap, Slide, Through;
+        public bool Fresh, Sliding;
 
         /// <summary>The chain's: the hold is set (the node pressed on the member in the last step).</summary>
         public bool Engaged;
@@ -70,6 +99,12 @@ namespace Fpv450.Sim.Tether
         /// <summary>The caller's: how long the node has rested, s (the trail's freeze, design 3). It moves with the node; a
         /// node a split makes starts at 0.</summary>
         public double RestTime;
+        /// <summary>The caller's clearance certificate of the segment from this node to the next (design 12): Cleared, and the
+        /// core A–B of the segment a query found clear. It moves with the node, and a split's new node takes its segment's:
+        /// both pieces lie on the certified core (the caller judges a segment by its ends' distance from that core, and the
+        /// distance from a segment is convex, so a segment whose two ends lie near the core lies near it everywhere).</summary>
+        public bool Cleared;
+        public Double3 ClearA, ClearB;
     }
 
     /// <summary>
@@ -154,6 +189,10 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>The solves a step may add when its prediction missed a touch or a tightening (numerical).</summary>
         public const int MaxCorrections = 2;
+
+        /// <summary>A Kinematic contact this close to its node at the step's start is taken speculative whatever the node's
+        /// motion, m (numerical: the line's pull draws a resting node a few millimetres in a step at most).</summary>
+        public const double KinematicBand = 0.002;
 
         public readonly int Capacity;
         /// <summary>kg/m and N: the line's (the table's or the wire record's).</summary>
@@ -422,8 +461,10 @@ namespace Fpv450.Sim.Tether
             for (int i = 0; i < n; i++)
             {
                 ref CableNode a = ref _nodes[i];
-                ChooseContact(a.Position, _pred[i], dt, ref a.Contact0);
-                ChooseContact(a.Position, _pred[i], dt, ref a.Contact1);
+                Double3 along = a.Contact0.Free || a.Contact1.Free ? LineTangent(i) : default;
+                Double3 drift = a.Position + a.Velocity * dt;
+                ChooseContact(a.Position, a.Contact0.Kinematic ? Banded(a.Position, drift, ref a.Contact0) : _pred[i], dt, along, ref a.Contact0);
+                ChooseContact(a.Position, a.Contact1.Kinematic ? Banded(a.Position, drift, ref a.Contact1) : _pred[i], dt, along, ref a.Contact1);
             }
 
             // 3. The true energy at the start, with this step's targets.
@@ -571,8 +612,11 @@ namespace Fpv450.Sim.Tether
             for (int i = 0; i < n; i++)
             {
                 ref CableNode a = ref _nodes[i];
-                SettleContact(a.Position, ref a.Contact0);
-                SettleContact(a.Position, ref a.Contact1);
+                Double3 along = LineTangent(i);
+                double wrap = 0, low = 0;
+                if (a.Contact0.Glide || a.Contact1.Glide) Wrap(i, out wrap, out low);
+                SettleContact(a.Position, along, wrap, low, ref a.Contact0);
+                SettleContact(a.Position, along, wrap, low, ref a.Contact1);
             }
             CapstanRuns();
 
@@ -627,8 +671,9 @@ namespace Fpv450.Sim.Tether
                     diag = diag + Iso(dt * a.AnchorDamping + dt2 * a.AnchorStiffness);
                     f = f - (a.Position - a.AnchorTarget) * a.AnchorStiffness + a.AnchorVelocity * a.AnchorDamping;
                 }
-                AddContact(a.Position, dt, ref a.Contact0, ref diag, ref f);
-                AddContact(a.Position, dt, ref a.Contact1, ref diag, ref f);
+                Double3 along = a.Contact0.Free || a.Contact1.Free ? LineTangentAt(i) : default;
+                AddContact(a.Position, dt, along, ref a.Contact0, ref diag, ref f);
+                AddContact(a.Position, dt, along, ref a.Contact1, ref diag, ref f);
                 _diag[i] = diag;
                 _rhs[i] = a.Velocity * a.Mass + f * dt;
             }
@@ -741,7 +786,15 @@ namespace Fpv450.Sim.Tether
             return c.Normal * (-c.Stiffness * g - c.Damping * closing);
         }
 
-        static void ChooseContact(Double3 x, Double3 predicted, double dt, ref CableContact c)
+        // A Kinematic contact's predicted end: the node's drift, or (within KinematicBand) the point on the member's plane past it.
+        static Double3 Banded(Double3 x, Double3 drift, ref CableContact c)
+        {
+            if (!c.Active) return drift;
+            double g = Double3.Dot(c.Normal, x - c.Point);
+            return g > 0 && g <= KinematicBand ? x - c.Normal * (2 * g) : drift;
+        }
+
+        static void ChooseContact(Double3 x, Double3 predicted, double dt, Double3 along, ref CableContact c)
         {
             if (!c.Active)
             {
@@ -769,18 +822,37 @@ namespace Fpv450.Sim.Tether
                 c.Hold = x;
             }
             else c.Hold = c.Hold + c.Velocity * dt;
+            // A free slot's hold holds nothing along the line: it starts the step at the node along it (no energy there).
+            if (c.Mode != 0 && c.Free) c.Hold = c.Hold + FreeAxis(along, c.Normal) * Double3.Dot(FreeAxis(along, c.Normal), x - c.Hold);
+        }
+
+        // The line's direction in a contact's tangent plane, unit (0 for a line along the normal).
+        static Double3 FreeAxis(Double3 along, Double3 normal)
+        {
+            Double3 t = along - normal * Double3.Dot(normal, along);
+            double l = t.Length();
+            return l > 0 ? t * (1 / l) : default;
         }
 
         // The contact's model on the diagonal and in the force: the normal spring from its rest gap (the surface when
         // pressing, the gap at the start when speculative) and its damper, the hold's tangential spring.
-        static void AddContact(Double3 x, double dt, ref CableContact c, ref Sym3 diag, ref Double3 f)
+        static void AddContact(Double3 x, double dt, Double3 along, ref CableContact c, ref Sym3 diag, ref Double3 f)
         {
             if (c.Mode == 0) return;
             Double3 nrm = c.Normal;
             double g = Double3.Dot(nrm, x - c.Point);
             diag = diag + Outer(nrm, dt * c.Damping + dt * dt * (c.Stiffness - c.HoldStiffness)) + Iso(dt * dt * c.HoldStiffness);
             f = f + nrm * (-c.Stiffness * (g - c.Rest) + c.Damping * Double3.Dot(nrm, c.Velocity));
-            if (c.HoldStiffness > 0) f = f - Tangential(x - c.Hold, nrm) * c.HoldStiffness;
+            if (!(c.HoldStiffness > 0)) return;
+            Double3 off = Tangential(x - c.Hold, nrm);
+            if (c.Free)
+            {
+                // Free along the line: the hold's spring acts across it only.
+                Double3 axis = FreeAxis(along, nrm);
+                diag = diag + Outer(axis, -dt * dt * c.HoldStiffness);
+                off = off - axis * Double3.Dot(axis, off);
+            }
+            f = f - off * c.HoldStiffness;
         }
 
         static double DamperWork(Double3 v, double dt, ref CableContact c)
@@ -798,7 +870,35 @@ namespace Fpv450.Sim.Tether
             return g < 0 ? 0.5 * c.Stiffness * g * g : 0;
         }
 
-        static void SettleContact(Double3 x, ref CableContact c)
+        // The line's direction at node i at the step's start, as the assembly takes its models there.
+        Double3 LineTangentAt(int i)
+        {
+            Double3 t = _x0[i + 1 < Count ? i + 1 : i] - _x0[i > 0 ? i - 1 : i];
+            double l = t.Length();
+            return l > 0 ? t * (1 / l) : default;
+        }
+
+        // The line's unit direction at node i (its neighbours' chord; one segment's at an end), 0 for a point.
+        Double3 LineTangent(int i)
+        {
+            Double3 t = _nodes[i + 1 < Count ? i + 1 : i].Position - _nodes[i > 0 ? i - 1 : i].Position;
+            double l = t.Length();
+            return l > 0 ? t * (1 / l) : default;
+        }
+
+        // The line's turn at node i and the lower of its two segments' tensions (0 at an end).
+        void Wrap(int i, out double turn, out double low)
+        {
+            turn = 0;
+            low = 0;
+            if (i == 0 || i + 1 >= Count) return;
+            Double3 da = _nodes[i].Position - _nodes[i - 1].Position, db = _nodes[i + 1].Position - _nodes[i].Position;
+            turn = DetMath.Atan2(Double3.Cross(da, db).Length(), Double3.Dot(da, db));
+            double t0 = Tension(i - 1), t1 = Tension(i);
+            low = t0 < t1 ? t0 : t1;
+        }
+
+        static void SettleContact(Double3 x, Double3 along, double wrap, double low, ref CableContact c)
         {
             if (c.Mode == 0)
             {
@@ -808,8 +908,20 @@ namespace Fpv450.Sim.Tether
             double g = Double3.Dot(c.Normal, x - c.Point);
             double normal = -c.Stiffness * (g - c.Rest);
             c.NormalForce = normal > 0 ? normal : 0;
-            if (!(c.HoldStiffness > 0) || c.Capstan) return; // a capstan's hold is the member's point; line slides through it
+            if (!(c.HoldStiffness > 0) || c.Capstan && c.Notch) return; // a notch holds the member's point; line slides through it
             Double3 t = Tangential(x - c.Hold, c.Normal);
+            // A capstan's hold along the line is the member's point (line slides through it by the capstan); across the line
+            // it slips by Coulomb, as a plain hold does (the line sliding along a twig, a wire or a skid).
+            if (c.Capstan)
+            {
+                Double3 axis = FreeAxis(along, c.Normal);
+                Double3 on = axis * Double3.Dot(axis, t);
+                t = t - on;
+                double pull = c.HoldStiffness * on.Length();
+                if (c.Free) c.Hold = c.Hold + on; // slipping by: the hold follows the node along the line
+                else if (c.Glide && pull > 0 && pull > low * (DetMath.Exp(c.StaticFriction * wrap) - 1))
+                    c.Hold = c.Hold + on * (1 - low * (DetMath.Exp(c.KineticFriction * wrap) - 1) / pull);
+            }
             double held = c.HoldStiffness * t.Length(), limit = c.StaticFriction * c.NormalForce;
             if (held > limit && held > 0)
             {
@@ -1225,6 +1337,10 @@ namespace Fpv450.Sim.Tether
                     Material = a.Material + (b.Material - a.Material) * f,
                 };
             Count++;
+            // The new node lies on segment j: both pieces lie on its certified core (CableNode.Cleared).
+            _nodes[j + 1].Cleared = a.Cleared;
+            _nodes[j + 1].ClearA = a.ClearA;
+            _nodes[j + 1].ClearB = a.ClearB;
             a.Mass = MassOf(j);
             _nodes[j + 1].Mass = MassOf(j + 1);
             b.Mass = MassOf(j + 2);
@@ -1422,6 +1538,19 @@ namespace Fpv450.Sim.Tether
 
         double Rate(double sdot) =>
             sdot > Spool.ReferenceRate ? DetMath.Exp(Spool.RateExponent * DetMath.Log(sdot / Spool.ReferenceRate)) : 1;
+
+        /// <summary>A node put into segment j at the fraction f of it from node j (a contact node where the segment meets a
+        /// member, design 6): position, velocity and material at f, so momentum is kept, the straight segment's springs
+        /// are unchanged and the kinetic energy only falls (Split). False when the chain is full or the piece would be shorter
+        /// than the chain's least rest length.</summary>
+        public bool SplitAt(int j, double f)
+        {
+            if (Count == Capacity || j < 0 || j + 1 >= Count || !(f > 0 && f < 1)) return false;
+            double rest = _nodes[j + 1].Material - _nodes[j].Material;
+            if (!(f * rest > MinRest) || !((1 - f) * rest > MinRest)) return false;
+            Split(j, f);
+            return true;
+        }
 
         // ---- the laid trail's end (design 3) ----
 

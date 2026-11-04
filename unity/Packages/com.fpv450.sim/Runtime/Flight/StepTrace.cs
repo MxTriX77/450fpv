@@ -254,6 +254,23 @@ namespace Fpv450.Sim.Flight
         /// slot in the side record (LogFormat.LooseBlock), Point its centre of mass. A: its mass, kg; B: its centre's speed,
         /// m/s; C: its parts (the LegChange mask). The build is rebuilt without it in the same step.</summary>
         PieceDropped = 28,
+
+        /// <summary>
+        /// The fiber took a member as a contact (p7d-tether 1.7, design 6): Index its FiberMember, on (Object, Shape) for a
+        /// shape, a conductor (its wire shape) or a snag record (Shape the record's index), on Object (the instance) and Shape
+        /// (the element's index) for an element, or Part and Shape (the drone's contact shape) for the drone's own; Material the
+        /// member's, Point where it touched, after the step it was taken. A: the line's turn there, rad; B: the larger tension
+        /// beside it, N; C: the bend's radius R_eff there, m (∞ for a member the line does not press).
+        /// </summary>
+        FiberContact = 30,
+
+        /// <summary>
+        /// Line slid through a capstan member it had held at, or a member let it go (p7d-tether 1.7): Index its FiberMember, the
+        /// member named as FiberContact's, Point the node. A capstan's slide: A the line's turn, rad; B and C the tensions on its
+        /// high and low sides, N. A hooked straw or a standing stem letting go: A 0; B the force it held, N; C what it holds to
+        /// (its release force or Euler's load, N), or its slide-off press, m, negated.
+        /// </summary>
+        FiberSlip = 31,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>
@@ -285,6 +302,16 @@ namespace Fpv450.Sim.Flight
     {
         /// <summary>The fiber's laid trail was full (trail.capacity): its oldest pair was merged.</summary>
         TrailFull = 1,
+
+        /// <summary>A fiber cache's elements (contact.element_capacity), snag segments (contact.snag_capacity) or conductors
+        /// (contact.wire_capacity) were more than it holds: the canonical prefix is used (p7d-tether 1.7). A: the true count.</summary>
+        FiberElementsFull = 2, FiberSnagsFull = 3, FiberWiresFull = 4,
+
+        /// <summary>A fiber cache's grid held fewer cell entries than its members meet (numerical): those past it are not met.</summary>
+        FiberGridFull = 5,
+
+        /// <summary>A segment's query met more shapes than the fiber's buffer holds: it was asked again at the insertion gap.</summary>
+        FiberShapesFull = 6,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

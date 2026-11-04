@@ -89,6 +89,10 @@ namespace Fpv450.Sim.Contact
         /// kg/m³, the mass a carving blade flings.</summary>
         public double Hardness, CrushStrength, Density;
 
+        /// <summary>The radius of the row's arrises a line bends over (its edge_radius_m), m; 0 where the file's is null (a
+        /// row whose members are round, or homogenised: the fiber reads their own radius or skips them, p7d-tether 1.7).</summary>
+        public double EdgeRadius;
+
         public readonly bool Rigid => Stiffness == 0;
     }
 
