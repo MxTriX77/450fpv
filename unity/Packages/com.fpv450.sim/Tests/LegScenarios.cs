@@ -45,6 +45,9 @@ namespace Fpv450.Sim.Tests
             /// <summary>surfaces.json's table (the ground's soil, p7a-ground 1.10, under the legs since model 46), or null for the
             /// rigid ground.</summary>
             public SurfaceTable Table;
+
+            /// <summary>A change to the contacts (a known-wrong model, a strength pinned at a bound; p7g-legs 1.4), or null.</summary>
+            public Func<ContactSpec, ContactSpec> Edit;
         }
 
         public sealed class Outcome
@@ -54,6 +57,9 @@ namespace Fpv450.Sim.Tests
             public double[] PeakMoment = new double[4], PeakAxial = new double[4];
             public readonly List<KeyValuePair<long, FlightEvent>> Events = new List<KeyValuePair<long, FlightEvent>>();
             public double MaxTilt, TouchSpeed;
+
+            /// <summary>The tilt of body up from the vertical at the run's end, deg (p7g-legs 1.4).</summary>
+            public double EndTilt;
             public int Tunnels, Crashes;
 
             /// <summary>The even split's peak load (the known-wrong): a quarter of the legs' load along them, N.</summary>
@@ -101,6 +107,7 @@ namespace Fpv450.Sim.Tests
             Loadout loadout = spec.Nominal;
             ContactSpec contacts = spec.BuildContacts(loadout, materials, hash, t.Table);
             if (t.Elastic) contacts.Legs = null;
+            if (t.Edit != null) contacts = t.Edit(contacts);
             ContactScenarios.Site site = t.Site ?? new ContactScenarios.Site(null, default, 0);
             Quat q = (site.Attitude() * Tilt(t.RollDeg, t.PitchDeg)).Normalized();
             double low = double.PositiveInfinity;
@@ -154,6 +161,7 @@ namespace Fpv450.Sim.Tests
                 Double3 up = s.Attitude.Rotate(new Double3(0, 1, 0));
                 double tilt = Math.Acos(Math.Max(-1, Math.Min(1, up.Y))) * 180 / Math.PI;
                 o.MaxTilt = Math.Max(o.MaxTilt, tilt);
+                o.EndTilt = tilt;
                 for (int c = 0; c < 4; c++)
                 {
                     o.PeakMoment[c] = Math.Max(o.PeakMoment[c], tr.LegMoment[c]);

@@ -170,7 +170,10 @@ namespace Fpv450.Sim.Tests
         public static OutBack OutThenBack(DroneSpec spec, bool twoWay)
         {
             FlightSetup setup = Setup(spec, twoWay: twoWay);
-            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 4, turn = climb + outFor;
+            // The hover after the return lasts until the slack can rest (p7g-legs 1.4: 4 s left the 10 m line's slack in the air,
+            // and whether its first point reached the ground in time turned on the legs' sub-millimetre stance at the takeoff):
+            // the line's fall from the flight's 10 m at its terminal 1.4 m/s (White's fit, "A falling line settles") takes 7.1 s.
+            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 8, turn = climb + outFor;
             var r = new OutBack { LeastAfterTurn = double.PositiveInfinity, SlackLeast = double.PositiveInfinity };
             double last = 0, stand = Stand(setup);
             Plan flight = OutAndBack(stand, 10, climb, 10, turn, 10);

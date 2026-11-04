@@ -525,9 +525,13 @@ namespace Fpv450.Sim.Tests
         // V01_L's bark at 9.94 m/s at step 10302, 23 ms after leg_rr parts there (12.1 N·m) and as its skid half, hanging from
         // leg_fr's T-joint, folds (the half's turn a step behind, 1.3's 5.52 m case's mechanism); the crown in Calm and Windy and
         // the wire's other cases none.
+        // Model 49 (p7g-legs 1.4, the legs' lever): the crown in Severe logs two, both through support_rr_end of leg_rr's skid half
+        // hanging from leg_fr's T-joint after leg_rr parts (11.9 N·m, step 10279): through V01_L's bark at 9.94 m/s at step 10302
+        // as on model 46, and through Z11_tree_ash's timber at 15.6 m/s at step 10713 in the crash's tumble; the hanging half's
+        // turn a step behind (1.3's mechanism) and its fold without a parting limit (open since 1.3); the rest none.
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
-        [TestCase("crown", 10.0, WindLevel.Severe, 1)]
+        [TestCase("crown", 10.0, WindLevel.Severe, 2)]
         [TestCase("wire", 5.47, WindLevel.Severe, 0)]
         [TestCase("wire", 5.475, WindLevel.Severe, 0)]
         [TestCase("wire", 5.51, WindLevel.Severe, 0)]
