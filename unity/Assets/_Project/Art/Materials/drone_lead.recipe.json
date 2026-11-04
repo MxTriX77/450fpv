@@ -1,0 +1,34 @@
+{
+  "material": "drone_lead",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "red": "#ca130f",
+      "black": "#141414"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.55
+  },
+  "inputs_sha256": "3c099bf52abe2b6f15235d8b1060cf5482b01f95632ea61a54fd1b7203992d9e",
+  "size": [
+    32,
+    64
+  ],
+  "columns": [
+    "red",
+    "black"
+  ]
+}

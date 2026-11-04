@@ -1,6 +1,7 @@
 """Asset metadata, schema 1 (design decision 6): assembly from a generator's result, validation of the schema and
 of its conventions (the physics review's R2 and R3, the ports and wires of p1-l01-l03-pole-wires), a deterministic
 writer, and the check against the exported FBX. Every number is in asset space (lib.frame) and metres."""
+import hashlib
 import json
 import math
 import os
@@ -33,8 +34,27 @@ KEY_ORDER = ("schema", "id", "variant", "generator", "params_sha256", "units", "
 # the model's path and LFS object id, the catalog key) and the first attempt's snag flag, which asset space has no
 # field for (its snag records say where a member catches; Godot's flag says the whole object does). Optional and
 # additive: schema 1 stays, and every other asset's file is unchanged.
-OPTIONAL_KEYS = ("stand_in",)
+# A loose runtime object's mass in kg (p5-drone design 4: D02's launch stand, which physics places unanchored and may
+# tip or drag, D-022), when its generator returns one ("mass_kg"); positive. Optional and additive, as above.
+# The LOD switches' cross-fade (D-081: S04's straws dissolve into its far layer, never pop): "lod_fade_share", when the
+# generator returns one, in [0, 1): each mesh LOD dissolves into the next from (1 - share) of the next one's switch
+# distance to the switch itself, and the importer cross-fades the LOD group over those bands. Optional and additive.
+OPTIONAL_KEYS = ("stand_in", "mass_kg", "lod_fade_share", "micro_elements")
 STAND_IN_SOURCE_KEYS = ("commit", "model", "model_sha256", "catalog_key")
+# The drawn elements physics reads (p7a-ground design 8, AST-10: S04's top-layer straws, standing stems and twigs; a
+# crown's twigs and leaves), the very strands and cards a micro mesh or LOD0 draws. They are many, so they live in a
+# sidecar beside the metadata, <variant>.elements.json (elements_dumps: schema, variant, units, frame and the records,
+# one per line), and the metadata names it under "micro_elements" with its SHA-256 and the record counts by kind: the
+# world's content hash covers the metadata's text, so it covers every element. Optional and additive: absent when a
+# generator returns none. Each record: its kind; its centre line as two or three distinct points (a polyline, base
+# first); its diameter (a leaf's thickness is ignored); "anchored", held at its base: rooted, grown from a parent, or
+# a lying straw held by the mat's tangle (only an anchored element can hook; a loose one, a twig rolling under a skid
+# or a straw strewn on bare soil, is not); "parent", the index of the element it grows from (earlier in the list), and
+# "parent_shape", the index of the collision shape it grows from, each -1 for none and at most one set; a leaf also
+# its "area_m2".
+ELEMENT_KINDS = ("straw", "stem", "twig", "leaf")
+ELEMENT_KEYS = ("kind", "points", "diameter_m", "anchored", "parent", "parent_shape")
+ELEMENTS_SCHEMA = 1
 # Each LOD entry: its mesh, triangles, switch distance and `thin_wire`, whether every slot of that LOD's mesh draws
 # with the thin-wire material (p1-l01-l03-pole-wires, task 1.4), which reads each vertex's radius from its second UV:
 # a wire's tube, a pole's far LODs. The generator says so explicitly ("thin_wire", one bool per LOD, false when it
@@ -83,7 +103,10 @@ TEXTURE_KEYS = ("role", "slot", "file", "uv_min", "uv_max")
 # patch) returns "lod_bounds", the object's own box, written as bounds.lod; the importer centres the LOD group on it and
 # sizes it by its longest side, so switches are measured from the object, not its scatter. Optional: absent, the
 # bounds serve; schema 1 stays.
-TEXTURE_ROLES = ("crack_mask", "damage_mask")
+# A "base_map" (D-081, S04's far layer) is a slot's albedo in place of its recipe's base map, and a "mask_map" its
+# packed mask (metallic R, occlusion G, smoothness A) in place of the recipe's, each laid over the slot's UVs as its
+# uv_min and uv_max say: the importer draws that slot with the recipe's material over these maps.
+TEXTURE_ROLES = ("crack_mask", "damage_mask", "base_map", "mask_map")
 TEXTURE_CHANNELS = 4
 # The closed, physics-owned list every physics material id must come from (review R3).
 PHYSICS_MATERIALS = os.path.join("assets-src", "physics_materials.json")
@@ -212,7 +235,8 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
     "cull_distance_m", "materials": [{"slot", "physics"}], "collision", "gaps", "wind_volumes", "snag"}, and
     optionally "thin_wire": [bool per LOD], "micro": [{"lod", "kind", "count", "mesh": Mesh}], "ports": [{PORT_KEYS}],
     "wires": [{WIRE_KEYS}], "holes": [{HOLE_KEYS}] and "textures": [{"role", "slot", "name", "uv_min", "uv_max",
-    "png"}, optionally "channels"] and a stand-in's "stand_in" record) and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
+    "png"}, optionally "channels"], a stand-in's "stand_in" record, a loose object's "mass_kg" and the LOD switches'
+    "lod_fade_share") and the catalog's visual material per slot. A micro mesh is named <variant>_LOD<n>_<kind> and counts
     towards the bounds, since it is rendered; a texture's file is texture_file(variant, name), which build.py
     writes from its "png" bytes; `impostor_lod` (lib.impostor.lod) follows the mesh LODs when given."""
     lods = built["lods"]
@@ -258,12 +282,58 @@ def assemble(asset_id, variant, generator, params, built, visual_by_slot, impost
     }
     if "stand_in" in built:
         meta["stand_in"] = built["stand_in"]
+    if "mass_kg" in built:
+        meta["mass_kg"] = float(built["mass_kg"])
+    if "lod_fade_share" in built:
+        meta["lod_fade_share"] = float(built["lod_fade_share"])
+    if built.get("micro_elements"):
+        meta["micro_elements"] = elements_record(variant, built["micro_elements"])
     return _rounded(meta)
 
 
 def texture_file(variant, name):
     """The file name of a generator-written texture beside the metadata."""
     return f"{variant}_{name}.png"
+
+
+def elements_file(variant):
+    """The file name of a variant's micro_elements sidecar beside the metadata."""
+    return f"{variant}.elements.json"
+
+
+def elements_dumps(variant, elements):
+    """The sidecar's text: schema, variant, units and frame, then the records rounded as the metadata is, one per line
+    in their order; LF, one trailing newline, identical for identical input."""
+    head = json.dumps({"schema": ELEMENTS_SCHEMA, "variant": variant, "units": UNITS, "frame": FRAME})[:-1]
+    lines = [json.dumps(_element_ordered(record), ensure_ascii=False) for record in _rounded(elements)]
+    return head + ', "elements": [\n' + ",\n".join(lines) + "\n]}\n"
+
+
+def _element_ordered(record):
+    """A record's keys in ELEMENT_KEYS order, then area_m2, then any others sorted (which the validator refuses)."""
+    if not isinstance(record, dict):
+        return record
+    known = ELEMENT_KEYS + ("area_m2",)
+    return {k: record[k] for k in [k for k in known if k in record] + sorted(k for k in record if k not in known)}
+
+
+def elements_record(variant, elements):
+    """The metadata's "micro_elements": the sidecar's file name, its SHA-256 and the record counts by kind."""
+    counts = {kind: sum(1 for e in elements if isinstance(e, dict) and e.get("kind") == kind) for kind in ELEMENT_KINDS}
+    return {"file": elements_file(variant),
+            "sha256": hashlib.sha256(elements_dumps(variant, elements).encode("utf-8")).hexdigest(),
+            "counts": {kind: n for kind, n in counts.items() if n}}
+
+
+def elements_line(record):
+    """The build's line for a variant's micro_elements: the counts by kind and the file."""
+    counts = ", ".join(f"{n} {kind}" for kind, n in record["counts"].items())
+    return f"micro_elements {counts} in {record['file']}"
+
+
+def write_elements(path, variant, elements):
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(elements_dumps(variant, elements))
 
 
 def capsule(p0, p1, radius, material):
@@ -292,9 +362,10 @@ def rotation_from_y(d):
     return [axis[0] * s, axis[1] * s, axis[2] * s, math.cos(half)]
 
 
-def validate(meta, material_ids):
+def validate(meta, material_ids, elements=None):
     """Problems with a metadata dict against schema 1 and its conventions, as strings naming the rule; empty when
-    it conforms. `material_ids` is the closed physics-material list from load_physics_materials."""
+    it conforms. `material_ids` is the closed physics-material list from load_physics_materials; `elements` the
+    micro_elements records the metadata names, needed when it names some."""
     problems = []
     missing = [k for k in KEY_ORDER if k not in meta]
     if missing:
@@ -420,6 +491,80 @@ def validate(meta, material_ids):
             problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
     if "stand_in" in meta:
         problems += _stand_in_problems(meta["stand_in"])
+    if "lod_fade_share" in meta and not (_is_num(meta["lod_fade_share"]) and 0 <= meta["lod_fade_share"] < 1):
+        problems.append(f"lod_fade_share must be a number in [0, 1), got {meta['lod_fade_share']!r}")
+    if "mass_kg" in meta and not (_is_num(meta["mass_kg"]) and meta["mass_kg"] > 0):
+        problems.append(f"mass_kg must be a positive number, got {meta['mass_kg']!r}")
+    if "micro_elements" in meta:
+        problems += _micro_elements_problems(meta, elements)
+    return problems
+
+
+def _micro_elements_problems(meta, elements):
+    """The micro_elements rule: the metadata names the variant's sidecar, a SHA-256 and the counts by kind; the
+    records, rounded as they are written, conform (_element_problems), hash to that SHA-256 and count as it says."""
+    record = meta["micro_elements"]
+    if not (isinstance(record, dict) and set(record) == {"file", "sha256", "counts"} and _is_hex(record["sha256"], 64)
+            and isinstance(record["counts"], dict)
+            and all(k in ELEMENT_KINDS and _is_int(n) and n > 0 for k, n in record["counts"].items())):
+        return [f"micro_elements needs file, sha256 (64 hex digits) and counts (records by kind, each above 0), "
+                f"nothing else: {record}"]
+    if record["file"] != elements_file(meta["variant"]):
+        return [f"micro_elements: file must be {elements_file(meta['variant'])!r}, beside the metadata, got "
+                f"{record['file']!r}"]
+    if not isinstance(elements, list):
+        return [f"micro_elements: the records of {record['file']} are needed as a list to validate it"]
+    rounded = _rounded(elements)
+    problems = [f"micro_elements[{i}]: {p}" for i, e in enumerate(rounded)
+                for p in _element_problems(e, i, len(meta["collision"]))]
+    if problems:
+        return problems
+    expected = elements_record(meta["variant"], elements)
+    if expected["counts"] != record["counts"]:
+        problems.append(f"micro_elements: counts {record['counts']} are not the records' {expected['counts']}")
+    if expected["sha256"] != record["sha256"]:
+        problems.append(f"micro_elements: sha256 {record['sha256']} is not the records' {expected['sha256']}")
+    return problems
+
+
+def _element_problems(e, index, shapes):
+    """One micro element, as written: ELEMENT_KEYS (and a leaf's area_m2) and nothing else; a known kind; its centre
+    line two or three distinct 3-vectors; a positive diameter; a boolean anchored; a parent earlier in the list and a
+    parent shape among the `shapes` collision shapes, each -1 for none, at most one set, and anchored when one is."""
+    if not isinstance(e, dict):
+        return [f"must be an object of {', '.join(ELEMENT_KEYS)}, got {e!r}"]
+    missing = [k for k in ELEMENT_KEYS if k not in e]
+    if missing:
+        return [f"needs {', '.join(missing)}"]
+    problems = []
+    unknown = sorted(set(e) - set(ELEMENT_KEYS) - {"area_m2"})
+    if unknown:
+        problems.append(f"unknown keys {', '.join(unknown)}")
+    if e["kind"] not in ELEMENT_KINDS:
+        problems.append(f"kind must be one of {', '.join(ELEMENT_KINDS)}, got {e['kind']!r}")
+    points = e["points"]
+    if not (isinstance(points, list) and 2 <= len(points) <= 3 and all(_is_vec(p) for p in points)):
+        problems.append(f"points must be its centre line as two or three 3-vectors, got {points!r}")
+    elif any(points[a] == points[b] for a in range(len(points)) for b in range(a)):
+        problems.append(f"points must be distinct, got two equal points in {points}")
+    if not (_is_num(e["diameter_m"]) and e["diameter_m"] > 0):
+        problems.append(f"diameter_m must be positive, got {e['diameter_m']!r}")
+    if not isinstance(e["anchored"], bool):
+        problems.append(f"anchored must be a boolean, got {e['anchored']!r}")
+    parent, shape = e["parent"], e["parent_shape"]
+    if not (_is_int(parent) and -1 <= parent < index):
+        problems.append(f"parent must be -1 or the index of an earlier element (below {index}), got {parent!r}")
+    if not (_is_int(shape) and -1 <= shape < shapes):
+        problems.append(f"parent_shape must be -1 or the index of a collision shape (below {shapes}), got {shape!r}")
+    elif _is_int(parent) and parent >= 0 and shape >= 0:
+        problems.append("parent and parent_shape are both set: an element grows from one parent")
+    if (_is_int(parent) and parent >= 0 or _is_int(shape) and shape >= 0) and e["anchored"] is not True:
+        problems.append("an element grown from a parent is anchored")
+    if e["kind"] == "leaf":
+        if not (_is_num(e.get("area_m2")) and e["area_m2"] > 0):
+            problems.append(f"a leaf needs a positive area_m2, got {e.get('area_m2')!r}")
+    elif "area_m2" in e:
+        problems.append("area_m2 belongs to a leaf only")
     return problems
 
 

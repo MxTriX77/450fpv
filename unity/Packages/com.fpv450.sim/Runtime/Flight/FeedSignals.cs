@@ -113,5 +113,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The air's velocity at the camera, m/s, in the camera's axes.</summary>
         public Double3 AirVelocityAtCamera;
+
+        /// <summary>The stick sample in force at this step, as the flight flew it (the OSD's stick overlay and throttle
+        /// element, D-078, D-080: the app's, not a feed signal); Neutral before the first step.</summary>
+        public Control.StickSample Sticks;
     }
 }

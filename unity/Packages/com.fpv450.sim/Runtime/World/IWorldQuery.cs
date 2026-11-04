@@ -10,8 +10,10 @@
 // ContentHash), Contacts.cs (StaticContacts, Raycast) and WorldObjects.cs (AddObject,
 // ResetRuntimeObjects and Geometry, the API review's F2 and F3), gathered into one
 // interface. AddObject takes world-space shapes instead of a catalog id, so the stand
-// of drone.json and a catalog asset enter the same way. MicroDetailNear, WindGrid and
-// GapsNear are not in this change.
+// of drone.json and a catalog asset enter the same way. WindGrid and GapsNear are not in
+// this interface. MicroDetailNear and Feature joined it in p7a-ground task 1.9 (design 4
+// and 8, QueryVersion 5): the first attempt generated its micro-detail by hashing map
+// cells; here the elements are each placed asset's own drawn records (AST-10).
 //
 // Rules for every implementation
 // - Engine-free, allocation-free (every result goes into a caller-owned span),
@@ -135,6 +137,17 @@ namespace Fpv450.Sim.World
 
         /// <summary>The world-space geometry of (object, shape); false for a pair that does not exist.</summary>
         bool Geometry(int obj, int shape, out ShapeGeometry geometry);
+
+        /// <summary>
+        /// The micro elements of every placed instance (S04's straws, stems and twigs; the crowns' twigs and leaves) whose
+        /// centre line, grown by half its diameter, meets the sphere at `centre` of `radius` (m), of the kinds in `kinds`,
+        /// in canonical order (object, then element index), none rooted in a hole. Returns the true count, which exceeds
+        /// results.Length on overflow; the buffer then holds the first elements in canonical order.
+        /// </summary>
+        int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results);
+
+        /// <summary>The ground feature (a pitfall) a placed object's shape belongs to; false for a shape of none.</summary>
+        bool Feature(int obj, int shape, out GroundFeature feature);
 
         /// <summary>
         /// Adds a runtime object (the launch stand) from world-space boxes, spheres,

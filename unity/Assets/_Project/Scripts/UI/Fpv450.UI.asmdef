@@ -3,7 +3,8 @@
     "rootNamespace": "Fpv450.UI",
     "references": [
         "Fpv450.Sim",
-        "Fpv450.Input.Radio"
+        "Fpv450.Input.Radio",
+        "Fpv450.App.Session"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

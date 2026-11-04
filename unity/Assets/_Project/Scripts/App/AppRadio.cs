@@ -31,6 +31,16 @@ namespace Fpv450.App
             }
         }
 
+        /// <summary>The smoke test's: from now on a reader that finds no device, so a radio left plugged in never flies
+        /// the smoke test's scripted flights (they fly on the development keyboard, or wait for the radio).</summary>
+        public static void Unplug()
+        {
+            Stop();
+            _reader = new RadioReader(() => null);
+            _reader.Start();
+            Application.quitting += Stop;
+        }
+
         /// <summary>Stops the input thread and closes the radio; the next use starts them again.</summary>
         public static void Stop()
         {

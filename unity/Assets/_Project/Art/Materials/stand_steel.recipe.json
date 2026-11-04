@@ -1,0 +1,34 @@
+{
+  "material": "stand_steel",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "paint": "#1e1f21",
+      "worn": "#6e6a66"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.45
+  },
+  "inputs_sha256": "490bcc7c165dd5b29f0d619932494dcf37c43b9ae9133aabc5a3ccff66395e30",
+  "size": [
+    32,
+    64
+  ],
+  "columns": [
+    "paint",
+    "worn"
+  ]
+}

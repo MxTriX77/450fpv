@@ -1,0 +1,28 @@
+{
+    "name": "Fpv450.Tests.Osd",
+    "rootNamespace": "Fpv450.Tests.Osd",
+    "references": [
+        "Fpv450.Sim",
+        "Fpv450.Feed.Core",
+        "Fpv450.UI.Osd",
+        "Fpv450.Input.Radio",
+        "Fpv450.App.Session",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,6 +1,18 @@
 {
   "schema": 1,
   "assets": {
+    "D01": {
+      "class": "drone",
+      "generator": "drone",
+      "variants": ["D01_legs_on", "D01_legs_off", "D01_bottle"],
+      "materials": { "carbon": "drone_carbon", "metal": "drone_metal", "prop": "drone_prop", "plastic": "drone_plastic", "strap": "drone_strap", "lead": "drone_lead", "bottle": "drone_bottle" }
+    },
+    "D02": {
+      "class": "drone",
+      "generator": "launch_stand",
+      "variants": ["D02_launch_stand"],
+      "materials": { "steel": "stand_steel" }
+    },
     "E01": {
       "class": "earthworks",
       "generator": "trench",
@@ -64,7 +76,8 @@
       "class": "surfaces",
       "generator": "ground_patch",
       "variants": ["S04_patch"],
-      "materials": { "ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw" }
+      "materials": { "ground": "belt_straw", "soil": "belt_soil", "straw": "straw", "edge": "belt_straw",
+                     "far": "belt_straw" }
     },
     "V01": {
       "class": "vegetation",

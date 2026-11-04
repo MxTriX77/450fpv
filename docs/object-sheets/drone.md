@@ -4,7 +4,7 @@
 
 **OPSEC:** cite clips and photos by letter only. Describe classes, never a specific identifiable building, place, date or person. No file names, and no OSD values. **No logo, brand text, label, QR code or printed strap text on any part** (D-043): T's markings are not copied. The payload is a generic body: its outline, size and mass, and nothing else (DRN-01).
 
-**Rows:** D01 (the drone) and D02 (the launch stand), [asset-list.md](../asset-list.md) §11. **Requirements:** DRN-01…07, AST-02, AST-05, REAL-01…05, VIS-07 · **Decisions:** D-019, D-022, D-024, D-028, D-038, D-042, D-043 · **Change:** `p5-drone`, task 1.1.
+**Rows:** D01 (the drone) and D02 (the launch stand), [asset-list.md](../asset-list.md) §11. **Requirements:** DRN-01…07, AST-02, AST-05, REAL-01…05, VIS-07 · **Decisions:** D-019, D-022, D-024, D-028, D-038, D-042, D-043, D-050 · **Change:** `p5-drone`, task 1.1.
 
 ## How this sheet was made
 
@@ -82,6 +82,8 @@ The REAL-03 side-by-side for T is made in `reference/_compare/` once D01's first
 ## D01 Svinoriz 10 Opto
 
 **Seen in:** T (the legs-on build; every part above). The legs-off build is not in any letter: **R** (the pilot's words in D-043 and the earlier description it supersedes for the legs-on build).
+
+**Layout (D-050, the pilot, 2026-11-01; supersedes D-043's layout):** a simpler drone, **the fiber coil beneath the frame** and **a plain plastic bottle strapped rigidly on top**, the only load, its filled mass the setup's additional weight. No slung payload, no spool on top, no other load or fitting. The frame, arms, motors, props, the two packs and the legs (on or off) stay, and still follow T. Where the coil and the bottle sit, how large the bottle is and how it follows the mass are `drone.json`'s (the physics engineer's); the rows below that give the D-043 positions are superseded by it.
 **Research sources:** the table above.
 
 ### Dimensions
@@ -99,11 +101,9 @@ Positions are D-019 body axes (x starboard, y up, z forward) from the arm-plane 
 | Props (4) | 10.0–10.4" (T); 2 blades (T); hub Ø18–20 × 6–9 mm; max chord 22–30 mm near 0.3 R; prop plane 0.03 m above the arm top (T) | 0.254 m, 2 blades, hub Ø19 × 8 mm, chord 26 mm, prop plane at y +0.035 | measured (count, size, height); published (hub thickness 6–9 mm); hub Ø and chord assumed |
 | Spool, fiber pack | T: Ø0.066 m pack, 0.12 m wound length, core Ø about 0.032 m (about 5 km); 10 km needs 0.61 litres wound (derived) | **10 km: pack Ø0.082 m full, core Ø0.039 m, wound length 0.15 m** | derived (T's proportions scaled 1.25× to the pilot's 1 kg) |
 | Spool, ends and cradle | T: front hoop Ø0.072, rear cap Ø0.058 with a 9 mm hole, 0.16 m overall | front hoop Ø0.090 m, rear cap Ø0.072 m, hole Ø0.011 m, overall 0.20 m; the cradle's seat at y +0.046 | measured, scaled 1.25× (derived) |
-| Spool position, legs-on | T: axis 0.076 m above the arm top, middle 0.04 m forward | axis at (0, +0.087, +0.04) m along z | measured (T), raised by the larger radius (derived) |
-| Spool position, legs-off | — | axis at (0, −0.053, 0) along z, hung under the bottom plate in the same cradle, inverted | assumed (D-043 reading, G5) |
+| Spool position | T: on top (D-043, superseded) | **beneath the bottom plate on both builds** (D-050), axis fore-aft, the line leaving aft from the rear cap; its tray and rear bracket on the bottom plate's underside; the centre is `drone.json`'s coil part | pilot (D-050) |
 | Packs (2) | T: 0.20–0.28 × 0.045 m side; width not visible | 6S2P each: 0.22 (z) × 0.047 (x) × 0.045 (y) m; inner faces at x ±0.050, centres (±0.0735, −0.043, 0) | measured (length, height, height position); width derived from the cells (Physics) |
-| Payload | T: tail Ø0.085, head Ø0.110, ogive, length 0.24 m, top 0.056 m below the arm top | **at 1.0 kg: T's outline exactly**; centre (0, −0.108, 0), axis along x (crosswise), nose to starboard; scaled uniformly by (m / 1.0 kg)^(1/3), the top kept 0.05 m under the bottom plate; absent at 0 kg | measured (outline); scaling rule derived (DRN-03) |
-| Payload, legs-off | — | the same body on the upper plate in the spool's place, crosswise, centre (0, +0.096, 0) | assumed (the pilot's earlier description: payload on top; G5) |
+| Bottle (the only load) | — (T's slung body is not copied, D-050) | **a plain plastic bottle on the upper plate**, strapped rigidly by two straps through the plate; its size, centre and mass rule are `drone.json`'s payload part; drawn filling that cylinder: a rounded base, a shoulder to a 25 mm neck with its support ring, a 30 × 15 mm cap; absent at 0 kg | pilot (D-050); the bottle's shape assumed (a PET water bottle) |
 | Legs (4) | T: Ø8–10 mm, 0.18 m arm top to ground, at r 0.14 m on the diagonals (0.11–0.15) | 10/8 mm carbon tubes at (±0.099, ·, ±0.099), arm underside to ground **0.25 m**: a 0.25 m tube, about 0.21 m of it free between the clamp and the T-joint | pilot (length, 25–35 cm); measured (diameter, position) |
 | Leg clamps (4) | T: about 25 × 25 × 35 mm black blocks, M4–M5 bolt and wing nut | 25 × 25 × 35 mm, wing nut 20 mm across | measured |
 | Skids (2) | T: Ø9–10 mm, 0.13 m aft of the rear legs; total length 0.35–0.50 m | 10/8 mm tubes at x ±0.099, 0.45 m long centred on the legs (0.126 m past each leg), skid axis 0.005 m above the ground | measured (diameter, overhang); length assumed symmetric |
@@ -111,8 +111,7 @@ Positions are D-019 body axes (x starboard, y up, z forward) from the arm-plane 
 | FPV camera | 19 × 19 × 20 mm micro; 0° uptilt | at the front of the body between the plates, lens at (0, −0.005, +0.115) m | published (size); pilot (uptilt); position assumed (not visible in T) |
 | Capacitor | T: Ø about 10 mm can | Ø10 × 20 mm, on the stack's rear | measured (diameter); length assumed |
 | Pack leads | T: red and black silicone, 20 mm connectors | 10 AWG (Ø about 4.5 mm with its jacket), 0.10–0.15 m per lead, plugged to the drone's leads at the rear | measured (colour, connector); gauge assumed |
-| Overall height, legs-on | T: 0.30 m | ground to spool top **0.38 m** (0.31 m at 0.18 m legs, 0.48 m at 0.35 m) | derived |
-| Overall height, legs-off | — | spool bottom to payload top 0.24 m; the payload's top 0.11 m above the prop plane | derived |
+| Overall height | T: 0.30 m | ground (legs-on) or the coil's bottom (legs-off) to the bottle's top, from `drone.json`'s D-050 positions | derived |
 
 ### Construction and materials
 
@@ -121,7 +120,7 @@ Positions are D-019 body axes (x starboard, y up, z forward) from the arm-plane 
 - **Props:** black glass- or carbon-filled nylon, 2 blades, a 10 × 4.5 to 10 × 5 class (assumed: the thrust data's pitch), mounted on the shaft by the nut.
 - **Spool:** a light grey printed rear bracket that holds the rear cap and foot in one piece, a black cradle under the drum with two black cable-tie hoops; the fiber pack itself is the visible blue-grey ribbed surface (T's ribs about 6 mm apart: the wind's pattern, a normal map); the front hoop is black.
 - **Packs:** 21700 cells (Physics), nickel strip, wrapped in tan insulating paper over heat shrink (T's look), held by two black hook-and-loop straps with a purple edge, plain; red and black silicone leads with yellow connectors.
-- **Payload:** a generic shell: a pale off-white tail, a black front section and nose with fine print layer lines (T); no seams, labels or parts beyond the outline.
+- **Bottle (D-050):** a plain plastic (PET) bottle and its cap, no label or print; held by two plain black straps.
 - **Legs and skids:** roll-wrapped carbon tubes with a faint twill sheen, black printed or moulded plastic clamps and T-joints, zinc-plated steel bolts and wing nuts; open tube ends on the skids.
 - **Electronics:** a 30.5 mm-pattern flight-controller and ESC stack (Betaflight 4.5 F405 class, fc-profiles.md), the capacitor, the fiber transceiver module (hidden in T: assumed in the stack or at the spool's rear bracket), the micro FPV camera, thin multicoloured signal wires; no antenna.
 - **Materials (CC0):**
@@ -162,9 +161,9 @@ The props in the feed: dark arcs (A) and blurred blue-grey blades (B, G), video-
 
 ### Variants and states
 
-- **Legs-on (T):** spool on top, payload slung below, four legs and two skids.
-- **Legs-off (D-043, to be confirmed at G5):** the leg tubes, T-joints and skids come off at the wing nuts; the clamps stay on the arms. The pilot's reason is that the drone "can't balance on the spool", which places the spool underneath: it hangs under the bottom plate in its cradle, inverted, the line still leaving aft. **Where the payload goes is not in T:** this sheet puts it on top, in the spool's place, after the pilot's earlier description of the class (the payload on top, the coil underneath); the alternative keeps it slung below, ahead of the spool. Both read as the pilot's words; **T supports only the legs-on build.**
-- **Payload:** 0–2.0 kg, default 1.0 kg; the body is T's outline at 1.0 kg, scaled uniformly with the cube root of the mass, absent at 0.
+- **Legs-on:** the coil beneath, the bottle on top (D-050), four legs and two skids (T).
+- **Legs-off:** the leg tubes, T-joints and skids come off at the wing nuts; the clamps stay on the arms. The coil stays beneath and the bottle on top (D-050); the drone rests by its arms on the stand (D02), so the coil never touches the ground.
+- **Bottle:** 0–2.0 kg filled (the setup's additional weight), as `drone.json`'s payload part follows it; absent at 0.
 - **Coil payout (DRN-05):** the wound pack's radius shrinks from Ø0.082 m to the Ø0.039 m core as the 0.69 kg of fiber leaves; the housing (0.30 kg) stays.
 - **Packs:** 6S2P × 2 (default), 6S3P × 2 or 8S2P × 2 (Physics); the pack box follows the cell count.
 - **Props:** 2-blade (T, default) or 3-blade.
@@ -186,16 +185,16 @@ None is modelled. A crash ends the sortie and is named by the physics with the p
 | plates, standoffs, hardware | 0.195 kg | box 0.09 × 0.034 × 0.20 | (0, +0.014, 0) | derived (the frame's 0.383 kg, published, less the arms) |
 | electronics (stack 45 g, capacitor 10 g, camera 6 g, fiber module 50 g, wiring and connectors 100 g, straps and ties 40 g) | 0.25 kg (0.18–0.30) | box 0.06 × 0.04 × 0.10 | (0, +0.025, +0.01) | assumed (the camera's 5.9 g published) |
 | packs × 2 (6S2P) | 0.91 kg each | box 0.047 × 0.045 × 0.22 | (±0.0735, −0.043, 0) | derived (12 × 0.070 kg cells + 8 % strip, wrap, leads) |
-| spool, legs-on | 1.0 kg full, 0.30 kg empty | cylinder Φ0.083 × 0.20, axis z | (0, +0.087, +0.04) | pilot (full); derived (empty: 1.0 − 10 km × 0.069 kg/km) |
-| spool, legs-off | as above | as above | (0, −0.053, 0) | assumed (G5) |
-| payload, legs-on | 0–2.0 kg, default 1.0 | cylinder Φ0.10 × 0.24 at 1.0 kg, axis x, scaled by (m/1.0)^(1/3) | (0, −0.108, 0) at 1.0 kg, lowered 0.05 × (scale − 1) | published (K§5.1: payload to 1.8–2 kg); the spec's sweep 0–2.0; default assumed (K§5.2's typical) |
-| payload, legs-off | as above | as above | (0, +0.096, 0) | assumed (G5) |
+| spool | 1.0 kg full, 0.30 kg empty | cylinder Φ0.083 × 0.20, axis z | beneath the bottom plate (D-050): `drone.json` | pilot (full); derived (empty: 1.0 − 10 km × 0.069 kg/km) |
+| bottle | 0–2.0 kg filled, default 1.0 | `drone.json`'s payload cylinder | on the upper plate (D-050): `drone.json` | pilot (D-050); the spec's sweep 0–2.0 |
 | leg tube × 4 | 0.011 kg | cylinder Φ0.010 × 0.25, axis y | (±0.099, −0.128, ±0.099) | derived (10/8 mm CFRP tube) |
 | leg clamp × 4 (stay on legs-off) | 0.018 kg | box 0.025 × 0.025 × 0.025 | (±0.099, −0.012, ±0.099) | assumed (with bolt and wing nut) |
 | T-joint × 4 | 0.008 kg | box 0.016 × 0.020 × 0.030 | (±0.099, −0.248, ±0.099) | assumed |
 | skid × 2 | 0.020 kg | cylinder Φ0.010 × 0.45, axis z | (±0.099, −0.248, 0) | derived (10/8 mm CFRP tube) |
 
 **Fiber mass (derived):** glass Ø125 µm at 2.2 g/cm³ plus coating to Ø250 µm at about 1.15 g/cm³ (assumed) gives **0.069 kg/km and 0.049 litres/km**; 10 km is 0.69 kg and, at a winding fill of 0.80 (assumed), 0.61 litres. The retail 10 km canister's 0.95 kg (published) leaves 0.25 kg for its shell, so a 0.30 kg housing and cradle (assumed) makes the pilot's 1 kg. T's drum holds about 0.31 litres: about 5 km, 0.5 kg full (derived).
+
+**Superseded by D-050:** the table below is D-043's layout (the spool on top, the payload slung below); `drone.json`'s mass build re-derives it for the coil beneath and the bottle on top (the physics engineer's, D-048 still holds).
 
 **K§5.2 re-derived on T's layout** (derived: a parallel-axis sum of the parts above, boxes and cylinders with their own inertia). Seven loadouts per build; the legs-off build drops the leg tubes, T-joints and skids (0.12 kg).
 
@@ -235,11 +234,11 @@ None is modelled. A crash ends the sortie and is named by the physics with the p
 
 **Material ids:** propose **`carbon_composite`** (arms, plates, legs, skids) for physics sign-off; until then `plastic`. Props, clamps, T-joints, spool, payload shell, pack wrap: `plastic`; motors: `steel`; leads: `cable`; straps: `fabric`.
 
-**Gaps:** the drone is the reference every other sheet measures against: **0.574 m nose-first and 0.706 m on the diagonal** (DRN-02), footprint `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m at yaw θ (houses-and-yard sheet); every part (skids 0.45 m long, payload 0.24 m crosswise, packs at x ±0.097 outer) lies inside the prop envelope. **Height:** 0.38 m legs-on at 0.25 m legs (0.31–0.48 m); the sheets that assumed 0.55 m are stricter than the drone.
+**Gaps:** the drone is the reference every other sheet measures against: **0.574 m nose-first and 0.706 m on the diagonal** (DRN-02), footprint `w(θ) = 0.254 + 0.32·(|cos θ| + |sin θ|)` m at yaw θ (houses-and-yard sheet); every part (skids 0.45 m long, packs at x ±0.097 outer, the coil and the bottle on the centreline) lies inside the prop envelope. **Height:** 0.38 m legs-on at 0.25 m legs (0.31–0.48 m); the sheets that assumed 0.55 m are stricter than the drone.
 
 **Wind (for the body drag areas of task 1.2, derived, ±30 %):** frontal (along z) about 0.06 m², 0.024 m² of it the crosswise payload's side; side (along x) about 0.056 m², 0.017 m² of it the spool's side; top about 0.07 m² without the prop discs.
 
-**Snag hazards (against wires and the drone's own fiber):** the props (thin wire wraps them, PR-6); the skids' open ends (`hook`); the legs and skids as a frame a wire can ride into; the crosswise payload's ends; the spool's cable-tie tails. **The drone's own line**, leaving the rear cap at y +0.087 on the centreline, crosses aft 0.05 m above the rear props' plane through the 0.066 m gap between their inner tips (derived: 0.32 − 0.254 m); legs-off it leaves below the props (phase 7d).
+**Snag hazards (against wires and the drone's own fiber):** the props (thin wire wraps them, PR-6); the skids' open ends (`hook`); the legs and skids as a frame a wire can ride into; the spool's cable-tie tails. **The drone's own line** leaves the rear cap of the coil beneath the frame, below the props' plane, on both builds (D-050; phase 7d).
 
 **Contact surfaces:** the skids on the ground (legs-on); the arms' undersides on the stand's four posts (legs-off, D02).
 
@@ -252,8 +251,8 @@ None is modelled. A crash ends the sortie and is named by the physics with the p
 
 | Param | Type | Range | Default | Effect |
 |---|---|---|---|---|
-| `layout` | enum | legs_on, legs_off | legs_on | legs_on: T's build; legs_off: legs, T-joints and skids off, spool under the bottom plate, payload on top |
-| `payload_place_off` | enum | top, below | top | legs_off only: where the payload goes (G5) |
+| `layout` | enum | legs_on, legs_off | legs_on | legs_on: T's legs and skids; legs_off: legs, T-joints and skids off; the coil beneath and the bottle on top either way (D-050), where `drone.json` puts them |
+| `bottle` | m | neck 0.018–0.040, cap 0.020–0.045 × 0.008–0.025, shoulder 0.02–0.12, base radius 0.002–0.03 | 0.025, 0.030 × 0.015, 0.06, 0.012 | the bottle's shape inside `drone.json`'s payload cylinder (D-050) |
 | `frame` | enum | square, stretched | square | motor positions: the 452 mm square X (DRN-02) or 338 × 299 mm |
 | `arm_t`, `arm_w`, `arm_mount_w` | m | 0.005–0.008, 0.020–0.032, 0.028–0.036 | 0.006, 0.025, 0.032 | arm plate geometry |
 | `prop_blades` | int | 2, 3 | 2 | blade count (T) |
@@ -277,7 +276,7 @@ None is modelled. A crash ends the sortie and is named by the physics with the p
 2. **Legs:** T shows carbon tubes on plastic clamps and skid feet; the pilot said plastic legs. Read here as the same assembly (the clamps and joints are the plastic, and the softness); the physics models the skids (task 1.2).
 3. **Square or stretched X:** T fits both (1.9 px and 1.25 px rms); the CX10's published 338 × 299 mm would make the drone 0.553 m nose-first. DRN-02 stays 0.574 m; changing it is the orchestrator's (it sizes PR-9's cellar door).
 4. **Which way T faces** is derived, not seen (the camera is hidden). If the pilot's drones carry the payload fore-aft and the spool crosswise, swap the two axes; the masses do not change, roll and pitch swap their payload terms.
-5. **The legs-off layout** (spool underneath, payload on top or below) is the D-043 reading, confirmed at G5 by looking.
+5. **The legs-off layout** is settled by D-050: the coil beneath and the bottle on top on both builds.
 6. **Material id** `carbon_composite` needs the physics sign-off.
 
 ## D02 Launch stand

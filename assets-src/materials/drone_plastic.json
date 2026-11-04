@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "kind": "palette",
+  "shader": "Universal Render Pipeline/Lit",
+  "colours": { "black": "#0b0b0d", "print_grey": "#bcc4c8", "hub_recess": "#4a525b", "fiber": "#6c7d8c", "pack_wrap": "#8a6a45", "lime": "#a7d40f", "connector": "#d8a113", "pcb": "#1d2420", "lens": "#050608" },
+  "tint": [1.0, 1.0, 1.0, 1.0],
+  "smoothness": 0.3
+}

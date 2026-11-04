@@ -39,6 +39,19 @@ namespace Fpv450.UI
         int _tab;
         static readonly string[] Tabs = { "Radio", "Rates" };
 
+        /// <summary>
+        /// QA's finding 13: a radio that updates more slowly than this has a healthy step of EdgeTX's floor gain (1024 / 100
+        /// counts) on the jump rule's fastest accepted sweep (its 10–90 % band in MinTransitUs), about 4.4 ms. That is an
+        /// RF module setting the mixer's period, so the Done screen says so, for a refusal and a saved profile alike.
+        /// </summary>
+        public static readonly long SlowRadioUs = (long)Math.Round(2 * CalibrationWizard.PitfallStep * CalibrationWizard.MinTransitUs / (1 - 2 * CalibrationWizard.EndBand));
+
+        /// <summary>The note for a radio that updates every updateUs, or null when it is quick enough.</summary>
+        public static string SlowRadioNote(long updateUs) => updateUs > SlowRadioUs
+            ? "The radio updates its USB output only every " + (updateUs / 1000.0).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)
+              + " ms (an RF module is on): switch it off for the sim."
+            : null;
+
         // The app's reader, or one opened here on first use, so the menu can set Reader just after enabling the screen.
         RadioReader Radio
         {
@@ -137,22 +150,23 @@ namespace Fpv450.UI
             _text = new GUIStyle(GUI.skin.label) { fontSize = 20, wordWrap = true };
             _small = new GUIStyle(GUI.skin.label) { fontSize = 15 };
             _title.normal.textColor = _text.normal.textColor = Color.white;
-            _small.normal.textColor = new Color(0.75f, 0.75f, 0.75f);
+            _small.normal.textColor = AppStyle.Ink(new Color(0.75f, 0.75f, 0.75f));
         }
 
         void OnGUI()
         {
+            AppStyle.Begin();
             Styles();
-            GUI.color = new Color(0.08f, 0.08f, 0.09f);
-            GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _white);
-            GUI.color = Color.white;
+            AppStyle.DrawGround();
             float w = Mathf.Min(900, Screen.width - 32);
             GUILayout.BeginArea(new Rect((Screen.width - w) / 2, 24, w, Screen.height - 48));
             GUILayout.Label("Calibrate", _title);
             if (_wizard != null && _wizard.Step != CalibrationStep.Done) _tab = 0;
             else
             {
-                _tab = GUILayout.Toolbar(_tab, Tabs, GUILayout.Width(320), GUILayout.Height(32));
+                GUILayout.BeginHorizontal(GUILayout.Width(320));
+                _tab = AppStyle.Segments(_tab, Tabs, 36);
+                GUILayout.EndHorizontal();
                 GUILayout.Space(12);
             }
             if (_tab == 1) _rates.Draw(w);
@@ -206,6 +220,8 @@ namespace Fpv450.UI
             CalibrationProfile p = _wizard.Profile;
             GUILayout.Label("Channels " + p.Order + ", arm on " + (p.Arm.Control == ArmControl.Axis ? "channel " + (p.Arm.Index + 1) : "button " + (p.Arm.Index + 1)) + ".", _text);
             foreach (CalibrationFinding f in _wizard.Findings) GUILayout.Label("• " + f.Message, _text);
+            string slow = SlowRadioNote(_wizard.UpdateUs);
+            if (slow != null) GUILayout.Label("• " + slow, _text);
             if (_saved)
             {
                 GUILayout.Label("Saved as the active profile.", _small);

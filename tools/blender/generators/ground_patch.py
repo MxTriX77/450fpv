@@ -8,7 +8,17 @@ surface; four walls and a bottom close it. The cells under
 a mound are refined REFINE x REFINE so the grid follows the mound sphere's steep rim within the audit's tolerance;
 the refined vertices on an edge shared with a coarse cell lie on that edge (T-junctions, no cracks). Its UVs are
 metres, u = x and v = z, which is how the belt_straw ground recipe lays its unique base map (tiling 1/size_m, offset
-0.5). LOD1 is the same slab without the micro mesh, LOD2 the slab with a flat 2 x 2 top.
+0.5). LOD1 is the same slab without the micro mesh, its SLOT faces in FAR_SLOT, LOD2 the slab with a flat 2 x 2 top
+in FAR_SLOT.
+
+The far layer (D-081; AST-10's far density layer): the straws are drawn at every distance. Beyond the bake the slab's
+base map shows them: one more scatter of the same kit by the same rules (_bake) over the whole patch, from its own
+seed (FAR_SEED), which lib.far_layer renders from above in Blender and lays over the ground recipe's albedo, as two
+base maps of the slab's UVs: the far map in FAR_SLOT with the whole scatter, and the near map in SLOT, LOD0's, with
+the scatter faded out by the bake's own feather, so LOD0 shows the baked straws inside the bake and the painted ones
+beyond it, and LOD1 and LOD2 show the painted ones over the whole patch. That scatter is drawn into the two maps only:
+it is no mesh of the asset, no micro mesh, no micro_elements record and nothing physics reads. Each LOD dissolves into the next over the last
+lod.fade_share of its switch distance (the importer's cross-fade), so no switch pops.
 
 The bare soil patches (lib.patches, the layout tools/assets/derive.py stamps the bare mask from, so the map and the
 mesh never disagree) are where the mat is missing: over each patch's convex step outline the top drops vertically
@@ -39,14 +49,25 @@ centre, on seeded jittered grids at the kinds' densities, resting on the stepped
   LIP_STRAWS_PER_M straws per metre of outline lie across it within LIP_SPREAD_DEG of square, centred on the mat
   within LIP_OVERHANG_M of it: the short ones overhang the step, the long ones drape down to the floor.
 - standing stems in tussocks of stems_per_tuft within TUFT_R_M of a tuft's centre, each leaning up to stem_tilt_deg
-  away from it (H 3-9), the tufts gathered on the crowns like the straws and none on a floor; a seed_head_share of
-  them headed.
+  away from it (H 3-9), the tufts gathered on the crowns like the straws and no stem rooted on a floor (a tuft's stem
+  whose foot falls inside an outline is left out); a seed_head_share of them headed.
 - belt twigs, resting across the tangle like the straws (TWIG_LAYER).
 - green regrowth blades over the green strips (lib.mat, the strips the recipe tints): blade_per_m2 in tufts of
   BLADE_TUFT within BLADE_TUFT_R_M, kept by the strips' weight, so they thin over the strips' feather, none on a
   floor (H 16, H 19-21).
 Over the last bake_feather_m of the radius every kind thins to nothing along a smoothstep, so the bake has no hard
-rim. The shared micro-detail generator replaces the bake at physics parity later (AST-10).
+rim.
+
+The physics elements are the drawn ones (p7a-ground design 8, AST-10): every top-layer straw (the lip's included),
+standing stem and twig the bake draws, and every straw lying on a floor (the soil has no mat there whose compliance
+would carry it), is a `micro_elements` record (lib.meta) in bake order: its centre line the centres of its tube's
+rings, which lie on the strand's spine (`segments` + 1 points: a straw, stem or twig is a tube of one or two segments,
+so the record holds it exactly), a headed stem's last point its seed head's apex on the last segment's line, its
+diameter the tube's at its base (the drawn straw_d_mm or twig_d_mm; the tube tapers to lib.straw's TIP), and
+`anchored` for a stem (rooted) and a straw resting in the mat (held by the tangle: it can hook, K§7.3), not for a
+straw on a floor or a twig (loose: a twig rolls under a skid). A stem's base is its foot; a lying strand's base is
+its end not over a floor, else its lower end, so no anchored element is rooted over a floor. Nothing grows from a
+parent (parent -1). The mat's body straws and the blades stay visual only.
 
 A mound is a sphere cap on the slab: radius r = min(the sphere through the mound's rim and apex, the largest sphere
 whose bottom stays inside the slab), centre sunk to y = h - r, its cap sampled on the grid; a low skirt (SKIRT_M)
@@ -64,7 +85,7 @@ reads as floor, mat or mound:
 - each bare patch's edge boxes in patch order, one per outline edge from its first corner: the mat around the
   patch, mat_material, open exactly over the outline (lib.patches; the window is checked covered every 2 cm);
 - the mound spheres, mound_material.
-No gaps, wind volumes or snags (the straws' hooks are the micro-detail generator's, AST-10).
+No gaps, wind volumes or snags (the straws' hooks are its micro_elements).
 """
 import math
 import random
@@ -74,6 +95,8 @@ from lib import mat, patches, straw
 from lib.geometry import Mesh
 
 SLOT = "ground"
+FAR_SLOT = "far"         # LOD1's and LOD2's ground: the ground's material over the far layer's base map (D-081)
+FAR_SEED = "far layer"   # the far layer's scatter draws from its own stream, so the bake and its elements never move
 SOIL_SLOT = "soil"       # a mound's bare earth
 EDGE_SLOT = "edge"       # a step's wall and lip: the mat's cut edge, the mat's own map with the mat's physics (R6)
 SOIL_M = 0.3             # the soil box below the mat: F-5 behind the floors' top (carried; review-physics PR1)
@@ -198,7 +221,10 @@ PARAMS = {
     "twig_d_mm.min": {"type": "float", "range": (1.0, 50.0), "default": 5.0, "effect": "thinnest twig"},
     "twig_d_mm.max": {"type": "float", "range": (1.0, 50.0), "default": 20.0, "effect": "thickest twig"},
     "variants": {"type": "int", "range": (4, 16), "default": 12, "effect": "distinct kit meshes per kind"},
-    "segments": {"type": "int", "range": (2, 6), "default": 4, "effect": "tube segments per straw at LOD0"},
+    "segments": {"type": "int", "range": (1, 2), "default": 2,
+                 "effect": "tube segments per straw, stem and twig at LOD0: 1 straight, 2 bent once at the middle by "
+                           "straw_bend; at most 2, because the physics records each as its tube's centre line of two or "
+                           "three points (micro_elements, AST-10)"},
     "physics_material": {"type": "str", "range": "surface:<id> or an id of assets-src/physics_materials.json",
                          "default": "surface:belt_straw", "effect": "material of the soil box and the ground slot"},
     "mat_material": {"type": "str", "range": "an id of assets-src/physics_materials.json or surface:<id>",
@@ -208,11 +234,15 @@ PARAMS = {
     "mound_material": {"type": "str", "range": "surface:<id> or an id of assets-src/physics_materials.json",
                        "default": "surface:crater_spoil", "effect": "material of the mound spheres"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.1, 100.0), "default": 8.0,
-                          "effect": "distance from which LOD1, the slab without the straws, shows"},
+                          "effect": "distance from which LOD1 shows: the slab without the baked straws, the far "
+                                    "layer's painted ones in their stead"},
     "lod.lod2_switch_m": {"type": "float", "range": (0.1, 500.0), "default": 60.0,
                           "effect": "distance from which LOD2, the flat slab, shows; beyond lod1_switch_m"},
     "lod.cull_m": {"type": "float", "range": (1.0, 2000.0), "default": 400.0,
                    "effect": "distance beyond which the patch is culled; beyond lod2_switch_m"},
+    "lod.fade_share": {"type": "float", "range": (0.0, 0.9), "default": 0.25,
+                       "effect": "each LOD dissolves into the next over this last share of the next one's switch "
+                                 "distance (D-081: LOD0 from 6 m to 8 m at the defaults); 0 switches at once"},
 }
 RANGES = ("mound_w_m", "mound_h_m", "straw_len_m", "straw_d_mm", "stem_h_m", "twig_len_m", "twig_d_mm", "blade_h_m")
 
@@ -298,20 +328,49 @@ def build(params):
     slab = _slab(n, size, height, _refined_cells(n, size, mounds), slot, slab_m, bare, depth)
     _lip(slab, bare, height, depth, random.Random(f"bare lip {params['seed']}"))
     micro = Mesh()
-    count = _bake(rng, params, micro, height, surface, relief, bare, strips)
+    count, elements = _bake(rng, params, micro, height, surface, relief, bare, strips)
+
+    def far_scatter():
+        """The far layer's scatter (module docstring), drawn into the base maps only: the bake's kit and rules over a
+        circle through the patch's corners, unfeathered, from FAR_SEED's stream. Its strands are no micro_elements
+        records: the records _bake returns for them are dropped here."""
+        far = Mesh()
+        _bake(random.Random(f"{FAR_SEED} {params['seed']}"),
+              dict(params, bake_radius_m=size / 2 * math.sqrt(2), bake_feather_m=0.0),
+              far, height, surface, relief, bare, strips)
+        return far
+
     lod = params["lod"]
+    flat = _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT, slab_m)
     return {
-        "lods": [slab, slab, _slab(2, size, lambda x, z: 0.0, set(), lambda x, z: SLOT, slab_m)],
+        "lods": [slab, _far_slot(slab), _far_slot(flat)],
         "micro": [{"lod": 0, "kind": MICRO_KIND, "count": count, "mesh": micro}],
+        "micro_elements": elements,
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"]],
         "cull_distance_m": lod["cull_m"],
+        "lod_fade_share": lod["fade_share"],
+        "far_layer": {"scatter": far_scatter, "near_slot": SLOT, "far_slot": FAR_SLOT, "size_m": size,
+                      "bake_radius_m": params["bake_radius_m"], "bake_feather_m": params["bake_feather_m"]},
         "materials": [{"slot": SLOT, "physics": params["physics_material"]},
                       {"slot": SOIL_SLOT, "physics": params["mound_material"]},
                       {"slot": straw.SLOT, "physics": params["mat_material"]},
-                      {"slot": EDGE_SLOT, "physics": params["mat_material"]}],
+                      {"slot": EDGE_SLOT, "physics": params["mat_material"]},
+                      {"slot": FAR_SLOT, "physics": params["physics_material"]}],
         "collision": _collision(params, bare, mounds),
         "gaps": [], "wind_volumes": [], "snag": [],
     }
+
+
+def _far_slot(mesh):
+    """A copy of `mesh` with its SLOT faces in FAR_SLOT: the same geometry drawn over the far layer's base map."""
+    copy = Mesh()
+    copy.vertices = list(mesh.vertices)
+    copy.faces = [(indices, normal, uvs, FAR_SLOT if slot == SLOT else slot) for indices, normal, uvs, slot in mesh.faces]
+    copy.smooth = set(mesh.smooth)
+    copy.corner_normals = dict(mesh.corner_normals)
+    copy.normals = dict(mesh.normals)
+    copy.uv2 = dict(mesh.uv2)
+    return copy
 
 
 # --- collision ----------------------------------------------------------------------------------------------------
@@ -689,9 +748,12 @@ def _up_normal(mesh, tri):
 
 def _bake(rng, params, micro, height, surface, relief, bare, strips):
     """Scatters the kit into `micro` within bake_radius_m (the module docstring's kinds and rules) and returns the
-    instance count. `height` is the mat's top, `surface` the stepped top a straw rests on, `relief` the tussock
-    relief (lib.mat), `bare` the bare patches and `strips` the green strips."""
+    instance count and the micro_elements records of the strands physics reads. `height` is the mat's top, `surface`
+    the stepped top a straw rests on, `relief` the tussock relief (lib.mat), `bare` the bare patches and `strips` the
+    green strips."""
     kit = straw.build_kit(params, rng)
+    rings = params["segments"] + 1
+    elements = []
     radius, feather = params["bake_radius_m"], params["bake_feather_m"]
     azimuth, bias = math.radians(params["lodging"]["azimuth_deg"]), params["lodging"]["bias"]
     spread, swathe_turn = math.radians(LODGING_SPREAD_DEG), math.radians(SWATHE_DEG)
@@ -729,9 +791,28 @@ def _bake(rng, params, micro, height, surface, relief, bare, strips):
         base = height(x, z)
         return min(max(top, base), base - STRAW_SINK_M + share * (local + STRAW_SINK_M))
 
-    def lying(kind, layer, x, z, yaw=None):
+    def record(kind, first, anchored, head=False):
+        """The micro_elements record of the strand just placed from vertex `first` of `micro`: lib.straw draws a ring
+        of SIDES vertices round each spine point in order, so the rings' centres are its centre line; a seed head's
+        three base vertices and its apex follow the rings, and the apex, on the last segment's line, ends the record.
+        A lying strand starts from its end not over a floor, else its lower end; a stem from its foot."""
+        v = micro.vertices
+        points = [[sum(v[first + i * straw.SIDES + j][a] for j in range(straw.SIDES)) / straw.SIDES for a in range(3)]
+                  for i in range(rings)]
+        diameter = 2 * math.dist(v[first], points[0])
+        if head:
+            points[-1] = list(v[first + rings * straw.SIDES + 3])
+        if kind != "stem":
+            def base(p):
+                return patches.inside(bare, p[0], p[2]), p[1]
+            if base(points[-1]) < base(points[0]):
+                points.reverse()
+        elements.append({"kind": kind, "points": points, "diameter_m": diameter, "anchored": anchored,
+                         "parent": -1, "parent_shape": -1})
+
+    def lying(kind, layer, x, z, yaw=None, body=False):
         """One lying straw or twig centred on (x, z), its ends resting at depths drawn from `layer`, at `yaw` or
-        else crosswise with the swathes' bias."""
+        else crosswise with the swathes' bias; recorded as an element unless it is a `body` straw in the mat."""
         k = rng.randrange(len(kit[kind]))
         if yaw is None:
             local = azimuth + swathe_turn * swathe(x, z)
@@ -743,11 +824,14 @@ def _bake(rng, params, micro, height, surface, relief, bare, strips):
         y0, y1 = rest(x - dx, z - dz, shares[0], on_mat), rest(x + dx, z + dz, shares[1], on_mat)
         pitch = math.atan2(y1 - y0, 2 * half) + math.radians(rng.uniform(-STRAW_PITCH_DEG, STRAW_PITCH_DEG))
         shade = DEPTH_SHADE * ((shares[0] + shares[1]) / 2 - 0.5) if on_mat else 0.0
+        first = len(micro.vertices)
         straw.place(micro, kit[kind][k], (x, (y0 + y1) / 2, z),
                     straw.lying_axes(yaw, pitch, rng.uniform(0, 2 * math.pi)), shade)
+        if not (body and on_mat):
+            record(kind, first, anchored=kind == "straw" and on_mat)
         return 1
 
-    def strewn(layer, kind):
+    def strewn(layer, kind, body=False):
         """A lying straw anywhere, kept over a floor only as the straws strewn on its soil (FLOOR_KEEP)."""
         def place(x, z):
             d = _floor_depth(bare, x, z)
@@ -757,23 +841,30 @@ def _bake(rng, params, micro, height, surface, relief, bare, strips):
                     return 0
             elif not gathered(x, z) or rng.random() < GREEN_THIN * mat.green_weight(strips, x, z):
                 return 0
-            return lying(kind, layer, x, z)
+            return lying(kind, layer, x, z, body=body)
         return place
 
     def tuft(x, z):
-        """A tussock on the mat: stems_per_tuft stems within TUFT_R_M of (x, z), each leaning away from the centre."""
+        """A tussock on the mat: stems_per_tuft stems within TUFT_R_M of (x, z), each leaning away from the centre;
+        a stem whose foot falls on a floor is left out. Returns the stems placed."""
         if _floor_depth(bare, x, z) is not None or not gathered(x, z):
             return 0
         tilt_max = math.radians(params["stem_tilt_deg"])
+        placed = 0
         for _ in range(params["stems_per_tuft"]):
             kind = "stem_head" if rng.random() < params["seed_head_share"] else "stem"
             k = rng.randrange(len(kit[kind]))
             bearing, d = rng.uniform(0, 2 * math.pi), TUFT_R_M * math.sqrt(rng.random())
             sx, sz = x + d * math.cos(bearing), z + d * math.sin(bearing)
+            if _floor_depth(bare, sx, sz) is not None:
+                continue
             origin = (sx, surface(sx, sz) - STEM_SINK_M, sz)
             tilt = tilt_max * rng.uniform(0.25, 1.0)
+            first = len(micro.vertices)
             straw.place(micro, kit[kind][k], origin, straw.standing_axes(bearing + rng.uniform(-0.5, 0.5), tilt))
-        return params["stems_per_tuft"]
+            record("stem", first, anchored=True, head=kind == "stem_head")
+            placed += 1
+        return placed
 
     def blades(x, z):
         """A tuft of regrowth blades, kept by the green strips' weight and never on a floor."""
@@ -790,7 +881,7 @@ def _bake(rng, params, micro, height, surface, relief, bare, strips):
 
     for density, per, place in (
             (params["straw_per_m2"] * (1 + clump), 1, strewn(TOP_LAYER, "straw")),
-            (params["body_straw_per_m2"] * (1 + clump), 1, strewn(BODY_LAYER, "straw")),
+            (params["body_straw_per_m2"] * (1 + clump), 1, strewn(BODY_LAYER, "straw", body=True)),
             (params["stem_per_m2"] * (1 + clump), params["stems_per_tuft"], tuft),
             (params["twig_per_m2"], 1, lambda x, z: lying("twig", TWIG_LAYER, x, z)),
             (params["blade_per_m2"], BLADE_TUFT, blades)):
@@ -814,7 +905,7 @@ def _bake(rng, params, micro, height, surface, relief, bare, strips):
                 if kept(x, z):
                     yaw = math.atan2(dx, -dz) + math.radians(rng.uniform(-LIP_SPREAD_DEG, LIP_SPREAD_DEG))
                     count += lying("straw", TOP_LAYER, x, z, yaw)
-    return count
+    return count, elements
 
 
 def _floor_depth(bare, x, z):

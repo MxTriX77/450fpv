@@ -1,0 +1,48 @@
+{
+  "material": "drone_plastic",
+  "kind": "palette",
+  "formula": "palette v2: one column PALETTE_BLOCK_PX x PALETTE_HEIGHT_PX per colour, left to right in the recipe's order, its stops spread evenly from the bottom to the top and interpolated in linear light, padded with the last column to a power of two of columns; 8-bit sRGB",
+  "constants": {
+    "PALETTE_BLOCK_PX": 16,
+    "PALETTE_HEIGHT_PX": 64
+  },
+  "recipe": {
+    "schema": 1,
+    "kind": "palette",
+    "shader": "Universal Render Pipeline/Lit",
+    "colours": {
+      "black": "#0b0b0d",
+      "print_grey": "#bcc4c8",
+      "hub_recess": "#4a525b",
+      "fiber": "#6c7d8c",
+      "pack_wrap": "#8a6a45",
+      "lime": "#a7d40f",
+      "connector": "#d8a113",
+      "pcb": "#1d2420",
+      "lens": "#050608"
+    },
+    "tint": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "smoothness": 0.3
+  },
+  "inputs_sha256": "86857ee666c9066667b0815afb50b70d9136891fb083749af1b432079b3c0a12",
+  "size": [
+    256,
+    64
+  ],
+  "columns": [
+    "black",
+    "print_grey",
+    "hub_recess",
+    "fiber",
+    "pack_wrap",
+    "lime",
+    "connector",
+    "pcb",
+    "lens"
+  ]
+}
