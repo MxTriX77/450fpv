@@ -628,6 +628,15 @@ namespace Fpv450.Sim.Contact
             surface = p.Surface;
         }
 
+        /// <summary>A world surface's set at the flight's moisture (surfaces.json's, as the soil reads it); false without the table
+        /// or for an id the world does not name.</summary>
+        public bool SurfaceSet(byte surface, out SoilSet set)
+        {
+            bool known = _soil != null && _surfaceRow[surface].Known;
+            set = known ? _soil[surface] : default;
+            return known;
+        }
+
         /// <summary>Impacts so far, and the latest one's peak acceleration (m/s²) and impulse (N·s): the feed's Impact.</summary>
         public int ImpactCount => _impacts;
         public double ImpactPeakAccel => _lastPeak;

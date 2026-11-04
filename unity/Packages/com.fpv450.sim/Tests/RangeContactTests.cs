@@ -233,7 +233,7 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.PoleStrike r = Into("pole");
             // Since model 46 the front legs part on the pole after the prop's strike and the payload makes the crash a few
             // milliseconds later (ContactTests.IntoAPole): the flight's speed is judged at the first touch.
-            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1));
+            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1), "the approach at 10 m/s (the carve's push then moves it, p7f-damage 1.3)");
             Assert.That(r.Object, Is.EqualTo("L01_straight"));
             Assert.That(r.Material, Is.EqualTo("timber"));
             Assert.That(r.Part, Is.Not.Null.And.Not.Empty);

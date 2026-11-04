@@ -69,6 +69,8 @@ namespace Fpv450.Sim.Flight
         readonly double[] _etaT, _etaQ, _momentP, _momentQ, _forceP, _forceQ;
         readonly double[] _thrustShare, _thrustArm, _torqueShare, _dragPerTorque;
         readonly double[] _ctb, _ctbx, _cqb, _cqbx;
+        readonly double[] _stationThrust, _stationTorque; // the blades' dC_T and dC_Q per station (both blades) at J's first point
+        readonly double[] _intactThrust, _intactTorque;   // the intact sheet blade's
 
         /// <summary>A rotor of spec's blades on a prop of this radius and blade count, turning with reaction sign spin
         /// (Propulsion: −1 clockwise, +1 counter-clockwise), its tables on the advance ratios given (the props' published
@@ -111,9 +113,16 @@ namespace Fpv450.Sim.Flight
             _ctbx = new double[blades];
             _cqb = new double[blades];
             _cqbx = new double[blades];
+            _stationThrust = new double[_n];
+            _stationTorque = new double[_n];
             for (int j = 0; j < _nj; j++)
             {
-                _ct0[j] = Bemt(_advance[j] / Pi, true, out _cq0[j]);
+                _ct0[j] = Bemt(_advance[j] / Pi, true, out _cq0[j], j == 0);
+                if (j == 0)
+                {
+                    _intactThrust = (double[])_stationThrust.Clone();
+                    _intactTorque = (double[])_stationTorque.Clone();
+                }
                 _etaT[j] = _etaQ[j] = 1;
             }
             Sound = true;
@@ -223,7 +232,7 @@ namespace Fpv450.Sim.Flight
                     }
                     continue;
                 }
-                double ct = Bemt(_advance[j] / Pi, false, out double cqr);
+                double ct = Bemt(_advance[j] / Pi, false, out double cqr, j == 0);
                 _etaT[j] = _ct0[j] > 0 ? ct / _ct0[j] : 1;
                 _etaQ[j] = _cq0[j] > 0 ? cqr / _cq0[j] : 1;
                 double mp = 0, mq = 0, fp = 0, fq = 0;
@@ -271,7 +280,33 @@ namespace Fpv450.Sim.Flight
         /// The blade-element momentum solution at a climb inflow λ_c (J/π) for the blades as they now are (or the intact sheet
         /// blade): the rotor's C_T, returned, and C_Q; each blade's C_T, Σ dC_T·x, C_Q and Σ dC_Q/x into the blade buffers.
         /// </summary>
-        public double Solve(double lambdaC, out double cq) => Bemt(lambdaC, false, out cq);
+        public double Solve(double lambdaC, out double cq) => Bemt(lambdaC, false, out cq, false);
+
+        /// <summary>
+        /// The shares of the rotor's thrust and torque its blades make beyond a chord d (m) from the hub (p7f-damage 1.3's tip
+        /// slide: the part of the disc inside a carved face makes none, the face's carve its drag): each station's static dC_T and
+        /// dC_Q (BEMT at the table's first advance ratio, the blades as they now are) times the share of its annulus past the
+        /// chord, acos(d/r)/π (the annulus's load even round it in a hover, the inflow the whole disc's: assumed). 0 for a chord
+        /// at or past the tips.
+        /// </summary>
+        public void Immersed(double d, out double thrust, out double torque)
+        {
+            double[] dt = Sound ? _intactThrust : _stationThrust, dq = Sound ? _intactTorque : _stationTorque;
+            double x0 = d / _radius, t = 0, q = 0;
+            thrust = torque = 0;
+            for (int k = 0; k < _n; k++)
+            {
+                t += dt[k];
+                q += dq[k];
+                double x = _b.Stations[k];
+                if (!(x > x0)) continue;
+                double share = DetMath.Acos(x0 / x) / Pi;
+                thrust += dt[k] * share;
+                torque += dq[k] * share;
+            }
+            thrust = t > 0 ? thrust / t : 0;
+            torque = q > 0 ? torque / q : 0;
+        }
 
         /// <summary>Blade b's C_T, Σ dC_T·x, C_Q and Σ dC_Q/x from the last Solve or Rebuild point.</summary>
         public void BladeSums(int b, out double ct, out double ctx, out double cq, out double cqx)
@@ -282,7 +317,7 @@ namespace Fpv450.Sim.Flight
             cqx = _cqbx[b];
         }
 
-        double Bemt(double lambdaC, bool intact, out double cq)
+        double Bemt(double lambdaC, bool intact, out double cq, bool stations)
         {
             double a = _spec.LiftSlope, alpha0 = _spec.ZeroLiftAngle, cd0 = _spec.ProfileDrag;
             double h = _b.Span, piR = Pi * _radius;
@@ -306,6 +341,7 @@ namespace Fpv450.Sim.Flight
                     sigmaTheta /= piR;
                     double s = sigma * a / 16 - lambdaC / 2;
                     double lambda = sigma > 0 ? DetMath.Sqrt(DetMath.Max(s * s + a * sigmaTheta * x / 8, 0)) - s : lambdaC;
+                    double stationT = 0, stationQ = 0;
                     for (int b = 0; b < _blades; b++)
                     {
                         Element(b, k, x, from, h, loss, intact, alpha0, out double c, out double lift, out double profile, out double theta);
@@ -315,6 +351,13 @@ namespace Fpv450.Sim.Flight
                         _ctbx[b] += dct * x;
                         _cqb[b] += dcq;
                         _cqbx[b] += dcq / x;
+                        stationT += dct;
+                        stationQ += dcq;
+                    }
+                    if (stations)
+                    {
+                        _stationThrust[k] = stationT;
+                        _stationTorque[k] = stationQ;
                     }
                 }
                 ct = 0;

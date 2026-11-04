@@ -16,11 +16,15 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" Link="WakeGridFixture.cs" />
   </ItemGroup>
 
-  <!-- The graze along the test range's wall (p7f-damage 1.3): a blade strike that chips the blades, logged and replayed. -->
+  <!-- The graze along the test range's wall (p7f-damage 1.3): a blade strike that chips the blades, logged and replayed; and
+       the tipped landing into the range's soil (1.3's soil carve), which needs the soil's scenarios (and, since the legs, the
+       landings' rigid-across build they fly). -->
   <ItemGroup>
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/StrikeScenarios.cs" Link="StrikeScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RangeScenarios.cs" Link="RangeScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SoilScenarios.cs" Link="SoilScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LandingScenarios.cs" Link="LandingScenarios.cs" />
   </ItemGroup>
 </Project>

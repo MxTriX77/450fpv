@@ -128,7 +128,11 @@ namespace Fpv450.Sim.Log
         /// 31: assigned elsewhere (D-072).
         /// 32: the ESC's disarm on 24 (p6-flight-core 1.6c, model 42; assigned by D-072): each motor of the propulsion entry gains
         ///    its ESC's disarm rule (EscDisarm, an int32) after its current limit; the record is 21's 2008 bytes.
-        /// 33: assigned elsewhere (D-072).
+        /// 33: p7f-damage 1.1a's soil half on the physics integration 2 (unity/physics/physics-integration-2--soil-carve,
+        ///    on 30; assigned by D-072): surfaces.json's table in the contacts entry gains what a blade meets: the sand's
+        ///    hardness, the grains' and water's densities after the firm layer; the cohesion's wet and saturated factors
+        ///    and the wet set's water after the wetting's values; and each set's cohesion, bulk density and sand share (a
+        ///    soil's) and hardness, crush strength and density (a rigid set's) after its lip; the records are 30's.
         /// 34: the physics integration 2 with the ESC's disarm (unity/physics/physics-integration-2--disarm, assigned by
         ///    D-072): 32 merged onto 30: each motor of the propulsion entry carries its ESC's disarm rule (32's) after its
         ///    current limit; the drone internals entry stays at tag 26 and the tether entry at 25; the record is 30's 2392
@@ -142,7 +146,11 @@ namespace Fpv450.Sim.Log
         ///    2072 bytes each leg's side give this step, its jaws' turn and its hanging skid half's fold (2296 bytes); the side
         ///    record of the loose pieces, a LooseBlock at 50 Hz (LoosePieces.RecordSize each); event kind 28 (PieceDropped,
         ///    D-074); and the header's contacts entry with the side give's parts and the legs' skids, bores and loose pieces.
-        /// 35: assigned elsewhere (D-072).
+        /// 35: the soils' stones (p7f-damage 1.3's tip slide on the physics integration 2,
+        ///    unity/physics/physics-integration-2--tip, on 33; assigned by D-072): each soil set of surfaces.json's table
+        ///    in the contacts entry gains its stone fraction and diameter after its sand share, and the contacts entry the
+        ///    tip slide's switch (ContactSpec.TipSlide) after the strikes'; the event StoneStrike (20, p7f-damage's,
+        ///    D-074); the records are 30's.
         /// 36: the physics integration 2 with p7g-legs (unity/physics/physics-integration-2--legs, assigned by D-072): p7g-legs'
         ///    31 merged onto 34: the record is 34's 2392 bytes (through the blades' strikes), then 31's legs block (each leg's
         ///    state byte and its corner's, its set, its stiffness factor, its clamp's moment, its side give, its jaws' turn and its
@@ -151,8 +159,15 @@ namespace Fpv450.Sim.Log
         ///    the tether entry stays at tag 25 and the drone internals entry at 26; the events 14–16 (p7d-tether's), 17–19
         ///    (p7f-damage's; 20–22 reserved for it) and 23–28 (LegSet, LegCracked, LegBroken, LegDetached, SkidLoose,
         ///    PieceDropped: p7g-legs', D-074).
+        /// 37: assigned elsewhere (D-072).
+        /// 38: the physics integration 2 with the tip slide and the fountain (unity/physics/physics-integration-2--int48,
+        ///    assigned by D-072): 35 merged onto 36: surfaces.json's table in the contacts entry carries 33's and 35's
+        ///    fields (what a blade meets, the soils' stones), the contacts entry 35's tip slide switch after the strikes'
+        ///    and then 36's legs' fields; the record is 36's 2784 bytes and the loose pieces' side record 36's; the events
+        ///    14–16 (p7d-tether's), 17–20 (p7f-damage's: StoneStrike 20, 35's; 21–22 reserved for it) and 23–28
+        ///    (p7g-legs').
         /// </summary>
-        public const int Version = 36;
+        public const int Version = 38;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -342,7 +357,13 @@ namespace Fpv450.Sim.Log
         ///    −Ke·ω/R, no supply current) until about 1220 eRPM, then coasts; Bluejay alike to about 1330 eRPM; brake on stop
         ///    then shorts the three phases. A motor whose spec names no rule (EscDisarm.Freewheel) coasts at once as in 38, and
         ///    a flight that never disarms with its rotors turning steps as in 38; the record is unchanged.
-        /// 43: assigned elsewhere (D-072).
+        /// 43: the blades on the ground (p7f-damage 1.1a's soil half and 1.3's soil carve on the physics integration 2,
+        ///    unity/physics/physics-integration-2--soil-carve, on 40; assigned by D-072): with surfaces.json a disc's pass
+        ///    over the ground or a soil shape meets its surface's set at the flight's moisture: a soil is carved at c·N_c
+        ///    (Prandtl's 2 + π) with its bulk density's fling, its sand wearing the leading edge by Archard in the severe
+        ///    class (the pass's share, and a jammed carve's grind by the work it pays, put on at its end); a rigid surface
+        ///    is a face by its own hardness (asphalt's aggregate, the slab's concrete: hard targets). A flight whose discs
+        ///    never cut the ground or a soil shape, or any flight without surfaces.json, steps as in 40.
         /// 44: the physics integration 2 with the ESC's disarm (unity/physics/physics-integration-2--disarm, assigned by
         ///    D-072; the code is the parents' together): 42's disarm merged onto 40. Disarmed, every ESC keeps its firmware's
         ///    rule whatever its blades: a damaged rotor (40's DamagedRotor) brakes by the same short, i = −Ke·ω/R, against its
@@ -371,7 +392,17 @@ namespace Fpv450.Sim.Log
         ///    0) and the clamp's jaws hold it by their friction (μ·P·D), their bed turning only as it slips. On 1.2's chain
         ///    (no side give's parts) and with no leg past a capacity, a flight steps as in 39 but for the T-joint's socket
         ///    moment's rounding.
-        /// 45: assigned elsewhere (D-072).
+        /// 45: the tip slide (p7f-damage 1.3 on the physics integration 2, unity/physics/physics-integration-2--tip, on 43;
+        ///    assigned by D-072): a carve meets the face at the blade's speed through it, its own and the body's there, so
+        ///    the body's motion loads or unloads the pass (the attack, the frontal height, the swept volume and the fling)
+        ///    and pays its share, and the pass's axial push is its leading face's, c·cos θ/h, not cot θ of the whole drag;
+        ///    a jammed carve's held blade ploughs the soil as the body moves it (Coulomb's clamp) and breaks where its held
+        ///    load passes a section's strength, and logs a BladeStrike only on a step that pays the rotor's work or breaks
+        ///    it; the disc's part inside a carved face makes no thrust or air torque (its blades' shares,
+        ///    DamagedRotor.Immersed, from the next step); a soil pass meets a stone with the probability its swept volume
+        ///    and the soil's stone fraction give ("soil.stones"), a hard target by quartz's hardness that breaks or notches
+        ///    the leading edge by 1.3's head-on rule, held to the stone's mass (StoneStrike, 20). A flight whose discs
+        ///    never cut a softer face steps as in 43.
         /// 46: the physics integration 2 with p7g-legs (unity/physics/physics-integration-2--legs, assigned by D-072; the code is
         ///    the parents' together): p7g-legs' 41 (the PVC-U legs from their section, 37's; the side give in series with the
         ///    stick anchor and the failure law, 39's; a damaged leg's geometry, stiffness, stub and loose pieces, the exact
@@ -385,8 +416,16 @@ namespace Fpv450.Sim.Log
         ///    (drone.json without legs.tube, clamp and tjoint, the 10 kN/m spring) a flight steps as in 44; with the line's
         ///    mechanisms off (no surfaces.json, no area laws, no line, no props.blade, model 34's yaw I, the ESCs freewheeling)
         ///    as in 41.
+        /// 47: assigned elsewhere (D-072).
+        /// 48: the physics integration 2 with the tip slide and the fountain (unity/physics/physics-integration-2--int48,
+        ///    assigned by D-072; the code is the parents' together): 45's blades on the ground (43's carve, 45's tip slide
+        ///    and stones) merged onto 46. With surfaces.json a disc that cuts the ground or a soil shape carves it (it
+        ///    glanced in 46); a disarmed rotor in the soil brakes by its ESC's rule (44's) against the carve, and a carve's
+        ///    body push and plough reach the legs' contacts (46's). A flight whose discs never cut a softer face steps as
+        ///    in 46; with the tip slide off (ContactSpec.TipSlide) a carve is 43's; without surfaces.json every pass on the
+        ///    ground glances (40's).
         /// </summary>
-        public const int ModelVersion = 46;
+        public const int ModelVersion = 48;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
