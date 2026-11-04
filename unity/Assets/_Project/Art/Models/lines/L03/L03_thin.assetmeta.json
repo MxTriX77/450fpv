@@ -53,6 +53,7 @@
       "sag_m": 0.8,
       "axial_stiffness_n": 3926990.816987,
       "breaking_force_n": 7657.632093,
+      "bending_stiffness_n_m2": 6.135923,
       "material": "cable",
       "damage": "intact",
       "points": [
