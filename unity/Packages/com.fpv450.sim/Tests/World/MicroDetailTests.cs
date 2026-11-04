@@ -242,6 +242,27 @@ namespace Fpv450.Sim.Tests
             return placements.Substring(0, at) + band + placements.Substring(at);
         }
 
+        /// <summary>The models with two small boxes of the filler surface (belt_bare) added to `instance`'s variant at the
+        /// band's ends `from` and `to`: p7c-wind's cut records close a band's ends on its object's fillers (MapWorldWind.cs).</summary>
+        private static Func<string, string> WithEndFillers(int instance, Double3 from, Double3 to)
+        {
+            var row = Row(instance);
+            Double3 at = Vec(row["position_m"]);
+            double yaw = (double)row["yaw_deg"] * Math.PI / 180, c = Math.Cos(yaw), s = Math.Sin(yaw);
+            string Box(Double3 w)
+            {
+                double dx = w.X - at.X, dz = w.Z - at.Z; // the row's frame: the inverse of the placement in Expected
+                return FormattableString.Invariant(
+                    $", {{\"shape\": \"box\", \"center\": [{dx * c - dz * s:0.######}, -0.05, {dx * s + dz * c:0.######}], \"size\": [0.1, 0.1, 0.1], \"rotation\": [0.0, 0.0, 0.0, 1.0], \"material\": \"surface:belt_bare\", \"landable\": false}}");
+            }
+            string boxes = Box(from) + Box(to);
+            return Edited((string)row["variant"] + ".assetmeta.json", t =>
+            {
+                int close = t.LastIndexOf(']', t.IndexOf("\"gaps\":", StringComparison.Ordinal));
+                return t.Substring(0, close) + boxes + t.Substring(close);
+            });
+        }
+
         private static double BandDistance(Double3 p, Double3 a, Double3 b)
         {
             double dx = b.X - a.X, dz = b.Z - a.Z, px = p.X - a.X, pz = p.Z - a.Z;
@@ -256,7 +277,7 @@ namespace Fpv450.Sim.Tests
             int patch = Find("S04_patch"), shaft = Find("Z04_cellar_shaft");
             Double3 c = Position(patch), from = c + new Double3(-2, 0, 0), to = c + new Double3(2, 0, 0), query = c + new Double3(0, 0.2, 0);
             const double width = 1.0;
-            var world = new MapWorld(WithBand(shaft, from, to, width), MapWorldTests.ReadModel, MapWorldTests.Materials());
+            var world = new MapWorld(WithBand(shaft, from, to, width), WithEndFillers(shaft, from, to), MapWorldTests.Materials());
             bool Rooted(Expected e) => e.Object == patch && e.Parent < 0 && e.ParentShape < 0 && BandDistance(e.World[0], from, to) <= width / 2;
             int dropped = 0;
             foreach (Expected e in All)
@@ -277,7 +298,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(over, Is.True, "an element rooted outside the band reaching over it is kept");
 
             // The same band as the patch's own: its elements stay (a trench's floor straws lie in its own run).
-            var own = new MapWorld(WithBand(patch, from, to, width), MapWorldTests.ReadModel, MapWorldTests.Materials());
+            var own = new MapWorld(WithBand(patch, from, to, width), WithEndFillers(patch, from, to), MapWorldTests.Materials());
             Assert.That(own.MicroDetailNear(query, 2, MicroKind.All, Span<MicroElement>.Empty), Is.EqualTo(before));
         }
 
