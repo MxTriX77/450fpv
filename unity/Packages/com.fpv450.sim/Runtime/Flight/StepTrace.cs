@@ -92,8 +92,13 @@ namespace Fpv450.Sim.Flight
         public uint CornerState;
 
         /// <summary>Each leg's side give this step with the anchor in series, N/m: the tube's by its crack less the axial load's
-        /// softening (P·Δ), or a hanging half's cantilever (p7g-legs 1.3).</summary>
+        /// softening (P·Δ), or a hanging half's cantilever (p7g-legs 1.3); on the lever (1.4) its points' secants, negative past
+        /// the sway load.</summary>
         public Corners LegSideGive;
+
+        /// <summary>Each leg's lean on its lever this step (p7g-legs 1.4): its foot's offset across the tube from its rest, its
+        /// points' shares of it, m; 0 off the lever or off the ground.</summary>
+        public Corners LegLean;
 
         /// <summary>Each leg's jaws' turn at the foot, body m (the side spring's rest moved by their friction slipping).</summary>
         public Corners3 LegJaw;

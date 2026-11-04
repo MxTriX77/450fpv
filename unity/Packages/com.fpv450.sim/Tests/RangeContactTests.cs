@@ -377,6 +377,9 @@ namespace Fpv450.Sim.Tests
         // crash (the payload on Z11_tree_ash at 5.01 m/s, step 10507): at step 11332 the right skid's rear half (skid_rr), hanging
         // from leg_fr's T-joint since leg_rr parted (step 10374), passes V01_M's bark at 6.24 m/s, 25 mm deep, the body falling at
         // 1.6 m/s: the hanging half's turn a step behind (p7g-legs 1.3; RangeContactTests' Calm crown). It stays red.
+        // Model 50 (the legs' lever on the line): no tunnel (first skid_left on V01_L's twig at 9.77 m/s, the crash the payload's
+        // on Z11_tree_ash at 5.74 m/s, 64 touches); the lever moves the flight off its hanging half's pass, the class is open
+        // (the crown in Windy, InTheWindNoTunnelThroughARigidShape).
         [Test]
         public void WithTheAirframesEffectsACompliantShapeIsNoTunnel()
         {
@@ -478,6 +481,8 @@ namespace Fpv450.Sim.Tests
 
         // No tunnel through a compliant shape in the wind: the straw landings in the crosswind, and the crown in Windy's field
         // (the posadka stands on the plane; the approach crosses S04, where the field blows since model 20).
+        // Model 50 (the legs' lever on the line): the crown in Windy logs one, the left skid's front half hanging from leg_rl's
+        // T-joint after leg_fl breaks (InTheWindNoTunnelThroughARigidShape's Windy crown, the same flight). It stays red.
         [Test]
         public void InTheWindACompliantShapeIsNoTunnel()
         {
@@ -538,6 +543,16 @@ namespace Fpv450.Sim.Tests
         // leg_rr parts (11844) and 4 ms after the right skid's half, hanging from leg_fr's T-joint, folds (11860), the half's turn a
         // step behind (46's Severe mechanism, p7g-legs 1.3). A tunnel is a bug: the case stays red until the hanging half's turn is
         // in its step.
+        // Model 49 (p7g-legs 1.4, the legs' lever): the crown in Severe logs two, both through support_rr_end of leg_rr's skid half
+        // hanging from leg_fr's T-joint after leg_rr parts (11.9 N·m, step 10279): through V01_L's bark at 9.94 m/s at step 10302
+        // as on model 46, and through Z11_tree_ash's timber at 15.6 m/s at step 10713 in the crash's tumble; the hanging half's
+        // turn a step behind (1.3's mechanism) and its fold without a parting limit (open since 1.3); the rest none.
+        // Model 50 (the legs' lever on the line): each flight still reaches its shape. The crown in Calm and Severe log none
+        // (Calm's model 48 tunnel is gone: first skid_left on V01_L's twig at 11.16 m/s, the crash the payload's on
+        // Z11_tree_ash at 3.62 m/s), and the crown in Windy logs one: support_fl_end of the left skid through V01_L's bark,
+        // 0.115 m deep at 2.31 m/s, at step 10975, 66 ms after leg_fl breaks (10909) with leg_rl cracked and set and on, the
+        // skid's front half hanging from leg_rl's T-joint: the hanging half's turn a step behind again (1.3's mechanism),
+        // moved from Calm to Windy by the lever, not closed. A tunnel is a bug: it stays red.
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
         [TestCase("crown", 10.0, WindLevel.Severe, 0)]

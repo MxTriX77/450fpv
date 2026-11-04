@@ -46,7 +46,9 @@ namespace Fpv450.Sim.Contact
     /// </summary>
     public sealed class LegChange
     {
-        public const int MaxPieces = 3;
+        /// <summary>The most pieces one step can leave as: each leg's (4) and each skid alone (2), as many as LoosePieces' slots
+        /// (p7g-legs 1.4: 1.3's 3 overflowed when a level hard landing parted all four legs in one step).</summary>
+        public const int MaxPieces = 6;
 
         /// <summary>The broken legs whose tubes are now their stubs in the clamps, bit 1 &lt;&lt; corner.</summary>
         public int Stubs;
@@ -55,8 +57,9 @@ namespace Fpv450.Sim.Contact
         /// 12 the right skid, 13 the left), its contact shapes (indices into the drone's) and their cores as they left (body).</summary>
         public int Pieces;
         public readonly int[] Parts = new int[MaxPieces];
-        public readonly int[][] Shapes = { new int[16], new int[16], new int[16] };
-        public readonly ContactShape[][] Geometry = { new ContactShape[16], new ContactShape[16], new ContactShape[16] };
+        public readonly int[][] Shapes = { new int[16], new int[16], new int[16], new int[16], new int[16], new int[16] };
+        public readonly ContactShape[][] Geometry =
+            { new ContactShape[16], new ContactShape[16], new ContactShape[16], new ContactShape[16], new ContactShape[16], new ContactShape[16] };
         public readonly int[] ShapeCount = new int[MaxPieces];
 
         public void Clear()
@@ -304,6 +307,7 @@ namespace Fpv450.Sim.Contact
         readonly CornerState[] _corner = new CornerState[4];
         readonly Double3[] _fold = new Double3[4], _setApplied = new Double3[4], _foldApplied = new Double3[4];
         readonly double[] _lastAxial = new double[4], _tubeSide = new double[4];
+        readonly double[] _lean = new double[4];  // each leg's lean on its lever this step, its points' shares of δ (p7g-legs 1.4), m
         readonly Double3[] _hangForce = new Double3[4], _hangCouple = new Double3[4];
         readonly bool[] _hangTouching = new bool[4];
         readonly int[] _hangShape = { -1, -1, -1, -1 }, _hangPair = new int[4]; // a hanging half's strongest contact
@@ -862,6 +866,7 @@ namespace Fpv450.Sim.Contact
                 bool hanging = (state & CornerState.Hanging) != 0;
                 if ((pass == 1) != hanging) continue;
                 _legTouching[c] = false;
+                _lean[c] = 0;
                 _soilPoint[c].On = false;
                 // A half-skid no longer on its own leg leaves its soil, its grooves into the ring; a hanging half meets the soil
                 // as its points on its rigid surface (the soil's law is a leg's half-skid's).
@@ -968,6 +973,28 @@ namespace Fpv450.Sim.Contact
                     along = _legs.AxialOffset(c);
                     across = s.Attitude.Rotate(_legs.LateralOffset(c));
                 }
+                if (!hanging && _spec.LegLeverLength > 0 && ks > 0)
+                {
+                    // The lever (1.4): each point's force by the leg's statics at its own push; the leg's give its points' shares.
+                    double anchor = ratio * ka, cap = BowOverSway * _spec.LegSwayLoad, tube = 0, side = 0, lean = 0;
+                    Double3 axis = LeverAxis(c, s, up);
+                    for (int i = 0; i < _shapes.Length; i++)
+                    {
+                        ContactRole role = _shapes[i].Role;
+                        if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                        for (int k = -1; k < _count[i]; k++)
+                        {
+                            ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                            if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                            LeverTrial(ref p, s, axis, sum, push, ka, ca, ks, _spec.LegLeverLength, cap, anchor, cl, moved, along, across, _dt,
+                                ref tube, ref side, ref lean);
+                        }
+                    }
+                    _side[c] = side;
+                    _tubeSide[c] = tube;
+                    _lean[c] = lean;
+                    continue;
+                }
                 for (int i = 0; i < _shapes.Length; i++)
                 {
                     ContactRole role = _shapes[i].Role;
@@ -980,6 +1007,54 @@ namespace Fpv450.Sim.Contact
                     }
                 }
             }
+        }
+
+        // The lever's axis (world): the leg's own, turned by its set about its clamp's edge (the set turns its shapes, so its
+        // foot's rest lies on that axis and the lean is measured from it); the body's for an unbent leg, exactly.
+        Double3 LeverAxis(int c, in FlightState s, Double3 up)
+        {
+            Quat q = _setTurn[c];
+            return q.X == 0 && q.Y == 0 && q.Z == 0 ? up : s.Attitude.Rotate(q.Rotate(new Double3(0, 1, 0)));
+        }
+
+        // One leg point's force on the lever (p7g-legs 1.4): its push into the leg as Trial's, along the leg the lever's statics
+        // at it (the foot's rise taken off, the axial force along the leaned link), across it the lever's secant in series with
+        // the stick anchor, the dampers as Trial's; its shares of the leg's secant, its give with the anchor and its lean summed.
+        static void LeverTrial(ref Pair p, in FlightState s, Double3 up, double sum, double deepest, double ka, double ca, double kt, double l0,
+            double cap, double anchor, double cl, bool moved, double along, Double3 across, double dt, ref double tube, ref double side, ref double lean)
+        {
+            if (!(p.Overlap > 0)) return;
+            double w = p.Overlap / sum;
+            Double3 n = p.N, v = PointVelocity(s, p.Point);
+            Double3 vt = v - n * Double3.Dot(n, v);
+            if (!p.Anchored)
+            {
+                p.Stretch = default;
+                p.Anchored = true;
+                p.Sliding = false;
+            }
+            else
+            {
+                p.Stretch = p.Stretch + vt * dt;
+            }
+            p.Stretch = p.Stretch - n * Double3.Dot(n, p.Stretch);
+            Double3 d = n * deepest - p.Stretch;
+            double a = Double3.Dot(up, d);
+            Double3 lat = d - up * a;
+            if (moved)
+            {
+                a -= along;
+                lat = lat - across;
+            }
+            double va = Double3.Dot(up, v), delta = lat.Length();
+            double force = Lever(a, delta, ka, -ca * va, kt, l0, cap, out double secant, out _);
+            double kl = OnAnchor(secant, anchor);
+            p.Force = (up * force + lat * kl - (v - up * va) * cl) * w;
+            p.Share = w;
+            p.Drift = lat;
+            tube += secant * w;
+            side += kl * w;
+            lean += delta * w;
         }
 
         // A leg's springs this step (p7g-legs 1.3): along it, k0 with its damper c0 (the tube's EA/L share scaled by its
@@ -1002,9 +1077,39 @@ namespace Fpv450.Sim.Contact
             }
             double kt = f * _spec.LegTubeSideStiffness;
             cs = 2 * _spec.LegSideDampingRatio * DetMath.Sqrt(kt * _massShare);
+            if (_spec.LegLeverLength > 0)
+            {
+                ks = kt; // the lever's bending at the foot, K/(γL)²: its axial load's statics are each point's (Lever)
+                return;
+            }
             ks = kt - _spec.LegTubeSideStiffness * _lastAxial[c] / _spec.LegSwayLoad;
             if (!(ks > 0)) ks = 0;
         }
+
+        /// <summary>The fixed–pinned column's load over the fixed–free one's, 4β²/π² = 8.183 (derived: LegDamageSpec.FixedPinned
+        /// over π²/4): past it the tube bows (the legs' law, 1.2), so the lever's axial load is held there in its statics.</summary>
+        public const double BowOverSway = LegDamageSpec.FixedPinned / 2.4674011002723395;
+
+        // The leg as a lever across its tube (p7g-legs 1.4, ContactSpec.LegLeverLength): the foot pushed a along the leg and δ
+        // across it from its rest, the link of length l0 from the pivot turned by θ = atan2(δ, l0 − a) and shortened to
+        // l = √(δ² + (l0 − a)²), so its axial spring carries P = ka·(a − (l − (l0 − a))) + damp, the foot's rise on the circle
+        // taken off; its bending K·θ (K = kt·l0²) across the link. The force on the body: along the leg P·cos θ + (Kθ/l)·sin θ,
+        // across it toward the foot's offset (Kθ/l)·cos θ − P·sin θ, returned as its secant over δ (the axial load held at cap
+        // in it, the bow's). To first order in δ, kt − P/l0 = kt·(1 − P/P_sway), 1.3's softening; at δ = 0 the force along is
+        // ka·a + damp bit for bit.
+        static double Lever(double a, double delta, double ka, double damp, double kt, double l0, double cap, out double secant, out double rise)
+        {
+            double h = l0 - a, l2 = delta * delta + h * h, l = DetMath.Sqrt(l2);
+            rise = delta * delta / (l + h);
+            double p = ka * (a - rise) + damp, theta = DetMath.Atan2(delta, h), k = kt * l0 * l0;
+            double perDelta = delta > 0 ? theta / delta : 1 / h, held = p < cap ? p : cap;
+            secant = k * perDelta * (h / l2) - held / l;
+            return p * (h / l) + k * theta * delta / l2;
+        }
+
+        // A point's lever secant in series with its stick anchor; past half the anchor's stiffness the series nears its pole (the
+        // chain compressed by more than 44 mm along it), held at its value there (assumed bound, never reached in a landing).
+        static double OnAnchor(double secant, double anchor) => secant > -0.5 * anchor ? Series(secant, anchor) : -anchor;
 
         // One leg point's force: its share of its leg's push along and across the tube, less the dampers; the stick anchor
         // stretched by the touching material's slip, as Friction does.
@@ -1670,6 +1775,7 @@ namespace Fpv450.Sim.Contact
             for (int c = 0; c < 4; c++)
             {
                 trace.LegSideGive[c] = _side[c];
+                trace.LegLean[c] = _lean[c];
                 if (_legs == null)
                 {
                     trace.LegSet[c] = default;
@@ -1953,6 +2059,7 @@ namespace Fpv450.Sim.Contact
             {
                 LegGive(c, out k0, out c0leg, out legSide, out legSideDamp);
                 legUp = s.Attitude.Rotate(new Double3(0, 1, 0));
+                if (_spec.LegLeverLength > 0 && legSide > 0) legUp = LeverAxis(c, s, legUp);
                 if (_legs != null && _legs.Moved(c))
                 {
                     along = _legs.AxialOffset(c);
@@ -1964,9 +2071,19 @@ namespace Fpv450.Sim.Contact
                     dt = dt - n * Double3.Dot(n, dt);
                 }
                 double cu = Double3.Dot(legUp, n), ud = Double3.Dot(legUp, dt);
-                double kq0 = legSide > 0 ? Series(legSide, _spec.FrictionStiffnessRatio * k0) : 0;
+                double kq0 = legSide > 0 ? Series(legSide, _spec.FrictionStiffnessRatio * k0) : 0, rise = 0;
+                if (_spec.LegLeverLength > 0 && legSide > 0)
+                {
+                    // The lever (1.4) at the last step's sink: the foot's rise on its circle is an axial rest of the solve, and
+                    // the lever's secant its give across (SoilTrial flies both at this step's).
+                    Double3 d = n * k.X - dt;
+                    double a = Double3.Dot(legUp, d) - along;
+                    Lever(a, (d - legUp * Double3.Dot(legUp, d) - across).Length(), k0, 0, legSide, _spec.LegLeverLength,
+                        BowOverSway * _spec.LegSwayLoad, out double secant, out rise);
+                    kq0 = OnAnchor(secant, _spec.FrictionStiffnessRatio * k0);
+                }
                 kN = k0 * cu * cu + kq0 * (1 - cu * cu);
-                b = k0 * cu * (ud + along) - kq0 * cu * ud + kq0 * Double3.Dot(n, across);
+                b = k0 * cu * (ud + along + rise) - kq0 * cu * ud + kq0 * Double3.Dot(n, across);
             }
             double kl = Soil.Modulus(set, Soil.Width(SoilPart.Tube, r)), firm = _spec.Surfaces.FirmLayer;
             double lo = 0, hi = DetMath.Max(deepNode, other ? deep : 0);
@@ -2164,6 +2281,8 @@ namespace Fpv450.Sim.Contact
             ref SoilPoint sp = ref _soilPoint[c];
             double ratio = _spec.FrictionStiffnessRatio;
             double kq = legSide > 0 && kn > 0 ? Series(legSide, ratio * kn) : 0;
+            bool lever = _spec.LegLeverLength > 0 && legSide > 0;
+            double secant = legSide, cap = BowOverSway * _spec.LegSwayLoad;
             double cq = legSideDamp > 0 && cn > 0 ? Series(legSideDamp, DetMath.Sqrt(ratio) * cn) : 0;
             double total = (soilStatic > 0 ? soilStatic : 0) + (others > 0 ? others : 0);
             double share = total > 0 ? (soilStatic > 0 ? soilStatic : 0) / total : 1;
@@ -2210,7 +2329,19 @@ namespace Fpv450.Sim.Contact
                 Double3 d = n * x - dt;
                 double a = Double3.Dot(up, d) - along, va = Double3.Dot(up, v);
                 Double3 lat = d - up * Double3.Dot(up, d) - across;
-                Double3 trial = (up * (k0 * a - cn * va) + lat * kq - (v - up * va) * cq) * share;
+                Double3 trial;
+                if (lever)
+                {
+                    // The lever (1.4) at this step's sink: along the leg its statics, across its secant with the groove's anchor.
+                    double delta = lat.Length(), force = Lever(a, delta, k0, -cn * va, legSide, _spec.LegLeverLength, cap, out secant, out _);
+                    kq = kn > 0 ? OnAnchor(secant, ratio * kn) : 0;
+                    _side[c] = kq;
+                    _tubeSide[c] = secant;
+                    sp.Across = kq;
+                    _lean[c] = delta * share;
+                    trial = (up * force + lat * kq - (v - up * va) * cq) * share;
+                }
+                else trial = (up * (k0 * a - cn * va) + lat * kq - (v - up * va) * cq) * share;
                 q.Force = n * fn + (trial - n * Double3.Dot(n, trial));
                 q.Stretch = dt;
                 q.Drift = lat;
@@ -2248,7 +2379,14 @@ namespace Fpv450.Sim.Contact
                     Double3 d = pn * x - p.Stretch;
                     double a = Double3.Dot(up, d) - along, va = Double3.Dot(up, v);
                     Double3 lat = d - up * Double3.Dot(up, d) - across;
-                    Double3 trial = (up * (ko * a - co * va) + lat * kqo - (v - up * va) * cqo) * (rest * w);
+                    Double3 trial;
+                    if (lever)
+                    {
+                        double delta = lat.Length(), force = Lever(a, delta, ko, -co * va, legSide, _spec.LegLeverLength, cap, out double so, out _);
+                        trial = (up * force + lat * (ko > 0 ? OnAnchor(so, ratio * ko) : 0) - (v - up * va) * cqo) * (rest * w);
+                        _lean[c] += delta * rest * w;
+                    }
+                    else trial = (up * (ko * a - co * va) + lat * kqo - (v - up * va) * cqo) * (rest * w);
                     p.Force = pn * (_otherNormal[c] * w) + (trial - pn * Double3.Dot(pn, trial));
                     p.Share = rest * w;
                     p.Drift = lat;

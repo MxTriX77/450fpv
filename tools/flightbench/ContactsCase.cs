@@ -169,7 +169,7 @@ namespace Fpv450.FlightBench
             SoilScenarios.Landing st = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
             SoilScenarios.Landing sd = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
             Console.WriteLine($"  (information) on the legs' side give: tilled {st.NoseDown:F3}° ({st.PeakSink * 1e3:F2} mm in), dirt track {sd.NoseDown:F3}° "
-                + $"({sd.PeakSink * 1e3:F2} mm): the bending legs absorb the catch");
+                + $"({sd.PeakSink * 1e3:F2} mm): {(st.NoseDown > sd.NoseDown ? "tilled stumbles more on their lever too (model 46 reversed it, 0.173° against 0.407°)" : "the bending legs absorb the catch")}");
             Row("tilled stumbles more than the dirt track", gt.NoseDown > gd.NoseDown && gt.Crashes + gd.Crashes == 0,
                 $"nose down {gt.NoseDown:F3}° ({gt.PeakSink * 1e3:F2} mm in) against {gd.NoseDown:F3}° ({gd.PeakSink * 1e3:F2} mm)");
             Row("known-wrong: the rigid ground with plain friction", Math.Abs(rt.NoseDown - rd.NoseDown) >= 0.5 * (gt.NoseDown - gd.NoseDown),
@@ -496,6 +496,49 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                     return setup;
                 }
                 ok &= Timed(legs ? "legs on, resting on the floor, armed at idle" : "legs off, resting on the stand, armed at idle", contacts.Shapes.Length, Make, idle, 2000, 60000, 1);
+                if (!legs) continue;
+                // p7g-legs 1.4 (design 7): the same row with the legs' law off (the elastic legs), beside it.
+                FlightSetup Elastic()
+                {
+                    FlightSetup setup = Make();
+                    setup.Contacts = setup.Contacts.Clone();
+                    setup.Contacts.Legs = null;
+                    return setup;
+                }
+                ok &= Timed("legs on, resting on the floor, armed at idle, the legs' law off", contacts.Shapes.Length, Elastic, idle, 2000, 60000, 1);
+            }
+
+            // p7g-legs 1.4: the law through its failures, armed at idle: down at 1.5 m/s rolled 20° with 0.6 m/s of drift onto the
+            // floor (LegScenarios' touch, seed 1; --legs' cell parts a leg on every seed), so the legs crack, set and part and their
+            // pieces fly loose; and the same touch with the law off (the elastic legs) and with the lever off (1.3's softening).
+            {
+                var t = new LegScenarios.Touch { RollDeg = 20, Velocity = new Double3(0.6, -1.5, 0), Seed = 1 };
+                FlightSetup Touch(Func<ContactSpec, ContactSpec> edit)
+                {
+                    LegScenarios.Touch e = t;
+                    e.Edit = edit;
+                    FlightSetup free = LegScenarios.Setup(spec, materials, hash, e);
+                    FlightSetup setup = ContactScenarios.Setup(spec, materials, hash, true, free.StartPosition, free.Seed);
+                    setup.Contacts = free.Contacts;
+                    setup.StartAttitude = free.StartAttitude;
+                    setup.StartVelocity = free.StartVelocity;
+                    return setup;
+                }
+                foreach ((string label, Func<ContactSpec, ContactSpec> edit) in new (string, Func<ContactSpec, ContactSpec>)[]
+                {
+                    ("legs on, a rolled drifting touch that bends and breaks legs, armed at idle, the legs' law on", null),
+                    ("the same touch, the legs' law off", c => { c = c.Clone(); c.Legs = null; return c; }),
+                    ("the same touch, the law on, the lever off (1.3's softening)", c => { c = c.Clone(); c.LegLeverLength = 0; return c; }),
+                })
+                {
+                    FlightSetup Make() => Touch(edit);
+                    var probe = new FlightCore(Make());
+                    for (int k = 0; k < 3000; k++) probe.Advance(idle(probe, k));
+                    int damaged = 0;
+                    for (int c = 0; c < 4; c++) if ((byte)(probe.Trace.LegState >> (8 * c)) != 0) damaged++;
+                    Console.WriteLine($"{Name}: {label}: after 3 s {damaged} legs damaged, {probe.Loose?.Count ?? 0} pieces loose");
+                    ok &= Timed(label, Make().Contacts.Shapes.Length, Make, idle, 5, 3000, 8);
+                }
             }
 
             MapWorld world = RangeScenarios.World;
