@@ -174,6 +174,12 @@ namespace Fpv450.WorldBench
             }
 
             public void Add(in WireEnd e) { Add(e.Object); Add(e.Port); Add((long)e.Kind); Add(e.NeighbourObject); Add(e.NeighbourShape); }
+
+            public void Add(in SnagSegment s)
+            {
+                Add(s.Object); Add(s.Record); Add(s.Segment); Add((long)s.Kind); Add(s.Radius); Add(s.EdgeRadius); Add(s.BarbPitch);
+                Add(s.Material); Add(s.A); Add(s.B);
+            }
         }
 
         private static string Hex(ulong v) => v.ToString("x16", CultureInfo.InvariantCulture);

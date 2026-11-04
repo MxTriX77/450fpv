@@ -262,6 +262,40 @@ namespace Fpv450.Sim.World
         public WireEnd A, B;
     }
 
+    /// <summary>A snag record's kind (tools/blender/lib/meta.py SNAG_KINDS).</summary>
+    public enum SnagKind : byte
+    {
+        /// <summary>A polyline the fiber bends over.</summary>
+        Edge = 0,
+        /// <summary>A free-ended member, from its base (the first point) to its tip (the last).</summary>
+        Hook = 1,
+    }
+
+    /// <summary>
+    /// One segment of a placed snag record near a point (IWorldQuery.SnagsNear; p7d-tether design 12, the fortifications
+    /// reading §1 and §7): the record's fields and the segment's two points in world space.
+    /// </summary>
+    public struct SnagSegment
+    {
+        /// <summary>The placed object (instance).</summary>
+        public int Object;
+        /// <summary>The record's index among its variant's snag records, in their order.</summary>
+        public int Record;
+        /// <summary>The segment's index in its record: from point Segment to point Segment + 1.</summary>
+        public int Segment;
+        public SnagKind Kind;
+        /// <summary>The record's radius_m: the member's reach (props, legs and the fiber touch it within this), m.</summary>
+        public double Radius;
+        /// <summary>The arris the fiber bends over: the record's edge_radius_m, else its radius_m, m.</summary>
+        public double EdgeRadius;
+        /// <summary>The record's barb_pitch_m (an edge's barb clusters' spacing), m; 0 for a smooth member.</summary>
+        public double BarbPitch;
+        /// <summary>The record's material id (the member it follows).</summary>
+        public ushort Material;
+        /// <summary>The segment's ends in world space, m: the record's points Segment and Segment + 1.</summary>
+        public Double3 A, B;
+    }
+
     /// <summary>A ground feature an asset's shapes belong to (IWorldQuery.Feature): a pitfall of its metadata's features records.</summary>
     public struct GroundFeature
     {

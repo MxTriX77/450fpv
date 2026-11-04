@@ -190,6 +190,9 @@ namespace Fpv450.Sim.World
         /// <summary>The stub places no assets, so it has no conductors.</summary>
         public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => 0;
 
+        /// <summary>The stub places no assets, so it has no snag records.</summary>
+        public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => 0;
+
         /// <summary>The stub places no assets, so it has no micro elements.</summary>
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) => 0;
 
