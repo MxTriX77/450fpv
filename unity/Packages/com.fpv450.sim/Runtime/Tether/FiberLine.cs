@@ -1,4 +1,5 @@
 using System;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
@@ -114,7 +115,9 @@ namespace Fpv450.Sim.Tether
     ///   field, TetherDesign4Air) and in rain its wet film (heavier and thicker); a node lying in a wall jet is lifted by the
     ///   wall's lift on a cylinder.
     /// - A node near the ground rests on its plane (SampleGround, one batch a step; over a hole the soil a ray finds) with the
-    ///   coating's friction; resting there trail.freeze_seconds slower than trail.freeze_speed_m_s (so held by its friction),
+    ///   coating's friction; with 1.7's contacts (FiberContacts, unless FlightSetup.TetherWithoutContacts) it meets the plane
+    ///   with its surface's own friction, over a hole the shapes there, and every shape, element, snag record, conductor and
+    ///   part of the drone near it; resting on any of them trail.freeze_seconds slower than trail.freeze_speed_m_s (so held),
     ///   more than near_length_m of line from the exit, it freezes into the trail with the tension it held; the trail's last
     ///   point lifts back into the chain when the pull at it passes that and the friction of trail.hold_length_m of line, or
     ///   the rotors' air passes what holds it.
@@ -185,7 +188,11 @@ namespace Fpv450.Sim.Tether
         Double3 _force; // the line's force on the drone at the last step's end, world N
         double _lipAngle, _section;
 
-        public FiberLine(TetherTable table, FlightSetup setup, MassModel mass, FlightRandom random, in FlightState start, double dt)
+        // The contacts of 1.7 (null: the line meets the plane alone, as model 50's, FlightSetup.TetherWithoutContacts).
+        readonly FiberContacts _contacts;
+
+        public FiberLine(TetherTable table, FlightSetup setup, MassModel mass, FlightRandom random, in FlightState start, double dt,
+            ContactModel parts = null)
         {
             if (table == null) throw new ArgumentNullException(nameof(table));
             _table = table;
@@ -268,7 +275,12 @@ namespace Fpv450.Sim.Tether
 
             Launch(setup, start);
             _exitMaterial0 = _chain[_chain.Count - 1].Material;
+            if (!setup.TetherWithoutContacts)
+                _contacts = new FiberContacts(table, setup, World, parts, _radius, _mass, GroundStiffnessPerMetre, GroundHold, dt);
         }
+
+        /// <summary>The line's contacts (p7d-tether 1.7), or null without them (FlightSetup.TetherWithoutContacts).</summary>
+        public FiberContacts Contacts => _contacts;
 
         public FlightWorld World { get; }
 
@@ -480,6 +492,15 @@ namespace Fpv450.Sim.Tether
                 FluxMass = _dryMass, BalloonMass = _balloonMass,
             };
 
+            // The members near each segment, and a node where one meets a segment between its nodes (1.7).
+            if (_contacts != null)
+            {
+                _contacts.Prepare(_chain, s, events);
+                n = _chain.Count;
+                ref CableNode moved = ref _chain[n - 1]; // a node put into the exit's segment takes some of its mass
+                moved.AnchorDamping = 2 * DetMath.Sqrt(ExitStiffness * moved.Mass);
+            }
+
             // The ground under every node and every hub, one batch; the rotors' air from their thrust.
             for (int i = 0; i < n; i++) _at[i] = new XZ(_chain[i].Position.X, _chain[i].Position.Z);
             if (_rotors != null)
@@ -505,12 +526,14 @@ namespace Fpv450.Sim.Tether
                 _rotors.Begin(_hubs, up, _thrust, _hubAir, _hubGround);
             }
             for (int i = 0; i < n - 1; i++) Loads(i, wind);
-            exit.Drag = default;
-            exit.Force = default;
-            exit.Air = default;
+            ref CableNode end = ref _chain[n - 1];
+            end.Drag = default;
+            end.Force = default;
+            end.Air = default;
+            _contacts?.Assign(_chain, _ground, _groundHeight, _groundNormal, s);
 
             // The chain's step, its spacing from the exit.
-            _chain.SetSpacing(_spacing, _nearLength, _growth, exit.Material);
+            _chain.SetSpacing(_spacing, _nearLength, _growth, end.Material);
             long corrections = _chain.Corrections, safe = _chain.SafeSteps, clips = _chain.Clips, wedges = _chain.Wedges;
             _chain.Step(_dt);
             byte flags = 0;
@@ -531,6 +554,8 @@ namespace Fpv450.Sim.Tether
                 e.C = w.Removable;
                 events.Add(e);
             }
+
+            _contacts?.Finish(_chain, s, events);
 
             // The coil: a rebuild at each coil_rebuild_m of line paid out this flight.
             MassChanged = false;
@@ -586,6 +611,7 @@ namespace Fpv450.Sim.Tether
             Double3 normal = (g.Flags & GroundFlags.Hole) == 0 ? g.Normal : new Double3(0, 1, 0);
             _groundHeight[i] = h;
             _groundNormal[i] = normal;
+            if (_contacts != null) return; // FiberContacts.Assign sets the slots, the plane among the members
             // The exit is on the drone and the trail's end on its point: neither takes the ground.
             if (i == _chain.Count - 1 || i == 0 && a.AnchorStiffness > 0 || !(a.Position.Y - h < _reach))
             {
@@ -664,7 +690,8 @@ namespace Fpv450.Sim.Tether
             for (int i = 1; i < n - 1; i++)
             {
                 ref CableNode a = ref _chain[i];
-                bool resting = a.Contact0.Active && a.Contact0.NormalForce > 0 && a.Velocity.Length() < _freezeSpeed;
+                bool held = a.Contact0.Active && a.Contact0.NormalForce > 0 || a.Contact1.Active && a.Contact1.NormalForce > 0;
+                bool resting = held && a.Velocity.Length() < _freezeSpeed;
                 a.RestTime = resting ? a.RestTime + _dt : 0;
             }
             // Freeze: node 1 at rest long enough on the ground, so held there by its friction against whatever tension it bears

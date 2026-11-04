@@ -104,6 +104,10 @@ namespace Fpv450.Sim.Flight
         /// bench's model and the audit against model 44's line, never a pilot's flight.</summary>
         public bool TetherDesign4Air;
 
+        /// <summary>The line without 1.7's contacts (p7d-tether design 6): it meets the plane alone, with the span's polymer pair,
+        /// as model 50's line did; the audit against model 50 and a bench's known-wrong, never a pilot's flight.</summary>
+        public bool TetherWithoutContacts;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -300,7 +304,7 @@ namespace Fpv450.Sim.Flight
             if (setup.Tether != null)
             {
                 if (setup.TetherCoilPart >= _mass.PartCount) throw new ArgumentException("the line's coil part is not a part of the mass model", nameof(setup));
-                _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt);
+                _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt, _contacts);
                 _tetherHubs = new Double3[4];
                 if (setup.Propulsion != null)
                     for (int i = 0; i < 4; i++) _tetherHubs[i] = setup.Propulsion.Motors[i].Position;
@@ -471,11 +475,19 @@ namespace Fpv450.Sim.Flight
             _trace.FilmMass = _rain.FilmMass;
         }
 
-        // The line's pull at the exit (FiberLine.Force, from the last step's end) and its moment about the centre of mass.
+        // The line's pull at the exit (FiberLine.Force, from the last step's end) and its moment about the centre of mass, and
+        // the reactions of the drone's parts the line presses on (FiberContacts, 1.7), each at its contact point.
         void TetherForce(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
         {
             Double3 f = _tether.Force;
             Double3 m = Double3.Cross(_tether.ExitBody - body.CenterOfMass, s.Attitude.InverseRotate(f));
+            Tether.FiberContacts parts = _tether.Contacts;
+            for (int i = 0; parts != null && i < parts.ReactionCount; i++)
+            {
+                Double3 r = parts.ReactionForce(i);
+                f = f + r;
+                m = m + Double3.Cross(parts.ReactionPoint(i) - body.CenterOfMass, s.Attitude.InverseRotate(r));
+            }
             force = force + f;
             moment = moment + m;
             _trace.Tether.Force = f;

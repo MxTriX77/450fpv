@@ -136,6 +136,104 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"leg_fr off: the lowest mode {before:F3} → {core.Modes.Frequency(0):F3} Hz, a fresh solve's {fresh.Frequency(0):F3} Hz");
         }
 
+        // ---- A hanging half against a rigid shape (model 51) -------------------------------------------------------------
+        //
+        // The crown in Windy's mechanism at model 50 (InTheWindNoTunnelThroughARigidShape): the left skid's front half hangs from
+        // leg_rl's T-joint once leg_fl is off, and the drone carries it across into a rigid shape at about 2.3 m/s. Its force is
+        // its chain's, the contact spring, the skid's cantilever, the holding leg's give across its tube and the stick anchor in
+        // series (about 64 N/m across), and at 50 only the cantilever's share moved its shapes: the rest was a penetration, 0.115 m
+        // into V01_L's bark under 9 N, past the limb's middle, a Tunnel. Here the free body, leg_fl off, moves at 2.3 m/s to its
+        // left into a 10 mm steel rod standing 60 mm inboard of the half's front end, across it; the half's penetration into it
+        // is measured from the shapes' own geometry against the rod's box, each step (400 points along each core). With the
+        // half's whole give geometric (ContactSpec.HangingGive) it stands out of the rod by its contact spring's share and a
+        // step's travel, under its own radius, as leg_rl cracks and sets and the half folds at its bore; the known-wrong, model
+        // 50's turn alone, passes the rod's middle and logs its Tunnel.
+        sealed class HalfPush
+        {
+            public int Tunnels, Touches, Steps;
+            public double Deepest;
+            public long Allocated; // by the steps from the 10th, B
+            public readonly List<string> Order = new List<string>();
+        }
+
+        static HalfPush PushTheHangingHalf(bool give)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            const int leg = 3; // leg_fl: its half of the left skid hangs from leg_rl's T-joint
+            var start = new Double3(0, 1, 0);
+            ContactSpec probe = Spec.BuildContacts(Spec.Nominal, m, h);
+            ContactShape end = default;
+            foreach (ContactShape s in probe.Shapes)
+                if (s.Corner == leg && s.Role == ContactRole.Support && s.A.Z > end.A.Z) end = s;
+            const double half = 0.005, gap = 0.004;
+            var rod = new Double3(start.X + end.A.X - end.Radius - half - gap, start.Y + end.A.Y, start.Z + end.A.Z - 0.06);
+            var extent = new Double3(half, 0.05, half);
+            FlightWorld world = FlightWorld.Floor();
+            var t = new LegScenarios.Touch { Velocity = new Double3(-2.3, 0, 0), Start = start, Edit = c => { c.HangingGive = give; return c; } };
+            t.Objects = new[] { LegScenarios.Box(world, "rod", rod, extent) };
+            FlightSetup setup = LegScenarios.Setup(Spec, m, h, t);
+            setup.World = world;
+            var core = new FlightCore(setup);
+            core.RemoveLeg(leg);
+            Assert.That((core.Contacts.Corner(leg) & CornerState.Hanging) != 0, "the half hangs from leg_rl's T-joint");
+            int id = core.RuntimeIds[0];
+            var r = new HalfPush();
+            for (int k = 0; k < 150; k++)
+            {
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                core.Advance(StickSample.Neutral);
+                if (k >= 10) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                ref readonly FlightState s = ref core.State;
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    FlightEvent e = core.Events[i];
+                    if (e.Kind == EventKind.Tunnel) r.Tunnels++;
+                    if (e.Kind == EventKind.ContactMade && e.Object == id && core.Contacts.Shape(e.Index).Corner == leg) r.Touches++;
+                    if (e.Kind == EventKind.Tunnel || e.Kind >= EventKind.LegSet && e.Kind <= EventKind.SkidLoose)
+                        r.Order.Add($"step {s.Step}: {e.Kind} {Spec.Parts[e.Part].Name}" + (e.Kind == EventKind.Tunnel ? $" ({e.A * 1e3:F1} mm deep)" : $" ({(LegMode)e.Index})"));
+                }
+                if ((core.Contacts.Corner(leg) & CornerState.Hanging) == 0) break; // its skid left with leg_rl
+                r.Steps = k + 1;
+                for (int i = 0; i < core.Contacts.ShapeCount; i++)
+                {
+                    ContactShape c = core.Contacts.Shape(i);
+                    if (c.Corner != leg || core.Contacts.ShapeOff(i) || c.Role != ContactRole.Support && c.Role != ContactRole.Skid) continue;
+                    for (int n = 0; n <= 400; n++)
+                    {
+                        Double3 p = s.Position + s.Attitude.Rotate(c.A + (c.B - c.A) * (n / 400.0));
+                        r.Deepest = Math.Max(r.Deepest, c.Radius - BoxDistance(p - rod, extent));
+                    }
+                }
+            }
+            return r;
+        }
+
+        // A point's signed distance to an axis-aligned box about the origin (negative inside), m.
+        static double BoxDistance(Double3 p, Double3 h)
+        {
+            double x = Math.Abs(p.X) - h.X, y = Math.Abs(p.Y) - h.Y, z = Math.Abs(p.Z) - h.Z;
+            double ox = Math.Max(x, 0), oy = Math.Max(y, 0), oz = Math.Max(z, 0);
+            return Math.Sqrt(ox * ox + oy * oy + oz * oz) + Math.Min(Math.Max(x, Math.Max(y, z)), 0);
+        }
+
+        [Test]
+        public void AHangingHalfStaysOutOfARigidShape()
+        {
+            HalfPush on = PushTheHangingHalf(true), off = PushTheHangingHalf(false);
+            foreach ((string name, HalfPush r) in new[] { ("its whole give geometric", on), ("model 50's turn alone (the known-wrong)", off) })
+            {
+                TestContext.Out.WriteLine($"{name}: {r.Touches} touches of the rod, deepest {r.Deepest * 1e3:F2} mm into it over {r.Steps} steps hanging, {r.Tunnels} tunnels, "
+                    + $"{r.Allocated} B allocated by the steps");
+                foreach (string line in r.Order) TestContext.Out.WriteLine("  " + line);
+            }
+            Assert.That(on.Touches, Is.GreaterThan(0), "the half meets the rod");
+            Assert.That(on.Tunnels, Is.Zero, "no tunnel");
+            Assert.That(on.Deepest, Is.LessThan(0.005), "it stands out of the rod by its contact spring's share and a step's travel, under its radius");
+            Assert.That(on.Allocated, Is.Zero, "0 B a step with a half hanging and giving");
+            Assert.That(off.Touches, Is.GreaterThan(0));
+            Assert.That(off.Tunnels, Is.GreaterThan(0), "the known-wrong passes the rod's middle: a Tunnel");
+        }
+
         // The flight's mass model as it is now, from its parts.
         static MassModel CopyOf(FlightCore core)
         {

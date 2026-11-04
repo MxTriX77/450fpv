@@ -47,7 +47,7 @@ namespace Fpv450.Sim.Tether
     /// <summary>
     /// assets-src/tether.json (p7d-tether design 1, PHY-18…21): every number of the fiber, its strength, the spool, the
     /// optical link, the wires' end fittings, the launch, the span's nodes, the laid trail and the rotors' air on the line
-    /// (1.6), physics-owned. Each value is {"value": …, "label": "pilot" |
+    /// (1.6) and the line's contacts (1.7), physics-owned. Each value is {"value": …, "label": "pilot" |
     /// "measured" | "published" | "derived" | "assumed", "rationale": "its source or reason"}; a block or field the schema
     /// lacks, a missing one, a missing label or rationale, or a value of the wrong shape refuses the file with every
     /// problem listed. A value labelled derived must equal its derivation from the table's own values (within 1e-3, the
@@ -62,7 +62,7 @@ namespace Fpv450.Sim.Tether
         public const int Schema = 1;
 
         /// <summary>The blocks, in the file's and the log's order.</summary>
-        public static readonly string[] Blocks = { "fiber", "strength", "spool", "link", "fittings", "launch", "span", "trail", "rotor_air" };
+        public static readonly string[] Blocks = { "fiber", "strength", "spool", "link", "fittings", "launch", "span", "trail", "rotor_air", "contact" };
 
         // The schema: every field of every block and its shape, in order (design 1, 3, 5, 7, 8).
         static readonly (string Name, TetherValueKind Kind)[] Fields =
@@ -154,6 +154,19 @@ namespace Fpv450.Sim.Tether
             ("rotor_air.ground_vortex_core_over_height", TetherValueKind.Positive),
             ("rotor_air.ground_vortex_circulation", TetherValueKind.Positive),
             ("rotor_air.ground_vortex_half_span_over_radius", TetherValueKind.Positive),
+            ("contact.clearance_margin_m", TetherValueKind.Positive),
+            ("contact.drone_cache_radius_m", TetherValueKind.Positive),
+            ("contact.drone_cache_refresh_m", TetherValueKind.Positive),
+            ("contact.line_cache_radius_m", TetherValueKind.Positive),
+            ("contact.line_cache_refresh_m", TetherValueKind.Positive),
+            ("contact.cache_swap_steps", TetherValueKind.Positive),
+            ("contact.element_capacity", TetherValueKind.Positive),
+            ("contact.snag_capacity", TetherValueKind.Positive),
+            ("contact.wire_capacity", TetherValueKind.Positive),
+            ("contact.stem_slide_off_share", TetherValueKind.Positive),
+            ("contact.hook_reach_m", TetherValueKind.Positive),
+            ("contact.aluminium_static_friction", TetherValueKind.Positive),
+            ("contact.aluminium_kinetic_friction", TetherValueKind.Positive),
         };
 
         const double DerivedTolerance = 1e-3;

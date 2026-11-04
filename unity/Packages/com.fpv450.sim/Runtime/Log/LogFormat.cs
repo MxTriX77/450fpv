@@ -179,8 +179,23 @@ namespace Fpv450.Sim.Log
         ///    table with 33's and 35's fields, 35's tip slide switch, 36's legs' fields) with 39's LegLeverLength after the tube's
         ///    EA/L, the tether entry 38's (37's design 4 air switch, tether.json's rotor_air rows); the loose pieces' side record
         ///    36's; the events as 38's (14–16 p7d-tether's, 17–20 p7f-damage's, 23–28 p7g-legs'); no new event kind.
+        /// 41: the hanging skid half and the broken stub (p7g-legs on the line, unity/physics/physics-integration-2--skid-half,
+        ///    assigned by D-072): the contacts entry gains the hanging half's switch (ContactSpec.HangingGive, a bool) after the
+        ///    lever's length, and its legs' data the stub's contact spring across and along the legs' axis (LegDamageSpec.
+        ///    StubStiffness, StubStiffnessUp) after the loose pieces' rest; the record is 40's 2816 bytes; no new event kind.
+        /// 43: the fiber's contacts (p7d-tether 1.7, unity/physics/physics-integration-2--fiber-contacts, on 40; assigned by
+        ///    D-072 and D-074): the contacts entry's material rows gain each row's edge_radius_m (MaterialRow.EdgeRadius) after
+        ///    its density; the tether entry gains the switch FlightSetup.TetherWithoutContacts after the design 4 air's, and
+        ///    tether.json's contact block (13 rows; the entry writes every row); the events FiberContact (30) and FiberSlip (31),
+        ///    and WorldBug's causes 2–6; the record is 40's 2816 bytes (the bend's radius goes into the record with 1.13's
+        ///    fields: here it is FiberContact's and FiberContacts.MinBendRadius).
+        /// 45: the physics integration 2 with the fiber's contacts (unity/physics/physics-integration-2--int55, assigned by
+        ///    D-072): 43 merged onto 41: the contacts entry is 41's (the hanging half's switch after the lever's length, the
+        ///    stub's springs in the legs' data) with 43's EdgeRadius in each material row after its density; the tether entry
+        ///    43's (TetherWithoutContacts after the design 4 air's switch, tether.json's contact block); the events 43's
+        ///    (FiberContact 30, FiberSlip 31, WorldBug's causes 2-6); the record is 40's 2816 bytes.
         /// </summary>
-        public const int Version = 40;
+        public const int Version = 45;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -457,8 +472,31 @@ namespace Fpv450.Sim.Log
         ///    slide's carve, its stones and the fountain's air), so a flight whose legs touch steps as in 49 where its discs never
         ///    cut a softer face and it flies no line (or flies it on design 4's field); with LegLeverLength 0 a flight steps as in
         ///    48 over its 2784 bytes, the lean 0; a flight whose legs never touch the ground steps as in 48.
+        /// 51: the hanging skid half and the broken stub (p7g-legs on the line, unity/physics/physics-integration-2--skid-half,
+        ///    assigned by D-072). A hanging half's whole give is geometry (ContactSpec.HangingGive): its shapes stand out of what
+        ///    they touch by its contact spring's share alone, the cantilever's give by its turn about the holding leg's bore and
+        ///    the rest of its chain (the holding leg's give across its tube, the stick anchor in series with it, and the
+        ///    cantilever's share no turn about the bore gives) by its move along the deepest point's normal; it springs back as
+        ///    its skid leaves. At 50 only the cantilever's share moved its shapes, so under a few newtons the rest sank a half
+        ///    into a rigid limb past its centre (the crown in Windy's Tunnel through V01_L, 0.115 m deep). A broken leg's stub
+        ///    takes the clamp's mount as its contact spring (drone.json's mount_stiffness_n_per_m and mount_side_stiffness_n_per_m,
+        ///    the plate arm under the clamp out of and in its plane), never the free tube's 6.6 kN/m (50's stub passed H01_D's
+        ///    masonry, 44 mm). With HangingGive off and the stub's spring 0 a flight steps as in 50; a flight whose legs never
+        ///    part steps as in 50.
+        /// 53: the fiber's contacts (p7d-tether 1.7, design 6 and 12; on 50, assigned by D-072): the line meets the plane with its
+        ///    surface's own friction (surfaces.json's set at the flight's moisture), over a hole the shapes there; every shape but
+        ///    the twig, foliage and razor_wire shells under each segment's clearance certificate; the elements, snag records and
+        ///    conductors of three caches swapped in 20 steps after their request; the drone's parts, their reactions on the drone
+        ///    at the contact points in the next step; a node put where a member meets a segment, two members on a node in one
+        ///    solve; a capstan's hold slips across the line by Coulomb (CableChain). A flight without the line steps as in 50,
+        ///    and so does one with it and FlightSetup.TetherWithoutContacts.
+        /// 55: the physics integration 2 with the fiber's contacts (unity/physics/physics-integration-2--int55, assigned by
+        ///    D-072; the code is the parents' together): 53's fiber contacts merged onto 51's hanging half and stub. A flight
+        ///    without the line, or with it and FlightSetup.TetherWithoutContacts, steps as in 51; one whose legs never part (no
+        ///    hanging half, no stub) steps as in 53, and so does any flight with ContactSpec.HangingGive off and the stub's
+        ///    spring 0.
         /// </summary>
-        public const int ModelVersion = 50;
+        public const int ModelVersion = 55;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

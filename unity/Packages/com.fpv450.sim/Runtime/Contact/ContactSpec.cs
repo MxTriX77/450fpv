@@ -89,6 +89,10 @@ namespace Fpv450.Sim.Contact
         /// kg/m³, the mass a carving blade flings.</summary>
         public double Hardness, CrushStrength, Density;
 
+        /// <summary>The radius of the row's arrises a line bends over (its edge_radius_m), m; 0 where the file's is null (a
+        /// row whose members are round, or homogenised: the fiber reads their own radius or skips them, p7d-tether 1.7).</summary>
+        public double EdgeRadius;
+
         public readonly bool Rigid => Stiffness == 0;
     }
 
@@ -163,6 +167,16 @@ namespace Fpv450.Sim.Contact
         /// at large leans its stiffening, never clamped at 0. 0 for 1.3's linear softening (model 46, its audit).
         /// </summary>
         public double LegLeverLength;
+
+        /// <summary>
+        /// A hanging skid half's whole give is geometry (p7g-legs, model 51): the massless half stands out of what it touches by
+        /// its contact spring's share of the force alone, its cantilever's give by its turn about the holding leg's bore and the
+        /// rest of its chain (the holding leg's give across its tube and the stick anchor in series, and the cantilever's share
+        /// that no turn about the bore gives) by its move along the deepest point's normal; unloaded as its skid leaves. On for
+        /// every flight; off only for the audit and the known-wrong against model 50, whose half turned by its cantilever's
+        /// share alone, so the holding leg's give was a penetration (a rigid limb passed under a few newtons, a Tunnel).
+        /// </summary>
+        public bool HangingGive = true;
 
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
