@@ -655,3 +655,23 @@ The pilot on the latest build: "straws render only when you fly close to them". 
 - **The near ring keeps the real strands** (the physics elements, AST-10). Beyond it, the straw is drawn by the asset's lighter LODs and the far layer (WLD micro-detail rendering), blended so it never pops.
 - **Only the look changes:** physics reads the elements, never the stand-ins (D-028: a stand-in for the look is allowed where it plays no physical role).
 - **Judged** on S04's review sheet at 1.5 / 10 / 50 / 200 m against letter H, with the frame rate on AC (PLT-07).
+
+## D-082 Props are real parts in every state; an armed prop on something strikes it · Accepted
+The pilot on the model-44 build, landed and disarmed tilted on the car's roof rack with a prop touching it: "the moment i ARM (even without using any sticks), i should move somehow as per physics", and "props seem to be noclip, they shouldn't be. each drone's component must affect its reaction with the world".
+- **A prop at rest is a rigid part of the drone:** its blades have contact shapes at their current angle, bear load like any part, and bend or break by `p7f`'s blade laws when the load passes them.
+- **An armed prop at idle** (Betaflight's motor idle, no sticks) that touches something strikes it by `p7f` 1.3's laws. The pass's impulse moves the drone; the blade chips, and a rotor that can't pay the pass jams.
+- **No part is ever passed through:** every visible part of the drone, the frame, motors, props, legs, coil and bottle, has a contact shape that matches it (D-028's "collision follows the visual").
+
+## D-083 Each motor has a health: heat, dirt and wear make it fail · Accepted
+The pilot: "each motor also should have their health var… the drone is upside down on the ground, so motors end up scraping directly against the ground. Not only do the propellers get damaged, but the motors themselves suffer too—they overheat due to the propellers making direct contact with the ground, and dirt or other debris can also get inside. In such a scenario, the motors begin to fail one after another (how quickly… depending on the physics, as well as the duration and intensity of the throttle while scraping against the ground)." Supersedes `p7f-damage` design's "heat and desync stay out of scope".
+- **Heat:** each motor's windings heat by I²R and cool by their published thermal capacity and resistance; a stalled or ground-loaded rotor draws more current and heats faster. Past the insulation's rating the windings short and the motor loses torque, then fails.
+- **Dirt:** soil and debris in the bell's gap (from the motor scraping or its prop carving soil) add rubbing drag and raise the gap's friction; enough of it binds the motor (`p7f`'s bind law).
+- **Wear and shocks:** a strike loads the shaft and bearings (`p7f`'s internals); a bent shaft or a damaged bearing adds drag and vibration.
+- **How fast a motor dies follows the physics:** the throttle, the time in contact and the load. Never a timer or a tuned rate. Every number is published or derived (D-024).
+- **The pilot sees it:** a hot or dragging motor sags in the flight, and the summary lists each motor's state.
+
+## D-084 The stick overlay is small, under the craft's name, and follows the sticks exactly · Accepted
+The pilot on the X stick overlay (D-078): "they shouldn't be that huge, they should be quite tiny, place them somewhere beneath the svinoriz osd label centered. also, they are jittery… like 5fps, while they should reflect precise stick positions". Supersedes D-078's "as Betaflight 4.5 draws it" for the overlay's size, place and rate.
+- **Small:** two small stick boxes, drawn in pixels, not as Betaflight's 7×5 character crosses.
+- **Placed** centred beneath the "SVINORIZ 10 OPTO" label.
+- **Smooth:** the cursors move at the feed's field rate from the sim's own stick samples, never at the OSD's character refresh.
