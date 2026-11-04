@@ -1,9 +1,9 @@
 // MapWorld's conductors for physics (p7d-tether task 1.2, design 9 and 12; WLD-11): WiresNear, the placed ports, each
 // conductor's ends and neighbours, and the envelope index. The query's rules are IWorldQuery's (Wires left to physics).
-// - The records: a variant's wires records give, beyond its chain (MapWorldLoad.cs), mass_kg_per_m, axial_stiffness_n
-//   and breaking_force_n, each above 0, and bending_stiffness_n_m2 where given, above 0 (p7d-tether 1.4 writes it; 0
-//   until then). The edge radius is the edge_radius_m of the variant's own edge snag record along the very same points
-//   (the pole-wires reading N-1: a wire's edge snag is written from its record's points), else half its diameter.
+// - The records: a variant's wires records give, beyond its chain (MapWorldLoad.cs), mass_kg_per_m, axial_stiffness_n,
+//   breaking_force_n and bending_stiffness_n_m2 (p7d-tether 1.4), each required and above 0. The edge radius is the
+//   edge_radius_m of the variant's own edge snag record along the very same points (the pole-wires reading N-1: a wire's
+//   edge snag is written from its record's points), else half its diameter.
 // - The ports: a variant's ports records (position, direction), placed at their row's pose as the shapes' axes are
 //   (world = position + R·local, the direction R·local). A port of a houses-class row is a house anchor, any other a
 //   pole's hook.
@@ -136,8 +136,7 @@ namespace Fpv450.Sim.World
                 lines.Mass[w] = Positive(wire, "mass_kg_per_m", where);
                 lines.Axial[w] = Positive(wire, "axial_stiffness_n", where);
                 lines.Breaking[w] = Positive(wire, "breaking_force_n", where);
-                if (wire.Member("bending_stiffness_n_m2") != null)
-                    lines.Bending[w] = Positive(wire, "bending_stiffness_n_m2", where);
+                lines.Bending[w] = Positive(wire, "bending_stiffness_n_m2", where);
                 lines.Edge[w] = meta.WireRadius[w];
                 for (int s = 0; snag != null && s < snag.Items.Count; s++)
                 {

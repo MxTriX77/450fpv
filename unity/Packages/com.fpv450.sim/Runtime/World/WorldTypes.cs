@@ -250,7 +250,7 @@ namespace Fpv450.Sim.World
         public double AxialStiffness;
         /// <summary>T_b: the record's breaking_force_n, N.</summary>
         public double BreakingForce;
-        /// <summary>EI: the record's bending_stiffness_n_m2, N·m²; 0 while the record carries none (before p7d-tether 1.4's rebuild).</summary>
+        /// <summary>EI: the record's bending_stiffness_n_m2, N·m² (p7d-tether 1.4; required, above 0).</summary>
         public double BendingStiffness;
         /// <summary>The arris the fiber bends over: its own edge snag record's edge_radius_m (a strand), else half its diameter, m.</summary>
         public double EdgeRadius;

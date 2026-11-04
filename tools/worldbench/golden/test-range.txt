@@ -8,7 +8,7 @@ test-range.contacts_overflow 14dd7cfc11b2c9aa
 test-range.rays 8b074ebde0836397
 test-range.micro e6ab1f8cf2f3016d
 test-range.micro_overflow 4bae9cef569252b7
-test-range.wires 013953f39f094d9c
-test-range.wires_overflow 9e2c4aa83b5395bf
+test-range.wires 1ca8cb31bddc1490
+test-range.wires_overflow 2444aaf3976a9e66
 test-range.contacts_nowires 097881764270723e
 test-range.rays_nowires eb51fd0e659d3c35

@@ -21,7 +21,7 @@ namespace Fpv450.Sim.Tests
         private sealed class Expected
         {
             public int Object, Shape, Wire;
-            public double Diameter, Mass, Sag, Axial, Breaking, Edge, Reach;
+            public double Diameter, Mass, Sag, Axial, Breaking, Bending, Edge, Reach;
             public Double3[] World;
         }
 
@@ -70,7 +70,7 @@ namespace Fpv450.Sim.Tests
                     {
                         Object = (int)(double)row["id"], Shape = List(meta["collision"]).Count + w, Wire = w, Diameter = (double)wire["diameter_m"],
                         Mass = (double)wire["mass_kg_per_m"], Sag = (double)wire["sag_m"], Axial = (double)wire["axial_stiffness_n"],
-                        Breaking = (double)wire["breaking_force_n"], World = new Double3[points.Count],
+                        Breaking = (double)wire["breaking_force_n"], Bending = (double)wire["bending_stiffness_n_m2"], World = new Double3[points.Count],
                     };
                     for (int k = 0; k < points.Count; k++)
                     {
@@ -162,7 +162,7 @@ namespace Fpv450.Sim.Tests
                     Near(got[k].Sag, e.Sag, at + " sag");
                     Near(got[k].AxialStiffness, e.Axial, at + " EA");
                     Near(got[k].BreakingForce, e.Breaking, at + " breaking force");
-                    Assert.That(got[k].BendingStiffness, Is.EqualTo(0), at + ": no EI in the record until p7d-tether 1.4");
+                    Near(got[k].BendingStiffness, e.Bending, at + " EI");
                     Near(got[k].EdgeRadius, e.Edge, at + ": its edge snag's edge radius");
                     Assert.That(world.MaterialName(got[k].Material), Is.EqualTo("cable"), at);
                     ReadOnlySpan<Double3> points = got[k].Points.Span;
@@ -330,6 +330,24 @@ namespace Fpv450.Sim.Tests
             {
                 Assert.That((got[k].B.Object, got[k].B.Port, got[k].B.Kind, got[k].B.NeighbourObject), Is.EqualTo((-1, -1, FittingKind.None, -1)), "no port");
                 Assert.That(got[k].A.Kind, Is.EqualTo(FittingKind.PoleHook), "its A end is as before");
+            }
+        }
+
+        [Test]
+        public void AWireRecordWithoutAPositiveBendingStiffness_IsRefusedNamingTheField()
+        {
+            // p7d-tether 1.4 writes bending_stiffness_n_m2 in every wire record; the loader requires it above 0.
+            string placements = MapWorldTests.Placements();
+            const string field = "\"bending_stiffness_n_m2\": 1.75345";
+            StringAssert.Contains(field, MapWorldTests.ReadModel("lines/L03/L03_medium.assetmeta.json"));
+            foreach (string with in new[] { "", "\"bending_stiffness_n_m2\": 0.0" })
+            {
+                string edit = with.Length == 0 ? "" : with + ",";
+                Func<string, string> read = path => path.EndsWith("L03_medium.assetmeta.json", StringComparison.Ordinal)
+                    ? MapWorldTests.ReadModel(path).Replace(field + ",", edit) : MapWorldTests.ReadModel(path);
+                var e = Assert.Throws<FormatException>(() => new MapWorld(placements, read, MapWorldTests.Materials()), with);
+                StringAssert.Contains("bending_stiffness_n_m2", e.Message);
+                TestContext.Out.WriteLine(e.Message);
             }
         }
 
