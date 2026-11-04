@@ -172,6 +172,7 @@ namespace Fpv450.Sim.Flight
         double _rainMassRate;
         readonly Contact.ContactModel _contacts;
         readonly Contact.PropStrikes _strikes; // the blades against what the discs cut (p7f-damage 1.3), or null
+        readonly Contact.LoosePieces _loose; // the pieces a damaged leg drops (p7g-legs 1.3), with the legs' law
         readonly Double3[] _hubWind = new Double3[4];
         readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
         readonly Sim.World.GroundSample[] _windGround = new Sim.World.GroundSample[1];
@@ -184,9 +185,9 @@ namespace Fpv450.Sim.Flight
         ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
-        StickSample _stick; // the last step's sample in force, published with the signals (FeedSignals.Sticks)
         readonly Tether.FiberLine _tether; // the fiber (FlightSetup.Tether), or null
         readonly Double3[] _tetherHubs;
+        StickSample _stick; // the last step's sample in force, published with the signals (FeedSignals.Sticks)
 
         // The feed's field window: sums over the steps so far, and the last whole field's values.
         Corners _sumHz, _sumAmps, _fieldHz, _fieldAmps;
@@ -280,9 +281,15 @@ namespace Fpv450.Sim.Flight
                 RuntimeIds[i] = World.Query.AddObject(objects[i].Name, objects[i].Shapes);
             if (setup.Contacts != null)
             {
-                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass, Contact.SurfaceTable.MoistureOf(setup.Rain));
+                Contact.Moisture moisture = Contact.SurfaceTable.MoistureOf(setup.Rain);
+                _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass, moisture, random: Random);
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
+                if (_contacts.Legs != null)
+                {
+                    _loose = new Contact.LoosePieces(_contacts.Spec, World, _mass, moisture);
+                    _trace.Loose = _loose;
+                }
                 if (_propulsion != null && setup.Propulsion.Rotor != null && setup.Contacts.BladeStrikes)
                     _strikes = new Contact.PropStrikes(_contacts, World, _propulsion, setup.Propulsion, Random);
             }
@@ -296,6 +303,28 @@ namespace Fpv450.Sim.Flight
                 if (setup.Propulsion != null)
                     for (int i = 0; i < 4; i++) _tetherHubs[i] = setup.Propulsion.Motors[i].Position;
             }
+        }
+
+        /// <summary>The pieces the legs dropped (p7g-legs 1.3), or null without the legs' law.</summary>
+        public Contact.LoosePieces Loose => _loose;
+
+        /// <summary>
+        /// A leg bent before the first step (the scenarios' damaged builds; a flight never calls it, and its log would not
+        /// replay): the leg's set, its shapes turned by it.
+        /// </summary>
+        public void PresetLeg(int leg, Double3 set, bool move = true) => _contacts.PresetLeg(leg, set, _state, move);
+
+        /// <summary>
+        /// A leg off before the first step (the scenarios' damaged builds; a flight never calls it, and its log would not
+        /// replay): slid out of its clamp, its piece dropped (no loose body: it is not there), its skid hanging from the other
+        /// leg on it, the build rebuilt.
+        /// </summary>
+        public void RemoveLeg(int leg)
+        {
+            _contacts.Legs.Remove(leg);
+            Contact.LegChange ch = _contacts.Restructure(_state, _events);
+            Rebuild(ch, ref _state, false);
+            _events.Clear();
         }
 
         public ref readonly FlightState State => ref _state;
@@ -408,6 +437,13 @@ namespace Fpv450.Sim.Flight
             _trace.AeroForce = airWorld;
             _trace.AeroMoment = airMoment;
             s.Step++;
+            // The pieces already loose step to this step's end; a leg or a T-joint that let go in this step's forces takes
+            // its pieces off now, at the moved pose, before the sweep (p7g-legs 1.3).
+            if (_loose != null)
+            {
+                _loose.Step(_wind);
+                if (_contacts.RestructurePending) Rebuild(_contacts.Restructure(s, _events), ref s, true);
+            }
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
             // The blades' passes across what the discs cut: their work off the rotors, their impulses on the body, the damage
             // they leave (p7f-damage design 6), after the move as the strikes are sensed.
@@ -442,6 +478,46 @@ namespace Fpv450.Sim.Flight
             moment = moment + m;
             _trace.Tether.Force = f;
             _trace.Tether.Moment = m;
+        }
+
+        // The build after a structure change (p7g-legs 1.3, design 5, the coil's rule): each piece flies loose from where it is
+        // with the drone's motion at its parts (fly), then the build without it, every leaving part at 0 kg and a broken leg
+        // cut to its stub (LoosePieces.Cut), rebuilt exactly once (MassModel), and the airframe's modes solved again for it.
+        // The state is the body origin's (RigidBody), so its velocity and turn stay: the body keeps its linear and angular
+        // momentum less what the pieces take, which is theirs at the same motion.
+        void Rebuild(Contact.LegChange ch, ref FlightState s, bool fly)
+        {
+            if (fly)
+                for (int p = 0; p < ch.Pieces; p++) _loose.Spawn(ch, p, s, _mass, _contacts, _events);
+            Contact.LegDamageSpec l = _contacts.Spec.Legs;
+            for (int p = 0; p < ch.Pieces; p++)
+            {
+                int bits = ch.Parts[p];
+                for (int c = 0; c < 4; c++)
+                {
+                    if ((bits & 1 << c) != 0) Off(l.Parts[c]);
+                    if ((bits & 1 << (8 + c)) != 0) Off(l.TJointParts[c]);
+                }
+                for (int side = 0; side < 2; side++)
+                    if ((bits & 1 << (12 + side)) != 0)
+                        for (int c = 0; c < 4; c++)
+                            if ((l.Bore[c].X >= 0) == (side == 0)) Off(l.SkidParts[c]);
+            }
+            for (int c = 0; c < 4; c++)
+            {
+                if ((ch.Stubs & 1 << c) == 0) continue;
+                Contact.LoosePieces.Cut(_mass.Part(l.Parts[c]), l.Clamp[c], out _, out DronePart stub);
+                _mass.SetPart(l.Parts[c], stub, false);
+            }
+            _mass.Rebuild();
+            _modes?.Rebuild(_mass, ref s.ModeShape, ref s.ModeRate);
+        }
+
+        void Off(int part)
+        {
+            DronePart p = _mass.Part(part);
+            p.Mass = 0;
+            _mass.SetPart(part, p, false);
         }
 
         // The camera mount's acceleration over the step, body m/s²: the body origin's (from its velocities), the turn's at the
@@ -733,7 +809,18 @@ namespace Fpv450.Sim.Flight
                 Armed = s.Armed,
                 LegCompression = _trace.LegCompression, // the step's start: one step behind the pose
                 CameraTurn = _modes != null ? _modes.FrameTurn(s.ModeShape) : default,
+                LegState = _trace.LegState,
+                CornerState = _trace.CornerState,
+                LegSet = _trace.LegSet,
+                SkidFold = _trace.SkidFold,
             };
+            if (_loose != null)
+                for (int i = 0; i < Contact.LoosePieces.Slots; i++)
+                {
+                    if (!_loose.Active(i)) continue;
+                    ref readonly FlightState p = ref _loose.State(i);
+                    pose.Loose[i] = new LoosePose { Parts = _loose.PartsOf(i), Position = p.Position, Attitude = p.Attitude, AtRest = _loose.AtRest(i) };
+                }
             if (_tether == null) return;
             CableChain line = _tether.Chain;
             int n = line.Count < FiberNodes.Capacity ? line.Count : FiberNodes.Capacity;

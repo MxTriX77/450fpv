@@ -198,3 +198,33 @@ The only new draws SHALL be each blade's factory pitch (`prop.blade_pitch`) and 
 #### Scenario: The budget holds
 - **WHEN** `flightbench --bench` runs on AC with the power mode printed: the props scraping `H01_D`'s wall for 2 s, a hover with a broken blade, a strike burst into V01_L's trunk, and a prop in the ground on a tipped landing
 - **THEN** every case's p99 step is at most 300 µs with 0 B allocated, and the damage's share of the step and the queries' share are printed
+
+### Requirement: Props are parts at rest, and an armed idle prop strikes what it touches
+A prop that is not turning SHALL be a rigid part of the drone: each blade's contact shapes at its current angle SHALL bear load through the contact model, and the blade SHALL bend or break by the blade laws when the load passes its sections. An armed rotor at the flight controller's motor idle that touches anything SHALL strike it by the strike laws. No visible part of the drone SHALL pass through the world (D-028, D-082).
+
+#### Scenario: A resting prop bears load
+- **WHEN** the drone is set down tilted so that one prop's blade rests on a rigid surface
+- **THEN** the drone rests on that blade, the blade's load and deflection are logged, and the known-wrong (the prop passed through) settles lower, on another part
+
+#### Scenario: Arming with a prop on something moves the drone
+- **WHEN** the drone rests disarmed and tilted on the car's roof rack with a prop on the rack, and is armed with the sticks centred
+- **THEN** the idle rotor strikes the rack, the drone moves by the strikes' impulses, the blade chips by the hardness rule, and each strike is logged
+
+### Requirement: Each motor has a health from heat, dirt and wear
+Each motor SHALL carry its windings' and bell's temperatures, its torque constant's factor, the dirt in its gap and its state. Heat SHALL come from I²R with copper's temperature coefficient and leave by conduction and the motor's own convection. The magnet's remanence SHALL fall with temperature, and the windings SHALL fail past the insulation's rating. Dirt SHALL enter the gap from scraping and carving and add rubbing drag, up to a bind. How fast a motor fails SHALL follow the throttle, the contact and the load, never a timer (D-083).
+
+#### Scenario: A stalled motor heats and fails
+- **WHEN** a rotor is jammed and its motor is held at full throttle
+- **THEN** its windings' temperature follows the two-node model's closed form within 1 %, its torque constant falls with the magnet's temperature, its insulation fails at its rating at a printed time, and the known-wrong (no heat) never fails
+
+#### Scenario: A spinning motor cools by its own air
+- **WHEN** the same current flows through a motor turning freely
+- **THEN** it settles cooler than the stalled one, by its convection's printed share
+
+#### Scenario: Dirt in the gap drags, then binds
+- **WHEN** a motor scrapes soil, or its prop carves soil next to it, for a printed time
+- **THEN** the dirt mass in its gap and its rubbing torque rise, and past the gap's capacity the motor binds by the bind law
+
+#### Scenario: Upside down on the ground with throttle, the motors fail one after another
+- **WHEN** the drone lies upside down on the dirt track with its props in the soil and the throttle held at three levels for 30 s
+- **THEN** each motor's failure time is printed, the motors fail at different times set by their own loads, a higher throttle fails them sooner, and the known-wrong (a fixed timer) fails them together

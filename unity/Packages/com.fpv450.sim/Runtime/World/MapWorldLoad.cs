@@ -18,6 +18,8 @@
 //   shapes are listed there each by its own.
 // - Each variant's wind volumes placed at its rows' poses, and each row's group, for the wind (MapWorldWind.cs); and
 //   each hole band's cut record, derived from its row's metadata (MapWorldWind.cs, the cut records).
+// - Each variant's micro elements (its sidecar, checked against the metadata's SHA-256) and ground features, and each
+//   row's pose for them (MapWorldMicro.cs). A hole band names its instance.
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -50,6 +52,7 @@ namespace Fpv450.Sim.World
             public WindRecord[] Wind;
             public Double3[] LevelGapCentre; // local: each level gap's vertices' mean (MapWorldWind.cs, the cut records)
             public double[] LevelGapNarrowest;
+            public Micro Micro;
         }
 
         /// <summary>The map maps/&lt;mapId&gt;/placements.json of the repository at `root`, with its metadata and the material table.</summary>
@@ -127,7 +130,7 @@ namespace Fpv450.Sim.World
                 string path = Text(row, "class", where) + "/" + Text(row, "asset", where) + "/" + variant + ".assetmeta.json";
                 if (!metas.TryGetValue(path, out Meta meta))
                 {
-                    meta = ParseMeta(path, readModel(path), materialIds);
+                    meta = ParseMeta(path, readModel(path), materialIds, readModel);
                     metas.Add(path, meta);
                 }
                 rowMeta[i] = meta;
@@ -212,7 +215,7 @@ namespace Fpv450.Sim.World
                 JsonNode line = Need(hole, "centre_line_m", JsonKind.Array, where);
                 if (line.Items.Count < 2 || !(radius > 0))
                     throw new FormatException(where + ": a band needs two centre-line points and a width");
-                var g = new Gap { BandFirst = band.Count, BandCount = line.Items.Count, Radius = radius,
+                var g = new Gap { BandFirst = band.Count, BandCount = line.Items.Count, Radius = radius, Instance = (int)Number(hole, "instance", where),
                     X0 = double.PositiveInfinity, Z0 = double.PositiveInfinity, X1 = double.NegativeInfinity, Z1 = double.NegativeInfinity };
                 var centre = new Double3[line.Items.Count];
                 for (int k = 0; k < centre.Length; k++)
@@ -274,6 +277,7 @@ namespace Fpv450.Sim.World
             for (int k = 0; k < _cellItems.Length; k++)
                 _cellItems[k] = listed[_cellItems[k]];
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
+            PlaceMicro(rowMeta, rowPosition, rowYaw);
 
             // The start points.
             var starts = new List<StartPoint>();
@@ -430,7 +434,7 @@ namespace Fpv450.Sim.World
 
         // ---- The metadata ------------------------------------------------------------------------------------------
 
-        private static Meta ParseMeta(string path, string text, Dictionary<string, ushort> materialIds)
+        private static Meta ParseMeta(string path, string text, Dictionary<string, ushort> materialIds, Func<string, string> readModel)
         {
             if (text == null)
                 throw new FormatException(path + ": not found");
@@ -449,6 +453,7 @@ namespace Fpv450.Sim.World
                 WireSag = new double[wires.Items.Count],
                 WireMaterial = new ushort[wires.Items.Count],
                 Wind = ParseWind(root, path),
+                Micro = ParseMicro(path, root, collision.Items.Count, readModel),
             };
             ParseLevelGaps(root, path, out meta.LevelGapCentre, out meta.LevelGapNarrowest);
             for (int s = 0; s < collision.Items.Count; s++)

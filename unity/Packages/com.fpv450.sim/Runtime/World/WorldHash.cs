@@ -42,8 +42,12 @@ namespace Fpv450.Sim.World
         /// bisects to that touch and reports it as the first touch (ShapeMath.Touch), where 3
         /// counted none: a core pitching across a curved shape lost a quarter of its touches.
         /// No golden case moved; both golden files re-recorded for the version line alone.
+        /// 5 (p7a-ground 1.9): MicroDetailNear and Feature join the interface (the placed assets'
+        /// micro elements, their sidecars checked against the metadata's SHA-256). No earlier case
+        /// moved; both golden files re-recorded for the version line, the test range's with the
+        /// micro-detail cases added.
         /// </summary>
-        public const int QueryVersion = 4;
+        public const int QueryVersion = 5;
 
         /// <summary>FNV-1a 64's offset basis: the hash of nothing.</summary>
         public const ulong Offset = 0xCBF29CE484222325UL;

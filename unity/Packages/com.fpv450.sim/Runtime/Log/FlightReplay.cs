@@ -30,8 +30,9 @@ namespace Fpv450.Sim.Log
     {
         public ReplayOutcome Outcome;
 
-        /// <summary>Step records replayed and matched, and events compared and matched (hitches are not compared).</summary>
-        public long Steps, Events;
+        /// <summary>Step records replayed and matched, and events compared and matched (hitches are not compared); the side
+        /// record's loose-piece records matched (p7g-legs 1.3).</summary>
+        public long Steps, Events, Loose;
 
         /// <summary>The first diverging step (0 for the flight's start: the body or a draw), or −1.</summary>
         public long Step = -1;
@@ -131,8 +132,10 @@ namespace Fpv450.Sim.Log
 
             var replayed = new byte[LogFormat.StepSize];
             var replayedEvent = new byte[LogFormat.EventSize];
+            var replayedLoose = new byte[Contact.LoosePieces.RecordSize];
             long step = core.State.Step;
             int matched = 0, expected = 0; // the current step's events: matched so far, made by the replay
+            int pieces = 0, looseExpected = 0, looseSlot = -1; // its side record (p7g-legs 1.3): matched, made, the last slot
             while (log.Next())
             {
                 ReadOnlySpan<byte> payload = log.Payload;
@@ -141,6 +144,8 @@ namespace Fpv450.Sim.Log
                     if (matched < expected)
                         return Diverge(result, step, "event " + matched, "the replay made " + (expected - matched) + " events the log lacks, the first "
                             + KindOf(core, matched));
+                    if (pieces < looseExpected)
+                        return Diverge(result, step, "loose", "the replay has " + (looseExpected - pieces) + " loose pieces the log's side record lacks");
                     long at = LogFormat.StepOf(payload);
                     if (at != step + 1)
                         return Diverge(result, step + 1, "step", "the log skips from step " + step + " to step " + at);
@@ -154,6 +159,28 @@ namespace Fpv450.Sim.Log
                     result.Steps++;
                     matched = 0;
                     expected = core.Events.Count + (core.Events.Lost > 0 ? 1 : 0);
+                    pieces = 0;
+                    looseSlot = -1;
+                    looseExpected = core.Loose != null && step % LogFormat.LooseSteps == 0 ? core.Loose.Count : 0;
+                }
+                else if (log.Kind == LogFormat.LooseBlock)
+                {
+                    // The side record: the replay's next flying or resting piece, bit for bit.
+                    int slot = looseSlot + 1;
+                    while (core.Loose != null && slot < Contact.LoosePieces.Slots && !core.Loose.Active(slot)) slot++;
+                    if (pieces >= looseExpected || core.Loose == null || slot >= Contact.LoosePieces.Slots)
+                        return Diverge(result, step, "loose", "the log's side record has a loose piece at step " + step + " that the replay has not");
+                    core.Loose.Encode(slot, replayedLoose);
+                    int i = FirstDifference(payload, replayedLoose);
+                    if (i >= 0)
+                    {
+                        DivergeField(result, step, LogFormat.LooseFields, i, payload, replayedLoose);
+                        result.Field = "loose " + slot + " " + result.Field;
+                        return result;
+                    }
+                    looseSlot = slot;
+                    pieces++;
+                    result.Loose++;
                 }
                 else
                 {
@@ -179,13 +206,16 @@ namespace Fpv450.Sim.Log
             if (matched < expected && log.Complete)
                 return Diverge(result, step, "event " + matched, "the replay made " + (expected - matched) + " events the log lacks, the first "
                     + KindOf(core, matched));
+            if (pieces < looseExpected && log.Complete)
+                return Diverge(result, step, "loose", "the replay has " + (looseExpected - pieces) + " loose pieces the log's side record lacks");
 
             if (log.Complete)
             {
                 if (log.End.Steps != result.Steps)
                     result.Notes.Add("the end block counts " + log.End.Steps + " steps, the log holds " + result.Steps);
                 result.Outcome = ReplayOutcome.Match;
-                result.Message = "match: " + result.Steps + " steps and " + result.Events + " events, bit for bit";
+                result.Message = "match: " + result.Steps + " steps and " + result.Events + " events, bit for bit"
+                    + (result.Loose > 0 ? ", and " + result.Loose + " loose-piece records" : "");
             }
             else
             {
