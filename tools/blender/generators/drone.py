@@ -46,6 +46,13 @@ shapes; each is drawn as follows.
 - **Legs** (leg_*), **clamps** (clamp_*), **T-joints** (tjoint_*), **skids** (skid_*): the leg tubes and skids the
   parts' cylinders exactly (the skids hollow, open-ended, a lime band on the port skid), the clamps the parts' size
   turned along the arm and trimmed to clear the packs, the T-joints the parts' plan, flat-bottomed on the ground.
+  Each corner's leg parts are their own meshes per LOD (p7g-legs 1.5: the player draws each leg from PoseFrame, set,
+  broken, gone or hanging), under the metadata's `readable` beside the coil pack, LEG_KINDS: the tube cut where the
+  sim cuts it, at its clamp's edge (clamp_edge), into the stub in the clamp (stub_<c>, open at the edge, which the
+  clamp's underside covers) and the free length below (leg_<c>, its end there the 10/8 mm tube's), its T-joint
+  (tjoint_<c>, none at LOD3) and its half of the skid (skid_<c>), the skid cut midway between its two bores
+  (skid_cut, the sim's half-skids' inner end), the band with its half. They keep asset space, the drone's origin,
+  as every LOD does: the sim's own pivots (DroneSpec.BuildLegDamage's Clamp and Bore, body frame) turn them.
 
 Collision (gallery noclip only: the flight's shapes come from drone.json through the core) follows the drawn parts;
 material ids follow the object sheet (the carbon parts `carbon_composite`, signed off by physics in p7b-airframe).
@@ -68,6 +75,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.p
 CORNERS = ("rr", "fr", "rl", "fl")  # Betaflight's motor order, the spec's motors[] and legs.parts
 LODS = 4
 PACK = "coil_pack"  # the coil's pack: its part and its readable meshes' kind (CoilShape.D01PackMesh in the player)
+# Each corner's leg parts, their readable meshes' kinds in the sim's corner order (p7g-legs 1.5; the player's names)
+LEG_KINDS = tuple(f"{kind}_{corner}" for corner in CORNERS for kind in ("stub", "leg", "tjoint", "skid"))
 # The palette recipes' columns, left to right (assets-src/materials/drone_<slot>.json); test_drone checks the order.
 PALETTES = {
     "carbon": ("plate", "edge", "tube"),
@@ -295,6 +304,7 @@ def build(params):
     layout = Layout(spec, params)
     parts = [part_meshes(params, layout, q) for q in range(LODS)]
     packs = [(q, parts[q].pop(PACK)) for q in range(LODS) if PACK in parts[q]]  # their own meshes, beside their LODs
+    legs = [(q, kind, parts[q].pop(kind)) for q in range(LODS) for kind in LEG_KINDS if kind in parts[q]]
     lods = []
     for q in range(LODS):
         mesh = Mesh()
@@ -302,7 +312,7 @@ def build(params):
             _append(mesh, m)
         mesh.smooth = set(mesh.slots())
         lods.append(mesh)
-    for _, pack in packs:
+    for pack in [p for _, p in packs] + [m for _, _, m in legs]:
         pack.smooth = set(pack.slots())
     lod = params["lod"]
     if layout.bottle_only:
@@ -316,13 +326,21 @@ def build(params):
               f"(DRN-02: 0.574 / 0.706 +-0.005), tip radius {spans['tip_radius']:.5f} m",
               f"FPV lens at ({lens[0]:g}, {lens[1]:g}, {lens[2]:g}) m, 0 deg uptilt, facing +z",
               f"coil pack its own readable mesh per LOD, {' / '.join(str(len(p.vertices)) for _, p in packs)} vertices"]
+    if legs:
+        cuts = ", ".join(f"{c} y {clamp_edge(layout, c)[1]:g}" for c in CORNERS)
+        report.append(f"leg parts their own readable meshes per LOD (stub, leg, T-joint, skid half a corner), "
+                      f"{' / '.join(str(sum(1 for lq, _, _ in legs if lq == q)) for q in range(LODS))} meshes; "
+                      f"tubes cut at the clamps' edges ({cuts}), skids at z {skid_cut(layout, 'right'):g} / "
+                      f"{skid_cut(layout, 'left'):g} m")
     return {
         "lods": lods,
-        "readable": [{"lod": q, "kind": PACK, "mesh": pack} for q, pack in packs],
+        "readable": [{"lod": q, "kind": PACK, "mesh": pack} for q, pack in packs]
+                    + [{"lod": q, "kind": kind, "mesh": m} for q, kind, m in legs],
         "switch_distances_m": [0.0, lod["lod1_switch_m"], lod["lod2_switch_m"], lod["lod3_switch_m"]],
         "cull_distance_m": lod["cull_m"],
         "materials": [{"slot": slot, "physics": PHYSICS[slot]}
-                      for slot in sorted({s for m in lods + [p for _, p in packs] for s in m.slots()})],
+                      for slot in sorted({s for m in lods + [p for _, p in packs] + [m for _, _, m in legs]
+                                          for s in m.slots()})],
         "collision": collision,
         "gaps": [],
         "wind_volumes": [],
@@ -389,7 +407,10 @@ def part_meshes(params, layout, q):
         add_part(f"arm_{corner}", _arm, params, layout, corner, i)
         add_part(f"motor_{corner}", _motor, params, layout, corner, i)
         add_part(f"prop_{corner}", _prop, params, layout, i)
-        for name, fn in ((f"leg_{corner}", _leg), (f"clamp_{corner}", _clamp), (f"tjoint_{corner}", _tjoint)):
+        if layout.has(f"leg_{corner}"):  # its tube in two, cut at the clamp's edge as the sim cuts it
+            add_part(f"stub_{corner}", _stub, params, layout, corner)
+            add_part(f"leg_{corner}", _leg, params, layout, corner)
+        for name, fn in ((f"clamp_{corner}", _clamp), (f"tjoint_{corner}", _tjoint)):
             if layout.has(name):
                 add_part(name, fn, params, layout, corner)
     add_part("plates", _plates, params, layout)
@@ -399,10 +420,9 @@ def part_meshes(params, layout, q):
             add_part(f"pack_{side}", _pack, params, layout, side)
             add_part(f"pack_{side}_straps", _pack_straps, params, layout, side)
             add_part(f"pack_{side}_leads", _leads, params, layout, side)
-        if layout.has(f"skid_{side}"):
-            add_part(f"skid_{side}", _skid, params, layout, side)
-            if side == "left" and params["skid_band"]:
-                add_part("skid_left_band", _skid_band, params, layout, side)
+        if layout.has(f"skid_{side}"):  # a half a corner, cut midway between its bores
+            for corner in skid_corners(layout, side):
+                add_part(f"skid_{corner}", _skid, params, layout, corner)
     add_part("coil", _coil, params, layout)
     add_part(PACK, _coil_pack, params, layout)
     add_part("coil_mount", _coil_mount, params, layout)
@@ -701,13 +721,39 @@ def _oriented(m, ids, inside, pnt):
 
 # --- legs ---------------------------------------------------------------------------------------------------------
 
-def _leg(m, q, params, layout, corner):
+def clamp_edge(layout, corner):
+    """Where leg `corner`'s tube leaves its clamp: on the leg's axis at the clamp part's underside, the sim's
+    LegDamageSpec.Clamp (DroneSpec.BuildLegDamage), where a broken tube parts and about which a set turns it."""
+    leg = layout.part(f"leg_{corner}")["position_m"]
+    return (leg[0], box_extent(layout.part(f"clamp_{corner}"))[0][1], leg[2])
+
+
+def _leg_tube(layout, corner):
     part = layout.part(f"leg_{corner}")
     x, y, z = part["position_m"]
-    r, L = part["diameter_m"] / 2, part["length_m"]
-    f = Frame((x, 0.0, z), (1, 0, 0), (0, 0, 1), (0, 1, 0))
-    lathe(m, f, [(y - L / 2, 0.0), (y - L / 2, r), (y + L / 2, r), (y + L / 2, 0.0)], (12, 8, 6, 4)[q], [TUBE] * 3,
+    return (Frame((x, 0.0, z), (1, 0, 0), (0, 0, 1), (0, 1, 0)), part["diameter_m"] / 2,
+            y - part["length_m"] / 2, y + part["length_m"] / 2)
+
+
+def _stub(m, q, params, layout, corner):
+    """The tube in the clamp (stub_<c>): from the clamp's edge up to its top at the arm, open at the edge, where the
+    clamp's underside covers it (a cap there would fight that face once the leg below is gone)."""
+    f, r, _, top = _leg_tube(layout, corner)
+    lathe(m, f, [(clamp_edge(layout, corner)[1], r), (top, r), (top, 0.0)], (12, 8, 6, 4)[q], [TUBE] * 2,
           phase=math.pi / 4)
+
+
+def _leg(m, q, params, layout, corner):
+    """The free length (leg_<c>): from its foot in the T-joint up to the clamp's edge, its end there the 10/8 mm
+    tube's at LOD0 and 1 (a bore 10 mm deep, as the skids' open ends), seen once it breaks off there."""
+    f, r, foot, _ = _leg_tube(layout, corner)
+    edge, sides = clamp_edge(layout, corner)[1], (12, 8, 6, 4)[q]
+    if q <= 1:
+        ri, depth = r - 0.001, 0.010
+        lathe(m, f, [(foot, 0.0), (foot, r), (edge, r), (edge, ri), (edge - depth, ri), (edge - depth, 0.0)], sides,
+              [TUBE, TUBE, TUBE, BLACK, BLACK], phase=math.pi / 4)
+    else:
+        lathe(m, f, [(foot, 0.0), (foot, r), (edge, r), (edge, 0.0)], sides, [TUBE] * 3, phase=math.pi / 4)
 
 
 def clamp_span(params, layout, corner):
@@ -780,19 +826,44 @@ def _tjoint(m, q, params, layout, corner):
           (12, 8, 6)[q], [BLACK] * 4)  # the leg's socket, closed on the sleeve's top
 
 
-def _skid(m, q, params, layout, side):
+def skid_corners(layout, side):
+    """The corners whose legs stand on skid `side`, in CORNERS order: the sim's, a leg at x >= 0 on the right skid."""
+    return [c for c in CORNERS if layout.has(f"leg_{c}")
+            and (layout.part(f"leg_{c}")["position_m"][0] >= 0) == (side == "right")]
+
+
+def skid_cut(layout, side):
+    """Where skid `side` is cut into its corners' halves: midway between its two legs' bores, the sim's half-skids'
+    inner end (drone.json's skid capsules, ContactModel's Middle)."""
+    zs = [layout.part(f"leg_{c}")["position_m"][2] for c in skid_corners(layout, side)]
+    return sum(zs) / len(zs)
+
+
+def _skid(m, q, params, layout, corner):
+    """Corner `corner`'s half of its skid (skid_<c>): from the cut out through its T-joint to the skid's open end,
+    closed at the cut; the lime band (aft of the port skid's rear T-joint) with the port rear half."""
+    side = "right" if layout.part(f"leg_{corner}")["position_m"][0] >= 0 else "left"
     part = layout.part(f"skid_{side}")
     x, y, z = part["position_m"]
-    r, L = part["diameter_m"] / 2, part["length_m"]
-    z0, z1 = z - L / 2, z + L / 2
+    r, L, cut = part["diameter_m"] / 2, part["length_m"], skid_cut(layout, side)
+    rear = layout.part(f"leg_{corner}")["position_m"][2] < cut
     f = Frame((x, y, 0.0), (1, 0, 0), (0, 1, 0), (0, 0, 1))
     sides = (12, 8, 6, 4)[q]
-    if q <= 1:  # 10/8 mm tube, open-ended (the sheet): the bore 10 mm deep each end
+    if q <= 1:  # 10/8 mm tube, open-ended (the sheet): the bore 10 mm deep at the end
         ri, depth = r - 0.001, 0.010
-        lathe(m, f, [(z0 + depth, 0.0), (z0 + depth, ri), (z0, ri), (z0, r), (z1, r), (z1, ri), (z1 - depth, ri),
-                     (z1 - depth, 0.0)], sides, [BLACK, BLACK, TUBE, TUBE, TUBE, BLACK, BLACK], phase=math.pi / 4)
+        if rear:
+            z0 = z - L / 2
+            lathe(m, f, [(z0 + depth, 0.0), (z0 + depth, ri), (z0, ri), (z0, r), (cut, r), (cut, 0.0)], sides,
+                  [BLACK, BLACK, TUBE, TUBE, TUBE], phase=math.pi / 4)
+        else:
+            z1 = z + L / 2
+            lathe(m, f, [(cut, 0.0), (cut, r), (z1, r), (z1, ri), (z1 - depth, ri), (z1 - depth, 0.0)], sides,
+                  [TUBE, TUBE, TUBE, BLACK, BLACK], phase=math.pi / 4)
     else:
-        lathe(m, f, [(z0, 0.0), (z0, r), (z1, r), (z1, 0.0)], sides, [TUBE] * 3, phase=math.pi / 4)
+        lo, hi = (z - L / 2, cut) if rear else (cut, z + L / 2)
+        lathe(m, f, [(lo, 0.0), (lo, r), (hi, r), (hi, 0.0)], sides, [TUBE] * 3, phase=math.pi / 4)
+    if side == "left" and rear and params["skid_band"]:
+        _skid_band(m, q, params, layout, side)
 
 
 def _skid_band(m, q, params, layout, side):

@@ -165,20 +165,20 @@ def test_motors_legs_skids_and_packs_are_their_parts(variant, spec):
         (x, y, z), r, L = mo["position_m"], mo["diameter_m"] / 2, mo["length_m"]
         lo, hi = bounds(parts[f"motor_{corner}"])
         assert lo == pytest.approx((x - r, y - L / 2, z - r), abs=MM) and hi == pytest.approx((x + r, y + L / 2, z + r), abs=MM)
-        if layout.has(f"leg_{corner}"):
+        if layout.has(f"leg_{corner}"):  # its tube drawn in two, the stub and the leg (p7g-legs 1.5)
             leg = part(spec, f"leg_{corner}")
             (x, y, z), r, L = leg["position_m"], leg["diameter_m"] / 2, leg["length_m"]
-            lo, hi = bounds(parts[f"leg_{corner}"])
+            lo, hi = bounds(geometry.merged([parts[f"stub_{corner}"], parts[f"leg_{corner}"]]))
             assert lo == pytest.approx((x - r, y - L / 2, z - r), abs=MM)
             assert hi == pytest.approx((x + r, y + L / 2, z + r), abs=MM)
     for side in ("left", "right"):
         pk = part(spec, f"pack_{side}")
         lo, hi = drone.box_extent(pk)
         assert bounds(parts[f"pack_{side}"]) == (pytest.approx(lo, abs=1e-9), pytest.approx(hi, abs=1e-9))
-        if layout.has(f"skid_{side}"):
+        if layout.has(f"skid_{side}"):  # drawn in its corners' halves
             sk = part(spec, f"skid_{side}")
             (x, y, z), r, L = sk["position_m"], sk["diameter_m"] / 2, sk["length_m"]
-            lo, hi = bounds(parts[f"skid_{side}"])
+            lo, hi = bounds(geometry.merged([parts[f"skid_{c}"] for c in drone.skid_corners(layout, side)]))
             assert lo == pytest.approx((x - r, y - r, z - L / 2), abs=MM) and hi == pytest.approx((x + r, y + r, z + L / 2), abs=MM)
 
 
@@ -266,14 +266,72 @@ def test_the_coil_pack_is_its_own_readable_mesh_holding_what_the_payout_moves(va
         return z1 - tol <= z <= z2 + tol and rp - rib - tol <= r <= rp + tol
 
     b = built[variant]
-    assert [(r["lod"], r["kind"]) for r in b["readable"]] == [(q, "coil_pack") for q in range(4)]
-    for q, (lod, readable) in enumerate(zip(b["lods"], b["readable"])):
+    packs = [r for r in b["readable"] if r["kind"] == "coil_pack"]  # beside the legs' parts on legs-on
+    assert [r["lod"] for r in packs] == list(range(4))
+    for q, (lod, readable) in enumerate(zip(b["lods"], packs)):
         pack = readable["mesh"]
-        assert not any(on_pack(v) for v in lod.vertices), f"LOD{q}: a vertex the payout moves outside the pack"
+        others = [r["mesh"] for r in b["readable"] if r["lod"] == q and r["kind"] != "coil_pack"]
+        assert not any(on_pack(v) for m in [lod] + others for v in m.vertices), \
+            f"LOD{q}: a vertex the payout moves outside the pack"
         assert sum(on_pack(v) for v in pack.vertices) == len(pack.vertices) - 2 * drone.COIL_SEGMENTS[q], f"LOD{q}"
         assert set(pack.slots()) == {"plastic"}
     data = meta.assemble("D01", variant, "drone", params, b, {s: f"drone_{s}" for s in drone.PALETTES})
-    assert [r["name"] for r in data["readable"]] == [f"{variant}_LOD{q}_coil_pack" for q in range(4)]
+    assert [r["name"] for r in data["readable"] if r["kind"] == "coil_pack"] == \
+        [f"{variant}_LOD{q}_coil_pack" for q in range(4)]
+
+
+def test_each_legs_parts_are_their_own_readable_meshes_cut_where_the_sim_cuts(spec, built):
+    """p7g-legs 1.5: the player draws each leg from PoseFrame (turned by its set about its clamp's edge, a stub when
+    broken, gone when detached, a hanging skid half folded, the pieces it dropped), so on legs-on each corner's parts
+    are their own readable meshes per LOD, <variant>_LOD<n>_<kind>_<corner> in the sim's corner order, and the body
+    draws none of them: the stub in the clamp above the clamp part's underside (DroneSpec.BuildLegDamage's Clamp),
+    the leg below it, the T-joint (none at LOD3, as before) and the skid's half from midway between its bores (the
+    skid capsules' inner end in drone.json) out, the band with the port rear half; all in asset space."""
+    params = load("D01_legs_on")
+    layout = drone.Layout(drone.load_spec(params), params)
+    b = built["D01_legs_on"]
+    assert spec["legs"]["parts"] == [f"leg_{c}" for c in drone.CORNERS]  # the sim's corner order, rear right first
+    kinds = [(q, f"{k}_{c}") for q in range(4) for c in drone.CORNERS for k in ("stub", "leg", "tjoint", "skid")
+             if q < 3 or k != "tjoint"]
+    assert [(r["lod"], r["kind"]) for r in b["readable"] if r["kind"] != "coil_pack"] == kinds
+    data = meta.assemble("D01", "D01_legs_on", "drone", params, b, {s: f"drone_{s}" for s in drone.PALETTES})
+    assert [r["name"] for r in data["readable"] if r["kind"] != "coil_pack"] == \
+        [f"D01_legs_on_LOD{q}_{k}" for q, k in kinds]
+    assert not [r for r in built["D01_legs_off"]["readable"] if r["kind"] != "coil_pack"]
+    capsules = {s["name"]: s for s in spec["contacts"]["shapes"] if s.get("role") == "skid"}
+    for q in range(4):
+        mesh = {r["kind"]: r["mesh"] for r in b["readable"] if r["lod"] == q}
+        body = b["lods"][q].vertices
+        for c in drone.CORNERS:
+            leg, clamp = part(spec, f"leg_{c}"), part(spec, f"clamp_{c}")
+            (x, y, z), r, L = leg["position_m"], leg["diameter_m"] / 2, leg["length_m"]
+            edge = clamp["position_m"][1] - clamp["size_m"][1] / 2
+            assert drone.clamp_edge(layout, c) == pytest.approx((x, edge, z), abs=1e-12)
+            for kind, (bottom, top) in (("stub", (edge, y + L / 2)), ("leg", (y - L / 2, edge))):
+                lo, hi = bounds(mesh[f"{kind}_{c}"])  # the tube's polygon across, exactly its span along
+                assert (lo[1], hi[1]) == pytest.approx((bottom, top), abs=1e-12), f"LOD{q} {kind}_{c}"
+                assert (lo[0], lo[2], hi[0], hi[2]) == pytest.approx((x - r, z - r, x + r, z + r),
+                                                                     abs=r * (1 - math.cos(math.pi / 4)) + 1e-9)
+            assert not any(abs(v[1] - edge) < 1e-9 and math.hypot(v[0] - x, v[2] - z) < r - 1e-6
+                           for v in mesh[f"stub_{c}"].vertices), "the stub is open at the edge"
+            assert not any(math.hypot(v[0] - x, v[2] - z) < r - 1e-6 and v[1] < edge - 1e-9 for v in body), \
+                f"LOD{q}: the body draws {c}'s leg"
+            assert (f"tjoint_{c}" in mesh) == (q < 3)
+        for side in ("right", "left"):
+            sk = part(spec, f"skid_{side}")
+            (x, y, z), r, L = sk["position_m"], sk["diameter_m"] / 2, sk["length_m"]
+            cut = drone.skid_cut(layout, side)
+            corners = drone.skid_corners(layout, side)
+            assert corners == [c for c in drone.CORNERS if (part(spec, f"leg_{c}")["position_m"][0] >= 0) == (side == "right")]
+            assert all(capsules[f"skid_{c}"]["b_m"]["value"][2] == pytest.approx(cut) for c in corners)
+            for c in corners:
+                rear = part(spec, f"leg_{c}")["position_m"][2] < cut
+                lo, hi = bounds(mesh[f"skid_{c}"])
+                assert (lo[2], hi[2]) == pytest.approx((z - L / 2, cut) if rear else (cut, z + L / 2), abs=1e-9)
+                band = any(uvs[0] == drone.LIME[1] for _, _, uvs, _ in mesh[f"skid_{c}"].faces)
+                assert band == (side == "left" and rear and q < 3), f"LOD{q} skid_{c}: the band with its half"
+            assert not any(math.hypot(v[0] - x, v[1] - y) < r - 1e-6 and abs(v[2] - z) < L / 2 for v in body), \
+                f"LOD{q}: the body draws the {side} skid"
 
 
 def test_payout_shrinks_the_pack_to_the_core():
@@ -425,10 +483,15 @@ def test_parts_are_closed_solids_with_outward_normals(spec):
     area = 0.5 * abs(sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(outline, outline[1:] + outline[:1])))
     assert volume(parts["pack_right"]) == pytest.approx(area * pk["size_m"][2])
     leg = part(spec, "leg_rr")
-    n = 12
-    assert volume(parts["leg_rr"]) == pytest.approx(n / 2 * (leg["diameter_m"] / 2) ** 2 * math.sin(2 * math.pi / n)
-                                                    * leg["length_m"])
-    for name in ("motor_rr", "prop_fl", "bottle", "skid_left", "plates", "clamp_rr", "tjoint_fr"):
+    n, r, foot = 12, leg["diameter_m"] / 2, leg["position_m"][1] - leg["length_m"] / 2
+
+    def prism(radius, length):
+        return n / 2 * radius ** 2 * math.sin(2 * math.pi / n) * length
+
+    # the free length below the clamp's edge, its end there the tube's 10 mm bore; the stub above is open at the edge
+    assert volume(parts["leg_rr"]) == pytest.approx(prism(r, drone.clamp_edge(layout, "rr")[1] - foot)
+                                                    - prism(r - 0.001, 0.010))
+    for name in ("motor_rr", "prop_fl", "bottle", "skid_rl", "skid_fl", "plates", "clamp_rr", "tjoint_fr"):
         assert volume(parts[name]) > 0, name
     assert volume(geometry.merged([parts["coil"], parts["coil_pack"]])) > 0  # the spool, its pack its own mesh
 
@@ -459,7 +522,7 @@ def test_build_is_deterministic():
 
 def test_no_face_is_degenerate(built):
     for b in built.values():
-        for mesh in b["lods"]:
+        for mesh in b["lods"] + [r["mesh"] for r in b["readable"]]:
             for indices, _, _, _ in mesh.faces:
                 assert len(set(indices)) == len(indices) >= 3
                 pts = [mesh.vertices[i] for i in indices]
