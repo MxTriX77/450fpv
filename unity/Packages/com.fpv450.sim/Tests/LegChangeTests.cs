@@ -255,7 +255,11 @@ namespace Fpv450.Sim.Tests
             LegDamageSpec l = Spec.BuildContacts(Spec.Nominal, m, h).Legs;
             Double3 at = l.Foot[leg];
             string[] builds = { "intact", "bent", "missing", "bent, shapes left (known-wrong)" };
+            // Since model 49 (p7g-legs 1.4, the legs' lever) a level drifting landing parts or bends the leading legs before it
+            // goes over, so the intact and the bent builds tip at no drift under 4 m/s; the bent leg is felt in the landing at the
+            // spec's 0.3 m/s of drift, its largest tilt (printed beside the tip speeds).
             var critical = new double[4, 4];
+            var tilt = new double[4, 4];
             for (int b = 0; b < 4; b++)
             {
                 string line = builds[b] + ":";
@@ -266,7 +270,9 @@ namespace Fpv450.Sim.Tests
                     LandingScenarios.Touch t = Drift(forward, leg, set, b);
                     t.Sign = sign;
                     critical[b, d] = LandingScenarios.CriticalSpeed(Spec, m, h, t);
-                    line += $"  {(forward ? "z" : "x")}{(sign > 0 ? "+" : "−")} {critical[b, d]:F3} m/s";
+                    t.Lateral = 0.3;
+                    tilt[b, d] = LandingScenarios.Run(Spec, m, h, t).MaxTilt;
+                    line += $"  {(forward ? "z" : "x")}{(sign > 0 ? "+" : "−")} {critical[b, d]:F3} m/s ({tilt[b, d]:F3}° at 0.3)";
                 }
                 TestContext.Out.WriteLine(line);
             }
@@ -278,7 +284,8 @@ namespace Fpv450.Sim.Tests
             for (int d = 0; d < 4; d++)
             {
                 Assert.That(critical[3, d], Is.EqualTo(critical[0, d]), "the known-wrong (the shapes left) tips as the intact");
-                differs |= critical[1, d] != critical[0, d];
+                Assert.That(tilt[3, d], Is.EqualTo(tilt[0, d]), "and lands as the intact at 0.3 m/s");
+                differs |= critical[1, d] != critical[0, d] || tilt[1, d] != tilt[0, d];
             }
             foreach (int d in new[] { towardX, towardZ })
                 Assert.That(critical[2, d], Is.LessThan(critical[0, d]), "the missing leg tips at a lower drift toward its side");

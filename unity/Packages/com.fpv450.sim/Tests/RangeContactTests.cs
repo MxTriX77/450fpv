@@ -233,7 +233,7 @@ namespace Fpv450.Sim.Tests
             ContactScenarios.PoleStrike r = Into("pole");
             // Since model 46 the front legs part on the pole after the prop's strike and the payload makes the crash a few
             // milliseconds later (ContactTests.IntoAPole): the flight's speed is judged at the first touch.
-            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1));
+            Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1), "the approach at 10 m/s (the carve's push then moves it, p7f-damage 1.3)");
             Assert.That(r.Object, Is.EqualTo("L01_straight"));
             Assert.That(r.Material, Is.EqualTo("timber"));
             Assert.That(r.Part, Is.Not.Null.And.Not.Empty);
@@ -258,7 +258,10 @@ namespace Fpv450.Sim.Tests
         }
 
         // The crown's twig shell (30 N/m) is meant to be pushed through to its bark limbs (physics_materials.json): leaving
-        // a twig shape is no tunnel. With every latched pass a tunnel, this flight logged 30.
+        // a twig shape is no tunnel. With every latched pass a tunnel, this flight logged 30. At model 46 it logged one, leg_rl's stub
+        // through V01_M's bark at 10.16 m/s, 13 ms after its tube parted; at model 48 the tip slide's carve moves the flight (the
+        // crash the payload's on Z11_tree_ash at 6.47 m/s, against 5.91) and it logs none; with the tip slide off (model 43's carve)
+        // that tunnel is back, so its cause, the post-crash class of a broken leg's part, is open (p7g-legs).
         [Test]
         public void IntoACrown()
         {
@@ -370,6 +373,13 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // Model 48 (the tip slide and the fountain on the line): the crown with the airframe's effects logs one tunnel after its
+        // crash (the payload on Z11_tree_ash at 5.01 m/s, step 10507): at step 11332 the right skid's rear half (skid_rr), hanging
+        // from leg_fr's T-joint since leg_rr parted (step 10374), passes V01_M's bark at 6.24 m/s, 25 mm deep, the body falling at
+        // 1.6 m/s: the hanging half's turn a step behind (p7g-legs 1.3; RangeContactTests' Calm crown). It stays red.
+        // Model 50 (the legs' lever on the line): no tunnel (first skid_left on V01_L's twig at 9.77 m/s, the crash the payload's
+        // on Z11_tree_ash at 5.74 m/s, 64 touches); the lever moves the flight off its hanging half's pass, the class is open
+        // (the crown in Windy, InTheWindNoTunnelThroughARigidShape).
         [Test]
         public void WithTheAirframesEffectsACompliantShapeIsNoTunnel()
         {
@@ -471,6 +481,8 @@ namespace Fpv450.Sim.Tests
 
         // No tunnel through a compliant shape in the wind: the straw landings in the crosswind, and the crown in Windy's field
         // (the posadka stands on the plane; the approach crosses S04, where the field blows since model 20).
+        // Model 50 (the legs' lever on the line): the crown in Windy logs one, the left skid's front half hanging from leg_rl's
+        // T-joint after leg_fl breaks (InTheWindNoTunnelThroughARigidShape's Windy crown, the same flight). It stays red.
         [Test]
         public void InTheWindACompliantShapeIsNoTunnel()
         {
@@ -525,9 +537,25 @@ namespace Fpv450.Sim.Tests
         // V01_L's bark at 9.94 m/s at step 10302, 23 ms after leg_rr parts there (12.1 N·m) and as its skid half, hanging from
         // leg_fr's T-joint, folds (the half's turn a step behind, 1.3's 5.52 m case's mechanism); the crown in Calm and Windy and
         // the wire's other cases none.
+        // Model 48 (the tip slide and the fountain on the line): each flight still reaches its shape (the wire's first touch is on
+        // L03's cable, the crown's on V01_L; asserted since), and the crown in Severe logs none (it logged one at 46). The crown in
+        // Calm logs one, support_rr_end through Z10_tree_acacia's timber at 9.44 m/s, 0.146 m deep, at step 11864: 20 ms after
+        // leg_rr parts (11844) and 4 ms after the right skid's half, hanging from leg_fr's T-joint, folds (11860), the half's turn a
+        // step behind (46's Severe mechanism, p7g-legs 1.3). A tunnel is a bug: the case stays red until the hanging half's turn is
+        // in its step.
+        // Model 49 (p7g-legs 1.4, the legs' lever): the crown in Severe logs two, both through support_rr_end of leg_rr's skid half
+        // hanging from leg_fr's T-joint after leg_rr parts (11.9 N·m, step 10279): through V01_L's bark at 9.94 m/s at step 10302
+        // as on model 46, and through Z11_tree_ash's timber at 15.6 m/s at step 10713 in the crash's tumble; the hanging half's
+        // turn a step behind (1.3's mechanism) and its fold without a parting limit (open since 1.3); the rest none.
+        // Model 50 (the legs' lever on the line): each flight still reaches its shape. The crown in Calm and Severe log none
+        // (Calm's model 48 tunnel is gone: first skid_left on V01_L's twig at 11.16 m/s, the crash the payload's on
+        // Z11_tree_ash at 3.62 m/s), and the crown in Windy logs one: support_fl_end of the left skid through V01_L's bark,
+        // 0.115 m deep at 2.31 m/s, at step 10975, 66 ms after leg_fl breaks (10909) with leg_rl cracked and set and on, the
+        // skid's front half hanging from leg_rl's T-joint: the hanging half's turn a step behind again (1.3's mechanism),
+        // moved from Calm to Windy by the lever, not closed. A tunnel is a bug: it stays red.
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
-        [TestCase("crown", 10.0, WindLevel.Severe, 1)]
+        [TestCase("crown", 10.0, WindLevel.Severe, 0)]
         [TestCase("wire", 5.47, WindLevel.Severe, 0)]
         [TestCase("wire", 5.475, WindLevel.Severe, 0)]
         [TestCase("wire", 5.51, WindLevel.Severe, 0)]
@@ -543,6 +571,7 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"{name} at {height} m in {level}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; "
                 + $"crash ({p.Cause}) by {p.Part} on {p.Object} ({p.Material}) at {p.FlightSpeed:F2} m/s; {p.Tunnels} tunnels ({string.Join(", ", p.TunnelThrough)}), {p.Lost} lost");
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
+            Assert.That(p.Touched.Count, Is.GreaterThan(0), "the flight reaches its shape");
             Assert.That(p.Lost, Is.EqualTo(0));
             Assert.That(p.Tunnels, Is.EqualTo(legTunnels));
             Assert.That(p.ThroughBroken, Is.EqualTo(p.Tunnels), "each through a broken leg's part, which 1.3 parts from the drone");

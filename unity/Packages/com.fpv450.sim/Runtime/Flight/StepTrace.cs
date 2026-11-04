@@ -92,8 +92,13 @@ namespace Fpv450.Sim.Flight
         public uint CornerState;
 
         /// <summary>Each leg's side give this step with the anchor in series, N/m: the tube's by its crack less the axial load's
-        /// softening (P·Δ), or a hanging half's cantilever (p7g-legs 1.3).</summary>
+        /// softening (P·Δ), or a hanging half's cantilever (p7g-legs 1.3); on the lever (1.4) its points' secants, negative past
+        /// the sway load.</summary>
         public Corners LegSideGive;
+
+        /// <summary>Each leg's lean on its lever this step (p7g-legs 1.4): its foot's offset across the tube from its rest, its
+        /// points' shares of it, m; 0 off the lever or off the ground.</summary>
+        public Corners LegLean;
 
         /// <summary>Each leg's jaws' turn at the foot, body m (the side spring's rest moved by their friction slipping).</summary>
         public Corners3 LegJaw;
@@ -214,7 +219,15 @@ namespace Fpv450.Sim.Flight
         /// </summary>
         RotorJammed = 19,
 
-        // 20–22 are reserved for p7f-damage (D-074).
+        /// <summary>
+        /// A soil carve's pass met a stone (p7f-damage 1.3's tip slide: surfaces.json's stone fraction, the "soil.stones" draw):
+        /// Part's prop, Index the blade (low 4 bits) and what the stone did (high 4 bits, StrikeMode: Break, Crush for a notch or
+        /// a sever, Glance for an elastic push), on (Object, Shape) of Surface at Point, the stone's place on the leading edge.
+        /// A: the energy it took from the rotor, J; B: the stone's diameter, m; C: the blade's speed into it, m/s.
+        /// </summary>
+        StoneStrike = 20,
+
+        // 21–22 are reserved for p7f-damage (D-074).
 
         /// <summary>Part's leg began to yield, a set that stays (Index: Contact.LegMode, Bending, Buckling or ClampTwist), loaded
         /// by (Object, Shape) at Point (p7g-legs 1.2). A: the moment at its clamp's edge, or the twist on its jaws, N·m; B: the

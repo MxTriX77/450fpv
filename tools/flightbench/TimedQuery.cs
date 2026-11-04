@@ -28,19 +28,20 @@ namespace Fpv450.FlightBench
             Calls++;
         }
 
-        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results)
+        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
+            QueryFilter filter = QueryFilter.None)
         {
             long t = Stopwatch.GetTimestamp();
-            int found = _world.StaticContacts(previous, current, margin, results);
+            int found = _world.StaticContacts(previous, current, margin, results, filter);
             Ticks += Stopwatch.GetTimestamp() - t;
             Calls++;
             return found;
         }
 
-        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits)
+        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None)
         {
             long t = Stopwatch.GetTimestamp();
-            _world.Raycast(rays, maxDistance, hits);
+            _world.Raycast(rays, maxDistance, hits, filter);
             Ticks += Stopwatch.GetTimestamp() - t;
             Calls++;
         }
@@ -56,6 +57,8 @@ namespace Fpv450.FlightBench
 
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>
             _world.MicroDetailNear(centre, radius, kinds, results);
+        public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _world.WiresNear(centre, radius, results);
+        public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _world.SnagsNear(centre, radius, results);
         public bool Feature(int obj, int shape, out GroundFeature feature) => _world.Feature(obj, shape, out feature);
         public int AddObject(string name, ReadOnlySpan<ShapeGeometry> shapes) => _world.AddObject(name, shapes);
         public void ResetRuntimeObjects() => _world.ResetRuntimeObjects();

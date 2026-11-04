@@ -350,8 +350,24 @@ def test_records_carry_the_conductors_stiffness_and_breaking_force(repo_root, ma
     assert wire_span.mechanics(load(repo_root, "L03_medium"))[1] == 8198.0  # A-50 exactly, its own published figure
     for kind in ("acsr", "insulated"):
         problems = params.validate(wire_span, dict(load(repo_root, "L03_medium"), conductor_type=kind))
-        assert f"'conductor_type' = '{kind}' has no axial stiffness or breaking force read yet; use one of " \
-               "steel_wire, bare_al, sip_drop" in problems, problems
+        assert f"'conductor_type' = '{kind}' has no axial stiffness, breaking force or bending stiffness read yet; " \
+               "use one of steel_wire, bare_al, sip_drop" in problems, problems
+
+
+def test_records_carry_the_conductors_bending_stiffness(repo_root, material_ids):
+    """p7d-tether's "A conductor's bending stiffness" (design 15): 5 mm solid steel E pi D^4 / 64 at 200 GPa, 6.1 N m²;
+    A-50 its 7 strands of 3.00 mm bending freely at 63 GPa, 1.75 N m²; both within 1 %. The 2 x 16 mm² drop each core
+    so, its 16 mm² as 7 free strands and 1.3 mm of XLPE at 0.3 GPa as a tube on the 7.5 mm core: 0.443 N m²."""
+    strand = math.sqrt(4 * 16e-6 / (7 * math.pi))
+    core = 7 * 63e9 * math.pi * strand ** 4 / 64 + 0.3e9 * math.pi * (0.0075 ** 4 - 0.0049 ** 4) / 64
+    want = {"L03_thin": (6.1, 0.01), "L03_medium": (1.75, 0.01), "L03_thick": (2 * core, 1e-5)}  # 6 decimals written
+    for name, (bending, rel) in want.items():
+        _, _, data = build(repo_root, name)
+        assert meta.validate(data, material_ids) == []
+        for wire in data["wires"]:
+            assert wire["bending_stiffness_n_m2"] == pytest.approx(bending, rel=rel)
+        print(f"{name}: EI {data['wires'][0]['bending_stiffness_n_m2']:.6f} N m² (want {bending:.6f})")
+    assert 2 * core == pytest.approx(0.443, abs=5e-4)
 
 
 def test_build_is_deterministic_and_the_seed_moves_only_uvs_and_the_twist(repo_root):

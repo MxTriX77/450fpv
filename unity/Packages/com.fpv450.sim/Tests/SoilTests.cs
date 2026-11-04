@@ -362,7 +362,9 @@ namespace Fpv450.Sim.Tests
         {
             // Since model 46 (p7g-legs on the line) the soil's catch is judged with the legs rigid across their tubes
             // (LandingScenarios.RigidAcross, as D-067's mechanics and the groove's scenarios): on the PVC-U legs' side give the
-            // bending legs absorb the skid's catch (p7g-legs 1.3's caught skid), and the stumble reverses, printed beside.
+            // bending legs absorb the skid's catch (p7g-legs 1.3's caught skid), and the stumble reversed (tilled 0.173°, dirt track
+            // 0.407°). Since model 49 on the lever (p7g-legs 1.4) it no longer reverses: the leaning legs' statics carry the catch
+            // (0.693° against 0.508°), asserted beside.
             DroneSpec spec = Drone();
             System.Func<ContactSpec, ContactSpec> rigidAcross = LandingScenarios.RigidAcross();
             SoilScenarios.Landing tilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, legs: rigidAcross);
@@ -375,6 +377,7 @@ namespace Fpv450.Sim.Tests
                 + $"({track.PeakSink * 1e3:F2} mm); rigid ground {rigidTilled.NoseDown:F3}° and {rigidTrack.NoseDown:F3}°; on the legs' side give tilled "
                 + $"{softTilled.NoseDown:F3}° ({softTilled.PeakSink * 1e3:F2} mm), dirt track {softTrack.NoseDown:F3}° ({softTrack.PeakSink * 1e3:F2} mm)");
             Assert.That(tilled.NoseDown, Is.GreaterThan(track.NoseDown));
+            Assert.That(softTilled.NoseDown, Is.GreaterThan(softTrack.NoseDown), "on the legs' side give too, on their lever");
             Assert.That(Math.Abs(rigidTilled.NoseDown - rigidTrack.NoseDown), Is.LessThan(0.5 * (tilled.NoseDown - track.NoseDown)),
                 "the rigid ground with plain friction cannot tell them apart, so it fails");
         }

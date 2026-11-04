@@ -200,6 +200,102 @@ namespace Fpv450.Sim.World
         public int Index => (int)(uint)Id;
     }
 
+    /// <summary>What StaticContacts and Raycast leave out (p7d-tether design 9 and 12): None sees everything, as before.</summary>
+    [Flags]
+    public enum QueryFilter : byte
+    {
+        None = 0,
+        /// <summary>No wire shapes: physics owns the conductors' live state and meets them through WiresNear.</summary>
+        NoWires = 1,
+    }
+
+    /// <summary>The fitting a conductor's end hangs from (IWorldQuery.WiresNear).</summary>
+    public enum FittingKind : byte
+    {
+        /// <summary>No port within 5 mm of the end's seat: a world bug, reported at load (MapWorld.WorldBugs).</summary>
+        None = 0,
+        /// <summary>A pole's insulator hook: a port of an asset of any class but houses (L01's hook_0 … hook_3).</summary>
+        PoleHook = 1,
+        /// <summary>A house's wall anchor: a port of a houses-class asset.</summary>
+        HouseAnchor = 2,
+    }
+
+    /// <summary>One end of a conductor (Conductor.A at its first point, Conductor.B at its last).</summary>
+    public struct WireEnd
+    {
+        /// <summary>The placed object whose port it hangs from; −1 for none.</summary>
+        public int Object;
+        /// <summary>That port's index among its object's metadata ports, in their order; −1 for none.</summary>
+        public int Port;
+        public FittingKind Kind;
+        /// <summary>The span sharing the port on the same conductor line (its object and wire shape); −1 and −1 for none (a line's last pole).</summary>
+        public int NeighbourObject, NeighbourShape;
+    }
+
+    /// <summary>
+    /// A placed conductor near a point (IWorldQuery.WiresNear; p7d-tether design 12): its wire record's fields, its rest
+    /// chain and its two ends. The chain is the world's rest shape; physics owns its live state (design 9).
+    /// </summary>
+    public struct Conductor
+    {
+        /// <summary>The placed object and its wire shape (Geometry gives its chord, span and sag).</summary>
+        public int Object, Shape;
+        /// <summary>The record's diameter_m, m.</summary>
+        public double Diameter;
+        /// <summary>The record's mass_kg_per_m, kg/m.</summary>
+        public double MassPerMetre;
+        /// <summary>The record's sag_m at mid-span, m.</summary>
+        public double Sag;
+        /// <summary>EA: the record's axial_stiffness_n, N.</summary>
+        public double AxialStiffness;
+        /// <summary>T_b: the record's breaking_force_n, N.</summary>
+        public double BreakingForce;
+        /// <summary>EI: the record's bending_stiffness_n_m2, N·m² (p7d-tether 1.4; required, above 0).</summary>
+        public double BendingStiffness;
+        /// <summary>The arris the fiber bends over: its own edge snag record's edge_radius_m (a strand), else half its diameter, m.</summary>
+        public double EdgeRadius;
+        /// <summary>The record's material id (cable).</summary>
+        public ushort Material;
+        /// <summary>The rest chain in world space, first point first (MapWorld.WirePoints); the world's own, read-only.</summary>
+        public ReadOnlyMemory<Double3> Points;
+        /// <summary>The ends at the first and the last point.</summary>
+        public WireEnd A, B;
+    }
+
+    /// <summary>A snag record's kind (tools/blender/lib/meta.py SNAG_KINDS).</summary>
+    public enum SnagKind : byte
+    {
+        /// <summary>A polyline the fiber bends over.</summary>
+        Edge = 0,
+        /// <summary>A free-ended member, from its base (the first point) to its tip (the last).</summary>
+        Hook = 1,
+    }
+
+    /// <summary>
+    /// One segment of a placed snag record near a point (IWorldQuery.SnagsNear; p7d-tether design 12, the fortifications
+    /// reading §1 and §7): the record's fields and the segment's two points in world space.
+    /// </summary>
+    public struct SnagSegment
+    {
+        /// <summary>The placed object (instance).</summary>
+        public int Object;
+        /// <summary>The record's index among its variant's snag records, in their order.</summary>
+        public int Record;
+        /// <summary>The segment's index in its record: from point Segment to point Segment + 1.</summary>
+        public int Segment;
+        public SnagKind Kind;
+        /// <summary>The record's radius_m: the member's reach (props, legs and the fiber touch it within this), m.</summary>
+        public double Radius;
+        /// <summary>The arris the fiber bends over: the record's edge_radius_m, else its radius_m, m.</summary>
+        public double EdgeRadius;
+        /// <summary>The record's barb_pitch_m (an edge's barb clusters' spacing), m; 0 for a smooth member.</summary>
+        public double BarbPitch;
+        /// <summary>The record's material id (the member it follows).</summary>
+        public ushort Material;
+        /// <summary>The segment's ends in world space, m: the record's points Segment and Segment + 1.</summary>
+        public Double3 A, B;
+    }
+
     /// <summary>A ground feature an asset's shapes belong to (IWorldQuery.Feature): a pitfall of its metadata's features records.</summary>
     public struct GroundFeature
     {

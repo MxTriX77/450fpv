@@ -98,8 +98,8 @@ namespace Fpv450.World
         /// <summary>
         /// A conductor that is a map object, not a collision shape (p1-l01-l03-pole-wires, D-007): the material slot
         /// its tube is drawn in, its diameter, mass per metre and sag below the chord at mid-span, its axial stiffness
-        /// EA and rated breaking force (PHY-22's inputs), material <c>cable</c>, its damage state and its sampled centre
-        /// line. No collider stands for it.
+        /// EA, rated breaking force and bending stiffness EI (PHY-22's inputs; EI from p7d-tether 1.4), material
+        /// <c>cable</c>, its damage state and its sampled centre line. No collider stands for it.
         /// </summary>
         [Serializable]
         public sealed class Wire
@@ -110,6 +110,7 @@ namespace Fpv450.World
             public float sagM;
             public float axialStiffnessN;
             public float breakingForceN;
+            public float bendingStiffnessNM2;
             public string material;
             public string damage;
             public Vector3[] points;

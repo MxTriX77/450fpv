@@ -25,6 +25,9 @@
 //   (S04's patch of long, crossing strips) stays in the grid, where its tree would visit
 //   more nodes than the grid walks shapes. Runtime objects are checked by their bounds
 //   first.
+// - Wires for physics (p7d-tether 1.2): StaticContacts and Raycast skip every wire under QueryFilter.NoWires;
+//   WiresNear, the conductors' envelope index, their ports and ends are MapWorldWires.cs.
+// - Snag records for the fiber (p7d-tether 1.3): SnagsNear and its index are MapWorldSnags.cs.
 // - Ids: materials are the names given at load (physics_materials.json's rows in file
 //   order, 1 … n); surfaces are S01–S13 (SurfaceIds, 1 … 13).
 // - Identity (design 6): FNV-1a over the placement file, every referenced .assetmeta.json
@@ -165,8 +168,10 @@ namespace Fpv450.Sim.World
 
         // ---- StaticContacts ----------------------------------------------------------------------------------------
 
-        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results)
+        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
+            QueryFilter filter = QueryFilter.None)
         {
+            bool noWires = (filter & QueryFilter.NoWires) != 0;
             double pad = current.Radius + margin;
             Bounds reach = Bounds.Of(previous.A, previous.B, pad).Union(Bounds.Of(current.A, current.B, pad));
             double speed = DetMath.Max((current.A - previous.A).Length(), (current.B - previous.B).Length());
@@ -189,7 +194,7 @@ namespace Fpv450.Sim.World
                         {
                             ref readonly Prim p = ref _prims[item];
                             if ((p.CellX > x0 ? p.CellX : x0) == cx && (p.CellZ > z0 ? p.CellZ : z0) == cz && p.Box.Overlaps(reach))
-                                SweepPrim(item, previous, current, margin, speed, reach, results, ref count);
+                                SweepPrim(item, previous, current, margin, speed, reach, noWires, results, ref count);
                             continue;
                         }
                         int o = ~item;
@@ -211,7 +216,7 @@ namespace Fpv450.Sim.World
                             }
                             for (int m = node.First; m < node.First + node.Count; m++)
                                 if (_prims[_leafPrims[m]].Box.Overlaps(reach))
-                                    SweepPrim(_leafPrims[m], previous, current, margin, speed, reach, results, ref count);
+                                    SweepPrim(_leafPrims[m], previous, current, margin, speed, reach, noWires, results, ref count);
                         }
                     }
                 }
@@ -230,8 +235,8 @@ namespace Fpv450.Sim.World
             return count;
         }
 
-        /// <summary>Placed shape i's sweep, its contact inserted in canonical order.</summary>
-        private void SweepPrim(int i, in Capsule previous, in Capsule current, double margin, double speed, in Bounds reach,
+        /// <summary>Placed shape i's sweep, its contact inserted in canonical order; none for a wire when noWires.</summary>
+        private void SweepPrim(int i, in Capsule previous, in Capsule current, double margin, double speed, in Bounds reach, bool noWires,
             Span<StaticContact> results, ref int count)
         {
             ref readonly Prim p = ref _prims[i];
@@ -240,6 +245,8 @@ namespace Fpv450.Sim.World
             double time = 1;
             if (p.Geometry.Kind == ShapeKind.Wire)
             {
+                if (noWires)
+                    return;
                 ShapeMath.WireRange(_wireProj, p.WireFirst, p.WireCount, _wirePoints[p.WireFirst], p.Geometry.AxisY, p.Geometry.Radius, reach,
                     out int lo, out int hi);
                 hit = lo <= hi && ShapeMath.Sweep(new WireChain(_wirePoints, _wireAlong, p.WireFirst, p.WireCount, p.Geometry.Radius, lo, hi, reach),
@@ -266,13 +273,14 @@ namespace Fpv450.Sim.World
 
         // ---- Raycast -----------------------------------------------------------------------------------------------
 
-        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits)
+        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None)
         {
+            bool noWires = (filter & QueryFilter.NoWires) != 0;
             for (int i = 0; i < rays.Length; i++)
-                hits[i] = Cast(rays[i], maxDistance);
+                hits[i] = Cast(rays[i], maxDistance, noWires);
         }
 
-        private RayHit Cast(in Ray ray, double maxDistance)
+        private RayHit Cast(in Ray ray, double maxDistance, bool noWires)
         {
             var hit = new RayHit { Distance = double.PositiveInfinity, Object = WorldIds.Ground };
             Double3 o = ray.Origin, d = ShapeMath.Unit(ray.Direction);
@@ -310,7 +318,7 @@ namespace Fpv450.Sim.World
                         {
                             ref readonly Prim p = ref _prims[item];
                             if ((p.CellX > x0 ? p.CellX : x0) == cx && (p.CellZ > z0 ? p.CellZ : z0) == cz && p.Box.Overlaps(reach))
-                                RayPrim(item, o, d, reach, ref found, ref best, ref normal, ref hit);
+                                RayPrim(item, o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
                             continue;
                         }
                         int ob = ~item;
@@ -332,7 +340,7 @@ namespace Fpv450.Sim.World
                             }
                             for (int m = node.First; m < node.First + node.Count; m++)
                                 if (_prims[_leafPrims[m]].Box.Overlaps(reach))
-                                    RayPrim(_leafPrims[m], o, d, reach, ref found, ref best, ref normal, ref hit);
+                                    RayPrim(_leafPrims[m], o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
                         }
                     }
                 }
@@ -361,14 +369,17 @@ namespace Fpv450.Sim.World
             return hit;
         }
 
-        /// <summary>Placed shape i's entry by the ray o + t·d, kept by Take.</summary>
-        private void RayPrim(int i, Double3 o, Double3 d, in Bounds reach, ref bool found, ref double best, ref Double3 normal, ref RayHit hit)
+        /// <summary>Placed shape i's entry by the ray o + t·d, kept by Take; none for a wire when noWires.</summary>
+        private void RayPrim(int i, Double3 o, Double3 d, in Bounds reach, bool noWires, ref bool found, ref double best, ref Double3 normal,
+            ref RayHit hit)
         {
             ref readonly Prim p = ref _prims[i];
             double t = double.PositiveInfinity;
             Double3 n = default;
             if (p.Geometry.Kind == ShapeKind.Wire)
             {
+                if (noWires)
+                    return;
                 ShapeMath.WireRange(_wireProj, p.WireFirst, p.WireCount, _wirePoints[p.WireFirst], p.Geometry.AxisY, p.Geometry.Radius, reach,
                     out int lo, out int hi);
                 if (lo <= hi)

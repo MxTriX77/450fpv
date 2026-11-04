@@ -18,8 +18,12 @@
 //   shapes are listed there each by its own.
 // - Each variant's wind volumes placed at its rows' poses, and each row's group, for the wind (MapWorldWind.cs); and
 //   each hole band's cut record, derived from its row's metadata (MapWorldWind.cs, the cut records).
+// - Each variant's wire records' other fields and its ports, and each placed conductor's ends, neighbours and envelope
+//   (MapWorldWires.cs, with WiresNear); a row's class names its ports' fitting.
 // - Each variant's micro elements (its sidecar, checked against the metadata's SHA-256) and ground features, and each
 //   row's pose for them (MapWorldMicro.cs). A hole band names its instance.
+// - Each variant's snag records, which its wires' edge radii read too, and their placements (MapWorldSnags.cs, with
+//   SnagsNear).
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -53,6 +57,8 @@ namespace Fpv450.Sim.World
             public Double3[] LevelGapCentre; // local: each level gap's vertices' mean (MapWorldWind.cs, the cut records)
             public double[] LevelGapNarrowest;
             public Micro Micro;
+            public Lines Lines;
+            public Snags Snags;
         }
 
         /// <summary>The map maps/&lt;mapId&gt;/placements.json of the repository at `root`, with its metadata and the material table.</summary>
@@ -118,6 +124,7 @@ namespace Fpv450.Sim.World
             var rowYaw = new Quat[rowMeta.Length];
             var rowYawRad = new double[rowMeta.Length];
             var rowGroup = new string[rowMeta.Length];
+            var rowClass = new string[rowMeta.Length];
             _names = new string[rowMeta.Length];
             int shapeCount = 0, wirePointCount = 0;
             for (int i = 0; i < rowMeta.Length; i++)
@@ -127,7 +134,8 @@ namespace Fpv450.Sim.World
                 if (Number(row, "id", where) != i)
                     throw new FormatException(where + ": id must be its index");
                 string variant = Text(row, "variant", where);
-                string path = Text(row, "class", where) + "/" + Text(row, "asset", where) + "/" + variant + ".assetmeta.json";
+                rowClass[i] = Text(row, "class", where);
+                string path = rowClass[i] + "/" + Text(row, "asset", where) + "/" + variant + ".assetmeta.json";
                 if (!metas.TryGetValue(path, out Meta meta))
                 {
                     meta = ParseMeta(path, readModel(path), materialIds, readModel);
@@ -278,6 +286,8 @@ namespace Fpv450.Sim.World
                 _cellItems[k] = listed[_cellItems[k]];
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
             PlaceMicro(rowMeta, rowPosition, rowYaw);
+            WorldBugs = PlaceWires(rowMeta, rowPosition, rowYaw, rowClass, file);
+            PlaceSnags(rowMeta, file);
 
             // The start points.
             var starts = new List<StartPoint>();
@@ -509,6 +519,8 @@ namespace Fpv450.Sim.World
                 if (soil != WorldIds.NoSurface)
                     throw new FormatException(where + ": a wire's material is a material, not a surface");
             }
+            meta.Snags = ParseSnags(path, root, materialIds);
+            meta.Lines = ParseLines(path, root, wires, meta);
             return meta;
         }
 

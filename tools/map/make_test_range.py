@@ -20,6 +20,7 @@ millimetre and the thousandth of a degree.
   the scene cuts from its drawn floor: each patch footprint and each band's bounding rectangle outside a patch.
 - start_points (WLD-08, D-022) and noclip_start (the spec's noclip start).
 - review: the noclip camera's number-key views and the PLT-07 frame-rate legs. The sim reads nothing under it.
+The compiler refuses a map where more than 2048 snag record segments meet any 2 m cube (snag_cap, p7d-tether 1.3).
 """
 import json
 import math
@@ -563,6 +564,65 @@ def start_clearance(m, p):
     return best
 
 
+SNAG_CUBE_M = 2.0      # the fortifications reading §7: the fiber's binned cache cube round the drone
+SNAG_CUBE_MAX = 2048   # derived there: about twice the densest default coil stack's 1,096 segments, a power of two
+
+
+def snag_boxes(m):
+    """Every placed snag record segment's world bounds, grown by its record's radius_m, and its row: [(lo, hi, row)]."""
+    boxes = []
+    for row in m.rows:
+        for record in m.assets.meta(row["asset"], row["variant"]).get("snag", []):
+            pts = [to_world(row, p) for p in record["points"]]
+            r = record["radius_m"]
+            for a, b in zip(pts, pts[1:]):
+                boxes.append(([min(a[i], b[i]) - r for i in range(3)], [max(a[i], b[i]) + r for i in range(3)], row))
+    return boxes
+
+
+def snag_cap(m, side=SNAG_CUBE_M, limit=SNAG_CUBE_MAX):
+    """The fortifications reading §7's map cap (p7d-tether 1.3; the world-query spec): at most `limit` snag record
+    segments, by their bounds (touching counts), meet any axis-aligned cube of `side`. Every cube whose lowest corner
+    lies in [i·side, (i + 1)·side] on each axis lies in the block of twice the side from i·side, so the segments meeting
+    that block bound its count; a block over the limit is searched exactly over its own segments (tools/blender/lib/
+    audit.py's neighbourhood, the shells' rule (d)), which is exact for its cubes and never more than the truth for any
+    other. Returns the report line; raises SystemExit naming the cube, its count and its largest rows past the limit."""
+    if str(REPO / "tools" / "blender") not in sys.path:
+        sys.path.insert(0, str(REPO / "tools" / "blender"))
+    from lib.audit import neighbourhood
+    boxes = snag_boxes(m)
+    searched = None
+    blocks = {}
+    for lo, hi, _ in boxes:
+        ranges = [range(math.ceil((lo[a] - 2 * side) / side), math.floor(hi[a] / side) + 1) for a in range(3)]
+        for x in ranges[0]:
+            for y in ranges[1]:
+                for z in ranges[2]:
+                    blocks[(x, y, z)] = blocks.get((x, y, z), 0) + 1
+    worst = max(blocks.items(), key=lambda kv: (kv[1], kv[0]), default=((0, 0, 0), 0))
+    for block, bound in sorted(blocks.items(), key=lambda kv: (-kv[1], kv[0])):
+        if bound <= limit:
+            break
+        lo = [block[a] * side for a in range(3)]
+        inside = [b for b in boxes if all(b[0][a] <= lo[a] + 2 * side and b[1][a] >= lo[a] for a in range(3))]
+        count, corner = neighbourhood([(b[0], b[1]) for b in inside], side)
+        searched = max(searched or 0, count)
+        if count > limit:
+            meets = [b[2] for b in inside if all(b[0][a] - side <= corner[a] <= b[1][a] for a in range(3))]
+            rows = {}
+            for row in meets:
+                rows[(row["id"], row["variant"])] = rows.get((row["id"], row["variant"]), 0) + 1
+            top = ", ".join(f"{variant} #{i} {n}" for (i, variant), n in sorted(rows.items(), key=lambda kv: -kv[1])[:3])
+            raise SystemExit(f"{count} snag record segments meet the {side:g} m cube from "
+                             f"({corner[0]:.3f}, {corner[1]:.3f}, {corner[2]:.3f}), over the limit {limit} ({top})")
+    corner = [worst[0][a] * side for a in range(3)]
+    if searched is not None:
+        return (f"snag records: {len(boxes)} segments; any {side:g} m cube meets at most {limit} (every {2 * side:g} m "
+                f"block over it searched exactly: at most {searched} there), limit {limit}")
+    return (f"snag records: {len(boxes)} segments; any {side:g} m cube meets at most {worst[1]} (the {2 * side:g} m block "
+            f"from ({corner[0]:g}, {corner[1]:g}, {corner[2]:g})), limit {limit}")
+
+
 def heading(a, b):
     return math.degrees(math.atan2(b[0] - a[0], b[1] - a[1])) % 360.0
 
@@ -620,6 +680,7 @@ def build():
         x, _, z = row["position_m"]
         if not (-half <= x <= half and -half <= z <= half):
             raise SystemExit(f"{row['variant']} #{row['id']} at ({x}, {z}) lies outside the map")
+    print(snag_cap(m))
     return {
         "format": "fpv450-placements",
         "format_version": 1,

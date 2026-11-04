@@ -170,7 +170,10 @@ namespace Fpv450.Sim.Tests
         public static OutBack OutThenBack(DroneSpec spec, bool twoWay)
         {
             FlightSetup setup = Setup(spec, twoWay: twoWay);
-            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 4, turn = climb + outFor;
+            // The hover after the return lasts until the slack can rest (p7g-legs 1.4: 4 s left the 10 m line's slack in the air,
+            // and whether its first point reached the ground in time turned on the legs' sub-millimetre stance at the takeoff):
+            // the line's fall from the flight's 10 m at its terminal 1.4 m/s (White's fit, "A falling line settles") takes 7.1 s.
+            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 8, turn = climb + outFor;
             var r = new OutBack { LeastAfterTurn = double.PositiveInfinity, SlackLeast = double.PositiveInfinity };
             double last = 0, stand = Stand(setup);
             Plan flight = OutAndBack(stand, 10, climb, 10, turn, 10);
@@ -283,10 +286,13 @@ namespace Fpv450.Sim.Tests
             public bool RoseWhileLifting;
             /// <summary>The most nodes the chain held.</summary>
             public int MostNodes;
-            /// <summary>At the first step that paid out: the trail's points, the exit tension over the static hold, and the line
-            /// from the snag to the exit over its chord.</summary>
+            /// <summary>At the first step of the pull that paid out: the trail's points, the exit tension over the static hold, and
+            /// the line from the snag to the exit over its chord.</summary>
             public int TrailAtPayout;
             public double TensionOverHold, LineOverChord;
+            /// <summary>The line paid out before the pull, while the drone sat on the floor, m (since 1.6b the rear pair's fountain
+            /// lifts the piece rising to the exit and its drag can draw a little at the hold).</summary>
+            public double PaidBeforePull;
             public double Paid;
             public long Wedges;
         }
@@ -333,7 +339,8 @@ namespace Fpv450.Sim.Tests
                     if (tr.Trail < r.Fewest) r.Fewest = tr.Trail;
                 }
                 lastTrail = tr.Trail;
-                if (r.TrailAtPayout < 0 && tr.PaidOut > 1e-6 && t > 2)
+                if (t <= 2) r.PaidBeforePull = tr.PaidOut;
+                if (r.TrailAtPayout < 0 && tr.PaidOut - r.PaidBeforePull > 1e-6 && t > 2)
                 {
                     CableChain line = f.Chain;
                     r.TrailAtPayout = tr.Trail;
@@ -409,6 +416,10 @@ namespace Fpv450.Sim.Tests
             /// (the drone's rise pulls its near end up too), the wall jet's most lift on it over its weight, its most speed, m/s,
             /// and the least distance it came to a disc's rim, m.</summary>
             public double Lift, LiftOverWeight, Speed, Rim;
+            /// <summary>Its fastest approach to a rim, m/s: the most its least distance to a rim fell in 10 ms, over 10 ms (the
+            /// discs' own motion counted, so a drone climbing away from its line approaches it slower); and the least distance any
+            /// node but the exit came to a rim, m (the piece rising to the exit too).</summary>
+            public double PeakApproach, LineRim;
             /// <summary>The steps a node crossed a turning disc (1.8 cuts the line there).</summary>
             public int Crossed;
             /// <summary>The worst relative error of a node's air against the field's law at its position, and of its drag force
@@ -421,12 +432,16 @@ namespace Fpv450.Sim.Tests
         /// Legs-on on the floor in still air with the line laid under the rear: armed, then from 0.1 s the throttle full, or held at
         /// hover thrust (the pilot lifting 0.1 m), for 0.3 s. Watched: the line lying on the floor beside the skids when the thrust
         /// began (within 0.5 m of the body's axis, more than 0.3 m of line from the exit, so not the piece rising to it), and every
-        /// node's loads against the field's law at the point it took them.
+        /// node's loads against the field's law at the point it took them. seed is the flight's (its spool's peel and irregularity
+        /// draws, which tip the line off the rear pair's stagnation line; the legs' and the blades' strengths, which no leg or
+        /// blade reaches here).
         /// </summary>
-        public static Punch Liftoff(DroneSpec spec, bool full)
+        public static Punch Liftoff(DroneSpec spec, bool full, bool design4 = false, ulong seed = 0x7D16)
         {
-            FlightSetup setup = Setup(spec, WindLevel.Still);
-            var r = new Punch { Rim = double.PositiveInfinity };
+            FlightSetup setup = Setup(spec, WindLevel.Still, seed: seed);
+            setup.TetherDesign4Air = design4; // p7d-tether 1.6b: the known-wrong design 4 field, without the fountain
+            var r = new Punch { Rim = double.PositiveInfinity, LineRim = double.PositiveInfinity };
+            var least = new double[400]; // the watched line's least distance to a rim, each step
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, setup.StartPosition + new Double3(0, 0.1, 0));
             double radius = setup.Propulsion.Props.Diameter / 2;
@@ -458,22 +473,29 @@ namespace Fpv450.Sim.Tests
                 }
                 if (k < 100) continue;
                 Double3 up = s.Attitude.Rotate(new Double3(0, 1, 0));
-                for (int i = 0; i < line.Count; i++)
+                least[k] = double.PositiveInfinity;
+                for (int i = 0; i < line.Count - 1; i++)
                 {
                     ref CableNode a = ref line[i];
-                    if (a.Material < lo || a.Material > hi) continue;
-                    if (a.Position.Y > r.Lift) r.Lift = a.Position.Y;
-                    double v = a.Velocity.Length();
-                    if (v > r.Speed) r.Speed = v;
+                    bool watched = a.Material >= lo && a.Material <= hi;
+                    if (watched)
+                    {
+                        if (a.Position.Y > r.Lift) r.Lift = a.Position.Y;
+                        double v = a.Velocity.Length();
+                        if (v > r.Speed) r.Speed = v;
+                    }
                     for (int m = 0; m < 4; m++)
                     {
                         Double3 q = a.Position - (s.Position + s.Attitude.Rotate(setup.Propulsion.Motors[m].Position));
                         double z = Double3.Dot(q, up);
                         double lateral = (q - up * z).Length();
                         double rim = DetMath.Sqrt((lateral - radius) * (lateral - radius) + z * z);
-                        if (rim < r.Rim) r.Rim = rim;
+                        if (rim < r.LineRim) r.LineRim = rim;
+                        if (watched && rim < least[k]) least[k] = rim;
                     }
                 }
+                if (least[k] < r.Rim) r.Rim = least[k];
+                if (k >= 110 && (least[k - 10] - least[k]) / 0.010 > r.PeakApproach) r.PeakApproach = (least[k - 10] - least[k]) / 0.010;
                 for (int i = 0; i + 1 < line.Count; i++)
                     for (int m = 0; m < 4; m++)
                     {
@@ -517,8 +539,8 @@ namespace Fpv450.Sim.Tests
             return r;
         }
 
-        // The rotors' air at p as RotorAir's design gives it (design 4), from the flight's rotors at the start of the line's last
-        // step: the regions written out again here, apart from RotorAir's code.
+        // The rotors' air at p as RotorAir's design gives it (design 4, and 1.6b's fountain and ground vortex), from the
+        // flight's rotors at the start of the line's last step: the regions written out again here, apart from RotorAir's code.
         static Double3 ExpectedAir(FlightCore core, Double3 p)
         {
             RotorAir air = core.Tether.Rotors;
@@ -528,6 +550,8 @@ namespace Fpv450.Sim.Tests
             ref readonly FlightState s = ref core.State;
             Double3 n = s.Attitude.Rotate(new Double3(0, 1, 0));
             Double3 sum = default;
+            bool inColumn = false;
+            var below = new bool[4];
             for (int m = 0; m < 4; m++)
             {
                 double vi = air.Induced(m);
@@ -535,6 +559,7 @@ namespace Fpv450.Sim.Tests
                 Double3 hub = s.Position + s.Attitude.Rotate(core.Propulsion.Hub(m));
                 Double3 q = p - hub;
                 double z = Double3.Dot(q, n);
+                below[m] = z <= 0;
                 if (z > 0)
                 {
                     Double3 lateral = q - n * z;
@@ -547,6 +572,7 @@ namespace Fpv450.Sim.Tests
                 if (h > 0 && (q - w * h).Length() < wakeRadius && (!air.Lands(m) || p.Y > 0))
                 {
                     sum = sum - n * (2 * vi);
+                    inColumn = true;
                     continue;
                 }
                 if (!air.Lands(m) || !(p.Y <= jet)) continue;
@@ -556,7 +582,92 @@ namespace Fpv450.Sim.Tests
                 double u = Math.PI * radius * radius * vi / (2 * Math.PI * r * jet);
                 sum = sum + new Double3(dx / r * u, 0, dz / r * u);
             }
+            if (!air.Recirculation) return sum;
+            if (!inColumn) sum = sum + new Double3(0, ExpectedFountain(air, table, p, 0, below), 0); // the floor at 0
+            for (int m = 0; m < 4; m++)
+                sum = sum + ExpectedVortex(air, p, m, 0);
             return sum;
+        }
+
+        /// <summary>
+        /// 1.6b's fountain at p, written apart from RotorAir: the two landing rotors whose wall jets are fastest at p (outside
+        /// their columns' feet), both discs above p; the line where their speeds are equal (the bisector of equal jets, else
+        /// the Apollonius circle r_b/r_a = v_b/v_a) and p's distance from it; the jets' speeds normal to it there turned up
+        /// as a Gaussian plane jet of the table's momentum ratio and spread, from its virtual origin, rising through h_j.
+        /// </summary>
+        public static double ExpectedFountain(RotorAir air, TetherTable table, Double3 p, double ground, bool[] belowDisc)
+        {
+            double radius = air.Radius, foot = table.Number("rotor_air.far_wake_radius_ratio") * radius, hj = air.JetThickness;
+            int a = -1, b = -1;
+            double ua = 0, ub = 0;
+            for (int m = 0; m < 4; m++)
+            {
+                if (!air.Lands(m) || !(air.Induced(m) > 0)) continue;
+                double r = Math.Sqrt(Math.Pow(p.X - air.Landing(m).X, 2) + Math.Pow(p.Z - air.Landing(m).Z, 2));
+                if (!(r > foot)) continue;
+                double u = air.Induced(m) * radius * radius / (2 * hj * r);
+                if (u > ua) { b = a; ub = ua; a = m; ua = u; }
+                else if (u > ub) { b = m; ub = u; }
+            }
+            if (b < 0 || !belowDisc[a] || !belowDisc[b]) return 0;
+            double height = p.Y - ground;
+            if (!(height >= 0)) return 0;
+            double ax = air.Landing(a).X, az = air.Landing(a).Z, bx = air.Landing(b).X, bz = air.Landing(b).Z;
+            double k = air.Induced(b) / air.Induced(a); // on the line r_b = k·r_a
+            double delta, nx, nz; // p's distance from the line and the line's normal toward a
+            if (Math.Abs(1 - k) < 1e-6)
+            {
+                double ex = ax - bx, ez = az - bz, el = Math.Sqrt(ex * ex + ez * ez);
+                nx = ex / el; nz = ez / el;
+                delta = Math.Abs((p.X - 0.5 * (ax + bx)) * nx + (p.Z - 0.5 * (az + bz)) * nz);
+            }
+            else
+            {
+                double cx = (bx - k * k * ax) / (1 - k * k), cz = (bz - k * k * az) / (1 - k * k);
+                double rho = k * Math.Sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az)) / Math.Abs(1 - k * k);
+                double px = p.X - cx, pz = p.Z - cz, pl = Math.Sqrt(px * px + pz * pz);
+                delta = Math.Abs(pl - rho);
+                nx = px / pl; nz = pz / pl;
+                // toward a: from the circle's point nearest p, a lies on the side the normal must point to
+                double ox = cx + nx * rho, oz = cz + nz * rho;
+                if ((ax - ox) * nx + (az - oz) * nz < 0) { nx = -nx; nz = -nz; }
+            }
+            double ra = Math.Sqrt(Math.Pow(p.X - ax, 2) + Math.Pow(p.Z - az, 2)), rb = Math.Sqrt(Math.Pow(p.X - bx, 2) + Math.Pow(p.Z - bz, 2));
+            double na = Math.Max(0, -ua * ((p.X - ax) * nx + (p.Z - az) * nz) / ra), nb = Math.Max(0, ub * ((p.X - bx) * nx + (p.Z - bz) * nz) / rb);
+            double cf = table.Number("rotor_air.fountain_momentum_ratio"), spread = table.Number("rotor_air.plane_jet_spreading_rate");
+            double mass = hj * (na + nb), momentum = cf * hj * (na * na + nb * nb);
+            if (!(momentum > 0)) return 0;
+            double i1 = Math.Sqrt(Math.PI / Math.Log(2)), i2 = Math.Sqrt(Math.PI / (2 * Math.Log(2)));
+            double y0 = i2 * mass * mass / (i1 * i1 * momentum) / spread; // its flux at the ground the jets'
+            double y = height + y0, width = spread * y, wc = Math.Sqrt(momentum / (i2 * width));
+            return wc * Math.Exp(-Math.Log(2) * delta * delta / (width * width)) * Math.Min(1, height / hj)
+                * Math.Min(air.FountainShare(a), air.FountainShare(b));
+        }
+
+        /// <summary>1.6b's ground vortex of rotor m at p, written apart from RotorAir: its segment and its image under the
+        /// ground, each by Biot–Savart's Γ/(4π·d)·(cos θ₁ − cos θ₂) about the segment with the Scully core d/(d² + r_c²).</summary>
+        public static Double3 ExpectedVortex(RotorAir air, Double3 p, int m, double ground)
+        {
+            double g = air.VortexCirculation(m);
+            if (g == 0) return default;
+            Double3 a = air.VortexA(m), b = air.VortexB(m);
+            Double3 ai = new Double3(a.X, 2 * ground - a.Y, a.Z), bi = new Double3(b.X, 2 * ground - b.Y, b.Z);
+            return Line(p, a, b, g, air.VortexCore) + Line(p, ai, bi, -g, air.VortexCore);
+        }
+
+        static Double3 Line(Double3 p, Double3 a, Double3 b, double g, double core)
+        {
+            Double3 e = b - a;
+            double length = e.Length();
+            e = e * (1 / length);
+            Double3 ap = p - a;
+            double along = Double3.Dot(ap, e);
+            Double3 foot = ap - e * along; // from the line to p
+            double d = foot.Length();
+            if (d == 0) return default;
+            double c1 = along / Math.Sqrt(along * along + d * d), c2 = (along - length) / Math.Sqrt((along - length) * (along - length) + d * d);
+            Double3 dir = Double3.Cross(e, foot * (1 / d));
+            return dir * (g / (4 * Math.PI) * d / (d * d + core * core) * (c1 - c2));
         }
 
         // ---- "The exit's pull and its moment" ----

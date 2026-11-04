@@ -173,6 +173,7 @@ MonoBehaviour:
     sagM: 0.8
     axialStiffnessN: 3118500
     breakingForceN: 8198
+    bendingStiffnessNM2: 1.75345
     material: cable
     damage: intact
     points:
@@ -263,6 +264,7 @@ MonoBehaviour:
     sagM: 0.8
     axialStiffnessN: 3118500
     breakingForceN: 8198
+    bendingStiffnessNM2: 1.75345
     material: cable
     damage: intact
     points:
@@ -353,6 +355,7 @@ MonoBehaviour:
     sagM: 0.8
     axialStiffnessN: 3118500
     breakingForceN: 8198
+    bendingStiffnessNM2: 1.75345
     material: cable
     damage: intact
     points:
@@ -443,6 +446,7 @@ MonoBehaviour:
     sagM: 0.8
     axialStiffnessN: 3118500
     breakingForceN: 8198
+    bendingStiffnessNM2: 1.75345
     material: cable
     damage: intact
     points:

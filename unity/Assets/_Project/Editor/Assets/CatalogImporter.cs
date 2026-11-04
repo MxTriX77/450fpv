@@ -1741,6 +1741,7 @@ namespace Fpv450.Assets
                 sagM = Json.Num(wire, "sag_m", at),
                 axialStiffnessN = Json.Num(wire, "axial_stiffness_n", at),
                 breakingForceN = Json.Num(wire, "breaking_force_n", at),
+                bendingStiffnessNM2 = Json.Num(wire, "bending_stiffness_n_m2", at),
                 material = Json.Str(wire, "material", at),
                 damage = Json.Str(wire, "damage", at),
                 points = Json.Arr(wire, "points", at).Select(p => Json.Vec3(p, $"{at} points")).ToArray(),

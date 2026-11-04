@@ -18,8 +18,10 @@ VISUALS = {"brick": "brick_red"}
 REVIEW_MATERIALS = {"steel", "sheet_metal", "timber", "masonry", "concrete", "glass", "cable", "foliage",
                     "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "rubber", "plastic", "mesh",
                     "razor_wire", "sandbag", "carbon_composite"}
-WIRE_FIELDS = "slot, diameter_m, mass_kg_per_m, sag_m, axial_stiffness_n, breaking_force_n, material, damage, points"
-WIRE_POSITIVE = "diameter_m, mass_kg_per_m, axial_stiffness_n and breaking_force_n must be positive and sag_m at least 0"
+WIRE_FIELDS = "slot, diameter_m, mass_kg_per_m, sag_m, axial_stiffness_n, breaking_force_n, bending_stiffness_n_m2, " \
+              "material, damage, points"
+WIRE_POSITIVE = "diameter_m, mass_kg_per_m, axial_stiffness_n, breaking_force_n and bending_stiffness_n_m2 must be " \
+                "positive and sag_m at least 0"
 SURFACE_RULE = "is not one of the thirteen surface ids surface:{meadow_sod, dry_crust, crater_spoil, belt_straw, " \
                "belt_bare, tilled, burnt_field, weeds, yard_litter, rubble, asphalt, concrete_slab, dirt_track}"
 
@@ -43,7 +45,8 @@ def with_physics_features(data):
                           "max_diameter_m": 0.014})
     data["materials"].append({"slot": "wire", "visual": "wire_steel", "physics": "cable"})
     data["wires"].append({"slot": "wire", "diameter_m": 0.005, "mass_kg_per_m": 0.154, "sag_m": 0.8,
-                          "axial_stiffness_n": 3.93e6, "breaking_force_n": 7660.0, "material": "cable",
+                          "axial_stiffness_n": 3.93e6, "breaking_force_n": 7660.0, "bending_stiffness_n_m2": 6.14,
+                          "material": "cable",
                           "damage": "intact", "points": [[0.0, 7.0, 0.3], [20.0, 6.2, 0.3], [40.0, 7.0, 0.3]]})
     return data
 
@@ -209,7 +212,8 @@ def test_wires_are_carried_from_the_generator(k01_params, material_ids):
     `ports`, rounded like every number; without any the key is still written, empty."""
     built = debris_brick.build(k01_params)
     built["wires"] = [{"slot": "brick", "diameter_m": 0.009, "mass_kg_per_m": 0.135, "sag_m": 0.8,
-                       "axial_stiffness_n": 3.12e6, "breaking_force_n": 8198.0, "material": "cable",
+                       "axial_stiffness_n": 3.12e6, "breaking_force_n": 8198.0, "bending_stiffness_n_m2": 1.75,
+                       "material": "cable",
                        "damage": "intact", "points": [[0.0, 7.0000004, 0.3], [40.0, 7.0, 0.3]]}]
     data = meta.assemble("K01", "K01_whole", "debris_brick", k01_params, built, VISUALS)
     assert data["wires"][0]["points"] == [[0.0, 7.0, 0.3], [40.0, 7.0, 0.3]]
@@ -363,6 +367,11 @@ def test_holes_validated(k01_params, material_ids, edit, expected):
     (lambda d: d["wires"][0].update(axial_stiffness_n=0.0),
      f"wires[0]: {WIRE_POSITIVE}"),
     (lambda d: d["wires"][0].update(breaking_force_n=-8198.0),
+     f"wires[0]: {WIRE_POSITIVE}"),
+    # p7d-tether's "A conductor's bending stiffness": EI is required and positive
+    (lambda d: d["wires"][0].pop("bending_stiffness_n_m2"),
+     f"wires[0]: needs {WIRE_FIELDS}"),
+    (lambda d: d["wires"][0].update(bending_stiffness_n_m2=0.0),
      f"wires[0]: {WIRE_POSITIVE}"),
     (lambda d: d["wires"][0].update(damage="frayed"),
      "wires[0]: damage must be one of intact, cut, down, got 'frayed'"),

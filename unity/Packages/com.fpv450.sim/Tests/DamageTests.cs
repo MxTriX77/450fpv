@@ -33,6 +33,55 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // "A disc partly in the soil makes thrust only in the air" (p7f-damage 1.3's tip slide): the share of a rotor's thrust and
+        // torque its blades make past a chord d from the hub is each station's load times its annulus's share past the chord,
+        // acos(d/r)/π (DamagedRotor.Immersed): none for a chord at the tips, half for one through the hub, within the tip loss's
+        // span (Sissingh's B·R) no thrust at all but the tips' drag, past it growing with the depth (the segment's share of the
+        // disc's area printed beside it); Propulsion takes the
+        // shares off the rotor's thrust and torque exactly, and with none set it is the sound rotor's bit for bit.
+        [Test]
+        public void ADiscInTheSoilMakesThrustOnlyInTheAir()
+        {
+            Propulsion p = Sound(out PropulsionSpec spec);
+            DamagedRotor r = p.Rotor(0);
+            double R = r.Radius;
+            r.Immersed(R, out double t0, out double q0);
+            r.Immersed(0, out double tHalf, out double qHalf);
+            Assert.That((t0, q0), Is.EqualTo((0.0, 0.0)), "a chord at the tips leaves the disc in the air");
+            Assert.That(tHalf, Is.EqualTo(0.5).Within(1e-12), "a chord through the hub: half the disc");
+            Assert.That(qHalf, Is.EqualTo(0.5).Within(1e-12));
+            // Sissingh's tip loss: the blades lift to B·R, B = 1 − √(2·C_T)/N_b (C_T the intact rotor's static), so the last
+            // (1 − B)·R of the span makes no thrust; one station's span past it is the station that straddles B·R.
+            double lossSpan = DetMath.Sqrt(2 * r.IntactThrust(0)) / r.Blades * R, station = spec.Rotor.Blade.Span * R, last = 0;
+            TestContext.Out.WriteLine($"the tip loss's span {lossSpan * 1e3:F2} mm");
+            foreach (double depth in new[] { 0.002, 0.005, 0.010, 0.020, 0.040, 0.080 })
+            {
+                double d = R - depth, a = Math.Acos(d / R), byArea = (a - Math.Sin(a) * Math.Cos(a)) / Math.PI;
+                r.Immersed(d, out double t, out double q);
+                TestContext.Out.WriteLine($"{depth * 1e3:F0} mm deep: thrust share {t:F4}, torque share {q:F4}; the segment's area share {byArea:F4}");
+                Assert.That(t, Is.GreaterThanOrEqualTo(last), "deeper, more of the disc is in the soil");
+                Assert.That(q, Is.GreaterThan(0), "the tips drag to the end");
+                last = t;
+                if (depth < lossSpan)
+                {
+                    Assert.That(t, Is.EqualTo(0), "the tip loss's span lifts nothing");
+                    continue;
+                }
+                if (depth < lossSpan + station) continue; // the station that straddles B·R
+                Assert.That(t, Is.GreaterThan(0), "past it the blades' outer span lifts in the soil and loses that");
+            }
+            Propulsion twin = Sound(out _);
+            At(twin, Rpm9000, out Corners soundThrust, out Corners soundTorque);
+            p.SetImmersed(0, 0.25, 0.2);
+            At(p, Rpm9000, out Corners thrust, out Corners torque);
+            Assert.That(thrust[0], Is.EqualTo(soundThrust[0] * (1 - 0.25)), "only the part in air makes thrust");
+            Assert.That(torque[0], Is.EqualTo(soundTorque[0] * (1 - 0.2)), "and air torque");
+            Assert.That(thrust[1], Is.EqualTo(soundThrust[1]), "the other rotors are their own");
+            p.SetImmersed(0, 0, 0);
+            At(p, Rpm9000, out thrust, out _);
+            Assert.That(thrust[0], Is.EqualTo(soundThrust[0]), "none immersed: the sound rotor's bits");
+        }
+
         // An independent blade-element momentum solution (the model DamagedRotor flies, written again station by station):
         // blades with their tips (r/R), chord shares and pitch offsets on stations x with chord c and angle over the zero-lift
         // line th (rad), spans h; λ_c the climb inflow. Returns C_T, with C_Q and each blade's C_T and Σ dC_T·x.

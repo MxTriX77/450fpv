@@ -105,6 +105,9 @@ namespace Fpv450.Sim.Flight
     ///   tables' η at their advance ratios, its J less the material lost, and, beside the unbalance at each sub-step, the lost
     ///   material's pull, its blades' unequal lift and drag (a hub moment and an in-plane force) and its flap sets' couple,
     ///   all turning with RotorAngle. A sound rotor with no pitch offset skips all of it: the published table, bit for bit.
+    /// - a disc partly inside a carved face (PropStrikes, p7f-damage 1.3's tip slide; SetImmersed): its blades make no thrust
+    ///   and no air torque there (the face's carve is their drag), so its thrust and torque lose the immersed part's shares of
+    ///   its blades' loads (DamagedRotor.Immersed), from the step after the strikes found it. 0 shares skip it, bit for bit.
     /// </summary>
     public sealed class Propulsion
     {
@@ -163,6 +166,9 @@ namespace Fpv450.Sim.Flight
         readonly double _radius, _twoRhoArea, _heldInflow, _ringAdvance;
         readonly double[] _ringInflow = new double[4], _ringGain = new double[4], _meanThrust = new double[4];
         readonly double[] _ringRate = new double[4], _ringInPlane = new double[4], _ringInduced = new double[4];
+
+        // The shares of each rotor's thrust and torque its disc's part inside a carved face makes no more (SetImmersed).
+        readonly double[] _immersedThrust = new double[4], _immersedTorque = new double[4];
 
         // The ground and the ceiling (null: neither): their spec and the wash's stream; each rotor's distances along its axis
         // to them (m, +∞ for none), its gain from them, and its v_h (m/s) and re-ingested inflow (m/s) at the step's start.
@@ -367,6 +373,19 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>A rotor's drag torque at its present speed with this step's inflow, N·m (after BeginStep, then each sub-step).</summary>
         public double Torque(int corner) => _torque[corner];
+
+        /// <summary>
+        /// The shares of a rotor's thrust and air torque that its disc's part inside a carved face (the soil, a softer shape)
+        /// no longer makes, 0–1 (PropStrikes after each Sense, DamagedRotor.Immersed): RotorAero's from the next step on.
+        /// </summary>
+        public void SetImmersed(int corner, double thrust, double torque)
+        {
+            _immersedThrust[corner] = thrust;
+            _immersedTorque[corner] = torque;
+        }
+
+        public double ImmersedThrust(int corner) => _immersedThrust[corner];
+        public double ImmersedTorque(int corner) => _immersedTorque[corner];
 
         /// <summary>
         /// Each rotor's distance along its axis to the surface below it (the ground or a shape) and above it, m, +∞ for none
@@ -932,6 +951,7 @@ namespace Fpv450.Sim.Flight
             if ((_ring == null && _ground == null && _wake == null) || !(w > 0))
             {
                 Aero(w, _inflow[i], out thrust, out torque);
+                Immerse(i, ref thrust, ref torque);
                 if ((_damaged & (1 << i)) != 0)
                 {
                     if (w > 0)
@@ -961,9 +981,17 @@ namespace Fpv450.Sim.Flight
                 mean *= etaT;
                 torque *= etaQ;
             }
+            Immerse(i, ref mean, ref torque);
             _meanThrust[i] = mean;
             thrust = mean * _ringGain[i];
             if (damaged) _rotors[i].Loads(j, jq, thrust, torque, out _momentP[i], out _momentQ[i], out _forceP[i], out _forceQ[i]);
+        }
+
+        // A disc partly inside a carved face: only its part in the air makes thrust and air torque (SetImmersed).
+        void Immerse(int i, ref double thrust, ref double torque)
+        {
+            if (_immersedThrust[i] != 0) thrust *= 1 - _immersedThrust[i];
+            if (_immersedTorque[i] != 0) torque *= 1 - _immersedTorque[i];
         }
 
         // A damaged rotor's thrust and torque times its tables' η at their advance ratios (jt the thrust's, jq the torque's),

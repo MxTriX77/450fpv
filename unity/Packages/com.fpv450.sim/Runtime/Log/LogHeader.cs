@@ -89,11 +89,13 @@ namespace Fpv450.Sim.Log
     /// - the contacts (1.6): drone.json's contact shapes at the loadout with their thresholds, the legs' spring, and the
     ///   physics materials' rows (with what a blade meets, p7f-damage 1.1a) with physics_materials.json's hash, and
     ///   surfaces.json's table with its hash when the flight has one (p7a-ground 1.1; none for a flight without contacts)
+    ///   and the legs' side give, its parts and their lever (p7g-legs 1.2–1.4) and the failure law's data and bounds
     /// - the runtime objects the flight placed, in order, each shape in world space (the launch stand: K§6.10's asset,
     ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the fiber's table (p7d-tether 1.1): tether.json's every row with its label, and the file's hash (none for a
     ///   flight without the line); and the line's launch (1.6): its coil part and the empty spool's mass, the laid layout
-    ///   when one was given, the two-way switch (the spool's draw and stream are the randomness's)
+    ///   when one was given, the two-way switch and the design 4 air's (1.6b; the spool's draw and stream are the
+    ///   randomness's)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
     ///   product name and its report intervals before the flight (p6-input-app 1.1); the host µs of step 0, so a step's
@@ -111,7 +113,7 @@ namespace Fpv450.Sim.Log
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
             "RotorWake", "Flapping", "Interference", "Modes", "Placement", "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass",
-            "TetherTwoWay",
+            "TetherTwoWay", "TetherDesign4Air",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -155,10 +157,10 @@ namespace Fpv450.Sim.Log
         {
             "Margin", "CrashAccel", "ImpactWindow", "ImpactSpeed", "FrictionStiffnessRatio", "DampingMassShare",
             "GroundStaticFriction", "GroundKineticFriction", "LegStiffness", "LegDamping", "RingSegments", "Shapes", "Materials", "MaterialsHash",
-            "Surfaces", "BladeStrikes", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
+            "Surfaces", "BladeStrikes", "TipSlide", "WearCoefficient", "StrengthSigma", "StrengthBound", "SectionForm", "PlasticShare", "SlapWidth",
             "FlapFrequency", "FlapSouthwell",
             "LegSideStiffness", "LegSideDampingRatio", "Legs",
-            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness",
+            "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -179,12 +181,14 @@ namespace Fpv450.Sim.Log
         };
 
         /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
-        public static readonly string[] SurfaceTableFieldsLogged = { "ReferenceWidth", "FirmLayer", "Wetting", "Surfaces", "Cover", "Hash" };
+        public static readonly string[] SurfaceTableFieldsLogged =
+            { "ReferenceWidth", "FirmLayer", "SandHardness", "ParticleDensity", "WaterDensity", "Wetting", "Surfaces", "Cover", "Hash" };
         public static readonly string[] SurfaceRowFieldsLogged = { "Name", "Dry", "Wet", "Saturated" };
         public static readonly string[] SoilSetFieldsLogged =
         {
             "Rigid", "Bearing", "CohesiveShare", "CohesiveModulus", "FrictionalModulus", "UnloadRatio", "MaxSink", "Damping", "StaticFriction",
-            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius",
+            "KineticFriction", "Adhesion", "InterfaceAdhesion", "AdhesionRelease", "LipEdgeRadius", "Cohesion", "BulkDensity", "SandShare", "StoneFraction",
+            "StoneDiameter", "Hardness", "CrushStrength", "Density",
         };
         public static readonly string[] CoverRowFieldsLogged = { "Kind", "Dry", "Wet" };
         public static readonly string[] CoverSetFieldsLogged =
@@ -196,7 +200,8 @@ namespace Fpv450.Sim.Log
         {
             "BearingWet", "BearingSaturated", "UnloadRatioWet", "UnloadRatioSaturated", "MaxSinkWet", "MaxSinkSaturated", "FrictionWet",
             "FrictionSaturated", "AdhesionWet", "AdhesionSaturated", "InterfaceAdhesionWet", "InterfaceAdhesionSaturated", "AdhesionReleaseWet",
-            "AdhesionReleaseSaturated", "CoverHookReleaseWet", "StrawModulusWet", "StrawCutEnergyWet", "StrawDensityWet", "LeafWaterFilm",
+            "AdhesionReleaseSaturated", "CoverHookReleaseWet", "StrawModulusWet", "StrawCutEnergyWet", "StrawDensityWet", "LeafWaterFilm", "CohesionWet",
+            "CohesionSaturated", "WaterContentWet",
         };
         public static readonly string[] RuntimeObjectFieldsLogged = { "Name", "Shapes" };
         public static readonly string[] ShapeGeometryFieldsLogged =
@@ -337,11 +342,12 @@ namespace Fpv450.Sim.Log
         public TetherTable Tether;
 
         /// <summary>The line's launch with the table (FlightSetup's): the laid layout (null: the table's), the coil's part and
-        /// its empty spool's mass, the known-wrong two-way spool.</summary>
+        /// its empty spool's mass, the known-wrong two-way spool and the known-wrong design 4 rotors' air (1.6b).</summary>
         public Double3[] TetherLayout;
         public int TetherCoilPart = -1;
         public double TetherSpoolMass;
         public bool TetherTwoWay;
+        public bool TetherDesign4Air;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -423,6 +429,7 @@ namespace Fpv450.Sim.Log
                 TetherCoilPart = setup.TetherCoilPart,
                 TetherSpoolMass = setup.TetherSpoolMass,
                 TetherTwoWay = setup.TetherTwoWay,
+                TetherDesign4Air = setup.TetherDesign4Air,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -531,6 +538,7 @@ namespace Fpv450.Sim.Log
                 TetherCoilPart = TetherCoilPart,
                 TetherSpoolMass = TetherSpoolMass,
                 TetherTwoWay = TetherTwoWay,
+                TetherDesign4Air = TetherDesign4Air,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -834,6 +842,7 @@ namespace Fpv450.Sim.Log
                     e.Write(v);
                 e.Write(c.RingSegments);
                 e.Write(c.BladeStrikes);
+                e.Write(c.TipSlide);
                 foreach (double v in new[] { c.WearCoefficient, c.StrengthSigma, c.StrengthBound, c.SectionForm, c.PlasticShare, c.SlapWidth,
                     c.FlapFrequency, c.FlapSouthwell })
                     e.Write(v);
@@ -884,6 +893,7 @@ namespace Fpv450.Sim.Log
                 e.Write(c.LegJawSideStiffness);
                 e.Write(c.LegSwayLoad);
                 e.Write(c.LegTubeAxialStiffness);
+                e.Write(c.LegLeverLength); // p7g-legs 1.4 (format 39): the lever
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -1062,6 +1072,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherCoilPart);
                 e.Write(TetherSpoolMass);
                 e.Write(TetherTwoWay);
+                e.Write(TetherDesign4Air);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1511,6 +1522,7 @@ namespace Fpv450.Sim.Log
                         TetherCoilPart = r.ReadInt32();
                         TetherSpoolMass = r.ReadDouble();
                         TetherTwoWay = r.ReadBoolean();
+                        TetherDesign4Air = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {
@@ -1608,7 +1620,7 @@ namespace Fpv450.Sim.Log
                 Margin = r.ReadDouble(), CrashAccel = r.ReadDouble(), ImpactWindow = r.ReadDouble(),
                 ImpactSpeed = r.ReadDouble(), FrictionStiffnessRatio = r.ReadDouble(), DampingMassShare = r.ReadDouble(),
                 GroundStaticFriction = r.ReadDouble(), GroundKineticFriction = r.ReadDouble(), LegStiffness = r.ReadDouble(), LegDamping = r.ReadDouble(),
-                RingSegments = r.ReadInt32(), BladeStrikes = r.ReadBoolean(), WearCoefficient = r.ReadDouble(), StrengthSigma = r.ReadDouble(),
+                RingSegments = r.ReadInt32(), BladeStrikes = r.ReadBoolean(), TipSlide = r.ReadBoolean(), WearCoefficient = r.ReadDouble(), StrengthSigma = r.ReadDouble(),
                 StrengthBound = r.ReadDouble(), SectionForm = r.ReadDouble(), PlasticShare = r.ReadDouble(), SlapWidth = r.ReadDouble(),
                 FlapFrequency = r.ReadDouble(), FlapSouthwell = r.ReadDouble(),
             };
@@ -1639,6 +1651,7 @@ namespace Fpv450.Sim.Log
             c.LegJawSideStiffness = r.ReadDouble();
             c.LegSwayLoad = r.ReadDouble();
             c.LegTubeAxialStiffness = r.ReadDouble();
+            c.LegLeverLength = r.ReadDouble();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
@@ -1689,12 +1702,16 @@ namespace Fpv450.Sim.Log
         {
             e.Write(t.ReferenceWidth);
             e.Write(t.FirmLayer);
+            e.Write(t.SandHardness);
+            e.Write(t.ParticleDensity);
+            e.Write(t.WaterDensity);
             Wetting w = t.Wetting;
             foreach (double v in new[]
                      {
                          w.BearingWet, w.BearingSaturated, w.UnloadRatioWet, w.UnloadRatioSaturated, w.MaxSinkWet, w.MaxSinkSaturated, w.FrictionWet,
                          w.FrictionSaturated, w.AdhesionWet, w.AdhesionSaturated, w.InterfaceAdhesionWet, w.InterfaceAdhesionSaturated, w.AdhesionReleaseWet,
                          w.AdhesionReleaseSaturated, w.CoverHookReleaseWet, w.StrawModulusWet, w.StrawCutEnergyWet, w.StrawDensityWet, w.LeafWaterFilm,
+                         w.CohesionWet, w.CohesionSaturated, w.WaterContentWet,
                      })
                 e.Write(v);
             e.Write((byte)t.Surfaces.Length);
@@ -1721,7 +1738,8 @@ namespace Fpv450.Sim.Log
             foreach (double v in new[]
                      {
                          s.Bearing, s.CohesiveShare, s.CohesiveModulus, s.FrictionalModulus, s.UnloadRatio, s.MaxSink, s.Damping, s.StaticFriction,
-                         s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius,
+                         s.KineticFriction, s.Adhesion, s.InterfaceAdhesion, s.AdhesionRelease, s.LipEdgeRadius, s.Cohesion, s.BulkDensity, s.SandShare,
+                         s.StoneFraction, s.StoneDiameter, s.Hardness, s.CrushStrength, s.Density,
                      })
                 e.Write(v);
         }
@@ -1740,7 +1758,8 @@ namespace Fpv450.Sim.Log
         {
             var t = new SurfaceTable
             {
-                ReferenceWidth = r.ReadDouble(), FirmLayer = r.ReadDouble(),
+                ReferenceWidth = r.ReadDouble(), FirmLayer = r.ReadDouble(), SandHardness = r.ReadDouble(), ParticleDensity = r.ReadDouble(),
+                WaterDensity = r.ReadDouble(),
                 Wetting = new Wetting
                 {
                     BearingWet = r.ReadDouble(), BearingSaturated = r.ReadDouble(), UnloadRatioWet = r.ReadDouble(), UnloadRatioSaturated = r.ReadDouble(),
@@ -1748,7 +1767,8 @@ namespace Fpv450.Sim.Log
                     AdhesionWet = r.ReadDouble(), AdhesionSaturated = r.ReadDouble(), InterfaceAdhesionWet = r.ReadDouble(),
                     InterfaceAdhesionSaturated = r.ReadDouble(), AdhesionReleaseWet = r.ReadDouble(), AdhesionReleaseSaturated = r.ReadDouble(),
                     CoverHookReleaseWet = r.ReadDouble(), StrawModulusWet = r.ReadDouble(), StrawCutEnergyWet = r.ReadDouble(),
-                    StrawDensityWet = r.ReadDouble(), LeafWaterFilm = r.ReadDouble(),
+                    StrawDensityWet = r.ReadDouble(), LeafWaterFilm = r.ReadDouble(), CohesionWet = r.ReadDouble(), CohesionSaturated = r.ReadDouble(),
+                    WaterContentWet = r.ReadDouble(),
                 },
             };
             t.Surfaces = new SurfaceRow[r.ReadByte()];
@@ -1766,7 +1786,9 @@ namespace Fpv450.Sim.Log
             Rigid = r.ReadBoolean(), Bearing = r.ReadDouble(), CohesiveShare = r.ReadDouble(), CohesiveModulus = r.ReadDouble(),
             FrictionalModulus = r.ReadDouble(), UnloadRatio = r.ReadDouble(), MaxSink = r.ReadDouble(), Damping = r.ReadDouble(),
             StaticFriction = r.ReadDouble(), KineticFriction = r.ReadDouble(), Adhesion = r.ReadDouble(), InterfaceAdhesion = r.ReadDouble(),
-            AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(),
+            AdhesionRelease = r.ReadDouble(), LipEdgeRadius = r.ReadDouble(), Cohesion = r.ReadDouble(), BulkDensity = r.ReadDouble(),
+            SandShare = r.ReadDouble(), StoneFraction = r.ReadDouble(), StoneDiameter = r.ReadDouble(), Hardness = r.ReadDouble(),
+            CrushStrength = r.ReadDouble(), Density = r.ReadDouble(),
         };
 
         static CoverSet ReadCover(BinaryReader r) => new CoverSet
