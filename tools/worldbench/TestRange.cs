@@ -267,10 +267,51 @@ namespace Fpv450.WorldBench
             Console.WriteLine($"  test-range.micro: {queried} spheres, {found} elements (up to {largest} in one); {past} overflow a buffer of {few.Length}");
 
             WireCases(world, spots, previous, current, rays, contacts, hits, cases);
+            SnagCases(world, spots, cases);
             return cases;
         }
 
-        private const int MicroCount = 2000, WireCount = 2000;
+        private const int MicroCount = 2000, WireCount = 2000, SnagCount = 2000;
+
+        /// <summary>
+        /// p7d-tether 1.3. SnagsNear: spheres of 0.05-2 m over the spots (the crown, the house and the line among them), into
+        /// the cache's 2048 and into a buffer of 2 (the overflow: the true count, the canonical prefix), every field hashed.
+        /// </summary>
+        private static void SnagCases(MapWorld world, Spot[] spots, List<(string, string, bool)> cases)
+        {
+            var near = new SnagSegment[2048];
+            var two = new SnagSegment[2];
+            Hasher snagHash = new Hasher(), twoHash = new Hasher();
+            var ss = new Stream(1300);
+            int found = 0, largest = 0, past = 0, full = 0;
+            bool prefix = true;
+            for (int i = 0; i < SnagCount; i++)
+            {
+                Double3 c = In(ref ss, spots[i % spots.Length]);
+                double r = ss.In(0.05, 2);
+                int n = world.SnagsNear(c, r, near);
+                snagHash.Add(n);
+                for (int k = 0; k < Math.Min(n, near.Length); k++)
+                    snagHash.Add(near[k]);
+                int m = world.SnagsNear(c, r, two);
+                twoHash.Add(m);
+                for (int k = 0; k < Math.Min(m, two.Length); k++)
+                {
+                    twoHash.Add(two[k]);
+                    prefix &= two[k].Object == near[k].Object && two[k].Record == near[k].Record && two[k].Segment == near[k].Segment
+                        && two[k].A.X.Equals(near[k].A.X);
+                }
+                prefix &= m == n;
+                found += n;
+                largest = Math.Max(largest, n);
+                past += m > two.Length ? 1 : 0;
+                full += n > near.Length ? 1 : 0;
+            }
+            cases.Add(("test-range.snags", Hex(snagHash.Value), true));
+            cases.Add(("test-range.snags_overflow", Hex(twoHash.Value), prefix));
+            Console.WriteLine($"  test-range.snags: {SnagCount} spheres, {found} segments (up to {largest} in one, {full} past {near.Length}); "
+                + $"{past} overflow a buffer of {two.Length}");
+        }
 
         /// <summary>
         /// p7d-tether 1.2. WiresNear: spheres of 0.05-30 m over the spots (the line's among them), into a buffer of 64 and of
@@ -689,6 +730,7 @@ namespace Fpv450.WorldBench
 
             failures += MicroBench(world, crown, patch, inCrown);
             failures += WiresBench(world);
+            failures += SnagsBench(world, inCrown, walls);
 
             // K§10.4's 100 000 capsules and rays, in physics' pattern: its swept queries and rotor rays over the six paths
             // (both passes), per 100 000.
@@ -831,6 +873,66 @@ namespace Fpv450.WorldBench
                 Console.WriteLine($"  WiresNear {path.Name}: median {times[queries / 2] * us:F2} us, p99 {p99:F2} us, max {times[queries - 1] * us:F1} us, "
                     + $"{(double)found / queries:F1} conductors a query, {allocated} B; "
                     + (path.Judged ? $"the {budget:F0} us budget {(over99 ? "MISSED" : "met")} at p99" : "shown"));
+            }
+            return failures;
+        }
+
+        /// <summary>
+        /// SnagsNear (p7d-tether 1.3; the world-query spec: a 1 m query under 0.1 ms on AC), into the cache's 2048: r = 1 m
+        /// round an L01 pole's head, along a span's middle, inside V01_L's crown and round H01_D's walls, judged at p99 with
+        /// 0 B; r = 2 m on the same paths, shown.
+        /// </summary>
+        private static int SnagsBench(MapWorld world, in Spot inCrown, in Spot walls)
+        {
+            const int queries = 20000;
+            const double budget = 100;
+            int pole = Find(world, "L01_straight"), span = Find(world, "L03_medium") + 1, crown = Find(world, "V01_L"), house = Find(world, "H01_D");
+            world.Geometry(span, 0, out ShapeGeometry top);
+            Double3 head = new Double3(top.SpanA.X, 6.6, top.SpanA.Z);
+            var atPole = new Spot("pole", head - new Double3(1, 1, 1), head + new Double3(1, 1, 1));
+            var mid = new Spot("span", top.Center + new Double3(-10, -1.5, -1), top.Center + new Double3(10, 0.5, 1));
+            Spot crownSpot = inCrown, wallSpot = walls;
+            var spots = new (string Name, Func<int, Double3> At)[]
+            {
+                ($"round L01_straight's head (object {pole})", s => Lissajous(atPole, s)),
+                ($"along L03_medium's middle (object {span})", s => Lissajous(mid, s)),
+                ($"inside V01_L's crown (object {crown})", s => Lissajous(crownSpot, s)),
+                ($"round H01_D's walls, 0.25 m out, 0.4-4.5 m up (object {house})",
+                    s => Round(wallSpot, 0.01 * s) + new Double3(0, 0.4 + 4.1 * Tri(s, 2 * 1709), 0)),
+            };
+            var results = new SnagSegment[2048];
+            var times = new long[queries];
+            double us = 1e6 / Stopwatch.Frequency;
+            int failures = 0;
+            foreach (double radius in new[] { 1.0, 2.0 })
+            {
+                foreach (var path in spots)
+                {
+                    bool judged = radius == 1.0;
+                    long found = 0, most = 0, allocated = 0;
+                    for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
+                    {
+                        found = most = 0;
+                        long before = GC.GetAllocatedBytesForCurrentThread();
+                        for (int s = 0; s < queries; s++)
+                        {
+                            Double3 c = path.At(25 * s); // a step of 25 ms between queries: the cache's refresh at most 40 Hz
+                            long start = Stopwatch.GetTimestamp();
+                            int n = world.SnagsNear(c, radius, results);
+                            times[s] = Stopwatch.GetTimestamp() - start;
+                            found += n;
+                            most = Math.Max(most, n);
+                        }
+                        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    }
+                    Array.Sort(times);
+                    double p99 = times[queries * 99 / 100] * us;
+                    bool over99 = judged && !(p99 < budget);
+                    failures += over99 || allocated != 0 ? 1 : 0;
+                    Console.WriteLine($"  SnagsNear r = {radius:F0} m {path.Name}: median {times[queries / 2] * us:F2} us, p99 {p99:F2} us, "
+                        + $"max {times[queries - 1] * us:F1} us, {(double)found / queries:F0} segments a query (up to {most}), {allocated} B; "
+                        + (judged ? $"the {budget:F0} us budget {(over99 ? "MISSED" : "met")} at p99" : "shown"));
+                }
             }
             return failures;
         }
