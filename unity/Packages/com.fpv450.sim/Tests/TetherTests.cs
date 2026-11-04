@@ -134,6 +134,11 @@ namespace Fpv450.Sim.Tests
         // Since 1.6b (D-075) the line reaches a disc by the modelled flow: the rear pair's wall jets meet under the line and rise
         // as a fountain, which carries it up between the rear discs to their inboard rims, faster at full throttle than at hover;
         // design 4's field without it (FlightSetup.TetherDesign4Air) is the known-wrong, the line held 0.24–0.29 m off the rims.
+        // Since model 48 (the fountain on p7g-legs' PVC-U legs) the approach is judged over the flight's draws: the line lies on the
+        // rear pair's stagnation line, where their sinks balance, so how fast it is drawn to a rim turns on what tips it off that
+        // line (the spool's peel and irregularity draws), and on one seed the two can come either way (0x7D16: 2.44 m/s at full
+        // against 2.63 at hover, the discs climbing away at 1.4 m/s counted; on model 26's legs 2.40 against 2.20). Over seeds 1–30
+        // full throttle draws it faster on the mean and on most seeds; design 4's field never does, so it fails.
         [Test]
         public void ALineUnderAPunchIsLiftedAndDrawn()
         {
@@ -149,7 +154,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(full.LiftOverWeight, Is.GreaterThan(1), "the wall jet lifts the line lying in it off the floor");
             Assert.That(full.Lift, Is.GreaterThan(hover.Lift), "it rises higher");
             Assert.That(full.Speed, Is.GreaterThan(hover.Speed), "and moves faster");
-            Assert.That(full.PeakApproach, Is.GreaterThan(hover.PeakApproach), "toward the nearest disc's edge faster than at hover");
+            Approach(false, out double fullMean, out double hoverMean, out int faster);
+            Approach(true, out double wrongFullMean, out double wrongHoverMean, out int wrongFaster);
+            Print($"over seeds 1–30 the fastest approach to a rim at full throttle {fullMean:F3} m/s on the mean, at hover {hoverMean:F3}, full faster on {faster} of 30; "
+                + $"design 4's field {wrongFullMean:F3} against {wrongHoverMean:F3}, full faster on {wrongFaster}");
+            Assert.That(fullMean, Is.GreaterThan(hoverMean), "toward the nearest disc's edge faster than at hover, over the flight's draws");
+            Assert.That(faster, Is.GreaterThan(15), "on most seeds");
+            Assert.That(wrongFullMean < wrongHoverMean || wrongFaster <= 15, Is.True, "design 4's field does not draw it faster at full throttle: the known-wrong fails");
             foreach ((TetherScenarios.Punch p, TetherScenarios.Punch wrong) in new[] { (full, wrongFull), (hover, wrongHover) })
             {
                 Assert.That(wrong.Rim, Is.GreaterThan(0.2), "design 4's field alone holds the line beside the skids off the rims: the known-wrong");
@@ -161,6 +172,20 @@ namespace Fpv450.Sim.Tests
             {
                 Assert.That(p.AirError, Is.LessThan(0.01), "each node's air is the field's law at it");
                 Assert.That(p.DragError, Is.LessThan(0.01), "its drag the law's");
+            }
+        }
+
+        // The punch's fastest approach to a rim over seeds 1–30 (the spool's draws), at full throttle and at hover thrust.
+        static void Approach(bool design4, out double fullMean, out double hoverMean, out int faster)
+        {
+            fullMean = hoverMean = 0;
+            faster = 0;
+            for (ulong seed = 1; seed <= 30; seed++)
+            {
+                double f = TetherScenarios.Liftoff(Spec, true, design4, seed).PeakApproach, h = TetherScenarios.Liftoff(Spec, false, design4, seed).PeakApproach;
+                fullMean += f / 30;
+                hoverMean += h / 30;
+                if (f > h) faster++;
             }
         }
 

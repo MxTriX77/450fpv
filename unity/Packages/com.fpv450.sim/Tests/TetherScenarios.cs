@@ -429,11 +429,13 @@ namespace Fpv450.Sim.Tests
         /// Legs-on on the floor in still air with the line laid under the rear: armed, then from 0.1 s the throttle full, or held at
         /// hover thrust (the pilot lifting 0.1 m), for 0.3 s. Watched: the line lying on the floor beside the skids when the thrust
         /// began (within 0.5 m of the body's axis, more than 0.3 m of line from the exit, so not the piece rising to it), and every
-        /// node's loads against the field's law at the point it took them.
+        /// node's loads against the field's law at the point it took them. seed is the flight's (its spool's peel and irregularity
+        /// draws, which tip the line off the rear pair's stagnation line; the legs' and the blades' strengths, which no leg or
+        /// blade reaches here).
         /// </summary>
-        public static Punch Liftoff(DroneSpec spec, bool full, bool design4 = false)
+        public static Punch Liftoff(DroneSpec spec, bool full, bool design4 = false, ulong seed = 0x7D16)
         {
-            FlightSetup setup = Setup(spec, WindLevel.Still);
+            FlightSetup setup = Setup(spec, WindLevel.Still, seed: seed);
             setup.TetherDesign4Air = design4; // p7d-tether 1.6b: the known-wrong design 4 field, without the fountain
             var r = new Punch { Rim = double.PositiveInfinity, LineRim = double.PositiveInfinity };
             var least = new double[400]; // the watched line's least distance to a rim, each step
