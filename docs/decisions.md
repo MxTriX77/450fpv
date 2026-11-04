@@ -566,7 +566,7 @@ The pilot, 2026-11-02: "in real life motors may be different just by 0.0004%, ra
   - the legs' stick-slip at liftoff (`p7a-ground`)
 - **Graded like the wind:** each target is met against the footage and fails a known-wrong model (a perfectly steady rotor), and nothing is tuned to pass.
 
-## D-065 The feed's noise is the camera's, not a radio link's · Accepted
+## D-065 The feed's noise is the camera's, not a radio link's · Accepted (its dropout removal superseded by D-085)
 The pilot, 2026-11-02: "the noise is ok, although those black sticks among other noise effect type - that's unnecessary. remember it's not radio, it's optic fiber, so most of noise comes from the analog camera's encoding, not from link quality".
 - **Removed:** the link-type artefacts. That means the black streaks or "sticks", and the free-running dropouts to the blue screen (they were D-026's port of a radio link's behaviour).
 - **Kept:** the analog camera's own encoding noise (luma and chroma noise, the PAL encoding's artefacts), which the pilot finds right.
@@ -675,3 +675,11 @@ The pilot on the X stick overlay (D-078): "they shouldn't be that huge, they sho
 - **Small:** two small stick boxes, drawn in pixels, not as Betaflight's 7×5 character crosses.
 - **Placed** centred beneath the "SVINORIZ 10 OPTO" label.
 - **Smooth:** the cursors move at the feed's field rate from the sim's own stick samples, never at the OSD's character refresh.
+
+## D-085 The no-signal dropouts come back; only the black sticks stay removed · Accepted
+The pilot on D-065, 2026-11-04: "ive mentioned the black sticks (so there's different type of noise, one of them is black sticks - they look too artificial so i asked to remove them). i never mentioned the no signal. … i didn't ask to remove anything among analog noise". D-065 read more into the request than was said: it also took out the free-running dropouts to the no-signal screen. Supersedes D-065's "Removed" bullet for the dropouts and its "A picture loss now comes only from the fiber".
+- **Back, as the faithful port had them (D-026):** the free-running recovering dropouts to the no-signal screen, on their ported schedule, A/B-checked against the Godot feed.
+- **Still removed:** the tear's black wedge, the "black sticks" (D-065 stands for that one).
+- **Unchanged:** the camera's analog noise, and the fiber's own picture loss still to come (`p7d-tether` 1.8 and 1.16), on top of the dropouts.
+- The two artefacts sit behind one switch (`FeedEvents.GodotLinkArtefacts`); it is split so each follows its own decision.
+
