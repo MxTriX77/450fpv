@@ -237,6 +237,8 @@ namespace Fpv450.Feed
                 FeedOsd.WriteCodes(Signals, codes);
                 osdCodes.SetPixelData(codes, 0);
                 osdCodes.Apply(false);
+                // The stick overlay (D-084) from the source's latest sample, once a field: never the text's refresh.
+                Feed.Sticks = Signals is IOsdSticks sticks ? sticks.OsdSticks : default;
             }
         }
 

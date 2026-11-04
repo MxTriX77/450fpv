@@ -12,7 +12,7 @@ namespace Fpv450.Feed
     /// link margin, the debug panel's triggers). The defaults are a parked drone with no fiber: nothing turns, nothing
     /// pulls, and the link can't fail. Only the pack voltage has a Godot value.
     /// </remarks>
-    public sealed class StubFeedSignals : IFeedSignals, IFieldOsd
+    public sealed class StubFeedSignals : IFeedSignals, IFieldOsd, IOsdSticks
     {
         /// The Svinoriz 10 Opto is a quad.
         public const int Motors = 4;
@@ -57,5 +57,8 @@ namespace Fpv450.Feed
         public char OsdCell(int row, int col) => Osd.Grid[row, col];
 
         public void BuildOsd(int field) => Osd.Build(this, field);
+
+        /// Stub: no sticks, the overlay off (D-084); a capture sets it (FeedCapture's -feedSticks).
+        public FeedSticks OsdSticks { get; set; }
     }
 }

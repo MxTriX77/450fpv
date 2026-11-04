@@ -28,6 +28,8 @@
 // One switch (D-078, the pilot's C): the Field pass's FEED_NOISE_OFF variant compiles N1's grain and N2's impulses out,
 // and FeedUniforms.WithoutNoise zeroes N3, N4, the tear and the degrade. Without the keyword the pass is the one above,
 // token for token.
+// One addition, off by default (D-084, the pilot's X): the stick overlay (FeedSticks.cs), two small boxes and their
+// cursors in the OSD's ink and outline, inserted with the characters. With _StickBox.w = 0 the pass draws as before.
 Shader "Hidden/Fpv450/Feed"
 {
     Properties
@@ -86,6 +88,13 @@ Shader "Hidden/Fpv450/Feed"
     // is the old read, exactly.
     TEXTURE2D(_ShutterTrack);
     float4 _Shutter;
+
+    // The stick overlay (D-084, FeedSticks.cs), picture fractions, top-down, set per field: _StickBox = the left box's
+    // and the right box's left edges, their top, and w = 1 to draw; _StickSize = a box's size, then the cursor's;
+    // _StickCursor = the left cursor's centre, then the right's.
+    float4 _StickBox;
+    float4 _StickSize;
+    float4 _StickCursor;
     static float4 g_tap[8];
     static int g_taps;
 
@@ -113,6 +122,7 @@ Shader "Hidden/Fpv450/Feed"
     static const float3 NO_SIGNAL_BLUE = float3(0.0, 0.039, 0.784);   // gd:99
     static const float3 RX_TEXT_GREEN = float3(0.16, 0.85, 0.28);     // gd:100
     #define TEAR_PX 60.0                // gd:101
+    #define ROM_CELL float2(14.0, 18.0) // FeedFont.CellW, CellH: the ROM's texels to a cell (D-084's stroke)
 
     // GLSL's mod: x - y * floor(x / y). HLSL's fmod truncates, which differs for the -1 line of an odd field.
     float glsl_mod(float x, float y) { return x - y * floor(x / y); }
@@ -238,6 +248,32 @@ Shader "Hidden/Fpv450/Feed"
         return code < 0.5 ? float2(0.0, 0.0) : glyph_ink(code, cx, frac(cy));
     }
 
+    // D-084: p in [lo, hi).
+    bool in_rect(float2 p, float2 lo, float2 hi)
+    {
+        return p.x >= lo.x && p.x < hi.x && p.y >= lo.y && p.y < hi.y;
+    }
+
+    // D-084: the stick overlay's ink and outline at p (picture, top-down), as the ROM draws a glyph (FeedFont): each box
+    // a frame one ROM texel thick and its cursor a dot, in ink, and one texel round that ink in outline (the atlas's
+    // dilation), never both.
+    float2 stick_ink(float2 p)
+    {
+        float2 t = _OsdCell / ROM_CELL;
+        float2 half_dot = 0.5 * _StickSize.zw;
+        bool ink = false, near = false;
+        [unroll] for (int b = 0; b < 2; b++)
+        {
+            float2 lo = float2(b == 0 ? _StickBox.x : _StickBox.y, _StickBox.z);
+            float2 hi = lo + _StickSize.xy;
+            float2 c = b == 0 ? _StickCursor.xy : _StickCursor.zw;
+            ink = ink || (in_rect(p, lo, hi) && !in_rect(p, lo + t, hi - t)) || in_rect(p, c - half_dot, c + half_dot);
+            near = near || (in_rect(p, lo - t, hi + t) && !in_rect(p, lo + 2.0 * t, hi - 2.0 * t))
+                || in_rect(p, c - half_dot - t, c + half_dot + t);
+        }
+        return float2(ink ? 1.0 : 0.0, near && !ink ? 1.0 : 0.0);
+    }
+
     // gd:148-163, the receiver's snow.
     float3 snow_of(float x, float line_, float fw)
     {
@@ -339,6 +375,20 @@ Shader "Hidden/Fpv450/Feed"
                     osd_ink[id] = osd.x;
                     osd_out[id] = osd.y;
                 }
+            }
+        }
+
+        // D-084, the stick overlay, with the characters: the same taps at the torn read `px`, before the encode. Only the
+        // lines and columns its outline reaches; off (_StickBox.w = 0), none.
+        float2 st = _OsdCell / ROM_CELL;
+        if (_StickBox.w > 0.5 && sy >= _StickBox.z - st.y && sy < _StickBox.z + _StickSize.y + st.y
+            && px + 6.0 / SC_SAMPLES >= _StickBox.x - st.x && px - 6.0 / SC_SAMPLES < _StickBox.y + _StickSize.x + st.x)
+        {
+            [unroll] for (int ik = 0; ik < 13; ik++)
+            {
+                float2 s = stick_ink(float2(px + float(ik - 6) / SC_SAMPLES, sy));
+                osd_ink[ik] = max(osd_ink[ik], s.x);
+                osd_out[ik] = max(osd_out[ik], s.y);
             }
         }
 

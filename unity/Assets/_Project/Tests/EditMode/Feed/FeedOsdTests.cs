@@ -12,9 +12,9 @@ namespace Fpv450.Feed.Tests
         /// Godot's ROM: its 49 glyphs and the blank cell.
         const int GodotCells = 50;
 
-        /// Betaflight's symbols after it (D-078, D-080), U+E000 plus their code in Betaflight's font: SYM_THR, the stick
-        /// overlay's high, mid and low cursor, its centre, its vertical and its horizontal.
-        const string BetaflightSymbols = "";
+        /// Betaflight's symbol after it (D-080), U+E000 plus its code in Betaflight's font: SYM_THR. The stick overlay is
+        /// drawn in pixels, not from the ROM (D-084).
+        const string BetaflightSymbols = "\uE004";
 
         /// The Godot layout at the Godot capture's pinned signals (`--video-signals 1,1,0`: altitude, distance and
         /// timer 0, the 6S stand-in pack at 25.2 V, 0 A), read off FeedOsd.cs:82-125 cell by cell. The one change is
@@ -176,10 +176,8 @@ namespace Fpv450.Feed.Tests
             }
         }
 
-        /// Betaflight's symbols (D-078, D-080) in this ROM's pixels, after Godot's cells: the throttle icon 7 × 11 at
-        /// columns 3–9 and rows 3–13, the same turned half about its middle; the stick cursor a 5 × 5 diamond open in the
-        /// middle, on column 6 and centred on rows 2, 8 and 15; the axes one-texel lines on column 6 and row 8, edge to
-        /// edge, so neighbouring cells join into one cross.
+        /// Betaflight's throttle symbol (D-080) in this ROM's pixels, after Godot's cells: the icon 7 × 11 at columns 3–9
+        /// and rows 3–13, the same turned half about its middle.
         [Test]
         public void BetaflightsSymbolsAreDrawnInTheRomsPixels()
         {
@@ -201,14 +199,6 @@ namespace Fpv450.Feed.Tests
                     }
                     if (x <= 12 && y <= 16)
                         Assert.That(Ink('', x, y), Is.EqualTo(Ink('', 12 - x, 16 - y)), "the throttle icon's half turn " + at);
-                    for (int k = 0; k < 3; k++)
-                    {
-                        int cy = new[] { 2, 8, 15 }[k], d = System.Math.Abs(x - 6) + System.Math.Abs(y - cy);
-                        Assert.That(Ink((char)('' + k), x, y), Is.EqualTo(d <= 2 && d > 0), $"cursor {k} " + at);
-                    }
-                    Assert.That(Ink('', x, y), Is.EqualTo(x == 6 || y == 8), "the centre " + at);
-                    Assert.That(Ink('', x, y), Is.EqualTo(x == 6), "the vertical " + at);
-                    Assert.That(Ink('', x, y), Is.EqualTo(y == 8), "the horizontal " + at);
                 }
             Assert.That(thr, Is.EqualTo(15), "two arcs of 6 and a dot of 3");
         }

@@ -214,6 +214,48 @@ namespace Fpv450.Feed.Tests
             }
         }
 
+        /// D-084: the rig hands the pass the stick overlay its signals hold, taken once a field with the OSD: each new field
+        /// takes the newest, another frame in the same field keeps that field's, and a frame allocates nothing.
+        [Test]
+        public void TheRigTakesTheSticksAtEveryField()
+        {
+            var go = new GameObject("FpvCameraSticksTest");
+            FeedSettings s = ScriptableObject.CreateInstance<FeedSettings>();
+            try
+            {
+                go.AddComponent<Camera>();
+                var rig = go.AddComponent<FpvCamera>();
+                rig.settings = s;
+                var signals = new StubFeedSignals();
+                rig.Signals = signals;
+                rig.Begin();
+                Assert.That(rig.Feed.Sticks.On, Is.False, "the stub's: off");
+                for (int field = 1; field <= 50; field++)
+                {
+                    float v = field / 50f;
+                    FeedSticks sample = FeedSticks.Under(12, 7, 16, v, -v, 1f - v, 0.5f);
+                    signals.OsdSticks = sample;
+                    rig.Step(field);
+                    Assert.That(rig.Feed.Sticks, Is.EqualTo(sample), "field " + field + " takes the newest");
+                    signals.OsdSticks = FeedSticks.Under(12, 7, 16, -1f, -1f, -1f, -1f);
+                    rig.Step(field);
+                    Assert.That(rig.Feed.Sticks, Is.EqualTo(sample), "another frame in field " + field + " keeps its field's");
+                }
+                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                for (int frame = 0; frame < 1000; frame++)
+                    rig.Step(50);
+                long bytes = System.GC.GetAllocatedBytesForCurrentThread() - before;
+                TestContext.WriteLine($"{bytes} B over 1000 frames in one field");
+                Assert.That(bytes, Is.EqualTo(0));
+                rig.End();
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(s);
+            }
+        }
+
         /// Every quality level's URP renderer carries the feed feature with the feed shader, and the shader has its
         /// three blits in order.
         [Test]
