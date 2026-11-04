@@ -88,7 +88,7 @@ namespace Fpv450.Sim.World
                 {
                     ulong low = bits & (0UL - bits);
                     bits ^= low;
-                    int c = (w << 6) | Lowest[(low * DeBruijn) >> 58];
+                    int c = (w << 6) | Lowest[(int)((low * DeBruijn) >> 58)];
                     if (!_conductorBox[c].Overlaps(reach) || !EnvelopeMeets(c, centre, radius, reach))
                         continue;
                     if (count < results.Length)

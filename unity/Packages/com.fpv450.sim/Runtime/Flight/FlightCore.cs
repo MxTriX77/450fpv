@@ -161,9 +161,6 @@ namespace Fpv450.Sim.Flight
         const double RadToDeg = 57.29577951308232;
         const double TwoPi = 6.283185307179586;
 
-        static readonly FcFlags[] Saturated =
-            { FcFlags.SaturatedRoll, FcFlags.SaturatedPitch, FcFlags.SaturatedYaw, FcFlags.SaturatedCollective };
-
         FlightState _state;
         FcSettings _settings;
         readonly MassModel _mass;
@@ -694,13 +691,14 @@ namespace Fpv450.Sim.Flight
             for (int a = 0; a < 4; a++)
             {
                 double lost = loss[a];
-                bool now = lost > 0, was = (s.Fc.Flags & Saturated[a]) != 0;
+                var saturated = (FcFlags)((int)FcFlags.SaturatedRoll << a); // roll, pitch, yaw, collective: bits 6 to 9
+                bool now = lost > 0, was = (s.Fc.Flags & saturated) != 0;
                 if (now == was) continue;
                 FlightEvent e = FlightEvent.Of(EventKind.MixerSaturation);
                 e.Index = (byte)a;
                 e.A = lost;
                 _events.Add(e);
-                s.Fc.Flags ^= Saturated[a];
+                s.Fc.Flags ^= saturated;
             }
 
             // CurrentLimit as each ESC's limit begins to hold its motor (A: the share of the duty taken) and lets go (A: 0).
