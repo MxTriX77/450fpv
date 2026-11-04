@@ -162,6 +162,24 @@ namespace Fpv450.WorldBench
                 Add(e.Id); Add((long)e.Kind); Add(e.Anchored ? 1L : 0L); Add((long)e.PointCount); Add(e.P0); Add(e.P1); Add(e.P2);
                 Add(e.Diameter); Add(e.Area); Add(e.Parent); Add(e.ParentShape);
             }
+
+            public void Add(in Conductor c)
+            {
+                Add(c.Object); Add(c.Shape); Add(c.Diameter); Add(c.MassPerMetre); Add(c.Sag); Add(c.AxialStiffness); Add(c.BreakingForce);
+                Add(c.BendingStiffness); Add(c.EdgeRadius); Add(c.Material); Add(c.Points.Length);
+                foreach (Double3 p in c.Points.Span)
+                    Add(p);
+                Add(c.A);
+                Add(c.B);
+            }
+
+            public void Add(in WireEnd e) { Add(e.Object); Add(e.Port); Add((long)e.Kind); Add(e.NeighbourObject); Add(e.NeighbourShape); }
+
+            public void Add(in SnagSegment s)
+            {
+                Add(s.Object); Add(s.Record); Add(s.Segment); Add((long)s.Kind); Add(s.Radius); Add(s.EdgeRadius); Add(s.BarbPitch);
+                Add(s.Material); Add(s.A); Add(s.B);
+            }
         }
 
         private static string Hex(ulong v) => v.ToString("x16", CultureInfo.InvariantCulture);

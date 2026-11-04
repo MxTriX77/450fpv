@@ -917,8 +917,8 @@ namespace Fpv450.Tests.Session
         }
 
         // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.5 m/s, disarmed, from 10 mm over its
-        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 3's leg strengths). The rear-left foot meets the kerb
-        // first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
+        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 14's leg strengths; seed 3's until model 50, where
+        // its rear left holds). The rear-left foot meets the kerb first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
         // the rear left parts at its clamp's edge on the kerb. That ends nothing; the summary lists both legs with their state,
         // the landing or the object, and the speed, worded from the log. R's restart (the drone standing, as a flight starts)
         // has four intact legs on its own draws.
@@ -927,7 +927,7 @@ namespace Fpv450.Tests.Session
         {
             const int rr = 0, fr = 1, rl = 2, fl = 3; // Corners order
             const double kerb = 0.008;
-            ulong seed = 3;
+            ulong seed = 14;
             bool first = true;
             Rig rig = Make(i =>
             {
@@ -978,7 +978,7 @@ namespace Fpv450.Tests.Session
             Assert.That(rig.Session.Restart(), Is.True);
             FlightCore again = rig.Session.Core;
             Assert.That(again, Is.Not.SameAs(core));
-            Assert.That(rig.Session.Seed, Is.EqualTo(4UL), "the next flight's own seed");
+            Assert.That(rig.Session.Seed, Is.EqualTo(15UL), "the next flight's own seed");
             rig.Run(500);
             ref readonly PosePair pair = ref rig.Session.Poses.Read();
             for (int c = rr; c <= fl; c++)

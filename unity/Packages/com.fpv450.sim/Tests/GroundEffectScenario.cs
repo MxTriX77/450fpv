@@ -47,18 +47,19 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results)
+        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
+            QueryFilter filter = QueryFilter.None)
         {
-            int n = _floor.StaticContacts(previous, current, margin, results), kept = 0;
+            int n = _floor.StaticContacts(previous, current, margin, results, filter), kept = 0;
             for (int i = 0; i < Math.Min(n, results.Length); i++)
                 if (!(results[i].Object == WorldIds.Ground && InHole(results[i].Point.X)))
                     results[kept++] = results[i];
             return n - (Math.Min(n, results.Length) - kept);
         }
 
-        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits)
+        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None)
         {
-            _floor.Raycast(rays, maxDistance, hits);
+            _floor.Raycast(rays, maxDistance, hits, filter);
             for (int i = 0; i < rays.Length; i++)
                 if (hits[i].Object == WorldIds.Ground && hits[i].Surface != WorldIds.NoSurface && InHole(hits[i].Point.X))
                     hits[i] = new RayHit { Distance = double.PositiveInfinity, Object = WorldIds.Ground };
@@ -67,6 +68,8 @@ namespace Fpv450.Sim.Tests
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _floor.Geometry(obj, shape, out geometry);
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>
             _floor.MicroDetailNear(centre, radius, kinds, results);
+        public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _floor.WiresNear(centre, radius, results);
+        public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _floor.SnagsNear(centre, radius, results);
         public bool Feature(int obj, int shape, out GroundFeature feature) => _floor.Feature(obj, shape, out feature);
         public int AddObject(string name, ReadOnlySpan<ShapeGeometry> shapes) => _floor.AddObject(name, shapes);
         public void ResetRuntimeObjects() => _floor.ResetRuntimeObjects();

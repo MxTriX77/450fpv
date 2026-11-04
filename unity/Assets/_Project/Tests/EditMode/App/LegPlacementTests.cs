@@ -118,11 +118,12 @@ namespace Fpv450.Tests.App
         }
 
         // The summary's flight (SessionTests.TheSummaryNamesTheDamage): dropped level at 1.5 m/s onto a steel kerb 8 mm tall
-        // under the rear left foot, seed 3: rear left parts at its clamp's edge and drops its piece, front right bends.
+        // under the rear left foot, seed 14 (seed 3 until model 50, where its rear left holds): rear left parts at its clamp's
+        // edge and drops its piece, front right bends.
         static FlightCore Kerb(int steps)
         {
             const double kerb = 0.008;
-            FlightCore core = Core(3, s =>
+            FlightCore core = Core(14, s =>
             {
                 Double3 foot = s.Contacts.Legs.Foot[rl];
                 s.StartPosition = s.StartPosition + new Double3(0, kerb + 0.002, 0);
@@ -224,6 +225,61 @@ namespace Fpv450.Tests.App
                 view.Draw(Pose(again));
                 foreach (Transform t in new[] { bentLeg, stub, lostLeg, skid })
                     Assert.That((t.gameObject.activeSelf, t.localPosition, t.localRotation), Is.EqualTo((true, Vector3.zero, Quaternion.identity)), t.name + " intact");
+            }
+            finally
+            {
+                Object.DestroyImmediate(model);
+            }
+        }
+
+        [Test]
+        public void TheViewBindsD01sPartsAtEveryLod()
+        {
+            // The flight's legs-on D01 as FlightScene draws it (an instance under the body): its root in the body's frame, every
+            // LOD's leg parts bound (four kinds a corner, no T-joint at LOD3: 60), and each LOD's parts drawn alike: rear left's
+            // tube and stub gone and its skid half hanging from front left's set, front left and front right turned by theirs,
+            // rear right as built.
+            DroneModels models = DroneModels.Load();
+            Assert.That(models != null && models.legsOn != null, "ProjectSetup.Apply's D01 prefabs");
+            FlightCore core = Core(5, s => s.StartPosition = s.StartPosition + new Double3(0, 1, 0));
+            LegDamageSpec legs = core.Contacts.Spec.Legs;
+            core.PresetLeg(fl, new Double3(-0.05, 0.02, 0.03));
+            core.PresetLeg(fr, new Double3(0.04, -0.03, -0.06));
+            core.RemoveLeg(rl);
+            core.Advance(StickSample.Neutral);
+            PoseFrame pose = Pose(core);
+            GameObject model = Object.Instantiate(models.legsOn);
+            try
+            {
+                Assert.That((model.transform.localPosition, model.transform.localRotation, model.transform.localScale), Is.EqualTo((Vector3.zero, Quaternion.identity, Vector3.one)),
+                    "the model's root is the body's frame");
+                var view = new LegView();
+                view.Bind(model, legs);
+                Assert.That(view.Count, Is.EqualTo(4 * 4 * 4 - 4), "every LOD's leg parts");
+                view.Draw(pose);
+                Transform Part(int q, string kind, int c) => model.transform.Find($"{models.legsOn.name}_LOD{q}_{kind}_{LegDamage.Names[c]}");
+                void At(Transform t, Rigid move, string what)
+                {
+                    Assert.That(t.gameObject.activeSelf, what + " drawn");
+                    Assert.That((t.localPosition - V(move.T)).magnitude, Is.LessThan(1e-6f), what + " moved");
+                    Assert.That(Quaternion.Angle(t.localRotation, Q(move.Q)), Is.LessThan(1e-3f), what + " turned");
+                }
+                for (int q = 0; q < 4; q++)
+                {
+                    string lod = "LOD" + q + " ";
+                    Assert.That(Part(q, "leg", rl).gameObject.activeSelf || Part(q, "stub", rl).gameObject.activeSelf, Is.False, lod + "rear left's tube and stub gone");
+                    At(Part(q, "skid", rl), LegPlacement.SkidHalf(pose, legs, rl), lod + "rear left's skid half, hanging");
+                    foreach (int c in new[] { fl, fr })
+                    {
+                        At(Part(q, "leg", c), LegPlacement.Set(pose, legs, c), lod + LegDamage.Names[c] + "'s leg");
+                        At(Part(q, "skid", c), LegPlacement.Set(pose, legs, c), lod + LegDamage.Names[c] + "'s skid half");
+                        At(Part(q, "stub", c), Rigid.Identity, lod + LegDamage.Names[c] + "'s stub, straight");
+                        if (q < 3) At(Part(q, "tjoint", c), LegPlacement.Set(pose, legs, c), lod + LegDamage.Names[c] + "'s T-joint");
+                    }
+                    foreach (string kind in LegPlacement.Kinds)
+                        if (q < 3 || kind != "tjoint")
+                            At(Part(q, kind, rr), Rigid.Identity, lod + "rear right's " + kind + ", as built");
+                }
             }
             finally
             {

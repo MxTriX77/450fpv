@@ -52,6 +52,7 @@ namespace Fpv450.Tests.EditMode
                 Assert.That(wire.sagM, Is.EqualTo(0.8f).Within(1e-6f), $"wires[{i}]");
                 Assert.That(wire.axialStiffnessN, Is.EqualTo(3.1185e6f).Within(1f), $"wires[{i}]: 63 GPa over A-50's 49.5 mm²");
                 Assert.That(wire.breakingForceN, Is.EqualTo(8198f).Within(0.01f), $"wires[{i}]: A-50's published 8 198 N");
+                Assert.That(wire.bendingStiffnessNM2, Is.EqualTo(1.75345f).Within(1e-5f), $"wires[{i}]: EI of A-50's 7 free strands at 63 GPa");
                 Assert.That(wire.damage, Is.EqualTo("intact"), $"wires[{i}]");
                 Assert.That(wire.points.Length, Is.EqualTo(81), $"wires[{i}]: 2 points a metre over 40 m");
                 Assert.That(wire.points[0].y, Is.EqualTo(ports[i]).Within(1e-4f), $"wires[{i}] at the first pole");
@@ -144,6 +145,7 @@ namespace Fpv450.Tests.EditMode
             Assert.That(wire.massKgPerM, Is.EqualTo(0.1285f).Within(1e-6f), "published 2 x 16");
             Assert.That(wire.axialStiffnessN, Is.EqualTo(2.016e6f).Within(1f), "63 GPa over two 16 mm² cores");
             Assert.That(wire.breakingForceN, Is.EqualTo(5299.7f).Within(0.1f), "A-50's 165.6 N/mm² over the cores");
+            Assert.That(wire.bendingStiffnessNM2, Is.EqualTo(0.442904f).Within(1e-6f), "EI of the two cores' strands and insulation");
             Assert.That(wire.points.Length, Is.EqualTo(41));
             Assert.That(prefab.GetComponentsInChildren<Collider>(true), Is.Empty);
         }

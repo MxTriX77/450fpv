@@ -46,8 +46,13 @@ namespace Fpv450.Sim.World
         /// micro elements, their sidecars checked against the metadata's SHA-256). No earlier case
         /// moved; both golden files re-recorded for the version line, the test range's with the
         /// micro-detail cases added.
+        /// 6 (p7d-tether 1.2): WiresNear and the wire filter (QueryFilter.NoWires on StaticContacts and Raycast) join the
+        /// interface; with the filter off every query is as before. No earlier case moved; both golden files re-recorded
+        /// for the version line, the test range's with the conductor and filter cases added.
+        /// 7 (p7d-tether 1.3): SnagsNear joins the interface (the placed assets' snag record segments). No earlier case moved;
+        /// both golden files re-recorded for the version line, the test range's with the snag cases added.
         /// </summary>
-        public const int QueryVersion = 5;
+        public const int QueryVersion = 7;
 
         /// <summary>FNV-1a 64's offset basis: the hash of nothing.</summary>
         public const ulong Offset = 0xCBF29CE484222325UL;

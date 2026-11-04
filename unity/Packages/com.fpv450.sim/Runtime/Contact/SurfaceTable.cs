@@ -14,8 +14,10 @@ namespace Fpv450.Sim.Contact
     /// <summary>
     /// One moisture set of a ground surface (surfaces.json, p7a-ground design 1): Bekker's linear pressure–sinkage at a
     /// contact of width b, p = (k_c/b + k_φ)·z, under Wong's load and unload rule, with the firm layer past the maximum
-    /// sink, viscous damping, the friction of the drone's parts and the wet soil's adhesion. A rigid set (asphalt, a
-    /// concrete slab) has friction only, every soil field 0.
+    /// sink, viscous damping, the friction of the drone's parts and the wet soil's adhesion, and what a blade meets in it
+    /// (p7f-damage 1.1a: its cohesion, bulk density and sand share; 1.3: its stones). A rigid set (asphalt, a concrete slab) has friction and
+    /// what a blade meets on its face (hardness, crush strength and density, physics_materials.json's fields), every soil
+    /// field 0.
     /// </summary>
     public struct SoilSet
     {
@@ -41,6 +43,20 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The radius the fiber bends over at a groove's lip, m (p7d-tether).</summary>
         public double LipEdgeRadius;
+
+        /// <summary>A soil's cohesion c (Pa; a blade carves it at c·N_c), its bulk density with its water (kg/m³, the mass a blade
+        /// flings) and its sand share by mass (the share of a carve's load its quartz grains bear on the leading edge); 0 for a
+        /// rigid set.</summary>
+        public double Cohesion, BulkDensity, SandShare;
+
+        /// <summary>A soil's rock fragments of 2 mm and more by volume and their representative diameter, m (p7f-damage 1.3: a blade's
+        /// pass meets one with the probability its swept volume gives, a hard target by the table's sand hardness); 0 for a rigid
+        /// set.</summary>
+        public double StoneFraction, StoneDiameter;
+
+        /// <summary>A rigid set's face (physics_materials.json's fields): its indentation hardness and the pressure it resists a
+        /// carving blade (Pa), and its density (kg/m³); 0 for a soil set.</summary>
+        public double Hardness, CrushStrength, Density;
     }
 
     /// <summary>A ground surface by name (MapWorld.SurfaceIds) with its three moisture sets.</summary>
@@ -96,6 +112,9 @@ namespace Fpv450.Sim.Contact
         public double FrictionWet, FrictionSaturated, AdhesionWet, AdhesionSaturated, InterfaceAdhesionWet, InterfaceAdhesionSaturated;
         public double AdhesionReleaseWet, AdhesionReleaseSaturated;
         public double CoverHookReleaseWet, StrawModulusWet, StrawCutEnergyWet, StrawDensityWet, LeafWaterFilm;
+
+        /// <summary>A soil's cohesion's factors, wet and saturated, and the water a wet set holds over the dry set's (m³/m³).</summary>
+        public double CohesionWet, CohesionSaturated, WaterContentWet;
     }
 
     /// <summary>
@@ -117,6 +136,12 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The firm layer's modulus past MaxSink, N/m³.</summary>
         public double FirmLayer;
+
+        /// <summary>The sand grains' hardness (quartz's, Pa), against the blade's: harder, they abrade it in the severe class.</summary>
+        public double SandHardness;
+
+        /// <summary>A mineral soil's grains' density and water's, kg/m³: a saturated set's pores and the water filling them.</summary>
+        public double ParticleDensity, WaterDensity;
 
         public Wetting Wetting;
 
@@ -145,9 +170,10 @@ namespace Fpv450.Sim.Contact
         {
             "bearing_n_per_m3", "cohesive_share", "k_c_n_per_m2", "k_phi_n_per_m3", "unload_ratio", "max_sink_m", "damping_ns_per_m3",
             "friction_static", "friction_kinetic", "adhesion_pa", "interface_adhesion_pa", "adhesion_release_m", "lip_edge_radius_m",
+            "cohesion_pa", "bulk_density_kg_m3", "sand_share", "stone_fraction", "stone_diameter_m",
         };
 
-        static readonly string[] RigidFields = { "friction_static", "friction_kinetic" };
+        static readonly string[] RigidFields = { "friction_static", "friction_kinetic", "hardness_pa", "crush_strength_pa", "density_kg_m3" };
 
         // Each kind's fields, in the file's order.
         static readonly string[][] CoverFields =
@@ -174,9 +200,12 @@ namespace Fpv450.Sim.Contact
             JsonNode constants = root.Member("constants");
             if (r.IsObject(constants, "constants"))
             {
-                r.Members(constants, "constants", "reference_width_m", "firm_layer_n_per_m3");
+                r.Members(constants, "constants", "reference_width_m", "firm_layer_n_per_m3", "sand_hardness_pa", "particle_density_kg_m3", "water_density_kg_m3");
                 t.ReferenceWidth = r.Number(constants, "reference_width_m", "constants", out _, 0, true);
                 t.FirmLayer = r.Number(constants, "firm_layer_n_per_m3", "constants", out _, 0, true);
+                t.SandHardness = r.Number(constants, "sand_hardness_pa", "constants", out _, 0, true);
+                t.ParticleDensity = r.Number(constants, "particle_density_kg_m3", "constants", out _, 0, true);
+                t.WaterDensity = r.Number(constants, "water_density_kg_m3", "constants", out _, 0, true);
             }
             t.Wetting = ReadWetting(root.Member("wetting"), r);
 
@@ -228,7 +257,8 @@ namespace Fpv450.Sim.Contact
             r.Members(o, p, "bearing_wet", "bearing_saturated", "unload_ratio_wet", "unload_ratio_saturated", "max_sink_wet", "max_sink_saturated",
                 "friction_wet", "friction_saturated", "adhesion_wet_pa", "adhesion_saturated_pa", "interface_adhesion_wet_pa",
                 "interface_adhesion_saturated_pa", "adhesion_release_wet_m", "adhesion_release_saturated_m", "cover_hook_release_wet",
-                "straw_modulus_wet", "straw_cut_energy_wet", "straw_density_wet", "leaf_water_film_kg_m2");
+                "straw_modulus_wet", "straw_cut_energy_wet", "straw_density_wet", "leaf_water_film_kg_m2", "cohesion_wet", "cohesion_saturated",
+                "water_content_wet");
             w.BearingWet = r.Number(o, "bearing_wet", p, out _, 0, true, 1);
             w.BearingSaturated = r.Number(o, "bearing_saturated", p, out _, 0, true, 1);
             w.UnloadRatioWet = r.Number(o, "unload_ratio_wet", p, out _, 1);
@@ -248,6 +278,9 @@ namespace Fpv450.Sim.Contact
             w.StrawCutEnergyWet = r.Number(o, "straw_cut_energy_wet", p, out _, 0, true);
             w.StrawDensityWet = r.Number(o, "straw_density_wet", p, out _, 0, true);
             w.LeafWaterFilm = r.Number(o, "leaf_water_film_kg_m2", p, out _);
+            w.CohesionWet = r.Number(o, "cohesion_wet", p, out _, 0, true, 1);
+            w.CohesionSaturated = r.Number(o, "cohesion_saturated", p, out _, 0, true, 1);
+            w.WaterContentWet = r.Number(o, "water_content_wet", p, out _, 0, false, 1);
             return w;
         }
 
@@ -284,7 +317,18 @@ namespace Fpv450.Sim.Contact
                 r.Derived(lmus, s.StaticFriction, dry.StaticFriction * fFriction, path + ".friction_static", "the dry set's × wetting.friction_" + level);
                 r.Derived(lmuk, s.KineticFriction, dry.KineticFriction * fFriction, path + ".friction_kinetic", "the dry set's × wetting.friction_" + level);
             }
-            if (rigid) return s;
+            if (rigid)
+            {
+                // What a blade meets on the face (physics_materials.json's fields, p7f-damage 1.1a); rain does not change it.
+                s.Hardness = r.Number(o, "hardness_pa", path, out string lhard, 0, true);
+                s.CrushStrength = r.Number(o, "crush_strength_pa", path, out string lcrush, 0, true);
+                s.Density = r.Number(o, "density_kg_m3", path, out string lden, 0, true);
+                if (!wet) return s;
+                r.Derived(lhard, s.Hardness, dry.Hardness, path + ".hardness_pa", "the dry set's");
+                r.Derived(lcrush, s.CrushStrength, dry.CrushStrength, path + ".crush_strength_pa", "the dry set's");
+                r.Derived(lden, s.Density, dry.Density, path + ".density_kg_m3", "the dry set's");
+                return s;
+            }
 
             s.Bearing = r.Number(o, "bearing_n_per_m3", path, out string lb, 0, true);
             s.CohesiveShare = r.Number(o, "cohesive_share", path, out string lsh, 0, false, 1);
@@ -297,12 +341,25 @@ namespace Fpv450.Sim.Contact
             s.InterfaceAdhesion = r.Number(o, "interface_adhesion_pa", path, out string lia);
             s.AdhesionRelease = r.Number(o, "adhesion_release_m", path, out string lar);
             s.LipEdgeRadius = r.Number(o, "lip_edge_radius_m", path, out string llip, 0, true);
+            s.Cohesion = r.Number(o, "cohesion_pa", path, out string lco, 0, true);
+            s.BulkDensity = r.Number(o, "bulk_density_kg_m3", path, out string lbd, 0, true);
+            s.SandShare = r.Number(o, "sand_share", path, out string lss, 0, false, 1);
+            s.StoneFraction = r.Number(o, "stone_fraction", path, out string lsf, 0, false, 1);
+            s.StoneDiameter = r.Number(o, "stone_diameter_m", path, out string lsd, 0, true);
             if (s.Adhesion > 0 && !(s.AdhesionRelease > 0)) r.Fail(path + ".adhesion_release_m", "must be above 0 where adhesion_pa is");
 
             r.Derived(lkc, s.CohesiveModulus, s.CohesiveShare * s.Bearing * t.ReferenceWidth, path + ".k_c_n_per_m2",
                 "cohesive_share × bearing_n_per_m3 × reference_width_m");
             r.Derived(lkp, s.FrictionalModulus, (1 - s.CohesiveShare) * s.Bearing, path + ".k_phi_n_per_m3", "(1 − cohesive_share) × bearing_n_per_m3");
-            if (!wet) return s;
+            if (!wet)
+            {
+                // The dry soil's pores must hold the wet set's water (wetting.water_content_wet).
+                double pores = 1 - s.BulkDensity / t.ParticleDensity;
+                if (!double.IsNaN(pores) && !double.IsNaN(w.WaterContentWet) && !(pores > w.WaterContentWet))
+                    r.Fail(path + ".bulk_density_kg_m3", "leaves a porosity of " + LabelledReader.G(pores) + " (1 − it / constants.particle_density_kg_m3), "
+                        + "not above wetting.water_content_wet");
+                return s;
+            }
 
             bool sat = m == Moisture.Saturated;
             r.Derived(lb, s.Bearing, dry.Bearing * (sat ? w.BearingSaturated : w.BearingWet), path + ".bearing_n_per_m3", "the dry set's × wetting.bearing_" + level);
@@ -317,6 +374,16 @@ namespace Fpv450.Sim.Contact
             r.Derived(lar, s.AdhesionRelease, sat ? w.AdhesionReleaseSaturated : w.AdhesionReleaseWet, path + ".adhesion_release_m",
                 "wetting.adhesion_release_" + level + "_m");
             r.Derived(llip, s.LipEdgeRadius, dry.LipEdgeRadius, path + ".lip_edge_radius_m", "the dry set's");
+            r.Derived(lco, s.Cohesion, dry.Cohesion * (sat ? w.CohesionSaturated : w.CohesionWet), path + ".cohesion_pa", "the dry set's × wetting.cohesion_" + level);
+            if (sat)
+                r.Derived(lbd, s.BulkDensity, dry.BulkDensity + (1 - dry.BulkDensity / t.ParticleDensity) * t.WaterDensity, path + ".bulk_density_kg_m3",
+                    "the dry set's + (1 − the dry set's / constants.particle_density_kg_m3) × constants.water_density_kg_m3");
+            else
+                r.Derived(lbd, s.BulkDensity, dry.BulkDensity + w.WaterContentWet * t.WaterDensity, path + ".bulk_density_kg_m3",
+                    "the dry set's + wetting.water_content_wet × constants.water_density_kg_m3");
+            r.Derived(lss, s.SandShare, dry.SandShare, path + ".sand_share", "the dry set's");
+            r.Derived(lsf, s.StoneFraction, dry.StoneFraction, path + ".stone_fraction", "the dry set's");
+            r.Derived(lsd, s.StoneDiameter, dry.StoneDiameter, path + ".stone_diameter_m", "the dry set's");
             return s;
         }
 

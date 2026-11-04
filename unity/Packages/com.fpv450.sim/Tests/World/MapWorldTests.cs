@@ -315,6 +315,7 @@ namespace Fpv450.Sim.Tests
                 points.Add(FormattableString.Invariant($"[{x}, {3 - 0.8 * s * (1 - s):0.######}, 0.0]"));
             }
             string meta = "{\"frame\": \"unity-lh-yup\", \"units\": \"m\", \"collision\": [], \"wires\": [{\"diameter_m\": 0.005, "
+                + "\"mass_kg_per_m\": 0.154, \"axial_stiffness_n\": 3926990.8, \"breaking_force_n\": 7657.6, \"bending_stiffness_n_m2\": 6.135923, " // L03_thin's record
                 + "\"sag_m\": 0.2, \"material\": \"cable\", \"points\": [" + string.Join(", ", points) + "]}]}";
             string placements = "{\"format\": \"fpv450-placements\", \"format_version\": 1, \"map\": \"wire\", \"frame\": \"unity-lh-yup\", "
                 + "\"extent_m\": [-16.0, -16.0, 16.0, 16.0], \"ground\": {\"plane\": {\"y_m\": 0.0, \"surface\": \"meadow_sod\"}, "

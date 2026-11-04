@@ -165,6 +165,20 @@ namespace Fpv450.Sim.Tests
 
         private static Double3 Position(int obj) => Vec(Row(obj)["position_m"]);
 
+        private delegate ReadOnlySpan<byte> SpanGetter();
+
+        // ---- The lowest-bit table ----------------------------------------------------------------------------------
+
+        [Test]
+        public void TheLowestBitLiterals_AreLowestTablesOutput()
+        {
+            const System.Reflection.BindingFlags Private = System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic;
+            var literals = (SpanGetter)Delegate.CreateDelegate(typeof(SpanGetter),
+                typeof(MapWorld).GetProperty("Lowest", Private).GetGetMethod(true));
+            var table = (byte[])typeof(MapWorld).GetMethod("LowestTable", Private).Invoke(null, null);
+            Assert.That(literals().ToArray(), Is.EqualTo(table));
+        }
+
         // ---- Elements near a point ---------------------------------------------------------------------------------
 
         [Test]
@@ -226,7 +240,8 @@ namespace Fpv450.Sim.Tests
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < 100; i++)
                 world.MicroDetailNear(inPatch + new Double3(0.01 * i, 0, 0), 2, MicroKind.All, results);
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
+            // Is.Zero, not Is.EqualTo(0): .NET's JIT boxes that 0 (24 B) before the closing count is read.
+            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.Zero);
         }
 
         // ---- Nothing rooted in a hole --------------------------------------------------------------------------------

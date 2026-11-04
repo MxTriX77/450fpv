@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Fpv450.Sim;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.Tests;
 
 namespace Fpv450.FlightBench
@@ -15,7 +17,11 @@ namespace Fpv450.FlightBench
     // their difference; passes, damage events, jams and crashes. 1.7's claims ("Worse after a scratch": on every seed the
     // command and the current higher, the band past the factory's 99.5th percentile on 95 % of the 3 and 5 mm cells) are
     // printed as rates here, not asserted; the run fails only on a tunnel (a physics bug) or a cell with no strike. A crash is
-    // printed with its cause: the scripted pilot holds the drone to the wall, so a deep press can end a flight.
+    // printed with its cause: the scripted pilot holds the drone to the wall, so a deep press can end a flight. The range's
+    // ground is surfaces.json's soil (since model 43). Then the pilot's landings tipped over onto the dirt track and S04's soil,
+    // Sunny and in Rain, the throttle cut or disarmed at the touch, with surfaces.json, with model 43's carve (ContactSpec.TipSlide
+    // off: the slide p7f-damage 1.3 found) and without surfaces.json (the Glance): their blades' passes, carves, stones, jams and
+    // damage; a landing must stop (StrikeScenarios.TipStops).
     internal static class DamageCase
     {
         public static bool Run(int seeds)
@@ -63,8 +69,43 @@ namespace Fpv450.FlightBench
             }
             Console.WriteLine($"  {2 * seeds * speeds.Length * depths.Length} flights in {clock.Elapsed.TotalSeconds:F0} s: {(ok ? "PASS" : "FAIL")} "
                 + "(no tunnel, every cell struck; 1.7 asserts the account)");
-            return ok;
+
+            // The pilot's landing tipped over (from a hover, 0.5 m/s down and 2.5 m/s across the skids, the throttle cut or the drone
+            // disarmed at the touch) onto the dirt track and S04's soil, Sunny and in Rain, with surfaces.json and without it (the
+            // known-wrong Glance); it fails on a tunnel, or where the soil's flight carves nothing or never stops a prop. Since model
+            // 48 the legs fly rigid across (StrikeScenarios.TippedLanding) and a disarmed drone's ESCs brake (drone.json's BLHeli_S):
+            // its props are stopped before they reach the soil, so a disarmed landing must tip, stop and break no blade, and the
+            // ESCs freewheeling (model 38's coast, the known-wrong) are printed beside it.
+            Console.WriteLine("  tipped landings (the props in the soil; p7f-damage 1.3's soil carve):");
+            bool tipped = true;
+            foreach (bool disarm in new[] { false, true })
+            {
+                foreach (string site in new[] { "the dirt track", "S04's soil" })
+                {
+                    foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain })
+                    {
+                        StrikeScenarios.TipResult r = StrikeScenarios.TippedLanding(spec, World(site, out Double3 at), at, rain, SoilScenarios.Table(), disarm);
+                        StrikeScenarios.TipResult wrong = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, null, disarm);
+                        StrikeScenarios.TipResult slid = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, tipSlide: false);
+                        tipped &= r.Tunnels == 0 && StrikeScenarios.TipStops(r) && r.MaxTilt > 45
+                            && (disarm ? r.Broken == 0 : r.InSoil > 0 && r.Jams > 0);
+                        Console.WriteLine($"    {site}, {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
+                        Console.WriteLine("      model 43's carve (ContactSpec.TipSlide off): " + slid.Describe());
+                        Console.WriteLine("      without surfaces.json: " + wrong.Describe());
+                        if (!disarm) continue;
+                        StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(PoweredFlightCase.Drone()), World(site, out at), at, rain,
+                            SoilScenarios.Table(), disarm);
+                        Console.WriteLine("      the ESCs freewheeling (EscDisarm.Freewheel): " + free.Describe());
+                    }
+                }
+            }
+            Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
+                + "carves and stops a prop; disarmed, its braked props break no blade)");
+            return ok && tipped;
         }
+
+        static FlightWorld World(string site, out Double3 at) =>
+            site == "the dirt track" ? StrikeScenarios.TrackWorld(out at) : StrikeScenarios.BeltWorld(out at);
 
         static double Median(StrikeScenarios.GrazeResult[] r, Func<StrikeScenarios.GrazeResult, double> f)
         {

@@ -86,7 +86,9 @@ namespace Fpv450.Sim.World
             }
         }
 
-        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results)
+        /// <summary>The stub holds no wires, so the filter changes nothing.</summary>
+        public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
+            QueryFilter filter = QueryFilter.None)
         {
             double pad = current.Radius + margin;
             Bounds reach = Bounds.Of(previous.A, previous.B, pad).Union(Bounds.Of(current.A, current.B, pad));
@@ -116,7 +118,8 @@ namespace Fpv450.Sim.World
             Time = time,
         };
 
-        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits)
+        /// <summary>The stub holds no wires, so the filter changes nothing.</summary>
+        public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None)
         {
             for (int i = 0; i < rays.Length; i++)
                 hits[i] = Cast(rays[i], maxDistance);
@@ -183,6 +186,12 @@ namespace Fpv450.Sim.World
             geometry = default;
             return false;
         }
+
+        /// <summary>The stub places no assets, so it has no conductors.</summary>
+        public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => 0;
+
+        /// <summary>The stub places no assets, so it has no snag records.</summary>
+        public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => 0;
 
         /// <summary>The stub places no assets, so it has no micro elements.</summary>
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) => 0;

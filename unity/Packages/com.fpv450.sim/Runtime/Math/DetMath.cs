@@ -163,9 +163,10 @@ namespace Fpv450.Sim
         // 1.1's note on the merge onto the physics line). ----
 
         // atan x ≈ x − x·(aT0·x² + … + aT10·x^22) on |x| ≤ 7/16 (Remez), and atan of the reduction points ½, 1, 3/2 and ∞
-        // as a head and a tail.
-        static readonly double[] AtanHi = { 4.63647609000806093515e-01, 7.85398163397448278999e-01, 9.82793723247329054082e-01, 1.57079632679489655800e+00 };
-        static readonly double[] AtanLo = { 2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17, 6.12323399573676603587e-17 };
+        // as a head and a tail: constants, not tables, so DetMath has no static state whose first use (a mid-flight Atan2)
+        // would allocate on the flight thread.
+        const double AtanHi0 = 4.63647609000806093515e-01, AtanHi1 = 7.85398163397448278999e-01, AtanHi2 = 9.82793723247329054082e-01, AtanHi3 = 1.57079632679489655800e+00;
+        const double AtanLo0 = 2.26987774529616870924e-17, AtanLo1 = 3.06161699786838301793e-17, AtanLo2 = 1.39033110312309984516e-17, AtanLo3 = 6.12323399573676603587e-17;
         const double AT0 = 3.33333333333329318027e-01, AT1 = -1.99999999998764832476e-01, AT2 = 1.42857142725034663711e-01,
             AT3 = -1.11111104054623557880e-01, AT4 = 9.09088713343650656196e-02, AT5 = -7.69187620504482999495e-02,
             AT6 = 6.66107313738753120669e-02, AT7 = -5.83357013379057348645e-02, AT8 = 4.97687799461593236017e-02,
@@ -187,7 +188,7 @@ namespace Fpv450.Sim
             double ay = yNegative ? -y : y, ax = xNegative ? -x : x, angle; // angle: the turn from +x, before y's sign
             if (ay == 0) angle = xNegative ? Pi : 0;
             else if (ax == 0) angle = HalfPi;
-            else if (ax > double.MaxValue) angle = ay > double.MaxValue ? (xNegative ? 3 * AtanHi[1] : AtanHi[1]) : (xNegative ? Pi : 0);
+            else if (ax > double.MaxValue) angle = ay > double.MaxValue ? (xNegative ? 3 * AtanHi1 : AtanHi1) : (xNegative ? Pi : 0);
             else if (ay > double.MaxValue) angle = HalfPi;
             else
             {
@@ -200,18 +201,19 @@ namespace Fpv450.Sim
         // atan t for t ≥ 0 (fdlibm's atan): t ≥ 2^66 is π/2; else t is reduced about 0, ½, 1, 3/2 or ∞ to |u| ≤ 7/16.
         static double AtanNonNegative(double t)
         {
-            if (t >= 7.378697629483820646e+19) return AtanHi[3] + AtanLo[3];
-            int id;
-            if (t < 0.4375) id = -1;
-            else if (t < 0.6875) { id = 0; t = (2 * t - 1) / (2 + t); }
-            else if (t < 1.1875) { id = 1; t = (t - 1) / (t + 1); }
-            else if (t < 2.4375) { id = 2; t = (t - 1.5) / (1 + 1.5 * t); }
-            else { id = 3; t = -1 / t; }
+            if (t >= 7.378697629483820646e+19) return AtanHi3 + AtanLo3;
+            bool reduced = true;
+            double hi = 0, lo = 0;
+            if (t < 0.4375) reduced = false;
+            else if (t < 0.6875) { hi = AtanHi0; lo = AtanLo0; t = (2 * t - 1) / (2 + t); }
+            else if (t < 1.1875) { hi = AtanHi1; lo = AtanLo1; t = (t - 1) / (t + 1); }
+            else if (t < 2.4375) { hi = AtanHi2; lo = AtanLo2; t = (t - 1.5) / (1 + 1.5 * t); }
+            else { hi = AtanHi3; lo = AtanLo3; t = -1 / t; }
             double z = t * t, w = z * z;
             double s1 = z * (AT0 + w * (AT2 + w * (AT4 + w * (AT6 + w * (AT8 + w * AT10)))));
             double s2 = w * (AT1 + w * (AT3 + w * (AT5 + w * (AT7 + w * AT9))));
-            if (id < 0) return t - t * (s1 + s2);
-            return AtanHi[id] - ((t * (s1 + s2) - AtanLo[id]) - t);
+            if (!reduced) return t - t * (s1 + s2);
+            return hi - ((t * (s1 + s2) - lo) - t);
         }
 
         /// <summary>
