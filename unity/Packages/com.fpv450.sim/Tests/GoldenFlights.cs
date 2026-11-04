@@ -753,13 +753,14 @@ namespace Fpv450.Sim.Tests
         /// Audited: without them (FlightSetup.TetherWithoutContacts) it is model 50's pin, every record and event
         /// (FiberContactTests.WithoutTheFiberContactsEachGoldenIsModel50s, flightbench --golden), and no other golden flies the
         /// line. With them the line's first contact is at step 309, the motors' spool-up: the rear pair's fountain lifts the piece
-        /// rising to the exit into the stack's plates, the coil's belly and the payload's aft (θ up to 1.42 rad at 0.15 N), where
-        /// it is held; the drone leaves model 50's path at step 660 (the parts' reactions, up to 0.146 N over 90 steps) and stays
-        /// within 0.59 mm and 0.006° of it, 3 impacts as 50's, at rest 0.2495 m up as 50's, 0.10 mm aside; 158 events against 71
-        /// (the FiberContact and FiberSlip events); the line 0.0757 m paid out against 0.0753, 17 nodes against 15 (3 contact nodes
-        /// put in), the trail at 7 points, 1 safe step, no clip or wedge, as 50's; 77 shape queries over the flight.
+        /// rising to the exit into the stack's plates, the coil's belly and the payload's aft (θ up to 1.42 rad, T up to 0.61 N),
+        /// where it is held; the drone leaves model 50's path at step 660 (the parts' reactions, up to 0.145 N over 132 steps) and
+        /// stays within 0.59 mm and 0.025° of it, 3 impacts as 50's, at rest 0.2495 m up as 50's, 0.29 mm aside; 161 events
+        /// against 71 (the FiberContact and FiberSlip events); the line 0.0757 m paid out against 0.0753, 20 nodes against 15 (7
+        /// contact nodes put in), the trail at 7 points as 50's, no wedge; the energy check took 51 safe steps (50's: 1) and 16
+        /// clips (0), the parts' slots near the exit (labelled numerical damping); 80 shape queries over the flight.
         /// </summary>
-        public const ulong TetherHash = 0xEE08B86460CF0AFBUL;
+        public const ulong TetherHash = 0xCD7C8022C0A85391UL;
 
         /// <summary>The tether golden at model 50 (the legs' lever on the line), which the flight without the fiber's contacts
         /// keeps (p7d-tether 1.7, FiberContactTests.WithoutTheFiberContactsEachGoldenIsModel50s).</summary>
