@@ -285,7 +285,10 @@ namespace Fpv450.Sim.Tests
         // the legs and skids 6.6 g lighter; 300 m up nothing touches) and keeps its course: armed, no crash, no contact, 167.13 m
         // up at 10 s against 167.03, 318 mm from its end and within 0.41° of its attitude; against p7g's from step 3 (the
         // yaw I's disarmed loop, the blades from step 21), 4.67 m and 0.80° from its end (162.65 m up). Every leg intact.
-        public const ulong PoweredHash = 0xAE194731E398F0A4UL;
+        // Model 46: 0xAE194731E398F0A4. p7g-legs 1.4 (ModelVersion 49): re-recorded on the 2816-byte record (the legs' lean after model 46's 2784
+        // bytes). Audited: over model 46's 2784 bytes it is model 46's pin bit for bit, every record and event, the lean zero on every
+        // record (it touches nothing; the kept test WithoutTheLeverEachGoldenIsModel46s, flightbench --golden).
+        public const ulong PoweredHash = 0x32CFEE62D75ECC24UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -340,7 +343,10 @@ namespace Fpv450.Sim.Tests
         // p7g-legs (ModelVersion 46), audited as the powered flight (both kept tests). It moves from step 1 against the line's
         // and keeps its course: 169.24 m up against 169.23, 148 mm from its end and within 0.29°; against p7g's 4.56 m apart
         // (164.76 m up); the film holds 9.80 g at 10 s (9.79 and 9.93).
-        public const ulong RainPoweredHash = 0xED60FDA3FF1868A9UL;
+        // Model 46: 0xED60FDA3FF1868A9. p7g-legs 1.4 (ModelVersion 49): re-recorded on the 2816-byte record (the legs' lean after model 46's 2784
+        // bytes). Audited: over model 46's 2784 bytes it is model 46's pin bit for bit, every record and event, the lean zero on every
+        // record (it touches nothing; the kept test WithoutTheLeverEachGoldenIsModel46s, flightbench --golden).
+        public const ulong RainPoweredHash = 0x19A2E68386BF1DA9UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -391,6 +397,24 @@ namespace Fpv450.Sim.Tests
         public const ulong Model44PoweredHash = 0xDF1D314EF8AD6012UL, Model44RainPoweredHash = 0x48979FA015B4A693UL,
             Model44ContactHash = 0xC3FBF4393BE70692UL, Model44RangeHash = 0xF6BBC45EC751E45FUL, Model44TetherHash = 0x40D840364F986978UL,
             Model44TumbleHash = 0x4C96AAB4C5453484UL;
+
+        /// <summary>p7g-legs 1.4 (model 49), its audit (GoldenFlightTests.WithoutTheLeverEachGoldenIsModel46s): model 46's record,
+        /// its first 2784 bytes (the record less the legs' lean at its end), and its pins, which every golden flown with the lever
+        /// off (WithoutTheLever: ContactSpec.LegLeverLength 0, 1.3's linear softening) keeps bit for bit, every record and event,
+        /// the lean zero.</summary>
+        public const int Model46Layout = LogFormat.Model46StepSize;
+        public const ulong Model46PoweredHash = 0xAE194731E398F0A4UL, Model46RainPoweredHash = 0xED60FDA3FF1868A9UL,
+            Model46ContactHash = 0x1AAB934D74816482UL, Model46RangeHash = 0x5CB64C5900F44C2BUL, Model46TetherHash = 0xFE34B0491C406118UL,
+            Model46TumbleHash = 0x24B0961BC802C1D3UL;
+
+        /// <summary>A flight's contacts without the lever (p7g-legs 1.4's audit and known-wrong): 1.3's linear softening, k_t·(1 −
+        /// P/P_sway) on the step before's axial load, never below 0.</summary>
+        public static readonly Action<FlightSetup> WithoutTheLever = s =>
+        {
+            if (s.Contacts == null) return;
+            s.Contacts = s.Contacts.Clone();
+            s.Contacts.LegLeverLength = 0;
+        };
 
         /// <summary>Its audit against p7g-legs (GoldenFlightTests.WithoutTheLineEachGoldenIsModel41s): p7g-legs' model 41 record is
         /// the record less the fiber's 104 and the blade strikes' 384 bytes at Model28Layout (Model41Skip), and its pins, which
@@ -631,7 +655,12 @@ namespace Fpv450.Sim.Tests
         // 0.2494 m against 0.2497 on 4 pairs (the soil's half-skids), 79.7 mm from the line's resting place and within 97.1 mm
         // and 1.66° of its path, the deepest nodes 2.9–5.7 mm into the soil, the side give at rest 201 N/m; against p7g's (8
         // impacts on the rigid floor, its spinning corner touch cracking all four) 11.8 mm from its rest. Every leg intact.
-        public const ulong ContactHash = 0x1AAB934D74816482UL;
+        // Model 46: 0x1AAB934D74816482. p7g-legs 1.4 (ModelVersion 49): re-recorded with the leg across its tube as a lever on the 2816-byte
+        // record. Audited: with the lever off (WithoutTheLever, 1.3's softening) model 46's pin over its 2784 bytes, every record and event,
+        // the lean zero (the kept test WithoutTheLeverEachGoldenIsModel46s). With it, it moves from step 3 (the standing skids' points on
+        // their levers) and keeps its course: within 1.9 mm and 0.85° of model 46's path, 3 impacts as 46's, at rest 0.2495 m up against
+        // 0.2494 on 4 pairs, 1.2 mm from 46's rest; the largest lean 9.6 mm; every leg intact.
+        public const ulong ContactHash = 0xE4B8CB8346751E29UL;
 
         /// <summary>The parents' pins at the physics integration 2 (model 34), which its kept audits fly: p7d-tether's model 31
         /// contact, range and tether goldens over the whole 2008-byte record (WithoutTheGroundTheGoldenFlightsAreModel31s:
@@ -688,7 +717,11 @@ namespace Fpv450.Sim.Tests
         /// 3, as since model 31, and stays within 6.8 mm and 0.06° of it, at rest 0.9 mm aside; the line paying out 0.075 m, 15
         /// nodes, the trail at 7 points, no clip or wedge, the chain's energy check taking 1 safe step. Every leg intact.
         /// </summary>
-        public const ulong TetherHash = 0xFE34B0491C406118UL;
+        /// Model 46: 0xFE34B0491C406118. p7g-legs 1.4 (ModelVersion 49), audited as the contact flight: with the lever off model 46's
+        /// pin over its 2784 bytes, every record and event, the lean zero (WithoutTheLeverEachGoldenIsModel46s); with it, from step 3,
+        /// within 1.8 mm and 0.84° of model 46's path, at rest 0.2494 m up as 46's, 1.4 mm from its rest; the line paying out 0.075 m,
+        /// 15 nodes, the trail at 7, 1 safe step, no clip or wedge, as 46's; every leg intact.
+        public const ulong TetherHash = 0x080BCB2E19873507UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -746,7 +779,10 @@ namespace Fpv450.Sim.Tests
         // zero (no rotors, no contacts); on model 26's legs over 2392 bytes model 44's pin, over p7g's record model 41's (both
         // kept tests); its checks as p7g's (momentum 1.4e-12, energy 2.7e-12, the CoM 5.1e-11 m from its parabola, wandering
         // 5.493 rad/s).
-        public const ulong TumbleHash = 0x24B0961BC802C1D3UL;
+        // Model 46: 0x24B0961BC802C1D3. p7g-legs 1.4 (ModelVersion 49): re-recorded on the 2816-byte record (the legs' lean after model 46's 2784
+        // bytes). Audited: over model 46's 2784 bytes it is model 46's pin bit for bit, every record and event, the lean zero on every
+        // record (it touches nothing; the kept test WithoutTheLeverEachGoldenIsModel46s, flightbench --golden).
+        public const ulong TumbleHash = 0xE798498661DECB53UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -896,7 +932,11 @@ namespace Fpv450.Sim.Tests
         // crash, at rest 7.89 mm into the straw on 8 pairs (the line's 8.83 on 8), 16.4 mm from the line's resting place, within
         // 23.6 mm and 0.75° of its path; against p7g's (the straw without its area law, 4 impacts on 18 pairs) 21.7 mm from its
         // rest. Every leg intact.
-        public const ulong RangeHash = 0x5CB64C5900F44C2BUL;
+        // Model 46: 0x5CB64C5900F44C2B. p7g-legs 1.4 (ModelVersion 49): re-recorded with the lever on the 2816-byte record. Audited: with
+        // the lever off model 46's pin over its 2784 bytes, every record and event, the lean zero (WithoutTheLeverEachGoldenIsModel46s).
+        // With it, it moves from step 3 and keeps its course: within 1.3 mm and 0.10° of model 46's path, 3 impacts, at rest 0.2451 m up as
+        // 46's on 8 pairs in S04's straw, 0.6 mm from 46's rest; the largest lean 4.7 mm; every leg intact.
+        public const ulong RangeHash = 0xBADF8E0897A61D92UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>

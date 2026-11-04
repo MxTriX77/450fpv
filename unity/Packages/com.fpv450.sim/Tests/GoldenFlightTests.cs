@@ -1,3 +1,4 @@
+using System;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
@@ -224,6 +225,31 @@ namespace Fpv450.Sim.Tests
             Assert.That(states, Is.EqualTo(0u), "every leg intact, every corner whole");
         }
 
+        // p7g-legs 1.4 (model 49), its audit, kept: with the lever off (WithoutTheLever: 1.3's linear softening) every golden is
+        // model 46's pin over its 2784 bytes, every record and event, and the lean zero on every record; with it on, the flights
+        // that touch nothing (powered, rain, tumble) are model 46's too. So the lever is the whole move.
+        [Test]
+        public void WithoutTheLeverEachGoldenIsModel46s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int at = GoldenFlights.Model46Layout;
+            int nonZero = 0;
+            void Lean(byte[] record)
+            {
+                for (int i = at; i < LogFormat.StepSize; i++) if (record[i] != 0) nonZero++;
+            }
+            Action<FlightSetup> off = GoldenFlights.WithoutTheLever;
+            Assert.That(GoldenFlights.FlyContact(spec, out _, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model46ContactHash), "contact, on the soil");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model46RangeHash), "range, with the area laws");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model46TetherHash), "tether");
+            Assert.That(nonZero, Is.EqualTo(0), "the lean off the lever");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: at, onRecord: Lean), Is.EqualTo(GoldenFlights.Model46PoweredHash), "powered, on the lever");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, onRecord: Lean),
+                Is.EqualTo(GoldenFlights.Model46RainPoweredHash), "rain, on the lever");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model46TumbleHash), "tumble, on the lever");
+            Assert.That(nonZero, Is.EqualTo(0), "the lean of a flight that touches nothing");
+        }
+
         // Its audit against p7g-legs (model 41), kept: without the line's mechanisms (no surfaces.json, no area laws, no line, no
         // props.blade, model 34's yaw I; no golden enters a cut), over p7g-legs' record (the record less the fiber's 104 and the
         // strikes' 384 bytes at 1904), every golden is model 41's pin, every record and event, and the two blocks are zero on
@@ -239,14 +265,15 @@ namespace Fpv450.Sim.Tests
             {
                 for (int i = at; i < at + skip; i++) if (record[i] != 0) nonZero++;
             }
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, onRecord: Line, yawI: false), Is.EqualTo(GoldenFlights.Model41PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Line, yawI: false),
+            const int end = GoldenFlights.Model46Layout; // since model 49 the record before the legs' lean, the lever off (1.3's softening)
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, layout: end, onRecord: Line, yawI: false), Is.EqualTo(GoldenFlights.Model41PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, layout: end, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Line, yawI: false),
                 Is.EqualTo(GoldenFlights.Model41RainPoweredHash), "rain");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, at, skip, onRecord: Line, soil: false, yawI: false), Is.EqualTo(GoldenFlights.Model41ContactHash),
-                "contact, on the rigid floor");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, at, skip, onRecord: Line, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false),
-                Is.EqualTo(GoldenFlights.Model41RangeHash), "range, without the area laws");
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip), Is.EqualTo(GoldenFlights.Model41TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, at, skip, layout: end, onRecord: Line, soil: false, yawI: false, edit: GoldenFlights.WithoutTheLever),
+                Is.EqualTo(GoldenFlights.Model41ContactHash), "contact, on the rigid floor");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, at, skip, layout: end, onRecord: Line, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false,
+                edit: GoldenFlights.WithoutTheLever), Is.EqualTo(GoldenFlights.Model41RangeHash), "range, without the area laws");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip, end), Is.EqualTo(GoldenFlights.Model41TumbleHash), "tumble");
             Assert.That(nonZero, Is.EqualTo(0), "the fiber's and the strikes' blocks of a flight without the line and props.blade");
         }
 
@@ -305,7 +332,7 @@ namespace Fpv450.Sim.Tests
         const int GroundAt = RingAt + RingBytes, GroundBytes = 96, ModeAt = GroundAt + GroundBytes, ModeBytes = 160;
         const int InterferenceAt = ModeAt + ModeBytes, InterferenceBytes = 64, WakeAt = InterferenceAt + InterferenceBytes, WakeBytes = 32;
         const int FiberAt = WakeAt + WakeBytes, FiberBytes = 104, StrikesAt = FiberAt + FiberBytes, StrikesBytes = 384;
-        const int LegAt = StrikesAt + StrikesBytes, LegBytes = 168, DamageAt = LegAt + LegBytes, DamageBytes = 224;
+        const int LegAt = StrikesAt + StrikesBytes, LegBytes = 168, DamageAt = LegAt + LegBytes, DamageBytes = 224, LeanAt = DamageAt + DamageBytes, LeanBytes = 32;
 
         // The audits of p7b-airframe 1.3d and D-064, kept on the integration (model 24): without the interference, the rotor
         // wakes and the motors' resistance, friction and inertia spreads, over model 19's 1808 bytes, the powered, rain and
@@ -606,7 +633,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(DamageAt, Is.EqualTo(GoldenFlights.Model39Layout), "p7g-legs' model 39 record ends before a damaged leg's (its first 1904 bytes, then the legs' state)");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, DamageAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "leg_side_give.rear_right")),
                 "p7g-legs 1.3's side give, jaws and folds follow the legs' state");
-            Assert.That(LogFormat.StepSize - DamageAt, Is.EqualTo(DamageBytes), "to the record's end");
+            Assert.That(LeanAt, Is.EqualTo(GoldenFlights.Model46Layout), "model 46's record ends before the legs' lean");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, LeanAt), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "leg_lean.rear_right")),
+                "p7g-legs 1.4's lean follows the side give, jaws and folds (model 49)");
+            Assert.That(LogFormat.StepSize - LeanAt, Is.EqualTo(LeanBytes), "to the record's end");
         }
     }
 }
