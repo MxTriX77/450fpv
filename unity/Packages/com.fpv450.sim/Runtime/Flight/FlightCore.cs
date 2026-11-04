@@ -99,6 +99,11 @@ namespace Fpv450.Sim.Flight
         /// model, never a pilot's flight.</summary>
         public bool TetherTwoWay;
 
+        /// <summary>The known-wrong rotors' air on the line (p7d-tether 1.6b, D-075): design 4's field alone, without the
+        /// fountain and the ground vortex (RotorAir), so a line under the drone never reaches a disc by a modelled flow; a
+        /// bench's model and the audit against model 44's line, never a pilot's flight.</summary>
+        public bool TetherDesign4Air;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];

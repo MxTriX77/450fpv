@@ -209,6 +209,8 @@ namespace Fpv450.Sim.Tests
             // Since model 46 (p7g-legs on the line) the front legs' tubes part on the pole a step or two after the prop's strike
             // (74 N·m at their clamps' edges, past 3.1–3.3), their pieces leave, and the payload makes the crash a few
             // milliseconds later, the drone pitched by the strike (|v| 11.2 m/s): the flight's speed is judged at the first touch.
+            // The props' carve of the pole pushes it as it may (p7f-damage 1.3's tip slide: the leading face's push, 11.0 m/s at the
+            // crash on model 45, 10.8 on model 43, without the legs).
             Assert.That(r.FirstFlightSpeed, Is.EqualTo(10).Within(1), "at 10 m/s");
             Assert.That(r.Object, Is.EqualTo("L01_straight"));
             Assert.That(r.Material, Is.EqualTo("timber"));

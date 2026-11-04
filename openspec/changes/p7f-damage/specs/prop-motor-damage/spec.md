@@ -90,15 +90,27 @@ A face harder than the blade (by the rows' `hardness_pa`, Rabinowicz's rule) SHA
 - **THEN** the blade breaks at a station inside the rod's radius, the fragment's mass and energy leave the rotor, and with a known-wrong model that crushes instead of breaking, the blade's loss is the rod's depth only, so it fails the break
 
 ### Requirement: Soft targets and the ground
-A face softer than the blade SHALL be carved at its own crushing pressure over the volume the blade sweeps, the blade flinging the mass it meets (E = p·V + m_f·v²), the blade unharmed unless the cutting force breaks a section; in soil the pressure SHALL come from the row's cohesion (c·N_c) and its sand SHALL wear the blade; compliant thin rows (straw, foliage, twig shells, fabric, mesh) SHALL take no blade damage from this change.
+A face softer than the blade SHALL be carved at its own crushing pressure over the volume the blade sweeps, the blade flinging the mass it meets (E = p·V + m_f·v²) at the blade's speed through the face (its own and the body's motion there), the blade unharmed unless the cutting force breaks a section; the carve's axial push SHALL be its leading face's alone; the part of a disc inside a carved face SHALL make no thrust and no air torque; a blade held in a carved face SHALL be dragged through it by the body's motion and break where that load passes a section's strength; in soil the pressure SHALL come from the row's cohesion (c·N_c), its sand SHALL wear the blade and its stones (each set's labelled stone fraction and size) SHALL be met with the probability the pass's swept volume gives, drawn from a named seeded stream, each a hard target that breaks or notches the blade; compliant thin rows (straw, foliage, twig shells, fabric, mesh) SHALL take no blade damage from this change.
 
 #### Scenario: A prop in a trunk sticks a bit
 - **WHEN** a prop at hover speed is pushed 1, 5 and 20 mm into V01_L's trunk (bark) and `L01_straight` (timber)
 - **THEN** at 1 mm each pass costs the carve's energy and the rotor recovers between passes, at 20 mm the rotor stops on the wood (`RotorJammed`) and turns again as the motor drives it, and the blade is broken only where its cutting force passes a section's strength, each printed
 
 #### Scenario: Props that touch the ground bog down
-- **WHEN** a disc tilted 30° reaches 2 and 10 mm into a soil-like face: the materials table's soil-like row (`sandbag`: dry sand's c·N_c and density), and, once `p7a-ground`'s `surfaces.json` lands, the dirt track's and S04's bare soil when the drone tips over on landing
-- **THEN** each pass's energy is p·V + m_f·v² within 1e-9 relative, the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, and, with the soils' sand share (`p7a-ground`), the blades' leading edges show Archard wear
+- **WHEN** a disc tilted 30° reaches 2 and 10 mm into a soil-like face: the materials table's soil-like row (`sandbag`: dry sand's c·N_c and density), and, once `p7a-ground`'s `surfaces.json` lands, the dirt track's and S04's bare soil when the drone tips over on landing, their stones taken out
+- **THEN** each pass's energy is p·V + m_f·v² within 1e-9 relative at the blade's speed through the soil, the flung mass dominates, the 10 mm dig stops the rotor within its first two passes, and, with the soils' sand share (`p7a-ground`), the blades' leading edges show Archard wear
+
+#### Scenario: A soil pass meets its stones
+- **WHEN** a disc tilted 30° reaches 2 mm into the dirt track and S04's ground on 150 seeds each
+- **THEN** the stones met are within 4 σ of the passes' own odds, Σ(1 − e^(−λ)), each stone breaks or notches the blade, the blades lose more mass than on the same soil without its stones, and the known-wrong, the stone fraction taken as a pass's chance, misses the stones met by more than 4 σ, so it fails
+
+#### Scenario: A disc partly in the soil makes thrust only in the air
+- **WHEN** a rotor's disc is cut by a carved face's chord 2–80 mm inside its rim
+- **THEN** the rotor's thrust and torque lose its blades' loads past the chord (none for a chord at the tips, half for one through the hub, no thrust within Sissingh's tip loss span, more with depth past it), and the propulsion takes exactly those shares off the rotor's thrust and torque, a rotor with none being the sound rotor bit for bit
+
+#### Scenario: An armed tip-over chews its props up and stops
+- **WHEN** the pilot's landing tips over onto the dirt track and S04's soil (the legs rigid across their tubes, as the line's landing mechanics fly them), Sunny and in Rain, the throttle cut at the touch (still armed, airmode's authority) or the drone disarmed (its ESCs braking as drone.json's BLHeli_S does)
+- **THEN** armed, the props carve the soil, meet its stones and stop in it and break; disarmed, the braked props are stopped before the roll brings them to the soil and no blade breaks; and 3 s after the touch the drone is at rest on the ground (under 0.5 m/s), with no tunnel; the known-wrongs fail: model 43's carve (the blade's own speed, cot θ of the whole impulse, no stones, no immersed disc, no plough) slides on at 13 m/s, and the ESCs freewheeling on the disarm spin the props into the soil, its stones and their breaks
 
 #### Scenario: Who yields is decided by the material
 - **WHEN** the same 5 mm entry at hover speed meets concrete, steel, masonry, timber, bark, rubber and S04's straw boxes

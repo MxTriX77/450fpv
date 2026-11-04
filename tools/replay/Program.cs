@@ -21,6 +21,9 @@ namespace Fpv450.Replay
             + "  replay --record <log> --graze [--drone <drone.json>]\n"
             + "                                         fly the test range's wall graze (p7f-damage 1.3: a blade strike\n"
             + "                                         that chips the front-left blades, the drone flying on) and log it\n"
+            + "  replay --record <log> --tip [--disarm] [--rain sunny|rain|severerain] [--drone <drone.json>]\n"
+            + "                                         fly a landing tipped over onto the test range's S04 soil (p7f-damage\n"
+            + "                                         1.3's soil carve: the lower props dig into it) and log it\n"
             + "                                         fly the scripted flight (120 s, Windy) and log it, on the stub's\n"
             + "                                         floor or from the legs-on start of the repository's maps/<id>\n"
             + "                                         (or the foot and heading --foot gives) in the map's own wind\n"
@@ -187,6 +190,16 @@ namespace Fpv450.Replay
                 Console.WriteLine("  " + outcome);
                 if (g.Fault == null) return 0;
                 Console.WriteLine("  the log failed: " + g.Fault.Message);
+                return 1;
+            }
+            if (Array.IndexOf(args, "--tip") >= 0)
+            {
+                ScriptedFlight.Recorded t = ScriptedFlight.FlyTip(path, drone, rain, Array.IndexOf(args, "--disarm") >= 0, out string outcome);
+                Console.WriteLine($"record {Path.GetFileName(path)}: the tipped landing onto S04's soil on the test range, {rain}, {t.Counts.Steps} steps, "
+                    + $"{t.Counts.Events} events, {t.Bytes} bytes; {t.WallSeconds:F2} s of wall time");
+                Console.WriteLine("  " + outcome);
+                if (t.Fault == null) return 0;
+                Console.WriteLine("  the log failed: " + t.Fault.Message);
                 return 1;
             }
             string descent = Option(args, "--descent");
