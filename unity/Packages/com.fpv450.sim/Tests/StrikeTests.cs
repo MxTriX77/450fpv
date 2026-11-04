@@ -550,6 +550,12 @@ namespace Fpv450.Sim.Tests
         // surfaces.json, only glances. "An armed tip-over chews its props up and stops" (p7f-damage 1.3's tip slide): with the
         // throttle cut and airmode's authority, the props meet the soil's stones and break, and the drone is at rest 3 s after the
         // touch (StrikeScenarios.TipStops); the known-wrong, model 43's carve (ContactSpec.TipSlide off), slides on at 13 m/s.
+        // Since model 48 (the tip slide on the line) the landing flies the legs rigid across (StrikeScenarios.TippedLanding: on
+        // p7g-legs' side give it does not tip at this drift), and the disarmed drone's ESCs brake as drone.json's BLHeli_S does
+        // (p6-flight-core 1.6c, model 44): the props are stopped before the roll brings them to the soil, so the disarmed tip-over
+        // carves next to nothing and breaks no blade (a stopped prop survives the tumble, the research 1.3's tip slide cites); the
+        // known-wrong, the ESCs freewheeling (EscDisarm.Freewheel, model 38's coast), still spins them into the soil, its stones
+        // and their breaks, and without surfaces.json there it glances.
         [TestCase("track", RainLevel.Sunny, false)]
         [TestCase("track", RainLevel.Rain, false)]
         [TestCase("belt", RainLevel.Sunny, false)]
@@ -566,15 +572,31 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"{site} in {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
             TestContext.Out.WriteLine("  the known-wrong (no surfaces.json): " + wrong.Describe());
             Assert.That(r.MaxTilt, Is.GreaterThan(45), "the landing tips onto its side");
+            Assert.That(r.Tunnels, Is.EqualTo(0));
+            Assert.That(wrong.Passes, Is.EqualTo(0), "the known-wrong's props only glance");
+            Assert.That(StrikeScenarios.TipStops(r), Is.True, "the landing stops on the ground");
+            if (disarm)
+            {
+                StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(RepositoryDrone.Text())), World(site, out at),
+                    at, rain, SoilScenarios.Table(), true);
+                StrikeScenarios.TipResult freeWrong = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(DroneSpec.Parse(RepositoryDrone.Text())), World(site, out at),
+                    at, rain, null, true);
+                TestContext.Out.WriteLine("  the known-wrong (the ESCs freewheeling): " + free.Describe());
+                TestContext.Out.WriteLine("  freewheeling without surfaces.json: " + freeWrong.Describe());
+                Assert.That(r.Broken, Is.EqualTo(0), "the braked props survive the tumble");
+                Assert.That(r.Lost, Is.LessThan(1e-6), "under a milligram worn");
+                Assert.That(free.InSoil, Is.GreaterThan(0), "freewheeling, the spinning props carve the soil");
+                Assert.That(free.Stones, Is.GreaterThan(0), "meet its stones");
+                Assert.That(free.Broken, Is.GreaterThan(0), "and break: the brake is what saves them, so the known-wrong fails");
+                Assert.That(freeWrong.Glances, Is.GreaterThan(0), "without surfaces.json its props meet the ground");
+                Assert.That(freeWrong.Passes, Is.EqualTo(0), "and only glance");
+                return;
+            }
             Assert.That(r.InSoil, Is.GreaterThan(0), "its props carve the soil");
             Assert.That(r.Work, Is.GreaterThan(0));
             Assert.That(r.Jams, Is.GreaterThan(0), "and stop in it");
-            Assert.That(r.Tunnels, Is.EqualTo(0));
             Assert.That(wrong.Glances, Is.GreaterThan(0), "the known-wrong's props meet the ground");
-            Assert.That(wrong.Passes, Is.EqualTo(0), "and only glance");
-            Assert.That(StrikeScenarios.TipStops(r), Is.True, "the landing stops on the ground");
             Assert.That(r.Stones, Is.GreaterThan(0), "its props meet the soil's stones");
-            if (disarm) return;
             Assert.That(r.Broken, Is.GreaterThan(0), "and the armed props are chewed up");
             StrikeScenarios.TipResult slid = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, tipSlide: false);
             TestContext.Out.WriteLine("  the known-wrong (model 43's carve): " + slid.Describe());

@@ -311,13 +311,27 @@ namespace Fpv450.Sim.Tests
         /// known-wrong). started sees the setup and the core before the first step, stepped the core and its stick after each (a
         /// recorder's). tipSlide false flies model 43's carve (ContactSpec.TipSlide: the blade's own speed, cot θ of the whole
         /// impulse, no stones, no immersed disc, no plough; the slide p7f-damage 1.3's integration note found, the known-wrong).
+        /// Since model 48 (the tip slide on the line, with p7g-legs' PVC-U legs) the legs fly rigid across their tubes by default
+        /// (LandingScenarios.RigidAcross: model 37's leg law, no side give, no failure law), as the line's other landing mechanics
+        /// do: on the side give the drone does not tip at this drift (its feet give 0 past the 47 N sway load, so the skid's catch
+        /// carries no moment: p7g-legs 1.4's open question, D-079), and this scenario is the tipped-over drone's carve, not the
+        /// tip. rigidAcross false flies the legs' own law.
         /// </summary>
+        /// <summary>spec (a fresh parse: it is changed in place) with every ESC freewheeling on a disarm (EscDisarm.Freewheel: the motor
+        /// coasts at once, model 38's disarm), the known-wrong against drone.json's BLHeli_S brake (p6-flight-core 1.6c).</summary>
+        public static DroneSpec Freewheeling(DroneSpec spec)
+        {
+            for (int i = 0; i < spec.Motors.Length; i++) spec.Motors[i].EscDisarm = EscDisarm.Freewheel;
+            return spec;
+        }
+
         public static TipResult TippedLanding(DroneSpec spec, FlightWorld world, Double3 at, RainLevel rain, SurfaceTable table, bool disarm,
             double lateral = 2.5, System.Action<FlightSetup, FlightCore> started = null, System.Action<FlightCore, StickSample> stepped = null,
-            bool tipSlide = true)
+            bool tipSlide = true, bool rigidAcross = true)
         {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain, table: table, rigid: table == null);
+            if (rigidAcross) setup.Contacts = LandingScenarios.RigidAcross()(setup.Contacts);
             setup.Contacts.TipSlide = tipSlide;
             var core = new FlightCore(setup);
             started?.Invoke(setup, core);

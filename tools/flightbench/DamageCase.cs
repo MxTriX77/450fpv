@@ -72,7 +72,10 @@ namespace Fpv450.FlightBench
 
             // The pilot's landing tipped over (from a hover, 0.5 m/s down and 2.5 m/s across the skids, the throttle cut or the drone
             // disarmed at the touch) onto the dirt track and S04's soil, Sunny and in Rain, with surfaces.json and without it (the
-            // known-wrong Glance); it fails on a tunnel, or where the soil's flight carves nothing or never stops a prop.
+            // known-wrong Glance); it fails on a tunnel, or where the soil's flight carves nothing or never stops a prop. Since model
+            // 48 the legs fly rigid across (StrikeScenarios.TippedLanding) and a disarmed drone's ESCs brake (drone.json's BLHeli_S):
+            // its props are stopped before they reach the soil, so a disarmed landing must tip, stop and break no blade, and the
+            // ESCs freewheeling (model 38's coast, the known-wrong) are printed beside it.
             Console.WriteLine("  tipped landings (the props in the soil; p7f-damage 1.3's soil carve):");
             bool tipped = true;
             foreach (bool disarm in new[] { false, true })
@@ -84,14 +87,20 @@ namespace Fpv450.FlightBench
                         StrikeScenarios.TipResult r = StrikeScenarios.TippedLanding(spec, World(site, out Double3 at), at, rain, SoilScenarios.Table(), disarm);
                         StrikeScenarios.TipResult wrong = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, null, disarm);
                         StrikeScenarios.TipResult slid = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, tipSlide: false);
-                        tipped &= r.Tunnels == 0 && r.InSoil > 0 && r.Jams > 0 && StrikeScenarios.TipStops(r);
+                        tipped &= r.Tunnels == 0 && StrikeScenarios.TipStops(r) && r.MaxTilt > 45
+                            && (disarm ? r.Broken == 0 : r.InSoil > 0 && r.Jams > 0);
                         Console.WriteLine($"    {site}, {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
                         Console.WriteLine("      model 43's carve (ContactSpec.TipSlide off): " + slid.Describe());
                         Console.WriteLine("      without surfaces.json: " + wrong.Describe());
+                        if (!disarm) continue;
+                        StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(PoweredFlightCase.Drone()), World(site, out at), at, rain,
+                            SoilScenarios.Table(), disarm);
+                        Console.WriteLine("      the ESCs freewheeling (EscDisarm.Freewheel): " + free.Describe());
                     }
                 }
             }
-            Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each carves and stops a prop, no tunnel, and stops on the ground: StrikeScenarios.TipStops)");
+            Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
+                + "carves and stops a prop; disarmed, its braked props break no blade)");
             return ok && tipped;
         }
 
