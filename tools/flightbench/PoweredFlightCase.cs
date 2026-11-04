@@ -216,8 +216,9 @@ namespace Fpv450.FlightBench
             // design 4's field (no fountain, no ground vortex; p7d-tether 1.6b's audit against 44 when it was alone) the line's
             // flight is model 46's, every record and event; no golden's disc cuts the soil, so with the tip slide off (model 43's
             // carve) the contact, range and tether goldens are their pins. Since model 50 (the lever on the line) design 4's air
-            // gives p7g-legs 1.4's model 49 tether pin over the whole record, and with the lever off too model 46's over 2784 bytes.
-            ulong line46 = GoldenFlights.FlyContact(Drone(), out FlightCore l46, tether: true, recirculation: false),
+            // gives p7g-legs 1.4's model 49 tether pin over the whole record (over model 50's 2816 bytes since model 52), and with the lever
+            // off too model 46's over 2784 bytes.
+            ulong line46 = GoldenFlights.FlyContact(Drone(), out FlightCore l46, tether: true, recirculation: false, layout: GoldenFlights.Model50Layout),
                 line46off = GoldenFlights.FlyContact(Drone(), out _, tether: true, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever);
             Action<FlightSetup> slideOff = s => s.Contacts.TipSlide = false;
             ulong cso = GoldenFlights.FlyContact(Drone(), out FlightCore cs, edit: slideOff), gso = GoldenFlights.FlyRange(Drone(), out FlightCore gs, edit: slideOff),

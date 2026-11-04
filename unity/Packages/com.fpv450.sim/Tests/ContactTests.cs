@@ -61,7 +61,11 @@ namespace Fpv450.Sim.Tests
             Loadout offLoadout = spec.Nominal;
             offLoadout.Legs = false;
             ContactSpec off = spec.BuildContacts(offLoadout, m, h);
-            Assert.That(on.Shapes.Length, Is.EqualTo(spec.Contacts.Shapes.Length));
+            // Since model 52 (p7f-damage 1.3b) each prop's blades follow every other shape: 4 rotors × 2 blades × 4 span segments
+            // × their 2 edges.
+            int blades = 4 * spec.Props.Blades * ContactSpec.BladeSegmentEnds.Length * 2;
+            Assert.That(on.Shapes.Length, Is.EqualTo(spec.Contacts.Shapes.Length + blades));
+            Assert.That(Array.FindAll(on.Shapes, s => s.Role == ContactRole.Blade).Length, Is.EqualTo(blades));
             foreach (ContactShape s in off.Shapes)
                 Assert.That(s.Role == ContactRole.Support || s.Role == ContactRole.Skid || s.Name.StartsWith("leg_"), Is.False, s.Name + " comes off with the legs");
             Assert.That(off.Shapes.Length, Is.EqualTo(on.Shapes.Length - 16));

@@ -679,6 +679,7 @@ namespace Fpv450.Sim.Flight
                 }
                 shapes.Add(placed);
             }
+            if (Blade != null) AddBlades(shapes, c);
             c.Shapes = shapes.ToArray();
             c.LegStiffness = Legs.Stiffness;
             c.LegDamping = Legs.Damping;
@@ -705,6 +706,52 @@ namespace Fpv450.Sim.Flight
             c.FlapFrequency = f.BendingFrequency;
             c.FlapSouthwell = f.Southwell;
             return c;
+        }
+
+        /// <summary>A resting blade's damping ratio, η/2 of glass-filled nylon's loss factor η ≈ 0.02 (assumed, inside the published
+        /// 0.01–0.03 of PA66-GF30's tan δ at 23 °C; p7f-damage 1.3b).</summary>
+        public const double BladeDampingRatio = 0.01;
+
+        /// <summary>
+        /// Each prop's blades as resting parts (p7f-damage 1.3b, design 16, D-082), after every other shape so the build's
+        /// indices hold: per disc (in the shapes' order), per blade, per span segment (ContactSpec's BladeSegmentEnds, from the
+        /// blade's root), its trailing and leading edge as a capsule of the segment's greatest half-thickness, so the pair spans
+        /// the chord at its pitch (the planform's chord and twist, D-028). Placed at angle 0 here; ContactModel places them at
+        /// the rotor's angle from the blade's state each Sense. Their mount is the disc's motor (its can's stiffness, in series
+        /// with the blade's bending, ContactModel); the rest speed is the outer segment's radius over R·Dt (derived).
+        /// </summary>
+        void AddBlades(System.Collections.Generic.List<Contact.ContactShape> shapes, Contact.ContactSpec c)
+        {
+            double R = Props.Diameter / 2, root = Blade.Stations[0] - Blade.Span / 2;
+            double[] ends = Contact.ContactSpec.BladeSegmentEnds;
+            int discs = shapes.Count;
+            string[] ids = { "rr", "fr", "rl", "fl" };
+            double outer = 0;
+            for (int i = 0; i < discs; i++)
+            {
+                Contact.ContactShape d = shapes[i];
+                if (d.Role != Contact.ContactRole.Disc) continue;
+                Contact.ContactShape mount = default;
+                for (int j = 0; j < discs; j++)
+                    if (shapes[j].Role == Contact.ContactRole.Body && Parts[shapes[j].Part].Name == "motor_" + ids[d.Corner]) mount = shapes[j];
+                for (int b = 0; b < Props.Blades; b++)
+                    for (int g = 0; g < ends.Length; g++)
+                    {
+                        double from = g == 0 ? root : ends[g - 1], to = ends[g], half = 0;
+                        for (int k = 0; k < Blade.Stations.Length; k++)
+                            if (Blade.Stations[k] + Blade.Span / 2 > from && Blade.Stations[k] - Blade.Span / 2 < to) half = DetMath.Max(half, Blade.Thickness[k] / 2);
+                        if (g == ends.Length - 1) outer = half;
+                        for (int e = 0; e < 2; e++)
+                            shapes.Add(new Contact.ContactShape
+                            {
+                                Name = "blade_" + ids[d.Corner] + "_" + b + "_" + g + (e == 0 ? "_trailing" : "_leading"), Part = d.Part,
+                                Role = Contact.ContactRole.Blade, Corner = d.Corner, Material = d.Material,
+                                A = d.A + new Double3(from * R, 0, 0), B = d.A + new Double3(to * R, 0, 0), Radius = half,
+                                Stiffness = mount.Stiffness, StiffnessUp = mount.StiffnessUp, DampingRatio = BladeDampingRatio,
+                            });
+                    }
+            }
+            c.BladeRestSpeed = outer / (R * FlightCore.Dt);
         }
 
         /// <summary>

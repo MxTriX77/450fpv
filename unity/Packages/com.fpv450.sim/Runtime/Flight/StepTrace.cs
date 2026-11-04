@@ -106,6 +106,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>Each hanging skid half's fold about the other leg's bore, body rotation vector, rad.</summary>
         public Corners3 SkidFold;
 
+        /// <summary>Each resting prop's blades' load this step (p7f-damage 1.3b): the contact force on blade 0 and blade 1, N, and
+        /// each blade's own deflection at its strongest contact, m (its bending's share of the series, along the contact's
+        /// normal); 0 for a turning prop's.</summary>
+        public Corners BladeLoad0, BladeLoad1, BladeBend0, BladeBend1;
+
         /// <summary>The flight's loose pieces (p7g-legs 1.3, design 4), or null: logged in the side record at 50 Hz
         /// (LogFormat.LooseBlock), never in the step record.</summary>
         public Contact.LoosePieces Loose;

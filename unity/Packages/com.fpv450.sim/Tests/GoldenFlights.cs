@@ -289,7 +289,11 @@ namespace Fpv450.Sim.Tests
         // bytes). Audited: over model 46's 2784 bytes it is model 46's pin bit for bit, every record and event, the lean zero on every
         // record (it touches nothing; the kept test WithoutTheLeverEachGoldenIsModel48s, flightbench --golden).
         // Model 50 (the legs' lever on the line) keeps it: no line, no carve (WithoutTheFountainEachGoldenIsModel49s).
-        public const ulong PoweredHash = 0x32CFEE62D75ECC24UL;
+        // Model 50: 0x32CFEE62D75ECC24. p7f-damage 1.3b (ModelVersion 52): re-recorded on the 2944-byte record (the resting blades' block
+        // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
+        // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
+        // on anything in it.
+        public const ulong PoweredHash = 0x559EE43EC0D39E24UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -348,7 +352,11 @@ namespace Fpv450.Sim.Tests
         // bytes). Audited: over model 46's 2784 bytes it is model 46's pin bit for bit, every record and event, the lean zero on every
         // record (it touches nothing; the kept test WithoutTheLeverEachGoldenIsModel48s, flightbench --golden).
         // Model 50 (the legs' lever on the line) keeps it: no line, no carve (WithoutTheFountainEachGoldenIsModel49s).
-        public const ulong RainPoweredHash = 0x19A2E68386BF1DA9UL;
+        // Model 50: 0x19A2E68386BF1DA9. p7f-damage 1.3b (ModelVersion 52): re-recorded on the 2944-byte record (the resting blades' block
+        // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
+        // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
+        // on anything in it.
+        public const ulong RainPoweredHash = 0x94E95E58184745A9UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -408,6 +416,19 @@ namespace Fpv450.Sim.Tests
         public const ulong Model46PoweredHash = 0xAE194731E398F0A4UL, Model46RainPoweredHash = 0xED60FDA3FF1868A9UL,
             Model46ContactHash = 0x1AAB934D74816482UL, Model46RangeHash = 0x5CB64C5900F44C2BUL, Model46TetherHash = 0xFE34B0491C406118UL,
             Model46TumbleHash = 0x24B0961BC802C1D3UL;
+
+        /// <summary>p7f-damage 1.3b (model 52), its audit (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): model 50's
+        /// record, its first 2816 bytes (the record less the resting blades' block at its end), and its pins, which every golden
+        /// keeps bit for bit, every record and event, with the props at rest on (no golden's prop rests on anything) and off, the
+        /// block zero.</summary>
+        public const int Model50Layout = LogFormat.Model50StepSize;
+        public const ulong Model50PoweredHash = 0x32CFEE62D75ECC24UL, Model50RainPoweredHash = 0x19A2E68386BF1DA9UL,
+            Model50ContactHash = 0xE4B8CB8346751E29UL, Model50RangeHash = 0xBADF8E0897A61D92UL, Model50TetherHash = 0x316A98D76AD4F03FUL,
+            Model50TumbleHash = 0xE798498661DECB53UL;
+
+        /// <summary>A flight's contacts without the props at rest (p7f-damage 1.3b's audit and known-wrong): a resting prop passes
+        /// through what it meets, as at model 50.</summary>
+        public static void WithoutTheRest(FlightSetup s) => s.Contacts.BladeRest = false;
 
         /// <summary>A flight's contacts without the lever (p7g-legs 1.4's audit and known-wrong): 1.3's linear softening, k_t·(1 −
         /// P/P_sway) on the step before's axial load, never below 0.</summary>
@@ -664,7 +685,11 @@ namespace Fpv450.Sim.Tests
         // 0.2494 on 4 pairs, 1.2 mm from 46's rest; the largest lean 9.6 mm; every leg intact.
         // Model 50 (the legs' lever on the line) keeps it: no line and no disc in the soil (0 blade passes; the tip slide off, the
         // same bits), and with the lever off it is model 48's, which kept model 46's (WithoutTheLeverEachGoldenIsModel48s).
-        public const ulong ContactHash = 0xE4B8CB8346751E29UL;
+        // Model 50: 0xE4B8CB8346751E29. p7f-damage 1.3b (ModelVersion 52): re-recorded on the 2944-byte record (the resting blades' block
+        // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
+        // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
+        // on anything in it.
+        public const ulong ContactHash = 0x23F1CAAA06836829UL;
 
         /// <summary>The parents' pins at the physics integration 2 (model 34), which its kept audits fly: p7d-tether's model 31
         /// contact, range and tether goldens over the whole 2008-byte record (WithoutTheGroundTheGoldenFlightsAreModel31s:
@@ -749,8 +774,11 @@ namespace Fpv450.Sim.Tests
         /// model 48's from step 3 (the standing skids on their levers): within 2.0 mm and 0.82°, 71 events against 65, at rest
         /// 0.2495 m as 48's, 1.2 mm aside; the largest lean 9.5 mm; the line as on both (0.075 m paid out, 15 nodes, the trail at 7
         /// points, no clip or wedge), the chain's energy check taking 1 safe step (48: none, 49: 1). Every leg intact.
+        /// Model 50: 0x316A98D76AD4F03F. p7f-damage 1.3b (ModelVersion 52): re-recorded on the 2944-byte record, audited as the
+        /// others: over its first 2816 bytes model 50's pin, every record and event, with the props at rest on and off, the block
+        /// zero (WithoutARestingPropEachGoldenIsModel50s); on design 4's air model 49's pin over those 2816 bytes.
         /// </summary>
-        public const ulong TetherHash = 0x316A98D76AD4F03FUL;
+        public const ulong TetherHash = 0x053EF845C2E62E3FUL;
 
         /// <summary>The physics integration 2 with the tip slide and the fountain (model 48), its audits against the parents'
         /// tether pins: the line's model 46 (TetherHash at model 46, design 4's field), which the contact flight with the line on
@@ -825,7 +853,11 @@ namespace Fpv450.Sim.Tests
         // bytes). Audited: over model 46's 2784 bytes it is model 46's pin bit for bit, every record and event, the lean zero on every
         // record (it touches nothing; the kept test WithoutTheLeverEachGoldenIsModel48s, flightbench --golden).
         // Model 50 (the legs' lever on the line) keeps it: no line, no carve (WithoutTheFountainEachGoldenIsModel49s).
-        public const ulong TumbleHash = 0xE798498661DECB53UL;
+        // Model 50: 0xE798498661DECB53. p7f-damage 1.3b (ModelVersion 52): re-recorded on the 2944-byte record (the resting blades' block
+        // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
+        // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
+        // on anything in it.
+        public const ulong TumbleHash = 0x5BAE982A96C6A953UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -981,7 +1013,11 @@ namespace Fpv450.Sim.Tests
         // 46's on 8 pairs in S04's straw, 0.6 mm from 46's rest; the largest lean 4.7 mm; every leg intact.
         // Model 50 (the legs' lever on the line) keeps it: no line and no disc in the soil (0 blade passes; the tip slide off, the
         // same bits), and with the lever off it is model 48's, which kept model 46's (WithoutTheLeverEachGoldenIsModel48s).
-        public const ulong RangeHash = 0xBADF8E0897A61D92UL;
+        // Model 50: 0xBADF8E0897A61D92. p7f-damage 1.3b (ModelVersion 52): re-recorded on the 2944-byte record (the resting blades' block
+        // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
+        // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
+        // on anything in it.
+        public const ulong RangeHash = 0x05FA9D844690C592UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>

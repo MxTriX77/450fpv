@@ -179,8 +179,13 @@ namespace Fpv450.Sim.Log
         ///    table with 33's and 35's fields, 35's tip slide switch, 36's legs' fields) with 39's LegLeverLength after the tube's
         ///    EA/L, the tether entry 38's (37's design 4 air switch, tether.json's rotor_air rows); the loose pieces' side record
         ///    36's; the events as 38's (14–16 p7d-tether's, 17–20 p7f-damage's, 23–28 p7g-legs'); no new event kind.
+        /// 41: assigned elsewhere (D-072: p7g-legs' hanging skid half, model 51).
+        /// 42: p7f-damage 1.3b on the physics integration 2 (unity/physics/physics-integration-2--props-rest, assigned by D-072):
+        ///    after 40's 2816 bytes each resting prop's blades' load and deflection (blade_load_0/1, blade_bend_0/1; 128 bytes,
+        ///    2944 in all); the contacts entry's shapes with each prop's blade edges (ContactRole.Blade, after every other shape)
+        ///    and, after LegLeverLength, the rest's switch and speed (ContactSpec.BladeRest, BladeRestSpeed); no new event kind.
         /// </summary>
-        public const int Version = 40;
+        public const int Version = 42;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -457,8 +462,17 @@ namespace Fpv450.Sim.Log
         ///    slide's carve, its stones and the fountain's air), so a flight whose legs touch steps as in 49 where its discs never
         ///    cut a softer face and it flies no line (or flies it on design 4's field); with LegLeverLength 0 a flight steps as in
         ///    48 over its 2784 bytes, the lean 0; a flight whose legs never touch the ground steps as in 48.
+        /// 51: assigned elsewhere (D-072: p7g-legs' hanging skid half).
+        /// 52: p7f-damage 1.3b, props are parts at rest (on 50; unity/physics/physics-integration-2--props-rest, assigned by
+        ///    D-072): a rotor turning slower than ContactSpec.BladeRestSpeed carries its blades as contact shapes at their angle
+        ///    (each blade's edges along its span segments, ContactRole.Blade), bearing load through the contact model on the
+        ///    blade's bending in series with its motor's mount, their moment about the shaft turning the rotor (Propulsion's
+        ///    shaft load, implicit), their sections bending or breaking by design 5's laws (PropStrikes.RestDamage); a resting
+        ///    rotor strikes nothing, a faster one strikes as at 50; a jammed head-on crush inside the rim notches the leading edge
+        ///    by its share of the chord (it trimmed the tip by it at 50). A flight whose props never rest on anything steps as in
+        ///    50 over its 2816 bytes, the new block zero; with ContactSpec.BladeRest off, as in 50 but for a jammed head-on crush.
         /// </summary>
-        public const int ModelVersion = 50;
+        public const int ModelVersion = 52;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -480,8 +494,13 @@ namespace Fpv450.Sim.Log
         /// (p7b-airframe 1.1), then the vortex rings (1.2), then the rotors' surfaces and re-ingested wash (1.3), then the
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
-        /// leg's side give, jaws and hanging fold (1.3).</summary>
-        public const int StepSize = 2816, EventSize = 72, EndSize = 48;
+        /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
+        /// deflections (p7f-damage 1.3b).</summary>
+        public const int StepSize = 2944, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the resting blades' loads (models 49–50's, formats 39–40: through the legs' lean), over which a
+        /// flight whose props never rest on anything keeps model 50's bits.</summary>
+        public const int Model50StepSize = 2816;
 
         /// <summary>The record before the fiber's block (model 28's, format 18), over which a flight without the line keeps
         /// model 28's bits; it is also p7f-damage's model 29 record, before the blades' strikes, and p7g-legs' model 37 record,
@@ -524,6 +543,7 @@ namespace Fpv450.Sim.Log
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow", "Tether",
                 "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold", "LegLean",
+                "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -701,6 +721,11 @@ namespace Fpv450.Sim.Log
             foreach (string c in CornerNames) b.Vec("leg_jaw." + c, "m, body, the jaws' turn at the foot: the side spring's rest moved by their friction slipping");
             foreach (string c in CornerNames) b.Vec("skid_fold." + c, "rad, body rotation vector, a hanging skid half's fold about the other leg's bore");
             b.Corners("leg_lean", "m, the leg's lean on its lever: its foot's offset across the tube from its rest, its points' shares; 0 off the lever or the ground");
+            // A resting prop's blades (p7f-damage 1.3b).
+            b.Corners("blade_load_0", "N, the contact force on blade 0 of a resting prop this step; 0 for a turning prop");
+            b.Corners("blade_load_1", "N, the contact force on blade 1 of a resting prop this step; 0 for a turning prop");
+            b.Corners("blade_bend_0", "m, blade 0's own deflection at its strongest contact, along its normal (its bending's share of the series)");
+            b.Corners("blade_bend_1", "m, blade 1's own deflection at its strongest contact, along its normal (its bending's share of the series)");
             return b.Done(StepSize);
         }
 
@@ -891,6 +916,10 @@ namespace Fpv450.Sim.Log
             for (int c = 0; c < 4; c++) w.V3(t.LegJaw[c]);
             for (int c = 0; c < 4; c++) w.V3(t.SkidFold[c]);
             w.C4(t.LegLean);
+            w.C4(t.BladeLoad0);
+            w.C4(t.BladeLoad1);
+            w.C4(t.BladeBend0);
+            w.C4(t.BladeBend1);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -1033,6 +1062,10 @@ namespace Fpv450.Sim.Log
             for (int c = 0; c < 4; c++) t.LegJaw[c] = r.V3();
             for (int c = 0; c < 4; c++) t.SkidFold[c] = r.V3();
             t.LegLean = r.C4();
+            t.BladeLoad0 = r.C4();
+            t.BladeLoad1 = r.C4();
+            t.BladeBend0 = r.C4();
+            t.BladeBend1 = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

@@ -320,6 +320,37 @@ namespace Fpv450.Sim.Contact
         readonly double _skidBending, _skidLever, _skidContact;
         readonly Double3[] _elastic = new Double3[4];   // a hanging half's elastic turn about its holder's bore (body rotation vector)
 
+        // Props are parts at rest (p7f-damage 1.3b): the rotors and their blades (null until AttachRotors), each blade shape's
+        // slot (corner × blades + blade; −1 for any other shape), segment and edge; the hubs (body) and spin signs; the
+        // stations' bending sums for a contact's compliance; which rotors rest now and which a carve holds (PropStrikes);
+        // each resting rotor's angle at its blades' placement and its turn rate since the last; and the step's loads.
+        Propulsion _rotors;
+        PropBlade _blade;
+        double _bladeR;
+        int _bladesPer;
+        int[] _bladeSlot, _bladeSeg, _bladeEdge;
+        readonly Double3[] _hub = new Double3[4];
+        readonly double[] _spinSign = new double[4], _restAngle = new double[4], _restRate = new double[4];
+        double[] _flat0, _flat1, _flat2, _edge0, _edge1, _edge2, _axial0;
+        int _resting, _carveHeld;
+        RestLoad[] _restLoads;
+        double[] _restWeight, _restStrongest;
+        readonly double[] _shaftTorque = new double[4], _shaftStiffness = new double[4], _shaftDamping = new double[4];
+
+        /// <summary>A resting blade's load in the last Forces (p7f-damage 1.3b): the contact force on it (world, N) and its
+        /// components across its section at the strongest pair's station (flatwise, edgewise, N), the force-weighted radius of
+        /// its pairs (m), the blade's own deflection along the strongest pair's normal (m), and that pair's world identity and
+        /// point.</summary>
+        public struct RestLoad
+        {
+            public bool Loaded;
+            public Double3 Force, Point;
+            public double Flat, Edge, Radius, Deflection, Normal;
+            public int Object, Shape;
+            public ushort Material;
+            public byte Surface;
+        }
+
         // The impact window.
         int _impactLeft, _impacts;
         double _impactPeak, _lastPeak, _lastImpulse;
@@ -474,6 +505,7 @@ namespace Fpv450.Sim.Contact
             _wasA = new Double3[n];
             _wasB = new Double3[n];
             _off = new bool[n];
+            for (int i = 0; i < n; i++) _off[i] = _shapes[i].Role == ContactRole.Blade; // until AttachRotors places them
             for (int i = 0; i < n; i++)
             {
                 _wasA[i] = _shapes[i].A;
@@ -646,6 +678,298 @@ namespace Fpv450.Sim.Contact
         public double ImpactPeakAccel => _lastPeak;
         public double ImpactImpulse => _lastImpulse;
 
+        // ---- Props are parts at rest (p7f-damage 1.3b, design 16, D-082) ---------------------------------------------------
+
+        /// <summary>
+        /// The rotors whose blades are this model's Blade shapes (FlightCore, before the first Sense; with ContactSpec.BladeRest
+        /// and props.blade): from then on each Sense places a resting rotor's blades at its angle from their state (DamagedRotor)
+        /// and each Forces gives the rotor its blades' moment about the shaft (Propulsion.SetShaftLoad). The stations' sums
+        /// for a contact's compliance, per station j up to k: Σ Δx/EI, Σ x·Δx/EI, Σ x²·Δx/EI flatwise and edgewise and Σ
+        /// Δx/EA, so a cantilever's compliance at r is r²·S0 − 2r·S1 + S2 over the stations inside r (unit load, derived).
+        /// </summary>
+        public void AttachRotors(Propulsion propulsion, PropulsionSpec spec)
+        {
+            _rotors = propulsion ?? throw new ArgumentNullException(nameof(propulsion));
+            _blade = spec.Rotor.Blade;
+            _bladeR = spec.Props.Diameter / 2;
+            _bladesPer = spec.Props.Blades;
+            int n = _shapes.Length;
+            _bladeSlot = new int[n];
+            _bladeSeg = new int[n];
+            _bladeEdge = new int[n];
+            var seen = new int[4];
+            int segments = ContactSpec.BladeSegmentEnds.Length;
+            for (int i = 0; i < n; i++)
+            {
+                _bladeSlot[i] = -1;
+                if (_shapes[i].Role != ContactRole.Blade) continue;
+                int c = _shapes[i].Corner, k = seen[c]++;
+                _bladeSlot[i] = c * _bladesPer + k / (2 * segments);
+                _bladeSeg[i] = k / 2 % segments;
+                _bladeEdge[i] = k % 2;
+            }
+            for (int i = 0; i < n; i++)
+                if (_shapes[i].Role == ContactRole.Disc) _hub[_shapes[i].Corner] = _shapes[i].A;
+            for (int c = 0; c < 4; c++) _spinSign[c] = spec.Motors[c].Clockwise ? -1 : 1;
+            PropBlade b = _blade;
+            int m = b.Stations.Length;
+            _flat0 = new double[m];
+            _flat1 = new double[m];
+            _flat2 = new double[m];
+            _edge0 = new double[m];
+            _edge1 = new double[m];
+            _edge2 = new double[m];
+            _axial0 = new double[m];
+            double dx = b.Span * _bladeR, f0 = 0, f1 = 0, f2 = 0, e0 = 0, e1 = 0, e2 = 0, a0 = 0;
+            for (int k = 0; k < m; k++)
+            {
+                double x = b.Stations[k] * _bladeR, ch = b.Chord[k], t = b.Thickness[k];
+                double eiF = _spec.SectionForm * b.FlexuralModulus * ch * t * t * t / 12, eiE = _spec.SectionForm * b.FlexuralModulus * t * ch * ch * ch / 12;
+                f0 += dx / eiF;
+                f1 += x * dx / eiF;
+                f2 += x * x * dx / eiF;
+                e0 += dx / eiE;
+                e1 += x * dx / eiE;
+                e2 += x * x * dx / eiE;
+                a0 += dx / (b.FlexuralModulus * b.Fill[k] * ch * t);
+                _flat0[k] = f0;
+                _flat1[k] = f1;
+                _flat2[k] = f2;
+                _edge0[k] = e0;
+                _edge1[k] = e1;
+                _edge2[k] = e2;
+                _axial0[k] = a0;
+            }
+            _restLoads = new RestLoad[4 * _bladesPer];
+            _restWeight = new double[4 * _bladesPer];
+            _restStrongest = new double[4 * _bladesPer];
+        }
+
+        /// <summary>Whether rotor c's blades are its contact shapes now (it turns slower than BladeRestSpeed, no carve holds it).</summary>
+        public bool Resting(int corner) => (_resting & (1 << corner)) != 0;
+
+        /// <summary>The rotors a jammed carve holds (PropStrikes, bit 1 &lt;&lt; corner): its grind is that blade's contact, so
+        /// their blades are no shapes until it ends.</summary>
+        public void HoldBlades(int mask) => _carveHeld = mask;
+
+        /// <summary>Whether shape i touches anything now: a support's ground, or one of its pairs not carried by another.</summary>
+        public bool Touching(int i)
+        {
+            if (_ground[i].Touching) return true;
+            for (int k = 0; k < _count[i]; k++)
+                if (_pairs[i * PairsPerShape + k].Touching && !_pairs[i * PairsPerShape + k].Suppressed) return true;
+            return false;
+        }
+
+        /// <summary>A blade's load in the last Forces (slot corner × blades + blade).</summary>
+        public RestLoad RestLoadOf(int slot) => _restLoads != null ? _restLoads[slot] : default;
+
+        // Each rotor's blades to its angle now: a resting one's from its blades' state (tip, chord share, pitch and flap sets),
+        // each segment's trailing and leading edge a chord apart less a radius each, at the section's pitch; a rotor turning
+        // faster, or held by a carve, takes them off (their touching pairs broken). A blade shape coming back appears where its
+        // blade is (no sweep from where it was a turn ago); a resting rotor's turn since the last placement is its blades'
+        // slip, for their friction and damping (Forces).
+        void PlaceBlades(in FlightState was, in FlightState now, StepEvents events)
+        {
+            int resting = 0;
+            for (int c = 0; c < 4; c++)
+                if (_spec.BladeRest && now.RotorSpeed[c] <= _spec.BladeRestSpeed && (_carveHeld & (1 << c)) == 0) resting |= 1 << c;
+            for (int c = 0; c < 4; c++)
+            {
+                if ((resting & (1 << c)) == 0) continue;
+                double turn = now.RotorAngle[c] - _restAngle[c];
+                while (turn > 3.141592653589793) turn -= 6.283185307179586;
+                while (turn <= -3.141592653589793) turn += 6.283185307179586;
+                _restRate[c] = (_resting & (1 << c)) != 0 ? turn / _dt : 0;
+                _restAngle[c] = now.RotorAngle[c];
+            }
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                int slot = _bladeSlot[i];
+                if (slot < 0) continue;
+                int c = slot / _bladesPer, b = slot % _bladesPer;
+                if ((resting & (1 << c)) == 0 || !BladeEdge(i, c, b, now.RotorAngle[c], out Double3 a, out Double3 e))
+                {
+                    if (!_off[i]) Off(i, now.Step, events);
+                    continue;
+                }
+                _shapes[i].A = a;
+                _shapes[i].B = e;
+                if (_off[i])
+                {
+                    _off[i] = false;
+                    _wasA[i] = a;
+                    _wasB[i] = e;
+                }
+            }
+            _resting = resting;
+        }
+
+        // A world surface that is a soil (surfaces.json's set, not rigid): it yields to a blade at its bearing pressure, softer than
+        // the blade (the hardness rule), so a blade meets it by the strikes' carve, never as a rigid face; at rest a blade in soil
+        // bears nothing here (assumed: its bearing on the soil is left to a soil law for the blade, open). Without the table the
+        // ground is rigid and a resting blade meets it as any body part does.
+        bool YieldsToBlade(byte surface) => surface != WorldIds.NoSurface && _soil != null && _surfaceRow[surface].Known && !_soil[surface].Rigid;
+
+        // A blade shape leaves the set: its touching pairs broken.
+        void Off(int i, long step, StepEvents events)
+        {
+            _off[i] = true;
+            for (int k = 0; k < _count[i]; k++)
+            {
+                ref Pair p = ref _pairs[i * PairsPerShape + k];
+                if (p.Touching) Broken(ref p, i, step, events);
+            }
+            _count[i] = 0;
+        }
+
+        // Blade shape i's core at the rotor's angle (body): its segment's ends at their stations' chord, pitch and flap set, the
+        // edge's offset along the chord from the mid-chord on the blade's radial line (assumed: the chord's middle on it), the
+        // leading edge back by what a chip took. False when the segment lies past the blade's tip.
+        bool BladeEdge(int i, int c, int b, double angle, out Double3 a, out Double3 e)
+        {
+            int g = _bladeSeg[i];
+            double[] ends = ContactSpec.BladeSegmentEnds;
+            BladeState state = _rotors.Rotor(c).Blade(b);
+            double from = g == 0 ? _blade.Stations[0] - _blade.Span / 2 : ends[g - 1], to = DetMath.Min(ends[g], state.TipRadius);
+            a = e = default;
+            if (!(to > from)) return false;
+            DetMath.SinCos(angle + 6.283185307179586 * b / _bladesPer, out double sp, out double cp);
+            double s = _spinSign[c], rad = _shapes[i].Radius;
+            var radial = new Double3(cp, 0, s * sp);
+            var motion = new Double3(-sp, 0, s * cp);
+            a = EdgePoint(c, state, radial, motion, from, _bladeEdge[i], rad);
+            e = EdgePoint(c, state, radial, motion, to, _bladeEdge[i], rad);
+            return true;
+        }
+
+        Double3 EdgePoint(int c, BladeState state, Double3 radial, Double3 motion, double x, int edge, double rad)
+        {
+            int k = BladeStation(x);
+            double chord = _blade.Chord[k], theta = _blade.SectionAngle[k] + state.FactoryPitch + state.PitchSet[k];
+            double off = edge == 0 ? -chord / 2 + rad : -chord / 2 + DetMath.Max(chord * state.ChordShare[k] - rad, rad);
+            DetMath.SinCos(theta, out double st, out double ct);
+            return _hub[c] + radial * (x * _bladeR) + new Double3(0, state.FlapSet[k], 0) + motion * (off * ct) + new Double3(0, off * st, 0);
+        }
+
+        int BladeStation(double x)
+        {
+            int k = (int)((x - (_blade.Stations[0] - 0.5 * _blade.Span)) / _blade.Span);
+            return k < 0 ? 0 : k >= _blade.Stations.Length ? _blade.Stations.Length - 1 : k;
+        }
+
+        // A resting blade pair's normal stiffness (N/m) and the blade's share of its compliance: the blade a cantilever from
+        // the hub, bent at the contact's radius r across its section at the station there (flatwise across the chord, edgewise
+        // along it, the section's principal axes at its pitch; axially along the span), in series with its mount, the motor's
+        // can (its shape's Stiffness across body y, StiffnessUp along it, as a body shape's). Also the contact's radius, the
+        // blade's direction of motion there and the section's axes (body).
+        double BladeStiffness(int i, in Pair p, in FlightState s, out double share, out double r, out Double3 motion, out Double3 flat, out Double3 along)
+        {
+            int slot = _bladeSlot[i], c = slot / _bladesPer, b = slot % _bladesPer;
+            ContactShape shape = _shapes[i];
+            Double3 at = s.Attitude.InverseRotate(p.Point - s.Position) - _hub[c];
+            var plane = new Double3(at.X, 0, at.Z);
+            r = plane.Length();
+            Double3 radial = r > 0 ? plane * (1 / r) : new Double3(1, 0, 0);
+            motion = new Double3(-radial.Z, 0, radial.X) * _spinSign[c];
+            int k = BladeStation(r / _bladeR);
+            BladeState state = _rotors.Rotor(c).Blade(b);
+            DetMath.SinCos(_blade.SectionAngle[k] + state.FactoryPitch + state.PitchSet[k], out double st, out double ct);
+            flat = motion * -st + new Double3(0, ct, 0);
+            along = motion * ct + new Double3(0, st, 0);
+            Double3 nb = s.Attitude.InverseRotate(p.N);
+            double nf = Double3.Dot(nb, flat), ne = Double3.Dot(nb, along), nr = Double3.Dot(nb, radial);
+            int j = k - 1; // the stations wholly inside r
+            double cf = 0, ce = 0, ca = 0;
+            if (j >= 0)
+            {
+                cf = r * r * _flat0[j] - 2 * r * _flat1[j] + _flat2[j];
+                ce = r * r * _edge0[j] - 2 * r * _edge1[j] + _edge2[j];
+                ca = _axial0[j];
+            }
+            double blade = nf * nf * cf + ne * ne * ce + nr * nr * ca;
+            double up = nb.Y * nb.Y, mount = up / shape.StiffnessUp + (1 - up) / shape.Stiffness;
+            share = blade / (blade + mount);
+            return 1 / (blade + mount);
+        }
+
+        void ClearRest()
+        {
+            for (int j = 0; j < _restLoads.Length; j++)
+            {
+                _restLoads[j] = default;
+                _restWeight[j] = _restStrongest[j] = 0;
+            }
+            for (int c = 0; c < 4; c++) _shaftTorque[c] = _shaftStiffness[c] = _shaftDamping[c] = 0;
+        }
+
+        // A resting blade pair's load (world fw, its normal force fn on the blade's series stiffness ks, kn with a layer's): into
+        // its blade's (the force, its components across the section, the force-weighted radius, the strongest pair's deflection
+        // of the blade itself, fn·c_blade, and its identity), and its rotor's moment about the shaft, r·(f·ê_t), with that
+        // moment's stiffness against a turn, r²·(kn·(n·ê_t)² + k_t·(1 − (n·ê_t)²)), the stick spring's k_t while it holds
+        // (derived: the turn moves the blade's material along ê_t into the face and along it).
+        void Rest(int i, in Pair p, in FlightState s, Double3 fw, double fn, double ks, double kn, double cn, in Row row, Double3 v, double share, double r,
+            Double3 motion, Double3 flat, Double3 along)
+        {
+            int slot = _bladeSlot[i], c = slot / _bladesPer;
+            ref RestLoad l = ref _restLoads[slot];
+            Double3 fb = s.Attitude.InverseRotate(fw);
+            double size = fw.Length();
+            l.Loaded = true;
+            l.Force = l.Force + fw;
+            l.Flat += Double3.Dot(fb, flat);
+            l.Edge += Double3.Dot(fb, along);
+            l.Radius += size * r;
+            _restWeight[slot] += size;
+            if (size > _restStrongest[slot])
+            {
+                _restStrongest[slot] = size;
+                l.Deflection = fn * share / ks;
+                l.Normal = fn;
+                l.Object = p.Object;
+                l.Shape = p.Shape;
+                l.Material = p.Material;
+                l.Surface = p.Surface;
+                l.Point = p.Point;
+            }
+            _shaftTorque[c] += r * Double3.Dot(fb, motion);
+            double nt = Double3.Dot(s.Attitude.InverseRotate(p.N), motion), across = 1 - nt * nt;
+            bool stuck = p.Anchored && !p.Sliding;
+            double kt = stuck ? _spec.FrictionStiffnessRatio * kn : 0;
+            _shaftStiffness[c] += r * r * (kn * nt * nt + kt * across);
+            // The damping against a turn: the normal's, cn·(n·ê_t)², and the friction's: the stick's damper while it holds, else
+            // the kinetic friction's slope along ê_t, μ_k·F_n/|v_t| across its slip (its slip at least SlipFloor).
+            Double3 n = p.N, vt = v - n * Double3.Dot(n, v), et = s.Attitude.Rotate(motion);
+            double slip = vt.Length(), aligned = slip > 0 ? Double3.Dot(vt, et) / slip : 0;
+            double friction = stuck ? DetMath.Sqrt(_spec.FrictionStiffnessRatio) * cn * across
+                : row.KineticFriction * fn / DetMath.Max(slip, SlipFloor) * (1 - aligned * aligned);
+            _shaftDamping[c] += r * r * (cn * nt * nt + friction);
+        }
+
+        // A sliding blade's slip under which its friction's slope is taken, m/s (assumed: a micron a millisecond, far below any
+        // slide the log can tell from a stick).
+        const double SlipFloor = 1e-3;
+
+        // The step's resting blades: each load's radius, the trace's loads and deflections, and each rotor's shaft load for the
+        // next step's propulsion (none for a rotor that does not rest).
+        void RestTrace(ref StepTrace trace)
+        {
+            for (int j = 0; j < _restLoads.Length; j++)
+                if (_restWeight[j] > 0) _restLoads[j].Radius /= _restWeight[j];
+            for (int c = 0; c < 4; c++)
+            {
+                RestLoad b0 = _restLoads[c * _bladesPer], b1 = _bladesPer > 1 ? _restLoads[c * _bladesPer + 1] : default;
+                trace.BladeLoad0[c] = b0.Force.Length();
+                trace.BladeLoad1[c] = b1.Force.Length();
+                trace.BladeBend0[c] = b0.Deflection;
+                trace.BladeBend1[c] = b1.Deflection;
+                // The moment at rest: the one found at the blades' slip rate, less its damping's share of that rate.
+                if ((_resting & (1 << c)) != 0)
+                    _rotors.SetShaftLoad(c, _shaftTorque[c] + _shaftDamping[c] * _restRate[c], _shaftStiffness[c], _shaftDamping[c], _restAngle[c]);
+                else _rotors.SetShaftLoad(c, 0, 0, 0, 0);
+            }
+        }
+
         // ---- Forces: at the step's start ----------------------------------------------------------------------------------
 
         /// <summary>
@@ -740,19 +1064,29 @@ namespace Fpv450.Sim.Contact
                 }
             }
 
-            // The body shapes, pair by pair.
+            // The body shapes, pair by pair; then a resting prop's blades (p7f-damage 1.3b), as parts of the body whose material
+            // moves with its rotor's turn, their moment about the shaft the rotor's in the next step's propulsion.
+            if (_restLoads != null) ClearRest();
             for (int i = 0; i < _shapes.Length; i++)
             {
-                if (_shapes[i].Role != ContactRole.Body || _off[i]) continue;
+                ContactRole role = _shapes[i].Role;
+                if (role != ContactRole.Body && role != ContactRole.Blade || _off[i]) continue;
                 ContactShape shape = _shapes[i];
+                bool blade = role == ContactRole.Blade;
                 for (int k = 0; k < _count[i]; k++)
                 {
                     ref Pair p = ref _pairs[i * PairsPerShape + k];
                     if (!p.Touching || p.Suppressed) continue;
                     Row row = RowOf(p);
-                    Double3 nb = s.Attitude.InverseRotate(p.N);
-                    double up = nb.Y * nb.Y;
-                    double ks = 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
+                    double ks, bladeShare = 0, r = 0;
+                    Double3 motion = default, flat = default, along = default;
+                    if (blade) ks = BladeStiffness(i, p, s, out bladeShare, out r, out motion, out flat, out along);
+                    else
+                    {
+                        Double3 nb = s.Attitude.InverseRotate(p.N);
+                        double up = nb.Y * nb.Y;
+                        ks = 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
+                    }
                     double cs = 2 * shape.DampingRatio * DetMath.Sqrt(ks * _massShare);
                     // A layer by this part's footprint, solid past its stroke: then the part's own spring alone (1.12, P7).
                     double kl = row.Stiffness, cl = row.Damping, stroke = double.PositiveInfinity;
@@ -763,6 +1097,17 @@ namespace Fpv450.Sim.Contact
                         kn = ks;
                         cn = cs;
                         depth -= stroke;
+                    }
+                    if (blade)
+                    {
+                        int c = _shapes[i].Corner;
+                        Double3 v = PointVelocity(s, p.Point) + s.Attitude.Rotate(motion * (_restRate[c] * r));
+                        double fb = kn * depth - cn * Double3.Dot(v, p.N);
+                        if (fb < 0) fb = 0;
+                        Double3 fwb = Apply(ref p, i, k, fb, kn, cn, p.Depth, row, s, com, v, ref f, ref m, ref touching, ref strongest, ref strongestPair,
+                            ref strongestForce);
+                        Rest(i, p, s, fwb, fb, ks, kn, cn, row, v, bladeShare, r, motion, flat, along);
+                        continue;
                     }
                     double fn = kn * depth - cn * Double3.Dot(PointVelocity(s, p.Point), p.N);
                     if (fn < 0) fn = 0;
@@ -785,6 +1130,7 @@ namespace Fpv450.Sim.Contact
 
             if (series) LegSums(s, axis, com, ref f, ref m, ref load, ref touching, ref strongest, ref strongestPair, ref strongestForce, events);
             LegTrace(ref trace);
+            if (_restLoads != null) RestTrace(ref trace);
 
             trace.ContactForce = f;
             trace.ContactMoment = m;
@@ -1800,11 +2146,16 @@ namespace Fpv450.Sim.Contact
         // A pair's share of a normal force fn (its depth over total), its friction, into the step's force and moment; the
         // force it took (world).
         Double3 Apply(ref Pair p, int shape, int pair, double fn, double kn, double cn, double total, in Row row, in FlightState s, Double3 com,
-            ref Double3 f, ref Double3 m, ref int touching, ref int strongest, ref int strongestPair, ref double strongestForce)
+            ref Double3 f, ref Double3 m, ref int touching, ref int strongest, ref int strongestPair, ref double strongestForce) =>
+            Apply(ref p, shape, pair, fn, kn, cn, total, row, s, com, PointVelocity(s, p.Point), ref f, ref m, ref touching, ref strongest,
+                ref strongestPair, ref strongestForce);
+
+        // The same with the touching material's velocity v (world): a resting blade's carries its rotor's turn.
+        Double3 Apply(ref Pair p, int shape, int pair, double fn, double kn, double cn, double total, in Row row, in FlightState s, Double3 com,
+            Double3 v, ref Double3 f, ref Double3 m, ref int touching, ref int strongest, ref int strongestPair, ref double strongestForce)
         {
             if (!(p.Depth > 0)) return default;
             double w = p.Depth / total, share = fn * w;
-            Double3 v = PointVelocity(s, p.Point);
             Double3 ft = Friction(ref p, share, _spec.FrictionStiffnessRatio * kn * w, DetMath.Sqrt(_spec.FrictionStiffnessRatio) * cn * w, v, row, _dt);
             Double3 fw = p.N * share + ft;
             f = f + fw;
@@ -2727,6 +3078,8 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public void Sense(in FlightState was, ref FlightState now, StepEvents events)
         {
+            if (_rotors != null) PlaceBlades(was, now, events);
+
             // The supports' ground, in one batch.
             for (int k = 0; k < _supports.Length; k++)
             {
@@ -2797,6 +3150,7 @@ namespace Fpv450.Sim.Contact
             ContactShape shape = _shapes[i];
             int first = i * PairsPerShape;
             bool groundless = shape.Role == ContactRole.Support || shape.Role == ContactRole.Skid;
+            bool blade = shape.Role == ContactRole.Blade;
             bool capsule = !Same(shape.A, shape.B);
             for (int k = 0; k < _count[i]; k++)
             {
@@ -2808,6 +3162,7 @@ namespace Fpv450.Sim.Contact
             {
                 StaticContact c = _buf[j];
                 if (groundless && c.Object == WorldIds.Ground) continue; // the supports' ground is SampleGround's
+                if (blade && YieldsToBlade(c.Surface)) continue; // a soil carved by the blade is the strikes' (p7f-damage 1.3b)
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
                 bool same = Buried(j, found) || (capsule ? SameSupport(i, c) : Seam(j, found, groundless));

@@ -21,7 +21,8 @@ namespace Fpv450.FlightBench
     // ground is surfaces.json's soil (since model 43). Then the pilot's landings tipped over onto the dirt track and S04's soil,
     // Sunny and in Rain, the throttle cut or disarmed at the touch, with surfaces.json, with model 43's carve (ContactSpec.TipSlide
     // off: the slide p7f-damage 1.3 found) and without surfaces.json (the Glance): their blades' passes, carves, stones, jams and
-    // damage; a landing must stop (StrikeScenarios.TipStops).
+    // damage; a landing must stop (StrikeScenarios.TipStops). Then props at rest (p7f-damage 1.3b): the drone set down on one
+    // prop's blade, and D-082's case on R01_A's roof rack, disarmed and then armed at idle (RestScenarios).
     internal static class DamageCase
     {
         public static bool Run(int seeds)
@@ -101,7 +102,38 @@ namespace Fpv450.FlightBench
             }
             Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
                 + "carves and stops a prop; disarmed, its braked props break no blade)");
-            return ok && tipped;
+            return ok && tipped & Rest(spec);
+        }
+
+        // p7f-damage 1.3b (design 16, D-082): props are parts at rest. The drone set down on one prop's blade (a steel block
+        // under it), and D-082's case on R01_A's roof (rolled onto its left skid, the front-left blade on the rack's side rail),
+        // disarmed, then armed with the sticks centred; each against its known-wrong, the prop passing through at rest (model
+        // 50's). It fails where a resting blade bears nothing, the known-wrong does not settle lower, the armed idle rotor does not
+        // strike the rack, chip its blade and move the drone, or on a tunnel or a crash.
+        static bool Rest(DroneSpec spec)
+        {
+            Console.WriteLine("  props at rest (p7f-damage 1.3b, D-082):");
+            RestScenarios.Result block = RestScenarios.Block(spec), through = RestScenarios.Block(spec, rest: false);
+            bool b = block.BladeTouches && !block.SupportTouches && block.Load > 2 && through.Load == 0 && through.SupportTouches
+                && block.HubHeight - through.HubHeight > 0.003 && block.Crashes + block.Tunnels == 0;
+            Console.WriteLine("    set down on one prop: " + block.Describe());
+            Console.WriteLine("      the prop passing through (model 50): " + through.Describe());
+            Console.WriteLine($"    a resting prop bears load: {(b ? "PASS" : "FAIL")} (the blade holds its corner up, {(block.HubHeight - through.HubHeight) * 1e3:F1} mm "
+                + "over the known-wrong's, which rests on that skid)");
+            RestScenarios.RackPose(spec, out Double3 p, out _, out double roll);
+            RestScenarios.Result rack = RestScenarios.Rack(spec), wrong = RestScenarios.Rack(spec, rest: false, arm: false);
+            bool r = rack.Load > 1 && rack.Strikes > 0 && rack.FirstStrikeOn == "R01_A (steel)" && rack.Damaged > 0 && rack.Lost > 0 && rack.Travel > 0.001
+                && rack.Crashes + rack.Tunnels == 0 && wrong.Load == 0 && rack.HubAtArming - wrong.HubHeight > 0.003 && rack.Notches > 0;
+            Console.WriteLine($"    on R01_A's roof rack (set down rolled {roll * 57.29577951308232:F1}° at ({p.X:F3}, {p.Y:F3}, {p.Z:F3}), 3 s disarmed, then 3 s armed at idle): "
+                + rack.Describe());
+            Console.WriteLine("      the prop passing through (model 50), disarmed: " + wrong.Describe());
+            Console.WriteLine($"    arming with a prop on the rack moves the drone: {(r ? "PASS" : "FAIL")}");
+            // Information: a blade that carries a real share of the drone holds an idle motor by its friction (μ·N·r against the
+            // idle's Kt·d·V/R less Kt·I0), so arming stalls it: the front-left blade's root pressed in the rail's crotch with the
+            // motor can (RestScenarios' scan, 25 mm from the hub, 24° off the rail).
+            RestScenarios.Result stall = RestScenarios.Rack(spec, yaw: -66, radius: 0.025, corner: RestScenarios.FrontLeft);
+            Console.WriteLine("    (information) the front-left blade's root on the rail beside its motor can, bearing its share: " + stall.Describe());
+            return b && r;
         }
 
         static FlightWorld World(string site, out Double3 at) =>

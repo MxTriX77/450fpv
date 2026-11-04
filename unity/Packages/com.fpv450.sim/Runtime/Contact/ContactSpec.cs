@@ -18,6 +18,14 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>A prop disc: strikes only (no force), its bounding sphere then a ring of capsules round its rim.</summary>
         Disc = 3,
+
+        /// <summary>
+        /// A prop blade's edge at rest (p7f-damage 1.3b, design 16, D-082): a capsule along one edge of one span segment of one
+        /// blade, placed each Sense at the rotor's angle from the blade's state, carried like a body part while its rotor turns
+        /// slower than ContactSpec.BladeRestSpeed (the strikes take a faster one). Its Stiffness and StiffnessUp are its mount's
+        /// (the motor's), in series with the blade's own bending at the contact; DampingRatio is the blade's.
+        /// </summary>
+        Blade = 4,
     }
 
     /// <summary>
@@ -210,6 +218,24 @@ namespace Fpv450.Sim.Contact
         /// <summary>The blade's non-rotating first flap mode, Hz, and its Southwell coefficient (RotorFlappingSpec's: 150 Hz
         /// assumed, 1.193 published), for its rotating flap stiffness K_β = I_b·(ω₀² + (K_s − 1)·Ω²) (DroneSpec.BuildContacts).</summary>
         public double FlapFrequency = 150, FlapSouthwell = 1.193;
+
+        /// <summary>
+        /// Props are parts at rest (p7f-damage 1.3b, design 16, D-082): a rotor turning slower than BladeRestSpeed carries its
+        /// blades as contact shapes (ContactRole.Blade) at their angle, bearing load through the contact model, the load's
+        /// moment about the shaft acting on the rotor and its sections bending or breaking by the blade laws (PropStrikes);
+        /// faster, its strikes meet what its disc cuts. On for every flight; off only for an audit and the known-wrong (the
+        /// prop passed through at rest: model 50's), which a flight with it off steps as.
+        /// </summary>
+        public bool BladeRest = true;
+
+        /// <summary>The rotor speed under which its blades are contact shapes, rad/s (DroneSpec.BuildContacts, derived: the
+        /// speed at which the tip moves its own capsule's radius in a step, so the penalty contact resolves a resting blade's
+        /// motion; above it a blade's pass is a strike).</summary>
+        public double BladeRestSpeed;
+
+        /// <summary>A resting blade's span segments' outer ends, r/R, from its root (ContactRole.Blade; assumed: the planform's
+        /// chord kink at 0.3 R, then three spans; each segment's greatest half-thickness is within 0.7 mm of its least).</summary>
+        public static readonly double[] BladeSegmentEnds = { 0.3, 0.55, 0.8, 1.0 };
 
         /// <summary>The shapes present at the loadout (a part at 0 kg has none).</summary>
         public ContactShape[] Shapes = new ContactShape[0];

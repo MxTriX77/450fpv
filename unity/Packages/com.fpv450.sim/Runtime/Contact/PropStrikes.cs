@@ -99,6 +99,8 @@ namespace Fpv450.Sim.Contact
         readonly double[] _strength;
         readonly double[] _area, _flat, _edge, _stiff, _mass; // per station, the whole chord: A, M_f, M_e, EI_f/span, mass
         readonly Pending[] _pending = new Pending[4];
+        readonly int[] _discOf = { -1, -1, -1, -1 }; // each corner's disc shape
+        readonly double[] _restPeak;
 
         /// <summary>A rotor stopped in a carve: the work still to do and where it is (design 6); in soil, the sand's wear per joule
         /// of it (m³/J), what the grind has worn so far (m³), from where (r/R), and what it carves.</summary>
@@ -162,7 +164,12 @@ namespace Fpv450.Sim.Contact
                 if (s.Role == ContactRole.Disc) discs++;
             _discs = new int[discs];
             for (int i = 0, k = 0; i < _spec.Shapes.Length; i++)
-                if (_spec.Shapes[i].Role == ContactRole.Disc) _discs[k++] = i;
+                if (_spec.Shapes[i].Role == ContactRole.Disc)
+                {
+                    _discs[k++] = i;
+                    _discOf[_spec.Shapes[i].Corner] = i;
+                }
+            _restPeak = new double[4 * _blades];
 
             // The world's materials by id, as the contacts read them.
             IWorldQuery q = world.Query;
@@ -262,6 +269,12 @@ namespace Fpv450.Sim.Contact
                 int i = _discs[n];
                 ContactShape d = _spec.Shapes[i];
                 int c = d.Corner, pairs = _contacts.DiscPairs(i);
+                if (_contacts.Resting(c))
+                {
+                    // A resting rotor's blades are the contact model's parts (1.3b): no pass, no carve.
+                    Immerse(c, double.PositiveInfinity);
+                    continue;
+                }
                 if (pairs == 0)
                 {
                     if (_pending[c].Active && Finish(i, d, ref _pending[c], events)) changed |= 1 << c;
@@ -309,8 +322,82 @@ namespace Fpv450.Sim.Contact
                 now.Velocity = now.Velocity + impulse * body.InverseMass;
                 now.BodyRate = now.BodyRate + body.InverseInertia * angular;
             }
+            changed |= RestDamage(events);
+            int held = 0;
+            for (int c = 0; c < 4; c++)
+                if (_pending[c].Active) held |= 1 << c;
+            _contacts.HoldBlades(held);
             for (int c = 0; c < 4; c++)
                 if ((changed & (1 << c)) != 0) _propulsion.Rebuild(c);
+        }
+
+        /// <summary>A resting blade's largest flatwise moment so far at its most loaded station, N·m (its plastic set's memory: a
+        /// set grows only past it; 1.3b), per slot.</summary>
+        public double RestPeak(int corner, int blade) => _restPeak[corner * _blades + blade];
+
+        /// <summary>The last resting load that bent or broke a blade (1.3b), for a test: its rotor and blade, the section's
+        /// forces (N), radius (m), the station, the moment and its share of the strength, the set (rad) and whether it broke.</summary>
+        public struct RestRecord
+        {
+            public int Corner, Blade, Station;
+            public double Flat, Edge, Radius, Moment, Margin, Set;
+            public bool Broke;
+        }
+
+        public RestRecord LastRest;
+
+        // The step's resting blades (p7f-damage 1.3b, design 16): each one's load from the contact model's Forces, its section
+        // forces at their force-weighted radius, against its sections by design 5's laws as a strike's: the first station inward
+        // whose moment passes its edgewise or flatwise strength (the blade's drawn factor, its chord share) breaks there, the
+        // blade beyond it lost; else a flatwise moment past the proportional limit and past the blade's largest so far leaves a
+        // flap set, (M − max(M_p, M_peak))/k_p at the worst station (a static load held step after step sets once: the
+        // plastic hinge's memory, assumed without hardening). The bits of the rotors it changed.
+        int RestDamage(StepEvents events)
+        {
+            int changed = 0;
+            for (int c = 0; c < 4; c++)
+            {
+                if (!_contacts.Resting(c)) continue;
+                int i = _discOf[c];
+                if (i < 0) continue;
+                ContactShape d = _spec.Shapes[i];
+                for (int b = 0; b < _blades; b++)
+                {
+                    ContactModel.RestLoad l = _contacts.RestLoadOf(c * _blades + b);
+                    if (!l.Loaded) continue;
+                    BladeState blade = _propulsion.Rotor(c).Blade(b);
+                    double f = _strength[c * _blades + b], rc = l.Radius, ff = DetMath.Abs(l.Flat), fe = DetMath.Abs(l.Edge);
+                    int broke = Breaks(blade, f, rc, rc, fe, ff, out double moment, out double margin);
+                    var rec = new RestRecord { Corner = c, Blade = b, Flat = l.Flat, Edge = l.Edge, Radius = rc, Moment = moment, Margin = margin, Station = broke };
+                    double before = Mass(blade);
+                    if (broke >= 0)
+                    {
+                        blade.Trim(_b.Stations[broke]);
+                        rec.Broke = true;
+                        LastRest = rec;
+                        Damaged(i, d, b, StrikeMode.Break, l.Object, l.Shape, l.Material, l.Surface, l.Point, blade.TipRadius, before - Mass(blade),
+                            _b.Stations[broke], events);
+                        changed |= 1 << c;
+                        continue;
+                    }
+                    int set = Worst(blade, f, rc, ff, out double mf, out double limit);
+                    ref double peak = ref _restPeak[c * _blades + b];
+                    double from = DetMath.Max(limit, peak);
+                    if (set < 0 || !(mf > from)) continue;
+                    double phi = (mf - from) / (_spec.PlasticShare * _stiff[set] * blade.ChordShare[set]);
+                    peak = mf;
+                    double sign = l.Flat < 0 ? -1 : 1;
+                    for (int j = set + 1; j < _stations; j++)
+                        blade.FlapSet[j] += sign * phi * (_b.Stations[j] - _b.Stations[set]) * _radius;
+                    rec.Station = set;
+                    rec.Moment = mf;
+                    rec.Set = phi;
+                    LastRest = rec;
+                    Damaged(i, d, b, StrikeMode.Bend, l.Object, l.Shape, l.Material, l.Surface, l.Point, blade.TipRadius, 0, _b.Stations[set], events);
+                    changed |= 1 << c;
+                }
+            }
+            return changed;
         }
 
         // One blade's pass across a pair; true when it changed the blade.
@@ -348,7 +435,7 @@ namespace Fpv450.Sim.Contact
             rec.Exit = rout;
             double mu = row.KineticFriction, crush = _b.CrushStrength * f;
             double work, rotorWork = double.NaN, pushN = 0, axial = 0, cot = double.NaN, rc = rm, alpha, newTip = tip, rotorShare = 1;
-            double carveCrush = 0;
+            double carveCrush = 0, notch = 0;
             int broke = -1, set = -1;
             double phi = 0, wear = 0;
             StrikeMode mode;
@@ -554,13 +641,22 @@ namespace Fpv450.Sim.Contact
             {
                 share = rotorWork > 0 ? energy / rotorWork : 1;
                 after = 0;
-                if (mode == StrikeMode.Crush) newTip = tip - share * (tip - newTip);
+                if (mode == StrikeMode.Crush && !(hard && inside)) newTip = tip - share * (tip - newTip);
                 if (mode == StrikeMode.Break)
                 {
                     // Short of the fracture's work the section holds: the blade presses the face, crushing that share of its depth.
                     mode = StrikeMode.Crush;
                     newTip = hard && !inside ? tip - share * (tip - rm / R) : tip;
                     broke = -1;
+                }
+                if (hard && inside)
+                {
+                    // A hard shape inside the rim crushes the leading edge back through the chord against its force σ_c·t·w (1.3b):
+                    // the rotor's energy reaches E/F of the chord left, a notch across the shape's width (design 6: the chip's size
+                    // given the energy; 1.3 trimmed the tip by the crush's share and left a held break's section whole).
+                    int kn = Station(rc / R);
+                    notch = DetMath.Min(energy / rec.CrushForce, _b.Chord[kn] * blade.ChordShare[kn]);
+                    newTip = tip;
                 }
                 phi *= share;
                 wear *= share;
@@ -594,6 +690,12 @@ namespace Fpv450.Sim.Contact
             // The damage.
             double before = Mass(blade);
             bool damaged = false;
+            if (notch > 0 && Notch(blade, rc, rec.Exit - rm, notch, out double lo))
+            {
+                damaged = true;
+                Damaged(i, d, b, StrikeMode.Crush, obj, shape, material, surface, m.Point, blade.TipRadius, before - Mass(blade), lo, events);
+                before = Mass(blade);
+            }
             if (newTip < tip)
             {
                 blade.Trim(newTip);
@@ -722,17 +824,8 @@ namespace Fpv450.Sim.Contact
             {
                 double left = _b.Chord[k] * blade.ChordShare[k];
                 if (!(notch < left)) newTip = rc / R;
-                else
+                else if (Notch(blade, rc, w, notch, out double lo))
                 {
-                    double lo = (rc - 0.5 * w) / R, hi = (rc + 0.5 * w) / R;
-                    for (int j = 0; j < _stations; j++)
-                    {
-                        double a = _b.Stations[j] - 0.5 * _span, z = DetMath.Min(a + _span, DetMath.Min(hi, blade.TipRadius));
-                        double o = z - DetMath.Max(a, lo);
-                        if (!(o > 0)) continue;
-                        double share2 = blade.ChordShare[j] - notch / _b.Chord[j] * (o / _span);
-                        blade.ChordShare[j] = share2 > 0 ? share2 : 0;
-                    }
                     damaged = true;
                     Damaged(i, d, b, StrikeMode.Crush, obj, shape, material, surface, point, blade.TipRadius, before - Mass(blade), lo, events);
                 }
@@ -1019,6 +1112,24 @@ namespace Fpv450.Sim.Contact
                 limit = _b.ProportionalLimit * mf;
             }
             return at;
+        }
+
+        // A notch notch deep (m) into the leading edge across w (m) centred at rc (m): each station's chord share there falls by
+        // notch over its chord, in proportion to its span inside the width; lo the notch's inner end (r/R). True as a stone's
+        // since 1.3 (always, given a width).
+        bool Notch(BladeState blade, double rc, double w, double notch, out double lo)
+        {
+            double R = _radius, hi = (rc + 0.5 * w) / R;
+            lo = (rc - 0.5 * w) / R;
+            for (int j = 0; j < _stations; j++)
+            {
+                double a = _b.Stations[j] - 0.5 * _span, z = DetMath.Min(a + _span, DetMath.Min(hi, blade.TipRadius));
+                double o = z - DetMath.Max(a, lo);
+                if (!(o > 0)) continue;
+                double share2 = blade.ChordShare[j] - notch / _b.Chord[j] * (o / _span);
+                blade.ChordShare[j] = share2 > 0 ? share2 : 0;
+            }
+            return true;
         }
 
         // The blade's volume between r1 and r2 (m), inside its tip, on its chord shares.
