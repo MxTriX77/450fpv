@@ -144,6 +144,16 @@ namespace Fpv450.Sim.Tether
             ("rotor_air.wall_jet_thickness_over_radius", TetherValueKind.Positive),
             ("rotor_air.wall_lift_coefficient", TetherValueKind.Positive),
             ("rotor_air.wall_lift_gap_over_diameter", TetherValueKind.Positive),
+            ("rotor_air.fountain_momentum_ratio", TetherValueKind.Positive),
+            ("rotor_air.plane_jet_spreading_rate", TetherValueKind.Positive),
+            ("rotor_air.hover_like_advance_ratio", TetherValueKind.Positive),
+            ("rotor_air.ground_vortex_advance_ratio", TetherValueKind.Band),
+            ("rotor_air.ground_vortex_offset_over_radius", TetherValueKind.Positive),
+            ("rotor_air.ground_vortex_penetration_ratio", TetherValueKind.Positive),
+            ("rotor_air.ground_vortex_height_over_jet", TetherValueKind.Positive),
+            ("rotor_air.ground_vortex_core_over_height", TetherValueKind.Positive),
+            ("rotor_air.ground_vortex_circulation", TetherValueKind.Positive),
+            ("rotor_air.ground_vortex_half_span_over_radius", TetherValueKind.Positive),
         };
 
         const double DerivedTolerance = 1e-3;

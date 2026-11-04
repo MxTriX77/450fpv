@@ -595,8 +595,19 @@ namespace Fpv450.Sim.Tests
         /// aside; against the contact golden without the line it moves from step 3, as since model 31, and stays within 6.8 mm
         /// and 0.16° of it, at rest 1.2 mm aside; the line as on model 38 (0.073 m paid out, 15 nodes, the trail at 8 points, no
         /// wedge), the chain's energy check taking no clip or safe step (model 38: 1 and 1).
+        /// Model 40 (kept by models 42 and 44): 0x40D840364F986978. p7d-tether 1.6b (ModelVersion 47), the fountain and the
+        /// ground vortex in the line's air: on design 4's field (FlightSetup.TetherDesign4Air) it is model 44's pin, every record
+        /// and event (OnDesign4sAirTheTetherGoldenIsModel44s). It moves from step 14, the motors' first thrust after the arming
+        /// (their wakes land, the rear pair's wall jets meet under the line and their fountain moves it, so the exit's pull),
+        /// and keeps its course: within 1.8 mm and 0.50° of model 44's path, the same 94 events, at rest at the same 0.2497 m,
+        /// 0.6 mm aside; the line as on model 44 (0.073 m paid out, 15 nodes, the trail at 8 points, no wedge), the chain's
+        /// energy check taking 1 safe step (none) and 8537 corrections (8179).
         /// </summary>
-        public const ulong TetherHash = 0x40D840364F986978UL;
+        public const ulong TetherHash = 0x58966ACA34ED8ED2UL;
+
+        /// <summary>Model 44's tether golden (TetherHash at model 44, before 1.6b's fountain and ground vortex), which the
+        /// contact flight with the line on design 4's air keeps bit for bit (GoldenFlightTests.OnDesign4sAirTheTetherGoldenIsModel44s).</summary>
+        public const ulong Model44TetherHash = 0x40D840364F986978UL;
 
         // 1.7 (QA's review-base finding 3): first recorded with ModelVersion 6. Its checks fail the known-wrong steps (each a
         // temporary edit, reverted): turning at the start's rate (no midpoint passes) gains 9.0e-4 of the energy in 10 s;
@@ -991,7 +1002,8 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyContact(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
-            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null)
+            bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
+            bool recirculation = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1013,6 +1025,7 @@ namespace Fpv450.Sim.Tests
                 setup.Tether = Tether.TetherTable.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
+                setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);

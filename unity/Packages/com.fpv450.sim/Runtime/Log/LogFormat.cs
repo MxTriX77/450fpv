@@ -133,8 +133,13 @@ namespace Fpv450.Sim.Log
         ///    D-072): 32 merged onto 30: each motor of the propulsion entry carries its ESC's disarm rule (32's) after its
         ///    current limit; the drone internals entry stays at tag 26 and the tether entry at 25; the record is 30's 2392
         ///    bytes; no new event kind.
+        /// 35, 36: assigned elsewhere (D-072, D-074).
+        /// 37: the fountain and the ground vortex on the line (p7d-tether 1.6b, D-075; assigned by D-074): the tether entry
+        ///    gains the known-wrong design 4 air's switch (FlightSetup.TetherDesign4Air, a bool) after the two-way spool's;
+        ///    tether.json's rotor_air block gains its ten rows (the entry writes every row, so its layout is otherwise 34's);
+        ///    the record is 34's 2392 bytes; no new event kind.
         /// </summary>
-        public const int Version = 34;
+        public const int Version = 37;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -333,8 +338,15 @@ namespace Fpv450.Sim.Log
         ///    in 40, and so does one whose motors name no rule (EscDisarm.Freewheel); one on a drone.json without props.blade
         ///    steps as in 42. 42's landing harness (the steady approach, a touch judged alone) is test code. The record is
         ///    40's.
+        /// 45, 46: assigned elsewhere (D-072, D-074).
+        /// 47: the fountain and the ground vortex on the line (p7d-tether 1.6b, D-075, on 44; RotorAir): where two rotors' wall
+        ///    jets meet, their normal momentum (fountain_momentum_ratio of it) rises as a self-similar plane jet from the ground
+        ///    to the discs' plane, fading out of the hover-like regime; each landing wake in a stream along the ground rolls a
+        ///    ground vortex ahead of it (a straight Scully vortex and its image, placed and sized from Wolf et al. 2022's
+        ///    flight test), unless another rotor's landing shadows it. Only the line's air changes: a flight without the line
+        ///    steps as in 44, and so does one with it on design 4's field (FlightSetup.TetherDesign4Air).
         /// </summary>
-        public const int ModelVersion = 44;
+        public const int ModelVersion = 47;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

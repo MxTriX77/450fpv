@@ -78,13 +78,16 @@ namespace Fpv450.Sim.Tests
         }
 
         // "A pulled trail lifts": a trail held by a snag 50 m behind lifts in order as the drone climbs and flies on, the chain
-        // within its 32 nodes, and line pays out only once the span from the exit to the snag is pulled taut at the payout tension.
+        // within its 32 nodes, and line pays out only once the span from the exit to the snag is pulled taut at the payout tension
+        // (since 1.6b the pull's payout: the rear pair's fountain under the drone sitting on the floor may draw a little first,
+        // its drag on the piece rising to the exit at the hold, printed).
         [Test]
         public void APulledTrailLifts()
         {
             TetherScenarios.PulledTrail r = TetherScenarios.PullTrail(Spec);
             Print($"frozen {r.Frozen} points, down to {r.Fewest}, rose while lifting {r.RoseWhileLifting}; most nodes {r.MostNodes}; first payout with "
-                + $"{r.TrailAtPayout} trail points, exit tension {r.TensionOverHold:F3} of the hold, line over chord from the snag {r.LineOverChord:F4}; paid {r.Paid:F2} m");
+                + $"{r.TrailAtPayout} trail points, exit tension {r.TensionOverHold:F3} of the hold, line over chord from the snag {r.LineOverChord:F4}; paid {r.Paid:F2} m, "
+                + $"{r.PaidBeforePull * 1000:F3} mm of it before the pull");
             Assert.That(r.Frozen, Is.GreaterThan(3), "the laid line froze into the trail");
             Assert.That(r.Fewest, Is.EqualTo(1), "every point lifted back to the snag");
             Assert.That(r.RoseWhileLifting, Is.False, "last frozen first, in order");
@@ -92,6 +95,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.TrailAtPayout, Is.EqualTo(1), "line pays out only once the trail has lifted to the snag");
             Assert.That(r.TensionOverHold, Is.GreaterThanOrEqualTo(0.99), "and the exit is pulled to the payout tension");
             Assert.That(r.Paid, Is.GreaterThan(1));
+            Assert.That(r.PaidBeforePull, Is.LessThan(1e-3), "the rotors' air at the sit draws less than a millimetre");
             Assert.That(r.Wedges, Is.EqualTo(0));
         }
 
@@ -127,21 +131,33 @@ namespace Fpv450.Sim.Tests
         // "A line under a punch is lifted and drawn": legs-on with the line laid under the rear, full throttle against hover thrust;
         // the line beside the skids is lifted and moves faster at full throttle, each node's air is the field's law at its position
         // and its drag the law's on that air within 1 %; a node crossing a turning disc is counted (1.8 cuts the line there).
+        // Since 1.6b (D-075) the line reaches a disc by the modelled flow: the rear pair's wall jets meet under the line and rise
+        // as a fountain, which carries it up between the rear discs to their inboard rims, faster at full throttle than at hover;
+        // design 4's field without it (FlightSetup.TetherDesign4Air) is the known-wrong, the line held 0.24–0.29 m off the rims.
         [Test]
         public void ALineUnderAPunchIsLiftedAndDrawn()
         {
             TetherScenarios.Punch full = TetherScenarios.Liftoff(Spec, true);
             TetherScenarios.Punch hover = TetherScenarios.Liftoff(Spec, false);
-            foreach ((string name, TetherScenarios.Punch p) in new[] { ("full", full), ("hover", hover) })
+            TetherScenarios.Punch wrongFull = TetherScenarios.Liftoff(Spec, true, design4: true);
+            TetherScenarios.Punch wrongHover = TetherScenarios.Liftoff(Spec, false, design4: true);
+            foreach ((string name, TetherScenarios.Punch p) in new[] { ("full", full), ("hover", hover), ("design 4 full", wrongFull), ("design 4 hover", wrongHover) })
                 Print($"{name}: the line lying beside the skids rose {p.Lift * 1000:F2} mm off the floor, the wall jet's lift up to {p.LiftOverWeight:F2} times "
-                    + $"its weight, moved at up to {p.Speed:F3} m/s, came within "
-                    + $"{p.Rim * 1000:F1} mm of a rim; a segment crossed a turning disc {p.Crossed} times; air within {p.AirError:E2}, drag within "
-                    + $"{p.DragError:E2} of the law over {p.Checked} node-steps");
+                    + $"its weight, moved at up to {p.Speed:F3} m/s, came within {p.Rim * 1000:F1} mm of a rim at up to {p.PeakApproach:F3} m/s; "
+                    + $"the whole line within {p.LineRim * 1000:F1} mm of a rim; a segment crossed a turning disc {p.Crossed} times; "
+                    + $"air within {p.AirError:E2}, drag within {p.DragError:E2} of the law over {p.Checked} node-steps");
             Assert.That(full.LiftOverWeight, Is.GreaterThan(1), "the wall jet lifts the line lying in it off the floor");
-            Assert.That(full.LiftOverWeight, Is.GreaterThan(hover.LiftOverWeight), "harder at full throttle");
             Assert.That(full.Lift, Is.GreaterThan(hover.Lift), "it rises higher");
             Assert.That(full.Speed, Is.GreaterThan(hover.Speed), "and moves faster");
-            foreach (TetherScenarios.Punch p in new[] { full, hover })
+            Assert.That(full.PeakApproach, Is.GreaterThan(hover.PeakApproach), "toward the nearest disc's edge faster than at hover");
+            foreach ((TetherScenarios.Punch p, TetherScenarios.Punch wrong) in new[] { (full, wrongFull), (hover, wrongHover) })
+            {
+                Assert.That(wrong.Rim, Is.GreaterThan(0.2), "design 4's field alone holds the line beside the skids off the rims: the known-wrong");
+                Assert.That(p.Rim, Is.LessThan(wrong.Rim - 0.05), "the fountain draws it toward the discs");
+                Assert.That(p.PeakApproach, Is.GreaterThan(wrong.PeakApproach), "faster than design 4's field");
+                Assert.That(p.LineRim, Is.LessThan(wrong.LineRim), "and carries the line rising to the exit up to the rear discs' inboard rims");
+            }
+            foreach (TetherScenarios.Punch p in new[] { full, hover, wrongFull, wrongHover })
             {
                 Assert.That(p.AirError, Is.LessThan(0.01), "each node's air is the field's law at it");
                 Assert.That(p.DragError, Is.LessThan(0.01), "its drag the law's");

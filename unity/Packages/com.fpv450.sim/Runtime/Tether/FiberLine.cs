@@ -110,8 +110,9 @@ namespace Fpv450.Sim.Tether
     ///   line carries it away; derived from the variable-mass momentum balance), applied in the next step (the one-step lag
     ///   of design 2).
     /// - Each node carries gravity, the drag of its relative air by White's fit across it and skin friction along it, the
-    ///   wind field at it, the rotors' air (RotorAir) and in rain its wet film (heavier and thicker); a node lying in a wall
-    ///   jet is lifted by the wall's lift on a cylinder.
+    ///   wind field at it, the rotors' air (RotorAir, with its fountain and ground vortex unless the setup flies design 4's
+    ///   field, TetherDesign4Air) and in rain its wet film (heavier and thicker); a node lying in a wall jet is lifted by the
+    ///   wall's lift on a cylinder.
     /// - A node near the ground rests on its plane (SampleGround, one batch a step; over a hole the soil a ray finds) with the
     ///   coating's friction; resting there trail.freeze_seconds slower than trail.freeze_speed_m_s (so held by its friction),
     ///   more than near_length_m of line from the exit, it freezes into the trail with the tension it held; the trail's last
@@ -252,7 +253,7 @@ namespace Fpv450.Sim.Tether
             _loadLift = new Double3[nodes];
             _loadMaterial = new double[nodes];
             _loadLength = new double[nodes];
-            if (setup.Propulsion != null) _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2);
+            if (setup.Propulsion != null) _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air);
 
             // The coil: the line left on it, from its part's mass over the empty spool's.
             _coilPart = setup.TetherCoilPart;

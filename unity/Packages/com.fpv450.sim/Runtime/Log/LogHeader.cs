@@ -93,7 +93,8 @@ namespace Fpv450.Sim.Log
     ///   pose and order; their material ids are the world's, named by the world entry)
     /// - the fiber's table (p7d-tether 1.1): tether.json's every row with its label, and the file's hash (none for a
     ///   flight without the line); and the line's launch (1.6): its coil part and the empty spool's mass, the laid layout
-    ///   when one was given, the two-way switch (the spool's draw and stream are the randomness's)
+    ///   when one was given, the two-way switch and the design 4 air's (1.6b; the spool's draw and stream are the
+    ///   randomness's)
     /// - the start state with the packs' charge, and the record layouts (so a reader needs no code of ours)
     /// - the input: where the sticks came from (a keyboard flight is for development, never for tuning), the device's
     ///   product name and its report intervals before the flight (p6-input-app 1.1); the host µs of step 0, so a step's
@@ -111,7 +112,7 @@ namespace Fpv450.Sim.Log
             "Seed", "Settings", "World", "Mass", "Propulsion", "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate",
             "StartPackCharge", "Aero", "Wind", "Rain", "CameraPosition", "Contacts", "RuntimeObjects", "Asymmetry", "VortexRing", "GroundEffect",
             "RotorWake", "Flapping", "Interference", "Modes", "Placement", "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass",
-            "TetherTwoWay",
+            "TetherTwoWay", "TetherDesign4Air",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -326,11 +327,12 @@ namespace Fpv450.Sim.Log
         public TetherTable Tether;
 
         /// <summary>The line's launch with the table (FlightSetup's): the laid layout (null: the table's), the coil's part and
-        /// its empty spool's mass, the known-wrong two-way spool.</summary>
+        /// its empty spool's mass, the known-wrong two-way spool and the known-wrong design 4 rotors' air (1.6b).</summary>
         public Double3[] TetherLayout;
         public int TetherCoilPart = -1;
         public double TetherSpoolMass;
         public bool TetherTwoWay;
+        public bool TetherDesign4Air;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -412,6 +414,7 @@ namespace Fpv450.Sim.Log
                 TetherCoilPart = setup.TetherCoilPart,
                 TetherSpoolMass = setup.TetherSpoolMass,
                 TetherTwoWay = setup.TetherTwoWay,
+                TetherDesign4Air = setup.TetherDesign4Air,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -520,6 +523,7 @@ namespace Fpv450.Sim.Log
                 TetherCoilPart = TetherCoilPart,
                 TetherSpoolMass = TetherSpoolMass,
                 TetherTwoWay = TetherTwoWay,
+                TetherDesign4Air = TetherDesign4Air,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -1014,6 +1018,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherCoilPart);
                 e.Write(TetherSpoolMass);
                 e.Write(TetherTwoWay);
+                e.Write(TetherDesign4Air);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1463,6 +1468,7 @@ namespace Fpv450.Sim.Log
                         TetherCoilPart = r.ReadInt32();
                         TetherSpoolMass = r.ReadDouble();
                         TetherTwoWay = r.ReadBoolean();
+                        TetherDesign4Air = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {
