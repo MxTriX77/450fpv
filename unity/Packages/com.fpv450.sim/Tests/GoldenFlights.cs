@@ -418,6 +418,17 @@ namespace Fpv450.Sim.Tests
             s.Contacts.LegLeverLength = 0;
         };
 
+        /// <summary>A flight's contacts as model 50's legs (the hanging half and the stub's audit and known-wrong, model 51): a
+        /// hanging half turned by its cantilever's share alone (ContactSpec.HangingGive off), and a broken leg's stub on the free
+        /// tube's spring (LegDamageSpec.StubStiffness 0). Every golden flies with it as with the fix: none parts a leg.</summary>
+        public static readonly Action<FlightSetup> WithoutTheHangingGive = s =>
+        {
+            if (s.Contacts == null) return;
+            s.Contacts = s.Contacts.Clone();
+            s.Contacts.HangingGive = false;
+            if (s.Contacts.Legs != null) s.Contacts.Legs.StubStiffness = s.Contacts.Legs.StubStiffnessUp = 0;
+        };
+
         /// <summary>Its audit against p7g-legs (GoldenFlightTests.WithoutTheLineEachGoldenIsModel41s): p7g-legs' model 41 record is
         /// the record less the fiber's 104 and the blade strikes' 384 bytes at Model28Layout (Model41Skip), and its pins, which
         /// every golden flown without the line's mechanisms (no surfaces.json, no area laws, no line, no props.blade, model 34's

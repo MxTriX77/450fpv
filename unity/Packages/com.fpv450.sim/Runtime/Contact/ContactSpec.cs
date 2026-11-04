@@ -164,6 +164,16 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public double LegLeverLength;
 
+        /// <summary>
+        /// A hanging skid half's whole give is geometry (p7g-legs, model 51): the massless half stands out of what it touches by
+        /// its contact spring's share of the force alone, its cantilever's give by its turn about the holding leg's bore and the
+        /// rest of its chain (the holding leg's give across its tube and the stick anchor in series, and the cantilever's share
+        /// that no turn about the bore gives) by its move along the deepest point's normal; unloaded as its skid leaves. On for
+        /// every flight; off only for the audit and the known-wrong against model 50, whose half turned by its cantilever's
+        /// share alone, so the holding leg's give was a penetration (a rigid limb passed under a few newtons, a Tunnel).
+        /// </summary>
+        public bool HangingGive = true;
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;
