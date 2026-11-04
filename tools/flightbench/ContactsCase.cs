@@ -508,11 +508,11 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                 ok &= Timed("legs on, resting on the floor, armed at idle, the legs' law off", contacts.Shapes.Length, Elastic, idle, 2000, 60000, 1);
             }
 
-            // p7g-legs 1.4: the law through its failures, armed at idle: down at 1.0 m/s rolled 10° with 0.6 m/s of drift onto the
-            // floor (LegScenarios' touch, seed 1), so the first skid's legs crack, set and part and their pieces fly loose; and the
-            // same touch with the law off (the elastic legs) and with the lever off (1.3's linear softening).
+            // p7g-legs 1.4: the law through its failures, armed at idle: down at 1.5 m/s rolled 20° with 0.6 m/s of drift onto the
+            // floor (LegScenarios' touch, seed 1; --legs' cell parts a leg on every seed), so the legs crack, set and part and their
+            // pieces fly loose; and the same touch with the law off (the elastic legs) and with the lever off (1.3's softening).
             {
-                var t = new LegScenarios.Touch { RollDeg = 10, Velocity = new Double3(0.6, -1.0, 0), Seed = 1 };
+                var t = new LegScenarios.Touch { RollDeg = 20, Velocity = new Double3(0.6, -1.5, 0), Seed = 1 };
                 FlightSetup Touch(Func<ContactSpec, ContactSpec> edit)
                 {
                     LegScenarios.Touch e = t;
