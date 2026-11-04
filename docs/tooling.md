@@ -82,7 +82,7 @@ These are the "prompt economy" rules that kept the first attempt alive through u
 - **Optional:** a Unity MCP server, to drive the editor from Claude. Phase 0 checks whether one is available and reliable. Batchmode commands stay the verified path.
 
 ## 7. The pilot's latest build
-- **`tools/build_latest.ps1`** builds the newest playable state in its own worktree (`C:\.dev\450fpv-latest`), streams the full Unity log with full stack traces, prints the C# errors and warnings, smoke-tests the player and copies it to `unity/Builds/Latest/` with `BUILD-INFO.txt` and `build.log`.
+- **`tools/build_latest.ps1`** builds the newest playable state in its own worktree (`C:\.dev\450fpv-latest`), streams the full Unity log with full stack traces, prints the C# errors and warnings, copies it to `unity/Builds/Latest/` with `BUILD-INFO.txt` and `build.log`, removes its worktree and that worktree's Unity Library (`-KeepWorktree` keeps them for a faster next build), and smoke-tests the player.
 - **What it builds** comes from `tools/build_latest.json` on `origin/unity/main`: a base branch, the branches merged onto it, the build method and the exe. **The orchestrator keeps it current** whenever a playable change lands or moves, and checks the merges are conflict-free with `git merge-tree` before committing it.
 - **The pilot's command** (PowerShell), which always runs the trunk's newest copy of the script:
   `git -C C:\.dev\450fpv fetch -q origin; git -C C:\.dev\450fpv show origin/unity/main:tools/build_latest.ps1 | Set-Content $env:TEMP\450fpv-build-latest.ps1; pwsh -NoProfile -ExecutionPolicy Bypass -File $env:TEMP\450fpv-build-latest.ps1`

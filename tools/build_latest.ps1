@@ -1,10 +1,12 @@
 # Build the newest playable 450fpv in its own worktree, with the full compile log.
 # What it builds comes from tools/build_latest.json on origin/unity/main, so a stale checkout still builds the newest state.
-# Usage: pwsh -File tools/build_latest.ps1 [-Repo C:\.dev\450fpv] [-NoSmoke] [-DryRun]
+# It removes its worktree afterwards, so only the codebase and unity\Builds\Latest stay on disk; -KeepWorktree keeps it for a faster next build.
+# Usage: pwsh -File tools/build_latest.ps1 [-Repo C:\.dev\450fpv] [-NoSmoke] [-DryRun] [-KeepWorktree]
 param(
     [string]$Repo = "C:\.dev\450fpv",
     [switch]$NoSmoke,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$KeepWorktree
 )
 $ErrorActionPreference = "Stop"
 $started = Get-Date
@@ -109,6 +111,14 @@ $info = @("built $($started.ToString('yyyy-MM-dd HH:mm'))", "base $($plan.base) 
     @("tree $(& git -C $Worktree rev-parse --short HEAD)", "method $($plan.method)", $plan.contents)
 $info | Set-Content (Join-Path $OutRoot "BUILD-INFO.txt")
 $exe = Join-Path $OutRoot $plan.exe
+
+if (-not $KeepWorktree) {
+    Step "Clean up"
+    $script:Here = $Repo
+    Invoke-Git worktree remove --force --force $Worktree
+    Remove-Item -Force $UnityLog
+    Write-Host "removed $Worktree and its Unity Library; the build and its log are in $OutRoot"
+}
 
 if (-not $NoSmoke -and $plan.smoke_args.Count -gt 0) {
     Step "Smoke test"
