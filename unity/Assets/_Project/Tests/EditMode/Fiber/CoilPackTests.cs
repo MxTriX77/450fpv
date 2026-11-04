@@ -142,7 +142,9 @@ namespace Fpv450.Tests.Fiber
                         Assert.That(packs.Select(f => f.name), Is.EqualTo(Enumerable.Range(0, 4).Select(q => $"{prefab.name}_LOD{q}{CoilShape.D01PackMesh}")),
                             prefab.name + ": a pack a LOD");
                         Assert.That(packs.All(f => f.sharedMesh.isReadable), prefab.name + ": the pack readable");
-                        Assert.That(filters.Except(packs).Where(f => f.sharedMesh.isReadable).Select(f => f.name), Is.Empty, prefab.name + ": nothing else readable");
+                        // p7g-legs 1.5: the legs-on model's leg parts are readable copies too (drone.py's LEG_KINDS), never the rest.
+                        Assert.That(filters.Except(packs).Where(f => f.sharedMesh.isReadable && !LegPart(prefab.name, f.name)).Select(f => f.name),
+                            Is.Empty, prefab.name + ": nothing else readable");
                         Mesh[] own = filters.Select(f => f.sharedMesh).ToArray();
                         Vector3[][] before = packs.Select(f => ModelSpace(model, f)).ToArray();
                         var view = go.AddComponent<FiberView>();
@@ -192,6 +194,11 @@ namespace Fpv450.Tests.Fiber
             Matrix4x4 toModel = model.transform.worldToLocalMatrix * filter.transform.localToWorldMatrix;
             return filter.sharedMesh.vertices.Select(v => toModel.MultiplyPoint3x4(v)).ToArray();
         }
+
+        // A leg part of the legs-on model, <prefab>_LOD<n>_<stub|leg|tjoint|skid>_<corner> (drone.py's LEG_KINDS).
+        static bool LegPart(string prefab, string name) =>
+            prefab == "D01_legs_on" && Enumerable.Range(0, 4).Any(q =>
+                new[] { "stub", "leg", "tjoint", "skid" }.Any(k => new[] { "rr", "fr", "rl", "fl" }.Any(c => name == $"{prefab}_LOD{q}_{k}_{c}")));
 
         // ---- the model ----
 
