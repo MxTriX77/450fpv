@@ -116,7 +116,10 @@ namespace Fpv450.Sim.World
 
         // ---- Load --------------------------------------------------------------------------------------------------
 
-        /// <summary>A variant's wire records' fields beyond the chain, their edge radii and its ports (MapWorldLoad's ParseMeta).</summary>
+        /// <summary>
+        /// A variant's wire records' fields beyond the chain, their edge radii (from its snag records, parsed first by
+        /// ParseSnags) and its ports (MapWorldLoad's ParseMeta).
+        /// </summary>
         private static Lines ParseLines(string path, JsonNode root, JsonNode wires, Meta meta)
         {
             int n = wires.Items.Count;
@@ -125,9 +128,7 @@ namespace Fpv450.Sim.World
                 Diameter = new double[n], Mass = new double[n], Axial = new double[n], Breaking = new double[n], Bending = new double[n],
                 Edge = new double[n],
             };
-            JsonNode snag = root.Member("snag");
-            if (snag != null && snag.Kind != JsonKind.Array)
-                throw new FormatException(path + ": snag is not an array");
+            Snags snags = meta.Snags;
             for (int w = 0; w < n; w++)
             {
                 JsonNode wire = wires.Items[w];
@@ -138,13 +139,12 @@ namespace Fpv450.Sim.World
                 lines.Breaking[w] = Positive(wire, "breaking_force_n", where);
                 lines.Bending[w] = Positive(wire, "bending_stiffness_n_m2", where);
                 lines.Edge[w] = meta.WireRadius[w];
-                for (int s = 0; snag != null && s < snag.Items.Count; s++)
+                for (int s = 0; s < snags.Kind.Length; s++)
                 {
-                    JsonNode record = snag.Items[s];
-                    if (Text(record, "kind", path + " snag " + s) != "edge" || !SamePoints(record, meta.WirePoints[w], path + " snag " + s))
+                    if (snags.Kind[s] != SnagKind.Edge || !SamePoints(snags, s, meta.WirePoints[w]))
                         continue;
-                    if (record.Member("edge_radius_m") != null)
-                        lines.Edge[w] = Positive(record, "edge_radius_m", path + " snag " + s);
+                    if (snags.Edge[s] > 0)
+                        lines.Edge[w] = snags.Edge[s];
                     break;
                 }
             }
@@ -170,15 +170,14 @@ namespace Fpv450.Sim.World
             return v;
         }
 
-        /// <summary>Whether a snag record's points are exactly the chain's (the same numbers, in the same order).</summary>
-        private static bool SamePoints(JsonNode record, Double3[] chain, string where)
+        /// <summary>Whether snag record s's points are exactly the chain's (the same numbers, in the same order).</summary>
+        private static bool SamePoints(Snags snags, int s, Double3[] chain)
         {
-            JsonNode points = Need(record, "points", JsonKind.Array, where);
-            if (points.Items.Count != chain.Length)
+            if (snags.Count(s) != chain.Length)
                 return false;
             for (int k = 0; k < chain.Length; k++)
             {
-                Double3 v = Vector(points.Items[k], where + " points");
+                Double3 v = snags.Points[snags.First[s] + k];
                 if (!(v.X == chain[k].X && v.Y == chain[k].Y && v.Z == chain[k].Z))
                     return false;
             }

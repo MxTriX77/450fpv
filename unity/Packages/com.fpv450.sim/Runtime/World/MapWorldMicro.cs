@@ -342,39 +342,52 @@ namespace Fpv450.Sim.World
         {
             if (m.Elements.Length == 0)
                 return;
-            Bounds box = m.Elements[0].Box;
-            for (int i = 1; i < m.Elements.Length; i++)
-                box = box.Union(m.Elements[i].Box);
-            m.Box = box;
-            m.GridMin = box.Min;
-            m.Nx = 1 + (int)((box.Max.X - box.Min.X) * (1 / ElementCell));
-            m.Ny = 1 + (int)((box.Max.Y - box.Min.Y) * (1 / ElementCell));
-            m.Nz = 1 + (int)((box.Max.Z - box.Min.Z) * (1 / ElementCell));
-            m.CellStart = new int[m.Nx * m.Ny * m.Nz + 1];
+            var boxes = new Bounds[m.Elements.Length];
+            for (int i = 0; i < boxes.Length; i++)
+                boxes[i] = m.Elements[i].Box;
+            m.Box = BuildGrid(boxes, out m.Nx, out m.Ny, out m.Nz, out m.CellStart, out m.CellItems);
+            m.GridMin = m.Box.Min;
+        }
+
+        /// <summary>
+        /// ElementCell cells over the union of `boxes` (one or more), which it returns and whose minimum is the grid's corner,
+        /// each cell ((z·ny + y)·nx + x) listing the boxes that meet it, ascending (also the snag records', MapWorldSnags.cs).
+        /// </summary>
+        private static Bounds BuildGrid(Bounds[] boxes, out int nx, out int ny, out int nz, out int[] cellStart, out int[] cellItems)
+        {
+            Bounds box = boxes[0];
+            for (int i = 1; i < boxes.Length; i++)
+                box = box.Union(boxes[i]);
+            nx = 1 + (int)((box.Max.X - box.Min.X) * (1 / ElementCell));
+            ny = 1 + (int)((box.Max.Y - box.Min.Y) * (1 / ElementCell));
+            nz = 1 + (int)((box.Max.Z - box.Min.Z) * (1 / ElementCell));
+            cellStart = new int[nx * ny * nz + 1];
+            cellItems = null;
             for (int pass = 0; pass < 2; pass++)
             {
-                var fill = pass == 0 ? null : new int[m.CellStart.Length - 1];
-                for (int i = 0; i < m.Elements.Length; i++)
+                var fill = pass == 0 ? null : new int[cellStart.Length - 1];
+                for (int i = 0; i < boxes.Length; i++)
                 {
-                    Bounds b = m.Elements[i].Box;
-                    for (int cz = Cell(b.Min.Z, box.Min.Z, m.Nz); cz <= Cell(b.Max.Z, box.Min.Z, m.Nz); cz++)
-                        for (int cy = Cell(b.Min.Y, box.Min.Y, m.Ny); cy <= Cell(b.Max.Y, box.Min.Y, m.Ny); cy++)
-                            for (int cx = Cell(b.Min.X, box.Min.X, m.Nx); cx <= Cell(b.Max.X, box.Min.X, m.Nx); cx++)
+                    Bounds b = boxes[i];
+                    for (int cz = Cell(b.Min.Z, box.Min.Z, nz); cz <= Cell(b.Max.Z, box.Min.Z, nz); cz++)
+                        for (int cy = Cell(b.Min.Y, box.Min.Y, ny); cy <= Cell(b.Max.Y, box.Min.Y, ny); cy++)
+                            for (int cx = Cell(b.Min.X, box.Min.X, nx); cx <= Cell(b.Max.X, box.Min.X, nx); cx++)
                             {
-                                int cell = (cz * m.Ny + cy) * m.Nx + cx;
+                                int cell = (cz * ny + cy) * nx + cx;
                                 if (pass == 0)
-                                    m.CellStart[cell + 1]++;
+                                    cellStart[cell + 1]++;
                                 else
-                                    m.CellItems[m.CellStart[cell] + fill[cell]++] = i;
+                                    cellItems[cellStart[cell] + fill[cell]++] = i;
                             }
                 }
                 if (pass == 0)
                 {
-                    for (int c = 1; c < m.CellStart.Length; c++)
-                        m.CellStart[c] += m.CellStart[c - 1];
-                    m.CellItems = new int[m.CellStart[m.CellStart.Length - 1]];
+                    for (int c = 1; c < cellStart.Length; c++)
+                        cellStart[c] += cellStart[c - 1];
+                    cellItems = new int[cellStart[cellStart.Length - 1]];
                 }
             }
+            return box;
         }
 
         private static void ParseFeatures(string path, JsonNode features, int shapes, Micro micro)

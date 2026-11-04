@@ -22,6 +22,8 @@
 //   (MapWorldWires.cs, with WiresNear); a row's class names its ports' fitting.
 // - Each variant's micro elements (its sidecar, checked against the metadata's SHA-256) and ground features, and each
 //   row's pose for them (MapWorldMicro.cs). A hole band names its instance.
+// - Each variant's snag records, which its wires' edge radii read too, and their placements (MapWorldSnags.cs, with
+//   SnagsNear).
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -56,6 +58,7 @@ namespace Fpv450.Sim.World
             public double[] LevelGapNarrowest;
             public Micro Micro;
             public Lines Lines;
+            public Snags Snags;
         }
 
         /// <summary>The map maps/&lt;mapId&gt;/placements.json of the repository at `root`, with its metadata and the material table.</summary>
@@ -284,6 +287,7 @@ namespace Fpv450.Sim.World
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
             PlaceMicro(rowMeta, rowPosition, rowYaw);
             WorldBugs = PlaceWires(rowMeta, rowPosition, rowYaw, rowClass, file);
+            PlaceSnags(rowMeta, file);
 
             // The start points.
             var starts = new List<StartPoint>();
@@ -515,6 +519,7 @@ namespace Fpv450.Sim.World
                 if (soil != WorldIds.NoSurface)
                     throw new FormatException(where + ": a wire's material is a material, not a surface");
             }
+            meta.Snags = ParseSnags(path, root, materialIds);
             meta.Lines = ParseLines(path, root, wires, meta);
             return meta;
         }

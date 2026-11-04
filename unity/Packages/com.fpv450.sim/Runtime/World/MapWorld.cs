@@ -27,6 +27,7 @@
 //   first.
 // - Wires for physics (p7d-tether 1.2): StaticContacts and Raycast skip every wire under QueryFilter.NoWires;
 //   WiresNear, the conductors' envelope index, their ports and ends are MapWorldWires.cs.
+// - Snag records for the fiber (p7d-tether 1.3): SnagsNear and its index are MapWorldSnags.cs.
 // - Ids: materials are the names given at load (physics_materials.json's rows in file
 //   order, 1 … n); surfaces are S01–S13 (SurfaceIds, 1 … 13).
 // - Identity (design 6): FNV-1a over the placement file, every referenced .assetmeta.json

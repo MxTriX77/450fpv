@@ -106,6 +106,14 @@
 // lies nearest it within 5 mm, the first in canonical order on a tie; an end with none is a world
 // bug, named at load in MapWorld.WorldBugs, and reads FittingKind.None. Its neighbour at an end is
 // the first other conductor, in canonical order, with an end on the same port.
+//
+// Snag records near a point (p7d-tether task 1.3, design 12; the fortifications reading §1 and §7; QueryVersion 7).
+// SnagsNear gives the fiber the members it can catch on: each placed asset's snag records (its metadata's "snag": an
+// edge or a hook, its points in the variant's frame, radius_m, optionally edge_radius_m and, on an edge, barb_pitch_m,
+// and the material of the member it follows), placed at their row's pose. A segment is returned when the distance from
+// the centre to it is at most radius + its record's radius_m (+ − × ÷ only), its points placed in world space first,
+// so the test is of the points returned. It feeds the fiber's 40 Hz caches and never runs in the step (the reading §7);
+// the map compiler holds the segments meeting any 2 m cube to 2048 (tools/map), which sizes those caches.
 
 using System;
 
@@ -157,6 +165,14 @@ namespace Fpv450.Sim.World
         /// count, which exceeds results.Length on overflow; the buffer then holds the first conductors in canonical order.
         /// </summary>
         int WiresNear(Double3 centre, double radius, Span<Conductor> results);
+
+        /// <summary>
+        /// Every segment of every placed snag record that meets the sphere at `centre` of `radius` (m) within the record's
+        /// radius_m (above), with its record's fields and its two points, in canonical order (object, then record, then
+        /// segment). Returns the true count, which exceeds results.Length on overflow; the buffer then holds the first
+        /// segments in canonical order.
+        /// </summary>
+        int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results);
 
         /// <summary>The world-space geometry of (object, shape); false for a pair that does not exist.</summary>
         bool Geometry(int obj, int shape, out ShapeGeometry geometry);
