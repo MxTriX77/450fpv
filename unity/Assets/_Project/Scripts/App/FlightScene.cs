@@ -23,6 +23,8 @@ namespace Fpv450.App
     /// - the drone at the interpolated PoseFrame (PosePair.Interpolate on the host clock): p5-drone's D01 prefab for the
     ///   setup's legs (DroneModels) with D01_bottle on it at the payload's size, and D02, the launch stand, where the
     ///   flight's runtime object stands when the legs are off
+    /// - the legs from the pose (p7g-legs 1.5, LegView): each turned by its set, a stub when broken, gone when off, its
+    ///   skid half hanging or folded, a dropped piece where the pose puts it
     /// - the FPV camera at drone.json's camera.lens_m, 0° uptilt (FEED-02's rig, FpvCamera), through the analog feed and its
     ///   OSD, fed by the physics' signals (FlightFeedSignals)
     /// - the fiber (p7d-tether 1.14's FiberView): the line through the pose's nodes and its laid trail, and the coil's pack
@@ -103,6 +105,7 @@ namespace Fpv450.App
         Camera _camera;
         FpvCamera _rig;
         FiberView _fiber;
+        readonly LegView _legs = new LegView();
         readonly FlightFeedSignals _signals = new FlightFeedSignals();
         GameObject _model, _stand;
         DroneSpec _spec;
@@ -229,6 +232,7 @@ namespace Fpv450.App
                 pair.Interpolate(HostClock.Instance.NowUs(), out Pose);
                 _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
                 _fiber.Draw(Pose);
+                _legs.Draw(Pose);
                 _armedOnce |= Pose.Armed;
                 Double3 home = Pose.Position - RestPose.Position;
                 _signals.Update(pair.Signals, Pose.Armed, Pose.Position.Y - RestPose.Position.Y, Math.Sqrt(home.X * home.X + home.Z * home.Z), Pose.TimeS);
@@ -316,6 +320,7 @@ namespace Fpv450.App
             // is in the track, so the camera's transform stays the lens's (D-055) and the read turns the picture.
             _body.SetPositionAndRotation(V(at.Position), Q(at.Attitude));
             _fiber.Draw(at); // the line at the field's instant, as the body
+            _legs.Draw(at);
             FillSamples(session.Poses, start, at.Attitude);
             _shutter.Build(_samples, RollingShutter.ExposureS(_signals.SceneLuminance), _rig.settings.PixelsPerRad);
             _rig.UploadShutter();
@@ -377,6 +382,11 @@ namespace Fpv450.App
             GameObject prefab = _models != null ? _models.For(session.Loadout.Legs) : null;
             // Drawn in both views (the parts in the lens's frustum, and the chase view).
             _model = prefab != null ? Drawn(prefab, _body) : null;
+            // Its legs from the pose (p7g-legs 1.5): a new model, so a restart's are drawn intact.
+            LegDamageSpec legs = session.Core.Contacts?.Spec.Legs;
+            _legs.Bind(_model, legs);
+            if (legs != null && _model != null && _legs.Count == 0)
+                Debug.LogWarning("[Flight] the drone model has no leg parts of their own (<variant>_LOD<n>_leg_rr and the rest): its legs are drawn as built, never damaged");
             // The flight's line from its start, and the coil's pack full on the model's own meshes, before the bottle goes on.
             _fiber.Begin(session.Core.Tether, session.Setup.Tether, _model, _spec != null ? CoilShape.D01(_spec) : default);
             if (_model != null)
@@ -442,6 +452,7 @@ namespace Fpv450.App
             if (ReferenceEquals(c, _previewed)) return;
             _previewed = c;
             _fiber.End();
+            _legs.Bind(null, null);
             if (_model != null) Destroy(_model);
             if (_stand != null) Destroy(_stand);
             StartPoint at = Array.Find(inputs.StartPoints, s => s.Name == c.StartPoint);
