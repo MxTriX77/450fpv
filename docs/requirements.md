@@ -523,7 +523,7 @@ The trait definitions and every measured number are in K§11. **The algorithms c
 - The log records which signals are stubbed.
 
 **FEED-04 Traits.** Each trait listed below is implemented with the parameters measured in K§11:
-- N1 grain, N2 sparkles, **N3 and N4 always on** (as in the Godot feed the pilot chose; not per-flight draws), the quality-drop envelope (`degrade`), N11, N13 dim-light steps; N8's tear wedge and N12's free-running dropouts are a radio link's and are off (D-065), behind a switch kept for the Godot A/B
+- N1 grain, N2 sparkles, **N3 and N4 always on** (as in the Godot feed the pilot chose; not per-flight draws), the quality-drop envelope (`degrade`), N11, N13 dim-light steps; N12's free-running recovering dropouts on the ported schedule (D-085); N8's tear wedge, the "black sticks", is off (D-065), on only for the Godot A/B
 - the staged loss and the hard cut
 - P1–P5, P7, P8
 - O1 (k1 ≈ 0.33), O2, O3, O4
@@ -533,7 +533,7 @@ N9, N10 and P10 are **not** simulated.
 
 **FEED-05 Losses, as in the Godot feed.**
 - **Terminal loss** fires on impact, power loss or fiber break, never on a random clock. The variant (staged or hard cut) follows how fast the link margin fell (K§11.3).
-- **Recovering dropouts (N12)** come only from the fiber's link margin (`p7d-tether`), never from a free-running timer: the video rides an optic fiber, not a radio link (D-065).
+- **Recovering dropouts (N12)** run on the port's free-running schedule (D-026, D-085), and the fiber's link margin and break (`p7d-tether`) add their own on top.
 - **Quality drops** keep theirs: about 10 per minute, 0.3–2.2 s long, depth 0.25–1.0.
 - **Physics adds, never replaces.** From phase 7, link-margin dips from the fiber add events and modulate N2 on top of those baselines.
 - **There is always a tell before the picture goes.**
