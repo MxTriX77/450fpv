@@ -71,7 +71,7 @@ Each rotor's air SHALL act on fiber nodes near it from its own thrust: inflow to
 
 #### Scenario: A line under a punch is lifted and drawn
 - **WHEN** the drone sits legs-on on the field start with the line laid under it and goes to full throttle from rest, and again at hover thrust
-- **THEN** at full throttle the line beside the skids is lifted by the wall jet and moves toward the nearest disc's edge faster than at hover, the logged drag on each node matches the field's law at its position within 1 %, and a node that crosses a turning disc cuts the line
+- **THEN** at full throttle the line beside the skids is lifted by the wall jet and moves toward the nearest disc's edge faster than at hover (on the mean and on most of 30 seeds of the flight's draws, which tip the line off the rear pair's stagnation line; design 4's field alone never does), the logged drag on each node matches the field's law at its position within 1 %, and a node that crosses a turning disc cuts the line
 
 #### Scenario: Without the fountain the line stays off the discs
 - **WHEN** the same punch is flown on the rotors' air without the fountain and the ground vortex (the known-wrong)

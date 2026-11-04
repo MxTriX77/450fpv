@@ -109,8 +109,8 @@ A face softer than the blade SHALL be carved at its own crushing pressure over t
 - **THEN** the rotor's thrust and torque lose its blades' loads past the chord (none for a chord at the tips, half for one through the hub, no thrust within Sissingh's tip loss span, more with depth past it), and the propulsion takes exactly those shares off the rotor's thrust and torque, a rotor with none being the sound rotor bit for bit
 
 #### Scenario: An armed tip-over chews its props up and stops
-- **WHEN** the pilot's landing tips over onto the dirt track and S04's soil, Sunny and in Rain, the throttle cut at the touch (still armed, airmode's authority) or the drone disarmed
-- **THEN** the props carve the soil, meet its stones and stop in it, the armed props break, and 3 s after the touch the drone is at rest on the ground (under 0.5 m/s), with no tunnel; the known-wrong, model 43's carve (the blade's own speed, cot θ of the whole impulse, no stones, no immersed disc, no plough), slides on at 13 m/s, so it fails
+- **WHEN** the pilot's landing tips over onto the dirt track and S04's soil (the legs rigid across their tubes, as the line's landing mechanics fly them), Sunny and in Rain, the throttle cut at the touch (still armed, airmode's authority) or the drone disarmed (its ESCs braking as drone.json's BLHeli_S does)
+- **THEN** armed, the props carve the soil, meet its stones and stop in it and break; disarmed, the braked props are stopped before the roll brings them to the soil and no blade breaks; and 3 s after the touch the drone is at rest on the ground (under 0.5 m/s), with no tunnel; the known-wrongs fail: model 43's carve (the blade's own speed, cot θ of the whole impulse, no stones, no immersed disc, no plough) slides on at 13 m/s, and the ESCs freewheeling on the disarm spin the props into the soil, its stones and their breaks
 
 #### Scenario: Who yields is decided by the material
 - **WHEN** the same 5 mm entry at hover speed meets concrete, steel, masonry, timber, bark, rubber and S04's straw boxes
