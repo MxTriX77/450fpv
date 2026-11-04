@@ -6543,12 +6543,12 @@ MonoBehaviour:
   id: S04
   variant: S04_patch
   generator: ground_patch
-  paramsSha256: 68c13b6d6791fcc9cbcf33cff88dba6d2a58d0a06d7eefac945c0fcb6d371cb5
+  paramsSha256: f9feb8973fc39f0e62288698c3229616476e8a46c99eef9a975d1ed7bb815ef3
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0, y: 0.39300898, z: 0}
-    m_Extent: {x: 6, y: 0.818009, z: 6}
+    m_Center: {x: 0, y: 0.36288998, z: 0}
+    m_Extent: {x: 6, y: 0.78788996, z: 6}
   lods:
   - mesh: S04_patch_LOD0
     tris: 25029
@@ -6566,8 +6566,8 @@ MonoBehaviour:
   - lod: 0
     name: S04_patch_LOD0_straw
     kind: straw
-    count: 20329
-    tris: 405792
+    count: 20242
+    tris: 245648
   cullDistanceM: 400
   materials:
   - slot: ground
@@ -8193,7 +8193,7 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5551176185893124036}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0, y: 0.39300898, z: 0}
+  m_LocalReferencePoint: {x: 0, y: 0.36288998, z: 0}
   m_Size: 6.928203
   m_FadeMode: 1
   m_AnimateCrossFading: 0
