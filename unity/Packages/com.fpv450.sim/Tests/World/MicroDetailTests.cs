@@ -226,7 +226,8 @@ namespace Fpv450.Sim.Tests
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int i = 0; i < 100; i++)
                 world.MicroDetailNear(inPatch + new Double3(0.01 * i, 0, 0), 2, MicroKind.All, results);
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
+            // Is.Zero, not Is.EqualTo(0): .NET's JIT boxes that 0 (24 B) before the closing count is read.
+            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.Zero);
         }
 
         // ---- Nothing rooted in a hole --------------------------------------------------------------------------------
