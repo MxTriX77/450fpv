@@ -20,7 +20,8 @@ namespace Fpv450.Feed
     /// identical input frame instead of the test scene's render, FEED-00), <c>-feedOut dir</c> (default
     /// <c>unity/Logs/feed</c>), <c>-feedSize WxH</c> (1920x1080), <c>-feedLens on|off</c>, <c>-feedSceneWidth n</c>,
     /// <c>-feedFieldWidth n</c>, <c>-feedGodot</c> (Godot's link artefacts, its free-running dropouts and the tear's
-    /// black wedge, which D-065 took out: the A/B against Godot takes it).</item>
+    /// black wedge, which D-065 took out: the A/B against Godot takes it), <c>-feedSticks lx,ly,rx,ry</c> (X's stick
+    /// overlay under the name, D-084, each axis −1 to 1: the left stick across and up, then the right's).</item>
     /// <item><c>-executeMethod Fpv450.Feed.FeedCapture.Lens</c>: the lens scenario. A straight-line grid through
     /// the feed, its lines traced, and k1 fitted the way K§11.4 measured it off the footage; exits 1 unless it lies
     /// within ±0.03 of 0.33.</item>
@@ -66,6 +67,7 @@ namespace Fpv450.Feed
             Vector2Int size = ParseSize(Arg(args, "-feedSize") ?? "1920x1080");
 
             FeedSettings settings = Settings(args, seed);
+            string sticks = Arg(args, "-feedSticks");
             FpvCamera rig;
             Texture2D still = null;
             if (input != null)
@@ -86,6 +88,20 @@ namespace Fpv450.Feed
                 rig = Object.FindAnyObjectByType<FpvCamera>()
                     ?? throw new InvalidOperationException($"{FeedSetup.TestScenePath} has no FpvCamera");
                 rig.settings = settings;
+            }
+            if (sticks != null)
+            {
+                // Under the stub's "SVINORIZ 10 OPTO" (row 12 from column 7), where the flight's OSD puts it too.
+                float[] a = Array.ConvertAll(sticks.Split(','), v => float.Parse(v, CultureInfo.InvariantCulture));
+                if (a.Length != 4)
+                    throw new ArgumentException("-feedSticks lx,ly,rx,ry");
+                var stub = (StubFeedSignals)rig.Signals;
+                stub.OsdSticks = FeedSticks.Under(12, 7, StubOsd.Name.Length, a[0], a[1], a[2], a[3]);
+                FeedSticks k = stub.OsdSticks;
+                Debug.Log(string.Format(CultureInfo.InvariantCulture,
+                    "[Feed] stick overlay at ({0}): boxes from x {1:0.0} and {2:0.0} px, top {3:0.0} px; cursors at ({4:0.00}, {5:0.00}) and ({6:0.00}, {7:0.00}) px at {8}x{9}",
+                    sticks, k.LeftBox * size.x, k.RightBox * size.x, k.Top * size.y, k.LeftX * size.x, k.LeftY * size.y,
+                    k.RightX * size.x, k.RightY * size.y, size.x, size.y));
             }
 
             var target = new RenderTexture(size.x, size.y, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
