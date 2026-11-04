@@ -791,11 +791,16 @@ namespace Fpv450.Tests.Session
                 if (core.Trace.ContactsTouching > 0 && crashY - core.State.Position.Y > 0.5) floor++;
             }
             double rest = rig.Session.Setup.StartPosition.Y;
+            // Since model 46 the fall's touch breaks legs (p7g-legs): then it lies lower than it stands, on what is left.
+            bool lost = false;
+            for (int c = 0; c < LegDamage.Legs; c++) lost |= (core.Contacts.Legs.Flags(c) & (LegFlags.Broken | LegFlags.Detached)) != 0;
             TestContext.WriteLine("crashed at step " + crashed + ", " + crashY.ToString("0.000") + " m; 1.5 s later " + core.State.Position.Y.ToString("0.000") + " m (standing "
-                                  + rest.ToString("0.000") + " m), " + core.State.Velocity.Length().ToString("0.000") + " m/s, on the floor " + floor + " of the 1500 steps");
+                                  + rest.ToString("0.000") + " m), " + core.State.Velocity.Length().ToString("0.000") + " m/s, on the floor " + floor + " of the 1500 steps; legs "
+                                  + string.Join(", ", Array.ConvertAll(new[] { 0, 1, 2, 3 }, c => core.Contacts.Legs.Flags(c).ToString())));
             Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
             Assert.That(core.State.Step, Is.EqualTo(crashed + 1500), "stepping on under physics");
-            Assert.That(floor > 0 && Math.Abs(core.State.Position.Y - rest) < 0.02, "fell from the box onto the floor, and lies there");
+            Assert.That(floor > 0 && (lost ? core.State.Position.Y < rest : Math.Abs(core.State.Position.Y - rest) < 0.02),
+                "fell from the box onto the floor, and lies there (lower than it stands when the fall broke a leg)");
             rig.Session.EndFlight(); // the pause's End flight
             Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
 
