@@ -191,8 +191,9 @@ namespace Fpv450.Replay
         /// low to 0.5 s; up to 20 m by 12 s; then a 30 m circuit at 8 m/s, its target reversed for 0.6 s every 15 s (a full
         /// sharp reverse); from 80 s back over the start at 20 m; from 92 s down at 2 m/s, and at 0.5 m/s from 3 m; with
         /// the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) through the touch; 0.5 s after the legs
-        /// first compress the throttle is cut, and 2 s later the switch goes off. TX12 resolution on every axis. Every
-        /// height and target is over the start's foot.
+        /// first compress the throttle is cut, and 2 s later the switch goes off (with DisarmAtTouch the switch goes off as
+        /// they first compress, the rotors at the hover's speed). TX12 resolution on every axis. Every height and target is
+        /// over the start's foot.
         /// </summary>
         sealed class Pilot
         {
@@ -212,6 +213,8 @@ namespace Fpv450.Replay
             }
 
             public string Landing = "";
+
+            public bool DisarmAtTouch;
 
             public StickSample Sticks(double t, in PoseFrame pose, long hostUs)
             {
@@ -262,7 +265,7 @@ namespace Fpv450.Replay
                     }
                 }
                 if (_touchAt >= 0 && t >= _touchAt + 0.5) s.Throttle = 0;
-                if (_touchAt >= 0 && t >= _touchAt + 2.5) s.Arm = false;
+                if (_touchAt >= 0 && (DisarmAtTouch || t >= _touchAt + 2.5)) s.Arm = false;
                 s.HostUs = hostUs;
                 s.Roll = Axis(s.Roll);
                 s.Pitch = Axis(s.Pitch);
@@ -275,7 +278,8 @@ namespace Fpv450.Replay
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
-            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double[] footAt = null, string tetherPath = null)
+            RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double[] footAt = null, string tetherPath = null,
+            bool disarmAtTouch = false)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = RepositoryMaterials()
@@ -365,7 +369,7 @@ namespace Fpv450.Replay
 
             var inbox = new StickInbox();
             var poses = new PoseBuffer();
-            var pilot = new Pilot(core, foot, nose, stand);
+            var pilot = new Pilot(core, foot, nose, stand) { DisarmAtTouch = disarmAtTouch };
             var wall = Stopwatch.StartNew();
             var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
             Exception fault;

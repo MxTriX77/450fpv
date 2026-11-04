@@ -142,14 +142,17 @@ namespace Fpv450.Sim.Tests
         {
             // Dynamic rollover: with the hover's thrust held a pinned skid tips the drone from a degree or two; the ground's
             // Coulomb μ cannot pin a skid the thrust has nearly unloaded, so on the stub's rigid floor it skates instead. Set
-            // down tilted at the hover's thrust with no descent of its own: the tilted thrust drifts it onto its low skid.
+            // down tilted from a steady approach with the thrust held: at the hover's thrust it hops off its first touch, and
+            // the tilted thrust drifts it onto its low skid at its next landing (N4), which the pinned skid rolls over.
             LandingStability a = LegsOn();
             Assert.That(a.RolloverDeg(0.95), Is.LessThan(2.0));
             Assert.That(LandingStability.PinFriction(10, 0.95), Is.GreaterThan(2.0));
             var t = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Power = LandingScenarios.Power.Held };
-            Assert.That(Run(t).Over, Is.False, "the smooth skid skates");
+            LandingScenarios.Outcome smooth = Run(t);
+            Assert.That(smooth.Over || smooth.LaterOver, Is.False, $"the smooth skid skates (its next landing at {smooth.LaterSpeed:F2} m/s)");
             t.Edit = LandingScenarios.GroundFriction(10);
-            Assert.That(Run(t).Over, Is.True, "the pinned skid rolls over");
+            LandingScenarios.Outcome pinned = Run(t);
+            Assert.That(pinned.Over || pinned.LaterOver, Is.True, $"the pinned skid rolls over (its next landing at {pinned.LaterSpeed:F2} m/s)");
         }
 
         [Test]
@@ -192,34 +195,36 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
-        [Ignore("N4: LandingScenarios.Run's powered start touches 4 ms after the throttle steps to the hover, the rotors at 0.4 % of the hover's thrust and anti-gravity excited by the step; the start needs a steady approach (p6-flight-core 1.6c, N4)")]
         public void ArmedAndCutFromAHoverItDoesNotTipWithoutDrift()
         {
             // N4 (p6-flight-core 1.6c): on its low skid the drone rights itself under gravity's moment about the skid. The cut
             // excites Betaflight 4.5's anti-gravity, whose I-term accelerator integrates that righting roll at up to 36 times
-            // the builder's Ki, and airmode spends the wound I term lifting the high side. From a spun-up hover the rotors still
-            // carry the weight while anti-gravity peaks, so the I term peaks at 144, 127 and 107 at 5°, 10° and 15°, short of
-            // the 175, 146 and 110 that hold the high side up (quasi-static), and the drone stays up. The known-wrong is the
-            // present start: the touch 4 ms after the throttle's step to the hover, the rotors near idle, so the whole weight
-            // lands on the skid inside the window; the I term peaks at 242, 195 and 138 and it tips at all three.
+            // the builder's Ki, and airmode spends the wound I term lifting the high side. From the steady approach the rotors
+            // still carry the weight while anti-gravity peaks, so the I term stays short of what holds the high side up, and
+            // the drone stays up. The known-wrong was model 38's start: the touch 4 ms after the throttle's step to the hover,
+            // the rotors near idle, so the whole weight landed on the skid inside the window and it tipped at all three.
             foreach (double roll in new[] { 5.0, 10, 15 })
             {
                 var t = new LandingScenarios.Touch { Legs = true, RollDeg = roll, Power = LandingScenarios.Power.Cut };
-                Assert.That(Run(t).Over, Is.False, $"armed and cut at {roll}° with no drift");
+                LandingScenarios.Outcome o = Run(t);
+                Assert.That(o.TouchAt, Is.GreaterThanOrEqualTo(0.4), "a steady approach: the touch 0.4 s or more after the throttle's step");
+                Assert.That(o.TouchAntiGravity, Is.LessThan(0.01), "anti-gravity settled at the touch");
+                Assert.That(o.Over, Is.False, $"armed and cut at {roll}° with no drift (it reached {o.MaxTilt:F1}°)");
             }
         }
 
         [Test]
-        [Ignore("N4: LandingScenarios.Run counts a tip at any time in its 3 s, so a held throttle's drift and later landing at speed are read as the touch's; the run must judge the touch alone (p6-flight-core 1.6c, N4)")]
         public void HeldAtTheHoverATouchIsJudgedOnItsOwn()
         {
             // N4: at the hover's thrust the smooth floor (μ 0.5) cannot pin the low skid (it takes μ 2.56 at 10°), so the touch
-            // skates and the drone, its roll held by the rate loop, is flying again 58 ms after it. Acro does not level it: it
-            // drifts at g·tan φ and lands again 0.73 s later at 1.45 m/s and 20.7°, which trips it. The known-wrong is that
-            // later landing, which the run counts as this touch's.
+            // skates and the drone, its roll held by the rate loop, is flying again some 50 ms after it. Acro does not level it:
+            // it drifts at g·tan φ and lands again later at the drift's speed. The known-wrong is that later landing, which
+            // model 38's run counted as this touch's.
             Assert.That(LandingStability.PinFriction(10, 0.95), Is.GreaterThan(0.5), "a smooth skid cannot be pinned");
             var t = new LandingScenarios.Touch { Legs = true, RollDeg = 10, Descent = 0.5, Power = LandingScenarios.Power.Held };
-            Assert.That(Run(t).Over, Is.False, "the touch at 10° and 0.5 m/s down skates; the drift's later touch is another landing");
+            LandingScenarios.Outcome o = Run(t);
+            Assert.That(o.TouchEnded, Is.LessThan(0.2), "it flies off its touch");
+            Assert.That(o.Over, Is.False, $"the touch at 10° and 0.5 m/s down skates (it reached {o.MaxTilt:F1}°); the drift's next landing came at {o.LaterSpeed:F2} m/s");
         }
     }
 }
