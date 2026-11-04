@@ -1,3 +1,5 @@
+using Fpv450.Sim;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 
@@ -70,5 +72,24 @@ namespace Fpv450.App.Session
 
         /// <summary>The blade's mass lost over its damage events, kg (each event's B); 0 for the jams.</summary>
         public double MassLost;
+    }
+
+    /// <summary>A leg's damage in the log (p7g-legs 1.5), found by PostFlight: its state at the flight's last step record and
+    /// the event of its worst state, with the landing or the object and the speed. None ends the flight; a new flight's legs
+    /// are intact.</summary>
+    public struct DamagedLeg
+    {
+        /// <summary>The leg's corner (Corners order: rear right, front right, rear left, front left).</summary>
+        public int Corner;
+
+        /// <summary>Its state at the end (the step record's leg_state, its elastic bow left out), and its set there (body
+        /// rad: x and z its bend, y its twist).</summary>
+        public LegFlags State;
+        public Double3 Set;
+
+        /// <summary>The first event of its worst state: LegDetached, LegBroken, SkidLoose, LegCracked, then LegSet; and the
+        /// names of what it met there, the object ("the ground" for a landing) and its material or surface ("" for none).</summary>
+        public LoggedEvent Cause;
+        public string Object, Material;
     }
 }

@@ -916,6 +916,81 @@ namespace Fpv450.Tests.Session
             rig.Session.Dispose();
         }
 
+        // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.5 m/s, disarmed, from 10 mm over its
+        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 3's leg strengths). The rear-left foot meets the kerb
+        // first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
+        // the rear left parts at its clamp's edge on the kerb. That ends nothing; the summary lists both legs with their state,
+        // the landing or the object, and the speed, worded from the log. R's restart (the drone standing, as a flight starts)
+        // has four intact legs on its own draws.
+        [Test]
+        public void TheSummaryNamesTheDamage()
+        {
+            const int rr = 0, fr = 1, rl = 2, fl = 3; // Corners order
+            const double kerb = 0.008;
+            ulong seed = 3;
+            bool first = true;
+            Rig rig = Make(i =>
+            {
+                i.NewSeed = () => seed++;
+                i.Adjust = s =>
+                {
+                    if (!first) return; // the restart stands as a flight does
+                    first = false;
+                    Double3 foot = s.Contacts.Legs.Foot[rl];
+                    s.StartPosition = s.StartPosition + new Double3(0, kerb + 0.002, 0);
+                    s.StartVelocity = new Double3(0, -1.5, 0);
+                    ShapeGeometry box = Box(new Double3(s.StartPosition.X + foot.X, kerb / 2, s.StartPosition.Z + foot.Z), new Double3(0.05, kerb / 2, 0.015),
+                        s.World.Query.MaterialId("steel"));
+                    s.RuntimeObjects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("kerb", new[] { box }) }.ToArray();
+                };
+            });
+            rig.Session.Start();
+            rig.Run(1500);
+            FlightCore core = rig.Session.Core;
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the damage ends nothing");
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, p.Log.CutReason);
+            DamagedLeg bent = p.Legs.Find(l => l.Corner == fr), lost = p.Legs.Find(l => l.Corner == rl);
+            Assert.That(p.Legs.ConvertAll(l => l.Corner), Is.EqualTo(new[] { fr, rl }), "the two damaged legs, in Corners order");
+            Assert.That(bent.State, Is.EqualTo(LegFlags.Set | LegFlags.Cracked), "front right bent and cracked, still on");
+            Assert.That(bent.State, Is.EqualTo((LegFlags)(byte)(core.Trace.LegState >> (8 * fr))), "as the flight left it");
+            Assert.That(bent.Set, Is.EqualTo(core.Trace.LegSet[fr]));
+            Assert.That((bent.Cause.Event.Kind, (int)bent.Cause.Event.Part, bent.Cause.Event.Object), Is.EqualTo((EventKind.LegCracked, _spec.PartIndex("leg_fr"), (int)WorldIds.Ground)),
+                "its worst state's event, on a landing");
+            Assert.That(lost.State & LegFlags.Broken, Is.EqualTo(LegFlags.Broken), "rear left broken");
+            Assert.That((lost.Cause.Event.Kind, (int)lost.Cause.Event.Part, lost.Object, lost.Material), Is.EqualTo((EventKind.LegBroken, _spec.PartIndex("leg_rl"), "kerb", "steel")),
+                "its worst state's event, on the kerb");
+            Assert.That((bent.Cause.Event.C > 0, lost.Cause.Event.C > 0), Is.EqualTo((true, true)), "the speeds they touched at");
+            string bentLine = p.Describe(bent), lostLine = p.Describe(lost);
+            Assert.That(p.Lines(), Has.Member(bentLine).And.Member(lostLine));
+            StringAssert.StartsWith("leg front right bent ", bentLine);
+            StringAssert.Contains(", cracked at ", bentLine);
+            Assert.That(bent.Object, Is.EqualTo("the ground"));
+            StringAssert.EndsWith(": landed on the ground" + (bent.Material.Length > 0 ? " (" + bent.Material + ")" : "") + " at "
+                + bent.Cause.Event.C.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " m/s", bentLine);
+            StringAssert.StartsWith("leg rear left broken at ", lostLine);
+            StringAssert.EndsWith(": hit kerb (steel) at " + lost.Cause.Event.C.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " m/s", lostLine);
+
+            // R's restart: a new flight, its legs intact on their own draws, standing.
+            Assert.That(rig.Session.Restart(), Is.True);
+            FlightCore again = rig.Session.Core;
+            Assert.That(again, Is.Not.SameAs(core));
+            Assert.That(rig.Session.Seed, Is.EqualTo(4UL), "the next flight's own seed");
+            rig.Run(500);
+            ref readonly PosePair pair = ref rig.Session.Poses.Read();
+            for (int c = rr; c <= fl; c++)
+            {
+                Assert.That((again.Contacts.Legs.Flags(c), again.Contacts.Corner(c)), Is.EqualTo((LegFlags.None, CornerState.None)), "R's restart: leg " + c + " intact");
+                Assert.That(pair.Current.LegSet[c], Is.EqualTo(default(Double3)), "and drawn unbent");
+            }
+            Assert.That((pair.Current.LegState, pair.Current.CornerState), Is.EqualTo((0u, 0u)), "the pose the app draws: four intact legs");
+            for (int i = 0; i < LoosePoses.Slots; i++) Assert.That(pair.Current.Loose[i].Parts, Is.EqualTo(0), "no piece dropped");
+            rig.Session.Dispose();
+        }
+
         static double[] Pitches(FlightCore core)
         {
             var pitch = new double[8];

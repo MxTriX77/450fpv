@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Fpv450.Sim;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
@@ -28,6 +29,9 @@ namespace Fpv450.App.Session
     /// order: each damaged blade's last BladeDamaged (its tip left as a share of the radius, that pass's mass lost), with the
     /// mass the blade lost in all, and the rotor's last RotorJammed, with how often it jammed; each worded by
     /// FlightSummary.Describe.
+    /// Then the legs' damage (p7g-legs 1.5), in Corners order: each leg not intact at the last step record (its state there,
+    /// the elastic bow left out, and its set), with the event of its worst state, which names the landing or the object it
+    /// met and the speed it touched at.
     /// </summary>
     public sealed class PostFlight
     {
@@ -60,6 +64,11 @@ namespace Fpv450.App.Session
 
         /// <summary>The props' damage, per rotor (the event's part) and, for a rotor, its blades in order, then its jam.</summary>
         public readonly List<PropDamage> Damage = new List<PropDamage>();
+
+        /// <summary>The legs' damage, each damaged leg in Corners order (p7g-legs 1.5).</summary>
+        public readonly List<DamagedLeg> Legs = new List<DamagedLeg>();
+
+        static readonly string[] CornerNames = { "rear right", "front right", "rear left", "front left" };
 
         public ulong Seed => Log.Header != null ? Log.Header.Seed : 0;
 
@@ -131,7 +140,45 @@ namespace Fpv450.App.Session
                 else p.Damage.Add(now);
             }
             p.Damage.Sort((a, b) => a.Last.Event.Part != b.Last.Event.Part ? a.Last.Event.Part.CompareTo(b.Last.Event.Part) : a.Slot.CompareTo(b.Slot));
+            LegDamageSpec legs = log.Header.Contacts?.Legs;
+            if (legs != null && log.HasSteps)
+            {
+                StepTrace end = log.Last.Trace;
+                for (int c = 0; c < LegDamage.Legs; c++)
+                {
+                    LegFlags state = (LegFlags)(byte)(end.LegState >> (8 * c)) & ~LegFlags.Bowed;
+                    if (state == LegFlags.None) continue;
+                    var leg = new DamagedLeg { Corner = c, State = state, Set = end.LegSet[c] };
+                    int worst = 0;
+                    foreach (LoggedEvent e in log.Events)
+                    {
+                        int rank = Rank(e.Event, legs, c);
+                        if (rank <= worst) continue;
+                        worst = rank;
+                        leg.Cause = e;
+                    }
+                    FlightEvent cause = leg.Cause.Event;
+                    leg.Object = ObjectName(log.Header, cause.Object, openWorld);
+                    leg.Material = cause.Surface != 0 ? log.Header.SurfaceName(cause.Surface) : cause.Material != 0 ? log.Header.MaterialName(cause.Material) : "";
+                    p.Legs.Add(leg);
+                }
+            }
             return p;
+        }
+
+        // How bad an event is for the leg at corner c, by the state it brings: 0 for another part's or another kind.
+        static int Rank(in FlightEvent e, LegDamageSpec legs, int c)
+        {
+            bool leg = e.Part == legs.Parts[c];
+            switch (e.Kind)
+            {
+                case EventKind.LegDetached: return leg ? 5 : 0;
+                case EventKind.LegBroken: return leg ? 4 : 0;
+                case EventKind.SkidLoose: return e.Part == legs.TJointParts[c] ? 3 : 0;
+                case EventKind.LegCracked: return leg ? 2 : 0;
+                case EventKind.LegSet: return leg ? 1 : 0; // a skid's fold names the skid, never a leg
+                default: return 0;
+            }
         }
 
         static string ObjectName(LogHeader h, int id, Func<string, IWorldQuery> openWorld)
@@ -184,6 +231,31 @@ namespace Fpv450.App.Session
             return line;
         }
 
+        /// <summary>A leg's damage in words, its state and the event of its worst state: "leg front right bent 2.9°, cracked
+        /// at 0:00.1: landed on the ground at 1.52 m/s", or "leg rear left broken at 0:00.0: hit kerb (steel) at 1.50 m/s".</summary>
+        public string Describe(in DamagedLeg leg)
+        {
+            FlightEvent e = leg.Cause.Event;
+            string met = (e.Object == WorldIds.Ground ? "landed on " : "hit ") + leg.Object + (leg.Material.Length > 0 ? " (" + leg.Material + ")" : "");
+            return "leg " + CornerNames[leg.Corner] + " " + StateWords(leg) + " at " + Clock(leg.Cause.Step * FlightCore.Dt) + ": " + met + " at "
+                + e.C.ToString("0.00", C) + " m/s";
+        }
+
+        // A leg gone says so alone; one still on lists its bend and twist (degrees), its crack and its skid.
+        static string StateWords(in DamagedLeg leg)
+        {
+            if ((leg.State & LegFlags.Detached) != 0) return "off";
+            if ((leg.State & LegFlags.Broken) != 0) return "broken";
+            var words = new List<string>();
+            double bend = Math.Sqrt(leg.Set.X * leg.Set.X + leg.Set.Z * leg.Set.Z) * 180 / Math.PI, twist = Math.Abs(leg.Set.Y) * 180 / Math.PI;
+            if (bend > 0) words.Add("bent " + bend.ToString("0.0", C) + "°");
+            if (twist > 0) words.Add("twisted " + twist.ToString("0.0", C) + "°");
+            if (words.Count == 0 && (leg.State & LegFlags.Set) != 0) words.Add("bent");
+            if ((leg.State & LegFlags.Cracked) != 0) words.Add("cracked");
+            if ((leg.State & LegFlags.SkidLoose) != 0) words.Add("its skid loose");
+            return string.Join(", ", words);
+        }
+
         /// <summary>The summary's lines, for the screen.</summary>
         public List<string> Lines()
         {
@@ -201,6 +273,8 @@ namespace Fpv450.App.Session
                 lines.Add(Describe(i));
             foreach (PropDamage d in Damage)
                 lines.Add(Describe(d));
+            foreach (DamagedLeg l in Legs)
+                lines.Add(Describe(l));
             if (Log.Header.Input == InputSource.Keyboard) lines.Add("keyboard: never tune from this flight");
             lines.Add("seed 0x" + Seed.ToString("X16", C));
             lines.Add("log " + LogPath);
