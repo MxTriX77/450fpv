@@ -22,8 +22,10 @@ namespace Fpv450.Sim.Tests
         /// scenarios that compare with it. Most of it is each rotor's own wake (D-064) at the arms' mode near 60 Hz: the same
         /// hovers without the factory draws read 0.532 / 0.599 / 0.675. Model 40 (the physics integration 2, Betaflight's yaw I
         /// × 2.5 with them): the same to three digits, the 99.5th percentile 0.6796763534824888 against model 35's
-        /// 0.6796746668543654.</summary>
-        public const double FactoryBandHigh = 0.6796763534824888;
+        /// 0.6796746668543654. Model 72 (the arms in their plane, ArmFlex): 0.526 / 0.616 / 0.767 at 0.5 / 50 / 99.5 % (draws off 0.497 / 0.558 /
+        /// 0.624; the shares at the median mass 0.023, aerodynamic 0.977), the 99.5th percentile 0.7666915788421186 (flightbench --factory,
+        /// 80 000 hovers in 2078 s under load); model 68's, 0.6796763534824888, is the clean sensors'.</summary>
+        public const double FactoryBandHigh = 0.7666915788421186;
         const double TwoPi = 6.283185307179586, RadToDeg = 57.29577951308232;
 
         public struct Result

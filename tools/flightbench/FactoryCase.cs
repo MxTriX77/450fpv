@@ -14,7 +14,8 @@ namespace Fpv450.FlightBench
     //   is above zero at its 0.5th percentile. The absolute band is not compared across seeds: each rotor's own wake (D-064)
     //   excites the arms' mode near 62 Hz and varies between seeds more than the draws add.
     // - The mass and aerodynamic shares of a seed are its two single-source powers over their sum, at the median each at
-    //   least a fifth.
+    //   least a fifth until model 68; since model 72 (the arms in their plane, ArmFlex) the arm's bend across takes most of
+    //   the mass pull's lateral part off the body, so the aerodynamic share is at least a fifth and the mass share is printed.
     // The band's 99.5th percentile is the factory band other scenarios compare with (DamageScenario.FactoryBandHigh). Known-wrongs:
     // perfect props (both draws off) raise the band on no seed, so they fail "bounded away"; a mass-only imbalance (before 1.2)
     // has no aerodynamic share.
@@ -56,13 +57,13 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  both factory draws off: 0.5 / 50 / 99.5 %: {offs[lo]:E3} / {offs[mid]:E3} / {offs[hi]:E3} (not compared across seeds: each rotor's own wake, D-064)");
             Console.WriteLine($"  the factory imbalance's own 1/rev band (paired, √(band² − band_off²)), 0.5 / 50 / 99.5 %: {lines[lo]:E3} / {lines[mid]:E3} / {lines[hi]:E3}; "
                 + $"the band above its own draws-off hover on {above} of {seeds} seeds");
-            Console.WriteLine($"  the shares at the median: mass {massShare[mid]:F3}, aerodynamic {aeroShare[mid]:F3} (each at least 0.2)");
-            bool shares = massShare[mid] >= 0.2 && aeroShare[mid] >= 0.2;
+            Console.WriteLine($"  the shares at the median: mass {massShare[mid]:F3}, aerodynamic {aeroShare[mid]:F3} (the aerodynamic at least 0.2; the mass printed)");
+            bool shares = massShare[mid] > 0 && aeroShare[mid] >= 0.2;
             bool wrongShare = 0.0 >= 0.2;
             Console.WriteLine($"  bounded away from imperceptible, paired by seed (raised on at least {Math.Ceiling(0.995 * seeds):F0} of {seeds} seeds, the own band's "
                 + $"0.5th percentile {lines[lo]:E3} above zero): {(away ? "PASS" : "FAIL")}; the known-wrong perfect props raise it on {wrongAbove}: "
                 + $"{(wrongAway ? "PASSES" : "fails, as it must")}");
-            Console.WriteLine($"  the mass and aerodynamic shares each at least a fifth at the median: {(shares ? "PASS" : "FAIL")}; the known-wrong mass-only "
+            Console.WriteLine($"  the aerodynamic share at least a fifth at the median, the mass share above zero: {(shares ? "PASS" : "FAIL")}; the known-wrong mass-only "
                 + $"imbalance's aerodynamic share 0: {(wrongShare ? "PASSES" : "fails, as it must")}");
             Console.WriteLine($"  the factory band's 99.5th percentile: {sorted[hi]:R} m/s² (DamageScenario.FactoryBandHigh: {DamageScenario.FactoryBandHigh:R})");
             return away && shares && !wrongAway && !wrongShare;
