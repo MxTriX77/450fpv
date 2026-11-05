@@ -212,12 +212,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(dHigh, Is.GreaterThan(0.6).And.LessThanOrEqualTo(2.5), "at full duty the stalled drive is the chain's (N·m)");
         }
 
-        // prop-motor-damage's "A dragging motor meets its limit sooner": the full punch from a descent, with every ESC at 40 A (the
+        // prop-motor-damage's "A dragging motor holds its limit longer": the full punch from a descent, with every ESC at 40 A (the
         // compared variant), the rear-right motor rubbing 0.15 N·m (a dent past the gap) against the sound drone on the same seed.
-        // The rubbing motor's ESC holds its limit longer, and the total current is the motors' sum (1e-9). The known-wrong, a rub
-        // only logged (its drag never in the motor's torque balance), is the sound drone's.
+        // Full duty from the hover asks far past 40 A, so both meet the limit in the first steps; the rubbing motor's no later, from a
+        // higher current before the punch, and holds it longer, and the total current is the motors' sum (1e-9). The known-wrong, a
+        // rub only logged (its drag never in the motor's torque balance), is the sound drone's.
         [Test]
-        public void ADraggingMotorMeetsItsLimitSooner()
+        public void ADraggingMotorHoldsItsLimitLonger()
         {
             DroneSpec spec = Spec;
             Punch sound = Punched(spec, 0), rubbing = Punched(spec, 0.15), logged = Punched(spec, 0.15, applied: false);
@@ -281,9 +282,9 @@ namespace Fpv450.Sim.Tests
         }
 
         // prop-motor-damage's "A trim raises the hover's current": the hover with the rear-right prop trimmed by 12.7 mm and sound,
-        // on the same seed and pack. Both blades trimmed (a smaller disc), the rotor needs 6.9 % more power for its thrust (its BEMT
-        // tables, η_Q/η_T^1.5) and the total current is clearly higher, which MotorCurrentTotalA carries to the OSD. One blade
-        // trimmed (the scenario's case) moves that rotor's power by only 0.8 % (the long blade still sweeps the disc), a quarter of
+        // on the same seed and pack. Both blades trimmed (a smaller disc; the scenario's case), the rotor needs 6.9 % more power for its
+        // thrust (its BEMT tables, η_Q/η_T^1.5) and the total current is clearly higher, which MotorCurrentTotalA carries to the OSD.
+        // One blade trimmed (printed) moves that rotor's power by only 0.8 % (the long blade still sweeps the disc), a quarter of
         // the hover's load: the total moves by less than that share (the faster rotor's higher C_T and its lower torque's copper
         // loss take it back), and the printed change is the model's, not a pass. The known-wrong, a trim that leaves the rotor's
         // tables alone (PropulsionSpec.Rotor null), hovers on the sound drone's current, so it fails.
