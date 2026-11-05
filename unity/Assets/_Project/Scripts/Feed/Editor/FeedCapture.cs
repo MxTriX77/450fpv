@@ -21,7 +21,9 @@ namespace Fpv450.Feed
     /// <c>unity/Logs/feed</c>), <c>-feedSize WxH</c> (1920x1080), <c>-feedLens on|off</c>, <c>-feedSceneWidth n</c>,
     /// <c>-feedFieldWidth n</c>, <c>-feedGodot</c> (the tear's black wedge, which D-065 took out: the A/B against
     /// Godot takes it; the dropouts run on Godot's timer either way, D-085), <c>-feedSticks lx,ly,rx,ry</c> (X's stick
-    /// overlay under the name, D-084, each axis −1 to 1: the left stick across and up, then the right's).</item>
+    /// overlay under the name, D-084, each axis −1 to 1: the left stick across and up, then the right's). Two more
+    /// suffixes drive the stub's fiber link through the receiver (p7d-tether 1.16, FeedLink): <c>+dip&lt;n&gt;</c>, a
+    /// margin dip over the range's first n fields, and <c>+break</c>, the line breaking in its first field.</item>
     /// <item><c>-executeMethod Fpv450.Feed.FeedCapture.Lens</c>: the lens scenario. A straight-line grid through
     /// the feed, its lines traced, and k1 fitted the way K§11.4 measured it off the footage; exits 1 unless it lies
     /// within ±0.03 of 0.33.</item>
@@ -115,6 +117,13 @@ namespace Fpv450.Feed
                     ParseField(range, out int from, out int to, out string cut);
                     string dir = list.Length > 1 ? Path.Combine(outDir, range.Replace('+', '_')) : outDir;
                     Directory.CreateDirectory(dir);
+                    // The stub's link (p7d-tether 1.16), through the receiver: a dip of n fields from the range's first
+                    // field, or a break in it with no dip before (abrupt, so K§11.3's branch draws). Whole before the range.
+                    var link = (StubFeedSignals)rig.Signals;
+                    link.LinkState = LinkState.Intact;
+                    link.LinkInDip = false;
+                    link.LinkDips = 0;
+                    link.TetherBreakMechanism = "";
                     rig.pinnedField = from - 1; // Begin advances to the field before the range, as Godot's capture did
                     rig.Begin();
                     try
@@ -126,13 +135,26 @@ namespace Fpv450.Feed
                                   $"input {(input != null ? $"{Path.GetFileName(input)} {still.width}x{still.height}" : $"{FeedSetup.TestScenePath} rendered {settings.SceneSize.x}x{settings.SceneSize.y}")}, " +
                                   $"output {size.x}x{size.y}, field {settings.fieldWidth}x{FeedSettings.FieldRows}, lens k1 {settings.K1:0.00}. " +
                                   FeedSchedule.Summary(seed, 15000, 0f, settings.dropoutTimer));
-                        if (cut != null)
+                        if (cut == "cut" || cut == "hardcut")
                         {
                             // VideoFeed.cs:180-184: the cut fires after the field before the range.
                             rig.Events.TriggerCut(cut == "hardcut");
                         }
+                        int dip = DipFields(cut);
                         for (int f = from; f <= to; f++)
                         {
+                            if (dip > 0 && f == from)
+                            {
+                                link.LinkDips = 1;
+                                link.LinkInDip = true;
+                            }
+                            if (dip > 0 && f == from + dip)
+                                link.LinkInDip = false;
+                            if (cut == "break" && f == from)
+                            {
+                                link.LinkState = LinkState.Broken;
+                                link.TetherBreakMechanism = "stub";
+                            }
                             rig.Step(f);
                             if (still == null)
                                 rig.GetComponent<Camera>().Render();
@@ -208,8 +230,8 @@ namespace Fpv450.Feed
             {
                 cut = arg.Substring(plus + 1);
                 arg = arg.Substring(0, plus);
-                if (cut != "cut" && cut != "hardcut")
-                    throw new ArgumentException($"-feedField: '+{cut}' is neither +cut nor +hardcut");
+                if (cut != "cut" && cut != "hardcut" && cut != "break" && DipFields(cut) < 1)
+                    throw new ArgumentException($"-feedField: '+{cut}' is none of +cut, +hardcut, +dip<fields>, +break");
             }
             int dash = arg.IndexOf('-', 1);
             from = int.Parse(dash < 0 ? arg : arg.Substring(0, dash), CultureInfo.InvariantCulture);
@@ -217,6 +239,11 @@ namespace Fpv450.Feed
             if (to < from || from < 1)
                 throw new ArgumentException($"-feedField needs a field or a range like 610-660; got '{arg}'");
         }
+
+        /// The fields of a `+dip<n>` (p7d-tether 1.16), 0 for anything else.
+        static int DipFields(string cut) =>
+            cut != null && cut.StartsWith("dip", StringComparison.Ordinal)
+            && int.TryParse(cut.Substring(3), NumberStyles.None, CultureInfo.InvariantCulture, out int n) ? n : 0;
 
         /// VideoFeed.cs:199-210, the Godot capture's per-field line, so the two logs read alike.
         static string Describe(FeedEvents events)
