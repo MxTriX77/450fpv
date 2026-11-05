@@ -6,5 +6,14 @@
 
   <ItemGroup>
     <ProjectReference Include="../feedcore/feedcore.csproj" />
+    <!-- The physics' link through the receiver (`link`, p7d-tether 1.16): the sim core and the scenarios' setup. -->
+    <ProjectReference Include="../simcore/simcore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/ContactScenarios.cs" Link="ContactScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/TetherScenarios.cs" Link="TetherScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SimPilot.cs" Link="SimPilot.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/CrosswindScenario.cs" Link="CrosswindScenario.cs" />
   </ItemGroup>
 </Project>

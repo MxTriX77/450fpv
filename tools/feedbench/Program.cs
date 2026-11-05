@@ -9,12 +9,16 @@ namespace Fpv450.FeedBench
     // Godot feed (p4-feed task 1.1). The dropouts run on Godot's timer by default (D-085), so the dump is the Godot
     // feed's own; `--no-dropouts` stops the timer. `--godot` puts back the tear's black wedge, the "black sticks"
     // D-065 took out, for the A/B: it moves no draw, so the dump is the same, and only the wedge line says 1.
+    // `link` runs the physics' fiber link through the feed's receiver, field by field (LinkCase, p7d-tether 1.16).
     internal static class Program
     {
-        const string Usage = "usage: feedbench schedule --seed <n> [--fields <n>] [--current <0-1>] [--cut <field>[:abrupt]] [--no-dropouts] [--godot]";
+        const string Usage = "usage: feedbench schedule --seed <n> [--fields <n>] [--current <0-1>] [--cut <field>[:abrupt]] [--no-dropouts] [--godot]\n"
+            + "       feedbench link --break|--dip [--seed n] [--flight n] [--timer on|off]";
 
         private static int Main(string[] args)
         {
+            if (args.Length >= 1 && args[0] == "link")
+                return LinkCase.Run(args); // the physics' link through the receiver (p7d-tether 1.16)
             if (args.Length < 1 || args[0] != "schedule" || !Parse(args, out int seed, out int fields,
                     out float current, out int cutField, out bool abrupt, out bool dropouts, out bool godot))
             {
