@@ -97,7 +97,16 @@ namespace Fpv450.FlightBench
 
         public static bool Bench()
         {
+            // The warm-up: the same flight's first 15 s unpaced, so the timed flight's first steps (on the
+            // ground) run compiled code, as the app's own do after its loading screen; on .NET the tiered JIT would otherwise
+            // charge its first compilations to the ground phase.
             FlightSetup setup = Setup(out Double3 foot, out double stand, out Double3 nose);
+            var warm = new FlightCore(setup);
+            var warmPilot = new SimPilot(warm.Controller, foot + new Double3(0, stand, 0)) { Period = 1, Heading = nose };
+            for (int k = 0; k < 15000; k++) warm.Advance(Sticks(warmPilot, warm, foot, stand, k * 0.001, warm.State.Step * FlightCore.StepUs));
+            warm.Wind.Dispose();
+
+            setup = Setup(out foot, out stand, out nose);
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand, 0)) { Period = 1, Heading = nose };
             int steps = Seconds * 1000;
@@ -138,10 +147,13 @@ namespace Fpv450.FlightBench
             double p99 = all[steps * 99 / 100] * us;
             FiberLine line = core.Tether;
             bool ok = p99 <= 300 && allocated == 0 && core.State.Armed && !core.State.Crashed;
+            core.Wind.Dispose();
             Console.WriteLine($"{Name}: the houses' start (track), legs on, 1.0 kg, Windy map wind, the line ({line.PaidOut:F1} m paid out, "
                 + $"{line.Chain.Count} nodes, {line.TrailCount} trail points, {line.Chain.Corrections} extra solves, {line.Chain.SafeSteps} safe steps), "
                 + $"{steps} steps at 1 kHz: all {P(all, steps)}; on the ground (0–1.5 s) {P(ground, ng)}; the climb {P(climb, nc)}; "
                 + $"the cruise {P(cruise, nr)}; {over300} steps over 300 µs, {over1000} over 1 ms, {late} begun a period late; "
+                + (line.WindBatch == null ? "the nodes' wind on the flight thread; "
+                    : $"the nodes' wind {line.WindBatch.ByWorker} points on the worker, {line.WindBatch.ByCaller} on the flight thread; ")
                 + $"allocation {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
             return ok;
         }
