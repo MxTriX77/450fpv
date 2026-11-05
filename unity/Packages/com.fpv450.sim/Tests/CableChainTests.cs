@@ -397,6 +397,125 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain.Wedges, Is.EqualTo(0));
         }
 
+        // ---- the drone's parts (p7d-tether 1.7's gliding slots) ----
+
+        /// <summary>What "A line in a crotch of the drone's parts" measured.</summary>
+        public struct Crotch
+        {
+            /// <summary>The span's tension (the anchor's side of the crotch node), N: the most, and its mean over the last 0.5 s; the
+            /// exit segment's mean there (the spool's payout tension); the mean of T_span / (T_exit·e^(μk·θ)) there, θ the line's
+            /// turn at the crotch node (the capstan's sliding law); the line paid out, m; the crotch node's mean normal force (both
+            /// faces) over the last 0.5 s, N; the extra solves; the energy check's wedges.</summary>
+            public double MostSpan, Plateau, Exit, Capstan, PaidOut, Press;
+            public long Corrections, Wedges;
+        }
+
+        /// <summary>
+        /// The drone at 3 m/s (+x) away from a fixed end 5 m behind and drop m below, the line paying out of the spool at its exit
+        /// (the peel's static 0.05 N, the rate law, the flux and the balloon, a straight lip), one node 0.2 m short of the exit lying
+        /// in a crotch of two parts of the drone: two faces at ±45° about the vertical (μ 0.35/0.28, the polymer pair's), their common
+        /// edge along the line, 1 mm under the node, moving with the drone. With drop 0 the line lies straight through the crotch;
+        /// with drop &gt; 0 it rises to it from below and turns there, so its own tension presses it into the crotch. No gravity.
+        /// </summary>
+        public static Crotch InACrotch(double drop, bool zeroForceHold, double seconds = 1)
+        {
+            const double v = 3, span = 5, h = 0.2, gap = 0.001, c45 = 0.7071067811865476, muK = 0.28;
+            double mu = FiberMass, ea = FiberStiffness;
+            int n = 12;
+            var x = new Double3[n];
+            var s = new double[n];
+            for (int i = 0; i < n - 1; i++) x[i] = new Double3(span * i / (n - 2), -drop * (n - 2 - i) / (n - 2), 0);
+            x[n - 1] = new Double3(span + h, 0, 0);
+            for (int i = 1; i < n; i++) s[i] = s[i - 1] + (x[i] - x[i - 1]).Length();
+            var chain = new CableChain(n, mu, ea) { ZeroForceHold = zeroForceHold };
+            chain.Reset(x, s, n);
+            Anchor(chain, 0, 1e4);
+            int k = n - 2;
+            Double3 velocity = new Double3(v, 0, 0);
+            Double3 n0 = new Double3(0, c45, c45), n1 = new Double3(0, c45, -c45);
+            Double3 edge = x[k] - new Double3(0, gap / c45, 0); // each face 1 mm under the node
+            chain[n - 1].AnchorStiffness = 1e4;
+            chain[n - 1].AnchorFollows = true;
+            var res = new Crotch();
+            int steps = (int)(seconds / Dt), late = steps / 2;
+            double exit0 = chain[n - 1].Material;
+            for (int step = 1; step <= steps; step++)
+            {
+                Double3 moved = velocity * (step * Dt);
+                ref CableNode e = ref chain[n - 1];
+                e.AnchorTarget = x[n - 1] + moved;
+                e.AnchorVelocity = velocity;
+                e.AnchorDamping = 2 * Math.Sqrt(e.AnchorStiffness * e.Mass);
+                chain.Spool = new CableSpool
+                {
+                    Active = true, Lip = 1, Peel = 0.05, RateExponent = 0.2, ReferenceRate = 1, FluxMass = mu, BalloonMass = mu * 0.25,
+                };
+                ref CableNode a = ref chain[k];
+                for (int f = 0; f < 2; f++)
+                {
+                    ref CableContact c = ref f == 0 ? ref a.Contact0 : ref a.Contact1;
+                    if (!c.Active)
+                    {
+                        c = CableContact.On(edge + moved, f == 0 ? n0 : n1, velocity, 1e4, 2 * Math.Sqrt(1e4 * a.Mass), 1e4, 0.35, muK, true);
+                        c.MemberKind = 9;
+                        c.Member = (ulong)f;
+                    }
+                    c.Point = edge + moved;
+                    c.Velocity = velocity;
+                    c.Glide = true;
+                    c.Kinematic = true;
+                }
+                chain.Step(Dt);
+                double spanT = 0;
+                for (int j = 0; j < k; j++) spanT = Math.Max(spanT, chain.Tension(j));
+                res.MostSpan = Math.Max(res.MostSpan, spanT);
+                if (step > late)
+                {
+                    Double3 da = chain[k].Position - chain[k - 1].Position, db = chain[k + 1].Position - chain[k].Position;
+                    double turn = Math.Atan2(Double3.Cross(da, db).Length(), Double3.Dot(da, db)), tIn = chain.Tension(k - 1), tOut = chain.Tension(k);
+                    res.Plateau += tIn / (steps - late);
+                    res.Exit += tOut / (steps - late);
+                    res.Capstan += tIn / (tOut * Math.Exp(muK * turn)) / (steps - late);
+                    res.Press += (chain[k].Contact0.NormalForce + chain[k].Contact1.NormalForce) / (steps - late);
+                }
+            }
+            res.PaidOut = chain[n - 1].Material - exit0;
+            res.Corrections = chain.Corrections;
+            res.Wedges = chain.Wedges;
+            return res;
+        }
+
+        // fiber-tether: "A line in a crotch of the drone's parts". Lying straight in the crotch, 1 mm off both faces, nothing presses
+        // the line: the parts slide past it and the spool pays the drone's 3 m/s, the span at the payout tension; the known-wrong
+        // 0-force hold (model 59's) carries the line at the parts' speed with nothing pressing it, and the span's tension climbs
+        // past any strength. Rising to the crotch from 3 m below and turning there, its own tension presses it in: the faces carry
+        // that press and hold the line by friction on it, the capstan's T_span = T_exit·e^(μk·θ) as the line slides through, and
+        // the spool pays out what the span's new geometry takes (along the line a pressed part keeps 1.7's rules; printed, not
+        // compared with the known-wrong).
+        [TestCase(0.0)]
+        [TestCase(3.0)]
+        public void ALineInACrotchHoldsOnlyByItsPress(double drop)
+        {
+            Crotch r = InACrotch(drop, false), wrong = InACrotch(drop, true);
+            TestContext.WriteLine($"drop {drop} m: the span up to {r.MostSpan:F4} N, settled at {r.Plateau:F4} N against the exit's {r.Exit:F4}, "
+                + $"T_span/(T_exit·e^(μk·θ)) {r.Capstan:F4}; the faces' press {r.Press:F4} N; paid out {r.PaidOut:F4} m of 3; extra solves {r.Corrections}, "
+                + $"wedges {r.Wedges}. The 0-force hold: the span up to {wrong.MostSpan:F3} N, paid out {wrong.PaidOut:F4} m, wedges {wrong.Wedges}");
+            Assert.That(r.Wedges, Is.EqualTo(0));
+            double span = 5, need = Math.Sqrt((span + 3) * (span + 3) + drop * drop) - Math.Sqrt(span * span + drop * drop);
+            Assert.That(r.PaidOut, Is.EqualTo(need).Within(0.1), "the spool pays what the drone's 3 m of travel takes");
+            Assert.That(r.Capstan, Is.EqualTo(1).Within(0.02), "held by friction on its press, the capstan's law");
+            if (drop == 0)
+            {
+                Assert.That(r.Press, Is.LessThan(1e-3), "nothing presses the line");
+                Assert.That(wrong.MostSpan, Is.GreaterThan(10 * Math.Max(r.MostSpan, 1)), "the known-wrong carries the line without a press");
+            }
+            else
+            {
+                Assert.That(r.Press, Is.GreaterThan(0.01), "its turn presses it into the crotch");
+                Assert.That(r.Plateau, Is.GreaterThan(r.Exit), "held by friction on the press");
+            }
+        }
+
         // ---- energy ----
 
         sealed class Xorshift

@@ -217,8 +217,11 @@ namespace Fpv450.Sim.Log
         ///    in its shapes); the tether entry 46's (TetherWithoutContacts, then TetherWithoutCuts and TetherOneStrength); the
         ///    settings 46's failsafe fields; the draws 46's fiber.span_strength; the events 46's (TetherBreak 32, LinkDip 33,
         ///    FiberSection 34, Failsafe 35, WorldBug's cause 7); no new event kind.
+        /// 52: the line held between the drone's parts (p7d-tether 1.7's part slots, on 49; assigned by D-072): the tether entry
+        ///    gains FlightSetup.TetherZeroForceHold (the known-wrong 0-force hold) after TetherOneStrength; the record is 49's 2944
+        ///    bytes; no new event kind.
         /// </summary>
-        public const int Version = 49;
+        public const int Version = 52;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -547,8 +550,15 @@ namespace Fpv450.Sim.Log
         ///    idle or faster turns a disc and cuts at the next blade pass, as at 56. A flight with FlightSetup.TetherWithoutCuts
         ///    steps as in 57; one with ContactSpec.BladeRest off steps as in 56 over its 2816 bytes (but for 52's jammed head-on
         ///    crush), the block zero.
+        /// 62: the line held between the drone's parts (p7d-tether 1.7's part slots, on 59; assigned by D-072; CableChain): a
+        ///    drone part holds the line only by what presses it. A part's slot with nothing pressing the node (N 0 at a pass's
+        ///    end: a crotch of two parts, the 2 mm band) holds nothing for the rest of the step (Unstuck); a speculative slot whose
+        ///    spring ends the first pass pulling the node toward the part is let go (Released). And the energy check's
+        ///    safe pass solves a spool segment that paid nothing on the elastic segment's majorizer, not the paying model's
+        ///    constant pull (S04's TetherWedges). A pressed slot keeps 1.7's hold. A flight without the line, or with
+        ///    FlightSetup.TetherZeroForceHold (the known-wrong: model 59's chain), steps as in 59.
         /// </summary>
-        public const int ModelVersion = 59;
+        public const int ModelVersion = 62;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

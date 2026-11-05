@@ -69,6 +69,9 @@ namespace Fpv450.Sim.Tether
         // the step's start, the node being predicted to reach the surface within the step).
         internal byte Mode;
         internal double Rest;
+        // This step's, a gliding slot's: an earlier pass ended with its hold pulling while nothing pressed the node on the part
+        // (N = 0, so Coulomb's bound μs·N is 0): the hold is out of the solve for the rest of the step (CableChain.Unstuck).
+        internal bool Slips;
 
         /// <summary>Points the contact at a member; the hold starts afresh.</summary>
         public static CableContact On(Double3 point, Double3 normal, Double3 velocity, double stiffness, double damping,
@@ -236,6 +239,12 @@ namespace Fpv450.Sim.Tether
         /// <summary>The extra solves the active-set correction took, and the steps solved again on majorizing models.</summary>
         public long Corrections { get; private set; }
         public long SafeSteps { get; private set; }
+
+        /// <summary>The known-wrong 0-force hold (model 59's, FlightSetup.TetherZeroForceHold): a gliding slot holds the line in the
+        /// solve whatever its normal force: its hold at full stiffness, Coulomb's bound applied only after the solve, and its
+        /// speculative spring pulling the node toward the part; and the safe pass keeps the spool's paying model on a segment that
+        /// pays nothing. Model 59's chain bit for bit: a bench's model and the audit, never a pilot's flight.</summary>
+        public bool ZeroForceHold;
 
         /// <summary>The spool at the last node (the caller's, before each step); inactive by default.</summary>
         public CableSpool Spool;
@@ -524,9 +533,20 @@ namespace Fpv450.Sim.Tether
             CableGuard verdict = Run(dt, e0, startMagnitude, false, out double e1, out double excess, out double deficit, out double removable, out int bad);
             if (verdict == CableGuard.Wedge)
             {
+                // The holds the corrections let go stay out of the safe solve (nothing pressed them).
+                for (int i = 0; i < n; i++)
+                {
+                    _c0[i].Slips = _nodes[i].Contact0.Slips;
+                    _c1[i].Slips = _nodes[i].Contact1.Slips;
+                }
+                // The spool's paying model is above its true energy only while line flows: its constant pull on a segment that
+                // ends paying nothing (the exit's nodes closing, the line slack at the exit) is a gain the truth never had. Such a
+                // segment is solved safe as the elastic one it is (majorized below, as every other); one paying keeps its model.
+                bool held = !ZeroForceHold && Spool.Active && n >= 2 && _segKind[n - 2] == 4 && !(SpoolPaid > 0);
                 Restore(n);
+                if (held) ElasticModel(n - 2);
                 for (int j = 0; j + 1 < n; j++)
-                    if (_segLen[j] > 0 && _segKind[j] != 4) // the spool's model is linear and dissipative as it stands
+                    if (_segLen[j] > 0 && _segKind[j] != 4) // a paying spool's model is linear and dissipative while line flows
                     {
                         _segKind[j] = 3;
                         _segDir[j] = (_x0[j + 1] - _x0[j]) * (1 / _segLen[j]);
@@ -584,7 +604,7 @@ namespace Fpv450.Sim.Tether
                 Assemble(dt);
                 Solve();
                 for (int i = 0; i < n; i++) _nodes[i].Position = _x0[i] + _nodes[i].Velocity * dt;
-                if (safe || pass == MaxCorrections || !Correct()) break;
+                if (safe || pass == MaxCorrections || !Correct(pass == 0)) break;
                 Corrections++;
                 for (int i = 0; i < n; i++)
                 {
@@ -747,7 +767,7 @@ namespace Fpv450.Sim.Tether
 
         // After a pass: every slack segment the prediction left out that ends taut, and every member it left out that the
         // node ends inside, is taken speculative from the start (above the true energy, 0 there): true if any was.
-        bool Correct()
+        bool Correct(bool first)
         {
             bool missed = false;
             int n = Count;
@@ -765,6 +785,17 @@ namespace Fpv450.Sim.Tether
                 ref CableNode a = ref _nodes[i];
                 missed |= Missed(a.Position, _x0[i], ref a.Contact0);
                 missed |= Missed(a.Position, _x0[i], ref a.Contact1);
+                if (a.Contact0.Glide || a.Contact1.Glide)
+                {
+                    if (first)
+                    {
+                        missed |= Released(a.Position, ref a.Contact0);
+                        missed |= Released(a.Position, ref a.Contact1);
+                    }
+                    Double3 along = a.Contact0.Free || a.Contact1.Free ? LineTangentAt(i) : default;
+                    missed |= Unstuck(a.Position, along, ref a.Contact0);
+                    missed |= Unstuck(a.Position, along, ref a.Contact1);
+                }
             }
             if (Spool.Active && n >= 2 && !Spool.Locked) missed |= SpoolMissed();
             return missed;
@@ -777,6 +808,42 @@ namespace Fpv450.Sim.Tether
             c.Rest = Double3.Dot(c.Normal, start - c.Point);
             c.Engaged = true;
             c.Hold = start;
+            return true;
+        }
+
+        // A gliding slot taken speculative (the node predicted to reach the part, or within KinematicBand of its end-of-step
+        // place) whose spring ends the pass pulling the node toward the part (the gap past the one it started from) is let go
+        // for the rest of the step: a part only pushes. Its spring from the start gap, measured to the part's end-of-step place,
+        // pins the node's motion along the normal in the world, so a node riding a few millimetres off a part at the drone's
+        // speed is pulled back by the part's travel in the step (7 mm at 7.4 m/s: 70 N on a node of 3 mg). Let go, it stays
+        // out of the solve unless the node ends inside the part, where the next pass takes it again (Missed). Only after the
+        // first pass, so a later one never lets go of a part the node then ends inside with no pass left to take it.
+        bool Released(Double3 x, ref CableContact c)
+        {
+            if (ZeroForceHold || !c.Active || c.Mode != 2 || !c.Glide) return false;
+            if (!(Double3.Dot(c.Normal, x - c.Point) > c.Rest)) return false;
+            c.Mode = 0;
+            c.Engaged = false;
+            return true;
+        }
+
+        // A gliding slot whose hold ends the pass pulling while nothing presses the node on the part (N, the pass's normal force,
+        // 0: a node in a crotch of two parts, or within KinematicBand of one, may press neither) holds nothing for the rest of the
+        // step: Coulomb's bound μs·N is 0, and a hold at its full stiffness would carry the line's pull at the part's speed (model
+        // 59's crotch: the span stretched at 60 N/s to its break). A pressed slot keeps 1.7's hold and its slips after the solve.
+        // A free slot's along-line part is not held (AddContact) and not judged.
+        bool Unstuck(Double3 x, Double3 along, ref CableContact c)
+        {
+            if (ZeroForceHold || !c.Active || c.Mode == 0 || !c.Glide || c.Slips || !(c.HoldStiffness > 0)) return false;
+            if (-c.Stiffness * (Double3.Dot(c.Normal, x - c.Point) - c.Rest) > 0) return false;
+            Double3 off = Tangential(x - c.Hold, c.Normal);
+            if (c.Free)
+            {
+                Double3 axis = FreeAxis(along, c.Normal);
+                off = off - axis * Double3.Dot(axis, off);
+            }
+            if (!(off.Length() > 0)) return false;
+            c.Slips = true;
             return true;
         }
 
@@ -802,6 +869,7 @@ namespace Fpv450.Sim.Tether
 
         static void ChooseContact(Double3 x, Double3 predicted, double dt, Double3 along, ref CableContact c)
         {
+            c.Slips = false;
             if (!c.Active)
             {
                 c.Mode = 0;
@@ -846,10 +914,10 @@ namespace Fpv450.Sim.Tether
         {
             if (c.Mode == 0) return;
             Double3 nrm = c.Normal;
-            double g = Double3.Dot(nrm, x - c.Point);
-            diag = diag + Outer(nrm, dt * c.Damping + dt * dt * (c.Stiffness - c.HoldStiffness)) + Iso(dt * dt * c.HoldStiffness);
+            double g = Double3.Dot(nrm, x - c.Point), hold = c.Slips ? 0 : c.HoldStiffness;
+            diag = diag + Outer(nrm, dt * c.Damping + dt * dt * (c.Stiffness - hold)) + Iso(dt * dt * hold);
             f = f + nrm * (-c.Stiffness * (g - c.Rest) + c.Damping * Double3.Dot(nrm, c.Velocity));
-            if (!(c.HoldStiffness > 0)) return;
+            if (c.Slips || !(c.HoldStiffness > 0)) return;
             Double3 off = Tangential(x - c.Hold, nrm);
             if (c.Free)
             {
@@ -916,6 +984,12 @@ namespace Fpv450.Sim.Tether
             c.NormalForce = normal > 0 ? normal : 0;
             if (!(c.HoldStiffness > 0) || c.Capstan && c.Notch) return; // a notch holds the member's point; line slides through it
             Double3 t = Tangential(x - c.Hold, c.Normal);
+            if (c.Slips)
+            {
+                // Nothing pressed: the hold comes to the node (its spring was out of the solve), so it stores nothing.
+                c.Hold = c.Hold + t;
+                return;
+            }
             // A capstan's hold along the line is the member's point (line slides through it by the capstan); across the line
             // it slips by Coulomb, as a plain hold does (the line sliding along a twig, a wire or a skid).
             if (c.Capstan)

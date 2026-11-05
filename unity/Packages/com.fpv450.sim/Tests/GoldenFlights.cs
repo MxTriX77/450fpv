@@ -826,8 +826,21 @@ namespace Fpv450.Sim.Tests
         /// block zero on every record: no blade rests on anything and the line never meets a resting one, before the break or
         /// through the near piece's hang, the disarm and the spin-down (WithoutARestingPropEachGoldenIsModel56s). No other golden
         /// moved: each is 57's pin.
+        /// Model 62 (the line held between the drone's parts, p7d-tether 1.7's part slots, on 59): re-recorded. Audited case by
+        /// case (GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel59s, flightbench --golden): with the known-wrong 0-force
+        /// hold (FlightSetup.TetherZeroForceHold: model 59's chain) it is model 59's pin (Model59TetherHash), every record and
+        /// event; with a part holding the line only by what presses it, every record is 59's for 7204 steps (the line's slots on
+        /// the stack, the coil and the payload differ from the spool-up, their events from the 55th, but the parts' reactions are
+        /// 59's to the bit until then), and rotor 2's disc cuts the line at step 7258 as the drone settles (59's: 7269), T 0.024 N
+        /// (0.031): 1.8's known risk, the same mechanism and place. 248 events against 4150 (the near piece's slots no longer
+        /// churn at the parts: 1.8's finding 7); no wedge; 2 safe steps against 3. No other golden flies the line: each keeps its
+        /// pin.
         /// </summary>
-        public const ulong TetherHash = 0x1553E92C7C7425BCUL;
+        public const ulong TetherHash = 0x61BFE96EC1C84A80UL;
+
+        /// <summary>The tether golden at model 59 (the physics integration 2 with the cuts), which the flight with the known-wrong
+        /// 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel59s).</summary>
+        public const ulong Model59TetherHash = 0x1553E92C7C7425BCUL;
 
         /// <summary>The tether golden at model 57 (the props at rest on the line), which the flight without 1.8's cuts keeps
         /// (FlightSetup.TetherWithoutCuts: GoldenFlightTests.WithoutTheCutsEachGoldenIsModel57s).</summary>
@@ -1370,7 +1383,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool coulomb = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1395,6 +1408,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
                 setup.TetherWithoutContacts = !fiberContacts; // p7d-tether 1.7: false flies the plane alone, models 31–50's line
                 setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
+                setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's 0-force hold
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);
