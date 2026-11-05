@@ -127,6 +127,7 @@ namespace Fpv450.Sim.Log
             if (isa != null && h.Isa != isa) result.Notes.Add("recorded with ISA " + h.Isa + ", replayed with " + isa);
 
             var core = new FlightCore(setup);
+            using Wind.WindField air = core.Wind; // its workers (the wake grid's, the batch's) stop when the replay ends
             if (StartDiffers(h, core, out string field, out string detail))
                 return Diverge(result, 0, field, "the flight's start differs: " + detail);
 
