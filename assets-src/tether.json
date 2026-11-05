@@ -49,9 +49,10 @@
     "peel_reference_rate_m_s": {"value": 1, "label": "assumed", "rationale": "v_ref of the peel's rate law"},
     "irregularity": {"value": [0.75, 1.25], "label": "assumed", "rationale": "spool.irregularity, the pack's resistance factor per section (±25 %): the adhesive's spread and the winding's cross-overs"},
     "balloon_length_m": {"value": 0.25, "label": "assumed", "rationale": "L_b, the line between the peel point and the exit whose acceleration the exit tension carries (μ·L_b·s̈, design 3; the FOG-M review's friction-and-adhesive term plus ρv², published)"},
-    "lip_radius_m": {"value": 0.002, "label": "assumed", "rationale": "the exit's flared nozzle at the rear cap's Ø11 mm hole (the drone sheet; GetFPV's canisters use an aluminium outlet nozzle, published)"},
+    "lip_radius_m": {"value": 0.004, "label": "assumed", "rationale": "the rounded lip of D01's nozzle mouth, flared from its Ø12 mm bore to Ø26 mm over a 4 mm radius (drone.json's canister and coil_nozzle notes, D01_*.json's canister: an assumed size on the class's measured flared and knob-like tips; no published mouth radius, docs/reference-notes/spool-exit-and-rear.md §4, §6); the bend there is the larger of this and the elastica's at the exit's tension (FiberCuts)"},
     "lip_friction": {"value": 0.3, "label": "assumed", "rationale": "μ of the coating on the nozzle in the lip's capstan, T·e^(μθ): 1.17× at 30°, 1.60× at 90°, 2.57× at 180°"},
-    "exit_position_m": {"value": [0, -0.053, -0.1], "label": "derived", "rationale": "the rear cap's centre: drone.json's coil part at (0, −0.053, 0) with its 0.20 m length along +z, the line leaving aft"}
+    "exit_position_m": {"value": [0, -0.170081, -0.204958], "label": "derived", "rationale": "the nozzle's tip, where the line leaves the canister: drone.json's canister part at (0, −0.109, 0.023) down its axis (0, 0.258819, 0.965926) by its body's half length 0.119 m, the 0.047 m cone and the 0.070 m nozzle, 0.236 m in all (the coil_nozzle contact's aft core end plus its 0.013 m radius on the axis); 0.0451 m aft of the rear motors' axis and 0.170 m below the arm plane, inside the class's measured 0.03–0.08 m and 0.12–0.20 m (docs/reference-notes/spool-exit-and-rear.md §2.2)"},
+    "exit_direction": {"value": [0, -0.258819, -0.965926], "label": "derived", "rationale": "the nozzle's axis out of the tip, aft and 15° down: minus the canister part's axis (drone.json), the class's 7–20° rear-down tilt (docs/reference-notes/spool-exit-and-rear.md §2.2–2.3); the lip's wrap θ_e is measured from it, and the launch lays the line from the tip along it to the ground, as the class's builds rest (§2.3, §4); a unit vector"}
   },
   "link": {
     "wavelength_m": {"value": 1.55e-6, "label": "assumed", "rationale": "the video downlink of a bidirectional pair at 1550 nm"},
@@ -77,7 +78,7 @@
     "conductor_strength_ratio": {"value": [0.9, 1.2], "label": "assumed", "rationale": "wire.strength, each conductor's breaking force as a factor of its record's: the ГОСТ figure is a minimum, and old conductors corrode"}
   },
   "launch": {
-    "anchor_behind_start_m": {"value": 3, "label": "assumed", "rationale": "the line's far end at the ground station on the ground, 3 m behind the start point; the line laid straight from it to beneath the exit (the pilot sets the drone down on its line)"}
+    "anchor_behind_start_m": {"value": 3, "label": "assumed", "rationale": "the line's far end at the ground station on the ground, 3 m behind the start point; the line laid straight from it to where the nozzle's lead (spool.exit_direction) meets the ground, beneath the exit for a level one (the pilot sets the drone down on its line)"}
   },
   "span": {
     "max_nodes": {"value": 32, "label": "assumed", "rationale": "the active chain from the touchdown to the exit (design 3, PHY-18's ≤ 32 lumped nodes): near_spacing_m within near_length_m of the exit and spacing_growth a node beyond cover about 1.5 km of line, more than any airborne arc"},

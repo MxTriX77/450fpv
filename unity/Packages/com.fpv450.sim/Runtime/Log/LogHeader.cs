@@ -125,7 +125,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] ModesFieldsLogged =
         {
             "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "MountDamping",
-            "Camera", "TipMass", "PayloadPart", "CoilPart",
+            "Camera", "TipMass", "PayloadPart", "CoilPart", "CoilHousingPart",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -244,7 +244,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] PlacementFieldsLogged =
         {
             "BottleAcross", "BottleAlong", "PackAlong", "PackOut", "CoilAcross", "CoilAlong", "WiringMass", "WiringAcross",
-            "BottlePart", "CoilPart", "WiringPart", "PackParts",
+            "BottlePart", "CoilPart", "WiringPart", "PackParts", "CoilHousingPart",
         };
         public static readonly string[] VortexRingFieldsLogged =
         {
@@ -993,6 +993,7 @@ namespace Fpv450.Sim.Log
                 e.Write(Placement.WiringPart);
                 e.Write((ushort)Placement.PackParts.Length);
                 foreach (int p in Placement.PackParts) e.Write(p);
+                e.Write(Placement.CoilHousingPart);
             });
             Entry(w, TagVortexRing, e =>
             {
@@ -1056,6 +1057,7 @@ namespace Fpv450.Sim.Log
                     e.Write(x);
                 e.Write(m.PayloadPart);
                 e.Write(m.CoilPart);
+                e.Write(m.CoilHousingPart);
             });
             Entry(w, TagInterference, e =>
             {
@@ -1426,6 +1428,7 @@ namespace Fpv450.Sim.Log
                         };
                         Placement.PackParts = new int[r.ReadUInt16()];
                         for (int k = 0; k < Placement.PackParts.Length; k++) Placement.PackParts[k] = r.ReadInt32();
+                        Placement.CoilHousingPart = r.ReadInt32();
                         break;
                     case TagVortexRing:
                         VortexRing = r.ReadBoolean()
@@ -1514,7 +1517,7 @@ namespace Fpv450.Sim.Log
                             ArmTipShare = r.ReadDouble(), ArmDamping = r.ReadDouble(), MountStiffness = r.ReadDouble(),
                             MountDamping = r.ReadDouble(), Camera = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
                             TipMass = new[] { r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble() },
-                            PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(),
+                            PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(), CoilHousingPart = r.ReadInt32(),
                         };
                         break;
                     case TagTether:

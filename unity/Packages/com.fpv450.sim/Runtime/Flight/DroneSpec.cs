@@ -440,10 +440,15 @@ namespace Fpv450.Sim.Flight
         public Double3[] MovedTo;
     }
 
-    /// <summary>The fiber spool: its part, whose mass falls as the line pays out.</summary>
+    /// <summary>The fiber spool: its part, whose mass falls as the line pays out, and the housing it rides in.</summary>
     public struct DroneCoil
     {
         public int Part;
+
+        /// <summary>The canister round the pack (model 64), −1 for a spool without one: its cylinder carries the coil's drag
+        /// (the pack inside is hidden), and it rides with the pack on one mount (the modes) with the same play (the build's
+        /// tolerances).</summary>
+        public int Housing;
 
         /// <summary>The empty spool and housing, kg.</summary>
         public double SpoolMass;
@@ -655,13 +660,13 @@ namespace Fpv450.Sim.Flight
             return a;
         }
 
-        /// <summary>The build's placement tolerances (BuildTolerance, D-066) on this file's bottle, coil, electronics (the
-        /// leads' carrier) and packs.</summary>
+        /// <summary>The build's placement tolerances (BuildTolerance, D-066) on this file's bottle, coil (with its housing),
+        /// electronics (the leads' carrier) and packs.</summary>
         public BuildTolerance BuildPlacement()
         {
             var packs = new int[Packs.Length];
             for (int k = 0; k < packs.Length; k++) packs[k] = Packs[k].Part;
-            return new BuildTolerance { BottlePart = Payload.Part, CoilPart = Coil.Part, WiringPart = PartIndex("electronics"), PackParts = packs };
+            return new BuildTolerance { BottlePart = Payload.Part, CoilPart = Coil.Part, CoilHousingPart = Coil.Housing, WiringPart = PartIndex("electronics"), PackParts = packs };
         }
 
         /// <summary>The rotors' vortex rings at the published boundaries (VortexRingSpec), in the aero block's air.</summary>
@@ -674,11 +679,11 @@ namespace Fpv450.Sim.Flight
         public RotorWakeSpec BuildRotorWake() => new RotorWakeSpec { AirDensity = Aero.AirDensity };
 
         /// <summary>The airframe's modes (AirframeModesSpec, p7b-airframe 1.4): each arm's tip mass from its corner's motor,
-        /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), the payload's and the coil's parts, and the camera at the
-        /// file's lens.</summary>
+        /// prop and arm parts ("motor_rr", "prop_rr", "arm_rr", …), the payload's and the coil's parts (with its housing), and
+        /// the camera at the file's lens.</summary>
         public AirframeModesSpec BuildModes()
         {
-            var m = new AirframeModesSpec { PayloadPart = Payload.Part, CoilPart = Coil.Part };
+            var m = new AirframeModesSpec { PayloadPart = Payload.Part, CoilPart = Coil.Part, CoilHousingPart = Coil.Housing };
             if (CameraLens.HasValue) m.Camera = CameraLens.Value;
             string[] corners = { "rr", "fr", "rl", "fl" };
             for (int i = 0; i < 4; i++)
@@ -1516,10 +1521,15 @@ namespace Fpv450.Sim.Flight
 
             DroneCoil ReadCoil(JsonNode p, DroneSpec spec)
             {
-                var coil = new DroneCoil { Part = -1 };
+                var coil = new DroneCoil { Part = -1, Housing = -1 };
                 if (!IsObject(p, "coil")) return coil;
-                Members(p, "coil", "part", "spool_mass_kg", "fiber_mass_kg", "fiber_length_m");
+                Members(p, "coil", "part", "housing", "spool_mass_kg", "fiber_mass_kg", "fiber_length_m");
                 coil.Part = PartRef(p, "part", "coil", spec);
+                if (p.Member("housing") != null)
+                {
+                    coil.Housing = PartRef(p, "housing", "coil", spec);
+                    if (coil.Housing >= 0 && coil.Housing == coil.Part) Fail("coil.housing", "must be another part than the pack");
+                }
                 coil.SpoolMass = Positive(p, "spool_mass_kg", "coil");
                 coil.FiberMass = Positive(p, "fiber_mass_kg", "coil");
                 coil.FiberLength = Positive(p, "fiber_length_m", "coil");
@@ -1605,7 +1615,7 @@ namespace Fpv450.Sim.Flight
             void ReadAero(JsonNode p, DroneSpec spec)
             {
                 AeroSpec aero = spec.Aero;
-                aero.CoilPart = spec.Coil.Part;
+                aero.CoilPart = spec.Coil.Housing >= 0 ? spec.Coil.Housing : spec.Coil.Part;
                 if (!IsObject(p, "aero")) return;
                 Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient");
                 aero.AirDensity = Positive(p, "air_density_kg_m3", "aero");
@@ -1614,8 +1624,8 @@ namespace Fpv450.Sim.Flight
                     Fail("aero.body_area_m2", "every silhouette must be above 0");
                 Vector(p, "body_center_of_pressure_m", "aero", out aero.BodyCenterOfPressure);
                 aero.DragCoefficient = Positive(p, "drag_coefficient", "aero");
-                if (spec.Coil.Part >= 0 && spec.Parts[spec.Coil.Part].Kind != PartKind.Cylinder)
-                    Fail("coil.part", "the coil's drag needs its part to be a cylinder");
+                if (aero.CoilPart >= 0 && spec.Parts[aero.CoilPart].Kind != PartKind.Cylinder)
+                    Fail(spec.Coil.Housing >= 0 ? "coil.housing" : "coil.part", "the coil's drag needs its part to be a cylinder");
             }
 
             // ---- the building blocks ----

@@ -245,10 +245,12 @@ namespace Fpv450.Sim.Log
         ///    TetherOneStrength; tether.json's rotor_air block gains fountain_impingement_depth_ratio and
         ///    body_lee_length_over_diameter (rows, so the entry's layout is otherwise 49's); the record is 49's 2944 bytes; no
         ///    new event kind.
-        /// 54: the physics integration 2 with the body over the fountain and D01's canister (unity/physics/physics-integration-2--
-        ///    canister, assigned by D-072): 51 merged onto 53: the record is 53's 3040 bytes; the tether entry 53's with 51's
-        ///    known-wrong switch FlightSetup.TetherFountainThroughBody after TetherOneStrength and tether.json's rotor_air rows;
-        ///    the rest 53's; no new event kind.
+        /// 54: D01's canister in the physics (unity/physics/physics-integration-2--canister, assigned by D-072): 51 merged onto
+        ///    53: the record is 53's 3040 bytes; the contacts entry 53's; the tether entry 53's with 51's known-wrong switch
+        ///    FlightSetup.TetherFountainThroughBody after TetherOneStrength; tether.json's rotor_air block 51's and its spool block
+        ///    gains exit_direction (rows, so the entry's layout is otherwise 53's); the modes' entry gains CoilHousingPart after
+        ///    CoilPart and the placement's after PackParts (drone.json's coil.housing, the canister); the settings, the draws and
+        ///    the events 53's; no new event kind.
         /// </summary>
         public const int Version = 54;
 
@@ -619,8 +621,17 @@ namespace Fpv450.Sim.Log
         ///    flight without the line, or with it and FlightSetup.TetherFountainThroughBody, or on design 4's field
         ///    (TetherDesign4Air), steps as in 59.
         /// 64: the physics integration 2 with the body over the fountain and D01's canister (unity/physics/physics-integration-2--
-        ///    canister, assigned by D-072): 61's body over the fountain merged onto 63's bells, frame, cuts and failsafe. A flight
-        ///    with FlightSetup.TetherFountainThroughBody steps as in 63.
+        ///    canister, assigned by D-072): 61's body over the fountain merged onto 63's bells, frame, cuts and failsafe (they
+        ///    compose without new code: 61 changes only RotorAir's field), and the canister of the drone model in place of the old
+        ///    coil beneath the frame (drone.json's canister part, coil.housing, its body, cone and nozzle the coil, coil_aft,
+        ///    coil_fore, coil_cone and coil_nozzle contacts). The line leaves at the nozzle's tip (tether.json's
+        ///    spool.exit_position_m) along the nozzle (spool.exit_direction, a new row): the lip's wrap is measured from it, not
+        ///    from the body's aft axis, and the launch lays the line from the anchor to where that lead meets the ground, then up
+        ///    along it to the tip (beneath the exit for a level or rising lead). The coil's drag is its housing's cylinder (the
+        ///    pack inside is hidden), its mount in the modes carries the pack and the housing, and its play in the build's
+        ///    tolerances moves both, along the coil's axis. A flight on model 63's drone.json (no coil.housing: the fixture
+        ///    Model63Drone, with tether.json's three spool rows at model 63's values, GoldenFlights.Model63Tether) and with
+        ///    FlightSetup.TetherFountainThroughBody steps as in 63.
         /// </summary>
         public const int ModelVersion = 64;
 
