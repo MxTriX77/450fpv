@@ -1,5 +1,6 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
 using NUnit.Framework;
@@ -312,6 +313,42 @@ namespace Fpv450.Sim.Tests
         // and on, the tether golden with the fiber's contacts is 1.7's pin (TetherHash), every record and event, and every
         // golden without the line keeps its pin (above): the hanging give is the whole of 55's move against 53 (none in the
         // goldens), the fiber's contacts the whole against 51 (WithoutTheHangingGiveEachGoldenIsModel50s' tether).
+        // p7d-tether 1.8's audit: without the cuts and the link (FlightSetup.TetherWithoutCuts) the tether golden is model 55's
+        // pin, every record and event; no other golden flies the line, so every other pin is model 55's as it stands.
+        [Test]
+        public void WithoutTheCutsEachGoldenIsModel55s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false), Is.EqualTo(GoldenFlights.Model55TetherHash),
+                "tether without the cuts: model 55's");
+            Assert.That(line.Tether.Cuts, Is.Null);
+            // With them every record is model 55's up to the line's break (the disc at the landing, a known risk: 1.8's note), and
+            // the events before it differ only by FiberSection's first reads at the drone's parts.
+            var rec55 = new System.Collections.Generic.List<ulong>();
+            var rec56 = new System.Collections.Generic.List<ulong>();
+            var ev55 = new System.Collections.Generic.List<string>();
+            var ev56 = new System.Collections.Generic.List<string>();
+            void Events(FlightCore c, System.Collections.Generic.List<string> into)
+            {
+                for (int i = 0; i < c.Events.Count; i++)
+                    if (c.Events[i].Kind != EventKind.FiberSection) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
+            }
+            GoldenFlights.FlyContact(spec, out _, tether: true, cuts: false, onRecord: r => rec55.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev55));
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, onRecord: r => rec56.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev56));
+            long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec56.Count;
+            int same = 0;
+            while (same < rec55.Count && same < rec56.Count && rec55[same] == rec56[same]) same++;
+            int evSame = 0;
+            while (evSame < ev55.Count && evSame < ev56.Count && ev55[evSame] == ev56[evSame]) evSame++;
+            FiberBreak b = cut.Tether.LastBreak;
+            TestContext.Progress.WriteLine($"model 56: the records model 55's for {same} steps, the line {(cut.Tether.Broken ? $"broken at step {at} by {b.Mechanism} at {(FiberMember)b.Kind} {b.Member}, crossing at {b.Turn:F4} m (body {cut.State.Attitude.InverseRotate(b.Point - cut.State.Position).X:F3}, {cut.State.Attitude.InverseRotate(b.Point - cut.State.Position).Y:F3}, {cut.State.Attitude.InverseRotate(b.Point - cut.State.Position).Z:F3} m), T {b.Tension:F3} N, the near piece {(cut.Tether.Attached ? cut.Tether.Chain.Count + " nodes" : "none")}" : "whole")}; "
+                + $"the events other than FiberSection model 55's for {evSame} of {ev55.Count} ({ev56.Count} with the cuts); {cut.Tether.Cuts.Sections} sections read; 0x{hash:X16}");
+            Assert.That(same, Is.GreaterThanOrEqualTo(at - 1), "every record as model 55's up to the break");
+            for (int i = 0; i < evSame; i++) Assert.That(ev56[i], Is.EqualTo(ev55[i]));
+            Assert.That(evSame == ev55.Count || ev56.Count > evSame && long.Parse(ev56[evSame].Split(' ')[0]) >= at, Is.True, "the events model 55's up to the break, but FiberSection");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "tether with them: model 56's");
+        }
+
         [Test]
         public void WithoutTheHangingGiveEachGoldenIsModel53s()
         {

@@ -212,6 +212,15 @@ namespace Fpv450.FlightBench
                 + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "
                 + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
                 + $"{l.Tether.Chain.Wedges} wedges, ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+            // p7d-tether 1.8's audit: without the cuts and the link (FlightSetup.TetherWithoutCuts) the line's flight is model 55's,
+            // every record and event.
+            ulong line55 = GoldenFlights.FlyContact(Drone(), out FlightCore l55, tether: true, cuts: false);
+            bool k55 = line55 == GoldenFlights.Model55TetherHash && l55.Tether.Cuts == null;
+            lok &= k55;
+            Console.WriteLine($"tether-flight without the cuts: 0x{line55:X16} ({(k55 ? "model 55's, bit for bit" : "NOT model 55's")}); with them the line "
+                + (l.Tether.Broken ? $"breaks at step {l.Tether.BrokenAt} by {l.Tether.LastBreak.Mechanism} at {(Fpv450.Sim.Tether.FiberMember)l.Tether.LastBreak.Kind} {l.Tether.LastBreak.Member} "
+                    + $"(the landing's disc: 1.8's known risk), the failsafe at {l.Failsafe?.Stage}" : "holds")
+                + $", {l.Tether.Link?.Dips} dips, {l.Tether.Cuts?.Sections} sections read: {(k55 ? "PASS" : "FAIL")}");
             // p7d-tether 1.7's audit: without the fiber's contacts (FlightSetup.TetherWithoutContacts) the line's flight is model
             // 50's, every record and event.
             ulong line50 = GoldenFlights.FlyContact(Drone(), out FlightCore l50, tether: true, fiberContacts: false);
