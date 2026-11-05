@@ -406,11 +406,39 @@ namespace Fpv450.Sim.Tests
                     Is.EqualTo(GoldenFlights.RainPoweredHash), "rain, " + how);
                 Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.ContactHash), "contact, " + how);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.RangeHash), "range, " + how);
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, edit: edit),
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, edit: edit, layout: GoldenFlights.Model57Layout),
                     Is.EqualTo(GoldenFlights.Model52TetherHash), "tether without the fiber's contacts, " + how);
                 Assert.That(line.Tether.Contacts, Is.Null, "no fiber contacts");
             }
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.TumbleHash), "tumble");
+        }
+
+        // p7f-damage 1.5's audit (model 58, the motors' bells, the 3040-byte record): with the bells on and off (ContactSpec.MotorBell),
+        // every golden over model 57's 2944 bytes is model 57's pin, every record and event, and the bells' block is zero on every
+        // record: no golden's motor band touches anything, so the bells are the whole of 58's move against 57.
+        [Test]
+        public void WithoutTheBellsEachGoldenIsModel57s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int m57 = GoldenFlights.Model57Layout;
+            int block = 0;
+            void Zero(byte[] record)
+            {
+                for (int i = m57; i < LogFormat.StepSize; i++) if (record[i] != 0) block++;
+            }
+            foreach (Action<FlightSetup> edit in new Action<FlightSetup>[] { null, GoldenFlights.WithoutTheBells })
+            {
+                string how = edit == null ? "with the bells" : "without them";
+                Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: m57, edit: edit), Is.EqualTo(GoldenFlights.Model57PoweredHash), "powered, " + how);
+                Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m57, edit: edit),
+                    Is.EqualTo(GoldenFlights.Model57RainPoweredHash), "rain, " + how);
+                Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57ContactHash), "contact, " + how);
+                Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57RangeHash), "range, " + how);
+                Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57TetherHash),
+                    "tether, " + how);
+            }
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m57), Is.EqualTo(GoldenFlights.Model57TumbleHash), "tumble");
+            Assert.That(block, Is.EqualTo(0), "the bells' block is zero");
         }
 
         static int CornerStates()
@@ -840,7 +868,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.Model50Layout - LeanAt, Is.EqualTo(LeanBytes), "to model 50's record's end");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model50Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "blade_load_0.rear_right")),
                 "p7f-damage 1.3b's resting blades follow the lean (model 52)");
-            Assert.That(LogFormat.StepSize - GoldenFlights.Model50Layout, Is.EqualTo(128), "four corners' two blades' load and deflection, to the record's end");
+            Assert.That(GoldenFlights.Model57Layout - GoldenFlights.Model50Layout, Is.EqualTo(128), "four corners' two blades' load and deflection, to model 57's record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model57Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "bell_scrape.rear_right")),
+                "p7f-damage 1.5's bells follow the resting blades (model 58)");
+            Assert.That(LogFormat.StepSize - GoldenFlights.Model57Layout, Is.EqualTo(96), "four motors' scrape, rub and Kt change, to the record's end");
         }
     }
 }
