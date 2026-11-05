@@ -631,7 +631,9 @@ namespace Fpv450.Sim.Log
         ///    pack inside is hidden), its mount in the modes carries the pack and the housing, and its play in the build's
         ///    tolerances moves both, along the coil's axis. A flight on model 63's drone.json (no coil.housing: the fixture
         ///    Model63Drone, with tether.json's three spool rows at model 63's values, GoldenFlights.Model63Tether) and with
-        ///    FlightSetup.TetherFountainThroughBody steps as in 63.
+        ///    FlightSetup.TetherFountainThroughBody steps as in 63, but for one fix the canister's damage bench found: a blade's
+        ///    pass whose meeting point lies inside the blade's root (PropStrikes.Pass) is no pass, the disc there the hub's and
+        ///    the bell's; it took the rotor's lost angular momentum over a vanishing lever (lost/r_c) as a tangential impulse.
         /// </summary>
         public const int ModelVersion = 64;
 

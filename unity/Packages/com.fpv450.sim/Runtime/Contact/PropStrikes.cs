@@ -408,6 +408,10 @@ namespace Fpv450.Sim.Contact
             BladeState blade = _propulsion.Rotor(c).Blade(b);
             double R = _radius, tip = blade.TipRadius, rtip = tip * R, rm = m.Radius;
             if (!(rm < rtip)) return false; // the blade, cut back, no longer reaches it
+            // Inside the blade's root (its first section's inner edge) the disc is the hub's and the motor's bell's (MotorBell): no
+            // blade meets a shape there (model 64: a meeting at the axis took the rotor's lost momentum over a vanishing lever,
+            // lost/r_c, a 107 N·s impulse in a graze, and threw the drone through the wall).
+            if (rm < (_b.Stations[0] - 0.5 * _span) * R) return false;
             double omega = now.RotorSpeed[c], J = _propulsion.Inertia(c), s = _spin[c], f = _strength[c * _blades + b];
             Double3 dir = m.Direction, nrm = m.Normal, motion = Double3.Cross(axis, dir) * -s;
             Double3 at = PointVelocity(now, m.Point);
