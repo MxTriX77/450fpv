@@ -116,7 +116,7 @@ namespace Fpv450.Sim.Flight
         /// 0.2, where his VRS inflow leaves momentum theory; the vortex ring (VortexRingSpec) adds to it from there.</summary>
         public const double DescentAdvanceRatioLimit = -0.05;
 
-        const double TwoPi = 6.283185307179586;
+        const double Pi = 3.141592653589793, TwoPi = 6.283185307179586;
         const double SecondsPerHour = 3600;
 
         readonly double[] _ke = new double[4], _invR = new double[4], _friction = new double[4], _inertia = new double[4];
@@ -169,6 +169,8 @@ namespace Fpv450.Sim.Flight
 
         // The shares of each rotor's thrust and torque its disc's part inside a carved face makes no more (SetImmersed).
         readonly double[] _immersedThrust = new double[4], _immersedTorque = new double[4];
+        readonly double[] _shaftTorque = new double[4], _shaftStiffness = new double[4], _shaftDamping = new double[4], _shaftReference = new double[4];
+        readonly double[] _back = new double[4]; // a resting rotor's backward turn rate, rad/s (its speed is never negative)
 
         // The ground and the ceiling (null: neither): their spec and the wash's stream; each rotor's distances along its axis
         // to them (m, +∞ for none), its gain from them, and its v_h (m/s) and re-ingested inflow (m/s) at the step's start.
@@ -383,6 +385,31 @@ namespace Fpv450.Sim.Flight
             _immersedThrust[corner] = thrust;
             _immersedTorque[corner] = torque;
         }
+
+        /// <summary>
+        /// A resting prop's blades' moment about its shaft (ContactModel, p7f-damage 1.3b), for the next step's sub-steps: the
+        /// moment along the rotor's turn at rest, N·m, at the angle where its blades were placed (reference, rad), and its
+        /// stiffness (N·m/rad) and damping (N·m·s/rad) against a turn from there: τ = torque − stiffness·(θ − reference) −
+        /// damping·ω. A resting rotor is massless (assumed: its J's energy at those speeds negligible against the contact's):
+        /// each sub-step it turns to where the moment, its motor's drive and its own drag balance, implicitly in both the
+        /// stiffness and the damping (derived); forward no faster than its J and the net moment allow (its dynamics), backward
+        /// (its speed held at 0) at most BackSpeed·h. At rest the motor's own drag, Kt·I0 (its published no-load current), holds
+        /// it while the moment and the drive are within it (assumed: a Coulomb hold, the iron's hysteresis drag and the detent
+        /// being of that order at rest; past it the drive is less that drag). All 0 for a rotor whose blades do not rest.
+        /// </summary>
+        public void SetShaftLoad(int corner, double torque, double stiffness, double damping, double reference)
+        {
+            _shaftTorque[corner] = torque;
+            _shaftStiffness[corner] = stiffness;
+            _shaftDamping[corner] = damping;
+            _shaftReference[corner] = reference;
+        }
+
+        public double ShaftTorque(int corner) => _shaftTorque[corner];
+        public double ShaftStiffness(int corner) => _shaftStiffness[corner];
+
+        /// <summary>The fastest backward turn of a resting rotor, rad/s (ContactSpec.BladeRestSpeed, set by FlightCore).</summary>
+        public double BackSpeed;
 
         public double ImmersedThrust(int corner) => _immersedThrust[corner];
         public double ImmersedTorque(int corner) => _immersedTorque[corner];
@@ -840,7 +867,31 @@ namespace Fpv450.Sim.Flight
                 // A free motor's current falls as it speeds up (Ke²/R), a shorted one's too; a limited one's is held, so only
                 // the prop damps.
                 double slope = -((run && !held ? ke * ke * _invR[i] : brake ? ThreePhaseShort * ke * ke * _invR[i] : 0) + (w > 0 ? 2 * q / w : 0)) / _inertia[i];
-                double next = w + h * rate / (1 - h * slope);
+                double next, back = 0;
+                double ks = _shaftStiffness[i], cs = _shaftDamping[i];
+                if (ks == 0 && cs == 0 && _shaftTorque[i] == 0) next = w + h * rate / (1 - h * slope);
+                else
+                {
+                    // A resting prop's blades (SetShaftLoad): their moment at the rotor's angle now, and the motor's drive.
+                    double turned = s.RotorAngle[i] - _shaftReference[i];
+                    while (turned > Pi) turned -= TwoPi;
+                    while (turned <= -Pi) turned += TwoPi;
+                    double shaft = _shaftTorque[i] - ks * turned, hold = _friction[i], net = ke * current - q + shaft;
+                    double u = w > 0 ? w : -_back[i]; // the rotor's turn rate, signed (backward only at rest)
+                    if (u == 0 && net <= hold && net >= -hold) next = 0; // held at rest by the motor's own drag
+                    else
+                    {
+                        double drag = u > 0 || u == 0 && net > 0 ? hold : -hold;
+                        double turn = (net - drag) / (ks + cs / h) / h; // the massless balance's rate over the sub-step
+                        double free = u + h * (net - cs * u - drag) / _inertia[i] / (1 - h * slope);
+                        double un = turn >= 0 ? DetMath.Min(turn, free) : DetMath.Max(turn, free); // no faster than its J allows
+                        if (u > 0 && un < 0 || u < 0 && un > 0) un = 0; // through rest, at rest for the sub-step
+                        if (un < -BackSpeed) un = -BackSpeed;
+                        next = un > 0 ? un : 0;
+                        back = un < 0 ? un * h : 0;
+                    }
+                    _back[i] = back < 0 ? -back / h : 0;
+                }
                 if (next < 0) next = 0;
                 RotorAero(i, next, out double thrust, out double torque);
                 loads.Thrust[i] += thrust;
@@ -848,6 +899,7 @@ namespace Fpv450.Sim.Flight
                 loads.SupplyAmps[i] += drive * current;
                 loads.Speed[i] += next;
                 Turn(ref s, i, w, next, h, ref loads);
+                if (back != 0) s.RotorAngle[i] = Wrapped(s.RotorAngle[i] + back);
                 if (held)
                 {
                     loads.Limited |= 1 << i;
@@ -865,6 +917,13 @@ namespace Fpv450.Sim.Flight
             loads.Amps0 = amps0;
             loads.Amps1 = amps1;
             loads.SubSteps++;
+        }
+
+        static double Wrapped(double a)
+        {
+            while (a >= TwoPi) a -= TwoPi;
+            while (a < 0) a += TwoPi;
+            return a;
         }
 
         // A rotor turns by the sub-step's mean speed, its angle kept in [0, 2π); an unbalanced prop's residual U, at its

@@ -161,6 +161,7 @@ namespace Fpv450.Sim.Log
             "FlapFrequency", "FlapSouthwell",
             "LegSideStiffness", "LegSideDampingRatio", "Legs",
             "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength", "HangingGive",
+            "BladeRest", "BladeRestSpeed",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -900,6 +901,8 @@ namespace Fpv450.Sim.Log
                 e.Write(c.LegTubeAxialStiffness);
                 e.Write(c.LegLeverLength); // p7g-legs 1.4 (format 39): the lever
                 e.Write(c.HangingGive); // p7g-legs (format 41): a hanging half's whole give geometric
+                e.Write(c.BladeRest); // p7f-damage 1.3b (format 42): props are parts at rest
+                e.Write(c.BladeRestSpeed);
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -1663,6 +1666,8 @@ namespace Fpv450.Sim.Log
             c.LegTubeAxialStiffness = r.ReadDouble();
             c.LegLeverLength = r.ReadDouble();
             c.HangingGive = r.ReadBoolean();
+            c.BladeRest = r.ReadBoolean();
+            c.BladeRestSpeed = r.ReadDouble();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)

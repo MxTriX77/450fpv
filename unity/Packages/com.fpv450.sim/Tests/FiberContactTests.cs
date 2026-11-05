@@ -159,12 +159,14 @@ namespace Fpv450.Sim.Tests
 
         // The audit (p7d-tether 1.7): without the fiber's contacts (FlightSetup.TetherWithoutContacts) the tether golden is model
         // 50's pin, every record and event, and no other golden flies the line. On the line since model 55 it is model 51's pin too
-        // (the hanging half's give on; 51 kept every pin of 50's, GoldenFlightTests.WithoutTheHangingGiveEachGoldenIsModel50s).
+        // (the hanging half's give on; 51 kept every pin of 50's, GoldenFlightTests.WithoutTheHangingGiveEachGoldenIsModel50s);
+        // since model 57 (the props at rest, a 2944-byte record) over model 50's 2816 bytes.
         [Test]
         public void WithoutTheFiberContactsEachGoldenIsModel50s()
         {
             DroneSpec spec = Spec;
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false), Is.EqualTo(GoldenFlights.Model50TetherHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, layout: GoldenFlights.Model50Layout),
+                Is.EqualTo(GoldenFlights.Model50TetherHash),
                 "tether, without the contacts");
             Assert.That(line.Tether.Contacts, Is.Null);
         }

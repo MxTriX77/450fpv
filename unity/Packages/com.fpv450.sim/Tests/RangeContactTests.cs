@@ -589,13 +589,17 @@ namespace Fpv450.Sim.Tests
         // the millimetre: the left skid's front half, hanging from leg_rl's T-joint since leg_fl broke at step 10909, through
         // V01_L's bark, its shapes turned out by the cantilever's 30.8 mm alone while the holding leg's give across its tube and
         // the stick anchor in series left 113 mm of penetration under 9.3 N. With the fix the same flight logs none (above).
+        // Since model 57 (the props at rest on the line) model 50's flight needs the rest off too (GoldenFlights.WithoutTheRest):
+        // with it on, a stopped rotor's blades are parts and the flight leaves 50's path before the legs part, and logs no
+        // tunnel either way (InTheWindNoTunnelThroughARigidShape flies it with both on).
         [Test]
         public void WithoutTheHangingGiveTheWindyCrownIsModel50s()
         {
             MaterialRow[] m = Materials(out ulong h);
             RangeScenarios.Approach a = RangeScenarios.Find("crown");
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
-                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate, edit: GoldenFlights.WithoutTheHangingGive);
+                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate,
+                edit: s => { GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); });
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             Assert.That(p.Tunnels, Is.EqualTo(1));
             Assert.That(p.TunnelThrough[0], Is.EqualTo("skid_left through V01_L bark"));

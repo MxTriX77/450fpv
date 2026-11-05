@@ -289,6 +289,12 @@ namespace Fpv450.Sim.Flight
             {
                 Contact.Moisture moisture = Contact.SurfaceTable.MoistureOf(setup.Rain);
                 _contacts = new Contact.ContactModel(setup.Contacts, World, _mass.Properties.Mass, moisture, random: Random);
+                // Props are parts at rest (p7f-damage 1.3b): a resting rotor's blades are contact shapes from the first Sense.
+                if (_propulsion != null && setup.Propulsion.Rotor != null && setup.Contacts.BladeStrikes && setup.Contacts.BladeRest)
+                {
+                    _contacts.AttachRotors(_propulsion, setup.Propulsion);
+                    _propulsion.BackSpeed = setup.Contacts.BladeRestSpeed;
+                }
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
                 if (_contacts.Legs != null)
