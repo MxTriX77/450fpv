@@ -160,10 +160,17 @@ namespace Fpv450.Sim.Tests
         /// TetherFountainThroughBody, 61's known-wrong): with FIBER_DRONE=model63, model 63's line, for the cause table's row.</summary>
         public static readonly bool ThroughTheBody = System.Environment.GetEnvironmentVariable("FIBER_BODY") == "through";
 
+        /// <summary>FIBER_HOLD=zero flies every scenario with the known-wrong 0-force hold (FlightSetup.TetherZeroForceHold, 62's
+        /// known-wrong: model 64's chain, but for 62's shapes met by their own faces, which no switch keeps), for the cause table's
+        /// rows beside model 65's: every flight is model 64's but the tree snag's with the fiber's contacts (the faces) and its seed 8
+        /// without them (the same cause, by a disc, 0.7 s earlier; not traced).</summary>
+        public static readonly bool ZeroForceHold = System.Environment.GetEnvironmentVariable("FIBER_HOLD") == "zero";
+
         static FlightSetup Setup(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit)
         {
             FlightSetup setup = TetherScenarios.Setup(spec, wind, seed: seed, cuts: true);
             if (ThroughTheBody) setup.TetherFountainThroughBody = true;
+            if (ZeroForceHold) setup.TetherZeroForceHold = true;
             edit?.Invoke(setup);
             return setup;
         }
