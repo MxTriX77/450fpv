@@ -59,6 +59,10 @@ namespace Fpv450.Feed
         public float FiberMinBendRadiusM => Stub.FiberMinBendRadiusM;
         public LinkState LinkState => Stub.LinkState;
         public float LinkMarginDb => Stub.LinkMarginDb;
+        public int LinkDips => Stub.LinkDips;
+        public bool LinkInDip => Stub.LinkInDip;
+        public string LinkLossCause => Stub.LinkLossCause;
+        public string TetherBreakMechanism => Stub.TetherBreakMechanism;
         public float SceneLuminance => Stub.SceneLuminance;
         public Num.Vector3 SunDirection => Stub.SunDirection;
         public float SunVisibility => Stub.SunVisibility;

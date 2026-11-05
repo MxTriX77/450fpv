@@ -122,6 +122,30 @@ namespace Fpv450.Tests.App
             return hash;
         }
 
+        /// <summary>The link's dips and break from the physics (p7d-tether 1.16), their causes by name; the stub's whole link
+        /// before a flight.</summary>
+        [Test]
+        public void TheFeedReadsTheLinksCauses()
+        {
+            var feed = new FlightFeedSignals();
+            feed.Update(default, false, 0, 0, 0);
+            Assert.That(new object[] { feed.LinkState, feed.LinkDips, feed.LinkInDip, feed.LinkLossCause, feed.TetherBreakMechanism },
+                Is.EqualTo(new object[] { Fpv450.Feed.LinkState.Intact, 0, false, "", "" }), "the stub's link before a flight");
+
+            var dip = new SimSignals { Live = FeedSignalSet.LinkState | FeedSignalSet.LinkMargin, LinkDips = 2, LinkInDip = true, LinkLossCause = (byte)FiberMember.Twig };
+            feed.Update(dip, true, 0, 0, 0);
+            Assert.That(FeedSignalLog.Value(feed, FeedSignal.LinkState), Is.EqualTo("Intact, dip 2 on Twig"));
+
+            var cut = new SimSignals
+            {
+                Live = FeedSignalSet.LinkState | FeedSignalSet.LinkMargin, LinkState = Fpv450.Sim.Flight.LinkState.Broken,
+                LinkMarginDb = double.NegativeInfinity, LinkDips = 2, TetherBreakStep = 17466, TetherBreakMechanism = (byte)TetherMechanism.Prop,
+            };
+            feed.Update(cut, true, 0, 0, 0);
+            Assert.That(feed.LinkState, Is.EqualTo(Fpv450.Feed.LinkState.Broken));
+            Assert.That(FeedSignalLog.Value(feed, FeedSignal.LinkState), Is.EqualTo("Broken by Prop"));
+        }
+
         [Test]
         public void TheFeedReadsThePhysicsWhereItIsLive()
         {

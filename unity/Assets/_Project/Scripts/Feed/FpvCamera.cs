@@ -33,6 +33,8 @@ namespace Fpv450.Feed
         public IFeedSignals Signals { get; set; } = new StubFeedSignals();
         /// The scheduler: the place a terminal loss is fired from (<see cref="FeedEvents.TriggerCut"/>).
         public FeedEvents Events { get; private set; }
+        /// The receiver's reading of the fiber link (p7d-tether 1.16): its dips and break through <see cref="Events"/>' loss.
+        public FeedLink Link { get; private set; }
         /// The camera that draws the feed to the screen; a capture points its target elsewhere.
         public Camera Output { get; private set; }
         public FeedOutput Feed { get; private set; }
@@ -228,6 +230,10 @@ namespace Fpv450.Feed
         {
             if (field < Events.Field)
                 Events = NewEvents();
+            // The fiber's dips and break (p7d-tether 1.16), read before the next field is stepped.
+            string link = Link.Apply(Signals, Events.Loss, Events.Field + 1);
+            if (link != null)
+                Debug.Log("[Feed] " + link);
             Events.AdvanceTo(field, FeedSignalScale.MotorCurrent(Signals.MotorCurrentTotalA));
             FeedUniforms uniforms = FeedUniforms.From(Events, settings.seed, settings.gain, Signals);
             Feed.Uniforms = Noise ? uniforms : uniforms.WithoutNoise();
@@ -245,8 +251,11 @@ namespace Fpv450.Feed
 
         /// A fresh scheduler from the settings' seed, with Godot's dropout timer (D-085) and its tear wedge (D-065) as
         /// the settings ask.
-        FeedEvents NewEvents() => new FeedEvents(settings.seed)
-            { DropoutTimer = settings.dropoutTimer, TearWedge = settings.tearWedge };
+        FeedEvents NewEvents()
+        {
+            Link = new FeedLink();
+            return new FeedEvents(settings.seed) { DropoutTimer = settings.dropoutTimer, TearWedge = settings.tearWedge };
+        }
 
         /// The ROM's atlas (FeedFont.BuildAtlas), baked once: R the glyph, G its outline, linear, point-sampled.
         static Texture2D Glyphs()

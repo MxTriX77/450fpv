@@ -28,6 +28,9 @@ namespace Fpv450.Feed
     ///   Hard cut (N5–N7 variant 2): StartTerminal with a margin that vanished within one field
     ///       glitch 2–5 fields (a tear, or a grain rise) → blue until reset
     /// </code>
+    /// The fiber drives them through <see cref="FeedLink"/> (p7d-tether 1.16): a margin dip is the recovering dropout,
+    /// its outage held for as long as the dip (<see cref="HoldDropout"/>, <see cref="ReleaseDropout"/>); a break is
+    /// StartTerminal; a new line is <see cref="Reset"/>. They draw nothing of their own: only the port's sequences draw.
     /// <para>
     /// <b>The recovered picture and OSD come back clean</b> (PR-4 correction): the receiver's text lines belong to
     /// the blue and snow screens only, never over the picture. N12 measures clip P holding them ≈7.3 s over the
@@ -116,7 +119,13 @@ namespace Fpv450.Feed
         int _snowLevelLeft;
         int _fieldsInStage;
 
+        // The fiber's margin dip (p7d-tether 1.16, FeedLink): a dip holds the running dropout's outage while it is on; a
+        // dropout the dip started itself (rather than joined) ends with it. A terminal loss is never held or ended by one.
+        bool _hold, _dipOwned, _terminal;
+
         public State Current { get; private set; } = State.Picture;
+        /// True when the last terminal loss drew the staged sequence, false for the hard cut (the log's word only).
+        public bool Staged { get; private set; }
         /// Fraction of the picture height where partial snow ends and the surviving picture begins.
         public float Split { get; private set; }
         /// Fraction of the height of a picture strip surviving at the top of partial snow, 0 when there is none.
@@ -141,10 +150,11 @@ namespace Fpv450.Feed
 
         /// The recovering dropout of N12: a tell, a short outage, then the picture back. This is what the pilot's
         /// "occasional cut" is. Godot's timer fires it (<see cref="FeedEvents.DropoutTimer"/>, D-085), and the
-        /// fiber's margin dip fires it on top (p7d-tether).
+        /// fiber's margin dip fires it on top (p7d-tether, <see cref="HoldDropout"/>).
         public void StartDropout()
         {
             _count = 0;
+            _hold = _dipOwned = _terminal = false;
             Push(DrawTell(false));
             if (_rng.NextDouble() < BlackChance)
                 Push(new Stage { S = State.Black, Fields = Draw(BlackMinFields, BlackMaxFields) });
@@ -159,7 +169,10 @@ namespace Fpv450.Feed
         public void StartTerminal(bool abrupt = false)
         {
             _count = 0;
-            if (_rng.NextDouble() < (abrupt ? StagedChanceAbrupt : StagedChanceFaded))
+            _hold = _dipOwned = false;
+            _terminal = true;
+            Staged = _rng.NextDouble() < (abrupt ? StagedChanceAbrupt : StagedChanceFaded);
+            if (Staged)
             {
                 Split = (float)(SplitMin + (float)((SplitMax - SplitMin) * (float)_rng.NextDouble()));
                 TopStrip = _rng.NextDouble() < TopStripChance ? TopStripHeight : 0f;
@@ -174,6 +187,47 @@ namespace Fpv450.Feed
             Push(new Stage { S = State.Blue, Fields = Forever });
             Begin();
         }
+
+        /// The fiber's margin dip has begun (p7d-tether 1.16, <see cref="FeedLink"/>), before the field it began in is
+        /// stepped. With nothing running it starts the port's recovering dropout (<see cref="StartDropout"/>: its tell,
+        /// and black or blue as drawn), whose outage then lasts as long as the dip, not its drawn length; a dropout already
+        /// running (the timer's, D-085) is joined, its outage lasting to its drawn end or the dip's, whichever is later. A
+        /// terminal loss is left as it is: blue until reset.
+        public void HoldDropout()
+        {
+            if (Busy && _terminal)
+                return;
+            if (!Busy)
+            {
+                StartDropout();
+                _dipOwned = true;
+            }
+            _hold = true;
+        }
+
+        /// The fiber's margin dip has ended, before the field it ended in is stepped: that field is the outage's last (or
+        /// the tell's, when the dip was over before the picture went) and the next comes back clean.
+        public void ReleaseDropout()
+        {
+            if (!_hold)
+                return;
+            _hold = false;
+            if (!Busy || _terminal || !_dipOwned)
+                return;
+            _count = _index + 1;
+            _left = 2; // this field, then the end (the end's field is the picture, as every sequence's last is)
+        }
+
+        /// A new line: whatever runs, the terminal blue too, ends now, and the picture is back. No draw.
+        public void Reset()
+        {
+            _count = 0;
+            _hold = _dipOwned = _terminal = false;
+            Clear();
+        }
+
+        // The dropout's outage while a dip holds it: it is the sequence's last stage, and not a terminal one.
+        bool Held => _hold && !_terminal && _index == _count - 1;
 
         /// Advances one video field.
         public void Step()
@@ -210,7 +264,7 @@ namespace Fpv450.Feed
             }
             else if (s.S == State.Black)
             {
-                bool first = _fieldsInStage == 0, last = _left == 1;
+                bool first = _fieldsInStage == 0, last = _left == 1 && !Held;
                 BlackA = first ? BlackEdge() : 0f;
                 BlackB = last && !first ? BlackEdge() : 1f;
             }
@@ -218,6 +272,13 @@ namespace Fpv450.Feed
             _fieldsInStage++;
             if (s.Fields == Forever)
                 return;
+            if (Held)
+            {
+                // The drawn length runs down while the dip holds the outage, but it ends only after the dip does.
+                if (_left > 2)
+                    _left--;
+                return;
+            }
             if (--_left > 0)
                 return;
             _index++;

@@ -95,6 +95,15 @@ namespace Fpv450.Feed
         LinkState LinkState { get; }
         /// The fiber link's optical margin above the receiver threshold, dB.
         float LinkMarginDb { get; }
+        /// The link's dips begun this flight (the margin below the threshold until it is back above it plus the
+        /// hysteresis, p7d-tether design 8), and whether one is on at the latest step. Part of the LinkState signal.
+        int LinkDips { get; }
+        bool LinkInDip { get; }
+        /// What takes the most of the margin now, the dip's at its least while one is on: the line's member ("Twig",
+        /// "Lip", …), "" for none. Part of the LinkState signal.
+        string LinkLossCause { get; }
+        /// What broke the line ("Prop", "Tension", …), "" while it is whole. Part of the LinkState signal.
+        string TetherBreakMechanism { get; }
         /// Scene light level of the rendered frame before exposure, cd/m², per rendered frame.
         float SceneLuminance { get; }
         /// The sun's direction in the camera's axes (a unit vector), per rendered frame.
@@ -148,7 +157,16 @@ namespace Fpv450.Feed
                     return $"{N(s.ImpactCount, "0")}, last {N(s.ImpactPeakAccel, "0")} m/s², {N(s.ImpactImpulse, "0.00")} N·s";
                 case FeedSignal.FiberTension: return $"{N(s.FiberTensionN, "0.0")} N";
                 case FeedSignal.FiberMinBendRadius: return $"{N(s.FiberMinBendRadiusM, "0.000")} m";
-                case FeedSignal.LinkState: return s.LinkState.ToString();
+                case FeedSignal.LinkState:
+                    // The losses' causes (p7d-tether 1.16): the break's mechanism, the dip on and what it is on, the dips.
+                    if (s.LinkState == LinkState.Broken)
+                        return s.TetherBreakMechanism.Length > 0 ? $"Broken by {s.TetherBreakMechanism}" : "Broken";
+                    string state = s.LinkState.ToString();
+                    if (s.LinkInDip)
+                        state += $", dip {N(s.LinkDips, "0")}" + (s.LinkLossCause.Length > 0 ? $" on {s.LinkLossCause}" : "");
+                    else if (s.LinkDips > 0)
+                        state += $", {N(s.LinkDips, "0")} dip" + (s.LinkDips > 1 ? "s" : "");
+                    return state;
                 case FeedSignal.LinkMargin: return $"{N(s.LinkMarginDb, "0.0")} dB";
                 case FeedSignal.SceneLight: return $"{N(s.SceneLuminance, "0.0")} cd/m²";
                 case FeedSignal.Sun: return $"{V(s.SunDirection, "0.00")}, {N(s.SunVisibility, "0.00")} visible";

@@ -53,6 +53,10 @@ namespace Fpv450.App
         public float FiberMinBendRadiusM => Live(FeedSignal.FiberMinBendRadius) ? (float)_s.FiberMinBendRadiusM : Stub.FiberMinBendRadiusM;
         public Feed.LinkState LinkState => Live(FeedSignal.LinkState) ? (Feed.LinkState)(byte)_s.LinkState : Stub.LinkState;
         public float LinkMarginDb => Live(FeedSignal.LinkMargin) ? (float)_s.LinkMarginDb : Stub.LinkMarginDb;
+        public int LinkDips => Live(FeedSignal.LinkState) ? _s.LinkDips : Stub.LinkDips;
+        public bool LinkInDip => Live(FeedSignal.LinkState) ? _s.LinkInDip : Stub.LinkInDip;
+        public string LinkLossCause => Live(FeedSignal.LinkState) ? Name(Members, _s.LinkLossCause) : Stub.LinkLossCause;
+        public string TetherBreakMechanism => Live(FeedSignal.LinkState) ? Name(Mechanisms, _s.TetherBreakMechanism) : Stub.TetherBreakMechanism;
         public float SceneLuminance => Stub.SceneLuminance;
         public Num.Vector3 SunDirection => Stub.SunDirection;
         public float SunVisibility => Stub.SunVisibility;
@@ -65,5 +69,18 @@ namespace Fpv450.App
         public FeedSticks OsdSticks => Osd.Overlay;
 
         static Num.Vector3 V(in Double3 v) => new Num.Vector3((float)v.X, (float)v.Y, (float)v.Z);
+
+        // The physics' cause bytes as their names, read once a field: FiberMember's (0 None: "") and TetherMechanism's.
+        static readonly string[] Members = Names<Sim.Tether.FiberMember>(), Mechanisms = Names<Sim.Tether.TetherMechanism>();
+
+        static string[] Names<T>() where T : System.Enum
+        {
+            var names = new string[256];
+            foreach (T v in (T[])System.Enum.GetValues(typeof(T))) names[System.Convert.ToByte(v)] = v.ToString();
+            names[0] = "";
+            return names;
+        }
+
+        static string Name(string[] names, byte b) => names[b] ?? b.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 }

@@ -43,6 +43,10 @@ namespace Fpv450.Feed
         public float FiberMinBendRadiusM { get; set; } = float.PositiveInfinity;
         public LinkState LinkState { get; set; } = LinkState.Intact;
         public float LinkMarginDb { get; set; } = float.PositiveInfinity;
+        public int LinkDips { get; set; }
+        public bool LinkInDip { get; set; }
+        public string LinkLossCause { get; set; } = "";
+        public string TetherBreakMechanism { get; set; } = "";
         /// Unmeasured: the AE loop measures the render (`p4-feed` task 1.7).
         public float SceneLuminance { get; set; }
         /// No sun: zero direction, nothing visible.
