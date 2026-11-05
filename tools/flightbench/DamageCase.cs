@@ -102,7 +102,38 @@ namespace Fpv450.FlightBench
             }
             Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
                 + "carves and stops a prop; disarmed, its braked props break no blade)");
-            return ok && tipped & Rest(spec);
+            bool rest = Rest(spec);
+            return ok && tipped & rest & Bells(spec);
+        }
+
+        // p7f-damage 1.5 (design 8, 10): the motor's bell. Its rear-right bell pressed at 5 and 20 N on masonry under the prop, the
+        // drone holding that rotor's thrust (the scrape: μ_k·F_n·R on the rotor, the current rising with the push), and side hits
+        // at 1, 3 and 6 m/s with the rotor at hover speed on concrete at the stator's height (the stator stops the ring short of
+        // its collapse load: no dent there, the magnets pressed onto the teeth while it lasts). It fails where the scrape is not
+        // its closed form, the current does not rise with the push, a hit dents the bell at the stator's height, or on a strike or
+        // a tunnel.
+        static bool Bells(DroneSpec spec)
+        {
+            Console.WriteLine("  the motor's bell (p7f-damage 1.5):");
+            BellScenarios.Press free = BellScenarios.Pressed(spec, 0), p5 = BellScenarios.Pressed(spec, 5), p20 = BellScenarios.Pressed(spec, 20);
+            bool s = true;
+            foreach (BellScenarios.Press p in new[] { free, p5, p20 })
+            {
+                Console.WriteLine("    " + p.Describe());
+                s &= p.Strikes + p.Others == 0 && Math.Abs(p.Scrape - p.Expected) <= 1e-9 * p.Expected;
+            }
+            s &= p20.Amps - free.Amps > 2 * (p5.Amps - free.Amps) && p5.Amps > free.Amps;
+            Console.WriteLine($"    a scraped bell draws more current: {(s ? "PASS" : "FAIL")} (rr +{p5.Amps - free.Amps:F3} A at 5 N, +{p20.Amps - free.Amps:F3} A at 20 N)");
+            bool h = true;
+            foreach (double v in new[] { 1.0, 3.0, 6.0 })
+            {
+                BellScenarios.Hit wall = BellScenarios.Struck(spec, v, false), rod = BellScenarios.Struck(spec, v, true);
+                Console.WriteLine("    " + wall.Describe());
+                Console.WriteLine("    " + rod.Describe());
+                h &= wall.DentGap == 0 && wall.Strikes + wall.Tunnels + rod.Strikes + rod.Tunnels == 0;
+            }
+            Console.WriteLine($"    a side hit at the stator's height leaves the gap: {(h ? "PASS" : "FAIL")}");
+            return s && h;
         }
 
         // p7f-damage 1.3b (design 16, D-082): props are parts at rest. The drone set down on one prop's blade (a steel block

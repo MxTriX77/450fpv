@@ -185,6 +185,10 @@ namespace Fpv450.Sim.Flight
         public double BearingStaticRating, BearingDynamicRating;
         public int BearingBalls;
         public double BallDiameter, PitchDiameter;
+
+        /// <summary>The stator's laminations, from and to, m above the base (where the magnets face it across the gap), and its
+        /// diameter (m); the can's and the back iron's Young's moduli (Pa), for the ring's stiffness (p7f-damage 1.5).</summary>
+        public double StatorFrom, StatorTo, StatorDiameter, CanModulus, BackIronModulus;
     }
 
     /// <summary>One battery pack: its mass part and its cells.</summary>
@@ -685,6 +689,7 @@ namespace Fpv450.Sim.Flight
             }
             if (Blade != null) AddBlades(shapes, c);
             c.Shapes = shapes.ToArray();
+            c.Motors = (MotorInternals[])Internals?.Clone(); // the bells (p7f-damage 1.5)
             c.LegStiffness = Legs.Stiffness;
             c.LegDamping = Legs.Damping;
             if (Legs.Tube != null)
@@ -1118,8 +1123,14 @@ namespace Fpv450.Sim.Flight
                 Members(n, path, "bell_band_m", "can_thickness_m", "can_yield_pa", "back_iron_thickness_m", "back_iron_yield_pa", "gap_m",
                     "magnet_thickness_m", "magnet_remanence_t", "magnet_relative_permeability", "shaft_diameter_m", "shaft_yield_pa",
                     "shaft_ultimate_pa", "hub_height_m", "bearing_heights_m", "bearing_static_rating_n", "bearing_dynamic_rating_n",
-                    "bearing_balls", "bearing_ball_diameter_m", "bearing_pitch_diameter_m");
+                    "bearing_balls", "bearing_ball_diameter_m", "bearing_pitch_diameter_m", "stator_band_m", "stator_diameter_m", "can_modulus_pa",
+                    "back_iron_modulus_pa");
                 Pair(n, "bell_band_m", path, out x.BellFrom, out x.BellTo);
+                Pair(n, "stator_band_m", path, out x.StatorFrom, out x.StatorTo);
+                if (x.StatorFrom < x.BellFrom || x.StatorTo > x.BellTo) Fail(path + ".stator_band_m", "lies inside the bell's band");
+                x.StatorDiameter = Positive(n, "stator_diameter_m", path);
+                x.CanModulus = Positive(n, "can_modulus_pa", path);
+                x.BackIronModulus = Positive(n, "back_iron_modulus_pa", path);
                 x.CanThickness = Positive(n, "can_thickness_m", path);
                 x.CanYield = Positive(n, "can_yield_pa", path);
                 x.BackIronThickness = Positive(n, "back_iron_thickness_m", path);
@@ -1150,6 +1161,10 @@ namespace Fpv450.Sim.Flight
                 if (x.BellTo > p.Length) Fail(path + ".bell_band_m", "runs past the motor part's " + p.Length + " m");
                 if (DetMath.Abs(motor.Position.Y - baseY - x.HubHeight) > 1e-9)
                     Fail(path + ".hub_height_m", "must be position_m over the motor part's base, " + (motor.Position.Y - baseY) + " m");
+                // The radial room (p7f-damage 1.5): the can, the back iron, the magnet and the gap fill the part's radius to the stator.
+                double room = p.Diameter / 2 - x.CanThickness - x.BackIronThickness - x.MagnetThickness - x.Gap;
+                if (DetMath.Abs(room - x.StatorDiameter / 2) > 1e-9)
+                    Fail(path + ".stator_diameter_m", "the can, back iron, magnet and gap leave a stator of " + 2 * room + " m in the motor part");
                 return x;
             }
 

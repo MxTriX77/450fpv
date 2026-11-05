@@ -247,6 +247,30 @@ namespace Fpv450.Sim.Contact
         /// motion; above it a blade's pass is a strike).</summary>
         public double BladeRestSpeed;
 
+        /// <summary>
+        /// The motors' bells (p7f-damage 1.5, design 8, MotorBell): a contact on a motor's turning band slides on the bell's moving
+        /// surface (its kinetic friction slows the rotor and pushes the drone), presses the magnets onto the stator past the gap,
+        /// and dents the band's ring past its collapse load; a dent narrows the gap (Kt) and past it rubs and wears in. On for
+        /// every flight with Motors; off only for an audit and the known-wrong (the can a rigid part, model 57's), which a flight
+        /// with it off steps as.
+        /// </summary>
+        public bool MotorBell = true;
+
+        /// <summary>drone.json's motors[].internals in the motors' order (DroneSpec.BuildContacts), or null: no bells.</summary>
+        public Flight.MotorInternals[] Motors;
+
+        /// <summary>The magnets' rub on the stator's teeth, μ_s 0.3 (assumed, design 8: a nickel coating on lacquered laminations,
+        /// dry).</summary>
+        public double BellRubFriction = 0.3;
+
+        /// <summary>Archard's coefficient of that rub, 1e-4 (assumed: the middle of Rabinowicz 1995's 1e-5–1e-3 for unlubricated
+        /// metals in mild wear), and the hardnesses it wears: the magnet's 5.5 GPa (published: sintered NdFeB, 560–600 HV) and the
+        /// laminations' 1.7 GPa (published: non-oriented electrical steel, 150–190 HV).</summary>
+        public double BellWearCoefficient = 1e-4, MagnetHardness = 5.5e9, StatorHardness = 1.7e9;
+
+        /// <summary>A dent's arc, the share of the bell's circumference it narrows the gap over, 0.25 (assumed, design 8).</summary>
+        public double BellDentArc = 0.25;
+
         /// <summary>A resting blade's span segments' outer ends, r/R, from its root (ContactRole.Blade; assumed: the planform's
         /// chord kink at 0.3 R, then three spans; each segment's greatest half-thickness is within 0.7 mm of its least).</summary>
         public static readonly double[] BladeSegmentEnds = { 0.3, 0.55, 0.8, 1.0 };
@@ -268,6 +292,7 @@ namespace Fpv450.Sim.Contact
             c.Materials = (MaterialRow[])Materials.Clone();
             c.Surfaces = Surfaces?.Clone();
             c.Legs = Legs?.Clone();
+            c.Motors = (Flight.MotorInternals[])Motors?.Clone();
             return c;
         }
 

@@ -108,6 +108,10 @@ namespace Fpv450.Sim.Flight
     /// - a disc partly inside a carved face (PropStrikes, p7f-damage 1.3's tip slide; SetImmersed): its blades make no thrust
     ///   and no air torque there (the face's carve is their drag), so its thrust and torque lose the immersed part's shares of
     ///   its blades' loads (DamagedRotor.Immersed), from the step after the strikes found it. 0 shares skip it, bit for bit.
+    /// - the motor's damage (Contact.MotorBell, p7f-damage 1.5, SetMotor): its Kt (= Ke) ratio from its gap's flux and its added
+    ///   drag beside Kt·I0 (the bell's scrape, the magnets' rub), a Coulomb drag turning and a hold at rest; so a dragging motor
+    ///   draws more current for the same thrust and reaches a current limit sooner, and one its drag holds at rest under drive is
+    ///   bound (Bound). Never set, the motor is the drawn one, bit for bit.
     /// </summary>
     public sealed class Propulsion
     {
@@ -205,6 +209,12 @@ namespace Fpv450.Sim.Flight
         readonly double[] _soundInertia = new double[4];
         readonly double[] _momentP = new double[4], _momentQ = new double[4], _forceP = new double[4], _forceQ = new double[4];
 
+        // The motors' damage (SetMotor, p7f-damage 1.5): each motor's Ke as drawn, its Kt ratio's share of it now in _ke, and its
+        // added drag (N·m: a Coulomb drag while it turns, a hold at rest); the rotors its drag held at rest under drive in the last
+        // sub-step (bit 1 << corner), the drive's torque Kt·i there (N·m) and the bus voltage.
+        readonly double[] _keDrawn = new double[4], _drag = new double[4], _heldDrive = new double[4];
+        int _bound;
+
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
         bool _elastic;
@@ -248,7 +258,7 @@ namespace Fpv450.Sim.Flight
             for (int i = 0; i < 4; i++)
             {
                 DroneMotor m = spec.Motors[i];
-                _ke[i] = draws == null ? 60 / (TwoPi * m.Kv) : 60 / (TwoPi * (m.Kv * draws.KvScale[i]));
+                _ke[i] = _keDrawn[i] = draws == null ? 60 / (TwoPi * m.Kv) : 60 / (TwoPi * (m.Kv * draws.KvScale[i]));
                 double resistance = draws?.ResistanceScale == null ? m.Resistance : m.Resistance * draws.ResistanceScale[i];
                 _invR[i] = 1 / resistance;
                 _friction[i] = draws?.FrictionScale == null ? _ke[i] * m.NoLoadCurrent : _ke[i] * (m.NoLoadCurrent * draws.FrictionScale[i]);
@@ -404,6 +414,32 @@ namespace Fpv450.Sim.Flight
             _shaftDamping[corner] = damping;
             _shaftReference[corner] = reference;
         }
+
+        /// <summary>
+        /// A motor's damage for the next step's sub-steps (Contact.MotorBell, p7f-damage 1.5, design 10): its torque constant over
+        /// the drawn one, ktRatio (Kt = Ke, so its back-EMF too), and its added drag torque beside Kt·I0, N·m: the bell's scrape on
+        /// what it touches and the magnets' rub on the stator (1.6's bearings and 1.6b's dirt add to it). A Coulomb drag: against
+        /// the turn while the rotor turns; at rest a hold the drive must pass before the rotor turns (with Kt·I0 then held too).
+        /// The ESC and the bus see it only through the current. A motor never set flies its drawn Ke and no drag, bit for bit.
+        /// </summary>
+        public void SetMotor(int corner, double ktRatio, double drag)
+        {
+            _ke[corner] = _keDrawn[corner] * ktRatio;
+            _drag[corner] = drag;
+        }
+
+        /// <summary>A motor's Kt (= Ke) now, N·m/A, and its added drag torque, N·m (SetMotor).</summary>
+        public double TorqueConstant(int corner) => _ke[corner];
+        public double MotorDrag(int corner) => _drag[corner];
+
+        /// <summary>The rotors their drag held at rest under drive in the last sub-step (bit 1 &lt;&lt; corner): the drive the ESC put
+        /// into the stalled winding at its duty, less the prop's torque, did not pass the motor's drag (a bound motor, design 8,
+        /// D-073); and that drive's torque Kt·i, N·m.</summary>
+        public int Bound => _bound;
+        public double HeldDrive(int corner) => _heldDrive[corner];
+
+        /// <summary>A motor's DC resistance as drawn (winding, ESC and leads), Ω.</summary>
+        public double Resistance(int corner) => 1 / _invR[corner];
 
         public double ShaftTorque(int corner) => _shaftTorque[corner];
         public double ShaftStiffness(int corner) => _shaftStiffness[corner];
@@ -853,6 +889,7 @@ namespace Fpv450.Sim.Flight
                 }
             }
 
+            int bound = 0;
             for (int i = 0; i < 4; i++)
             {
                 double w = s.RotorSpeed[i], d = s.EscCommand[i], ke = _ke[i];
@@ -861,24 +898,53 @@ namespace Fpv450.Sim.Flight
                 bool brake = !run && (_escBrake & bit) != 0 && _stopLoops * h >= _brakeAt[i];
                 double current = held ? _limit[i] : run ? (d * volts - ke * w) * _invR[i] : brake ? -ThreePhaseShort * ke * w * _invR[i] : 0;
                 double drive = held ? (_limitVolts[i] + ke * w) / volts : run ? d : 0;
-                double q = _torque[i];
-                double loss = w > 0 ? _friction[i] : 0;
+                double q = _torque[i], added = _drag[i];
+                double loss = w > 0 ? _friction[i] + added : 0;
                 double rate = (ke * current - loss - q) / _inertia[i];
                 // A free motor's current falls as it speeds up (Ke²/R), a shorted one's too; a limited one's is held, so only
                 // the prop damps.
                 double slope = -((run && !held ? ke * ke * _invR[i] : brake ? ThreePhaseShort * ke * ke * _invR[i] : 0) + (w > 0 ? 2 * q / w : 0)) / _inertia[i];
                 double next, back = 0;
                 double ks = _shaftStiffness[i], cs = _shaftDamping[i];
-                if (ks == 0 && cs == 0 && _shaftTorque[i] == 0) next = w + h * rate / (1 - h * slope);
+                // A driven rotor its added drag alone holds at rest: bound (design 8, D-073).
+                bool binds = added > 0 && run && d > 0 && ke * current - q <= added;
+                if (ks == 0 && cs == 0 && _shaftTorque[i] == 0)
+                {
+                    if (w > 0 || added == 0) next = w + h * rate / (1 - h * slope);
+                    else
+                    {
+                        // At rest with an added drag (SetMotor): held while the drive is within it and Kt·I0, then turned by
+                        // the drive past them.
+                        double net = ke * current - q, hold = _friction[i] + added;
+                        if (net <= hold)
+                        {
+                            next = 0;
+                            if (binds)
+                            {
+                                bound |= bit;
+                                _heldDrive[i] = ke * current;
+                            }
+                        }
+                        else next = h * ((net - hold) / _inertia[i]) / (1 - h * slope);
+                    }
+                }
                 else
                 {
                     // A resting prop's blades (SetShaftLoad): their moment at the rotor's angle now, and the motor's drive.
                     double turned = s.RotorAngle[i] - _shaftReference[i];
                     while (turned > Pi) turned -= TwoPi;
                     while (turned <= -Pi) turned += TwoPi;
-                    double shaft = _shaftTorque[i] - ks * turned, hold = _friction[i], net = ke * current - q + shaft;
+                    double shaft = _shaftTorque[i] - ks * turned, hold = _friction[i] + added, net = ke * current - q + shaft;
                     double u = w > 0 ? w : -_back[i]; // the rotor's turn rate, signed (backward only at rest)
-                    if (u == 0 && net <= hold && net >= -hold) next = 0; // held at rest by the motor's own drag
+                    if (u == 0 && net <= hold && net >= -hold)
+                    {
+                        next = 0; // held at rest by the motor's own drag (and its added drag, SetMotor)
+                        if (binds)
+                        {
+                            bound |= bit;
+                            _heldDrive[i] = ke * current;
+                        }
+                    }
                     else
                     {
                         double drag = u > 0 || u == 0 && net > 0 ? hold : -hold;
@@ -910,6 +976,7 @@ namespace Fpv450.Sim.Flight
                 _torque[i] = torque;
             }
 
+            _bound = bound;
             double amps0 = (voc0 - volts) * _conductance[0], amps1 = (voc1 - volts) * _conductance[1];
             s.PackCharge0 -= amps0 * h / _capacity[0];
             s.PackCharge1 -= amps1 * h / _capacity[1];

@@ -162,6 +162,7 @@ namespace Fpv450.Sim.Log
             "LegSideStiffness", "LegSideDampingRatio", "Legs",
             "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength", "HangingGive",
             "BladeRest", "BladeRestSpeed",
+            "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -261,6 +262,7 @@ namespace Fpv450.Sim.Log
             "BellFrom", "BellTo", "CanThickness", "CanYield", "BackIronThickness", "BackIronYield", "Gap", "MagnetThickness",
             "MagnetRemanence", "MagnetPermeability", "ShaftDiameter", "ShaftYield", "ShaftUltimate", "HubHeight", "LowerBearingHeight",
             "UpperBearingHeight", "BearingStaticRating", "BearingDynamicRating", "BearingBalls", "BallDiameter", "PitchDiameter",
+            "StatorFrom", "StatorTo", "StatorDiameter", "CanModulus", "BackIronModulus",
         };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
@@ -747,21 +749,7 @@ namespace Fpv450.Sim.Log
                 e.Write(DroneHash);
                 e.Write(Blade != null);
                 if (Blade != null) WriteBlade(e, Blade);
-                MotorInternals[] motors = Internals ?? new MotorInternals[0];
-                e.Write((ushort)motors.Length);
-                foreach (MotorInternals m in motors)
-                {
-                    foreach (double x in new[]
-                             {
-                                 m.BellFrom, m.BellTo, m.CanThickness, m.CanYield, m.BackIronThickness, m.BackIronYield, m.Gap, m.MagnetThickness,
-                                 m.MagnetRemanence, m.MagnetPermeability, m.ShaftDiameter, m.ShaftYield, m.ShaftUltimate, m.HubHeight,
-                                 m.LowerBearingHeight, m.UpperBearingHeight, m.BearingStaticRating, m.BearingDynamicRating,
-                             })
-                        e.Write(x);
-                    e.Write(m.BearingBalls);
-                    e.Write(m.BallDiameter);
-                    e.Write(m.PitchDiameter);
-                }
+                WriteInternals(e, Internals);
             });
             Entry(w, TagAero, e =>
             {
@@ -903,6 +891,11 @@ namespace Fpv450.Sim.Log
                 e.Write(c.HangingGive); // p7g-legs (format 41): a hanging half's whole give geometric
                 e.Write(c.BladeRest); // p7f-damage 1.3b (format 42): props are parts at rest
                 e.Write(c.BladeRestSpeed);
+                // p7f-damage 1.5 (format 48): the motors' bells, their laws' coefficients and the motors' internals.
+                e.Write(c.MotorBell);
+                foreach (double v in new[] { c.BellRubFriction, c.BellWearCoefficient, c.MagnetHardness, c.StatorHardness, c.BellDentArc })
+                    e.Write(v);
+                WriteInternals(e, c.Motors);
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -1308,19 +1301,7 @@ namespace Fpv450.Sim.Log
                         tablesHash = r.ReadUInt64();
                         sawTables = true;
                         Blade = r.ReadBoolean() ? ReadBlade(r) : null;
-                        int motors = r.ReadUInt16();
-                        Internals = motors > 0 ? new MotorInternals[motors] : null;
-                        for (int i = 0; i < motors; i++)
-                            Internals[i] = new MotorInternals
-                            {
-                                BellFrom = r.ReadDouble(), BellTo = r.ReadDouble(), CanThickness = r.ReadDouble(), CanYield = r.ReadDouble(),
-                                BackIronThickness = r.ReadDouble(), BackIronYield = r.ReadDouble(), Gap = r.ReadDouble(),
-                                MagnetThickness = r.ReadDouble(), MagnetRemanence = r.ReadDouble(), MagnetPermeability = r.ReadDouble(),
-                                ShaftDiameter = r.ReadDouble(), ShaftYield = r.ReadDouble(), ShaftUltimate = r.ReadDouble(),
-                                HubHeight = r.ReadDouble(), LowerBearingHeight = r.ReadDouble(), UpperBearingHeight = r.ReadDouble(),
-                                BearingStaticRating = r.ReadDouble(), BearingDynamicRating = r.ReadDouble(), BearingBalls = r.ReadInt32(),
-                                BallDiameter = r.ReadDouble(), PitchDiameter = r.ReadDouble(),
-                            };
+                        Internals = ReadInternals(r);
                         break;
                     case TagAero:
                         Aero = r.ReadBoolean()
@@ -1668,6 +1649,13 @@ namespace Fpv450.Sim.Log
             c.HangingGive = r.ReadBoolean();
             c.BladeRest = r.ReadBoolean();
             c.BladeRestSpeed = r.ReadDouble();
+            c.MotorBell = r.ReadBoolean();
+            c.BellRubFriction = r.ReadDouble();
+            c.BellWearCoefficient = r.ReadDouble();
+            c.MagnetHardness = r.ReadDouble();
+            c.StatorHardness = r.ReadDouble();
+            c.BellDentArc = r.ReadDouble();
+            c.Motors = ReadInternals(r);
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
@@ -1851,6 +1839,48 @@ namespace Fpv450.Sim.Log
                     Blade = ReadBlade(r), LiftSlope = r.ReadDouble(), ZeroLiftAngle = r.ReadDouble(), ProfileDrag = r.ReadDouble(),
                 };
             return spec;
+        }
+
+        // The motors' internals (motors[].internals, format 19; the stator and the moduli, format 48): a count, then each motor's.
+        static void WriteInternals(BinaryWriter e, MotorInternals[] motors)
+        {
+            motors = motors ?? new MotorInternals[0];
+            e.Write((ushort)motors.Length);
+            foreach (MotorInternals m in motors)
+            {
+                foreach (double x in new[]
+                         {
+                             m.BellFrom, m.BellTo, m.CanThickness, m.CanYield, m.BackIronThickness, m.BackIronYield, m.Gap, m.MagnetThickness,
+                             m.MagnetRemanence, m.MagnetPermeability, m.ShaftDiameter, m.ShaftYield, m.ShaftUltimate, m.HubHeight,
+                             m.LowerBearingHeight, m.UpperBearingHeight, m.BearingStaticRating, m.BearingDynamicRating,
+                         })
+                    e.Write(x);
+                e.Write(m.BearingBalls);
+                e.Write(m.BallDiameter);
+                e.Write(m.PitchDiameter);
+                foreach (double x in new[] { m.StatorFrom, m.StatorTo, m.StatorDiameter, m.CanModulus, m.BackIronModulus })
+                    e.Write(x);
+            }
+        }
+
+        static MotorInternals[] ReadInternals(BinaryReader r)
+        {
+            int motors = r.ReadUInt16();
+            MotorInternals[] list = motors > 0 ? new MotorInternals[motors] : null;
+            for (int i = 0; i < motors; i++)
+                list[i] = new MotorInternals
+                {
+                    BellFrom = r.ReadDouble(), BellTo = r.ReadDouble(), CanThickness = r.ReadDouble(), CanYield = r.ReadDouble(),
+                    BackIronThickness = r.ReadDouble(), BackIronYield = r.ReadDouble(), Gap = r.ReadDouble(),
+                    MagnetThickness = r.ReadDouble(), MagnetRemanence = r.ReadDouble(), MagnetPermeability = r.ReadDouble(),
+                    ShaftDiameter = r.ReadDouble(), ShaftYield = r.ReadDouble(), ShaftUltimate = r.ReadDouble(),
+                    HubHeight = r.ReadDouble(), LowerBearingHeight = r.ReadDouble(), UpperBearingHeight = r.ReadDouble(),
+                    BearingStaticRating = r.ReadDouble(), BearingDynamicRating = r.ReadDouble(), BearingBalls = r.ReadInt32(),
+                    BallDiameter = r.ReadDouble(), PitchDiameter = r.ReadDouble(),
+                    StatorFrom = r.ReadDouble(), StatorTo = r.ReadDouble(), StatorDiameter = r.ReadDouble(), CanModulus = r.ReadDouble(),
+                    BackIronModulus = r.ReadDouble(),
+                };
+            return list;
         }
 
         // A blade's table (props.blade): its stations' columns, the hub and the material.

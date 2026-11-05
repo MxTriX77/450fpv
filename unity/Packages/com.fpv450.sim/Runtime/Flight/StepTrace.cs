@@ -111,6 +111,11 @@ namespace Fpv450.Sim.Flight
         /// normal); 0 for a turning prop's.</summary>
         public Corners BladeLoad0, BladeLoad1, BladeBend0, BladeBend1;
 
+        /// <summary>Each motor's bell this step (p7f-damage 1.5, Contact.MotorBell): its scrape's moment against the turning rotor (or,
+        /// at rest, its static friction's hold), N·m; the magnets' rub on the stator's teeth, N·m; and its Kt over the drawn one less 1 (exact: 0 for a gap as new). All
+        /// 0 without the bells.</summary>
+        public Corners BellScrape, BellRub, BellKtChange;
+
         /// <summary>The flight's loose pieces (p7g-legs 1.3, design 4), or null: logged in the side record at 50 Hz
         /// (LogFormat.LooseBlock), never in the step record.</summary>
         public Contact.LoosePieces Loose;
@@ -232,7 +237,21 @@ namespace Fpv450.Sim.Flight
         /// </summary>
         StoneStrike = 20,
 
-        // 21–22 are reserved for p7f-damage (D-074).
+        /// <summary>
+        /// A motor's bell dented (p7f-damage 1.5, design 8): its ring collapsed under a contact past its collapse load. Part the
+        /// motor, Index its corner (low 4 bits) and the band (high 4 bits: 0 the stator's, where the dent narrows the gap; 1 above
+        /// or below it, toward the windings' end turns), by (Object, Shape) of Material or Surface at Point. A: the band's dent
+        /// after it, m; B: the ring's load, N; C: the collapse load it passed, N.
+        /// </summary>
+        MotorDamaged = 21,
+
+        /// <summary>
+        /// Index's motor was held at rest by its drag under drive, the ESC's drive into the stalled winding at its duty within the
+        /// motor's added drag (a bind, design 8, D-073), or let go (A 0). A: the added drag, N·m; B: the drive's torque Kt·i, N·m;
+        /// C: what BLHeli_S's low-rpm protection would let the ESC drive there, its floor Pwm_Limit_Beg (25 of 255 at the default
+        /// startup power) as Kt·d·V/R, N·m (derived, not flown).
+        /// </summary>
+        MotorBound = 22,
 
         /// <summary>Part's leg began to yield, a set that stays (Index: Contact.LegMode, Bending, Buckling or ClampTwist), loaded
         /// by (Object, Shape) at Point (p7g-legs 1.2). A: the moment at its clamp's edge, or the twist on its jaws, N·m; B: the

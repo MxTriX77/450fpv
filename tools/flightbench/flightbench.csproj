@@ -42,6 +42,7 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/DamageScenario.cs" Link="DamageScenario.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/StrikeScenarios.cs" Link="StrikeScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/RestScenarios.cs" Link="RestScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/BellScenarios.cs" Link="BellScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" Link="WakeGridFixture.cs" />
   </ItemGroup>
 </Project>
