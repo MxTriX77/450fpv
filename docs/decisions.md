@@ -683,3 +683,12 @@ The pilot on D-065, 2026-11-04: "ive mentioned the black sticks (so there's diff
 - **Unchanged:** the camera's analog noise, and the fiber's own picture loss still to come (`p7d-tether` 1.8 and 1.16), on top of the dropouts.
 - The two artefacts sit behind one switch (`FeedEvents.GodotLinkArtefacts`); it is split so each follows its own decision.
 
+## D-086 The pilot's answers on legs, the spool, balance and the controller · Accepted
+The pilot, 2026-11-05, on the G7 questions (`pilot-questions.md`, answered).
+- **Legs:** usually plastic, hand-made, flexible; they vary per drone. The PVC-U legs stand; the leg's stiffness and strength are a per-flight bounded perturbation (PHY-24), not one fixed value.
+- **The roof rack:** the drone rested its weight on the prop. Physics says a weight-bearing prop holds the motor at idle torque; what moves the drone on arming is the ESC's sensorless start (its startup pulses against a held rotor), which `p7f` 1.3 left open. It is modelled, not tuned.
+- **The spool's exit:** the canister is mounted at an angle so the fiber leaves its hole at about 25–30°, so a climb or a throttle-up shares the pull with the angle instead of dragging the fiber across the hole's edge. Supersedes the canister's 15° (from photos). The fiber's ground end is patched into a ground station.
+- **The canister is not opaque:** the coil and its shrinking pack show through it.
+- **Balance and loads vary per flight (VISION §2.4's randomness):** the nominal drone is balanced on the hubs' centre (the class's practice, `reference-notes/fore-aft-balance.md`), and each flight draws a bounded offset of the centre of mass in any direction from the hand-strapped load and the build, so the pilot has to feel the drone at liftoff. Also kept by PHY-24: the fiber's rare cuts with no sharp move come from its strength draws, and the wind's gusts may come from off the forecast's direction.
+- **The controller:** no airmode; brake on stop off, so a disarmed motor freewheels (supersedes the ESC braking on disarm, model 42's default); no return-to-home. A video loss on the fiber is not a control loss: only a fiber break ends control, and the failsafe follows it (`p7d-tether` 1.8).
+
