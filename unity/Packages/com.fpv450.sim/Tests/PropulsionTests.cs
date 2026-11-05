@@ -159,8 +159,10 @@ namespace Fpv450.Sim.Tests
                     duty[c.name + " " + charge] = h.Duty;
                     if (c.name == "L4 nominal" && charge == 1.0)
                     {
-                        Assert.That(h.FrontOverRear, Is.EqualTo(0.0032).Within(0.0005),
-                            "D-050: the front motors 0.32 % over the mean at L4 (the CoM 0.5 mm forward, the stack's electronics)");
+                        // Since model 64 the canister's pack rides forward: the CoM 5.1 mm forward of the hubs' centre over their
+                        // 0.160 m arm, 3.2 % (0.32 % on the old coil, 0.5 mm forward, the stack's electronics alone).
+                        Assert.That(h.FrontOverRear, Is.EqualTo(0.0318).Within(0.0005),
+                            "D-050: the front motors 3.2 % over the mean at L4 (the CoM 5.1 mm forward: the coil's pack and canister, the stack)");
                         core.GetSignals(out FeedSignals sig);
                         Assert.That(sig.PackVolts, Is.EqualTo(h.Volts).Within(0.05));
                         Assert.That(sig.MotorElectricalHz.RearRight, Is.EqualTo(core.State.RotorSpeed.RearRight / (2 * Math.PI) * 7).Within(2));

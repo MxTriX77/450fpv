@@ -107,7 +107,8 @@ namespace Fpv450.Sim.Tests
         }
 
         // On the coil, legs off, disarmed on the floor (D-067): the time from release until a pack meets the floor, s, or NaN
-        // within the window. Started level, or at a roll.
+        // within the window. Started level, or at a roll. Since model 64 on the canister, pitched nose-down at rest, the front
+        // motor meets the floor before a pack (LandingStability.FirstRestDeg): any part but the coil's own.
         static double TipTime(FlightSetup setup, double seconds, out double rollDeg)
         {
             var core = new FlightCore(setup);
@@ -120,7 +121,7 @@ namespace Fpv450.Sim.Tests
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     FlightEvent e = core.Events[i];
-                    if (e.Kind == EventKind.ContactMade && Spec.Parts[e.Part].Name.StartsWith("pack_")) return (k + 1) * FlightCore.Dt;
+                    if (e.Kind == EventKind.ContactMade && e.Part != Spec.Coil.Part && e.Part != Spec.Coil.Housing) return (k + 1) * FlightCore.Dt;
                 }
             }
             return double.NaN;
@@ -133,15 +134,19 @@ namespace Fpv450.Sim.Tests
             Loadout loadout = spec.Nominal;
             loadout.Legs = false;
             ContactSpec contacts = spec.BuildContacts(loadout, m, hash);
+            // Since model 64 the canister lies level with the drone pitched nose-down by its tilt (LandingStability.Coil's
+            // rest): set down there, then rolled about the canister's axis.
+            double pitch = LandingStability.Coil(spec, contacts, spec.BuildMass(loadout).Properties).CoilRestPitchDeg / 2 / 57.29577951308232;
+            double half = startRollDeg / 2 / 57.29577951308232;
+            Quat q = (new Quat(0, 0, Math.Sin(half), Math.Cos(half)) * new Quat(Math.Sin(pitch), 0, 0, Math.Cos(pitch))).Normalized();
             double low = 0;
             foreach (ContactShape s in contacts.Shapes)
-                if (s.Role == ContactRole.Body) low = Math.Min(low, Math.Min(s.A.Y, s.B.Y) - s.Radius);
-            double half = startRollDeg / 2 / 57.29577951308232;
+                if (s.Role == ContactRole.Body) low = Math.Min(low, Math.Min(q.Rotate(s.A).Y, q.Rotate(s.B).Y) - s.Radius);
             return new FlightSetup
             {
                 Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(loadout), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Contacts = contacts, StartPosition = new Double3(0, -low, 0), StartPackCharge = 0.9,
-                StartAttitude = new Quat(0, 0, Math.Sin(half), Math.Cos(half)), Placement = placement ? spec.BuildPlacement() : null,
+                StartAttitude = q, Placement = placement ? spec.BuildPlacement() : null,
             };
         }
 
@@ -151,14 +156,14 @@ namespace Fpv450.Sim.Tests
             double exactLevel = TipTime(OnTheCoil(1, false, 0), 3, out double levelRoll);
             double exactTilted = TipTime(OnTheCoil(1, false, 0.1), 3, out _);
             TestContext.Out.WriteLine($"the exact build on its coil, legs off, disarmed: level {(double.IsNaN(exactLevel) ? "never in 3 s" : exactLevel.ToString("F3") + " s")} "
-                + $"(rolled {levelRoll:F3}°), from 0.1° of roll {exactTilted:F3} s to a pack on the floor");
+                + $"(rolled {levelRoll:F3}°), from 0.1° of roll {exactTilted:F3} s to a part on the floor");
             var times = new List<double>();
             for (ulong seed = 1; seed <= 20; seed++)
             {
                 FlightSetup s = OnTheCoil(seed, true, 0);
                 double t = TipTime(s, 3, out _);
                 Double3 o = new FlightCore(s).Body.CenterOfMass - Spec.BuildMass(new Loadout { Payload = Spec.Nominal.Payload, Legs = false, CoilPaidOut = Spec.Nominal.CoilPaidOut }).Properties.CenterOfMass;
-                TestContext.Out.WriteLine($"seed {seed}: the centre of mass {1000 * o.X:+0.00;-0.00} mm across, a pack on the floor at {t:F3} s");
+                TestContext.Out.WriteLine($"seed {seed}: the centre of mass {1000 * o.X:+0.00;-0.00} mm across, a part on the floor at {t:F3} s");
                 times.Add(t);
             }
             times.Sort();

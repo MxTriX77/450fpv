@@ -177,7 +177,13 @@ namespace Fpv450.Sim.Tests
             string wrong = $"no ring, seeds 1–{Seeds} of the six descents: weaker {weaker}/{punches}; past the kick ({ShakeScenario.KickSeconds:F1} s) on "
                 + $"{ringlessLasts}/{punches} against {ringedLasts}";
             TestContext.WriteLine(wrong);
-            Assert.That(weaker >= ShakeScenario.Most * punches && 2 * ringlessLasts <= ringedLasts, Is.True, "the known-wrong fails: " + wrong);
+            // Since model 64 the ring is no longer the only long shake: the canister's pack and body ride forward and put the CoM
+            // 2–9 mm ahead of the hubs' centre (3.2 % more on the front motors at L4), and a hard arrest drives the front pair into
+            // their ESCs' limit first, a pitch wobble of its own. Without the ring the shake lasts past the kick on 102 of 240
+            // (the ring's 126; on the old coil 38 against 108); with the canister's pack and body at the centre fore and aft (a
+            // probe, not kept) 28 against 89, so the imbalance, not the ring, is the rest. The known-wrong still fails: weaker
+            // peaks on most, and fewer long shakes than the ring's.
+            Assert.That(weaker >= ShakeScenario.Most * punches && ringlessLasts < ringedLasts, Is.True, "the known-wrong fails: " + wrong);
         }
 
         [Test]

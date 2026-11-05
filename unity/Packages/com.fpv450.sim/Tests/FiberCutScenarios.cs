@@ -19,6 +19,10 @@ namespace Fpv450.Sim.Tests
     {
         const double Dt = FlightCore.Dt, Pi = 3.141592653589793;
 
+        /// <summary>FIBER_DRONE=model63 flies the tests' scenarios on model 63's drone (the old coil, Model63Drone; TetherScenarios
+        /// gives it model 63's exit, GoldenFlights.Model63Tether), for the cause table's rows beside model 64's canister.</summary>
+        public static readonly bool OnTheOldCoil = System.Environment.GetEnvironmentVariable("FIBER_DRONE") == "model63";
+
         static TetherTable Table => TetherScenarios.Table();
 
         /// <summary>What a flight did to its line.</summary>
@@ -152,9 +156,14 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>The setup's wind level for a "Calm" or "Windy" flight.</summary>
+        /// <summary>FIBER_BODY=through flies every scenario with the fountain through the drone's body (FlightSetup.
+        /// TetherFountainThroughBody, 61's known-wrong): with FIBER_DRONE=model63, model 63's line, for the cause table's row.</summary>
+        public static readonly bool ThroughTheBody = System.Environment.GetEnvironmentVariable("FIBER_BODY") == "through";
+
         static FlightSetup Setup(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit)
         {
             FlightSetup setup = TetherScenarios.Setup(spec, wind, seed: seed, cuts: true);
+            if (ThroughTheBody) setup.TetherFountainThroughBody = true;
             edit?.Invoke(setup);
             return setup;
         }
@@ -859,7 +868,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// A standing synthetic twig (2 mm, 1.6 m tall, an element of instance 7) at (0, 0, 4) on the stub's floor; the drone at
-        /// 1.2 m flies past it and orbits it once at 1 m radius, so its line from 3 m behind wraps the twig a turn and more, then
+        /// 1.4 m (1.2 until model 64) flies past it and orbits it once at 1 m radius, so its line from 3 m behind wraps the twig a turn and more, then
         /// hovers beside it in wind for the rest of seconds.
         /// </summary>
         public static Dip AroundATwig(DroneSpec spec, ulong seed, WindLevel wind, double seconds = 30)
@@ -887,7 +896,11 @@ namespace Fpv450.Sim.Tests
                 if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
                 else
                 {
-                    double y = stand + DetMath.Min(1.2, 1.0 * t);
+                    // Since model 64 at 1.4 m (1.2 before): the canister's exit hangs 0.117 m lower than the old coil's, and at 1.2 m
+                    // the line caught on the twig at 1.10 m slides down it to its foot within a turn (the pull from the exit, less
+                    // steep, no longer holds it). The wrap is sensitive to the height (swept 1.0–1.5 m on seed 5: it holds at 1.1,
+                    // 1.4 and 1.5, slides off at 1.0, 1.2 and 1.3), so this is a brittle snag (a fork would be the sturdier one).
+                    double y = stand + DetMath.Min(1.4, 1.0 * t);
                     Double3 target;
                     if (t < 2) target = new Double3(1, y, 0);
                     else if (t < 6) target = new Double3(1, y, (t - 2)); // past the twig on its +x side to z 4

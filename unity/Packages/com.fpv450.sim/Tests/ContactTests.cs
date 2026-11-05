@@ -70,8 +70,11 @@ namespace Fpv450.Sim.Tests
                 Assert.That(s.Role == ContactRole.Support || s.Role == ContactRole.Skid || s.Name.StartsWith("leg_"), Is.False, s.Name + " comes off with the legs");
             Assert.That(off.Shapes.Length, Is.EqualTo(on.Shapes.Length - 16));
             ContactShape coilOn = Array.Find(on.Shapes, s => s.Name == "coil"), coilOff = Array.Find(off.Shapes, s => s.Name == "coil");
-            Assert.That(coilOn.A.Y, Is.EqualTo(-0.053), "the spool beneath the frame (D-050)");
-            Assert.That(coilOff.A.Y, Is.EqualTo(-0.053), "legs off it stays where it is (D-050: the build moves nothing)");
+            // Since model 64 the coil's shapes are D01's canister's (its part, coil.housing): the body's aft core end at y −0.126729
+            // (drone.json, derived), the pack inside it hidden.
+            Assert.That(coilOn.Part, Is.EqualTo(spec.Coil.Housing), "the canister's shape");
+            Assert.That(coilOn.A.Y, Is.EqualTo(-0.126729), "the canister beneath the frame (D-050)");
+            Assert.That(coilOff.A.Y, Is.EqualTo(-0.126729), "legs off it stays where it is (D-050: the build moves nothing)");
             Assert.That(coilOff.A.Z - coilOff.B.Z, Is.EqualTo(coilOn.A.Z - coilOn.B.Z).Within(1e-12));
             Assert.That(LaunchStand.RestingOrigin(spec, off, default).Y, Is.EqualTo(0.253), "the arms' undersides on the 0.25 m posts");
 

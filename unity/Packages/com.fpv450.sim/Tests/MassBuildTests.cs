@@ -16,7 +16,10 @@ namespace Fpv450.Sim.Tests
 
         // One of the object sheet's seven loadouts (docs/object-sheets/drone.md), with D-050's build of it from drone.json,
         // derived and pinned (D-048, D-050: the figures as the file's layout gives them; legs on re-pinned for p7g-legs 1.1's
-        // PVC-U legs and skids, 6.6 g lighter). L7 is the heaviest corner, on the
+        // PVC-U legs and skids, 6.6 g lighter; every figure re-pinned for model 64's canister: the old coil's 0.655 kg at
+        // (0, −0.053, 0) is now the pack's 0.425 kg at (0, −0.105, 0.038) and the canister's 0.23 kg at (0, −0.109, 0.023),
+        // both tilted 15°, so the CoM sits 4–7 mm lower and 3–9 mm further forward, roll and pitch rise by 3–12 %, and the coil
+        // lies 0.06–0.10 m below the CoM against 0.02–0.06). L7 is the heaviest corner, on the
         // sheet's pack option B (6S3P twice), which the test puts on in place of the file's packs.
         public sealed class BuildLoadout
         {
@@ -32,26 +35,26 @@ namespace Fpv450.Sim.Tests
         static readonly BuildLoadout[] Builds =
         {
             new BuildLoadout { Name = "L1", Payload = 0, Coil = 0,
-                Mass = 3.390, ComY = -0.0290, Roll = 0.0346, Pitch = 0.0336, Yaw = 0.0539, CoilAbove = -0.0240, PitchRoll = 0.973, YawRoll = 1.561,
-                OffMass = 3.281, OffComY = -0.0233, OffRoll = 0.0295, OffPitch = 0.0283, OffYaw = 0.0514, OffCoilAbove = -0.0297, OffPitchRoll = 0.960, OffYawRoll = 1.745 },
+                Mass = 3.390, ComY = -0.0341, Roll = 0.0364, Pitch = 0.0359, Yaw = 0.0544, CoilAbove = -0.0708, PitchRoll = 0.985, YawRoll = 1.496,
+                OffMass = 3.281, OffComY = -0.0285, OffRoll = 0.0315, OffPitch = 0.0307, OffYaw = 0.0519, OffCoilAbove = -0.0764, OffPitchRoll = 0.976, OffYawRoll = 1.648 },
             new BuildLoadout { Name = "L2", Payload = 0, Coil = 1,
-                Mass = 4.080, ComY = -0.0331, Roll = 0.0355, Pitch = 0.0366, Yaw = 0.0565, CoilAbove = -0.0199, PitchRoll = 1.030, YawRoll = 1.594,
-                OffMass = 3.971, OffComY = -0.0284, OffRoll = 0.0306, OffPitch = 0.0314, OffYaw = 0.0540, OffCoilAbove = -0.0246, OffPitchRoll = 1.027, OffYawRoll = 1.767 },
+                Mass = 4.080, ComY = -0.0460, Roll = 0.0400, Pitch = 0.0421, Yaw = 0.0576, CoilAbove = -0.0588, PitchRoll = 1.051, YawRoll = 1.440,
+                OffMass = 3.971, OffComY = -0.0417, OffRoll = 0.0356, OffPitch = 0.0374, OffYaw = 0.0551, OffCoilAbove = -0.0631, OffPitchRoll = 1.051, OffYawRoll = 1.549 },
             new BuildLoadout { Name = "L3", Payload = 1.0, Coil = 0,
-                Mass = 4.390, ComY = -0.0069, Roll = 0.0426, Pitch = 0.0446, Yaw = 0.0577, CoilAbove = -0.0461, PitchRoll = 1.047, YawRoll = 1.353,
-                OffMass = 4.281, OffComY = -0.0019, OffRoll = 0.0367, OffPitch = 0.0384, OffYaw = 0.0551, OffCoilAbove = -0.0511, OffPitchRoll = 1.048, OffYawRoll = 1.505 },
+                Mass = 4.390, ComY = -0.0108, Roll = 0.0452, Pitch = 0.0477, Yaw = 0.0582, CoilAbove = -0.0941, PitchRoll = 1.053, YawRoll = 1.286,
+                OffMass = 4.281, OffComY = -0.0059, OffRoll = 0.0394, OffPitch = 0.0416, OffYaw = 0.0556, OffCoilAbove = -0.0989, OffPitchRoll = 1.055, OffYawRoll = 1.411 },
             new BuildLoadout { Name = "L4 nominal in flight", Payload = 1.0, Coil = 0.5,
-                Mass = 4.735, ComY = -0.0103, Roll = 0.0436, Pitch = 0.0466, Yaw = 0.0590, CoilAbove = -0.0427, PitchRoll = 1.069, YawRoll = 1.353,
-                OffMass = 4.626, OffComY = -0.0058, OffRoll = 0.0378, OffPitch = 0.0406, OffYaw = 0.0564, OffCoilAbove = -0.0472, OffPitchRoll = 1.073, OffYawRoll = 1.494 },
+                Mass = 4.735, ComY = -0.0177, Roll = 0.0484, Pitch = 0.0522, Yaw = 0.0598, CoilAbove = -0.0872, PitchRoll = 1.078, YawRoll = 1.235,
+                OffMass = 4.626, OffComY = -0.0133, OffRoll = 0.0429, OffPitch = 0.0464, OffYaw = 0.0573, OffCoilAbove = -0.0916, OffPitchRoll = 1.082, OffYawRoll = 1.335 },
             new BuildLoadout { Name = "L5 nominal take-off", Payload = 1.0, Coil = 1,
-                Mass = 5.080, ComY = -0.0132, Roll = 0.0445, Pitch = 0.0485, Yaw = 0.0603, CoilAbove = -0.0398, PitchRoll = 1.090, YawRoll = 1.355,
-                OffMass = 4.971, OffComY = -0.0090, OffRoll = 0.0388, OffPitch = 0.0426, OffYaw = 0.0577, OffCoilAbove = -0.0440, OffPitchRoll = 1.097, OffYawRoll = 1.488 },
+                Mass = 5.080, ComY = -0.0236, Roll = 0.0512, Pitch = 0.0563, Yaw = 0.0614, CoilAbove = -0.0813, PitchRoll = 1.099, YawRoll = 1.199,
+                OffMass = 4.971, OffComY = -0.0197, OffRoll = 0.0460, OffPitch = 0.0508, OffYaw = 0.0589, OffCoilAbove = -0.0852, OffPitchRoll = 1.105, OffYawRoll = 1.281 },
             new BuildLoadout { Name = "L6", Payload = 2.0, Coil = 1,
-                Mass = 6.080, ComY = 0.0036, Roll = 0.0547, Pitch = 0.0651, Yaw = 0.0684, CoilAbove = -0.0566, PitchRoll = 1.190, YawRoll = 1.250,
-                OffMass = 5.971, OffComY = 0.0073, OffRoll = 0.0483, OffPitch = 0.0584, OffYaw = 0.0659, OffCoilAbove = -0.0603, OffPitchRoll = 1.210, OffYawRoll = 1.364 },
+                Mass = 6.080, ComY = -0.0051, Roll = 0.0633, Pitch = 0.0748, Yaw = 0.0696, CoilAbove = -0.0998, PitchRoll = 1.181, YawRoll = 1.099,
+                OffMass = 5.971, OffComY = -0.0015, OffRoll = 0.0573, OffPitch = 0.0685, OffYaw = 0.0670, OffCoilAbove = -0.1034, OffPitchRoll = 1.196, OffYawRoll = 1.170 },
             new BuildLoadout { Name = "L7 heaviest", SixP = true, Payload = 1.4, Coil = 1,
-                Mass = 6.360, ComY = -0.0112, Roll = 0.0596, Pitch = 0.0595, Yaw = 0.0764, CoilAbove = -0.0418, PitchRoll = 0.999, YawRoll = 1.284,
-                OffMass = 6.251, OffComY = -0.0078, OffRoll = 0.0538, OffPitch = 0.0535, OffYaw = 0.0739, OffCoilAbove = -0.0452, OffPitchRoll = 0.995, OffYawRoll = 1.374 },
+                Mass = 6.360, ComY = -0.0195, Roll = 0.0666, Pitch = 0.0677, Yaw = 0.0776, CoilAbove = -0.0854, PitchRoll = 1.016, YawRoll = 1.165,
+                OffMass = 6.251, OffComY = -0.0163, OffRoll = 0.0612, OffPitch = 0.0620, OffYaw = 0.0751, OffCoilAbove = -0.0886, OffPitchRoll = 1.013, OffYawRoll = 1.227 },
         };
         static IEnumerable<BuildLoadout> BuildLoadouts() => Builds;
 
@@ -134,15 +137,16 @@ namespace Fpv450.Sim.Tests
                 Assert.That(pitch / roll, Is.EqualTo(legs ? l.PitchRoll : l.OffPitchRoll).Within(0.0005), "pitch / roll, as the layout gives it");
                 Assert.That(yaw / roll, Is.EqualTo(legs ? l.YawRoll : l.OffYawRoll).Within(0.0005), "yaw / roll, as the layout gives it");
                 if (!legs) continue;
-                // D-050's layout: the bottle fore-aft on top and the coil fore-aft beneath put pitch above roll on five of the
-                // seven (L2–L6); the empty drone on an empty coil (L1) and the wide 6S3P packs (L7) keep roll at or above
-                // pitch. With the bottle on the upper plate (y 0.068) yaw/roll is 1.35 with the nominal 1 kg bottle (L3–L5),
-                // 1.25–1.28 with the heavier ones (L6, L7) and 1.55–1.59 without one (L1, L2): K§5.3's 1.0–1.3 holds from
-                // 1.4 kg of bottle up.
+                // D-050's layout: the bottle fore-aft on top and the coil fore-aft beneath put pitch above roll on six of the
+                // seven (L2–L7); the empty drone on an empty coil (L1) keeps roll above pitch. Since model 64 the canister's
+                // 0.355 m fore-aft below the CoM adds more to pitch than to roll, so the wide 6S3P packs (L7) now sit just past
+                // level (1.016, 0.999 on the old coil), and its low mass adds to roll and pitch, not yaw: yaw/roll is 1.20–1.29
+                // with the nominal 1 kg bottle (L3–L5; 1.35 on the old coil), 1.10–1.17 with the heavier ones (L6, L7) and
+                // 1.44–1.50 without one (L1, L2): K§5.3's 1.0–1.3 holds from 1.0 kg of bottle up (1.4 on the old coil).
                 bool pitchAbove = pitch > roll, yawInBand = yaw / roll >= 1.0 && yaw / roll <= 1.3;
                 TestContext.WriteLine($"  PHY-12: pitch above roll {pitchAbove}, yaw 1.0–1.3 × roll {yawInBand}");
-                Assert.That(pitchAbove, Is.EqualTo(l.Name != "L1" && !l.SixP), "pitch above roll, as the layout gives it");
-                Assert.That(yawInBand, Is.EqualTo(l.Payload >= 1.4), "yaw 1.0–1.3 × roll, as the layout gives it");
+                Assert.That(pitchAbove, Is.EqualTo(l.Name != "L1"), "pitch above roll, as the layout gives it");
+                Assert.That(yawInBand, Is.EqualTo(l.Payload >= 1.0), "yaw 1.0–1.3 × roll, as the layout gives it");
             }
         }
 
@@ -177,9 +181,12 @@ namespace Fpv450.Sim.Tests
         }
 
         // What D-050's layout gives across the setting (APP-03): from 1.0 kg of bottle up pitch exceeds roll at every state
-        // of the coil (the bottle and the coil lie fore-aft); with no bottle pitch is level with roll; yaw is 1.1–1.6 × roll;
-        // the stack's electronics forward of the centre put the CoM under 1 mm forward and leave a small product of inertia
-        // I_yz, which the build keeps (nothing is balanced to zero).
+        // of the coil (the bottle and the coil lie fore-aft); with no bottle pitch is level with roll; yaw is 1.1–1.5 × roll.
+        // Since model 64 (D01's canister) the coil's pack rides 0.038 m forward in its canister, itself 0.023 m forward, so the
+        // CoM sits 2.0–9.1 mm forward (under 1 mm on the old coil, the stack's electronics alone) and the coil below and
+        // forward leaves a product of inertia I_yz of +0.2 to +2.7 g·m² (−0.01 to −0.2 on the old coil, the stack above and
+        // forward), which the build keeps (nothing is balanced to zero). No bottle with a full coil puts pitch 5.1 % above
+        // roll (1.031 on the old coil); the heaviest bottle on a full coil yaw/roll 1.099.
         [Test]
         public void D050sLayoutPutsPitchAboveRollWithABottle()
         {
@@ -194,10 +201,10 @@ namespace Fpv450.Sim.Tests
                     double roll = b.Inertia.ZZ, pitch = b.Inertia.XX, yaw = b.Inertia.YY;
                     if (pitch > roll && lowest == tenths + 1) lowest = tenths;
                     if (loadout.Payload >= 1.0) Assert.That(pitch, Is.GreaterThan(roll), $"pitch above roll at {loadout.Payload} kg");
-                    if (loadout.Payload == 0) Assert.That(pitch / roll, Is.InRange(0.95, 1.05), "no bottle: pitch level with roll (within 5 %: 1.031 with the coil full on D-066's packs)");
-                    Assert.That(yaw / roll, Is.InRange(1.1, 1.6), "yaw / roll");
-                    Assert.That(b.CenterOfMass.Z, Is.InRange(0.0003, 0.001), "the CoM forward of the centre (the stack)");
-                    Assert.That(b.Inertia.YZ, Is.InRange(-0.0002, -0.00001), "the stack above and forward leaves I_yz");
+                    if (loadout.Payload == 0) Assert.That(pitch / roll, Is.InRange(0.95, 1.06), "no bottle: pitch level with roll (within 6 %: 1.051 with the coil full)");
+                    Assert.That(yaw / roll, Is.InRange(1.05, 1.55), "yaw / roll");
+                    Assert.That(b.CenterOfMass.Z, Is.InRange(0.0019, 0.0092), "the CoM forward of the centre (the coil's pack and canister, the stack)");
+                    Assert.That(b.Inertia.YZ, Is.InRange(0.0001, 0.0028), "the coil below and forward leaves I_yz");
                 }
                 TestContext.WriteLine($"coil {left * 100:F0} % full: pitch exceeds roll from {lowest / 10.0:F1} kg of bottle up (derived)");
             }
@@ -220,7 +227,9 @@ namespace Fpv450.Sim.Tests
                 TestContext.WriteLine($"{l.Name}: a roll moment yaws the body at {ratio:+0.0000;-0.0000} of its roll rate (−I_yz/I_yy {-b.Inertia.YZ / b.Inertia.YY:+0.0000;-0.0000}); "
                     + $"the yaw principal axis {tilt:F2}° off body y about x (derived)");
                 Assert.That(ratio, Is.EqualTo(-b.Inertia.YZ / b.Inertia.YY).Within(0.1 * Math.Abs(ratio) + 1e-4));
-                Assert.That(ratio, Is.InRange(0.0003, 0.003), "a few tenths of a per cent, the sign of the stack above and forward (D-050)");
+                // Since model 64: −0.4 % (L1) to −3.8 % (L6), the principal axes 0.6–20° off, the sign of the canister below and
+                // forward (+0.03 to +0.3 % on the old coil, the stack above and forward).
+                Assert.That(ratio, Is.InRange(-0.04, -0.003), "a few per cent, the sign of the coil below and forward (model 64's canister)");
             }
         }
 

@@ -364,15 +364,16 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>The time (s) a free body set down at rest at fromDeg of roll (its lowest point on the floor) takes to
-        /// roll to toDeg; +∞ if it does not within 10 s.</summary>
+        /// roll to toDeg; +∞ if it does not within 10 s. pitchDeg sets it down nose-down first (legs off on model 64's canister:
+        /// its rest, the canister level), and the roll is then about the world's z, the canister's axis.</summary>
         public static double RollTime(DroneSpec spec, MaterialRow[] materials, ulong hash, bool legs, double fromDeg, double toDeg,
-            Func<ContactSpec, ContactSpec> edit = null)
+            Func<ContactSpec, ContactSpec> edit = null, double pitchDeg = 0)
         {
             Loadout loadout = spec.Nominal;
             loadout.Legs = legs;
             ContactSpec contacts = spec.BuildContacts(loadout, materials, hash);
             if (edit != null) contacts = edit(contacts);
-            Quat q = Tilt(fromDeg, 0);
+            Quat q = Tilt(fromDeg, pitchDeg);
             double low = double.PositiveInfinity;
             foreach (ContactShape s in contacts.Shapes)
             {
@@ -391,7 +392,9 @@ namespace Fpv450.Sim.Tests
             {
                 core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs });
                 Double3 up = core.State.Attitude.Rotate(new Double3(0, 1, 0));
-                if (Math.Asin(Math.Min(1, up.X)) * 180 / Math.PI >= toDeg || up.Y < 0.3) return (k + 1) * FlightCore.Dt;
+                // The roll about the world's z: pitched (model 64's canister lying level), from the up axis's lean in the x-y plane.
+                double roll = pitchDeg == 0 ? Math.Asin(Math.Min(1, up.X)) : Math.Atan2(up.X, up.Y);
+                if (roll * 180 / Math.PI >= toDeg || up.Y < 0.3) return (k + 1) * FlightCore.Dt;
             }
             return double.PositiveInfinity;
         }

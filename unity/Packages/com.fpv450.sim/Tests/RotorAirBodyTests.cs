@@ -129,8 +129,11 @@ namespace Fpv450.Sim.Tests
 
         // The repository drone resting on its legs over the floor, its four rotors at a liftoff's thrust (v_h 10.1 m/s, as
         // RotorAirTests' cost case): the fountain on the body's centreline (the rear pair's and the front pair's sheet, x = 0)
-        // with the body and through it (model 59's field), under the coil, at the exit's column (just aft of its cap), and between
-        // the rear discs where 1.8's disc cuts sit (0.15-0.18 m aft): blocked under and over the body, free where nothing covers.
+        // with the body and through it (model 59's field), under the coil, at the old exit's column (just aft of the old coil's
+        // cap), and between the rear discs where 1.8's disc cuts sat (0.15-0.18 m aft): blocked under and over the body, free where
+        // nothing covers. Since model 64 the coil is D01's canister (its body's capsule at the centre, read from the shapes), and
+        // its nozzle runs aft under the rear discs' gap to the exit at 0.205 m: there the fountain stagnates under it and is blocked
+        // over it, up to its lee's top (body y −0.11 m), and from there up to the discs it is the field through the body.
         [Test]
         public void TheDronesBodyOverItsFountain()
         {
@@ -152,7 +155,7 @@ namespace Fpv450.Sim.Tests
             }
             RotorAir with = Make(model), through = Make(null);
             double disc = hubs[0].Y;
-            int same = 0, cells = 0;
+            int same = 0, cells = 0, blocked = 0;
             foreach ((string name, double z) in new[] { ("under the coil", 0.0), ("the exit's column", -0.101), ("the rear discs' gap", -0.16), ("aft", -0.18) })
             {
                 var line = new System.Text.StringBuilder($"{name} (z {z * 1e3:F0} mm):");
@@ -160,18 +163,25 @@ namespace Fpv450.Sim.Tests
                 {
                     double w = Air(with, 0.004, y, z).Y, t = Air(through, 0.004, y, z).Y;
                     line.Append($" {y - stand:+0.00;-0.00} m {w:F2}/{t:F2}");
-                    if (z <= -0.16) { cells++; if (w == t) same++; }
+                    if (z <= -0.16 && y - stand > -0.11) { cells++; if (w == t) same++; }
+                    if (z <= -0.16 && y - stand <= -0.11 && w < t) blocked++;
                 }
                 Print(line + " (body y, with the body / through it, m/s)");
             }
-            double belly = stand - 0.053 - 0.0415; // the coil's lowest line, world
+            // The coil's capsule ("coil": the canister's body since model 64) at z 0: its axis's height there and its half height on
+            // the vertical, r over the axis's cosine to the horizontal.
+            ContactShape coil = Array.Find(contacts.Shapes, x => x.Name == "coil");
+            Double3 ax = coil.B - coil.A;
+            double axisY = coil.A.Y + ax.Y * (0 - coil.A.Z) / ax.Z, half = coil.Radius * ax.Length() / Math.Sqrt(ax.X * ax.X + ax.Z * ax.Z);
+            double belly = stand + axisY - half; // the coil's lowest line under the centre, world
             double underCoil = Air(with, 0.004, belly - 0.002).Y, underFree = Air(through, 0.004, belly - 0.002).Y;
-            double overCoil = Air(with, 0.004, stand - 0.053 + 0.0415 + 0.004).Y, overFree = Air(through, 0.004, stand - 0.053 + 0.0415 + 0.004).Y;
+            double overCoil = Air(with, 0.004, stand + axisY + half + 0.004).Y, overFree = Air(through, 0.004, stand + axisY + half + 0.004).Y;
             Print($"2 mm under the coil's belly {underCoil:F3} m/s (through it {underFree:F3}); 4 mm over its top {overCoil} (through it {overFree:F3}); "
-                + $"between the rear discs, 0.16-0.18 m aft, {same} of {cells} heights the field through the body, bit for bit");
+                + $"between the rear discs, 0.16-0.18 m aft, over the nozzle's lee {same} of {cells} heights the field through the body, bit for bit, under it {blocked} blocked");
             Assert.That(underCoil, Is.LessThan(0.2 * underFree), "the coil stagnates the rise under it");
             Assert.That(overCoil, Is.EqualTo(0), "nothing rises over it (its lee)");
-            Assert.That(same, Is.EqualTo(cells), "nothing of the body stands over the rear discs' gap: the fountain there is model 59's");
+            Assert.That(same, Is.EqualTo(cells), "nothing of the body stands over the nozzle's lee in the rear discs' gap: the fountain there is model 59's");
+            Assert.That(blocked, Is.GreaterThan(0), "the canister's nozzle under the rear discs' gap blocks the fountain in its column (model 64)");
         }
 
         // The body's cost on the field over a line's 32 nodes laid under the resting drone and its allocation (Release; the

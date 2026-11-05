@@ -82,20 +82,22 @@ namespace Fpv450.Sim.Tests
             Assert.That(named, Is.True, "a problem naming '" + problem + "' in:\n" + e.Message);
         }
 
-        // The two values the table derives from drone.json (design 1): the line's mass per metre from the coil's fiber, and
-        // the exit at the rear cap's centre.
+        // The values the table derives from drone.json (design 1): the line's mass per metre from the coil's fiber, and (model
+        // 64) the exit at the canister's nozzle tip, leaving along the nozzle's axis: the coil_nozzle contact's aft core end plus
+        // its radius down the canister's axis (D01's canister, coil.housing), to tether.json's 1e-6 m.
         [Test]
         public void TheValuesDerivedFromDroneJsonAgreeWithIt()
         {
             TetherTable t = TetherTable.Parse(Text());
             DroneSpec drone = RepositoryDrone.Spec();
             Assert.That(t.Number("fiber.mass_per_m_kg"), Is.EqualTo(drone.Coil.FiberMass / drone.Coil.FiberLength).Within(0.1).Percent);
-            DronePart coil = drone.Parts[drone.Coil.Part];
-            double half = coil.Length / 2;
-            Assert.That(t.Row("spool.exit_position_m").Values, Is.EqualTo(new[]
-            {
-                coil.Position.X - coil.Axis.X * half, coil.Position.Y - coil.Axis.Y * half, coil.Position.Z - coil.Axis.Z * half,
-            }).Within(1e-12), "the line leaves aft through the rear cap's centre");
+            Assert.That(drone.Coil.Housing, Is.GreaterThanOrEqualTo(0), "the coil rides in its canister");
+            DronePart canister = drone.Parts[drone.Coil.Housing];
+            Contact.ContactShape nozzle = Array.Find(drone.Contacts.Shapes, x => x.Name == "coil_nozzle");
+            Assert.That(nozzle.Part, Is.EqualTo(drone.Coil.Housing), "the nozzle is the canister's");
+            Double3 aft = canister.Axis * -1, tip = nozzle.A + aft * nozzle.Radius;
+            Assert.That(t.Row("spool.exit_position_m").Values, Is.EqualTo(new[] { tip.X, tip.Y, tip.Z }).Within(1e-6), "the line leaves at the nozzle's tip");
+            Assert.That(t.Row("spool.exit_direction").Values, Is.EqualTo(new[] { aft.X, aft.Y, aft.Z }).Within(1e-6), "along the nozzle, aft and down");
         }
 
         // The header keeps every row and the hash bit for bit; the replay builds from them, and refuses a tether.json of

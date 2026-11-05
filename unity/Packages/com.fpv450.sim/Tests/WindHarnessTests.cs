@@ -84,7 +84,10 @@ namespace Fpv450.Sim.Tests
                     // P's 7.3 H at the run's ground speed along the course: the cruise through the air plus the wind's
                     // component along it, which the meander and the shifts move within the start rule's 90°.
                     Assert.That(beltSeconds, Is.InRange(4, 12), "7 s at the cruise's ground speed, give or take the wind along the course");
-                    Assert.That(r.MeanAirspeed / WindHarness.ReleaseSpeed, Is.InRange(0.95, 1.08), "the course is flown at the cruise");
+                    // Since model 64 the canister's side silhouette (with the body's, 0.075 m² against the old coil's 0.058) takes
+                    // more airspeed in Severe's crosswind at clip P's pitch: 19.18 m/s on seed 2 with 5.5 m/s abeam, 0.945 of the
+                    // still air's cruise.
+                    Assert.That(r.MeanAirspeed / WindHarness.ReleaseSpeed, Is.InRange(0.93, 1.08), "the course is flown at the cruise");
                     Assert.That(r.MeanCrosswind, Is.GreaterThan(0.25 * r.MeanSpeed), "the wind from the left");
                 }
             }

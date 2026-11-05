@@ -300,7 +300,13 @@ namespace Fpv450.Sim.Tests
         // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
         // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
         // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong PoweredHash = 0xFCDD4AE45B2094A4UL;
+        // Model 64 (the body over the fountain and D01's canister): re-recorded. Audited case by case: on model 63's drone.json (the
+        // old coil, Model63Drone; the line out of the old rear cap, Model63Tether) with the fountain through the body it is model
+        // 63's pin (Model63PoweredHash), every record and event (GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s, flightbench
+        // --golden), so the canister is the whole move. It leaves 63's path at the first step (the canister's mass build: the CoM 7 mm lower and 4.6 mm forward,
+        // I_yz +1.3 g·m², roll and pitch up 11–12 %) and keeps its climb: 161.54 m up at 10 s against 167.13 (its larger vertical
+        // silhouette), 11.1 m from 63's end and 7.25° from its attitude; armed, no contact, no crash.
+        public const ulong PoweredHash = 0xB066BF9F2ADF9A09UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -370,7 +376,12 @@ namespace Fpv450.Sim.Tests
         // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
         // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
         // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong RainPoweredHash = 0x4A34B87D8D3CB8A9UL;
+        // Model 64 (the body over the fountain and D01's canister): re-recorded. Audited case by case: on model 63's drone.json (the
+        // old coil, Model63Drone; the line out of the old rear cap, Model63Tether) with the fountain through the body it is model
+        // 63's pin (Model63RainPoweredHash), every record and event (GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s, flightbench
+        // --golden), so the canister is the whole move. The same flight in Calm and Severe rain: from the first step, 161.79 m up at 10 s against 169.24, 12.2 m and 10.3°
+        // from 63's end; the film 11.48 g against 9.80 (the canister's wetted surface, π·D·(L + D/2) of its body against the old coil's).
+        public const ulong RainPoweredHash = 0x5557901256899D95UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -782,7 +793,12 @@ namespace Fpv450.Sim.Tests
         // and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
         // no motor's band touches anything in it; without the skid's frame model 58's pin (Model58ContactHash) over the whole record
         // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong ContactHash = 0x4D6E89806C9F0058UL;
+        // Model 64 (the body over the fountain and D01's canister): re-recorded. Audited case by case: on model 63's drone.json (the
+        // old coil, Model63Drone; the line out of the old rear cap, Model63Tether) with the fountain through the body it is model
+        // 63's pin (Model63ContactHash), every record and event (GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s, flightbench
+        // --golden), so the canister is the whole move. It leaves 63's path at step 2 and keeps its course: 3 impacts as 63's, at rest 0.2495 m up against 0.2494 on 4 pairs,
+        // 10.7 mm and 0.29° from 63's rest.
+        public const ulong ContactHash = 0x1CA80F585605010CUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -958,8 +974,19 @@ namespace Fpv450.Sim.Tests
         /// as the drone settles, now at step 7265: the piece cut rises behind the coil's aft pole, between the rear discs, where
         /// no part of the body stands over the fountain. Every older kept audit flies through the body (FlyContact's body:
         /// false, and a line without its cuts or contacts is older still). No other golden moved.
+        /// Model 64 (the body over the fountain and D01's canister): re-recorded. Audited case by case: on model 63's drone.json (the
+        /// old coil, Model63Drone, its line out of the old rear cap: Model63Tether) with the fountain through the body it is model
+        /// 63's pin (Model63TetherHash), every record and event; with 61's blocking on the old coil it is the merge's pin
+        /// (Model63BodyTetherHash, 0xEF11D87EFFD6402B): records 63's until the piece on the coil's cap enters its lee, and rotor 2's
+        /// disc cuts the line at its tip at step 7349 (63: 7304), the blade at 115.29 m/s (GoldenFlightTests.
+        /// OnTheOldCoilEachGoldenIsModel63s). On the canister it leaves the old coil's path at the first step (the mass build), keeps
+        /// its course (3 impacts, at rest 0.2495 m up on 4 pairs, 24.8 mm and 0.52° from the merge's rest) and **the line stays
+        /// whole**: launched along the nozzle's lead to the ground 0.31 m behind the exit, it leaves the tip aft and down, below
+        /// and behind the rear discs, and no segment crosses a disc through the liftoff, the hover, the landing and the spin-down;
+        /// 0.2300 m paid out (0.0757), 15 nodes (9), the trail at 7 points (19), 4 clips (57) and 23 safe steps (11), 0 wedges, 0
+        /// dips, 16 sections read (18). Every older kept audit flies the old coil.
         /// </summary>
-        public const ulong TetherHash = 0xCBB115FDD3A3A0C2UL;
+        public const ulong TetherHash = 0xDA2557EE178F70F6UL;
 
         /// <summary>The tether golden at model 61 (the drone's body over the fountain, on 59), which the flight without the skid's
         /// frame over model 57's 2944 bytes keeps (GoldenFlightTests.WithoutTheBodysBlockingEachGoldenIsModel59s).</summary>
@@ -1069,7 +1096,12 @@ namespace Fpv450.Sim.Tests
         // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
         // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
         // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong TumbleHash = 0xA07B024ABF6C7DD3UL;
+        // Model 64 (the body over the fountain and D01's canister): re-recorded. Audited case by case: on model 63's drone.json (the
+        // old coil, Model63Drone; the line out of the old rear cap, Model63Tether) with the fountain through the body it is model
+        // 63's pin (Model63TumbleHash), every record and event (GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s, flightbench
+        // --golden), so the canister is the whole move. The free body's new inertia and product of inertia: its checks hold (momentum within 1.6e-13, energy 3.4e-13, the
+        // parabola 5.1e-11 m, the rate wandering 4.41 rad/s), 0.24 m and 14.9° from 63's end.
+        public const ulong TumbleHash = 0xA96AB25DE2391ED7UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1247,7 +1279,12 @@ namespace Fpv450.Sim.Tests
         // and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
         // no motor's band touches anything in it; without the skid's frame model 58's pin (Model58RangeHash) over the whole record
         // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong RangeHash = 0xEFF887E0EA8DF960UL;
+        // Model 64 (the body over the fountain and D01's canister): re-recorded. Audited case by case: on model 63's drone.json (the
+        // old coil, Model63Drone; the line out of the old rear cap, Model63Tether) with the fountain through the body it is model
+        // 63's pin (Model63RangeHash), every record and event (GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s, flightbench
+        // --golden), so the canister is the whole move. It leaves 63's path at step 2 and keeps its course: 4 impacts against 3, at rest in S04's straw on 8 pairs, 8.0 mm and
+        // 0.12° from 63's rest, sunk 7.82 mm; the legs' side sway 5.15 mm/s at 12 s (3.87 on the old coil: TheRangeGoldenFlightIsPinned).
+        public const ulong RangeHash = 0xC58CD318318B665FUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -1265,6 +1302,21 @@ namespace Fpv450.Sim.Tests
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,
         /// those of models 7–11 with model 11's pack table on it.</summary>
         public const string Model13DronePath = "unity/Packages/com.fpv450.sim/Tests/Fixtures/drone-model13.json";
+
+        /// <summary>The goldens at model 63 (the physics integration 2 with the bells), on the old coil, which model 63's drone.json
+        /// keeps with its line leaving the rear cap (Model63Drone, Model63Tether) and the fountain through the body
+        /// (FlightSetup.TetherFountainThroughBody): GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s. Every kept audit of an
+        /// older model flies that drone since model 64, and its "the pins" checks are these.</summary>
+        public const ulong Model63PoweredHash = 0xFCDD4AE45B2094A4UL, Model63RainPoweredHash = 0x4A34B87D8D3CB8A9UL,
+            Model63ContactHash = 0x4D6E89806C9F0058UL, Model63RangeHash = 0xEFF887E0EA8DF960UL, Model63TetherHash = 0xCBB115FDD3A3A0C2UL,
+            Model63TumbleHash = 0xA07B024ABF6C7DD3UL;
+
+        /// <summary>The tether golden on model 63's drone with 61's blocking of the fountain by the drone's body: the merge of 61
+        /// onto 63 before the canister (GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s).</summary>
+        public const ulong Model63BodyTetherHash = 0xEF11D87EFFD6402BUL;
+
+        /// <summary>Model 63's drone.json (the old coil beneath the frame), a fixture since model 64's canister (Model63Drone).</summary>
+        public const string Model63DronePath = "unity/Packages/com.fpv450.sim/Tests/Fixtures/drone-model63.json";
 
         /// <summary>Model 11's pack table (drone.json's before p7b-airframe 1.5: one cell at charge 0, 0.1, …, 1, from 3.0 V),
         /// which the kept audits of models 7–11 fly on.</summary>
@@ -1518,6 +1570,23 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
+        /// tether.json as model 63 flew it, for a drone without the canister (Model63Drone): the line leaving the old coil's
+        /// rear cap centre, (0, −0.053, −0.1), straight aft, (0, 0, −1), over the old 2 mm lip; every other row the file's
+        /// (model 64 changed only these three: GoldenFlightTests.OnTheOldCoilEachGoldenIsModel63s).
+        /// </summary>
+        public static Tether.TetherTable Model63Tether(Tether.TetherTable table)
+        {
+            var rows = (Tether.TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (rows[i].Name == "spool.exit_position_m") rows[i].Values = new[] { 0, -0.053, -0.1 };
+                else if (rows[i].Name == "spool.exit_direction") rows[i].Values = new double[] { 0, 0, -1 };
+                else if (rows[i].Name == "spool.lip_radius_m") rows[i].Values = new[] { 0.002 };
+            }
+            return new Tether.TetherTable(rows, table.ContentHash);
+        }
+
+        /// <summary>
         /// Flies the contact golden flight: legs on from the floor, the closed-loop pilot up to a metre for 4 s, then down
         /// at 0.5 m/s; with the skids 0.1 m up the sticks are held (roll, pitch and yaw centred) and the drone bounces; 1.5 s
         /// later the throttle is cut and it comes to rest. The floor's belt_bare is surfaces.json's soil (p7a-ground 1.10);
@@ -1548,6 +1617,7 @@ namespace Fpv450.Sim.Tests
             if (tether)
             {
                 setup.Tether = Tether.TetherTable.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
+                if (spec.Coil.Housing < 0) setup.Tether = Model63Tether(setup.Tether); // model 63's drone (Model63Drone): its rear cap's exit
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line

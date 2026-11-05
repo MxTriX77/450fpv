@@ -95,7 +95,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.Fewest, Is.EqualTo(1), "every point lifted back to the snag");
             Assert.That(r.RoseWhileLifting, Is.False, "last frozen first, in order");
             Assert.That(r.MostNodes, Is.LessThanOrEqualTo(32));
-            Assert.That(r.TrailAtPayout, Is.EqualTo(1), "line pays out only once the trail has lifted to the snag");
+            // Since model 64 the canister's nozzle points aft and down, along the pull to the trail, so the lip's capstan is smaller
+            // and the payout begins as the last point before the snag lifts (2 points left; on the old coil's level exit, 1).
+            Assert.That(r.TrailAtPayout, Is.LessThanOrEqualTo(2), "line pays out only once the trail has lifted to the snag, or the last point before it");
             Assert.That(r.TensionOverHold, Is.GreaterThanOrEqualTo(0.99), "and the exit is pulled to the payout tension");
             Assert.That(r.Paid, Is.GreaterThan(1));
             Assert.That(r.PaidBeforePull, Is.LessThan(1e-3), "the rotors' air at the sit draws less than a millimetre");
@@ -141,7 +143,9 @@ namespace Fpv450.Sim.Tests
         // rear pair's stagnation line, where their sinks balance, so how fast it is drawn to a rim turns on what tips it off that
         // line (the spool's peel and irregularity draws), and on one seed the two can come either way (0x7D16: 2.44 m/s at full
         // against 2.63 at hover, the discs climbing away at 1.4 m/s counted; on model 26's legs 2.40 against 2.20). Over seeds 1–30
-        // full throttle draws it faster on the mean and on most seeds; design 4's field never does, so it fails.
+        // full throttle draws it faster on the mean and on most seeds; design 4's field never does, so it fails. Since model 64 the
+        // line is laid under the body's rear explicitly (the launch lays it along the nozzle, 0.3 m behind), and the canister over
+        // it keeps it off the rims (below).
         [Test]
         public void ALineUnderAPunchIsLiftedAndDrawn()
         {
@@ -163,13 +167,19 @@ namespace Fpv450.Sim.Tests
                 + $"design 4's field {wrongFullMean:F3} against {wrongHoverMean:F3}, full faster on {wrongFaster}");
             Assert.That(fullMean, Is.GreaterThan(hoverMean), "toward the nearest disc's edge faster than at hover, over the flight's draws");
             Assert.That(faster, Is.GreaterThan(15), "on most seeds");
-            Assert.That(wrongFullMean < wrongHoverMean || wrongFaster <= 15, Is.True, "design 4's field does not draw it faster at full throttle: the known-wrong fails");
+            // Since model 64 (D01's canister over the line laid under the body's rear, 61's body over the fountain): the fountain
+            // under the canister stagnates, so it lifts the line beside the skids (10.4 × its weight at full throttle, 3.0 at hover)
+            // but no longer draws it nearer a rim than it lay (290.6 mm at full, 240.8 at hover; on the old coil 0.24–0.29 m nearer
+            // than design 4's field). Design 4's field, the known-wrong, now draws it at full throttle too (the climbing exit pulls
+            // the piece rising to it), but at hover it lifts nothing (−0.01 mm), where the fountain lifts it 167 mm.
+            Assert.That(wrongHover.Lift, Is.LessThan(hover.Lift - 0.05), "design 4's field does not lift the line at hover: the known-wrong fails");
             foreach ((TetherScenarios.Punch p, TetherScenarios.Punch wrong) in new[] { (full, wrongFull), (hover, wrongHover) })
             {
                 Assert.That(wrong.Rim, Is.GreaterThan(0.2), "design 4's field alone holds the line beside the skids off the rims: the known-wrong");
-                Assert.That(p.Rim, Is.LessThan(wrong.Rim - 0.05), "the fountain draws it toward the discs");
+                Assert.That(p.Rim, Is.GreaterThan(0.2), "the canister over it: the line beside the skids is not drawn into a disc");
+                Assert.That(p.Crossed, Is.EqualTo(0), "no segment crosses a turning disc");
                 Assert.That(p.PeakApproach, Is.GreaterThan(wrong.PeakApproach), "faster than design 4's field");
-                Assert.That(p.LineRim, Is.LessThan(wrong.LineRim), "and carries the line rising to the exit up to the rear discs' inboard rims");
+                Assert.That(p.LineRim, Is.LessThan(wrong.LineRim), "and carries the line rising to the exit nearer the rear discs' inboard rims");
             }
             foreach (TetherScenarios.Punch p in new[] { full, hover, wrongFull, wrongHover })
             {

@@ -317,7 +317,7 @@ namespace Fpv450.Sim.Tests
             // since model 34 (the line's record; its block is zero without the line), on model 34's yaw I since model 36
             // (GoldenFlights.Model34YawI), without props.blade since model 40 (GoldenFlights.WithoutTheBlade: the line's flight), and
             // on model 26's legs since model 46 (GoldenFlights.WithModel26Legs: the line's legs).
-            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(File.ReadAllText(ContactScenarios.RepositoryFile("assets-src/drone/drone.json")))));
+            DroneSpec spec = GoldenFlights.WithoutTheBlade(GoldenFlights.WithModel26Legs(DroneSpec.Parse(Model63Drone.Text()))); // since model 64 model 63's drone (the old coil)
             SurfaceTable without = SoilScenarios.Table().Clone();
             for (int i = 0; i < without.Surfaces.Length; i++) without.Surfaces[i].Wet.Adhesion = without.Surfaces[i].Saturated.Adhesion = 0;
             foreach ((RainLevel rain, ulong parent, ulong pin) in new[] { (RainLevel.Rain, Model27ContactRainHash, ContactRainHash), (RainLevel.SevereRain, Model27ContactSevereHash, ContactSevereHash) })

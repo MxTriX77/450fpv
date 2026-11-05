@@ -11,7 +11,7 @@ namespace Fpv450.Sim.Tests
     /// <summary>p7d-tether 1.8: cut risk, the link and the break (design 7, 8, 14).</summary>
     public sealed class FiberCutTests
     {
-        static DroneSpec Spec => RepositoryDrone.Spec();
+        static DroneSpec Spec => FiberCutScenarios.OnTheOldCoil ? Model63Drone.Spec() : RepositoryDrone.Spec();
 
         static void Print(string s) => TestContext.Progress.WriteLine(s);
 
