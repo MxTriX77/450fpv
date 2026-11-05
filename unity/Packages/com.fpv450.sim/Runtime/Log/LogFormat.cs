@@ -507,8 +507,8 @@ namespace Fpv450.Sim.Log
         ///    tension's, bend's, abrasion's and peel's checks each step, the break (the far piece left where it lies, the near
         ///    piece hanging from the exit), the link's margin and dips, and the controller's Betaflight 4.5 failsafe on the break
         ///    (no frame reaches it from the step after). A flight without the line, or with it and FlightSetup.TetherWithoutCuts,
-        ///    steps as in 55; one with the line whose checks never break it steps as in 55 too (the record and the state), its
-        ///    log gaining FiberSection and LinkDip events.
+        ///    steps as in 55; one with the line whose checks never break it steps as in 55 too (the state; the record but its tether
+        ///    flags' Dip bit while a dip is on), its log gaining FiberSection and LinkDip events.
         /// </summary>
         public const int ModelVersion = 56;
 
