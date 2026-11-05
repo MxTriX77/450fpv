@@ -159,6 +159,72 @@ namespace Fpv450.Sim.Tests
             if (d.Attached) Assert.That(d.ForceError, Is.LessThan(1e-12), "the line's force on the drone is the near piece's");
         }
 
+        // D-086: no return-to-home; on the fiber a video loss is not a control loss. The receiver's link is the line itself
+        // (Failsafe: the uplink and the picture share the fiber), so only the line's break (TetherBreak) starts the failsafe, and
+        // its procedure is DROP. A dip (the margin under the receiver's threshold: the picture lost) leaves the sticks reaching the
+        // controller; the feed's own dropouts (D-085) are drawn in the app and never reach the core. Here tether.json's
+        // dip_threshold_db is raised over the launch margin, so the picture is lost from the first step: the drone still arms,
+        // climbs and holds where the pilot flies it, the failsafe never starts; then the sharp reverse's disc cut (CutByADisc)
+        // with the same lost picture ends control: stage 2's DROP disarms it.
+        [Test]
+        public void AVideoLossKeepsControlOnlyABreakEndsIt()
+        {
+            string json = System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(TetherTable.RelativePath));
+            const string row = "\"dip_threshold_db\": {\"value\": 0,";
+            StringAssert.Contains(row, json);
+            TetherTable blind = TetherTable.Parse(json.Replace(row, "\"dip_threshold_db\": {\"value\": 100,"));
+            Assert.That(blind.Number("link.dip_threshold_db"), Is.GreaterThan(blind.Number("link.launch_margin_db")), "the picture lost from the start");
+            Assert.That(FcSettings.Default.failsafe_procedure, Is.EqualTo(FailsafeProcedure.DROP), "no return-to-home (D-086)");
+
+            // The same climb with the picture (the repository's threshold) and without it: the flight is the same, step for step.
+            var seen = new System.Collections.Generic.List<Double3>();
+            FlightCore Climb(TetherTable table, bool blinded, out int notDipped, out int failsafe)
+            {
+                FlightSetup setup = TetherScenarios.Setup(Spec, WindLevel.Calm, cuts: true);
+                setup.Tether = table;
+                double stand = TetherScenarios.Stand(setup);
+                Double3 start = setup.StartPosition;
+                int nd = 0, fs = 0, k = 0;
+                FlightCore c = TetherScenarios.Fly(setup, 6, (t, core, pilot) => pilot.Target = new Double3(start.X, stand + DetMath.Min(1.5, 0.5 * t), start.Z), core =>
+                {
+                    if (core.State.Step > 20 && !core.Tether.Link.InDip) nd++;
+                    if (core.Failsafe.Active) fs++;
+                    for (int i = 0; i < core.Events.Count; i++) if (core.Events[i].Kind == EventKind.Failsafe) fs++;
+                    if (!blinded) seen.Add(core.State.Position);
+                    else if (core.State.Position.X != seen[k].X || core.State.Position.Y != seen[k].Y || core.State.Position.Z != seen[k].Z) fs += 1000000;
+                    k++;
+                });
+                notDipped = nd;
+                failsafe = fs;
+                return c;
+            }
+            FlightCore sighted = Climb(TetherScenarios.Table(), false, out _, out _);
+            FlightCore core = Climb(blind, true, out int notDipped, out int failsafe);
+            double climbed = core.State.Position.Y - (TetherScenarios.Setup(Spec, WindLevel.Calm, cuts: true).StartPosition.Y);
+            Print($"the picture lost from step 1 ({core.Tether.Link.Dips} dip, margin {core.Tether.Link.Margin:F2} dB against a {blind.Number("link.dip_threshold_db"):F0} dB threshold; "
+                + $"with the picture {sighted.Tether.Link.Dips} dips): after 6 s armed {core.State.Armed}, climbed {climbed:F3} m, every step's position the sighted flight's: {failsafe < 1000000}; "
+                + $"failsafe steps and events {failsafe % 1000000}; line broken {core.Tether.Broken}");
+            Assert.That(core.Tether.Broken, Is.False);
+            Assert.That(sighted.Tether.Link.Dips, Is.EqualTo(0), "with the picture, no dip");
+            Assert.That(notDipped, Is.EqualTo(0), "the picture stays lost");
+            Assert.That(failsafe, Is.EqualTo(0), "a video loss starts no failsafe and changes nothing in the flight");
+            Assert.That(core.State.Armed, Is.True);
+            Assert.That(climbed, Is.GreaterThan(1.2), "the pilot's sticks climb it toward 1.5 m");
+
+            FiberCutScenarios.Disarm d = default;
+            for (ulong seed = 1; seed <= 6; seed++)
+            {
+                d = FiberCutScenarios.CutByADisc(Spec, seed, s2 => s2.Tether = blind);
+                if (d.Mechanism == TetherMechanism.Prop) break;
+            }
+            Print($"then cut by {d.Mechanism} at step {d.BreakStep}: signal lost {d.LostStep - d.BreakStep}, stage 2 {d.Stage2Step - d.BreakStep}, disarmed "
+                + $"{d.DisarmStep - d.BreakStep} steps after; sticks reaching the controller after it {d.SticksReached}");
+            Assert.That(d.BreakStep, Is.GreaterThan(0), "the line broke");
+            Assert.That(d.SticksReached, Is.EqualTo(0), "from the break no stick reaches the controller");
+            Assert.That(d.DisarmStep, Is.EqualTo(d.Stage2Step), "DROP disarms at stage 2");
+            Assert.That(d.DisarmedAtEnd, Is.True, "the break ends control");
+        }
+
         // fiber-tether: "A break leaves a flyable drone": the held line's breaks (the near piece hanging from the exit when the
         // break is along the span), flown 4 s on.
         [Test]
