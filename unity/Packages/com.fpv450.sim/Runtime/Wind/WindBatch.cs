@@ -12,9 +12,11 @@
 //   batch never outlives its step.
 // - A point is handed back only to a caller asking at its own position, bit for bit (equal inputs, equal output); any
 //   other is evaluated by the caller.
-// - Allocation-free after the constructor, on both threads. The worker sleeps on an event between batches.
+// - Allocation-free after the constructor, on both threads. In a flight the worker spins between batches (a kernel wake
+//   costs the poster tens of µs, at worst hundreds); after 3 ms without one it sleeps on an event, and the next Post wakes it.
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Fpv450.Sim.Wind
@@ -29,6 +31,9 @@ namespace Fpv450.Sim.Wind
         readonly int[] _done;   // the generation stamp a point was evaluated in
         readonly Thread _thread;
         readonly AutoResetEvent _wake = new AutoResetEvent(false);
+        int _sleeping;          // 1 while the worker is on its way to, or in, its event's wait
+        // The worker's spin before it sleeps: 3 ms (assumed: three steps, so a flight at 1 kHz never lets it sleep).
+        readonly long _idleTicks = Stopwatch.Frequency * 3 / 1000;
         volatile bool _stop;
         long _claim;            // generation << 40 | count << 20 | next index
         long _generation;
@@ -81,7 +86,9 @@ namespace Fpv450.Sim.Wind
             _stamp = (int)(_generation & 0x7FFFFFFF);
             if (_stamp == 0) _stamp = 1; // 0 is no generation's: the stamps start at 0
             Volatile.Write(ref _claim, ((_generation & 0x7FFFFF) << 40) | ((long)_count << Bits));
-            _wake.Set();
+            // Waking a sleeping thread costs the poster tens of µs here, at worst hundreds (the kernel's wake): only a worker
+            // asleep (no batch for 3 ms, between flights or in a pause) is woken; in a flight it is spinning.
+            if (Interlocked.CompareExchange(ref _sleeping, 0, 1) == 1) _wake.Set();
         }
 
         /// <summary>Evaluates what the worker has not taken and waits for what it holds; every wind is then ready.</summary>
@@ -144,15 +151,39 @@ namespace Fpv450.Sim.Wind
             }
         }
 
+        // The worker: takes points while there are any, else spins (Thread.SpinWait, the pause instruction) for the next
+        // batch for up to _idleTicks, then sleeps on the event until a Post finds it asleep. A flight posts every step, so in
+        // one it never sleeps: it holds a core spinning between the steps, as the flight thread's own pacing does.
         void Run()
         {
-            while (true)
+            long idleSince = Stopwatch.GetTimestamp();
+            while (!_stop)
             {
-                _wake.WaitOne();
-                if (_stop) return;
                 int taken = Take(int.MaxValue);
-                if (taken > 0) Interlocked.Add(ref _byWorker, taken);
+                if (taken > 0)
+                {
+                    Interlocked.Add(ref _byWorker, taken);
+                    idleSince = Stopwatch.GetTimestamp();
+                    continue;
+                }
+                if (Stopwatch.GetTimestamp() - idleSince < _idleTicks)
+                {
+                    Thread.SpinWait(20);
+                    continue;
+                }
+                Volatile.Write(ref _sleeping, 1);
+                Interlocked.MemoryBarrier();
+                if (!Pending() && !_stop) _wake.WaitOne();
+                Volatile.Write(ref _sleeping, 0);
+                idleSince = Stopwatch.GetTimestamp();
             }
+        }
+
+        // A batch has points no thread has taken.
+        bool Pending()
+        {
+            long c = Volatile.Read(ref _claim);
+            return (c & Mask) < ((c >> Bits) & Mask);
         }
 
         public void Dispose()
