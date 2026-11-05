@@ -6,7 +6,7 @@ Mesh:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: D01_legs_on_cylinder_r0.045_h0.015
+  m_Name: D01_legs_off_cylinder_r0.0505_h0.238
   serializedVersion: 12
   m_SubMeshes:
   - serializedVersion: 2
@@ -18,7 +18,7 @@ Mesh:
     vertexCount: 16
     localAABB:
       m_Center: {x: 0, y: 0, z: 0}
-      m_Extent: {x: 0.045, y: 0.0075, z: 0.045}
+      m_Extent: {x: 0.0505, y: 0.119, z: 0.0505}
   m_Shapes:
     vertices: []
     shapes: []
@@ -97,7 +97,7 @@ Mesh:
       format: 0
       dimension: 0
     m_DataSize: 192
-    _typelessdata: ec51383d8fc2f5bb000000007c55023d8fc2f5bb7c55023d0d2c07b18fc2f5bbec51383d7c5502bd8fc2f5bb7c55023dec5138bd8fc2f5bb0d2c87b17b5502bd8fc2f5bb7e5502bd408113308fc2f5bbec5138bd7f55023d8fc2f5bb795502bdec51383d8fc2f53b000000007c55023d8fc2f53b7c55023d0d2c07b18fc2f53bec51383d7c5502bd8fc2f53b7c55023dec5138bd8fc2f53b0d2c87b17b5502bd8fc2f53b7e5502bd408113308fc2f53bec5138bd7f55023d8fc2f53b795502bd
+    _typelessdata: 17d94e3d46b6f3bd000000007d43123d46b6f3bd7d43123d6fb117b146b6f3bd17d94e3d7d4312bd46b6f3bd7d43123d17d94ebd46b6f3bd6fb197b17b4312bd46b6f3bd7f4312bd8488253046b6f3bd17d94ebd8043123d46b6f3bd7a4312bd17d94e3d46b6f33d000000007d43123d46b6f33d7d43123d6fb117b146b6f33d17d94e3d7d4312bd46b6f33d7d43123d17d94ebd46b6f33d6fb197b17b4312bd46b6f33d7f4312bd8488253046b6f33d17d94ebd8043123d46b6f33d7a4312bd
   m_CompressedMesh:
     m_Vertices:
       m_NumItems: 0
@@ -152,7 +152,7 @@ Mesh:
     m_UVInfo: 0
   m_LocalAABB:
     m_Center: {x: 0, y: 0, z: 0}
-    m_Extent: {x: 0.045, y: 0.0075, z: 0.045}
+    m_Extent: {x: 0.0505, y: 0.119, z: 0.0505}
   m_MeshUsageFlags: 0
   m_CookingOptions: 30
   m_BakedConvexCollisionMesh: 

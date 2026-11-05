@@ -3,13 +3,13 @@
   "id": "D01",
   "variant": "D01_legs_off",
   "generator": "drone",
-  "params_sha256": "abc33abda0d5595cda3adb0873b8f99a127bdbceb750189e74686486c04dc50c",
+  "params_sha256": "ca811a8b3115e997c360b6c7f601eea37e4ef033bab50d280943474b76c25ff3",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
       -0.286709,
-      -0.0992,
+      -0.188579,
       -0.263797
     ],
     "max": [
@@ -21,25 +21,25 @@
   "lods": [
     {
       "mesh": "D01_legs_off_LOD0",
-      "tris": 11262,
+      "tris": 12746,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD1",
-      "tris": 4756,
+      "tris": 5268,
       "switch_distance_m": 3.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD2",
-      "tris": 1804,
+      "tris": 1976,
       "switch_distance_m": 10.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD3",
-      "tris": 280,
+      "tris": 336,
       "switch_distance_m": 35.0,
       "thin_wire": false
     }
@@ -761,16 +761,16 @@
       "shape": "cylinder",
       "center": [
         0.0,
-        -0.053,
-        -0.0075
+        -0.109,
+        0.023
       ],
-      "radius": 0.0415,
-      "height": 0.185,
+      "radius": 0.0505,
+      "height": 0.238,
       "rotation": [
-        0.707107,
+        0.608761,
         0.0,
         0.0,
-        0.707107
+        0.793353
       ],
       "material": "plastic",
       "landable": false
@@ -779,16 +779,109 @@
       "shape": "cylinder",
       "center": [
         0.0,
-        -0.053,
-        0.0925
+        -0.149937,
+        -0.129777
       ],
-      "radius": 0.045,
-      "height": 0.015,
+      "radius": 0.018417,
+      "height": 0.015667,
       "rotation": [
-        0.707107,
+        0.608761,
         0.0,
         0.0,
-        0.707107
+        0.793353
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        -0.145882,
+        -0.114644
+      ],
+      "radius": 0.03125,
+      "height": 0.015667,
+      "rotation": [
+        0.608761,
+        0.0,
+        0.0,
+        0.793353
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        -0.141827,
+        -0.099512
+      ],
+      "radius": 0.044083,
+      "height": 0.015667,
+      "rotation": [
+        0.608761,
+        0.0,
+        0.0,
+        0.793353
+      ],
+      "material": "plastic",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        -0.161023,
+        -0.171151
+      ],
+      "radius": 0.009,
+      "height": 0.07,
+      "rotation": [
+        0.608761,
+        0.0,
+        0.0,
+        0.793353
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "cylinder",
+      "center": [
+        0.0,
+        -0.16937,
+        -0.202302
+      ],
+      "radius": 0.013,
+      "height": 0.0055,
+      "rotation": [
+        0.608761,
+        0.0,
+        0.0,
+        0.793353
+      ],
+      "material": "steel",
+      "landable": false
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        -0.026838,
+        0.086238
+      ],
+      "size": [
+        0.044,
+        0.041675,
+        0.02
+      ],
+      "rotation": [
+        0,
+        0,
+        0,
+        1
       ],
       "material": "plastic",
       "landable": false
@@ -797,40 +890,19 @@
       "shape": "box",
       "center": [
         0.0,
-        -0.010375,
-        0.0175
+        -0.043661,
+        -0.039333
       ],
       "size": [
         0.044,
-        0.00875,
-        0.165
+        0.075322,
+        0.02
       ],
       "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
-        0.0,
-        -0.0142,
-        -0.0825
-      ],
-      "size": [
-        0.044,
-        0.0164,
-        0.035
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
+        0,
+        0,
+        0,
+        1
       ],
       "material": "plastic",
       "landable": false
@@ -838,7 +910,22 @@
   ],
   "gaps": [],
   "wind_volumes": [],
-  "ports": [],
+  "ports": [
+    {
+      "id": "fiber_exit",
+      "position": [
+        0.0,
+        -0.170081,
+        -0.204958
+      ],
+      "direction": [
+        0.0,
+        -0.258819,
+        -0.965926
+      ],
+      "max_diameter_m": 0.012
+    }
+  ],
   "wires": [],
   "holes": [],
   "textures": [],
@@ -847,14 +934,14 @@
       "kind": "hook",
       "points": [
         [
-          -0.038103,
-          -0.082192,
-          0.0925
+          -0.042469,
+          -0.119981,
+          0.107729
         ],
         [
-          -0.036746,
-          -0.094115,
-          0.0925
+          -0.041112,
+          -0.131498,
+          0.110815
         ]
       ],
       "radius_m": 0.00225,
@@ -864,14 +951,14 @@
       "kind": "hook",
       "points": [
         [
-          -0.023034,
-          -0.084471,
-          -0.0825
+          -0.031598,
+          -0.163901,
+          -0.015088
         ],
         [
-          -0.018377,
-          -0.095531,
-          -0.0825
+          -0.026941,
+          -0.174583,
+          -0.012226
         ]
       ],
       "radius_m": 0.00225,
