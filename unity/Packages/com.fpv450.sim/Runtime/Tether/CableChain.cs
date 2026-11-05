@@ -243,7 +243,8 @@ namespace Fpv450.Sim.Tether
         /// <summary>The known-wrong 0-force hold (model 59's, FlightSetup.TetherZeroForceHold): a gliding slot holds the line in the
         /// solve whatever its normal force: its hold at full stiffness, Coulomb's bound applied only after the solve, and its
         /// speculative spring pulling the node toward the part; and the safe pass keeps the spool's paying model on a segment that
-        /// pays nothing. Model 59's chain bit for bit: a bench's model and the audit, never a pilot's flight.</summary>
+        /// pays nothing and takes every free slot speculative from the start (SafeMissed). Model 59's chain bit for bit: a
+        /// bench's model and the audit, never a pilot's flight.</summary>
         public bool ZeroForceHold;
 
         /// <summary>The spool at the last node (the caller's, before each step); inactive by default.</summary>
@@ -551,12 +552,15 @@ namespace Fpv450.Sim.Tether
                         _segKind[j] = 3;
                         _segDir[j] = (_x0[j + 1] - _x0[j]) * (1 / _segLen[j]);
                     }
-                for (int i = 0; i < n; i++)
-                {
-                    ref CableNode a = ref _nodes[i];
-                    Speculate(a.Position, ref a.Contact0);
-                    Speculate(a.Position, ref a.Contact1);
-                }
+                // The free slots stay free unless the safe solve ends their node inside (SafeMissed); model 59's took every
+                // one speculative from the start.
+                if (ZeroForceHold)
+                    for (int i = 0; i < n; i++)
+                    {
+                        ref CableNode a = ref _nodes[i];
+                        Speculate(a.Position, ref a.Contact0);
+                        Speculate(a.Position, ref a.Contact1);
+                    }
                 SafeSteps++;
                 verdict = Run(dt, e0, startMagnitude, true, out e1, out excess, out deficit, out removable, out bad);
             }
@@ -604,7 +608,7 @@ namespace Fpv450.Sim.Tether
                 Assemble(dt);
                 Solve();
                 for (int i = 0; i < n; i++) _nodes[i].Position = _x0[i] + _nodes[i].Velocity * dt;
-                if (safe || pass == MaxCorrections || !Correct(pass == 0)) break;
+                if (safe ? !SafeMissed(pass) : pass == MaxCorrections || !Correct(pass == 0)) break;
                 Corrections++;
                 for (int i = 0; i < n; i++)
                 {
@@ -671,6 +675,36 @@ namespace Fpv450.Sim.Tether
             }
             for (int i = 0; i < n; i++) _nodes[i].Mass = MassOf(i);
             SpoolSpeed = _spoolSpeed0;
+        }
+
+        // The safe pass's free slots (node, member not in the step's model): a free slot's true energy is 0 while its node
+        // ends outside, so the model leaving it out is a majorizer there; one whose node the solve ends inside is taken
+        // speculative from the start (Missed) and the step solved again, and past MaxCorrections every free slot is (the
+        // complete majorizer), for one last solve. Not every free slot from the start: a speculative slot's spring and damper
+        // from its start gap hold the node's normal motion and its hold the node where it stood, so a line whose safe pass
+        // ran step after step (a slack segment by the drone stretched past its model each step) had its nodes far from it
+        // hover over a surface they never reached (E01's run, model 62: two nodes 13 and 16 mm over the trench's spoil,
+        // sinking at the damper's 1.5 mm/s, froze into the trail there) and a node riding near a moving part held in the
+        // world. True if the step is solved again.
+        bool SafeMissed(int pass)
+        {
+            if (pass > MaxCorrections) return false;
+            bool missed = false;
+            int n = Count;
+            for (int i = 0; i < n; i++)
+            {
+                ref CableNode a = ref _nodes[i];
+                missed |= Missed(a.Position, _x0[i], ref a.Contact0);
+                missed |= Missed(a.Position, _x0[i], ref a.Contact1);
+            }
+            if (missed && pass == MaxCorrections)
+                for (int i = 0; i < n; i++)
+                {
+                    ref CableNode a = ref _nodes[i];
+                    Speculate(_x0[i], ref a.Contact0);
+                    Speculate(_x0[i], ref a.Contact1);
+                }
+            return missed;
         }
 
         static void Speculate(Double3 x, ref CableContact c)

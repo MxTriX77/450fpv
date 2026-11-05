@@ -835,8 +835,16 @@ namespace Fpv450.Sim.Tests
         /// (0.031): 1.8's known risk, the same mechanism and place. 248 events against 4150 (the near piece's slots no longer
         /// churn at the parts: 1.8's finding 7); no wedge; 2 safe steps against 3. No other golden flies the line: each keeps its
         /// pin.
+        /// Model 62 again (unlanded; a shape met by its own face at each node, and the safe pass leaving free slots free unless
+        /// the solve ends their node inside): re-recorded from 0x61BFE96EC1C84A80. Audited: with model 62's first chain and the
+        /// faces it is that pin (the faces alone move nothing here); with the safe pass's rule every record is that pin's for
+        /// 277 steps, to the spool-up's first safe step, where the old pass held every free slot; before the break its fiber
+        /// events match (133 against 136 in steps 7000–7999); rotor 2's disc cuts the line at step 7338 as the drone settles
+        /// (the pin's 7258), the same mechanism and place, T 0.014 N (0.024); no wedge, 6 safe steps against 2; 1051 events against
+        /// 248, the near piece's slips on the parts after the break (1.8's finding 7, its volume 1.13's). With the 0-force hold
+        /// (model 59's chain, its safe pass included) it is still Model59TetherHash.
         /// </summary>
-        public const ulong TetherHash = 0x61BFE96EC1C84A80UL;
+        public const ulong TetherHash = 0xF29F8C067CE666F1UL;
 
         /// <summary>The tether golden at model 59 (the physics integration 2 with the cuts), which the flight with the known-wrong
         /// 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel59s).</summary>
@@ -1408,7 +1416,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
                 setup.TetherWithoutContacts = !fiberContacts; // p7d-tether 1.7: false flies the plane alone, models 31–50's line
                 setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
-                setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's 0-force hold
+                setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);
