@@ -46,6 +46,14 @@ namespace Fpv450.App.Session
 
         /// <summary>The radio was lost (INP-05): the input layer's failsafe, which disarms an armed drone.</summary>
         Failsafe = 4,
+
+        /// <summary>The fiber broke (p7d-tether 1.8): the log's TetherBreak, its mechanism and its place. The link is lost
+        /// with it, so Betaflight's failsafe follows (FailsafeStage).</summary>
+        FiberBreak = 5,
+
+        /// <summary>A stage of the flight controller's failsafe on the lost link (the log's Failsafe events, Betaflight 4.5):
+        /// the signal lost, stage 1, stage 2, the disarm.</summary>
+        FailsafeStage = 6,
     }
 
     /// <summary>An incident and the step it came at: the state's step count after the step that met it.</summary>
@@ -53,6 +61,9 @@ namespace Fpv450.App.Session
     {
         public FlightIncidentKind Kind;
         public long Step;
+
+        /// <summary>The log's event, for a fiber break and a failsafe stage.</summary>
+        public LoggedEvent Event;
 
         public double Seconds => Step * FlightCore.Dt;
     }

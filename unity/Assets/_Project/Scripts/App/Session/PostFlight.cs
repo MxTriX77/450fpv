@@ -6,6 +6,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.World;
 
 namespace Fpv450.App.Session
@@ -25,6 +26,9 @@ namespace Fpv450.App.Session
     /// - the battery cut-off: the first step either pack's charge is at or under BatteryCutoffCharge. Charge 0 is the end
     ///   of drone.json's OCV table, 3.0 V a cell open-circuit (the flight controller's warning); past it the pack's
     ///   voltage falls on towards 0 (Propulsion.OpenCircuitVolts), and the flight goes on
+    /// - the fiber's break (D-087): the log's TetherBreak, its mechanism, where it broke (BreakPlace) and the tension there;
+    ///   then each stage of Betaflight's failsafe on the lost link (the log's Failsafe events): the signal lost, stage 1,
+    ///   stage 2 (DROP, or AUTO-LAND at its throttle) and the disarm, each with its time after the last good frame
     /// After them, the props' damage (D-079, until p7f-damage's DamageReport and its screen), per rotor in the header's part
     /// order: each damaged blade's last BladeDamaged (its tip left as a share of the radius, that pass's mass lost), with the
     /// mass the blade lost in all, and the rotor's last RotorJammed, with how often it jammed; each worded by
@@ -61,6 +65,9 @@ namespace Fpv450.App.Session
         public bool HasCrash;
         public LoggedEvent Crash;
         public string CrashPart = "", CrashObject = "", CrashMaterial = "";
+
+        /// <summary>Where the fiber broke ("at the spool's exit lip", "in the free span", "on Z01_house_adobe"); "" when it held.</summary>
+        public string BreakPlace = "";
 
         /// <summary>The props' damage, per rotor (the event's part) and, for a rotor, its blades in order, then its jam.</summary>
         public readonly List<PropDamage> Damage = new List<PropDamage>();
@@ -126,7 +133,18 @@ namespace Fpv450.App.Session
             }
             foreach (LoggedStep f in log.Failsafes)
                 p.Incidents.Add(new FlightIncident { Kind = FlightIncidentKind.Failsafe, Step = f.State.Step });
-            p.Incidents.Sort((a, b) => a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Kind.CompareTo(b.Kind));
+            // The fiber's break (the line breaks once) and the flight controller's failsafe stages on the lost link.
+            foreach (LoggedEvent e in log.Events)
+            {
+                if (e.Event.Kind == EventKind.TetherBreak && p.BreakPlace.Length == 0)
+                {
+                    p.BreakPlace = BreakPlaceName(log.Header, e.Event, openWorld);
+                    p.Incidents.Add(new FlightIncident { Kind = FlightIncidentKind.FiberBreak, Step = e.Step, Event = e });
+                }
+                else if (e.Event.Kind == EventKind.Failsafe)
+                    p.Incidents.Add(new FlightIncident { Kind = FlightIncidentKind.FailsafeStage, Step = e.Step, Event = e });
+            }
+            p.Incidents.Sort((a, b) => a.Step != b.Step ? a.Step.CompareTo(b.Step) : a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : a.Event.Event.Index.CompareTo(b.Event.Event.Index));
             foreach (LoggedEvent e in log.Events)
             {
                 if (e.Event.Kind != EventKind.BladeDamaged && e.Event.Kind != EventKind.RotorJammed) continue;
@@ -181,6 +199,22 @@ namespace Fpv450.App.Session
             }
         }
 
+        // Where the line broke, from TetherBreak's place (its FiberMember, the Index's high 4 bits): the drone's exit lip, the
+        // peel front, a prop's disc or one of its parts, the free span, or what the line lay on, named as a crash's object.
+        static string BreakPlaceName(LogHeader h, in FlightEvent e, Func<string, IWorldQuery> openWorld)
+        {
+            string part = e.Part < h.Parts.Length ? h.Parts[e.Part].Name : "a part";
+            switch ((FiberMember)(e.Index >> 4))
+            {
+                case FiberMember.Lip: return "at the spool's exit lip";
+                case FiberMember.Peel: return "at the peel front in the canister";
+                case FiberMember.Disc: return "in " + part + "'s disc";
+                case FiberMember.Span: return "in the free span";
+                case FiberMember.Part: return "on the drone's " + part;
+                default: return "on " + ObjectName(h, e.Object, openWorld);
+            }
+        }
+
         static string ObjectName(LogHeader h, int id, Func<string, IWorldQuery> openWorld)
         {
             if (id == WorldIds.Ground) return "the ground";
@@ -215,7 +249,38 @@ namespace Fpv450.App.Session
                         + Crash.Event.A.ToString("0.0", C) + " m/s";
                 case FlightIncidentKind.UpsideDown: return "upside down on the ground" + at;
                 case FlightIncidentKind.BatteryCutoff: return "battery cut-off" + at;
+                case FlightIncidentKind.FiberBreak:
+                    FlightEvent b = incident.Event.Event;
+                    return "fiber broke" + at + ": " + Mechanism((TetherMechanism)(b.Index & 0x0F)) + " " + BreakPlace + ", at " + b.B.ToString("0.0", C) + " N";
+                case FlightIncidentKind.FailsafeStage:
+                    FlightEvent f = incident.Event.Event;
+                    string after = f.A.ToString("0.00", C) + " s after the last good frame";
+                    switch ((FailsafeStage)f.Index)
+                    {
+                        case FailsafeStage.SignalLost: return "failsafe, signal lost" + at + ": " + after;
+                        case FailsafeStage.Stage1: return "failsafe stage 1" + at + ": " + after + ", the sticks centred and the throttle off";
+                        case FailsafeStage.Stage2:
+                            return "failsafe stage 2" + at + ": " + after + ", " + ((FailsafeProcedure)(byte)f.B == FailsafeProcedure.AUTO_LAND
+                                ? "AUTO-LAND, the throttle at " + (f.C * 100).ToString("0", C) + " %"
+                                : "DROP");
+                        default: return "failsafe disarm" + at + ": " + after;
+                    }
                 default: return "failsafe" + at + ": the radio was lost";
+            }
+        }
+
+        // TetherMechanism in words.
+        static string Mechanism(TetherMechanism m)
+        {
+            switch (m)
+            {
+                case TetherMechanism.Prop: return "cut by a prop";
+                case TetherMechanism.Tension: return "pulled apart";
+                case TetherMechanism.Bend: return "bent past its strength";
+                case TetherMechanism.Abrasion: return "worn through";
+                case TetherMechanism.Peel: return "peeled past its strength";
+                case TetherMechanism.Wedge: return "parted where its chain failed (a physics bug)";
+                default: return "broken";
             }
         }
 
