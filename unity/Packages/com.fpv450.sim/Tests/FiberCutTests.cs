@@ -288,18 +288,74 @@ namespace Fpv450.Sim.Tests
                 ("tree snag", s => FiberCutScenarios.TreeSnag(Spec, WindLevel.Calm, s)),
                 ("tree snag, no contacts", s => FiberCutScenarios.TreeSnag(Spec, WindLevel.Calm, s, x => x.TetherWithoutContacts = true)),
             };
-            foreach (var c in cases)
+            // FIBER_THREADS flights at once (1 by default): each flight is its own core, so the order never moves a bit.
+            int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 1;
+            var results = new FiberCutScenarios.Outcome[cases.Length, seeds];
+            System.Threading.Tasks.Parallel.For(0, cases.Length * seeds, new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = threads }, i =>
             {
+                if (which == "all" || cases[i / seeds].Name.Contains(which)) results[i / seeds, i % seeds] = cases[i / seeds].Fly((ulong)(i % seeds + 1));
+            });
+            for (int ci = 0; ci < cases.Length; ci++)
+            {
+                var c = cases[ci];
                 if (which != "all" && !c.Name.Contains(which)) continue;
                 var counts = new System.Collections.Generic.SortedDictionary<string, int>();
                 for (ulong seed = 1; seed <= (ulong)seeds; seed++)
                 {
-                    FiberCutScenarios.Outcome o = c.Fly(seed);
+                    FiberCutScenarios.Outcome o = results[ci, (int)seed - 1];
                     string key = o.Broken ? $"{o.Mechanism} at {o.Place}" : "whole";
                     counts[key] = counts.TryGetValue(key, out int k) ? k + 1 : 1;
                     Print($"{c.Name} seed {seed}: {o}");
                 }
                 Print($"== {c.Name}: " + string.Join(", ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Key} {kv.Value}")) + $" of {seeds}");
+            }
+        }
+
+        // D-087's grid: turns of 90° at each speed up to 100 km/h and each heading rate (0 the straight cruise), and sudden
+        // reverses from each speed, over seeds (FIBER_SEEDS, 5 by default) in Calm and Windy; each cell's cuts, mechanisms and
+        // places, and what the drone made of the turn, printed (FIBER_THREADS flights at once, 6 by default; each flight is its
+        // own core, so the order of the runs never moves a bit).
+        [Test, Explicit("the turn and reverse grid over seeds, printed: minutes")]
+        public void TheTurnsAndReversesOverSeeds()
+        {
+            int seeds = int.TryParse(Environment.GetEnvironmentVariable("FIBER_SEEDS"), out int n) ? n : 5;
+            int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 6;
+            string winds = Environment.GetEnvironmentVariable("FIBER_WINDS") ?? "Calm,Windy";
+            double[] speeds = { 5, 10, 15, 20, 25, 27.8 }, rates = { 0, 45, 90, 180, 360 };
+            foreach (string wn in winds.Split(','))
+            {
+                WindLevel wind = wn == "Windy" ? WindLevel.Windy : WindLevel.Calm;
+                var cells = new System.Collections.Generic.List<(string Name, Func<ulong, (FiberCutScenarios.Outcome O, string Note)> Fly)>();
+                foreach (double v in speeds)
+                    foreach (double r in rates)
+                    {
+                        double vv = v, rr = r;
+                        cells.Add(($"{vv * 3.6:0} km/h, {(rr == 0 ? "cruise" : $"turn {rr:0} °/s")}", s =>
+                        {
+                            FiberCutScenarios.Turned t = FiberCutScenarios.Turn(Spec, wind, s, vv, rr);
+                            return (t.O, $"v {t.Speed:0.0} m/s, pitch {t.Pitch * 180 / Math.PI:0.0}°, nose {t.NoseRate * 180 / Math.PI:0} °/s, path {t.PathRate * 180 / Math.PI:0} °/s, {t.Lateral / 9.80665:0.0} g");
+                        }));
+                    }
+                foreach (double v in speeds)
+                {
+                    double vv = v;
+                    cells.Add(($"{vv * 3.6:0} km/h, reverse to −8 m/s", s => (FiberCutScenarios.SharpReverse(Spec, wind, s, null, vv), "")));
+                }
+                var results = new (FiberCutScenarios.Outcome O, string Note)[cells.Count, seeds];
+                var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = threads };
+                System.Threading.Tasks.Parallel.For(0, cells.Count * seeds, options, i => results[i / seeds, i % seeds] = cells[i / seeds].Fly((ulong)(i % seeds + 1)));
+                for (int c = 0; c < cells.Count; c++)
+                {
+                    var counts = new System.Collections.Generic.SortedDictionary<string, int>();
+                    for (int s = 0; s < seeds; s++)
+                    {
+                        FiberCutScenarios.Outcome o = results[c, s].O;
+                        string key = o.Broken ? $"{o.Mechanism} at {o.Place}" : "whole";
+                        counts[key] = counts.TryGetValue(key, out int k) ? k + 1 : 1;
+                        Print($"{wn} {cells[c].Name} seed {s + 1}: {o}; {results[c, s].Note}");
+                    }
+                    Print($"== {wn} {cells[c].Name}: " + string.Join(", ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Key} {kv.Value}")) + $" of {seeds}");
+                }
             }
         }
 

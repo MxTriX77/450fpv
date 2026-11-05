@@ -204,10 +204,12 @@ namespace Fpv450.Sim.Tests
         /// "Overly sharp reverse" (design 16's course): up to 10 m, along +z to 15 m/s, then at 11 s a full reverse to 8 m/s back
         /// along the path (the pilot's tilt up to 60° for it, so within 2 s), on to 16 s. The known-wrong: the two-way spool.
         /// </summary>
-        public static Outcome SharpReverse(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null)
+        public static Outcome SharpReverse(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null, double speed = 15)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
+            // Past 15 m/s the cruise needs the pilot's 60° (the drone's drag at 20–28 m/s); at 15 and under, design 16's 35°.
+            double cruiseTilt = speed > 15 ? 0.866 : 0.5736;
             return Run(setup, 16, (t, core, pilot) =>
             {
                 double y = stand + DetMath.Min(10, 2 * t);
@@ -218,11 +220,82 @@ namespace Fpv450.Sim.Tests
                     return;
                 }
                 pilot.HoldVelocity = true;
-                pilot.MaxTiltSin = t < 11 ? 0.5736 : 0.866;
-                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? 15 : -8);
+                pilot.MaxTiltSin = t < 11 ? cruiseTilt : 0.866;
+                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? speed : -8);
                 pilot.Target = new Double3(0, y, core.State.Position.Z);
             });
         }
+
+        /// <summary>A turn at speed, what the turn did and the line's outcome.</summary>
+        public struct Turned
+        {
+            public Outcome O;
+            /// <summary>The speed and the nose's pitch (down +) in the cruise just before the turn, m/s and rad; the most rate of the
+            /// nose's heading and of the path's in the turn, rad/s; the most horizontal acceleration, m/s².</summary>
+            public double Speed, Pitch, NoseRate, PathRate, Lateral;
+        }
+
+        /// <summary>
+        /// A turn at speed (D-087's grid): up to 10 m, along +z to speed (m/s) at the pilot's 60° tilt, then at 11 s the nose and
+        /// the path turned right through degrees, the heading moving at rate (°/s, the yaw fed forward; 0 a straight cruise), the
+        /// velocity held along the heading at speed, on to 16 s. What the drone makes of it (its nose's and path's rates, its
+        /// acceleration) is the physics', printed beside the line's outcome.
+        /// </summary>
+        public static Turned Turn(DroneSpec spec, WindLevel wind, ulong seed, double speed, double rate, double degrees = 90,
+            Action<FlightSetup> edit = null)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            double w = rate * Pi / 180, total = degrees * Pi / 180;
+            var r = new Turned();
+            double lastNose = double.NaN, lastPath = double.NaN;
+            Double3 lastV = default;
+            r.O = Run(setup, 16, (t, core, pilot) =>
+            {
+                ref readonly FlightState s = ref core.State;
+                double y = stand + DetMath.Min(10, 2 * t);
+                if (t < 5)
+                {
+                    pilot.HoldVelocity = false;
+                    pilot.Target = new Double3(0, y, 0);
+                    return;
+                }
+                pilot.HoldVelocity = true;
+                pilot.MaxTiltSin = 0.866;
+                double psi = t < 11 ? 0 : DetMath.Min(total, w * (t - 11));
+                DetMath.SinCos(psi, out double sin, out double cos);
+                pilot.Heading = new Double3(sin, 0, cos);
+                pilot.YawRate = t >= 11 && w * (t - 11) < total ? w : 0;
+                pilot.TargetVelocity = new Double3(speed * sin, 0, speed * cos);
+                pilot.Target = new Double3(s.Position.X, y, s.Position.Z);
+                Double3 nose = s.Attitude.Rotate(new Double3(0, 0, 1));
+                double noseYaw = DetMath.Atan2(nose.X, nose.Z), pathYaw = DetMath.Atan2(s.Velocity.X, s.Velocity.Z);
+                if (t < 11)
+                {
+                    r.Speed = DetMath.Sqrt(s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z);
+                    r.Pitch = -DetMath.Atan2(nose.Y, DetMath.Sqrt(nose.X * nose.X + nose.Z * nose.Z));
+                }
+                else if (!core.Tether.Broken)
+                {
+                    // Rates over the pilot's 4-step period's samples would alias: each step's, unwrapped.
+                    if (!double.IsNaN(lastNose))
+                    {
+                        double dn = Wrap(noseYaw - lastNose) / Dt, dp = Wrap(pathYaw - lastPath) / Dt;
+                        if (DetMath.Abs(dn) > r.NoseRate) r.NoseRate = DetMath.Abs(dn);
+                        if (DetMath.Abs(dp) > r.PathRate && r.Speed > 1) r.PathRate = DetMath.Abs(dp);
+                        Double3 a = (s.Velocity - lastV) * (1 / Dt);
+                        double lat = DetMath.Sqrt(a.X * a.X + a.Z * a.Z);
+                        if (lat > r.Lateral) r.Lateral = lat;
+                    }
+                }
+                lastNose = noseYaw;
+                lastPath = pathYaw;
+                lastV = s.Velocity;
+            });
+            return r;
+        }
+
+        static double Wrap(double a) => a > Pi ? a - 2 * Pi : a < -Pi ? a + 2 * Pi : a;
 
         /// <summary>
         /// "Snagging on trees" (design 16's course): V01_L on the test range, the line laid west to east under it, the drone over
