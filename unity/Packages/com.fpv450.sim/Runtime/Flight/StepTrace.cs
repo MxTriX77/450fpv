@@ -147,7 +147,8 @@ namespace Fpv450.Sim.Flight
         /// <summary>
         /// Index's axis (MixerAxis) began to lose authority in the mixer (A: the largest share of its demand lost in the
         /// step, 0–1; for the collective the throttle taken off, 0–1), or regained it (A: 0). Roll, pitch and yaw lose
-        /// to the PID-sum limits and to the mix's scaling; the collective to airmode's desaturation.
+        /// to the PID-sum limits and to the mix's scaling (without airmode, not to its attenuation below half throttle, which
+        /// is the authority Betaflight sets); the collective to the desaturation.
         /// </summary>
         MixerSaturation = 4,
 

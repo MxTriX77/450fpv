@@ -158,6 +158,8 @@ namespace Fpv450.Sim.Tests
             Assert.That(Builder(lines, "pitch"), Is.EqualTo(new[] { d.p_pitch, d.i_pitch, d.d_pitch, d.d_min_pitch }));
             Assert.That(Builder(lines, "yaw"), Is.EqualTo(new[] { double.NaN, d.i_yaw, d.d_yaw, double.NaN }), "yaw P is Betaflight's default");
             Assert.That(d.p_yaw, Is.EqualTo(45), "Betaflight 4.5.0's PID_YAW_DEFAULT P");
+            Assert.That(d.airmode, Is.False, "no airmode (pilot, D-086)");
+            StringAssert.Contains("| `feature AIRMODE` |", string.Join(" ", lines));
             StringAssert.Contains("`iterm_relax_cutoff = " + d.iterm_relax_cutoff + "`", string.Join("\n", lines));
             StringAssert.Contains("`throttle_boost = " + d.throttle_boost + "`", string.Join("\n", lines));
 
@@ -181,7 +183,10 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void BetaflightsArmingRules()
         {
-            FlightController fc = Controller();
+            // Airmode on (the compared variant since model 69, D-086), so its start is checked too.
+            FcSettings air = FcSettings.Default;
+            air.airmode = true;
+            var fc = new FlightController(air, PropsIn);
             var s = new FcState();
             fc.Reset(ref s, default);
             bool armed = false;
@@ -203,6 +208,66 @@ namespace Fpv450.Sim.Tests
             fc.Frame(ref s, ref armed, new StickSample());
             fc.Frame(ref s, ref armed, on);
             Assert.That(armed, Is.True);
+
+            // The default, without airmode: armed past 25 % throttle and never active.
+            FlightController off = Controller();
+            s = new FcState();
+            off.Reset(ref s, default);
+            armed = false;
+            off.Frame(ref s, ref armed, new StickSample());
+            off.Frame(ref s, ref armed, on);
+            off.Frame(ref s, ref armed, new StickSample { Arm = true, Throttle = 1 });
+            Assert.That(armed, Is.True);
+            Assert.That((s.Flags & FcFlags.AirmodeActive) != 0, Is.False, "without airmode it never activates");
+        }
+
+        // D-086: the pilot flies without airmode, so it is FcSettings.Default's. Betaflight 4.5.0, armed at zero throttle with a held
+        // rate error (the gyro reading 100 °/s of roll nobody asks for, as a drone tipping on its skid), 0.5 s on:
+        // - without airmode the I term is held at zero (core.c processRxModes: the throttle low and airmode not activated,
+        //   pidSetItermReset) and the mixer delivers 0.5 + throttle of the PID mix (mixer.c applyMixerAdjustment: "scales the
+        //   motor mix authority to be 0.5 at 0 throttle"), so half;
+        // - with airmode (activated past its 25 % start) the I term winds and the whole mix is delivered.
+        // Both constrain the collective so no motor clips at idle, so neither drops the authority to nothing (the known-wrong:
+        // "without airmode the mixer holds nothing at zero throttle").
+        [Test]
+        public void WithoutAirmodeZeroThrottleHalvesTheMixAndHoldsNoI()
+        {
+            (double spread, double range, double iterm, double throttle) Run(bool airmode)
+            {
+                FcSettings set = FcSettings.Default;
+                set.airmode = airmode;
+                var fc = new FlightController(set, PropsIn);
+                var s = new FcState();
+                fc.Reset(ref s, default);
+                bool armed = false;
+                Corners duty = default;
+                var loss = new MixerLoss();
+                var gyro = new Axes3();
+                for (int loop = 0; loop < 6000; loop++)
+                {
+                    // Armed at loop 40, 35 % throttle from 400 to 1200 (past airmode's start), then 0; the error from loop 4000.
+                    var k = new StickSample { Arm = loop >= 40, Throttle = loop >= 400 && loop < 1200 ? 0.35 : 0 };
+                    if (FlightController.IsFrameLoop(loop)) fc.Frame(ref s, ref armed, k);
+                    if (loop >= 4000) gyro.Roll = 100;
+                    fc.Loop(ref s, armed, gyro, default, ref duty, ref loss);
+                }
+                Assert.That(armed, Is.True);
+                double hi = Math.Max(Math.Max(duty.RearRight, duty.FrontRight), Math.Max(duty.RearLeft, duty.FrontLeft));
+                double lo = Math.Min(Math.Min(duty.RearRight, duty.FrontRight), Math.Min(duty.RearLeft, duty.FrontLeft));
+                return (hi - lo, s.MotorMixRange, s.ITerm.Roll, Math.Max(0, (s.Throttle - 1000) / 1000));
+            }
+            var off = Run(false);
+            var on = Run(true);
+            // The duty's spread over the mix's range (capped at 1, where the mixer scales the range down) is the transition.
+            double authOff = off.spread / Math.Min(off.range, 1), authOn = on.spread / Math.Min(on.range, 1);
+            TestContext.Out.WriteLine($"zero throttle (mixer {off.throttle:E2}), 100 °/s of roll error for 0.5 s: without airmode the duty's spread "
+                + $"{off.spread:F4} on a mix range {off.range:F4}, I {off.iterm:F2}; with it {on.spread:F4} on {on.range:F4}, I {on.iterm:F2}; "
+                + $"authority without over with {authOff / authOn:F6}");
+            Assert.That(off.iterm, Is.EqualTo(0), "without airmode the I term is held at zero");
+            Assert.That(Math.Abs(on.iterm), Is.GreaterThan(50), "with airmode it winds");
+            Assert.That(authOff / authOn, Is.EqualTo(0.5).Within(1e-6), "without airmode half the mix at zero throttle");
+            Assert.That(off.spread, Is.GreaterThan(0.01), "and not none: the collective still lifts off idle");
+            Assert.That(on.spread, Is.GreaterThan(off.spread * 1.5), "with airmode the whole mix, and the I term's");
         }
 
         [Test]

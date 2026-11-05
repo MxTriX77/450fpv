@@ -50,6 +50,9 @@ Betaflight ACTUAL rates: the centre sensitivity and the full-stick rate are in �
 | `f_roll` / `f_pitch` (feedforward) | 80 | 40 | builder's, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **80**, with `feedforward_transition 40`, `jitter_factor 12`, `boost 0` | **50** |
 | `f_yaw` | 0 | 0 | — | **0** | **0** |
 | `vbat_sag_compensation` | 0 | 0 | 0 (100 in an earlier FpvPrep) | **0** | **0** (offered as an option) |
+| `feature AIRMODE` | on (Betaflight 4.5's default; no config disables it) | on (the saved quads' `diff all` never disables it, nor maps an AIRMODE switch) | on (the presets leave it) | **off** (D-086) | **off** (D-086, model 69) |
+
+**Airmode (D-086).** The pilot, asked at G7: "no software mode for this": they find the stick's sweet spot or disarm right before touchdown. Both defaults fly without airmode since model 69, and airmode stays a switch (the compared variant). The configs read here say otherwise: Betaflight 4.5 enables `AIRMODE` by default (`config/feature.c`), and none of the 72 saved quads' `diff all` after FpvPrep's setup (Betaflight 4.5.0 and 4.5.2) prints `feature -AIRMODE` or maps the AIRMODE box (28) to a switch, and no preset sets it. Without airmode Betaflight keeps 0.5 + throttle of the PID mix below half throttle and holds the I term at zero under `min_check` (`mixer.c` `applyMixerAdjustment`, `core.c` `processRxModes`), so the whole flight below half throttle flies with 50–100 % of the mix's authority, not only the touchdown.
 
 **How the sim default was set:** the pilot's flown set moved **25 % of the way toward the factory set**, and **throttle moved 60 %**, because the pilot stressed it: "especially throttle - you dont always get the chance to set comfortable throttle". These are named, tunable defaults. The pilot adjusts them after MVP-1.
 

@@ -167,7 +167,7 @@ namespace Fpv450.Sim.Control
             // published: Betaflight 4.5.0's defaults (the builder kept yaw P at its default). pid.c resetPidProfile:
             // the yaw P, D min, I-term, PID-sum, anti-gravity, TPA and throttle-boost values; pid.h PID_YAW_DEFAULT,
             // D_MIN_DEFAULT, PIDSUM_LIMIT(_YAW); pg/rx.c rxConfig: min_check, the RC smoothing and airmode's start;
-            // pg/motor.c: dshot_idle_value; config/feature.c: AIRMODE and ANTI_GRAVITY among the default features
+            // pg/motor.c: dshot_idle_value; config/feature.c: ANTI_GRAVITY among the default features
             p_yaw = 45, d_min_yaw = 0,
             d_min_gain = 37, d_min_advance = 20,
             iterm_limit = 400,
@@ -188,11 +188,14 @@ namespace Fpv450.Sim.Control
             feedforward_averaging = FeedforwardAveraging.OFF,
             dshot_idle_value = 550,
             motor_output_limit = 100,
-            airmode = true,
             airmode_start_throttle_percent = 25,
+            // pilot: no airmode (D-086; Betaflight's default, published, is on, and the model's until 69): below half throttle
+            // the mixer keeps 0.5 + throttle of the PID mix (mixer.c applyMixerAdjustment), and with the throttle under
+            // min_check the I term is held at zero (core.c processRxModes). Airmode stays a switch: the compared variant.
+            airmode = false,
             // published: Betaflight 4.5's failsafe defaults (the Betaflight 4.5 documentation, Failsafe): stage 1's guard 1.5 s,
-            // stage 2 DROP (the pilot's own procedure is G7's question, docs/pilot-questions.md: DROP until answered), the
-            // landing's hold 1 s; pilot: failsafe_throttle 1400 (fc-profiles §1)
+            // the landing's hold 1 s; pilot: stage 2 DROP (D-086: no return-to-home, flown manually; only the fiber's break ends
+            // control, p7d-tether 1.8), failsafe_throttle 1400 (fc-profiles §1)
             failsafe_delay = 15, failsafe_procedure = FailsafeProcedure.DROP, failsafe_off_delay = 10,
             failsafe_throttle = 1400,
 

@@ -657,8 +657,13 @@ namespace Fpv450.Sim.Log
         ///    compose without new code. A flight with FlightSetup.TetherZeroForceHold steps as in 64; one on model 63's
         ///    drone.json (the fixture Model63Drone, GoldenFlights.Model63Tether) with FlightSetup.TetherFountainThroughBody
         ///    and ContactSpec.BladeRoot off steps as in 62 (its chain on 63's drone); a flight without the line steps as in 64.
+        /// 69: D-086's controller (unity/physics/physics-integration-2--esc-airmode, on 65; assigned by D-072): FcSettings.Default
+        ///    flies without Betaflight's airmode (the pilot's answer): below half throttle the mixer keeps 0.5 + throttle of the PID
+        ///    mix, and under min_check the I term is held at zero. The settings ride in the header as before, so a flight with
+        ///    airmode on steps as in 65. The ESC's disarm is unchanged: drone.json's BLHeli_S already has brake on stop off (its
+        ///    damped light brakes in the run loop, then every FET off). The record, the header and the events are 65's (format 55).
         /// </summary>
-        public const int ModelVersion = 65;
+        public const int ModelVersion = 69;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
