@@ -113,6 +113,9 @@ namespace Fpv450.Sim.Contact
     ///   that cuts the disc's slab inside the rim is the disc's too (BladeCut), and a pair lives while its shape cuts the
     ///   slab within the rim, so a rod that passes the rim into the disc is still met (p7f-damage design 4). A shape's
     ///   entry is a PropStrike; the blades' passes across it are PropStrikes' (model 35: never a crash).
+    /// - A motor's bell (p7f-damage 1.5, MotorBell, after AttachBells): a motor sphere's pair on its turning band is a body pair
+    ///   whose material moves with the rotor, so while the rotor turns it slides at μk·Fn against the bell's slip (no anchor), and
+    ///   its moment, the magnets' rub on the stator and the ring's dent go to the bell (MotorDamaged).
     /// No restitution coefficient anywhere: a bounce is the stored energy of the compliance and the thrust.
     ///
     /// The soil (p7a-ground 1.10, design 2 and 3), with surfaces.json attached (ContactSpec.Surfaces) at the flight's
@@ -347,6 +350,10 @@ namespace Fpv450.Sim.Contact
         RestLoad[] _restLoads;
         double[] _restWeight, _restStrongest;
         readonly double[] _shaftTorque = new double[4], _shaftStiffness = new double[4], _shaftDamping = new double[4];
+
+        // The motors' bells (p7f-damage 1.5): null until AttachBells; each shape's corner when it is a motor's sphere, else −1.
+        MotorBell _bells;
+        int[] _bellOf;
 
         /// <summary>A resting blade's load in the last Forces (p7f-damage 1.3b): the contact force on it (world, N) and its
         /// components across its section at the strongest pair's station (flatwise, edgewise, N), the force-weighted radius of
@@ -763,6 +770,23 @@ namespace Fpv450.Sim.Contact
             _restStrongest = new double[4 * _bladesPer];
         }
 
+        /// <summary>
+        /// The motors' bells (p7f-damage 1.5, MotorBell; FlightCore, with ContactSpec.MotorBell and Motors): from then on a contact
+        /// on a motor sphere's turning band slides on the bell's surface while its rotor turns, its moment and the magnets' rub go
+        /// to the rotor (Propulsion.SetMotor) and its ring dents past its collapse load (MotorDamaged).
+        /// </summary>
+        public void AttachBells(Propulsion propulsion, PropulsionSpec spec)
+        {
+            if (!_spec.MotorBell || _spec.Motors == null) return;
+            _bells = new MotorBell(_spec, _shapes, propulsion, spec);
+            _bellOf = new int[_shapes.Length];
+            for (int i = 0; i < _bellOf.Length; i++) _bellOf[i] = -1;
+            for (int c = 0; c < 4; c++) _bellOf[_bells.Shape(c)] = c;
+        }
+
+        /// <summary>The motors' bells, or null without them.</summary>
+        public MotorBell Bells => _bells;
+
         /// <summary>Whether rotor c's blades are its contact shapes now (it turns slower than BladeRestSpeed, no carve holds it).</summary>
         public bool Resting(int corner) => (_resting & (1 << corner)) != 0;
 
@@ -1085,6 +1109,7 @@ namespace Fpv450.Sim.Contact
             // The body shapes, pair by pair; then a resting prop's blades (p7f-damage 1.3b), as parts of the body whose material
             // moves with its rotor's turn, their moment about the shaft the rotor's in the next step's propulsion.
             if (_restLoads != null) ClearRest();
+            _bells?.Begin(s);
             for (int i = 0; i < _shapes.Length; i++)
             {
                 ContactRole role = _shapes[i].Role;
@@ -1129,6 +1154,32 @@ namespace Fpv450.Sim.Contact
                     }
                     double fn = kn * depth - cn * Double3.Dot(PointVelocity(s, p.Point), p.N);
                     if (fn < 0) fn = 0;
+                    int bell = _bellOf != null ? _bellOf[i] : -1;
+                    if (bell >= 0 && _bells.OnBand(bell, s.Attitude.InverseRotate(p.Point - s.Position), out Double3 surface, out bool stator))
+                    {
+                        // A motor's turning bell (p7f-damage 1.5): its material moves at ω·R along its turn, so a turning bell slides
+                        // on what it touches (no anchor) and a stopped one holds by its anchor; its load goes to its rotor and ring.
+                        Double3 vb = PointVelocity(s, p.Point) + s.Attitude.Rotate(surface * (s.RotorSpeed[bell] * _bells.Radius(bell)));
+                        Double3 fwb = Apply(ref p, i, k, fn, kn, cn, p.Depth, row, s, com, vb, ref f, ref m, ref touching, ref strongest, ref strongestPair,
+                            ref strongestForce, _bells.Turning(bell));
+                        if (_bells.Pair(bell, fn, s.Attitude.InverseRotate(fwb - p.N * fn), surface, stator, kn, row.StaticFriction,
+                                out double dent, out double ringLoad, out double collapse))
+                        {
+                            FlightEvent e = FlightEvent.Of(EventKind.MotorDamaged);
+                            e.Part = (ushort)_bells.Part(bell);
+                            e.Index = (byte)(bell | (stator ? 0 : 1) << 4);
+                            e.Object = p.Object;
+                            e.Shape = p.Shape;
+                            e.Material = p.Material;
+                            e.Surface = p.Surface;
+                            e.Point = p.Point;
+                            e.A = dent;
+                            e.B = ringLoad;
+                            e.C = collapse;
+                            events.Add(e);
+                        }
+                        continue;
+                    }
                     Double3 fw = Apply(ref p, i, k, fn, kn, cn, p.Depth, row, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                     int leg = _legOf[i];
                     if (leg < 0 || !(p.Depth > 0) || (_corner[leg] & (CornerState.Stub | CornerState.TubeGone)) != 0) continue;
@@ -1146,6 +1197,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
 
+            _bells?.Finish(s, _dt, ref trace);
             if (series) LegSums(s, axis, com, ref f, ref m, ref load, ref touching, ref strongest, ref strongestPair, ref strongestForce, events);
             LegTrace(ref trace);
             if (_restLoads != null) RestTrace(ref trace);
@@ -2360,13 +2412,15 @@ namespace Fpv450.Sim.Contact
             Apply(ref p, shape, pair, fn, kn, cn, total, row, s, com, PointVelocity(s, p.Point), ref f, ref m, ref touching, ref strongest,
                 ref strongestPair, ref strongestForce);
 
-        // The same with the touching material's velocity v (world): a resting blade's carries its rotor's turn.
+        // The same with the touching material's velocity v (world): a resting blade's carries its rotor's turn, a turning bell's
+        // its surface's, which slips (slip: no anchor, MotorBell).
         Double3 Apply(ref Pair p, int shape, int pair, double fn, double kn, double cn, double total, in Row row, in FlightState s, Double3 com,
-            Double3 v, ref Double3 f, ref Double3 m, ref int touching, ref int strongest, ref int strongestPair, ref double strongestForce)
+            Double3 v, ref Double3 f, ref Double3 m, ref int touching, ref int strongest, ref int strongestPair, ref double strongestForce, bool slip = false)
         {
             if (!(p.Depth > 0)) return default;
             double w = p.Depth / total, share = fn * w;
-            Double3 ft = Friction(ref p, share, _spec.FrictionStiffnessRatio * kn * w, DetMath.Sqrt(_spec.FrictionStiffnessRatio) * cn * w, v, row, _dt);
+            Double3 ft = slip ? Slip(ref p, share, v, row)
+                : Friction(ref p, share, _spec.FrictionStiffnessRatio * kn * w, DetMath.Sqrt(_spec.FrictionStiffnessRatio) * cn * w, v, row, _dt);
             Double3 fw = p.N * share + ft;
             f = f + fw;
             m = m + Double3.Cross(s.Attitude.InverseRotate(p.Point - s.Position) - com, s.Attitude.InverseRotate(fw));
@@ -3324,6 +3378,18 @@ namespace Fpv450.Sim.Contact
                 p.Sliding = false;
             }
             return ft;
+        }
+
+        // A surface sliding on the face at v (world; a turning bell's, p7f-damage 1.5): kinetic friction μk·fn against its slip on
+        // the tangent plane, no stick anchor (it slips while it moves).
+        static Double3 Slip(ref Pair p, double fn, Double3 v, in Row row)
+        {
+            p.Anchored = false;
+            p.Sliding = true;
+            p.Stretch = default;
+            Double3 n = p.N, vt = v - n * Double3.Dot(n, v);
+            double speed = vt.Length();
+            return fn > 0 && speed > 0 ? vt * (-row.KineticFriction * fn / speed) : default;
         }
 
         // The ground is the plane and every soil shape (a patch's soil, a hole's fillers): its surface, never its object

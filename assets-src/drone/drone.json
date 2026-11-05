@@ -8,7 +8,7 @@
     "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
     "bootstrap": "true for p6-flight-core's stand-in (now a test fixture); this researched file sets false",
     "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read). A part is a mass shape: its inertia, not its look (the props and arms say how they map)",
-    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command lag: the DShot frame, the PWM and the winding's L/R as one first-order lag), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives; \"none\" for an ESC that senses no current), esc_disarm (what the ESC does with its spinning motor when the flight controller disarms: freewheel | blheli_s | blheli_s_brake_on_stop | bluejay | bluejay_brake_on_stop; a motor without it freewheels, the model before 42); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load; internals (p7f-damage design 8, 9; optional, on all four or none, every value with its note): bell_band_m (the turning bell's band, [from, to] m above the motor's base), can_thickness_m and can_yield_pa (the aluminium can), back_iron_thickness_m and back_iron_yield_pa (the steel ring behind the magnets), gap_m (magnets to stator), magnet_thickness_m, magnet_remanence_t (B_r) and magnet_relative_permeability (μ_r), shaft_diameter_m, shaft_yield_pa and shaft_ultimate_pa, hub_height_m (the prop's hub above the base: position_m over the motor part's base), bearing_heights_m ([lower, upper] above the base), and the bearings' bearing_static_rating_n (C0r), bearing_dynamic_rating_n (Cr), bearing_balls, bearing_ball_diameter_m and bearing_pitch_diameter_m",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command lag: the DShot frame, the PWM and the winding's L/R as one first-order lag), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives; \"none\" for an ESC that senses no current), esc_disarm (what the ESC does with its spinning motor when the flight controller disarms: freewheel | blheli_s | blheli_s_brake_on_stop | bluejay | bluejay_brake_on_stop; a motor without it freewheels, the model before 42); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load; internals (p7f-damage design 8, 9; optional, on all four or none, every value with its note): bell_band_m (the turning bell's band, [from, to] m above the motor's base), can_thickness_m and can_yield_pa (the aluminium can), back_iron_thickness_m and back_iron_yield_pa (the steel ring behind the magnets), gap_m (magnets to stator), magnet_thickness_m, magnet_remanence_t (B_r) and magnet_relative_permeability (μ_r), shaft_diameter_m, shaft_yield_pa and shaft_ultimate_pa, hub_height_m (the prop's hub above the base: position_m over the motor part's base), bearing_heights_m ([lower, upper] above the base), and the bearings' bearing_static_rating_n (C0r), bearing_dynamic_rating_n (Cr), bearing_balls, bearing_ball_diameter_m and bearing_pitch_diameter_m; stator_band_m (the stator's laminations, [from, to] m above the base, where the magnets face it), stator_diameter_m, can_modulus_pa and back_iron_modulus_pa (p7f-damage 1.5: the bell as a ring and its rub)",
     "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends; h_force_n_per_m_s (the rotor's in-plane drag, the H-force, per m/s of its hub's in-plane airspeed at reference_rpm, growing in proportion to the rotor's speed); blade (p7f-damage design 1; optional, every value with its note): one blade as a structure, stations_r_over_r (equal spans' middles, r/R, the last span ending at the tip) with chord_m, thickness_m, section_angle_rad (the chord line's to the disc plane) and fill (section area over chord × thickness) at each; hub_diameter_m, hub_thickness_m and hub_bore_m (the hub, a cylinder less its bore); its material, moisture (dry | conditioned), density_kg_m3, flexural_modulus_pa, flexural_strength_pa, crush_strength_pa, fracture_energy_j_per_m2, proportional_limit (the share of the flexural strength past which a section keeps a set) and hardness_pa; the blades and the hub weigh the prop part (\"prop_rr\") within 0.1 g",
     "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
     "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end, where it meets level ground), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m (the foot's curvature); tube, clamp and tjoint, what the legs are built of (p7g-legs 1.1): the legs' and skids' tube (material, outer and inner diameter, the free length between the clamp and the T-joint, the cracked stiffness factor, and the modulus, yield and ultimate stress, elongation at break and density, each with its published bounds as <name>_bounds: [min, max]), the clamp under each arm (its jaws' material and modulus, the grip length, the wing-nut bolt's diameter, the arm's give under it, and the hand's torque, the nut factor, the jaws' friction and the edge's stress factor with their bounds) and the T-joint on each skid (its material, socket diameter, the skid's grip length, the pinch screw's diameter and torque, and the print's interlayer strength); with them, every value of the block carries a note, its source; legs off is legs_off's build",
@@ -293,7 +293,11 @@
         "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "the 685ZZ's basic dynamic load rating Cr (NMB's spec sheet; NSK 790 N)"},
         "bearing_balls": {"value": 8, "label": "published", "note": "the 685ZZ's ball complement (NMB, NSK)"},
         "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "the 685ZZ's ball diameter D_w, 1/16 inch (NSK)"},
-        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "the ball set's pitch circle, the mean of the 5 mm bore and the 11 mm outside (assumed equal); with D_w and the 8 balls it sets the ball-pass frequencies (design 9)"}
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "the ball set's pitch circle, the mean of the 5 mm bore and the 11 mm outside (assumed equal); with D_w and the 8 balls it sets the ball-pass frequencies (design 9)"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "the stator's laminations as heights above the motor's base, its published 15 mm (stator 31 × 15 mm, Flash Hobby Arthur 3115) standing 2 mm above the bell's lower lip, the windings' end turns and the can's top above it (no maker publishes the stack's place); the magnets face it across the gap there, so a dent can narrow the gap only between these heights (p7f-damage 1.5)"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "the stator's 31 mm (Flash Hobby Arthur 3115, Tarot 3115: 31 × 15 mm, 12N14P); the can, the back iron, the magnet and the gap fill the motor part's 37.2 mm to it, and its teeth carry the magnets' rub"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "6061-T6 aluminium's Young's modulus, 68.9 GPa (ASM), as can_yield_pa's alloy"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a low-carbon steel's Young's modulus, 200 GPa (ASM, AISI 1010–1018), as back_iron_yield_pa's steel"}
       }
     },
     {
@@ -326,7 +330,11 @@
         "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "as motors[0]"},
         "bearing_balls": {"value": 8, "label": "published", "note": "as motors[0]"},
         "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "as motors[0]"},
-        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"}
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
       }
     },
     {
@@ -359,7 +367,11 @@
         "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "as motors[0]"},
         "bearing_balls": {"value": 8, "label": "published", "note": "as motors[0]"},
         "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "as motors[0]"},
-        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"}
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
       }
     },
     {
@@ -392,7 +404,11 @@
         "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "as motors[0]"},
         "bearing_balls": {"value": 8, "label": "published", "note": "as motors[0]"},
         "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "as motors[0]"},
-        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"}
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
       }
     }
   ],

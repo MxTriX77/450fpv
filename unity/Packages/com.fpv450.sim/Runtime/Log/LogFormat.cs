@@ -217,6 +217,12 @@ namespace Fpv450.Sim.Log
         ///    material row) with 42's blade edges in its shapes and BladeRest, BladeRestSpeed after the hanging half's switch; the
         ///    tether entry 45's (TetherWithoutContacts, tether.json's contact block); the events 45's (FiberContact 30, FiberSlip
         ///    31); no new event kind.
+        /// 48: p7f-damage 1.5, the motors' bells (unity/physics/physics-integration-2--motor-bell, assigned by D-072 and D-074): after
+        ///    47's 2944 bytes each motor's bell scrape, rub and Kt ratio (bell_scrape, bell_rub, bell_kt_change; 96 bytes, 3040 in all); the
+        ///    contacts entry gains, after BladeRestSpeed, the bells' switch, their laws' coefficients and the four motors'
+        ///    internals (ContactSpec.MotorBell, BellRubFriction, BellWearCoefficient, MagnetHardness, StatorHardness, BellDentArc,
+        ///    Motors), and the internals (in both entries) the stator's band and diameter and the can's and back iron's moduli;
+        ///    the events MotorDamaged (21) and MotorBound (22).
         /// 49: the physics integration 2 with the cuts (unity/physics/physics-integration-2--int59, assigned by D-072): 46 merged
         ///    onto 47: the record is 47's 2944 bytes (45's 2816 with 46's tether flags Broken (64) and Dip (128), and 42's resting
         ///    blades' block); the contacts entry 47's (BladeRest, BladeRestSpeed after the hanging half's switch, the blade edges
@@ -229,8 +235,13 @@ namespace Fpv450.Sim.Log
         ///    LegFrameSideStiffness, LegFrameSwayLoad, LegFrameLeverLength) after BladeRestSpeed, and its legs' data 44's frame
         ///    shares and self-stiffness (LegDamageSpec.FrameTopShare, FrameJointShare, FrameSelfStiffness) after the stub's
         ///    springs; the tether entry, the settings, the draws and the events 49's; no new event kind.
+        /// 53: the physics integration 2 with the bells (unity/physics/physics-integration-2--int63, assigned by D-072): 48
+        ///    merged onto 50: the record is 48's 3040 bytes (50's 2944 with 48's bells' block after it); the contacts entry
+        ///    50's with 48's bells' switch, coefficients and the motors' internals after the frame's three (LegFrameLeverLength),
+        ///    and the internals (in both entries) 48's; the tether entry, the settings and the draws 50's; the events 50's with
+        ///    48's MotorDamaged (21) and MotorBound (22). (51 and 52 are the parallel integrations'.)
         /// </summary>
-        public const int Version = 50;
+        public const int Version = 53;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -560,6 +571,13 @@ namespace Fpv450.Sim.Log
         ///    turning rotor's blades are off the set, as for the ground). A flight whose props never rest on anything steps as in
         ///    55 over its 2816 bytes, the new block zero, and so does one with ContactSpec.BladeRest off but for a jammed head-on
         ///    crush; a flight without the line, or with FlightSetup.TetherWithoutContacts, whose legs never part steps as in 52.
+        /// 58: p7f-damage 1.5, the motors' bells (on 57; unity/physics/physics-integration-2--motor-bell, assigned by D-072):
+        ///    with drone.json's internals, a contact on a motor sphere's turning band (Contact.MotorBell) slides on the bell's
+        ///    surface while its rotor turns (kinetic, no anchor), its moment against the rotor and the magnets' rub on the stator
+        ///    (past the gap under a load, and a dent's interference) a drag in Propulsion (SetMotor: a Coulomb drag turning, a hold
+        ///    at rest, with Kt·I0 held too), the gap's flux its Kt; the ring dents past its collapse load (MotorDamaged); a driven
+        ///    rotor its drag holds at rest is bound (MotorBound). A flight whose motors' bands never touch anything while it flies
+        ///    steps as in 57 over its 2944 bytes, the new block zero; with ContactSpec.MotorBell off, as in 57.
         /// 59: the physics integration 2 with the cuts (unity/physics/physics-integration-2--int59, assigned by D-072): 56's
         ///    cuts, link and failsafe merged onto 57's props at rest on the fiber's contacts. The code is the parents' together
         ///    but for one rule of the composition: the fiber's prop check (FiberLine.Prop) skips a resting rotor
@@ -578,8 +596,14 @@ namespace Fpv450.Sim.Log
         ///    the merge's cause table found: a line without its contacts (FlightSetup.TetherWithoutContacts) broken by tension,
         ///    bend or abrasion threw at its FiberSection event (no names to place it by, FiberCuts.SectionEvent; at 56–59 too);
         ///    it is placed as FiberLine.Place places it. No flight that ran at 59 steps otherwise.
+        /// 63: the physics integration 2 with the bells (unity/physics/physics-integration-2--int63, assigned by D-072; the
+        ///    code is the parents' together): 58's motors' bells merged onto 60's frame on the cuts, the failsafe and the props at
+        ///    rest. A resting rotor's hold and a bell's drag share Propulsion's rest path (SetShaftLoad, Kt·I0 held only when a
+        ///    drag is set), so a flight whose bells never touch rests as at 60. A flight with ContactSpec.MotorBell off steps as
+        ///    in 60 over its 2944 bytes, the new block zero; one with the frame's data 0, FlightSetup.TetherWithoutContacts
+        ///    (so without the cuts) and the hanging give off steps as in 58. (61 and 62 are the parallel integrations'.)
         /// </summary>
-        public const int ModelVersion = 60;
+        public const int ModelVersion = 63;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -602,8 +626,12 @@ namespace Fpv450.Sim.Log
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
         /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
-        /// deflections (p7f-damage 1.3b).</summary>
-        public const int StepSize = 2944, EventSize = 72, EndSize = 48;
+        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5).</summary>
+        public const int StepSize = 3040, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the motors' bells (models 52–57's, formats 42–47: through the resting blades' block), over which
+        /// a flight whose bells never touch keeps model 57's bits.</summary>
+        public const int Model57StepSize = 2944;
 
         /// <summary>The record before the resting blades' loads (models 49–50's, formats 39–40: through the legs' lean), over which a
         /// flight whose props never rest on anything keeps model 50's bits.</summary>
@@ -650,7 +678,7 @@ namespace Fpv450.Sim.Log
                 "ContactForce", "ContactMoment", "LegLoad", "LegCompression", "ContactsTouching", "Wind", "RotorWind",
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow", "Tether",
                 "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold", "LegLean",
-                "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1",
+                "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1", "BellScrape", "BellRub", "BellKtChange",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -833,6 +861,10 @@ namespace Fpv450.Sim.Log
             b.Corners("blade_load_1", "N, the contact force on blade 1 of a resting prop this step; 0 for a turning prop");
             b.Corners("blade_bend_0", "m, blade 0's own deflection at its strongest contact, along its normal (its bending's share of the series)");
             b.Corners("blade_bend_1", "m, blade 1's own deflection at its strongest contact, along its normal (its bending's share of the series)");
+            // The motors' bells (p7f-damage 1.5).
+            b.Corners("bell_scrape", "N.m, the bell's scrape against its turning rotor (at rest its static friction's hold); 0 without the bells");
+            b.Corners("bell_rub", "N.m, the magnets' rub on the stator's teeth (the press past the gap, a dent's interference)");
+            b.Corners("bell_kt_change", "the motor's Kt over the drawn one less 1, from its gap's flux (0 for a gap as new, and without the bells)");
             return b.Done(StepSize);
         }
 
@@ -1027,6 +1059,9 @@ namespace Fpv450.Sim.Log
             w.C4(t.BladeLoad1);
             w.C4(t.BladeBend0);
             w.C4(t.BladeBend1);
+            w.C4(t.BellScrape);
+            w.C4(t.BellRub);
+            w.C4(t.BellKtChange);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -1173,6 +1208,9 @@ namespace Fpv450.Sim.Log
             t.BladeLoad1 = r.C4();
             t.BladeBend0 = r.C4();
             t.BladeBend1 = r.C4();
+            t.BellScrape = r.C4();
+            t.BellRub = r.C4();
+            t.BellKtChange = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

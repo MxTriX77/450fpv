@@ -293,7 +293,14 @@ namespace Fpv450.Sim.Tests
         // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
         // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
         // on anything in it.
-        public const ulong PoweredHash = 0x559EE43EC0D39E24UL;
+        // Model 58 (p7f-damage 1.5, the motors' bells): re-recorded on the 3040-byte record (the bells' block after 2944). Audited
+        // case by case: over its first 2944 bytes model 57's pin (Model57PoweredHash), every record and event, with the bells on and off, the
+        // block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s): no motor's band touches anything in it.
+        // Model 63 (the physics integration 2 with the bells, 58 merged onto 60): model 58's pin, kept. Audited case by case: over
+        // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
+        // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
+        // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
+        public const ulong PoweredHash = 0xFCDD4AE45B2094A4UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -356,7 +363,14 @@ namespace Fpv450.Sim.Tests
         // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
         // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
         // on anything in it.
-        public const ulong RainPoweredHash = 0x94E95E58184745A9UL;
+        // Model 58 (p7f-damage 1.5, the motors' bells): re-recorded on the 3040-byte record (the bells' block after 2944). Audited
+        // case by case: over its first 2944 bytes model 57's pin (Model57RainPoweredHash), every record and event, with the bells on and off, the
+        // block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s): no motor's band touches anything in it.
+        // Model 63 (the physics integration 2 with the bells, 58 merged onto 60): model 58's pin, kept. Audited case by case: over
+        // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
+        // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
+        // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
+        public const ulong RainPoweredHash = 0x4A34B87D8D3CB8A9UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -422,6 +436,33 @@ namespace Fpv450.Sim.Tests
         /// keeps bit for bit, every record and event, with the props at rest on (no golden's prop rests on anything) and off, the
         /// block zero.</summary>
         public const int Model50Layout = LogFormat.Model50StepSize;
+
+        /// <summary>p7f-damage 1.5 (model 58), its audit (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s): model 57's record, its
+        /// first 2944 bytes (the record less the bells' block at its end), and its pins, which every golden keeps bit for bit, every
+        /// record and event, with the bells on (no golden's motor band touches anything) and off (ContactSpec.MotorBell), the block
+        /// zero.</summary>
+        public const int Model57Layout = LogFormat.Model57StepSize;
+        public const ulong Model57PoweredHash = 0x559EE43EC0D39E24UL, Model57RainPoweredHash = 0x94E95E58184745A9UL,
+            Model57ContactHash = 0x23F1CAAA06836829UL, Model57RangeHash = 0x05FA9D844690C592UL, Model57TetherHash = 0x194E6D87B0555391UL,
+            Model57TumbleHash = 0x5BAE982A96C6A953UL;
+
+        /// <summary>The physics integration 2 with the bells (model 63), its audits: model 60's pins (the skid's frame on the cuts)
+        /// over model 57's 2944 bytes, which every golden keeps with the bells on and off (GoldenFlightTests.WithoutTheBellsEach
+        /// GoldenIsModel60s; powered, rain and tumble are 57's, unmoved since), and p7f-damage 1.5's model 58 pins on the 3040-byte
+        /// record, which every golden flown without the skid's frame and the cuts keeps (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).</summary>
+        public const ulong Model60PoweredHash = Model57PoweredHash, Model60RainPoweredHash = Model57RainPoweredHash,
+            Model60ContactHash = 0x443F8EB0FF6F0258UL, Model60RangeHash = 0x5AB70E46CC936BE0UL, Model60TetherHash = 0xA1C51B2FC6318AC2UL,
+            Model60TumbleHash = Model57TumbleHash;
+        public const ulong Model58PoweredHash = 0xFCDD4AE45B2094A4UL, Model58RainPoweredHash = 0x4A34B87D8D3CB8A9UL,
+            Model58ContactHash = 0x35986B0BD8AEDDA9UL, Model58RangeHash = 0x1F8DB2FB55133D92UL, Model58TetherHash = 0x87866B2D06B0F191UL,
+            Model58TumbleHash = 0xA07B024ABF6C7DD3UL;
+
+        /// <summary>A flight's contacts without the motors' bells (p7f-damage 1.5's audit and known-wrong): the can a rigid part, as
+        /// at model 57.</summary>
+        public static void WithoutTheBells(FlightSetup s)
+        {
+            if (s.Contacts != null) s.Contacts.MotorBell = false;
+        }
         public const ulong Model50PoweredHash = 0x32CFEE62D75ECC24UL, Model50RainPoweredHash = 0x19A2E68386BF1DA9UL,
             Model50ContactHash = 0xE4B8CB8346751E29UL, Model50RangeHash = 0xBADF8E0897A61D92UL, Model50TetherHash = 0x316A98D76AD4F03FUL,
             Model50TumbleHash = 0xE798498661DECB53UL;
@@ -733,7 +774,15 @@ namespace Fpv450.Sim.Tests
         // TheFiberContactsEachGoldenIsModel54s, kept). With the frame it is 54's flight (no line, no prop at rest): from step 3,
         // within 17.70 mm and 0.567° of model 59's path, 3 impacts as 59's, 65 events against 71, at rest 0.2494 m up against
         // 0.2495 on 4 pairs, 13.85 mm from 59's rest; the largest lean 8.26 mm (9.56); every leg intact.
-        public const ulong ContactHash = 0x443F8EB0FF6F0258UL;
+        // Model 58 (p7f-damage 1.5, the motors' bells): re-recorded on the 3040-byte record (the bells' block after 2944). Audited
+        // case by case: over its first 2944 bytes model 57's pin (Model57ContactHash), every record and event, with the bells on and off, the
+        // block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s): no motor's band touches anything in it.
+        // Model 63 (the physics integration 2 with the bells, 58 merged onto 60): re-recorded on the 3040-byte record, 60's flight
+        // and the bells' zero block. Audited case by case: over model 57's 2944 bytes model 60's pin (Model60ContactHash), every record
+        // and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
+        // no motor's band touches anything in it; without the skid's frame model 58's pin (Model58ContactHash) over the whole record
+        // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
+        public const ulong ContactHash = 0x4D6E89806C9F0058UL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -891,12 +940,18 @@ namespace Fpv450.Sim.Tests
         /// (0) and 9 safe steps (3) in the near piece's flutter, 0 wedges, 0 dips, 18 sections read (17); 2095 events against
         /// 4150 (fewer FiberContact and FiberSlip churn at the near piece's free end). 1.8's known risk (the fuselage's blocking
         /// of the rear fountain is not modelled), not tuned.
+        /// Model 58 (p7f-damage 1.5, the motors' bells): re-recorded on the 3040-byte record. Audited case by case: over its first
+        /// 2944 bytes model 57's pin (Model57TetherHash), every record and event, with the bells on and off, the block zero
+        /// (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s); without the fiber's contacts model 52's pin over those bytes.
+        /// Model 63 (the physics integration 2 with the bells, 58 merged onto 60): re-recorded on the 3040-byte record, 60's flight
+        /// and the bells' zero block. Audited case by case: over model 57's 2944 bytes model 60's pin (Model60TetherHash), every record
+        /// and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
+        /// no motor's band touches anything in it; without the skid's frame and the cuts model 58's pin (Model58TetherHash) over the whole record
+        /// (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
+        /// So the tether golden still breaks as at 60: rotor 2's disc at its tip at step 7304, the failsafe to Disarmed, a near
+        /// piece of 11 nodes, 2 clips and 9 safe steps, 0 wedges: no bell touches the line's pieces or the ground through it.
         /// </summary>
-        public const ulong TetherHash = 0xA1C51B2FC6318AC2UL;
-
-        /// <summary>The tether golden at model 57 (the props at rest on the line), which the flight without 1.8's cuts keeps
-        /// (FlightSetup.TetherWithoutCuts: GoldenFlightTests.WithoutTheCutsEachGoldenIsModel57s).</summary>
-        public const ulong Model57TetherHash = 0x194E6D87B0555391UL;
+        public const ulong TetherHash = 0xCBB115FDD3A3A0C2UL;
 
         /// <summary>The tether golden of p7d-tether 1.8 (model 56) on model 50's 2816 bytes, which the flight without the props
         /// at rest keeps (ContactSpec.BladeRest off: GoldenFlightTests.WithoutARestingPropEachGoldenIsModel56s).</summary>
@@ -914,7 +969,8 @@ namespace Fpv450.Sim.Tests
         public const ulong Model53TetherHash = 0xCD7C8022C0A85391UL;
 
         /// <summary>The tether golden of p7f-damage 1.3b (model 52) on the 2944-byte record, which the flight without the fiber's
-        /// contacts keeps (GoldenFlightTests.WithoutTheFiberContactsAndTheHangingGiveEachGoldenIsModel52s).</summary>
+        /// contacts keeps over those bytes (Model57Layout, since model 58's bells block; GoldenFlightTests.
+        /// WithoutTheFiberContactsAndTheHangingGiveEachGoldenIsModel52s).</summary>
         public const ulong Model52TetherHash = 0x053EF845C2E62E3FUL;
 
         /// <summary>The physics integration 2 with the tip slide and the fountain (model 48), its audits against the parents'
@@ -994,7 +1050,14 @@ namespace Fpv450.Sim.Tests
         // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
         // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
         // on anything in it.
-        public const ulong TumbleHash = 0x5BAE982A96C6A953UL;
+        // Model 58 (p7f-damage 1.5, the motors' bells): re-recorded on the 3040-byte record (the bells' block after 2944). Audited
+        // case by case: over its first 2944 bytes model 57's pin (Model57TumbleHash), every record and event, with the bells on and off, the
+        // block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s): no motor's band touches anything in it.
+        // Model 63 (the physics integration 2 with the bells, 58 merged onto 60): model 58's pin, kept. Audited case by case: over
+        // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
+        // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
+        // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
+        public const ulong TumbleHash = 0xA07B024ABF6C7DD3UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1164,7 +1227,15 @@ namespace Fpv450.Sim.Tests
         // flight (WithoutTheFrameEachGoldenIsModel59s, WithoutTheCutsTheRestAndTheFiberContactsEachGoldenIsModel54s): 54's flight,
         // from step 3, within 7.52 mm and 0.130° of model 59's path, 3 impacts, at rest 0.2451 m up as 59's on 8 pairs in S04's
         // straw, 6.30 mm from 59's rest; the largest lean 4.72 mm (4.66); every leg intact.
-        public const ulong RangeHash = 0x5AB70E46CC936BE0UL;
+        // Model 58 (p7f-damage 1.5, the motors' bells): re-recorded on the 3040-byte record (the bells' block after 2944). Audited
+        // case by case: over its first 2944 bytes model 57's pin (Model57RangeHash), every record and event, with the bells on and off, the
+        // block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel57s): no motor's band touches anything in it.
+        // Model 63 (the physics integration 2 with the bells, 58 merged onto 60): re-recorded on the 3040-byte record, 60's flight
+        // and the bells' zero block. Audited case by case: over model 57's 2944 bytes model 60's pin (Model60RangeHash), every record
+        // and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
+        // no motor's band touches anything in it; without the skid's frame model 58's pin (Model58RangeHash) over the whole record
+        // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
+        public const ulong RangeHash = 0xEFF887E0EA8DF960UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
