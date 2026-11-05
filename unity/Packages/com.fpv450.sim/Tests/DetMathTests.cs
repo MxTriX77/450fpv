@@ -72,6 +72,30 @@ namespace Fpv450.Sim.Tests
             Assert.That((BitConverter.DoubleToInt64Bits(s3), BitConverter.DoubleToInt64Bits(c3)), Is.EqualTo((PinnedS3, PinnedC3)));
         }
 
+        // Cos is SinCos's cosine bit for bit (p7d-tether 1.13: the wind's plane waves read it alone): over ±10 turns, the
+        // quadrants' boundaries, magnitudes from 1e-300 to the reduction's end, both zeros, the infinities and NaN.
+        [Test]
+        public void Cos_IsSinCosCosineBitForBit()
+        {
+            void Same(double x)
+            {
+                DetMath.SinCos(x, out _, out double c);
+                Assert.That(BitConverter.DoubleToInt64Bits(DetMath.Cos(x)), Is.EqualTo(BitConverter.DoubleToInt64Bits(c)), "x " + x.ToString("R"));
+            }
+            for (int i = -200000; i <= 200000; i++) Same(i * 3.1415e-4);
+            for (int k = -40; k <= 40; k++)
+                for (int d = -2; d <= 2; d++)
+                    Same(BitConverter.Int64BitsToDouble(BitConverter.DoubleToInt64Bits(k * Math.PI / 4) + d));
+            for (int e = -300; e <= 6; e++)
+                for (int m = 1; m <= 9; m += 2)
+                {
+                    Same(m * Math.Pow(10, e));
+                    Same(-m * Math.Pow(10, e));
+                }
+            foreach (double x in new[] { 0.0, -0.0, double.PositiveInfinity, double.NegativeInfinity, double.NaN, 1.6e6, -1.6e6, 1e300 })
+                Same(x);
+        }
+
         // Log and Exp (the wind field's profile and draws, p7c-wind 1.4) against System.Math over their working ranges, a
         // few ulp, and their exact points.
         [Test]

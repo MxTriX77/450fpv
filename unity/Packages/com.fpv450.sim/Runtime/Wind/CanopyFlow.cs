@@ -176,7 +176,7 @@ namespace Fpv450.Sim.Wind
             for (int m = 0; m < _wave.Length; m++)
             {
                 Double3 k = _wave[m];
-                DetMath.SinCos(k.X * point.X + k.Y * point.Y + k.Z * point.Z + _offset[m], out _, out double cos);
+                double cos = DetMath.Cos(k.X * point.X + k.Y * point.Y + k.Z * point.Z + _offset[m]);
                 Double3 a = _amp[m];
                 x += a.X * cos;
                 y += a.Y * cos;
