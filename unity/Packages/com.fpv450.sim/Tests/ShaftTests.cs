@@ -33,7 +33,8 @@ namespace Fpv450.Sim.Tests
         // at the stator φ·8 mm and its tilt φ. At 1.2 the hover's 50–200 Hz band rises with them (the 1/rev pull and couples, the
         // run-out's rub); at 2 the run-out, 2 mm, puts the magnets 1.75 mm into the stator: the rub (3.7 N·m) passes the stalled
         // drive, the motor binds (MotorBound) and the drone falls on three rotors, so there is no hover to shake: the band rises
-        // with the bend up to the bind, past it the run-out binds the motor (the scenario's words since model 68). The known-wrong, a straight shaft and the motor a flat efficiency loss
+        // with the bend up to the bind, past it the run-out binds the motor (the scenario's words since model 68; since model 70 the bound
+        // motor's stalled current then burns it out, p7f-damage 1.6b, so the bind is judged as it happens). The known-wrong, a straight shaft and the motor a flat efficiency loss
         // (Kt × 0.95), keeps the straight hover's band: it fails.
         [Test]
         public void ABentShaftShakes()

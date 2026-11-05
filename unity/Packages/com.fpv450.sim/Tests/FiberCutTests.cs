@@ -190,8 +190,13 @@ namespace Fpv450.Sim.Tests
                 FiberCutScenarios.Coil c = FiberCutScenarios.OverTheCoil(Spec, seed, false);
                 Print($"seed {seed}: {c.O}; on the coil {c.Touching} steps, its most stress at a barb {c.MostStress / 1e9:F3} GPa, the least strength there {c.LeastStrength / 1e9:F3}, turn {c.MostTurn:F3}; a touch moved {c.MostMoved * 1e3:F2} mm along its record");
                 if (c.Touching > 0) touched++;
-                if (c.LeastStrength > c.MostStress) Assert.That(c.O.Broken, Is.False, "holds where the strength exceeds the stress at the barbs");
-                if (c.LeastStrength > 1.35e9) Assert.That(c.O.Broken && c.O.Place == FiberMember.Snag, Is.False, "never cut at a barb above 1.35 GPa");
+                // Since model 70 (p7f-damage 1.6b, the motors' heat) seed 20's hover rubs the line on a barb until its abrasion takes
+                // the section's strength to 0.68 GPa and it cuts there at 10.6 s (Abrasion at Snag, 1.08 GPa): the barbs' static
+                // stress never passes the line's drawn strength, the wear does. Traced over 40 seeds: without the heat none cuts, with
+                // it seed 20 alone; the claims are judged against the static cut (the spec's wording is the orchestrator's: handback).
+                bool worn = c.O.Broken && c.O.Mechanism == TetherMechanism.Abrasion;
+                if (c.LeastStrength > c.MostStress) Assert.That(c.O.Broken && !worn, Is.False, "holds where the strength exceeds the stress at the barbs, but by wear");
+                if (c.LeastStrength > 1.35e9) Assert.That(c.O.Broken && !worn && c.O.Place == FiberMember.Snag, Is.False, "never cut at a barb above 1.35 GPa, but by wear");
                 Assert.That(c.MostMoved, Is.LessThanOrEqualTo(0.0175), "each touch within half a barb pitch of where it touched");
             }
             Assert.That(touched, Is.EqualTo(20), "the line lies over the coil on every seed");

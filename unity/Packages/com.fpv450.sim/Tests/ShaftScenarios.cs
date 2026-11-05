@@ -50,12 +50,12 @@ namespace Fpv450.Sim.Tests
         {
             public double Times, Bend, BendP, BendQ, RunOut, Tilt, Band, Rub, Amps, Speed, Moment;
             public int Bends;
-            public bool Bound;
+            public bool Bound, Failed;
 
             public string Describe() =>
                 $"{Times:F1} M_y at the upper bearing ({Moment:F3} N·m): bend {Bend:F6} rad (p {BendP:F6}, q {BendQ:F6}; {Bends} MotorDamaged), run-out at the stator "
                 + $"{RunOut * 1e3:F4} mm, disc tilt {Tilt:F4}°; the hover's camera 50–200 Hz band {Band:F4} m/s², rr's rub {Rub:F4} N·m, rr {Speed:F1} rad/s, "
-                + $"{Amps:F2} A in all{(Bound ? ", rr bound (MotorBound)" : "")}";
+                + $"{Amps:F2} A in all{(Bound ? ", rr bound (MotorBound)" : "")}{(Failed ? ", then failed by its stalled current's heat (p7f-damage 1.6b)" : "")}";
         }
 
         /// <summary>
@@ -69,14 +69,17 @@ namespace Fpv450.Sim.Tests
             var hit = new StepEvents(16);
             var r = new Bent { Times = times };
             FlightCore core = null;
+            bool bound = false;
             DamageScenario.Result res = DamageScenario.Hover(setup, out core, before: c =>
             {
                 if (times > 0) HubHit(c, Corner, times, hit);
             }, each: c =>
             {
                 if (flat) c.Propulsion.SetMotor(Corner, 0.95, 0);
+                bound |= (c.Propulsion.Bound & 1 << Corner) != 0; // since model 70 a bound motor's stalled current burns it out (1.6b)
             });
-            r.Bound = (core.Propulsion.Bound & 1 << Corner) != 0;
+            r.Bound = bound;
+            r.Failed = (core.Propulsion.Failed & 1 << Corner) != 0;
             MotorShaft s = core.Contacts.Shafts;
             for (int i = 0; i < hit.Count; i++)
                 if (hit[i].Kind == EventKind.MotorDamaged && hit[i].Index >> 4 == 2)
