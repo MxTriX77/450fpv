@@ -738,6 +738,234 @@ namespace Fpv450.Tests.Session
             rig.Session.Dispose();
         }
 
+        // ---- R in every state (D-087) -----------------------------------------------------------------------------------
+
+        // A flight whose fiber breaks in the air: the coil holds 1.45 m of line (its empty spool's mass set 0.1 g under the
+        // coil part's, a test's coil), so the climb at 0.7, then 0.45 from 1 s, pulls the line taut from the launch and it
+        // parts in its free span about 1.15 s up. Betaflight's failsafe then declares the signal lost 0.1 s on, flies
+        // stage 1 from 0.4 s and DROP disarms at 1.5 s; the drone falls onto the floor and crashes.
+        Rig Breaking() => Make(i =>
+        {
+            i.Surfaces = _surfaces;
+            i.Tether = _tether;
+            i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm };
+            i.Adjust = s => s.TetherSpoolMass = s.Mass.Part(s.TetherCoilPart).Mass - 1e-4;
+        });
+
+        // The breaking flight's sticks from the arm, a ms at a time, until done holds (or 6 s); the events seen on the way.
+        static List<FlightEvent> FlyUntil(Rig rig, Func<FlightCore, List<FlightEvent>, bool> done)
+        {
+            var seen = new List<FlightEvent>();
+            FlightCore core = rig.Session.Core;
+            for (int ms = 0; ms < 6000 && !done(core, seen); ms++)
+            {
+                rig.Radio.Throttle = ms < 1000 ? 0.7 : 0.45;
+                rig.Run(1);
+                for (int e = 0; e < core.Events.Count; e++)
+                    if (core.Events[e].Kind == EventKind.TetherBreak || core.Events[e].Kind == EventKind.Failsafe || core.Events[e].Kind == EventKind.Crash)
+                        seen.Add(core.Events[e]);
+            }
+            Assert.That(done(core, seen), "the state was reached");
+            return seen;
+        }
+
+        static bool Stage(List<FlightEvent> seen, FailsafeStage stage) => seen.Exists(e => e.Kind == EventKind.Failsafe && e.Index == (byte)stage);
+
+        // D-087, the pilot: "sometimes R doesn't restart the race RIGHT AWAY". R (the session's Restart, which FlightScene's R
+        // calls in every state) ends the flight by the pilot and starts the next at once, in the same call, whatever state the
+        // last was in: flying, paused, its fiber just broken, at each failsafe stage, disarmed by the drop, crashed, or ended
+        // with its summary up. The new flight is a new FlightCore at step 0: the line whole and laid again, the link intact, the
+        // failsafe cleared, its props whole and its legs intact, disarmed, from the same setup and start; the last flight's
+        // log is complete and ended by the pilot.
+        [TestCase("flying, the line whole")]
+        [TestCase("paused, the line whole")]
+        [TestCase("the fiber just broken")]
+        [TestCase("the signal lost")]
+        [TestCase("failsafe stage 1")]
+        [TestCase("paused at failsafe stage 1")]
+        [TestCase("disarmed by the drop")]
+        [TestCase("crashed after the drop")]
+        [TestCase("ended, the summary up")]
+        public void RRestartsAtOnceInEveryState(string state)
+        {
+            Rig rig = Breaking();
+            rig.Session.Start();
+            rig.ArmCycle();
+            FlightSetup first = rig.Session.Setup;
+            FlightCore old = rig.Session.Core;
+            string log = rig.Session.LogPath;
+            long armedAt = old.State.Step;
+            List<FlightEvent> seen;
+            switch (state)
+            {
+                case "flying, the line whole":
+                case "paused, the line whole":
+                    seen = FlyUntil(rig, (c, _) => c.State.Step >= armedAt + 500);
+                    Assert.That(old.State.Position.Y - first.StartPosition.Y, Is.GreaterThan(0.1), "in the air");
+                    break;
+                case "the fiber just broken":
+                    seen = FlyUntil(rig, (c, s) => c.Tether.Broken && c.State.Step >= c.Tether.BrokenAt + 20);
+                    break;
+                case "the signal lost": seen = FlyUntil(rig, (c, s) => Stage(s, FailsafeStage.SignalLost)); break;
+                case "failsafe stage 1":
+                case "paused at failsafe stage 1":
+                    seen = FlyUntil(rig, (c, s) => Stage(s, FailsafeStage.Stage1));
+                    break;
+                case "disarmed by the drop":
+                    seen = FlyUntil(rig, (c, s) => Stage(s, FailsafeStage.Disarmed) && !c.State.Armed); // the controller reads it at its RC frame
+                    Assert.That((old.State.Armed, old.State.Crashed), Is.EqualTo((false, false)), "disarmed, falling");
+                    break;
+                default:
+                    seen = FlyUntil(rig, (c, s) => s.Exists(e => e.Kind == EventKind.Crash) && Stage(s, FailsafeStage.Disarmed));
+                    rig.Run(200);
+                    break;
+            }
+            if (state.StartsWith("paused")) rig.Session.Pause();
+            if (state.StartsWith("ended")) rig.Session.EndFlight();
+            bool broke = old.Tether.Broken;
+            Assert.That(broke, Is.EqualTo(!state.EndsWith("the line whole")), "the line as the state has it");
+            Assert.That(rig.Session.State, Is.EqualTo(state.StartsWith("paused") ? SessionState.Paused : state.StartsWith("ended") ? SessionState.Ended : SessionState.Flying));
+            TestContext.WriteLine(state + ": R at step " + old.State.Step + ", " + (old.State.Position.Y - first.StartPosition.Y).ToString("0.00") + " m up, armed " + old.State.Armed
+                + "; " + string.Join(", ", seen.ConvertAll(e => e.Kind + (e.Kind == EventKind.Failsafe ? " " + (FailsafeStage)e.Index : ""))));
+
+            Assert.That(rig.Session.Restart(), Is.True, "R: the next flight starts at once");
+            FlightCore core = rig.Session.Core;
+            Assert.That((rig.Session.State, rig.Session.Flights, core.State.Step), Is.EqualTo((SessionState.Flying, 2, 0L)), "a new flight at its step 0, in the same call");
+            Assert.That(core, Is.Not.SameAs(old), "a new FlightCore");
+            ref readonly PosePair pair = ref rig.Session.Poses.Read();
+            Assert.That((pair.Current.Step, pair.StartUs), Is.EqualTo((0L, rig.Session.StartUs)), "its first pose is published");
+            Assert.That(pair.Signals.LinkState, Is.EqualTo(LinkState.Intact), "the link intact");
+            Assert.That(core.Failsafe, Is.Not.Null, "the line's failsafe");
+            Assert.That(core.Failsafe.Active, Is.False, "the failsafe cleared");
+            Assert.That((core.Tether.Broken, core.Tether.PaidOut), Is.EqualTo((false, 0.0)), "the line whole, laid again from the start");
+            Assert.That(Whole(core), "whole props");
+            for (int c = 0; c < 4; c++)
+                Assert.That((core.Contacts.Legs.Flags(c), core.Contacts.Corner(c)), Is.EqualTo((LegFlags.None, CornerState.None)), "leg " + c + " intact");
+            Assert.That((core.State.Armed, core.State.Crashed), Is.EqualTo((false, false)), "disarmed, no crash");
+            FlightChoices c0 = rig.Session.Choices;
+            Assert.That((c0.Legs, c0.Wind, rig.Session.StartPoint.Name), Is.EqualTo((true, WindLevel.Calm, StartPoint.Origin.Name)), "the same setup and start");
+            Assert.That((rig.Session.Setup.StartPosition, rig.Session.Setup.StartAttitude), Is.EqualTo((first.StartPosition, first.StartAttitude)), "at rest where the last began");
+
+            PostFlight last = PostFlight.Read(log);
+            Assert.That((last.Log.Complete, last.End.Kind), Is.EqualTo((true, FlightEndKind.Pilot)), "the last flight ended by the pilot");
+            Assert.That(last.Incidents.Exists(i => i.Kind == FlightIncidentKind.FiberBreak), Is.EqualTo(broke), "its summary has the break it met");
+
+            rig.Run(100);
+            ref readonly PosePair later = ref rig.Session.Poses.Read();
+            Assert.That((rig.Session.State, core.Failsafe.Active, core.Tether.Broken, later.Signals.LinkState), Is.EqualTo((SessionState.Flying, false, false, LinkState.Intact)),
+                "the new flight flies on its whole line");
+            Assert.That(later.Current.Step, Is.GreaterThan(50));
+            rig.Session.Dispose();
+        }
+
+        // D-087: the flight thread may run behind real time (a loaded host, the step's cost in the house; a catch-up pass of
+        // 500–1155 steps was seen in the model-57 player). R must not wait for the whole pass: the scheduler stops between
+        // steps. Here the host is 10 s ahead of the flight's step 0, so the thread's pass has 10 000 steps due; R comes once
+        // the pass has begun and the restart returns with the last flight cut at a step, its log complete to that step.
+        [Test]
+        public void RDoesNotWaitForTheFlightThreadsCatchUp()
+        {
+            var clock = new ManualClock { Now = 1000000 };
+            SessionInputs inputs = Inputs();
+            inputs.Clock = clock;
+            inputs.Threaded = true;
+            inputs.KeyboardAllowed = true;
+            inputs.Surfaces = _surfaces;
+            inputs.Tether = _tether;
+            using (var session = new FlightSession(inputs))
+            {
+                session.Start();
+                FlightCore old = session.Core;
+                string log = session.LogPath;
+                clock.Now = session.StartUs + 10000000;
+                var wait = System.Diagnostics.Stopwatch.StartNew();
+                while (session.Poses.LatestStep < 10 && wait.ElapsedMilliseconds < 10000) Thread.Sleep(1); // the thread's pass has begun
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                Assert.That(session.Restart(), Is.True);
+                watch.Stop();
+                long ran = old.State.Step;
+                FlightSummary s = FlightSummary.Read(log);
+                TestContext.WriteLine("R after the catch-up's first steps: the last flight stopped at step " + ran + " of 10 000 due, the restart took "
+                    + watch.ElapsedMilliseconds + " ms; its log " + s.Steps + " steps, complete " + s.Complete);
+                Assert.That(ran, Is.InRange(10, 9999), "the catch-up was cut at a step, not run to its end");
+                Assert.That((s.Complete, s.Steps), Is.EqualTo((true, ran)), "the log complete to that step");
+                Assert.That((session.State, session.Flights, session.Core.State.Step), Is.EqualTo((SessionState.Flying, 2, 0L)));
+            }
+        }
+
+        // D-087: the summary lists the fiber's break, its mechanism, where and the tension, and each stage of Betaflight's
+        // failsafe on the lost link with its time after the last good frame, worded as the other lines and in step order:
+        // here pulled apart in the free span, the signal lost 0.1 s on, stage 1 at 0.4 s, DROP and its disarm at 1.5 s
+        // (failsafe_delay 15), then the crash on the floor. No radio was lost, so no "the radio was lost". AUTO-LAND's stage 2
+        // names its throttle. The log replays bit for bit.
+        [Test]
+        public void TheSummaryNamesTheFibersBreakAndTheFailsafesStages()
+        {
+            Rig rig = Breaking();
+            rig.Session.Start();
+            rig.ArmCycle();
+            FlyUntil(rig, (c, s) => c.State.Step >= 4000);
+            rig.Session.EndFlight();
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            LoggedEvent cut = p.Log.Events.Find(e => e.Event.Kind == EventKind.TetherBreak);
+            Assert.That(p.Log.Count(EventKind.TetherBreak), Is.EqualTo(1), "the line breaks once");
+            Assert.That(((TetherMechanism)(cut.Event.Index & 0x0F), (FiberMember)(cut.Event.Index >> 4)), Is.EqualTo((TetherMechanism.Tension, FiberMember.Span)));
+            Assert.That(p.BreakPlace, Is.EqualTo("in the free span"));
+            List<LoggedEvent> stages = p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Failsafe);
+            Assert.That(stages.ConvertAll(e => (FailsafeStage)e.Event.Index), Is.EqualTo(new[] { FailsafeStage.SignalLost, FailsafeStage.Stage1, FailsafeStage.Stage2, FailsafeStage.Disarmed }));
+            FcSettings fc = FcSettings.Default;
+            long[] after = { (long)Math.Round(Failsafe.RxLossSeconds * 1000), (long)Math.Round((Failsafe.RxLossSeconds + Failsafe.HoldSeconds) * 1000),
+                (long)Math.Round(fc.failsafe_delay * 100), (long)Math.Round(fc.failsafe_delay * 100) };
+            for (int i = 0; i < 4; i++) Assert.That(stages[i].Step - cut.Step, Is.EqualTo(after[i]).Within(1), (FailsafeStage)stages[i].Event.Index + "'s time");
+
+            List<FlightIncident> fiber = p.Incidents.FindAll(i => i.Kind == FlightIncidentKind.FiberBreak || i.Kind == FlightIncidentKind.FailsafeStage);
+            Assert.That(fiber.ConvertAll(i => (i.Kind, i.Step)), Is.EqualTo(new[]
+            {
+                (FlightIncidentKind.FiberBreak, cut.Step), (FlightIncidentKind.FailsafeStage, stages[0].Step), (FlightIncidentKind.FailsafeStage, stages[1].Step),
+                (FlightIncidentKind.FailsafeStage, stages[2].Step), (FlightIncidentKind.FailsafeStage, stages[3].Step),
+            }), "the break, then the stages in order");
+            Assert.That(p.Incidents.Exists(i => i.Kind == FlightIncidentKind.Failsafe), Is.False, "the radio was never lost");
+            Assert.That(p.Incidents.FindIndex(i => i.Kind == FlightIncidentKind.Crash), Is.GreaterThan(p.Incidents.FindIndex(i => i.Kind == FlightIncidentKind.FailsafeStage)), "the crash after the drop");
+
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            string At(long step)
+            {
+                double t = step * FlightCore.Dt;
+                int whole = (int)t;
+                return " at " + whole / 60 + ":" + (whole % 60).ToString("00", inv) + "." + (int)((t - whole) * 10);
+            }
+            string[] expected =
+            {
+                "fiber broke" + At(cut.Step) + ": pulled apart in the free span, at " + cut.Event.B.ToString("0.0", inv) + " N",
+                "failsafe, signal lost" + At(stages[0].Step) + ": " + stages[0].Event.A.ToString("0.00", inv) + " s after the last good frame",
+                "failsafe stage 1" + At(stages[1].Step) + ": " + stages[1].Event.A.ToString("0.00", inv) + " s after the last good frame, the sticks centred and the throttle off",
+                "failsafe stage 2" + At(stages[2].Step) + ": " + stages[2].Event.A.ToString("0.00", inv) + " s after the last good frame, DROP",
+                "failsafe disarm" + At(stages[3].Step) + ": " + stages[3].Event.A.ToString("0.00", inv) + " s after the last good frame",
+            };
+            Assert.That(fiber.ConvertAll(i => p.Describe(i)), Is.EqualTo(expected));
+            List<string> lines = p.Lines();
+            int first = lines.IndexOf(expected[0]);
+            Assert.That(first, Is.GreaterThan(0), "the summary lists the break");
+            Assert.That(lines.GetRange(first, 5), Is.EqualTo(expected), "and the stages after it");
+            Assert.That(stages[3].Event.A, Is.EqualTo(1.5).Within(0.0015), "DROP disarms 1.5 s after the last good frame");
+
+            var land = FlightEvent.Of(EventKind.Failsafe);
+            land.Index = (byte)FailsafeStage.Stage2;
+            land.A = 1.5;
+            land.B = (byte)FailsafeProcedure.AUTO_LAND;
+            land.C = 0.35;
+            Assert.That(p.Describe(new FlightIncident { Kind = FlightIncidentKind.FailsafeStage, Step = 2300, Event = new LoggedEvent { Step = 2300, Event = land } }),
+                Is.EqualTo("failsafe stage 2 at 0:02.3: 1.50 s after the last good frame, AUTO-LAND, the throttle at 35 %"));
+
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, surfacesHash: _surfaces.Hash, tetherHash: _tether.ContentHash,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+        }
+
         // D-078, D-080: each step publishes the stick sample it flew with its signals, for the OSD's sticks and throttle:
         // the test radio's report through the raw map, stamped no later than the step.
         [Test]
