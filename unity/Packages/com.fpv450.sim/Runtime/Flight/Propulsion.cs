@@ -227,6 +227,11 @@ namespace Fpv450.Sim.Flight
         readonly double[] _shaftUp = new double[4], _shaftUq = new double[4], _shaftKp = new double[4], _shaftKq = new double[4];
         readonly double[] _shaftTp = new double[4], _shaftTq = new double[4], _shaftLever = new double[4];
 
+        // The arms in their plane (SetArms, ArmFlex, model 72; null: stiff that way, model 68's), and the ESCs stopped with their
+        // motors turning (StopEsc: their FETs off, the rotor coasts; bit 1 << corner).
+        ArmFlex _arms;
+        int _escStopped;
+
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
         bool _elastic;
@@ -483,6 +488,17 @@ namespace Fpv450.Sim.Flight
             }
             _thrust[corner] = _torque[corner] = _meanThrust[corner] = 0;
         }
+
+        /// <summary>The arms in their plane (ArmFlex), from the next sub-step: the rotors' in-plane loads reach the body through
+        /// them. The core sets them with the airframe's modes (AirframeModesSpec.ArmInPlane).</summary>
+        public void SetArms(ArmFlex arms) => _arms = arms;
+
+        /// <summary>
+        /// A rotor's ESC stopped from the next sub-step (a motor that stops in flight: an ESC's fault, or a desync it does not
+        /// restart from): its FETs off, no drive and no brake, so the rotor coasts down under its prop's torque while the
+        /// controller still commands it. A scenario's fixture (p7f-damage 1.6, the losses), like Rebuild's trims: not in the log.
+        /// </summary>
+        public void StopEsc(int corner) => _escStopped |= 1 << corner;
 
         /// <summary>The rotors whose prop is lost (bit 1 &lt;&lt; corner), and those whose shaft is bent.</summary>
         public int Lost => _lost;
@@ -924,7 +940,7 @@ namespace Fpv450.Sim.Flight
                     if (_brakeAt[i] < double.PositiveInfinity) _escBrake |= bit;
                 }
             }
-            int running = driving ? 0xF : ~_escOff & 0xF;
+            int running = (driving ? 0xF : ~_escOff & 0xF) & ~_escStopped;
 
             // The bus: the packs' Thevenin source, loaded by the free ESCs, I = Σ d·(d·V − Ke·ω)/R, and by the limited
             // ones, Σ (I_lim·R + Ke·ω)·I_lim / V. An ESC is limited when its motor's current at the bus's voltage would
@@ -955,7 +971,7 @@ namespace Fpv450.Sim.Flight
                     volts = Bus(vth, rth, load, emf, power);
                     int more = 0;
                     for (int i = 0; driving && i < 4; i++)
-                        if ((limited & (1 << i)) == 0 && (s.EscCommand[i] * volts - _ke[i] * s.RotorSpeed[i]) * _invR[i] > _limit[i])
+                        if ((limited & (1 << i)) == 0 && (_escStopped & (1 << i)) == 0 && (s.EscCommand[i] * volts - _ke[i] * s.RotorSpeed[i]) * _invR[i] > _limit[i])
                             more |= 1 << i;
                     if (more == 0) break;
                     limited |= more;
@@ -1076,6 +1092,25 @@ namespace Fpv450.Sim.Flight
             double angle = s.RotorAngle[i] + (w + next) * 0.5 * h;
             while (angle >= TwoPi) angle -= TwoPi;
             s.RotorAngle[i] = angle;
+            if (_arms != null)
+            {
+                // Through the arm in its plane (ArmFlex, model 72): the rotor's in-plane force and its couples, summed.
+                Double3 force = _unbalanced ? FactoryPull(i, angle, next) : default, moment = default;
+                if ((_bent & (1 << i)) != 0)
+                {
+                    ShaftLoads(i, angle, next, thrust, torque, out Double3 pull, out Double3 tilt, out Double3 bentCouple);
+                    force = force + pull + tilt;
+                    moment = moment + bentCouple;
+                }
+                if ((_damaged & (1 << i)) != 0)
+                {
+                    BladeLoads(i, angle, next, out Double3 lostPull, out Double3 bladeDrag, out Double3 bladeCouple);
+                    force = force + lostPull + bladeDrag;
+                    moment = moment + bladeCouple;
+                }
+                _arms.Carry(ref s, i, force, moment, thrust, SpinMomentum(i, next), h, ref loads);
+                return;
+            }
             if (_unbalanced)
             {
                 Double3 f = FactoryPull(i, angle, next);

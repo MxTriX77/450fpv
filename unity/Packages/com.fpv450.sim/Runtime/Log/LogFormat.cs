@@ -270,8 +270,14 @@ namespace Fpv450.Sim.Log
         ///    block); the contacts entry 55's with 54's ContactSpec.BladeRoot and then 56's MotorShaft, ShaftHingeShare,
         ///    BearingFriction and BearingDentDrag after the motors' internals, and the internals (in both entries) 56's; the tether
         ///    entry, the modes', the settings and the draws 55's; the events 55's with 56's BladeLost (36) and PropLost (37).
+        /// 62: p7f-damage 1.6, the losses, a lost prop and a lost blade graded (unity/physics/physics-integration-2--prop-loss, on 58; assigned
+        ///    by D-072; 59–61 are the parallel lines'): after 58's 3168 bytes each arm's bend across the arm and twist with their
+        ///    rates, its load, the gyro's peak before its range and the arms broken (arm_bend, arm_bend_rate, arm_twist,
+        ///    arm_twist_rate, arm_load, gyro_peak, arm_broken; 176 bytes, 3344 in all); the modes' entry gains, after the camera's
+        ///    parts, ArmInPlane, ArmShearModulus, ArmFlexuralStrength, ArmShearStrength and each corner's HubHeight, TwistMoment and
+        ///    TwistInertia; the setup entry FlightSetup.GyroRange after TetherZeroForceHold; the event ArmBroken (38).
         /// </summary>
-        public const int Version = 58;
+        public const int Version = 62;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -685,8 +691,14 @@ namespace Fpv450.Sim.Log
         ///    new block zero; with ContactSpec.MotorShaft off, as in 65; on model 63's drone.json (the fixture Model63Drone,
         ///    GoldenFlights.Model63Tether), through the body, with FlightSetup.TetherZeroForceHold and ContactSpec.BladeRoot
         ///    off, as in 66.
+        /// 72: p7f-damage 1.6, the losses, a lost prop and a lost blade graded (unity/physics/physics-integration-2--prop-loss, on 68; assigned
+        ///    by D-072; 69–71 are the parallel lines'): each arm in its plane (Flight.ArmFlex, AirframeModesSpec.ArmInPlane): the tip's
+        ///    bend across the arm and the arm's twist carry the rotor's in-plane 1/rev to the body, the twist tilts the thrust and
+        ///    turns the spinning rotor, and an arm past its strength breaks (ArmBroken, its prop lost); the gyro's range clips each
+        ///    axis the controller reads at ±FlightSetup.GyroRange (2000 °/s). With ArmInPlane off and GyroRange 0 (the clean sensors) a
+        ///    flight steps as in 68 over its 3168 bytes, the new block zero.
         /// </summary>
-        public const int ModelVersion = 68;
+        public const int ModelVersion = 72;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -709,8 +721,13 @@ namespace Fpv450.Sim.Log
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
         /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
-        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6).</summary>
-        public const int StepSize = 3168, EventSize = 72, EndSize = 48;
+        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6), then the arms in
+        /// their plane, the gyro's peak and the arms broken (1.6, the losses).</summary>
+        public const int StepSize = 3344, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the arms' block (models 66–68's, formats 56–58: through the shafts' block), over which a flight
+        /// with its arms stiff in their plane and no gyro range keeps model 68's bits.</summary>
+        public const int Model68StepSize = 3168;
 
         /// <summary>The record before the shafts (models 58–63's, formats 48–53: through the bells' block), over which a flight whose
         /// shafts and bearings never yield keeps model 63's bits.</summary>
@@ -749,7 +766,8 @@ namespace Fpv450.Sim.Log
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow", "BladeStrikes" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow", "BladeStrikes",
+              "ArmBend", "ArmBendRate", "ArmTwist", "ArmTwistRate", "ArmBroken" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -766,7 +784,7 @@ namespace Fpv450.Sim.Log
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow", "Tether",
                 "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold", "LegLean",
                 "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1", "BellScrape", "BellRub", "BellKtChange",
-                "ShaftBendP", "ShaftBendQ", "BearingDrag", "BallPassOuter",
+                "ShaftBendP", "ShaftBendQ", "BearingDrag", "BallPassOuter", "ArmLoad", "GyroPeak",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -958,6 +976,15 @@ namespace Fpv450.Sim.Log
             b.Corners("shaft_bend_q", "rad, the shaft's plastic hinge across blade 0 in the disc (q = p x up)");
             b.Corners("bearing_drag", "N.m, the brinelled bearings' added drag at the rotor's thrust; 0 for sound bearings");
             b.Corners("ball_pass_outer", "Hz, a brinelled bearing's outer-race ball-pass frequency at the rotor's speed; 0 for sound bearings");
+            // The arms in their plane and the gyro's range (p7f-damage 1.6, the losses).
+            b.Corners("arm_bend", "m, the arm's tip bent across the arm in the arm plane (along arm x up); 0 without the arms in their plane");
+            b.Corners("arm_bend_rate", "m/s, its rate");
+            b.Corners("arm_twist", "rad, the arm's twist about its own axis (outward from the centre) at its tip");
+            b.Corners("arm_twist_rate", "rad/s, its rate");
+            b.Corners("arm_load", "the arm root's largest stress over the step over the plate's strength (bend or twist, the larger); past 1 it broke");
+            b.Add("gyro_peak", "deg/s, the gyro's largest axis this step before its range clips it", LogFieldType.F64);
+            b.Add("arm_broken", "the arms broken at their clamp, bit 1 << corner", LogFieldType.U8);
+            b.Add("arm.reserved", "zero", LogFieldType.Pad, 7);
             return b.Done(StepSize);
         }
 
@@ -1159,6 +1186,14 @@ namespace Fpv450.Sim.Log
             w.C4(t.ShaftBendQ);
             w.C4(t.BearingDrag);
             w.C4(t.BallPassOuter);
+            w.C4(s.ArmBend);
+            w.C4(s.ArmBendRate);
+            w.C4(s.ArmTwist);
+            w.C4(s.ArmTwistRate);
+            w.C4(t.ArmLoad);
+            w.F64(t.GyroPeak);
+            w.U8(s.ArmBroken);
+            w.Zero(7);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -1312,6 +1347,14 @@ namespace Fpv450.Sim.Log
             t.ShaftBendQ = r.C4();
             t.BearingDrag = r.C4();
             t.BallPassOuter = r.C4();
+            s.ArmBend = r.C4();
+            s.ArmBendRate = r.C4();
+            s.ArmTwist = r.C4();
+            s.ArmTwistRate = r.C4();
+            t.ArmLoad = r.C4();
+            t.GyroPeak = r.F64();
+            s.ArmBroken = r.U8();
+            r.Skip(7);
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

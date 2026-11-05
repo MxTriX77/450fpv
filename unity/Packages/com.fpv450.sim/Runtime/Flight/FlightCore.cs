@@ -126,6 +126,11 @@ namespace Fpv450.Sim.Flight
         /// paying model on a segment that pays nothing (model 59's chain); the audit against model 59 and a bench's known-wrong, never a pilot's flight.</summary>
         public bool TetherZeroForceHold;
 
+        /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
+        /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
+        /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>
+        public double GyroRange = 2000;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -216,6 +221,8 @@ namespace Fpv450.Sim.Flight
         readonly RotorSurfaces _surfaces; // the rotors' surfaces (GroundEffectSpec), or null
         readonly AirframeModes _modes; // the airframe's modes (AirframeModesSpec), or null
         readonly VibrationBands _vibration; // the camera mount's vibration, with the modes
+        readonly ArmFlex _arms; // the arms in their plane (AirframeModesSpec.ArmInPlane), or null
+        readonly double _gyroRange; // the gyro's full scale, °/s (FlightSetup.GyroRange; 0 none)
         Corners _rotorThrust = default; // each rotor's mean thrust over the step's sub-steps, for the modes
         ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
@@ -306,7 +313,13 @@ namespace Fpv450.Sim.Flight
                     for (int i = 0; i < 4; i++) hubs[i] = setup.Propulsion.Motors[i].Position;
                     _modes = new AirframeModes(ModesSpec, _mass, hubs);
                     _vibration = new VibrationBands(Dt);
+                    if (ModesSpec.ArmInPlane)
+                    {
+                        _arms = new ArmFlex(ModesSpec, hubs);
+                        _propulsion.SetArms(_arms);
+                    }
                 }
+                _gyroRange = setup.GyroRange;
                 if (GroundEffect != null) _surfaces = new RotorSurfaces(_propulsion, GroundEffect.Reach * setup.Propulsion.Props.Diameter / 2);
                 var clockwise = new bool[4];
                 for (int i = 0; i < 4; i++) clockwise[i] = setup.Propulsion.Motors[i].Clockwise;
@@ -775,8 +788,17 @@ namespace Fpv450.Sim.Flight
                 _propulsion.SetHubElastic(elastic);
             }
             _propulsion.BeginStep(s, _hubWind);
-            // The gyro on the frame: the rigid body's rate and, with the modes, the frame's elastic turn.
+            _arms?.BeginStep();
+            // The gyro on the frame: the rigid body's rate and, with the modes, the frame's elastic turn; its sensor's range
+            // clips each axis (FlightSetup.GyroRange, model 72), and the step's largest axis before the clip is traced.
             Axes3 from = s.Fc.GyroPrev, to = Gyro(_modes == null ? s.BodyRate : s.BodyRate + _modes.FrameRate(s.ModeRate));
+            if (_gyroRange > 0)
+            {
+                _trace.GyroPeak = DetMath.Max(DetMath.Abs(to.Roll), DetMath.Max(DetMath.Abs(to.Pitch), DetMath.Abs(to.Yaw)));
+                to.Roll = DetMath.Max(-_gyroRange, DetMath.Min(_gyroRange, to.Roll));
+                to.Pitch = DetMath.Max(-_gyroRange, DetMath.Min(_gyroRange, to.Pitch));
+                to.Yaw = DetMath.Max(-_gyroRange, DetMath.Min(_gyroRange, to.Yaw));
+            }
             var loads = new RotorLoads();
             var loss = new MixerLoss();
             Corners duty = default;
@@ -878,6 +900,24 @@ namespace Fpv450.Sim.Flight
                 _events.Add(e);
             }
             _bound = bound;
+
+            // The arms in their plane (ArmFlex, model 72): each one's largest load this step, and ArmBroken as one breaks at its
+            // clamp (A: its load, B: the bend's root stress, Pa, C: the twist's, Pa); its prop is lost from the next step.
+            if (_arms != null)
+            {
+                _trace.ArmLoad = _arms.Peak;
+                for (int i = 0; i < 4; i++)
+                {
+                    if ((_arms.Breaking & (1 << i)) == 0) continue;
+                    FlightEvent e = FlightEvent.Of(EventKind.ArmBroken);
+                    e.Index = (byte)i;
+                    e.A = _arms.Peak[i];
+                    e.B = DetMath.Abs(s.ArmBend[i]) * _arms.BendStress;
+                    e.C = DetMath.Abs(s.ArmTwist[i]) * _arms.TwistStress;
+                    _events.Add(e);
+                    _propulsion.LoseProp(i);
+                }
+            }
 
             // The vortex rings move once a step, after its loops, from its inflow and the rotors' last thrust
             // (Propulsion.AdvanceRing); each rotor's entry and exit is an event with its η, μ and v_h.

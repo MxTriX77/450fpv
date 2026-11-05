@@ -59,10 +59,32 @@ namespace Fpv450.Sim.Flight
         /// coil's mount carries both, their mass at their common centre (model 64).</summary>
         public int CoilHousingPart = -1;
 
+        /// <summary>Each arm in its plane too (ArmFlex, p7f-damage 1.6, the losses, model 72): the tip's bend across the arm and the arm's
+        /// twist under the rotor's in-plane 1/rev loads. Off, the arm is stiff that way and the body takes those loads at the hub
+        /// (model 68's).</summary>
+        public bool ArmInPlane = true;
+
+        /// <summary>The arm plate's in-plane shear modulus G₁₂, Pa: 4.5 GPa (assumed, inside the 3.5–5.5 GPa of woven carbon/epoxy
+        /// laminates; the twist of a plate 4.2 times as wide as thick is its in-plane shear).</summary>
+        public double ArmShearModulus = 4.5e9;
+
+        /// <summary>The arm plate's flexural strength, Pa: 600 MPa (assumed: a 3K twill carbon/epoxy laminate; a single-ply 3K
+        /// twill T300 prepreg publishes 882 MPa to ISO 14125, a thick cut plate's lower fibre share less), and its in-plane shear
+        /// strength, Pa: 90 MPa (assumed, woven carbon/epoxy's 80–125 MPa). Past either at the root the arm breaks (ArmFlex).</summary>
+        public double ArmFlexuralStrength = 600e6, ArmShearStrength = 90e6;
+
+        /// <summary>Each corner's hub above its arm's mid-plane, m; its tip's first moment of mass about the mid-plane, Σm·h (kg·m),
+        /// and its tip's inertia about the arm's axis, Σ(m·h² + I_own) (kg·m²): the motor's and the prop's parts (DroneSpec.BuildModes),
+        /// in Corners order.</summary>
+        public double[] HubHeight = new double[4], TwistMoment = new double[4], TwistInertia = new double[4];
+
         public AirframeModesSpec Clone()
         {
             var c = (AirframeModesSpec)MemberwiseClone();
             c.TipMass = (double[])TipMass.Clone();
+            c.HubHeight = (double[])HubHeight.Clone();
+            c.TwistMoment = (double[])TwistMoment.Clone();
+            c.TwistInertia = (double[])TwistInertia.Clone();
             return c;
         }
 

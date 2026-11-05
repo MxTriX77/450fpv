@@ -115,7 +115,7 @@ namespace Fpv450.Sim.Log
             "RotorWake", "Flapping", "Interference", "Modes", "Placement", "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass",
             "TetherTwoWay", "TetherDesign4Air", "TetherWithoutContacts", "TetherWithoutCuts", "TetherOneStrength",
             "TetherFountainThroughBody",
-            "TetherZeroForceHold",
+            "TetherZeroForceHold", "GyroRange",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -126,7 +126,8 @@ namespace Fpv450.Sim.Log
         public static readonly string[] ModesFieldsLogged =
         {
             "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "MountDamping",
-            "Camera", "TipMass", "PayloadPart", "CoilPart", "CoilHousingPart",
+            "Camera", "TipMass", "PayloadPart", "CoilPart", "CoilHousingPart", "ArmInPlane", "ArmShearModulus", "ArmFlexuralStrength",
+            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -373,6 +374,9 @@ namespace Fpv450.Sim.Log
         public Quat StartAttitude = Quat.Identity;
         public double StartPackCharge = 1;
 
+        /// <summary>The gyro's full scale, °/s (FlightSetup.GyroRange; 0 none).</summary>
+        public double GyroRange;
+
         /// <summary>
         /// Where the sticks came from, the device's product name, and the histogram of its report intervals over the
         /// window the input layer measured before the flight (null when none was measured: a keyboard or a bench).
@@ -422,6 +426,7 @@ namespace Fpv450.Sim.Log
                 StartVelocity = setup.StartVelocity,
                 StartBodyRate = setup.StartBodyRate,
                 StartPackCharge = setup.StartPackCharge,
+                GyroRange = setup.GyroRange,
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
                 WindParameters = PresetOf(setup.Wind.Level),
@@ -538,6 +543,7 @@ namespace Fpv450.Sim.Log
                 StartVelocity = StartVelocity,
                 StartBodyRate = StartBodyRate,
                 StartPackCharge = StartPackCharge,
+                GyroRange = GyroRange,
                 Aero = Aero?.Clone(),
                 Wind = Wind,
                 Rain = Rain,
@@ -1069,6 +1075,15 @@ namespace Fpv450.Sim.Log
                 e.Write(m.PayloadPart);
                 e.Write(m.CoilPart);
                 e.Write(m.CoilHousingPart);
+                e.Write(m.ArmInPlane);
+                foreach (double x in new[] { m.ArmShearModulus, m.ArmFlexuralStrength, m.ArmShearStrength })
+                    e.Write(x);
+                for (int i = 0; i < 4; i++)
+                {
+                    e.Write(m.HubHeight[i]);
+                    e.Write(m.TwistMoment[i]);
+                    e.Write(m.TwistInertia[i]);
+                }
             });
             Entry(w, TagInterference, e =>
             {
@@ -1184,6 +1199,7 @@ namespace Fpv450.Sim.Log
                 V3(e, StartVelocity);
                 V3(e, StartBodyRate);
                 e.Write(StartPackCharge);
+                e.Write(GyroRange);
             });
             Entry(w, TagLayouts, e =>
             {
@@ -1530,7 +1546,15 @@ namespace Fpv450.Sim.Log
                             MountDamping = r.ReadDouble(), Camera = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble()),
                             TipMass = new[] { r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble() },
                             PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(), CoilHousingPart = r.ReadInt32(),
+                            ArmInPlane = r.ReadBoolean(), ArmShearModulus = r.ReadDouble(), ArmFlexuralStrength = r.ReadDouble(),
+                            ArmShearStrength = r.ReadDouble(),
                         };
+                        for (int i = 0; i < 4; i++)
+                        {
+                            Modes.HubHeight[i] = r.ReadDouble();
+                            Modes.TwistMoment[i] = r.ReadDouble();
+                            Modes.TwistInertia[i] = r.ReadDouble();
+                        }
                         break;
                     case TagTether:
                         if (!r.ReadBoolean())
@@ -1601,6 +1625,7 @@ namespace Fpv450.Sim.Log
                         StartVelocity = V3(r);
                         StartBodyRate = V3(r);
                         StartPackCharge = r.ReadDouble();
+                        GyroRange = r.ReadDouble();
                         break;
                     case TagLayouts:
                         sawLayouts = true;
