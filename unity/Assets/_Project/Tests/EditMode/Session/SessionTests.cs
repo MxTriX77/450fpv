@@ -829,17 +829,19 @@ namespace Fpv450.Tests.Session
 
         // D-079, p7f-damage 1.3 in the player: the app's flight carries props.blade's tables (the rotors flown as blade
         // elements, the header's drone internals at tag 26), the merged physics_materials.json with what a blade meets, the
-        // strikes and each blade's factory pitch (the asymmetry's "prop.blade_pitch"). A steel wall's face stands 1 mm inside
+        // strikes and each blade's factory pitch (the asymmetry's "prop.blade_pitch"). A steel wall's face stands 2 mm inside
         // the front-left disc's rim of the drone on its legs, turned 45° so that fl leads and no other disc reaches it; the
         // wall starts 30 mm over the disc, so the props spin up free. Armed, the drone climbs along the face: at the wall's
         // foot the blades' passes chip and crush their tips back to it and push the drone off. That ends nothing, and no crash:
         // the summary lists each blade's damage, worded by FlightSummary.Describe. (Pressed 1 mm into the face from rest, the
-        // idle's spin-up grinds and jams the rotor instead.) The log replays bit for bit with the repository's files
+        // idle's spin-up grinds and jams the rotor instead. From model 64 a 1 mm graze leaves 0.966 R and too little push:
+        // the drone drifts 1.4 mm towards the wall in the 400 ms. At 2 mm the push wins from throttle 0.58 to 0.66, 1.4 to
+        // 3.7 mm off; at 1.5 mm only to 0.62.) The log replays bit for bit with the repository's files
         // (tools/replay's defaults), and R's restart flies whole props on its own draws.
         [Test]
         public void AWallGrazeDamagesABladeAndTheSummaryListsIt()
         {
-            const double depth = 0.001;
+            const double depth = 0.002;
             const int fl = 3; // PropStrikes' corners: rr, fr, rl, fl
             double radius = _spec.Props.Diameter / 2, face = 0;
             Rig rig = Make(i => i.Adjust = s =>
@@ -1012,7 +1014,8 @@ namespace Fpv450.Tests.Session
         // R01_A's middle (17.5 m ahead and 4 m to the right), lifted, pitched forward and flown at about 0.6 m into its
         // end, where the steel bumper is (at the flight model 19 the old 108° and lower throttle skimmed past it into a
         // fence; with the airframe's effects on, the level 0.52 flew over the bumper into the body's sheet metal, and 0.51
-        // meets the bumper at 101°, 103° and 105°). The summary names the placed car by MapWorld.ObjectName, through the
+        // met the bumper at 101°, 103° and 105°; from model 64 0.51 meets the body's sheet metal at 103° and 105°, and 0.52
+        // meets the bumper with the canister at 103°, 105° and 107°, 8.5–9.0 m/s, while 0.50 and 0.48 fly past or low). The summary names the placed car by MapWorld.ObjectName, through the
         // log's world id and hash; without the world, or with another, it is "object N".
         [Test]
         public void ACrashIntoTheRangesCarNamesIt()
@@ -1033,7 +1036,7 @@ namespace Fpv450.Tests.Session
             FlightCore core = rig.Session.Core;
             for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
             {
-                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.51; // lift, then low and level
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.52; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }
