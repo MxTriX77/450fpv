@@ -1,3 +1,5 @@
+using Fpv450.Sim.Contact;
+
 namespace Fpv450.Sim.Tether
 {
     /// <summary>
@@ -34,6 +36,26 @@ namespace Fpv450.Sim.Tether
     ///   ground_vortex_circulation·v_h·R (derived from Wolf et al.'s speeds under it) growing from hover to
     ///   hover_like_advance_ratio, fading out over ground_vortex_advance_ratio (published bounds; the ramps assumed); a rotor
     ///   whose upstream jet meets another rotor's landing wake (within its span, ahead of it) forms none (assumed).
+    /// The drone's body over the fountain (p7d-tether, model 61): the rising air meets the drone's own contact shapes (every
+    /// shape but the discs and a turning rotor's blades: the fuselage's stack, the coil, the packs, the payload, the arms, the
+    /// legs; ContactModel's, at the step's pose) and does not pass through them. On the vertical through a point:
+    /// - Inside a shape: no air.
+    /// - Above a shape, within its lee (body_lee_length_over_diameter of its diameter over its top): no rise; the rising air
+    ///   parts round the body and leaves a separated near wake behind it whose mean speed is taken as nothing (the measured
+    ///   recirculation bubble behind a bluff body; assumed from the published band).
+    /// - Below a shape's underside, within the impingement layer δ = min(fountain_impingement_depth_ratio·L_w, δ_body): the
+    ///   stagnation and the deflection. L_w is the plane jet's length from its virtual origin to the underside (a plane jet
+    ///   impinging on a wall stays free to 70–75 % of its length, published); δ_body the bluff body's own stagnation depth, its
+    ///   potential flow's slope at the stagnation point, a/2 under a capsule's cylinder (U·(1 − a²/r²)) and a/3 under a sphere
+    ///   (U·(1 − a³/r³)) (published, Batchelor 1967 §6.6, §6.8), the smaller governing (a body much wider than the jet is a
+    ///   wall to it, one much narrower a bluff body in it: assumed composition). In the layer the rise falls linearly to
+    ///   nothing at the underside (the stagnation flow, Hiemenz's near-wall law), w = W_top·d/δ with W_top the free fountain at
+    ///   the layer's top, and by continuity (∂u/∂s = −∂w/∂y in the sheet's cross plane) the air turns outward across the sheet,
+    ///   u = (W_c/δ)·∫₀^s e^(−ln2·t²/b²)dt along its normal away from the meeting line, never faster than the jet's own
+    ///   centreline W_c (Bernoulli: the stagnation pressure ½ρW_c² turns it, it cannot speed it; published), only under the
+    ///   body (the turned wall jet along the underside, its decay over the body's half-width left out: assumed).
+    /// - Shapes whose underside stands above the colliding discs' plane are the discs' business (the fountain turns into their
+    ///   intake first). Without a body (FlightSetup.TetherFountainThroughBody, the known-wrong) the fountain is model 59's.
     /// Only + − × ÷ √ and DetMath.Exp; preallocated; the ground under each hub is the caller's (one SampleGround batch with
     /// the nodes).
     /// </summary>
@@ -68,10 +90,28 @@ namespace Fpv450.Sim.Tether
         readonly Double3[] _stream = new Double3[Rotors], _vortexA = new Double3[Rotors], _vortexB = new Double3[Rotors];
         readonly Double3[] _vortexCentre = new Double3[Rotors];
 
+        // Model 61: the drone's body over the fountain (null: it passes through, model 59's field) and the step's world shapes.
+        readonly ContactModel _body;
+        readonly Double3[] _bodyA, _bodyB;
+        readonly double[] _bodyRadius, _boxX0, _boxX1, _boxZ0, _boxZ1; // each placed shape's plan box, world m
+        int _placed;
+        double _allX0, _allX1, _allZ0, _allZ1; // the placed body's plan box
+        readonly double _impingement, _leeLength, _sqrtLn2, _halfMass;
+
+        // A capsule whose axis lies within this of the vertical (1 − cos²) is taken as vertical on the column (numerical).
+        const double Vertical = 1e-12;
+
+        // Abramowitz and Stegun 7.1.26 (1964): erf(x) = 1 − (a₁t + … + a₅t⁵)·e^(−x²), t = 1/(1 + p·x), |error| ≤ 1.5e-7
+        // (published): the deflection's Gaussian integral.
+        const double ErfP = 0.3275911, ErfA1 = 0.254829592, ErfA2 = -0.284496736, ErfA3 = 1.421413741, ErfA4 = -1.453152027,
+            ErfA5 = 1.061405429;
+
         /// <param name="radius">R, the props' radius, m.</param>
         /// <param name="recirculation">The fountain and the ground vortex (1.6b); false for design 4's field alone, the
         /// known-wrong (FlightSetup.TetherDesign4Air).</param>
-        public RotorAir(TetherTable table, double radius, bool recirculation = true)
+        /// <param name="body">The drone's contact shapes over the fountain (model 61); null lets the fountain through the body,
+        /// model 59's field (FlightSetup.TetherFountainThroughBody, the known-wrong).</param>
+        public RotorAir(TetherTable table, double radius, bool recirculation = true, ContactModel body = null)
         {
             _radius = radius;
             _density = table.Number("fiber.air_density_kg_m3");
@@ -99,6 +139,52 @@ namespace Fpv450.Sim.Tether
             _gaussScale = Ln2 / (_spread * _spread);
             _centreScale = 1 / (_profileMomentum * _spread);
             _inverseJet = 1 / _jetThickness;
+            _body = recirculation ? body : null;
+            _impingement = table.Number("rotor_air.fountain_impingement_depth_ratio");
+            _leeLength = table.Number("rotor_air.body_lee_length_over_diameter");
+            _sqrtLn2 = DetMath.Sqrt(Ln2);
+            _halfMass = 0.5 * _profileMass;
+            int shapes = _body != null ? _body.ShapeCount : 0;
+            _bodyA = new Double3[shapes];
+            _bodyB = new Double3[shapes];
+            _bodyRadius = new double[shapes];
+            _boxX0 = new double[shapes];
+            _boxX1 = new double[shapes];
+            _boxZ0 = new double[shapes];
+            _boxZ1 = new double[shapes];
+        }
+
+        /// <summary>Whether the drone's body blocks the fountain (model 61; false: model 59's field).</summary>
+        public bool BodyBlocks => _body != null;
+
+        /// <summary>
+        /// The step's body over the fountain, before Begin: every contact shape but the discs and the shapes off the set (a
+        /// turning rotor's blades, a part gone), at the drone's pose, as the fiber's contacts take them.
+        /// </summary>
+        public void PlaceBody(Double3 position, Quat attitude)
+        {
+            _placed = 0;
+            _allX0 = _allZ0 = double.PositiveInfinity;
+            _allX1 = _allZ1 = double.NegativeInfinity;
+            for (int i = 0; i < _bodyA.Length; i++)
+            {
+                ContactShape c = _body.Shape(i);
+                if (c.Role == ContactRole.Disc || _body.ShapeOff(i)) continue;
+                int k = _placed++;
+                Double3 a = position + attitude.Rotate(c.A), b = position + attitude.Rotate(c.B);
+                double r = c.Radius;
+                _bodyA[k] = a;
+                _bodyB[k] = b;
+                _bodyRadius[k] = r;
+                _boxX0[k] = (a.X < b.X ? a.X : b.X) - r;
+                _boxX1[k] = (a.X > b.X ? a.X : b.X) + r;
+                _boxZ0[k] = (a.Z < b.Z ? a.Z : b.Z) - r;
+                _boxZ1[k] = (a.Z > b.Z ? a.Z : b.Z) + r;
+                if (_boxX0[k] < _allX0) _allX0 = _boxX0[k];
+                if (_boxX1[k] > _allX1) _allX1 = _boxX1[k];
+                if (_boxZ0[k] < _allZ0) _allZ0 = _boxZ0[k];
+                if (_boxZ1[k] > _allZ1) _allZ1 = _boxZ1[k];
+            }
         }
 
         public double Radius => _radius;
@@ -300,7 +386,16 @@ namespace Fpv450.Sim.Tether
             }
             if (!_recirculation) return air;
             if (!column && second >= 0 && firstZ <= 0 && secondZ <= 0)
-                air = air + new Double3(0, Fountain(p, groundUnderPoint, first, second), 0);
+            {
+                double rise = Fountain(p, groundUnderPoint, first, second, out FountainSheet sheet);
+                if (rise > 0 && _body != null)
+                {
+                    // The column's height to the colliding discs' nearer plane (the normal is every rotor's).
+                    double top = _normal[first].Y > 0 ? -(firstZ > secondZ ? firstZ : secondZ) / _normal[first].Y : double.PositiveInfinity;
+                    rise = Blocked(p, top, rise, sheet, ref air);
+                }
+                air = air + new Double3(0, rise, 0);
+            }
             for (int i = 0; i < Rotors; i++)
             {
                 double g = _circulation[i];
@@ -317,8 +412,9 @@ namespace Fpv450.Sim.Tether
         // The fountain's upward speed at p from the wall jets of rotors k and m (k's the stronger here): their meeting line
         // the locus u_k = u_m, p's distance from it (u_k² − u_m²)/(2·|u_m·∇u_k − u_k·∇u_m|), exact for equal jets (the
         // midline) and well conditioned for unequal ones; the jets' parts normal to it turn up.
-        double Fountain(Double3 p, double groundUnderPoint, int k, int m)
+        double Fountain(Double3 p, double groundUnderPoint, int k, int m, out FountainSheet sheet)
         {
+            sheet = default;
             double height = p.Y - groundUnderPoint;
             if (!(height >= 0)) return 0;
             double kx = p.X - _landing[k].X, kz = p.Z - _landing[k].Z, ik = 1 / (kx * kx + kz * kz), rk = DetMath.Sqrt(kx * kx + kz * kz);
@@ -342,7 +438,125 @@ namespace Fpv450.Sim.Tether
             double centre = DetMath.Sqrt(momentum * iy * _centreScale);
             double rise = height < _jetThickness ? height * _inverseJet : 1;
             double share = _fade[k] < _fade[m] ? _fade[k] : _fade[m];
+            sheet = new FountainSheet { Nx = nx, Nz = nz, Delta = delta, Momentum = momentum, Y = y, Height = height, Share = share };
             return centre * DetMath.Exp(exponent) * rise * share;
+        }
+
+        /// <summary>A point's place in the fountain's plane jet: the meeting line's normal (toward the stronger jet's landing),
+        /// the point's distance from it along that normal, the jet's momentum, the point's distance from the virtual origin and
+        /// its height over the ground, and the regimes' share.</summary>
+        struct FountainSheet
+        {
+            public double Nx, Nz, Delta, Momentum, Y, Height, Share;
+        }
+
+        // The fountain's rise at p, w (free, > 0), against the drone's body on p's vertical (model 61, the summary's rules):
+        // nothing inside a shape or in its lee; in the impingement layer under the lowest underside below the discs' plane
+        // (top, m above p) the stagnation's linear fall and the deflection across the sheet, added to air.
+        double Blocked(Double3 p, double top, double w, in FountainSheet f, ref Double3 air)
+        {
+            if (p.X < _allX0 || p.X > _allX1 || p.Z < _allZ0 || p.Z > _allZ1) return w; // no part over or under p
+            double under = double.PositiveInfinity, bodyDepth = 0;
+            for (int i = 0; i < _placed; i++)
+            {
+                if (p.X < _boxX0[i] || p.X > _boxX1[i] || p.Z < _boxZ0[i] || p.Z > _boxZ1[i]) continue;
+                double a = _bodyRadius[i];
+                if (!Column(p, _bodyA[i], _bodyB[i], a, out double lo, out double hi, out bool cap)) continue;
+                if (lo <= 0 && hi >= 0) return 0; // inside the body
+                if (hi < 0)
+                {
+                    if (-hi < _leeLength * 2 * a) return 0; // in its lee
+                    continue;
+                }
+                if (lo < under)
+                {
+                    under = lo;
+                    bodyDepth = cap ? a / 3 : a / 2;
+                }
+            }
+            if (!(under < top)) return w;
+            double jetDepth = _impingement * (f.Y + under);
+            double depth = jetDepth < bodyDepth ? jetDepth : bodyDepth;
+            if (!(under < depth)) return w;
+            // The free sheet at the layer's top, and the stagnation flow under it.
+            double yTop = f.Y + (under - depth), iy = 1 / yTop, heightTop = f.Height + (under - depth);
+            double centre = DetMath.Sqrt(f.Momentum * iy * _centreScale);
+            double wc = centre * (heightTop < _jetThickness ? heightTop * _inverseJet : 1) * f.Share;
+            double rise = wc * DetMath.Exp(-_gaussScale * f.Delta * f.Delta * iy * iy) * (under / depth);
+            // The deflection: (W_c/δ)·∫₀^s e^(−ln2·t²/b²)dt = (W_c/δ)·b·(√π/(2√ln2))·erf(√ln2·s/b), at most W_c.
+            double b = _spread * yTop, s = DetMath.Abs(f.Delta);
+            double u = wc * b * _halfMass * Erf(_sqrtLn2 * s / b) / depth;
+            if (u > wc) u = wc;
+            if (f.Delta < 0) u = -u;
+            air = air + new Double3(f.Nx * u, 0, f.Nz * u);
+            return rise;
+        }
+
+        // The vertical through p meets the capsule (or sphere, a = b) of radius r over heights [lo, hi] relative to p.Y; cap:
+        // its lowest point is on an end sphere (a capsule's cap or a sphere), not on its cylinder. False when it misses.
+        static bool Column(Double3 p, Double3 a, Double3 b, double r, out double lo, out double hi, out bool cap)
+        {
+            lo = double.PositiveInfinity;
+            hi = double.NegativeInfinity;
+            cap = false;
+            Sphere(p, a, r, ref lo, ref hi, ref cap);
+            Sphere(p, b, r, ref lo, ref hi, ref cap);
+            Double3 d = b - a, m = p - a;
+            double dd = Double3.Dot(d, d);
+            if (dd > 0)
+            {
+                double md = Double3.Dot(m, d), ud = d.Y;
+                double qa = 1 - ud * ud / dd;
+                // The parts across the axis of p - a and of the vertical.
+                Double3 mp = m - d * (md / dd), up = new Double3(0, 1, 0) - d * (ud / dd);
+                double qb = Double3.Dot(mp, up), qc = Double3.Dot(mp, mp) - r * r;
+                double t0, t1;
+                if (qa > Vertical)
+                {
+                    double disc = qb * qb - qa * qc;
+                    if (disc >= 0)
+                    {
+                        double root = DetMath.Sqrt(disc);
+                        t0 = (-qb - root) / qa;
+                        t1 = (-qb + root) / qa;
+                    }
+                    else { t0 = 1; t1 = 0; }
+                }
+                else if (qc <= 0) { t0 = double.NegativeInfinity; t1 = double.PositiveInfinity; }
+                else { t0 = 1; t1 = 0; }
+                // Within the axis's span: 0 <= (m·d + t·d_y)/(d·d) <= 1.
+                if (ud != 0)
+                {
+                    double s0 = -md / ud, s1 = (dd - md) / ud;
+                    if (s0 > s1) { double x = s0; s0 = s1; s1 = x; }
+                    if (s0 > t0) t0 = s0;
+                    if (s1 < t1) t1 = s1;
+                }
+                else if (md < 0 || md > dd) t1 = t0 - 1;
+                if (t0 <= t1)
+                {
+                    if (t0 < lo) { lo = t0; cap = false; }
+                    if (t1 > hi) hi = t1;
+                }
+            }
+            return lo <= hi;
+        }
+
+        static void Sphere(Double3 p, Double3 c, double r, ref double lo, ref double hi, ref bool cap)
+        {
+            double dx = p.X - c.X, dz = p.Z - c.Z, h2 = dx * dx + dz * dz;
+            if (!(h2 <= r * r)) return;
+            double half = DetMath.Sqrt(r * r - h2), y = c.Y - p.Y;
+            if (y - half < lo) { lo = y - half; cap = true; }
+            if (y + half > hi) hi = y + half;
+        }
+
+        // erf(x) for x >= 0 (Abramowitz and Stegun 7.1.26).
+        static double Erf(double x)
+        {
+            double t = 1 / (1 + ErfP * x);
+            double poly = t * (ErfA1 + t * (ErfA2 + t * (ErfA3 + t * (ErfA4 + t * ErfA5))));
+            return 1 - poly * DetMath.Exp(-x * x);
         }
 
         // A straight vortex from a to b of circulation g (right-handed about a → b) at p, with a Scully core: Biot–Savart's

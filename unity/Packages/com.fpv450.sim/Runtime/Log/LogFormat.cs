@@ -240,8 +240,17 @@ namespace Fpv450.Sim.Log
         ///    50's with 48's bells' switch, coefficients and the motors' internals after the frame's three (LegFrameLeverLength),
         ///    and the internals (in both entries) 48's; the tether entry, the settings and the draws 50's; the events 50's with
         ///    48's MotorDamaged (21) and MotorBound (22). (51 and 52 are the parallel integrations'.)
+        /// 51: the drone's body over the fountain (p7d-tether, unity/physics/physics-integration-2--fountain-body, on 49;
+        ///    assigned by D-072): the tether entry gains the known-wrong switch FlightSetup.TetherFountainThroughBody after
+        ///    TetherOneStrength; tether.json's rotor_air block gains fountain_impingement_depth_ratio and
+        ///    body_lee_length_over_diameter (rows, so the entry's layout is otherwise 49's); the record is 49's 2944 bytes; no
+        ///    new event kind.
+        /// 54: the physics integration 2 with the body over the fountain and D01's canister (unity/physics/physics-integration-2--
+        ///    canister, assigned by D-072): 51 merged onto 53: the record is 53's 3040 bytes; the tether entry 53's with 51's
+        ///    known-wrong switch FlightSetup.TetherFountainThroughBody after TetherOneStrength and tether.json's rotor_air rows;
+        ///    the rest 53's; no new event kind.
         /// </summary>
-        public const int Version = 53;
+        public const int Version = 54;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -602,8 +611,18 @@ namespace Fpv450.Sim.Log
         ///    drag is set), so a flight whose bells never touch rests as at 60. A flight with ContactSpec.MotorBell off steps as
         ///    in 60 over its 2944 bytes, the new block zero; one with the frame's data 0, FlightSetup.TetherWithoutContacts
         ///    (so without the cuts) and the hanging give off steps as in 58. (61 and 62 are the parallel integrations'.)
+        /// 61: the drone's body over the fountain (p7d-tether, unity/physics/physics-integration-2--fountain-body, on 59;
+        ///    assigned by D-072): RotorAir's fountain meets the drone's own contact shapes (every shape but the discs and a turning
+        ///    rotor's blades, at the step's pose) instead of rising through them: no air inside a shape or in its lee, and under
+        ///    its underside the stagnation (the rise falling linearly to nothing over the impingement layer, the jet's or the
+        ///    body's depth, the smaller) and the deflection across the sheet (continuity, at most the jet's centreline speed). A
+        ///    flight without the line, or with it and FlightSetup.TetherFountainThroughBody, or on design 4's field
+        ///    (TetherDesign4Air), steps as in 59.
+        /// 64: the physics integration 2 with the body over the fountain and D01's canister (unity/physics/physics-integration-2--
+        ///    canister, assigned by D-072): 61's body over the fountain merged onto 63's bells, frame, cuts and failsafe. A flight
+        ///    with FlightSetup.TetherFountainThroughBody steps as in 63.
         /// </summary>
-        public const int ModelVersion = 63;
+        public const int ModelVersion = 64;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
