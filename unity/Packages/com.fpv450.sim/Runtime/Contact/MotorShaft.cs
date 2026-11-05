@@ -8,14 +8,17 @@ namespace Fpv450.Sim.Contact
     /// (MotorBell): what the loads on a rotor do to its shaft and its two bearings. Engine-free, allocation-free in a step.
     /// - The loads: a blade pass's face impulse over its contact time at the meeting point (PropStrikes, Strike: design 9's "the
     ///   pass's impulse over t_c", t_c the pass's arc over ω held to the step as its push is; at most the pass's own peak force on
-    ///   the blade, its crush, slap or cut, which a jam's impulse over the arc would pass), and each step's contact forces on
-    ///   the rotor (ContactModel, Add): a resting prop's blades' (1.3b) and the bell's ring's share of a bell pair's (1.5: past
+    ///   the blade, its crush, slap or cut, which a jam's impulse over the arc would pass, a break's the force its section failed
+    ///   at), and each step's contact forces on the rotor (ContactModel, Add): a resting prop's blades' (1.3b) and the bell's ring's share of a bell pair's (1.5: past
     ///   the gap the stator's teeth carry the rest, so a side hit at the stator's height loads the shaft with at most k_r·g).
     ///   Each, at its point, gives the shaft's moment at the upper bearing M = (P − B) × F less its part along the axis (that is
     ///   the drive's), and by statics on the two bearings s apart the lower one's radial load R₂ = (M × ŷ)/s and the upper one's
     ///   R₁ = −F_∥ − R₂ (derived: a side force at the hub's lever l gives M = F·l, R₁ = F·(1 + l/s), R₂ = F·l/s, design 9). A
     ///   blade passes the hub at most its root's flatwise strength (form·σ_f·c·t²/6 at the first station, nominal): past it the
-    ///   blade breaks (PropStrikes), so the part of M a blade's own bending makes is capped there.
+    ///   blade breaks (PropStrikes), so the part of M a blade's own bending makes is capped there; and along its span toward the
+    ///   shaft at most its column (ColumnLoad: its centrifugal tension at the root and its Euler load; past them the span goes
+    ///   into compression and the blade flaps out of the disc), which 1.3's crush on a face square to the span, σ_c·A(r_m) of
+    ///   0.6–4 kN, and 1.3b's resting blade, rigid along its span, would pass.
     /// - The bend: past the yield moment M_y = σ_y·πd³/32 (derived) the shaft takes a plastic hinge at the upper bearing,
     ///   Δφ = (M − M_y)/k_φ along M (k_φ = ShaftHingeShare·3EI/l, assumed), fixed in the rotating frame (the shaft turns with the
     ///   rotor), and M_y rises to M (work hardening, isotropic: assumed, as the bell's collapse load). Everything above the hinge
@@ -60,7 +63,7 @@ namespace Fpv450.Sim.Contact
         readonly double[] _lever = new double[4], _span = new double[4], _yield = new double[4], _ultimate = new double[4], _hingeK = new double[4];
         readonly double[] _rating = new double[4], _ball = new double[4], _bore = new double[4], _outer = new double[4], _inner = new double[4];
         readonly double[] _bellMass = new double[4], _bellArm = new double[4], _bellCouple = new double[4], _reach = new double[4];
-        readonly double _propMass, _rootCap;
+        readonly double _propMass, _rootCap, _bladeMoment, _rootFlexural;
         readonly double _kpp, _kpq, _kqq; // the blades' Σ I_b·q_b·q_bᵀ in the rotor's frame (p, q), kg·m²
 
         // The state: each shaft's bend in its rotor's frame (rad, a rotation vector's p and q), its hinge's yield moment now (N·m),
@@ -88,6 +91,9 @@ namespace Fpv450.Sim.Contact
             int blades = motors.Props.Blades;
             _propMass = blades * blade.BladeMass(radius) + blade.HubMass;
             _rootCap = spec.SectionForm * blade.FlexuralStrength * blade.Chord[0] * blade.Thickness[0] * blade.Thickness[0] / 6;
+            _rootFlexural = spec.SectionForm * blade.FlexuralModulus * blade.Chord[0] * blade.Thickness[0] * blade.Thickness[0] * blade.Thickness[0] / 12;
+            for (int k = 0; k < blade.Stations.Length; k++)
+                _bladeMoment += blade.Density * blade.Fill[k] * blade.Chord[k] * blade.Thickness[k] * radius * blade.Span * blade.Stations[k] * radius;
             // The blades' couple across each: blade b along (cos a_b, s·sin a_b) in (p, q) (DamagedRotor's azimuths), q_b = ê_b × ŷ =
             // (−s·sin a_b, cos a_b); its sign s drops out of the products but the cross one, which is 0 for two blades.
             double ib = blade.BladeInertia(radius);
@@ -188,12 +194,13 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>
         /// One contact pair's force on rotor c this step (ContactModel.Forces): at point (body m) the force (body N), a blade's
-        /// (its bending's moment capped at its root's strength) or the bell's; cause names the pair (Object, Shape, Material,
-        /// Surface, Point).
+        /// (its push along its span held to its column at the rotor's speed, rad/s, and its bending's moment capped at its root's
+        /// strength) or the bell's; cause names the pair (Object, Shape, Material, Surface, Point).
         /// </summary>
-        public void Add(int c, Double3 point, Double3 force, bool blade, in FlightEvent cause)
+        public void Add(int c, Double3 point, Double3 force, bool blade, double speed, in FlightEvent cause)
         {
             if (_broken[c]) return;
+            if (blade) force = Column(c, point, force, speed);
             _force[c] = _force[c] + force;
             _moment[c] = _moment[c] + Moment(c, point, force, blade);
             double size = force.Length();
@@ -215,7 +222,9 @@ namespace Fpv450.Sim.Contact
         /// <summary>
         /// A blade pass's load on rotor c (PropStrikes): its face's impulse on the drone (body N·s) over the contact time tc (s) at
         /// the meeting point (body m), at most the pass's peak force on the blade (N: its crush, its slap or its cut; none for 0),
-        /// the rotor at angle (rad) and speed (rad/s).
+        /// and its push toward the hub along the blade's span (body, unit, outward) at most the blade's column (N: its centrifugal
+        /// tension at the root; past it the span goes into compression and flaps out of the disc); the rotor at angle (rad) and
+        /// speed (rad/s).
         /// </summary>
         public void Strike(int c, Double3 point, Double3 impulse, double tc, double peak, double angle, double speed, StepEvents events, in FlightEvent cause)
         {
@@ -223,7 +232,29 @@ namespace Fpv450.Sim.Contact
             Double3 force = impulse * (1 / tc);
             double size = force.Length();
             if (peak > 0 && size > peak) force = force * (peak / size);
+            force = Column(c, point, force, speed);
             Load(c, force, Moment(c, point, force, true), angle, speed, events, cause);
+        }
+
+        /// <summary>
+        /// A blade's column at speed (rad/s), the most it passes its hub along its span toward the shaft from radius r (m): its
+        /// centrifugal tension at the root ω²·Σ m·r and its static Euler load π²·EI_f,root/(4r²) (derived: past them the span goes
+        /// into compression and the blade flaps out of the disc; the whole blade's, its damage left out, and the root's section, an
+        /// upper bound for the tapered blade, assumed).
+        /// </summary>
+        public double ColumnLoad(double speed, double r) =>
+            speed * speed * _bladeMoment + (r > 0 ? Pi * Pi * _rootFlexural / (4 * r * r) : double.PositiveInfinity);
+
+        // A blade's force at point (body) with its push toward the hub along its span held to its column.
+        Double3 Column(int c, Double3 point, Double3 force, double speed)
+        {
+            Double3 d = point - _hub[c];
+            d = new Double3(d.X, 0, d.Z);
+            double r = d.Length();
+            if (!(r > 0)) return force;
+            Double3 span = d * (1 / r);
+            double push = -Double3.Dot(force, span), column = ColumnLoad(speed, r);
+            return push > column ? force + span * (push - column) : force;
         }
 
         // A force's moment at the upper bearing, body N·m, less its part along the shaft: (P − B) × F, a blade's own bending

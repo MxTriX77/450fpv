@@ -1166,7 +1166,7 @@ namespace Fpv450.Sim.Contact
                         Rest(i, p, s, fwb, fb, ks, kn, cn, row, v, bladeShare, r, motion, flat, along);
                         // Its load on the hub (p7f-damage 1.6): through the shaft to the bearings, its own bending capped at the root.
                         if (_shafts != null && fb > 0)
-                            _shafts.Add(c, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb), true, Cause(p));
+                            _shafts.Add(c, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb), true, s.RotorSpeed[c], Cause(p));
                         continue;
                     }
                     double fn = kn * depth - cn * Double3.Dot(PointVelocity(s, p.Point), p.N);
@@ -1183,7 +1183,7 @@ namespace Fpv450.Sim.Contact
                             out double dent, out double ringLoad, out double collapse);
                         // The ring's share of the pair's load goes to the shaft (p7f-damage 1.6); past the gap the teeth carry the rest.
                         if (_shafts != null && fn > 0 && ringLoad > 0)
-                            _shafts.Add(bell, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb) * (ringLoad / fn), false, Cause(p));
+                            _shafts.Add(bell, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb) * (ringLoad / fn), false, 0, Cause(p));
                         if (dented)
                         {
                             FlightEvent e = FlightEvent.Of(EventKind.MotorDamaged);
