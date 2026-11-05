@@ -414,6 +414,7 @@ namespace Fpv450.App
             _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
             _signals.Osd.Reset(); // a fresh pack: the filters and the charge used start again
             _signals.Osd.MinCheck = setup.Settings.min_check; // the throttle element's 0 %
+            if (_rig != null && _rig.Running) NewFlightFeed(_rig.Events); // a whole line: the last flight's loss ends (D-087)
             Look(session.Choices);
         }
 
@@ -484,17 +485,23 @@ namespace Fpv450.App
         }
 
         /// <summary>
-        /// R (D-078): the flight again at once, from the same setup and start point, with a new seed and log. A flight
-        /// flying or paused ends by the pilot and the next starts, as the pause's Restart does (D-063: nothing else ends
-        /// it); after End flight it is the summary's Fly again. A flight already waiting for the radio is left to wait.
+        /// R (D-078, D-087): the flight again at once, in this frame, from the same setup and start point, with a new seed
+        /// and log, in every state: flying or paused (a lost link, a broken fiber, any failsafe stage, a crash), the flight
+        /// ends by the pilot and the next starts, as the pause's Restart does (D-063: nothing else ends it); after End
+        /// flight, from the summary, the next starts as well. Without the radio where the keyboard may not fly, the next
+        /// waits for it; a flight already waiting for the radio is left to wait.
         /// </summary>
         public void Restart()
         {
             FlightSession session = Host != null ? Host.Session : null;
             if (session == null || Host.WaitingForRadio) return;
-            if (session.State == SessionState.Flying || session.State == SessionState.Paused) Host.Restart();
-            else if (session.State == SessionState.Ended) Host.Fly();
+            if (session.State != SessionState.Ready) Host.Restart();
         }
+
+        /// <summary>A new flight's feed (D-087): whatever loss the last flight's feed was playing ends now, a recovering
+        /// dropout (the fiber's dip or Godot's timer, D-085), the staged loss or the terminal blue, so the new flight's
+        /// first field is the picture. The link's reading then counts the new flight's dips.</summary>
+        public static void NewFlightFeed(FeedEvents events) => events?.Loss.Reset();
 
         /// <summary>What this frame's presses of the view, feed, noise and sticks keys do: the view flips between the lens
         /// and the chase view, the feed goes off or on, its noise off or on (the picture and the OSD stay), the OSD's stick
