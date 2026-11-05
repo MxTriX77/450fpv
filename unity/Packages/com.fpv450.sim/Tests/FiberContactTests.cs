@@ -179,7 +179,7 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = Model63Drone.Spec();
             Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, coulomb: false, layout: GoldenFlights.Model50Layout,
-                edit: GoldenFlights.WithoutTheFrame), Is.EqualTo(GoldenFlights.Model50TetherHash),
+                edit: GoldenFlights.WithoutTheFrame, airmode: true), Is.EqualTo(GoldenFlights.Model50TetherHash),
                 "tether, without the contacts");
             Assert.That(line.Tether.Contacts, Is.Null);
         }
