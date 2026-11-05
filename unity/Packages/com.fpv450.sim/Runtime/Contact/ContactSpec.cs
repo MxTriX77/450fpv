@@ -177,6 +177,17 @@ namespace Fpv450.Sim.Contact
         public double LegLeverLength;
 
         /// <summary>
+        /// The skid's frame fore and aft (p7g-legs, model 54; derived, DroneLegs.Frame): the two legs on one skid are joined by
+        /// its T-joints, so along the skid (body z) each leg sways with its foot held square by the T-joint's socket, the skid's
+        /// bending between its bores and its pitch on the two legs' springs: its give at the foot (N/m, 784 against the
+        /// cantilever's 268), its sway-buckling load (N, 146.6 against 47.1) and its own lever, the load over the give (m),
+        /// which the lever flies in that plane as LegLeverLength in the other. Sideways (body x) the cantilever's values hold:
+        /// nothing links the two skids. A leg whose sibling on its skid, or it, broke, came off or let its skid go is a
+        /// cantilever both ways. 0 for none: one value both ways (model 51, the audit and the known-wrong).
+        /// </summary>
+        public double LegFrameSideStiffness, LegFrameSwayLoad, LegFrameLeverLength;
+
+        /// <summary>
         /// A hanging skid half's whole give is geometry (p7g-legs, model 51): the massless half stands out of what it touches by
         /// its contact spring's share of the force alone, its cantilever's give by its turn about the holding leg's bore and the
         /// rest of its chain (the holding leg's give across its tube and the stick anchor in series, and the cantilever's share

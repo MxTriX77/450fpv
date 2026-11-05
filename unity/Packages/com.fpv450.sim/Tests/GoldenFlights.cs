@@ -431,11 +431,12 @@ namespace Fpv450.Sim.Tests
         public static void WithoutTheRest(FlightSetup s) => s.Contacts.BladeRest = false;
 
         /// <summary>A flight's contacts without the lever (p7g-legs 1.4's audit and known-wrong): 1.3's linear softening, k_t·(1 −
-        /// P/P_sway) on the step before's axial load, never below 0.</summary>
+        /// P/P_sway) on the step before's axial load, never below 0. Since model 54 without the skid's frame too (WithoutTheFrame):
+        /// the legs before the lever had none, so the audits that fly it are the older models' legs.</summary>
         public static readonly Action<FlightSetup> WithoutTheLever = s =>
         {
             if (s.Contacts == null) return;
-            s.Contacts = s.Contacts.Clone();
+            s.Contacts = WithoutTheFrameContacts(s.Contacts);
             s.Contacts.LegLeverLength = 0;
         };
 
@@ -449,6 +450,23 @@ namespace Fpv450.Sim.Tests
             s.Contacts.HangingGive = false;
             if (s.Contacts.Legs != null) s.Contacts.Legs.StubStiffness = s.Contacts.Legs.StubStiffnessUp = 0;
         };
+
+        /// <summary>A flight's contacts without the skid's frame (p7g-legs, model 54's audit and known-wrong): one value both ways,
+        /// every leg the cantilever along the skid as across it (ContactSpec's frame give, sway load and lever 0, LegDamageSpec's
+        /// frame shares 0), model 51's legs.</summary>
+        public static readonly Action<FlightSetup> WithoutTheFrame = s =>
+        {
+            if (s.Contacts == null) return;
+            s.Contacts = WithoutTheFrameContacts(s.Contacts);
+        };
+
+        public static ContactSpec WithoutTheFrameContacts(ContactSpec c)
+        {
+            c = c.Clone();
+            c.LegFrameSideStiffness = c.LegFrameSwayLoad = c.LegFrameLeverLength = 0;
+            if (c.Legs != null) c.Legs.FrameTopShare = c.Legs.FrameJointShare = c.Legs.FrameSelfStiffness = 0;
+            return c;
+        }
 
         /// <summary>Its audit against p7g-legs (GoldenFlightTests.WithoutTheLineEachGoldenIsModel41s): p7g-legs' model 41 record is
         /// the record less the fiber's 104 and the blade strikes' 384 bytes at Model28Layout (Model41Skip), and its pins, which
@@ -700,7 +718,35 @@ namespace Fpv450.Sim.Tests
         // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
         // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
         // on anything in it.
-        public const ulong ContactHash = 0x23F1CAAA06836829UL;
+        // The skid's frame fore and aft (ModelVersion 54, off model 51's 0xE4B8CB8346751E29, on the 2816-byte record): re-recorded as
+        // 0xB40293EBA12A4258 (Model54ContactHash) with each leg the skid's frame
+        // along the skid (784 N/m at the foot against the cantilever's 268). Audited: without the frame (WithoutTheFrame, one value
+        // both ways) model 51's pin, every record and event (model 54's WithoutTheFrameEachGoldenIsModel51s; since 60 WithoutTheHangingGiveEachGoldenIsModel50s). With it, it moves
+        // from step 3 (the standing skids' points along the skid on the frame's give) and keeps its course: within 17.7 mm and
+        // 0.57° of model 51's path, 3 impacts as 51's, at rest 0.2494 m up against 0.2495 on 4 pairs, 13.9 mm from 51's rest; the
+        // largest lean 8.3 mm; every leg intact.
+        // Model 59: 0x23F1CAAA06836829 (the props at rest's 52, kept through 55, 57 and 59: no line, no prop at rest). The physics
+        // integration 2 with the skid's frame (ModelVersion 60, 54 merged onto 59): re-recorded. Audited case by case: without the frame
+        // (WithoutTheFrame) it is model 59's pin over the whole record, every record and event (GoldenFlightTests.
+        // WithoutTheFrameEachGoldenIsModel59s, kept; flightbench's line), and over model 50's 2816 bytes with the props at rest on
+        // and off it is the frame's model 54 pin, every record and event, the resting blades' block zero (WithoutTheCutsTheRestAnd
+        // TheFiberContactsEachGoldenIsModel54s, kept). With the frame it is 54's flight (no line, no prop at rest): from step 3,
+        // within 17.70 mm and 0.567° of model 59's path, 3 impacts as 59's, 65 events against 71, at rest 0.2494 m up against
+        // 0.2495 on 4 pairs, 13.85 mm from 59's rest; the largest lean 8.26 mm (9.56); every leg intact.
+        public const ulong ContactHash = 0x443F8EB0FF6F0258UL;
+
+        /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
+        /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
+        public const ulong Model59ContactHash = 0x23F1CAAA06836829UL, Model59RangeHash = 0x05FA9D844690C592UL,
+            Model59TetherHash = 0x1553E92C7C7425BCUL;
+
+        /// <summary>The skid's frame's pins (p7g-legs on the line, model 54, off 51) over model 50's 2816 bytes, which every golden
+        /// flown without the cuts (FlightSetup.TetherWithoutCuts), the props at rest (ContactSpec.BladeRest off) and the fiber's
+        /// contacts (FlightSetup.TetherWithoutContacts) keeps bit for bit, every record and event (GoldenFlightTests.
+        /// WithoutTheCutsTheRestAndTheFiberContactsEachGoldenIsModel54s). Model 51's (the hanging half and the stub) are model
+        /// 50's (Model50*Hash), which the flights without the frame too keep.</summary>
+        public const ulong Model54ContactHash = 0xB40293EBA12A4258UL, Model54RangeHash = 0x0C2F2D66883FFDE0UL,
+            Model54TetherHash = 0xE2CE97AFDB428E8AUL;
 
         /// <summary>The parents' pins at the physics integration 2 (model 34), which its kept audits fly: p7d-tether's model 31
         /// contact, range and tether goldens over the whole 2008-byte record (WithoutTheGroundTheGoldenFlightsAreModel31s:
@@ -826,8 +872,27 @@ namespace Fpv450.Sim.Tests
         /// block zero on every record: no blade rests on anything and the line never meets a resting one, before the break or
         /// through the near piece's hang, the disarm and the spin-down (WithoutARestingPropEachGoldenIsModel56s). No other golden
         /// moved: each is 57's pin.
+        /// The skid's frame fore and aft (ModelVersion 54, off model 51's 0x316A98D76AD4F03F, model 50's: no golden parts a leg):
+        /// re-recorded as 0xE2CE97AFDB428E8A (Model54TetherHash) on the 2816-byte record, without the fiber's contacts, audited as the contact flight: without the frame model 51's pin, every record and event
+        /// (model 54's WithoutTheFrameEachGoldenIsModel51s; since 60 WithoutTheHangingGiveEachGoldenIsModel50s). With it, it moves from step 3 and keeps its course: within 17.6 mm and 0.49° of
+        /// model 51's path, 3 impacts, at rest 0.2494 m against 0.2495, 13.8 mm aside; the largest lean 8.0 mm; every leg intact.
+        /// The physics integration 2 with the skid's frame (ModelVersion 60, 54 merged onto 59): re-recorded. Audited case by
+        /// case: without the frame it is model 59's pin, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIs
+        /// Model59s); without the cuts, the fiber's contacts and the props at rest, over model 50's 2816 bytes, the frame's model
+        /// 54 pin (WithoutTheCutsTheRestAndTheFiberContactsEachGoldenIsModel54s); every older audit flies WithoutTheFrame beside its
+        /// own switch and keeps its pin. With the frame the drone leaves 59's path at step 3 (the standing skids along the skid on
+        /// the frame's give) and keeps its course: within 22.59 mm and 0.724° of it, 3 impacts, at rest 0.2500 m up against
+        /// 0.2501 on 4 pairs, 0.32 mm aside; the largest lean 3.26 mm (3.55); every leg intact. The line breaks as at 59, by the
+        /// same mechanism at the same place, 35 steps later: rotor 2's disc at its tip at step 7304 (59: 7269), the crossing
+        /// 0.1260 m from the hub (0.1265), T 0.012 N (0.031), the blade at 113.70 m/s (114.56: a turning rotor, never a resting
+        /// one), as the drone settles on its legs: the frame's stiffer fore-aft give changes how the drone settles, and the piece
+        /// the rear fountain lifts crosses the tip circle a little later. Then a near piece of 11 nodes (10) hangs from the exit
+        /// and the failsafe disarms (DROP); 0.0756 m paid out (0.0757), 11 nodes (10), the trail at 20 points as 59's, 2 clips
+        /// (0) and 9 safe steps (3) in the near piece's flutter, 0 wedges, 0 dips, 18 sections read (17); 2095 events against
+        /// 4150 (fewer FiberContact and FiberSlip churn at the near piece's free end). 1.8's known risk (the fuselage's blocking
+        /// of the rear fountain is not modelled), not tuned.
         /// </summary>
-        public const ulong TetherHash = 0x1553E92C7C7425BCUL;
+        public const ulong TetherHash = 0xA1C51B2FC6318AC2UL;
 
         /// <summary>The tether golden at model 57 (the props at rest on the line), which the flight without 1.8's cuts keeps
         /// (FlightSetup.TetherWithoutCuts: GoldenFlightTests.WithoutTheCutsEachGoldenIsModel57s).</summary>
@@ -1089,7 +1154,17 @@ namespace Fpv450.Sim.Tests
         // after model 50's 2816 bytes). Audited: over its first 2816 bytes model 50's pin, every record and event, with the props at
         // rest on and off, the block zero on every record (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel50s): no prop rests
         // on anything in it.
-        public const ulong RangeHash = 0x05FA9D844690C592UL;
+        // The skid's frame fore and aft (ModelVersion 54, off model 51's 0xBADF8E0897A61D92, on the 2816-byte record): re-recorded
+        // as 0x0C2F2D66883FFDE0 (Model54RangeHash). Audited: without
+        // it model 51's pin, every record and event (model 54's WithoutTheFrameEachGoldenIsModel51s; since 60 WithoutTheHangingGiveEachGoldenIsModel50s). With it, it moves from step 3 and keeps
+        // its course: within 7.5 mm and 0.13° of model 51's path, 3 impacts, at rest 0.2451 m up as 51's on 8 pairs in S04's
+        // straw, 6.3 mm from 51's rest; the largest lean 4.7 mm; every leg intact.
+        // Model 59: 0x05FA9D844690C592 (52's, kept through 55, 57 and 59). The physics integration 2 with the skid's frame
+        // (ModelVersion 60, 54 merged onto 59): re-recorded, audited as the contact
+        // flight (WithoutTheFrameEachGoldenIsModel59s, WithoutTheCutsTheRestAndTheFiberContactsEachGoldenIsModel54s): 54's flight,
+        // from step 3, within 7.52 mm and 0.130° of model 59's path, 3 impacts, at rest 0.2451 m up as 59's on 8 pairs in S04's
+        // straw, 6.30 mm from 59's rest; the largest lean 4.72 mm (4.66); every leg intact.
+        public const ulong RangeHash = 0x5AB70E46CC936BE0UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>

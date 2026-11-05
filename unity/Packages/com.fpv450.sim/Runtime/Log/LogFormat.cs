@@ -193,6 +193,12 @@ namespace Fpv450.Sim.Log
         ///    tether.json's contact block (13 rows; the entry writes every row); the events FiberContact (30) and FiberSlip (31),
         ///    and WorldBug's causes 2–6; the record is 40's 2816 bytes (the bend's radius goes into the record with 1.13's
         ///    fields: here it is FiberContact's and FiberContacts.MinBendRadius).
+        /// 44: the skid's frame fore and aft (p7g-legs on the line, unity/physics/physics-integration-2--legs-frame, assigned by
+        ///    D-072): the contacts entry gains the frame leg's give, sway load and lever (ContactSpec.LegFrameSideStiffness,
+        ///    LegFrameSwayLoad, LegFrameLeverLength) after the hanging half's switch, and its legs' data the frame's shares and
+        ///    self-stiffness (LegDamageSpec.FrameTopShare, FrameJointShare, FrameSelfStiffness) after the stub's spring; the record
+        ///    is 41's 2816 bytes; no new event kind (a frame leg's socket edge names its T-joint's part; its parting is SkidLoose
+        ///    with LegMode.Bending).
         /// 45: the physics integration 2 with the fiber's contacts (unity/physics/physics-integration-2--int55, assigned by
         ///    D-072): 43 merged onto 41: the contacts entry is 41's (the hanging half's switch after the lever's length, the
         ///    stub's springs in the legs' data) with 43's EdgeRadius in each material row after its density; the tether entry
@@ -217,8 +223,14 @@ namespace Fpv450.Sim.Log
         ///    in its shapes); the tether entry 46's (TetherWithoutContacts, then TetherWithoutCuts and TetherOneStrength); the
         ///    settings 46's failsafe fields; the draws 46's fiber.span_strength; the events 46's (TetherBreak 32, LinkDip 33,
         ///    FiberSection 34, Failsafe 35, WorldBug's cause 7); no new event kind.
+        /// 50: the physics integration 2 with the skid's frame (unity/physics/physics-integration-2--int60, assigned by D-072):
+        ///    44 merged onto 49: the record is 49's 2944 bytes; the contacts entry 49's (BladeRest, BladeRestSpeed after the
+        ///    hanging half's switch, the blade edges in its shapes) with 44's frame give, sway load and lever (ContactSpec.
+        ///    LegFrameSideStiffness, LegFrameSwayLoad, LegFrameLeverLength) after BladeRestSpeed, and its legs' data 44's frame
+        ///    shares and self-stiffness (LegDamageSpec.FrameTopShare, FrameJointShare, FrameSelfStiffness) after the stub's
+        ///    springs; the tether entry, the settings, the draws and the events 49's; no new event kind.
         /// </summary>
-        public const int Version = 49;
+        public const int Version = 50;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -521,6 +533,15 @@ namespace Fpv450.Sim.Log
         ///    at the contact points in the next step; a node put where a member meets a segment, two members on a node in one
         ///    solve; a capstan's hold slips across the line by Coulomb (CableChain). A flight without the line steps as in 50,
         ///    and so does one with it and FlightSetup.TetherWithoutContacts.
+        /// 54: the skid's frame fore and aft (p7g-legs on the line, unity/physics/physics-integration-2--legs-frame, assigned by
+        ///    D-072). The two legs on one skid are joined by its T-joints, so along the skid each sways with its foot held square:
+        ///    its give at the foot 12(1 + β)/(4 + β)·EI/L³ and its sway-buckling load from u·cos u + β·sin u = 0 (DroneLegs.Frame;
+        ///    β = R·L/EI from the T-joint's socket bed, the skid's bending between its bores and its pitch on the two legs: 784 N/m
+        ///    and 146.6 N against the cantilever's 268 and 47.1), on its own lever in that plane (ContactSpec.LegFrameLeverLength),
+        ///    and the sway's moment parted between the clamp's edge and the socket's, each of which cracks, yields and parts
+        ///    (LegDamage.FrameEdges). Across the skid the cantilever's values hold. A broken or detached leg or a T-joint that lets
+        ///    its skid go breaks the frame: its sibling is a cantilever both ways. With the frame's data 0 (ContactSpec's three,
+        ///    LegDamageSpec.FrameTopShare) a flight steps as in 51; a flight whose legs never touch steps as in 51.
         /// 55: the physics integration 2 with the fiber's contacts (unity/physics/physics-integration-2--int55, assigned by
         ///    D-072; the code is the parents' together): 53's fiber contacts merged onto 51's hanging half and stub. A flight
         ///    without the line, or with it and FlightSetup.TetherWithoutContacts, steps as in 51; one whose legs never part (no
@@ -547,8 +568,15 @@ namespace Fpv450.Sim.Log
         ///    idle or faster turns a disc and cuts at the next blade pass, as at 56. A flight with FlightSetup.TetherWithoutCuts
         ///    steps as in 57; one with ContactSpec.BladeRest off steps as in 56 over its 2816 bytes (but for 52's jammed head-on
         ///    crush), the block zero.
+        /// 60: the physics integration 2 with the skid's frame (unity/physics/physics-integration-2--int60, assigned by D-072;
+        ///    the code is the parents' together): 54's frame fore and aft merged onto 59's cuts, link and failsafe on the props at
+        ///    rest and the fiber's contacts. A resting prop's blades and a hanging half both bear through the leg corners' own
+        ///    shapes and the frame changes only a holding leg's give and law, so they compose without new code. A flight with
+        ///    the frame's data 0 (ContactSpec's three, LegDamageSpec.FrameTopShare) steps as in 59; one with
+        ///    FlightSetup.TetherWithoutContacts (so without the cuts) and ContactSpec.BladeRest off steps as in 54 over its 2816
+        ///    bytes, the block zero (but for 52's jammed head-on crush); a flight whose legs never touch steps as in 59.
         /// </summary>
-        public const int ModelVersion = 59;
+        public const int ModelVersion = 60;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

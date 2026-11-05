@@ -97,12 +97,11 @@ namespace Fpv450.Sim.Tests
             double lo = 10, hi = 40;
             Assert.That(RollTime(true, lo, 60, elastic), Is.EqualTo(double.PositiveInfinity), $"set down at {lo}° it rights itself");
             Assert.That(RollTime(true, hi, 60, elastic), Is.LessThan(10), $"set down at {hi}° it falls");
-            while (hi - lo > 0.02)
-            {
-                double mid = (lo + hi) / 2;
-                if (RollTime(true, mid, 60, elastic) < 10) hi = mid;
-                else lo = mid;
-            }
+            // The lowest set-down that falls, scanned by 0.1° (model 54): the falls are not monotone in the angle (the rebound
+            // rights it again in windows past the first fall, about 18.4–19.9° and 21.3–24.9° on both the frame and model 51's legs;
+            // from 25.0° every set-down falls), so a bisection lands on whichever window edge it meets (model 51's 22.66°; the
+            // frame's 24.94°, past the rigid tip, when 23.125° rights itself on the frame).
+            for (hi = lo; hi < 40 && !(RollTime(true, hi, 60, elastic) < 10); hi += 0.1) { }
             TestContext.Out.WriteLine($"the roll tip: {a.StaticRollTipDeg:F2}° rigid across; {soft:F2}° quasi-static on the tube's {c.LegTubeSideStiffness:F0} N/m less P·Δ "
                 + $"(the feet {feet * 1e3:F1} mm in; 1.2's {side:F0} N/m chain without it, {unsoftened:F2}°); set down at rest with unbent legs, the sim falls from {hi:F2}°");
             Assert.That(hi, Is.GreaterThan(soft).And.LessThan(a.StaticRollTipDeg), "between the quasi-static tip and the rigid legs'");
