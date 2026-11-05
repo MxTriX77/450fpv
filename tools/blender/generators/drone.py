@@ -4,9 +4,9 @@ shows them (D-043).
 
 Every dimension and position comes from the component spec, assets-src/drone/drone.json (DRN-03), which the
 physics' mass build reads too; the params (assets-src/drone/<variant>.json, PARAMS below) hold only the look: the arm
-plates' outline, the plates' gauges, the props' planform, the spool's ends and ribs, the bottle's neck, cap and
-shoulder, the payload and payout settings, the straps, the camera's place and the LODs. The spec's parts are mass
-shapes; each is drawn as follows.
+plates' outline, the plates' gauges, the props' planform, the spool's ends and ribs, the canister's cone, nozzle
+and hangers, the bottle's neck, cap and shoulder, the payload and payout settings, the straps, the camera's place
+and the LODs. The spec's parts are mass shapes; each is drawn as follows.
 
 - **Origin and axes:** the spec's body frame (D-019): x starboard, y up, z forward, from the arm-plane centre.
 - **Motors** (motor_*): the can is the part's cylinder exactly, base to top: a narrower base (motor.base_*), the
@@ -28,13 +28,20 @@ shapes; each is drawn as follows.
   plates (the upper plate's top is the bottle's); the motor leads along the arms.
 - **Packs** (pack_*): the part's box exactly, its long edges rounded (pack.corner_r_m), held by `straps` hook-and-loop
   straps each, which pass through the bottom plate; leads to yellow connectors at the rear, plugged.
-- **Coil** (coil; legs_off.moved): T's spool on whichever plate the spec puts it against (beneath, D-050), seen the
-  same way up from that plate: the fiber pack's diameter the part's at full spool, shrinking with `payout` to the
-  core as its volume leaves; the light grey rear cap with its recessed three-spoke hub and the line's hole, the black
-  front hoop, the black tray and the grey rear bracket to the plate, two cable-tie hoops; the part's length end to end.
+- **Coil** (coil; legs_off.moved): T's spool, the wound pack on its bobbin, inside the canister along the part's axis
+  (its v the axis' normal towards the ground): the fiber pack's diameter the part's at full spool, shrinking with
+  `payout` to the core as its volume leaves; the light grey rear cap with its recessed three-spoke hub and the line's
+  hole, the black front hoop; the part's length end to end. The canister hides it; it is drawn for the player's pack.
   The pack (its rear face from the cap's rim, the ribbed winding, the hoop's rear face to its rim: every vertex the
   player moves as the line pays out, p7d-tether 1.14's CoilPack) is its own mesh per LOD, `coil_pack` under the
   metadata's `readable`, so the importer makes only it readable and the rest of the drone keeps no CPU copy.
+- **Canister** (canister; the class's, docs/reference-notes/spool-exit-and-rear.md): the part's body exactly (its
+  diameter, its length end to end, its axis tilted rear-down), a lid seam near its front face; aft of the body the
+  black cone (canister.cone_m) to its collar, then the aluminium nozzle (canister.nozzle_*) with its bore and a mouth
+  flared over a rounded lip (lip_r_m), whose tip is the line's exit (`fiber_exit`, the metadata's port: the tip and
+  the direction down the axis aft); two black printed hangers from the bottom plate's underside down to the body,
+  each with a cable tie round the body through it, and the fiber's connector on the body's top with its lead to the
+  plate (the fixed end, to the transceiver).
 - **Bottle** (payload; legs_off.moved; payload_kg): a plain plastic bottle (D-050) sized by its water. The part is
   the water as a solid cylinder at the mass the spec's rule gives (the mass build's uniform cube-root scale of its
   size, its face toward the arm plane kept); the bottle's body is the part's diameter, centred on the part, and base
@@ -99,8 +106,11 @@ TE_M = 0.0003  # the trailing edge's own thickness
 STRAP_W_M, STRAP_T_M = 0.020, 0.0015  # hook-and-loop straps (assumed: 20 mm, the sheet's T)
 STRAP_EDGE = 0.1  # the purple edge band's share of a strap's width each side (T)
 TIE_W_M, TIE_T_M = 0.0045, 0.0012  # a cable tie's band (assumed: a 4.5 mm tie)
-SADDLE_HALF_M = 0.022  # a printed saddle's half-width across the spool (assumed)
-SADDLE_WEB_M = 0.001  # the thinnest saddle under a strapped round part
+HANGER_HALF_M = 0.022  # a printed hanger's half-width across the canister (assumed)
+PIGTAIL_R_M = 0.0015  # the fiber's fixed end, a 3 mm jacketed pigtail (assumed)
+MOUTH_BAND_M = 0.0015  # the nozzle mouth's rim band before its flare (assumed)
+SEAM_M = 0.001  # the canister lid's seam, its width and depth (assumed)
+EXIT = "fiber_exit"  # the line's exit: the metadata's port at the nozzle's tip
 NECK_M, RING_M = 0.010, 0.003  # a PET bottle's neck under its cap and its support ring's lip (assumed)
 LEAD_R_M = 0.00225  # 10 AWG silicone with its jacket, Ø4.5 mm (the sheet)
 XT90_M = (0.040, 0.011, 0.021)  # a mated XT90 pair: length, height, width (published class)
@@ -144,6 +154,24 @@ PARAMS = {
     "coil.rib_pitch_m": {"type": "float", "range": (0.003, 0.012), "default": 0.0075,
                          "effect": "the winding's ribs (T's 6 mm at 1.25x)"},
     "coil.rib_depth_m": {"type": "float", "range": (0.0, 0.002), "default": 0.0006, "effect": "the ribs' depth"},
+    "canister.cone_m": {"type": "float", "range": (0.02, 0.09), "default": 0.047,
+                        "effect": "the cone's length from the body to its collar"},
+    "canister.collar_d_m": {"type": "float", "range": (0.015, 0.04), "default": 0.024, "effect": "the cone's end"},
+    "canister.nozzle_m": {"type": "float", "range": (0.04, 0.10), "default": 0.070,
+                          "effect": "the nozzle's length from the collar to its tip"},
+    "canister.nozzle_d_m": {"type": "float", "range": (0.010, 0.025), "default": 0.018, "effect": "the nozzle's tube"},
+    "canister.bore_d_m": {"type": "float", "range": (0.004, 0.020), "default": 0.012, "effect": "the nozzle's bore"},
+    "canister.lip_r_m": {"type": "float", "range": (0.001, 0.010), "default": 0.004,
+                         "effect": "the mouth's rounded lip, the radius the line turns over"},
+    "canister.mouth_d_m": {"type": "float", "range": (0.012, 0.040), "default": 0.026, "effect": "the flared mouth"},
+    "canister.lid_m": {"type": "float", "range": (0.005, 0.05), "default": 0.020,
+                       "effect": "the lid's seam from the body's front face"},
+    "canister.hanger_front_m": {"type": "float", "range": (0.0, 0.3), "default": 0.040,
+                                "effect": "the front hanger's station from the body's front face"},
+    "canister.hanger_rear_m": {"type": "float", "range": (0.0, 0.3), "default": 0.170,
+                               "effect": "the rear hanger's station from the body's front face"},
+    "canister.hanger_len_m": {"type": "float", "range": (0.01, 0.04), "default": 0.020,
+                              "effect": "a hanger's length fore and aft"},
     "payout": {"type": "float", "range": (0.0, 1.0), "default": 0.0,
                "effect": "the share of the line paid out: the fiber pack's radius (DRN-05)"},
     "payload_kg": {"type": "float", "range": (0.0, 5.0), "default": 1.0,
@@ -278,6 +306,7 @@ def check(params):
         problems.append("the coil's core, its full pack (the spec's diameter) and its hoop must grow in that order")
     if not c["hole_d_m"] < c["core_d_m"] < c["cap_d_m"] < value(coil["diameter_m"]):
         problems.append("the line's hole, the core, the rear cap and the full pack must grow in that order")
+    problems += _canister_problems(spec, params)
     pay = next((p for p in spec["parts"] if p["name"] == "payload"), None)
     b = params["bottle"]
     if pay and not b["neck_d_m"] < b["cap_d_m"] < value(pay["diameter_m"]):
@@ -294,6 +323,39 @@ def check(params):
     lod = params["lod"]
     if not lod["lod1_switch_m"] < lod["lod2_switch_m"] < lod["lod3_switch_m"] < lod["cull_m"]:
         problems.append("the LOD switches and the cull must increase")
+    return problems
+
+
+def _canister_problems(spec, params):
+    """The canister's look against its part: the bore, the tube, the collar and the body grow in that order; the
+    mouth flares past the tube and the lip; the flare and the lip fit the nozzle; the hangers and the lid's seam lie
+    on the body; the coil's bobbin (its part) lies inside the body."""
+    can = next((p for p in spec["parts"] if p["name"] == "canister"), None)
+    if can is None:
+        return ["the spec has no canister part to draw the coil's housing from"]
+    coil = next(p for p in spec["parts"] if p["name"] == "coil")
+    k = params["canister"]
+    R, L = value(can["diameter_m"]) / 2, value(can["length_m"])
+    rb, ro, rm = k["bore_d_m"] / 2, k["nozzle_d_m"] / 2, k["mouth_d_m"] / 2
+    problems = []
+    if not rb < ro < k["collar_d_m"] / 2 < R:
+        problems.append("the nozzle's bore, its tube, the cone's collar and the body must grow in that order")
+    if not (ro < rm and rb + k["lip_r_m"] < rm):
+        problems.append("the mouth must flare past the nozzle's tube and the lip round its bore")
+    if MOUTH_BAND_M + (rm - ro) >= k["nozzle_m"] or k["lip_r_m"] >= k["nozzle_m"]:
+        problems.append("the mouth's flare and lip leave no tube inside the nozzle's length")
+    half = k["hanger_len_m"] / 2
+    if not half <= k["hanger_front_m"] < k["hanger_rear_m"] <= L - half or not k["lid_m"] < L:
+        problems.append("the hangers (front before rear) and the lid's seam must lie on the canister's body")
+    c, w = value(can["position_m"]), normalize(value(can["axis"]))
+    cc, cw = value(coil["position_m"]), normalize(value(coil["axis"]))
+    for end in (-1.0, 1.0):
+        d = sub(add(cc, scale(cw, end * value(coil["length_m"]) / 2)), c)
+        along = dot(d, w)
+        across = math.sqrt(max(0.0, dot(d, d) - along * along))
+        if abs(along) > L / 2 + 1e-9 or across + params["coil"]["hoop_d_m"] / 2 > R:
+            problems.append("the coil's bobbin (its part, its hoop) must lie inside the canister's body")
+            break
     return problems
 
 
@@ -326,6 +388,19 @@ def build(params):
               f"(DRN-02: 0.574 / 0.706 +-0.005), tip radius {spans['tip_radius']:.5f} m",
               f"FPV lens at ({lens[0]:g}, {lens[1]:g}, {lens[2]:g}) m, 0 deg uptilt, facing +z",
               f"coil pack its own readable mesh per LOD, {' / '.join(str(len(p.vertices)) for _, p in packs)} vertices"]
+    tip, out = fiber_exit(params, layout)
+    can, k = layout.part("canister"), params["canister"]
+    fc, _ = mount_frame(params, layout, "canister")
+    zt, _, zr, zf = canister_stations(params, layout)
+    lowest = min(fc.at(0, s * r, z)[1] for s in (-1, 1) for z, r in ((zr, can["diameter_m"] / 2),
+                 (zf, can["diameter_m"] / 2), (zt, k["mouth_d_m"] / 2)))
+    report.append(f"canister body {can['diameter_m']:g} x {can['length_m']:g} m, cone {k['cone_m']:g} m, nozzle "
+                  f"{k['nozzle_m']:g} m (tube {k['nozzle_d_m']:g}, bore {k['bore_d_m']:g}, mouth "
+                  f"{k['mouth_d_m']:g} m, lip r {k['lip_r_m']:g} m), tilted {math.degrees(math.asin(-out[1])):.2f} deg "
+                  f"rear-down; the line's exit at the nozzle tip ({tip[0]:.6f}, {tip[1]:.6f}, {tip[2]:.6f}) m "
+                  f"leaving ({out[0]:.6f}, {out[1]:.6f}, {out[2]:.6f}), "
+                  f"{min(h[2] for h in layout.hubs) - tip[2]:.4f} m aft of the rear motors' axis and "
+                  f"{-tip[1]:.4f} m below the arm plane; its lowest point y {lowest:.4f} m")
     if legs:
         cuts = ", ".join(f"{c} y {clamp_edge(layout, c)[1]:g}" for c in CORNERS)
         report.append(f"leg parts their own readable meshes per LOD (stub, leg, T-joint, skid half a corner), "
@@ -344,6 +419,7 @@ def build(params):
         "collision": collision,
         "gaps": [],
         "wind_volumes": [],
+        "ports": [{"id": EXIT, "position": list(tip), "direction": list(out), "max_diameter_m": k["bore_d_m"]}],
         "snag": _snag(params, layout),
         "report": report,
     }
@@ -425,7 +501,8 @@ def part_meshes(params, layout, q):
                 add_part(f"skid_{corner}", _skid, params, layout, corner)
     add_part("coil", _coil, params, layout)
     add_part(PACK, _coil_pack, params, layout)
-    add_part("coil_mount", _coil_mount, params, layout)
+    add_part("canister", _canister, params, layout)
+    add_part("canister_mount", _canister_mount, params, layout)
     if layout.has("payload"):
         add_part("bottle", _bottle, params, layout)
         add_part("bottle_straps", _bottle_straps, params, layout)
@@ -1024,8 +1101,8 @@ def _electronics(m, q, params, layout):
 
 def mount_frame(params, layout, name):
     """A round part's frame: origin the part's centre, w along its axis, v away from the plate it is strapped to
-    (up for a part above the upper plate, down for one below the bottom plate), and how far that plate's face lies
-    from the axis."""
+    (up for a part above the upper plate, down for one below the bottom plate; square to a tilted axis), and how far
+    that plate's face lies above or below the centre."""
     part = layout.part(name)
     c = part["position_m"]
     axis = normalize(part["axis"])
@@ -1035,7 +1112,8 @@ def mount_frame(params, layout, name):
     u = cross(v, axis)
     if dot(u, u) < 1e-9:
         raise ValueError(f"{name}: its axis is vertical; a strapped round part lies along the plate")
-    return Frame(c, normalize(u), v, axis), (c[1] - upper[1]) if up else (bottom[0] - c[1])
+    v = normalize(sub(v, scale(axis, dot(v, axis))))  # square to a tilted axis (the canister's); level ones keep v
+    return Frame(c, normalize(cross(v, axis)), v, axis), (c[1] - upper[1]) if up else (bottom[0] - c[1])
 
 
 def coil_radii(params, layout):
@@ -1112,18 +1190,96 @@ def _coil_pack(m, q, params, layout):
     lathe(m, f, profile[start:end + 1], COIL_SEGMENTS[q], paints[start:end])
 
 
-def _coil_mount(m, q, params, layout):
-    """The spool's mount on its plate: the black tray under the hoop and the pack, the grey rear bracket under the
-    cap, and at LOD0 two cable-tie hoops round the hoop and the cap with their heads and cut tails."""
+# --- canister -----------------------------------------------------------------------------------------------------
+
+def canister_stations(params, layout):
+    """The canister along its axis from its part's centre: the nozzle's tip, the collar (the nozzle's root, the cone's
+    end), the body's rear and front faces."""
+    part, k = layout.part("canister"), params["canister"]
+    zr, zf = -part["length_m"] / 2, part["length_m"] / 2
+    zn = zr - k["cone_m"]
+    return zn - k["nozzle_m"], zn, zr, zf
+
+
+def fiber_exit(params, layout):
+    """The line's exit: the nozzle tip's centre and the unit direction the line leaves in, down the axis aft."""
+    f, _ = mount_frame(params, layout, "canister")
+    return f.at(0, 0, canister_stations(params, layout)[0]), tuple(0.0 - x for x in f.w)
+
+
+def canister_profile(params, layout, q):
+    """The canister's lathe profile at LOD q and its paints: from the bore's end, out through the nozzle's bore and
+    over its rounded lip, the rim and the flared mouth, back along the tube to the collar, up the cone, along the body
+    (a lid's seam at LOD0) to its front face. LOD3 keeps the tube, the cone and the body."""
+    part, k = layout.part("canister"), params["canister"]
+    R = part["diameter_m"] / 2
+    zt, zn, zr, zf = canister_stations(params, layout)
+    rb, ro, rm, rl, rc = k["bore_d_m"] / 2, k["nozzle_d_m"] / 2, k["mouth_d_m"] / 2, k["lip_r_m"], k["collar_d_m"] / 2
+    if q == 3:
+        return ([(zt, 0.0), (zt, ro), (zn, ro), (zn, rc), (zr, R), (zf, R), (zf, 0.0)],
+                [ZINC, ZINC, BLACK, BLACK, PRINT, PRINT])
+    arc = (6, 3, 1)[q]
+    profile, paints = [(zn, 0.0), (zn, rb), (zt + rl, rb)], [RECESS, ZINC]
+    for i in range(1, arc + 1):  # the lip, rounded out to the rim: the radius the line turns over
+        a = math.pi / 2 * i / arc
+        profile.append((zt + rl - rl * math.sin(a), rb + rl - rl * math.cos(a)))
+        paints.append(ZINC)
+    profile += [(zt, rm), (zt + MOUTH_BAND_M, rm)]
+    paints += [ZINC, ZINC]
+    rho = rm - ro
+    for i in range(1, arc + 1):  # the flare, concave down to the tube
+        a = math.pi / 2 * i / arc
+        profile.append((zt + MOUTH_BAND_M + rho - rho * math.cos(a), rm - rho * math.sin(a)))
+        paints.append(ZINC)
+    profile += [(zn, ro), (zn, rc), (zr, R)]
+    paints += [ZINC, BLACK, BLACK]
+    if q == 0:  # the lid's seam
+        zs = zf - k["lid_m"]
+        profile += [(zs - SEAM_M / 2, R), (zs - SEAM_M / 2, R - SEAM_M), (zs + SEAM_M / 2, R - SEAM_M),
+                    (zs + SEAM_M / 2, R)]
+        paints += [PRINT, RECESS, RECESS, RECESS]
+    profile += [(zf, R), (zf, 0.0)]
+    paints += [PRINT, PRINT]
+    return profile, paints
+
+
+def _canister(m, q, params, layout):
+    """The canister round the coil (the class's: a body, a cone and a nozzle on one axis, tilted rear-down)."""
+    f, _ = mount_frame(params, layout, "canister")
+    profile, paints = canister_profile(params, layout, q)
+    lathe(m, f, profile, COIL_SEGMENTS[q], paints)
+
+
+def hanger_boxes(params, layout):
+    """Each hanger's box (lo, hi), body axes: HANGER_HALF_M either side of the centreline, canister.hanger_len_m fore
+    and aft round its station (the body's top line, canister.hanger_*_m from its front face), from the bottom plate's
+    underside down to where the body's surface lies lowest under it, so the body fills its foot."""
+    f, _ = mount_frame(params, layout, "canister")
+    part, k = layout.part("canister"), params["canister"]
+    R, c, w = part["diameter_m"] / 2, part["position_m"], f.w
+    bottom, _, _ = plate_heights(params, layout)
+    lift = math.sqrt(R * R - HANGER_HALF_M * HANGER_HALF_M)
+    boxes = []
+    for station in (k["hanger_front_m"], k["hanger_rear_m"]):
+        top = f.at(0, -R, part["length_m"] / 2 - station)
+        z0, z1 = top[2] - k["hanger_len_m"] / 2, top[2] + k["hanger_len_m"] / 2
+        # the body's top over (x, z), its axis in the y-z plane: y = c_y + ((z - c_z) w_y + sqrt(R^2 - x^2)) / w_z
+        foot = min(c[1] + ((z - c[2]) * w[1] + lift) / w[2] for z in (z0, z1))
+        boxes.append(((-HANGER_HALF_M, foot, z0), (HANGER_HALF_M, bottom[0], z1)))
+    return boxes
+
+
+def _canister_mount(m, q, params, layout):
+    """The canister's mount: two black printed hangers from the bottom plate, at LOD0 a cable tie round the body
+    through each, with its head and cut tail; the fiber's connector on the body's top (LOD0-1) and its lead up to
+    the plate (LOD0)."""
     if q == 3:
         return
-    f, d = mount_frame(params, layout, "coil")
-    c = params["coil"]
-    _, (z0, z1, z2, z3) = coil_radii(params, layout)
-    r_cap, r_hoop = c["cap_d_m"] / 2, c["hoop_d_m"] / 2
-    tf = Frame(f.origin, f.u, f.w, f.v)  # outline in (u, v), extruded along the axis
-    prism(m, tf, _saddle(SADDLE_HALF_M, d, r_hoop, (12, 8, 4)[q]), z1, z3, BLACK, smooth_sides=True)
-    prism(m, tf, _saddle(SADDLE_HALF_M, d, r_cap, (12, 8, 4)[q]), z0, z1, PRINT, smooth_sides=True)
+    for lo, hi in hanger_boxes(params, layout):
+        box(m, AXES, lo, hi, BLACK)
+    f, _ = mount_frame(params, layout, "canister")
+    part, k = layout.part("canister"), params["canister"]
+    R = part["diameter_m"] / 2
     if q == 0:
         rng = random.Random(params["seed"])
         for zc, r in tie_stations(params, layout):
@@ -1133,33 +1289,29 @@ def _coil_mount(m, q, params, layout):
             hf = Frame(head, normalize(sub(tail, head)), f.w, cross(normalize(sub(tail, head)), f.w))
             box(m, hf, (-0.0035, -0.003, -0.0025), (0.0035, 0.003, 0.0025), BLACK)
             box(m, hf, (0.0035, -TIE_W_M / 2, -TIE_T_M / 2), (math.dist(head, tail), TIE_W_M / 2, TIE_T_M / 2), BLACK)
+    if q <= 1:  # the fiber's fixed end leaves the body's top through its connector (the class: measured)
+        zc = part["length_m"] / 2 - (k["hanger_front_m"] + k["hanger_rear_m"]) / 2
+        box(m, f, (-0.006, -R - 0.008, zc - 0.008), (0.006, -R + 0.002, zc + 0.008), BLACK)
+        if q == 0:
+            bottom, _, _ = plate_heights(params, layout)
+            foot = f.at(0, -R - 0.008, zc)
+            tube(m, [foot, (foot[0], bottom[0], foot[2])], PIGTAIL_R_M, 8, LEAD_BLACK)
 
 
 def tie_stations(params, layout):
-    """(axial station, radius) of the two cable-tie hoops: round the front hoop's middle and the rear cap's."""
-    c = params["coil"]
-    _, (z0, z1, z2, z3) = coil_radii(params, layout)
-    return (((z2 + z3) / 2, c["hoop_d_m"] / 2), ((z0 + z1) / 2, c["cap_d_m"] / 2))
+    """(axial station, radius) of the two cable ties round the canister's body, each through its hanger."""
+    part, k = layout.part("canister"), params["canister"]
+    zf, R = part["length_m"] / 2, part["diameter_m"] / 2
+    return (zf - k["hanger_front_m"], R), (zf - k["hanger_rear_m"], R)
 
 
 def tie_head(f, zc, r, turn):
-    """A cable tie's head on the hoop's side and its cut tail's end, standing off tangentially (snag hooks); `turn`
+    """A cable tie's head on the body's side and its cut tail's end, standing off tangentially (snag hooks); `turn`
     is the head's angle from u towards v, away from the plate's side."""
     radial = f.dir(math.cos(turn), math.sin(turn), 0.0)
     tangent = f.dir(-math.sin(turn), math.cos(turn), 0.0)
     head = add(f.at(0, 0, zc), scale(radial, r + 0.003))
     return head, add(head, scale(normalize(add(tangent, scale(radial, 0.6))), 0.012))
-
-
-def _saddle(a, d, R, n):
-    """A saddle's outline in (u, v): from the plate's face at v = -d to the circle of radius R round the axis, `a`
-    either side of the centre, its top the circle's arc; it needs a web of SADDLE_WEB_M under the circle."""
-    if d < R + SADDLE_WEB_M:
-        raise ValueError(f"the plate lies {d:.4f} m from the axis of a body of radius {R:.4f} m: no room for its "
-                         f"saddle's {SADDLE_WEB_M * 1000:g} mm web (check the spec's position and the look's diameter)")
-    half = math.asin(a / R)
-    arc = [(R * math.sin(t), -R * math.cos(t)) for t in (half - 2 * half * k / n for k in range(n + 1))]
-    return [(-a, -d), (a, -d)] + arc
 
 
 # --- bottle -------------------------------------------------------------------------------------------------------
@@ -1271,15 +1423,6 @@ def _cylinder(a, b, r, material):
     return shape
 
 
-def _frame_box(f, lo, hi, material):
-    """A box shape from a frame-local box; the frame's axes must be the body's, signed (u, v, w a permutation)."""
-    corners = [f.at(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]
-    blo = [min(p[a] for p in corners) for a in range(3)]
-    bhi = [max(p[a] for p in corners) for a in range(3)]
-    return _box_shape([(blo[a] + bhi[a]) / 2 for a in range(3)], [bhi[a] - blo[a] for a in range(3)],
-                      [0.0, 0.0, 0.0, 1.0], material)
-
-
 def _collision(params, layout):
     shapes = []
     carbon, plastic = PHYSICS["carbon"], PHYSICS["plastic"]
@@ -1348,16 +1491,30 @@ def _collision(params, layout):
     hi = (hi[0], hi[1], params["camera"]["lens_z_m"])  # with the lens
     shapes.append(_box_shape([(lo[a] + hi[a]) / 2 for a in range(3)], [hi[a] - lo[a] for a in range(3)],
                              [0, 0, 0, 1], plastic))
-    # the spool: its pack and rear cap, its front hoop, the tray and the rear bracket
-    f, d = mount_frame(params, layout, "coil")
-    c = params["coil"]
-    rp, (z0, z1, z2, z3) = coil_radii(params, layout)
-    shapes.append(_cylinder(f.at(0, 0, z0), f.at(0, 0, z2), max(rp, c["cap_d_m"] / 2), plastic))
-    shapes.append(_cylinder(f.at(0, 0, z2), f.at(0, 0, z3), c["hoop_d_m"] / 2, plastic))
-    shapes.append(_frame_box(f, (-SADDLE_HALF_M, -d, z1), (SADDLE_HALF_M, -c["hoop_d_m"] / 2 * 0.85, z3), plastic))
-    shapes.append(_frame_box(f, (-SADDLE_HALF_M, -d, z0), (SADDLE_HALF_M, -c["cap_d_m"] / 2 * 0.85, z1), plastic))
+    shapes += _canister_shapes(params, layout)
     if layout.has("payload"):
         shapes += _bottle_shapes(params, layout)
+    return shapes
+
+
+def _canister_shapes(params, layout):
+    """The canister (the coil inside it): its body, its cone in three steps at their middles' radii, its nozzle and
+    its flared mouth (metal: the motors' steel stands for the aluminium), its hangers."""
+    f, _ = mount_frame(params, layout, "canister")
+    part, k = layout.part("canister"), params["canister"]
+    R, rc = part["diameter_m"] / 2, k["collar_d_m"] / 2
+    zt, zn, zr, zf = canister_stations(params, layout)
+    plastic, metal = PHYSICS["plastic"], PHYSICS["metal"]
+    shapes = [_cylinder(f.at(0, 0, zr), f.at(0, 0, zf), R, plastic)]
+    for i in range(3):
+        shapes.append(_cylinder(f.at(0, 0, zn + (zr - zn) * i / 3), f.at(0, 0, zn + (zr - zn) * (i + 1) / 3),
+                                rc + (R - rc) * (i + 0.5) / 3, plastic))
+    shapes.append(_cylinder(f.at(0, 0, zt), f.at(0, 0, zn), k["nozzle_d_m"] / 2, metal))
+    flare = MOUTH_BAND_M + (k["mouth_d_m"] - k["nozzle_d_m"]) / 2
+    shapes.append(_cylinder(f.at(0, 0, zt), f.at(0, 0, zt + flare), k["mouth_d_m"] / 2, metal))
+    for lo, hi in hanger_boxes(params, layout):
+        shapes.append(_box_shape([(lo[a] + hi[a]) / 2 for a in range(3)], [hi[a] - lo[a] for a in range(3)],
+                                 [0, 0, 0, 1], plastic))
     return shapes
 
 
@@ -1398,7 +1555,7 @@ def _snag(params, layout):
             x, y, z = leg["position_m"]
             snag.append({"kind": "edge", "points": [[x, y + leg["length_m"] / 2, z], [x, y - leg["length_m"] / 2, z]],
                          "radius_m": leg["diameter_m"] / 2, "material": carbon})
-    f, _ = mount_frame(params, layout, "coil")
+    f, _ = mount_frame(params, layout, "canister")
     rng = random.Random(params["seed"])
     for zc, r in tie_stations(params, layout):
         head, tail = tie_head(f, zc, r, rng.uniform(0.6, 1.0))

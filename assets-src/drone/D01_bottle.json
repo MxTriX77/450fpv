@@ -13,6 +13,10 @@
     "wound_m": 0.15, "hoop_len_m": 0.015, "hoop_d_m": 0.090, "cap_d_m": 0.072, "core_d_m": 0.039, "hole_d_m": 0.011,
     "rib_pitch_m": 0.0075, "rib_depth_m": 0.0006
   },
+  "canister": {
+    "cone_m": 0.047, "collar_d_m": 0.024, "nozzle_m": 0.070, "nozzle_d_m": 0.018, "bore_d_m": 0.012, "lip_r_m": 0.004,
+    "mouth_d_m": 0.026, "lid_m": 0.020, "hanger_front_m": 0.040, "hanger_rear_m": 0.170, "hanger_len_m": 0.020
+  },
   "payout": 0.0,
   "payload_kg": 1.0,
   "bottle": {"neck_d_m": 0.025, "cap_d_m": 0.030, "cap_h_m": 0.015, "shoulder_m": 0.06, "base_r_m": 0.012},

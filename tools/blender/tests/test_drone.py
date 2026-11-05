@@ -64,12 +64,10 @@ def volume(mesh):
 
 
 def d050_spec(spec, tmp_path, legs_off_moves=None):
-    """The spec with D-050's layout as the physics engineer will set it (assumed figures for the test): the coil
-    beneath the bottom plate, a 1.5 l bottle fore-aft on the upper plate."""
+    """The spec with D-050's layout as the physics engineer will set it (assumed figures for the test): the coil in
+    its canister beneath the bottom plate as the spec has them, a 1.5 l bottle fore-aft on the upper plate."""
     s = copy.deepcopy(spec)
     for p in s["parts"]:
-        if p["name"] == "coil":
-            p["position_m"]["value"] = [0.0, -0.053, 0.0]
         if p["name"] == "payload":
             p["position_m"]["value"] = [0.0, 0.0745, -0.01]
             p["axis"]["value"] = [0, 0, 1]
@@ -94,6 +92,10 @@ def test_params_conform(variant):
     (lambda p: p["arm"].update(width_m=0.032, mount_width_m=0.028), "narrower"),
     (lambda p: p["bottle"].update(cap_d_m=0.020), "neck, its cap and its body"),
     (lambda p: p["coil"].update(cap_d_m=0.085), "hole, the core, the rear cap"),
+    (lambda p: p["canister"].update(bore_d_m=0.019), "bore, its tube, the cone's collar"),
+    (lambda p: p["canister"].update(mouth_d_m=0.016), "mouth must flare"),
+    (lambda p: p["canister"].update(hanger_front_m=0.2), "hangers (front before rear)"),
+    (lambda p: p["coil"].update(hoop_d_m=0.105), "inside the canister's body"),
     (lambda p: p["lod"].update(lod3_switch_m=8.0), "must increase"),
 ])
 def test_check_refuses_inconsistent_params(change, words):
@@ -241,9 +243,92 @@ def test_coil_is_its_part_end_to_end(variant, spec):
     assert max(math.hypot(p[0], p[1]) for p in local) == pytest.approx(params["coil"]["hoop_d_m"] / 2, abs=1e-9)
     rp, _ = drone.coil_radii(params, layout)
     assert rp == pytest.approx(coil["diameter_m"] / 2)  # the full pack is the part's diameter
-    mlo, mhi = bounds(parts["coil_mount"])  # the tray and bracket reach the plate's face
-    plate_face = c[1] + d if f.v[1] < 0 else c[1] - d
-    assert (mhi[1] if f.v[1] < 0 else mlo[1]) == pytest.approx(plate_face, abs=1e-9)
+    can = layout.part("canister")  # the spool and its pack inside the canister's body
+    fc, _ = drone.mount_frame(params, layout, "canister")
+    for v in parts["coil"].vertices + parts["coil_pack"].vertices:
+        d = [v[a] - can["position_m"][a] for a in range(3)]
+        along = sum(d[a] * fc.w[a] for a in range(3))
+        assert abs(along) < can["length_m"] / 2
+        assert math.sqrt(max(0.0, sum(x * x for x in d) - along * along)) < can["diameter_m"] / 2
+
+
+def _local(f, c, vertices):
+    return [tuple(sum((v[a] - c[a]) * axis[a] for a in range(3)) for axis in (f.u, f.v, f.w)) for v in vertices]
+
+
+def _capsule_bounds(shapes):
+    lo, hi = [math.inf] * 3, [-math.inf] * 3
+    for s in shapes:
+        ends = [s["a_m"]["value"]] + ([s["b_m"]["value"]] if "b_m" in s else [])
+        r = s["radius_m"]["value"]
+        for a in range(3):
+            lo[a] = min(lo[a], min(e[a] for e in ends) - r)
+            hi[a] = max(hi[a], max(e[a] for e in ends) + r)
+    return lo, hi
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_canister_is_its_part_and_its_nozzle_the_lines_exit(variant, spec, built):
+    """The class's canister (docs/reference-notes/spool-exit-and-rear.md): the part's body end to end and its
+    diameter, the cone and the nozzle aft of it on its axis; the nozzle's tip the metadata's port and the flight's
+    nozzle capsule's end, inside the class's measured band: 0.03-0.08 m aft of the rear motors' axis, 0.12-0.20 m
+    below the arm plane, pointing aft and 7-20 deg down; the hangers up to the bottom plate, the body clear of the
+    packs, the flight's canister contacts round the drawn canister."""
+    params = load(variant)
+    layout, parts = layout_parts(params)
+    can, k = layout.part("canister"), params["canister"]
+    f, _ = drone.mount_frame(params, layout, "canister")
+    assert abs(sum(f.v[a] * f.w[a] for a in range(3))) < 1e-12 and f.v[1] < 0  # down, square to the tilted axis
+    local = _local(f, can["position_m"], parts["canister"].vertices)
+    zt, zn, zr, zf = drone.canister_stations(params, layout)
+    assert max(p[2] for p in local) == pytest.approx(can["length_m"] / 2, abs=1e-9)
+    assert min(p[2] for p in local) == pytest.approx(-can["length_m"] / 2 - k["cone_m"] - k["nozzle_m"], abs=1e-9)
+    assert zt == pytest.approx(min(p[2] for p in local), abs=1e-12)
+    assert max(math.hypot(p[0], p[1]) for p in local) == pytest.approx(can["diameter_m"] / 2, abs=1e-9)
+    nozzle = [math.hypot(p[0], p[1]) for p in local if p[2] < zn - 1e-9]
+    assert max(nozzle) == pytest.approx(k["mouth_d_m"] / 2, abs=1e-9)
+    assert min(r for r in nozzle if r > 1e-9) == pytest.approx(k["bore_d_m"] / 2, abs=1e-9)  # an open bore
+
+    tip, out = drone.fiber_exit(params, layout)
+    assert built[variant]["ports"] == [{"id": drone.EXIT, "position": list(tip), "direction": list(out),
+                                        "max_diameter_m": k["bore_d_m"]}]
+    rear = min(h[2] for h in layout.hubs)
+    assert 0.03 <= rear - tip[2] <= 0.08 and 0.12 <= -tip[1] <= 0.20
+    assert out[0] == 0.0 and out[2] < 0 and 7.0 <= math.degrees(math.asin(-out[1])) <= 20.0
+
+    shapes = {s["name"]: s for s in spec["contacts"]["shapes"]}
+    flight = [shapes[n] for n in ("coil", "coil_aft", "coil_fore", "coil_cone", "coil_nozzle")]
+    assert all(s["part"] == "canister" for s in flight)
+    a, b, r = (shapes["coil_nozzle"][n]["value"] for n in ("a_m", "b_m", "radius_m"))
+    chord = [a[i] - b[i] for i in range(3)]
+    end = [a[i] + chord[i] / math.dist(a, b) * r for i in range(3)]
+    assert end == pytest.approx(list(tip), abs=2e-6) and r == pytest.approx(k["mouth_d_m"] / 2)
+    a, b, r = (shapes["coil"][n]["value"] for n in ("a_m", "b_m", "radius_m"))
+    assert math.dist(a, b) + 2 * r == pytest.approx(can["length_m"], abs=2e-6) and r == can["diameter_m"] / 2
+    assert [(a[i] + b[i]) / 2 for i in range(3)] == pytest.approx(can["position_m"], abs=2e-6)
+    lo, hi = bounds(parts["canister"])  # the flight's shapes round the drawn canister: the body's flat ends' rims
+    clo, chi = _capsule_bounds(flight)  # lie R(sqrt 2 - 1) = 21 mm inside the capsule, AST-05's 5 cm
+    assert all(abs(clo[i] - lo[i]) < 0.022 and abs(chi[i] - hi[i]) < 0.022 for i in range(3)), (clo, lo, chi, hi)
+
+    bottom, _, _ = drone.plate_heights(params, layout)
+    assert bounds(parts["canister_mount"])[1][1] == pytest.approx(bottom[0], abs=1e-9)  # the hangers on the plate
+    for side in ("left", "right"):  # under the packs and their straps
+        plo, phi = drone.box_extent(layout.part(f"pack_{side}"))
+        inside = [v for v in parts["canister"].vertices
+                  if all(plo[i] - drone.STRAP_T_M < v[i] < phi[i] + drone.STRAP_T_M for i in range(3))]
+        assert inside == [], side
+    gallery = [s for s in drone._canister_shapes(params, layout) if s["shape"] == "cylinder"]
+    glo = [min(s["center"][i] - s["height"] / 2 * abs(_axis(s)[i])
+               - s["radius"] * math.sqrt(max(0.0, 1 - _axis(s)[i] ** 2)) for s in gallery) for i in range(3)]
+    ghi = [max(s["center"][i] + s["height"] / 2 * abs(_axis(s)[i])
+               + s["radius"] * math.sqrt(max(0.0, 1 - _axis(s)[i] ** 2)) for s in gallery) for i in range(3)]
+    assert glo == pytest.approx(lo, abs=0.002) and ghi == pytest.approx(hi, abs=0.002)  # the noclip's, mm-close
+
+
+def _axis(shape):
+    """A collision cylinder's axis: local +Y turned by its quaternion."""
+    x, y, z, w = shape["rotation"]
+    return (2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x))
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
@@ -380,10 +465,10 @@ def test_d050_layout_hangs_the_coil_and_straps_the_bottle_on_top(spec, tmp_path)
         params = dict(loaded(variant), spec=d050_spec(spec, tmp_path))
         layout, parts = layout_parts(params)
         bottom, top, upper = drone.plate_heights(params, layout)
-        f, d = drone.mount_frame(params, layout, "coil")
-        assert f.v == (0.0, -1.0, 0.0)
-        assert bounds(parts["coil_mount"])[1][1] == pytest.approx(bottom[0], abs=1e-9)
-        assert bounds(parts["coil"])[1][1] < bottom[0]
+        f, d = drone.mount_frame(params, layout, "canister")
+        assert f.v[1] < 0 and abs(sum(f.v[a] * f.w[a] for a in range(3))) < 1e-12
+        assert bounds(parts["canister_mount"])[1][1] == pytest.approx(bottom[0], abs=1e-9)
+        assert bounds(parts["canister"])[1][1] < bottom[0] and bounds(parts["coil"])[1][1] < bottom[0]
         fb, db = drone.mount_frame(params, layout, "payload")
         assert fb.v == (0.0, 1.0, 0.0) and bounds(parts["bottle"])[0][1] > upper[1]
         assert bounds(parts["bottle_straps"])[0][1] == pytest.approx(upper[0] - drone.STRAP_T_M, abs=1e-6)
@@ -494,6 +579,7 @@ def test_parts_are_closed_solids_with_outward_normals(spec):
     for name in ("motor_rr", "prop_fl", "bottle", "skid_rl", "skid_fl", "plates", "clamp_rr", "tjoint_fr"):
         assert volume(parts[name]) > 0, name
     assert volume(geometry.merged([parts["coil"], parts["coil_pack"]])) > 0  # the spool, its pack its own mesh
+    assert volume(parts["canister"]) > 0
 
 
 @pytest.mark.parametrize("variant", VARIANTS)
