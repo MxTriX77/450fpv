@@ -349,6 +349,9 @@ namespace Fpv450.Sim.Flight
             {
                 if (setup.TetherCoilPart >= _mass.PartCount) throw new ArgumentException("the line's coil part is not a part of the mass model", nameof(setup));
                 _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt, _contacts, _propulsion);
+                // The step-start points' wind and the line's nodes' on the field's batch worker, alongside the drone's step:
+                // the same bits (WindBatch, 1.13).
+                if (_wind.HasProfile) WindBatch = _wind.Batch(_tether.Chain.Capacity + 8);
                 if (_fc != null && !setup.TetherWithoutCuts) _failsafe = new Control.Failsafe(_settings, Dt);
                 _tetherHubs = new Double3[4];
                 if (setup.Propulsion != null)
@@ -461,7 +464,9 @@ namespace Fpv450.Sim.Flight
             _stick = flown;
             s.BladeStrikes = default;
             Corners angles = s.RotorAngle; // where the blades start the step, for their passes (PropStrikes)
+            _windBatch?.Join(); // nothing evaluates the wind while its frame changes
             BeginWind(s);
+            PostWind(s); // the step's points on the worker, from the frame just begun
 
             // The net force (world, N) and the net moment about the CoM (body, N·m), weight aside; the air's share
             // of them in body axes.
@@ -517,6 +522,8 @@ namespace Fpv450.Sim.Flight
                 if (_tether.BrokeThisStep) _failsafe?.Lose(s.Step, flown);
                 if (_tether.Link != null) LinkField();
             }
+
+            if (_windBatch != null) TraceWind();
 
             // The film takes the water the drops brought this step; the next step flies its mass.
             if (_rain == null) return;
@@ -624,9 +631,73 @@ namespace Fpv450.Sim.Flight
                     : _windGround[0].Height;
             }
             _wind.Begin(s.Step, s.Position, ground);
+            if (_windBatch != null) return; // the record's two from the batch, at the step's end (TraceWind)
             _trace.Wind = _wind.At(s.Position);
             _trace.CameraAir = AirAtCamera(s);
         }
+
+        // The batch worker (WindBatch) with the line, else null; the step's points' indices in it (−1: not posted).
+        Wind.WindBatch _windBatch;
+        int _windHub = -1, _windCp = -1, _windCoil = -1, _windBody = -1, _windCamera = -1;
+        Double3 _windPosition, _windVelocity, _windRate;
+        Quat _windAttitude;
+
+        /// <summary>
+        /// The batch worker the step's wind is evaluated on (set where the field has a profile and the flight has the line:
+        /// the hubs', the drag's and the record's points at the step's start, and the line's nodes), or null to evaluate them
+        /// all on the flight thread. Either gives the same bits (WindBatch).
+        /// </summary>
+        public Wind.WindBatch WindBatch
+        {
+            get => _windBatch;
+            set
+            {
+                _windBatch?.Join();
+                _windBatch = value;
+                _windHub = _windCp = _windCoil = _windBody = _windCamera = -1;
+                if (_tether != null) _tether.WindBatch = value;
+            }
+        }
+
+        // The points the step reads the wind at from its start, as Propel, Drag and BeginWind name them, then the line's
+        // nodes, posted to the worker.
+        void PostWind(in FlightState s)
+        {
+            if (_windBatch == null) return;
+            _windBatch.Clear();
+            _windHub = -1;
+            if (_fc != null)
+                for (int i = 0; i < 4; i++)
+                {
+                    int at = _windBatch.Add(s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
+                    if (i == 0) _windHub = at;
+                }
+            _windCp = _windCoil = -1;
+            if (_aero != null)
+            {
+                _windCp = _windBatch.Add(s.Position + s.Attitude.Rotate(_aero.Spec.BodyCenterOfPressure));
+                if (_aero.Spec.CoilPart >= 0) _windCoil = _windBatch.Add(s.Position + s.Attitude.Rotate(_mass.Part(_aero.Spec.CoilPart).Position));
+            }
+            _windBody = _windBatch.Add(s.Position);
+            _windCamera = _windBatch.Add(s.Position + s.Attitude.Rotate(_camera));
+            _windPosition = s.Position;
+            _windAttitude = s.Attitude;
+            _windVelocity = s.Velocity;
+            _windRate = s.BodyRate;
+            _tether?.AddWind();
+            _windBatch.Post();
+        }
+
+        // The record's wind at the body and air at the camera from the step's start (BeginWind's, from the batch).
+        void TraceWind()
+        {
+            _trace.Wind = _windBatch.At(_windBody, _windPosition);
+            _trace.CameraAir = _windAttitude.InverseRotate(_windBatch.At(_windCamera, _windPosition + _windAttitude.Rotate(_camera)) - _windVelocity)
+                - Double3.Cross(_windRate, _camera);
+        }
+
+        // The wind at a point of the step's start, posted at `at` (−1: not posted).
+        Double3 WindAt(int at, in Double3 point) => _windBatch != null && at >= 0 ? _windBatch.At(at, point) : _wind.At(point);
 
         // The air's velocity at the camera, in its axes (the body's, 0° uptilt): the wind there less the camera's motion,
         // v + ω × r.
@@ -639,7 +710,7 @@ namespace Fpv450.Sim.Flight
         {
             Double3 v = s.Attitude.InverseRotate(s.Velocity), com = body.CenterOfMass;
             Double3 cp = _aero.Spec.BodyCenterOfPressure;
-            Double3 a = Air(s, v, cp);
+            Double3 a = Air(s, v, cp, _windCp);
             Double3 f = _aero.Body(a);
             force = force + f;
             moment = moment + Double3.Cross(cp - com, f);
@@ -658,7 +729,7 @@ namespace Fpv450.Sim.Flight
             if (coil >= 0)
             {
                 ref readonly DronePart part = ref _mass.Part(coil);
-                a = Air(s, v, part.Position);
+                a = Air(s, v, part.Position, _windCoil);
                 f = _aero.Coil(a, part);
                 force = force + f;
                 moment = moment + Double3.Cross(part.Position - com, f);
@@ -680,8 +751,8 @@ namespace Fpv450.Sim.Flight
 
         // A body point's velocity through the air, body m/s: the body origin's velocity v (body) plus ω × r, less the
         // wind there.
-        Double3 Air(in FlightState s, in Double3 v, in Double3 point) =>
-            v + Double3.Cross(s.BodyRate, point) - s.Attitude.InverseRotate(_wind.At(s.Position + s.Attitude.Rotate(point)));
+        Double3 Air(in FlightState s, in Double3 v, in Double3 point, int at) =>
+            v + Double3.Cross(s.BodyRate, point) - s.Attitude.InverseRotate(WindAt(at, s.Position + s.Attitude.Rotate(point)));
 
         // The controller's loops and propulsion's sub-steps for one step; the rotors' mean loads on the body: their
         // thrust and reaction into force (world) and moment, their in-plane drag into the air's sums (body).
@@ -689,7 +760,7 @@ namespace Fpv450.Sim.Flight
             ref Double3 airForce, ref Double3 airMoment)
         {
             for (int i = 0; i < 4; i++)
-                _trace.RotorWind[i] = _hubWind[i] = _wind.At(s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
+                _trace.RotorWind[i] = _hubWind[i] = WindAt(_windHub < 0 ? -1 : _windHub + i, s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
             if (_surfaces != null)
             {
                 _surfaces.Find(World, s, out Corners below, out Corners above);

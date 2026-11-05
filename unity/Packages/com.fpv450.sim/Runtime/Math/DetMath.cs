@@ -106,6 +106,23 @@ namespace Fpv450.Sim
             cos = q == 0 ? c : q == 1 ? -s : q == 2 ? -c : s;
         }
 
+        /// <summary>
+        /// cos x, SinCos's bit for bit (the same reduction and series), evaluating only the series its quadrant reads: the
+        /// wind's plane waves need the cosine alone, and half the work is the step's largest saving there (p7d-tether 1.13).
+        /// </summary>
+        public static double Cos(double x)
+        {
+            double k = System.Math.Round(x * TwoOverPi);
+            double r = x - k * PiOver2Hi - k * PiOver2Lo, r2 = r * r;
+            long q = (long)k & 3;
+            double v = (q & 1) == 0
+                ? 1 + r2 * (-0.5 + r2 * (1.0 / 24 + r2 * (-1.0 / 720 + r2 * (1.0 / 40320 + r2 * (-1.0 / 3628800
+                    + r2 * (1.0 / 479001600 + r2 * (-1.0 / 87178291200 + r2 * (1.0 / 20922789888000))))))))
+                : r * (1 + r2 * (-1.0 / 6 + r2 * (1.0 / 120 + r2 * (-1.0 / 5040 + r2 * (1.0 / 362880
+                    + r2 * (-1.0 / 39916800 + r2 * (1.0 / 6227020800 + r2 * (-1.0 / 1307674368000 + r2 * (1.0 / 355687428096000)))))))));
+            return q == 1 || q == 2 ? -v : v;
+        }
+
         // ln 2 in two parts (fdlibm's ln2_hi and ln2_lo, published): the first has 32 bits, so k·Ln2Hi is exact for
         // |k| < 2^21.
         const double Ln2Hi = 6.93147180369123816490e-01, Ln2Lo = 1.90821492927058770002e-10;

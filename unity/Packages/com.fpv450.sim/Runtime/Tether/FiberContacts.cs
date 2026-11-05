@@ -123,6 +123,14 @@ namespace Fpv450.Sim.Tether
         // The drone's parts: their friction and reach from the body origin.
         readonly double[] _partStatic, _partKinetic;
         readonly double _partReach;
+        // The parts' world segments at this step's pose (PlaceParts), set once a Prepare at the first segment within reach
+        // rather than at every segment: the same products, so the same bits. Each part's box in the body's axes (its ends, grown
+        // by its radius, the line's, KeepGap and PartCull) passes over a part no segment's box in those axes reaches.
+        readonly Double3[] _partA, _partB, _partLow, _partHigh;
+        readonly bool[] _partSkip;
+        bool _partsPlaced;
+        // Numerical: the boxes' slack, m, far above the rounding of a body-axis point within a kilometre (1e-13 m).
+        const double PartCull = 1e-6;
 
         readonly FiberCache[] _caches;
         readonly StaticContact[] _shapes = new StaticContact[ShapeBuffer];
@@ -245,6 +253,11 @@ namespace Fpv450.Sim.Tether
                 int count = parts.ShapeCount;
                 _partStatic = new double[count];
                 _partKinetic = new double[count];
+                _partA = new Double3[count];
+                _partB = new Double3[count];
+                _partLow = new Double3[count];
+                _partHigh = new Double3[count];
+                _partSkip = new bool[count];
                 for (int i = 0; i < count; i++)
                 {
                     ContactShape p = parts.Shape(i);
@@ -349,6 +362,7 @@ namespace Fpv450.Sim.Tether
             RefreshCaches(chain, s, step, events);
 
             _hitCount = 0;
+            _partsPlaced = false;
             Queries = 0;
             QueriedCount = 0;
             int n = chain.Count;
@@ -555,12 +569,19 @@ namespace Fpv450.Sim.Tether
         {
             double reach = _partReach + KeepGap + _radius;
             if (!(PointSegment(s.Position, a, b) < reach * reach)) return;
-            for (int i = 0; i < _parts.ShapeCount; i++)
+            if (!_partsPlaced) PlaceParts(s, q);
+            // The segment's box in the body's axes: a part outside it is beyond its reach (only the boxes' test, never a contact).
+            Double3 ba = q.InverseRotate(a - s.Position), bb = q.InverseRotate(b - s.Position);
+            Double3 low = new Double3(DetMath.Min(ba.X, bb.X), DetMath.Min(ba.Y, bb.Y), DetMath.Min(ba.Z, bb.Z));
+            Double3 high = new Double3(DetMath.Max(ba.X, bb.X), DetMath.Max(ba.Y, bb.Y), DetMath.Max(ba.Z, bb.Z));
+            for (int i = 0; i < _partSkip.Length; i++)
             {
+                if (_partSkip[i]) continue;
+                Double3 pl = _partLow[i], ph = _partHigh[i];
+                if (!(low.X <= ph.X && pl.X <= high.X && low.Y <= ph.Y && pl.Y <= high.Y && low.Z <= ph.Z && pl.Z <= high.Z)) continue;
                 ContactShape p = _parts.Shape(i);
-                if (p.Role == ContactRole.Disc || _parts.ShapeOff(i)) continue;
                 if (nearExit && p.Part == _coilPart) continue;
-                Double3 pa = s.Position + q.Rotate(p.A), pb = s.Position + q.Rotate(p.B);
+                Double3 pa = _partA[i], pb = _partB[i];
                 double dist2 = SegmentSegment(a, b, pa, pb, out double u, out double t);
                 double near = p.Radius + _radius + KeepGap;
                 if (!(dist2 < near * near)) continue;
@@ -573,6 +594,24 @@ namespace Fpv450.Sim.Tether
                     Radius = p.Radius, Edge = p.Radius, Static = _partStatic[i], Kinetic = _partKinetic[i],
                 };
                 AddHit(j, u, dist - p.Radius - _radius, onPart + normal * p.Radius, normal, m);
+            }
+        }
+
+        // The parts' world segments at the step's pose, as PartHits read them (the discs and the parts off skipped), and each
+        // one's box in the body's axes grown by its reach: a segment whose box misses it is farther than its reach from it.
+        void PlaceParts(in FlightState s, Quat q)
+        {
+            _partsPlaced = true;
+            for (int i = 0; i < _partSkip.Length; i++)
+            {
+                ContactShape p = _parts.Shape(i);
+                _partSkip[i] = p.Role == ContactRole.Disc || _parts.ShapeOff(i);
+                if (_partSkip[i]) continue;
+                _partA[i] = s.Position + q.Rotate(p.A);
+                _partB[i] = s.Position + q.Rotate(p.B);
+                double g = p.Radius + _radius + KeepGap + PartCull;
+                _partLow[i] = new Double3(DetMath.Min(p.A.X, p.B.X) - g, DetMath.Min(p.A.Y, p.B.Y) - g, DetMath.Min(p.A.Z, p.B.Z) - g);
+                _partHigh[i] = new Double3(DetMath.Max(p.A.X, p.B.X) + g, DetMath.Max(p.A.Y, p.B.Y) + g, DetMath.Max(p.A.Z, p.B.Z) + g);
             }
         }
 
