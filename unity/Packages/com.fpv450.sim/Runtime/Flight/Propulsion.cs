@@ -498,6 +498,9 @@ namespace Fpv450.Sim.Flight
         public int Bound => _bound;
         public double HeldDrive(int corner) => _heldDrive[corner];
 
+        /// <summary>The bus voltage at the last sub-step, V (an output: Contact.MotorShaft's stalled drive Kt·V/R).</summary>
+        public double BusVolts { get; private set; }
+
         /// <summary>A motor's DC resistance as drawn (winding, ESC and leads), Ω.</summary>
         public double Resistance(int corner) => 1 / _invR[corner];
 
@@ -1051,6 +1054,7 @@ namespace Fpv450.Sim.Flight
             s.PackCharge0 -= amps0 * h / _capacity[0];
             s.PackCharge1 -= amps1 * h / _capacity[1];
             loads.Volts = volts;
+            BusVolts = volts;
             loads.Amps0 = amps0;
             loads.Amps1 = amps1;
             loads.SubSteps++;

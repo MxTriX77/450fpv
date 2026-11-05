@@ -42,7 +42,7 @@ namespace Fpv450.Sim.Tests
             double force = times * shafts.YieldMoment(c) / shafts.Lever(c);
             Double3 hub = core.Propulsion.Hub(c);
             var cause = new FlightEvent { Object = -1, Shape = -1, Point = core.State.Position + hub };
-            shafts.Strike(c, hub, new Double3(force * HitTime, 0, 0), HitTime, 0, core.State.RotorAngle[c], core.State.RotorSpeed[c], events, cause);
+            shafts.Strike(c, hub, new Double3(force * HitTime, 0, 0), HitTime, 0, 0, core.State.RotorAngle[c], core.State.RotorSpeed[c], events, cause);
         }
 
         /// <summary>A bent shaft's hover (prop-motor-damage's "A bent shaft shakes").</summary>

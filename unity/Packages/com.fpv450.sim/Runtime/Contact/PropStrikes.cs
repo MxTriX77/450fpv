@@ -742,15 +742,16 @@ namespace Fpv450.Sim.Contact
             }
             // The hub's load (p7f-damage 1.6, design 9): the face's impulse over the pass's contact time, its arc over ω held to the
             // step as its push is, at the meeting point, into the shaft and its bearings; at most the pass's peak force (a break's
-            // at the force its section failed at, the peak over its margin), and along the span at most the blade's column
-            // (MotorShaft.ColumnLoad).
+            // at the force its section failed at, the peak over its margin), along the span at most the blade's column
+            // (MotorShaft.ColumnLoad) and across it at most what turns the rotor, its lost angular momentum over the contact time
+            // and its motor's stalled drive, over the radius.
             MotorShaft shafts = _contacts.Shafts;
             if (shafts != null && omega > 0)
             {
                 FlightEvent cause = new FlightEvent { Object = obj, Shape = shape, Material = material, Surface = surface, Point = m.Point };
                 double peak = broke >= 0 && rec.Margin > 1 ? rec.PeakForce / rec.Margin : rec.PeakForce;
                 shafts.Strike(c, now.Attitude.InverseRotate(m.Point - now.Position), now.Attitude.InverseRotate(external),
-                    Contact(crushPast ? alpha : 2 * alpha, omega), peak, Wrap(psi - TwoPi * b / _blades), omega, events, cause);
+                    Contact(crushPast ? alpha : 2 * alpha, omega), peak, DetMath.Abs(lost), Wrap(psi - TwoPi * b / _blades), omega, events, cause);
             }
             Slot(ref now, c, b, material, used, external.Length(), rm);
             Last = rec;

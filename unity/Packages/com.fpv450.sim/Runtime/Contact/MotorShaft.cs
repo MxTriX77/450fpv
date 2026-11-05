@@ -19,7 +19,10 @@ namespace Fpv450.Sim.Contact
     ///   shaft at most its column (ColumnLoad: its centrifugal tension at the root and its Euler load; past them the span goes
     ///   into compression and the blade flaps out of the disc), the whole force scaled with it (the face's friction follows its
     ///   normal force), which 1.3's crush on a face square to the span, σ_c·A(r_m) of 0.6–4 kN with its μ·F_n, and 1.3b's
-    ///   resting blade, rigid along its span, would pass.
+    ///   resting blade, rigid along its span, would pass; and across the span in the disc at most what turns the rotor, by its
+    ///   moment balance F_t·r = J·ω̇ + the drive: (the pass's lost angular momentum over its contact time + the motor's stalled
+    ///   drive Kt·V/R)/r, which 1.3's push held to the step on a slowly turning blade (σ_c·A along a face across its motion)
+    ///   would pass.
     /// - The bend: past the yield moment M_y = σ_y·πd³/32 (derived) the shaft takes a plastic hinge at the upper bearing,
     ///   Δφ = (M − M_y)/k_φ along M (k_φ = ShaftHingeShare·3EI/l, assumed), fixed in the rotating frame (the shaft turns with the
     ///   rotor), and M_y rises to M (work hardening, isotropic: assumed, as the bell's collapse load). Everything above the hinge
@@ -195,13 +198,14 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>
         /// One contact pair's force on rotor c this step (ContactModel.Forces): at point (body m) the force (body N), a blade's
-        /// (its push along its span held to its column at the rotor's speed, rad/s, and its bending's moment capped at its root's
-        /// strength) or the bell's; cause names the pair (Object, Shape, Material, Surface, Point).
+        /// (its push along its span held to its column at the rotor's speed, rad/s, its part across the span to its motor's
+        /// stalled drive over the radius, and its bending's moment capped at its root's strength) or the bell's; cause names the
+        /// pair (Object, Shape, Material, Surface, Point).
         /// </summary>
         public void Add(int c, Double3 point, Double3 force, bool blade, double speed, in FlightEvent cause)
         {
             if (_broken[c]) return;
-            if (blade) force = Column(c, point, force, speed);
+            if (blade) force = Column(c, point, force, speed, 0);
             _force[c] = _force[c] + force;
             _moment[c] = _moment[c] + Moment(c, point, force, blade);
             double size = force.Length();
@@ -223,17 +227,18 @@ namespace Fpv450.Sim.Contact
         /// <summary>
         /// A blade pass's load on rotor c (PropStrikes): its face's impulse on the drone (body N·s) over the contact time tc (s) at
         /// the meeting point (body m), at most the pass's peak force on the blade (N: its crush, its slap or its cut; none for 0),
-        /// and its push toward the hub along the blade's span (body, unit, outward) at most the blade's column (N: its centrifugal
-        /// tension at the root; past it the span goes into compression and flaps out of the disc); the rotor at angle (rad) and
-        /// speed (rad/s).
+        /// along the blade's span at most its column (ColumnLoad), and across it at most what turns the rotor (Turning: the
+        /// angular momentum the pass took from it, N·m·s, over tc, and its stalled drive); the rotor at angle (rad) and speed
+        /// (rad/s).
         /// </summary>
-        public void Strike(int c, Double3 point, Double3 impulse, double tc, double peak, double angle, double speed, StepEvents events, in FlightEvent cause)
+        public void Strike(int c, Double3 point, Double3 impulse, double tc, double peak, double angular, double angle, double speed, StepEvents events,
+            in FlightEvent cause)
         {
             if (_broken[c] || !(tc > 0)) return;
             Double3 force = impulse * (1 / tc);
             double size = force.Length();
             if (peak > 0 && size > peak) force = force * (peak / size);
-            force = Column(c, point, force, speed);
+            force = Column(c, point, force, speed, angular / tc);
             Load(c, force, Moment(c, point, force, true), angle, speed, events, cause);
         }
 
@@ -246,18 +251,27 @@ namespace Fpv450.Sim.Contact
         public double ColumnLoad(double speed, double r) =>
             speed * speed * _bladeMoment + (r > 0 ? Pi * Pi * _rootFlexural / (4 * r * r) : double.PositiveInfinity);
 
-        // A blade's force at point (body) with its push toward the hub along its span held to its column: the whole force scaled
-        // down with it, since a face's friction on the blade follows its normal force (a crush's μ·F_n).
-        Double3 Column(int c, Double3 point, Double3 force, double speed)
+        // A blade's force at point (body) with its push toward the hub along its span held to its column, the whole force scaled
+        // down with it (a face's friction on the blade follows its normal force, a crush's μ·F_n), and its part across the span in
+        // the disc held to what turns the rotor: by the rotor's moment balance F_t·r = J·ω̇ + the drive, so at most (the rate of
+        // its angular momentum's change, N·m, plus its motor's stalled drive Kt·V/R) over r (derived).
+        Double3 Column(int c, Double3 point, Double3 force, double speed, double turning)
         {
             Double3 d = point - _hub[c];
             d = new Double3(d.X, 0, d.Z);
             double r = d.Length();
             if (!(r > 0)) return force;
-            Double3 span = d * (1 / r);
+            Double3 span = d * (1 / r), across = new Double3(-span.Z, 0, span.X);
             double push = -Double3.Dot(force, span), column = ColumnLoad(speed, r);
-            return push > column ? force * (column / push) : force;
+            if (push > column) force = force * (column / push);
+            double ft = Double3.Dot(force, across), cap = (turning + Stall(c)) / r;
+            if (ft > cap) force = force - across * (ft - cap);
+            else if (ft < -cap) force = force - across * (ft + cap);
+            return force;
         }
+
+        /// <summary>Rotor c's motor's stalled drive at the last sub-step's bus, Kt·V/R, N·m (the most it turns its rotor with).</summary>
+        public double Stall(int c) => _propulsion.TorqueConstant(c) * _propulsion.BusVolts / _propulsion.Resistance(c);
 
         // A force's moment at the upper bearing, body N·m, less its part along the shaft: (P − B) × F, a blade's own bending
         // ((P − H) × F, flatwise) capped at its root's strength.
