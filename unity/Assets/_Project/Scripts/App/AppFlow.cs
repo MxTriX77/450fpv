@@ -584,6 +584,8 @@ namespace Fpv450.App
                     Check(host.WaitingForRadio && session.State == SessionState.Ended && session.End.Kind == FlightEndKind.Pilot,
                           "Restart without the radio: ended by the pilot, and the next flight waits for it");
                     host.Inputs.KeyboardAllowed = true;
+                    // The next flight starts StartWaitSeconds on, after its preparation; the scene draws it the frame after.
+                    yield return Until(() => session.Flights == flights + 1 && session.State == SessionState.Flying && _flight.ShownFlight == session.Flights, 10);
                     yield return new WaitForSecondsRealtime(1);
                     Check(session.Flights == flights + 1 && session.Seed != seed && session.LogPath != log, "Restart: a new flight with a new seed and log");
                     PoseFrame again = _flight.Pose;
@@ -749,13 +751,19 @@ namespace Fpv450.App
                 long stepped = session.Poses.LatestStep - crashStep;
                 // Under physics: it moved off the crash pose, wherever it lands (the ground below the wall, or the eave and
                 // the roof, where the airframe's effects and the throttle's ramp down can carry it). It need not rest:
-                // armed at zero throttle, airmode works the motors against what it lies on, as Betaflight's does.
+                // armed at zero throttle, airmode works the motors against what it lies on, as Betaflight's does. Unless the
+                // crash broke the line (p7d-tether 1.8, from model 56): the receiver has lost the link, and Betaflight's
+                // failsafe drops the drone at stage 2 and disarms it, 1.5 s after the last good frame; the OSD then reads DISARMED.
                 Quat a = atCrash.Attitude, b = lying.Attitude;
                 double moved = (lying.Position - atCrash.Position).Length(), turned = 2 * Math.Acos(Math.Min(1, Math.Abs(a.W * b.W + a.X * b.X + a.Y * b.Y + a.Z * b.Z))) * 180 / Math.PI;
-                Check(session.State == SessionState.Flying && _flight.Summary == null && stepped > 2000 && (moved > 0.1 || turned > 30) &&
-                      _flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal),
+                bool broke = session.Poses.Read().Signals.LinkState == Fpv450.Sim.Flight.LinkState.Broken;
+                Fpv450.Sim.Control.Failsafe failsafe = session.Core.Failsafe;
+                bool dropped = broke && failsafe != null && failsafe.Stage == Fpv450.Sim.Control.FailsafeStage.Disarmed;
+                Check(session.State == SessionState.Flying && _flight.Summary == null && stepped > 2000 && (moved > 0.1 || turned > 30) && lying.Armed == !dropped &&
+                      _flight.Osd.Row(0).StartsWith(dropped ? FlightOsd.DisarmedMode : FlightOsd.ArmedMode + " ", StringComparison.Ordinal),
                       "after the crash the drone stays under physics, nothing over the picture: from " + hit.ToString("0.0") + " m it moved " + moved.ToString("0.00") + " m and turned " +
-                      turned.ToString("0") + "°, now at " + (lying.Position.Y - rest).ToString("0.0") + " m, " + lying.Velocity.Length().ToString("0.0") + " m/s, " + stepped + " steps on; " + Osd());
+                      turned.ToString("0") + "°, now at " + (lying.Position.Y - rest).ToString("0.0") + " m, " + lying.Velocity.Length().ToString("0.0") + " m/s, " + stepped + " steps on; " +
+                      (broke ? "the line broke, the failsafe " + (dropped ? "disarmed it" : "at " + (failsafe != null ? failsafe.Stage.ToString() : "none")) : "the line whole") + "; " + Osd());
                 yield return Shot("crash_lying_fpv");
                 yield return PressV("after the crash");
                 yield return Shot("crash_chase");

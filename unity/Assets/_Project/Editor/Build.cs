@@ -93,7 +93,30 @@ namespace Fpv450
             BuildSummary summary = report.summary;
             Debug.Log($"[Build] {name}: {summary.result}, {summary.totalErrors} errors, {summary.totalWarnings} warnings, " +
                       $"{summary.totalSize} bytes in {summary.totalTime}");
-            return summary.result == BuildResult.Succeeded && summary.totalErrors == 0;
+            return summary.result == BuildResult.Succeeded && summary.totalErrors == 0 && (!Development || LoopbackOnly(path));
+        }
+
+        /// <summary>
+        /// A development player's connection for the profiler listens on every interface and announces itself by UDP
+        /// multicast, which makes Windows Defender Firewall ask about each new player's path. Its boot.config binds the
+        /// listener to loopback and turns the multicast off (UnityPlayer's player-connection-listen-address and
+        /// player-connection-multicast), so the player opens no socket beyond this machine; a local profiler still reaches
+        /// it at 127.0.0.1. A release player has no connection and is left alone.
+        /// </summary>
+        static bool LoopbackOnly(string path)
+        {
+            string boot = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + "_Data", "boot.config");
+            if (!File.Exists(boot))
+            {
+                Debug.LogError($"[Build] the development player's {boot} is missing");
+                return false;
+            }
+            var lines = File.ReadAllLines(boot).Where(l => !l.StartsWith("player-connection-listen-address=") && !l.StartsWith("player-connection-multicast=")).ToList();
+            lines.Add("player-connection-listen-address=127.0.0.1");
+            lines.Add("player-connection-multicast=0");
+            File.WriteAllLines(boot, lines);
+            Debug.Log($"[Build] the development player's connection: loopback only, no multicast ({boot})");
+            return true;
         }
 
         /// <summary>The player's own copies of the flight's files (AppData.PlayerFiles), under its StreamingAssets at their
