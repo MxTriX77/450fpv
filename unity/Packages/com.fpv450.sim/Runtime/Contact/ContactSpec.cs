@@ -306,6 +306,41 @@ namespace Fpv450.Sim.Contact
         /// growing with the dent's depth (assumed, design 9: a dent of that depth doubles it).</summary>
         public double BearingFriction = 0.0015, BearingDentDrag = 1;
 
+        /// <summary>
+        /// The motors' heat and dirt (p7f-damage 1.6b, design 17, D-083, MotorHealth): each motor's windings and its stator and bell
+        /// as two thermal nodes, I²R from its real current, cooled by its own spin's air and by conduction; Kt falls with the
+        /// magnets' heat, the insulation fails at its rating (a coil shorts) and breaks down (the motor fails); soil the bell scrapes
+        /// or the prop carves next to it enters the gap, drags and, packed, binds. On for every flight with Motors and the bells;
+        /// off only for an audit and the known-wrong (a motor that never heats nor fouls, model 68's), which a flight with it off
+        /// steps as.
+        /// </summary>
+        public bool MotorHeat = true;
+
+        /// <summary>The air's temperature, °C: 15 (published: ISA sea level, as drone.json's air density); the motors start at it.</summary>
+        public double AirTemperature = 15;
+
+        /// <summary>Copper's specific heat, 385 J/(kg·K), and its resistance's temperature coefficient, 0.00393 /K at 20 °C (both
+        /// published); the rest of the motor's specific heat, 450 J/(kg·K) (published for iron and steel, 440–490, the laminations,
+        /// the back iron and NdFeB's 440–460; assumed for the whole rest: its aluminium can and base would raise it about a tenth).</summary>
+        public double CopperSpecificHeat = 385, CopperTemperatureCoefficient = 0.00393, IronSpecificHeat = 450;
+
+        /// <summary>Air at 15 °C: its conductivity 0.0253 W/(m·K), kinematic viscosity 1.48e-5 m²/s and Prandtl number 0.71
+        /// (published, Incropera's tables), for the motor's convection.</summary>
+        public double AirConductivity = 0.0253, AirViscosity = 1.48e-5, AirPrandtl = 0.71;
+
+        /// <summary>The motor's conduction into its arm, W/K: 0.022 (derived: the 25 × 6 mm carbon plate arm as a long fin, √(h·P·k·A),
+        /// k 5 W/(m·K) in plane (published range for woven CFRP, 3–10), h 10 W/(m²·K) of still air (assumed: the wash over the
+        /// arm would raise it); the mount's contact resistance left out).</summary>
+        public double ArmConductance = 0.022;
+
+        /// <summary>The winding's L/R, s: 3e-4 (assumed, drone.json's esc_tau_s note: the current's rise), for a shorted coil's
+        /// reactance at the electrical frequency.</summary>
+        public double WindingTimeConstant = 3e-4;
+
+        /// <summary>Archard's coefficient of the soil a turning bell scrapes off, V = k·F_n·s/H_soil: 3e-3 (assumed: the severe
+        /// abrasive class, Lancaster 1969's 1e-3–1e-2, as WearCoefficient's), H_soil its bearing pressure c·N_c (the carve's).</summary>
+        public double ScrapeWearCoefficient = 3e-3;
+
         /// <summary>A resting blade's span segments' outer ends, r/R, from its root (ContactRole.Blade; assumed: the planform's
         /// chord kink at 0.3 R, then three spans; each segment's greatest half-thickness is within 0.7 mm of its least).</summary>
         public static readonly double[] BladeSegmentEnds = { 0.3, 0.55, 0.8, 1.0 };

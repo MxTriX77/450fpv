@@ -292,7 +292,19 @@
         "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a low-carbon steel's Young's modulus, 200 GPa (ASM, AISI 1010–1018), as back_iron_yield_pa's steel"},
         "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a quenched and tempered alloy steel's Young's modulus, 200–210 GPa (ASM), 200 GPa taken; with the 5 mm section it sets the shaft's elastic bending stiffness 3EI/l over the hub's lever (p7f-damage 1.6, design 9)"},
         "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "the turning bell (can, back iron and magnets, with its share of the shaft): rotor_inertia_kg_m2's note's 35 g, about half the class's published 64 g motor (T-Motor Velox V3115); no maker publishes the split. Its mass and its centre carry a bent shaft's unbalance (p7f-damage 1.6)"},
-        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "the bell's centre of mass above the motor's base: the magnets and the back iron at the stator's middle (15.5 mm) drawn up by the can's top (assumed), 2 mm above the upper bearing"}
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "the bell's centre of mass above the motor's base: the magnets and the back iron at the stator's middle (15.5 mm) drawn up by the can's top (assumed), 2 mm above the upper bearing"},
+        "winding_resistance_ohm": {"value": 0.046, "label": "published", "note": "the winding's own line-to-line resistance at 20 °C (assumed the sheet's temperature): the Flash Hobby Arthur 3115 900 KV's 0.046 Ω (resistance_ohm's note); Hobbywing's XRotor 3115 900 KV publishes 41 mΩ. Only this share of resistance_ohm heats the motor (I²R) and rises with copper's temperature; the ESC's and the leads' rest does not (p7f-damage 1.6b, design 17)"},
+        "winding_copper_mass_kg": {"value": 0.012, "label": "derived", "note": "the copper in the 12 slots: the published stator (Ø31 × 15 mm, 12N14P) with its teeth 3.5 mm wide from a slot bottom at r 10 mm to the tips' base at r 14.5 mm (assumed), 157 mm² of slot, a hand-wound round wire's fill 0.35 (assumed, 0.3–0.4) and 10 mm of end turn to each 15 mm pass: 1.4 cm³, 12 g at copper's 8960 kg/m³ (published). With the bell's 35 g and a 49 g stack it leaves 17 g of the part's 113 g for the base, the shaft and the bearings. Kt's own turns (3.0 a tooth at a 1.0 T mean gap flux, assumed) with the 0.046 Ω give 5.5 g, the low end"},
+        "winding_to_stator_w_per_k": {"value": 3.2, "label": "derived", "note": "the windings' conduction to the stator, derived from the class's published peak: the least conductance with which Hobbywing's XRotor 3115 900 KV's rated 81 A for 9 s, turning at the drone's full-throttle 1500 rad/s from a bench's 25 °C (assumed), leaves the windings at its 220 °C wire's rating through this model's laws (HeatTests prints it; 3.23 W/K at 1300 rad/s). The slot geometry alone, 12 slots × (two 5 mm flanks and a 3 mm bottom) × 15 mm, 2.3e-3 m² through a 0.1 mm epoxy powder coat at 0.2 W/(m·K) (published, epoxy) and half an unimpregnated round-wire bundle, 1 mm at 0.3 W/(m·K) (published range 0.2–0.5), gives 0.6 W/K, with which that peak would reach 795 °C: the rating says the class's windings sit on their teeth far better (pressed or varnished)"},
+        "end_turn_area_m2": {"value": 0.0015, "label": "derived", "note": "the end turns' face to the air inside the bell: 12 coils × 2 ends, each a bundle of end_turn_diameter_m over its tooth's end, 2 × (3.5 + 3) mm long, half its round face bare (the rest on the tooth): 1.5e-3 m² (the slot geometry above, assumed)"},
+        "end_turn_diameter_m": {"value": 0.003, "label": "assumed", "note": "an end turn's bundle across: the slot's copper (157 mm² × 0.35 over 24 coil sides) as a round bundle, about 3 mm"},
+        "stator_slots": {"value": 12, "label": "published", "note": "12N14P (Flash Hobby Arthur 3115, Hobbywing XRotor 3115): four coils a phase; a shorted coil is one twelfth of the winding"},
+        "insulation_rating_c": {"value": 220, "label": "published", "note": "the winding's class rating: Hobbywing's XRotor 3115 900 KV, \"220℃ high temperature resistant\" enamelled wire (its product page); resellers of the class name 200–260 °C. Past it the enamel fails between turns and a coil shorts (p7f-damage 1.6b)"},
+        "insulation_breakdown_c": {"value": 300, "label": "published", "note": "the enamel's cut-through: a class 200 polyester-imide/amide-imide magnet wire (NEMA MW 35-C) passes its supplier's cut-through test at 300 °C for 2 min (NEMA MW 1000's crossed-wire test); past it the turns short throughout and the phases with them, and the motor fails"},
+        "magnet_max_temperature_c": {"value": 120, "label": "published", "note": "N52H's maximum working temperature, 120 °C (the grade's tables: the H grades); past it part of the remanence's loss stays"},
+        "magnet_remanence_coefficient_per_k": {"value": -0.0012, "label": "published", "note": "sintered NdFeB's reversible temperature coefficient of B_r, −0.12 %/K (the grade tables, −0.11 to −0.12 %/K); Kt = Ke follows the gap's flux"},
+        "bell_emissivity": {"value": 0.8, "label": "published", "note": "anodised aluminium's total hemispherical emissivity, 0.77–0.90 (published tables); the class's bells are anodised"},
+        "open_area_m2": {"value": 0.00043, "label": "assumed", "note": "the openings soil enters the motor by: the can's top between a 12 mm hub boss and its 36.6 mm inside, 40 % open (a spoked top, assumed), 376 mm², and the ring between the bell's lip and the base, 0.5 mm high (assumed) round the 37.2 mm can, 58 mm²"}
       }
     },
     {
@@ -332,7 +344,19 @@
         "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
         "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
         "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "as motors[0]"},
-        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"}
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"},
+        "winding_resistance_ohm": {"value": 0.046, "label": "published", "note": "as motors[0]"},
+        "winding_copper_mass_kg": {"value": 0.012, "label": "derived", "note": "as motors[0]"},
+        "winding_to_stator_w_per_k": {"value": 3.2, "label": "derived", "note": "as motors[0]"},
+        "end_turn_area_m2": {"value": 0.0015, "label": "derived", "note": "as motors[0]"},
+        "end_turn_diameter_m": {"value": 0.003, "label": "assumed", "note": "as motors[0]"},
+        "stator_slots": {"value": 12, "label": "published", "note": "as motors[0]"},
+        "insulation_rating_c": {"value": 220, "label": "published", "note": "as motors[0]"},
+        "insulation_breakdown_c": {"value": 300, "label": "published", "note": "as motors[0]"},
+        "magnet_max_temperature_c": {"value": 120, "label": "published", "note": "as motors[0]"},
+        "magnet_remanence_coefficient_per_k": {"value": -0.0012, "label": "published", "note": "as motors[0]"},
+        "bell_emissivity": {"value": 0.8, "label": "published", "note": "as motors[0]"},
+        "open_area_m2": {"value": 0.00043, "label": "assumed", "note": "as motors[0]"}
       }
     },
     {
@@ -372,7 +396,19 @@
         "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
         "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
         "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "as motors[0]"},
-        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"}
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"},
+        "winding_resistance_ohm": {"value": 0.046, "label": "published", "note": "as motors[0]"},
+        "winding_copper_mass_kg": {"value": 0.012, "label": "derived", "note": "as motors[0]"},
+        "winding_to_stator_w_per_k": {"value": 3.2, "label": "derived", "note": "as motors[0]"},
+        "end_turn_area_m2": {"value": 0.0015, "label": "derived", "note": "as motors[0]"},
+        "end_turn_diameter_m": {"value": 0.003, "label": "assumed", "note": "as motors[0]"},
+        "stator_slots": {"value": 12, "label": "published", "note": "as motors[0]"},
+        "insulation_rating_c": {"value": 220, "label": "published", "note": "as motors[0]"},
+        "insulation_breakdown_c": {"value": 300, "label": "published", "note": "as motors[0]"},
+        "magnet_max_temperature_c": {"value": 120, "label": "published", "note": "as motors[0]"},
+        "magnet_remanence_coefficient_per_k": {"value": -0.0012, "label": "published", "note": "as motors[0]"},
+        "bell_emissivity": {"value": 0.8, "label": "published", "note": "as motors[0]"},
+        "open_area_m2": {"value": 0.00043, "label": "assumed", "note": "as motors[0]"}
       }
     },
     {
@@ -412,7 +448,19 @@
         "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
         "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
         "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "as motors[0]"},
-        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"}
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"},
+        "winding_resistance_ohm": {"value": 0.046, "label": "published", "note": "as motors[0]"},
+        "winding_copper_mass_kg": {"value": 0.012, "label": "derived", "note": "as motors[0]"},
+        "winding_to_stator_w_per_k": {"value": 3.2, "label": "derived", "note": "as motors[0]"},
+        "end_turn_area_m2": {"value": 0.0015, "label": "derived", "note": "as motors[0]"},
+        "end_turn_diameter_m": {"value": 0.003, "label": "assumed", "note": "as motors[0]"},
+        "stator_slots": {"value": 12, "label": "published", "note": "as motors[0]"},
+        "insulation_rating_c": {"value": 220, "label": "published", "note": "as motors[0]"},
+        "insulation_breakdown_c": {"value": 300, "label": "published", "note": "as motors[0]"},
+        "magnet_max_temperature_c": {"value": 120, "label": "published", "note": "as motors[0]"},
+        "magnet_remanence_coefficient_per_k": {"value": -0.0012, "label": "published", "note": "as motors[0]"},
+        "bell_emissivity": {"value": 0.8, "label": "published", "note": "as motors[0]"},
+        "open_area_m2": {"value": 0.00043, "label": "assumed", "note": "as motors[0]"}
       }
     }
   ],

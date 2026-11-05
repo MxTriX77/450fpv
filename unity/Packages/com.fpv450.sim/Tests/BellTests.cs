@@ -136,7 +136,9 @@ namespace Fpv450.Sim.Tests
                 Assert.That(Math.Abs(kt - expected), Is.LessThanOrEqualTo(1e-9 * expected));
                 Assert.That(rig.Trace.BellKtChange[BellScenarios.Corner], Is.EqualTo(kt - 1), "logged");
                 Assert.That(rig.Trace.BellRub[BellScenarios.Corner], Is.EqualTo(0), "short of the gap it does not rub");
-                Assert.That(rig.Core.Propulsion.TorqueConstant(BellScenarios.Corner), Is.EqualTo(60 / (2 * Math.PI * 900) * kt).Within(1e-15), "Propulsion flies it");
+                // Propulsion flies it, with the motor's heat's factor since model 70 (p7f-damage 1.6b: its windings warm from the first step).
+                double heat = rig.Core.Contacts.Health.KtFactor(BellScenarios.Corner);
+                Assert.That(rig.Core.Propulsion.TorqueConstant(BellScenarios.Corner), Is.EqualTo(60 / (2 * Math.PI * 900) * kt * heat).Within(1e-15), "Propulsion flies it");
             }
         }
 
@@ -246,6 +248,9 @@ namespace Fpv450.Sim.Tests
             FlightSetup setup = ShakeScenario.Setup(spec, 0, 3, protection: true);
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong mh);
             setup.Contacts = spec.BuildContacts(new Loadout { Payload = 0, Legs = true }, m, mh);
+            // The bell's rub alone: since model 70 without the motors' heat (p7f-damage 1.6b), which the known-wrong's SetMotor would
+            // overwrite and whose rub heat a logged rub would still warm the motor by.
+            setup.Contacts.MotorHeat = false;
             var core = new FlightCore(setup);
             MotorBell b = core.Contacts.Bells;
             int c = BellScenarios.Corner;

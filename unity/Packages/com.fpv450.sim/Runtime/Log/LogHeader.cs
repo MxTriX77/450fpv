@@ -168,6 +168,8 @@ namespace Fpv450.Sim.Log
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
             "BladeRoot",
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
+            "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
+            "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -269,6 +271,8 @@ namespace Fpv450.Sim.Log
             "MagnetRemanence", "MagnetPermeability", "ShaftDiameter", "ShaftYield", "ShaftUltimate", "HubHeight", "LowerBearingHeight",
             "UpperBearingHeight", "BearingStaticRating", "BearingDynamicRating", "BearingBalls", "BallDiameter", "PitchDiameter",
             "StatorFrom", "StatorTo", "StatorDiameter", "CanModulus", "BackIronModulus", "ShaftModulus", "BellMass", "BellCentre",
+            "WindingResistance", "CopperMass", "WindingConductance", "EndTurnArea", "EndTurnDiameter", "StatorSlots", "InsulationRating",
+            "InsulationBreakdown", "MagnetMaxTemperature", "RemanenceCoefficient", "Emissivity", "OpenArea", "MotorMass",
         };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
@@ -920,6 +924,11 @@ namespace Fpv450.Sim.Log
                 // p7f-damage 1.6 (format 56): the shafts and the bearings, their switch and their laws' coefficients.
                 e.Write(c.MotorShaft);
                 foreach (double v in new[] { c.ShaftHingeShare, c.BearingFriction, c.BearingDentDrag })
+                    e.Write(v);
+                // p7f-damage 1.6b (format 60): the motors' heat and dirt, their switch and their laws' numbers.
+                e.Write(c.MotorHeat);
+                foreach (double v in new[] { c.AirTemperature, c.CopperSpecificHeat, c.CopperTemperatureCoefficient, c.IronSpecificHeat, c.AirConductivity,
+                    c.AirViscosity, c.AirPrandtl, c.ArmConductance, c.WindingTimeConstant, c.ScrapeWearCoefficient })
                     e.Write(v);
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
@@ -1703,6 +1712,17 @@ namespace Fpv450.Sim.Log
             c.ShaftHingeShare = r.ReadDouble();
             c.BearingFriction = r.ReadDouble();
             c.BearingDentDrag = r.ReadDouble();
+            c.MotorHeat = r.ReadBoolean();
+            c.AirTemperature = r.ReadDouble();
+            c.CopperSpecificHeat = r.ReadDouble();
+            c.CopperTemperatureCoefficient = r.ReadDouble();
+            c.IronSpecificHeat = r.ReadDouble();
+            c.AirConductivity = r.ReadDouble();
+            c.AirViscosity = r.ReadDouble();
+            c.AirPrandtl = r.ReadDouble();
+            c.ArmConductance = r.ReadDouble();
+            c.WindingTimeConstant = r.ReadDouble();
+            c.ScrapeWearCoefficient = r.ReadDouble();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
@@ -1913,6 +1933,12 @@ namespace Fpv450.Sim.Log
                     e.Write(x);
                 foreach (double x in new[] { m.ShaftModulus, m.BellMass, m.BellCentre }) // format 56
                     e.Write(x);
+                foreach (double x in new[] { m.WindingResistance, m.CopperMass, m.WindingConductance, m.EndTurnArea, m.EndTurnDiameter }) // format 60
+                    e.Write(x);
+                e.Write(m.StatorSlots);
+                foreach (double x in new[] { m.InsulationRating, m.InsulationBreakdown, m.MagnetMaxTemperature, m.RemanenceCoefficient, m.Emissivity,
+                    m.OpenArea, m.MotorMass })
+                    e.Write(x);
             }
         }
 
@@ -1932,6 +1958,10 @@ namespace Fpv450.Sim.Log
                     BallDiameter = r.ReadDouble(), PitchDiameter = r.ReadDouble(),
                     StatorFrom = r.ReadDouble(), StatorTo = r.ReadDouble(), StatorDiameter = r.ReadDouble(), CanModulus = r.ReadDouble(),
                     BackIronModulus = r.ReadDouble(), ShaftModulus = r.ReadDouble(), BellMass = r.ReadDouble(), BellCentre = r.ReadDouble(),
+                    WindingResistance = r.ReadDouble(), CopperMass = r.ReadDouble(), WindingConductance = r.ReadDouble(), EndTurnArea = r.ReadDouble(),
+                    EndTurnDiameter = r.ReadDouble(), StatorSlots = r.ReadInt32(), InsulationRating = r.ReadDouble(), InsulationBreakdown = r.ReadDouble(),
+                    MagnetMaxTemperature = r.ReadDouble(), RemanenceCoefficient = r.ReadDouble(), Emissivity = r.ReadDouble(), OpenArea = r.ReadDouble(),
+                    MotorMass = r.ReadDouble(),
                 };
             return list;
         }

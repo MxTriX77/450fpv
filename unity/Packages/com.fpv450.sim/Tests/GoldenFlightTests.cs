@@ -696,15 +696,44 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = Model63Drone.Spec();
             Assert.That(spec.Coil.Housing, Is.EqualTo(-1), "model 63's coil has no housing");
             Action<FlightSetup> edit = GoldenFlights.WithoutTheBladeRoot;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model66PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: edit),
+            const int m68 = GoldenFlights.Model68Layout; // since model 70 over model 68's 3168 bytes, the motors' heat off
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: edit, layout: m68),
                 Is.EqualTo(GoldenFlights.Model66RainPoweredHash), "rain");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model66ContactHash), "contact");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model66RangeHash), "range");
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, body: false, edit: edit), Is.EqualTo(GoldenFlights.Model66TetherHash),
-                "tether, the fountain through the body, the 0-force hold");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, body: false, edit: edit, layout: m68),
+                Is.EqualTo(GoldenFlights.Model66TetherHash), "tether, the fountain through the body, the 0-force hold");
             Assert.That(line.Tether.Chain.ZeroForceHold, Is.True);
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.Model66TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m68), Is.EqualTo(GoldenFlights.Model66TumbleHash), "tumble");
+        }
+
+        // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
+        // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
+        // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the
+        // bells has from its first step: the windings take their current's I²R at once) and its 192 bytes are the whole of 70's move
+        // against 68.
+        [Test]
+        public void WithoutTheHeatEachGoldenIsModel68s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int m68 = GoldenFlights.Model68Layout;
+            int block = 0;
+            void Zero(byte[] record)
+            {
+                for (int i = m68; i < LogFormat.StepSize; i++) if (record[i] != 0) block++;
+            }
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m68, onRecord: Zero),
+                Is.EqualTo(GoldenFlights.Model68RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68TetherHash), "tether");
+            Assert.That(line.Tether.Cuts, Is.Not.Null, "with the cuts");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m68), Is.EqualTo(GoldenFlights.Model68TumbleHash), "tumble");
+            Assert.That(block, Is.EqualTo(0), "the heat's block is zero");
+            // And the heat on: every golden moves (each heats from its first powered step), its block not zero.
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: m68, heat: true), Is.Not.EqualTo(GoldenFlights.Model68PoweredHash), "powered, heated");
         }
 
         // Its audit against the bells (p7f-damage 1.5, model 58, off 57), kept: without the skid's frame (GoldenFlights.
@@ -1301,7 +1330,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.Model63Layout - GoldenFlights.Model57Layout, Is.EqualTo(96), "four motors' scrape, rub and Kt change, to model 63's record's end");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model63Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "shaft_bend_p.rear_right")),
                 "p7f-damage 1.6's shafts follow the bells (model 66)");
-            Assert.That(LogFormat.StepSize - GoldenFlights.Model63Layout, Is.EqualTo(128), "four motors' bend, bearings' drag and ball-pass frequency, to the record's end");
+            Assert.That(GoldenFlights.Model68Layout - GoldenFlights.Model63Layout, Is.EqualTo(128), "four motors' bend, bearings' drag and ball-pass frequency, to model 68's record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model68Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "winding_temperature.rear_right")),
+                "p7f-damage 1.6b's heat follows the shafts (model 70)");
+            Assert.That(LogFormat.StepSize - GoldenFlights.Model68Layout, Is.EqualTo(192), "four motors' temperatures, Kt change, dirt, its drag and state, to the record's end");
         }
     }
 }

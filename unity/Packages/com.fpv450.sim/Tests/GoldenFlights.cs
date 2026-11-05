@@ -315,7 +315,11 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong PoweredHash = 0x9A30E334BF1CE809UL;
+        // Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
+        // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68PoweredHash), every record and event, the heat's block
+        // zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
+        // step (the windings take their current's I²R at once).
+        public const ulong PoweredHash = 0xFCE8C669C79CF83BUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -399,7 +403,11 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong RainPoweredHash = 0xF6F5495C2A88B995UL;
+        // Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
+        // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68RainPoweredHash), every record and event, the
+        // heat's block zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first
+        // powered step.
+        public const ulong RainPoweredHash = 0x1B6B2E3BCB21166AUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -507,6 +515,34 @@ namespace Fpv450.Sim.Tests
         public const ulong Model66PoweredHash = 0xC4D5C624C30E66A4UL, Model66RainPoweredHash = 0x588D9ABDBC72E0A9UL,
             Model66ContactHash = 0xFFFBEA9CDA89C058UL, Model66RangeHash = 0x6814962E6FCE6760UL, Model66TetherHash = 0xDD00954720F14CC2UL,
             Model66TumbleHash = 0xDDA88F905E375BD3UL;
+
+        /// <summary>p7f-damage 1.6b (model 70), its audit: model 68's record, its first 3168 bytes (the record less the heat's block at
+        /// its end), which the audits of 66 and older fly over, the motors' heat off.</summary>
+        public const int Model68Layout = LogFormat.Model68StepSize;
+
+        /// <summary>The goldens at model 68 (the physics integration 2 with the shafts), over its whole 3168-byte record, which every golden
+        /// keeps bit for bit, every record and event, without the motors' heat and dirt (ContactSpec.MotorHeat off), the heat's block
+        /// zero: GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s. Model 68's tumble flies no rotor, so it keeps its pin over
+        /// those bytes either way.</summary>
+        public const ulong Model68PoweredHash = 0x9A30E334BF1CE809UL, Model68RainPoweredHash = 0xF6F5495C2A88B995UL,
+            Model68ContactHash = 0xDB9CD4249127070CUL, Model68RangeHash = 0xA5D9361E8D1C945FUL, Model68TetherHash = 0xA77A4DEF62161B53UL,
+            Model68TumbleHash = 0x3280F96176B5ACD7UL;
+
+        /// <summary>A flight's contacts without the motors' heat and dirt (p7f-damage 1.6b's audit and known-wrong): motors that never heat
+        /// nor foul, as at model 68.</summary>
+        public static void WithoutTheHeat(FlightSetup s)
+        {
+            if (s.Contacts == null) return;
+            s.Contacts = s.Contacts.Clone();
+            s.Contacts.MotorHeat = false;
+        }
+
+        // The motors' heat (p7f-damage 1.6b) in a golden flight: heat, or by default on for a hash over the whole record and off over a
+        // parent's layout (Model68Layout or shorter), whose pins predate it.
+        static void Heat(FlightSetup s, bool? heat, int layout)
+        {
+            if (!(heat ?? layout > Model68Layout)) WithoutTheHeat(s);
+        }
 
         /// <summary>A flight's contacts without the blade root rule (model 64's fix, ContactSpec.BladeRoot): a blade passes at any
         /// radius, as at model 63.</summary>
@@ -861,7 +897,11 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong ContactHash = 0xDB9CD4249127070CUL;
+        // Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
+        // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68ContactHash), every record and event, the heat's block
+        // zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
+        // step (the windings take their current's I²R at once).
+        public const ulong ContactHash = 0x156940B66C279FBBUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1087,7 +1127,11 @@ namespace Fpv450.Sim.Tests
         /// the body, with the 0-force hold and no blade root, model 66's pin over the whole record (rotor 2's disc cuts the line,
         /// OnModel63sDroneEachGoldenIsModel66s).
         /// </summary>
-        public const ulong TetherHash = 0xA77A4DEF62161B53UL;
+        /// Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
+        /// the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68TetherHash), every record and event, the heat's block
+        /// zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
+        /// step (the windings take their current's I²R at once).
+        public const ulong TetherHash = 0x7A350488F265056CUL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1220,7 +1264,10 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong TumbleHash = 0x3280F96176B5ACD7UL;
+        // Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
+        // the heat's block over its first 3168 bytes model 68's pin (Model68TumbleHash), every record and event (GoldenFlightTests.
+        // WithoutTheHeatEachGoldenIsModel68s): the tumble flies no rotor, so its 192 zero bytes are its whole move.
+        public const ulong TumbleHash = 0x5431D1EB9A8701D7UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1412,7 +1459,11 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong RangeHash = 0xA5D9361E8D1C945FUL;
+        // Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
+        // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68RangeHash), every record and event, the heat's block
+        // zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
+        // step (the windings take their current's I²R at once).
+        public const ulong RangeHash = 0x19A3439000A1E46CUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -1664,7 +1715,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null)
+            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -1677,6 +1728,7 @@ namespace Fpv450.Sim.Tests
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
             WithoutD064(setup, wake, motors, yawI);
+            Heat(setup, heat, layout);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
@@ -1727,7 +1779,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1756,6 +1808,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherFountainThroughBody = !body || !cuts || !fiberContacts; // model 61: false flies model 59's fountain; an older line is older still
                 setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
             }
+            Heat(setup, heat, layout);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -1817,7 +1870,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null)
+            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -1837,6 +1890,7 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors, yawI);
+            Heat(setup, heat, layout);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));

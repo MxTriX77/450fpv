@@ -101,7 +101,9 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.RoseWhileLifting, Is.False, "last frozen first, in order");
             Assert.That(r.MostNodes, Is.LessThanOrEqualTo(32));
             // Since model 64 the canister's nozzle points aft and down, along the pull to the trail, so the lip's capstan is smaller
-            // and the payout begins as the last point before the snag lifts (2 points left; on the old coil's level exit, 1).
+            // and the payout begins as the last point before the snag lifts (2 points left; on the old coil's level exit, 1). Since model
+            // 70 judged past 1 mm (TetherScenarios.PayoutThreshold): the heated motors' climb draws a fraction of a millimetre at the
+            // hold with 10 points still frozen (traced, heat on and off: off, the pull's payout at 1 point; on, at 2).
             Assert.That(r.TrailAtPayout, Is.LessThanOrEqualTo(2), "line pays out only once the trail has lifted to the snag, or the last point before it");
             Assert.That(r.TensionOverHold, Is.GreaterThanOrEqualTo(0.99), "and the exit is pulled to the payout tension");
             Assert.That(r.Paid, Is.GreaterThan(1));

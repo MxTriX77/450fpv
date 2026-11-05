@@ -122,6 +122,11 @@ namespace Fpv450.Sim.Flight
         /// D_w/d_p), the header's internals). All 0 without the shafts.</summary>
         public Corners ShaftBendP, ShaftBendQ, BearingDrag, BallPassOuter;
 
+        /// <summary>Each motor's health after the step (p7f-damage 1.6b, Contact.MotorHealth): its windings' and its stator and bell's
+        /// temperatures, °C; its Kt's change by heat (the magnets' and a shorted coil's factor less 1); the dirt in its gap, kg, and
+        /// its drag, N·m; its state (MotorHealth.Sound 0, Hot 1, Shorted 2, Failed 3). All 0 without the motors' heat.</summary>
+        public Corners WindingTemperature, StatorTemperature, HeatKtChange, DirtMass, DirtDrag, MotorState;
+
         /// <summary>The flight's loose pieces (p7g-legs 1.3, design 4), or null: logged in the side record at 50 Hz
         /// (LogFormat.LooseBlock), never in the step record.</summary>
         public Contact.LoosePieces Loose;
@@ -252,6 +257,11 @@ namespace Fpv450.Sim.Flight
         /// as above: band 2, the shaft's plastic hinge, A its bend after, rad, B the moment at the upper bearing, N·m, C the yield
         /// moment it passed, N·m; band 3 the upper bearing and 4 the lower, A its races' dent after, m, B its radial load, N, C the
         /// load it passed (its static rating C0r, or its largest so far), N.
+        /// Its heat and dirt (p7f-damage 1.6b, design 17; Contact.MotorHealth), no cause named: band 5, its magnets past their
+        /// maximum working temperature (A the stator and bell's temperature, °C, B that maximum, °C); band 6, a coil shorted at the
+        /// insulation's rating (A the windings' temperature, B the rating, °C); band 7, the motor failed at the insulation's
+        /// breakdown (A the windings' temperature, B the breakdown, °C, C the rotor's speed, rad/s); band 8, its gap packed with
+        /// dirt (A the dirt's mass, kg, B its volume and C the gap's, m³).
         /// </summary>
         MotorDamaged = 21,
 

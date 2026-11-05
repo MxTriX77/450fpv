@@ -193,6 +193,15 @@ namespace Fpv450.Sim.Flight
         /// <summary>The shaft's Young's modulus (Pa), the turning bell's mass (kg) and its centre of mass, m above the base (p7f-damage
         /// 1.6: a bent shaft's stiffness and unbalance).</summary>
         public double ShaftModulus, BellMass, BellCentre;
+
+        /// <summary>The motor's heat (p7f-damage 1.6b, design 17): the winding's own line-to-line resistance at 20 °C (Ω), its copper's
+        /// mass (kg), its conductance to the stator (W/K), its end turns' area (m²) and their bundle's diameter (m) in the bell's
+        /// air, the stator's slots, the insulation's class rating and its breakdown (°C), the magnets' maximum working temperature
+        /// (°C) and their remanence's reversible coefficient (1/K), the bell's emissivity, the motor's openings dirt enters by (m²),
+        /// and the whole motor's mass (kg, its motor part's).</summary>
+        public double WindingResistance, CopperMass, WindingConductance, EndTurnArea, EndTurnDiameter;
+        public int StatorSlots;
+        public double InsulationRating, InsulationBreakdown, MagnetMaxTemperature, RemanenceCoefficient, Emissivity, OpenArea, MotorMass;
     }
 
     /// <summary>One battery pack: its mass part and its cells.</summary>
@@ -1220,7 +1229,10 @@ namespace Fpv450.Sim.Flight
                     "magnet_thickness_m", "magnet_remanence_t", "magnet_relative_permeability", "shaft_diameter_m", "shaft_yield_pa",
                     "shaft_ultimate_pa", "hub_height_m", "bearing_heights_m", "bearing_static_rating_n", "bearing_dynamic_rating_n",
                     "bearing_balls", "bearing_ball_diameter_m", "bearing_pitch_diameter_m", "stator_band_m", "stator_diameter_m", "can_modulus_pa",
-                    "back_iron_modulus_pa", "shaft_modulus_pa", "bell_mass_kg", "bell_centre_height_m");
+                    "back_iron_modulus_pa", "shaft_modulus_pa", "bell_mass_kg", "bell_centre_height_m",
+                    "winding_resistance_ohm", "winding_copper_mass_kg", "winding_to_stator_w_per_k", "end_turn_area_m2", "end_turn_diameter_m",
+                    "stator_slots", "insulation_rating_c", "insulation_breakdown_c", "magnet_max_temperature_c",
+                    "magnet_remanence_coefficient_per_k", "bell_emissivity", "open_area_m2");
                 Pair(n, "bell_band_m", path, out x.BellFrom, out x.BellTo);
                 Pair(n, "stator_band_m", path, out x.StatorFrom, out x.StatorTo);
                 if (x.StatorFrom < x.BellFrom || x.StatorTo > x.BellTo) Fail(path + ".stator_band_m", "lies inside the bell's band");
@@ -1253,10 +1265,30 @@ namespace Fpv450.Sim.Flight
                 x.PitchDiameter = Positive(n, "bearing_pitch_diameter_m", path);
                 if (x.BallDiameter >= x.PitchDiameter) Fail(path + ".bearing_ball_diameter_m", "a ball is smaller than its set's pitch diameter");
                 if (x.BellCentre < x.BellFrom || x.BellCentre > x.BellTo) Fail(path + ".bell_centre_height_m", "lies inside the bell's band");
+                // p7f-damage 1.6b: the motor's heat.
+                x.WindingResistance = Positive(n, "winding_resistance_ohm", path);
+                if (x.WindingResistance >= motor.Resistance) Fail(path + ".winding_resistance_ohm", "is below the chain's resistance_ohm");
+                x.CopperMass = Positive(n, "winding_copper_mass_kg", path);
+                x.WindingConductance = Positive(n, "winding_to_stator_w_per_k", path);
+                x.EndTurnArea = Positive(n, "end_turn_area_m2", path);
+                x.EndTurnDiameter = Positive(n, "end_turn_diameter_m", path);
+                x.StatorSlots = Count(n, "stator_slots", path, 3);
+                if (x.StatorSlots % 3 != 0) Fail(path + ".stator_slots", "three phases share the slots");
+                x.InsulationRating = Positive(n, "insulation_rating_c", path);
+                x.InsulationBreakdown = Positive(n, "insulation_breakdown_c", path);
+                if (x.InsulationBreakdown <= x.InsulationRating) Fail(path + ".insulation_breakdown_c", "is above insulation_rating_c");
+                x.MagnetMaxTemperature = Positive(n, "magnet_max_temperature_c", path);
+                x.RemanenceCoefficient = Number(n, "magnet_remanence_coefficient_per_k", path);
+                if (!(x.RemanenceCoefficient < 0)) Fail(path + ".magnet_remanence_coefficient_per_k", "a magnet's remanence falls with heat");
+                x.Emissivity = Positive(n, "bell_emissivity", path);
+                if (x.Emissivity > 1) Fail(path + ".bell_emissivity", "is at most 1");
+                x.OpenArea = Positive(n, "open_area_m2", path);
                 _noted = false;
                 int part = spec.PartIndex("motor_" + CornerIds[corner]);
                 if (part < 0) return x;
                 DronePart p = spec.Parts[part];
+                x.MotorMass = p.Mass;
+                if (!(x.MotorMass > x.CopperMass + x.BellMass)) Fail(path + ".winding_copper_mass_kg", "the copper and the bell weigh less than the motor part");
                 double baseY = p.Position.Y - p.Length / 2;
                 if (x.BellTo > p.Length) Fail(path + ".bell_band_m", "runs past the motor part's " + p.Length + " m");
                 if (DetMath.Abs(motor.Position.Y - baseY - x.HubHeight) > 1e-9)

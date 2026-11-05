@@ -117,6 +117,10 @@ namespace Fpv450.Sim.Flight
     ///   ω²·K, the thrust tilted, T·u at the hub with its line through the hinge (a couple T·l·(u × ŷ)), and the drag torque's
     ///   tilt, its reaction·Q·u. A broken shaft loses its prop: no thrust or air torque, J the bell's, no factory unbalance and no
     ///   blades. Never set, the rotor is model 63's, bit for bit.
+    /// - the motor's heat (Contact.MotorHealth, p7f-damage 1.6b): each motor's ∫i²dt over the step's sub-steps (CurrentSquared, its
+    ///   windings' I²R), its resistance's rise with its copper's heat (SetWinding; its Kt by heat goes with SetMotor's ratio), and a
+    ///   failed motor (Fail): its ESC drives nothing and its shorted winding brakes as a three-phase short. Never set, model 68's
+    ///   motor, bit for bit.
     /// </summary>
     public sealed class Propulsion
     {
@@ -221,6 +225,12 @@ namespace Fpv450.Sim.Flight
         readonly double[] _keDrawn = new double[4], _drag = new double[4], _heldDrive = new double[4];
         int _bound;
 
+        // The motors' heat (SetWinding, Fail, CurrentSquared; p7f-damage 1.6b, Contact.MotorHealth): each motor's resistance as drawn
+        // (Ω), the step's ∫i²dt of its winding's current (A²·s, its sub-steps'), and the motors failed (bit 1 << corner): their ESC
+        // drives nothing and their shorted windings brake as a three-phase short.
+        readonly double[] _rDrawn = new double[4], _amps2 = new double[4];
+        int _failed;
+
         // The shafts (SetShaft, LoseProp; p7f-damage 1.6): the bent ones (bit 1 << corner) and each one's unbalance (kg·m), couple per
         // ω² (kg·m²) and tilt u = φ × ŷ (rad), (p, q) in the rotor's frame, and its hub's lever over the hinge (m); the props lost.
         int _bent, _lost;
@@ -273,6 +283,7 @@ namespace Fpv450.Sim.Flight
                 _ke[i] = _keDrawn[i] = draws == null ? 60 / (TwoPi * m.Kv) : 60 / (TwoPi * (m.Kv * draws.KvScale[i]));
                 double resistance = draws?.ResistanceScale == null ? m.Resistance : m.Resistance * draws.ResistanceScale[i];
                 _invR[i] = 1 / resistance;
+                _rDrawn[i] = resistance;
                 _friction[i] = draws?.FrictionScale == null ? _ke[i] * m.NoLoadCurrent : _ke[i] * (m.NoLoadCurrent * draws.FrictionScale[i]);
                 _inertia[i] = draws?.InertiaScale == null ? m.RotorInertia : m.RotorInertia * draws.InertiaScale[i];
                 _escTau[i] = draws == null ? m.EscTau : m.EscTau + draws.EscLag[i];
@@ -484,6 +495,35 @@ namespace Fpv450.Sim.Flight
             _thrust[corner] = _torque[corner] = _meanThrust[corner] = 0;
         }
 
+        /// <summary>
+        /// A motor's winding resistance for the next step's sub-steps (Contact.MotorHealth, p7f-damage 1.6b): rise, Ω, over the drawn
+        /// resistance (its copper's heat less a shorted coil's share); the ESC's current limit's voltage follows. 0: the drawn one,
+        /// bit for bit.
+        /// </summary>
+        public void SetWinding(int corner, double rise)
+        {
+            double r = _rDrawn[corner] + rise;
+            _invR[corner] = 1 / r;
+            _limitVolts[corner] = _limit[corner] * r;
+        }
+
+        /// <summary>A motor failed (Contact.MotorHealth: its insulation broke down, the phases short): from the next sub-step its ESC
+        /// drives nothing (a sensorless ESC cannot commutate a shorted winding) and the winding brakes its rotor as a three-phase
+        /// short does (ThreePhaseShort), armed or not.</summary>
+        public void Fail(int corner) => _failed |= 1 << corner;
+
+        /// <summary>The motors failed (bit 1 &lt;&lt; corner).</summary>
+        public int Failed => _failed;
+
+        /// <summary>A motor's DC resistance as drawn, before its heat (winding, ESC and leads), Ω.</summary>
+        public double DrawnResistance(int corner) => _rDrawn[corner];
+
+        /// <summary>The last step's ∫i²dt of a motor's winding current over its sub-steps, A²·s (driving, braking or shorted).</summary>
+        public double CurrentSquared(int corner) => _amps2[corner];
+
+        /// <summary>A motor's no-load loss torque Kt·I0 as drawn, N·m (its iron's and its bearings' loss while it turns).</summary>
+        public double NoLoadTorque(int corner) => _friction[corner];
+
         /// <summary>The rotors whose prop is lost (bit 1 &lt;&lt; corner), and those whose shaft is bent.</summary>
         public int Lost => _lost;
         public int Bent => _bent;
@@ -674,6 +714,7 @@ namespace Fpv450.Sim.Flight
                 RotorAero(i, s.RotorSpeed[i], out double t, out double q);
                 _thrust[i] = t;
                 _torque[i] = q;
+                _amps2[i] = 0;
             }
         }
 
@@ -924,7 +965,7 @@ namespace Fpv450.Sim.Flight
                     if (_brakeAt[i] < double.PositiveInfinity) _escBrake |= bit;
                 }
             }
-            int running = driving ? 0xF : ~_escOff & 0xF;
+            int running = (driving ? 0xF : ~_escOff & 0xF) & ~_failed;
 
             // The bus: the packs' Thevenin source, loaded by the free ESCs, I = Σ d·(d·V − Ke·ω)/R, and by the limited
             // ones, Σ (I_lim·R + Ke·ω)·I_lim / V. An ESC is limited when its motor's current at the bus's voltage would
@@ -955,7 +996,7 @@ namespace Fpv450.Sim.Flight
                     volts = Bus(vth, rth, load, emf, power);
                     int more = 0;
                     for (int i = 0; driving && i < 4; i++)
-                        if ((limited & (1 << i)) == 0 && (s.EscCommand[i] * volts - _ke[i] * s.RotorSpeed[i]) * _invR[i] > _limit[i])
+                        if ((limited & (1 << i)) == 0 && (running & (1 << i)) != 0 && (s.EscCommand[i] * volts - _ke[i] * s.RotorSpeed[i]) * _invR[i] > _limit[i])
                             more |= 1 << i;
                     if (more == 0) break;
                     limited |= more;
@@ -968,8 +1009,9 @@ namespace Fpv450.Sim.Flight
                 double w = s.RotorSpeed[i], d = s.EscCommand[i], ke = _ke[i];
                 int bit = 1 << i;
                 bool run = (running & bit) != 0, held = (limited & bit) != 0;
-                bool brake = !run && (_escBrake & bit) != 0 && _stopLoops * h >= _brakeAt[i];
+                bool brake = !run && ((_escBrake & bit) != 0 && _stopLoops * h >= _brakeAt[i] || (_failed & bit) != 0);
                 double current = held ? _limit[i] : run ? (d * volts - ke * w) * _invR[i] : brake ? -ThreePhaseShort * ke * w * _invR[i] : 0;
+                _amps2[i] += current * current * h;
                 double drive = held ? (_limitVolts[i] + ke * w) / volts : run ? d : 0;
                 double q = _torque[i], added = _drag[i];
                 double loss = w > 0 ? _friction[i] + added : 0;

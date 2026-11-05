@@ -354,6 +354,7 @@ namespace Fpv450.Sim.Contact
         // The motors' bells (p7f-damage 1.5): null until AttachBells; each shape's corner when it is a motor's sphere, else −1.
         MotorBell _bells;
         MotorShaft _shafts; // the motors' shafts and bearings (p7f-damage 1.6), with the bells and props.blade; null without
+        MotorHealth _health; // the motors' heat and dirt (p7f-damage 1.6b), with the bells; null without
         int[] _bellOf;
 
         /// <summary>A resting blade's load in the last Forces (p7f-damage 1.3b): the contact force on it (world, N) and its
@@ -783,6 +784,8 @@ namespace Fpv450.Sim.Contact
             _bellOf = new int[_shapes.Length];
             for (int i = 0; i < _bellOf.Length; i++) _bellOf[i] = -1;
             for (int c = 0; c < 4; c++) _bellOf[_bells.Shape(c)] = c;
+            // The motors' heat and dirt (p7f-damage 1.6b): stepped by the bells' Finish, fed by their scrapes and the strikes' carves.
+            if (_spec.MotorHeat) _health = _bells.Health = new MotorHealth(_spec, propulsion, _bells);
             // The shafts and bearings (p7f-damage 1.6): the bells' and the resting blades' loads, the strikes' (PropStrikes).
             if (!_spec.MotorShaft || spec.Rotor == null) return;
             _shafts = new MotorShaft(_spec, propulsion, spec, _bells);
@@ -791,6 +794,9 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The motors' bells, or null without them.</summary>
         public MotorBell Bells => _bells;
+
+        /// <summary>The motors' heat and dirt (p7f-damage 1.6b), or null without them (no bells, or ContactSpec.MotorHeat off).</summary>
+        public MotorHealth Health => _health;
 
         /// <summary>The motors' shafts and bearings (p7f-damage 1.6), or null without them (no bells, no props.blade, or
         /// ContactSpec.MotorShaft off).</summary>
@@ -1181,6 +1187,13 @@ namespace Fpv450.Sim.Contact
                             ref strongestForce, _bells.Turning(bell));
                         bool dented = _bells.Pair(bell, fn, s.Attitude.InverseRotate(fwb - p.N * fn), surface, stator, kn, row.StaticFriction,
                             out double dent, out double ringLoad, out double collapse);
+                        // A turning bell on a soil scrapes it into its gap (p7f-damage 1.6b), by the contact's distance to its openings.
+                        if (_health != null && fn > 0 && _bells.Turning(bell) && YieldsToBlade(p.Surface))
+                        {
+                            double y = s.Attitude.InverseRotate(p.Point - s.Position).Y;
+                            _health.Scrape(bell, fn, s.RotorSpeed[bell] * _bells.Radius(bell), DetMath.Min(y - _bells.Lip(bell), _bells.Top(bell) - y),
+                                _soil[p.Surface], _dt);
+                        }
                         // The ring's share of the pair's load goes to the shaft (p7f-damage 1.6); past the gap the teeth carry the rest.
                         if (_shafts != null && fn > 0 && ringLoad > 0)
                             _shafts.Add(bell, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb) * (ringLoad / fn), false, 0, Cause(p));
@@ -1219,7 +1232,7 @@ namespace Fpv450.Sim.Contact
             }
 
             _shafts?.Finish(s, events);
-            _bells?.Finish(s, _dt, ref trace);
+            _bells?.Finish(s, _dt, ref trace, events);
             if (series) LegSums(s, axis, com, ref f, ref m, ref load, ref touching, ref strongest, ref strongestPair, ref strongestForce, events);
             LegTrace(ref trace);
             if (_restLoads != null) RestTrace(ref trace);

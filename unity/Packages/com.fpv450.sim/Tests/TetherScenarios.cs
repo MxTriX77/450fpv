@@ -308,6 +308,12 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The line laid from a snag 50 m behind in a zigzag (60 m of line, 3 m aside, so it has slack), held there; the
         /// drone sits on it 2 s for the trail to freeze, then climbs to 5 m and flies on along +z at 3 m/s.</summary>
+        /// <summary>The draw past which the pull's payout is judged begun, m: 1 mm, the bound of the rotors' own draw at the sit
+        /// (APulledTrailLifts' PaidBeforePull). Since model 70 the climb's first instants can draw a further fraction of a millimetre
+        /// at the hold while the trail still holds (the motors' heat moves the climb by a hair: 0.1–1 mm with 10 points frozen, the
+        /// pull's own payout still with 2), which model 68's 1 µm caught as the payout.</summary>
+        public const double PayoutThreshold = 1e-3;
+
         public static PulledTrail PullTrail(DroneSpec spec)
         {
             var layout = new Double3[6];
@@ -349,7 +355,7 @@ namespace Fpv450.Sim.Tests
                 }
                 lastTrail = tr.Trail;
                 if (t <= 2) r.PaidBeforePull = tr.PaidOut;
-                if (r.TrailAtPayout < 0 && tr.PaidOut - r.PaidBeforePull > 1e-6 && t > 2)
+                if (r.TrailAtPayout < 0 && tr.PaidOut - r.PaidBeforePull > PayoutThreshold && t > 2)
                 {
                     CableChain line = f.Chain;
                     r.TrailAtPayout = tr.Trail;

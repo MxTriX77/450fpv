@@ -270,8 +270,17 @@ namespace Fpv450.Sim.Log
         ///    block); the contacts entry 55's with 54's ContactSpec.BladeRoot and then 56's MotorShaft, ShaftHingeShare,
         ///    BearingFriction and BearingDentDrag after the motors' internals, and the internals (in both entries) 56's; the tether
         ///    entry, the modes', the settings and the draws 55's; the events 55's with 56's BladeLost (36) and PropLost (37).
+        /// 60: p7f-damage 1.6b, the motors' heat and dirt (unity/physics/physics-integration-2--motor-heat, on 58; assigned by D-072
+        ///    and D-074; 59 is a parallel line's): after 58's 3168 bytes each motor's winding and stator temperatures, its Kt's
+        ///    change by heat, its dirt's mass and drag and its state (winding_temperature, stator_temperature, heat_kt_change,
+        ///    dirt_mass, dirt_drag, motor_state; 192 bytes, 3360 in all); the contacts entry gains, after 58's BearingDentDrag, the
+        ///    heat's switch and its laws' numbers (ContactSpec.MotorHeat, AirTemperature, CopperSpecificHeat,
+        ///    CopperTemperatureCoefficient, IronSpecificHeat, AirConductivity, AirViscosity, AirPrandtl, ArmConductance,
+        ///    WindingTimeConstant, ScrapeWearCoefficient), and the internals (in both entries) the winding's resistance, copper,
+        ///    conductance and end turns, the slots, the insulation's rating and breakdown, the magnets' maximum and coefficient, the
+        ///    emissivity, the openings and the motor's mass; MotorDamaged's bands 5 to 8; no new event kind.
         /// </summary>
-        public const int Version = 58;
+        public const int Version = 60;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -685,8 +694,16 @@ namespace Fpv450.Sim.Log
         ///    new block zero; with ContactSpec.MotorShaft off, as in 65; on model 63's drone.json (the fixture Model63Drone,
         ///    GoldenFlights.Model63Tether), through the body, with FlightSetup.TetherZeroForceHold and ContactSpec.BladeRoot
         ///    off, as in 66.
+        /// 70: p7f-damage 1.6b, the motors' heat and dirt (on 68; unity/physics/physics-integration-2--motor-heat, assigned by D-072;
+        ///    69 is a parallel line's): with drone.json's internals (Contact.MotorHealth), each motor's windings take I²R from its
+        ///    real current and its stator and bell its losses, cooled by its own spin's air, the airspeed, natural convection,
+        ///    radiation and its arm; the copper's heat raises the chain's resistance (Propulsion.SetWinding), the magnets' lowers
+        ///    Kt, the insulation's rating shorts a coil (Kt and R down, a loop's drag and heat) and its breakdown fails the motor
+        ///    (Propulsion.Fail: no drive, a three-phase short's brake); soil a turning bell scrapes or a blade carves next to it
+        ///    enters the gap, drags by its cohesion and, packed, binds. Every flight with the bells heats, so every golden moves;
+        ///    with ContactSpec.MotorHeat off a flight steps as in 68 over its 3168 bytes, the new block zero.
         /// </summary>
-        public const int ModelVersion = 68;
+        public const int ModelVersion = 70;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -709,8 +726,13 @@ namespace Fpv450.Sim.Log
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
         /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
-        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6).</summary>
-        public const int StepSize = 3168, EventSize = 72, EndSize = 48;
+        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6), then the motors'
+        /// heat and dirt (1.6b).</summary>
+        public const int StepSize = 3360, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the motors' heat (models 66–68's, formats 56–58: through the shafts' block), over which a flight
+        /// without the heat keeps model 68's bits.</summary>
+        public const int Model68StepSize = 3168;
 
         /// <summary>The record before the shafts (models 58–63's, formats 48–53: through the bells' block), over which a flight whose
         /// shafts and bearings never yield keeps model 63's bits.</summary>
@@ -767,6 +789,7 @@ namespace Fpv450.Sim.Log
                 "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold", "LegLean",
                 "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1", "BellScrape", "BellRub", "BellKtChange",
                 "ShaftBendP", "ShaftBendQ", "BearingDrag", "BallPassOuter",
+                "WindingTemperature", "StatorTemperature", "HeatKtChange", "DirtMass", "DirtDrag", "MotorState",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -958,6 +981,13 @@ namespace Fpv450.Sim.Log
             b.Corners("shaft_bend_q", "rad, the shaft's plastic hinge across blade 0 in the disc (q = p x up)");
             b.Corners("bearing_drag", "N.m, the brinelled bearings' added drag at the rotor's thrust; 0 for sound bearings");
             b.Corners("ball_pass_outer", "Hz, a brinelled bearing's outer-race ball-pass frequency at the rotor's speed; 0 for sound bearings");
+            // The motors' heat and dirt (p7f-damage 1.6b).
+            b.Corners("winding_temperature", "degC, the windings' temperature; 0 without the motors' heat");
+            b.Corners("stator_temperature", "degC, the stator and bell's temperature (the magnets')");
+            b.Corners("heat_kt_change", "the motor's Kt factor by heat less 1 (the magnets' remanence and a shorted coil)");
+            b.Corners("dirt_mass", "kg, the soil in the motor's gap");
+            b.Corners("dirt_drag", "N.m, the dirt's drag on the rotor (its cohesion bridged, packed past the gap)");
+            b.Corners("motor_state", "0 sound, 1 its magnets past their maximum, 2 a coil shorted, 3 failed");
             return b.Done(StepSize);
         }
 
@@ -1159,6 +1189,12 @@ namespace Fpv450.Sim.Log
             w.C4(t.ShaftBendQ);
             w.C4(t.BearingDrag);
             w.C4(t.BallPassOuter);
+            w.C4(t.WindingTemperature);
+            w.C4(t.StatorTemperature);
+            w.C4(t.HeatKtChange);
+            w.C4(t.DirtMass);
+            w.C4(t.DirtDrag);
+            w.C4(t.MotorState);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -1312,6 +1348,12 @@ namespace Fpv450.Sim.Log
             t.ShaftBendQ = r.C4();
             t.BearingDrag = r.C4();
             t.BallPassOuter = r.C4();
+            t.WindingTemperature = r.C4();
+            t.StatorTemperature = r.C4();
+            t.HeatKtChange = r.C4();
+            t.DirtMass = r.C4();
+            t.DirtDrag = r.C4();
+            t.MotorState = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>
