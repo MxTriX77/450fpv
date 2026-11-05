@@ -985,8 +985,46 @@ namespace Fpv450.Sim.Tests
         /// and behind the rear discs, and no segment crosses a disc through the liftoff, the hover, the landing and the spin-down;
         /// 0.2300 m paid out (0.0757), 15 nodes (9), the trail at 7 points (19), 4 clips (57) and 23 safe steps (11), 0 wedges, 0
         /// dips, 16 sections read (18). Every older kept audit flies the old coil.
+        /// Model 62 (the line held between the drone's parts, p7d-tether 1.7's part slots, on 59): re-recorded. Audited case by
+        /// case (GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel59s, flightbench --golden): with the known-wrong 0-force
+        /// hold (FlightSetup.TetherZeroForceHold: model 59's chain) it is model 59's pin (Model59TetherHash), every record and
+        /// event; with a part holding the line only by what presses it, every record is 59's for 7204 steps (the line's slots on
+        /// the stack, the coil and the payload differ from the spool-up, their events from the 55th, but the parts' reactions are
+        /// 59's to the bit until then), and rotor 2's disc cuts the line at step 7258 as the drone settles (59's: 7269), T 0.024 N
+        /// (0.031): 1.8's known risk, the same mechanism and place. 248 events against 4150 (the near piece's slots no longer
+        /// churn at the parts: 1.8's finding 7); no wedge; 2 safe steps against 3. No other golden flies the line: each keeps its
+        /// pin.
+        /// Model 62 again (unlanded; a shape met by its own face at each node, and the safe pass leaving free slots free unless
+        /// the solve ends their node inside): re-recorded from 0x61BFE96EC1C84A80. Audited: with model 62's first chain and the
+        /// faces it is that pin (the faces alone move nothing here); with the safe pass's rule every record is that pin's for
+        /// 277 steps, to the spool-up's first safe step, where the old pass held every free slot; before the break its fiber
+        /// events match (133 against 136 in steps 7000–7999); rotor 2's disc cuts the line at step 7338 as the drone settles
+        /// (the pin's 7258), the same mechanism and place, T 0.014 N (0.024); no wedge, 6 safe steps against 2; 1051 events against
+        /// 248, the near piece's slips on the parts after the break (1.8's finding 7, its volume 1.13's). With the 0-force hold
+        /// (model 59's chain, its safe pass included) it is still Model59TetherHash.
+        /// Model 65 (the physics integration 2 with the fiber's chain fixes, 62 merged onto 64): re-recorded. Audited case by case:
+        /// with the known-wrong 0-force hold (FlightSetup.TetherZeroForceHold: 64's chain, its hold and its safe pass) it is model
+        /// 64's pin (Model64TetherHash), every record and event (GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s); on
+        /// model 63's drone.json through the body, without the skid's frame, over model 57's 2944 bytes it is model 62's pin
+        /// (Model62TetherHash) with the rules and model 59's with the hold (WithoutTheCoulombHoldEachGoldenIsModel59s). With the
+        /// rules on the canister every record is 64's for 31 steps, to the spool-up's first safe step (both chains take it at step
+        /// 31; 64's safe pass held every free slot speculative, 65's leaves them free): the drone stays within 0.039 mm and 0.0012°
+        /// of 64's path and comes to rest where 64's does (within 0.01 mm, 0.2495 m up), 3 impacts as 64's; the line stays whole,
+        /// 0.2300 m paid out, 15 nodes, the trail at 7 points, 16 sections read, 0 dips, 0 wedges, as 64's; 3 safe steps (23) and 3
+        /// clips (4); 81 events as 64's, every kind's count 64's (30 ContactMade, 22 ContactBroken, 3 Impact, 16 FiberSection, 5 and
+        /// 5 of the vortex ring), the first 28 the same, then 64's three FiberSection reads at step 32 come later. No other golden
+        /// flies the line: each keeps its pin.
         /// </summary>
-        public const ulong TetherHash = 0xDA2557EE178F70F6UL;
+        public const ulong TetherHash = 0xEC47127E19B6CF53UL;
+
+        /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
+        /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
+        public const ulong Model64TetherHash = 0xDA2557EE178F70F6UL;
+
+        /// <summary>The tether golden at model 62 (the line held between the drone's parts, on 59), which the flight on model 63's
+        /// drone.json through the body without the skid's frame keeps over model 57's 2944 bytes (GoldenFlightTests.
+        /// WithoutTheCoulombHoldEachGoldenIsModel59s).</summary>
+        public const ulong Model62TetherHash = 0xF29F8C067CE666F1UL;
 
         /// <summary>The tether golden at model 61 (the drone's body over the fountain, on 59), which the flight without the skid's
         /// frame over model 57's 2944 bytes keeps (GoldenFlightTests.WithoutTheBodysBlockingEachGoldenIsModel59s).</summary>
@@ -1597,7 +1635,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1624,6 +1662,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherWithoutContacts = !fiberContacts; // p7d-tether 1.7: false flies the plane alone, models 31–50's line
                 setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
                 setup.TetherFountainThroughBody = !body || !cuts || !fiberContacts; // model 61: false flies model 59's fountain; an older line is older still
+                setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);

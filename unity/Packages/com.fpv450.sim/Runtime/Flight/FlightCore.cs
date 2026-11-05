@@ -120,6 +120,11 @@ namespace Fpv450.Sim.Flight
         /// drone's own stack, coil, packs and payload as model 59's field did (RotorAir without the body); the audit against
         /// model 59 and a bench's known-wrong, never a pilot's flight.</summary>
         public bool TetherFountainThroughBody;
+        /// <summary>The known-wrong 0-force hold (p7d-tether 1.7's part slots as model 59 had them): a drone part's hold on the
+        /// line acts in the chain's solve whatever its normal force, and its speculative spring pulls (CableChain.ZeroForceHold),
+        /// so a line in a crotch of two parts is carried with nothing pressing it, and the energy check's safe pass keeps the spool's
+        /// paying model on a segment that pays nothing (model 59's chain); the audit against model 59 and a bench's known-wrong, never a pilot's flight.</summary>
+        public bool TetherZeroForceHold;
 
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>

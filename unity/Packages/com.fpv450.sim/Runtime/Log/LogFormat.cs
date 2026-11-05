@@ -251,8 +251,15 @@ namespace Fpv450.Sim.Log
         ///    gains exit_direction (rows, so the entry's layout is otherwise 53's); the modes' entry gains CoilHousingPart after
         ///    CoilPart and the placement's after PackParts (drone.json's coil.housing, the canister); the contacts entry gains
         ///    ContactSpec.BladeRoot after the motors' internals; the settings, the draws and the events 53's; no new event kind.
+        /// 52: the line held between the drone's parts (p7d-tether 1.7's part slots, on 49; assigned by D-072): the tether entry
+        ///    gains FlightSetup.TetherZeroForceHold (the known-wrong 0-force hold) after TetherOneStrength; the record is 49's 2944
+        ///    bytes; no new event kind.
+        /// 55: the physics integration 2 with the fiber's chain fixes (unity/physics/physics-integration-2--int65, assigned by
+        ///    D-072): 52 merged onto 54: the record is 54's 3040 bytes; the tether entry 54's with 51's
+        ///    FlightSetup.TetherFountainThroughBody and then 52's FlightSetup.TetherZeroForceHold after TetherOneStrength; the
+        ///    contacts entry, the modes', the settings, the draws and the events 54's; no new event kind.
         /// </summary>
-        public const int Version = 54;
+        public const int Version = 55;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -635,8 +642,23 @@ namespace Fpv450.Sim.Log
         ///    pass whose meeting point lies inside the blade's root (PropStrikes.Pass) is no pass, the disc there the hub's and
         ///    the bell's; it took the rotor's lost angular momentum over a vanishing lever (lost/r_c) as a tangential impulse. With
         ///    ContactSpec.BladeRoot off a flight passes as in 63.
+        /// 62: the line held between the drone's parts (p7d-tether 1.7's part slots, on 59; assigned by D-072; CableChain): a
+        ///    drone part holds the line only by what presses it. A part's slot with nothing pressing the node (N 0 at a pass's
+        ///    end: a crotch of two parts, the 2 mm band) holds nothing for the rest of the step (Unstuck); a speculative slot whose
+        ///    spring ends the first pass pulling the node toward the part is let go (Released). And the energy check's
+        ///    safe pass solves a spool segment that paid nothing on the elastic segment's majorizer, not the paying model's
+        ///    constant pull (S04's TetherWedges). A pressed slot keeps 1.7's hold. A flight without the line, or with
+        ///    FlightSetup.TetherZeroForceHold (the known-wrong: model 59's chain), steps as in 59.
+        /// 65: the physics integration 2 with the fiber's chain fixes (unity/physics/physics-integration-2--int65, assigned by
+        ///    D-072; the code is the parents' together): 62's chain (a drone part holds the line only by what presses it:
+        ///    Unstuck, Released; the safe pass's elastic non-paying spool segment and SafeMissed; FiberContacts meeting a shape
+        ///    at its own nearest point) merged onto 64's canister, nozzle exit, body over the fountain, bells, frame, cuts and
+        ///    failsafe. 62 changes only CableChain and FiberContacts and 64 the drone, the exit and RotorAir's field, so they
+        ///    compose without new code. A flight with FlightSetup.TetherZeroForceHold steps as in 64; one on model 63's
+        ///    drone.json (the fixture Model63Drone, GoldenFlights.Model63Tether) with FlightSetup.TetherFountainThroughBody
+        ///    and ContactSpec.BladeRoot off steps as in 62 (its chain on 63's drone); a flight without the line steps as in 64.
         /// </summary>
-        public const int ModelVersion = 64;
+        public const int ModelVersion = 65;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

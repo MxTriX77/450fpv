@@ -225,7 +225,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyContact(spec, out FlightCore contact, layout: at, onRecord: Legs), Is.EqualTo(GoldenFlights.Model44ContactHash), "contact, on the soil");
             Assert.That(contact.Contacts.Legs, Is.Null, "no failure law on model 26's legs");
             Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Legs), Is.EqualTo(GoldenFlights.Model44RangeHash), "range, with the area laws");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, layout: at, onRecord: Legs, recirculation: false), Is.EqualTo(GoldenFlights.Model44TetherHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, layout: at, onRecord: Legs, recirculation: false), Is.EqualTo(GoldenFlights.Model44TetherHash),
                 "tether, on design 4's air");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model44TumbleHash), "tumble");
             Assert.That(states, Is.EqualTo(0u), "every leg intact, every corner whole");
@@ -242,7 +242,7 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = GoldenFlights.WithModel26Legs(DroneSpec.Parse(Model63Drone.Text()));
             const int at = GoldenFlights.Model44Layout;
             uint states = 0;
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, layout: at, onRecord: r =>
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, layout: at, onRecord: r =>
             {
                 for (int i = at; i < at + 8; i++) states |= r[i];
             }), Is.EqualTo(GoldenFlights.Model47TetherHash), "tether, with the fountain");
@@ -267,7 +267,7 @@ namespace Fpv450.Sim.Tests
             Action<FlightSetup> off = GoldenFlights.WithoutTheLever;
             Assert.That(GoldenFlights.FlyContact(spec, out _, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model46ContactHash), "contact, on the soil");
             Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model46RangeHash), "range, with the area laws");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model48TetherHash), "tether, with the fountain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, layout: at, onRecord: Lean, edit: off), Is.EqualTo(GoldenFlights.Model48TetherHash), "tether, with the fountain");
             Assert.That(nonZero, Is.EqualTo(0), "the lean off the lever");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: at, onRecord: Lean), Is.EqualTo(GoldenFlights.Model46PoweredHash), "powered, on the lever");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: at, onRecord: Lean),
@@ -303,7 +303,7 @@ namespace Fpv450.Sim.Tests
                 string how = edit == frameless ? "with the fix" : "without it";
                 Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m50, onRecord: Whole, edit: edit), Is.EqualTo(GoldenFlights.Model50ContactHash), "contact, " + how);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m50, onRecord: Whole, edit: edit), Is.EqualTo(GoldenFlights.Model50RangeHash), "range, " + how);
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, layout: m50, onRecord: Whole, edit: edit),
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, coulomb: false, layout: m50, onRecord: Whole, edit: edit),
                     Is.EqualTo(GoldenFlights.Model50TetherHash), "tether without the fiber's contacts, " + how);
                 Assert.That(line.Tether.Contacts, Is.Null, "no fiber contacts");
             }
@@ -331,7 +331,7 @@ namespace Fpv450.Sim.Tests
         {
             DroneSpec spec = Model63Drone.Spec();
             const int m50 = GoldenFlights.Model50Layout;
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest), Is.EqualTo(GoldenFlights.Model55TetherHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest), Is.EqualTo(GoldenFlights.Model55TetherHash),
                 "tether without the cuts: model 55's");
             Assert.That(line.Tether.Cuts, Is.Null);
             // With them every record is model 55's up to the line's break (the disc at the landing, a known risk: 1.8's note), and
@@ -345,8 +345,8 @@ namespace Fpv450.Sim.Tests
                 for (int i = 0; i < c.Events.Count; i++)
                     if (c.Events[i].Kind != EventKind.FiberSection) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
             }
-            GoldenFlights.FlyContact(spec, out _, tether: true, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, onRecord: r => rec55.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev55));
-            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, body: false, onRecord: r => rec56.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev56));
+            GoldenFlights.FlyContact(spec, out _, tether: true, coulomb: false, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, onRecord: r => rec55.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev55));
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, coulomb: false, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, body: false, onRecord: r => rec56.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev56));
             long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec56.Count;
             int same = 0;
             while (same < rec55.Count && same < rec56.Count && rec55[same] == rec56[same]) same++;
@@ -371,7 +371,7 @@ namespace Fpv450.Sim.Tests
             foreach (Action<FlightSetup> edit in new[] { GoldenFlights.WithoutTheFrame, GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheHangingGive })
             {
                 string how = edit == GoldenFlights.WithoutTheFrame ? "with the hanging give" : "without it";
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, edit: edit, layout: GoldenFlights.Model50Layout, onRecord: r =>
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, cuts: false, edit: edit, layout: GoldenFlights.Model50Layout, onRecord: r =>
                 {
                     for (int i = at; i < at + 4; i++) corners |= r[i];
                 }), Is.EqualTo(GoldenFlights.Model53TetherHash), "tether with the fiber's contacts, " + how);
@@ -407,7 +407,7 @@ namespace Fpv450.Sim.Tests
                     Is.EqualTo(GoldenFlights.Model50RainPoweredHash), "rain" + on);
                 Assert.That(GoldenFlights.FlyContact(spec, out _, layout: at, onRecord: Rest, edit: edit), Is.EqualTo(GoldenFlights.Model50ContactHash), "contact" + on);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Rest, edit: edit), Is.EqualTo(GoldenFlights.Model50RangeHash), "range" + on);
-                Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, layout: at, onRecord: Rest, edit: edit),
+                Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, layout: at, onRecord: Rest, edit: edit),
                     Is.EqualTo(GoldenFlights.Model50TetherHash),
                     "tether" + on);
             }
@@ -430,7 +430,7 @@ namespace Fpv450.Sim.Tests
             foreach (bool rest in new[] { true, false })
             {
                 Action<FlightSetup> edit = rest ? GoldenFlights.WithoutTheFrame : GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest;
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, layout: at, edit: edit, onRecord: r =>
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, cuts: false, layout: at, edit: edit, onRecord: r =>
                 {
                     for (int i = at; i < LogFormat.StepSize; i++) if (r[i] != 0) nonZero++;
                 }), Is.EqualTo(GoldenFlights.Model53TetherHash), "tether with the fiber's contacts" + (rest ? " (at rest)" : " (passing through)"));
@@ -456,7 +456,7 @@ namespace Fpv450.Sim.Tests
                     Is.EqualTo(GoldenFlights.Model63RainPoweredHash), "rain, " + how);
                 Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit, layout: GoldenFlights.Model57Layout), Is.EqualTo(GoldenFlights.Model59ContactHash), "contact, " + how);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit, layout: GoldenFlights.Model57Layout), Is.EqualTo(GoldenFlights.Model59RangeHash), "range, " + how);
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, edit: edit, layout: GoldenFlights.Model57Layout),
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, fiberContacts: false, edit: edit, layout: GoldenFlights.Model57Layout),
                     Is.EqualTo(GoldenFlights.Model52TetherHash), "tether without the fiber's contacts, " + how);
                 Assert.That(line.Tether.Contacts, Is.Null, "no fiber contacts");
             }
@@ -482,11 +482,11 @@ namespace Fpv450.Sim.Tests
                 for (int i = 0; i < c.Events.Count; i++)
                     if (c.Events[i].Kind != EventKind.FiberSection) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
             }
-            ulong uncut = GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
+            ulong uncut = GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, cuts: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
                 onRecord: r => rec57.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev57));
             Assert.That(uncut, Is.EqualTo(GoldenFlights.Model57TetherHash), "tether without the cuts: model 57's");
             Assert.That(line.Tether.Cuts, Is.Null);
-            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout, body: false,
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, coulomb: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout, body: false,
                 onRecord: r => rec59.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev59));
             long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec59.Count;
             int same = 0;
@@ -501,7 +501,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(hash, Is.EqualTo(GoldenFlights.Model59TetherHash), "tether with them: model 59's (the fountain through the body)");
         }
 
-        // Model 64's audit against model 63 (D01's canister), kept: on model 63's drone.json (the old coil beneath the frame, a
+        // Model 64's audit against model 63 (D01's canister), kept (since model 65 with the 0-force hold, FlightSetup.TetherZeroForceHold: 63's and 64's chain): on model 63's drone.json (the old coil beneath the frame, a
         // fixture: Model63Drone; FlyContact lets its line out at the old rear cap, GoldenFlights.Model63Tether) every golden is
         // model 63's pin, every record and event, with the fountain through the body (61's blocking off), so the canister and its
         // exit are the whole move of the powered, rain, contact, range and tumble goldens; with 61's blocking on, the tether
@@ -518,20 +518,20 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyContact(spec, out _), Is.EqualTo(GoldenFlights.Model63ContactHash), "contact");
             Assert.That(GoldenFlights.FlyRange(spec, out _), Is.EqualTo(GoldenFlights.Model63RangeHash), "range");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.Model63TumbleHash), "tumble");
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore old, tether: true, body: false), Is.EqualTo(GoldenFlights.Model63TetherHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore old, tether: true, coulomb: false, body: false), Is.EqualTo(GoldenFlights.Model63TetherHash),
                 "tether, the fountain through the body");
-            ulong blocked = GoldenFlights.FlyContact(spec, out FlightCore merged, tether: true);
-            ulong canister = GoldenFlights.FlyContact(RepositoryDrone.Spec(), out FlightCore now, tether: true);
+            ulong blocked = GoldenFlights.FlyContact(spec, out FlightCore merged, tether: true, coulomb: false);
+            ulong canister = GoldenFlights.FlyContact(RepositoryDrone.Spec(), out FlightCore now, tether: true, coulomb: false);
             string Outcome(FlightCore c) => c.Tether.Broken
                 ? $"broken at step {c.Tether.BrokenAt} by {c.Tether.LastBreak.Mechanism} at {(FiberMember)c.Tether.LastBreak.Kind} {c.Tether.LastBreak.Member}"
                 : $"whole, {c.Tether.PaidOut:F3} m paid out";
             TestContext.Progress.WriteLine($"model 64 against 63: on the old coil through the body the line {Outcome(old)}; with 61's blocking {Outcome(merged)} "
                 + $"(0x{blocked:X16}); on the canister {Outcome(now)} (0x{canister:X16})");
             Assert.That(blocked, Is.EqualTo(GoldenFlights.Model63BodyTetherHash), "tether on the old coil with 61's blocking: the merge's");
-            Assert.That(canister, Is.EqualTo(GoldenFlights.TetherHash), "tether on the canister: model 64's");
+            Assert.That(canister, Is.EqualTo(GoldenFlights.Model64TetherHash), "tether on the canister: model 64's");
         }
 
-        // Model 61's audit against model 59, kept (since model 64 without the skid's frame, over model 57's 2944 bytes): with the fountain through the drone's body (FlightSetup.
+        // Model 61's audit against model 59, kept (since model 64 without the skid's frame, over model 57's 2944 bytes; since model 65 with the 0-force hold): with the fountain through the drone's body (FlightSetup.
         // TetherFountainThroughBody) the tether golden is model 59's pin, every record and event; with the body's blocking the
         // records are 59's until the line first lies where the body stands over or under the fountain, and the outcome prints.
         [Test]
@@ -540,11 +540,11 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = Model63Drone.Spec();
             var rec59 = new System.Collections.Generic.List<ulong>();
             var rec61 = new System.Collections.Generic.List<ulong>();
-            ulong through = GoldenFlights.FlyContact(spec, out FlightCore old, tether: true, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
+            ulong through = GoldenFlights.FlyContact(spec, out FlightCore old, tether: true, coulomb: false, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
                 onRecord: r => rec59.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)));
             Assert.That(through, Is.EqualTo(GoldenFlights.Model59TetherHash), "the fountain through the body: model 59's");
             Assert.That(old.Tether.Rotors.BodyBlocks, Is.False);
-            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore now, tether: true, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore now, tether: true, coulomb: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
                 onRecord: r => rec61.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)));
             Assert.That(now.Tether.Rotors.BodyBlocks, Is.True);
             int same = 0;
@@ -569,14 +569,14 @@ namespace Fpv450.Sim.Tests
             var off = new System.Collections.Generic.List<ulong>();
             var on = new System.Collections.Generic.List<ulong>();
             int nonZero = 0, onZero = 0;
-            ulong passing = GoldenFlights.FlyContact(spec, out FlightCore through, tether: true, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, body: false, onRecord: r =>
+            ulong passing = GoldenFlights.FlyContact(spec, out FlightCore through, tether: true, coulomb: false, layout: m50, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, body: false, onRecord: r =>
             {
                 off.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50));
                 for (int i = m50; i < LogFormat.StepSize; i++) if (r[i] != 0) nonZero++;
             });
             Assert.That(passing, Is.EqualTo(GoldenFlights.Model56TetherHash), "tether without a resting prop: model 56's");
             Assert.That(nonZero, Is.EqualTo(0), "no resting blade's load without the rest");
-            ulong resting = GoldenFlights.FlyContact(spec, out FlightCore rest, tether: true, layout: m50, edit: GoldenFlights.WithoutTheFrame, body: false, onRecord: r =>
+            ulong resting = GoldenFlights.FlyContact(spec, out FlightCore rest, tether: true, coulomb: false, layout: m50, edit: GoldenFlights.WithoutTheFrame, body: false, onRecord: r =>
             {
                 on.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50));
                 for (int i = m50; i < LogFormat.StepSize; i++) if (r[i] != 0) onZero++;
@@ -612,7 +612,7 @@ namespace Fpv450.Sim.Tests
                     Is.EqualTo(GoldenFlights.Model57RainPoweredHash), "rain, " + how);
                 Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57ContactHash), "contact, " + how);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57RangeHash), "range, " + how);
-                Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, cuts: false, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57TetherHash),
+                Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, coulomb: false, cuts: false, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model57TetherHash),
                     "tether, " + how);
             }
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m57), Is.EqualTo(GoldenFlights.Model57TumbleHash), "tumble");
@@ -642,7 +642,7 @@ namespace Fpv450.Sim.Tests
                     Is.EqualTo(GoldenFlights.Model60RainPoweredHash), "rain, " + how);
                 Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model60ContactHash), "contact, " + how);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model60RangeHash), "range, " + how);
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, body: false, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model60TetherHash),
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, body: false, layout: m57, onRecord: Zero, edit: edit), Is.EqualTo(GoldenFlights.Model60TetherHash),
                     "tether, " + how);
                 Assert.That(line.Tether.Cuts, Is.Not.Null, "with the cuts");
             }
@@ -665,9 +665,85 @@ namespace Fpv450.Sim.Tests
                 Is.EqualTo(GoldenFlights.Model58RainPoweredHash), "rain");
             Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model58ContactHash), "contact");
             Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model58RangeHash), "range");
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, edit: edit), Is.EqualTo(GoldenFlights.Model58TetherHash), "tether");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, cuts: false, edit: edit), Is.EqualTo(GoldenFlights.Model58TetherHash), "tether");
             Assert.That(line.Tether.Cuts, Is.Null, "no cuts");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.Model58TumbleHash), "tumble");
+        }
+
+        // The line held between the drone's parts (model 62), its audit against model 59, kept: with the known-wrong 0-force hold
+        // (FlightSetup.TetherZeroForceHold) the tether golden is model 59's pin, every record and event; with the in-solve Coulomb
+        // bound the records part where a part's slot first breaks it, and the step, the line's state then and the break are
+        // printed. Every golden without the line is 59's pin as it stands (no part slot without the line). Since model 65 (62
+        // merged onto 64) on model 63's drone.json (the old coil, Model63Drone), the fountain through the body, without the skid's
+        // frame, over model 57's 2944 bytes, where the line's flight is model 59's; with the rules there it is model 62's pin,
+        // every record and event: 62's chain is the same code on 64's line with 64's switches off.
+        [Test]
+        public void WithoutTheCoulombHoldEachGoldenIsModel59s()
+        {
+            DroneSpec spec = Model63Drone.Spec();
+            var rec59 = new System.Collections.Generic.List<ulong>();
+            var rec62 = new System.Collections.Generic.List<ulong>();
+            var ev59 = new System.Collections.Generic.List<string>();
+            var ev62 = new System.Collections.Generic.List<string>();
+            void Events(FlightCore c, System.Collections.Generic.List<string> into)
+            {
+                for (int i = 0; i < c.Events.Count; i++) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
+            }
+            ulong old = GoldenFlights.FlyContact(spec, out FlightCore held, tether: true, coulomb: false, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
+                onRecord: r => rec59.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev59));
+            Assert.That(old, Is.EqualTo(GoldenFlights.Model59TetherHash), "tether with the 0-force hold: model 59's");
+            Assert.That(held.Tether.Chain.ZeroForceHold, Is.True);
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore now, tether: true, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout,
+                onRecord: r => rec62.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev62));
+            int same = 0;
+            while (same < rec59.Count && same < rec62.Count && rec59[same] == rec62[same]) same++;
+            int evSame = 0;
+            while (evSame < ev59.Count && evSame < ev62.Count && ev59[evSame] == ev62[evSame]) evSame++;
+            FiberLine a = held.Tether, b = now.Tether;
+            string Line(FiberLine f) => f.Broken
+                ? $"broken at step {f.BrokenAt} by {f.LastBreak.Mechanism} at {(FiberMember)f.LastBreak.Kind} {f.LastBreak.Member} (T {f.LastBreak.Tension:F3} N)"
+                : $"whole, {f.PaidOut:F4} m paid out";
+            TestContext.Progress.WriteLine($"model 62: the records model 59's for {same} of {rec62.Count} steps, the events for {evSame} of {ev59.Count} ({ev62.Count} now); "
+                + $"model 59's line {Line(a)}, wedges {a.Chain.Wedges}, safe steps {a.Chain.SafeSteps}; model 62's {Line(b)}, wedges {b.Chain.Wedges}, safe steps {b.Chain.SafeSteps}; 0x{hash:X16}");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.Model62TetherHash), "tether with the Coulomb hold: model 62's");
+        }
+
+        // The physics integration 2 with the fiber's chain fixes (model 65, 62 merged onto 64), its audit against model 64, kept:
+        // with the known-wrong 0-force hold (FlightSetup.TetherZeroForceHold: model 64's chain, its hold and its safe pass) the
+        // tether golden is model 64's pin, every record and event; every golden without the line is 64's pin as it stands (no
+        // part slot and no safe pass without the line). With the rules the records part where the chain first differs, and the
+        // step, the line's state and its outcome print.
+        [Test]
+        public void WithoutTheCoulombHoldEachGoldenIsModel64s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            var rec64 = new System.Collections.Generic.List<ulong>();
+            var rec65 = new System.Collections.Generic.List<ulong>();
+            var ev64 = new System.Collections.Generic.List<string>();
+            var ev65 = new System.Collections.Generic.List<string>();
+            void Events(FlightCore c, System.Collections.Generic.List<string> into)
+            {
+                for (int i = 0; i < c.Events.Count; i++) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
+            }
+            ulong old = GoldenFlights.FlyContact(spec, out FlightCore held, tether: true, coulomb: false,
+                onRecord: r => rec64.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev64));
+            Assert.That(old, Is.EqualTo(GoldenFlights.Model64TetherHash), "tether with the 0-force hold: model 64's");
+            Assert.That(held.Tether.Chain.ZeroForceHold, Is.True);
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore now, tether: true,
+                onRecord: r => rec65.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev65));
+            Assert.That(now.Tether.Chain.ZeroForceHold, Is.False);
+            int same = 0;
+            while (same < rec64.Count && same < rec65.Count && rec64[same] == rec65[same]) same++;
+            int evSame = 0;
+            while (evSame < ev64.Count && evSame < ev65.Count && ev64[evSame] == ev65[evSame]) evSame++;
+            FiberLine a = held.Tether, b = now.Tether;
+            string Line(FiberLine f) => f.Broken
+                ? $"broken at step {f.BrokenAt} by {f.LastBreak.Mechanism} at {(FiberMember)f.LastBreak.Kind} {f.LastBreak.Member} (T {f.LastBreak.Tension:F3} N)"
+                : $"whole, {f.PaidOut:F4} m paid out, {f.Chain.Count} nodes, trail {f.TrailCount}";
+            TestContext.Progress.WriteLine($"model 65: the records model 64's for {same} of {rec65.Count} steps, the events for {evSame} of {ev64.Count} ({ev65.Count} now); "
+                + $"model 64's line {Line(a)}, wedges {a.Chain.Wedges}, safe steps {a.Chain.SafeSteps}; model 65's {Line(b)}, wedges {b.Chain.Wedges}, safe steps {b.Chain.SafeSteps}; "
+                + $"the drone at rest {now.State.Position.Y:F4} m up (64: {held.State.Position.Y:F4}); 0x{hash:X16}");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "tether with the rules: model 65's");
         }
 
         static int CornerStates()
@@ -702,10 +778,10 @@ namespace Fpv450.Sim.Tests
             Action<FlightSetup> off = GoldenFlights.WithoutTheFrame;
             Assert.That(GoldenFlights.FlyContact(spec, out _, onRecord: Intact, edit: off, layout: GoldenFlights.Model57Layout), Is.EqualTo(GoldenFlights.Model59ContactHash), "contact, without the frame");
             Assert.That(GoldenFlights.FlyRange(spec, out _, onRecord: Intact, edit: off, layout: GoldenFlights.Model57Layout), Is.EqualTo(GoldenFlights.Model59RangeHash), "range, without the frame");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, body: false, onRecord: Intact, edit: off, layout: GoldenFlights.Model57Layout), Is.EqualTo(GoldenFlights.Model59TetherHash), "tether, without the frame");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, coulomb: false, body: false, onRecord: Intact, edit: off, layout: GoldenFlights.Model57Layout), Is.EqualTo(GoldenFlights.Model59TetherHash), "tether, without the frame");
             Assert.That(GoldenFlights.FlyContact(spec, out _, onRecord: Intact), Is.EqualTo(GoldenFlights.Model63ContactHash), "contact, with it");
             Assert.That(GoldenFlights.FlyRange(spec, out _, onRecord: Intact), Is.EqualTo(GoldenFlights.Model63RangeHash), "range, with it");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, body: false, onRecord: Intact), Is.EqualTo(GoldenFlights.Model63TetherHash), "tether, with it");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, coulomb: false, body: false, onRecord: Intact), Is.EqualTo(GoldenFlights.Model63TetherHash), "tether, with it");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, onRecord: Intact), Is.EqualTo(GoldenFlights.Model63PoweredHash), "powered");
             Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Intact),
                 Is.EqualTo(GoldenFlights.Model63RainPoweredHash), "rain");
@@ -734,7 +810,7 @@ namespace Fpv450.Sim.Tests
                 string on = rest ? " (at rest)" : " (passing through)";
                 Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m50, onRecord: Rest, edit: edit), Is.EqualTo(GoldenFlights.Model54ContactHash), "contact" + on);
                 Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m50, onRecord: Rest, edit: edit), Is.EqualTo(GoldenFlights.Model54RangeHash), "range" + on);
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, layout: m50, onRecord: Rest, edit: edit),
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, fiberContacts: false, layout: m50, onRecord: Rest, edit: edit),
                     Is.EqualTo(GoldenFlights.Model54TetherHash), "tether without the fiber's contacts and the cuts" + on);
                 Assert.That(line.Tether.Contacts, Is.Null, "no fiber contacts");
                 Assert.That(line.Tether.Cuts, Is.Null, "no cuts");
@@ -915,7 +991,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyContact(spec, out _, soil: false, yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model31ContactHash), "contact, on the rigid floor");
             Assert.That(GoldenFlights.FlyRange(spec, out _, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model31RangeHash),
                 "range, without the area laws");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, soil: false, tether: true, fiberContacts: false, yawI: false, layout: at, recirculation: false), Is.EqualTo(GoldenFlights.Model31TetherHash), "tether, on the rigid floor");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, soil: false, tether: true, fiberContacts: false, coulomb: false, yawI: false, layout: at, recirculation: false), Is.EqualTo(GoldenFlights.Model31TetherHash), "tether, on the rigid floor");
         }
 
         // The physics integration 2's audit against p7c-wind's cavity (model 34 against its 30), kept: the range golden flies
@@ -947,7 +1023,7 @@ namespace Fpv450.Sim.Tests
                 Is.EqualTo(GoldenFlights.Model34RainPoweredHash), "rain");
             Assert.That(GoldenFlights.FlyContact(spec, out _, yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model34ContactHash), "contact");
             Assert.That(GoldenFlights.FlyRange(spec, out _, yawI: false, layout: at), Is.EqualTo(GoldenFlights.Model34RangeOn38Hash), "range, with model 38's buried face");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, yawI: false, layout: at, recirculation: false), Is.EqualTo(GoldenFlights.Model34TetherHash), "tether");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, yawI: false, layout: at, recirculation: false), Is.EqualTo(GoldenFlights.Model34TetherHash), "tether");
         }
 
         // The physics integration 2 with the tip slide and the fountain (model 48), its audit against the line (model 46), kept:
@@ -964,19 +1040,19 @@ namespace Fpv450.Sim.Tests
         public void WithoutTheFountainEachGoldenIsModel49s()
         {
             DroneSpec spec = Model63Drone.Spec();
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, recirculation: false, layout: GoldenFlights.Model50Layout,
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, fiberContacts: false, recirculation: false, layout: GoldenFlights.Model50Layout,
                 edit: GoldenFlights.WithoutTheFrame),
                 Is.EqualTo(GoldenFlights.Model49TetherHash),
                 "tether, on design 4's air (since model 60 without the skid's frame)");
             Assert.That(line.Strikes.Passes, Is.EqualTo(0), "no blade passed the soil or a shape");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, layout: GoldenFlights.Model46Layout, recirculation: false, edit: GoldenFlights.WithoutTheLever),
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, layout: GoldenFlights.Model46Layout, recirculation: false, edit: GoldenFlights.WithoutTheLever),
                 Is.EqualTo(GoldenFlights.Model46TetherHash), "tether, on design 4's air and the lever off");
             System.Action<FlightSetup> off = s => s.Contacts.TipSlide = false;
             Assert.That(GoldenFlights.FlyContact(spec, out FlightCore contact, edit: off), Is.EqualTo(GoldenFlights.Model63ContactHash), "contact, the tip slide off");
             Assert.That(contact.Strikes.Passes, Is.EqualTo(0));
             Assert.That(GoldenFlights.FlyRange(spec, out FlightCore range, edit: off), Is.EqualTo(GoldenFlights.Model63RangeHash), "range, the tip slide off");
             Assert.That(range.Strikes.Passes, Is.EqualTo(0));
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore tether, tether: true, body: false, edit: off), Is.EqualTo(GoldenFlights.Model63TetherHash), "tether, the tip slide off");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore tether, tether: true, coulomb: false, body: false, edit: off), Is.EqualTo(GoldenFlights.Model63TetherHash), "tether, the tip slide off");
             Assert.That(tether.Strikes.Passes, Is.EqualTo(0));
         }
 
@@ -1051,7 +1127,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(zero, Is.True, "the strikes' bytes are zero");
             Assert.That(GoldenFlights.FlyContact(now, out _, edit: off), Is.EqualTo(GoldenFlights.Model63ContactHash), "contact, the strikes off");
             Assert.That(GoldenFlights.FlyRange(now, out _, edit: off), Is.EqualTo(GoldenFlights.Model63RangeHash), "range, the strikes off");
-            Assert.That(GoldenFlights.FlyContact(now, out _, tether: true, body: false, edit: off), Is.EqualTo(GoldenFlights.Model63TetherHash), "tether, the strikes off");
+            Assert.That(GoldenFlights.FlyContact(now, out _, tether: true, coulomb: false, body: false, edit: off), Is.EqualTo(GoldenFlights.Model63TetherHash), "tether, the strikes off");
         }
 
         // The physics integration 2 with p7f-damage (model 40), its audit against the line (model 38), kept: on a drone.json
@@ -1075,7 +1151,7 @@ namespace Fpv450.Sim.Tests
                 Is.EqualTo(GoldenFlights.Model38RainPoweredHash), "rain");
             Assert.That(GoldenFlights.FlyContact(spec, out _, layout: at, onRecord: Tail), Is.EqualTo(GoldenFlights.Model38ContactHash), "contact, on the soil");
             Assert.That(GoldenFlights.FlyRange(spec, out _, layout: at, onRecord: Tail), Is.EqualTo(GoldenFlights.Model38RangeHash), "range, with the area laws");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, layout: at, onRecord: Tail, recirculation: false), Is.EqualTo(GoldenFlights.Model38TetherHash), "tether");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, fiberContacts: false, coulomb: false, layout: at, onRecord: Tail, recirculation: false), Is.EqualTo(GoldenFlights.Model38TetherHash), "tether");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: at), Is.EqualTo(GoldenFlights.Model38TumbleHash), "tumble");
             Assert.That(nonZero, Is.EqualTo(0), "the strikes' block of a flight without props.blade");
         }

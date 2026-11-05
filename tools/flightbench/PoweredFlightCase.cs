@@ -216,13 +216,23 @@ namespace Fpv450.FlightBench
                 + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "
                 + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
                 + $"{l.Tether.Chain.Wedges} wedges, ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
-            // Model 64's audit against model 63 (D01's canister): on model 63's drone.json (the old coil, Old(); its line leaves the
+            // Model 64's audit against model 63 (D01's canister; since model 65 with the 0-force hold): on model 63's drone.json (the old coil, Old(); its line leaves the
             // old rear cap, GoldenFlights.Model63Tether) with the fountain through the body every golden is model 63's pin, every
             // record and event; with 61's blocking the tether golden is the merge's on the old coil. Every audit below flies Old().
+            // The physics integration 2 with the fiber's chain fixes (model 65, 62 merged onto 64), its audit against model 64: with
+            // the known-wrong 0-force hold (FlightSetup.TetherZeroForceHold: 64's chain, its hold and its safe pass) the line's flight
+            // is model 64's, every record and event. Every older audit below flies with it too (they audit 64's chain and its parents).
+            ulong line64 = GoldenFlights.FlyContact(Drone(), out FlightCore l64, tether: true, coulomb: false);
+            bool k64 = line64 == GoldenFlights.Model64TetherHash && l64.Tether.Chain.ZeroForceHold && !l.Tether.Chain.ZeroForceHold;
+            lok &= k64;
+            Console.WriteLine($"tether-flight with the 0-force hold: 0x{line64:X16} ({(k64 ? "model 64's, bit for bit" : "NOT model 64's")}); its line "
+                + (l64.Tether.Broken ? $"breaks at step {l64.Tether.BrokenAt} by {l64.Tether.LastBreak.Mechanism}" : $"holds, {l64.Tether.PaidOut:F3} m paid out") + $", {l64.Tether.Chain.SafeSteps} safe steps, {l64.Tether.Chain.Wedges} wedges; with the rules the line "
+                + (l.Tether.Broken ? $"breaks at step {l.Tether.BrokenAt} by {l.Tether.LastBreak.Mechanism} at {(Fpv450.Sim.Tether.FiberMember)l.Tether.LastBreak.Kind} {l.Tether.LastBreak.Member}" : $"holds, {l.Tether.PaidOut:F3} m paid out")
+                + $", {l.Tether.Chain.SafeSteps} safe steps, {l.Tether.Chain.Corrections} corrections (64's {l64.Tether.Chain.Corrections}): {(k64 ? "PASS" : "FAIL")}");
             ulong o63p = GoldenFlights.FlyPowered(Old(), out _), o63r = GoldenFlights.FlyPowered(Old(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
                 o63c = GoldenFlights.FlyContact(Old(), out _), o63g = GoldenFlights.FlyRange(Old(), out _), o63t = GoldenFlights.FlyTumble(Old(), out _, out _),
-                o63l = GoldenFlights.FlyContact(Old(), out FlightCore ol, tether: true, body: false),
-                o63b = GoldenFlights.FlyContact(Old(), out FlightCore ob, tether: true);
+                o63l = GoldenFlights.FlyContact(Old(), out FlightCore ol, tether: true, coulomb: false, body: false),
+                o63b = GoldenFlights.FlyContact(Old(), out FlightCore ob, tether: true, coulomb: false);
             bool k63 = o63p == GoldenFlights.Model63PoweredHash && o63r == GoldenFlights.Model63RainPoweredHash && o63c == GoldenFlights.Model63ContactHash
                 && o63g == GoldenFlights.Model63RangeHash && o63t == GoldenFlights.Model63TumbleHash && o63l == GoldenFlights.Model63TetherHash
                 && o63b == GoldenFlights.Model63BodyTetherHash;
@@ -230,23 +240,32 @@ namespace Fpv450.FlightBench
             string Outcome(FlightCore x) => x.Tether.Broken ? $"broken at step {x.Tether.BrokenAt} by {x.Tether.LastBreak.Mechanism}" : $"whole, {x.Tether.PaidOut:F3} m paid out";
             Console.WriteLine($"on the old coil (model 63's drone.json), the fountain through the body: powered 0x{o63p:X16}, rain 0x{o63r:X16}, contact 0x{o63c:X16}, "
                 + $"range 0x{o63g:X16}, tumble 0x{o63t:X16}, tether 0x{o63l:X16} ({(k63 ? "model 63's, bit for bit" : "NOT model 63's")}), the line {Outcome(ol)}; "
-                + $"with 61's blocking 0x{o63b:X16} (the merge's), the line {Outcome(ob)}; on the canister the line {Outcome(l)}: {(k63 ? "PASS" : "FAIL")}");
+                + $"with 61's blocking 0x{o63b:X16} (the merge's), the line {Outcome(ob)}; on the canister the line {Outcome(l64)}: {(k63 ? "PASS" : "FAIL")}");
             // Since model 60 (the skid's frame on the line) every audit below against models 50-59 flies without the frame
             // (GoldenFlights.WithoutTheFrame); since model 63 (the bells on the line) each against a 2944-byte pin over model 57's
             // 2944 bytes (GoldenFlights.Model57Layout).
             // Model 61's audit against model 59 (since model 64 without the skid's frame, over model 57's 2944 bytes): with the fountain through the drone's body (FlightSetup.TetherFountainThroughBody)
             // the line's flight is model 59's, every record and event.
-            ulong line59 = GoldenFlights.FlyContact(Old(), out FlightCore l59, tether: true, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout);
+            ulong line59 = GoldenFlights.FlyContact(Old(), out FlightCore l59, tether: true, coulomb: false, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout);
             bool k61 = line59 == GoldenFlights.Model59TetherHash && !l59.Tether.Rotors.BodyBlocks && l.Tether.Rotors.BodyBlocks;
             lok &= k61;
             Console.WriteLine($"tether-flight with the fountain through the body: 0x{line59:X16} ({(line59 == GoldenFlights.Model59TetherHash ? "model 59's, bit for bit" : "NOT model 59's")}), "
                 + $"the line {(l59.Tether.Broken ? $"broken at step {l59.Tether.BrokenAt} by {l59.Tether.LastBreak.Mechanism}" : "whole")}; with the body's blocking "
                 + $"{(l.Tether.Broken ? $"broken at step {l.Tether.BrokenAt} by {l.Tether.LastBreak.Mechanism}" : "whole")}: {(k61 ? "PASS" : "FAIL")}");
+            // Model 62's audit against model 59 (the line held between the drone's parts; since model 65 on the old coil, through the
+            // body, without the skid's frame, over model 57's 2944 bytes): with the 0-force hold the line's flight is model 59's (above,
+            // line59), with the rules model 62's, every record and event.
+            ulong line62 = GoldenFlights.FlyContact(Old(), out FlightCore l62, tether: true, body: false, edit: GoldenFlights.WithoutTheFrame, layout: GoldenFlights.Model57Layout);
+            bool k62 = line62 == GoldenFlights.Model62TetherHash && l59.Tether.Chain.ZeroForceHold && !l62.Tether.Chain.ZeroForceHold;
+            lok &= k62;
+            Console.WriteLine($"tether-flight on the old coil through the body without the frame, with the rules: 0x{line62:X16} ({(k62 ? "model 62's, bit for bit" : "NOT model 62's")}), "
+                + $"the line {(l62.Tether.Broken ? $"broken at step {l62.Tether.BrokenAt} by {l62.Tether.LastBreak.Mechanism}" : "whole")}, {l62.Tether.Chain.SafeSteps} safe steps; "
+                + $"with the 0-force hold {(l59.Tether.Broken ? $"broken at step {l59.Tether.BrokenAt}" : "whole")}, {l59.Tether.Chain.SafeSteps} safe steps: {(k62 ? "PASS" : "FAIL")}");
             // The physics integration 2 with the cuts (model 59), its audit against the props at rest (model 57), and p7d-tether
             // 1.8's against 55: without the cuts and the link (FlightSetup.TetherWithoutCuts) the line's flight is model 57's, every
             // record and event; without a resting prop too it is model 55's over model 50's 2816 bytes (1.8's own audit).
-            ulong line57 = GoldenFlights.FlyContact(Old(), out FlightCore l57, tether: true, cuts: false, layout: GoldenFlights.Model57Layout, edit: GoldenFlights.WithoutTheFrame),
-                line55cut = GoldenFlights.FlyContact(Old(), out _, tether: true, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest);
+            ulong line57 = GoldenFlights.FlyContact(Old(), out FlightCore l57, tether: true, coulomb: false, cuts: false, layout: GoldenFlights.Model57Layout, edit: GoldenFlights.WithoutTheFrame),
+                line55cut = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest);
             bool k57 = line57 == GoldenFlights.Model57TetherHash && l57.Tether.Cuts == null && line55cut == GoldenFlights.Model55TetherHash;
             lok &= k57;
             Console.WriteLine($"tether-flight without the cuts: 0x{line57:X16} ({(line57 == GoldenFlights.Model57TetherHash ? "model 57's, bit for bit" : "NOT model 57's")}), "
@@ -256,14 +275,14 @@ namespace Fpv450.FlightBench
                 + $", {l.Tether.Link?.Dips} dips, {l.Tether.Cuts?.Sections} sections read: {(k57 ? "PASS" : "FAIL")}");
             // Its audit against p7d-tether 1.8 (model 56): without a resting prop (ContactSpec.BladeRest off) the line's flight with
             // the cuts is model 56's over model 50's 2816 bytes, every record and event.
-            ulong line56 = GoldenFlights.FlyContact(Old(), out FlightCore l56, tether: true, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, body: false);
+            ulong line56 = GoldenFlights.FlyContact(Old(), out FlightCore l56, tether: true, coulomb: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest, body: false);
             bool k56 = line56 == GoldenFlights.Model56TetherHash;
             lok &= k56;
             Console.WriteLine($"tether-flight without a resting prop, over model 50's 2816 bytes: 0x{line56:X16} ({(k56 ? "model 56's, bit for bit" : "NOT model 56's")}), "
                 + $"the line {(l56.Tether.Broken ? $"broken at step {l56.Tether.BrokenAt}" : "whole")}: {(k56 ? "PASS" : "FAIL")}");
             // p7d-tether 1.7's audit: without the fiber's contacts (FlightSetup.TetherWithoutContacts) the line's flight is model
             // 50's, every record and event (since model 57 over model 50's 2816 bytes).
-            ulong line50 = GoldenFlights.FlyContact(Old(), out FlightCore l50, tether: true, fiberContacts: false, layout: GoldenFlights.Model50Layout,
+            ulong line50 = GoldenFlights.FlyContact(Old(), out FlightCore l50, tether: true, coulomb: false, fiberContacts: false, layout: GoldenFlights.Model50Layout,
                 edit: GoldenFlights.WithoutTheFrame);
             bool k50 = line50 == GoldenFlights.Model50TetherHash && l50.Tether.Contacts == null;
             lok &= k50;
@@ -273,7 +292,7 @@ namespace Fpv450.FlightBench
             // hanging half's give and the stub's spring off (model 53's legs) the line's flight is 1.7's pin, every record and
             // event (no golden parts a leg); without the fiber's contacts it is model 51's, which kept model 50's (above). Since
             // model 57 over model 50's 2816 bytes; since model 59 without the cuts.
-            ulong line53 = GoldenFlights.FlyContact(Old(), out _, tether: true, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheHangingGive);
+            ulong line53 = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheHangingGive);
             bool k53 = line53 == GoldenFlights.Model53TetherHash;
             lok &= k53;
             Console.WriteLine($"tether-flight without the hanging half's give: 0x{line53:X16} ({(k53 ? "model 53's, bit for bit" : "NOT model 53's")}): {(k53 ? "PASS" : "FAIL")}");
@@ -281,9 +300,9 @@ namespace Fpv450.FlightBench
             // off) the line's flight with the fiber's contacts is model 55's over its 2816 bytes, every record and event, as it is
             // with the rest on; without the fiber's contacts and the hanging give it is p7f-damage 1.3b's model 52 pin over the
             // whole record. Since model 59 without the cuts (model 57's line).
-            ulong line55 = GoldenFlights.FlyContact(Old(), out _, tether: true, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame),
-                line55off = GoldenFlights.FlyContact(Old(), out _, tether: true, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest),
-                line52 = GoldenFlights.FlyContact(Old(), out _, tether: true, fiberContacts: false, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheHangingGive,
+            ulong line55 = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame),
+                line55off = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, cuts: false, layout: GoldenFlights.Model50Layout, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheRest),
+                line52 = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, fiberContacts: false, edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheHangingGive,
                     layout: GoldenFlights.Model57Layout);
             bool k55 = line55 == GoldenFlights.Model53TetherHash && line55off == GoldenFlights.Model53TetherHash, k52 = line52 == GoldenFlights.Model52TetherHash;
             lok &= k55 && k52;
@@ -298,7 +317,7 @@ namespace Fpv450.FlightBench
             ulong b57p = GoldenFlights.FlyPowered(Old(), out _, layout: m57, edit: bellless),
                 b57c = GoldenFlights.FlyContact(Old(), out _, layout: m57, edit: bellless),
                 b57g = GoldenFlights.FlyRange(Old(), out _, layout: m57, edit: bellless),
-                b57l = GoldenFlights.FlyContact(Old(), out _, tether: true, cuts: false, layout: m57, edit: bellless);
+                b57l = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, cuts: false, layout: m57, edit: bellless);
             bool kb57 = b57p == GoldenFlights.Model57PoweredHash && b57c == GoldenFlights.Model57ContactHash && b57g == GoldenFlights.Model57RangeHash
                 && b57l == GoldenFlights.Model57TetherHash;
             lok &= kb57;
@@ -311,9 +330,9 @@ namespace Fpv450.FlightBench
             // gives p7g-legs 1.4's model 49 tether pin over the whole record (over model 50's 2816 bytes since model 52), and with the lever
             // off too model 46's over 2784 bytes; since model 55 without the fiber's contacts; since model 60 without the skid's frame
             // (WithoutTheFrame; WithoutTheLever carries it too).
-            ulong line46 = GoldenFlights.FlyContact(Old(), out FlightCore l46, tether: true, fiberContacts: false, recirculation: false, layout: GoldenFlights.Model50Layout,
+            ulong line46 = GoldenFlights.FlyContact(Old(), out FlightCore l46, tether: true, coulomb: false, fiberContacts: false, recirculation: false, layout: GoldenFlights.Model50Layout,
                     edit: GoldenFlights.WithoutTheFrame),
-                line46off = GoldenFlights.FlyContact(Old(), out _, tether: true, fiberContacts: false, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever);
+                line46off = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, fiberContacts: false, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever);
             Action<FlightSetup> slideOff = s => s.Contacts.TipSlide = false;
             ulong cso = GoldenFlights.FlyContact(Drone(), out FlightCore cs, edit: slideOff), gso = GoldenFlights.FlyRange(Drone(), out FlightCore gs, edit: slideOff),
                 lso = GoldenFlights.FlyContact(Drone(), out FlightCore ls, tether: true, edit: slideOff);
@@ -325,7 +344,7 @@ namespace Fpv450.FlightBench
                 + $"the lever off too 0x{line46off:X16} ({(line46off == GoldenFlights.Model46TetherHash ? "model 46's" : "NOT model 46's")}); "
                 + $"the tip slide off: contact 0x{cso:X16}, range 0x{gso:X16}, tether 0x{lso:X16} (the pins), {carved} blade passes: {(l44 ? "PASS" : "FAIL")}");
             // The physics integration 2's audit against p7d-tether (model 34): on the rigid floor the line's flight is model 31's.
-            ulong line31 = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, soil: false, yawI: false, layout: m38, recirculation: false);
+            ulong line31 = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, coulomb: false, soil: false, yawI: false, layout: m38, recirculation: false);
             bool l31 = line31 == GoldenFlights.Model31TetherHash;
             lok &= l31;
             Console.WriteLine($"tether-flight without surfaces.json: 0x{line31:X16} ({(l31 ? "model 31's, bit for bit" : "NOT model 31's")}): {(l31 ? "PASS" : "FAIL")}");
@@ -335,7 +354,7 @@ namespace Fpv450.FlightBench
             ulong y34p = GoldenFlights.FlyPowered(Bare(), out _, yawI: false, layout: m38), y34c = GoldenFlights.FlyContact(Bare(), out _, yawI: false, layout: m38),
                 y34g = GoldenFlights.FlyRange(Bare(), out _, yawI: false, layout: m38),
                 y34r = GoldenFlights.FlyPowered(Bare(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, yawI: false, layout: m38),
-                y34l = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, yawI: false, layout: m38, recirculation: false);
+                y34l = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, coulomb: false, yawI: false, layout: m38, recirculation: false);
             bool y34 = y34p == GoldenFlights.Model34PoweredHash && y34c == GoldenFlights.Model34ContactHash && y34g == GoldenFlights.Model34RangeOn38Hash
                 && y34r == GoldenFlights.Model34RainPoweredHash && y34l == GoldenFlights.Model34TetherHash;
             Console.WriteLine($"on model 34's yaw I (i_yaw {GoldenFlights.Model34YawI:R}): powered 0x{y34p:X16}, contact 0x{y34c:X16}, range 0x{y34g:X16}, "
@@ -397,7 +416,7 @@ namespace Fpv450.FlightBench
             ulong b38p = GoldenFlights.FlyPowered(Bare(), out _, layout: m38, onRecord: Strikes),
                 b38r = GoldenFlights.FlyPowered(Bare(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m38, onRecord: Strikes),
                 b38c = GoldenFlights.FlyContact(Bare(), out _, layout: m38, onRecord: Strikes), b38g = GoldenFlights.FlyRange(Bare(), out _, layout: m38, onRecord: Strikes),
-                b38l = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, layout: m38, onRecord: Strikes, recirculation: false),
+                b38l = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, coulomb: false, layout: m38, onRecord: Strikes, recirculation: false),
                 b38t = GoldenFlights.FlyTumble(Bare(), out _, out _, layout: m38);
             bool k38 = b38p == GoldenFlights.Model38PoweredHash && b38r == GoldenFlights.Model38RainPoweredHash && b38c == GoldenFlights.Model38ContactHash
                 && b38g == GoldenFlights.Model38RangeHash && b38l == GoldenFlights.Model38TetherHash && b38t == GoldenFlights.Model38TumbleHash && strikesTail == 0;
@@ -456,8 +475,8 @@ namespace Fpv450.FlightBench
             ulong e44p = GoldenFlights.FlyPowered(l26, out _, layout: m44, onRecord: LegStates),
                 e44r = GoldenFlights.FlyPowered(l26, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m44, onRecord: LegStates),
                 e44c = GoldenFlights.FlyContact(l26, out _, layout: m44, onRecord: LegStates), e44g = GoldenFlights.FlyRange(l26, out _, layout: m44, onRecord: LegStates),
-                e44l = GoldenFlights.FlyContact(l26, out _, tether: true, fiberContacts: false, layout: m44, onRecord: LegStates, recirculation: false),
-                e47l = GoldenFlights.FlyContact(l26, out _, tether: true, fiberContacts: false, layout: m44, onRecord: LegStates),
+                e44l = GoldenFlights.FlyContact(l26, out _, tether: true, fiberContacts: false, coulomb: false, layout: m44, onRecord: LegStates, recirculation: false),
+                e47l = GoldenFlights.FlyContact(l26, out _, tether: true, fiberContacts: false, coulomb: false, layout: m44, onRecord: LegStates),
                 e44t = GoldenFlights.FlyTumble(l26, out _, out _, layout: m44);
             bool k44 = e44p == GoldenFlights.Model44PoweredHash && e44r == GoldenFlights.Model44RainPoweredHash && e44c == GoldenFlights.Model44ContactHash
                 && e44g == GoldenFlights.Model44RangeHash && e44l == GoldenFlights.Model44TetherHash && e44t == GoldenFlights.Model44TumbleHash && legStates == 0;
@@ -498,7 +517,7 @@ namespace Fpv450.FlightBench
             DroneSpec now = Old();
             ulong n46c = GoldenFlights.FlyContact(now, out _, layout: m46, onRecord: Lean, edit: noLever),
                 n46g = GoldenFlights.FlyRange(now, out _, layout: m46, onRecord: Lean, edit: noLever),
-                n46l = GoldenFlights.FlyContact(now, out _, tether: true, fiberContacts: false, layout: m46, onRecord: Lean, edit: noLever),
+                n46l = GoldenFlights.FlyContact(now, out _, tether: true, fiberContacts: false, coulomb: false, layout: m46, onRecord: Lean, edit: noLever),
                 n46p = GoldenFlights.FlyPowered(now, out _, layout: m46, onRecord: Lean),
                 n46r = GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m46, onRecord: Lean),
                 n46t = GoldenFlights.FlyTumble(now, out _, out _, layout: m46);
@@ -513,14 +532,14 @@ namespace Fpv450.FlightBench
             // cuts, the fiber's contacts and the props at rest, over model 50's 2816 bytes, they are p7g-legs' model 54 pins.
             Action<FlightSetup> frameless = GoldenFlights.WithoutTheFrame;
             ulong f59c = GoldenFlights.FlyContact(now, out _, layout: m57, edit: frameless), f59g = GoldenFlights.FlyRange(now, out _, layout: m57, edit: frameless),
-                f59l = GoldenFlights.FlyContact(now, out FlightCore fl, tether: true, layout: m57, edit: frameless, body: false);
+                f59l = GoldenFlights.FlyContact(now, out FlightCore fl, tether: true, coulomb: false, layout: m57, edit: frameless, body: false);
             bool k59 = f59c == GoldenFlights.Model59ContactHash && f59g == GoldenFlights.Model59RangeHash && f59l == GoldenFlights.Model59TetherHash;
             Console.WriteLine($"without the skid's frame (one value both ways), over model 57's 2944 bytes: contact 0x{f59c:X16}, range 0x{f59g:X16}, tether 0x{f59l:X16} "
                 + $"({(k59 ? "model 59's, bit for bit" : "NOT model 59's")}), the line {(fl.Tether.Broken ? $"broken at step {fl.Tether.BrokenAt}" : "whole")}: {(k59 ? "PASS" : "FAIL")}");
             const int m50 = GoldenFlights.Model50Layout;
             Action<FlightSetup> passing = GoldenFlights.WithoutTheRest;
             ulong f54c = GoldenFlights.FlyContact(now, out _, layout: m50, edit: passing), f54g = GoldenFlights.FlyRange(now, out _, layout: m50, edit: passing),
-                f54l = GoldenFlights.FlyContact(now, out _, tether: true, fiberContacts: false, layout: m50, edit: passing);
+                f54l = GoldenFlights.FlyContact(now, out _, tether: true, coulomb: false, fiberContacts: false, layout: m50, edit: passing);
             bool k54 = f54c == GoldenFlights.Model54ContactHash && f54g == GoldenFlights.Model54RangeHash && f54l == GoldenFlights.Model54TetherHash;
             Console.WriteLine($"without the cuts, the fiber's contacts and the props at rest, over model 50's 2816 bytes: contact 0x{f54c:X16}, range 0x{f54g:X16}, "
                 + $"tether 0x{f54l:X16} ({(k54 ? "the frame's model 54, bit for bit" : "NOT model 54's")}): {(k54 ? "PASS" : "FAIL")}");
@@ -530,13 +549,13 @@ namespace Fpv450.FlightBench
             // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
             Action<FlightSetup> bellsOff = GoldenFlights.WithoutTheBells;
             ulong b60p = GoldenFlights.FlyPowered(now, out _, layout: m57, edit: bellsOff), b60c = GoldenFlights.FlyContact(now, out _, layout: m57, edit: bellsOff),
-                b60g = GoldenFlights.FlyRange(now, out _, layout: m57, edit: bellsOff), b60l = GoldenFlights.FlyContact(now, out _, tether: true, layout: m57, edit: bellsOff, body: false);
+                b60g = GoldenFlights.FlyRange(now, out _, layout: m57, edit: bellsOff), b60l = GoldenFlights.FlyContact(now, out _, tether: true, coulomb: false, layout: m57, edit: bellsOff, body: false);
             bool k60 = b60p == GoldenFlights.Model60PoweredHash && b60c == GoldenFlights.Model60ContactHash && b60g == GoldenFlights.Model60RangeHash
                 && b60l == GoldenFlights.Model60TetherHash;
             Console.WriteLine($"without the bells, over model 57's 2944 bytes: powered 0x{b60p:X16}, contact 0x{b60c:X16}, range 0x{b60g:X16}, tether 0x{b60l:X16} "
                 + $"({(k60 ? "model 60's, bit for bit" : "NOT model 60's")}): {(k60 ? "PASS" : "FAIL")}");
             ulong f58p = GoldenFlights.FlyPowered(now, out _, edit: frameless), f58c = GoldenFlights.FlyContact(now, out _, edit: frameless),
-                f58g = GoldenFlights.FlyRange(now, out _, edit: frameless), f58l = GoldenFlights.FlyContact(now, out _, tether: true, cuts: false, edit: frameless);
+                f58g = GoldenFlights.FlyRange(now, out _, edit: frameless), f58l = GoldenFlights.FlyContact(now, out _, tether: true, coulomb: false, cuts: false, edit: frameless);
             bool k58 = f58p == GoldenFlights.Model58PoweredHash && f58c == GoldenFlights.Model58ContactHash && f58g == GoldenFlights.Model58RangeHash
                 && f58l == GoldenFlights.Model58TetherHash;
             Console.WriteLine($"without the skid's frame and the cuts: powered 0x{f58p:X16}, contact 0x{f58c:X16}, range 0x{f58g:X16}, tether 0x{f58l:X16} "
