@@ -569,6 +569,38 @@ namespace Fpv450.Sim.Tether
             Step(s, hubsBody, thrust, wind, events, ref trace, still);
         }
 
+        WindBatch _windBatch;
+
+        /// <summary>
+        /// The batch worker the nodes' wind is evaluated on (WindField.Batch; FlightCore sets it where the field has a
+        /// profile), or null to evaluate every node in Loads. Either gives the same bits (WindBatch).
+        /// </summary>
+        public WindBatch WindBatch
+        {
+            get => _windBatch;
+            set
+            {
+                _windBatch?.Join();
+                _windBatch = value;
+            }
+        }
+
+        /// <summary>Before the step's wind frame is begun: the last batch done, so nothing reads the frame as it changes.</summary>
+        public void SettleWind() => _windBatch?.Join();
+
+        /// <summary>
+        /// After the step's wind frame is begun: every node's position but the exit's posted to the batch worker, whose winds
+        /// Loads takes for the nodes still there bit for bit (a node the contacts put in is evaluated in Loads).
+        /// </summary>
+        public void PostWind()
+        {
+            if (_windBatch == null || !_attached) return;
+            _windBatch.Clear();
+            for (int i = 0; i + 1 < _chain.Count; i++)
+                if (!_windBatch.Add(_chain[i].Position)) break;
+            _windBatch.Post();
+        }
+
         /// <summary>Step with the rotors' angles at the step's start (from), for the blade passes of the prop check (1.8).</summary>
         public void Step(in FlightState s, Double3[] hubsBody, in Corners thrust, WindField wind, StepEvents events, ref TetherTrace trace, in Corners from)
         {
@@ -639,6 +671,7 @@ namespace Fpv450.Sim.Tether
                 if (_rotors.BodyBlocks) _rotors.PlaceBody(s.Position, q);
                 _rotors.Begin(_hubs, up, _thrust, _hubAir, _hubGround);
             }
+            _windBatch?.Join();
             for (int i = 0; i < n - 1; i++) Loads(i, wind);
             ref CableNode end = ref _chain[n - 1];
             end.Drag = default;
@@ -790,7 +823,7 @@ namespace Fpv450.Sim.Tether
             ref CableNode a = ref _chain[i];
             int n = _chain.Count;
             Double3 x = a.Position;
-            Double3 air = wind.At(x);
+            if (_windBatch == null || !_windBatch.Take(x, out Double3 air)) air = wind.At(x);
             if (_rotors != null) air = air + _rotors.At(x, _groundHeight[i], out _);
             Double3 t = (i + 1 < n ? _chain[i + 1].Position : x) - (i > 0 ? _chain[i - 1].Position : x);
             double tl = t.Length();

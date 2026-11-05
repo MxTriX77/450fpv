@@ -344,6 +344,8 @@ namespace Fpv450.Sim.Flight
             {
                 if (setup.TetherCoilPart >= _mass.PartCount) throw new ArgumentException("the line's coil part is not a part of the mass model", nameof(setup));
                 _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt, _contacts, _propulsion);
+                // Its nodes' wind on the field's batch worker, alongside the drone's step: the same bits (WindBatch, 1.13).
+                if (_wind.HasProfile) _tether.WindBatch = _wind.Batch(_tether.Chain.Capacity);
                 if (_fc != null && !setup.TetherWithoutCuts) _failsafe = new Control.Failsafe(_settings, Dt);
                 _tetherHubs = new Double3[4];
                 if (setup.Propulsion != null)
@@ -456,7 +458,9 @@ namespace Fpv450.Sim.Flight
             _stick = flown;
             s.BladeStrikes = default;
             Corners angles = s.RotorAngle; // where the blades start the step, for their passes (PropStrikes)
+            _tether?.SettleWind(); // nothing evaluates the wind while its frame changes
             BeginWind(s);
+            _tether?.PostWind(); // the line's nodes' wind on the worker, from the frame just begun
 
             // The net force (world, N) and the net moment about the CoM (body, N·m), weight aside; the air's share
             // of them in body axes.
