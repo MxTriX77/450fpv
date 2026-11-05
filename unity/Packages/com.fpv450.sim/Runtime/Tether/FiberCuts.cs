@@ -579,7 +579,9 @@ namespace Fpv450.Sim.Tether
         public FlightEvent SectionEvent(FiberContacts names, byte kind, ulong member, Double3 point, long sec, double strength, SectionBand band,
             double stress, bool atBreak)
         {
-            FlightEvent e = kind <= (byte)FiberMember.Part
+            // Without the fiber's contacts (FlightSetup.TetherWithoutContacts) there are no names: the place as FiberLine.Place
+            // writes it (model 60; at 56–59 a break there by tension, bend or abrasion threw).
+            FlightEvent e = kind <= (byte)FiberMember.Part && names != null
                 ? names.Named(EventKind.FiberSection, kind, member, point, sec * _sectionLength, strength, stress)
                 : FiberLine.Place(EventKind.FiberSection, kind, member, names, point, sec * _sectionLength, strength, stress);
             e.Index = (byte)((byte)band | (atBreak ? 0x80 : 0));

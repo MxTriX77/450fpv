@@ -574,7 +574,10 @@ namespace Fpv450.Sim.Log
         ///    shapes and the frame changes only a holding leg's give and law, so they compose without new code. A flight with
         ///    the frame's data 0 (ContactSpec's three, LegDamageSpec.FrameTopShare) steps as in 59; one with
         ///    FlightSetup.TetherWithoutContacts (so without the cuts) and ContactSpec.BladeRest off steps as in 54 over its 2816
-        ///    bytes, the block zero (but for 52's jammed head-on crush); a flight whose legs never touch steps as in 59.
+        ///    bytes, the block zero (but for 52's jammed head-on crush); a flight whose legs never touch steps as in 59. One fix
+        ///    the merge's cause table found: a line without its contacts (FlightSetup.TetherWithoutContacts) broken by tension,
+        ///    bend or abrasion threw at its FiberSection event (no names to place it by, FiberCuts.SectionEvent; at 56–59 too);
+        ///    it is placed as FiberLine.Place places it. No flight that ran at 59 steps otherwise.
         /// </summary>
         public const int ModelVersion = 60;
 
