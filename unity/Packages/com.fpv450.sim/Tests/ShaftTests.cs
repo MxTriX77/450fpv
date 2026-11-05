@@ -163,8 +163,8 @@ namespace Fpv450.Sim.Tests
 
         // "A brinelled bearing", flown: the lead prop grazes a steel face 1 mm deep (StrikeTests' graze): each crush's force at the hub
         // (its impulse over α/ω, at most σ_c·A(r_m), and along the span at most the blade's column, its centrifugal tension at the
-        // root and its Euler load, MotorShaft.ColumnLoad) loads the upper bearing with 2.3 times it, past C0r (1010 N, 3.66 C0r; a
-        // 2.12 µm dent). Every dent logged is 1e-4·D_w·(R/C0r)² of its load
+        // root and its Euler load, MotorShaft.ColumnLoad) loads the upper bearing with 2.3 times it, past C0r (966 N, 3.50 C0r; a
+        // 1.94 µm dent). Every dent logged is 1e-4·D_w·(R/C0r)² of its load
         // within 1e-9; with the shafts off (the known-wrong: rigid bearings, model 63) none is.
         [Test]
         public void AGrazeBrinellsTheBearings()

@@ -17,8 +17,9 @@ namespace Fpv450.Sim.Contact
     ///   blade passes the hub at most its root's flatwise strength (form·σ_f·c·t²/6 at the first station, nominal): past it the
     ///   blade breaks (PropStrikes), so the part of M a blade's own bending makes is capped there; and along its span toward the
     ///   shaft at most its column (ColumnLoad: its centrifugal tension at the root and its Euler load; past them the span goes
-    ///   into compression and the blade flaps out of the disc), which 1.3's crush on a face square to the span, σ_c·A(r_m) of
-    ///   0.6–4 kN, and 1.3b's resting blade, rigid along its span, would pass.
+    ///   into compression and the blade flaps out of the disc), the whole force scaled with it (the face's friction follows its
+    ///   normal force), which 1.3's crush on a face square to the span, σ_c·A(r_m) of 0.6–4 kN with its μ·F_n, and 1.3b's
+    ///   resting blade, rigid along its span, would pass.
     /// - The bend: past the yield moment M_y = σ_y·πd³/32 (derived) the shaft takes a plastic hinge at the upper bearing,
     ///   Δφ = (M − M_y)/k_φ along M (k_φ = ShaftHingeShare·3EI/l, assumed), fixed in the rotating frame (the shaft turns with the
     ///   rotor), and M_y rises to M (work hardening, isotropic: assumed, as the bell's collapse load). Everything above the hinge
@@ -245,7 +246,8 @@ namespace Fpv450.Sim.Contact
         public double ColumnLoad(double speed, double r) =>
             speed * speed * _bladeMoment + (r > 0 ? Pi * Pi * _rootFlexural / (4 * r * r) : double.PositiveInfinity);
 
-        // A blade's force at point (body) with its push toward the hub along its span held to its column.
+        // A blade's force at point (body) with its push toward the hub along its span held to its column: the whole force scaled
+        // down with it, since a face's friction on the blade follows its normal force (a crush's μ·F_n).
         Double3 Column(int c, Double3 point, Double3 force, double speed)
         {
             Double3 d = point - _hub[c];
@@ -254,7 +256,7 @@ namespace Fpv450.Sim.Contact
             if (!(r > 0)) return force;
             Double3 span = d * (1 / r);
             double push = -Double3.Dot(force, span), column = ColumnLoad(speed, r);
-            return push > column ? force + span * (push - column) : force;
+            return push > column ? force * (column / push) : force;
         }
 
         // A force's moment at the upper bearing, body N·m, less its part along the shaft: (P − B) × F, a blade's own bending
