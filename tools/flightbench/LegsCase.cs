@@ -3,6 +3,7 @@ using Fpv450.Sim;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Tests;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
@@ -60,15 +61,17 @@ namespace Fpv450.FlightBench
             return w;
         }
 
+        // along: the drift along the skids (body +z, the frame's plane, p7g-legs model 54) for the grid's across them (+x).
         static Shares Cell(DroneSpec spec, MaterialRow[] m, ulong h, double descent, double roll, double drift, int seeds,
-            Func<ContactSpec, ContactSpec> edit = null, bool elastic = false)
+            Func<ContactSpec, ContactSpec> edit = null, bool elastic = false, bool along = false)
         {
             Shares s = Shares.New();
             for (int seed = 1; seed <= seeds; seed++)
             {
                 var t = new LegScenarios.Touch
                 {
-                    RollDeg = roll, Velocity = new Double3(drift, -descent, 0), Seed = (ulong)seed, Seconds = 3, Edit = edit, Elastic = elastic,
+                    RollDeg = roll, Velocity = along ? new Double3(0, -descent, drift) : new Double3(drift, -descent, 0), Seed = (ulong)seed, Seconds = 3,
+                    Edit = edit, Elastic = elastic,
                 };
                 LegScenarios.Outcome o = LegScenarios.Run(spec, m, h, t);
                 s.Flights++;
@@ -195,6 +198,48 @@ namespace Fpv450.FlightBench
                 linearRolled.Damaged > leverRolled.Damaged, $"{linearRolled}, the lever {leverRolled}");
             Shares rigid = Cell(spec, m, h, 0.5, 10, 0.6, seeds, LandingScenarios.RigidAcross()), lever = grid[0, 1, 2];
             Console.WriteLine($"  rigid across (D-067's mechanics, no law) at 0.5 m/s rolled 10° with 0.6 m/s of drift: {rigid}; the soft legs {lever}");
+
+            // The skid's frame (p7g-legs, model 54): along the skids each leg sways as its skid's frame (784 N/m at the foot, its
+            // clamp's edge and socket's sharing the sway's moment), across them as the cantilever (the grid above). Cells with the
+            // drift along the skids, with the frame and with one value both ways (the known-wrong, model 51's legs): the frame's
+            // legs, twice as strong along the skid, damage no more than the cantilevers on any cell and fewer on one.
+            Console.WriteLine("the skid's frame: the drift along the skids (body +z), the frame and one value both ways (model 51's legs)");
+            Console.WriteLine("  descent  drift along | the legs                                                    | one value both ways");
+            bool never = true, fewer = false;
+            Func<ContactSpec, ContactSpec> frameless = c => GoldenFlights.WithoutTheFrameContacts(c);
+            foreach ((double descent, double drift) in new[] { (0.5, 0.3), (0.5, 0.6), (1.0, 0.3), (1.0, 0.6), (1.5, 0.6) })
+            {
+                Shares on = Cell(spec, m, h, descent, 0, drift, seeds, along: true), off = Cell(spec, m, h, descent, 0, drift, seeds, frameless, along: true);
+                never &= on.Damaged <= off.Damaged;
+                fewer |= on.Damaged < off.Damaged;
+                Console.WriteLine($"  {descent,7:F1} {drift,12:F1} | {on} | {off}");
+            }
+            Row("a drift along the skids damages no more frame legs than cantilevers, and fewer on a cell", never && fewer, "(the cells above)");
+            Shares grid0 = Cell(spec, m, h, 0.5, 10, 0.6, seeds, frameless);
+            Console.WriteLine($"  across the skids the frame changes no share it should not: 0.5 m/s rolled 10° with 0.6 m/s across, one value both ways {grid0}, "
+                + $"the legs {lever}");
+
+            // D-079's datum on the soil: the pilot's landing tipped over (StrikeScenarios.TippedLanding: from a hover, 0.5 m/s down
+            // and 2.5 m/s across the skids, the throttle cut or the drone disarmed at the touch) on the legs' own law (rigidAcross
+            // false), the frame and one value both ways (model 51's legs: model 50 tipped 6 of 8).
+            Console.WriteLine("the tipped landings on the soil (0.5 m/s down, 2.5 m/s across the skids), on the legs' own law");
+            int overOn = 0, overOff = 0;
+            foreach (bool disarm in new[] { false, true })
+                foreach (string site in new[] { "the dirt track", "S04's soil" })
+                    foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain })
+                    {
+                        Double3 at;
+                        FlightWorld w = site == "the dirt track" ? StrikeScenarios.TrackWorld(out at) : StrikeScenarios.BeltWorld(out at);
+                        StrikeScenarios.TipResult on = StrikeScenarios.TippedLanding(spec, w, at, rain, SoilScenarios.Table(), disarm, rigidAcross: false);
+                        w = site == "the dirt track" ? StrikeScenarios.TrackWorld(out at) : StrikeScenarios.BeltWorld(out at);
+                        StrikeScenarios.TipResult off = StrikeScenarios.TippedLanding(spec, w, at, rain, SoilScenarios.Table(), disarm, rigidAcross: false,
+                            edit: frameless);
+                        if (on.Over) overOn++;
+                        if (off.Over) overOff++;
+                        Console.WriteLine($"  {site}, {rain}, {(disarm ? "disarmed" : "the throttle cut")}: {(on.Over ? "over" : "upright")} ({on.MaxTilt:F1}°, "
+                            + $"{on.EndTilt:F1}° at the end); one value both ways {(off.Over ? "over" : "upright")} ({off.MaxTilt:F1}°, {off.EndTilt:F1}°)");
+                    }
+            Console.WriteLine($"  over: {overOn} of 8 with the frame, {overOff} of 8 with one value both ways");
             return _ok;
         }
     }

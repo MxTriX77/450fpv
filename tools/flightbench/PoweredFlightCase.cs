@@ -217,7 +217,8 @@ namespace Fpv450.FlightBench
             // flight is model 46's, every record and event; no golden's disc cuts the soil, so with the tip slide off (model 43's
             // carve) the contact, range and tether goldens are their pins. Since model 50 (the lever on the line) design 4's air
             // gives p7g-legs 1.4's model 49 tether pin over the whole record, and with the lever off too model 46's over 2784 bytes.
-            ulong line46 = GoldenFlights.FlyContact(Drone(), out FlightCore l46, tether: true, recirculation: false),
+            // Since model 54 both without the skid's frame (WithoutTheFrame; WithoutTheLever carries it too).
+            ulong line46 = GoldenFlights.FlyContact(Drone(), out FlightCore l46, tether: true, recirculation: false, edit: GoldenFlights.WithoutTheFrame),
                 line46off = GoldenFlights.FlyContact(Drone(), out _, tether: true, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever);
             Action<FlightSetup> slideOff = s => s.Contacts.TipSlide = false;
             ulong cso = GoldenFlights.FlyContact(Drone(), out FlightCore cs, edit: slideOff), gso = GoldenFlights.FlyRange(Drone(), out FlightCore gs, edit: slideOff),
@@ -412,8 +413,16 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"without the lever (1.3's softening), over model 46's 2784 bytes: contact 0x{n46c:X16}, range 0x{n46g:X16}, tether 0x{n46l:X16}; on it, "
                 + $"powered 0x{n46p:X16}, rain 0x{n46r:X16}, tumble 0x{n46t:X16} ({(k46 ? "model 48's, bit for bit" : "NOT model 48's")}), {lean} non-zero bytes "
                 + $"in the lean: {(k46 ? "PASS" : "FAIL")}");
+            // The skid's frame fore and aft (model 54): without it (one value both ways) the contact, range and tether goldens are
+            // model 51's pins, every record and event; with it the pins (above). So the frame is the whole move.
+            Action<FlightSetup> frameless = GoldenFlights.WithoutTheFrame;
+            ulong f51c = GoldenFlights.FlyContact(now, out _, edit: frameless), f51g = GoldenFlights.FlyRange(now, out _, edit: frameless),
+                f51l = GoldenFlights.FlyContact(now, out _, tether: true, edit: frameless);
+            bool k51 = f51c == GoldenFlights.Model51ContactHash && f51g == GoldenFlights.Model51RangeHash && f51l == GoldenFlights.Model51TetherHash;
+            Console.WriteLine($"without the skid's frame (one value both ways): contact 0x{f51c:X16}, range 0x{f51g:X16}, tether 0x{f51l:X16} "
+                + $"({(k51 ? "model 51's, bit for bit" : "NOT model 51's")}): {(k51 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k51;
         }
 
         public static bool Bench()

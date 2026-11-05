@@ -12,8 +12,9 @@ namespace Fpv450.Sim.Tests
     /// <summary>
     /// p7g-legs 1.4, "Replay through a broken and a detached leg" (leg-damage): tools/replay's damage flight (ScriptedFlight.FlyLegs,
     /// recorded here in memory) loses leg_rr up into a bar and bends and then breaks the other three (its rebound lands the
-    /// two-legged drone at 2.4 m/s on the straw); a drifting touch (0.5 m/s down rolled 10° with 0.6 m/s across, seed 2) leaves
-    /// leg_rr bent 2.03° and on. Each log replays headless bit for bit, every record, event and loose-piece record; the damage flight's events
+    /// two-legged drone at 2.4 m/s on the straw); a drifting touch (0.5 m/s down rolled 10° with 0.6 m/s across, seed 20 since the
+    /// skid's frame, model 54: seed 2's touch leaves leg_rr 0.24° and leg_fr 0.44° on it, model 51's 2.03°) leaves leg_rr bent 1.75°
+    /// and on. Each log replays headless bit for bit, every record, event and loose-piece record; the damage flight's events
     /// name each leg's change in step order; and a replay holding drone.json with one strength bound changed is refused
     /// before its first step. On model 49 no flight was found that ends with one leg bent and on beside one broken and one
     /// lost (the damage flight on seeds 1–40, its pad, cushion and speed varied): a landing hard enough to follow a lost leg
@@ -140,7 +141,7 @@ namespace Fpv450.Sim.Tests
 
             // The drifting touch: bent and on, by a set a pilot sees (past 1°).
             MaterialRow[] rows = ContactScenarios.RepositoryMaterials(out ulong rowsHash);
-            var touch = new LegScenarios.Touch { RollDeg = 10, Velocity = new Double3(0.6, -0.5, 0), Seed = 2 };
+            var touch = new LegScenarios.Touch { RollDeg = 10, Velocity = new Double3(0.6, -0.5, 0), Seed = 20 };
             byte[] drift = Record(LegScenarios.Setup(spec, rows, rowsHash, touch), "floor", spec, 3000, out FlightCore landed);
             int bentOn = 0;
             for (int c = 0; c < 4; c++)

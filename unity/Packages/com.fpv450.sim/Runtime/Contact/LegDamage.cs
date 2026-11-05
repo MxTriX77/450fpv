@@ -108,6 +108,13 @@ namespace Fpv450.Sim.Contact
         /// derived), which the tube's shape takes at the step it parts; 0 keeps the free tube's (model 50's, the audit).</summary>
         public double StubStiffness, StubStiffnessUp;
 
+        /// <summary>The skid's frame fore and aft in the law (p7g-legs, model 54; derived, DroneLegs.Frame): a frame leg's sway
+        /// moment along the skid (body z) parts between its two ends, the clamp's share of it r_t (0.561) and the socket's 1 −
+        /// r_t, the column's share of the T-joint's own moment (the foot's force on its height) 1/(1 + β), and the leg's
+        /// stiffness to a uniform moment (N·m/rad), the self-stress one end's plastic turn leaves on the other. 0 for none: the
+        /// cantilever's single end (model 51).</summary>
+        public double FrameTopShare, FrameJointShare, FrameSelfStiffness;
+
         const double Pi = 3.141592653589793;
 
         /// <summary>The fixed–pinned column's first buckling load factor, β² (β the root of tan β = β; Timoshenko and Gere).</summary>
@@ -177,6 +184,12 @@ namespace Fpv450.Sim.Contact
         /// or with no give left (P past the sway load) the whole spring's. The axial load on it adds P·δ to the clamp's moment
         /// (M = F·L + P·δ, the deformed leg's statics): the side give's softening never takes the moment away. 0 on 1.2's chain.</summary>
         public Double3 Deflection;
+
+        /// <summary>The skid's frame (p7g-legs, model 54): whether the leg sways as its skid's frame along the skid (body z) this
+        /// step (the contact model's give, LegDamage.Frame at the step's start), and its spring's stiffness across that way at the
+        /// foot, N/m (LateralStiffness the other way).</summary>
+        public bool Frame;
+        public double FrameLateralStiffness;
     }
 
     /// <summary>What a leg's give takes off its spring's force in the step (body axes): along the leg (compression +), across
@@ -224,6 +237,10 @@ namespace Fpv450.Sim.Contact
     ///   m* = f − (f − 1)·(κ_c·K_t·c/ε_b)²: the tube parts there (Broken), never at a stress ahead of its set.
     /// - The T-joint. The M3 pinch screw's preload holds the skid in its bore to 2μP_t along it; the socket breaks across
     ///   its layers past σ_i·π(D_s⁴ − D⁴)/(32·D_s). Either lets the skid go (SkidLoose).
+    /// - The skid's frame (p7g-legs, model 54). While both legs on a skid and both T-joints hold, each leg sways along the skid
+    ///   (body z) as the frame's column, its foot held square: the sway's moment parts between the clamp's edge and the T-joint
+    ///   socket's (FrameEdges), each edge cracks, yields and parts by the laws above over its own share, and the socket's parting
+    ///   lets the skid half go (SkidLoose, Bending). Across the skid it is the cantilever above. A lost leg frees its sibling.
     /// A broken or detached leg's state is kept and its law stops; its set stays (the app draws it). Its piece leaves the
     /// contacts and the build (ContactModel.Restructure, FlightCore) and flies loose (LoosePieces).
     /// </summary>
@@ -252,6 +269,13 @@ namespace Fpv450.Sim.Contact
         readonly Double3[] _bend = new Double3[Legs], _jaw = new Double3[Legs], _bowDir = new Double3[Legs];
         readonly bool[] _flowing = new bool[Legs], _turning = new bool[Legs];
         readonly LegMode[] _skidMode = new LegMode[Legs];
+
+        // The skid's frame (p7g-legs, model 54): each frame leg's plastic turns along the skid at its clamp's edge and at its
+        // socket's (rad, signed by the foot's way along body z), the sway they leave (the part of the bend's z that turns the
+        // tube about the clamp and carries its T-joint square), the socket edge's envelope and its moment the law judged.
+        readonly double[] _topTurn = new double[Legs], _footTurn = new double[Legs], _sway = new double[Legs], _footMoment = new double[Legs];
+        readonly double[] _footEnvelope = { 1, 1, 1, 1 };
+        readonly bool[] _footFlowing = new bool[Legs];
 
         // The jaws' bed at the foot (N/m; 0 holds them rigid, 1.2's chain) and each leg's friction couple there, μ·P·D over
         // the lever (N).
@@ -329,8 +353,34 @@ namespace Fpv450.Sim.Contact
         /// turns the foot along it, the twist about the leg (design 8).</summary>
         public Double3 SetRotation(int leg) => new Double3(-_bend[leg].Z, _twist[leg], _bend[leg].X);
 
-        /// <summary>How the leg's T-joint let its skid go (TJointSlip or TJointFracture), or 0 while it holds.</summary>
+        /// <summary>How the leg's T-joint let its skid go (TJointSlip or TJointFracture; Bending for a frame leg's tube parted at
+        /// its socket's edge, p7g-legs model 54), or 0 while it holds.</summary>
         public LegMode SkidMode(int leg) => _skidMode[leg];
+
+        /// <summary>Whether the leg's T-joint is off its tube and stays on the skid: its socket broke, or the tube parted at the
+        /// socket's edge (a frame leg, model 54).</summary>
+        public bool TJointOffTube(int leg) => _skidMode[leg] == LegMode.TJointFracture || _skidMode[leg] == LegMode.Bending;
+
+        /// <summary>
+        /// Whether the leg sways as its skid's frame along the skid (p7g-legs, model 54): with the frame in the law's data, it and
+        /// the other leg on its skid both on and both T-joints holding the skid. A broken or detached leg, or a T-joint that let
+        /// its skid go, breaks the frame: its sibling is a cantilever both ways again.
+        /// </summary>
+        public bool Frame(int leg) => _spec.FrameTopShare > 0 && Holds(leg) && Holds(_spec.Sibling[leg]);
+
+        bool Holds(int leg) => (_flags[leg] & (LegFlags.Broken | LegFlags.Detached | LegFlags.SkidLoose)) == 0;
+
+        /// <summary>The frame's sway in the leg's set (rad, about body x as the bend's z): the part of its tube's turn about the
+        /// clamp that carries its T-joint square, so its skid half moves without pitching (p7g-legs, model 54); 0 for a
+        /// cantilever's set.</summary>
+        public double Sway(int leg) => _sway[leg];
+
+        /// <summary>The rotation its skid half turns by (body rotation vector, rad): the set's without the frame's sway, about the
+        /// leg's bore where the tube's turn carries it (ContactModel).</summary>
+        public Double3 HalfRotation(int leg) => new Double3(-(_bend[leg].Z - _sway[leg]), _twist[leg], _bend[leg].X);
+
+        /// <summary>A frame leg's moment at its socket's edge in the last step, N·m (0 for a cantilever).</summary>
+        public double FootMoment(int leg) => _footMoment[leg];
 
         /// <summary>The jaws' friction at the foot, μ·P·D over the lever (N), and their bed (N/m; 0 rigid).</summary>
         public double JawFriction(int leg) => _jawFriction[leg];
@@ -464,7 +514,9 @@ namespace Fpv450.Sim.Contact
             double carried = p < _buckling ? p : _buckling;
             Double3 pDelta = loads.Deflection * carried;
             Double3 lateral = loads.LawLateral;
-            if (_jawStiffness > 0)
+            _footMoment[leg] = 0;
+            if (_jawStiffness > 0 && loads.Frame) FrameJaws(leg, loads, pDelta, ref lateral, ref relief);
+            else if (_jawStiffness > 0)
             {
                 double kc = loads.LawTouching ? Restoring(loads.LateralStiffness) : 0;
                 Double3 r = lateral + pDelta * (1 / Lever(leg)) - _jaw[leg] * _jawStiffness;
@@ -487,6 +539,16 @@ namespace Fpv450.Sim.Contact
             // the bow's and a hanging skid's couple), the section under its axial load.
             Double3 bow = BowMomentVector(leg, p);
             Double3 couple = new Double3(loads.FootCouple.Z, 0, -loads.FootCouple.X);
+            if (loads.Frame)
+            {
+                // A frame leg (p7g-legs, model 54): its clamp's edge and its socket's, then the T-joint with the socket's moment.
+                if (FrameEdges(leg, ref flags, loads, ref relief, lateral, pDelta, carried, bow, loads.ShapeMoment + couple, events, cause, speed,
+                    out double footZ))
+                    return;
+                if ((flags & LegFlags.SkidLoose) != 0) return;
+                TJoint(leg, ref flags, DetMath.Abs(loads.SkidAxial), (new Double3(lateral.X * _spec.SocketLever, 0, footZ) + couple).Length(), events, cause, speed);
+                return;
+            }
             Double3 mu = lateral * Lever(leg) + pDelta + loads.ShapeMoment + bow + couple;
             double m = mu.Length();
             _moment[leg] = m;
@@ -555,7 +617,12 @@ namespace Fpv450.Sim.Contact
 
             // The T-joint: the skid's slip in its bore, the socket's break.
             if ((flags & LegFlags.SkidLoose) != 0) return;
-            double along = DetMath.Abs(loads.SkidAxial), socket = (lateral * _spec.SocketLever + couple).Length();
+            TJoint(leg, ref flags, DetMath.Abs(loads.SkidAxial), (lateral * _spec.SocketLever + couple).Length(), events, cause, speed);
+        }
+
+        // The T-joint: the skid's slip in its bore along it, the socket's break across its layers under its moment.
+        void TJoint(int leg, ref LegFlags flags, double along, double socket, StepEvents events, in FlightEvent cause, double speed)
+        {
             if (along > _skidSlip[leg])
             {
                 flags |= LegFlags.SkidLoose;
@@ -574,6 +641,208 @@ namespace Fpv450.Sim.Contact
         // is negative, a vault that a move of the foot's rest does not relieve (the bow takes the load past it), so none, as 1.3's
         // give clamped at 0 had it.
         static double Restoring(double k) => k > 0 ? k : 0;
+
+        // The clamp's share of a frame leg's foot force along the skid, as a lever over the foot's (p7g-legs, model 54):
+        // (r_t·L + e·j)/λ, λ the foot's lever (the clamp's edge to the ground), L the free length, e = λ − L the T-joint's height
+        // and j the column's share of the T-joint's own moment; the socket's (r_b·L − e·j)/λ. They keep the cantilever's
+        // λ·F at j = 1, r_t = 1 (β = 0) and part L·F evenly as the joint grows rigid.
+        double TopLever(int leg) => (_spec.FrameTopShare * _spec.FreeLength + (Lever(leg) - _spec.FreeLength) * _spec.FrameJointShare) / Lever(leg);
+        double FootLever(int leg) => ((1 - _spec.FrameTopShare) * _spec.FreeLength - (Lever(leg) - _spec.FreeLength) * _spec.FrameJointShare) / Lever(leg);
+
+        // A frame leg's jaws (p7g-legs, model 54): as the cantilever's, but along the skid they hold the clamp's share of the
+        // sway (its moment over the lever, scaled by the top's lever share ρ_t), and a turn of the jaws there moves the foot by
+        // ρ_t of the cantilever's (reciprocity), so their bed's force at the foot that way is k_j/ρ_t in the scaled units.
+        void FrameJaws(int leg, in LegLoads loads, Double3 pDelta, ref Double3 lateral, ref LegRelief relief)
+        {
+            double top = TopLever(leg);
+            double kx = loads.LawTouching ? Restoring(loads.LateralStiffness) : 0, kz = loads.LawTouching ? Restoring(loads.FrameLateralStiffness) : 0;
+            Double3 demand = lateral + pDelta * (1 / Lever(leg));
+            Double3 r = new Double3(demand.X - _jaw[leg].X * _jawStiffness, 0, top * demand.Z - _jaw[leg].Z * _jawStiffness / top);
+            double size = r.Length();
+            if (!(size > _jawFriction[leg])) return;
+            Double3 e = r * (1 / size);
+            double along = (kx + _jawStiffness) * e.X * e.X + (top * kz + _jawStiffness / top) * e.Z * e.Z;
+            double delta = (size - _jawFriction[leg]) / along;
+            _jaw[leg] = _jaw[leg] + e * delta;
+            if (!(kx > 0 || kz > 0)) return;
+            Double3 off = new Double3(kx * e.X * delta, 0, kz * e.Z * delta);
+            relief.Lateral = relief.Lateral + off;
+            relief.Any = true;
+            lateral = lateral - off;
+        }
+
+        // A frame leg's two edges (p7g-legs, model 54): the clamp's and its T-joint socket's. Along the skid (body z) the sway's
+        // moment parts between them by the frame's statics: the clamp's ρ_t·λ·F_z + r_t·P·δ_z less the self-stress k_r·(θ_t −
+        // θ_b) their plastic turns leave, the socket's ρ_b·λ·F_z + r_b·P·δ_z plus it; across the skid the clamp carries it all,
+        // as a cantilever's (with the tube's shapes, the bow and a hanging half's couple). Each edge cracks at its first yield
+        // and yields by the tube's moment–curvature law spread over its own share of the lever (ρλ, its falling moment's length;
+        // along a way between the planes, the lever's share Λ = w_x² + ρ_t·w_z²), its plastic turn θ moving the foot by ρλ·θ
+        // (reciprocity) and turning the tube about the clamp by ρ·θ, which carries the skid half square (the sway). The tube
+        // parts at either edge by the strain law; at the socket it lets its skid half go (SkidLoose, Bending: the T-joint stays
+        // on the skid). Its events name the leg for the clamp's edge, the T-joint for the socket's. True when the tube parted at
+        // the clamp (the leg's law stops).
+        bool FrameEdges(int leg, ref LegFlags flags, in LegLoads loads, ref LegRelief relief, Double3 lateral, Double3 pDelta, double carried,
+            Double3 bow, Double3 others, StepEvents events, in FlightEvent cause, double speed, out double footZ)
+        {
+            double lever = Lever(leg), top = TopLever(leg), foot = FootLever(leg), rt = _spec.FrameTopShare, kr = _spec.FrameSelfStiffness;
+            double kx = Restoring(loads.LateralStiffness), kz = Restoring(loads.FrameLateralStiffness);
+            double self = kr * (_topTurn[leg] - _footTurn[leg]);
+            Double3 mu = new Double3(lateral.X * lever + pDelta.X, 0, top * lever * lateral.Z + rt * pDelta.Z - self) + bow + others;
+            double m = mu.Length();
+            _moment[leg] = m;
+            double s = DetMath.Abs(carried) / _squash[leg];
+            if (s > 0.999) s = 0.999;
+            double mc = _yieldMoment[leg] * (1 - s) / _edge[leg], f = _shape * (1 + s), kc = mc / _ei, pd = carried > 0 ? carried : 0;
+            LegMode mode = bow.Length() * 2 >= m ? LegMode.Buckling : LegMode.Bending;
+            if (m >= mc && (flags & LegFlags.Cracked) == 0)
+            {
+                flags |= LegFlags.Cracked;
+                Emit(events, EventKind.LegCracked, leg, mode, cause, m, mc, speed);
+            }
+            if (m > _envelope[leg] * mc)
+            {
+                double env = _envelope[leg], partAt = PartingRatio(leg, s);
+                Double3 way = mu * (1 / m);
+                double wz2 = way.Z * way.Z, wx2 = 1 - wz2, share = wx2 + top * wz2;
+                double kg = (kx * wx2 + kz * top * top * wz2) / share, relievable = 0;
+                if (loads.LawTouching && kg > 0)
+                {
+                    relievable = lateral.X * way.X + top * lateral.Z * way.Z;
+                    if (!(relievable > 0)) relievable = 0;
+                }
+                double r0 = RotationRatio(env, f), scale = kc * lever * lever * share * share, selfMove = kr * wz2 / (lever * share);
+                double dway = Double3.Dot(loads.Deflection, way), pshare = pd * (wx2 + rt * wz2);
+                if (!(dway > 0)) dway = 0;
+                if (!(partAt > env) || FrameExcess(partAt, mc, m, kg, lever, relievable, scale, r0, f, pshare, dway, selfMove) < 0)
+                {
+                    double last = RotationRatio(partAt, f) - r0;
+                    if (last > 0) TopTurn(leg, way, last * kc * lever * share, top);
+                    if (partAt > env) _envelope[leg] = partAt;
+                    flags |= LegFlags.Broken;
+                    Emit(events, EventKind.LegBroken, leg, mode, cause, m, partAt * mc, speed);
+                    footZ = 0;
+                    return true;
+                }
+                double lo = env, hi = partAt;
+                for (int n = 0; n < Bisections; n++)
+                {
+                    double mid = lo + (hi - lo) / 2;
+                    if (FrameExcess(mid, mc, m, kg, lever, relievable, scale, r0, f, pshare, dway, selfMove) < 0) lo = mid;
+                    else hi = mid;
+                }
+                double grown = (RotationRatio(hi, f) - r0) * scale;
+                if (relievable > 0)
+                {
+                    // The force the foot's move relieves: the spring's across each way on the move's (λ·w_x, ρ_t·λ·w_z)·θ, at
+                    // most what it carries that way (the cantilever's rule).
+                    double give = relievable / kg, move = grown < give ? grown : give;
+                    if (move > 0)
+                    {
+                        double t = move / share;
+                        Double3 off = new Double3(kx * way.X * t, 0, kz * top * way.Z * t);
+                        relief.Lateral = relief.Lateral + off;
+                        relief.Any = true;
+                        lateral = lateral - off;
+                    }
+                }
+                TopTurn(leg, way, (RotationRatio(hi, f) - r0) * kc * lever * share, top);
+                _envelope[leg] = hi;
+                flags |= LegFlags.Set;
+                if (!_flowing[leg]) Emit(events, EventKind.LegSet, leg, mode, cause, m, env * mc, speed);
+                _flowing[leg] = true;
+            }
+            else _flowing[leg] = false;
+
+            // The socket's edge: along the skid only (across it the foot is free), its share and the self-stress now.
+            footZ = foot * lever * lateral.Z + (1 - rt) * pDelta.Z + kr * (_topTurn[leg] - _footTurn[leg]);
+            double mb = DetMath.Abs(footZ);
+            _footMoment[leg] = mb;
+            if (mb >= mc && (flags & LegFlags.Cracked) == 0)
+            {
+                flags |= LegFlags.Cracked;
+                Emit(events, EventKind.LegCracked, leg, LegMode.Bending, cause, mb, mc, speed, true);
+            }
+            if (!(mb > _footEnvelope[leg] * mc))
+            {
+                _footFlowing[leg] = false;
+                return false;
+            }
+            {
+                double env = _footEnvelope[leg], partAt = PartingRatio(leg, s), sign = footZ > 0 ? 1 : -1, arm = foot * lever;
+                double relievable = 0;
+                if (loads.LawTouching && kz > 0)
+                {
+                    relievable = lateral.Z * sign;
+                    if (!(relievable > 0)) relievable = 0;
+                }
+                double r0 = RotationRatio(env, f), scale = kc * arm * arm, selfMove = kr / arm, dz = loads.Deflection.Z * sign;
+                if (!(dz > 0)) dz = 0;
+                double pb = pd * (1 - rt);
+                if (!(partAt > env) || FrameExcess(partAt, mc, mb, kz, arm, relievable, scale, r0, f, pb, dz, selfMove) < 0)
+                {
+                    double last = RotationRatio(partAt, f) - r0;
+                    if (last > 0) FootTurn(leg, sign * last * kc * arm, foot);
+                    if (partAt > env) _footEnvelope[leg] = partAt;
+                    flags |= LegFlags.SkidLoose;
+                    _skidMode[leg] = LegMode.Bending;
+                    Emit(events, EventKind.SkidLoose, leg, LegMode.Bending, cause, mb, partAt * mc, speed);
+                    return false;
+                }
+                double lo = env, hi = partAt;
+                for (int n = 0; n < Bisections; n++)
+                {
+                    double mid = lo + (hi - lo) / 2;
+                    if (FrameExcess(mid, mc, mb, kz, arm, relievable, scale, r0, f, pb, dz, selfMove) < 0) lo = mid;
+                    else hi = mid;
+                }
+                double grown = (RotationRatio(hi, f) - r0) * scale;
+                if (relievable > 0)
+                {
+                    double give = relievable / kz, move = grown < give ? grown : give;
+                    if (move > 0)
+                    {
+                        relief.Lateral = relief.Lateral + new Double3(0, 0, sign * kz * move);
+                        relief.Any = true;
+                    }
+                }
+                FootTurn(leg, sign * (RotationRatio(hi, f) - r0) * kc * arm, foot);
+                _footEnvelope[leg] = hi;
+                flags |= LegFlags.Set;
+                if (!_footFlowing[leg]) Emit(events, EventKind.LegSet, leg, LegMode.Bending, cause, mb, env * mc, speed, true);
+                _footFlowing[leg] = true;
+            }
+            return false;
+        }
+
+        // The clamp's plastic turn θ along way on a frame leg: the tube turns about the clamp by θ across the skid and by ρ_t·θ
+        // along it (the foot's move over the lever), the latter the frame's sway; the hinge's own turn along it is θ·w_z.
+        void TopTurn(int leg, Double3 way, double theta, double top)
+        {
+            double along = way.Z * theta * top;
+            _bend[leg] = _bend[leg] + new Double3(way.X * theta, 0, along);
+            _sway[leg] += along;
+            _topTurn[leg] += way.Z * theta;
+        }
+
+        // The socket's plastic turn θ (signed along body z): the tube turns about the clamp by ρ_b·θ, all of it the sway.
+        void FootTurn(int leg, double theta, double foot)
+        {
+            double along = theta * foot;
+            _bend[leg] = _bend[leg] + new Double3(0, 0, along);
+            _sway[leg] += along;
+            _footTurn[leg] += theta;
+        }
+
+        // A frame edge's return mapping (p7g-legs, model 54): h(m) = m·M_c + min(λ·k·Δ, λ·relievable) + k_r·w²·Δ/(λΛ) + P·min(Δ, δ)
+        // − M, Δ = (θ_p(m) − θ_p(m_env))·scale the foot's move along the way (the edge's lever λ, k the spring's give per move,
+        // the self-stress per move), increasing in m. At w_z = 0 the cantilever's Excess, term for term.
+        static double FrameExcess(double m, double mc, double moment, double kg, double lever, double relievable, double scale, double r0, double f,
+            double pd, double dway, double selfMove)
+        {
+            double move = (RotationRatio(m, f) - r0) * scale, give = lever * kg * move, cap = lever * relievable;
+            double straight = move < dway ? move : dway;
+            return m * mc + (give < cap ? give : cap) + selfMove * move + pd * straight - moment;
+        }
 
         /// <summary>The leg's moment at the clamp's edge in the last step, N·m (the record's leg_moment).</summary>
         public double Moment(int leg) => _moment[leg];
@@ -610,11 +879,13 @@ namespace Fpv450.Sim.Contact
             return (ra * (2 * f * (ra - rb) - 2.0 / 3 * (a * ra - b * rb)) - (m * m * m - 1) / 3) / (m * m);
         }
 
-        void Emit(StepEvents events, EventKind kind, int leg, LegMode mode, in FlightEvent cause, double load, double capacity, double speed)
+        // atSocket: a frame leg's socket edge (p7g-legs, model 54), named by the T-joint's part as the T-joint's own events are.
+        void Emit(StepEvents events, EventKind kind, int leg, LegMode mode, in FlightEvent cause, double load, double capacity, double speed,
+            bool atSocket = false)
         {
             FlightEvent e = cause;
             e.Kind = kind;
-            e.Part = (ushort)(kind == EventKind.SkidLoose ? _spec.TJointParts[leg] : _spec.Parts[leg]);
+            e.Part = (ushort)(kind == EventKind.SkidLoose || atSocket ? _spec.TJointParts[leg] : _spec.Parts[leg]);
             e.Index = (byte)mode;
             e.A = load;
             e.B = capacity;

@@ -103,8 +103,10 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That(dropped, "the leg comes off and drops");
 
-            // The pieces fly and rest on the floor (the side record's); their contacts are their own.
-            for (int k = 0; k < 9000; k++) core.Advance(StickSample.Neutral);
+            // The pieces fly and rest on the floor (the side record's); their contacts are their own. 15 s (9 s to model 51): on
+            // the skid's frame (model 54) the later breaks move the flight, and the left skid's piece (leg_fl's lower tube, its
+            // T-joint and the skid) rolls and slides on the floor at about 0.12 m/s until it rests between 9 and 12 s.
+            for (int k = 0; k < 15000; k++) core.Advance(StickSample.Neutral);
             for (int i = 0; i < LoosePieces.Slots; i++)
             {
                 if (!core.Loose.Active(i)) continue;

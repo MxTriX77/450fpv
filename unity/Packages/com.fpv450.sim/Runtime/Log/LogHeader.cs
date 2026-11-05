@@ -161,6 +161,7 @@ namespace Fpv450.Sim.Log
             "FlapFrequency", "FlapSouthwell",
             "LegSideStiffness", "LegSideDampingRatio", "Legs",
             "LegTubeSideStiffness", "LegJawSideStiffness", "LegSwayLoad", "LegTubeAxialStiffness", "LegLeverLength", "HangingGive",
+            "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -170,6 +171,7 @@ namespace Fpv450.Sim.Log
             "BoltDiameter", "GripLength", "ScrewDiameter", "SocketDiameter", "YieldStress", "Elongation", "EdgeFactor", "ClampTorque", "NutFactor",
             "Friction", "TJointTorque", "Interlayer",
             "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps", "StubStiffness", "StubStiffnessUp",
+            "FrameTopShare", "FrameJointShare", "FrameSelfStiffness",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -895,6 +897,9 @@ namespace Fpv450.Sim.Log
                 e.Write(c.LegTubeAxialStiffness);
                 e.Write(c.LegLeverLength); // p7g-legs 1.4 (format 39): the lever
                 e.Write(c.HangingGive); // p7g-legs (format 41): a hanging half's whole give geometric
+                e.Write(c.LegFrameSideStiffness); // p7g-legs (format 44): the skid's frame fore and aft
+                e.Write(c.LegFrameSwayLoad);
+                e.Write(c.LegFrameLeverLength);
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -927,6 +932,9 @@ namespace Fpv450.Sim.Log
                 e.Write(l.RestSteps);
                 e.Write(l.StubStiffness); // p7g-legs (format 41): a broken leg's stub's contact spring
                 e.Write(l.StubStiffnessUp);
+                e.Write(l.FrameTopShare); // p7g-legs (format 44): the skid's frame in the law
+                e.Write(l.FrameJointShare);
+                e.Write(l.FrameSelfStiffness);
             });
             Entry(w, TagRain, e =>
             {
@@ -1656,6 +1664,9 @@ namespace Fpv450.Sim.Log
             c.LegTubeAxialStiffness = r.ReadDouble();
             c.LegLeverLength = r.ReadDouble();
             c.HangingGive = r.ReadBoolean();
+            c.LegFrameSideStiffness = r.ReadDouble();
+            c.LegFrameSwayLoad = r.ReadDouble();
+            c.LegFrameLeverLength = r.ReadDouble();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
@@ -1696,6 +1707,9 @@ namespace Fpv450.Sim.Log
             l.RestSteps = r.ReadInt32();
             l.StubStiffness = r.ReadDouble();
             l.StubStiffnessUp = r.ReadDouble();
+            l.FrameTopShare = r.ReadDouble();
+            l.FrameJointShare = r.ReadDouble();
+            l.FrameSelfStiffness = r.ReadDouble();
             c.Legs = l;
             return c;
         }

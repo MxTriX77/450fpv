@@ -225,7 +225,7 @@ namespace Fpv450.Sim.Contact
                 {
                     int c = q - 4;
                     part = mass.Part(_drone[q]);
-                    if (law.SkidMode(c) != LegMode.TJointFracture) part = Turned(part, c, law);
+                    if (!law.TJointOffTube(c)) part = Turned(part, c, law);
                 }
                 else if (q >= 8 && (bits & 1 << (12 + q - 8)) != 0)
                 {
@@ -260,7 +260,7 @@ namespace Fpv450.Sim.Contact
                 for (int j = 0; j < 3; j++)
                 {
                     ContactShape g = _contacts[slot].Base(_tjointShapes + 3 * c + j);
-                    if (law.SkidMode(c) != LegMode.TJointFracture)
+                    if (!law.TJointOffTube(c))
                     {
                         g.A = TurnedPoint(g.A, c, law);
                         g.B = TurnedPoint(g.B, c, law);

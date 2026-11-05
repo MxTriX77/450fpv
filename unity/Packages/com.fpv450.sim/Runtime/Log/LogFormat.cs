@@ -183,8 +183,14 @@ namespace Fpv450.Sim.Log
         ///    assigned by D-072): the contacts entry gains the hanging half's switch (ContactSpec.HangingGive, a bool) after the
         ///    lever's length, and its legs' data the stub's contact spring across and along the legs' axis (LegDamageSpec.
         ///    StubStiffness, StubStiffnessUp) after the loose pieces' rest; the record is 40's 2816 bytes; no new event kind.
+        /// 44: the skid's frame fore and aft (p7g-legs on the line, unity/physics/physics-integration-2--legs-frame, assigned by
+        ///    D-072): the contacts entry gains the frame leg's give, sway load and lever (ContactSpec.LegFrameSideStiffness,
+        ///    LegFrameSwayLoad, LegFrameLeverLength) after the hanging half's switch, and its legs' data the frame's shares and
+        ///    self-stiffness (LegDamageSpec.FrameTopShare, FrameJointShare, FrameSelfStiffness) after the stub's spring; the record
+        ///    is 41's 2816 bytes; no new event kind (a frame leg's socket edge names its T-joint's part; its parting is SkidLoose
+        ///    with LegMode.Bending).
         /// </summary>
-        public const int Version = 41;
+        public const int Version = 44;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -472,8 +478,17 @@ namespace Fpv450.Sim.Log
         ///    the plate arm under the clamp out of and in its plane), never the free tube's 6.6 kN/m (50's stub passed H01_D's
         ///    masonry, 44 mm). With HangingGive off and the stub's spring 0 a flight steps as in 50; a flight whose legs never
         ///    part steps as in 50.
+        /// 54: the skid's frame fore and aft (p7g-legs on the line, unity/physics/physics-integration-2--legs-frame, assigned by
+        ///    D-072). The two legs on one skid are joined by its T-joints, so along the skid each sways with its foot held square:
+        ///    its give at the foot 12(1 + β)/(4 + β)·EI/L³ and its sway-buckling load from u·cos u + β·sin u = 0 (DroneLegs.Frame;
+        ///    β = R·L/EI from the T-joint's socket bed, the skid's bending between its bores and its pitch on the two legs: 784 N/m
+        ///    and 146.6 N against the cantilever's 268 and 47.1), on its own lever in that plane (ContactSpec.LegFrameLeverLength),
+        ///    and the sway's moment parted between the clamp's edge and the socket's, each of which cracks, yields and parts
+        ///    (LegDamage.FrameEdges). Across the skid the cantilever's values hold. A broken or detached leg or a T-joint that lets
+        ///    its skid go breaks the frame: its sibling is a cantilever both ways. With the frame's data 0 (ContactSpec's three,
+        ///    LegDamageSpec.FrameTopShare) a flight steps as in 51; a flight whose legs never touch steps as in 51.
         /// </summary>
-        public const int ModelVersion = 51;
+        public const int ModelVersion = 54;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

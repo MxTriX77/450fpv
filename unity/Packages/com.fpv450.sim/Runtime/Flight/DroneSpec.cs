@@ -232,6 +232,71 @@ namespace Fpv450.Sim.Flight
         /// <summary>A leg's give across its tube at the foot, N/m, in series: the tube bending from the clamp, 3EI/L³, and the
         /// clamp's jaws letting the tube turn, its foot moving L² over their rotational stiffness.</summary>
         public double SideStiffness => 1 / (1 / Tube.BendingStiffness + Tube.FreeLength * Tube.FreeLength / Clamp.JawStiffness);
+
+        /// <summary>
+        /// The skid's frame fore and aft (p7g-legs, model 54; all derived, the closed forms and one root): the two legs on a skid
+        /// are joined by its T-joints, so fore-aft the skid cannot pitch (the legs' axial springs hold it) and each leg sways
+        /// with its foot held square by a rotational restraint, in series: the T-joint's socket bed on the tube (the jaws' bed
+        /// law, E·s³/12, the printed PETG over the socket's depth s above the bore), the skid between the two bores in double
+        /// curvature (6EI·b²/(b − g)³, b the legs' spacing, g the bores' grip, held rigid in the T-joints) and the skid's rigid
+        /// pitch on the two legs' springs (k·b²/4 a joint). The clamp is the law's (the jaws held until their friction turns
+        /// them, LegDamage; the arm rigid), as the cantilever's. Sideways nothing links the two skids: the cantilever's
+        /// 3EI/L³ and π²EI/(4L²) hold there. spacing and socketDepth from the parts (DroneSpec.BuildLegFrame), m.
+        /// </summary>
+        public LegFrame Frame(double spacing, double socketDepth)
+        {
+            double ei = Tube.Modulus.Value * Tube.SecondMoment, l = Tube.FreeLength, span = spacing - TJoint.SkidGrip;
+            var f = new LegFrame
+            {
+                Bed = Clamp.Modulus * socketDepth * socketDepth * socketDepth / 12, // the T-joint is the clamp's printed PETG
+                Skid = 6 * ei * spacing * spacing / (span * span * span),
+                Pitch = Stiffness * spacing * spacing / 4,
+            };
+            LegFrame g = LegFrame.Of(ei, l, 1 / (1 / f.Bed + 1 / f.Skid + 1 / f.Pitch));
+            g.Bed = f.Bed;
+            g.Skid = f.Skid;
+            g.Pitch = f.Pitch;
+            return g;
+        }
+    }
+
+    /// <summary>The skid's frame fore and aft (DroneLegs.Frame, p7g-legs model 54): the foot's restraint's parts and their series
+    /// (N·m/rad), β = R·L/EI, the frame leg's give at its foot (N/m) and sway-buckling load (N), the clamp's share of the sway
+    /// moment, the column's share of a moment on the foot's joint, and the leg's stiffness to a uniform moment (N·m/rad).</summary>
+    public struct LegFrame
+    {
+        public double Bed, Skid, Pitch, Restraint, Beta, SideStiffness, SwayLoad, TopShare, JointShare, SelfStiffness;
+
+        const double Pi = 3.141592653589793;
+
+        /// <summary>The frame leg of bending stiffness ei (N·m²) and free length l (m), fixed at the clamp, its foot free to sway on
+        /// a rotational restraint (N·m/rad).</summary>
+        public static LegFrame Of(double ei, double l, double restraint)
+        {
+            var f = new LegFrame { Restraint = restraint };
+            double b = restraint * l / ei;
+            f.Beta = b;
+            // A column fixed at the clamp, its foot free to sway on a rotational spring R = β·EI/L (slope-deflection): the force
+            // at the foot per unit sway 12(1 + β)/(4 + β)·EI/L³, the clamp's share of the sway moment (β + 2)/(2(1 + β)), the
+            // column's share of a moment on the foot's joint 1/(1 + β), its stiffness to a uniform moment (EI/L)·β/(1 + β).
+            f.SideStiffness = 12 * (1 + b) / (4 + b) * ei / (l * l * l);
+            f.TopShare = (b + 2) / (2 * (1 + b));
+            f.JointShare = 1 / (1 + b);
+            f.SelfStiffness = ei / l * b / (1 + b);
+            // Its sway buckling: w = C(cos kx − 1) meets R at the foot where u·cos u + β·sin u = 0, u = kL in (π/2, π) (π/2 at
+            // β = 0, the cantilever; π as β grows, the guided column), by bisection.
+            double lo = Pi / 2, hi = Pi;
+            for (int n = 0; n < 80; n++)
+            {
+                double mid = lo + (hi - lo) / 2;
+                DetMath.SinCos(mid, out double sin, out double cos);
+                if (mid * cos + b * sin > 0) lo = mid;
+                else hi = mid;
+            }
+            double u = lo + (hi - lo) / 2;
+            f.SwayLoad = ei * u * u / (l * l);
+            return f;
+        }
     }
 
     /// <summary>A leg value and its bounds: the published spread a flight's draw stays within (p7g-legs design 6).</summary>
@@ -699,6 +764,11 @@ namespace Fpv450.Sim.Flight
                 c.LegTubeAxialStiffness = Legs.Tube.AxialStiffness;
                 // p7g-legs 1.4: the leg across its tube as a lever, γL = π²L/12 (derived from the two above).
                 c.LegLeverLength = c.LegSwayLoad / c.LegTubeSideStiffness;
+                // p7g-legs (model 54): the skid's frame fore and aft, its own lever the frame's sway load over its give.
+                LegFrame frame = BuildLegFrame();
+                c.LegFrameSideStiffness = frame.SideStiffness;
+                c.LegFrameSwayLoad = frame.SwayLoad;
+                c.LegFrameLeverLength = frame.SwayLoad / frame.SideStiffness;
                 if (loadout.Legs) c.Legs = BuildLegDamage();
             }
             c.Materials = (Contact.MaterialRow[])materials.Clone();
@@ -751,7 +821,24 @@ namespace Fpv450.Sim.Flight
                 for (int k = 0; k < 4; k++)
                     if (k != c && d.SkidParts[k] == d.SkidParts[c]) d.Sibling[c] = k;
             d.AirDensity = Aero != null ? Aero.AirDensity : 0;
+            // p7g-legs (model 54): the skid's frame fore and aft in the law (each frame leg yields at its clamp and its socket).
+            LegFrame frame = BuildLegFrame();
+            d.FrameTopShare = frame.TopShare;
+            d.FrameJointShare = frame.JointShare;
+            d.FrameSelfStiffness = frame.SelfStiffness;
             return d;
+        }
+
+        /// <summary>The skid's frame fore and aft (DroneLegs.Frame, p7g-legs model 54) from the starboard skid's parts (the two skids
+        /// are the sheet's mirror): the legs' spacing along it (leg_rr's and leg_fr's z) and the socket's depth, the T-joint's
+        /// top to the skid's top in its bore.</summary>
+        public LegFrame BuildLegFrame()
+        {
+            DronePart rear = Parts[PartIndex("leg_rr")], front = Parts[PartIndex("leg_fr")], joint = Parts[PartIndex("tjoint_rr")],
+                skid = Parts[PartIndex("skid_right")];
+            double spacing = DetMath.Abs(front.Position.Z - rear.Position.Z);
+            double depth = joint.Position.Y + joint.Size.Y / 2 - (skid.Position.Y + skid.Diameter / 2);
+            return Legs.Frame(spacing, depth);
         }
 
         /// <summary>The sway-buckling factor of a column fixed at one end and free to sway at the other, π²/4 (published: Euler's

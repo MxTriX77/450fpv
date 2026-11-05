@@ -595,7 +595,8 @@ namespace Fpv450.Sim.Tests
             MaterialRow[] m = Materials(out ulong h);
             RangeScenarios.Approach a = RangeScenarios.Find("crown");
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
-                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate, edit: GoldenFlights.WithoutTheHangingGive);
+                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate,
+                edit: GoldenFlights.WithoutTheFrame + GoldenFlights.WithoutTheHangingGive); // since model 54 without the skid's frame too
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             Assert.That(p.Tunnels, Is.EqualTo(1));
             Assert.That(p.TunnelThrough[0], Is.EqualTo("skid_left through V01_L bark"));
