@@ -505,6 +505,8 @@ namespace Fpv450.Sim.Contact
                 carveCrush = crushing;
                 work = crushing + fling;
                 rec.Fling = fling;
+                // The soil the pass sweeps, flung from its centroid: its share reaches the motor's gap (p7f-damage 1.6b, MotorHealth).
+                if (soil) _contacts.Health?.Carve(c, row.Density * area * height * ratio, rc, row.CrushStrength / BearingFactor, row.KineticFriction, row.Density);
                 rec.Ratio = ratio;
                 rec.Attack = attack;
                 rec.Body = moving;

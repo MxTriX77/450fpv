@@ -104,7 +104,45 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
                 + "carves and stops a prop; disarmed, its braked props break no blade)");
             bool rest = Rest(spec);
-            return ok && tipped & rest & Bells(spec) & Shafts(spec);
+            return ok && tipped & rest & Bells(spec) & Shafts(spec) & Heat(spec);
+        }
+
+        // p7f-damage 1.6b (design 17, D-083): the motor's heat and dirt, HeatTests' scenarios printed. A jammed rotor at full throttle
+        // under a 40 A limit against the two-node closed form, under the class's ESC, and without heat (the known-wrong); the same
+        // current turning and stalled; a turning bell scraping the dirt track; and the pilot's case at three throttles, each motor's
+        // failure time against its load (the known-wrong a fixed timer). It fails where a scenario's claim fails or on a tunnel.
+        static bool Heat(DroneSpec spec)
+        {
+            Console.WriteLine("  the motor's heat and dirt (p7f-damage 1.6b, D-083):");
+            HeatScenarios.Stall limited = HeatScenarios.Jammed(spec, 40, seconds: 300), free = HeatScenarios.Jammed(spec, double.PositiveInfinity, seconds: 5),
+                cold = HeatScenarios.Jammed(spec, double.PositiveInfinity, heat: false, seconds: 5);
+            foreach (HeatScenarios.Stall s in new[] { limited, free, cold }) Console.WriteLine("    " + s.Describe());
+            bool stall = limited.ClosedFormError < 0.01 && !double.IsNaN(free.FailAt) && free.FailAt > free.ShortAt && free.FailAt < limited.FailAt && double.IsNaN(cold.FailAt);
+            Console.WriteLine($"    a stalled motor heats and fails: {(stall ? "PASS" : "FAIL")} (the closed form within {limited.ClosedFormError * 100:F3} %; failed at "
+                + $"{free.FailAt:F3} s at full throttle, {limited.FailAt:F1} s under 40 A; the known-wrong never)");
+            HeatScenarios.Cooling c = HeatScenarios.Cools(spec);
+            Console.WriteLine("    " + c.Describe());
+            bool cools = c.SteadySpinWinding < c.SteadyStallWinding && c.SteadySpinStator < c.SteadyStallStator;
+            Console.WriteLine($"    a spinning motor cools by its own air: {(cools ? "PASS" : "FAIL")}");
+            double hover = StrikeScenarios.HoverDuty(spec);
+            HeatScenarios.Fouled f = HeatScenarios.Scraped(spec, hover, seconds: 5), clean = HeatScenarios.Scraped(spec, hover, heat: false, seconds: 5);
+            Console.WriteLine("    " + f.Describe());
+            Console.WriteLine("    " + clean.Describe());
+            bool dirt = !double.IsNaN(f.PackedAt) && f.BoundAt >= f.PackedAt && clean.Bound == 0;
+            Console.WriteLine($"    dirt in the gap drags, then binds: {(dirt ? "PASS" : "FAIL")}");
+            double[] throttles = { 0.3, 0.45, 0.6 };
+            var runs = throttles.Select(t => HeatScenarios.Upside(spec, t)).ToArray();
+            foreach (HeatScenarios.Upturned u in runs) Console.WriteLine("    " + u.Describe());
+            double First(HeatScenarios.Upturned u) => u.FailAt.Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.PositiveInfinity).Min();
+            bool sooner = true;
+            for (int i = 1; i < runs.Length; i++) sooner &= First(runs[i]) <= First(runs[i - 1]);
+            double[] failed = runs[runs.Length - 1].FailAt.Where(x => !double.IsNaN(x)).ToArray();
+            bool apart = failed.Length >= 2 && failed.Max() - failed.Min() > 0.1 && runs.All(u => u.Tunnels == 0);
+            double timer = failed.Length > 0 ? failed.OrderBy(x => x).ElementAt(failed.Length / 2) : double.NaN;
+            Console.WriteLine($"    upside down with throttle, the motors fail one after another: {(sooner && apart ? "PASS" : "FAIL")} (the first failure at "
+                + string.Join(", ", runs.Select(u => $"{u.Throttle:F2}: {(double.IsInfinity(First(u)) ? "none" : First(u).ToString("F3") + " s")}"))
+                + $"; the known-wrong fixed timer fails all four at {timer:F3} s, together)");
+            return stall && cools && dirt && sooner && apart;
         }
 
         // p7f-damage 1.5 (design 8, 10): the motor's bell. Its rear-right bell pressed at 5 and 20 N on masonry under the prop, the

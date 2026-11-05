@@ -47,6 +47,9 @@ namespace Fpv450.Sim.Contact
     /// - The shaft (p7f-damage 1.6, MotorShaft): a bent shaft swings the magnets toward the stator by its run-out (Closure), which
     ///   past the gap rubs as a dent does (the deeper of the two sites, assumed; the rub's wear off both), and the brinelled
     ///   bearings' drag joins the bell's (MotorShaft.BearingDrag). A straight shaft on sound bearings adds nothing, bit for bit.
+    /// - The heat and dirt (p7f-damage 1.6b, MotorHealth): Finish steps each motor's health with its losses while it turns (Kt·I0, the
+    ///   scrape, the rub and the bearings' drags times ω), then scales the Kt ratio by its health's factor and adds its drag (a
+    ///   shorted coil's loop and the dirt in the gap) to what goes to SetMotor.
     /// </summary>
     public sealed class MotorBell
     {
@@ -75,6 +78,13 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>The motors' shafts and bearings (p7f-damage 1.6), or null: their run-out and their drag join the bell's.</summary>
         public MotorShaft Shaft { get; set; }
+
+        /// <summary>The motors' heat and dirt (p7f-damage 1.6b), or null: stepped in Finish, its Kt factor and drag join the bell's.</summary>
+        public MotorHealth Health { get; set; }
+
+        /// <summary>The bell's lower lip and the can's top, m above the body origin (body y), for a contact's distance to the openings.</summary>
+        public double Lip(int corner) => _from[corner];
+        public double Top(int corner) => _to[corner];
 
         // The step: each bell's normal load (N), its scrape's moment on the rotor turning (N·m) or its hold at rest, the magnets'
         // press onto the teeth (N), and the rub's force and the drag passed.
@@ -242,19 +252,27 @@ namespace Fpv450.Sim.Contact
         /// Propulsion.SetMotor for the next step's sub-steps; the rub's wear over the step of dt seconds at the rotor's speed;
         /// the trace's bell fields.
         /// </summary>
-        public void Finish(in FlightState s, double dt, ref StepTrace trace)
+        public void Finish(in FlightState s, double dt, ref StepTrace trace, StepEvents events)
         {
             for (int c = 0; c < 4; c++)
             {
                 double interference = Interference(c), dentForce = _ring[c] * interference;
                 double rub = _press[c] + dentForce, rs = _statorRadius[c], mu = _spec.BellRubFriction;
                 _rub[c] = rub;
-                double rubTorque = mu * rub * rs;
+                double rubTorque = mu * rub * rs, bearings = 0;
                 _drag[c] = _scrape[c] + rubTorque;
                 if (Shaft != null)
                 {
-                    double bearings = Shaft.BearingDrag(c, _propulsion.Thrust(c));
+                    bearings = Shaft.BearingDrag(c, _propulsion.Thrust(c));
                     if (bearings != 0) _drag[c] += bearings;
+                }
+                if (Health != null)
+                {
+                    // The motor's heat and dirt (p7f-damage 1.6b): its losses while it turns heat it, its health scales Kt and adds drag.
+                    double w = s.RotorSpeed[c];
+                    double losses = w > 0 ? (_propulsion.NoLoadTorque(c) + (_turning[c] ? _scrape[c] : 0) + rubTorque + bearings) * w : 0;
+                    Health.Step(c, w, _propulsion.InPlane(c).Length(), losses, dt, events, ref trace);
+                    _drag[c] += Health.Drag(c);
                 }
                 if (_turning[c] && dentForce > 0)
                 {
@@ -265,7 +283,7 @@ namespace Fpv450.Sim.Contact
                     _magnetWorn[c] += magnet;
                     Flux(c);
                 }
-                _propulsion.SetMotor(c, _kt[c], _drag[c]);
+                _propulsion.SetMotor(c, Health != null ? _kt[c] * Health.KtFactor(c) : _kt[c], _drag[c]);
                 trace.BellScrape[c] = _scrape[c];
                 trace.BellRub[c] = rubTorque;
                 trace.BellKtChange[c] = _kt[c] - 1; // exact (Sterbenz): a sound gap logs 0
