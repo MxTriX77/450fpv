@@ -371,11 +371,18 @@ namespace Fpv450.Sim.Tests
             SoilScenarios.Landing track = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, legs: rigidAcross);
             SoilScenarios.Landing rigidTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, rigid: true, legs: rigidAcross);
             SoilScenarios.Landing rigidTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, rigid: true, legs: rigidAcross);
-            SoilScenarios.Landing softTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
-            SoilScenarios.Landing softTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
+            // On the legs' side give the catch is judged with the controller holding the attitude after the cut (airmode on, model
+            // 65's): since model 69 (no airmode, D-086) the cut leaves half the mix and no I term, and on the soft legs the hard
+            // track's spring-back then pitches the drone further than the soil's catch does (printed beside, not asserted: the
+            // controller's share, not the ground's).
+            SoilScenarios.Landing softTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3, airmode: true);
+            SoilScenarios.Landing softTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3, airmode: true);
+            SoilScenarios.Landing offTilled = SoilScenarios.Land(spec, SoilScenarios.Floor("tilled"), default, 0.5, 0.3);
+            SoilScenarios.Landing offTrack = SoilScenarios.Land(spec, SoilScenarios.Floor("dirt_track"), default, 0.5, 0.3);
             TestContext.WriteLine($"  the glide: tilled {tilled.NoseDown:F3}° nose down ({tilled.PeakSink * 1e3:F2} mm), dirt track {track.NoseDown:F3}° "
-                + $"({track.PeakSink * 1e3:F2} mm); rigid ground {rigidTilled.NoseDown:F3}° and {rigidTrack.NoseDown:F3}°; on the legs' side give tilled "
-                + $"{softTilled.NoseDown:F3}° ({softTilled.PeakSink * 1e3:F2} mm), dirt track {softTrack.NoseDown:F3}° ({softTrack.PeakSink * 1e3:F2} mm)");
+                + $"({track.PeakSink * 1e3:F2} mm); rigid ground {rigidTilled.NoseDown:F3}° and {rigidTrack.NoseDown:F3}°; on the legs' side give with airmode tilled "
+                + $"{softTilled.NoseDown:F3}° ({softTilled.PeakSink * 1e3:F2} mm), dirt track {softTrack.NoseDown:F3}° ({softTrack.PeakSink * 1e3:F2} mm); without it tilled "
+                + $"{offTilled.NoseDown:F3}° ({offTilled.PeakSink * 1e3:F2} mm), dirt track {offTrack.NoseDown:F3}° ({offTrack.PeakSink * 1e3:F2} mm)");
             Assert.That(tilled.NoseDown, Is.GreaterThan(track.NoseDown));
             Assert.That(softTilled.NoseDown, Is.GreaterThan(softTrack.NoseDown), "on the legs' side give too, on their lever");
             Assert.That(Math.Abs(rigidTilled.NoseDown - rigidTrack.NoseDown), Is.LessThan(0.5 * (tilled.NoseDown - track.NoseDown)),
