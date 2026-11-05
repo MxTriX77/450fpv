@@ -104,7 +104,7 @@ The coil's mass SHALL fall by the line paid out (0.069 kg/km), and the mass mode
 - **THEN** the total mass falls by 0.138 kg within 1 g, the centre of mass rises as the mass build gives for that coil mass within 1e-9 m, and no rebuild changes the angular momentum
 
 ### Requirement: The fiber's contacts
-The line SHALL meet the ground and its cover, every shape except the homogenised `twig`, `foliage` and `razor_wire` shells, p7a's elements (twigs as capstans of their own radius, standing stems as cantilevers, lying straws as hooks by the over-side rule), snag records (a capstan of their edge radius; with a barb pitch, locked along the record within half a pitch of the first touch while free to slip along its own length), every conductor (a capstan of its strand), the drone's own parts and the launch stand. A node touching two members SHALL take both contacts in the same solve.
+The line SHALL meet the ground and its cover, every shape except the homogenised `twig`, `foliage` and `razor_wire` shells, p7a's elements (twigs as capstans of their own radius, standing stems as cantilevers, lying straws as hooks by the over-side rule), snag records (a capstan of their edge radius; with a barb pitch, locked along the record within half a pitch of the first touch while free to slip along its own length), every conductor (a capstan of its strand), the drone's own parts and the launch stand. A node touching two members SHALL take both contacts in the same solve. A drone part SHALL only push the line and SHALL never hold it with nothing pressing it: in the step's solve no friction without a normal force, and no pull toward the part.
 
 #### Scenario: A line draped over a coil run holds
 - **WHEN** a line is draped over a synthetic concertina run (the fortifications reading's records: `edge_radius_m` 0.00025, `barb_pitch_m` 0.035) while the drone flies on, on 20 seeds
@@ -121,6 +121,10 @@ The line SHALL meet the ground and its cover, every shape except the homogenised
 #### Scenario: The wedge of a fork
 - **WHEN** a line is pulled down into the fork of two limbs until one node touches both
 - **THEN** both contacts act in the same step, the tension rises without bound only as the drone pulls, nothing is non-finite, and the line breaks by tension or bend or holds
+
+#### Scenario: A line in a crotch of the drone's parts
+- **WHEN** the drone flies away at 3 m/s with its line lying in a crotch of two of its parts, first straight through it 1 mm off both faces and then rising to it from 3 m below and turning there, so its own tension presses it in
+- **THEN** lying straight, nothing presses the line and the parts slide past it: the span carries the payout tension and the spool pays out the drone's travel within 0.1 m, where the known-wrong 0-force hold carries the line at the parts' speed and stretches the span tenfold or more; turned, the faces carry the line's press and it slides through by the capstan, T_span = T_exit·e^(μk·θ) within 2 %, while the spool pays out what the span's new geometry takes; and over S04's straw the line hanging by a leg and a skid for 60 s takes no `TetherWedge`, where the known-wrong takes some
 
 ### Requirement: Cut risk, never certainty
 The line SHALL break, logged with its mechanism and place, when a segment crosses a turning prop disc (`prop`), when the tension stress on the span reaches the flight's span strength (`tension`), when the local stress at a bend (the elastica's bend over an edge, the exit lip or the pack's peel front, plus the tension) reaches the strength of the fiber section there (`bend`, or `peel` at the pack), or when a section's coating is worn through by rubbing and its abraded strength is then exceeded (`abrasion`). The span strength SHALL be one draw a flight and each 0.1 m section's strength a draw indexed by its position along the line, each bounded and logged when first read.

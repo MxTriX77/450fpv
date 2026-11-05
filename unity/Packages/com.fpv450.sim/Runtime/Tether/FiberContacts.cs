@@ -51,7 +51,9 @@ namespace Fpv450.Sim.Tether
     ///   clear while both its ends stay within that margin less the line's radius of the certified core (the distance from a
     ///   segment is convex, so a piece whose ends lie near the core lies near it everywhere). The homogenised twig, foliage
     ///   and razor_wire shells are skipped: the line reads their elements and records. A soil shape or a layer with an area
-    ///   law is ground (lain on, held by Coulomb's friction); any other shape a capstan of its face.
+    ///   law is ground (lain on, held by Coulomb's friction); any other shape a capstan of its face. A node meets a shape a
+    ///   segment's query found by the shape's own nearest point to it (StaticContacts on the node), so past a face's end it
+    ///   meets the arris or nothing, never the face's plane.
     /// - Elements, snag records and conductors: from caches (the drone's, contact.drone_cache_radius_m, and up to two at the
     ///   line's lowest touching nodes, contact.line_cache_radius_m) asked for on a refresh and swapped in exactly
     ///   contact.cache_swap_steps later (api-review §6), so a replay swaps at the same step with the same bits; each step every
@@ -489,7 +491,6 @@ namespace Fpv450.Sim.Tether
                     Kind = layer ? FiberMember.Layer : FiberMember.Shape,
                     Member = ((ulong)(uint)c.Object << 32) | (uint)c.Shape,
                     Object = c.Object, Shape = c.Shape, Part = -1, Material = c.Material, Surface = c.Surface, Plane = true,
-                    C = c.Point + c.Normal * _radius, D = c.Normal,
                 };
                 if (c.Surface != WorldIds.NoSurface)
                 {
@@ -724,11 +725,13 @@ namespace Fpv450.Sim.Tether
                         Point = point, Normal = nrm, Gap = Double3.Dot(nrm, x - point),
                     };
                 }
+                int near = -1; // the shapes at node i (NodeShapes), queried at the first shape's hit naming it
                 for (int h = 0; h < _hitCount && count < _cand.Length; h++)
                 {
                     ref Hit hit = ref _hits[h];
                     if (hit.Node != i) continue;
-                    if (!Evaluate(ref a, hit, out Candidate c)) continue;
+                    if (hit.M.Plane && near < 0) near = NodeShapes(x);
+                    if (!Evaluate(ref a, hit, near, out Candidate c)) continue;
                     // A new member within InsertGap, one on a slot within KeepGap.
                     if (!(c.Gap < InsertGap) && !Holds(a.Contact0, c.M) && !Holds(a.Contact1, c.M)) continue;
                     // One candidate a member a node; members of one object within 45° of each other merge into the nearest.
@@ -838,18 +841,40 @@ namespace Fpv450.Sim.Tether
             return 0.5 * (before + after);
         }
 
-        // A hit's member at node a: its plane there (a shape's from the query; a core member's from its nearest point to the
-        // node), the gap; false for a straw the line lies over at its first touch (only one lying over the line hooks it).
-        bool Evaluate(ref CableNode a, in Hit hit, out Candidate c)
+        // The world's shapes within KeepGap of node x: StaticContacts on the node itself (a capsule of the line's radius with
+        // no length), each its own nearest point and normal to the node. The count is kept to the buffer: over it only where
+        // the segment's query, which reaches every shape this one does, already logged FiberShapesFull.
+        int NodeShapes(Double3 x)
+        {
+            var cap = new Capsule(x, x, _radius);
+            int count = _world.StaticContacts(cap, cap, KeepGap, _shapes, QueryFilter.NoWires);
+            Queries++;
+            QueriesTotal++;
+            return count < ShapeBuffer ? count : ShapeBuffer;
+        }
+
+        // A hit's member at node a: its plane there, the gap; false for a shape the node is not within KeepGap of, and for a
+        // straw the line lies over at its first touch (only one lying over the line hooks it). A shape's plane is its own face
+        // at the node (its nearest point to the node, from near's NodeShapes), not the plane through the segment's nearest
+        // point, which has no extent: kept for every node the segment's hit names, it held a node past the face's end on the
+        // face's plane (E01's run, model 62: two trail points 0.30 m off a layer's side face, 0.28–0.56 m over the spoil).
+        // A core member's plane is from its nearest point to the node.
+        bool Evaluate(ref CableNode a, in Hit hit, int near, out Candidate c)
         {
             c = new Candidate { M = hit.M };
             Double3 x = a.Position;
             if (hit.M.Plane)
             {
-                c.Point = hit.M.C;
-                c.Normal = hit.M.D;
-                c.Gap = Double3.Dot(c.Normal, x - c.Point);
-                return true;
+                for (int k = 0; k < near; k++)
+                {
+                    ref StaticContact s = ref _shapes[k];
+                    if (s.Object != hit.M.Object || s.Shape != hit.M.Shape) continue;
+                    c.Normal = s.Normal;
+                    c.Point = s.Point + s.Normal * _radius;
+                    c.Gap = Double3.Dot(c.Normal, x - c.Point);
+                    return true;
+                }
+                return false;
             }
             Double3 cd = hit.M.D - hit.M.C;
             double l2 = Double3.Dot(cd, cd), t = l2 > 0 ? Double3.Dot(x - hit.M.C, cd) / l2 : 0;
@@ -1253,8 +1278,8 @@ namespace Fpv450.Sim.Tether
         }
     }
 
-    /// <summary>One segment of a member the line may meet, as a cache holds it (or a shape's plane: Plane, C its point and D its
-    /// normal): its kind and identity, its core C–D and contact radius, the arris it bends the line over, the line's μ on it,
+    /// <summary>One segment of a member the line may meet, as a cache holds it (or a shape, Plane: its face is met at each node
+    /// from StaticContacts on the node, FiberContacts.Evaluate): its kind and identity, its core C–D and contact radius, the arris it bends the line over, the line's μ on it,
     /// and an element's mechanics (a stem's EI and length, a straw's release force, the core's distance from the base).</summary>
     public struct MemberSeg
     {

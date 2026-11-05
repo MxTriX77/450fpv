@@ -475,12 +475,13 @@ namespace Fpv450.Sim.Tests
         /// <summary>A probe called after each step of LieOn (forensics; null in the suite).</summary>
         public static Action<FlightCore> LieOnEach;
 
-        public static Lying LieOn(DroneSpec spec, string spot, double seconds = 60)
+        public static Lying LieOn(DroneSpec spec, string spot, double seconds = 60, Action<FlightSetup> edit = null)
         {
             MapWorld map = RangeScenarios.World;
             var world = new FlightWorld(map);
             FlightSetup setup = TetherScenarios.Setup(spec);
             setup.World = world;
+            edit?.Invoke(setup);
             double stand = TetherScenarios.Stand(setup), r = LineRadius;
             Double3 foot, anchor;
             var layout = new List<Double3>();

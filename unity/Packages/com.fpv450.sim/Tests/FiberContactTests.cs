@@ -127,10 +127,22 @@ namespace Fpv450.Sim.Tests
             Assert.That(l.Floating, Is.EqualTo(0), "none of it floats");
             Assert.That(l.WorstAbove, Is.LessThanOrEqualTo(0.002));
             Assert.That(l.DeepestInside, Is.LessThan(1e-4), "never inside a rigid shape");
-            // The chain's TetherWedges are printed, not asserted here (not this scenario's THEN): over S04 the line hanging by the
-            // left rear leg and skid takes some (the handoff's open defect: the spool segment's model is not majorized in the
-            // safe pass, so a contact-driven deficit at the exit is left on a line at rest, which no clip can take back).
-            if (spot != "straw") Assert.That(l.Wedges, Is.EqualTo(0));
+            // Over S04 the line hanging by the left rear leg and skid took 60 TetherWedges at model 59: steps the energy check solved
+            // again on its majorizers (2486 in 60 s) kept the spool's paying model, whose constant pull on an exit segment paying
+            // nothing is no majorizer. Since model 62 the safe pass takes that segment's elastic majorizer: none.
+            Assert.That(l.Wedges, Is.EqualTo(0));
+            if (spot == "straw")
+            {
+                // Since model 65 the known-wrong is judged on model 63's drone.json (the old coil, Model63Drone), where the line hangs
+                // by the left rear leg and skid: on the canister it hangs otherwise and model 64 (59's chain) took no wedge either.
+                FiberContactScenarios.Lying wrong = FiberContactScenarios.LieOn(Spec, spot, edit: s => s.TetherZeroForceHold = true);
+                FiberContactScenarios.Lying oldRules = FiberContactScenarios.LieOn(Model63Drone.Spec(), spot);
+                FiberContactScenarios.Lying oldWrong = FiberContactScenarios.LieOn(Model63Drone.Spec(), spot, edit: s => s.TetherZeroForceHold = true);
+                Print($"straw with the known-wrong 0-force hold (model 64's chain): wedges {wrong.Wedges}; on the old coil {oldRules.Wedges}, "
+                    + $"with the known-wrong {oldWrong.Wedges}");
+                Assert.That(oldRules.Wedges, Is.EqualTo(0), "on the old coil, none");
+                Assert.That(oldWrong.Wedges, Is.GreaterThan(0), "the known-wrong wedges on the old coil");
+            }
             if (spot == "plane") Assert.That(l.OnPlane, Is.GreaterThan(0));
             if (spot == "straw") Assert.That(l.OnStraw, Is.GreaterThan(0));
             if (spot == "run") Assert.That(l.OnSoil, Is.GreaterThan(0));
@@ -166,7 +178,7 @@ namespace Fpv450.Sim.Tests
         public void WithoutTheFiberContactsEachGoldenIsModel50s()
         {
             DroneSpec spec = Model63Drone.Spec();
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, layout: GoldenFlights.Model50Layout,
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, fiberContacts: false, coulomb: false, layout: GoldenFlights.Model50Layout,
                 edit: GoldenFlights.WithoutTheFrame), Is.EqualTo(GoldenFlights.Model50TetherHash),
                 "tether, without the contacts");
             Assert.That(line.Tether.Contacts, Is.Null);

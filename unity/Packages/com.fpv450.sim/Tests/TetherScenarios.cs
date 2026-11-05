@@ -158,6 +158,8 @@ namespace Fpv450.Sim.Tests
             /// <summary>The most paid out, at the turn and at the end, m; the steps the paid-out length fell.</summary>
             public double Most, AtTurn, AtEnd;
             public int Fell;
+            /// <summary>The line the spool took back over the flight, m: the sum of every fall of the paid-out length.</summary>
+            public double TakenBack;
             /// <summary>The least paid out after the turn, m; the static hold e^(μθ)·P(0) at the turn, N, and the least and the
             /// most exit tension from 0.5 s to 2.5 s after it, N.</summary>
             public double LeastAfterTurn, Hold, SlackLeast, SlackTension;
@@ -201,7 +203,7 @@ namespace Fpv450.Sim.Tests
                 FiberLine f = core.Tether;
                 ref readonly TetherTrace tr = ref core.Trace.Tether;
                 double t = core.State.Step * FlightCore.Dt;
-                if (tr.PaidOut < last) r.Fell++;
+                if (tr.PaidOut < last) { r.Fell++; r.TakenBack += last - tr.PaidOut; }
                 last = tr.PaidOut;
                 if (tr.PaidOut > r.Most) r.Most = tr.PaidOut;
                 if (core.State.Step == (long)(turn * 1000))

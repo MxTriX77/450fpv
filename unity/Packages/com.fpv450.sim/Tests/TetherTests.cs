@@ -60,10 +60,15 @@ namespace Fpv450.Sim.Tests
         public void AKnownWrongTwoWaySpoolFails()
         {
             TetherScenarios.OutBack r = TetherScenarios.OutThenBack(Spec, true);
-            Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps; "
+            Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps, {r.TakenBack:F2} m taken back; "
                 + $"exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; line over chord {r.Slack:F3}");
             Assert.That(r.Fell, Is.GreaterThan(0), "the line comes back");
-            Assert.That(r.AtEnd, Is.LessThan(r.Most - 1), "the paid-out length falls on the return");
+            // From its most (after the turn: since model 62's safe pass leaves free slots free, the slack first draws line out
+            // past the turn's length, 112.9 m against the turn's 95.9, then the reel takes 12.1 m of it back). Since model 65 (62's
+            // chain on the canister) by what the reel takes back in all: it takes 5.2 m back over 18 245 steps, but the hover's
+            // slack draws it out again (106.56 m at most, 106.40 at the end; with the 0-force hold, 64's chain, 17.1 m taken back,
+            // 107.34 → 94.00), where the one-way spool takes back nothing (LineNeverComesBack: it never falls).
+            Assert.That(r.TakenBack, Is.GreaterThan(1), "the reel takes line back on the return");
             bool target = r.Fell == 0 && r.LeastAfterTurn >= r.AtTurn;
             Assert.That(target, Is.False, "the known-wrong model fails \"Line never comes back\"");
         }
