@@ -685,6 +685,30 @@ namespace Fpv450.Sim.Tests
             Assert.That(block, Is.EqualTo(0), "the shafts' block is zero");
         }
 
+        // p7f-damage 1.6's losses (model 72), its audit against model 68, kept: with the clean sensors (the arms stiff in their plane,
+        // AirframeModesSpec.ArmInPlane off, and no gyro range, FlightSetup.GyroRange 0: GoldenFlights.CleanSensors, which every flight
+        // over an older record flies) every golden over model 68's 3168 bytes is model 68's pin, every record and event, and the arms'
+        // block is zero on every record. So the arms in their plane and the gyro's range are the whole of 72's move against 68.
+        [Test]
+        public void WithTheCleanSensorsEachGoldenIsModel68s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int m68 = GoldenFlights.Model68Layout;
+            int block = 0;
+            void Zero(byte[] record)
+            {
+                for (int i = m68; i < LogFormat.StepSize; i++) if (record[i] != 0) block++;
+            }
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m68, onRecord: Zero),
+                Is.EqualTo(GoldenFlights.Model68RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, layout: m68, onRecord: Zero), Is.EqualTo(GoldenFlights.Model68TetherHash), "tether");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m68), Is.EqualTo(GoldenFlights.Model68TumbleHash), "tumble");
+            Assert.That(block, Is.EqualTo(0), "the arms' block is zero");
+        }
+
         // The physics integration 2 with the shafts (model 68), its audit against model 66, kept: on model 63's drone.json (the old
         // coil, Model63Drone, its line out of the old rear cap), the fountain through the body (61's blocking off), the known-wrong
         // 0-force hold (63's chain, so 62's and 64's chain fixes off) and no blade root (64's fix off), every golden is model 66's
@@ -696,15 +720,16 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = Model63Drone.Spec();
             Assert.That(spec.Coil.Housing, Is.EqualTo(-1), "model 63's coil has no housing");
             Action<FlightSetup> edit = GoldenFlights.WithoutTheBladeRoot;
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model66PoweredHash), "powered");
-            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: edit),
+            const int m68 = GoldenFlights.Model68Layout; // since model 72 over model 68's 3168 bytes, the clean sensors
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: edit, layout: m68),
                 Is.EqualTo(GoldenFlights.Model66RainPoweredHash), "rain");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model66ContactHash), "contact");
-            Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit), Is.EqualTo(GoldenFlights.Model66RangeHash), "range");
-            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, body: false, edit: edit), Is.EqualTo(GoldenFlights.Model66TetherHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out _, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, coulomb: false, body: false, edit: edit, layout: m68), Is.EqualTo(GoldenFlights.Model66TetherHash),
                 "tether, the fountain through the body, the 0-force hold");
             Assert.That(line.Tether.Chain.ZeroForceHold, Is.True);
-            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.Model66TumbleHash), "tumble");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m68), Is.EqualTo(GoldenFlights.Model66TumbleHash), "tumble");
         }
 
         // Its audit against the bells (p7f-damage 1.5, model 58, off 57), kept: without the skid's frame (GoldenFlights.
@@ -1301,7 +1326,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.Model63Layout - GoldenFlights.Model57Layout, Is.EqualTo(96), "four motors' scrape, rub and Kt change, to model 63's record's end");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model63Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "shaft_bend_p.rear_right")),
                 "p7f-damage 1.6's shafts follow the bells (model 66)");
-            Assert.That(LogFormat.StepSize - GoldenFlights.Model63Layout, Is.EqualTo(128), "four motors' bend, bearings' drag and ball-pass frequency, to the record's end");
+            Assert.That(GoldenFlights.Model68Layout - GoldenFlights.Model63Layout, Is.EqualTo(128), "four motors' bend, bearings' drag and ball-pass frequency, to model 68's record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model68Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "arm_bend.rear_right")),
+                "p7f-damage 1.6's losses' arms follow the shafts (model 72)");
+            Assert.That(LogFormat.StepSize - GoldenFlights.Model68Layout, Is.EqualTo(176), "four arms' bend, twist, their rates and load, the gyro's peak and the arms broken, to the record's end");
         }
     }
 }

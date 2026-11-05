@@ -577,17 +577,31 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"without the shafts and the bearings, over model 63's 3040 bytes: powered 0x{s65p:X16}, contact 0x{s65c:X16}, range 0x{s65g:X16}, "
                 + $"tether 0x{s65l:X16} ({(k65 ? "model 65's, bit for bit" : "NOT model 65's")}): {(k65 ? "PASS" : "FAIL")}");
             Action<FlightSetup> rootless = GoldenFlights.WithoutTheBladeRoot;
-            ulong s66p = GoldenFlights.FlyPowered(now, out _, edit: rootless),
-                s66r = GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: rootless),
-                s66c = GoldenFlights.FlyContact(now, out _, edit: rootless), s66g = GoldenFlights.FlyRange(now, out _, edit: rootless),
-                s66l = GoldenFlights.FlyContact(now, out FlightCore l66, tether: true, coulomb: false, body: false, edit: rootless), s66t = GoldenFlights.FlyTumble(now, out _, out _);
+            // Since model 72 over model 68's 3168 bytes, the clean sensors (GoldenFlights.Model68Layout).
+            const int m68 = GoldenFlights.Model68Layout;
+            ulong s66p = GoldenFlights.FlyPowered(now, out _, edit: rootless, layout: m68),
+                s66r = GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: rootless, layout: m68),
+                s66c = GoldenFlights.FlyContact(now, out _, edit: rootless, layout: m68), s66g = GoldenFlights.FlyRange(now, out _, edit: rootless, layout: m68),
+                s66l = GoldenFlights.FlyContact(now, out FlightCore l66, tether: true, coulomb: false, body: false, edit: rootless, layout: m68),
+                s66t = GoldenFlights.FlyTumble(now, out _, out _, layout: m68);
             bool k66 = s66p == GoldenFlights.Model66PoweredHash && s66r == GoldenFlights.Model66RainPoweredHash && s66c == GoldenFlights.Model66ContactHash
                 && s66g == GoldenFlights.Model66RangeHash && s66l == GoldenFlights.Model66TetherHash && s66t == GoldenFlights.Model66TumbleHash;
             Console.WriteLine($"on the old coil through the body, with the 0-force hold and no blade root: powered 0x{s66p:X16}, rain 0x{s66r:X16}, contact 0x{s66c:X16}, "
                 + $"range 0x{s66g:X16}, tether 0x{s66l:X16}, tumble 0x{s66t:X16} ({(k66 ? "model 66's, bit for bit" : "NOT model 66's")}), the line "
                 + $"{(l66.Tether.Broken ? $"broken at step {l66.Tether.BrokenAt} by {l66.Tether.LastBreak.Mechanism}" : "whole")}: {(k66 ? "PASS" : "FAIL")}");
+            // p7f-damage 1.6's losses (model 72), its audit against model 68: with the clean sensors (the arms stiff in their plane, no
+            // gyro range: GoldenFlights.CleanSensors) every golden over model 68's 3168 bytes is model 68's pin, every record and
+            // event (WithTheCleanSensorsEachGoldenIsModel68s also checks the arms' block zero).
+            ulong c68p = GoldenFlights.FlyPowered(canister, out _, layout: m68),
+                c68r = GoldenFlights.FlyPowered(canister, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m68),
+                c68c = GoldenFlights.FlyContact(canister, out _, layout: m68), c68g = GoldenFlights.FlyRange(canister, out _, layout: m68),
+                c68l = GoldenFlights.FlyContact(canister, out _, tether: true, layout: m68), c68t = GoldenFlights.FlyTumble(canister, out _, out _, layout: m68);
+            bool k68 = c68p == GoldenFlights.Model68PoweredHash && c68r == GoldenFlights.Model68RainPoweredHash && c68c == GoldenFlights.Model68ContactHash
+                && c68g == GoldenFlights.Model68RangeHash && c68l == GoldenFlights.Model68TetherHash && c68t == GoldenFlights.Model68TumbleHash;
+            Console.WriteLine($"with the clean sensors, over model 68's 3168 bytes: powered 0x{c68p:X16}, rain 0x{c68r:X16}, contact 0x{c68c:X16}, range 0x{c68g:X16}, "
+                + $"tether 0x{c68l:X16}, tumble 0x{c68t:X16} ({(k68 ? "model 68's, bit for bit" : "NOT model 68's")}): {(k68 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68;
         }
 
         public static bool Bench()

@@ -315,7 +315,10 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong PoweredHash = 0x9A30E334BF1CE809UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 21 (the factory unbalance's 1/rev through the arms: twist at most 0.112°, arm load 0.0032, the gyro's peak 305.1 °/s, inside its 2000), ends 161.5429 m up.
+        public const ulong PoweredHash = 0x9F6716D436D70F1CUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -399,7 +402,10 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong RainPoweredHash = 0xF6F5495C2A88B995UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 21 (twist at most 0.107°, arm load 0.0031, the gyro's peak 304.5 °/s), ends 161.7859 m up.
+        public const ulong RainPoweredHash = 0x58C73FF5572B0E66UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -507,6 +513,17 @@ namespace Fpv450.Sim.Tests
         public const ulong Model66PoweredHash = 0xC4D5C624C30E66A4UL, Model66RainPoweredHash = 0x588D9ABDBC72E0A9UL,
             Model66ContactHash = 0xFFFBEA9CDA89C058UL, Model66RangeHash = 0x6814962E6FCE6760UL, Model66TetherHash = 0xDD00954720F14CC2UL,
             Model66TumbleHash = 0xDDA88F905E375BD3UL;
+
+        /// <summary>p7f-damage 1.6's losses (model 72), its audit: model 68's record, its first 3168 bytes (the record less the arms'
+        /// block at its end). Every golden flown over it flies the clean sensors (CleanSensors).</summary>
+        public const int Model68Layout = LogFormat.Model68StepSize;
+
+        /// <summary>The goldens at model 68 (the physics integration 2 with the shafts), which every golden keeps bit for bit over
+        /// model 68's 3168 bytes, every record and event, with the clean sensors (the arms stiff in their plane, no gyro range):
+        /// GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s.</summary>
+        public const ulong Model68PoweredHash = 0x9A30E334BF1CE809UL, Model68RainPoweredHash = 0xF6F5495C2A88B995UL,
+            Model68ContactHash = 0xDB9CD4249127070CUL, Model68RangeHash = 0xA5D9361E8D1C945FUL, Model68TetherHash = 0xA77A4DEF62161B53UL,
+            Model68TumbleHash = 0x3280F96176B5ACD7UL;
 
         /// <summary>A flight's contacts without the blade root rule (model 64's fix, ContactSpec.BladeRoot): a blade passes at any
         /// radius, as at model 63.</summary>
@@ -861,7 +878,10 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong ContactHash = 0xDB9CD4249127070CUL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 9 (twist at most 0.048°, arm load 0.0014, the gyro's peak 161.7 °/s), the same 3 impacts, at rest 0.2495 m up on 4 pairs.
+        public const ulong ContactHash = 0x63DB5A624E7CD561UL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1087,7 +1107,10 @@ namespace Fpv450.Sim.Tests
         /// the body, with the 0-force hold and no blade root, model 66's pin over the whole record (rotor 2's disc cuts the line,
         /// OnModel63sDroneEachGoldenIsModel66s).
         /// </summary>
-        public const ulong TetherHash = 0xA77A4DEF62161B53UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 9 (twist at most 0.048°, arm load 0.0014, the gyro's peak 158.2 °/s), the line whole, at rest 0.2495 m up.
+        public const ulong TetherHash = 0xC2BD29DB9E191B37UL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1220,7 +1243,10 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong TumbleHash = 0x3280F96176B5ACD7UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves not at all (no rotors): model 68's records with the zero block appended.
+        public const ulong TumbleHash = 0xB4B9AFE7B9B45D17UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1412,7 +1438,10 @@ namespace Fpv450.Sim.Tests
         // block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s): no shaft passes its yield and no bearing
         // its static rating on the canister either; on model 63's drone through the body, with the 0-force hold and no blade root, model
         // 66's pin over the whole record (OnModel63sDroneEachGoldenIsModel66s).
-        public const ulong RangeHash = 0xA5D9361E8D1C945FUL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 9 (twist at most 0.047°, arm load 0.0014, the gyro's peak 58.5 °/s), the same 4 impacts, at rest 0.2452 m up on 8 pairs.
+        public const ulong RangeHash = 0xC6B3FFB9461F5871UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -1677,6 +1706,7 @@ namespace Fpv450.Sim.Tests
             if (!ring) setup.VortexRing = null;
             if (!ground) setup.GroundEffect = null;
             WithoutD064(setup, wake, motors, yawI);
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
@@ -1756,6 +1786,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherFountainThroughBody = !body || !cuts || !fiberContacts; // model 61: false flies model 59's fountain; an older line is older still
                 setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
             }
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -1837,6 +1868,7 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors, yawI);
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
@@ -1912,6 +1944,7 @@ namespace Fpv450.Sim.Tests
             int layout = LogFormat.StepSize)
         {
             FlightSetup setup = TumbleSetup(spec);
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             core = new FlightCore(setup);
             MassProperties b = setup.Mass.Properties;
             Double3 c = b.CenterOfMass;
@@ -1944,6 +1977,15 @@ namespace Fpv450.Sim.Tests
                 checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
+        }
+
+        /// <summary>The clean sensors (model 68's airframe and gyro, p7f-damage 1.6, the losses): the arms stiff in their plane and no gyro range.
+        /// Every golden flown over an older model's record (a layout short of LogFormat.StepSize) flies them, so each kept audit of
+        /// models up to 68 stays bit for bit; the audit of model 72 against 68 is GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s.</summary>
+        public static void CleanSensors(FlightSetup setup)
+        {
+            if (setup.Modes != null) setup.Modes.ArmInPlane = false;
+            setup.GyroRange = 0;
         }
 
         // D-064's sources off for an audit against model 19: no rotor wake (wake), the motors' resistance, friction and inertia
