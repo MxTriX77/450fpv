@@ -127,6 +127,8 @@ namespace Fpv450.Sim.Tether
         // rather than at every segment: the same products, so the same bits. Each part's box in the body's axes (its ends, grown
         // by its radius, the line's, KeepGap and PartCull) passes over a part no segment's box in those axes reaches.
         readonly Double3[] _partA, _partB, _partLow, _partHigh;
+        readonly double[] _partRadius;
+        readonly int[] _partOf;
         readonly bool[] _partSkip;
         bool _partsPlaced;
         // Numerical: the boxes' slack, m, far above the rounding of a body-axis point within a kilometre (1e-13 m).
@@ -136,6 +138,11 @@ namespace Fpv450.Sim.Tether
         readonly StaticContact[] _shapes = new StaticContact[ShapeBuffer];
         readonly Hit[] _hits = new Hit[MaxHits];
         int _hitCount;
+        // The hits by segment (Prepare adds a segment's hits together: [_segHits[j], _segHitsEnd[j])) and by node (each node's
+        // hits in the list's order, _nodeHit[i] then _nextHit[h], −1 ending it): the same hits in the same order as a scan of
+        // the whole list, without the scan (a line lying on the drone's parts has hundreds, and every segment and node read them).
+        readonly int[] _segHits, _segHitsEnd, _nodeHit;
+        readonly int[] _nextHit = new int[MaxHits];
         readonly double[] _split;
         readonly int[] _splitsBefore;
         readonly Candidate[] _cand = new Candidate[16];
@@ -177,6 +184,9 @@ namespace Fpv450.Sim.Tether
             int nodes = (int)table.Number("span.max_nodes");
             _split = new double[nodes];
             _splitsBefore = new int[nodes + 1];
+            _segHits = new int[nodes];
+            _segHitsEnd = new int[nodes];
+            _nodeHit = new int[nodes];
 
             // The world's materials: their rows' μ (wet in rain where a row has a wet set), arris and kind.
             bool wet = setup.Rain != RainLevel.Sunny;
@@ -258,6 +268,8 @@ namespace Fpv450.Sim.Tether
                 _partLow = new Double3[count];
                 _partHigh = new Double3[count];
                 _partSkip = new bool[count];
+                _partRadius = new double[count];
+                _partOf = new int[count];
                 for (int i = 0; i < count; i++)
                 {
                     ContactShape p = parts.Shape(i);
@@ -370,11 +382,13 @@ namespace Fpv450.Sim.Tether
             for (int j = 0; j + 1 < n; j++)
             {
                 _split[j] = -1;
+                _segHits[j] = _hitCount;
                 Double3 a = chain[j].Position, b = chain[j + 1].Position;
                 ShapeHits(chain, j, a, b, events);
                 for (int c = 0; c < _caches.Length; c++)
                     if (_caches[c].Valid) CacheHits(_caches[c], j, a, b, events);
                 if (_parts != null) PartHits(j, a, b, j + 2 == n, s, q);
+                _segHitsEnd[j] = _hitCount;
             }
             // A spent member (a released hook, a stem the line slid off) is met again once the line has left it.
             for (int k = 0; k < _spentCount;)
@@ -396,10 +410,10 @@ namespace Fpv450.Sim.Tether
             {
                 double best = InsertGap, u = -1;
                 double len = (chain[j + 1].Position - chain[j].Position).Length();
-                for (int h = 0; h < _hitCount; h++)
+                for (int h = _segHits[j]; h < _segHitsEnd[j]; h++)
                 {
                     ref Hit x = ref _hits[h];
-                    if (x.Seg != j || !(x.Gap < best)) continue;
+                    if (!(x.Gap < best)) continue;
                     double piece = 2 * (x.Radius + _radius);
                     if (piece < LeastPiece) piece = LeastPiece;
                     if (!(x.U * len > piece) || !((1 - x.U) * len > piece)) continue;
@@ -441,6 +455,14 @@ namespace Fpv450.Sim.Tether
                 x.Node = node;
                 // The exit is on the drone (the lip is its wrap) and an anchored trail end on its point: neither takes one.
                 if (node == last || node == 0 && chain[0].AnchorStiffness > 0) x.Node = -1;
+            }
+            for (int i = 0; i <= last; i++) _nodeHit[i] = -1;
+            for (int h = _hitCount - 1; h >= 0; h--)
+            {
+                int node = _hits[h].Node;
+                if (node < 0) continue;
+                _nextHit[h] = _nodeHit[node];
+                _nodeHit[node] = h;
             }
         }
 
@@ -579,21 +601,23 @@ namespace Fpv450.Sim.Tether
                 if (_partSkip[i]) continue;
                 Double3 pl = _partLow[i], ph = _partHigh[i];
                 if (!(low.X <= ph.X && pl.X <= high.X && low.Y <= ph.Y && pl.Y <= high.Y && low.Z <= ph.Z && pl.Z <= high.Z)) continue;
-                ContactShape p = _parts.Shape(i);
-                if (nearExit && p.Part == _coilPart) continue;
+                int part = _partOf[i];
+                if (nearExit && part == _coilPart) continue;
                 Double3 pa = _partA[i], pb = _partB[i];
                 double dist2 = SegmentSegment(a, b, pa, pb, out double u, out double t);
-                double near = p.Radius + _radius + KeepGap;
+                double radius = _partRadius[i], near = radius + _radius + KeepGap;
                 if (!(dist2 < near * near)) continue;
                 Double3 onLine = a + (b - a) * u, onPart = pa + (pb - pa) * t;
                 double dist = DetMath.Sqrt(dist2);
                 Double3 normal = dist > 0 ? (onLine - onPart) * (1 / dist) : q.Rotate(new Double3(0, -1, 0));
                 var m = new MemberSeg
                 {
-                    Kind = FiberMember.Part, Member = (ulong)i, Object = DroneObject, Shape = i, Part = p.Part, C = pa, D = pb,
-                    Radius = p.Radius, Edge = p.Radius, Static = _partStatic[i], Kinetic = _partKinetic[i],
+                    Kind = FiberMember.Part, Member = (ulong)i, Object = DroneObject, Shape = i, Part = part, C = pa, D = pb,
+                    Radius = radius, Edge = radius, Static = _partStatic[i], Kinetic = _partKinetic[i],
                 };
-                AddHit(j, u, dist - p.Radius - _radius, onPart + normal * p.Radius, normal, m);
+                // Each part once a segment, and no other source names a part: no earlier hit of the segment is this member.
+                if (_hitCount < MaxHits)
+                    _hits[_hitCount++] = new Hit { Seg = j, U = u, Gap = dist - radius - _radius, Point = onPart + normal * radius, Normal = normal, M = m, Radius = radius };
             }
         }
 
@@ -609,6 +633,8 @@ namespace Fpv450.Sim.Tether
                 if (_partSkip[i]) continue;
                 _partA[i] = s.Position + q.Rotate(p.A);
                 _partB[i] = s.Position + q.Rotate(p.B);
+                _partRadius[i] = p.Radius;
+                _partOf[i] = p.Part;
                 double g = p.Radius + _radius + KeepGap + PartCull;
                 _partLow[i] = new Double3(DetMath.Min(p.A.X, p.B.X) - g, DetMath.Min(p.A.Y, p.B.Y) - g, DetMath.Min(p.A.Z, p.B.Z) - g);
                 _partHigh[i] = new Double3(DetMath.Max(p.A.X, p.B.X) + g, DetMath.Max(p.A.Y, p.B.Y) + g, DetMath.Max(p.A.Z, p.B.Z) + g);
@@ -726,12 +752,12 @@ namespace Fpv450.Sim.Tether
                     };
                 }
                 int near = -1; // the shapes at node i (NodeShapes), queried at the first shape's hit naming it
-                for (int h = 0; h < _hitCount && count < _cand.Length; h++)
+                for (int h = _nodeHit[i]; h >= 0 && count < _cand.Length; h = _nextHit[h])
                 {
                     ref Hit hit = ref _hits[h];
-                    if (hit.Node != i) continue;
                     if (hit.M.Plane && near < 0) near = NodeShapes(x);
-                    if (!Evaluate(ref a, hit, near, out Candidate c)) continue;
+                    ref Candidate c = ref _cand[count]; // evaluated in place: kept as a new candidate, or copied onto its like
+                    if (!Evaluate(ref a, hit, near, ref c)) continue;
                     // A new member within InsertGap, one on a slot within KeepGap.
                     if (!(c.Gap < InsertGap) && !Holds(a.Contact0, c.M) && !Holds(a.Contact1, c.M)) continue;
                     // One candidate a member a node; members of one object within 45° of each other merge into the nearest.
@@ -746,7 +772,7 @@ namespace Fpv450.Sim.Tether
                             break;
                         }
                     }
-                    if (same < 0) _cand[count++] = c;
+                    if (same < 0) count++;
                     else if (c.Gap < _cand[same].Gap) _cand[same] = c;
                 }
                 // The two nearest (the first on a tie).
@@ -859,9 +885,9 @@ namespace Fpv450.Sim.Tether
         // point, which has no extent: kept for every node the segment's hit names, it held a node past the face's end on the
         // face's plane (E01's run, model 62: two trail points 0.30 m off a layer's side face, 0.28–0.56 m over the spoil).
         // A core member's plane is from its nearest point to the node.
-        bool Evaluate(ref CableNode a, in Hit hit, int near, out Candidate c)
+        bool Evaluate(ref CableNode a, in Hit hit, int near, ref Candidate c)
         {
-            c = new Candidate { M = hit.M };
+            c.M = hit.M;
             Double3 x = a.Position;
             if (hit.M.Plane)
             {
