@@ -30,12 +30,15 @@ namespace Fpv450.App
             public double SetDeg; // its set at least, °
         }
 
-        /// <summary>The flights, found by sweeps of seeds 1–4 at model 50: landings of 1–3 m/s rolled 0–20°, rises of 0.5–5 m/s.</summary>
+        /// <summary>The flights, found by sweeps of seeds 1–4 at model 50: landings of 1–3 m/s rolled 0–20°, rises of 0.5–5 m/s.
+        /// Model 57 moved the missing leg's: seed 1 at 5 m/s now breaks front right on the fall back, so the half has nothing to
+        /// hang from. A sweep of seeds 1–24 at 4–5.75 m/s keeps the pulled-out leg and its folded half to rest on seed 11 at
+        /// 4.25 m/s (and seeds 15, 17, 21 and 24 at 4.75); the other rises that pull it out hold it only in the air.</summary>
         public static readonly Case[] Cases =
         {
             new Case { Name = "bent", Seed = 3, Down = 2.0, RollDeg = 10, ShotS = 2.5, Leg = 0, Flags = LegFlags.Set, Corner = CornerState.None, SetDeg = 3 },
             new Case { Name = "broken", Seed = 3, Up = 2.5, ShotS = 2.5, Leg = 0, Flags = LegFlags.Broken, Corner = CornerState.Stub | CornerState.Hanging },
-            new Case { Name = "missing", Seed = 1, Up = 5.0, ShotS = 2.5, Leg = 0, Flags = LegFlags.Detached, Corner = CornerState.TubeGone | CornerState.Hanging | CornerState.Folded },
+            new Case { Name = "missing", Seed = 11, Up = 4.25, ShotS = 2.5, Leg = 0, Flags = LegFlags.Detached, Corner = CornerState.TubeGone | CornerState.Hanging | CornerState.Folded },
             new Case { Name = "hanging", Seed = 2, Up = 4.0, ShotS = 2.5, Leg = 3, Flags = LegFlags.Broken, Corner = CornerState.Stub | CornerState.Hanging },
         };
 
