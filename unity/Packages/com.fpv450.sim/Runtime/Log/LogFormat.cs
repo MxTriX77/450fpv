@@ -249,8 +249,8 @@ namespace Fpv450.Sim.Log
         ///    53: the record is 53's 3040 bytes; the contacts entry 53's; the tether entry 53's with 51's known-wrong switch
         ///    FlightSetup.TetherFountainThroughBody after TetherOneStrength; tether.json's rotor_air block 51's and its spool block
         ///    gains exit_direction (rows, so the entry's layout is otherwise 53's); the modes' entry gains CoilHousingPart after
-        ///    CoilPart and the placement's after PackParts (drone.json's coil.housing, the canister); the settings, the draws and
-        ///    the events 53's; no new event kind.
+        ///    CoilPart and the placement's after PackParts (drone.json's coil.housing, the canister); the contacts entry gains
+        ///    ContactSpec.BladeRoot after the motors' internals; the settings, the draws and the events 53's; no new event kind.
         /// </summary>
         public const int Version = 54;
 
@@ -633,7 +633,8 @@ namespace Fpv450.Sim.Log
         ///    Model63Drone, with tether.json's three spool rows at model 63's values, GoldenFlights.Model63Tether) and with
         ///    FlightSetup.TetherFountainThroughBody steps as in 63, but for one fix the canister's damage bench found: a blade's
         ///    pass whose meeting point lies inside the blade's root (PropStrikes.Pass) is no pass, the disc there the hub's and
-        ///    the bell's; it took the rotor's lost angular momentum over a vanishing lever (lost/r_c) as a tangential impulse.
+        ///    the bell's; it took the rotor's lost angular momentum over a vanishing lever (lost/r_c) as a tangential impulse. With
+        ///    ContactSpec.BladeRoot off a flight passes as in 63.
         /// </summary>
         public const int ModelVersion = 64;
 

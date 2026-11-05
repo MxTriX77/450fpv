@@ -165,6 +165,7 @@ namespace Fpv450.Sim.Log
             "BladeRest", "BladeRestSpeed",
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
+            "BladeRoot",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -910,6 +911,7 @@ namespace Fpv450.Sim.Log
                 foreach (double v in new[] { c.BellRubFriction, c.BellWearCoefficient, c.MagnetHardness, c.StatorHardness, c.BellDentArc })
                     e.Write(v);
                 WriteInternals(e, c.Motors);
+                e.Write(c.BladeRoot); // model 64 (format 54): no blade inside its root
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -1685,6 +1687,7 @@ namespace Fpv450.Sim.Log
             c.StatorHardness = r.ReadDouble();
             c.BellDentArc = r.ReadDouble();
             c.Motors = ReadInternals(r);
+            c.BladeRoot = r.ReadBoolean();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
