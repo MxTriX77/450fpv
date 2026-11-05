@@ -114,6 +114,7 @@ namespace Fpv450.FlightBench
             var climb = new long[steps];
             var cruise = new long[steps];
             int ng = 0, nc = 0, nr = 0, over300 = 0, over1000 = 0;
+            long crashed = -1;
             long allocated = 0, wall = Stopwatch.GetTimestamp(), late = 0;
             double tick = Stopwatch.Frequency / 1000.0, us = 1e6 / Stopwatch.Frequency;
             for (int k = 0; k < steps; k++)
@@ -128,6 +129,7 @@ namespace Fpv450.FlightBench
                 core.Advance(stick);
                 long dt = Stopwatch.GetTimestamp() - t0;
                 if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                if (crashed < 0 && core.State.Crashed) crashed = core.State.Step;
                 if (dt * us > 300) over300++;
                 if (dt * us > 1000) over1000++;
                 if (t < 1.5) ground[ng++] = dt;
@@ -150,6 +152,9 @@ namespace Fpv450.FlightBench
             core.Wind.Dispose();
             Console.WriteLine($"{Name}: the houses' start (track), legs on, 1.0 kg, Windy map wind, the line ({line.PaidOut:F1} m paid out, "
                 + $"{line.Chain.Count} nodes, {line.TrailCount} trail points, {line.Chain.Corrections} extra solves, {line.Chain.SafeSteps} safe steps), "
+                // What the flight was: a line broken or a drone down makes the later phases a wreck's, not a cruise's.
+                + (line.Broken ? $"the line broke at step {line.BrokenAt} ({line.LastBreak.Mechanism}), " : "")
+                + (crashed >= 0 ? $"the drone crashed at step {crashed}, " : "")
                 + $"{steps} steps at 1 kHz: all {P(all, steps)}; on the ground (0–1.5 s) {P(ground, ng)}; the climb {P(climb, nc)}; "
                 + $"the cruise {P(cruise, nr)}; {over300} steps over 300 µs, {over1000} over 1 ms, {late} begun a period late; "
                 + (core.WindBatch == null ? "the step's wind on the flight thread; "
