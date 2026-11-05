@@ -50,7 +50,8 @@ namespace Fpv450.Sim.Tests
             Assert.That(legs.TJoint.Material, Is.EqualTo("petg_printed"));
 
             List<KeyValuePair<string, string>> values = LegValues(text);
-            Assert.That(values.Count, Is.EqualTo(3 + 15 + 12 + 7), "the legs' 3, the tube's 15 (p7g-legs 1.2's loss factor), the clamp's 12 and the T-joint's 7");
+            Assert.That(values.Count, Is.EqualTo(3 + 15 + 13 + 7),
+                "the legs' 3, the tube's 15 (p7g-legs 1.2's loss factor), the clamp's 13 (model 51's mount in its plane, the stub's spring) and the T-joint's 7");
             foreach (KeyValuePair<string, string> v in values)
             {
                 StringAssert.IsMatch("\"label\": \"(pilot|measured|published|derived|assumed)\"", v.Value, v.Key + " is labelled");

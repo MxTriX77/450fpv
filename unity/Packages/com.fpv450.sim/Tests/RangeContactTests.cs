@@ -483,6 +483,7 @@ namespace Fpv450.Sim.Tests
         // (the posadka stands on the plane; the approach crosses S04, where the field blows since model 20).
         // Model 50 (the legs' lever on the line): the crown in Windy logs one, the left skid's front half hanging from leg_rl's
         // T-joint after leg_fl breaks (InTheWindNoTunnelThroughARigidShape's Windy crown, the same flight). It stays red.
+        // Model 51 (the hanging half's whole give geometric): none (InTheWindNoTunnelThroughARigidShape, model 51).
         [Test]
         public void InTheWindACompliantShapeIsNoTunnel()
         {
@@ -553,6 +554,12 @@ namespace Fpv450.Sim.Tests
         // 0.115 m deep at 2.31 m/s, at step 10975, 66 ms after leg_fl breaks (10909) with leg_rl cracked and set and on, the
         // skid's front half hanging from leg_rl's T-joint: the hanging half's turn a step behind again (1.3's mechanism),
         // moved from Calm to Windy by the lever, not closed. A tunnel is a bug: it stays red.
+        // Model 51 (p7g-legs on the line: the hanging half and the stub). Traced, the class's cause was not the turn's step: the
+        // half's force is its chain's (the contact spring, the skid's cantilever, the holding leg's give across its tube and the
+        // stick anchor in series, 64 N/m across), and only the cantilever's share moved its shapes, so the rest was a penetration
+        // that grew with the drone's travel (Windy's 0.045 → 0.115 m over 66 ms at 9 N; a step's lag is 2.3 mm). The half's whole
+        // give is geometry now (ContactSpec.HangingGive): every case none, each still reaching its shape, and with it off the Windy
+        // crown is model 50's flight to its Tunnel (WithoutTheHangingGiveTheWindyCrownIsModel50s).
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
         [TestCase("crown", 10.0, WindLevel.Severe, 0)]
@@ -575,6 +582,29 @@ namespace Fpv450.Sim.Tests
             Assert.That(p.Lost, Is.EqualTo(0));
             Assert.That(p.Tunnels, Is.EqualTo(legTunnels));
             Assert.That(p.ThroughBroken, Is.EqualTo(p.Tunnels), "each through a broken leg's part, which 1.3 parts from the drone");
+        }
+
+        // Model 51's audit and known-wrong (the hanging half's whole give and the stub's spring, p7g-legs on the line): with both
+        // off (GoldenFlights.WithoutTheHangingGive) the crown in Windy is model 50's flight to its Tunnel, the step, the shape and
+        // the millimetre: the left skid's front half, hanging from leg_rl's T-joint since leg_fl broke at step 10909, through
+        // V01_L's bark, its shapes turned out by the cantilever's 30.8 mm alone while the holding leg's give across its tube and
+        // the stick anchor in series left 113 mm of penetration under 9.3 N. With the fix the same flight logs none (above).
+        // Since model 57 (the props at rest on the line) model 50's flight needs the rest off too (GoldenFlights.WithoutTheRest):
+        // with it on, a stopped rotor's blades are parts and the flight leaves 50's path before the legs part, and logs no
+        // tunnel either way (InTheWindNoTunnelThroughARigidShape flies it with both on).
+        [Test]
+        public void WithoutTheHangingGiveTheWindyCrownIsModel50s()
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.Approach a = RangeScenarios.Find("crown");
+            ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
+                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate,
+                edit: s => { GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); });
+            foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
+            Assert.That(p.Tunnels, Is.EqualTo(1));
+            Assert.That(p.TunnelThrough[0], Is.EqualTo("skid_left through V01_L bark"));
+            Assert.That(p.Order, Does.Contain("step 10909: LegBroken leg_fl (Bending, 4.05 past 3.26)"));
+            Assert.That(p.Order, Does.Contain("step 10975: Tunnel skid_left (support_fl_end, 0.115 m deep at 2.31 m/s)"), "model 50's Tunnel");
         }
 
         // Model 20, the wind over a hole: where SampleGround reports Hole the field reads the soil a ray straight down meets

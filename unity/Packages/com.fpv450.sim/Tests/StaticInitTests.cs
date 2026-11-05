@@ -18,6 +18,7 @@ namespace Fpv450.Sim.Tests
         // to the type can rename one, and the stale check below then asks for the entry to be re-checked.
         static readonly string[,] LoadTimeOnly =
         {
+            { "Fpv450.Sim.Contact.ContactSpec", "BladeSegmentEnds", "DroneSpec.BuildContacts' blade edges (setup) runs ContactSpec's type init; ContactModel.AttachRotors (setup) and the blades' placement read it after" },
             { "Fpv450.Sim.Contact.LabelledReader", "Labels", "LabelledReader.Value, the JSON readers' label check (load)" },
             { "Fpv450.Sim.Contact.LegDamage", "Names", "the LegDamage constructor's per-flight strength streams (setup)" },
             { "Fpv450.Sim.Contact.PhysicsMaterials", "AreaLaws", "ReadLayerFields, physics_materials.json's reader (load)" },
@@ -58,7 +59,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Log.LogFormat", "TetherTraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogFormat", "TraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader+<>c", "<>9", "the lambda cache of LogHeader.SettingsFields, the header's write (setup)" },
-            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__137_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup)" },
+            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__138_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup)" },
             { "Fpv450.Sim.Log.LogHeader", "AeroFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "AsymmetryFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "BladeFieldsLogged", "read only by the suite's log-coverage tests" },

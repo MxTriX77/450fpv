@@ -18,6 +18,14 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>A prop disc: strikes only (no force), its bounding sphere then a ring of capsules round its rim.</summary>
         Disc = 3,
+
+        /// <summary>
+        /// A prop blade's edge at rest (p7f-damage 1.3b, design 16, D-082): a capsule along one edge of one span segment of one
+        /// blade, placed each Sense at the rotor's angle from the blade's state, carried like a body part while its rotor turns
+        /// slower than ContactSpec.BladeRestSpeed (the strikes take a faster one). Its Stiffness and StiffnessUp are its mount's
+        /// (the motor's), in series with the blade's own bending at the contact; DampingRatio is the blade's.
+        /// </summary>
+        Blade = 4,
     }
 
     /// <summary>
@@ -88,6 +96,10 @@ namespace Fpv450.Sim.Contact
         /// Pa, 0 where the file's is null (a thin compliant row a blade passes without damage from it); and its density,
         /// kg/m³, the mass a carving blade flings.</summary>
         public double Hardness, CrushStrength, Density;
+
+        /// <summary>The radius of the row's arrises a line bends over (its edge_radius_m), m; 0 where the file's is null (a
+        /// row whose members are round, or homogenised: the fiber reads their own radius or skips them, p7d-tether 1.7).</summary>
+        public double EdgeRadius;
 
         public readonly bool Rigid => Stiffness == 0;
     }
@@ -164,6 +176,16 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public double LegLeverLength;
 
+        /// <summary>
+        /// A hanging skid half's whole give is geometry (p7g-legs, model 51): the massless half stands out of what it touches by
+        /// its contact spring's share of the force alone, its cantilever's give by its turn about the holding leg's bore and the
+        /// rest of its chain (the holding leg's give across its tube and the stick anchor in series, and the cantilever's share
+        /// that no turn about the bore gives) by its move along the deepest point's normal; unloaded as its skid leaves. On for
+        /// every flight; off only for the audit and the known-wrong against model 50, whose half turned by its cantilever's
+        /// share alone, so the holding leg's give was a penetration (a rigid limb passed under a few newtons, a Tunnel).
+        /// </summary>
+        public bool HangingGive = true;
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;
@@ -210,6 +232,24 @@ namespace Fpv450.Sim.Contact
         /// <summary>The blade's non-rotating first flap mode, Hz, and its Southwell coefficient (RotorFlappingSpec's: 150 Hz
         /// assumed, 1.193 published), for its rotating flap stiffness K_β = I_b·(ω₀² + (K_s − 1)·Ω²) (DroneSpec.BuildContacts).</summary>
         public double FlapFrequency = 150, FlapSouthwell = 1.193;
+
+        /// <summary>
+        /// Props are parts at rest (p7f-damage 1.3b, design 16, D-082): a rotor turning slower than BladeRestSpeed carries its
+        /// blades as contact shapes (ContactRole.Blade) at their angle, bearing load through the contact model, the load's
+        /// moment about the shaft acting on the rotor and its sections bending or breaking by the blade laws (PropStrikes);
+        /// faster, its strikes meet what its disc cuts. On for every flight; off only for an audit and the known-wrong (the
+        /// prop passed through at rest: model 50's), which a flight with it off steps as.
+        /// </summary>
+        public bool BladeRest = true;
+
+        /// <summary>The rotor speed under which its blades are contact shapes, rad/s (DroneSpec.BuildContacts, derived: the
+        /// speed at which the tip moves its own capsule's radius in a step, so the penalty contact resolves a resting blade's
+        /// motion; above it a blade's pass is a strike).</summary>
+        public double BladeRestSpeed;
+
+        /// <summary>A resting blade's span segments' outer ends, r/R, from its root (ContactRole.Blade; assumed: the planform's
+        /// chord kink at 0.3 R, then three spans; each segment's greatest half-thickness is within 0.7 mm of its least).</summary>
+        public static readonly double[] BladeSegmentEnds = { 0.3, 0.55, 0.8, 1.0 };
 
         /// <summary>The shapes present at the loadout (a part at 0 kg has none).</summary>
         public ContactShape[] Shapes = new ContactShape[0];

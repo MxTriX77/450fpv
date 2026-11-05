@@ -196,7 +196,7 @@ namespace Fpv450.Sim.Tests
         public void TheExitsPullAndItsMoment()
         {
             TetherScenarios.Pull r = TetherScenarios.ExitPull(Spec);
-            Print($"over {r.Steps} steps: force within {r.ForceError:E2}, moment within {r.MomentError:E2}; hovering taut, the exit at most {r.HoverTension:F4} N; "
+            Print($"over {r.Steps} steps: force within {r.ForceError:E2}, moment within {r.MomentError:E2} (the parts' reactions up to {r.PartReaction:F4} N); hovering taut, the exit at most {r.HoverTension:F4} N; "
                 + $"the coil empty at {r.EmptyAt:F2} s, then the exit up to {r.HeldTension:F3} N, the drone {r.OnPast:F2} m on past it ({r.FreeOnPast:F2} m with line left), "
                 + $"its nose up to {r.Pitch:F3} (sin) toward the hold, the pull's moment about body x {r.PitchMoment:F4} N·m at the most tension");
             Assert.That(r.ForceError, Is.LessThan(1e-9));

@@ -83,8 +83,8 @@
     "near_spacing_m": {"value": 0.1, "label": "assumed", "rationale": "a segment's rest length within near_length_m of the exit: the props' and the legs' scale, where the line meets the drone's own air and parts (design 3)"},
     "near_length_m": {"value": 1.0, "label": "assumed", "rationale": "the line from the exit, material metres, spaced at near_spacing_m (design 3)"},
     "spacing_growth": {"value": 1.5, "label": "assumed", "rationale": "beyond near_length_m each segment's rest length is this many times the one before (design 3): the rest length grows by spacing_growth − 1 per material metre"},
-    "ground_reach_m": {"value": 0.5, "label": "assumed", "rationale": "a node this close to the ground takes the ground as a contact (design 6, 12); 1.7 adds the shapes, the elements and the clearance certificate"},
-    "ground_static_friction": {"value": 0.5, "label": "assumed", "rationale": "μs of the line's acrylate coating on the ground: drone.json's polymer pair on the ground's surfaces (the coating as a polymer part, design 1); 1.7 reads each surface's own"},
+    "ground_reach_m": {"value": 0.5, "label": "assumed", "rationale": "a node this close to the ground takes the ground as a contact (design 6, 12); 1.7: within it the plane (where the world has one; over a hole the shapes there are the ground)"},
+    "ground_static_friction": {"value": 0.5, "label": "assumed", "rationale": "μs of the line's acrylate coating on the ground: drone.json's polymer pair on the ground's surfaces (the coating as a polymer part, design 1); since 1.7 the plane and a soil shape take their surface's own (surfaces.json's set at the flight's moisture), and this pair is the fallback without surfaces.json and the μ on the drone's polymer parts"},
     "ground_kinetic_friction": {"value": 0.4, "label": "assumed", "rationale": "μk of the same pair (drone.json's ground_friction_kinetic)"},
     "coil_rebuild_m": {"value": 10, "label": "assumed", "rationale": "the mass model, the inertia and the airframe's coil mode are rebuilt each time this much line has paid out (0.69 g of line, design 3), the body's motion kept"}
   },
@@ -111,5 +111,20 @@
     "ground_vortex_core_over_height": {"value": 0.5, "label": "assumed", "rationale": "the vortex's Scully core radius over its height: the core reaches halfway to the ground"},
     "ground_vortex_circulation": {"value": 1.185, "label": "derived", "rationale": "Γ/(v_h·R): with the vortex so placed, its image under the ground and the wall jet, the speed at y/R 0.19 under the centre is 1.59 v_h at μ* 0.55 and 1.65 v_h at 0.80 against Wolf et al. 2022's measured 1.5 and 1.75 (least squares in the log, RotorAirTests)"},
     "ground_vortex_half_span_over_radius": {"value": 1, "label": "assumed", "rationale": "each rotor's vortex spans its wake's width, R either side of the centre, a straight vortex across the stream (the horseshoe's legs left out); a rotor whose upstream jet meets another's landing within one span across forms none, ramped to two spans across and over one along"}
+  },
+  "contact": {
+    "clearance_margin_m": {"value": 0.5, "label": "assumed", "rationale": "the clearance certificate's margin (design 12): a swept query of a segment against the world's shapes that finds nothing within this certifies it clear until either end has moved this less the line's radius, so a line hanging in the open at 20 m/s is queried about once in 25 steps; a segment in contact or within the margin of a shape is queried every step"},
+    "drone_cache_radius_m": {"value": 2, "label": "assumed", "rationale": "the elements, snag records and conductors around the drone the line's segments are tested against each step (design 12): p7a-ground design 8's 2 m cache of the drone, carried"},
+    "drone_cache_refresh_m": {"value": 0.5, "label": "assumed", "rationale": "the drone's cache is asked for again once the drone is this far from its centre (p7a-ground design 8's, carried): with the 20-step swap it holds to about 50 m/s"},
+    "line_cache_radius_m": {"value": 1, "label": "assumed", "rationale": "each of the two caches at the line's lowest touching nodes (design 12, the surfaces review §6.1): where the line lies far from the drone, on a mat or in a crown"},
+    "line_cache_refresh_m": {"value": 0.25, "label": "assumed", "rationale": "a line cache is asked for again once its node is this far from its centre: a quarter of its radius, as the drone's 0.5 of 2 m"},
+    "cache_swap_steps": {"value": 20, "label": "assumed", "rationale": "a cache asked for in a step is used from this many steps later, never when the worker is done (api-review §6), so a replay swaps at the same step with the same bits"},
+    "element_capacity": {"value": 8192, "label": "assumed", "rationale": "a cache's elements, preallocated: p7a-ground design 8's 8192, about twice S04's density over the 2 m disc (4527 at r 2 m, p7a 1.9); overflow is a WorldBug and the canonical prefix is used"},
+    "snag_capacity": {"value": 4096, "label": "assumed", "rationale": "a cache's snag record segments, preallocated: twice the map compiler's 2048 in any 2 m cube (the fortifications reading §7); V01_L's whole crown holds 820 within 12 m; overflow is a WorldBug and the canonical prefix is used"},
+    "wire_capacity": {"value": 8, "label": "assumed", "rationale": "a cache's conductors (design 13's eight active conductors); overflow is a WorldBug and the canonical prefix is used"},
+    "stem_slide_off_share": {"value": 0.5, "label": "assumed", "rationale": "a standing stem lets the line slide off its tip once pushed this share of the contact's height across (p7a-ground design 8's stems, carried)"},
+    "hook_reach_m": {"value": 0.03, "label": "assumed", "rationale": "a hooked straw's spring reaches its release force over this pull (p7a-ground design 8's hooks, carried)"},
+    "aluminium_static_friction": {"value": 0.35, "label": "assumed", "rationale": "μs of the coating on the motors' aluminium cans: the steel row's of physics_materials.json, the nearest metal there (no aluminium row: the cans are the drone's, design 6)"},
+    "aluminium_kinetic_friction": {"value": 0.28, "label": "assumed", "rationale": "μk of the same pair (the steel row's)"}
   }
 }

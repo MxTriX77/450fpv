@@ -325,6 +325,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The arm under the clamp bending out of its plane, N/m: the give the clamp's mount adds to a leg.</summary>
         public double MountStiffness;
 
+        /// <summary>The arm under the clamp bending in its plane, N/m (p7g-legs, model 51): with MountStiffness, the contact spring of
+        /// a broken leg's stub held in the clamp.</summary>
+        public double MountSideStiffness;
+
         /// <summary>The hand's torque on the wing nut, N·m; the nut factor K; the jaws' friction on the tube; the stress
         /// concentration factor at the clamp's edge.</summary>
         public LegBound Torque, NutFactor, Friction, EdgeFactor;
@@ -679,6 +683,7 @@ namespace Fpv450.Sim.Flight
                 }
                 shapes.Add(placed);
             }
+            if (Blade != null) AddBlades(shapes, c);
             c.Shapes = shapes.ToArray();
             c.LegStiffness = Legs.Stiffness;
             c.LegDamping = Legs.Damping;
@@ -707,6 +712,52 @@ namespace Fpv450.Sim.Flight
             return c;
         }
 
+        /// <summary>A resting blade's damping ratio, η/2 of glass-filled nylon's loss factor η ≈ 0.02 (assumed, inside the published
+        /// 0.01–0.03 of PA66-GF30's tan δ at 23 °C; p7f-damage 1.3b).</summary>
+        public const double BladeDampingRatio = 0.01;
+
+        /// <summary>
+        /// Each prop's blades as resting parts (p7f-damage 1.3b, design 16, D-082), after every other shape so the build's
+        /// indices hold: per disc (in the shapes' order), per blade, per span segment (ContactSpec's BladeSegmentEnds, from the
+        /// blade's root), its trailing and leading edge as a capsule of the segment's greatest half-thickness, so the pair spans
+        /// the chord at its pitch (the planform's chord and twist, D-028). Placed at angle 0 here; ContactModel places them at
+        /// the rotor's angle from the blade's state each Sense. Their mount is the disc's motor (its can's stiffness, in series
+        /// with the blade's bending, ContactModel); the rest speed is the outer segment's radius over R·Dt (derived).
+        /// </summary>
+        void AddBlades(System.Collections.Generic.List<Contact.ContactShape> shapes, Contact.ContactSpec c)
+        {
+            double R = Props.Diameter / 2, root = Blade.Stations[0] - Blade.Span / 2;
+            double[] ends = Contact.ContactSpec.BladeSegmentEnds;
+            int discs = shapes.Count;
+            string[] ids = { "rr", "fr", "rl", "fl" };
+            double outer = 0;
+            for (int i = 0; i < discs; i++)
+            {
+                Contact.ContactShape d = shapes[i];
+                if (d.Role != Contact.ContactRole.Disc) continue;
+                Contact.ContactShape mount = default;
+                for (int j = 0; j < discs; j++)
+                    if (shapes[j].Role == Contact.ContactRole.Body && Parts[shapes[j].Part].Name == "motor_" + ids[d.Corner]) mount = shapes[j];
+                for (int b = 0; b < Props.Blades; b++)
+                    for (int g = 0; g < ends.Length; g++)
+                    {
+                        double from = g == 0 ? root : ends[g - 1], to = ends[g], half = 0;
+                        for (int k = 0; k < Blade.Stations.Length; k++)
+                            if (Blade.Stations[k] + Blade.Span / 2 > from && Blade.Stations[k] - Blade.Span / 2 < to) half = DetMath.Max(half, Blade.Thickness[k] / 2);
+                        if (g == ends.Length - 1) outer = half;
+                        for (int e = 0; e < 2; e++)
+                            shapes.Add(new Contact.ContactShape
+                            {
+                                Name = "blade_" + ids[d.Corner] + "_" + b + "_" + g + (e == 0 ? "_trailing" : "_leading"), Part = d.Part,
+                                Role = Contact.ContactRole.Blade, Corner = d.Corner, Material = d.Material,
+                                A = d.A + new Double3(from * R, 0, 0), B = d.A + new Double3(to * R, 0, 0), Radius = half,
+                                Stiffness = mount.Stiffness, StiffnessUp = mount.StiffnessUp, DampingRatio = BladeDampingRatio,
+                            });
+                    }
+            }
+            c.BladeRestSpeed = outer / (R * FlightCore.Dt);
+        }
+
         /// <summary>
         /// The legs' failure data (p7g-legs 1.2) from the legs block: each leg's part and T-joint ("tjoint_rr", …), its clamp's
         /// bottom edge ("clamp_rr"'s underside) and its foot (its T-joint's underside, the skid's) on the leg's axis, the tube,
@@ -725,6 +776,7 @@ namespace Fpv450.Sim.Flight
                 YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
                 ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
                 TJointTorque = Legs.TJoint.Torque, Interlayer = Legs.TJoint.InterlayerStrength,
+                StubStiffness = Legs.Clamp.MountSideStiffness, StubStiffnessUp = Legs.Clamp.MountStiffness,
             };
             for (int c = 0; c < 4; c++)
             {
@@ -1315,13 +1367,14 @@ namespace Fpv450.Sim.Flight
             {
                 var c = new LegClamp();
                 if (!IsObject(p, at)) return c;
-                Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "torque_n_m",
-                    "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
+                Members(p, at, "material", "modulus_pa", "grip_length_m", "bolt_diameter_m", "mount_stiffness_n_per_m", "mount_side_stiffness_n_per_m",
+                    "torque_n_m", "torque_bounds_n_m", "nut_factor", "nut_factor_bounds", "friction", "friction_bounds", "edge_stress_factor", "edge_stress_factor_bounds");
                 c.Material = Text(p, "material", at, PrintMaterials);
                 c.Modulus = Positive(p, "modulus_pa", at);
                 c.GripLength = Positive(p, "grip_length_m", at);
                 c.BoltDiameter = Positive(p, "bolt_diameter_m", at);
                 c.MountStiffness = Positive(p, "mount_stiffness_n_per_m", at);
+                c.MountSideStiffness = Positive(p, "mount_side_stiffness_n_per_m", at);
                 c.Torque = Bounded(p, "torque_n_m", "torque_bounds_n_m", at);
                 c.NutFactor = Bounded(p, "nut_factor", "nut_factor_bounds", at);
                 c.Friction = Bounded(p, "friction", "friction_bounds", at);
