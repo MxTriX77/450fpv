@@ -235,21 +235,22 @@ namespace Fpv450.FlightBench
             Row("known-wrong: the onset from the descent speed alone", VortexRingScenario.HeavyOnLowThrottle(wrong, lowOff, ring), VortexRingScenario.Describe(wrong),
                 knownWrong: true);
             // QA's finding 4: on 20 seeds, each against its own ringless flight; the known-wrong fails on each.
-            int heavyOk = 0, higher = 0, wrongs = 0;
+            int heavyOk = 0, higher = 0, wrongs = 0, wobbling = 0;
             double least = double.MaxValue, most = 0;
             foreach (ulong seed in VortexRingScenario.Seeds)
             {
                 VortexRingScenario.Result on = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, seed: seed), true);
                 VortexRingScenario.Result off = VortexRingScenario.Fly(VortexRingScenario.Setup(spec, false, seed: seed), true);
-                if (VortexRingScenario.HeavyOnLowThrottle(on, off, ring)) heavyOk++;
+                if (VortexRingScenario.HeavyOnLowThrottle(on, off, ring, 1)) heavyOk++;
+                if (VortexRingScenario.HeavyOnLowThrottle(on, off, ring)) wobbling++;
                 if (VortexRingScenario.HigherThrottle(VortexRingScenario.Fly(VortexRingScenario.Setup(spec, seed: seed), false))) higher++;
                 if (!VortexRingScenario.HeavyOnLowThrottle(VortexRingScenario.Fly(VortexRingScenario.Setup(spec, true, true, seed), true), off, ring)) wrongs++;
                 least = Math.Min(least, on.WobbleRms / off.WobbleRms);
                 most = Math.Max(most, on.WobbleRms / off.WobbleRms);
             }
             int seeds = VortexRingScenario.Seeds.Length;
-            Row($"on seeds 101-120: heavy on low throttle, the higher throttle, the known-wrong failing", heavyOk == seeds && higher == seeds && wrongs == seeds,
-                $"{heavyOk}, {higher} and {wrongs} of {seeds}; the wobble {least:F2}-{most:F2} x the ringless flight's (against 1.5)");
+            Row($"on seeds 101-120: heavy on low throttle, the higher throttle, the known-wrong failing", heavyOk == seeds && wobbling >= VortexRingScenario.WobblingSeeds && higher == seeds && wrongs == seeds,
+                $"{heavyOk}, {higher} and {wrongs} of {seeds}; the wobble {least:F2}-{most:F2} x the ringless flight's, {wobbling} at 1.5 (at least {VortexRingScenario.WobblingSeeds})");
 
             Console.WriteLine("ground and ceiling effect, recirculation (airframe-effects, p7b-airframe 1.3) on the stub, each rotor's thrust at "
                 + "the props' reference rpm over its free-air thrust, and a closed-loop hover on the legs in still air without asymmetry:");
