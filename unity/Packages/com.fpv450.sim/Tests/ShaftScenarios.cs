@@ -97,7 +97,7 @@ namespace Fpv450.Sim.Tests
             return r;
         }
 
-        /// <summary>A lost blade's flight (prop-motor-damage's "A lost blade throws the drone over").</summary>
+        /// <summary>A lost blade's flight (prop-motor-damage's "A lost blade shakes the drone and pulls at its hub").</summary>
         public struct Lost
         {
             public double TiltAt, TiltAfterOne, Pull, ThrustShare, TorqueShare, Band, Command, Speed;

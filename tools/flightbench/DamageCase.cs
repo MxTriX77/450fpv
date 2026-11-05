@@ -141,7 +141,7 @@ namespace Fpv450.FlightBench
         // the load law at 0.8, 1.2 and 2 M_y, then the 10 s hover (the known-wrong a flat Kt loss); a brinelled bearing: the law at
         // 2·C0r; a lost blade at its root in the hover, the sticks centred (the known-wrong a scripted loss with no 1/rev); a root
         // break's BladeLost. It fails where a form misses, the bent shaft does not shake past the known-wrong or the events are not
-        // logged; the lost blade's tilt is printed (the scenario's 45° claim is not the physics': ShaftTests' notes).
+        // logged or the lost blade's drone does not hold its attitude (its tilt at 1 s printed, under 45° through the second).
         static bool Shafts(DroneSpec spec)
         {
             Console.WriteLine("  the shaft and the bearings (p7f-damage 1.6):");
@@ -166,9 +166,9 @@ namespace Fpv450.FlightBench
             Console.WriteLine("    " + lost.Describe());
             Console.WriteLine("    " + wrong.Describe());
             StrikeScenarios.Rig rod = ShaftScenarios.Rod(spec, 0.112, 0.008);
-            bool blade = lost.Band > 5 * wrong.Band && rod.Count(EventKind.BladeLost) == 2;
+            bool blade = lost.Band > 5 * wrong.Band && rod.Count(EventKind.BladeLost) == 2 && double.IsNaN(lost.TiltAt);
             Console.WriteLine($"    a lost blade is flown: {(blade ? "PASS" : "FAIL")} (its band {lost.Band:F2} against the scripted loss's {wrong.Band:F4} m/s²; "
-                + $"{rod.Count(EventKind.BladeLost)} BladeLost at a root break; the tilt at 1 s {lost.TiltAfterOne:F2}°, never 45°)");
+                + $"{rod.Count(EventKind.BladeLost)} BladeLost at a root break; the tilt at 1 s {lost.TiltAfterOne:F2}°, {(double.IsNaN(lost.TiltAt) ? "never 45°" : $"45° at {lost.TiltAt * 1e3:F0} ms")})");
             return bent && brinell && blade;
         }
 

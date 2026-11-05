@@ -32,8 +32,8 @@ namespace Fpv450.Sim.Tests
         // straight one by their drag, 4e-6 m/s² in the band); 1.2 and 2 log a bend (M − M_y)/k_φ along the hit's moment, its run-out
         // at the stator φ·8 mm and its tilt φ. At 1.2 the hover's 50–200 Hz band rises with them (the 1/rev pull and couples, the
         // run-out's rub); at 2 the run-out, 2 mm, puts the magnets 1.75 mm into the stator: the rub (3.7 N·m) passes the stalled
-        // drive, the motor binds (MotorBound) and the drone falls on three rotors, so there is no hover to shake (printed: the
-        // scenario's "rises with them" holds up to the bind). The known-wrong, a straight shaft and the motor a flat efficiency loss
+        // drive, the motor binds (MotorBound) and the drone falls on three rotors, so there is no hover to shake: the band rises
+        // with the bend up to the bind, past it the run-out binds the motor (the scenario's words since model 68). The known-wrong, a straight shaft and the motor a flat efficiency loss
         // (Kt × 0.95), keeps the straight hover's band: it fails.
         [Test]
         public void ABentShaftShakes()
@@ -310,17 +310,17 @@ namespace Fpv450.Sim.Tests
             BitConverter.DoubleToInt64Bits(a.X) == BitConverter.DoubleToInt64Bits(b.X) && BitConverter.DoubleToInt64Bits(a.Y) == BitConverter.DoubleToInt64Bits(b.Y)
             && BitConverter.DoubleToInt64Bits(a.Z) == BitConverter.DoubleToInt64Bits(b.Z);
 
-        // prop-motor-damage's "A lost blade throws the drone over": the hovering drone loses rr's blade 0 at its root (seeds 1–3) and
+        // prop-motor-damage's "A lost blade shakes the drone and pulls at its hub": the hovering drone loses rr's blade 0 at its root (seeds 1–3) and
         // flies 1 s with the sticks centred (acro, the throttle held), and with SimPilot holding the point. The rotor flies the
         // remaining blade: about 0.6 of its thrust (one blade's lower inflow, BEMT) and 0.47 of its torque, the lost blade's pull of
         // about 265 N at the loss and the remaining blade's 1/rev moments, so the camera's 50–200 Hz band is many times the
         // known-wrong's (the same mean thrust and torque loss scripted, no 1/rev), which keeps the factory band: it fails "follow the
-        // remaining blade". The scenario's claim that the drone cannot hold its attitude (45° within 1 s) is not what the physics
-        // gives: rr's command rises from the hover's 0.48 to about 0.6 (its remaining blade still lifts the corner's share with the
-        // class's power to spare) and the 1/rev, near 150–190 Hz, is far above the attitude loop; the tilt at 1 s is printed (about
-        // 7° with the sticks centred, 1° held). Asserted: the tilt stays under 45° (the finding, for the orchestrator's decision).
+        // remaining blade". The drone holds its attitude: rr's command rises from the hover's 0.48 to about 0.6 (its remaining blade
+        // still lifts the corner's share with the class's power to spare) and the 1/rev, near 150–190 Hz, is far above the attitude
+        // loop; the tilt at 1 s is printed (about 7° with the sticks centred, 1° held) and never passes 45° either way. (Until model
+        // 68 the scenario read "throws the drone over", 45° within 1 s, design 11's hand estimate; reworded to what this computes.)
         [Test]
-        public void ALostBladeThrowsTheDroneOver()
+        public void ALostBladeShakesTheDroneAndPullsAtItsHub()
         {
             DroneSpec spec = Spec;
             foreach (ulong seed in new ulong[] { 1, 2, 3 })
@@ -333,11 +333,12 @@ namespace Fpv450.Sim.Tests
                 Assert.That(lost.Band, Is.GreaterThan(5 * wrong.Band), "the rotor follows the remaining blade: it shakes");
                 Assert.That(wrong.Band, Is.LessThan(2 * DamageScenario.FactoryBandHigh), "the scripted loss does not: it fails");
                 Assert.That(lost.Command, Is.GreaterThan(wrong.Command - 0.05), "rr's command rises to carry its corner");
-                Assert.That(lost.TiltAt, Is.NaN, "the physics holds the attitude for the second (the finding)");
+                Assert.That(lost.TiltAt, Is.NaN, "the drone holds its attitude for the second, the sticks centred");
+                Assert.That(held.TiltAt, Is.NaN, "and the simulated pilot holding");
             }
         }
 
-        // "A lost blade throws the drone over", its event: a 16 mm steel rod 15 mm from the front-right hub (its near side) breaks
+        // "A lost blade shakes the drone and pulls at its hub", its event: a 16 mm steel rod 15 mm from the front-right hub (its near side) breaks
         // both blades at their root station as they pass it, each a BladeDamaged (Break) then a BladeLost with the tip at the first
         // station or less; logged once a blade.
         [Test]

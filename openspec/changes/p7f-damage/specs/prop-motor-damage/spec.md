@@ -154,7 +154,7 @@ The hub's strike loads SHALL bend the shaft past its yield moment (a run-out and
 
 #### Scenario: A bent shaft shakes
 - **WHEN** a motor's bell takes side hits whose moment at the upper bearing is 0.8, 1.2 and 2 times the yield moment, then the drone hovers 10 s
-- **THEN** the first leaves the shaft straight, the others log a bend with its run-out and tilt, the 1/rev hub loads grow with the bend as their forms give within 1e-9 relative, and the camera's 50–200 Hz band rises with them
+- **THEN** the first leaves the shaft straight, the others log a bend with its run-out and tilt, the 1/rev hub loads grow with the bend as their forms give within 1e-9 relative, and the camera's 50–200 Hz band rises with the bend up to the bind: past it the run-out rubs the bell on the stator harder than the stalled drive turns, the motor binds (`MotorBound`), its rotor stops and the drone comes down on three rotors, so there is no hover to shake (each hover's band, rub, current and the bind printed)
 
 #### Scenario: A brinelled bearing
 - **WHEN** a bearing's radial load from a hit passes 276 N
@@ -174,9 +174,9 @@ Each motor's damage SHALL enter the existing motor and ESC model only as its tor
 ### Requirement: Breakage
 A blade broken at a station, a blade lost at its root, a prop lost with its shaft, a rotor jammed and a motor bound SHALL each be a logged event with its cause's strike, and the physics SHALL fly the result with nothing scripted.
 
-#### Scenario: A lost blade throws the drone over
-- **WHEN** a hovering drone loses one blade at its root
-- **THEN** `BladeLost` is logged, the rotor's unbalance and thrust follow the remaining blade, and the drone cannot hold its attitude (its tilt passes 45° within 1 s, printed) with the builder's PIDs and the sticks centred
+#### Scenario: A lost blade shakes the drone and pulls at its hub
+- **WHEN** a hovering drone loses one blade at its root, then flies 1 s with the builder's PIDs and the sticks centred, and again with the simulated pilot holding its point
+- **THEN** `BladeLost` is logged; the rotor's unbalance, thrust and torque follow the remaining blade (about 0.6 of the rotor's thrust left); the lost blade's pull at the hub is hundreds of newtons at the loss; the camera's 50–200 Hz band is many times the known-wrong's (the same mean thrust and torque loss scripted, no 1/rev); the motor's command rises to carry its corner; and the drone holds its attitude (its tilt stays under 45° through the second, its tilt at 1 s printed), since the remaining blade still lifts the corner with the class's power to spare and the 1/rev, near 150–190 Hz, is far above the attitude loop
 
 ### Requirement: Damage persists, is logged and replays
 The damage SHALL persist for the flight in preallocated tables, the step record SHALL carry each rotor's damage aggregates, every change SHALL be an event, the header SHALL carry the blade and motor tables with `drone.json`'s hash and the new draws, a `DamageReport` SHALL list each rotor's final state and its events in order for the post-flight summary and forensics, and a headless replay SHALL rebuild all of it bit for bit.
