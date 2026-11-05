@@ -33,13 +33,17 @@ namespace Fpv450.App
         /// <summary>The flights, found by sweeps of seeds 1–4 at model 50: landings of 1–3 m/s rolled 0–20°, rises of 0.5–5 m/s.
         /// Model 57 moved the missing leg's: seed 1 at 5 m/s now breaks front right on the fall back, so the half has nothing to
         /// hang from. A sweep of seeds 1–24 at 4–5.75 m/s keeps the pulled-out leg and its folded half to rest on seed 11 at
-        /// 4.25 m/s (and seeds 15, 17, 21 and 24 at 4.75); the other rises that pull it out hold it only in the air.</summary>
+        /// 4.25 m/s (and seeds 15, 17, 21 and 24 at 4.75); the other rises that pull it out hold it only in the air.
+        /// Model 64 (the skid's frame, the canister) moved three, each held from 2.5 s to 3.5 s: the 2 m/s rolled landing now
+        /// breaks legs, and seed 5 at 1.75 m/s rolled 10° sets rear right 3.5° (front right 2.5°, the other two intact in
+        /// shape); seed 11 at 4.25 breaks every leg, and seed 13 at 4.5 m/s pulls rear right out with its half folded from a
+        /// bent front right; seed 2 at 4 m/s no longer breaks front left, at 3.5 m/s it does (rear and front right break too).</summary>
         public static readonly Case[] Cases =
         {
-            new Case { Name = "bent", Seed = 3, Down = 2.0, RollDeg = 10, ShotS = 2.5, Leg = 0, Flags = LegFlags.Set, Corner = CornerState.None, SetDeg = 3 },
+            new Case { Name = "bent", Seed = 5, Down = 1.75, RollDeg = 10, ShotS = 2.5, Leg = 0, Flags = LegFlags.Set, Corner = CornerState.None, SetDeg = 3 },
             new Case { Name = "broken", Seed = 3, Up = 2.5, ShotS = 2.5, Leg = 0, Flags = LegFlags.Broken, Corner = CornerState.Stub | CornerState.Hanging },
-            new Case { Name = "missing", Seed = 11, Up = 4.25, ShotS = 2.5, Leg = 0, Flags = LegFlags.Detached, Corner = CornerState.TubeGone | CornerState.Hanging | CornerState.Folded },
-            new Case { Name = "hanging", Seed = 2, Up = 4.0, ShotS = 2.5, Leg = 3, Flags = LegFlags.Broken, Corner = CornerState.Stub | CornerState.Hanging },
+            new Case { Name = "missing", Seed = 13, Up = 4.5, ShotS = 2.5, Leg = 0, Flags = LegFlags.Detached, Corner = CornerState.TubeGone | CornerState.Hanging | CornerState.Folded },
+            new Case { Name = "hanging", Seed = 2, Up = 3.5, ShotS = 2.5, Leg = 3, Flags = LegFlags.Broken, Corner = CornerState.Stub | CornerState.Hanging },
         };
 
         /// <summary>Whether the pose shows the case's leg in its state.</summary>
