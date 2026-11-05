@@ -76,7 +76,8 @@ namespace Fpv450.FlightBench
             // known-wrong Glance); it fails on a tunnel, or where the soil's flight carves nothing or never stops a prop. Since model
             // 48 the legs fly rigid across (StrikeScenarios.TippedLanding) and a disarmed drone's ESCs brake (drone.json's BLHeli_S):
             // its props are stopped before they reach the soil, so a disarmed landing must tip, stop and break no blade, and the
-            // ESCs freewheeling (model 38's coast, the known-wrong) are printed beside it.
+            // ESCs freewheeling (model 38's coast, the known-wrong) are printed beside it. Since model 69 the armed landing flies
+            // without airmode (D-086), airmode on (model 65's) beside it.
             Console.WriteLine("  tipped landings (the props in the soil; p7f-damage 1.3's soil carve):");
             bool tipped = true;
             foreach (bool disarm in new[] { false, true })
@@ -93,7 +94,13 @@ namespace Fpv450.FlightBench
                         Console.WriteLine($"    {site}, {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
                         Console.WriteLine("      model 43's carve (ContactSpec.TipSlide off): " + slid.Describe());
                         Console.WriteLine("      without surfaces.json: " + wrong.Describe());
-                        if (!disarm) continue;
+                        if (!disarm)
+                        {
+                            // Armed at zero throttle without airmode since model 69 (D-086); with it, model 65's controller.
+                            StrikeScenarios.TipResult air = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, airmode: true);
+                            Console.WriteLine("      airmode on (model 65's): " + air.Describe());
+                            continue;
+                        }
                         StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(PoweredFlightCase.Drone()), World(site, out at), at, rain,
                             SoilScenarios.Table(), disarm);
                         Console.WriteLine("      the ESCs freewheeling (EscDisarm.Freewheel): " + free.Describe());
