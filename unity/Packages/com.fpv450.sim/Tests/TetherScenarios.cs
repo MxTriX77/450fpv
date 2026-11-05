@@ -178,8 +178,9 @@ namespace Fpv450.Sim.Tests
             // the line's fall from the flight's 10 m at its terminal 1.4 m/s (White's fit, "A falling line settles") takes 7.1 s.
             // p7d-tether 1.7: 14 s. With the contacts the line's near metre meets the drone's parts in the reverse (the stack and
             // the coil's belly), which changes where the slack lies when it lands, and 8 s left its first point creeping at 8 mm/s,
-            // over trail.freeze_speed_m_s; it rests and freezes within 14 s.
-            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 14, turn = climb + outFor;
+            // over trail.freeze_speed_m_s; it rests and freezes within 14 s. Model 60 (the skid's frame): the takeoff's stance on the
+            // frame's legs moves where the slack lands, and its first points freeze 18 s into the hover (model 59: 14 s); 20 s.
+            const double climb = 6, outFor = 10, backFor = 6, hoverFor = 20, turn = climb + outFor;
             var r = new OutBack { LeastAfterTurn = double.PositiveInfinity, SlackLeast = double.PositiveInfinity };
             double last = 0, stand = Stand(setup);
             Plan flight = OutAndBack(stand, 10, climb, 10, turn, 10);

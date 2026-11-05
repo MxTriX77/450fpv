@@ -49,11 +49,11 @@ namespace Fpv450.Sim.Tests
         /// four, its front-left corner lower. drop lifts the start by that much more (m): a drone dropped onto the blade.
         /// </summary>
         public static Result Block(DroneSpec spec, bool rest = true, double seconds = 3, double drop = 0, Action<FlightSetup> edit = null,
-            Action<FlightCore> stepped = null)
+            Action<FlightCore> stepped = null, ulong seed = 0x450F)
         {
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong h);
             double stand = SoilScenarios.Standing(spec);
-            FlightSetup setup = ContactScenarios.Setup(spec, m, h, true, new Double3(0, stand + BlockLift + drop, 0));
+            FlightSetup setup = ContactScenarios.Setup(spec, m, h, true, new Double3(0, stand + BlockLift + drop, 0), seed);
             setup.World = SoilScenarios.Floor("dirt_track");
             setup.RuntimeObjects = new[] { new RuntimeObject("block", new[] { BlockShape(setup.World) }) };
             setup.Contacts.BladeRest = rest;
@@ -201,7 +201,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static Result Rack(DroneSpec spec, bool rest = true, bool arm = true, double settle = 3, double armed = 3, ulong seed = 0x450F,
             Action<FlightSetup, FlightCore> started = null, Action<FlightCore, StickSample> stepped = null, double yaw = RackYaw, double radius = RackRadius,
-            int corner = RackCorner)
+            int corner = RackCorner, Action<FlightSetup> edit = null)
         {
             RackPose(spec, out Double3 position, out Quat attitude, out _, yaw, radius, corner);
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong h);
@@ -209,6 +209,7 @@ namespace Fpv450.Sim.Tests
             setup.World = new FlightWorld(RangeScenarios.World);
             setup.StartAttitude = attitude;
             setup.Contacts.BladeRest = rest;
+            edit?.Invoke(setup);
             var core = new FlightCore(setup);
             started?.Invoke(setup, core);
             var r = new Result { Corner = corner, LeastChord = 1, TipLeft = 1 };
@@ -238,6 +239,83 @@ namespace Fpv450.Sim.Tests
             result.Bend = bend;
             result.HubAtArming = r.HubHeight;
             return result;
+        }
+
+        // ---- the two cases over their set-downs (model 60) ------------------------------------------------------------------
+
+        /// <summary>The block's set-downs: the start's lift over BlockLift, m. No draw reaches the block (disarmed, no strength
+        /// met), so its seed changes nothing; where the drone comes to rest turns on how it lands and slides there. From 0 to 5
+        /// mm the same drone rests one of two ways: the blade near its root holding the front-left corner off the floor, or the
+        /// drone slid across until the block meets the blade far out on its span, which bends 6–8 mm and lets the skid's corner
+        /// down beside it (model 59, the cantilever legs, 2 of these 6 holding the corner over 3 mm; model 60, the frame, 1).</summary>
+        public static readonly double[] BlockDrops = { 0, 0.0005, 0.001, 0.002, 0.003, 0.005 };
+
+        /// <summary>The block over BlockDrops: on how many the blade bears the drone (in contact, over 2 N, bent, at a stiffness
+        /// of 500–12 000 N/m, undamaged, no crash or tunnel), holds its corner off the floor (the front-left skid's support
+        /// clear), and rests over the known-wrong's height there; on how many the known-wrong bears nothing and rests on its
+        /// skid; the least and most height over the known-wrong (m).</summary>
+        public struct BlockSweep
+        {
+            public int N, Bears, Holds, Over, WrongOnItsSkid;
+            public double LeastOver, MostOver;
+        }
+
+        public static BlockSweep Blocks(DroneSpec spec, Action<FlightSetup> edit = null, Action<double, Result, Result> each = null)
+        {
+            var w = new BlockSweep { LeastOver = double.PositiveInfinity, MostOver = double.NegativeInfinity };
+            foreach (double drop in BlockDrops)
+            {
+                Result r = Block(spec, drop: drop, edit: edit), wrong = Block(spec, rest: false, drop: drop, edit: edit);
+                each?.Invoke(drop, r, wrong);
+                w.N++;
+                if (r.BladeTouches && r.Load > 2 && r.Bend > 0 && r.Load / r.Bend >= 500 && r.Load / r.Bend <= 12000 && r.Damaged == 0
+                    && r.Crashes + r.Tunnels == 0) w.Bears++;
+                if (r.BladeTouches && !r.SupportTouches) w.Holds++;
+                double over = r.HubHeight - wrong.HubHeight;
+                if (over > 0) w.Over++;
+                w.LeastOver = DetMath.Min(w.LeastOver, over);
+                w.MostOver = DetMath.Max(w.MostOver, over);
+                if (wrong.Load == 0 && wrong.SupportTouches) w.WrongOnItsSkid++;
+            }
+            return w;
+        }
+
+        /// <summary>The rack's seeds: each flight's own draws (the motors' Kv, the ESCs, the blades' and legs' strengths), 1 to
+        /// RackSeeds. Which surface an idle blade meets first, the rail's steel or the roof's sheet beside it, and whether its
+        /// first blows crush its leading edge, turn on the pose the drone settles to within a millimetre (7 of 20 first on the
+        /// rail on model 59 and on model 60; a crushed edge on 9 and 13 of 20).</summary>
+        public const int RackSeeds = 20;
+
+        /// <summary>The rack over its seeds: on how many the drone rests on the blade disarmed (over 1 N), armed the blade
+        /// strikes, chips (a damage event and material lost) and crushes its leading edge (a notch), the drone moves (over 1 mm,
+        /// no crash or tunnel), and it rests over the known-wrong's height (over 3 mm); the first strike on the rail's steel;
+        /// on how many the known-wrong bears nothing; and the crashes (a drone the strikes drive off the roof falls 1.5 m) and
+        /// the tunnels on all.</summary>
+        public struct RackSweep
+        {
+            public int N, Rests, Strikes, Chips, Notches, Moves, Over, OnTheRail, WrongBearsNothing, Crashes, Tunnels;
+        }
+
+        public static RackSweep Racks(DroneSpec spec, Action<FlightSetup> edit = null, Action<ulong, Result, Result> each = null)
+        {
+            var w = new RackSweep();
+            for (ulong seed = 1; seed <= RackSeeds; seed++)
+            {
+                Result r = Rack(spec, seed: seed, edit: edit), wrong = Rack(spec, rest: false, arm: false, seed: seed, edit: edit);
+                each?.Invoke(seed, r, wrong);
+                w.N++;
+                if (r.Load > 1) w.Rests++;
+                if (r.Strikes > 0) w.Strikes++;
+                if (r.Damaged > 0 && r.Lost > 0) w.Chips++;
+                if (r.Notches > 0) w.Notches++;
+                if (r.Travel > 0.001) w.Moves++;
+                if (r.HubAtArming - wrong.HubHeight > 0.003) w.Over++;
+                if (r.FirstStrikeOn == "R01_A (steel)") w.OnTheRail++;
+                if (wrong.Load == 0) w.WrongBearsNothing++;
+                w.Crashes += r.Crashes + wrong.Crashes;
+                w.Tunnels += r.Tunnels + wrong.Tunnels;
+            }
+            return w;
         }
 
         static void Step(DroneSpec spec, FlightCore core, StickSample stick, Action<FlightCore, StickSample> stepped, ref Result r, bool armed)

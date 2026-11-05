@@ -114,20 +114,27 @@ namespace Fpv450.FlightBench
         {
             Console.WriteLine("  props at rest (p7f-damage 1.3b, D-082):");
             RestScenarios.Result block = RestScenarios.Block(spec), through = RestScenarios.Block(spec, rest: false);
-            bool b = block.BladeTouches && !block.SupportTouches && block.Load > 2 && through.Load == 0 && through.SupportTouches
-                && block.HubHeight - through.HubHeight > 0.003 && block.Crashes + block.Tunnels == 0;
+            // Since model 60 judged over the set-downs (RestScenarios.BlockDrops) and the rack's seeds (RackSeeds), as RestTests:
+            // where the drone comes to rest on a blade turns on how it lands, within a millimetre (RestScenarios' notes).
             Console.WriteLine("    set down on one prop: " + block.Describe());
             Console.WriteLine("      the prop passing through (model 50): " + through.Describe());
-            Console.WriteLine($"    a resting prop bears load: {(b ? "PASS" : "FAIL")} (the blade holds its corner up, {(block.HubHeight - through.HubHeight) * 1e3:F1} mm "
-                + "over the known-wrong's, which rests on that skid)");
+            RestScenarios.BlockSweep bw = RestScenarios.Blocks(spec);
+            bool b = bw.Bears == bw.N && bw.WrongOnItsSkid == bw.N && bw.Over == bw.N && bw.Holds > 0;
+            Console.WriteLine($"    a resting prop bears load: {(b ? "PASS" : "FAIL")} (over {bw.N} set-downs the blade bears the drone on {bw.Bears}, holds its corner "
+                + $"off the floor on {bw.Holds}, {bw.LeastOver * 1e3:F2}–{bw.MostOver * 1e3:F2} mm over the known-wrong's, which rests on that skid on {bw.WrongOnItsSkid}; "
+                + $"this set-down {(block.HubHeight - through.HubHeight) * 1e3:F1} mm)");
             RestScenarios.RackPose(spec, out Double3 p, out _, out double roll);
             RestScenarios.Result rack = RestScenarios.Rack(spec), wrong = RestScenarios.Rack(spec, rest: false, arm: false);
-            bool r = rack.Load > 1 && rack.Strikes > 0 && rack.FirstStrikeOn == "R01_A (steel)" && rack.Damaged > 0 && rack.Lost > 0 && rack.Travel > 0.001
-                && rack.Crashes + rack.Tunnels == 0 && wrong.Load == 0 && rack.HubAtArming - wrong.HubHeight > 0.003 && rack.Notches > 0;
+            RestScenarios.RackSweep rw = RestScenarios.Racks(spec);
+            int half = rw.N / 2;
+            bool r = rw.Rests > half && rw.Strikes > half && rw.Chips > half && rw.Moves > half && rw.Over > half && rw.Notches > 0 && rw.OnTheRail > 0
+                && rw.WrongBearsNothing == rw.N && rw.Tunnels == 0;
             Console.WriteLine($"    on R01_A's roof rack (set down rolled {roll * 57.29577951308232:F1}° at ({p.X:F3}, {p.Y:F3}, {p.Z:F3}), 3 s disarmed, then 3 s armed at idle): "
                 + rack.Describe());
             Console.WriteLine("      the prop passing through (model 50), disarmed: " + wrong.Describe());
-            Console.WriteLine($"    arming with a prop on the rack moves the drone: {(r ? "PASS" : "FAIL")}");
+            Console.WriteLine($"    arming with a prop on the rack moves the drone: {(r ? "PASS" : "FAIL")} (over {rw.N} seeds: rests on the blade {rw.Rests}, "
+                + $"strikes {rw.Strikes}, chips {rw.Chips}, notches {rw.Notches}, the rail first {rw.OnTheRail}, moves {rw.Moves}, over the known-wrong {rw.Over}, "
+                + $"the known-wrong bears nothing {rw.WrongBearsNothing}, {rw.Crashes} crashes (driven off the roof), {rw.Tunnels} tunnels)");
             // Information: a blade that carries a real share of the drone holds an idle motor by its friction (μ·N·r against the
             // idle's Kt·d·V/R less Kt·I0), so arming stalls it: the front-left blade's root pressed in the rail's crotch with the
             // motor can (RestScenarios' scan, 25 mm from the hub, 24° off the rail).

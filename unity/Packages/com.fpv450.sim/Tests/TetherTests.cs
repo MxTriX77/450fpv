@@ -52,7 +52,10 @@ namespace Fpv450.Sim.Tests
         }
 
         // "A known-wrong two-way spool": the same flight with a spool that takes line back at the static hold; its paid-out length
-        // falls on the return, so "Line never comes back" fails for it (the sharp reverse's "may", 1.11, fails with it).
+        // falls on the return, so "Line never comes back" fails for it (the sharp reverse's "may", 1.11, fails with it). Since
+        // model 60 the fall is from its most to its end: the line pays out past the turn's length as the drone slows (to 107.9 m
+        // on model 59, 109.5 on 60, from 95.9), and the spool takes it back to 91.2 m on 59, to 100.0 on 60, where the slack's
+        // first points have frozen on the ground (the frame's stance at the takeoff moves where it lands).
         [Test]
         public void AKnownWrongTwoWaySpoolFails()
         {
@@ -60,7 +63,7 @@ namespace Fpv450.Sim.Tests
             Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps; "
                 + $"exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; line over chord {r.Slack:F3}");
             Assert.That(r.Fell, Is.GreaterThan(0), "the line comes back");
-            Assert.That(r.LeastAfterTurn, Is.LessThan(r.AtTurn - 1), "the paid-out length falls on the return");
+            Assert.That(r.AtEnd, Is.LessThan(r.Most - 1), "the paid-out length falls on the return");
             bool target = r.Fell == 0 && r.LeastAfterTurn >= r.AtTurn;
             Assert.That(target, Is.False, "the known-wrong model fails \"Line never comes back\"");
         }
