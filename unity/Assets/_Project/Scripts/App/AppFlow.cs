@@ -584,6 +584,8 @@ namespace Fpv450.App
                     Check(host.WaitingForRadio && session.State == SessionState.Ended && session.End.Kind == FlightEndKind.Pilot,
                           "Restart without the radio: ended by the pilot, and the next flight waits for it");
                     host.Inputs.KeyboardAllowed = true;
+                    // The next flight starts StartWaitSeconds on, after its preparation; the scene draws it the frame after.
+                    yield return Until(() => session.Flights == flights + 1 && session.State == SessionState.Flying && _flight.ShownFlight == session.Flights, 10);
                     yield return new WaitForSecondsRealtime(1);
                     Check(session.Flights == flights + 1 && session.Seed != seed && session.LogPath != log, "Restart: a new flight with a new seed and log");
                     PoseFrame again = _flight.Pose;
