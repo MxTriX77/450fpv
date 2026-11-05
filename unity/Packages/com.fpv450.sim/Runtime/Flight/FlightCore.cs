@@ -186,6 +186,17 @@ namespace Fpv450.Sim.Flight
         double _rainMassRate;
         readonly Contact.ContactModel _contacts;
         readonly Contact.PropStrikes _strikes; // the blades against what the discs cut (p7f-damage 1.3), or null
+        int _bound; // the motors bound at the last step's end (MotorBound)
+
+        /// <summary>
+        /// BLHeli_S 16.7's low-rpm power protection's floor, the duty share its ESC allows a stalled or slow motor
+        /// (bitdump/BLHeli, BLHeli_S SiLabs/BLHeli_S.asm, derived, p7f-damage 1.5): Pwm_Limit_Beg is the high byte of
+        /// 50 × Pgm_Startup_Pwr_Decoded doubled, 0x40 at DEFAULT_PGM_STARTUP_PWR 9, so 25 of 255; set_pwm_limit_low_rpm holds the
+        /// duty to Low_Rpm_Pwr_Slope (the startup power, 9) × (255 div Comm_Period4x_H), no lower than that floor, full above about
+        /// 5000 rpm on these 7-pole-pair motors. Not flown (drone.json's esc_current_limit_a note): MotorBound logs the drive it
+        /// would allow.
+        /// </summary>
+        public const double BlheliSLowRpmFloor = 25.0 / 255;
         readonly Contact.LoosePieces _loose; // the pieces a damaged leg drops (p7g-legs 1.3), with the legs' law
         readonly Double3[] _hubWind = new Double3[4];
         readonly Sim.World.XZ[] _windAt = new Sim.World.XZ[1];
@@ -310,6 +321,8 @@ namespace Fpv450.Sim.Flight
                     _contacts.AttachRotors(_propulsion, setup.Propulsion);
                     _propulsion.BackSpeed = setup.Contacts.BladeRestSpeed;
                 }
+                // The motors' bells (p7f-damage 1.5): a contact on a turning bell drags its rotor, dents its ring and rubs its gap.
+                if (_propulsion != null) _contacts.AttachBells(_propulsion, setup.Propulsion);
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
                 if (_contacts.Legs != null)
@@ -751,6 +764,22 @@ namespace Fpv450.Sim.Flight
                 _events.Add(e);
             }
             s.EscLimited = (byte)loads.Limited;
+
+            // MotorBound as each motor's drag begins to hold it at rest under drive (p7f-damage 1.5, design 8, D-073) and lets go
+            // (A: 0). C: the drive BLHeli_S's low-rpm protection would allow there, its floor of 25/255 (derived, not flown).
+            int bound = _propulsion.Bound;
+            for (int i = 0; i < 4; i++)
+            {
+                bool now = (bound & (1 << i)) != 0, was = (_bound & (1 << i)) != 0;
+                if (now == was) continue;
+                FlightEvent e = FlightEvent.Of(EventKind.MotorBound);
+                e.Index = (byte)i;
+                e.A = now ? _propulsion.MotorDrag(i) : 0;
+                e.B = now ? _propulsion.HeldDrive(i) : 0;
+                e.C = now ? _propulsion.TorqueConstant(i) * BlheliSLowRpmFloor * loads.Volts / _propulsion.Resistance(i) : 0;
+                _events.Add(e);
+            }
+            _bound = bound;
 
             // The vortex rings move once a step, after its loops, from its inflow and the rotors' last thrust
             // (Propulsion.AdvanceRing); each rotor's entry and exit is an event with its η, μ and v_h.
