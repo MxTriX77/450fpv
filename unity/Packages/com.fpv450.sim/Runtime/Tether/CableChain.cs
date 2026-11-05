@@ -281,6 +281,9 @@ namespace Fpv450.Sim.Tether
         // speed at the start, the static peel's work and the added line's energy.
         double _spoolForce, _spoolDamp, _spoolMass, _spoolSpeed0, _spoolPeelWork;
 
+        // The lowest node whose blocks the last correction changed (Run's next pass assembles and sweeps from it).
+        int _dirty;
+
         public CableChain(int capacity, double massPerMetre, double axialStiffness)
         {
             if (capacity < 2) throw new ArgumentOutOfRangeException(nameof(capacity));
@@ -605,8 +608,11 @@ namespace Fpv450.Sim.Tether
             int n = Count;
             for (int pass = 0; ; pass++)
             {
-                Assemble(dt);
-                Solve();
+                // A pass after the first solves again from the lowest node whose model the correction changed: below it the
+                // blocks and the forward sweep are the last pass's, the same values, so the same bits.
+                int from = pass == 0 ? 0 : _dirty;
+                Assemble(dt, from);
+                Solve(from);
                 for (int i = 0; i < n; i++) _nodes[i].Position = _x0[i] + _nodes[i].Velocity * dt;
                 if (safe ? !SafeMissed(pass) : pass == MaxCorrections || !Correct(pass == 0)) break;
                 Corrections++;
@@ -691,11 +697,15 @@ namespace Fpv450.Sim.Tether
             if (pass > MaxCorrections) return false;
             bool missed = false;
             int n = Count;
+            _dirty = n;
             for (int i = 0; i < n; i++)
             {
                 ref CableNode a = ref _nodes[i];
-                missed |= Missed(a.Position, _x0[i], ref a.Contact0);
-                missed |= Missed(a.Position, _x0[i], ref a.Contact1);
+                if (Missed(a.Position, _x0[i], ref a.Contact0) | Missed(a.Position, _x0[i], ref a.Contact1))
+                {
+                    missed = true;
+                    Dirty(i);
+                }
             }
             if (missed && pass == MaxCorrections)
                 for (int i = 0; i < n; i++)
@@ -703,8 +713,15 @@ namespace Fpv450.Sim.Tether
                     ref CableNode a = ref _nodes[i];
                     Speculate(_x0[i], ref a.Contact0);
                     Speculate(_x0[i], ref a.Contact1);
+                    _dirty = 0;
                 }
             return missed;
+        }
+
+        // Node or segment i's blocks changed in this correction.
+        void Dirty(int i)
+        {
+            if (i < _dirty) _dirty = i;
         }
 
         static void Speculate(Double3 x, ref CableContact c)
@@ -716,12 +733,13 @@ namespace Fpv450.Sim.Tether
             c.Hold = x;
         }
 
-        // The system's blocks and right-hand side at the step's start (positions and velocities x₀, v₀).
-        void Assemble(double dt)
+        // The system's blocks and right-hand side at the step's start (positions and velocities x₀, v₀), from node from on (the
+        // nodes below it keep theirs; segment from − 1 adds its part to node from only).
+        void Assemble(double dt, int from)
         {
             int n = Count;
             double dt2 = dt * dt;
-            for (int i = 0; i < n; i++)
+            for (int i = from; i < n; i++)
             {
                 ref CableNode a = ref _nodes[i];
                 Sym3 diag = Iso(a.Mass) + a.Drag * dt;
@@ -737,7 +755,7 @@ namespace Fpv450.Sim.Tether
                 _diag[i] = diag;
                 _rhs[i] = a.Velocity * a.Mass + f * dt;
             }
-            for (int j = 0; j + 1 < n; j++)
+            for (int j = from > 0 ? from - 1 : 0; j + 1 < n; j++)
             {
                 byte kind = _segKind[j];
                 if (kind == 0)
@@ -745,6 +763,7 @@ namespace Fpv450.Sim.Tether
                     _off[j] = default;
                     continue;
                 }
+                bool own = j >= from; // node j's blocks are this assembly's
                 Double3 d = _segDir[j];
                 if (kind == 4)
                 {
@@ -752,11 +771,11 @@ namespace Fpv450.Sim.Tether
                     // geometric stiffness across; the balloon's momentum at the start along d.
                     double across4 = _segTension[j] / _segLen[j];
                     Sym3 k4 = Outer(d, _spoolDamp * dt + _spoolMass - across4 * dt2) + Iso(across4 * dt2);
-                    _diag[j] = _diag[j] + k4;
+                    if (own) _diag[j] = _diag[j] + k4;
                     _diag[j + 1] = _diag[j + 1] + k4;
                     _off[j] = k4 * -1.0;
                     Double3 pull4 = d * (dt * _spoolForce - _spoolMass * _spoolSpeed0);
-                    _rhs[j] = _rhs[j] + pull4;
+                    if (own) _rhs[j] = _rhs[j] + pull4;
                     _rhs[j + 1] = _rhs[j + 1] - pull4;
                     continue;
                 }
@@ -767,23 +786,28 @@ namespace Fpv450.Sim.Tether
                 if (_segTension[j] > 0)
                 {
                     Double3 pull = d * (dt * _segTension[j]);
-                    _rhs[j] = _rhs[j] + pull;
+                    if (own) _rhs[j] = _rhs[j] + pull;
                     _rhs[j + 1] = _rhs[j + 1] - pull;
                 }
                 Sym3 k = Outer(d, along * dt2) + Iso(across * dt2);
-                _diag[j] = _diag[j] + k;
+                if (own) _diag[j] = _diag[j] + k;
                 _diag[j + 1] = _diag[j + 1] + k;
                 _off[j] = k * -1.0;
             }
         }
 
-        // Thomas: D₀ = A₀, Dᵢ = Aᵢ − Bᵢ₋₁·Dᵢ₋₁⁻¹·Bᵢ₋₁, then back; the new velocities into the nodes.
-        void Solve()
+        // Thomas: D₀ = A₀, Dᵢ = Aᵢ − Bᵢ₋₁·Dᵢ₋₁⁻¹·Bᵢ₋₁, then back; the new velocities into the nodes. The forward sweep from node
+        // from (below it the last solve's, on the same blocks).
+        void Solve(int from)
         {
             int n = Count;
-            _invD[0] = _diag[0].Inverse();
-            _y[0] = _rhs[0];
-            for (int i = 1; i < n; i++)
+            if (from == 0)
+            {
+                _invD[0] = _diag[0].Inverse();
+                _y[0] = _rhs[0];
+                from = 1;
+            }
+            for (int i = from; i < n; i++)
             {
                 Sym3 b = _off[i - 1];
                 Sym3 p = _invD[i - 1];
@@ -805,6 +829,7 @@ namespace Fpv450.Sim.Tether
         {
             bool missed = false;
             int n = Count;
+            _dirty = n;
             for (int j = 0; j + 1 < n; j++)
             {
                 if (_segKind[j] != 0 || !(_segLen[j] > 0)) continue;
@@ -813,25 +838,27 @@ namespace Fpv450.Sim.Tether
                 _segKind[j] = 2;
                 _segDir[j] = (_x0[j + 1] - _x0[j]) * (1 / _segLen[j]);
                 missed = true;
+                Dirty(j);
             }
             for (int i = 0; i < n; i++)
             {
                 ref CableNode a = ref _nodes[i];
-                missed |= Missed(a.Position, _x0[i], ref a.Contact0);
-                missed |= Missed(a.Position, _x0[i], ref a.Contact1);
+                bool changed = Missed(a.Position, _x0[i], ref a.Contact0) | Missed(a.Position, _x0[i], ref a.Contact1);
                 if (a.Contact0.Glide || a.Contact1.Glide)
                 {
-                    if (first)
-                    {
-                        missed |= Released(a.Position, ref a.Contact0);
-                        missed |= Released(a.Position, ref a.Contact1);
-                    }
+                    if (first) changed |= Released(a.Position, ref a.Contact0) | Released(a.Position, ref a.Contact1);
                     Double3 along = a.Contact0.Free || a.Contact1.Free ? LineTangentAt(i) : default;
-                    missed |= Unstuck(a.Position, along, ref a.Contact0);
-                    missed |= Unstuck(a.Position, along, ref a.Contact1);
+                    changed |= Unstuck(a.Position, along, ref a.Contact0) | Unstuck(a.Position, along, ref a.Contact1);
                 }
+                if (!changed) continue;
+                missed = true;
+                Dirty(i);
             }
-            if (Spool.Active && n >= 2 && !Spool.Locked) missed |= SpoolMissed();
+            if (Spool.Active && n >= 2 && !Spool.Locked && SpoolMissed())
+            {
+                missed = true;
+                Dirty(n - 2);
+            }
             return missed;
         }
 
