@@ -27,7 +27,9 @@ namespace Fpv450.Sim.Tests
     /// (dynamic rollover). Pinning it takes μ ≥ T·sin φ / (W − T·cos φ) of Coulomb friction (quasi-static), which a lightly
     /// loaded skid never has; only a catch that does not scale with the load (a groove, a stem, a clod) holds it.
     ///
-    /// Legs off, on the coil: the spool, a cylinder of radius R lying fore-aft, with the centre of mass d above its axis.
+    /// Legs off, on the coil: the spool, a cylinder of radius R lying fore-aft, with the centre of mass d above its axis
+    /// (since model 64 D01's canister, tilted in the body: it lies level with the drone pitched nose-down by its tilt, and the
+    /// roll is about its axis, I_roll the inertia about it).
     /// It rolls on the ground (the contact point is the instant pivot): M(θ)·θ̈ = m·(g + R·θ̇²)·(d·sin θ + e·cos θ) with
     /// M(θ) = I_roll + m·(R² + 2·R·(d·cos θ − e·sin θ) + d² + e²) and e the centre of mass's offset across the axis, until a pack meets
     /// the ground (PackRest). Its linear rate is λ = √(m·g·d / (I_roll + m·(R + d)²)). A pivot about the axis (an axle,
@@ -46,9 +48,18 @@ namespace Fpv450.Sim.Tests
         public double Track, SupportY, SupportRadius, SkidEndZ;
 
         // ---- Legs off ----
-        /// <summary>The coil's radius and axis height (body y), its axis's x, and the pack capsule nearest the ground on
-        /// the side the drone rolls to: its centre (body x, y) and radius, m.</summary>
-        public double CoilRadius, CoilAxisY, PackX, PackY, PackRadius;
+        /// <summary>The coil's radius; the centre of mass's distance from its axis; the pack capsule nearest the ground on the
+        /// side the drone rolls to, across the axis (x) and its two ends' heights over it, square to the axis (the drone at
+        /// rest on the coil), and its radius, m. Since model 64 the coil is D01's canister (its body's capsule, "coil"), tilted
+        /// in the body: its axis (body, unit), the inertia about it through the centre of mass, kg·m², and the nose-down
+        /// pitch that lays it level on the ground (the rest), deg; a level coil (model 63's) has the axis +z, the roll inertia
+        /// and no pitch.</summary>
+        public double CoilRadius, CoilDistance, PackX, PackY, PackY2, PackRadius, CoilInertia, CoilRestPitchDeg;
+        public Double3 CoilAxis;
+
+        /// <summary>Every other body shape on the side the drone rolls to, as the pack's: across the axis, the lower end's
+        /// height over it, its radius, and its part's name (the first of them to meet the ground: FirstRestDeg).</summary>
+        public (double X, double Y, double Radius, string Part)[] Others = new (double, double, double, string)[0];
 
         /// <summary>The legs-on answer at a loadout (its legs on).</summary>
         public static LandingStability Legs(DroneSpec spec, ContactSpec contacts, in MassProperties body)
@@ -70,25 +81,44 @@ namespace Fpv450.Sim.Tests
         public static LandingStability Coil(DroneSpec spec, ContactSpec contacts, in MassProperties body)
         {
             var s = Of(body);
-            int coil = spec.Coil.Part, pack = -1;
+            int coil = spec.Coil.Housing >= 0 ? spec.Coil.Housing : spec.Coil.Part, pack = -1;
             foreach (DronePack p in spec.Packs)
                 if (spec.Parts[p.Part].Position.X > 0) pack = p.Part;
+            ContactShape axis = default, side = default;
             foreach (ContactShape c in contacts.Shapes)
             {
                 if (c.Role != ContactRole.Body) continue;
-                if (c.Part == coil && !(c.A.X == c.B.X && c.A.Y == c.B.Y && c.A.Z == c.B.Z))
-                {
-                    s.CoilRadius = c.Radius;
-                    s.CoilAxisY = c.A.Y;
-                }
-                if (c.Part == pack && !(c.A.X == c.B.X && c.A.Y == c.B.Y && c.A.Z == c.B.Z))
-                {
-                    s.PackX = c.A.X;
-                    s.PackY = c.A.Y;
-                    s.PackRadius = c.Radius;
-                }
+                bool capsule = !(c.A.X == c.B.X && c.A.Y == c.B.Y && c.A.Z == c.B.Z);
+                if (c.Part == coil && capsule && c.Name == "coil") axis = c;
+                if (c.Part == pack && capsule) side = c;
             }
-            if (s.CoilRadius == 0 || s.PackRadius == 0) throw new ArgumentException("the contacts lack the coil's or a pack's capsule", nameof(contacts));
+            if (axis.Radius == 0 || side.Radius == 0) throw new ArgumentException("the contacts lack the coil's or a pack's capsule", nameof(contacts));
+            // The plane square to the coil's axis u: across (body x) and up (body y less its share along u).
+            Double3 u = axis.B - axis.A;
+            u = u * (1 / u.Length());
+            Double3 up = new Double3(0, 1, 0) - u * u.Y;
+            up = up * (1 / up.Length());
+            Double3 across = new Double3(1, 0, 0);
+            Double3 com = body.CenterOfMass - axis.A, perp = com - u * Double3.Dot(com, u);
+            s.CoilAxis = u;
+            s.CoilRadius = axis.Radius;
+            s.CoilDistance = perp.Length();
+            s.CoilInertia = Double3.Dot(u, body.Inertia * u);
+            s.CoilRestPitchDeg = Deg(Math.Atan2(u.Y, u.Z));
+            s.PackX = Double3.Dot(side.A - axis.A, across);
+            s.PackY = Double3.Dot(side.A - axis.A, up);
+            s.PackY2 = Double3.Dot(side.B - axis.A, up);
+            s.PackRadius = side.Radius;
+            var others = new System.Collections.Generic.List<(double, double, double, string)>();
+            foreach (ContactShape c in contacts.Shapes)
+            {
+                if (c.Role != ContactRole.Body || c.Part == coil || c.Part == spec.Coil.Part) continue;
+                double x = Math.Max(Double3.Dot(c.A - axis.A, across), Double3.Dot(c.B - axis.A, across));
+                if (x <= 0) continue;
+                double y = Math.Min(Double3.Dot(c.A - axis.A, up), Double3.Dot(c.B - axis.A, up));
+                others.Add((x, y, c.Radius, spec.Parts[c.Part].Name));
+            }
+            s.Others = others.ToArray();
             return s;
         }
 
@@ -213,19 +243,19 @@ namespace Fpv450.Sim.Tests
 
         // ---- Legs off: the coil ----
 
-        /// <summary>The centre of mass's height over the coil's axis, m.</summary>
-        public double CoilAbove => CenterOfMass.Y - CoilAxisY;
+        /// <summary>The centre of mass's height over the coil's axis at rest, m.</summary>
+        public double CoilAbove => CoilDistance;
 
         /// <summary>The roll (deg) at which the pack meets the ground while the coil rolls (bisection).</summary>
         public double PackRestDeg
         {
             get
             {
-                double dx = PackX, dy = PackY - CoilAxisY, lo = 0, hi = Math.PI / 2;
+                double dx = PackX, lo = 0, hi = Math.PI / 2;
                 for (int i = 0; i < 60; i++)
                 {
                     double th = (lo + hi) / 2;
-                    double height = CoilRadius - dx * Math.Sin(th) + dy * Math.Cos(th) - PackRadius;
+                    double height = CoilRadius - dx * Math.Sin(th) + Math.Min(PackY, PackY2) * Math.Cos(th) - PackRadius;
                     if (height > 0) lo = th;
                     else hi = th;
                 }
@@ -233,9 +263,31 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        /// <summary>The roll (deg) at which the first body part other than the coil meets the ground while the coil rolls, and
+        /// its part (each shape's outermost end across and lowest end over the axis, a bound for a capsule along the axis).
+        /// Since model 64 on D01's canister, pitched nose-down at rest, the front motor and its arm meet it before the pack.</summary>
+        public double FirstRestDeg(out string part)
+        {
+            double best = 90;
+            part = null;
+            foreach (var o in Others)
+            {
+                double lo = 0, hi = Math.PI / 2;
+                for (int i = 0; i < 60; i++)
+                {
+                    double th = (lo + hi) / 2;
+                    if (CoilRadius - o.X * Math.Sin(th) + o.Y * Math.Cos(th) - o.Radius > 0) lo = th;
+                    else hi = th;
+                }
+                double deg = Deg((lo + hi) / 2);
+                if (deg < best) { best = deg; part = o.Part; }
+            }
+            return best;
+        }
+
         /// <summary>The rock's linear rate rolling on the coil (about its contact), and pivoting on its axis, 1/s.</summary>
-        public double CoilRollingRate => Math.Sqrt(Mass * G * CoilAbove / (RollInertia + Mass * (CoilRadius + CoilAbove) * (CoilRadius + CoilAbove)));
-        public double CoilAxleRate => Math.Sqrt(Mass * G * CoilAbove / (RollInertia + Mass * CoilAbove * CoilAbove));
+        public double CoilRollingRate => Math.Sqrt(Mass * G * CoilAbove / (CoilInertia + Mass * (CoilRadius + CoilAbove) * (CoilRadius + CoilAbove)));
+        public double CoilAxleRate => Math.Sqrt(Mass * G * CoilAbove / (CoilInertia + Mass * CoilAbove * CoilAbove));
 
         /// <summary>The time (s) the coil takes to rock from rest at fromDeg to toDeg: rolling on the ground, or pivoting on
         /// its axis (the known-wrong); offset is the centre of mass's distance across the axis toward the fall, m.</summary>
@@ -246,8 +298,8 @@ namespace Fpv450.Sim.Tests
             {
                 double arm = d * Math.Sin(th) + e * Math.Cos(th);
                 double acc = rolling
-                    ? (m * G * arm + m * r * arm * w * w) / (RollInertia + m * (r * r + 2 * r * (d * Math.Cos(th) - e * Math.Sin(th)) + d * d + e * e))
-                    : m * G * arm / (RollInertia + m * (d * d + e * e));
+                    ? (m * G * arm + m * r * arm * w * w) / (CoilInertia + m * (r * r + 2 * r * (d * Math.Cos(th) - e * Math.Sin(th)) + d * d + e * e))
+                    : m * G * arm / (CoilInertia + m * (d * d + e * e));
                 w += acc * dt;
                 th += w * dt;
                 t += dt;

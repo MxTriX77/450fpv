@@ -1,0 +1,595 @@
+{
+  "schema": 1,
+  "owner": "physics-engineer",
+  "name": "Svinoriz 10 Opto",
+  "bootstrap": false,
+  "about": "The Svinoriz 10 Opto's component spec (DRN-03; p5-drone task 1.2), written from docs/object-sheets/drone.md, letter T's frame, arms, packs and legs (D-043) and the pilot's simpler drone (D-050): the fiber coil beneath the frame, fore-aft between the two packs, which run along the sides below the arms; a plain plastic bottle strapped rigidly on top, fore-aft, the only load, its filled mass the setup's additional weight; four plastic tube legs on two fore-aft skids of the same tube (rigid PVC-U after the pilot's 'plastic, a little soft', in T's shape and look; p7g-legs 1.1). legs_off is the legs-off build: legs, T-joints and skids off and every other part where it is; the drone lifts off the upside-down chair's posts under its arms, so the coil never touches the ground. The parts stand at the nominal in-flight loadout, a 1.0 kg bottle and the coil half paid out, 4.83 kg. Body frame of DetMath.cs: x right, y up, z forward, metres from the arm-plane centre. Nothing is balanced: the stack's forward offset puts the centre of mass about 0.5 mm forward (derived) and leaves a small product of inertia I_yz, and the mass build keeps both. Every number is labelled where it stands (pilot, measured, published, derived or assumed) and the note gives its source or its calculation; 'the sheet' is the object sheet, 'T' the reference letter.",
+  "fields": {
+    "labelled number": "{\"value\": <number, or [x, y, z], or a list>, \"label\": \"pilot\" | \"measured\" | \"published\" | \"derived\" | \"assumed\", \"note\": \"<source or calculation>\"}; the note is optional, the label is not",
+    "bootstrap": "true for p6-flight-core's stand-in (now a test fixture); this researched file sets false",
+    "parts": "every rigid part the mass build sums (PHB-02): name (unique), kind (box | cylinder), material (carbon | aluminium | steel | polymer | li_ion | electronics), mass_kg (above 0), position_m (the part's centre); a box has size_m, its extents along body x, y, z; a cylinder is solid, with diameter_m, length_m and axis (the direction of its length, normalised when read). A part is a mass shape: its inertia, not its look (the props and arms say how they map)",
+    "motors": "four, in Betaflight's Quad X order (rear right, front right, rear left, front left): position_m (the prop hub, where the thrust acts), spin (cw | ccw seen from above; cw is a positive rotation about body +y), kv_rpm_per_v, resistance_ohm (the DC model's resistance: winding, ESC and leads), no_load_current_a (the bearings' and iron's loss, as the torque Kt·I0), rotor_inertia_kg_m2 (bell, shaft and prop about the shaft), magnet_poles, esc_tau_s (the ESC's command lag: the DShot frame, the PWM and the winding's L/R as one first-order lag), esc_current_limit_a (the ESC's current limit: the motor's current never passes it while the ESC drives; \"none\" for an ESC that senses no current), esc_disarm (what the ESC does with its spinning motor when the flight controller disarms: freewheel | blheli_s | blheli_s_brake_on_stop | bluejay | bluejay_brake_on_stop; a motor without it freewheels, the model before 42); the motor's lag τ_m = J/(Kt·Ke/R + ∂Q/∂ω) follows from these and the load; internals (p7f-damage design 8, 9; optional, on all four or none, every value with its note): bell_band_m (the turning bell's band, [from, to] m above the motor's base), can_thickness_m and can_yield_pa (the aluminium can), back_iron_thickness_m and back_iron_yield_pa (the steel ring behind the magnets), gap_m (magnets to stator), magnet_thickness_m, magnet_remanence_t (B_r) and magnet_relative_permeability (μ_r), shaft_diameter_m, shaft_yield_pa and shaft_ultimate_pa, hub_height_m (the prop's hub above the base: position_m over the motor part's base), bearing_heights_m ([lower, upper] above the base), and the bearings' bearing_static_rating_n (C0r), bearing_dynamic_rating_n (Cr), bearing_balls, bearing_ball_diameter_m and bearing_pitch_diameter_m; stator_band_m (the stator's laminations, [from, to] m above the base, where the magnets face it), stator_diameter_m, can_modulus_pa and back_iron_modulus_pa (p7f-damage 1.5: the bell as a ring and its rub)",
+    "props": "the four props, alike: diameter_m, blades, pitch_m (geometric, per revolution), k_t_n_per_rad2_s2 (T = k_T·n², n in rad/s) and kappa_m (Q = κ·T), both static at reference_rpm (one of static_rpm's points); static_rpm with static_thrust_ratio and static_torque_ratio (C_T and C_P there over their values at reference_rpm: the coefficients' change with rpm); inflow_advance_ratio (J = V_a/(n·D) of the axial inflow, from 0) with inflow_thrust_ratio and inflow_torque_ratio (C_T and C_P there over their static values); linear between points, held at the ends; h_force_n_per_m_s (the rotor's in-plane drag, the H-force, per m/s of its hub's in-plane airspeed at reference_rpm, growing in proportion to the rotor's speed); blade (p7f-damage design 1; optional, every value with its note): one blade as a structure, stations_r_over_r (equal spans' middles, r/R, the last span ending at the tip) with chord_m, thickness_m, section_angle_rad (the chord line's to the disc plane) and fill (section area over chord × thickness) at each; hub_diameter_m, hub_thickness_m and hub_bore_m (the hub, a cylinder less its bore); its material, moisture (dry | conditioned), density_kg_m3, flexural_modulus_pa, flexural_strength_pa, crush_strength_pa, fracture_energy_j_per_m2, proportional_limit (the share of the flexural strength past which a section keeps a set) and hardness_pa; the blades and the hub weigh the prop part (\"prop_rr\") within 0.1 g",
+    "packs": "two (PHB-03): part (the pack's mass part), series and parallel cells, cell_capacity_ah, r_cell_ohm, ocv_v (one cell's open-circuit voltage at states of charge 0, 1/(n−1), …, 1)",
+    "legs": "parts (the four leg parts, in Betaflight's corner order; a leg's length is its part's, its foot the part's lower end, where it meets level ground), stiffness_n_per_m and damping_n_s_per_m (each leg's own spring and damper, in series with the ground), foot_radius_m (the foot's curvature); tube, clamp and tjoint, what the legs are built of (p7g-legs 1.1): the legs' and skids' tube (material, outer and inner diameter, the free length between the clamp and the T-joint, the cracked stiffness factor, and the modulus, yield and ultimate stress, elongation at break and density, each with its published bounds as <name>_bounds: [min, max]), the clamp under each arm (its jaws' material and modulus, the grip length, the wing-nut bolt's diameter, the arm's give under it, and the hand's torque, the nut factor, the jaws' friction and the edge's stress factor with their bounds) and the T-joint on each skid (its material, socket diameter, the skid's grip length, the pinch screw's diameter and torque, and the print's interlayer strength); with them, every value of the block carries a note, its source; legs off is legs_off's build",
+    "legs_off": "the legs-off build (D-043, D-050): removed (every part that comes off with the legs, the four leg parts among them; they weigh 0 kg), moved ({part name: its labelled centre on the legs-off build}; D-050's layout moves none: the coil is beneath and the bottle on top on both builds); every other part stays as it is",
+    "coil": "part (the spool's mass part, whose mass falls as the line pays out), spool_mass_kg (empty, with its housing), fiber_mass_kg and fiber_length_m (the line on a full spool); the part's mass here is this file's loadout",
+    "payload": "part (the payload's mass part, set to the pilot's payload: D-050's plain plastic bottle strapped rigidly on top, its filled mass the setting), mass_min_kg and mass_max_kg (the setting's range, APP-03); the part is the bottle at its mass here, this file's loadout; another payload scales it uniformly by the cube root of the mass ratio, growing away from the arm plane (its face toward the frame stays put), and 0 kg leaves it off",
+    "camera": "the FPV camera: lens_m (its lens, body m; the camera mount's point, where the modes and the body's turn give the feed its vibration and angular velocity, AirframeModesSpec.Camera, and where the feed's air velocity at the camera is taken for the lens drops, FEED-13, p7c-wind 1.7)",
+    "stand": "the legs-off launch stand (D-022, D-043): material, post_radius_m (each post on a motor diagonal, from the stand's centre), post_height_m (the post tops above the ground), post_diameter_m, mass_kg",
+    "aero": "the airframe's drag (p6-flight-core 1.5): air_density_kg_m3; body_area_m2 (the silhouette less the coil's, projected along body x, y and z: side, top, front); body_center_of_pressure_m (where the body's drag acts); drag_coefficient (of the body's silhouette and of the coil, whose own drag acts at the coil part's centre with its cylinder's silhouette)",
+    "contacts": "the contact model (p6-flight-core 1.6): margin_m (StaticContacts' margin), crash_accel_m_s2 (the crash threshold; a prop strike ends no flight since p7f-damage 1.3), impact_window_s and impact_speed_m_s (what an impact is), friction_stiffness_ratio, damping_mass_share, ground_friction_static and ground_friction_kinetic, ring_segments; shapes[]: name (unique), part (the mass part it belongs to: a part at 0 kg has no shapes, and a moved or scaled part moves or scales its shapes), role (support: a load-bearing sphere on a skid, on the ground and on objects, carried by its corner's leg spring; skid: a skid segment's capsule, on objects only, a contact within two radii of a touching support of its part dropped as the same support; body: a frame part on the ground and on objects, with its own stiffness_n_per_m (across body y), stiffness_up_n_per_m (along it; the same when absent) and damping_ratio; disc: a prop disc at its motor's hub, radius_m the flown prop's, half_thickness_m the blade's, strikes only), corner (rr | fr | rl | fl, for supports, skids and discs), material (carbon_composite | polymer | aluminium: the drone side of the contact), a_m (a sphere's centre or a capsule's core end), b_m (a capsule's other core end), radius_m"
+  },
+  "parts": [
+    {
+      "name": "motor_rr", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.113, "label": "published", "note": "a 3115 900 KV motor: Tarot 113 g, Surpass Hobby Bat S3115 112 g (K§5.1), Flash Hobby Arthur 117 g (the sheet's research table)"},
+      "position_m": {"value": [0.15981, 0.019, -0.15981], "label": "derived", "note": "on the diagonal 0.226 m out (half the published 452 mm wheelbase, DRN-02); the can's base on the arm top at y +0.003, so its centre 0.016 m above that"},
+      "diameter_m": {"value": 0.0372, "label": "published", "note": "Φ37.1 mm (Tarot, Flash Hobby); T measures 38 mm"},
+      "length_m": {"value": 0.032, "label": "published", "note": "32 mm tall"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "upright (T)"}
+    },
+    {
+      "name": "motor_fr", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.113, "label": "published", "note": "as motor_rr"},
+      "position_m": {"value": [0.15981, 0.019, 0.15981], "label": "derived", "note": "as motor_rr"},
+      "diameter_m": {"value": 0.0372, "label": "published", "note": "as motor_rr"},
+      "length_m": {"value": 0.032, "label": "published", "note": "as motor_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as motor_rr"}
+    },
+    {
+      "name": "motor_rl", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.113, "label": "published", "note": "as motor_rr"},
+      "position_m": {"value": [-0.15981, 0.019, -0.15981], "label": "derived", "note": "as motor_rr"},
+      "diameter_m": {"value": 0.0372, "label": "published", "note": "as motor_rr"},
+      "length_m": {"value": 0.032, "label": "published", "note": "as motor_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as motor_rr"}
+    },
+    {
+      "name": "motor_fl", "kind": "cylinder", "material": "aluminium",
+      "mass_kg": {"value": 0.113, "label": "published", "note": "as motor_rr"},
+      "position_m": {"value": [-0.15981, 0.019, 0.15981], "label": "derived", "note": "as motor_rr"},
+      "diameter_m": {"value": 0.0372, "label": "published", "note": "as motor_rr"},
+      "length_m": {"value": 0.032, "label": "published", "note": "as motor_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as motor_rr"}
+    },
+    {
+      "name": "prop_rr", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.016, "label": "published", "note": "a 2-blade 10-inch nylon prop: HQProp MacroQuad 10 × 5, 16 g (getfpv.com); Gemfan 1045, 13.4 g (the sheet)"},
+      "position_m": {"value": [0.15981, 0.035, -0.15981], "label": "measured", "note": "the prop plane 0.03 m above the arm top (T), y +0.035 (the sheet)"},
+      "diameter_m": {"value": 0.2074, "label": "derived", "note": "a spinning 2-blade prop's mean inertia, a uniform 0.254 m rod about its hub (m·D²/12 about the shaft, m·D²/24 across), is exactly a thin disc of diameter D·2/√6 = 0.2074 m; the prop flown and drawn is props.diameter_m"},
+      "length_m": {"value": 0.008, "label": "published", "note": "a hub 6–9 mm thick (the sheet)"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "the shaft upright (T)"}
+    },
+    {
+      "name": "prop_fr", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.016, "label": "published", "note": "as prop_rr"},
+      "position_m": {"value": [0.15981, 0.035, 0.15981], "label": "measured", "note": "as prop_rr"},
+      "diameter_m": {"value": 0.2074, "label": "derived", "note": "as prop_rr"},
+      "length_m": {"value": 0.008, "label": "published", "note": "as prop_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as prop_rr"}
+    },
+    {
+      "name": "prop_rl", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.016, "label": "published", "note": "as prop_rr"},
+      "position_m": {"value": [-0.15981, 0.035, -0.15981], "label": "measured", "note": "as prop_rr"},
+      "diameter_m": {"value": 0.2074, "label": "derived", "note": "as prop_rr"},
+      "length_m": {"value": 0.008, "label": "published", "note": "as prop_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as prop_rr"}
+    },
+    {
+      "name": "prop_fl", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.016, "label": "published", "note": "as prop_rr"},
+      "position_m": {"value": [-0.15981, 0.035, 0.15981], "label": "measured", "note": "as prop_rr"},
+      "diameter_m": {"value": 0.2074, "label": "derived", "note": "as prop_rr"},
+      "length_m": {"value": 0.008, "label": "published", "note": "as prop_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as prop_rr"}
+    },
+    {
+      "name": "arm_rr", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.047, "label": "derived", "note": "a 6 mm carbon plate arm (published, the CX10 ECO class) 0.18 × 0.025 m with its 32 mm motor mount, at 1.55 g/cm³ (published, CFRP); the sheet"},
+      "position_m": {"value": [0.09546, 0, -0.09546], "label": "derived", "note": "from r 0.045 (the body edge) to r 0.225 (the mount) on the diagonal, centred r 0.135, in the arm plane (the sheet)"},
+      "diameter_m": {"value": 0.021, "label": "derived", "note": "the 25 × 6 mm plate as the solid cylinder with its polar moment, d = √(2(w² + t²)/3) = 0.0210 m; its two bending moments then differ from the plate's by ±1.2e-6 kg·m² per arm"},
+      "length_m": {"value": 0.18, "label": "derived", "note": "0.225 − 0.045 m (the sheet)"},
+      "axis": {"value": [1, 0, -1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "arm_fr", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.047, "label": "derived", "note": "as arm_rr"},
+      "position_m": {"value": [0.09546, 0, 0.09546], "label": "derived", "note": "as arm_rr"},
+      "diameter_m": {"value": 0.021, "label": "derived", "note": "as arm_rr"},
+      "length_m": {"value": 0.18, "label": "derived", "note": "as arm_rr"},
+      "axis": {"value": [1, 0, 1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "arm_rl", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.047, "label": "derived", "note": "as arm_rr"},
+      "position_m": {"value": [-0.09546, 0, -0.09546], "label": "derived", "note": "as arm_rr"},
+      "diameter_m": {"value": 0.021, "label": "derived", "note": "as arm_rr"},
+      "length_m": {"value": 0.18, "label": "derived", "note": "as arm_rr"},
+      "axis": {"value": [1, 0, 1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "arm_fl", "kind": "cylinder", "material": "carbon",
+      "mass_kg": {"value": 0.047, "label": "derived", "note": "as arm_rr"},
+      "position_m": {"value": [-0.09546, 0, 0.09546], "label": "derived", "note": "as arm_rr"},
+      "diameter_m": {"value": 0.021, "label": "derived", "note": "as arm_rr"},
+      "length_m": {"value": 0.18, "label": "derived", "note": "as arm_rr"},
+      "axis": {"value": [1, 0, -1], "label": "derived", "note": "the diagonal"}
+    },
+    {
+      "name": "plates", "kind": "box", "material": "carbon",
+      "mass_kg": {"value": 0.195, "label": "derived", "note": "the plates, standoffs and hardware: the CX10 ECO's 383 g (published) less the four 47 g arms"},
+      "position_m": {"value": [0, 0.011, 0], "label": "derived", "note": "the frame's 34 mm stack (published) as the drone model draws it (p5-drone): the arms sandwiched (the published construction), so from the 3 mm bottom plate's underside at y −0.006 under the arms' underside at −0.003 to the 3 mm upper plate's top at +0.028 (the plates' gauges assumed), centred at −0.006 + 0.034 / 2 = +0.011"},
+      "size_m": {"value": [0.09, 0.034, 0.20], "label": "assumed", "note": "the body's plan, 0.09 m across and 0.20 m fore-aft (the sheet); the height published"}
+    },
+    {
+      "name": "electronics", "kind": "box", "material": "electronics",
+      "mass_kg": {"value": 0.24, "label": "assumed", "note": "D-066: the stack 34 g (published: the class's SpeedyBee F405 V4 flight controller 10.5 g and its BLS 60A 4-in-1 ESC 23.5 g, fpv24.com; the stack the Amaga / Vyriy 10 Opto build lists), capacitor 10 g, camera 6 g (5.9 g published), fiber module 50 g, wiring and connectors 100 g, straps and ties 40 g (assumed): 0.24 kg (0.18–0.30, the sheet); model 22 had the stack at an assumed 45 g, 0.25 kg"},
+      "position_m": {"value": [0, 0.015, 0.01], "label": "assumed", "note": "the 30.5 mm stack between the plates with the camera at the front (the sheet): fitted between the top plate's top at y +0.005 and the upper plate's underside at +0.025 as the drone model draws them (p5-drone, plates), centred at +0.015 (derived); fore-aft as the sheet"},
+      "size_m": {"value": [0.06, 0.02, 0.10], "label": "assumed", "note": "the sheet's plan; its height the 20 mm between the plates (derived), which the FC and ESC stack and the 19 mm camera fill (assumed)"}
+    },
+    {
+      "name": "pack_left", "kind": "box", "material": "li_ion",
+      "mass_kg": {"value": 0.88, "label": "derived", "note": "D-066: 6S2P of Molicel P50B, 12 cells of 70.5 g (published: 70 g nkon.nl, 71 ± 1 g akkuteile.de) = 0.846 kg, plus the strip, wrap, leads and balance lead of a published 6S2P 21700 pack, 0.03 kg (the Flywoo Explorer 6S2P P45B, 860.7 g, unmannedtechshop.co.uk, over its 12 cells of 68–70 g, published: 21–45 g); published cells and packs span 0.84–0.92 kg; model 22 had an assumed 8 % on 71 g cells, 0.92 kg. The two packs, 1.76 kg, are the pilot's 6S4P (20 Ah) and T's two 12-cell packs; the class's published builds fly one 6S3P of 4 Ah cells (12 Ah, about 1.2–1.3 kg, derived: 18 cells of a 21700's 66–71 g; the Amaga / Vyriy 10 Opto's LiitoKala Lii-40A 12 000 mAh, the Malyuk10's 6S3P, published)"},
+      "position_m": {"value": [-0.0735, -0.043, 0], "label": "measured", "note": "along the port side between that side's legs, the top 0.02 m below the arm top (T); the inner face at x −0.050 (the sheet)"},
+      "size_m": {"value": [0.047, 0.045, 0.22], "label": "derived", "note": "the cells Ø21.45 × 70.05 mm (published) 2 across, 2 high and 3 along, wrapped; T measures 0.20–0.28 m long and 0.045 m tall"}
+    },
+    {
+      "name": "pack_right", "kind": "box", "material": "li_ion",
+      "mass_kg": {"value": 0.88, "label": "derived", "note": "as pack_left"},
+      "position_m": {"value": [0.0735, -0.043, 0], "label": "measured", "note": "the starboard side, as pack_left"},
+      "size_m": {"value": [0.047, 0.045, 0.22], "label": "derived", "note": "as pack_left"}
+    },
+    {
+      "name": "coil", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.655, "label": "derived", "note": "the nominal in-flight loadout, half paid out: the 0.31 kg housing plus half the 0.69 kg of line"},
+      "position_m": {"value": [0, -0.053, 0], "label": "assumed", "note": "beneath the frame (D-050, VISION §3) on both builds, in its printed cradle under the bottom plate between the packs: its axis 0.047 m below the bottom plate's underside at y −0.006 (plates), at least the 0.046 m the drone model's tray needs under it (p5-drone: the front hoop's Ø0.090 m radius and the saddle's 1 mm web; derived), so its pack's top 5.5 mm and its hoop's 2 mm below the plate; its sides 8.5 mm inside the packs' inner faces at x ±0.050; centred fore-aft (assumed: no reference shows it, D-043's legs-off reading). Its underside, 0.0945 m below the arm plane, is 0.1585 m above level ground on the legs and, on the stand's posts, 0.1385 m above the base's 0.02 m bars (derived), so it never touches the ground at a launch"},
+      "diameter_m": {"value": 0.083, "label": "derived", "note": "T's drum scaled 1.25× to the pilot's 1 kg: the wound pack Ø0.082 m full, the end hoops 0.072–0.090 m (the sheet)"},
+      "length_m": {"value": 0.20, "label": "derived", "note": "T's 0.16 m scaled 1.25× (the sheet)"},
+      "axis": {"value": [0, 0, 1], "label": "assumed", "note": "fore-aft between the fore-aft packs, as T's drum lay (T); the line leaves aft"}
+    },
+    {
+      "name": "payload", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 1.0, "label": "assumed", "note": "the nominal loadout, the class's typical 1 kg (K§5.2): a plain plastic bottle filled to the cap, its filled mass the setup's additional weight (D-050), here about 1 L of water in a 1 L PET bottle (0.97 kg of water and 0.03 kg of bottle, assumed); the setting sets it (APP-03)"},
+      "position_m": {"value": [0, 0.068, 0], "label": "assumed", "note": "strapped rigidly on top (D-050), lying fore-aft along the upper plate over the centre (assumed: the plate's long axis, and centred to balance; no reference shows it): its underside on the upper plate's top at y 0.028 (plates), so its axis at 0.028 + 0.040 = 0.068 m (derived); at the prop hubs' plane (y 0.035) it is 0.045 m wide, and there its contact shape stays 25 mm clear of the prop discs in plan (derived)"},
+      "diameter_m": {"value": 0.080, "label": "assumed", "note": "a common 1 L PET water bottle's body, Ø75–85 mm"},
+      "length_m": {"value": 0.20, "label": "derived", "note": "the mass part is the water as a solid cylinder of the body's diameter: 1.0 kg at about 1000 kg/m³ is 1.0 L, over π·0.040² m² 0.199 m; the bottle's whole length with its shoulder, neck and cap is its contact shape's 0.26 m. The water is rigid with the bottle (assumed: filled to the cap, so it does not slosh; an ideal fluid would not spin with the bottle about its own axis, 2–3 % of the roll inertia)"},
+      "axis": {"value": [0, 0, 1], "label": "assumed", "note": "fore-aft (see position_m), the cap aft"}
+    },
+    {
+      "name": "leg_rr", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.0102, "label": "derived", "note": "legs.tube 0.25 m long: ρ·π(D² − d²)/4·ℓ = 1440 kg/m³ × 2.827e-5 m² × 0.25 m = 10.18 g (p7g-legs 1.1; was 11 g of 10/8 mm CFRP)"},
+      "position_m": {"value": [0.1025, -0.128, -0.1025], "label": "derived", "note": "on the diagonal at r 0.145 m: T's r 0.14 m (measured, 0.11–0.15) moved out 3.5 mm along x and z so the Ø10 mm tube, its inner side at x 0.0975, clears the pack's outer face at x 0.097 (the drone model's fit, p5-drone; the pack's width is its cells'); from the arm underside at y −0.003 down 0.25 m to the skid's underside, where it meets the ground"},
+      "diameter_m": {"value": 0.010, "label": "measured", "note": "T: Ø8–10 mm"},
+      "length_m": {"value": 0.25, "label": "pilot", "note": "the pilot's legs of 25–35 cm, arm underside to ground (T scales to 0.18 m; the pilot's number stands, D-043)"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "vertical (T)"}
+    },
+    {
+      "name": "leg_fr", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.0102, "label": "derived", "note": "as leg_rr"},
+      "position_m": {"value": [0.1025, -0.128, 0.1025], "label": "derived", "note": "as leg_rr"},
+      "diameter_m": {"value": 0.010, "label": "measured", "note": "as leg_rr"},
+      "length_m": {"value": 0.25, "label": "pilot", "note": "as leg_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as leg_rr"}
+    },
+    {
+      "name": "leg_rl", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.0102, "label": "derived", "note": "as leg_rr"},
+      "position_m": {"value": [-0.1025, -0.128, -0.1025], "label": "derived", "note": "as leg_rr"},
+      "diameter_m": {"value": 0.010, "label": "measured", "note": "as leg_rr"},
+      "length_m": {"value": 0.25, "label": "pilot", "note": "as leg_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as leg_rr"}
+    },
+    {
+      "name": "leg_fl", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.0102, "label": "derived", "note": "as leg_rr"},
+      "position_m": {"value": [-0.1025, -0.128, 0.1025], "label": "derived", "note": "as leg_rr"},
+      "diameter_m": {"value": 0.010, "label": "measured", "note": "as leg_rr"},
+      "length_m": {"value": 0.25, "label": "pilot", "note": "as leg_rr"},
+      "axis": {"value": [0, 1, 0], "label": "measured", "note": "as leg_rr"}
+    },
+    {
+      "name": "clamp_rr", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.018, "label": "assumed", "note": "a plastic leg clamp with its bolt and wing nut (the sheet); it stays on the arm with the legs off"},
+      "position_m": {"value": [0.1025, -0.01125, -0.1025], "label": "derived", "note": "under the arm at the leg (T, leg_rr's x and z): from the arm's underside at y −0.003 down to −0.0195, centred at −0.01125"},
+      "size_m": {"value": [0.025, 0.0165, 0.025], "label": "derived", "note": "T's block about 25 mm square (measured), its height trimmed so its bottom stands 1 mm above the pack's top at y −0.0205 where the two meet in plan, as the drone model draws it (p5-drone): 0.0165 m"}
+    },
+    {
+      "name": "clamp_fr", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.018, "label": "assumed", "note": "as clamp_rr"},
+      "position_m": {"value": [0.1025, -0.01125, 0.1025], "label": "derived", "note": "as clamp_rr"},
+      "size_m": {"value": [0.025, 0.0165, 0.025], "label": "derived", "note": "as clamp_rr"}
+    },
+    {
+      "name": "clamp_rl", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.018, "label": "assumed", "note": "as clamp_rr"},
+      "position_m": {"value": [-0.1025, -0.01125, -0.1025], "label": "derived", "note": "as clamp_rr"},
+      "size_m": {"value": [0.025, 0.0165, 0.025], "label": "derived", "note": "as clamp_rr"}
+    },
+    {
+      "name": "clamp_fl", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.018, "label": "assumed", "note": "as clamp_rr"},
+      "position_m": {"value": [-0.1025, -0.01125, 0.1025], "label": "derived", "note": "as clamp_rr"},
+      "size_m": {"value": [0.025, 0.0165, 0.025], "label": "derived", "note": "as clamp_rr"}
+    },
+    {
+      "name": "tjoint_rr", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.008, "label": "assumed", "note": "a plastic T-joint joining the leg to its skid (the sheet)"},
+      "position_m": {"value": [0.1025, -0.243, -0.1025], "label": "derived", "note": "at the leg's foot (leg_rr's x and z), flat-bottomed on the ground as the drone model draws it (p5-drone): its underside at the skid's underside, y −0.253, where the leg meets level ground, so its 0.020 m height (T) puts its centre at −0.243 and its top at −0.233; the skid runs through it"},
+      "size_m": {"value": [0.016, 0.020, 0.030], "label": "measured", "note": "T: 16 mm sockets, 30 mm along the skid"}
+    },
+    {
+      "name": "tjoint_fr", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.008, "label": "assumed", "note": "as tjoint_rr"},
+      "position_m": {"value": [0.1025, -0.243, 0.1025], "label": "derived", "note": "as tjoint_rr"},
+      "size_m": {"value": [0.016, 0.020, 0.030], "label": "measured", "note": "as tjoint_rr"}
+    },
+    {
+      "name": "tjoint_rl", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.008, "label": "assumed", "note": "as tjoint_rr"},
+      "position_m": {"value": [-0.1025, -0.243, -0.1025], "label": "derived", "note": "as tjoint_rr"},
+      "size_m": {"value": [0.016, 0.020, 0.030], "label": "measured", "note": "as tjoint_rr"}
+    },
+    {
+      "name": "tjoint_fl", "kind": "box", "material": "polymer",
+      "mass_kg": {"value": 0.008, "label": "assumed", "note": "as tjoint_rr"},
+      "position_m": {"value": [-0.1025, -0.243, 0.1025], "label": "derived", "note": "as tjoint_rr"},
+      "size_m": {"value": [0.016, 0.020, 0.030], "label": "measured", "note": "as tjoint_rr"}
+    },
+    {
+      "name": "skid_right", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.0183, "label": "derived", "note": "legs.tube 0.45 m long, the legs' stock: 1440 kg/m³ × 2.827e-5 m² × 0.45 m = 18.32 g (p7g-legs 1.1; was 20 g of 10/8 mm CFRP)"},
+      "position_m": {"value": [0.1025, -0.248, 0], "label": "derived", "note": "fore-aft under the starboard legs (leg_rr's x), its axis 0.005 m above the ground, centred on the legs (T, the sheet)"},
+      "diameter_m": {"value": 0.010, "label": "measured", "note": "T: Ø9–10 mm"},
+      "length_m": {"value": 0.45, "label": "assumed", "note": "0.1225 m past each leg, symmetric (T shows 0.13 m aft of the rear legs)"},
+      "axis": {"value": [0, 0, 1], "label": "measured", "note": "fore-aft (T)"}
+    },
+    {
+      "name": "skid_left", "kind": "cylinder", "material": "polymer",
+      "mass_kg": {"value": 0.0183, "label": "derived", "note": "as skid_right"},
+      "position_m": {"value": [-0.1025, -0.248, 0], "label": "derived", "note": "under the port legs, as skid_right"},
+      "diameter_m": {"value": 0.010, "label": "measured", "note": "as skid_right"},
+      "length_m": {"value": 0.45, "label": "assumed", "note": "as skid_right"},
+      "axis": {"value": [0, 0, 1], "label": "measured", "note": "as skid_right"}
+    }
+  ],
+  "motors": [
+    {
+      "position_m": {"value": [0.15981, 0.035, -0.15981], "label": "derived", "note": "the prop hub over the motor's axis on the 452 mm wheelbase (published), in the prop plane 0.03 m above the arm top (T): with the 0.254 m props the tips span 0.574 m nose-first and 0.706 m on the diagonal (DRN-02)"},
+      "spin": "cw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "3115 900 KV (Surpass Hobby Bat S3115, K§5.1; Flash Hobby Arthur, rated 3–6S)"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "the Flash Hobby Arthur 3115 900 KV bench on 6S (published, flyingtech.co.uk, its FH1050 rows): (d·V − Ke·ω)/(I/d) = 0.106 Ω at 50 % (25.12 V, 9027 rpm, 11.93 A), 0.107 at 70 %, 0.110 at 80 %, 0.127 at 100 % (24.62 V, 14 691 rpm, 65.26 A); 0.11, a warm winding through the hover-to-cruise range: the winding's own 0.046 Ω (published) plus the ESC, the leads and heat. At full throttle the model then turns about 4 % fast against the 100 % row. The T-Motor Velox V3115 900 KV bench (published, uav-en.tmotor.com, C10.5×5×3 on 6S: its 42.7 mΩ winding) gives 0.082–0.095 Ω from 30 to 70 %, 0.102 at 80 % and 0.122 at 100 % (21.07 V, 11 873 rpm, 64.37 A) by the same sum (D-066)"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "D-066: the class's T-Motor Velox V3115 900 KV, 1.4 A at 10 V (uav-en.tmotor.com; 1.57 A in getfpv.com's listing); not published for the Surpass or the Flash Hobby 3115. Its bench (C10.5×5×3 on 6S, published) bears the DC model out: Kt·(I/d − 1.4 A) is its measured torque within 3 % from 30 to 70 % throttle. Its torque Kt·I0, 0.015 N·m, is 9 % of the hover drag torque; model 22 had an assumed 1.0 A"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "±30 %: the 16 g prop about 4.7e-5 (UMN's measured APC 12x3.8SF with its motor and adaptor, 1.12e-4, scaled by m·D² to 16 g and 10 inches; a uniform rod would be 8.6e-5) plus the bell, about 35 g of magnets and can at 17 mm, 1.2e-5. With R and the prop's load it makes τ_m about 40 ms at hover (design 5's 40–60 ms)"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "12N14P (Flash Hobby Arthur 3115, the sheet's research table): 7 pole pairs"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "p7b-airframe 1.0: the command's way from the flight controller to the motor's torque as one first-order lag, the sum of its delays (their first moment: within 0.1° of their phase below 60 Hz). The DShot300 frame, 53 µs (published: 16 bits at 300 kbit/s, sent every 250 µs, fc-profiles §1); the ESC takes the duty up at once (published sources: Bluejay sets its PWM registers in the frame's interrupt, AM32 in its 20 kHz loop, within 50 µs); the 24 kHz PWM's next period and its mean, about 42 µs (AM32's nominal 24 kHz, its source): about 0.1 ms in all (derived). Then the winding's current rise L/R, 0.3 ms (assumed, 0.1–0.6 ms: no inductance is published for these motors). The duty is not slewed: BLHeli_32's Maximum Acceleration (0.1–25.5 %/ms or maximum, its manual) is left at maximum, no limit, as ESC vendors advise; Bluejay has none (its source); AM32's ramp (16 %/ms above 40 k erpm, 6 below, 2 at start: its source) moves the filtered 200 °/s step by under 0.1 point and is left out. Design 5's 5 ms (assumed) gave that step 40.9 % overshoot (roll) against 29.2 % here; 0.2–0.7 ms gives 28.7–30.0 %"},
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "D-066, the class's published ESC: the Amaga / Vyriy 10 Opto build's SpeedyBee F405 V4 stack and its BLS 60A 4-in-1 (60 A a motor continuous, 80 A for 10 s, BLHeli_S J-H-50; fpv24.com, kiborg.com.ua), whose firmware senses no current and so limits none: BLHeli_S and Bluejay have no current limit, and BLHeli_32's current protection needs a sensing resistor and is off unless set. It replaces p6-flight-core 1.5's assumed policy, the motor's 40 A set as BLHeli_32's protection (D-051), kept as a variant (ShakeScenario.Protection). The firmware's one power limit, Bluejay's low-rpm protection (rpm power slope 9 by default, its source: the duty held to 9 × (255 div Comm_Period4x_H) of 255 below about 5000 rpm on these 7-pole-pair motors), acts only in the spin-up from idle and is left out (assumed). On a full pack the motor now draws 47.7 A at full duty, inside the ESC's 60 A, for 14.17 kgf in all (3.54 a motor: the published 3115 900 KV benches give 3.5–4.2 kgf a motor at full throttle on 6S, uav-en.tmotor.com, flyingtech.co.uk); 128 A for a few milliseconds of a spin-up from idle to full; the steady yaw authority at hover 831 °/s² and full yaw's first 50 ms 1959 °/s² (with 40 A protection 11.80 kgf and 1495 °/s²)"},
+      "esc_disarm": {"value": "blheli_s", "label": "published", "note": "p6-flight-core 1.6c: the class's ESC is BLHeli_S J-H-50 (D-069). On a disarm Betaflight 4.5 sends DShot 0 to every ESC (dshot.c dshotInitEndpoints: *disarm = DSHOT_CMD_MOTOR_STOP; mixer.c: motor[i] = motor_disarmed[i] while not armed). BLHeli_S 16.7 at its defaults (bitdump/BLHeli, BLHeli_S SiLabs/BLHeli_S.asm: DEFAULT_PGM_BRAKE_ON_STOP 0; \"Motor pwm is always damped light (aka complementary pwm, regenerative braking)\") stays in its run loop at zero power: its PWM register at the minimum and the damping FET on for the rest of each period, so the active phases are shorted and the motor brakes as the DC model at d = 0. It leaves the loop when the commutation period passes 32 ms (about 1220 eRPM, run6_brake_done) or after 250 ticks of its 32 ms stop counter (8 s), and then turns every FET off (switch_power_off): the last 174 rpm coast. Bluejay 0.21, which the class's ESC may be flashed with (bird-sanctuary/bluejay: DEFAULT_PGM_BRAKE_ON_STOP 0, DEFAULT_PGM_BRAKING_STRENGTH 255), does the same down to about 1330 eRPM with no stop counter. Brake on stop, off in both, leaves the loop after 3 counter ticks and turns the three low-side FETs on (BLHeli_S after a 100 ms wait), kept as compared variants; G7's ESC-firmware question decides between them (pilot-questions.md)"},
+      "internals": {
+        "bell_band_m": {"value": [0.006, 0.032], "label": "derived", "note": "the bell, the motor's turning band, as heights above the motor's base (the arm top): from the stationary base's top, 6 mm (measured, T), to the can's top at the published 32 mm (Tarot and Flash Hobby Arthur 3115, Φ37.1 × 32 mm); a contact on the motor sphere between them is on the bell (design 8)"},
+        "can_thickness_m": {"value": 0.0003, "label": "derived", "note": "the aluminium can's wall over the back iron: what the published radial room leaves, (37.2 − 31.0) / 2 = 3.1 mm from the stator's face (stator 31 × 15 mm, Flash Hobby Arthur 3115) to the can's outside (the motor part's Ø37.2 mm), after the gap, the magnet and the back iron (0.3 + 1.5 + 1.0 mm, assumed)"},
+        "can_yield_pa": {"value": 2.76e8, "label": "assumed", "note": "6061-T6 aluminium's published yield, 276 MPa (ASM): the class's makers name 6061 or 7075 bells, 6061-T6 the softer and the commoner (assumed)"},
+        "back_iron_thickness_m": {"value": 0.001, "label": "assumed", "note": "the steel ring behind the magnets that carries their flux: no maker of the class publishes it; 1.0 mm fits the published radial room with the gap and the magnet"},
+        "back_iron_yield_pa": {"value": 3.5e8, "label": "assumed", "note": "a cold-drawn low-carbon steel ring: AISI 1018 cold drawn yields at 370 MPa, 1010 hot rolled at 180 MPa (published, ASM); 350 MPa taken"},
+        "gap_m": {"value": 0.0003, "label": "assumed", "note": "the air gap from the magnets' face to the stator's teeth, typical of the class (design 8: no maker publishes it)"},
+        "magnet_thickness_m": {"value": 0.0015, "label": "assumed", "note": "l_m, the arc magnets' radial thickness (design 8: no maker publishes it)"},
+        "magnet_remanence_t": {"value": 1.43, "label": "published", "note": "B_r of sintered NdFeB N52H at 20 °C, the grade's 1.42–1.48 T (its standard grade tables); the class's 3115 900 KV 12N14P motors name N52H magnets (GEPRC EM3115, BrotherHobby SE 3115, Foxeer Black Hornet 3115)"},
+        "magnet_relative_permeability": {"value": 1.05, "label": "published", "note": "μ_r, sintered NdFeB's recoil permeability, 1.03–1.10 (Hanselman 2006, Brushless Permanent Magnet Motor Design)"},
+        "shaft_diameter_m": {"value": 0.005, "label": "published", "note": "the 3115 class's 5 mm shaft (Tarot and Flash Hobby Arthur 3115, GEPRC EM3115, T-Motor Velox V3115); solid (design 9; Foxeer's 3115 is hollow)"},
+        "shaft_yield_pa": {"value": 1.2e9, "label": "assumed", "note": "no maker of the class publishes its shaft's steel: a quenched and tempered alloy steel, design 9's 1.2–1.8 GPa, its lower end"},
+        "shaft_ultimate_pa": {"value": 1.5e9, "label": "assumed", "note": "the same steel's tensile strength, 1.25 × its yield (assumed, a quenched and tempered alloy steel's ratio); the shaft breaks past it times the round section's plastic shape factor (design 9)"},
+        "hub_height_m": {"value": 0.032, "label": "derived", "note": "the prop's hub above the motor's base: position_m's y, 0.035, less the base at 0.003 (the motor part's centre, 0.019, less half its 0.032 length)"},
+        "bearing_heights_m": {"value": [0.004, 0.016], "label": "assumed", "note": "the lower and upper bearings above the motor's base, 12 mm apart with the hub 16 mm above the upper one (design 9, from the motor's 32 mm height and its 15 mm stator); a strike's moment at the upper bearing and the two bearings' loads follow by statics"},
+        "bearing_static_rating_n": {"value": 276, "label": "published", "note": "the 685ZZ's basic static load rating C0r (NMB's spec sheet; NSK 281 N): 5 × 11 × 5 mm, NSK or NMB, as the sheet and GEPRC EM3115 list"},
+        "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "the 685ZZ's basic dynamic load rating Cr (NMB's spec sheet; NSK 790 N)"},
+        "bearing_balls": {"value": 8, "label": "published", "note": "the 685ZZ's ball complement (NMB, NSK)"},
+        "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "the 685ZZ's ball diameter D_w, 1/16 inch (NSK)"},
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "the ball set's pitch circle, the mean of the 5 mm bore and the 11 mm outside (assumed equal); with D_w and the 8 balls it sets the ball-pass frequencies (design 9)"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "the stator's laminations as heights above the motor's base, its published 15 mm (stator 31 × 15 mm, Flash Hobby Arthur 3115) standing 2 mm above the bell's lower lip, the windings' end turns and the can's top above it (no maker publishes the stack's place); the magnets face it across the gap there, so a dent can narrow the gap only between these heights (p7f-damage 1.5)"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "the stator's 31 mm (Flash Hobby Arthur 3115, Tarot 3115: 31 × 15 mm, 12N14P); the can, the back iron, the magnet and the gap fill the motor part's 37.2 mm to it, and its teeth carry the magnets' rub"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "6061-T6 aluminium's Young's modulus, 68.9 GPa (ASM), as can_yield_pa's alloy"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a low-carbon steel's Young's modulus, 200 GPa (ASM, AISI 1010–1018), as back_iron_yield_pa's steel"}
+      }
+    },
+    {
+      "position_m": {"value": [0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
+      "spin": "ccw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "as motors[0]"},
+      "esc_disarm": {"value": "blheli_s", "label": "published", "note": "as motors[0]"},
+      "internals": {
+        "bell_band_m": {"value": [0.006, 0.032], "label": "derived", "note": "as motors[0]"},
+        "can_thickness_m": {"value": 0.0003, "label": "derived", "note": "as motors[0]"},
+        "can_yield_pa": {"value": 2.76e8, "label": "assumed", "note": "as motors[0]"},
+        "back_iron_thickness_m": {"value": 0.001, "label": "assumed", "note": "as motors[0]"},
+        "back_iron_yield_pa": {"value": 3.5e8, "label": "assumed", "note": "as motors[0]"},
+        "gap_m": {"value": 0.0003, "label": "assumed", "note": "as motors[0]"},
+        "magnet_thickness_m": {"value": 0.0015, "label": "assumed", "note": "as motors[0]"},
+        "magnet_remanence_t": {"value": 1.43, "label": "published", "note": "as motors[0]"},
+        "magnet_relative_permeability": {"value": 1.05, "label": "published", "note": "as motors[0]"},
+        "shaft_diameter_m": {"value": 0.005, "label": "published", "note": "as motors[0]"},
+        "shaft_yield_pa": {"value": 1.2e9, "label": "assumed", "note": "as motors[0]"},
+        "shaft_ultimate_pa": {"value": 1.5e9, "label": "assumed", "note": "as motors[0]"},
+        "hub_height_m": {"value": 0.032, "label": "derived", "note": "as motors[0]"},
+        "bearing_heights_m": {"value": [0.004, 0.016], "label": "assumed", "note": "as motors[0]"},
+        "bearing_static_rating_n": {"value": 276, "label": "published", "note": "as motors[0]"},
+        "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "as motors[0]"},
+        "bearing_balls": {"value": 8, "label": "published", "note": "as motors[0]"},
+        "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "as motors[0]"},
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
+      }
+    },
+    {
+      "position_m": {"value": [-0.15981, 0.035, -0.15981], "label": "derived", "note": "as motors[0]"},
+      "spin": "ccw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "as motors[0]"},
+      "esc_disarm": {"value": "blheli_s", "label": "published", "note": "as motors[0]"},
+      "internals": {
+        "bell_band_m": {"value": [0.006, 0.032], "label": "derived", "note": "as motors[0]"},
+        "can_thickness_m": {"value": 0.0003, "label": "derived", "note": "as motors[0]"},
+        "can_yield_pa": {"value": 2.76e8, "label": "assumed", "note": "as motors[0]"},
+        "back_iron_thickness_m": {"value": 0.001, "label": "assumed", "note": "as motors[0]"},
+        "back_iron_yield_pa": {"value": 3.5e8, "label": "assumed", "note": "as motors[0]"},
+        "gap_m": {"value": 0.0003, "label": "assumed", "note": "as motors[0]"},
+        "magnet_thickness_m": {"value": 0.0015, "label": "assumed", "note": "as motors[0]"},
+        "magnet_remanence_t": {"value": 1.43, "label": "published", "note": "as motors[0]"},
+        "magnet_relative_permeability": {"value": 1.05, "label": "published", "note": "as motors[0]"},
+        "shaft_diameter_m": {"value": 0.005, "label": "published", "note": "as motors[0]"},
+        "shaft_yield_pa": {"value": 1.2e9, "label": "assumed", "note": "as motors[0]"},
+        "shaft_ultimate_pa": {"value": 1.5e9, "label": "assumed", "note": "as motors[0]"},
+        "hub_height_m": {"value": 0.032, "label": "derived", "note": "as motors[0]"},
+        "bearing_heights_m": {"value": [0.004, 0.016], "label": "assumed", "note": "as motors[0]"},
+        "bearing_static_rating_n": {"value": 276, "label": "published", "note": "as motors[0]"},
+        "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "as motors[0]"},
+        "bearing_balls": {"value": 8, "label": "published", "note": "as motors[0]"},
+        "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "as motors[0]"},
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
+      }
+    },
+    {
+      "position_m": {"value": [-0.15981, 0.035, 0.15981], "label": "derived", "note": "as motors[0]"},
+      "spin": "cw",
+      "kv_rpm_per_v": {"value": 900, "label": "published", "note": "as motors[0]"},
+      "resistance_ohm": {"value": 0.11, "label": "derived", "note": "as motors[0]"},
+      "no_load_current_a": {"value": 1.4, "label": "published", "note": "as motors[0]"},
+      "rotor_inertia_kg_m2": {"value": 6.0e-5, "label": "derived", "note": "as motors[0]"},
+      "magnet_poles": {"value": 14, "label": "published", "note": "as motors[0]"},
+      "esc_tau_s": {"value": 0.0004, "label": "derived", "note": "as motors[0]"},
+      "esc_current_limit_a": {"value": "none", "label": "published", "note": "as motors[0]"},
+      "esc_disarm": {"value": "blheli_s", "label": "published", "note": "as motors[0]"},
+      "internals": {
+        "bell_band_m": {"value": [0.006, 0.032], "label": "derived", "note": "as motors[0]"},
+        "can_thickness_m": {"value": 0.0003, "label": "derived", "note": "as motors[0]"},
+        "can_yield_pa": {"value": 2.76e8, "label": "assumed", "note": "as motors[0]"},
+        "back_iron_thickness_m": {"value": 0.001, "label": "assumed", "note": "as motors[0]"},
+        "back_iron_yield_pa": {"value": 3.5e8, "label": "assumed", "note": "as motors[0]"},
+        "gap_m": {"value": 0.0003, "label": "assumed", "note": "as motors[0]"},
+        "magnet_thickness_m": {"value": 0.0015, "label": "assumed", "note": "as motors[0]"},
+        "magnet_remanence_t": {"value": 1.43, "label": "published", "note": "as motors[0]"},
+        "magnet_relative_permeability": {"value": 1.05, "label": "published", "note": "as motors[0]"},
+        "shaft_diameter_m": {"value": 0.005, "label": "published", "note": "as motors[0]"},
+        "shaft_yield_pa": {"value": 1.2e9, "label": "assumed", "note": "as motors[0]"},
+        "shaft_ultimate_pa": {"value": 1.5e9, "label": "assumed", "note": "as motors[0]"},
+        "hub_height_m": {"value": 0.032, "label": "derived", "note": "as motors[0]"},
+        "bearing_heights_m": {"value": [0.004, 0.016], "label": "assumed", "note": "as motors[0]"},
+        "bearing_static_rating_n": {"value": 276, "label": "published", "note": "as motors[0]"},
+        "bearing_dynamic_rating_n": {"value": 714, "label": "published", "note": "as motors[0]"},
+        "bearing_balls": {"value": 8, "label": "published", "note": "as motors[0]"},
+        "bearing_ball_diameter_m": {"value": 0.001588, "label": "published", "note": "as motors[0]"},
+        "bearing_pitch_diameter_m": {"value": 0.008, "label": "derived", "note": "as motors[0]"},
+        "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
+        "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
+        "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
+      }
+    }
+  ],
+  "props": {
+    "diameter_m": {"value": 0.254, "label": "measured", "note": "10 inches: T measures 10.0–10.4 tip to tip at the 452 mm scale, the class's 10-inch (K§5.1)"},
+    "blades": {"value": 2, "label": "measured", "note": "2-blade on every motor (T; PRD-02, DRN-01)"},
+    "pitch_m": {"value": 0.1143, "label": "assumed", "note": "4.5 inches: the prop whose published table gives k_T and κ, inside the sheet's 10 × 4.5–5 class"},
+    "k_t_n_per_rad2_s2": {"value": 1.40e-5, "label": "derived", "note": "APC 10x4.5MR, 2-blade, its published static performance data (apcprop.com, PER3_10x45MR.dat, v2022-0915): 12.43 N at 9000 rpm, C_T 0.1079–0.1097 over 8000–12 000 rpm, so k_T = T/n² = 1.394–1.418e-5 there, 1.400e-5 at 9000 rpm, the hover (8800–9100 rpm at 4.8–5.2 kg). The table is APC's computation; the Flash Hobby 3115 900 KV bench (published) gives 1.55–1.69e-5 with its own 10 × 5 of unstated blade count, and UIUC's measured static C_T of 2-blade 10-inch APC props is 0.091–0.130 below 6700 rpm (m-selig.ae.illinois.edu)"},
+    "kappa_m": {"value": 0.0144, "label": "derived", "note": "the same table's static torque over thrust: 0.01454 at 8000, 0.01443 at 9000 and 0.01436 m at 10 000 rpm (C_P 0.0387, κ = C_P·D/(2π·C_T)); below design 5's assumed 0.015–0.02, which was for a 3-blade: a 4.5-inch 2-blade turns less torque per newton, so yaw authority is a little weaker"},
+    "reference_rpm": {"value": 9000, "label": "derived", "note": "k_T and κ are the table's static values at 9000 rpm, the hover of 4.8–5.2 kg"},
+    "static_rpm": {"value": [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 20000], "label": "published", "note": "the APC 10x4.5MR table's static rows (PER3_10x45MR.dat, v2022-0915)"},
+    "static_thrust_ratio": {"value": [0.9788, 0.9815, 0.9843, 0.9861, 0.988, 0.9908, 0.9935, 0.9963, 1, 1.0037, 1.0083, 1.0129, 1.0185, 1.024, 1.0314, 1.0388, 1.0462, 1.0554, 1.0656, 1.0766], "label": "derived", "note": "C_T over its 0.1083 at 9000 rpm: C_T rises from 0.106 at 1000 to 0.111 at 14 000 rpm (the blades' Reynolds number), which a constant k_T leaves out"},
+    "static_torque_ratio": {"value": [1.2274, 1.1214, 1.0749, 1.0465, 1.0284, 1.0155, 1.0078, 1.0026, 1, 0.9974, 0.9974, 1, 1.0026, 1.0052, 1.0129, 1.0181, 1.0284, 1.0388, 1.0517, 1.0749], "label": "derived", "note": "C_P over its 0.0387 at 9000 rpm: the drag torque per n² is 23 % higher at 1000 rpm (idle), 1–3 % between 6000 and 17 000"},
+    "inflow_advance_ratio": {"value": [0, 0.0405, 0.0811, 0.1216, 0.1621, 0.2027, 0.2432, 0.2837, 0.3242, 0.3648, 0.4053, 0.4458, 0.4864, 0.5269, 0.5674, 0.5877], "label": "published", "note": "the same table at 9000 rpm, every second row to zero thrust at J 0.588 (linear between them within 0.06 % of C_T and 0.26 % of C_P)"},
+    "inflow_thrust_ratio": {"value": [1, 0.9612, 0.9178, 0.8689, 0.8163, 0.7581, 0.6944, 0.626, 0.5522, 0.4737, 0.3924, 0.3075, 0.2207, 0.132, 0.0443, 0], "label": "derived", "note": "C_T(J) over the static C_T at 9000 rpm: APC's blade-element and momentum computation of the axial-inflow derate (PHB-03); the same ratios hold within 0.5 % from 4000 to 18 000 rpm"},
+    "inflow_torque_ratio": {"value": [1, 1.0026, 1.0026, 0.9974, 0.9819, 0.9587, 0.9276, 0.8889, 0.8372, 0.7752, 0.7054, 0.6253, 0.5349, 0.4367, 0.3307, 0.2765], "label": "derived", "note": "C_P(J) over the static C_P at 9000 rpm: the torque falls more slowly than the thrust, so the inflow costs power as momentum theory says (within 2 % to J 0.3 from 4000 to 18 000 rpm, 5 % by J 0.5)"},
+    "h_force_n_per_m_s": {"value": 0.044, "label": "derived", "note": "p7c-wind 1.6 (PHY-17a), blade-element theory of a rigid 2-blade rotor, its in-plane force averaged over a turn: h = N_b·½ρ·[Ω·c_d0·∫c·r dr + ½·a·v_in·∫c·(β − α_L0) dr] (Johnson, Helicopter Theory: the profile term σc_d0μ/4 and the lift tilted by the inflow), with the sheet's chord (26 mm at 0.3 R tapering to 8 mm at the tip; 18 mm at 0.1 R assumed), β the 4.5-inch pitch's helix angle, a = 5.7 per rad (assumed), and α_L0 −6.3° and c_d0 0.049 fitted so the same elements give APC's published static 12.43 N and κ 0.0144 m at 9000 rpm. At the cruise (18.8 m/s at P's 22.7°: 10 050 rpm, 12.5 N a rotor, 12.0 m/s through the disc) it is 0.049 N per m/s, 0.008 of it the blades' profile drag and 0.041 their lift tilted by the inflow; over that rotor speed's 1.116 of the reference, 0.044 here (0.033 with the inboard sections' lift capped at stall, c_l 1.2). It replaces p6-flight-core 1.5's 0.225, tuned to fly P's pitch at 13 m/s: 5× a rigid rotor's, and with it P's pitch flies 13.0 m/s, below the published 17–22; and, at the merge with unity/main, p7b-airframe 1.7's 0.25, the same tuning on D-050's silhouette (13.0 m/s again). On D-050's silhouette P's 22.7° settles at 20.6 m/s with 0.044, inside 17–22; the element sums are the cruise's above. At the hover's 8800 rpm it is 0.036 s⁻¹ of rotor drag per unit mass, under the 0.1–0.4 s⁻¹ fitted on small quadrotors at low speed, which lump the body's drag and flexible blades' flapping that a stiff multirotor prop has little of (assumed)"},
+    "blade": {
+      "stations_r_over_r": {"value": [0.11125, 0.13375, 0.15625, 0.17875, 0.20125, 0.22375, 0.24625, 0.26875, 0.29125, 0.31375, 0.33625, 0.35875, 0.38125, 0.40375, 0.42625, 0.44875, 0.47125, 0.49375, 0.51625, 0.53875, 0.56125, 0.58375, 0.60625, 0.62875, 0.65125, 0.67375, 0.69625, 0.71875, 0.74125, 0.76375, 0.78625, 0.80875, 0.83125, 0.85375, 0.87625, 0.89875, 0.92125, 0.94375, 0.96625, 0.98875], "label": "assumed", "note": "p7f-damage design 1: the blade as 40 equal spans of 0.0225 R from 0.1 R (its root, outside the hub's 9.5 mm, 0.075 R) to the tip, each station its span's middle; 1.2 checks its tables against 160"},
+      "chord_m": {"value": [0.01845, 0.01935, 0.02025, 0.02115, 0.02205, 0.02295, 0.02385, 0.02475, 0.02565, 0.0256464, 0.0250679, 0.0244893, 0.0239107, 0.0233321, 0.0227536, 0.022175, 0.0215964, 0.0210179, 0.0204393, 0.0198607, 0.0192821, 0.0187036, 0.018125, 0.0175464, 0.0169679, 0.0163893, 0.0158107, 0.0152321, 0.0146536, 0.014075, 0.0134964, 0.0129179, 0.0123393, 0.0117607, 0.0111821, 0.0106036, 0.010025, 0.0094464, 0.0088679, 0.0082893], "label": "assumed", "note": "the sheet's chord (docs/object-sheets/drone.md: 26 mm at 0.3 R, inside the class's published 22–30 mm near 0.3 R, tapering linearly to 8 mm at the tip; 18 mm at 0.1 R assumed) at each station's middle: the law the flapping's and the interference's 19 stations fly (DroneSpec.BuildFlapping), so the blade's elements keep p7c-wind 1.6's fit of α_L0 and c_d0 to APC's published static thrust and κ"},
+      "thickness_m": {"value": [0.0054041, 0.0053733, 0.0053152, 0.0052296, 0.0051167, 0.0049764, 0.0048087, 0.0046137, 0.0043912, 0.0042162, 0.0040847, 0.003955, 0.0038269, 0.0037005, 0.0035758, 0.0034527, 0.0033313, 0.0032116, 0.0030936, 0.0029773, 0.0028626, 0.0027496, 0.0026383, 0.0025286, 0.0024207, 0.0023144, 0.0022098, 0.0021068, 0.0020056, 0.001906, 0.0018081, 0.0017119, 0.0016173, 0.0015244, 0.0014332, 0.0013437, 0.0012559, 0.0011697, 0.0010852, 0.0010024], "label": "derived", "note": "the section's greatest thickness: a thickness-to-chord law (assumed: 11 % at 0.3 R to 8 % at the tip, design 1; inboard of 0.3 R rising linearly to 20 % at 0.1 R, the root thickening into the 8 mm hub) scaled by 1.5026 so the two blades and the hub weigh the prop part's published 16 g: each blade 6.558 g (density × fill × chord × thickness over the spans), the hub 2.884 g (Ø19 × 8 mm less its 5 mm bore). Scaled, the blade is 16.5 % thick at 0.3 R (4.2 mm), 12 % at the tip (1.0 mm) and 5.4 mm at its root against the hub's 8 mm. Blades and hub turn 4.25e-5 kg·m² about the shaft (rotor_inertia_kg_m2's note: the prop about 4.7e-5)"},
+      "section_angle_rad": {"value": [0.910443, 0.819644, 0.741983, 0.675557, 0.618568, 0.569438, 0.526842, 0.489685, 0.457074, 0.428279, 0.40271, 0.37988, 0.359393, 0.34092, 0.32419, 0.308974, 0.295083, 0.282354, 0.270653, 0.259862, 0.249881, 0.240624, 0.232016, 0.223993, 0.216498, 0.209481, 0.202899, 0.196712, 0.190888, 0.185394, 0.180204, 0.175294, 0.170642, 0.166229, 0.162036, 0.158047, 0.154249, 0.150627, 0.147171, 0.143868], "label": "derived", "note": "the chord line's angle to the disc plane: the 4.5-inch pitch's helix, atan(p / (2π·r)) with pitch_m, 52.2° at the root station, 10.8° at 0.75 R and 8.2° at the tip, as the flapping's elements; their zero-lift line lies α_L0 below it (−6.3°, RotorFlappingSpec.ZeroLiftAngle, p7c-wind 1.6's fit), added where the lift is computed (design 1's \"helix less α_L0\"); a new blade has no set"},
+      "fill": {"value": [0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685], "label": "derived", "note": "the section's area over chord × thickness: 0.685 for the NACA four-digit thickness form (its published ordinates, Abbott and von Doenhoff 1959, integrated over the chord; camber moves no area), taken at every station (assumed: a prop's root is fuller, toward an ellipse's 0.785)"},
+      "hub_diameter_m": {"value": 0.019, "label": "assumed", "note": "the sheet's hub, Ø19 mm, inside the class's published Ø18–20 mm"},
+      "hub_thickness_m": {"value": 0.008, "label": "published", "note": "a 2-blade 10-inch nylon prop's hub is 6–9 mm thick (the sheet: Gemfan 1045 6 mm, a 3-blade 10 × 5 9 mm); 8 mm, as the prop part's length_m"},
+      "hub_bore_m": {"value": 0.005, "label": "published", "note": "the hub's bore is the 3115 class's 5 mm shaft (Tarot and Flash Hobby Arthur 3115, GEPRC EM3115)"},
+      "moisture": {"value": "conditioned", "label": "assumed", "note": "the material values below are the conditioned column of BASF's data (the moisture equilibrium at 23 °C and 50 % relative humidity) rather than dry as moulded: nylon takes the air's water up after moulding, and the props are kept and flown in field air and in rain. Dry, the blade is stiffer and stronger (flexural modulus 9.27 against 6.5 GPa, flexural strength 293 against 205 MPa) and less tough (Charpy notched 10 against 13 kJ/m²)"},
+      "density_kg_m3": {"value": 1366, "label": "published", "note": "PA66-GF30, the black glass-filled nylon of the sheet's props: BASF Ultramid A3WG6 LT BK, product information 09/2026, ISO 1183. Only the dry part's density is published; the water a conditioned blade holds would add about 1 % (assumed), and the thickness fit keeps the prop at its published 16 g whatever the density"},
+      "flexural_modulus_pa": {"value": 6.5e9, "label": "published", "note": "BASF Ultramid A3WG6 LT BK, ISO 178, conditioned (9.27 GPa dry): the sections' elastic stiffness"},
+      "flexural_strength_pa": {"value": 2.05e8, "label": "published", "note": "σ_f, a section's fracture in bending (design 1): BASF Ultramid A3WG6 LT BK, ISO 178, conditioned (293 MPa dry; its stress at break in tension 127 MPa conditioned, 190 dry)"},
+      "crush_strength_pa": {"value": 1.12e8, "label": "assumed", "note": "σ_c, the mean stress of a section crushed against a harder face: glass-filled PA66's published compressive stress at 5 % strain, 112 MPa (Ertalon 66 GF30, Mitsubishi Chemical Advanced Materials, ISO 604; 43 and 77 MPa at 1 and 2 %), and 117 MPa at 10 % (TECAMID 66 GF30, Ensinger, ASTM D695), dry stock shapes; taken for the conditioned moulded blade (assumed: its water lowers it, a strike's strain rate raises it). It is 0.55 σ_f, the order design 1 assumed"},
+      "fracture_energy_j_per_m2": {"value": 1.3e4, "label": "derived", "note": "G_c: BASF Ultramid A3WG6 LT BK's notched Charpy energy per ligament area (ISO 179/1eA), 13 kJ/m² conditioned at 23 °C (10 dry; 8.5 conditioned at −30 °C), taken as the work a section's fracture costs per area of its section (an upper estimate: the specimen's own kinetic and plastic work are in it)"},
+      "proportional_limit": {"value": 0.7, "label": "assumed", "note": "the share of σ_f past which a section keeps a permanent set (design 1): glass-filled nylon is quasi-brittle, and conditioned it breaks at 6.5 % strain where its elastic line would reach the break stress at 1.9 % (BASF: 127 MPa over 6.8 GPa), so its curve bends well before the break; 0.7 is design 1's assumption, its sensitivity printed by 1.7"},
+      "hardness_pa": {"value": 1.65e8, "label": "published", "note": "H_b, the blade's ball-indentation hardness (ISO 2039-1) for Rabinowicz's rule (design 5): PA66-GF30 165 MPa (Ertalon 66 GF30, Mitsubishi Chemical Advanced Materials) to 210 MPa (APSOplast PA 66 GF30), dry stock shapes; the lower taken for the conditioned blade, which water softens. Timber across the grain (tens of MPa) is softer, concrete, masonry and steel (GPa) harder"}
+    }
+  },
+  "packs": [
+    {
+      "part": "pack_left",
+      "series": {"value": 6, "label": "derived", "note": "6S: the 3115 900 KV motors are rated 3–6S (published); the class's 8S (fc-profiles.md) would need about 900·6/8 = 675 KV, and at 8S these motors would draw about 80 A each at full throttle on this prop, twice their 40 A (derived)"},
+      "parallel": {"value": 2, "label": "derived", "note": "two identical packs (T, the pilot's 'a couple of batteries') in parallel make the pilot's 6S4P (pilot: 6S4P to 6S5P, 20–35 Ah): 20 Ah, 432 Wh, the one even arrangement inside 4P–5P; T's packs, two cells high and 0.22 m long, hold 12 cells each"},
+      "cell_capacity_ah": {"value": 5.0, "label": "published", "note": "Molicel INR21700-P50B: 5.0 Ah typical, 4.85 Ah minimum, 3.6 V, 2.5 V cut-off, 60 A continuous, 71 ± 1 g, Ø21.45 × 70.05 mm (akkuteile.de). 5 Ah makes 6S4P the pilot's 20 Ah (a 4.5 Ah P45B gives 18), and its 60 A covers the about 50 A a cell at full throttle in 4P (derived), which a 25 A Samsung 50S does not"},
+      "r_cell_ohm": {"value": 0.012, "label": "assumed", "note": "under load, 1.5 × the P50B's published ≤ 8 mΩ at shipping (AC); the sheet's 12–16 mΩ, K§5.3's 15 mΩ; 1.4's sag scenario checks it"},
+      "ocv_v": {"value": [2.50, 3.20, 3.40, 3.48, 3.53, 3.57, 3.60, 3.63, 3.66, 3.69, 3.72, 3.76, 3.80, 3.84, 3.88, 3.93, 3.97, 4.02, 4.07, 4.13, 4.20], "label": "assumed", "note": "one cell at state of charge 0, 0.05, …, 1, over the P50B's published 5.0 Ah from its 4.2 V charge to its 2.5 V cut-off (published, akkuteile.de): the shape of the P50B's and like 5 Ah 21700 NMC cells' published low-rate discharge curves, read by shape and not digitised, so assumed; 3.40–4.07 V over 10–90 % (K§5.3: 3.4–4.1 V), the knee below 10 %: 4 V a unit of charge from 10 to 5 %, 14 V from 5 % to the cut-off (p7b-airframe 1.5; model 11's table stopped at 3.0 V, so the pack never emptied)"}
+    },
+    {
+      "part": "pack_right",
+      "series": {"value": 6, "label": "derived", "note": "as packs[0]"},
+      "parallel": {"value": 2, "label": "derived", "note": "as packs[0]"},
+      "cell_capacity_ah": {"value": 5.0, "label": "published", "note": "as packs[0]"},
+      "r_cell_ohm": {"value": 0.012, "label": "assumed", "note": "as packs[0]"},
+      "ocv_v": {"value": [2.50, 3.20, 3.40, 3.48, 3.53, 3.57, 3.60, 3.63, 3.66, 3.69, 3.72, 3.76, 3.80, 3.84, 3.88, 3.93, 3.97, 4.02, 4.07, 4.13, 4.20], "label": "assumed", "note": "as packs[0]"}
+    }
+  ],
+  "legs": {
+    "parts": ["leg_rr", "leg_fr", "leg_rl", "leg_fl"],
+    "stiffness_n_per_m": {"value": 52300, "label": "derived", "note": "p7g-legs 1.1, from the section (DroneLegs.VerticalStiffness): in series the tube's EA/L = 3.0e9 × 2.827e-5 / 0.2135 = 397 kN/m, the arm under the clamp bending out of its plane, 67.6 kN/m (clamp.mount_stiffness_n_per_m), and the skid's ring squeezed in the T-joint, 553 kN/m (the tube's ring over tjoint.skid_grip_length_m); the clamp's grip carries none of a push, since the tube's top bears on the arm's underside (leg_rr). Replaces the assumed 10 kN/m (model 26)"},
+    "damping_n_s_per_m": {"value": 103, "label": "derived", "note": "ζ 0.2 (the sheet's 0.1–0.3, assumed) on a quarter of the file's 5.08 kg take-off mass (L5): c = 2ζ·√(k·m/4) = 2 × 0.2 × √(52300 × 1.27) = 103 N·s/m (was 45 on the assumed 10 kN/m)"},
+    "foot_radius_m": {"value": 0.005, "label": "measured", "note": "the skid tube's radius (T: Ø9–10 mm); the feet are skids, so each leg's foot is its T-joint on the skid"},
+    "tube": {
+      "material": "pvc_u",
+      "outer_diameter_m": {"value": 0.010, "label": "measured", "note": "T: Ø8–10 mm black tubes, the legs and the skids of one stock (the parts' diameter_m)"},
+      "inner_diameter_m": {"value": 0.008, "label": "published", "note": "rigid PVC round tube is sold 10 mm OD × 8 mm ID (uxcell's rigid PVC pipe, 500 mm, white or dark grey high-impact): a 1 mm wall"},
+      "free_length_m": {"value": 0.2135, "label": "derived", "note": "between the clamp's bottom (clamp_rr: y −0.01125 − 0.00825 = −0.0195) and the T-joint's top (tjoint_rr: −0.243 + 0.010 = −0.233)"},
+      "cracked_stiffness_factor": {"value": 0.5, "label": "assumed", "note": "design 3's half: a crack through about half the wall at the clamp's edge; no published value for a cracked PVC-U tube was found"},
+      "loss_factor": {"value": 0.03, "label": "published", "note": "rigid PVC's mechanical loss factor at room temperature: 0.028–0.040 in bending vibration near 1 kHz across the IUPAC working party's laboratories (Pure Appl. Chem. 35, 1973, 315; its torsion pendulum at 0.2–2 Hz on the same sheets), and under 0.02 for most rigid polymers (Plastics Technology's DMA notes); p7g-legs 1.2's side give damps at ζ = η/2, the tube's own, the jaws' and the T-joint's friction left out (a lower bound)"},
+      "modulus_pa": {"value": 3.0e9, "label": "published", "note": "PVC-U, unplasticised rigid PVC (the pilot's 'plastic, a little soft'; T's smooth Ø10 mm tube, a stock rigid PVC size): Angst+Pfister's APSOplast PVC-U 00.001-01 technical data sheet (2024), 3000 N/mm² (DIN EN ISO 527); Reichelt Chemietechnik's PVC-U pressure pipe, 3000 MPa"},
+      "modulus_bounds_pa": {"value": [3.0e9, 3.3e9], "label": "published", "note": "APSOplast PVC-U 00.001-01 and 00.005-01 (3300 N/mm²), RCT's pipe (3000 MPa)"},
+      "yield_stress_pa": {"value": 5.5e7, "label": "published", "note": "APSOplast PVC-U 00.001-01, 55 N/mm² (DIN EN ISO 527)"},
+      "yield_stress_bounds_pa": {"value": [5.0e7, 5.8e7], "label": "published", "note": "RCT's PVC-U pressure pipe 50 MPa, APSOplast PVC-U 00.005-01 58 N/mm²"},
+      "ultimate_stress_pa": {"value": 8.0e7, "label": "published", "note": "APSOplast PVC-U 00.001-01's bending strength, 80 N/mm² (DIN EN ISO 178): the elastic-equivalent stress M·c/I at the most moment a bar carries, the stress design 3's fracture law compares"},
+      "ultimate_stress_bounds_pa": {"value": [7.27e7, 8.44e7], "label": "derived", "note": "80 N/mm² scaled with the yield stress's published 50–58 over its 55 (one sheet gives the bending strength)"},
+      "elongation_at_break": {"value": 0.20, "label": "published", "note": "APSOplast PVC-U 00.001-01, 20 % (DIN EN ISO 527): ductile at 23 °C; notched Charpy 2–6 kJ/m² across the sheets and RCT's pipe (DIN EN ISO 179), so notch-sensitive; rated from −15 °C"},
+      "elongation_at_break_bounds": {"value": [0.15, 0.20], "label": "published", "note": "APSOplast PVC-U 00.001-10, 15 % at rupture"},
+      "density_kg_m3": {"value": 1440, "label": "published", "note": "APSOplast PVC-U 00.001-01 and 00.005-01, 1.44 g/cm³"},
+      "density_bounds_kg_m3": {"value": [1420, 1450], "label": "published", "note": "RCT's pipe 1.42 g/cm³ (ISO 1183), APSOplast PVC-U 00.001-10 1.45"}
+    },
+    "clamp": {
+      "material": "petg_printed",
+      "modulus_pa": {"value": 1.5e9, "label": "published", "note": "the printed block's jaws: Prusament PETG technical data sheet v1.1 (2022), printed specimens, 1.5 ± 0.1 GPa (ISO 527-1); the class prints its clamps and T-joints (T: black printed blocks)"},
+      "grip_length_m": {"value": 0.0165, "label": "derived", "note": "the tube's length in the jaws: the clamp part's height (clamp_rr's size_m), the drone model's trim of T's 25 mm block"},
+      "bolt_diameter_m": {"value": 0.004, "label": "derived", "note": "M4: T's zinc-plated wing nut is 20 mm across the wings (the sheet), DIN 315's M4 (McMaster-Carr's DIN 315 listing: M4 20 mm, M5 26 mm; Würth's M5 26 mm)"},
+      "mount_stiffness_n_per_m": {"value": 67600, "label": "derived", "note": "the 6 × 25 mm plate arm bending out of its plane under the clamp, 3EI/a³ with I = b·t³/12 and E 50 GPa (the arms' own contact derivation, arm_rr_a's stiffness_up_n_per_m), a = 0.145 − 0.045 = 0.100 m from the body's edge to the clamp at r 0.145"},
+      "mount_side_stiffness_n_per_m": {"value": 1172000, "label": "derived", "note": "p7g-legs (model 51): the same plate arm bending in its plane under the clamp, 3EI/a³ with I = t·b³/12 = 7.81e-9 m⁴ (b 25 mm, t 6 mm), E 50 GPa and the same a = 0.100 m (the arms' own in-plane derivation, arm_rr_a's stiffness_n_per_m); with mount_stiffness_n_per_m out of the plane it is a broken leg's stub's contact spring, the stub held in the clamp's jaws (no free tube left to give)"},
+      "torque_n_m": {"value": 0.768, "label": "published", "note": "a hand's pinch torque on a 19 mm flange, tightening: 108.7 ± 16.1 in-oz, men (Imrhan and Munoz-Vasa 2013, 'Finger pinch loosening and tightening torques on small cylindrical handles', Industrial and Systems Engineering Review 1(2), Table 2); the 20 mm wing nut is pinched by its wings"},
+      "torque_bounds_n_m": {"value": [0.540, 0.995], "label": "published", "note": "the same mean ± 2 SD (0.768 ± 0.227 N·m); the paper's women reach 72 % of the men's"},
+      "nut_factor": {"value": 0.20, "label": "published", "note": "zinc-plated (T's bolt and wing nut): Shigley's Mechanical Engineering Design (Budynas and Nisbett), Table 8-15 torque factors"},
+      "nut_factor_bounds": {"value": [0.16, 0.30], "label": "published", "note": "the same table's cadmium-plated 0.16 to non-plated black 0.30: the wing nut's face bears on printed plastic, not steel"},
+      "friction": {"value": 0.30, "label": "assumed", "note": "the PVC-U tube in PETG jaws, clean and dry: inside the published polymer pairs (Engineering ToolBox: polyethylene 0.2, nylon 0.15–0.25, polystyrene 0.5), as physics_materials.json's plastic row"},
+      "friction_bounds": {"value": [0.20, 0.40], "label": "assumed", "note": "physics_materials.json's plastic row's 0.2–0.4 band"},
+      "edge_stress_factor": {"value": 1.5, "label": "assumed", "note": "the stress raiser where the tube leaves the jaws: press-fit edges in bending are charted by Strozzi et al. 2016 and, for hollow shafts (higher than solid), Croccolo et al. 2012, but no value for a plastic tube in a printed clamp was found; the soft jaws (1.5 GPa on a 3 GPa tube) keep it low"},
+      "edge_stress_factor_bounds": {"value": [1.2, 2.0], "label": "assumed", "note": "a soft rounded jaw edge to a hard sharp one"}
+    },
+    "tjoint": {
+      "material": "petg_printed",
+      "socket_outer_diameter_m": {"value": 0.016, "label": "measured", "note": "T: 16 mm sockets (tjoint_rr's size_m)"},
+      "skid_grip_length_m": {"value": 0.030, "label": "measured", "note": "T: 30 mm along the skid (tjoint_rr's size_m)"},
+      "screw_diameter_m": {"value": 0.003, "label": "assumed", "note": "T shows no fastener on the T-joints: an M3 pinch screw holds the skid in the bore, as printed T-joints for 10 mm tube do; its friction and nut factor are the clamp's"},
+      "torque_n_m": {"value": 0.5, "label": "assumed", "note": "an M3 into a printed boss tightened with a hex key short of stripping it"},
+      "torque_bounds_n_m": {"value": [0.3, 0.7], "label": "assumed", "note": "as torque_n_m"},
+      "interlayer_strength_pa": {"value": 1.8e7, "label": "published", "note": "Prusament PETG technical data sheet v1.1 (2022): interlayer adhesion 18 ± 4 MPa, the socket's weak plane"},
+      "interlayer_strength_bounds_pa": {"value": [1.4e7, 2.2e7], "label": "published", "note": "the same ± 1 SD"}
+    }
+  },
+  "legs_off": {
+    "removed": ["leg_rr", "leg_fr", "leg_rl", "leg_fl", "tjoint_rr", "tjoint_fr", "tjoint_rl", "tjoint_fl", "skid_right", "skid_left"],
+    "moved": {}
+  },
+  "coil": {
+    "part": "coil",
+    "spool_mass_kg": {"value": 0.31, "label": "derived", "note": "the housing and cradle: the pilot's 1.0 kg coil less its 0.69 kg of line (a retail 10 km canister is 0.95 kg with its fiber, published; the sheet)"},
+    "fiber_mass_kg": {"value": 0.69, "label": "derived", "note": "10 km of 0.069 kg/km: glass Ø125 µm at 2.2 g/cm³ plus its coating to Ø250 µm at about 1.15 g/cm³ (assumed; the sheet)"},
+    "fiber_length_m": {"value": 10000, "label": "published", "note": "the class's 10 km spools (K§5.1), the pilot's about 1 kg"}
+  },
+  "payload": {
+    "part": "payload",
+    "mass_min_kg": {"value": 0, "label": "assumed", "note": "the setup's range starts with no payload (APP-03)"},
+    "mass_max_kg": {"value": 2.0, "label": "published", "note": "OTU-10's payload of up to 2 kg (K§5.1), the setup's top (APP-03)"}
+  },
+  "camera": {
+    "lens_m": {"value": [0, 0.015, 0.115], "label": "assumed", "note": "the FPV camera's lens where the drone model puts it (p5-drone's camera.lens_*), facing +z at 0° uptilt (pilot): a 19 mm micro camera (5.9 g, published; its mass in the electronics part) between the top plate's top at y +0.005 and the upper plate's underside at +0.025, centred at +0.015 (derived), its lens 15 mm proud of the plates' front edge at z +0.10 (assumed)"}
+  },
+  "stand": {
+    "material": "steel",
+    "post_radius_m": {"value": 0.200, "label": "derived", "note": "each post on a motor diagonal, its cap under the arm just inboard of the motor can: 0.226 − 0.0186 − 0.0074 m (the sheet)"},
+    "post_height_m": {"value": 0.25, "label": "pilot", "note": "D-022: posts about 0.25 m high"},
+    "post_diameter_m": {"value": 0.020, "label": "assumed", "note": "a chair's 20 × 20 × 1.5 mm square tube, read as its width (the sheet)"},
+    "mass_kg": {"value": 1.6, "label": "derived", "note": "about 1.8 m of that tube at 0.871 kg/m (111 mm² × 7850 kg/m³, published steel) with its caps and welds (the sheet)"}
+  },
+  "aero": {
+    "air_density_kg_m3": {"value": 1.225, "label": "published", "note": "ISA sea level, 15 °C: APC's tables and k_T are at it"},
+    "body_area_m2": {"value": [0.041, 0.052, 0.039], "label": "derived", "note": "the sheet's silhouettes (Physics role, ±30 %) for D-043's layout, side 0.056, top 0.07 and front 0.06 m², re-derived for D-050's: less the slung payload's visible 0.008 side (its Ø0.10 m end), 0.005 top (its ends past the packs) and 0.021 front (0.24 × 0.10 m less the legs before it); plus the bottle's 0.019 side (0.26 × 0.08 m less the neck's taper), 0.003 top (its 0.019 less the plates it hides) and 0.005 front (its Ø0.080 m end); the coil beneath hides 0.009 of the packs side-on (0.20 × 0.045 m) and the plates top-on, where it hid them on top. Then less the coil's own, which the coil's drag takes from its part: 0.017 side, 0.017 top (0.083 × 0.20 m) and 0.005 front (its Ø0.083 m end). The bottle's silhouette is the nominal 1 kg one at every payload setting (assumed: ±0.01 m² side between 0 and 2 kg)"},
+    "body_center_of_pressure_m": {"value": [0, -0.018, 0], "label": "derived", "note": "the silhouette's area-weighted centre, from D-043's assumed 0.07 m below the arm plane with the slung payload (y −0.108) replaced by the bottle on top and the packs' share the coil hides (−0.043) taken out: with the bottle at +0.087, +0.004 m side-on and −0.029 m front-on; the bottle on the upper plate at +0.068 moves its 0.019 side and 0.005 front 19 mm down, so −0.005 m side-on and −0.031 m front-on (derived); one point for every direction, their mean, on the centreline (±0.02 m); it stays put on the legs-off build (assumed)"},
+    "drag_coefficient": {"value": 0.9, "label": "assumed", "note": "a silhouette of rounded bluff parts, the coil's cylinder alike (Hoerner, Fluid-Dynamic Drag): boxes with rounded edges 0.8–1.05 (the packs, the stack, the payload's ends), finite cylinders 0.6–1.0 by their length over diameter (the coil, the payload crosswise), thin tubes at Re ≈ 10⁴ 1.0–1.2 (the legs, the skids, the arms' edges); 0.9 × the sheet's 0.06 m² front is wind.md §5.3's nominal C_D·A of 0.05 m² (D-043's layout; D-050's front is 0.039 m²). Kept by p7c-wind 1.6, which re-derived the rotors' drag instead: with it P's 22.7° of pitch at the nominal loadout settles at 20.6 m/s in still air on D-050's silhouette (18.8 on D-043's), the published 17–22 as a prediction, not a fit; C_d 0.8 or 1.05 would give 21.7 or 19.2 m/s. The rotors' wash over the body is left out (assumed)"}
+  },
+  "contacts": {
+    "margin_m": {"value": 0.1, "label": "derived", "note": "StaticContacts' margin: a latched pair stays in the result while its part is past the shape but inside its plane, so the margin covers the deepest stop less what the part needs to clear the shape (P2): a motor can (2e5 N/m) at the drone's 30 m/s stops in 30·√(4.7/2e5) = 0.146 m and clears a 20 mm tube after 0.057 m. A skid driven that fast into a rod would snap in truth, which is phase 7's breakage; here it logs a tunnel"},
+    "crash_accel_m_s2": {"value": 490.3, "label": "assumed", "note": "50 g of the body from its contacts ends the flight (p6-flight-core design 7); a 0.3 m drop on the legs peaks near 19 g"},
+    "impact_window_s": {"value": 0.05, "label": "assumed", "note": "an impact's peak acceleration and impulse are taken over its first 50 ms (K§6.10: a crash is decided in the 50 ms before it)"},
+    "impact_speed_m_s": {"value": 0.1, "label": "assumed", "note": "a touch closing faster than this starts an impact; a slower one is a resting or sliding touch"},
+    "friction_stiffness_ratio": {"value": 0.5, "label": "assumed", "note": "the stick anchor's tangential stiffness over the normal (K§7.1 step 5, surfaces-review §1)"},
+    "damping_mass_share": {"value": 0.25, "label": "assumed", "note": "a shape's damping ratio is taken on a quarter of the take-off mass, as legs.damping_n_s_per_m is: c = 2ζ·√(k·m/4)"},
+    "ground_friction_static": {"value": 0.5, "label": "assumed", "note": "the drone on the ground's surfaces, rigid at G7: one pair for every surface, K§7.2's belt_bare (the stub floor's); 7a reads each surface's own"},
+    "ground_friction_kinetic": {"value": 0.4, "label": "assumed", "note": "as ground_friction_static"},
+    "ring_segments": {"value": 12, "label": "derived", "note": "a 12-gon's chords stay within R·(1 − cos 15°) = 4.3 mm of the 0.127 m rim, about the blade's half-thickness (P4)"},
+    "shapes": [
+      {"name": "support_rr_end", "part": "skid_right", "role": "support", "corner": "rr", "material": "polymer", "a_m": {"value": [0.1025, -0.248, -0.22], "label": "measured", "note": "the overhang end's core: the skid's end at z ±0.225 less its radius, on its axis 0.005 m above the ground (the sheet); the joint's is under the leg at z ±0.1025 (P3: a skid is its capsule plus load-bearing spheres at the overhang end and the T-joint)"}, "radius_m": {"value": 0.005, "label": "measured", "note": "legs.foot_radius_m"}},
+      {"name": "support_rr_joint", "part": "skid_right", "role": "support", "corner": "rr", "material": "polymer", "a_m": {"value": [0.1025, -0.248, -0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "support_fr_end", "part": "skid_right", "role": "support", "corner": "fr", "material": "polymer", "a_m": {"value": [0.1025, -0.248, 0.22], "label": "measured"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "support_fr_joint", "part": "skid_right", "role": "support", "corner": "fr", "material": "polymer", "a_m": {"value": [0.1025, -0.248, 0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "support_rl_end", "part": "skid_left", "role": "support", "corner": "rl", "material": "polymer", "a_m": {"value": [-0.1025, -0.248, -0.22], "label": "measured"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "support_rl_joint", "part": "skid_left", "role": "support", "corner": "rl", "material": "polymer", "a_m": {"value": [-0.1025, -0.248, -0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "support_fl_end", "part": "skid_left", "role": "support", "corner": "fl", "material": "polymer", "a_m": {"value": [-0.1025, -0.248, 0.22], "label": "measured"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "support_fl_joint", "part": "skid_left", "role": "support", "corner": "fl", "material": "polymer", "a_m": {"value": [-0.1025, -0.248, 0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "skid_rr", "part": "skid_right", "role": "skid", "corner": "rr", "material": "polymer", "a_m": {"value": [0.1025, -0.248, -0.22], "label": "measured", "note": "the overhang end's core"}, "b_m": {"value": [0.1025, -0.248, 0], "label": "measured", "note": "the skid's middle: each skid is split there, each half carried by its corner's leg (the probe's segments)"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "skid_fr", "part": "skid_right", "role": "skid", "corner": "fr", "material": "polymer", "a_m": {"value": [0.1025, -0.248, 0.22], "label": "measured"}, "b_m": {"value": [0.1025, -0.248, 0], "label": "measured"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "skid_rl", "part": "skid_left", "role": "skid", "corner": "rl", "material": "polymer", "a_m": {"value": [-0.1025, -0.248, -0.22], "label": "measured"}, "b_m": {"value": [-0.1025, -0.248, 0], "label": "measured"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "skid_fl", "part": "skid_left", "role": "skid", "corner": "fl", "material": "polymer", "a_m": {"value": [-0.1025, -0.248, 0.22], "label": "measured"}, "b_m": {"value": [-0.1025, -0.248, 0], "label": "measured"}, "radius_m": {"value": 0.005, "label": "measured"}},
+      {"name": "leg_rr", "part": "leg_rr", "role": "body", "material": "polymer", "a_m": {"value": [0.1025, -0.008, -0.1025], "label": "derived", "note": "the tube's core (its part) from under the arm (y −0.003, less its radius) to the T-joint's top (y −0.233)"}, "b_m": {"value": [0.1025, -0.233, -0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured", "note": "the 10/8 mm tube (legs.tube)"}, "stiffness_n_per_m": {"value": 6600, "label": "assumed", "note": "model 26's penetration spring for a touch on the tube's side, kept until p7g-legs 1.3 moves the leg's shapes with its bend: the PVC-U leg's own give across its tube at the T-joint is 262 N/m (DroneLegs.SideStiffness, p7g-legs 1.1: the tube's 3EI/L³ of 268 N/m in series with the clamp's jaws turning, 12.3 kN/m at the foot), and as a penetration it lets a wire or a rod past the tube's core under a few newtons, a Tunnel (a physics bug); was derived for 10/8 mm CFRP"}, "damping_ratio": {"value": 0.2, "label": "assumed", "note": "the legs' (the sheet's 0.1–0.3)"}},
+      {"name": "leg_fr", "part": "leg_fr", "role": "body", "material": "polymer", "a_m": {"value": [0.1025, -0.008, 0.1025], "label": "derived"}, "b_m": {"value": [0.1025, -0.233, 0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}, "stiffness_n_per_m": {"value": 6600, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "leg_rl", "part": "leg_rl", "role": "body", "material": "polymer", "a_m": {"value": [-0.1025, -0.008, -0.1025], "label": "derived"}, "b_m": {"value": [-0.1025, -0.233, -0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}, "stiffness_n_per_m": {"value": 6600, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "leg_fl", "part": "leg_fl", "role": "body", "material": "polymer", "a_m": {"value": [-0.1025, -0.008, 0.1025], "label": "derived"}, "b_m": {"value": [-0.1025, -0.233, 0.1025], "label": "derived"}, "radius_m": {"value": 0.005, "label": "measured"}, "stiffness_n_per_m": {"value": 6600, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "arm_rr_a", "part": "arm_rr", "role": "body", "material": "carbon_composite", "a_m": {"value": [0.040659, 0, -0.027224], "label": "derived", "note": "the 6 × 25 mm plate arm (P5; the sheet: 6 mm published, 25 mm assumed) as a capsule along each long edge, 9.5 mm either side of the diagonal in the arm plane, its radius the half-thickness, its core from r 0.048 to 0.222 m (the plate's 0.045–0.225 less the radius); edge a lies on the +x+z side of the rear-right diagonal, mirrored per corner"}, "b_m": {"value": [0.163695, 0, -0.15026], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published", "note": "half the 6 mm plate"}, "stiffness_n_per_m": {"value": 310000, "label": "derived", "note": "in the arm's plane at a post (r 0.200): 3EI/L³ over the 0.155 m from the body's edge, I = t·b³/12 of the 6 × 25 mm section, E 50 GPa (assumed for plate CFRP)"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived", "note": "out of its plane at the post: I = b·t³/12 over the same 0.155 m, 1.8e4 N/m (review-physics P5); the stand loads it this way"}, "damping_ratio": {"value": 0.1, "label": "assumed", "note": "the plate's own damping with its clamping in the stack"}},
+      {"name": "arm_rr_b", "part": "arm_rr", "role": "body", "material": "carbon_composite", "a_m": {"value": [0.027224, 0, -0.040659], "label": "derived"}, "b_m": {"value": [0.15026, 0, -0.163695], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "arm_fr_a", "part": "arm_fr", "role": "body", "material": "carbon_composite", "a_m": {"value": [0.040659, 0, 0.027224], "label": "derived"}, "b_m": {"value": [0.163695, 0, 0.15026], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "arm_fr_b", "part": "arm_fr", "role": "body", "material": "carbon_composite", "a_m": {"value": [0.027224, 0, 0.040659], "label": "derived"}, "b_m": {"value": [0.15026, 0, 0.163695], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "arm_rl_a", "part": "arm_rl", "role": "body", "material": "carbon_composite", "a_m": {"value": [-0.040659, 0, -0.027224], "label": "derived"}, "b_m": {"value": [-0.163695, 0, -0.15026], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "arm_rl_b", "part": "arm_rl", "role": "body", "material": "carbon_composite", "a_m": {"value": [-0.027224, 0, -0.040659], "label": "derived"}, "b_m": {"value": [-0.15026, 0, -0.163695], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "arm_fl_a", "part": "arm_fl", "role": "body", "material": "carbon_composite", "a_m": {"value": [-0.040659, 0, 0.027224], "label": "derived"}, "b_m": {"value": [-0.163695, 0, 0.15026], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "arm_fl_b", "part": "arm_fl", "role": "body", "material": "carbon_composite", "a_m": {"value": [-0.027224, 0, 0.040659], "label": "derived"}, "b_m": {"value": [-0.15026, 0, 0.163695], "label": "derived"}, "radius_m": {"value": 0.003, "label": "published"}, "stiffness_n_per_m": {"value": 310000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 18000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "motor_rr", "part": "motor_rr", "role": "body", "material": "aluminium", "a_m": {"value": [0.15981, 0.019, -0.15981], "label": "derived", "note": "the can's centre (its part)"}, "radius_m": {"value": 0.0186, "label": "published", "note": "the Φ37.2 mm can as a sphere; it is 32 mm tall, so the sphere stands 2.6 mm proud of its top and base"}, "stiffness_n_per_m": {"value": 200000, "label": "derived", "note": "the arm under the can bending in its plane: 3EI/L³ over 0.18 m with I = t·b³/12 of the 6 × 25 mm section, E 50 GPa; a can leads a frontal hit"}, "stiffness_up_n_per_m": {"value": 12000, "label": "derived", "note": "the arm bending out of its plane over 0.18 m, I = b·t³/12"}, "damping_ratio": {"value": 0.1, "label": "assumed", "note": "as the arms"}},
+      {"name": "motor_fr", "part": "motor_fr", "role": "body", "material": "aluminium", "a_m": {"value": [0.15981, 0.019, 0.15981], "label": "derived"}, "radius_m": {"value": 0.0186, "label": "published"}, "stiffness_n_per_m": {"value": 200000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 12000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "motor_rl", "part": "motor_rl", "role": "body", "material": "aluminium", "a_m": {"value": [-0.15981, 0.019, -0.15981], "label": "derived"}, "radius_m": {"value": 0.0186, "label": "published"}, "stiffness_n_per_m": {"value": 200000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 12000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "motor_fl", "part": "motor_fl", "role": "body", "material": "aluminium", "a_m": {"value": [-0.15981, 0.019, 0.15981], "label": "derived"}, "radius_m": {"value": 0.0186, "label": "published"}, "stiffness_n_per_m": {"value": 200000, "label": "derived"}, "stiffness_up_n_per_m": {"value": 12000, "label": "derived"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "stack_right", "part": "plates", "role": "body", "material": "carbon_composite", "a_m": {"value": [0.028, 0.011, -0.083], "label": "derived", "note": "the 0.09 × 0.034 × 0.20 m stack (its part) as two capsules along z of its half-height, 0.028 m either side of the centreline: its sides, top and bottom are the box's, its corners round"}, "b_m": {"value": [0.028, 0.011, 0.083], "label": "derived"}, "radius_m": {"value": 0.017, "label": "derived"}, "stiffness_n_per_m": {"value": 1000000, "label": "assumed", "note": "the frame's own, about 1e6 N/m (surfaces-review §1: the first attempt's frame on its rails)"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "stack_left", "part": "plates", "role": "body", "material": "carbon_composite", "a_m": {"value": [-0.028, 0.011, -0.083], "label": "derived"}, "b_m": {"value": [-0.028, 0.011, 0.083], "label": "derived"}, "radius_m": {"value": 0.017, "label": "derived"}, "stiffness_n_per_m": {"value": 1000000, "label": "assumed"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "electronics", "part": "electronics", "role": "body", "material": "polymer", "a_m": {"value": [0, 0.015, -0.03], "label": "derived", "note": "the 0.06 × 0.02 × 0.10 m box between the plates (its part) as a capsule of its half-height along z, 0.10 m overall"}, "b_m": {"value": [0, 0.015, 0.05], "label": "derived"}, "radius_m": {"value": 0.01, "label": "derived"}, "stiffness_n_per_m": {"value": 1000000, "label": "assumed", "note": "as the stack"}, "damping_ratio": {"value": 0.1, "label": "assumed"}},
+      {"name": "pack_right", "part": "pack_right", "role": "body", "material": "polymer", "a_m": {"value": [0.0735, -0.043, -0.0875], "label": "derived", "note": "the 0.047 × 0.045 × 0.22 m pack (its part) as a capsule of its half-height along z, 0.22 m overall"}, "b_m": {"value": [0.0735, -0.043, 0.0875], "label": "derived"}, "radius_m": {"value": 0.0225, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed", "note": "a pack held on by hook-and-loop straps, which give"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "pack_left", "part": "pack_left", "role": "body", "material": "polymer", "a_m": {"value": [-0.0735, -0.043, -0.0875], "label": "derived"}, "b_m": {"value": [-0.0735, -0.043, 0.0875], "label": "derived"}, "radius_m": {"value": 0.0225, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "payload", "part": "payload", "role": "body", "material": "polymer", "a_m": {"value": [0, 0.068, -0.09], "label": "derived", "note": "the bottle, 0.26 m long overall with its shoulder, neck and cap (assumed: a 1 L PET bottle, 0.25–0.28 m), as a capsule of its body's radius along z centred on its part: the round ends stand for the base's chamfer and the shoulder; the shapes move and scale with the part (BuildMass)"}, "b_m": {"value": [0, 0.068, 0.09], "label": "derived"}, "radius_m": {"value": 0.040, "label": "derived", "note": "the part's diameter_m / 2"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed", "note": "a filled PET bottle on its straps, which give"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "payload_aft", "part": "payload", "role": "body", "material": "polymer", "a_m": {"value": [0, 0.068, -0.09], "label": "derived", "note": "a load-bearing sphere at each core end, so the bottle lies on its side at both ends (P3); it meets the ground only upside down"}, "radius_m": {"value": 0.040, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "payload_fore", "part": "payload", "role": "body", "material": "polymer", "a_m": {"value": [0, 0.068, 0.09], "label": "derived"}, "radius_m": {"value": 0.040, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "coil", "part": "coil", "role": "body", "material": "polymer", "a_m": {"value": [0, -0.053, -0.0585], "label": "derived", "note": "the Ø0.083 × 0.20 m spool (its part) as a capsule along z, beneath the frame on both builds"}, "b_m": {"value": [0, -0.053, 0.0585], "label": "derived"}, "radius_m": {"value": 0.0415, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed", "note": "a printed spool in its cradle on two cable-tie hoops, which give"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "coil_aft", "part": "coil", "role": "body", "material": "polymer", "a_m": {"value": [0, -0.053, -0.0585], "label": "derived", "note": "a load-bearing sphere at each core end (P3); legs off, the spool is the lowest part, the first to meet a bare floor (D-043)"}, "radius_m": {"value": 0.0415, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "coil_fore", "part": "coil", "role": "body", "material": "polymer", "a_m": {"value": [0, -0.053, 0.0585], "label": "derived"}, "radius_m": {"value": 0.0415, "label": "derived"}, "stiffness_n_per_m": {"value": 100000, "label": "assumed"}, "damping_ratio": {"value": 0.2, "label": "assumed"}},
+      {"name": "disc_rr", "part": "prop_rr", "role": "disc", "corner": "rr", "material": "polymer", "a_m": {"value": [0.15981, 0.035, -0.15981], "label": "derived", "note": "the hub: motors[].position_m"}, "radius_m": {"value": 0.127, "label": "measured", "note": "the flown prop: props.diameter_m / 2"}, "half_thickness_m": {"value": 0.004, "label": "published", "note": "the blade's: half the prop part's 8 mm (P4)"}},
+      {"name": "disc_fr", "part": "prop_fr", "role": "disc", "corner": "fr", "material": "polymer", "a_m": {"value": [0.15981, 0.035, 0.15981], "label": "derived"}, "radius_m": {"value": 0.127, "label": "measured"}, "half_thickness_m": {"value": 0.004, "label": "published"}},
+      {"name": "disc_rl", "part": "prop_rl", "role": "disc", "corner": "rl", "material": "polymer", "a_m": {"value": [-0.15981, 0.035, -0.15981], "label": "derived"}, "radius_m": {"value": 0.127, "label": "measured"}, "half_thickness_m": {"value": 0.004, "label": "published"}},
+      {"name": "disc_fl", "part": "prop_fl", "role": "disc", "corner": "fl", "material": "polymer", "a_m": {"value": [-0.15981, 0.035, 0.15981], "label": "derived"}, "radius_m": {"value": 0.127, "label": "measured"}, "half_thickness_m": {"value": 0.004, "label": "published"}}
+    ]
+  }
+}

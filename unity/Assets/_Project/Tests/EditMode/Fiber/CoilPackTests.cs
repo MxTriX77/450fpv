@@ -26,8 +26,8 @@ namespace Fpv450.Tests.Fiber
         public void D01sPackFollowsTheGeneratorsLaw()
         {
             CoilShape s = CoilShape.D01(RepositoryDrone.Spec());
-            Assert.That(s.Centre, Is.EqualTo(new Vector3(0f, -0.053f, 0f)), "drone.json's coil beneath the frame");
-            Assert.That(s.Axis, Is.EqualTo(Vector3.forward), "fore-aft, the line leaving aft");
+            Assert.That(Vector3.Distance(s.Centre, new Vector3(0f, -0.104859f, 0.038455f)), Is.LessThan(1e-6f), "drone.json's coil in its canister beneath the frame");
+            Assert.That(Vector3.Distance(s.Axis, new Vector3(0f, 0.2588190451f, 0.9659258263f)), Is.LessThan(1e-6f), "fore-aft, tilted 15° rear-down, the line leaving aft");
             Assert.That(s.Radius, Is.EqualTo(0.0415f).Within(1e-7f));
             Assert.That(s.PackRear, Is.EqualTo(-0.065f).Within(1e-7f));
             Assert.That(s.PackFront, Is.EqualTo(0.085f).Within(1e-7f));

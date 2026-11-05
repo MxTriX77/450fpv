@@ -107,10 +107,10 @@ namespace Fpv450.Sim.Tether
     /// The fiber-optic line of one flight (p7d-tether design 3, 4, 5; PHY-18, DRN-05): the coil beneath paying out one way
     /// through its exit, the span (a CableChain of at most span.max_nodes nodes from the touchdown to the exit) and the laid
     /// trail behind it. FlightCore steps it inside its 1 ms step, after the body moves:
-    /// - The exit is the chain's last node, anchored to the drone's rear cap (spool.exit_position_m) and following it; line
-    ///   flows out through it by CableSpool's law (the peel's rate law at the section's irregularity, the momentum flux,
-    ///   the balloon, the lip's capstan e^(μθ) over the wrap between the canister's aft axis and the first segment), and
-    ///   never back. The coil's mass falls by the line paid out and the mass model is rebuilt each span.coil_rebuild_m.
+    /// - The exit is the chain's last node, anchored to the canister's nozzle tip (spool.exit_position_m) and following it;
+    ///   line flows out through it by CableSpool's law (the peel's rate law at the section's irregularity, the momentum flux,
+    ///   the balloon, the lip's capstan e^(μθ) over the wrap between the nozzle's axis, spool.exit_direction, and the first
+    ///   segment), and never back. The coil's mass falls by the line paid out and the mass model is rebuilt each span.coil_rebuild_m.
     /// - The line pulls the drone at the exit: the exit segment's tension along it less the momentum flux μ·ṡ² (the leaving
     ///   line carries it away; derived from the variable-mass momentum balance), applied in the next step (the one-step lag
     ///   of design 2).
@@ -126,7 +126,8 @@ namespace Fpv450.Sim.Tether
     ///   point lifts back into the chain when the pull at it passes that and the friction of trail.hold_length_m of line, or
     ///   the rotors' air passes what holds it.
     /// - The launch: the line laid on the ground from its anchor (launch.anchor_behind_start_m behind the start, or a given
-    ///   layout) to beneath the exit, then up to it.
+    ///   layout) to where the nozzle's lead (spool.exit_direction) meets the ground, then up along it to the exit; beneath
+    ///   the exit for a lead level or rising.
     /// - Cut risk and the link (1.8, unless FlightSetup.TetherWithoutCuts): after the chain's step a segment crossing a turning
     ///   disc is cut at the next blade pass (the prop), then FiberCuts' tension, bend, abrasion and peel checks; the first that
     ///   holds breaks the line (TetherBreak, its strength as FiberSection): the far piece is left in the trail where it lies, the
@@ -160,7 +161,7 @@ namespace Fpv450.Sim.Tether
         readonly double _liftCoefficient, _liftGap;
 
         // The spool.
-        readonly Double3 _exitBody;
+        readonly Double3 _exitBody, _exitLead;
         readonly double _lipFriction, _peelEnergy, _rateExponent, _referenceRate, _balloonLength, _balloonMass, _sectionLength;
         readonly double _irregularityLo, _irregularityHi;
         readonly SeedStream _irregularity;
@@ -238,6 +239,9 @@ namespace Fpv450.Sim.Tether
 
             double[] exit = table.Row("spool.exit_position_m").Values;
             _exitBody = new Double3(exit[0], exit[1], exit[2]);
+            double[] lead = table.Row("spool.exit_direction").Values;
+            double leadLength = DetMath.Sqrt(lead[0] * lead[0] + lead[1] * lead[1] + lead[2] * lead[2]);
+            _exitLead = new Double3(lead[0] / leadLength, lead[1] / leadLength, lead[2] / leadLength);
             _lipFriction = table.Number("spool.lip_friction");
             _rateExponent = table.Number("spool.peel_rate_exponent");
             _referenceRate = table.Number("spool.peel_reference_rate_m_s");
@@ -283,7 +287,9 @@ namespace Fpv450.Sim.Tether
             _loadLift = new Double3[nodes];
             _loadMaterial = new double[nodes];
             _loadLength = new double[nodes];
-            if (setup.Propulsion != null) _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air);
+            if (setup.Propulsion != null)
+                _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air,
+                    setup.TetherFountainThroughBody ? null : parts);
 
             // The coil: the line left on it, from its part's mass over the empty spool's.
             _coilPart = setup.TetherCoilPart;
@@ -379,6 +385,9 @@ namespace Fpv450.Sim.Tether
         /// <summary>The exit, body m.</summary>
         public Double3 ExitBody => _exitBody;
 
+        /// <summary>The nozzle's axis out of the exit, body frame, a unit vector (spool.exit_direction).</summary>
+        public Double3 ExitLead => _exitLead;
+
         /// <summary>The line's force on the drone at the last step's end, world N, applied at the exit in the next step.</summary>
         public Double3 Force => _force;
 
@@ -436,15 +445,16 @@ namespace Fpv450.Sim.Tether
 
         // ---- the launch ----
 
-        // The line laid from the anchor to beneath the exit, then up to the exit, its material its length; nodes by the spacing
-        // law from the exit; node 0 the anchor (the trail's first point), the exit anchored to the drone.
+        // The line laid from the anchor to where the nozzle's lead meets the ground (or beneath the exit), then up to the exit,
+        // its material its length; nodes by the spacing law from the exit; node 0 the anchor (the trail's first point), the
+        // exit anchored to the drone.
         void Launch(FlightSetup setup, in FlightState start)
         {
             Double3 exit = start.Position + start.Attitude.Rotate(_exitBody);
             Double3[] layout = setup.TetherLayout;
             int points;
             Double3[] path;
-            double foot = GroundAt(exit);
+            double foot = GroundAt(exit), behind = _table.Number("launch.anchor_behind_start_m");
             if (layout != null && layout.Length > 0)
             {
                 path = new Double3[layout.Length + 2];
@@ -456,12 +466,22 @@ namespace Fpv450.Sim.Tether
                 Double3 nose = start.Attitude.Rotate(new Double3(0, 0, 1));
                 double h = DetMath.Sqrt(nose.X * nose.X + nose.Z * nose.Z);
                 Double3 back = h > 0 ? new Double3(-nose.X / h, 0, -nose.Z / h) : new Double3(0, 0, -1);
-                double behind = _table.Number("launch.anchor_behind_start_m");
                 path = new Double3[3];
                 path[0] = OnGround(new Double3(exit.X + back.X * behind, 0, exit.Z + back.Z * behind));
                 points = 1;
             }
-            path[points++] = new Double3(exit.X, foot + _radius, exit.Z);
+            // The line leaves the nozzle along its axis (spool.exit_direction) and lies on the ground where that lead meets it:
+            // beneath the exit for a nozzle level or rising, one whose lead would reach the ground past the anchor, or a laid
+            // line that ends short of where the lead meets the ground (its last point nearer the exit along the lead).
+            Double3 lead = start.Attitude.Rotate(_exitLead);
+            double drop = exit.Y - foot - _radius, reach = -lead.Y > 0 ? drop / -lead.Y : double.PositiveInfinity;
+            double across = DetMath.Sqrt(lead.X * lead.X + lead.Z * lead.Z), laid = double.PositiveInfinity;
+            if (points > 0 && across > 0)
+                laid = ((path[points - 1].X - exit.X) * lead.X + (path[points - 1].Z - exit.Z) * lead.Z) / across;
+            if (drop > 0 && reach * across < behind && laid >= reach * across)
+                path[points++] = OnGround(new Double3(exit.X + lead.X * reach, 0, exit.Z + lead.Z * reach));
+            else
+                path[points++] = new Double3(exit.X, foot + _radius, exit.Z);
             path[points++] = exit;
             var along = new double[points];
             for (int i = 1; i < points; i++) along[i] = along[i - 1] + (path[i] - path[i - 1]).Length();
@@ -571,8 +591,8 @@ namespace Fpv450.Sim.Tether
             exit.AnchorVelocity = s.Velocity + q.Rotate(Double3.Cross(s.BodyRate, _exitBody));
             exit.AnchorDamping = 2 * DetMath.Sqrt(ExitStiffness * exit.Mass);
 
-            // The spool: the lip's wrap between the canister's aft axis and the first segment, the section at the peel.
-            Double3 aft = q.Rotate(new Double3(0, 0, -1));
+            // The spool: the lip's wrap between the nozzle's axis out of the exit and the first segment, the section at the peel.
+            Double3 aft = q.Rotate(_exitLead);
             Double3 first = _chain[n - 2].Position - exit.Position;
             _lipAngle = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
             _section = exit.Material + _balloonLength;
@@ -616,6 +636,7 @@ namespace Fpv450.Sim.Tether
                     GroundSample g = _ground[n + i];
                     _hubGround[i] = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(_hubs[i], _soilRay, _soilHit, out _);
                 }
+                if (_rotors.BodyBlocks) _rotors.PlaceBody(s.Position, q);
                 _rotors.Begin(_hubs, up, _thrust, _hubAir, _hubGround);
             }
             for (int i = 0; i < n - 1; i++) Loads(i, wind);
@@ -825,7 +846,7 @@ namespace Fpv450.Sim.Tether
             }
             if (!found) found = Prop(s, from, out b);
             ref CableNode exit = ref _chain[n - 1];
-            Double3 aft = q.Rotate(new Double3(0, 0, -1));
+            Double3 aft = q.Rotate(_exitLead);
             Double3 first = _chain[n - 2].Position - exit.Position;
             double lip = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
             _cuts.Collect(_chain, lip, _chain.Tension(n - 2), exit.Position);

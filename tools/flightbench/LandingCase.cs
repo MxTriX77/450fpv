@@ -149,19 +149,20 @@ namespace Fpv450.FlightBench
                 Console.WriteLine($"    {name}: μ 0.5/0.4 {S(smooth)} m/s, caught {S(caught)} m/s");
             }
 
-            Console.WriteLine($"legs off, the coil: {c.Mass:F3} kg, centre of mass {c.CoilAbove * 1e3:F2} mm over its axis (R {c.CoilRadius * 1e3:F1} mm); "
-                + $"the pack meets the ground at {c.PackRestDeg:F2}°; rate rolling {c.CoilRollingRate:F3} /s, on an axle {c.CoilAxleRate:F3} /s");
+            double first = c.FirstRestDeg(out string firstPart);
+            Console.WriteLine($"legs off, the coil (the canister, at rest pitched {c.CoilRestPitchDeg:F2}° nose-down): {c.Mass:F3} kg, centre of mass {c.CoilAbove * 1e3:F2} mm over its axis (R {c.CoilRadius * 1e3:F1} mm); "
+                + $"the pack would meet the ground at {c.PackRestDeg:F2}°, the {firstPart} meets it first at {first:F2}°; rate rolling {c.CoilRollingRate:F3} /s, on an axle {c.CoilAxleRate:F3} /s");
             foreach (double from in new[] { 0.1, 0.5, 1, 2, 5 })
             {
-                double sim = LandingScenarios.RollTime(spec, m, h, false, from, 20), roll = c.CoilRockTime(from, 20), axle = c.CoilRockTime(from, 20, false);
+                double sim = LandingScenarios.RollTime(spec, m, h, false, from, 20, null, c.CoilRestPitchDeg), roll = c.CoilRockTime(from, 20), axle = c.CoilRockTime(from, 20, false);
                 Row($"  the rock from {from}° to 20°", Math.Abs(sim / roll - 1) < 0.03, $"{sim:F3} s; rolling {roll:F3} s, an axle {axle:F3} s");
             }
             foreach (double e in new[] { 0.001, 0.002, 0.005 })
                 Console.WriteLine($"  from level with the centre of mass {e * 1e3:F0} mm off the axis (mechanics): {c.CoilRockTime(0, 20, true, e):F3} s to 20°");
-            double slides = LandingScenarios.RollTime(spec, m, h, false, 1, 20, LandingScenarios.GroundFriction(0.001));
+            double slides = LandingScenarios.RollTime(spec, m, h, false, 1, 20, LandingScenarios.GroundFriction(0.001), c.CoilRestPitchDeg);
             Row("  known-wrong, a frictionless coil", Math.Abs(slides / c.CoilRockTime(1, 20) - 1) > 0.10, $"{slides:F3} s from 1° (it slides out from under, as an axle)");
-            double damped = LandingScenarios.RollTime(spec, m, h, false, 1, 20, LandingScenarios.BodyDamping(2));
-            Row("  an overdamped contact (ζ 2)", Math.Abs(damped / LandingScenarios.RollTime(spec, m, h, false, 1, 20) - 1) < 0.02, $"{damped:F3} s from 1°: rolling compresses and slips nothing");
+            double damped = LandingScenarios.RollTime(spec, m, h, false, 1, 20, LandingScenarios.BodyDamping(2), c.CoilRestPitchDeg);
+            Row("  an overdamped contact (ζ 2)", Math.Abs(damped / LandingScenarios.RollTime(spec, m, h, false, 1, 20, null, c.CoilRestPitchDeg) - 1) < 0.02, $"{damped:F3} s from 1°: rolling compresses and slips nothing");
             foreach (var p in new[] { LandingScenarios.Power.Disarmed, LandingScenarios.Power.Cut, LandingScenarios.Power.Held })
             {
                 var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = p, ReachDeg = 20, Seconds = 6 };

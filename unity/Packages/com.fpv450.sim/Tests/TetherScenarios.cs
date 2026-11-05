@@ -36,7 +36,7 @@ namespace Fpv450.Sim.Tests
             {
                 Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(loadout), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Contacts = contacts, StartPosition = new Double3(0, stand, 0), StartPackCharge = 0.9, CameraPosition = spec.CameraPosition,
-                Wind = WindSetup.Of(wind), Rain = rain, Tether = Table(), TetherCoilPart = spec.Coil.Part, TetherSpoolMass = spec.Coil.SpoolMass,
+                Wind = WindSetup.Of(wind), Rain = rain, Tether = spec.Coil.Housing < 0 ? GoldenFlights.Model63Tether(Table()) : Table(), TetherCoilPart = spec.Coil.Part, TetherSpoolMass = spec.Coil.SpoolMass,
                 TetherTwoWay = twoWay, TetherLayout = layout,
                 // 1.5–1.7's scenarios each watch their own mechanism on a line that never breaks (1.8's cuts off); 1.8's own
                 // scenarios fly them on (cuts).
@@ -447,6 +447,10 @@ namespace Fpv450.Sim.Tests
         {
             FlightSetup setup = Setup(spec, WindLevel.Still, seed: seed);
             setup.TetherDesign4Air = design4; // p7d-tether 1.6b: the known-wrong design 4 field, without the fountain
+            // The premise, the line laid under the rear (the drone set down on it): since model 64 the launch lays it along the
+            // nozzle's lead, 0.3 m behind the exit, so the scenario lays it explicitly where model 63's launch did, straight back
+            // from under the body's rear (z −0.1 m, between the packs), and up from there to the exit.
+            setup.TetherLayout = new[] { new Double3(setup.StartPosition.X, 0, setup.StartPosition.Z - 3.1), new Double3(setup.StartPosition.X, 0, setup.StartPosition.Z - 0.1) };
             var r = new Punch { Rim = double.PositiveInfinity, LineRim = double.PositiveInfinity };
             var least = new double[400]; // the watched line's least distance to a rim, each step
             var core = new FlightCore(setup);

@@ -107,6 +107,7 @@ namespace Fpv450.Sim.Tether
             ("spool.lip_radius_m", TetherValueKind.Positive),
             ("spool.lip_friction", TetherValueKind.Positive),
             ("spool.exit_position_m", TetherValueKind.Vector),
+            ("spool.exit_direction", TetherValueKind.Vector),
             ("link.wavelength_m", TetherValueKind.Positive),
             ("link.budget_db", TetherValueKind.Positive),
             ("link.connector_loss_db", TetherValueKind.Positive),
@@ -147,6 +148,8 @@ namespace Fpv450.Sim.Tether
             ("rotor_air.wall_lift_gap_over_diameter", TetherValueKind.Positive),
             ("rotor_air.fountain_momentum_ratio", TetherValueKind.Positive),
             ("rotor_air.plane_jet_spreading_rate", TetherValueKind.Positive),
+            ("rotor_air.fountain_impingement_depth_ratio", TetherValueKind.Positive),
+            ("rotor_air.body_lee_length_over_diameter", TetherValueKind.Positive),
             ("rotor_air.hover_like_advance_ratio", TetherValueKind.Positive),
             ("rotor_air.ground_vortex_advance_ratio", TetherValueKind.Band),
             ("rotor_air.ground_vortex_offset_over_radius", TetherValueKind.Positive),
@@ -354,6 +357,11 @@ namespace Fpv450.Sim.Tether
             Meets("strength.flaw_pa", "starts", flaw[1], "fiber.proof_stress_pa", proof, problems);
             Meets("strength.flaw_pa", "ends", flaw[flaw.Length - 1], "strength.intact_pa's first value", intact[1], problems);
             Meets("strength.abraded_pa", "ends", abraded[abraded.Length - 1], "fiber.proof_stress_pa", proof, problems);
+
+            // The exit's direction is a unit vector (model 64: the nozzle's axis, the lip's wrap measured from it).
+            double[] lead = rows[IndexOf("spool.exit_direction")].Values;
+            if (!Close(DetMath.Sqrt(lead[0] * lead[0] + lead[1] * lead[1] + lead[2] * lead[2]), 1))
+                problems.Add("spool.exit_direction: must be a unit vector");
         }
 
         static void Derived(TetherRow[] rows, string name, double expected, string how, List<string> problems)

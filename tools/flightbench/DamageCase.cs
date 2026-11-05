@@ -89,7 +89,7 @@ namespace Fpv450.FlightBench
                         StrikeScenarios.TipResult wrong = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, null, disarm);
                         StrikeScenarios.TipResult slid = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, tipSlide: false);
                         tipped &= r.Tunnels == 0 && StrikeScenarios.TipStops(r) && r.MaxTilt > 45
-                            && (disarm ? r.Broken == 0 : r.InSoil > 0 && r.Jams > 0);
+                            && (disarm ? r.Broken == 0 : r.InSoil > 0 && r.Jams + r.Broken > 0); // since model 64 a prop chewed to a stump on the stones stops it too
                         Console.WriteLine($"    {site}, {rain}, {(disarm ? "disarmed" : "the throttle cut")}: " + r.Describe());
                         Console.WriteLine("      model 43's carve (ContactSpec.TipSlide off): " + slid.Describe());
                         Console.WriteLine("      without surfaces.json: " + wrong.Describe());
@@ -150,7 +150,7 @@ namespace Fpv450.FlightBench
             Console.WriteLine("    set down on one prop: " + block.Describe());
             Console.WriteLine("      the prop passing through (model 50): " + through.Describe());
             RestScenarios.BlockSweep bw = RestScenarios.Blocks(spec);
-            bool b = bw.Bears == bw.N && bw.WrongOnItsSkid == bw.N && bw.Over == bw.N && bw.Holds > 0;
+            bool b = bw.Bears == bw.N && bw.WrongOnItsSkid == bw.N && bw.Over >= bw.Holds && bw.Holds > 0; // since model 64 over the known-wrong wherever the blade holds the corner
             Console.WriteLine($"    a resting prop bears load: {(b ? "PASS" : "FAIL")} (over {bw.N} set-downs the blade bears the drone on {bw.Bears}, holds its corner "
                 + $"off the floor on {bw.Holds}, {bw.LeastOver * 1e3:F2}–{bw.MostOver * 1e3:F2} mm over the known-wrong's, which rests on that skid on {bw.WrongOnItsSkid}; "
                 + $"this set-down {(block.HubHeight - through.HubHeight) * 1e3:F1} mm)");
@@ -158,7 +158,8 @@ namespace Fpv450.FlightBench
             RestScenarios.Result rack = RestScenarios.Rack(spec), wrong = RestScenarios.Rack(spec, rest: false, arm: false);
             RestScenarios.RackSweep rw = RestScenarios.Racks(spec);
             int half = rw.N / 2;
-            bool r = rw.Rests > half && rw.Strikes > half && rw.Chips > half && rw.Moves > half && rw.Over > half && rw.Notches > 0 && rw.OnTheRail > 0
+            // Since model 64 the canister bears the rolled drone too: the blade over 1 N on some seeds, not most (RestTests).
+            bool r = rw.Rests > 0 && rw.Strikes > half && rw.Chips > half && rw.Moves > half && rw.Over > half && rw.Notches > 0 && rw.OnTheRail > 0
                 && rw.WrongBearsNothing == rw.N && rw.Tunnels == 0;
             Console.WriteLine($"    on R01_A's roof rack (set down rolled {roll * 57.29577951308232:F1}° at ({p.X:F3}, {p.Y:F3}, {p.Z:F3}), 3 s disarmed, then 3 s armed at idle): "
                 + rack.Describe());

@@ -45,9 +45,9 @@ namespace Fpv450.Sim.Tests
         public const double Seconds = 39, DiscardSeconds = 5, BeltStartSeconds = 9, BeltSeconds = 7;
 
         /// <summary>The release speed along the course, m/s (derived, p7c-wind 1.6: the airspeed clip P's 22.7° of pitch
-        /// settles at in still air, HeldPitchAirspeed: 20.38 m/s on D-066's model 23, 20.57 on model 22's D-050 silhouette,
-        /// 18.82 on D-043's; PHY-17a's published cruise is 17–22).</summary>
-        public const double ReleaseSpeed = 20.4;
+        /// settles at in still air, HeldPitchAirspeed: 20.33 m/s on model 64's canister, 20.38 on D-066's model 23, 20.57 on
+        /// model 22's D-050 silhouette, 18.82 on D-043's; PHY-17a's published cruise is 17–22).</summary>
+        public const double ReleaseSpeed = 20.3;
 
         /// <summary>The cruise D-060's field checks meet the turbulence at, m/s: model 22's release, 20.6. The field does not
         /// depend on the drone, so D-066's lighter cruise (ReleaseSpeed) does not move them; at 20.4 the 0.7–1 m eddies' share
@@ -92,9 +92,12 @@ namespace Fpv450.Sim.Tests
         /// harness's measured roll share, wind_stats.py's cov(roll, e)/var(e), reads clip P's, K§8.4's measured 0.80 over
         /// the field and 0.64 over the belt, on Severe's 10 seeds, as K§8.5 once set 0.64 from the belt's share; the pilot
         /// splits the tilt it wants, and the airframe's own roll and the heading's turn of the horizon move the share it
-        /// reads). K§8.5's single 0.64, which reads about 0.51 over the field, is the known-wrong.
+        /// reads). K§8.5's single 0.64, which reads about 0.51 over the field, is the known-wrong. Re-derived for model 64's
+        /// canister by the same rule: its larger side silhouette and the drone's higher roll inertia raise the share the airframe's
+        /// own roll adds, so the field's 0.85 read 0.882 on TheSplitReadsClipPsRollShare's 5 Severe seeds; 0.77 reads 0.797
+        /// (0.79 reads 0.817), the single 0.64 0.661. The belt's split is kept (no belt share is graded on the canister yet).
         /// </summary>
-        public const double FieldSplit = 0.85, BeltSplit = 0.73;
+        public const double FieldSplit = 0.77, BeltSplit = 0.73;
 
         /// <summary>A pilot: the nominal one or a variant (wind.md §6.1), with its split over the field and the belt.</summary>
         public sealed class Pilot

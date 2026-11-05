@@ -10,7 +10,8 @@ namespace Fpv450.Sim.Flight
     /// shape's radius). A FlightSetup without one (null) flies the exact build, centred side to side, as the goldens do.
     /// - the bottle under its strap on the upper plate: across ±BottleAcross, along ±BottleAlong
     /// - each pack along its side: along ±PackAlong, and out from the frame by 0–PackOut
-    /// - the coil in its cradle: across ±CoilAcross, along ±CoilAlong
+    /// - the coil in its cradle (in its canister, with it, on the canister's two hangers): across ±CoilAcross, along its axis
+    ///   ±CoilAlong
     /// - the main leads' run from the stack to one side: their WiringMass across ±WiringAcross, carried by the
     ///   electronics' part as its share of that part's mass
     /// </summary>
@@ -32,10 +33,12 @@ namespace Fpv450.Sim.Flight
         /// the wrap's give).</summary>
         public double PackOut = 0.002;
 
-        /// <summary>The coil's across, ±m: 2 mm (assumed: the Ø0.083 m spool's play in its cradle on two cable-tie hoops).</summary>
+        /// <summary>The coil's across, ±m: 2 mm (assumed: the spool's play in its cradle on two cable-tie hoops; since model 64
+        /// the Ø0.101 m canister's on its two printed hangers, the pack fixed inside it).</summary>
         public double CoilAcross = 0.002;
 
-        /// <summary>The coil's along, ±m: 5 mm (assumed: where the hoops close on the 0.20 m spool).</summary>
+        /// <summary>The coil's along its axis, ±m: 5 mm (assumed: where the hoops close on the 0.20 m spool; since model 64
+        /// where the hangers close on the canister).</summary>
         public double CoilAlong = 0.005;
 
         /// <summary>The main leads' mass, kg: 0.06 (assumed: the 10 AWG pair and the XT90 of drone.json's 0.10 kg of wiring).</summary>
@@ -48,6 +51,9 @@ namespace Fpv450.Sim.Flight
         /// <summary>drone.json's parts the tolerances move: the bottle (the payload), the coil, the electronics (the leads'
         /// carrier) and the packs; −1 or none for a part the build lacks.</summary>
         public int BottlePart = -1, CoilPart = -1, WiringPart = -1;
+
+        /// <summary>The coil's housing (drone.json's coil.housing, the canister), −1 for none: it moves with the coil (model 64).</summary>
+        public int CoilHousingPart = -1;
         public int[] PackParts = new int[0];
 
         public BuildTolerance Clone()
@@ -90,7 +96,13 @@ namespace Fpv450.Sim.Flight
         public void Apply(MassModel mass, Offsets o)
         {
             if (BottlePart >= 0) Move(mass, BottlePart, o.Bottle);
-            if (CoilPart >= 0) Move(mass, CoilPart, o.Coil);
+            if (CoilPart >= 0)
+            {
+                // Across along body x, along on the coil's axis (body z on a level spool).
+                Double3 a = mass.Part(CoilPart).Axis, by = new Double3(o.Coil.X + a.X * o.Coil.Z, a.Y * o.Coil.Z, a.Z * o.Coil.Z);
+                Move(mass, CoilPart, by);
+                if (CoilHousingPart >= 0) Move(mass, CoilHousingPart, by);
+            }
             for (int k = 0; k < PackParts.Length; k++)
             {
                 Double3 p = o.Packs[k];

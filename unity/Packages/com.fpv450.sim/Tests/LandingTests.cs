@@ -48,18 +48,22 @@ namespace Fpv450.Sim.Tests
             return LandingScenarios.CriticalSpeed(Spec, m, h, t);
         }
 
+        // Legs off since model 64 the drone lies on its canister pitched nose-down by the canister's tilt (LegsOff's rest), and is
+        // set down there.
         static double RollTime(bool legs, double from, double to, Func<ContactSpec, ContactSpec> edit = null)
         {
             MaterialRow[] m = Materials(out ulong h);
-            return LandingScenarios.RollTime(Spec, m, h, legs, from, to, edit);
+            return LandingScenarios.RollTime(Spec, m, h, legs, from, to, edit, legs ? 0 : LegsOff().CoilRestPitchDeg);
         }
 
         [Test]
         public void TheDroneTipsWhereItsCentreOfMassPassesOverTheSkid()
         {
             LandingStability a = LegsOn();
-            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.33).Within(0.01), "the roll tip, p7g-legs 1.1's plastic legs (23.35° on model 26's, 23.39° on model 22's)");
-            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(42.72).Within(0.01), "the pitch tip over the front ends (42.75° on model 26's, 42.80° on model 22's)");
+            // Since model 64 the canister's mass puts the CoM 7 mm lower and 4.6 mm further forward: the roll tip rises to 23.99°,
+            // the pitch tip over the front ends to 43.02° (the lower CoM outweighs the forward one).
+            Assert.That(a.StaticRollTipDeg, Is.EqualTo(23.99).Within(0.01), "the roll tip, p7g-legs 1.1's plastic legs (23.33° on the old coil, 23.35° on model 26's, 23.39° on model 22's)");
+            Assert.That(a.StaticPitchTipDeg, Is.EqualTo(43.02).Within(0.01), "the pitch tip over the front ends (42.72° on the old coil, 42.75° on model 26's, 42.80° on model 22's)");
             // Set down at rest just inside and just past each tip (rigid across: the soft legs' own tip is below).
             Assert.That(RollTime(true, a.StaticRollTipDeg - 0.05, 60, Rigid), Is.EqualTo(double.PositiveInfinity), "inside the roll tip it rights itself");
             Assert.That(RollTime(true, a.StaticRollTipDeg + 0.05, 60, Rigid), Is.LessThan(10), "past it, it falls");
@@ -78,7 +82,7 @@ namespace Fpv450.Sim.Tests
             // feet at a smaller roll than over the skid (LandingStability.SoftRollTipDeg; rigid across, the known-wrong, 23.3°).
             // Set down at rest with the legs unbent, the side mode races the fall: the struts push along the legs through the
             // feet, under the centre of mass, before the bend that would make their force vertical builds, and rock the body back
-            // onto both skids from past the quasi-static tip, so the set-down's tip lies between the two (D-067's set-down at
+            // onto both skids from past the quasi-static tip, so on the old coil the set-down's tip lay between the two (below; D-067's set-down at
             // rest is the rigid legs' protocol; the landings' tips are 1.4's grid, printed here beside the rigid ones).
             // p7g-legs 1.3: the side give's parts, the tube's 268 N/m less the axial load's softening (each low leg's (W/2)·cos φ
             // against its 47 N sway load) in series with the anchor, the jaws held. The set-downs fly the elastic legs (the law
@@ -104,7 +108,11 @@ namespace Fpv450.Sim.Tests
             for (hi = lo; hi < 40 && !(RollTime(true, hi, 60, elastic) < 10); hi += 0.1) { }
             TestContext.Out.WriteLine($"the roll tip: {a.StaticRollTipDeg:F2}° rigid across; {soft:F2}° quasi-static on the tube's {c.LegTubeSideStiffness:F0} N/m less P·Δ "
                 + $"(the feet {feet * 1e3:F1} mm in; 1.2's {side:F0} N/m chain without it, {unsoftened:F2}°); set down at rest with unbent legs, the sim falls from {hi:F2}°");
-            Assert.That(hi, Is.GreaterThan(soft).And.LessThan(a.StaticRollTipDeg), "between the quasi-static tip and the rigid legs'");
+            // Since model 64 (the canister's CoM 7 mm lower) the set-down falls from 14.10°, 0.57° under the quasi-static 14.67°:
+            // the unbent legs take the weight's share across them as a step, and a step's elastic bend overshoots the static
+            // one, which now outruns the struts' push back (on the old coil it fell between the two). So the set-down's tip lies
+            // near the quasi-static one, within a degree either side, and well under the rigid legs'.
+            Assert.That(hi, Is.GreaterThan(soft - 1).And.LessThan(a.StaticRollTipDeg - 3), "near the quasi-static tip, under the rigid legs'");
             // D-067's grid on the soft legs, beside the rigid one (for the as-built note).
             foreach (double tilt in new[] { 10.0, 20 })
             {
@@ -185,7 +193,7 @@ namespace Fpv450.Sim.Tests
             // drone over the front ends only past μ_k 0.91, so on the ground's 0.4 nothing trips it; caught at their ends (a
             // groove, a clod) the skids tip it at the mechanics' speed.
             LandingStability a = LegsOn();
-            Assert.That(a.SlidingTripFriction, Is.EqualTo(0.905).Within(0.001), "D-066's build (0.907 on model 22's)");
+            Assert.That(a.SlidingTripFriction, Is.EqualTo(0.913).Within(0.001), "D-066's build on the canister, its CoM lower (0.905 on the old coil, 0.907 on model 22's)");
             var t = new LandingScenarios.Touch { Legs = true, PitchDeg = 10, Descent = 0.5, Forward = true, Edit = Rigid };
             Assert.That(Critical(t), Is.EqualTo(double.PositiveInfinity), "the runners slide");
             t.Edit = LandingScenarios.RigidAcross(LandingScenarios.GroundFriction(10));
@@ -214,9 +222,19 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheCoilRocksAboutItsContact()
         {
+            // Since model 64 on D01's canister: it lies level with the drone pitched 15° nose-down, its axis 97.0 mm under the
+            // centre of mass (the old coil's 47.2), so the rock is a little quicker (5.505 /s against the old coil's 5.374) and
+            // goes further: the pack would meet the ground only at 51.34° (22.59° on the old coil), and the front motor and its
+            // arm, lowered by the pitch, meet it first.
             LandingStability a = LegsOff();
-            Assert.That(a.PackRestDeg, Is.EqualTo(22.59).Within(0.01), "the pack meets the ground");
-            Assert.That(a.CoilRollingRate, Is.EqualTo(5.374).Within(0.001), "D-066's build (5.364 /s on model 22's)");
+            double first = a.FirstRestDeg(out string part);
+            TestContext.Out.WriteLine($"legs off on the canister (pitched {a.CoilRestPitchDeg:F2}°): the CoM {a.CoilAbove * 1e3:F1} mm over its axis, rate {a.CoilRollingRate:F4} /s; "
+                + $"the pack would meet the ground at {a.PackRestDeg:F2}°, the {part} meets it first at {first:F2}°");
+            Assert.That(a.CoilRestPitchDeg, Is.EqualTo(15).Within(0.001), "the canister's 15° tilt, laid level");
+            Assert.That(a.PackRestDeg, Is.EqualTo(51.34).Within(0.01), "the pack would meet the ground");
+            Assert.That(part, Is.EqualTo("motor_fr"), "the front motor, lowered by the pitch, meets it first");
+            Assert.That(first, Is.EqualTo(39.0).Within(0.5), "where the sim's front motor touches (38.96° from 1°)");
+            Assert.That(a.CoilRollingRate, Is.EqualTo(5.505).Within(0.001), "D-066's build on the canister (5.374 /s on the old coil, 5.364 on model 22's)");
             foreach (double from in new[] { 0.5, 1, 2 })
             {
                 double sim = RollTime(false, from, 20), rolling = a.CoilRockTime(from, 20), axle = a.CoilRockTime(from, 20, false);

@@ -220,6 +220,11 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool TipSlide = true;
 
+        /// <summary>A blade meets nothing inside its root, its first section's inner edge (model 64, PropStrikes.Pass): the disc
+        /// there is the hub's and the motor bell's. false: a pass at any radius, model 63's (the kept audits; at the axis it took
+        /// the rotor's lost momentum over a vanishing lever).</summary>
+        public bool BladeRoot = true;
+
         /// <summary>Archard's wear coefficient k of the blade sliding on a harder face, V = k·F_n·s/H_b: 3e-3 (assumed, p7f-damage
         /// design 5: inside Lancaster 1969's published 1e-3–1e-2 for polymers abraded by harder asperities, its middle on a log
         /// scale; set by 1.3, which 1.1a left unset).</summary>

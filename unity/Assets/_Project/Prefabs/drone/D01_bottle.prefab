@@ -419,7 +419,7 @@ MonoBehaviour:
   id: D01
   variant: D01_bottle
   generator: drone
-  paramsSha256: 9843766c95055085d4b30c7125b7795486ad5ec2837dc2c192ab3411107ba453
+  paramsSha256: 7fbd4fe3459ddd84dfe32f8ef65340390aa4274d6d3c0143aa479e484e2b0e47
   units: m
   frame: unity-lh-yup
   bounds:

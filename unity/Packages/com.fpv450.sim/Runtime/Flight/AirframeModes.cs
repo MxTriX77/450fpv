@@ -7,7 +7,8 @@ namespace Fpv450.Sim.Flight
     /// - the arms: each a cantilever from the body's edge to the motor mount, its tip (the motor, the prop and Rayleigh's
     ///   0.2357 of the arm) bending along the rotor's axis, k = 3EI/L³ of the carbon plate (Euler–Bernoulli, published)
     /// - the payload and the coil: each a mass on its strapped mount, three ways, MountStiffness every way (D-050: the
-    ///   bottle strapped rigidly on top, the coil in its cradle beneath; neither swings on a sling); each translates on
+    ///   bottle strapped rigidly on top, the coil in its canister on two hangers beneath, the canister's mass with it;
+    ///   neither swings on a sling); each translates on
     ///   its mount, its own inertia turning with the frame (assumed: its rocking on the straps is left out)
     /// The rest of the drone is rigid. The modes are the free-free ones of that system about the drone's rigid motion
     /// (mean axes, Waszak and Schmidt 1988, published): the rigid body (FlightCore's, the whole drone's mass and inertia)
@@ -36,7 +37,7 @@ namespace Fpv450.Sim.Flight
         /// friction; the prop's aerodynamic damping of the tip comes from its inflow, apart).</summary>
         public double ArmDamping = 0.02;
 
-        /// <summary>A strapped mount's stiffness every way: 30 kN/m (assumed: the coil's cable-tie hoops on its printed cradle
+        /// <summary>A strapped mount's stiffness every way: 30 kN/m (assumed: the coil's canister on its two printed hangers
         /// and the bottle's two straps through the plate, 10–100 kN/m).</summary>
         public double MountStiffness = 30000;
 
@@ -53,6 +54,10 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The payload's and the coil's parts in the mass model, −1 for none (DroneSpec.BuildModes).</summary>
         public int PayloadPart = -1, CoilPart = -1;
+
+        /// <summary>The coil's housing (drone.json's coil.housing, the canister), −1 for none: the pack rides in it, so the
+        /// coil's mount carries both, their mass at their common centre (model 64).</summary>
+        public int CoilHousingPart = -1;
 
         public AirframeModesSpec Clone()
         {
@@ -223,10 +228,18 @@ namespace Fpv450.Sim.Flight
                 int part = which == 0 ? spec.PayloadPart : spec.CoilPart;
                 if (part < 0 || !(mass.Part(part).Mass > 0)) continue;
                 ref readonly DronePart p = ref mass.Part(part);
+                double mount = p.Mass;
+                Double3 at = p.Position;
+                if (which == 1 && spec.CoilHousingPart >= 0)
+                {
+                    ref readonly DronePart h = ref mass.Part(spec.CoilHousingPart);
+                    mount = p.Mass + h.Mass;
+                    at = (p.Position * p.Mass + h.Position * h.Mass) * (1 / mount);
+                }
                 for (int axis = 0; axis < 3; axis++)
                 {
-                    m[n] = p.Mass;
-                    r[n] = p.Position - com;
+                    m[n] = mount;
+                    r[n] = at - com;
                     u[n] = axis == 0 ? new Double3(1, 0, 0) : axis == 1 ? new Double3(0, 1, 0) : new Double3(0, 0, 1);
                     k[n] = spec.MountStiffness;
                     c[n] = 2 * spec.MountDamping * DetMath.Sqrt(k[n] * m[n]);

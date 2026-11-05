@@ -594,7 +594,10 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That(r.InSoil, Is.GreaterThan(0), "its props carve the soil");
             Assert.That(r.Work, Is.GreaterThan(0));
-            Assert.That(r.Jams, Is.GreaterThan(0), "and stop in it");
+            // Since model 64 on S04's wet soil the cut tip-over ends on its side at 74° (the canister props it, upside down on the
+            // old coil) and its lower props are chewed to stumps on 12 stones (9 breaks, the shortest blade 19.8 mm) before any
+            // jams: stopped by breaking, not by the soil's grip.
+            Assert.That(r.Jams + r.Broken, Is.GreaterThan(0), "and stop in it: jammed, or chewed to stumps");
             Assert.That(wrong.Glances, Is.GreaterThan(0), "the known-wrong's props meet the ground");
             Assert.That(r.Stones, Is.GreaterThan(0), "its props meet the soil's stones");
             Assert.That(r.Broken, Is.GreaterThan(0), "and the armed props are chewed up");

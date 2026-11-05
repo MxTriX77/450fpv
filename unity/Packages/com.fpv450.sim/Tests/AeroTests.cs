@@ -92,7 +92,7 @@ namespace Fpv450.Sim.Tests
 
         // The air's push on the drone holding its point in a steady wind, against drone.json's numbers in System.Math:
         // the rotors' in-plane drag at their speeds, the body's silhouettes at its centre of pressure, the coil's
-        // cylinder at its centre, each on its own point's velocity through the air in body axes.
+        // cylinder (its canister's since model 64) at its centre, each on its own point's velocity through the air in body axes.
         [Test]
         public void TheAirsPushIsTheRotorsAndTheSilhouettes()
         {
@@ -108,7 +108,7 @@ namespace Fpv450.Sim.Tests
             double q = 0.5 * d.Aero.AirDensity * d.Aero.DragCoefficient;
             Double3 b = Air(d.Aero.BodyCenterOfPressure);
             Double3 body = b * (-q * (d.Aero.BodyArea.X * Math.Abs(b.X) + d.Aero.BodyArea.Y * Math.Abs(b.Y) + d.Aero.BodyArea.Z * Math.Abs(b.Z)));
-            DronePart coil = d.Parts[d.Coil.Part];
+            DronePart coil = d.Parts[d.Aero.CoilPart]; // since model 64 the coil's housing, the canister (coil.housing)
             Double3 c = Air(coil.Position);
             double along = Double3.Dot(c, coil.Axis), across = Math.Sqrt(Math.Max(0, Double3.Dot(c, c) - along * along));
             Double3 coilForce = c * (-q * (coil.Length * coil.Diameter * across + Math.PI / 4 * coil.Diameter * coil.Diameter * Math.Abs(along)));

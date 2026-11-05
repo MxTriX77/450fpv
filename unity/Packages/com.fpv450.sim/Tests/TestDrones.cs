@@ -42,6 +42,21 @@ namespace Fpv450.Sim.Tests
         public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
     }
 
+    // Model 63's drone.json, the old coil beneath the frame (Ø0.083 × 0.20 m at (0, −0.053, 0), level, its housing in its
+    // part), kept as a fixture when model 64 slung D01's canister in its place, so every kept golden audit of models up to
+    // 63 still flies the file it was recorded on (GoldenFlights.FlyContact gives a drone without coil.housing model 63's
+    // exit: GoldenFlights.Model63Tether).
+    public static class Model63Drone
+    {
+        public const string RelativePath = GoldenFlights.Model63DronePath;
+
+        static DroneSpec _spec;
+
+        public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
+
+        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
+    }
+
     // A repository file, found from this file's own path (the .NET tools compile it in place) or from Unity's project
     // folder (unity/, the editor's working directory).
     public static class TestFiles

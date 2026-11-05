@@ -123,10 +123,11 @@ def test_the_drone_rests_on_the_stand(spec, built):
     world = [(v[0], v[1] + origin_y, v[2]) for v in drone_mesh.vertices]
     for v in world:
         assert not any(_inside(v, s, -1e-6) for s in built["collision"]), v  # nothing inside the steel
-    coil = [(v[0], v[1] + origin_y, v[2]) for name in ("coil", "coil_mount") for v in parts[name].vertices]
+    coil = [(v[0], v[1] + origin_y, v[2]) for name in ("coil", "canister", "canister_mount")
+            for v in parts[name].vertices]
     clearance = min(v[1] for v in coil) - built["collision"][4]["size"][1]
     assert clearance >= 0.020  # the base bars cross right under it
-    assert clearance == pytest.approx(0.135, abs=0.002)  # the sheet's fit: the front hoop 0.135 m over the bars
+    assert clearance == pytest.approx(0.0444, abs=0.002)  # the sheet's fit: the canister's rear rim over the bars
     data = meta.assemble("D02", VARIANT, "launch_stand", load(VARIANT), built, {"steel": "stand_steel"})
     assert data["mass_kg"] == num(st["mass_kg"]) == 1.6
     assert {m["physics"] for m in data["materials"]} == {"steel"}

@@ -117,8 +117,11 @@ namespace Fpv450.Sim.Tests
                 Assert.That(soft.Load[c], Is.GreaterThan(kf * fabricStroke), "pressed past the stroke's load");
                 Assert.That(soft.Compression[c], Is.EqualTo(fabricStroke).Within(1e-9), "the fabric stops at 80 % of its 0.15 m");
                 Assert.That(soft.Load[c], Is.EqualTo(k0 * (soft.Overlap[c] - fabricStroke)).Within(1e-9).Percent, "past it the leg alone takes the load");
-                Assert.That(softWrong.Compression[c], Is.GreaterThan(LayerScenarios.FabricDepth), "known-wrong: past the mattress's own thickness");
+                Assert.That(softWrong.Compression[c], Is.GreaterThan(fabricStroke + 0.01), "known-wrong: well past the stroke");
             }
+            // Since model 64 the canister's belly, 0.064 m over the ground on the legs, meets the mattress deep in the press and
+            // takes its share: each corner carries 8.24 g of its quarter at 10 g, and the known-wrong's fabric reaches 143 mm, past
+            // the 120 mm stroke the target stops at (it fails it) but short of the 150 mm box (on the old coil past it).
             Assert.That(soft.Total, Is.GreaterThanOrEqualTo(10 * soft.Weight), "the press reached 10 g");
             Assert.That(soft.Allocated, Is.EqualTo(0), "0 B a step at the stroke");
 
@@ -177,8 +180,9 @@ namespace Fpv450.Sim.Tests
             TestContext.WriteLine($"  known-wrong (straw without its area law), Rain: rests rolled {Roll(wrong.State):F3}°");
             // Since model 46 (p7g-legs on the line) the known-wrong rests rolled 5.5° on the PVC-U legs (17.1° on model 26's
             // legs, 7.6° on p7g-legs' 52.3 kN/m legs without their side give: the legs' data, not the soil's coupling, moves
-            // it): still well outside the level rest the area law gives.
-            Assert.That(Math.Abs(Roll(wrong.State)), Is.GreaterThan(4), "known-wrong: the reference foot's stiffness tilts it on wet straw, far from level");
+            // it): still well outside the level rest the area law gives. Since model 64 the canister's CoM 7 mm lower rights it more:
+            // the known-wrong rests rolled 2.95°, still outside the target's 2° (the area law's 0.06°), so it still fails it.
+            Assert.That(Math.Abs(Roll(wrong.State)), Is.GreaterThan(2), "known-wrong: the reference foot's stiffness tilts it on wet straw, past the level target");
         }
 
         // ---- Determinism, replay and allocations ---------------------------------------------------------------------

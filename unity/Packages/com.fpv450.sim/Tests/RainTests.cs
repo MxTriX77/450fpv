@@ -51,7 +51,8 @@ namespace Fpv450.Sim.Tests
             var atRest = new FlightCore(still);
             atRest.Advance(new StickSample());
             DronePart coil = still.Mass.Part(still.Aero.CoilPart);
-            double rate = atRest.Rain.RateMmPerHour, top = still.Aero.BodyArea.Y + coil.Length * coil.Diameter;
+            // The coil's cylinder seen from above (since model 64 the canister's, tilted 15°: L·D·cos + π/4·D²·sin).
+            double rate = atRest.Rain.RateMmPerHour, top = still.Aero.BodyArea.Y + Aero.CoilFlux(new Double3(0, 1, 0), coil);
             double hover = 1000 * rate / 3.6e6 * RainScenario.FormulaFall(rate) * top;
             Assert.That(-atRest.Trace.RainForce.Y, Is.EqualTo(hover).Within(0.01 * hover), "at rest, ρ_w·R·V on the top");
             Assert.That(Math.Abs(atRest.Trace.RainForce.X) + Math.Abs(atRest.Trace.RainForce.Z), Is.LessThan(1e-12 * hover));
