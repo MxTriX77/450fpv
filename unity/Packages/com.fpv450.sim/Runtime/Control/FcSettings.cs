@@ -11,6 +11,8 @@ namespace Fpv450.Sim.Control
 
     /// <summary>Betaflight's `tpa_mode` values: TPA on P and D, or on D only.</summary>
     public enum TpaMode : byte { PD, D }
+    /// <summary>Betaflight's `failsafe_procedure` values (CLI DROP, AUTO-LAND, GPS-RESCUE); the sim models DROP and AUTO-LAND.</summary>
+    public enum FailsafeProcedure : byte { DROP, AUTO_LAND, GPS_RESCUE }
 
     /// <summary>
     /// The flight controller's settings, a Betaflight 4.5 model in acro with ACTUAL rates (D-023). Every field is a
@@ -124,6 +126,11 @@ namespace Fpv450.Sim.Control
         public double motor_output_limit;
         public bool airmode;
         public double airmode_start_throttle_percent;
+        // Failsafe (flight/failsafe.c, pg/failsafe.c; p7d-tether 1.8): stage 1's guard time from the last good frame, tenths of
+        // a second; stage 2's procedure; AUTO-LAND's throttle, µs, and how long it holds it before disarming, tenths of a second.
+        public double failsafe_delay;
+        public FailsafeProcedure failsafe_procedure;
+        public double failsafe_throttle, failsafe_off_delay;
 
         /// <summary>The defaults, labelled per field.</summary>
         public static FcSettings Default => new FcSettings
@@ -183,6 +190,11 @@ namespace Fpv450.Sim.Control
             motor_output_limit = 100,
             airmode = true,
             airmode_start_throttle_percent = 25,
+            // published: Betaflight 4.5's failsafe defaults (the Betaflight 4.5 documentation, Failsafe): stage 1's guard 1.5 s,
+            // stage 2 DROP (the pilot's own procedure is G7's question, docs/pilot-questions.md: DROP until answered), the
+            // landing's hold 1 s; pilot: failsafe_throttle 1400 (fc-profiles §1)
+            failsafe_delay = 15, failsafe_procedure = FailsafeProcedure.DROP, failsafe_off_delay = 10,
+            failsafe_throttle = 1400,
 
             // published: Betaflight 4.5.0's defaults (1.4b). sensors/gyro.c pgResetFn_gyroConfig 105–134 (LPF1's
             // static 250 Hz, unused while it is dynamic; the curve's expo 5; notch 2 off), pid.c resetPidProfile 169–205

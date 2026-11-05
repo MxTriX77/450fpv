@@ -198,14 +198,27 @@ namespace Fpv450.Sim.Log
         ///    stub's springs in the legs' data) with 43's EdgeRadius in each material row after its density; the tether entry
         ///    43's (TetherWithoutContacts after the design 4 air's switch, tether.json's contact block); the events 43's
         ///    (FiberContact 30, FiberSlip 31, WorldBug's causes 2-6); the record is 40's 2816 bytes.
+        /// 46: the fiber's cut risk, the link and the break (p7d-tether 1.8, unity/physics/physics-integration-2--fiber-cut, on
+        ///    45; assigned by D-072 and D-074): the tether entry gains the switches FlightSetup.TetherWithoutCuts and
+        ///    TetherOneStrength after TetherWithoutContacts; the settings gain failsafe_delay, failsafe_procedure,
+        ///    failsafe_throttle and failsafe_off_delay (FcSettings, by name); the draws gain fiber.span_strength's; the events
+        ///    TetherBreak (32), LinkDip (33), FiberSection (34) and Failsafe (35), WorldBug's cause 7 (FiberSectionsFull); the
+        ///    tether block's flags gain Broken (64) and Dip (128); the record is 45's 2816 bytes (the margin, the state and the
+        ///    least bend radius go into the record with 1.13's fields: here they are the feed's signals and the events).
         /// 47: the physics integration 2 with the props at rest (unity/physics/physics-integration-2--int57, assigned by D-072):
         ///    42 merged onto 45: the record is 42's 2944 bytes (45's 2816 and the resting blades' block); the contacts entry 45's
         ///    (41's hanging half's switch after the lever's length, the stub's springs in the legs' data, 43's EdgeRadius in each
         ///    material row) with 42's blade edges in its shapes and BladeRest, BladeRestSpeed after the hanging half's switch; the
         ///    tether entry 45's (TetherWithoutContacts, tether.json's contact block); the events 45's (FiberContact 30, FiberSlip
         ///    31); no new event kind.
+        /// 49: the physics integration 2 with the cuts (unity/physics/physics-integration-2--int59, assigned by D-072): 46 merged
+        ///    onto 47: the record is 47's 2944 bytes (45's 2816 with 46's tether flags Broken (64) and Dip (128), and 42's resting
+        ///    blades' block); the contacts entry 47's (BladeRest, BladeRestSpeed after the hanging half's switch, the blade edges
+        ///    in its shapes); the tether entry 46's (TetherWithoutContacts, then TetherWithoutCuts and TetherOneStrength); the
+        ///    settings 46's failsafe fields; the draws 46's fiber.span_strength; the events 46's (TetherBreak 32, LinkDip 33,
+        ///    FiberSection 34, Failsafe 35, WorldBug's cause 7); no new event kind.
         /// </summary>
-        public const int Version = 47;
+        public const int Version = 49;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -513,14 +526,29 @@ namespace Fpv450.Sim.Log
         ///    without the line, or with it and FlightSetup.TetherWithoutContacts, steps as in 51; one whose legs never part (no
         ///    hanging half, no stub) steps as in 53, and so does any flight with ContactSpec.HangingGive off and the stub's
         ///    spring 0.
+        /// 56: the fiber's cut risk, the link and the break (p7d-tether 1.8, design 7, 8, 14; on 55, assigned by D-072): the span's
+        ///    strength and each section's (fiber.section_strength, counter-based), Archard's wear at the contacts, the prop's,
+        ///    tension's, bend's, abrasion's and peel's checks each step, the break (the far piece left where it lies, the near
+        ///    piece hanging from the exit), the link's margin and dips, and the controller's Betaflight 4.5 failsafe on the break
+        ///    (no frame reaches it from the step after). A flight without the line, or with it and FlightSetup.TetherWithoutCuts,
+        ///    steps as in 55; one with the line whose checks never break it steps as in 55 too (the state; the record but its tether
+        ///    flags' Dip bit while a dip is on), its log gaining FiberSection and LinkDip events.
         /// 57: the physics integration 2 with the props at rest (unity/physics/physics-integration-2--int57, assigned by D-072;
         ///    the code is the parents' together): 52's resting props merged onto 55's fiber contacts, hanging half and stub. The
         ///    fiber meets a resting rotor's blade shapes as it meets every other part (FiberContacts reads ContactModel.Shape; a
         ///    turning rotor's blades are off the set, as for the ground). A flight whose props never rest on anything steps as in
         ///    55 over its 2816 bytes, the new block zero, and so does one with ContactSpec.BladeRest off but for a jammed head-on
         ///    crush; a flight without the line, or with FlightSetup.TetherWithoutContacts, whose legs never part steps as in 52.
+        /// 59: the physics integration 2 with the cuts (unity/physics/physics-integration-2--int59, assigned by D-072): 56's
+        ///    cuts, link and failsafe merged onto 57's props at rest on the fiber's contacts. The code is the parents' together
+        ///    but for one rule of the composition: the fiber's prop check (FiberLine.Prop) skips a resting rotor
+        ///    (ContactModel.Resting: slower than ContactSpec.BladeRestSpeed, no carve holding it), as PropStrikes does, so a
+        ///    resting blade is a part the line meets (its contact's bend and wear), never a pass that cuts it; an armed rotor at
+        ///    idle or faster turns a disc and cuts at the next blade pass, as at 56. A flight with FlightSetup.TetherWithoutCuts
+        ///    steps as in 57; one with ContactSpec.BladeRest off steps as in 56 over its 2816 bytes (but for 52's jammed head-on
+        ///    crush), the block zero.
         /// </summary>
-        public const int ModelVersion = 57;
+        public const int ModelVersion = 59;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

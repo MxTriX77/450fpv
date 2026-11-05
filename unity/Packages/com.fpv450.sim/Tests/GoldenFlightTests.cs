@@ -1,5 +1,6 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
 using NUnit.Framework;
@@ -314,7 +315,47 @@ namespace Fpv450.Sim.Tests
         // and on, the tether golden with the fiber's contacts is 1.7's pin (TetherHash), every record and event, and every
         // golden without the line keeps its pin (above): the hanging give is the whole of 55's move against 53 (none in the
         // goldens), the fiber's contacts the whole against 51 (WithoutTheHangingGiveEachGoldenIsModel50s' tether). Since model
-        // 57 over model 50's 2816 bytes against 1.7's pin (Model53TetherHash).
+        // 57 over model 50's 2816 bytes against 1.7's pin (Model53TetherHash); since model 59 without the cuts (1.7's line).
+
+        // p7d-tether 1.8's audit (model 56), kept: without the cuts and the link (FlightSetup.TetherWithoutCuts) the tether golden
+        // is model 55's pin, every record and event; no other golden flies the line, so every other pin is model 55's as it
+        // stands. Since model 59 (the cuts on the props at rest) without a resting prop (ContactSpec.BladeRest off) over model
+        // 50's 2816 bytes: 1.8's own flight, its pin Model56TetherHash.
+        [Test]
+        public void WithoutTheCutsEachGoldenIsModel55s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int m50 = GoldenFlights.Model50Layout;
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheRest), Is.EqualTo(GoldenFlights.Model55TetherHash),
+                "tether without the cuts: model 55's");
+            Assert.That(line.Tether.Cuts, Is.Null);
+            // With them every record is model 55's up to the line's break (the disc at the landing, a known risk: 1.8's note), and
+            // the events before it differ only by FiberSection's first reads at the drone's parts.
+            var rec55 = new System.Collections.Generic.List<ulong>();
+            var rec56 = new System.Collections.Generic.List<ulong>();
+            var ev55 = new System.Collections.Generic.List<string>();
+            var ev56 = new System.Collections.Generic.List<string>();
+            void Events(FlightCore c, System.Collections.Generic.List<string> into)
+            {
+                for (int i = 0; i < c.Events.Count; i++)
+                    if (c.Events[i].Kind != EventKind.FiberSection) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
+            }
+            GoldenFlights.FlyContact(spec, out _, tether: true, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheRest, onRecord: r => rec55.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev55));
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, layout: m50, edit: GoldenFlights.WithoutTheRest, onRecord: r => rec56.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev56));
+            long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec56.Count;
+            int same = 0;
+            while (same < rec55.Count && same < rec56.Count && rec55[same] == rec56[same]) same++;
+            int evSame = 0;
+            while (evSame < ev55.Count && evSame < ev56.Count && ev55[evSame] == ev56[evSame]) evSame++;
+            FiberBreak b = cut.Tether.LastBreak;
+            TestContext.Progress.WriteLine($"model 56: the records model 55's for {same} steps, the line {(cut.Tether.Broken ? $"broken at step {at} by {b.Mechanism} at {(FiberMember)b.Kind} {b.Member}, crossing at {b.Turn:F4} m (body {cut.State.Attitude.InverseRotate(b.Point - cut.State.Position).X:F3}, {cut.State.Attitude.InverseRotate(b.Point - cut.State.Position).Y:F3}, {cut.State.Attitude.InverseRotate(b.Point - cut.State.Position).Z:F3} m), T {b.Tension:F3} N, the near piece {(cut.Tether.Attached ? cut.Tether.Chain.Count + " nodes" : "none")}" : "whole")}; "
+                + $"the events other than FiberSection model 55's for {evSame} of {ev55.Count} ({ev56.Count} with the cuts); {cut.Tether.Cuts.Sections} sections read; 0x{hash:X16}");
+            Assert.That(same, Is.GreaterThanOrEqualTo(at - 1), "every record as model 55's up to the break");
+            for (int i = 0; i < evSame; i++) Assert.That(ev56[i], Is.EqualTo(ev55[i]));
+            Assert.That(evSame == ev55.Count || ev56.Count > evSame && long.Parse(ev56[evSame].Split(' ')[0]) >= at, Is.True, "the events model 55's up to the break, but FiberSection");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.Model56TetherHash), "tether with them: model 56's");
+        }
+
         [Test]
         public void WithoutTheHangingGiveEachGoldenIsModel53s()
         {
@@ -324,7 +365,7 @@ namespace Fpv450.Sim.Tests
             foreach (Action<FlightSetup> edit in new[] { null, GoldenFlights.WithoutTheHangingGive })
             {
                 string how = edit == null ? "with the hanging give" : "without it";
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, edit: edit, layout: GoldenFlights.Model50Layout, onRecord: r =>
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, edit: edit, layout: GoldenFlights.Model50Layout, onRecord: r =>
                 {
                     for (int i = at; i < at + 4; i++) corners |= r[i];
                 }), Is.EqualTo(GoldenFlights.Model53TetherHash), "tether with the fiber's contacts, " + how);
@@ -371,7 +412,7 @@ namespace Fpv450.Sim.Tests
         // anything (WithoutARestingPropEachGoldenIsModel50s), so over model 55's 2816 bytes the tether golden with the fiber's
         // contacts is 55's pin (1.7's, Model53TetherHash), every record and event, with the props at rest on and off, the new
         // block zero; every golden without the line is 55's pin there too (55 kept model 50's: the test above). The rest is the
-        // whole of 57's move against 55: the record's block.
+        // whole of 57's move against 55: the record's block. Since model 59 without the cuts (model 55's line).
         [Test]
         public void WithoutARestingPropEachGoldenIsModel55s()
         {
@@ -381,7 +422,7 @@ namespace Fpv450.Sim.Tests
             foreach (bool rest in new[] { true, false })
             {
                 Action<FlightSetup> edit = rest ? null : (Action<FlightSetup>)GoldenFlights.WithoutTheRest;
-                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, layout: at, edit: edit, onRecord: r =>
+                Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false, layout: at, edit: edit, onRecord: r =>
                 {
                     for (int i = at; i < LogFormat.StepSize; i++) if (r[i] != 0) nonZero++;
                 }), Is.EqualTo(GoldenFlights.Model53TetherHash), "tether with the fiber's contacts" + (rest ? " (at rest)" : " (passing through)"));
@@ -411,6 +452,75 @@ namespace Fpv450.Sim.Tests
                 Assert.That(line.Tether.Contacts, Is.Null, "no fiber contacts");
             }
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.TumbleHash), "tumble");
+        }
+
+        // The physics integration 2 with the cuts (model 59), its audit against the props at rest (model 57), kept: without the
+        // cuts and the link (FlightSetup.TetherWithoutCuts) the tether golden is model 57's pin over the whole 2944-byte record,
+        // every record and event; with them every record is 57's up to the line's break and the events but FiberSection's reads
+        // too. Every golden without the line is 57's pin as it stands (no cut, no link, no failsafe without the line).
+        [Test]
+        public void WithoutTheCutsEachGoldenIsModel57s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            var rec57 = new System.Collections.Generic.List<ulong>();
+            var rec59 = new System.Collections.Generic.List<ulong>();
+            var ev57 = new System.Collections.Generic.List<string>();
+            var ev59 = new System.Collections.Generic.List<string>();
+            void Events(FlightCore c, System.Collections.Generic.List<string> into)
+            {
+                for (int i = 0; i < c.Events.Count; i++)
+                    if (c.Events[i].Kind != EventKind.FiberSection) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
+            }
+            ulong uncut = GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, cuts: false,
+                onRecord: r => rec57.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev57));
+            Assert.That(uncut, Is.EqualTo(GoldenFlights.Model57TetherHash), "tether without the cuts: model 57's");
+            Assert.That(line.Tether.Cuts, Is.Null);
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true,
+                onRecord: r => rec59.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev59));
+            long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec59.Count;
+            int same = 0;
+            while (same < rec57.Count && same < rec59.Count && rec57[same] == rec59[same]) same++;
+            int evSame = 0;
+            while (evSame < ev57.Count && evSame < ev59.Count && ev57[evSame] == ev59[evSame]) evSame++;
+            FiberBreak b = cut.Tether.LastBreak;
+            TestContext.Progress.WriteLine($"model 59: the records model 57's for {same} steps, the line {(cut.Tether.Broken ? $"broken at step {at} by {b.Mechanism} at {(FiberMember)b.Kind} {b.Member}, crossing at {b.Turn:F4} m, the blade at {b.Radius:F2} m/s, T {b.Tension:F3} N" : "whole")}; "
+                + $"the events other than FiberSection model 57's for {evSame} of {ev57.Count} ({ev59.Count} with the cuts); 0x{hash:X16}");
+            Assert.That(same, Is.GreaterThanOrEqualTo(at - 1), "every record as model 57's up to the break");
+            Assert.That(evSame == ev57.Count || ev59.Count > evSame && long.Parse(ev59[evSame].Split(' ')[0]) >= at, Is.True, "the events model 57's up to the break, but FiberSection");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "tether with them: model 59's");
+        }
+
+        // Its audit against p7d-tether 1.8 (model 56), kept: without a resting prop (ContactSpec.BladeRest off) the tether golden
+        // with the cuts is model 56's pin over model 50's 2816 bytes, every record and event, the resting blades' block zero; and
+        // with the rest on too: no blade rests on anything and the line never meets a resting blade, before the break or after
+        // it (the near piece hangs from the exit through the disarm and the spin-down), so the rest's whole move is the block.
+        [Test]
+        public void WithoutARestingPropEachGoldenIsModel56s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const int m50 = GoldenFlights.Model50Layout;
+            var off = new System.Collections.Generic.List<ulong>();
+            var on = new System.Collections.Generic.List<ulong>();
+            int nonZero = 0, onZero = 0;
+            ulong passing = GoldenFlights.FlyContact(spec, out FlightCore through, tether: true, layout: m50, edit: GoldenFlights.WithoutTheRest, onRecord: r =>
+            {
+                off.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50));
+                for (int i = m50; i < LogFormat.StepSize; i++) if (r[i] != 0) nonZero++;
+            });
+            Assert.That(passing, Is.EqualTo(GoldenFlights.Model56TetherHash), "tether without a resting prop: model 56's");
+            Assert.That(nonZero, Is.EqualTo(0), "no resting blade's load without the rest");
+            ulong resting = GoldenFlights.FlyContact(spec, out FlightCore rest, tether: true, layout: m50, onRecord: r =>
+            {
+                on.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50));
+                for (int i = m50; i < LogFormat.StepSize; i++) if (r[i] != 0) onZero++;
+            });
+            int same = 0;
+            while (same < off.Count && same < on.Count && off[same] == on[same]) same++;
+            TestContext.Progress.WriteLine($"model 59 over 2816 bytes: without the rest 0x{passing:X16}, with it 0x{resting:X16}, the records 56's for {same} of {on.Count} steps, "
+                + $"{onZero} non-zero bytes in the resting blades' block; the break at step {(through.Tether.Broken ? through.Tether.BrokenAt : -1)} and {(rest.Tether.Broken ? rest.Tether.BrokenAt : -1)}");
+            Assert.That(resting, Is.EqualTo(GoldenFlights.Model56TetherHash), "tether with the rest: model 56's over its bytes");
+            Assert.That(same, Is.EqualTo(on.Count), "every record");
+            Assert.That(onZero, Is.EqualTo(0), "no resting blade's load on any record");
         }
 
         static int CornerStates()

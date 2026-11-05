@@ -25,7 +25,7 @@ namespace Fpv450.Sim.Tests
         /// payout, or coilLeft metres of line left on it.
         /// </summary>
         public static FlightSetup Setup(DroneSpec spec, WindLevel wind = WindLevel.Calm, RainLevel rain = RainLevel.Sunny, bool twoWay = false,
-            Double3[] layout = null, double coilLeft = -1, ulong seed = 0x7D16)
+            Double3[] layout = null, double coilLeft = -1, ulong seed = 0x7D16, bool cuts = false)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             Loadout loadout = spec.Nominal;
@@ -38,6 +38,9 @@ namespace Fpv450.Sim.Tests
                 Contacts = contacts, StartPosition = new Double3(0, stand, 0), StartPackCharge = 0.9, CameraPosition = spec.CameraPosition,
                 Wind = WindSetup.Of(wind), Rain = rain, Tether = Table(), TetherCoilPart = spec.Coil.Part, TetherSpoolMass = spec.Coil.SpoolMass,
                 TetherTwoWay = twoWay, TetherLayout = layout,
+                // 1.5–1.7's scenarios each watch their own mechanism on a line that never breaks (1.8's cuts off); 1.8's own
+                // scenarios fly them on (cuts).
+                TetherWithoutCuts = !cuts,
             };
         }
 

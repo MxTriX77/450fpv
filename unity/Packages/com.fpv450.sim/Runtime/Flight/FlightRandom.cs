@@ -104,6 +104,19 @@ namespace Fpv450.Sim.Flight
             return value;
         }
 
+        /// <summary>A per-flight draw of a named physical parameter from a quantile table [p₀, v₀, p₁, v₁, …] (p rising from 0 to 1),
+        /// read piecewise linearly at one uniform draw (p7d-tether's strength bands), recorded for the header with the table's
+        /// least and greatest values as its bounds.</summary>
+        public double DrawQuantile(ref SeedStream stream, string parameter, double[] table)
+        {
+            if (table == null || table.Length < 4 || table.Length % 2 != 0)
+                throw new ArgumentException("a quantile table holds two (p, value) pairs or more: " + parameter);
+            ulong index = stream.Count;
+            double value = Tether.FiberCuts.Quantile(table, stream.NextUnit());
+            _draws.Add(new ParameterDraw(stream.Name, parameter, table[1], table[table.Length - 1], value, index));
+            return value;
+        }
+
         /// <summary>
         /// A per-flight draw of a named physical parameter, nearly normal about 0 with standard deviation sigma: the
         /// sum of 12 uniform draws less 6 (Irwin–Hall: variance 1, kurtosis 2.9), times sigma, clamped to ±bound;

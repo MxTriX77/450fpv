@@ -809,8 +809,37 @@ namespace Fpv450.Sim.Tests
         /// the arming and after the disarm, and the line's first contact is at step 309, the spool-up); without the fiber's
         /// contacts, with the hanging give on and off, it is model 52's pin over the whole record (WithoutTheFiberContactsAndThe
         /// HangingGiveEachGoldenIsModel52s). No other golden moved: each is 52's pin.
+        /// p7d-tether 1.8 (model 56, off 55, the cuts and the link): re-recorded. Audited (GoldenFlightTests.WithoutTheCutsEachGoldenIsModel55s):
+        /// without the cuts (FlightSetup.TetherWithoutCuts) it is model 55's pin (Model55TetherHash), every record and event; with
+        /// them every record is model 55's up to step 7269, the events but FiberSection's 17 first reads at the drone's parts too,
+        /// where rotor 2's disc cuts the line at its tip (the crossing 0.127 m from the hub, T 0.031 N) as the drone settles on
+        /// its legs: the piece the rear pair's fountain lifts into the stack's plates crosses the disc's tip circle. The link is
+        /// Broken from there, the failsafe disarms 1.5 s later (DROP), and a near piece of 10 nodes hangs from the exit, its free
+        /// end at the drone's parts (1661 FiberContact and 2410 FiberSlip events in the 2.7 s after: its slots set afresh as the
+        /// free end flutters, against 47 and 43 on model 55's whole flight). A known risk, not tuned:
+        /// the fuselage's blocking of the rear fountain is not modelled (1.8's note).
+        /// Model 59 (the physics integration 2 with the cuts, 56 merged onto 57): re-recorded on the 2944-byte record, 56's flight
+        /// and the zero block. Audited case by case: without the cuts it is model 57's pin (Model57TetherHash), every record and
+        /// event, and with them every record is 57's up to step 7269, rotor 2's disc again (its blade at 114.56 m/s: a turning
+        /// rotor, far above ContactSpec.BladeRestSpeed; GoldenFlightTests.WithoutTheCutsEachGoldenIsModel57s); over model 50's
+        /// 2816 bytes it is model 56's pin (Model56TetherHash), every record and event, with the props at rest on and off, the
+        /// block zero on every record: no blade rests on anything and the line never meets a resting one, before the break or
+        /// through the near piece's hang, the disarm and the spin-down (WithoutARestingPropEachGoldenIsModel56s). No other golden
+        /// moved: each is 57's pin.
         /// </summary>
-        public const ulong TetherHash = 0x194E6D87B0555391UL;
+        public const ulong TetherHash = 0x1553E92C7C7425BCUL;
+
+        /// <summary>The tether golden at model 57 (the props at rest on the line), which the flight without 1.8's cuts keeps
+        /// (FlightSetup.TetherWithoutCuts: GoldenFlightTests.WithoutTheCutsEachGoldenIsModel57s).</summary>
+        public const ulong Model57TetherHash = 0x194E6D87B0555391UL;
+
+        /// <summary>The tether golden of p7d-tether 1.8 (model 56) on model 50's 2816 bytes, which the flight without the props
+        /// at rest keeps (ContactSpec.BladeRest off: GoldenFlightTests.WithoutARestingPropEachGoldenIsModel56s).</summary>
+        public const ulong Model56TetherHash = 0x12767492AE1705BCUL;
+
+        /// <summary>The tether golden at model 55 (1.7's pin, kept by the integration), which the flight without 1.8's cuts keeps
+        /// (p7d-tether 1.8, FlightSetup.TetherWithoutCuts: GoldenFlightTests.WithoutTheCutsEachGoldenIsModel55s).</summary>
+        public const ulong Model55TetherHash = 0xCD7C8022C0A85391UL;
 
         /// <summary>The tether golden of p7d-tether 1.7 (model 53), which model 55 kept: the flight with the fiber's contacts over
         /// model 50's 2816 bytes with the props at rest on or off (GoldenFlightTests.WithoutARestingPropEachGoldenIsModel55s) and
@@ -1341,7 +1370,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1365,6 +1394,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
                 setup.TetherWithoutContacts = !fiberContacts; // p7d-tether 1.7: false flies the plane alone, models 31–50's line
+                setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);
@@ -1597,7 +1627,7 @@ namespace Fpv450.Sim.Tests
             setup.Flapping.BladeInertia = mass / spec.Props.Blades * radius * radius / 3;
         };
 
-        static ulong Fnv(ulong h, byte[] bytes, int from, int to)
+        public static ulong Fnv(ulong h, byte[] bytes, int from, int to)
         {
             for (int i = from; i < to; i++) h = unchecked((h ^ bytes[i]) * 0x100000001B3UL);
             return h;

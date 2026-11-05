@@ -44,6 +44,11 @@ namespace Fpv450.Sim.Flight
         /// between lifts).</summary>
         public int FiberTrailCount;
 
+        /// <summary>After a break (p7d-tether 1.8): the trail's points before the far piece (the laid trail ends there and the far
+        /// piece runs on to FiberTrailCount; the nodes, the near piece hanging from the exit, are not joined to it); 0 while
+        /// whole. FiberNodeCount is 0 once nothing hangs from the exit.</summary>
+        public int FiberBreakTrail;
+
         /// <summary>The frame's elastic turn at the camera, body rad (small angles about x, y, z; AirframeModes.FrameTurn),
         /// 0 for a rigid airframe: the camera on the flexing frame (p7e-camera-feel, FieldCamera.Attitude). Render-side.</summary>
         public Double3 CameraTurn;
@@ -91,6 +96,7 @@ namespace Fpv450.Sim.Flight
                 FiberNodes = b.FiberNodes,
                 FiberNodeCount = b.FiberNodeCount,
                 FiberTrailCount = b.FiberTrailCount,
+                FiberBreakTrail = b.FiberBreakTrail,
                 CameraTurn = a.CameraTurn + (b.CameraTurn - a.CameraTurn) * t,
                 LegState = b.LegState,
                 CornerState = b.CornerState,
