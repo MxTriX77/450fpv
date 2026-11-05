@@ -1,7 +1,9 @@
 {
   "about": "What tools/build_latest.ps1 builds: the newest playable state. The orchestrator keeps this current as branches land; every listed merge is checked to be conflict-free when it changes. Branch names are without origin/; paths are relative to unity/.",
-  "base": "unity/game/p6-input-app--beta55",
-  "merge": [],
+  "base": "unity/physics/physics-integration-2",
+  "merge": [
+    "unity/game/p6-input-app--line-smoke"
+  ],
   "method": "Fpv450.Build.Windows",
   "unity_args": [
     "-review"
@@ -12,5 +14,5 @@
     "-smoketest",
     "-windowed"
   ],
-  "contents": "The G7 beta on the test range at physics model 55: the player (menu, setup from the houses' start, the TX12 calibration, legs on the track or the D02 stand, the D01 drone with the bottle) with the legs that set, crack, break and come off, drawn on D01's own parts (a set leg turned about its clamp, a stub, a gone tube, a hanging skid half, loose pieces) and listed in the summary with what they hit and how fast; the legs as levers and the hanging half's give; the armed tip-over slide fixed (the carve with stones in soil, the buried disc makes no thrust); the fiber line on the rotors' fountain and ground vortex, lying on the ground, straw, twigs, snags and the drone's parts; props that chip, trim, break and jam on walls and objects; Betaflight's yaw I and the ESC braking on disarm; wet and saturated soil and straw; S04's straw near and far; the pilot's rates and throttle curve; the analog feed with the camera's noise and the ported no-signal dropouts back (D-085), no black sticks; X's small stick overlay (D-084), the OSD throttle middle right; R, C, X, V, pause, the summary and the flight log. Not yet: props at rest and the idle strike (D-082), the motors' health (D-083), the fiber's cut and its picture loss, soft wires, vegetation on the legs and props, prop blur, the weather look; most tree crowns are passable stand-ins."
+  "contents": "The test-range beta at physics model 68, from the build line (it now holds the player): the step about 48 % faster in flight (the wind on a worker thread, the fiber's part checks cut; results bit for bit); legs that set, crack, break and come off, drawn and listed in the summary, as levers and a frame fore and aft; props as parts at rest and the idle strike (D-082); the motor's bell (scrape, rub, bind) and its shaft and bearings (bend, shake, brinell, a lost blade or prop) (D-083); D01's coil in the class's canister with the fiber leaving its nozzle aft and down, the body blocking the rotors' fountain, the fiber's contacts, cuts and Betaflight's failsafe after a break, the feed showing fiber dips and breaks; the no-signal dropouts back without the black sticks (D-085), the small stick overlay (D-084); the analog feed, OSD, R, C, X, V, pause, the summary and the flight log. Not yet: airmode off (D-086), the motors' heat and dirt, the canister re-tilt and see-through look, per-flight balance offsets, the fiber chain's next speed cut, soft wires, vegetation on the legs and props."
 }
