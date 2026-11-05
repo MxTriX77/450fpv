@@ -16,7 +16,8 @@ namespace Fpv450.Sim.Contact
     ///   R₁ = −F_∥ − R₂ (derived: a side force at the hub's lever l gives M = F·l, R₁ = F·(1 + l/s), R₂ = F·l/s, design 9). A
     ///   blade passes the hub at most its root's flatwise strength (form·σ_f·c·t²/6 at the first station, nominal): past it the
     ///   blade breaks (PropStrikes), so the part of M a blade's own bending makes is capped there; and along its span toward the
-    ///   shaft at most its column (ColumnLoad: its centrifugal tension at the root and its Euler load; past them the span goes
+    ///   shaft at most its column (ColumnLoad: its centrifugal tension at the root and its Euler load, on the least flatwise EI from
+    ///   the root to the load, a lower bound for the tapered blade, assumed; past them the span goes
     ///   into compression and the blade flaps out of the disc), the whole force scaled with it (the face's friction follows its
     ///   normal force), which 1.3's crush on a face square to the span, σ_c·A(r_m) of 0.6–4 kN with its μ·F_n, and 1.3b's
     ///   resting blade, rigid along its span, would pass; and across the span in the disc at most what turns the rotor, by its
@@ -67,7 +68,8 @@ namespace Fpv450.Sim.Contact
         readonly double[] _lever = new double[4], _span = new double[4], _yield = new double[4], _ultimate = new double[4], _hingeK = new double[4];
         readonly double[] _rating = new double[4], _ball = new double[4], _bore = new double[4], _outer = new double[4], _inner = new double[4];
         readonly double[] _bellMass = new double[4], _bellArm = new double[4], _bellCouple = new double[4], _reach = new double[4];
-        readonly double _propMass, _rootCap, _bladeMoment, _rootFlexural;
+        readonly double _propMass, _rootCap, _bladeMoment, _radius;
+        readonly double[] _stations, _flexural; // each station's r/R and its flatwise EI over the whole chord (N·m²)
         readonly double _kpp, _kpq, _kqq; // the blades' Σ I_b·q_b·q_bᵀ in the rotor's frame (p, q), kg·m²
 
         // The state: each shaft's bend in its rotor's frame (rad, a rotation vector's p and q), its hinge's yield moment now (N·m),
@@ -95,9 +97,15 @@ namespace Fpv450.Sim.Contact
             int blades = motors.Props.Blades;
             _propMass = blades * blade.BladeMass(radius) + blade.HubMass;
             _rootCap = spec.SectionForm * blade.FlexuralStrength * blade.Chord[0] * blade.Thickness[0] * blade.Thickness[0] / 6;
-            _rootFlexural = spec.SectionForm * blade.FlexuralModulus * blade.Chord[0] * blade.Thickness[0] * blade.Thickness[0] * blade.Thickness[0] / 12;
-            for (int k = 0; k < blade.Stations.Length; k++)
-                _bladeMoment += blade.Density * blade.Fill[k] * blade.Chord[k] * blade.Thickness[k] * radius * blade.Span * blade.Stations[k] * radius;
+            _radius = radius;
+            _stations = (double[])blade.Stations.Clone();
+            _flexural = new double[_stations.Length];
+            for (int k = 0; k < _stations.Length; k++)
+            {
+                double t = blade.Thickness[k];
+                _flexural[k] = spec.SectionForm * blade.FlexuralModulus * blade.Chord[k] * t * t * t / 12;
+                _bladeMoment += blade.Density * blade.Fill[k] * blade.Chord[k] * t * radius * blade.Span * blade.Stations[k] * radius;
+            }
             // The blades' couple across each: blade b along (cos a_b, s·sin a_b) in (p, q) (DamagedRotor's azimuths), q_b = ê_b × ŷ =
             // (−s·sin a_b, cos a_b); its sign s drops out of the products but the cross one, which is 0 for two blades.
             double ib = blade.BladeInertia(radius);
@@ -244,12 +252,18 @@ namespace Fpv450.Sim.Contact
 
         /// <summary>
         /// A blade's column at speed (rad/s), the most it passes its hub along its span toward the shaft from radius r (m): its
-        /// centrifugal tension at the root ω²·Σ m·r and its static Euler load π²·EI_f,root/(4r²) (derived: past them the span goes
-        /// into compression and the blade flaps out of the disc; the whole blade's, its damage left out, and the root's section, an
-        /// upper bound for the tapered blade, assumed).
+        /// centrifugal tension at the root ω²·Σ m·r and its static Euler load π²·EI_f/(4r²) (derived: past them the span goes into
+        /// compression and the blade flaps out of the disc; the whole blade's, its damage left out, and EI_f the least of its
+        /// stations' from the root to r, a lower bound for the tapered blade, assumed).
         /// </summary>
-        public double ColumnLoad(double speed, double r) =>
-            speed * speed * _bladeMoment + (r > 0 ? Pi * Pi * _rootFlexural / (4 * r * r) : double.PositiveInfinity);
+        public double ColumnLoad(double speed, double r)
+        {
+            if (!(r > 0)) return double.PositiveInfinity;
+            double least = _flexural[0];
+            for (int k = 1; k < _stations.Length && _stations[k] * _radius <= r; k++)
+                if (_flexural[k] < least) least = _flexural[k];
+            return speed * speed * _bladeMoment + Pi * Pi * least / (4 * r * r);
+        }
 
         // A blade's force at point (body) with its push toward the hub along its span held to its column, the whole force scaled
         // down with it (a face's friction on the blade follows its normal force, a crush's μ·F_n), and its part across the span in
