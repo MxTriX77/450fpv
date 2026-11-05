@@ -826,8 +826,20 @@ namespace Fpv450.Sim.Tests
         /// block zero on every record: no blade rests on anything and the line never meets a resting one, before the break or
         /// through the near piece's hang, the disarm and the spin-down (WithoutARestingPropEachGoldenIsModel56s). No other golden
         /// moved: each is 57's pin.
+        /// Model 61 (the drone's body over the fountain, RotorAir's blocking by the drone's contact shapes): re-recorded as
+        /// 0xA4500FA43C5CE196. Audited case by case: with the fountain through the body (FlightSetup.TetherFountainThroughBody)
+        /// it is model 59's pin (Model59TetherHash), every record and event (GoldenFlightTests.
+        /// WithoutTheBodysBlockingEachGoldenIsModel59s); with the body the records part from 59's where the line first lies
+        /// in the coil's lee (the piece over its aft cap, under the stack), and rotor 2's disc still cuts the line at its tip
+        /// as the drone settles, now at step 7265: the piece cut rises behind the coil's aft pole, between the rear discs, where
+        /// no part of the body stands over the fountain. Every older kept audit flies through the body (FlyContact's body:
+        /// false, and a line without its cuts or contacts is older still). No other golden moved.
         /// </summary>
-        public const ulong TetherHash = 0x1553E92C7C7425BCUL;
+        public const ulong TetherHash = 0xA4500FA43C5CE196UL;
+
+        /// <summary>The tether golden at model 59 (the integration with the cuts), which the flight with the fountain through the
+        /// drone's body keeps (FlightSetup.TetherFountainThroughBody: GoldenFlightTests.WithoutTheBodysBlockingEachGoldenIsModel59s).</summary>
+        public const ulong Model59TetherHash = 0x1553E92C7C7425BCUL;
 
         /// <summary>The tether golden at model 57 (the props at rest on the line), which the flight without 1.8's cuts keeps
         /// (FlightSetup.TetherWithoutCuts: GoldenFlightTests.WithoutTheCutsEachGoldenIsModel57s).</summary>
@@ -1370,7 +1382,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1395,6 +1407,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
                 setup.TetherWithoutContacts = !fiberContacts; // p7d-tether 1.7: false flies the plane alone, models 31–50's line
                 setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
+                setup.TetherFountainThroughBody = !body || !cuts || !fiberContacts; // model 61: false flies model 59's fountain; an older line is older still
             }
             edit?.Invoke(setup);
             core = new FlightCore(setup);

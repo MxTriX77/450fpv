@@ -217,8 +217,13 @@ namespace Fpv450.Sim.Log
         ///    in its shapes); the tether entry 46's (TetherWithoutContacts, then TetherWithoutCuts and TetherOneStrength); the
         ///    settings 46's failsafe fields; the draws 46's fiber.span_strength; the events 46's (TetherBreak 32, LinkDip 33,
         ///    FiberSection 34, Failsafe 35, WorldBug's cause 7); no new event kind.
+        /// 51: the drone's body over the fountain (p7d-tether, unity/physics/physics-integration-2--fountain-body, on 49;
+        ///    assigned by D-072): the tether entry gains the known-wrong switch FlightSetup.TetherFountainThroughBody after
+        ///    TetherOneStrength; tether.json's rotor_air block gains fountain_impingement_depth_ratio and
+        ///    body_lee_length_over_diameter (rows, so the entry's layout is otherwise 49's); the record is 49's 2944 bytes; no
+        ///    new event kind.
         /// </summary>
-        public const int Version = 49;
+        public const int Version = 51;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -547,8 +552,15 @@ namespace Fpv450.Sim.Log
         ///    idle or faster turns a disc and cuts at the next blade pass, as at 56. A flight with FlightSetup.TetherWithoutCuts
         ///    steps as in 57; one with ContactSpec.BladeRest off steps as in 56 over its 2816 bytes (but for 52's jammed head-on
         ///    crush), the block zero.
+        /// 61: the drone's body over the fountain (p7d-tether, unity/physics/physics-integration-2--fountain-body, on 59;
+        ///    assigned by D-072): RotorAir's fountain meets the drone's own contact shapes (every shape but the discs and a turning
+        ///    rotor's blades, at the step's pose) instead of rising through them: no air inside a shape or in its lee, and under
+        ///    its underside the stagnation (the rise falling linearly to nothing over the impingement layer, the jet's or the
+        ///    body's depth, the smaller) and the deflection across the sheet (continuity, at most the jet's centreline speed). A
+        ///    flight without the line, or with it and FlightSetup.TetherFountainThroughBody, or on design 4's field
+        ///    (TetherDesign4Air), steps as in 59.
         /// </summary>
-        public const int ModelVersion = 59;
+        public const int ModelVersion = 61;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

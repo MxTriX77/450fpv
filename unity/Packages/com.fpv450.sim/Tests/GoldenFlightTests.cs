@@ -341,7 +341,7 @@ namespace Fpv450.Sim.Tests
                     if (c.Events[i].Kind != EventKind.FiberSection) into.Add($"{c.State.Step} {c.Events[i].Kind} {c.Events[i].Index} {c.Events[i].A:R}");
             }
             GoldenFlights.FlyContact(spec, out _, tether: true, cuts: false, layout: m50, edit: GoldenFlights.WithoutTheRest, onRecord: r => rec55.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev55));
-            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, layout: m50, edit: GoldenFlights.WithoutTheRest, onRecord: r => rec56.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev56));
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, layout: m50, edit: GoldenFlights.WithoutTheRest, body: false, onRecord: r => rec56.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50)), after: c => Events(c, ev56));
             long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec56.Count;
             int same = 0;
             while (same < rec55.Count && same < rec56.Count && rec55[same] == rec56[same]) same++;
@@ -475,7 +475,7 @@ namespace Fpv450.Sim.Tests
                 onRecord: r => rec57.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev57));
             Assert.That(uncut, Is.EqualTo(GoldenFlights.Model57TetherHash), "tether without the cuts: model 57's");
             Assert.That(line.Tether.Cuts, Is.Null);
-            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true,
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore cut, tether: true, body: false,
                 onRecord: r => rec59.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)), after: c => Events(c, ev59));
             long at = cut.Tether.Broken ? cut.Tether.BrokenAt : rec59.Count;
             int same = 0;
@@ -487,7 +487,32 @@ namespace Fpv450.Sim.Tests
                 + $"the events other than FiberSection model 57's for {evSame} of {ev57.Count} ({ev59.Count} with the cuts); 0x{hash:X16}");
             Assert.That(same, Is.GreaterThanOrEqualTo(at - 1), "every record as model 57's up to the break");
             Assert.That(evSame == ev57.Count || ev59.Count > evSame && long.Parse(ev59[evSame].Split(' ')[0]) >= at, Is.True, "the events model 57's up to the break, but FiberSection");
-            Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "tether with them: model 59's");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.Model59TetherHash), "tether with them: model 59's (the fountain through the body)");
+        }
+
+        // Model 61's audit against model 59, kept: with the fountain through the drone's body (FlightSetup.
+        // TetherFountainThroughBody) the tether golden is model 59's pin, every record and event; with the body's blocking the
+        // records are 59's until the line first lies where the body stands over or under the fountain, and the outcome prints.
+        [Test]
+        public void WithoutTheBodysBlockingEachGoldenIsModel59s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            var rec59 = new System.Collections.Generic.List<ulong>();
+            var rec61 = new System.Collections.Generic.List<ulong>();
+            ulong through = GoldenFlights.FlyContact(spec, out FlightCore old, tether: true, body: false,
+                onRecord: r => rec59.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)));
+            Assert.That(through, Is.EqualTo(GoldenFlights.Model59TetherHash), "the fountain through the body: model 59's");
+            Assert.That(old.Tether.Rotors.BodyBlocks, Is.False);
+            ulong hash = GoldenFlights.FlyContact(spec, out FlightCore now, tether: true,
+                onRecord: r => rec61.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length)));
+            Assert.That(now.Tether.Rotors.BodyBlocks, Is.True);
+            int same = 0;
+            while (same < rec59.Count && same < rec61.Count && rec59[same] == rec61[same]) same++;
+            string Outcome(FlightCore c) => c.Tether.Broken
+                ? $"broken at step {c.Tether.BrokenAt} by {c.Tether.LastBreak.Mechanism} at {(FiberMember)c.Tether.LastBreak.Kind} {c.Tether.LastBreak.Member} (the blade at {c.Tether.LastBreak.Radius:F2} m/s, T {c.Tether.LastBreak.Tension:F3} N)"
+                : "whole";
+            TestContext.Progress.WriteLine($"model 61: the records model 59's for {same} of {rec61.Count} steps; through the body the line {Outcome(old)}, with it {Outcome(now)}; 0x{hash:X16}");
+            Assert.That(hash, Is.EqualTo(GoldenFlights.TetherHash), "tether with the body's blocking: model 61's");
         }
 
         // Its audit against p7d-tether 1.8 (model 56), kept: without a resting prop (ContactSpec.BladeRest off) the tether golden
@@ -502,14 +527,14 @@ namespace Fpv450.Sim.Tests
             var off = new System.Collections.Generic.List<ulong>();
             var on = new System.Collections.Generic.List<ulong>();
             int nonZero = 0, onZero = 0;
-            ulong passing = GoldenFlights.FlyContact(spec, out FlightCore through, tether: true, layout: m50, edit: GoldenFlights.WithoutTheRest, onRecord: r =>
+            ulong passing = GoldenFlights.FlyContact(spec, out FlightCore through, tether: true, layout: m50, edit: GoldenFlights.WithoutTheRest, body: false, onRecord: r =>
             {
                 off.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50));
                 for (int i = m50; i < LogFormat.StepSize; i++) if (r[i] != 0) nonZero++;
             });
             Assert.That(passing, Is.EqualTo(GoldenFlights.Model56TetherHash), "tether without a resting prop: model 56's");
             Assert.That(nonZero, Is.EqualTo(0), "no resting blade's load without the rest");
-            ulong resting = GoldenFlights.FlyContact(spec, out FlightCore rest, tether: true, layout: m50, onRecord: r =>
+            ulong resting = GoldenFlights.FlyContact(spec, out FlightCore rest, tether: true, layout: m50, body: false, onRecord: r =>
             {
                 on.Add(GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, m50));
                 for (int i = m50; i < LogFormat.StepSize; i++) if (r[i] != 0) onZero++;

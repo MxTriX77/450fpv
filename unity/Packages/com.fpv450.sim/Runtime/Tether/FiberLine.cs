@@ -283,7 +283,9 @@ namespace Fpv450.Sim.Tether
             _loadLift = new Double3[nodes];
             _loadMaterial = new double[nodes];
             _loadLength = new double[nodes];
-            if (setup.Propulsion != null) _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air);
+            if (setup.Propulsion != null)
+                _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air,
+                    setup.TetherFountainThroughBody ? null : parts);
 
             // The coil: the line left on it, from its part's mass over the empty spool's.
             _coilPart = setup.TetherCoilPart;
@@ -616,6 +618,7 @@ namespace Fpv450.Sim.Tether
                     GroundSample g = _ground[n + i];
                     _hubGround[i] = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(_hubs[i], _soilRay, _soilHit, out _);
                 }
+                if (_rotors.BodyBlocks) _rotors.PlaceBody(s.Position, q);
                 _rotors.Begin(_hubs, up, _thrust, _hubAir, _hubGround);
             }
             for (int i = 0; i < n - 1; i++) Loads(i, wind);

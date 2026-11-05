@@ -116,6 +116,11 @@ namespace Fpv450.Sim.Flight
         /// per-flight strength; a bench's model, never a pilot's flight.</summary>
         public bool TetherOneStrength;
 
+        /// <summary>The known-wrong fountain through the body (p7d-tether, model 61): the rotors' fountain rises through the
+        /// drone's own stack, coil, packs and payload as model 59's field did (RotorAir without the body); the audit against
+        /// model 59 and a bench's known-wrong, never a pilot's flight.</summary>
+        public bool TetherFountainThroughBody;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];

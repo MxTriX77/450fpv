@@ -271,6 +271,8 @@ namespace Fpv450.Sim.Tests
             {
                 ("normal liftoff, Calm", s => FiberCutScenarios.Liftoff(Spec, false, s)),
                 ("normal liftoff, Windy", s => FiberCutScenarios.Liftoff(Spec, false, s, null, WindLevel.Windy)),
+                ("normal liftoff, Calm, the fountain through the body", s => FiberCutScenarios.Liftoff(Spec, false, s, x => x.TetherFountainThroughBody = true)),
+                ("normal liftoff, Windy, the fountain through the body", s => FiberCutScenarios.Liftoff(Spec, false, s, x => x.TetherFountainThroughBody = true, WindLevel.Windy)),
                 ("sharp liftoff", s => FiberCutScenarios.Liftoff(Spec, true, s)),
                 ("sharp liftoff, design 4's air", s => FiberCutScenarios.Liftoff(Spec, true, s, x => x.TetherDesign4Air = true)),
                 ("backward after liftoff", s => FiberCutScenarios.Backward(Spec, s)),

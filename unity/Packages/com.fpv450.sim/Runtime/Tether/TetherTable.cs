@@ -147,6 +147,8 @@ namespace Fpv450.Sim.Tether
             ("rotor_air.wall_lift_gap_over_diameter", TetherValueKind.Positive),
             ("rotor_air.fountain_momentum_ratio", TetherValueKind.Positive),
             ("rotor_air.plane_jet_spreading_rate", TetherValueKind.Positive),
+            ("rotor_air.fountain_impingement_depth_ratio", TetherValueKind.Positive),
+            ("rotor_air.body_lee_length_over_diameter", TetherValueKind.Positive),
             ("rotor_air.hover_like_advance_ratio", TetherValueKind.Positive),
             ("rotor_air.ground_vortex_advance_ratio", TetherValueKind.Band),
             ("rotor_air.ground_vortex_offset_over_radius", TetherValueKind.Positive),
