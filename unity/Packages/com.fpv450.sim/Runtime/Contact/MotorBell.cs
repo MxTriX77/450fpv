@@ -44,6 +44,9 @@ namespace Fpv450.Sim.Contact
     ///   (Propulsion.Bound, FlightCore's MotorBound); it turns again only when the drive passes it.
     /// The seams 1.6 and 1.6b act on: the gap's interference (DentGap, Worn), the magnet (MagnetThickness), the Kt ratio and the
     /// drag passed to Propulsion.
+    /// - The shaft (p7f-damage 1.6, MotorShaft): a bent shaft swings the magnets toward the stator by its run-out (Closure), which
+    ///   past the gap rubs as a dent does (the deeper of the two sites, assumed; the rub's wear off both), and the brinelled
+    ///   bearings' drag joins the bell's (MotorShaft.BearingDrag). A straight shaft on sound bearings adds nothing, bit for bit.
     /// </summary>
     public sealed class MotorBell
     {
@@ -66,6 +69,12 @@ namespace Fpv450.Sim.Contact
         // and off the magnet (m), and the Kt ratio.
         readonly double[] _dentGap = new double[4], _dentFree = new double[4], _collapseGap = new double[4], _collapseFree = new double[4];
         readonly double[] _worn = new double[4], _magnetWorn = new double[4], _kt = { 1, 1, 1, 1 };
+
+        // A bent shaft's run-out of the magnets at the stator (m, MotorShaft), and the shafts (null: none).
+        readonly double[] _closure = new double[4];
+
+        /// <summary>The motors' shafts and bearings (p7f-damage 1.6), or null: their run-out and their drag join the bell's.</summary>
+        public MotorShaft Shaft { get; set; }
 
         // The step: each bell's normal load (N), its scrape's moment on the rotor turning (N·m) or its hold at rest, the magnets'
         // press onto the teeth (N), and the rub's force and the drag passed.
@@ -134,7 +143,13 @@ namespace Fpv450.Sim.Contact
         public double DentFree(int corner) => _dentFree[corner];
         public double Worn(int corner) => _worn[corner];
         public double MagnetThickness(int corner) => _magnet[corner] - _magnetWorn[corner];
-        public double Interference(int corner) => DetMath.Max(_dentGap[corner] - _worn[corner] - _gap[corner], 0);
+        public double Interference(int corner) =>
+            DetMath.Max(DetMath.Max(_dentGap[corner], _closure[corner]) - _worn[corner] - _gap[corner], 0);
+
+        /// <summary>A bent shaft's run-out of the magnets toward the stator, m (MotorShaft: its bend times the stator's farthest
+        /// height from the hinge): past the gap it rubs as a dent's interference does.</summary>
+        public void Closure(int corner, double closure) => _closure[corner] = closure;
+        public double RunOut(int corner) => _closure[corner];
         public double KtRatio(int corner) => _kt[corner];
 
         /// <summary>The last step's normal load on the bell (N), its scrape's moment on the turning rotor or its hold at rest (N·m),
@@ -236,6 +251,11 @@ namespace Fpv450.Sim.Contact
                 _rub[c] = rub;
                 double rubTorque = mu * rub * rs;
                 _drag[c] = _scrape[c] + rubTorque;
+                if (Shaft != null)
+                {
+                    double bearings = Shaft.BearingDrag(c, _propulsion.Thrust(c));
+                    if (bearings != 0) _drag[c] += bearings;
+                }
                 if (_turning[c] && dentForce > 0)
                 {
                     // Archard on both faces over the step's slide; the interference falls by both depths, the magnet by its own.

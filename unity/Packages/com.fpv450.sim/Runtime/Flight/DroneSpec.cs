@@ -189,6 +189,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The stator's laminations, from and to, m above the base (where the magnets face it across the gap), and its
         /// diameter (m); the can's and the back iron's Young's moduli (Pa), for the ring's stiffness (p7f-damage 1.5).</summary>
         public double StatorFrom, StatorTo, StatorDiameter, CanModulus, BackIronModulus;
+
+        /// <summary>The shaft's Young's modulus (Pa), the turning bell's mass (kg) and its centre of mass, m above the base (p7f-damage
+        /// 1.6: a bent shaft's stiffness and unbalance).</summary>
+        public double ShaftModulus, BellMass, BellCentre;
     }
 
     /// <summary>One battery pack: its mass part and its cells.</summary>
@@ -1211,7 +1215,7 @@ namespace Fpv450.Sim.Flight
                     "magnet_thickness_m", "magnet_remanence_t", "magnet_relative_permeability", "shaft_diameter_m", "shaft_yield_pa",
                     "shaft_ultimate_pa", "hub_height_m", "bearing_heights_m", "bearing_static_rating_n", "bearing_dynamic_rating_n",
                     "bearing_balls", "bearing_ball_diameter_m", "bearing_pitch_diameter_m", "stator_band_m", "stator_diameter_m", "can_modulus_pa",
-                    "back_iron_modulus_pa");
+                    "back_iron_modulus_pa", "shaft_modulus_pa", "bell_mass_kg", "bell_centre_height_m");
                 Pair(n, "bell_band_m", path, out x.BellFrom, out x.BellTo);
                 Pair(n, "stator_band_m", path, out x.StatorFrom, out x.StatorTo);
                 if (x.StatorFrom < x.BellFrom || x.StatorTo > x.BellTo) Fail(path + ".stator_band_m", "lies inside the bell's band");
@@ -1231,6 +1235,9 @@ namespace Fpv450.Sim.Flight
                 x.ShaftYield = Positive(n, "shaft_yield_pa", path);
                 x.ShaftUltimate = Positive(n, "shaft_ultimate_pa", path);
                 if (x.ShaftUltimate < x.ShaftYield) Fail(path + ".shaft_ultimate_pa", "is below shaft_yield_pa");
+                x.ShaftModulus = Positive(n, "shaft_modulus_pa", path);
+                x.BellMass = Positive(n, "bell_mass_kg", path);
+                x.BellCentre = Positive(n, "bell_centre_height_m", path);
                 x.HubHeight = Positive(n, "hub_height_m", path);
                 Pair(n, "bearing_heights_m", path, out x.LowerBearingHeight, out x.UpperBearingHeight);
                 if (x.UpperBearingHeight >= x.HubHeight) Fail(path + ".bearing_heights_m", "the bearings sit below the prop's hub");
@@ -1240,6 +1247,7 @@ namespace Fpv450.Sim.Flight
                 x.BallDiameter = Positive(n, "bearing_ball_diameter_m", path);
                 x.PitchDiameter = Positive(n, "bearing_pitch_diameter_m", path);
                 if (x.BallDiameter >= x.PitchDiameter) Fail(path + ".bearing_ball_diameter_m", "a ball is smaller than its set's pitch diameter");
+                if (x.BellCentre < x.BellFrom || x.BellCentre > x.BellTo) Fail(path + ".bell_centre_height_m", "lies inside the bell's band");
                 _noted = false;
                 int part = spec.PartIndex("motor_" + CornerIds[corner]);
                 if (part < 0) return x;

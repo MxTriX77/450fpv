@@ -282,6 +282,25 @@ namespace Fpv450.Sim.Contact
         /// <summary>A dent's arc, the share of the bell's circumference it narrows the gap over, 0.25 (assumed, design 8).</summary>
         public double BellDentArc = 0.25;
 
+        /// <summary>
+        /// The motors' shafts and bearings (p7f-damage 1.6, design 9, MotorShaft): the hub's strike loads, a resting prop's and the bell's
+        /// ring's load bend the shaft past its yield moment at the upper bearing (a plastic hinge fixed in the rotating frame: a
+        /// mass and couple unbalance, a tilted thrust, the bell's run-out into the gap), break it past its ultimate (PropLost), and
+        /// brinell a bearing past its static rating (a drag, and a ball-pass vibration published to CameraVibration). On for every
+        /// flight with Motors and props.blade; off only for an audit and the known-wrong (a rigid shaft on rigid bearings, model 63's),
+        /// which a flight with it off steps as.
+        /// </summary>
+        public bool MotorShaft = true;
+
+        /// <summary>The plastic hinge's stiffness over the shaft's elastic 3EI/l (l the hub's lever over the upper bearing), 0.05
+        /// (assumed, design 9: a hardening steel's bilinear tangent share).</summary>
+        public double ShaftHingeShare = 0.05;
+
+        /// <summary>A deep-groove ball bearing's friction coefficient in SKF's constant-coefficient model, M = ½·μ·P·d, 0.0015
+        /// (published, SKF's rolling bearings catalogue), and a brinelled bearing's added share of it at ISO 76's dent, 1e-4·D_w,
+        /// growing with the dent's depth (assumed, design 9: a dent of that depth doubles it).</summary>
+        public double BearingFriction = 0.0015, BearingDentDrag = 1;
+
         /// <summary>A resting blade's span segments' outer ends, r/R, from its root (ContactRole.Blade; assumed: the planform's
         /// chord kink at 0.3 R, then three spans; each segment's greatest half-thickness is within 0.7 mm of its least).</summary>
         public static readonly double[] BladeSegmentEnds = { 0.3, 0.55, 0.8, 1.0 };

@@ -101,6 +101,7 @@ namespace Fpv450.Sim.Contact
         readonly Pending[] _pending = new Pending[4];
         readonly int[] _discOf = { -1, -1, -1, -1 }; // each corner's disc shape
         readonly double[] _restPeak;
+        readonly bool[] _bladeLost; // per blade: lost at its root (BladeLost logged once)
 
         /// <summary>A rotor stopped in a carve: the work still to do and where it is (design 6); in soil, the sand's wear per joule
         /// of it (m³/J), what the grind has worn so far (m³), from where (r/R), and what it carves.</summary>
@@ -170,6 +171,7 @@ namespace Fpv450.Sim.Contact
                     _discOf[_spec.Shapes[i].Corner] = i;
                 }
             _restPeak = new double[4 * _blades];
+            _bladeLost = new bool[4 * _blades];
 
             // The world's materials by id, as the contacts read them.
             IWorldQuery q = world.Query;
@@ -438,6 +440,7 @@ namespace Fpv450.Sim.Contact
             double carveCrush = 0, notch = 0;
             int broke = -1, set = -1;
             double phi = 0, wear = 0;
+            bool crushPast = false; // a crush back to a face past the tip: its push acts over α, every other pass's over 2α
             StrikeMode mode;
             if (!hard)
             {
@@ -588,6 +591,7 @@ namespace Fpv450.Sim.Contact
                 {
                     // Crush back to the face; the face's force on the blade breaks a section first where it can.
                     mode = StrikeMode.Crush;
+                    crushPast = true;
                     double slide = rtip * alpha;
                     work = crush * Volume(blade, rm, rtip) + mu * fcrush * slide;
                     rec.Friction = mu * fcrush * slide;
@@ -735,6 +739,15 @@ namespace Fpv450.Sim.Contact
                 e.B = energy;
                 e.C = share;
                 events.Add(e);
+            }
+            // The hub's load (p7f-damage 1.6, design 9): the face's impulse over the pass's contact time, its arc over ω held to the
+            // step as its push is, at the meeting point, into the shaft and its bearings.
+            MotorShaft shafts = _contacts.Shafts;
+            if (shafts != null && omega > 0)
+            {
+                FlightEvent cause = new FlightEvent { Object = obj, Shape = shape, Material = material, Surface = surface, Point = m.Point };
+                shafts.Strike(c, now.Attitude.InverseRotate(m.Point - now.Position), now.Attitude.InverseRotate(external),
+                    Contact(crushPast ? alpha : 2 * alpha, omega), rec.PeakForce, Wrap(psi - TwoPi * b / _blades), omega, events, cause);
             }
             Slot(ref now, c, b, material, used, external.Length(), rm);
             Last = rec;
@@ -1236,6 +1249,16 @@ namespace Fpv450.Sim.Contact
             e.B = lost;
             e.C = from;
             events.Add(e);
+            // A break that leaves the blade at its root's station (p7f-damage 1.6, design 11): the blade is lost, once.
+            int slot = d.Corner * _blades + b;
+            if (mode != StrikeMode.Break || !(tip <= _b.Stations[0]) || _bladeLost[slot]) return;
+            _bladeLost[slot] = true;
+            FlightEvent l = Of(EventKind.BladeLost, d, obj, shape, material, surface, point);
+            l.Index = (byte)b;
+            l.A = tip;
+            l.B = lost;
+            l.C = from;
+            events.Add(l);
         }
 
         static FlightEvent Of(EventKind kind, in ContactShape d, int obj, int shape, ushort material, byte surface, Double3 point)
