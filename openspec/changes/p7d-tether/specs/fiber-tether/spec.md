@@ -108,7 +108,7 @@ The line SHALL meet the ground and its cover, every shape except the homogenised
 
 #### Scenario: A line draped over a coil run holds
 - **WHEN** a line is draped over a synthetic concertina run (the fortifications reading's records: `edge_radius_m` 0.00025, `barb_pitch_m` 0.035) while the drone flies on, on 20 seeds
-- **THEN** the line holds on every seed whose section strength exceeds the logged stress at the barbs, never cuts on a seed whose strength there is above 1.35 GPa, and each contact point moves along its record by at most 17.5 mm
+- **THEN** the line holds on every seed whose section strength exceeds the logged stress at the barbs, never cuts statically (by tension or bend) on a seed whose strength there is above 1.35 GPa (a wear cut over the barbs is a separate mechanism, printed and graded on its own), and each contact point moves along its record by at most 17.5 mm
 
 #### Scenario: A reverse round a snagged barb cuts
 - **WHEN** the drone reverses round a line snagged on one barb, turning it through 90–180°, on 20 seeds
