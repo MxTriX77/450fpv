@@ -311,7 +311,7 @@ namespace Fpv450.Sim.Tests
         // Model 65: 0xB066BF9F2ADF9A09. Model 69 (D-086: no airmode, FcSettings.Default's): re-recorded. Audited case by case:
         // with airmode on it is model 65's pin, every record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s,
         // flightbench --golden), so airmode is the whole move. It leaves 65's path at step 21, the first armed loop below half
-        // throttle (0.5 + throttle of the mix). Through the steps and the punch it stays within 1.4° (4 s); the chop to zero
+        // throttle (0.5 + throttle of the mix). Through the steps and the punch it stays within 1.4° (0.9° at 5.5 s); the chop to zero
         // throttle (5.5–6 s: the I term held at zero, half the mix, in Windy air through the rotors' own wash) turns it 93° from
         // 65's attitude by 6 s, and acro holds no attitude, so the weave climbs on another heading: 135.64 m up at 10 s against
         // 161.54, 45.28 m from 65's end; armed, no contact, no crash.
