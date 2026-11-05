@@ -72,7 +72,12 @@ namespace Fpv450.Feed
                 OsdCells = Shader.PropertyToID("_OsdCells"), OsdCell = Shader.PropertyToID("_OsdCell"),
                 OsdOrigin = Shader.PropertyToID("_OsdOrigin"), Lens = Shader.PropertyToID("_Lens"),
                 FieldSize = Shader.PropertyToID("_FieldSize"), ShutterTrack = Shader.PropertyToID("_ShutterTrack"),
-                Shutter = Shader.PropertyToID("_Shutter");
+                Shutter = Shader.PropertyToID("_Shutter"), StickBox = Shader.PropertyToID("_StickBox"),
+                StickSize = Shader.PropertyToID("_StickSize"), StickCursor = Shader.PropertyToID("_StickCursor");
+
+            // The stick overlay's sizes (D-084): a box, then the cursor, as fractions of the picture.
+            static readonly Vector4 StickSizes = new Vector4(FeedSticks.BoxW * FeedSticks.TexelW, FeedSticks.BoxH * FeedSticks.TexelH,
+                FeedSticks.Dot * FeedSticks.TexelW, FeedSticks.Dot * FeedSticks.TexelH);
 
             Material material;
             FeedOutput output;
@@ -217,6 +222,11 @@ namespace Fpv450.Feed
                 m.SetFloat(OsdCells, o.OsdCells);
                 m.SetVector(OsdCell, o.OsdCell);
                 m.SetVector(OsdOrigin, o.OsdOrigin);
+                // The stick overlay (D-084): w = 0 draws nothing.
+                FeedSticks k = o.Sticks;
+                m.SetVector(StickBox, new Vector4(k.LeftBox, k.RightBox, k.Top, k.On ? 1f : 0f));
+                m.SetVector(StickSize, StickSizes);
+                m.SetVector(StickCursor, new Vector4(k.LeftX, k.LeftY, k.RightX, k.RightY));
                 m.SetVector(Lens, o.Settings.LensVector);
                 m.SetVector(FieldSize, new Vector4(o.Settings.fieldWidth, FeedSettings.FieldRows, 0f, 0f));
                 // The camera's read (p7e-camera-feel): without a track, the old read.

@@ -78,8 +78,8 @@ namespace Fpv450.Tests.Osd
             var expected = new string[FeedOsd.Rows];
             for (int r = 0; r < FeedOsd.Rows; r++) expected[r] = Row();
             expected[0] = Row((0, "AIR"), (23, ">12m"));
-            expected[7] = Row((13, "{|}"));
-            expected[10] = Row((0, "! SAFE !"), (24, FlightOsd.SymThr + "  0")); // no stick sample yet: the throttle down
+            expected[7] = Row((13, "{|}"), (24, FlightOsd.SymThr + "  0")); // the throttle at the middle right; no stick sample yet: down
+            expected[10] = Row((0, "! SAFE !"));
             expected[11] = Row((0, "["), (1, "01:15"), (24, "0MAH")); // 41.2 A for 20 ms: 0.23 mAh, "%4d"
             expected[12] = Row((0, "$"), (1, "3.91в"), (7, "SVINORIZ 10 OPTO"), (24, "0.25")); // 2347 / 6 = 391
             expected[13] = Row((0, "$"), (1, "23.5в"), (22, "41.20"), (27, "a")); // 23.47 rounds to 23.5; " 41.20"
@@ -88,13 +88,49 @@ namespace Fpv450.Tests.Osd
             for (int r = 0; r < FeedOsd.Rows; r++)
                 foreach (char c in osd.Row(r))
                     Assert.That(c == ' ' || FeedFont.Has(c), $"'{c}' in row {r} has no glyph");
-            // Betaflight's symbols, the stick overlay's too (off here), are all in the ROM.
+            // Betaflight's symbols are all in the ROM.
             foreach (char c in FlightOsd.Symbols)
                 Assert.That(FeedFont.Has(c), $"U+{(int)c:X4} has no glyph");
+
+            // D-084: with X on the grid is the same; the sticks' boxes sit centred under the name, in row 13 between the pack
+            // and the current, their outline a clear ROM texel from every other element's ink and outline.
+            osd.StickOverlay = true;
+            osd.Build(0, NoLinkLoss);
+            for (int r = 0; r < FeedOsd.Rows; r++)
+                Assert.That(osd.Row(r), Is.EqualTo(expected[r]), "X on, row " + r);
+            FeedSticks o = osd.Overlay;
+            Assert.That(o, Is.EqualTo(FeedSticks.Under(12, 7, FlightOsd.Name.Length, 0f, -1f, 0f, 0f)), "under the name: no stick sample yet, throttle down");
+            int Tx(float x) => (int)Math.Round((x - FeedOsd.OriginX) / FeedSticks.TexelW);
+            int Ty(float y) => (int)Math.Round((y - FeedOsd.OriginY) / FeedSticks.TexelH);
+            int x0 = Tx(o.LeftBox), x1 = Tx(o.RightBox) + FeedSticks.BoxW, y0 = Ty(o.Top), y1 = y0 + FeedSticks.BoxH;
+            Assert.That(new[] { x0, x1, y0, y1 }, Is.EqualTo(new[] { 190, 229, 234, 252 }), "in texels: columns 13.6–16.4, row 13");
+            byte[] rom = FeedFont.BuildAtlas();
+            int lit = 0, touching = 0;
+            string first = null;
+            for (int r = 0; r < FeedOsd.Rows; r++)
+                for (int c = 0; c < FeedOsd.Cols; c++)
+                {
+                    int code = (int)FeedFont.Code(osd.Grid[r, c]);
+                    if (code == 0) continue;
+                    for (int y = 0; y < FeedFont.CellH; y++)
+                        for (int x = 0; x < FeedFont.CellW; x++)
+                        {
+                            int i = (y * FeedFont.AtlasWidth + code * FeedFont.CellW + x) * 2;
+                            if (rom[i] == 0 && rom[i + 1] == 0) continue;
+                            lit++;
+                            int gx = c * FeedFont.CellW + x, gy = r * FeedFont.CellH + y;
+                            // The boxes' outline is one texel round them; one more is the clearance.
+                            if (gx < x0 - 2 || gx >= x1 + 2 || gy < y0 - 2 || gy >= y1 + 2) continue;
+                            touching++;
+                            first ??= $"'{osd.Grid[r, c]}' at row {r}, column {c}";
+                        }
+                }
+            Assert.That(lit, Is.GreaterThan(500), "the elements' ink and outline texels");
+            Assert.That(touching, Is.EqualTo(0), first + " touches the sticks");
         }
 
         // D-080: the throttle element as Betaflight 4.5's: calculateThrottlePercent of the stick's own channel, from
-        // min_check (1050 µs by default) to 2000 in integers, before the curve; "%c%3d" at the right of row 10.
+        // min_check (1050 µs by default) to 2000 in integers, before the curve; "%c%3d" at the right of row 7, the reticle's.
         [Test]
         public void TheThrottleReadsAsBetaflightsElement()
         {
@@ -116,55 +152,68 @@ namespace Fpv450.Tests.Osd
             osd.MinCheck = 1050;
             osd.Sticks(new StickSample { Throttle = 0.5 }); // its channel 1500 µs
             osd.Build(0, NoLinkLoss);
-            Assert.That(osd.Row(10), Is.EqualTo(Row((0, "! SAFE !"), (24, FlightOsd.SymThr + " 47"))));
+            Assert.That(osd.Row(7), Is.EqualTo(Row((13, "{|}"), (24, FlightOsd.SymThr + " 47"))));
             osd.Sticks(new StickSample { Throttle = 1 });
             osd.Build(4, NoLinkLoss);
-            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + " 47"), "it changes at the OSD's next refresh (12 Hz), not before");
+            Assert.That(osd.Row(7).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + " 47"), "it changes at the OSD's next refresh (12 Hz), not before");
             osd.Build(5, NoLinkLoss);
-            Assert.That(osd.Row(10).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + "100"));
+            Assert.That(osd.Row(7).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + "100"));
         }
 
-        // D-078: X's stick overlay as Betaflight 4.5 draws it (osd_elements.c), mode 2: each stick a 7 × 5 cross with its
-        // cursor over it, one of three sprites a row, at the stick's position; nothing while it is off.
+        // D-084: X's stick overlay, mode 2 (the left stick the throttle up and the yaw across, the right the pitch up and the
+        // roll across), from the latest stick sample at every field, while the text keeps its 12 Hz refresh; off, nothing.
         [Test]
-        public void TheStickOverlayDrawsBothSticksAsBetaflightDoes()
+        public void XDrawsTheSticksAtEveryFieldFromTheLatestSample()
         {
-            const char V = FlightOsd.SymStickVertical, Hi = FlightOsd.SymStickSpriteHigh, Mid = FlightOsd.SymStickSpriteMid, Lo = FlightOsd.SymStickSpriteLow;
-            string Cross(char centre) => new string(FlightOsd.SymStickHorizontal, 3) + centre + new string(FlightOsd.SymStickHorizontal, 3);
-            string v = V.ToString();
             FlightOsd osd = Osd();
-            void Sticks(double throttle, double yaw, double pitch, double roll, int field, params string[] rows)
-            {
-                osd.Sticks(new StickSample { Throttle = throttle, Yaw = yaw, Pitch = pitch, Roll = roll });
-                osd.Build(field, NoLinkLoss);
-                for (int r = 0; r < rows.Length; r++)
-                    if (rows[r] != null) Assert.That(osd.Row(2 + r), Is.EqualTo(rows[r]), $"({throttle}, {yaw}, {pitch}, {roll}): row {2 + r}");
-            }
-
+            osd.Sticks(new StickSample { Throttle = 1, Yaw = -1, Pitch = -1, Roll = 1 });
             osd.Build(0, NoLinkLoss);
-            for (int r = 2; r <= 6; r++) Assert.That(osd.Row(r).Trim(), Is.Empty, "off: nothing, row " + r);
+            Assert.That(osd.Overlay.On, Is.False, "off until X");
             osd.StickOverlay = true;
-            // Centred, the throttle down: the left cursor at its axis's foot (low in its cell), the right at the centre.
-            Sticks(0, 0, 0, 0, 5,
-                Row((5, v), (23, v)),
-                Row((5, v), (23, v)),
-                Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(Mid))),
-                Row((5, v), (23, v)),
-                Row((5, Lo.ToString()), (23, v)));
-            // Full throttle and left yaw: top left; full back pitch and right roll: bottom right, the last column (1999 µs).
-            Sticks(1, -1, -1, 1, 9,
-                Row((2, Hi.ToString()), (5, v), (23, v)),
-                Row((5, v), (23, v)),
-                Row((2, Cross(FlightOsd.SymStickCenter)), (20, Cross(FlightOsd.SymStickCenter))),
-                Row((5, v), (23, v)),
-                Row((5, v), (23, v), (26, Lo.ToString())));
-            // Half throttle is mid-cell at the centre; a little forward pitch is the centre row's high sprite, a little back
-            // its low one: three positions a row.
-            Sticks(0.5, 0, 0.11, 0, 13, null, null, Row((2, Cross(Mid)), (20, Cross(Hi))));
-            Sticks(0.5, 0, -0.11, 0, 17, null, null, Row((2, Cross(Mid)), (20, Cross(Lo))));
+            Assert.That(osd.Overlay, Is.EqualTo(FeedSticks.Under(12, 7, 16, -1f, 1f, 1f, -1f)), "full throttle, left yaw, back pitch, right roll");
+
+            // Fields 1–4 fall in the text's first refresh: its throttle stays field 0's while each field's cursors are new.
+            double[] throttle = { 0.0, 0.25, 0.5, 0.875, 0.3 };
+            for (int field = 1; field <= 5; field++)
+            {
+                var s = new StickSample { Throttle = throttle[field - 1], Yaw = 0.2 * field - 0.5, Pitch = 0.9 - 0.3 * field, Roll = -0.15 * field };
+                osd.Sticks(s);
+                osd.Build(field, NoLinkLoss);
+                Assert.That(osd.Overlay, Is.EqualTo(FeedSticks.Under(12, 7, 16, (float)s.Yaw, (float)(2 * s.Throttle - 1), (float)s.Roll, (float)s.Pitch)),
+                    "field " + field + ": this field's sample");
+                Assert.That(osd.Row(7).Substring(24, 4), Is.EqualTo(FlightOsd.SymThr + (field < 5 ? "100" : " 26")), "field " + field + ": the text at its refresh");
+            }
+            // Clamped to the travel: a throttle past full and a roll past the end read as their ends.
+            osd.Sticks(new StickSample { Throttle = 1.2, Roll = -1.5 });
+            Assert.That(osd.Overlay, Is.EqualTo(FeedSticks.Under(12, 7, 16, 0f, 1f, -1f, 0f)));
+
             osd.StickOverlay = false;
-            osd.Build(21, NoLinkLoss);
-            for (int r = 2; r <= 6; r++) Assert.That(osd.Row(r).Trim(), Is.Empty, "off again, row " + r);
+            Assert.That(osd.Overlay, Is.EqualTo(default(FeedSticks)), "X again: off");
+        }
+
+        // D-084: the overlay's path allocates nothing a frame: the sample in, the overlay out.
+        [Test]
+        public void TheStickOverlayAllocatesNothingPerFrame()
+        {
+            FlightOsd osd = Osd();
+            osd.StickOverlay = true;
+            float sum = 0;
+            for (int frame = 0; frame < 100; frame++)
+            {
+                osd.Sticks(new StickSample { Throttle = 0.5, Yaw = 0.01 * frame });
+                sum += osd.Overlay.LeftX;
+            }
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            for (int frame = 0; frame < 10000; frame++)
+            {
+                osd.Sticks(new StickSample { Throttle = frame % 100 / 100.0, Yaw = Math.Sin(frame), Pitch = 0.1, Roll = -0.2 });
+                FeedSticks o = osd.Overlay;
+                sum += o.LeftX + o.LeftY + o.RightX + o.RightY;
+            }
+            long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+            TestContext.WriteLine($"{bytes} B over 10 000 frames");
+            Assert.That(bytes, Is.EqualTo(0));
+            Assert.That(float.IsNaN(sum), Is.False);
         }
 
         [Test]

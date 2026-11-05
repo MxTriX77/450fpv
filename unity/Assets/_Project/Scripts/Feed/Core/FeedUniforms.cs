@@ -15,7 +15,7 @@ namespace Fpv450.Feed
         public float LossState, LossSplit, LossTopStrip, BlackA, BlackB, SnowLevel, SnowChroma;
         public float Tell, TearAmp, TearTop, GrainBoost;
         /// 1 draws the black wedge a tear cuts in from the right edge (gd:382-385), the "black sticks"; 0 leaves the
-        /// tear its sideways shear alone. 1 only with <see cref="FeedEvents.GodotLinkArtefacts"/> (D-065).
+        /// tear its sideways shear alone. 1 only with <see cref="FeedEvents.TearWedge"/>, for the A/B (D-065).
         public float TearWedge;
         /// D-078, the pilot's C: true takes the analog noise out (<see cref="WithoutNoise"/>), and the pass draws the
         /// variant without N1's grain and N2's impulses (<c>FEED_NOISE_OFF</c>). False, the default, is the feed as ported.
@@ -70,7 +70,7 @@ namespace Fpv450.Feed
                 TearAmp = loss.TearAmp,
                 TearTop = loss.TearTop,
                 GrainBoost = loss.GrainBoost,
-                TearWedge = events.GodotLinkArtefacts ? 1f : 0f,
+                TearWedge = events.TearWedge ? 1f : 0f,
             };
         }
 

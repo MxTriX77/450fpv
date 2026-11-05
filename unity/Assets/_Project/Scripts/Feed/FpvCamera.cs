@@ -194,7 +194,8 @@ namespace Fpv450.Feed
                       (shutterOn ? $"rolling shutter on ({settings.shutterMarginDeg:0.#}° margin), " : "") +
                       $"picture {settings.PictureHorizontalFovDeg:0.0}° across, lens k1 {settings.K1:0.00}, " +
                       $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}, " +
-                      (settings.godotLinkArtefacts ? "Godot's link artefacts (the A/B, D-026). " : "no link artefacts (D-065). ") +
+                      (settings.dropoutTimer ? "Godot's dropout timer (D-085), " : "no dropout timer, ") +
+                      (settings.tearWedge ? "Godot's tear wedge (the A/B, D-026). " : "no tear wedge (D-065). ") +
                       FeedSignalLog.Describe(Signals));
             Debug.Log($"[Feed] OSD ({Signals.SourceOf(FeedSignal.OsdState).ToString().ToLowerInvariant()}), " +
                       $"{FeedOsd.Cols}x{FeedOsd.Rows} cells of {FeedOsd.CellW * 1920f:0.0}x{FeedOsd.CellH * 1080f:0.0} px at 1920x1080, " +
@@ -237,11 +238,15 @@ namespace Fpv450.Feed
                 FeedOsd.WriteCodes(Signals, codes);
                 osdCodes.SetPixelData(codes, 0);
                 osdCodes.Apply(false);
+                // The stick overlay (D-084) from the source's latest sample, once a field: never the text's refresh.
+                Feed.Sticks = Signals is IOsdSticks sticks ? sticks.OsdSticks : default;
             }
         }
 
-        /// A fresh scheduler from the settings' seed, with Godot's link artefacts only if the settings ask (D-065).
-        FeedEvents NewEvents() => new FeedEvents(settings.seed) { GodotLinkArtefacts = settings.godotLinkArtefacts };
+        /// A fresh scheduler from the settings' seed, with Godot's dropout timer (D-085) and its tear wedge (D-065) as
+        /// the settings ask.
+        FeedEvents NewEvents() => new FeedEvents(settings.seed)
+            { DropoutTimer = settings.dropoutTimer, TearWedge = settings.tearWedge };
 
         /// The ROM's atlas (FeedFont.BuildAtlas), baked once: R the glyph, G its outline, linear, point-sampled.
         static Texture2D Glyphs()

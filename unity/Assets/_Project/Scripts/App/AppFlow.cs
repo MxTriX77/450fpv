@@ -8,6 +8,7 @@ using Fpv450.Feed;
 using Fpv450.Input;
 using Fpv450.Input.Radio;
 using Fpv450.Sim;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
@@ -33,7 +34,8 @@ namespace Fpv450.App
     /// saves its screens there, and <c>-smokeseq &lt;n&gt;</c> beside them n consecutive frames at the punch-outs and the
     /// hover, FPV and chase (Sequence). <c>-camerafeel 0</c> flies the camera as before p7e-camera-feel (FlightScene.CameraFeel).
     /// <c>-smokewind &lt;Calm|Windy|Severe&gt;</c> flies the smoke test's flights in that wind (Calm by default), a look at
-    /// the wind field in the player: its checks are Calm's.
+    /// the wind field in the player: its checks are Calm's. <c>-smokelegs</c> flies LegShots' damaged-leg flights in place of
+    /// the smoke test's flights, each shot in both views, then R's restart (p7g-legs 1.5).
     /// </remarks>
     public sealed class AppFlow : MonoBehaviour
     {
@@ -52,6 +54,7 @@ namespace Fpv450.App
         string _smokeLogs; // the smoke test's flight logs, never in the pilot's folder
         string _sequences; // -smokeseq's folder, and its frames a sequence
         int _sequenceFrames;
+        LegShots.Case _legCase; // -smokelegs: the next flight's start, or null for a flight that stands
 
         /// <summary>Boot's: makes the app once; the Boot scene loads again for the menu and finds it.</summary>
         public static void Create()
@@ -179,6 +182,7 @@ namespace Fpv450.App
                     if (_smokeLogs != null)
                     {
                         _flight.Host.Inputs.LogFolder = _smokeLogs;
+                        LegCase(_flight.Host.Inputs);
                         // The player's default rates and throttle (D-066), never the pilot's saved ones: its checks and
                         // its keyboard pilot assume a curve.
                         _flight.Host.Inputs.Settings = FcSettingsStore.PlayerDefault;
@@ -279,7 +283,9 @@ namespace Fpv450.App
         /// <summary>
         /// The player's smoke test, through the screens' own calls: the menu and the setup drawn; Explore in a review build;
         /// then two flights from the houses' start, the one the setup offers (D-077): on the legs, then from the launch
-        /// stand (legs off), the second set from the first's summary through Setup. With the development
+        /// stand (legs off) in Rain, the second set from the first's summary through Setup. Each flight carries
+        /// surfaces.json's ground (the rain's at its wet set), the map's cuts and the fiber line, which draws in the air
+        /// and is laid again by a restart, and the props' blade tables and strikes, whole at each start (D-079). With the development
         /// keyboard each flight is flown by a script of its keys: armed, climbed, paused (no step while paused),
         /// restarted (the stand's, before arming, from the pause: a new seed and log), the throttle down, disarmed in the
         /// air with no end and no summary (D-062), re-armed, flown on, ended from the pause's End flight, and the summary
@@ -382,6 +388,12 @@ namespace Fpv450.App
                     Check(!_flight.Chase && eye != null && (eye.localPosition - _flight.CameraMount).magnitude < 1e-4f && Quaternion.Angle(eye.localRotation, Quaternion.identity) < 0.01f && feedOn,
                           "V again " + where + ": the FPV camera at the lens, the feed " + (feedOn ? "on" : "OFF"));
             }
+            // The fiber's tube by name (FiberView's FiberSpan and FiberTrail0), drawn or not.
+            MeshRenderer Tube(string name)
+            {
+                Transform t = _flight.Fiber != null ? _flight.Fiber.transform.Find(name) : null;
+                return t != null ? t.GetComponent<MeshRenderer>() : null;
+            }
             // A flight flown with V presses replays bit for bit on the world it names (D-055: the log never sees V).
             IEnumerator Replays(string log, string where)
             {
@@ -389,12 +401,82 @@ namespace Fpv450.App
                 Task<ReplayResult> replay = Task.Run(() =>
                 {
                     using (var f = new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                        return FlightReplay.Run(f, id => id == inputs.WorldId ? inputs.World() : null, inputs.Drone.ContentHash);
+                        return FlightReplay.Run(f, id => id == inputs.WorldId ? inputs.World() : null, inputs.Drone.ContentHash,
+                            surfacesHash: inputs.Surfaces?.Hash ?? 0, tetherHash: inputs.Tether?.ContentHash ?? 0, materialsHash: inputs.MaterialsHash);
                 });
                 yield return Until(() => replay.IsCompleted, 60);
                 ReplayResult r = replay.IsCompleted && !replay.IsFaulted ? replay.Result : null;
                 Check(r != null && r.Outcome == ReplayOutcome.Match, "the flight " + where + ", flown with V presses, replays bit for bit: " +
                       (r != null ? r.Message : replay.IsFaulted ? replay.Exception.GetBaseException().Message : "not done in 60 s"));
+            }
+            // -smokelegs (p7g-legs 1.5): LegShots' flights in place of the flights below, each shot in the FPV and chase views
+            // once its leg shows its state, and its summary; then R's restart from the last, standing on four intact legs.
+            // The view as rendered, the feed off for the frame (F's toggle), to see the legs at the screen's resolution.
+            IEnumerator CleanShot(string name)
+            {
+                _flight.Pressed(false, true);
+                yield return null;
+                yield return Shot(name);
+                _flight.Pressed(false, true);
+                yield return null;
+            }
+            IEnumerator LegFlights(StartPoint start)
+            {
+                for (int i = 0; i < LegShots.Cases.Length; i++)
+                {
+                    LegShots.Case leg = LegShots.Cases[i];
+                    FlightChoices c = _setup.Choices;
+                    c.StartPoint = start.Name;
+                    c.Legs = true;
+                    c.Payload = 1.0;
+                    c.Wind = WindLevel.Calm;
+                    c.Rain = Rain.Sunny;
+                    c.TimeOfDay = 12.0;
+                    _legCase = leg;
+                    if (_flight != null && _flight.Host.Inputs != null) LegCase(_flight.Host.Inputs);
+                    Fly();
+                    yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null &&
+                                             _flight.Host.Session.State == SessionState.Flying && _flight.ShownFlight == _flight.Host.Session.Flights &&
+                                             _flight.Host.Session.Seed == leg.Seed, 60);
+                    FlightSessionHost host = _flight.Host;
+                    FlightSession session = host.Session;
+                    yield return Until(() => _flight.Pose.TimeS >= leg.ShotS, 30);
+                    PoseFrame pose = _flight.Pose;
+                    Check(LegShots.Shows(leg, pose), "the " + leg.Name + " flight (seed " + session.Seed + ") at " + pose.TimeS.ToString("0.00") + " s: " + LegShots.Describe(pose));
+                    yield return Shot("legs_" + leg.Name + "_fpv");
+                    yield return PressV("with the " + leg.Name + " leg");
+                    yield return Shot("legs_" + leg.Name + "_chase");
+                    yield return CleanShot("legs_" + leg.Name + "_chase_clean");
+                    if (i == LegShots.Cases.Length - 1)
+                    {
+                        // R's restart, from the pause: the next flight stands at the start, its legs intact.
+                        _legCase = null;
+                        int flights = session.Flights;
+                        host.Pause();
+                        host.Restart();
+                        yield return Until(() => session.Flights == flights + 1 && session.State == SessionState.Flying && _flight.ShownFlight == session.Flights, 30);
+                        yield return new WaitForSecondsRealtime(1);
+                        PoseFrame again = _flight.Pose;
+                        bool unbent = true;
+                        for (int k = 0; k < 4; k++) unbent &= again.LegSet[k].Equals(default(Double3));
+                        Check(session.Flights == flights + 1 && again.LegState == 0 && again.CornerState == 0 && unbent && again.Loose[0].Parts == 0,
+                              "R's restart stands on four intact legs: " + LegShots.Describe(again));
+                        yield return Shot("legs_restart_chase");
+                        yield return CleanShot("legs_restart_chase_clean");
+                    }
+                    yield return PressV("with the " + leg.Name + " leg");
+                    host.Pause();
+                    session.EndFlight(); // the pause's End flight
+                    yield return Until(() => _flight.Summary != null, 30);
+                    PostFlight summary = _flight.Summary;
+                    Check(summary != null && (i == LegShots.Cases.Length - 1 ? summary.Legs.Count == 0 : summary.Legs.Count > 0),
+                          "the summary's legs: " + (summary != null ? string.Join(" | ", summary.Legs.ConvertAll(l => summary.Describe(l))) : "none"));
+                    if (i < LegShots.Cases.Length - 1) yield return Shot("legs_" + leg.Name + "_summary");
+                    _setup.Choices = host.Inputs.Choices.Clone();
+                    _flight.Covered = true;
+                    _view = View.Setup; // the summary's Setup
+                }
+                _legCase = null;
             }
 
             yield return Until(() => Time.frameCount > 3, 5);
@@ -422,6 +504,15 @@ namespace Fpv450.App
 
             StartPoint ground = _setup.Starts.Length > 0 ? _setup.Starts[0] : default;
             Check(ground.Name != null, "the range lists its houses' start");
+            if (Array.IndexOf(args, "-smokelegs") >= 0)
+            {
+                yield return LegFlights(ground);
+                if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
+                else File.Delete(setupFile);
+                Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
+                Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
+                yield break;
+            }
             for (int n = 0; n < 2; n++)
             {
                 StartPoint start = ground;
@@ -432,7 +523,7 @@ namespace Fpv450.App
                 c.Legs = !stand;
                 c.Payload = 1.0;
                 c.Wind = wind;
-                c.Rain = Rain.Sunny;
+                c.Rain = stand ? Rain.Rain : Rain.Sunny; // the stand's in rain, for the wet ground
                 c.TimeOfDay = n == 0 ? 11.5 : 17.5;
                 // QA's finding 15: the second flight is set from the first's summary. With the keyboard barred, as in a
                 // pilot's build without the radio, it waits, and the view is the chosen start's, not the last flight's end.
@@ -485,6 +576,7 @@ namespace Fpv450.App
                     ulong seed = session.Seed;
                     string log = session.LogPath;
                     int flights = session.Flights;
+                    object line = session.Core.Tether;
                     host.Pause();
                     host.Inputs.KeyboardAllowed = false;
                     host.Restart();
@@ -494,10 +586,39 @@ namespace Fpv450.App
                     host.Inputs.KeyboardAllowed = true;
                     yield return new WaitForSecondsRealtime(1);
                     Check(session.Flights == flights + 1 && session.Seed != seed && session.LogPath != log, "Restart: a new flight with a new seed and log");
+                    PoseFrame again = _flight.Pose;
+                    MeshRenderer laid = Tube("FiberTrail0");
+                    Check(session.Core.Tether != null && !ReferenceEquals(session.Core.Tether, line) && again.FiberPaidOut < 0.5 &&
+                          (again.FiberTrailCount < 2 || laid != null && laid.enabled),
+                          "Restart lays the line again: a new line, " + again.FiberPaidOut.ToString("0.000") + " m paid out, its trail " + again.FiberTrailCount +
+                          " points drawn from the launch, the coil " + (_flight.Fiber.Coil != null ? "at " + (_flight.Fiber.Coil.ShownRadius * 1000).ToString("0.00") + " mm" : "as the model draws it"));
                 }
                 double rest = _flight.Pose.Position.Y;
                 Check(Math.Abs(rest - _flight.RestPose.Position.Y) < 0.01, "at rest at " + rest.ToString("0.000") + " m (start " + _flight.RestPose.Position.Y.ToString("0.000") + " m)");
                 Check(_flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal), "the OSD reads DISARMED at rest: " + Osd());
+                // The physics integration 2: surfaces.json's ground, the map's cuts and the fiber line from the table's launch.
+                FlightSetup built = session.Setup;
+                Check(built.Contacts.Surfaces != null && built.Wind.Cuts != null && built.Wind.Cuts.Length > 0 && built.Tether != null && session.Core.Tether != null &&
+                      built.TetherCoilPart == host.Inputs.Drone.Coil.Part && !built.TetherTwoWay && built.TetherLayout == null,
+                      "the flight carries surfaces.json's ground, the map's " + (built.Wind.Cuts != null ? built.Wind.Cuts.Length : 0) + " cuts and the line from the launch, " +
+                      _flight.Pose.FiberNodeCount + " nodes, the trail " + _flight.Pose.FiberTrailCount + " points");
+                // D-079, the props break (p7f-damage): props.blade's tables, each blade's factory pitch draw, the merged
+                // physics_materials.json with what a blade meets and the strikes; whole props (the stand's flight is a restart's).
+                bool whole = built.Propulsion.Rotor != null && session.Core.Propulsion.Rotor(0) != null;
+                for (int rotor = 0; whole && rotor < 4; rotor++)
+                    for (int blade = 0; blade < session.Core.Propulsion.Rotor(rotor).Blades; blade++)
+                        whole &= session.Core.Propulsion.Rotor(rotor).Blade(blade).Whole;
+                Check(whole && built.Asymmetry != null && built.Contacts.BladeStrikes && session.Core.Strikes != null &&
+                      built.Contacts.MaterialsHash == host.Inputs.MaterialsHash && built.Contacts.Materials.Length == host.Inputs.Materials.Length,
+                      "the flight carries the blade tables, the strikes and physics_materials.json 0x" + built.Contacts.MaterialsHash.ToString("X16") +
+                      " (" + built.Contacts.Materials.Length + " rows), its props whole");
+                if (session.Choices.Rain != Rain.Sunny)
+                {
+                    CoverRow straw = built.Contacts.Surfaces.Cover[(int)CoverKind.Straw];
+                    Check(SurfaceTable.MoistureOf(built.Rain) == Moisture.Wet && session.Core.Contacts.Cover(CoverKind.Straw).Equals(straw.Wet) && !straw.Wet.Equals(straw.Dry),
+                          "the rain flight loads wet ground: surfaces.json's " + SurfaceTable.MoistureOf(built.Rain) + " sets, the straw at its wet modulus " +
+                          session.Core.Contacts.Cover(CoverKind.Straw).ModulusMin.ToString("0.###E0") + " Pa against " + straw.Dry.ModulusMin.ToString("0.###E0") + " dry");
+                }
                 // p5-drone's bottle on its seat at the payload's size, and D02 at the stand's foot and heading.
                 Transform bottle = _flight.Bottle, drawn = _flight.Stand;
                 Check(bottle != null && (bottle.localPosition - DroneModels.BottleSeat).magnitude < 1e-6f
@@ -528,6 +649,15 @@ namespace Fpv450.App
                 Check(_flight.Osd.Row(0).StartsWith(FlightOsd.ArmedMode + " ", StringComparison.Ordinal) && shown.Centiamps > 0 && shown.MahDrawn > 0 &&
                       shown.PackCentivolts > 0 && shown.CellCentivolts == shown.PackCentivolts / _flight.Osd.Cells,
                       "the OSD reads AIR armed, with the current, the charge used and the pack: " + Osd());
+                PoseFrame high = _flight.Pose;
+                MeshRenderer span = Tube("FiberSpan"), trail = Tube("FiberTrail0");
+                Double3 last = high.FiberNodeCount > 0 ? high.FiberNodes[high.FiberNodeCount - 1] : default;
+                Vector3 exit = high.FiberNodeCount > 0 ? new Vector3((float)last.X, (float)last.Y, (float)last.Z) : Vector3.positiveInfinity;
+                Check(high.FiberNodeCount >= 2 && high.FiberPaidOut > 0 && span != null && span.enabled && span.bounds.SqrDistance(exit) < 1f &&
+                      (high.FiberTrailCount < 2 || trail != null && trail.enabled),
+                      "the line draws in the air: " + high.FiberNodeCount + " nodes through the exit at " + exit.ToString("0.00") + ", " + high.FiberPaidOut.ToString("0.00") +
+                      " m paid out, the trail " + high.FiberTrailCount + " points (" + _flight.Fiber.ChunkBuilds + " chunk builds), the coil " +
+                      (_flight.Fiber.Coil != null ? "at " + (_flight.Fiber.Coil.ShownRadius * 1000).ToString("0.00") + " mm" : "as the model draws it"));
                 yield return Shot("air_" + tag);
                 yield return PressV("in the air");
                 yield return Shot("air_chase_" + tag);
@@ -596,6 +726,7 @@ namespace Fpv450.App
                 FlightChoices c = _setup.Choices;
                 c.StartPoint = lastStart = ground.Name;
                 c.Legs = lastLegs = true;
+                c.Rain = Rain.Sunny;
                 c.TimeOfDay = lastHour = 14.0;
                 Fly();
                 FlightSessionHost host = _flight.Host;
@@ -657,6 +788,17 @@ namespace Fpv450.App
             }
             Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
             Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
+        }
+
+        // -smokelegs: the next flight's seed and start from its case; none (a restart) stands as a flight does.
+        void LegCase(SessionInputs inputs)
+        {
+            if (_legCase == null && inputs.Adjust == null) return;
+            inputs.NewSeed = () => _legCase != null ? _legCase.Seed : 1000;
+            inputs.Adjust = s =>
+            {
+                if (_legCase != null) LegShots.Apply(_legCase, s);
+            };
         }
 
         /// <summary>The house beside the ground start `track`, 6 m ahead and 14 m to the right, behind a 1.8 m fence; its

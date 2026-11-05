@@ -11,6 +11,7 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
@@ -29,6 +30,8 @@ namespace Fpv450.Tests.Session
         static DroneSpec _spec;
         static MaterialRow[] _materials;
         static ulong _materialsHash;
+        static SurfaceTable _surfaces;
+        static TetherTable _tether;
         string _dir;
 
         [OneTimeSetUp]
@@ -36,6 +39,8 @@ namespace Fpv450.Tests.Session
         {
             _spec = DroneSpec.Parse(File.ReadAllText(RepositoryFile("assets-src/drone/drone.json")));
             _materials = PhysicsMaterials.Parse(File.ReadAllText(RepositoryFile(PhysicsMaterials.RelativePath)), out _materialsHash);
+            _surfaces = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath)));
+            _tether = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath)));
         }
 
         [SetUp]
@@ -108,14 +113,16 @@ namespace Fpv450.Tests.Session
 
         // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
         // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
-        // choices. A field FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        // choices, and the line, which the golden does not fly (TheFlightCarriesTheGroundTheCutsAndTheLine). A field
+        // FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
         // The build's placement (D-066) is a pilot's flight's, as the replay's pilot flies it (ScriptedFlight); the golden
         // keeps the file's exact build, so the app's is compared with drone.json's own.
         [Test]
         public void TheFlightFliesTheGoldensEffects()
         {
             var choices = new HashSet<string> { "Seed", "Settings", "World", "Mass", "Wind", "Rain", "Contacts", "RuntimeObjects",
-                "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge" };
+                "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge",
+                "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass", "TetherTwoWay" };
             foreach (bool legs in new[] { true, false })
             {
                 Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
@@ -232,6 +239,95 @@ namespace Fpv450.Tests.Session
             Assert.That(new FlightChoices { Wind = WindLevel.Still }.Check(), Is.Not.Null);
             Rig rig = Make(i => i.Choices = new FlightChoices { Payload = 2.5 });
             Assert.Throws<ArgumentException>(() => rig.Session.Start());
+        }
+
+        // ---- The ground, the cuts and the line (physics integration 2) --------------------------------------------------
+
+        // The app's flight on the test range as FlightSessionHost builds it: surfaces.json's ground on its contacts, the soil
+        // under the start and the cover kinds at the rain's moisture set (D-021: Sunny dry, Rain wet, Severe rain
+        // saturated, the cover wet in both rains); the map's cuts in its wind (WindSetup.ForMap); and tether.json's line,
+        // laid from the table's launch behind the start (no layout), one-way, drone.json's coil full, legs on and legs off.
+        // The log's header carries the three back with the app's build, world, drone and ISA, and the log replays bit for
+        // bit with the repository's two files, as tools/replay replays a pilot's flight with its defaults.
+        [Test]
+        public void TheFlightCarriesTheGroundTheCutsAndTheLine()
+        {
+            FlightWorldChoice range = FlightWorlds.TestRange(RepositoryRoot());
+            CutSpec[] cuts = WindSetup.ForMap((MapWorld)range.Open().Query, WindLevel.Windy).Cuts;
+            Assert.That(cuts, Is.Not.Null.And.Not.Empty, "the test range has its cuts");
+            foreach ((bool legs, Rain rain, Moisture moisture) in new[] { (true, Rain.Sunny, Moisture.Dry), (false, Rain.Rain, Moisture.Wet), (true, Rain.SevereRain, Moisture.Saturated) })
+            {
+                string where = "legs " + (legs ? "on" : "off") + ", " + rain;
+                Rig rig = Make(i =>
+                {
+                    range.ApplyTo(i);
+                    i.Surfaces = _surfaces;
+                    i.Tether = _tether;
+                    i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Windy, Rain = rain };
+                });
+                rig.Session.Start();
+                FlightSetup s = rig.Session.Setup;
+                FlightCore core = rig.Session.Core;
+
+                // The ground: the table on the contacts, the soil under the start and the cover at the rain's set.
+                Assert.That(s.Contacts.Surfaces, Is.Not.Null, where + ": surfaces.json on the contacts");
+                Assert.That(s.Contacts.Surfaces.Hash, Is.EqualTo(_surfaces.Hash));
+                Assert.That(SurfaceTable.MoistureOf(s.Rain), Is.EqualTo(moisture), where + ": the rain's moisture");
+                var under = new GroundSample[1];
+                s.World.SampleGround(new[] { new XZ(s.StartPosition.X, s.StartPosition.Z) }, under);
+                string surface = s.World.Query.SurfaceName(under[0].Surface);
+                SurfaceRow row = Array.Find(_surfaces.Surfaces, r => r.Name == surface);
+                Assert.That(row.Name, Is.EqualTo(surface), where + ": the start's surface '" + surface + "' is in the table");
+                var soil = (SoilSet[])typeof(ContactModel).GetField("_soil", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(core.Contacts);
+                Assert.AreEqual(Dump(row.Set(moisture)), Dump(soil[under[0].Surface]), where + ": " + surface + " at its " + moisture + " set");
+                if (moisture != Moisture.Dry) Assert.AreNotEqual(Dump(row.Dry), Dump(soil[under[0].Surface]), where + ": not the dry set");
+                for (int k = 0; k < _surfaces.Cover.Length; k++)
+                    Assert.AreEqual(Dump(_surfaces.Cover[k].Set(moisture)), Dump(core.Contacts.Cover((CoverKind)k)), where + ": cover " + (CoverKind)k);
+                TestContext.WriteLine(where + ": the start on " + surface + " at its " + moisture + " set, the cover " + (moisture == Moisture.Dry ? "dry" : "wet"));
+
+                // The cuts, and the line from its launch.
+                Assert.AreEqual(Dump(cuts), Dump(s.Wind.Cuts), where + ": the map's cuts in the wind");
+                Assert.That(s.Tether, Is.SameAs(_tether), where + ": tether.json's line");
+                Assert.That((s.TetherCoilPart, s.TetherSpoolMass, s.TetherTwoWay, s.TetherLayout), Is.EqualTo((_spec.Coil.Part, _spec.Coil.SpoolMass, false, (Double3[])null)),
+                    where + ": drone.json's coil, one-way, laid from the table's launch");
+                Assert.That(rig.Session.Loadout.CoilPaidOut, Is.EqualTo(0.0), "the coil full at take-off");
+                Assert.That(core.Tether, Is.Not.Null, where + ": the flight flies the line");
+                Assert.That(core.Tether.TwoWay, Is.False);
+
+                // At rest 300 ms: the line through its nodes, its trail laid behind the start.
+                rig.Run(300);
+                PoseFrame pose = rig.Session.Poses.Read().Current;
+                TestContext.WriteLine(where + ": at rest, the line " + pose.FiberNodeCount + " nodes, the trail " + pose.FiberTrailCount + " points, "
+                    + pose.FiberPaidOut.ToString("0.000") + " m paid out");
+                Assert.That(pose.FiberNodeCount, Is.GreaterThanOrEqualTo(2), where + ": the span's nodes are published");
+                Assert.That(core.State.Crashed, Is.False);
+
+                rig.Session.EndFlight();
+                PostFlight p = rig.Session.ReadSummary();
+                LogHeader h = p.Log.Header;
+                Assert.That(p.Log.Complete, p.Log.CutReason);
+                Assert.That(h.Unknown, Is.Empty, "every header entry read back");
+                Assert.That((h.Build, h.WorldId, h.DroneHash, h.Isa), Is.EqualTo(("inputtests", range.Id, _spec.ContentHash, HostIsa.Flags)), "the app's own entries");
+                Assert.That(h.Contacts.Surfaces, Is.Not.Null, where + ": the header carries surfaces.json");
+                Assert.AreEqual(Dump(s.Contacts.Surfaces), Dump(h.Contacts.Surfaces), where + ": the whole table and its hash");
+                Assert.That(h.Rain, Is.EqualTo(s.Rain));
+                Assert.AreEqual(Dump(s.Wind.Cuts), Dump(h.Wind.Cuts), where + ": the cuts");
+                Assert.That(h.Tether, Is.Not.Null, where + ": the header carries tether.json");
+                Assert.That(h.Tether.ContentHash, Is.EqualTo(_tether.ContentHash));
+                Assert.AreEqual(Dump(_tether.Rows), Dump(h.Tether.Rows), where + ": every row");
+                Assert.That((h.TetherCoilPart, h.TetherSpoolMass, h.TetherTwoWay, h.TetherLayout), Is.EqualTo((s.TetherCoilPart, s.TetherSpoolMass, false, (Double3[])null)));
+
+                // tools/replay's defaults: the repository's surfaces.json, tether.json and physics_materials.json, by their hashes.
+                ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+                ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+                ReplayResult replay;
+                using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                        materialsHash: _materialsHash);
+                TestContext.WriteLine(where + ": " + replay.Message);
+                Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), where + ": " + replay.Message);
+                rig.Session.Dispose();
+            }
         }
 
         // ---- Arm and disarm ---------------------------------------------------------------------------------------------
@@ -498,7 +594,7 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines().FindAll(l => l.StartsWith("failsafe at ")).Count, Is.EqualTo(1), "the summary lists the failsafe");
             ReplayResult replay;
             using (FileStream f = File.OpenRead(log))
-                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash);
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
             if (!restart) return;
 
@@ -607,6 +703,41 @@ namespace Fpv450.Tests.Session
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot), "the first flight ended by the pilot");
         }
 
+        // R (D-078) and the pause's Restart are a new flight: its line is laid again from the start, the coil full and the
+        // trail the launch's, as the drone stands again at its start; the first flight's line had paid out as it flew.
+        [Test]
+        public void RestartLaysTheLineAgain()
+        {
+            Rig rig = Make(i =>
+            {
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm };
+            });
+            rig.Session.Start();
+            FiberLine first = rig.Session.Core.Tether;
+            int laid = first.TrailCount;
+            double coil = first.CoilLineAtStart;
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.75;
+            rig.Radio.Pitch = 0.3;
+            rig.Run(1500);
+            double paid = first.PaidOut;
+            PoseFrame flown = rig.Session.Poses.Read().Current;
+            TestContext.WriteLine("the first flight: " + paid.ToString("0.00") + " m paid out, the trail " + first.TrailCount + " points (" + laid + " laid), "
+                + flown.FiberNodeCount + " nodes, at " + flown.Position.Y.ToString("0.0") + " m");
+            Assert.That(paid, Is.GreaterThan(1), "the first flight paid line out");
+            Assert.That(flown.FiberPaidOut, Is.EqualTo(paid), "the pose publishes it");
+
+            Assert.That(rig.Session.Restart(), Is.True);
+            FiberLine second = rig.Session.Core.Tether;
+            Assert.That(second, Is.Not.SameAs(first), "a new line");
+            Assert.That((second.PaidOut, second.TrailCount, second.CoilLineAtStart), Is.EqualTo((0.0, laid, coil)), "laid again from the start, the coil full");
+            PoseFrame start = rig.Session.Poses.Read().Current;
+            Assert.That((start.Step, start.FiberPaidOut, start.FiberTrailCount), Is.EqualTo((0L, 0.0, laid)), "the new flight's first pose");
+            rig.Session.Dispose();
+        }
+
         // D-078, D-080: each step publishes the stick sample it flew with its signals, for the OSD's sticks and throttle:
         // the test radio's report through the raw map, stamped no later than the step.
         [Test]
@@ -660,11 +791,16 @@ namespace Fpv450.Tests.Session
                 if (core.Trace.ContactsTouching > 0 && crashY - core.State.Position.Y > 0.5) floor++;
             }
             double rest = rig.Session.Setup.StartPosition.Y;
+            // Since model 46 the fall's touch breaks legs (p7g-legs): then it lies lower than it stands, on what is left.
+            bool lost = false;
+            for (int c = 0; c < LegDamage.Legs; c++) lost |= (core.Contacts.Legs.Flags(c) & (LegFlags.Broken | LegFlags.Detached)) != 0;
             TestContext.WriteLine("crashed at step " + crashed + ", " + crashY.ToString("0.000") + " m; 1.5 s later " + core.State.Position.Y.ToString("0.000") + " m (standing "
-                                  + rest.ToString("0.000") + " m), " + core.State.Velocity.Length().ToString("0.000") + " m/s, on the floor " + floor + " of the 1500 steps");
+                                  + rest.ToString("0.000") + " m), " + core.State.Velocity.Length().ToString("0.000") + " m/s, on the floor " + floor + " of the 1500 steps; legs "
+                                  + string.Join(", ", Array.ConvertAll(new[] { 0, 1, 2, 3 }, c => core.Contacts.Legs.Flags(c).ToString())));
             Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the crash ends nothing");
             Assert.That(core.State.Step, Is.EqualTo(crashed + 1500), "stepping on under physics");
-            Assert.That(floor > 0 && Math.Abs(core.State.Position.Y - rest) < 0.02, "fell from the box onto the floor, and lies there");
+            Assert.That(floor > 0 && (lost ? core.State.Position.Y < rest : Math.Abs(core.State.Position.Y - rest) < 0.02),
+                "fell from the box onto the floor, and lies there (lower than it stands when the fall broke a leg)");
             rig.Session.EndFlight(); // the pause's End flight
             Assert.That(rig.Session.End.Kind, Is.EqualTo(FlightEndKind.Pilot));
 
@@ -689,6 +825,187 @@ namespace Fpv450.Tests.Session
             Assert.That(p.BatteryUsed, Is.EqualTo((2 - core.State.PackCharge0 - core.State.PackCharge1) / 2).Within(1e-15));
             Assert.That(p.Seed, Is.EqualTo(rig.Session.Seed));
             Assert.That(p.Lines(), Has.Member("log " + rig.Session.LogPath));
+        }
+
+        // D-079, p7f-damage 1.3 in the player: the app's flight carries props.blade's tables (the rotors flown as blade
+        // elements, the header's drone internals at tag 26), the merged physics_materials.json with what a blade meets, the
+        // strikes and each blade's factory pitch (the asymmetry's "prop.blade_pitch"). A steel wall's face stands 1 mm inside
+        // the front-left disc's rim of the drone on its legs, turned 45° so that fl leads and no other disc reaches it; the
+        // wall starts 30 mm over the disc, so the props spin up free. Armed, the drone climbs along the face: at the wall's
+        // foot the blades' passes chip and crush their tips back to it and push the drone off. That ends nothing, and no crash:
+        // the summary lists each blade's damage, worded by FlightSummary.Describe. (Pressed 1 mm into the face from rest, the
+        // idle's spin-up grinds and jams the rotor instead.) The log replays bit for bit with the repository's files
+        // (tools/replay's defaults), and R's restart flies whole props on its own draws.
+        [Test]
+        public void AWallGrazeDamagesABladeAndTheSummaryListsIt()
+        {
+            const double depth = 0.001;
+            const int fl = 3; // PropStrikes' corners: rr, fr, rl, fl
+            double radius = _spec.Props.Diameter / 2, face = 0;
+            Rig rig = Make(i => i.Adjust = s =>
+            {
+                s.StartAttitude = StrikeScenarios.Heading(StrikeScenarios.LeadHeading);
+                Double3 hub = s.StartAttitude.Rotate(_spec.Motors[fl].Position);
+                face = s.StartPosition.Z + hub.Z + radius - depth;
+                for (int c = 0; c < 4; c++)
+                    if (c != fl)
+                        Assert.That(s.StartPosition.Z + s.StartAttitude.Rotate(_spec.Motors[c].Position).Z + radius, Is.LessThan(face - 0.05), "only fl reaches the wall");
+                double low = s.StartPosition.Y + hub.Y + 0.03, high = 2.0;
+                ShapeGeometry wall = Box(new Double3(s.StartPosition.X + hub.X, (low + high) / 2, face + 0.1), new Double3(0.5, (high - low) / 2, 0.1),
+                    s.World.Query.MaterialId("steel"));
+                s.RuntimeObjects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("wall", new[] { wall }) }.ToArray();
+            });
+            rig.Session.Start();
+            FlightSetup setup = rig.Session.Setup;
+            FlightCore core = rig.Session.Core;
+            Assert.That(setup.Propulsion.Rotor, Is.Not.Null, "props.blade's tables: the rotors fly as blade elements");
+            Assert.That(setup.Asymmetry, Is.Not.Null, "the asymmetry, whose draws give each blade's factory pitch");
+            Assert.That((setup.Contacts.MaterialsHash, setup.Contacts.BladeStrikes), Is.EqualTo((_materialsHash, true)), "the merged table, the strikes on");
+            Assert.That(core.Strikes, Is.Not.Null, "the strikes fly");
+            double[] pitch = Pitches(core);
+            Assert.That(Array.TrueForAll(pitch, x => Math.Abs(x) <= setup.Asymmetry.BladePitchBound) && Array.Exists(pitch, x => x != 0), "each blade's factory pitch drawn");
+            Assert.That(Whole(core), "whole props at the start");
+
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.62; // lift off and climb along the wall
+            rig.Run(400);
+            BladeState a = core.Propulsion.Rotor(fl).Blade(0), b = core.Propulsion.Rotor(fl).Blade(1);
+            TestContext.WriteLine("fl's blades " + (a.TipRadius * radius * 1000).ToString("0.000") + " and " + (b.TipRadius * radius * 1000).ToString("0.000") + " mm; at "
+                + core.State.Position.ToString() + ", " + core.State.Velocity.Length().ToString("0.000") + " m/s, fl at " + core.State.RotorSpeed[fl].ToString("0") + " rad/s");
+            Assert.That(Math.Min(a.TipRadius, b.TipRadius), Is.LessThan(1), "a blade of fl cut back");
+            for (int c = 0; c < 3; c++)
+                Assert.That(core.Propulsion.Rotor(c).Blade(0).Whole && core.Propulsion.Rotor(c).Blade(1).Whole, "rotor " + c + " untouched");
+            Assert.That(core.State.Position.Z, Is.LessThan(setup.StartPosition.Z), "pushed off the wall");
+            Assert.That(core.State.Crashed, Is.False, "a graze is no crash");
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the damage ends nothing");
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            LogHeader h = p.Log.Header;
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, p.Log.CutReason);
+            Assert.That(h.Blade != null && h.Internals != null && h.Propulsion.Rotor != null, "the header carries the blade tables and the motors' internals");
+            Assert.That((h.Contacts.MaterialsHash, h.Contacts.BladeStrikes), Is.EqualTo((_materialsHash, true)));
+            Assert.That(Array.TrueForAll(h.Contacts.Materials, m => m.Hardness > 0 && m.Density > 0), "every row with what a blade meets");
+            Assert.That(p.HasCrash, Is.False);
+            Assert.That(p.Log.Count(EventKind.BladeDamaged), Is.GreaterThan(0));
+            int prop = _spec.PartIndex("prop_fl");
+            Assert.That(p.Damage.Count, Is.GreaterThan(0), "the summary has the damage");
+            foreach (PropDamage d in p.Damage)
+            {
+                Assert.That(((int)d.Last.Event.Part, d.Slot == PropDamage.JamSlot), Is.EqualTo((prop, false)), "fl's blades, no jam");
+                Assert.That(d.Last.Event.A, Is.EqualTo(core.Propulsion.Rotor(fl).Blade(d.Slot).TipRadius), "the last event leaves the blade's tip");
+                string line = p.Describe(d);
+                Assert.That(p.Lines(), Has.Member(line));
+                StringAssert.StartsWith("damage at ", line);
+                StringAssert.Contains(p.Log.Describe(d.Last.Event), line, "worded by FlightSummary.Describe");
+                StringAssert.Contains("'wall' shape 0 (material steel)", line);
+            }
+
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+
+            Assert.That(rig.Session.Restart(), Is.True);
+            FlightCore again = rig.Session.Core;
+            Assert.That(again, Is.Not.SameAs(core));
+            Assert.That(Whole(again), "R's restart: whole props");
+            Assert.That(Pitches(again), Is.Not.EqualTo(pitch), "on the new flight's own factory pitch draws");
+            rig.Session.Dispose();
+        }
+
+        // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.5 m/s, disarmed, from 10 mm over its
+        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 14's leg strengths; seed 3's until model 50, where
+        // its rear left holds). The rear-left foot meets the kerb first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
+        // the rear left parts at its clamp's edge on the kerb. That ends nothing; the summary lists both legs with their state,
+        // the landing or the object, and the speed, worded from the log. R's restart (the drone standing, as a flight starts)
+        // has four intact legs on its own draws.
+        [Test]
+        public void TheSummaryNamesTheDamage()
+        {
+            const int rr = 0, fr = 1, rl = 2, fl = 3; // Corners order
+            const double kerb = 0.008;
+            ulong seed = 14;
+            bool first = true;
+            Rig rig = Make(i =>
+            {
+                i.NewSeed = () => seed++;
+                i.Adjust = s =>
+                {
+                    if (!first) return; // the restart stands as a flight does
+                    first = false;
+                    Double3 foot = s.Contacts.Legs.Foot[rl];
+                    s.StartPosition = s.StartPosition + new Double3(0, kerb + 0.002, 0);
+                    s.StartVelocity = new Double3(0, -1.5, 0);
+                    ShapeGeometry box = Box(new Double3(s.StartPosition.X + foot.X, kerb / 2, s.StartPosition.Z + foot.Z), new Double3(0.05, kerb / 2, 0.015),
+                        s.World.Query.MaterialId("steel"));
+                    s.RuntimeObjects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("kerb", new[] { box }) }.ToArray();
+                };
+            });
+            rig.Session.Start();
+            rig.Run(1500);
+            FlightCore core = rig.Session.Core;
+            Assert.That(rig.Session.State, Is.EqualTo(SessionState.Flying), "the damage ends nothing");
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, p.Log.CutReason);
+            DamagedLeg bent = p.Legs.Find(l => l.Corner == fr), lost = p.Legs.Find(l => l.Corner == rl);
+            Assert.That(p.Legs.ConvertAll(l => l.Corner), Is.EqualTo(new[] { fr, rl }), "the two damaged legs, in Corners order");
+            Assert.That(bent.State, Is.EqualTo(LegFlags.Set | LegFlags.Cracked), "front right bent and cracked, still on");
+            Assert.That(bent.State, Is.EqualTo((LegFlags)(byte)(core.Trace.LegState >> (8 * fr))), "as the flight left it");
+            Assert.That(bent.Set, Is.EqualTo(core.Trace.LegSet[fr]));
+            Assert.That((bent.Cause.Event.Kind, (int)bent.Cause.Event.Part, bent.Cause.Event.Object), Is.EqualTo((EventKind.LegCracked, _spec.PartIndex("leg_fr"), (int)WorldIds.Ground)),
+                "its worst state's event, on a landing");
+            Assert.That(lost.State & LegFlags.Broken, Is.EqualTo(LegFlags.Broken), "rear left broken");
+            Assert.That((lost.Cause.Event.Kind, (int)lost.Cause.Event.Part, lost.Object, lost.Material), Is.EqualTo((EventKind.LegBroken, _spec.PartIndex("leg_rl"), "kerb", "steel")),
+                "its worst state's event, on the kerb");
+            Assert.That((bent.Cause.Event.C > 0, lost.Cause.Event.C > 0), Is.EqualTo((true, true)), "the speeds they touched at");
+            string bentLine = p.Describe(bent), lostLine = p.Describe(lost);
+            Assert.That(p.Lines(), Has.Member(bentLine).And.Member(lostLine));
+            StringAssert.StartsWith("leg front right bent ", bentLine);
+            StringAssert.Contains(", cracked at ", bentLine);
+            Assert.That(bent.Object, Is.EqualTo("the ground"));
+            StringAssert.EndsWith(": landed on the ground" + (bent.Material.Length > 0 ? " (" + bent.Material + ")" : "") + " at "
+                + bent.Cause.Event.C.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " m/s", bentLine);
+            StringAssert.StartsWith("leg rear left broken at ", lostLine);
+            StringAssert.EndsWith(": hit kerb (steel) at " + lost.Cause.Event.C.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " m/s", lostLine);
+
+            // R's restart: a new flight, its legs intact on their own draws, standing.
+            Assert.That(rig.Session.Restart(), Is.True);
+            FlightCore again = rig.Session.Core;
+            Assert.That(again, Is.Not.SameAs(core));
+            Assert.That(rig.Session.Seed, Is.EqualTo(15UL), "the next flight's own seed");
+            rig.Run(500);
+            ref readonly PosePair pair = ref rig.Session.Poses.Read();
+            for (int c = rr; c <= fl; c++)
+            {
+                Assert.That((again.Contacts.Legs.Flags(c), again.Contacts.Corner(c)), Is.EqualTo((LegFlags.None, CornerState.None)), "R's restart: leg " + c + " intact");
+                Assert.That(pair.Current.LegSet[c], Is.EqualTo(default(Double3)), "and drawn unbent");
+            }
+            Assert.That((pair.Current.LegState, pair.Current.CornerState), Is.EqualTo((0u, 0u)), "the pose the app draws: four intact legs");
+            for (int i = 0; i < LoosePoses.Slots; i++) Assert.That(pair.Current.Loose[i].Parts, Is.EqualTo(0), "no piece dropped");
+            rig.Session.Dispose();
+        }
+
+        static double[] Pitches(FlightCore core)
+        {
+            var pitch = new double[8];
+            for (int c = 0; c < 4; c++)
+                for (int b = 0; b < 2; b++)
+                    pitch[c * 2 + b] = core.Propulsion.Rotor(c).Blade(b).FactoryPitch;
+            return pitch;
+        }
+
+        static bool Whole(FlightCore core)
+        {
+            for (int c = 0; c < 4; c++)
+                for (int b = 0; b < 2; b++)
+                    if (!core.Propulsion.Rotor(c).Blade(b).Whole || core.Propulsion.Rotor(c).Blade(b).TipRadius != 1) return false;
+            return true;
         }
 
         // app-flow "A crash into the car" on the test range (QA's finding 3): from the track start, turned to 103° to face
@@ -744,7 +1061,7 @@ namespace Fpv450.Tests.Session
             // The log replays on the map it names.
             ReplayResult replay;
             using (FileStream f = File.OpenRead(rig.Session.LogPath))
-                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash);
+                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, materialsHash: _materialsHash);
             TestContext.WriteLine("replay: " + replay.Outcome + ", " + replay.Steps + " steps " + replay.Message);
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
         }

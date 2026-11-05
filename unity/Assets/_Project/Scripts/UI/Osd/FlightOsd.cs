@@ -17,17 +17,20 @@ namespace Fpv450.UI
     /// <item>0, from 0: the flight mode, "AIR" while armed and "DISARMED" while disarmed (D-057), from the pose's arm state.</item>
     /// <item>0, to 26: the altitude, "&gt;" and whole metres above the rest pose.</item>
     /// <item>7, 13–15: the reticle.</item>
+    /// <item>7, 24–27: the throttle (D-080), Betaflight's element, in the middle right of the picture (the pilot's): on
+    /// the reticle's row, which holds the frame's vertical centre, at the right edge of the other right-hand elements; its
+    /// glyph, then the percent as "%3d", from the stick sample the flight flies (FeedSignals.Sticks) by Betaflight's
+    /// calculateThrottlePercent.</item>
     /// <item>10, 0–7: the armament label "! SAFE !" (D-011), always.</item>
-    /// <item>10, 24–27: the throttle (D-080), Betaflight's element: its glyph, then the percent as "%3d", from the stick
-    /// sample the flight flies (FeedSignals.Sticks) by Betaflight's calculateThrottlePercent.</item>
     /// <item>11, 0–5: the flight timer, MM:SS of flight time.</item>
     /// <item>11, to 27: the charge used, mAh, integrated from the current (Betaflight's mAh drawn), its unit "MAH".</item>
     /// <item>12, 0–5: a battery mark and the average cell voltage; 7–22: the name "Svinoriz 10 Opto" (D-011), or a warning
     /// over it; to 27: the distance home, km.</item>
     /// <item>13, 0–5: a battery mark and the pack voltage; to 26: the current, A, and its unit at 27.</item>
-    /// <item>2–6, 2–8 and 20–26, while StickOverlay is on (X, D-078): Betaflight's stick overlay, the left stick and the
-    /// right, either side of the reticle, from the stick sample the flight flies (FeedSignals.Sticks).</item>
     /// </list>
+    /// <para>While StickOverlay is on (X, D-078, D-084), the stick overlay: two small boxes centred under the name, the left
+    /// stick's and the right's, from the stick sample the flight flies (FeedSignals.Sticks). The feed draws them in pixels
+    /// (<see cref="Overlay"/>, FeedSticks), never in the grid, at its field rate, never at the text's refresh.</para>
     /// <para>Betaflight's battery path, at its 50 Hz battery tasks, one per 20 ms field window of sim time (FeedSignals'
     /// field means: PackVolts, MotorCurrentTotalA):</para>
     /// <list type="bullet">
@@ -72,14 +75,13 @@ namespace Fpv450.UI
         public const string MahUnit = "MAH";
 
         /// <summary>
-        /// Betaflight 4.5's symbols this model writes, each U+E000 plus its code in Betaflight's font
-        /// (drivers/osd_symbols.h); the feed's ROM (FeedFont) draws them after Godot's glyphs.
+        /// Betaflight 4.5's symbol this model writes, U+E000 plus its code in Betaflight's font (drivers/osd_symbols.h);
+        /// the feed's ROM (FeedFont) draws it after Godot's glyphs.
         /// </summary>
-        public const char SymThr = '\uE004', SymStickSpriteHigh = '\uE008', SymStickSpriteMid = '\uE009', SymStickSpriteLow = '\uE00A',
-            SymStickCenter = '\uE00B', SymStickVertical = '\uE016', SymStickHorizontal = '\uE017';
+        public const char SymThr = '\uE004';
 
         /// <summary>Every symbol above, for the ROM's check.</summary>
-        public const string Symbols = "\uE004\uE008\uE009\uE00A\uE00B\uE016\uE017";
+        public const string Symbols = "\uE004";
 
         /// <summary>The cells in series: Propulsion.SeriesCells, PackLow's.</summary>
         public int Cells;
@@ -87,7 +89,7 @@ namespace Fpv450.UI
         /// <summary>The flight's min_check, µs (FcSettings): the throttle element's 0 %.</summary>
         public double MinCheck = FcSettings.Default.min_check;
 
-        /// <summary>Betaflight's stick overlay, both sticks (X, D-078; off until the pilot turns it on).</summary>
+        /// <summary>The stick overlay, both sticks (X, D-078, D-084; off until the pilot turns it on).</summary>
         public bool StickOverlay;
 
         /// <summary>The grid, [row, column]; blank until the first Build.</summary>
@@ -124,11 +126,7 @@ namespace Fpv450.UI
         const float LowLinkFraction = 0.35f;
         const int RowTop = 0, RowReticle = 7, RowArmed = 10, RowTimer = 11, RowCell = 12, RowPack = 13;
         const int ColLeft = 0, ColStack = 1, ColReticle = 13, ColName = 7, ColAltEnd = 26, ColRightEnd = 27, ColAmpsEnd = 26;
-        /// <summary>The stick overlays' top row and left columns: under the top row, centred 9 columns either side of the
-        /// reticle's middle.</summary>
-        const int RowSticks = 2, ColLeftStick = 2, ColRightStick = 20;
-        // osd_elements.c: OSD_STICK_OVERLAY_WIDTH, _HEIGHT, _SPRITE_HEIGHT and _VERTICAL_POSITIONS; rx.h's PWM range.
-        const int OverlayWidth = 7, OverlayHeight = 5, SpriteHeight = 3, VerticalPositions = OverlayHeight * SpriteHeight;
+        // rx.h's PWM range.
         const int PwmRangeMin = 1000, PwmRangeMax = 2000;
         static readonly string Airframe = Name.ToUpperInvariant();
         static readonly CultureInfo Invariant = CultureInfo.InvariantCulture;
@@ -168,6 +166,22 @@ namespace Fpv450.UI
 
         /// <summary>Main thread, once a frame: the stick sample the flight flies (FeedSignals.Sticks).</summary>
         public void Sticks(in StickSample sticks) => _now.Sticks = sticks;
+
+        /// <summary>
+        /// The stick overlay (X, D-084) at the latest stick sample, never the text's 12 Hz refresh; the feed takes it once
+        /// a field. Mode 2, Betaflight's overlay_radio_mode default and a TX12's: the left box the throttle up and the yaw
+        /// across, the right the pitch up and the roll across, each clamped to its travel. Centred under the name's place,
+        /// a warning over the name included. Off: default.
+        /// </summary>
+        public FeedSticks Overlay
+        {
+            get
+            {
+                if (!StickOverlay) return default;
+                StickSample s = _now.Sticks;
+                return FeedSticks.Under(RowCell, ColName, Airframe.Length, (float)s.Yaw, (float)(2 * s.Throttle - 1), (float)s.Roll, (float)s.Pitch);
+            }
+        }
 
         /// <summary>
         /// Main thread, once a frame: the field means of the latest whole 20 ms window of sim time, numbered (the
@@ -231,7 +245,7 @@ namespace Fpv450.UI
             PutRight(RowTop, ColAltEnd, ">" + Math.Max(0, (int)Math.Round(r.AltitudeM)).ToString(Invariant) + "m");
             Put(RowReticle, ColReticle, "{|}");
             Put(RowArmed, ColLeft, Armament);
-            PutRight(RowArmed, ColRightEnd, ThrottleText(ThrottlePercent(PwmRangeMin + 1000 * r.Sticks.Throttle, MinCheck)));
+            PutRight(RowReticle, ColRightEnd, ThrottleText(ThrottlePercent(PwmRangeMin + 1000 * r.Sticks.Throttle, MinCheck)));
 
             int seconds = (int)r.ElapsedSeconds;
             Put(RowTimer, ColLeft, "[");
@@ -262,37 +276,7 @@ namespace Fpv450.UI
                     Grid[RowCell, ColName + c] = ' ';
                 Put(RowCell, ColName + (Airframe.Length - warning.Length) / 2, warning);
             }
-
-            // Betaflight's overlay_radio_mode 2 (its default, and a TX12's): the left stick the throttle up and down and
-            // the yaw across, the right the pitch and the roll. The flight's controller reads the sample as these channels.
-            if (StickOverlay)
-            {
-                DrawStick(ColLeftStick, PwmRangeMin + 1000 * r.Sticks.Throttle, 1500 + 500 * r.Sticks.Yaw);
-                DrawStick(ColRightStick, 1500 + 500 * r.Sticks.Pitch, 1500 + 500 * r.Sticks.Roll);
-            }
         }
-
-        // One stick's overlay at RowSticks, from its channels' rcData (µs), as osd_elements.c draws it: the background, a
-        // 7 × 5 cross (the vertical axis down the middle column, the horizontal across the middle row, the centre where
-        // they meet), then the cursor over it. Each channel is constrained to PWM_RANGE_MIN to PWM_RANGE_MAX − 1 and
-        // scaled by scaleRange's integer division: 7 columns across, 15 positions down, 3 to a row, whose sprite (high,
-        // mid or low in its cell) is the position's remainder.
-        void DrawStick(int col, double vertical, double horizontal)
-        {
-            const int midX = (OverlayWidth - 1) / 2, midY = (OverlayHeight - 1) / 2;
-            for (int y = 0; y < OverlayHeight; y++) Grid[RowSticks + y, col + midX] = SymStickVertical;
-            for (int x = 0; x < OverlayWidth; x++) Grid[RowSticks + midY, col + x] = SymStickHorizontal;
-            Grid[RowSticks + midY, col + midX] = SymStickCenter;
-            int cursorX = ScaleRange(Constrained(horizontal), OverlayWidth);
-            int cursorY = VerticalPositions - 1 - ScaleRange(Constrained(vertical), VerticalPositions);
-            Grid[RowSticks + cursorY / SpriteHeight, col + cursorX] = (char)(SymStickSpriteHigh + cursorY % SpriteHeight);
-        }
-
-        // constrain(rcData, PWM_RANGE_MIN, PWM_RANGE_MAX − 1), a float passed to scaleRange's int: truncated.
-        static int Constrained(double rcData) => (int)Math.Max(PwmRangeMin, Math.Min(PwmRangeMax - 1, rcData));
-
-        // scaleRange(x, PWM_RANGE_MIN, PWM_RANGE_MAX, 0, to), x in range.
-        static int ScaleRange(int x, int to) => (x - PwmRangeMin) * to / (PwmRangeMax - PwmRangeMin);
 
         /// <summary>The grid's row as text.</summary>
         public string Row(int row)

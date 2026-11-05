@@ -63,6 +63,21 @@ class Mesh:
         return sorted({slot for _, _, _, slot in self.faces})
 
 
+def merged(meshes):
+    """One mesh of the vertices and faces of `meshes` in order, their smooth slots, corner normals, vertex normals and
+    second UVs carried along: what a LOD and the parts drawn with it draw together."""
+    out = Mesh()
+    for m in meshes:
+        v0, f0 = len(out.vertices), len(out.faces)
+        out.vertices.extend(m.vertices)
+        out.faces.extend(([i + v0 for i in indices], normal, uvs, slot) for indices, normal, uvs, slot in m.faces)
+        out.smooth |= m.smooth
+        out.corner_normals.update({f + f0: n for f, n in m.corner_normals.items()})
+        out.normals.update({i + v0: n for i, n in m.normals.items()})
+        out.uv2.update({i + v0: uv for i, uv in m.uv2.items()})
+    return out
+
+
 def uv_upright(p, normal):
     """The UV in metres of a point on a face with this outward normal (AST-07, knowledge.md section 14.4): the
     face's dominant axis is dropped and V runs up on anything vertical. Ties, as on chamfers and corners, go to Z,

@@ -21,25 +21,25 @@
   "lods": [
     {
       "mesh": "D01_legs_on_LOD0",
-      "tris": 17382,
+      "tris": 11262,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD1",
-      "tris": 5460,
+      "tris": 4756,
       "switch_distance_m": 3.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD2",
-      "tris": 2208,
+      "tris": 1804,
       "switch_distance_m": 10.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_on_LOD3",
-      "tris": 376,
+      "tris": 280,
       "switch_distance_m": 35.0,
       "thin_wire": false
     }
@@ -1238,6 +1238,392 @@
       ],
       "radius_m": 0.00225,
       "material": "plastic"
+    }
+  ],
+  "readable": [
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_coil_pack",
+      "kind": "coil_pack",
+      "tris": 5248
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_coil_pack",
+      "kind": "coil_pack",
+      "tris": 120
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_coil_pack",
+      "kind": "coil_pack",
+      "tris": 60
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_coil_pack",
+      "kind": "coil_pack",
+      "tris": 24
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_stub_rr",
+      "kind": "stub_rr",
+      "tris": 34
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_leg_rr",
+      "kind": "leg_rr",
+      "tris": 92
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_tjoint_rr",
+      "kind": "tjoint_rr",
+      "tris": 80
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_skid_rr",
+      "kind": "skid_rr",
+      "tris": 92
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_stub_fr",
+      "kind": "stub_fr",
+      "tris": 34
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_leg_fr",
+      "kind": "leg_fr",
+      "tris": 92
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_tjoint_fr",
+      "kind": "tjoint_fr",
+      "tris": 80
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_skid_fr",
+      "kind": "skid_fr",
+      "tris": 92
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_stub_rl",
+      "kind": "stub_rl",
+      "tris": 34
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_leg_rl",
+      "kind": "leg_rl",
+      "tris": 92
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_tjoint_rl",
+      "kind": "tjoint_rl",
+      "tris": 80
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_skid_rl",
+      "kind": "skid_rl",
+      "tris": 188
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_stub_fl",
+      "kind": "stub_fl",
+      "tris": 34
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_leg_fl",
+      "kind": "leg_fl",
+      "tris": 92
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_tjoint_fl",
+      "kind": "tjoint_fl",
+      "tris": 80
+    },
+    {
+      "lod": 0,
+      "name": "D01_legs_on_LOD0_skid_fl",
+      "kind": "skid_fl",
+      "tris": 92
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_stub_rr",
+      "kind": "stub_rr",
+      "tris": 22
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_leg_rr",
+      "kind": "leg_rr",
+      "tris": 60
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_tjoint_rr",
+      "kind": "tjoint_rr",
+      "tris": 56
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_skid_rr",
+      "kind": "skid_rr",
+      "tris": 60
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_stub_fr",
+      "kind": "stub_fr",
+      "tris": 22
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_leg_fr",
+      "kind": "leg_fr",
+      "tris": 60
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_tjoint_fr",
+      "kind": "tjoint_fr",
+      "tris": 56
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_skid_fr",
+      "kind": "skid_fr",
+      "tris": 60
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_stub_rl",
+      "kind": "stub_rl",
+      "tris": 22
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_leg_rl",
+      "kind": "leg_rl",
+      "tris": 60
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_tjoint_rl",
+      "kind": "tjoint_rl",
+      "tris": 56
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_skid_rl",
+      "kind": "skid_rl",
+      "tris": 124
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_stub_fl",
+      "kind": "stub_fl",
+      "tris": 22
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_leg_fl",
+      "kind": "leg_fl",
+      "tris": 60
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_tjoint_fl",
+      "kind": "tjoint_fl",
+      "tris": 56
+    },
+    {
+      "lod": 1,
+      "name": "D01_legs_on_LOD1_skid_fl",
+      "kind": "skid_fl",
+      "tris": 60
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_stub_rr",
+      "kind": "stub_rr",
+      "tris": 16
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_leg_rr",
+      "kind": "leg_rr",
+      "tris": 20
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_tjoint_rr",
+      "kind": "tjoint_rr",
+      "tris": 44
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_skid_rr",
+      "kind": "skid_rr",
+      "tris": 20
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_stub_fr",
+      "kind": "stub_fr",
+      "tris": 16
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_leg_fr",
+      "kind": "leg_fr",
+      "tris": 20
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_tjoint_fr",
+      "kind": "tjoint_fr",
+      "tris": 44
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_skid_fr",
+      "kind": "skid_fr",
+      "tris": 20
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_stub_rl",
+      "kind": "stub_rl",
+      "tris": 16
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_leg_rl",
+      "kind": "leg_rl",
+      "tris": 20
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_tjoint_rl",
+      "kind": "tjoint_rl",
+      "tris": 44
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_skid_rl",
+      "kind": "skid_rl",
+      "tris": 68
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_stub_fl",
+      "kind": "stub_fl",
+      "tris": 16
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_leg_fl",
+      "kind": "leg_fl",
+      "tris": 20
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_tjoint_fl",
+      "kind": "tjoint_fl",
+      "tris": 44
+    },
+    {
+      "lod": 2,
+      "name": "D01_legs_on_LOD2_skid_fl",
+      "kind": "skid_fl",
+      "tris": 20
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_stub_rr",
+      "kind": "stub_rr",
+      "tris": 10
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_leg_rr",
+      "kind": "leg_rr",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_skid_rr",
+      "kind": "skid_rr",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_stub_fr",
+      "kind": "stub_fr",
+      "tris": 10
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_leg_fr",
+      "kind": "leg_fr",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_skid_fr",
+      "kind": "skid_fr",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_stub_rl",
+      "kind": "stub_rl",
+      "tris": 10
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_leg_rl",
+      "kind": "leg_rl",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_skid_rl",
+      "kind": "skid_rl",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_stub_fl",
+      "kind": "stub_fl",
+      "tris": 10
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_leg_fl",
+      "kind": "leg_fl",
+      "tris": 12
+    },
+    {
+      "lod": 3,
+      "name": "D01_legs_on_LOD3_skid_fl",
+      "kind": "skid_fl",
+      "tris": 12
     }
   ]
 }

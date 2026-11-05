@@ -17,8 +17,8 @@ namespace Fpv450.Feed.Tests
         /// fields, digested exactly as <see cref="FeedSchedule.Digest"/> does (p4-feed task 1.1's A/B). Between
         /// them the cases reach every loss state and every tell: the timer's dropouts (blue and black, the
         /// brightening and the top tear), the staged terminal loss (seeds 1 and 3, faded), and the hard cut with a
-        /// grain rise (seed 2) and with a bottom tear (seed 3, abrupt). Run with Godot's link artefacts, its
-        /// free-running dropouts, which D-065 took out of the feed: the port's own A/B stays on record.
+        /// grain rise (seed 2) and with a bottom tear (seed 3, abrupt). The feed's own schedule, as it runs by
+        /// default: the dropouts on Godot's timer (D-085), and the tear's wedge, off (D-065), moves no draw.
         [TestCase(1, 0f, 0, false, 0xB476A0243BF62FAAUL)]
         [TestCase(2, 0f, 0, false, 0xE3FF6DA934271FC8UL)]
         [TestCase(3, 0f, 0, false, 0xC3D7A4784E241541UL)]
@@ -32,15 +32,13 @@ namespace Fpv450.Feed.Tests
         public void TheSameSeedGivesTheGodotSchedule(int seed, float motorCurrent, int cutField, bool abrupt,
             ulong godot)
         {
-            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt, godot: true),
-                Is.EqualTo(godot));
+            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt), Is.EqualTo(godot));
         }
 
-        /// The feed's own schedule since D-065 (the noise is the analog camera's, and only the fiber loses the
-        /// picture), pinned from <c>feedbench schedule</c> without <c>--godot</c>, so any later drift shows: N3, N4
-        /// and the quality drops with no free-running dropout, and the cut reaching the staged loss (seeds 1 and 3,
-        /// faded) and the hard cut with a grain rise (seeds 2 and 3, abrupt) and with a bottom tear (seed 5,
-        /// abrupt).
+        /// The schedule with Godot's dropout timer off (D-065's feed until D-085 put the timer back), pinned from
+        /// <c>feedbench schedule --no-dropouts</c>, so any later drift shows: N3, N4 and the quality drops with no
+        /// free-running dropout, and the cut reaching the staged loss (seeds 1 and 3, faded) and the hard cut with a
+        /// grain rise (seeds 2 and 3, abrupt) and with a bottom tear (seed 5, abrupt).
         [TestCase(1, 0f, 0, false, 0x9E9F49F99D786D2DUL)]
         [TestCase(2, 0f, 0, false, 0x7DD6B34951EB7430UL)]
         [TestCase(3, 0f, 0, false, 0x74F90FE2518D07DCUL)]
@@ -52,19 +50,20 @@ namespace Fpv450.Feed.Tests
         [TestCase(3, 0f, 7500, false, 0x44F7B7002431242FUL)]
         [TestCase(3, 0f, 7500, true, 0x1EB0D9926AFF5B46UL)]
         [TestCase(5, 0f, 7500, true, 0x181F2C2106E553F5UL)]
-        public void TheSameSeedGivesTheSameSchedule(int seed, float motorCurrent, int cutField, bool abrupt,
-            ulong pinned)
+        public void WithoutTheTimerTheSameSeedGivesTheSameSchedule(int seed, float motorCurrent, int cutField,
+            bool abrupt, ulong pinned)
         {
-            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt), Is.EqualTo(pinned));
+            Assert.That(FeedSchedule.Digest(seed, Fields, motorCurrent, cutField, abrupt, dropoutTimer: false),
+                Is.EqualTo(pinned));
         }
 
-        /// D-065: left to itself the feed never loses the picture. No dropout, no tell and no tear in five minutes;
-        /// only N3, N4 and the quality drops run.
+        /// The timer is the only thing that loses the picture on its own: with it off, no dropout, no tell and no
+        /// tear in five minutes; only N3, N4 and the quality drops run.
         [TestCase(1, 0f)]
         [TestCase(2, 0f)]
         [TestCase(3, 0f)]
         [TestCase(1, 0.6f)]
-        public void TheFeedNeverLosesThePictureOnItsOwn(int seed, float motorCurrent)
+        public void WithoutTheTimerTheFeedNeverLosesThePicture(int seed, float motorCurrent)
         {
             int lost = 0, drops = 0, n3 = 0, n4 = 0;
             FeedSchedule.Run(seed, Fields, motorCurrent, 0, false, e =>
@@ -75,7 +74,7 @@ namespace Fpv450.Feed.Tests
                 drops += e.Degrade > 0f ? 1 : 0;
                 n3 += e.N3Amp > 0f ? 1 : 0;
                 n4 += e.N4Amp > 0f ? 1 : 0;
-            });
+            }, dropoutTimer: false);
             Assert.That(lost, Is.Zero);
             Assert.That(new[] { drops, n3, n4 }, Has.All.GreaterThan(Fields / 10), "the camera's noise still runs");
         }
@@ -88,15 +87,16 @@ namespace Fpv450.Feed.Tests
         public void UntilGodotsFirstDropoutTheScheduleIsGodots(int seed)
         {
             var godot = new System.Collections.Generic.List<string>();
-            FeedSchedule.Run(seed, Fields, 0.6f, 0, false, e => godot.Add(FeedSchedule.Row(e)), godot: true);
+            FeedSchedule.Run(seed, Fields, 0.6f, 0, false, e => godot.Add(FeedSchedule.Row(e)));
             int first = godot.FindIndex(row => row.Split(' ')[2] == "1");
             Assert.That(first, Is.GreaterThan(0), "Godot's timer fires a dropout");
             int field = 0;
-            FeedSchedule.Run(seed, first, 0.6f, 0, false, e => Assert.That(FeedSchedule.Row(e), Is.EqualTo(godot[field++])));
+            FeedSchedule.Run(seed, first, 0.6f, 0, false, e => Assert.That(FeedSchedule.Row(e), Is.EqualTo(godot[field++])),
+                dropoutTimer: false);
             Assert.That(field, Is.EqualTo(first));
         }
 
-        /// The fiber's two entry points stay (D-065, p7d-tether drives them): a margin dip's recovering dropout,
+        /// The fiber's two entry points (p7d-tether drives them, on top of the timer): a margin dip's recovering dropout,
         /// with its tell, an outage in Godot's range and the picture back clean (FEED-06), and the break's terminal
         /// loss, which never clears.
         [TestCase(1)]
@@ -105,7 +105,7 @@ namespace Fpv450.Feed.Tests
         [TestCase(4)]
         public void TheFibersEntryPointsStillLoseThePicture(int seed)
         {
-            var events = new FeedEvents(seed);
+            var events = new FeedEvents(seed) { DropoutTimer = false };
             events.AdvanceTo(600, 0f);
             events.Loss.StartDropout();
             int tell = 0, black = 0, blue = 0;
@@ -133,8 +133,9 @@ namespace Fpv450.Feed.Tests
             Assert.That(events.Loss.Current, Is.EqualTo(FeedLoss.State.Blue), "a break never clears");
         }
 
-        /// Terminal losses are events, never a timer (D-008, D-026): left to its own timers the Godot feed only ever
-        /// shows recovering dropouts, whose blue lasts at most 35 fields (FeedLoss.cs:48), and never snow.
+        /// Terminal losses are events, never a timer (D-008, D-026): left to its own timers the feed, as the Godot
+        /// feed, only ever shows recovering dropouts (D-085), whose blue lasts at most 35 fields (FeedLoss.cs:48),
+        /// and never snow.
         [TestCase(1)]
         [TestCase(2)]
         [TestCase(3)]
@@ -148,7 +149,7 @@ namespace Fpv450.Feed.Tests
                 longestBlue = Math.Max(longestBlue, blueRun);
                 if (s == FeedLoss.State.Snow || s == FeedLoss.State.PartialSnow)
                     snow++;
-            }, godot: true);
+            });
             Assert.That(snow, Is.Zero);
             Assert.That(longestBlue, Is.InRange(18, 35));
         }

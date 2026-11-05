@@ -13,7 +13,7 @@ namespace Fpv450.App
     /// content model (FlightOsd, p4-feed 1.5): the arm state, the altitude, the distance and the timer from the flight,
     /// the pack and the current from these signals; its source is the pack's.
     /// </summary>
-    public sealed class FlightFeedSignals : IFeedSignals, IFieldOsd
+    public sealed class FlightFeedSignals : IFeedSignals, IFieldOsd, IOsdSticks
     {
         public readonly StubFeedSignals Stub = new StubFeedSignals();
         public readonly FlightOsd Osd = new FlightOsd();
@@ -61,6 +61,8 @@ namespace Fpv450.App
         public Num.Vector3 AirVelocityAtCamera => Live(FeedSignal.AirVelocityAtCamera) ? V(_s.AirVelocityAtCamera) : Stub.AirVelocityAtCamera;
         public char OsdCell(int row, int col) => Osd.Grid[row, col];
         public void BuildOsd(int field) => Osd.Build(field, LinkMarginDb);
+        /// <summary>X's stick overlay (D-084) at the latest step's sticks, which the rig takes once a field.</summary>
+        public FeedSticks OsdSticks => Osd.Overlay;
 
         static Num.Vector3 V(in Double3 v) => new Num.Vector3((float)v.X, (float)v.Y, (float)v.Z);
     }

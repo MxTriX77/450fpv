@@ -77,9 +77,9 @@ namespace Fpv450.Feed.Tests
 
                 rig.Step(1365);
                 Assert.That(rig.Feed.Uniforms.Field, Is.EqualTo(1365f));
-                // Godot's timer put seed 1's first tearing dropout tell here; D-065 took the timer out.
+                // Godot's timer puts seed 1's first tearing dropout tell here (D-085): the shear, without the wedge.
                 Assert.That(new[] { rig.Feed.Uniforms.TearAmp, rig.Feed.Uniforms.LossState, rig.Feed.Uniforms.TearWedge },
-                    Is.EqualTo(new[] { 0f, 0f, 0f }));
+                    Is.EqualTo(new[] { 0.6356117f, 0f, 0f }));
                 rig.Step(600); // back: replayed from the seed
                 Assert.That(rig.Events.Field, Is.EqualTo(600));
 
@@ -193,7 +193,7 @@ namespace Fpv450.Feed.Tests
                 rig.settings = s;
                 rig.Begin();
                 Assert.That(rig.Noise, Is.True, "on by default");
-                var reference = new FeedEvents(s.seed) { GodotLinkArtefacts = s.godotLinkArtefacts };
+                var reference = new FeedEvents(s.seed) { DropoutTimer = s.dropoutTimer, TearWedge = s.tearWedge };
                 int off = 0;
                 for (int field = 1; field <= 3000; field++)
                 {
@@ -205,6 +205,48 @@ namespace Fpv450.Feed.Tests
                     off += rig.Noise ? 0 : 1;
                 }
                 Assert.That(off, Is.EqualTo(1500));
+                rig.End();
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+                Object.DestroyImmediate(s);
+            }
+        }
+
+        /// D-084: the rig hands the pass the stick overlay its signals hold, taken once a field with the OSD: each new field
+        /// takes the newest, another frame in the same field keeps that field's, and a frame allocates nothing.
+        [Test]
+        public void TheRigTakesTheSticksAtEveryField()
+        {
+            var go = new GameObject("FpvCameraSticksTest");
+            FeedSettings s = ScriptableObject.CreateInstance<FeedSettings>();
+            try
+            {
+                go.AddComponent<Camera>();
+                var rig = go.AddComponent<FpvCamera>();
+                rig.settings = s;
+                var signals = new StubFeedSignals();
+                rig.Signals = signals;
+                rig.Begin();
+                Assert.That(rig.Feed.Sticks.On, Is.False, "the stub's: off");
+                for (int field = 1; field <= 50; field++)
+                {
+                    float v = field / 50f;
+                    FeedSticks sample = FeedSticks.Under(12, 7, 16, v, -v, 1f - v, 0.5f);
+                    signals.OsdSticks = sample;
+                    rig.Step(field);
+                    Assert.That(rig.Feed.Sticks, Is.EqualTo(sample), "field " + field + " takes the newest");
+                    signals.OsdSticks = FeedSticks.Under(12, 7, 16, -1f, -1f, -1f, -1f);
+                    rig.Step(field);
+                    Assert.That(rig.Feed.Sticks, Is.EqualTo(sample), "another frame in field " + field + " keeps its field's");
+                }
+                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                for (int frame = 0; frame < 1000; frame++)
+                    rig.Step(50);
+                long bytes = System.GC.GetAllocatedBytesForCurrentThread() - before;
+                TestContext.WriteLine($"{bytes} B over 1000 frames in one field");
+                Assert.That(bytes, Is.EqualTo(0));
                 rig.End();
             }
             finally

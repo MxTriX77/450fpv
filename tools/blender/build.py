@@ -11,7 +11,8 @@ the LOD0 mesh (lib/audit.py; a Godot stand-in's generator, STAND_IN, is held to 
 no hole contract, p6-test-range design 3; with the soft tops of assets-src/physics_materials.json, the card slots of the
 alpha-clipped recipes and the generator's stated card reach for the shell's cards, and the ground below y = 0 as cover
 for a generator that is PLANTED; a generator's visual-only micro meshes are exported beside their LOD and skipped by
-the audit), checks the hole-filler contract of an asset that cuts the ground (lib/holes.py, with the generator's
+the audit; its readable parts, which the player rewrites, are exported beside their LOD too and audited with it),
+checks the hole-filler contract of an asset that cuts the ground (lib/holes.py, with the generator's
 "joints", which it must report for every interior point of its holes' centre lines), prints the generator's own lines
 (its "lines", if any), and only then
 writes unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.fbx and <variant>.assetmeta.json, both in Unity's
@@ -65,6 +66,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     generator = importlib.import_module(f"generators.{catalog_entry['generator']}")
     _refuse(variant, params_lib.validate(generator, params), f"params {os.path.relpath(params_path, root)}: ")
     built = generator.build(params)
+    lod0 = drawn_lod0(built)
     for line in built.get("report", ()):
         print(f"{variant}: {line}")
     if "far_layer" in built:  # D-081: its straws drawn into the slab's base maps, which join its textures
@@ -81,7 +83,6 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     visual_by_slot = catalog.visuals(catalog_entry, variant)
     switch, materials, impostor_lod = impostor.switch_distance(params), None, None
     if switch is not None:  # the impostor step (p1-v01-locust design decision 3): the record now, the render after
-        lod0 = built["lods"][0]
         materials = impostor.slot_materials(root, visual_by_slot, lod0.slots())
         impostor_lod = impostor.lod(variant, switch, lod0, materials)
         record = impostor_lod["impostor"]
@@ -94,9 +95,9 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     started = time.perf_counter()
     stand_in = getattr(generator, "STAND_IN", False)  # a Godot stand-in (p6-test-range design 3): its collision
     if stand_in:                                      # against its mesh's bounds, no hole contract
-        problems, lines = audit.stand_in(data, built["lods"][0])
+        problems, lines = audit.stand_in(data, lod0)
     else:
-        problems, lines = audit.run(data, built["lods"][0], soft=audit.soft_materials(root),
+        problems, lines = audit.run(data, lod0, soft=audit.soft_materials(root),
                                     card_visuals=catalog.card_visuals(root), card_reach_m=built.get("card_reach_m"),
                                     planted=getattr(generator, "PLANTED", False), clip_boxes=bool(data["holes"]))
     for line in lines:
@@ -107,7 +108,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
         hole_lines = [f"stand-in: {len(data['holes'])} holes written, the hole contract (E01's fillers) not asked"] \
             if data["holes"] else []
     else:
-        hole_problems, hole_lines = holes.audit(data, built["lods"][0], built.get("joints"))
+        hole_problems, hole_lines = holes.audit(data, lod0, built.get("joints"))
     for line in hole_lines + built.get("lines", []):
         print(f"{variant}: {line}")
     _refuse(variant, problems + hole_problems)
@@ -116,6 +117,8 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
         export.add_lod(f"{variant}_LOD{n}", mesh)
     for entry, micro in zip(data["micro"], built.get("micro", [])):  # extra mesh objects beside their LOD
         export.add_lod(entry["name"], micro["mesh"])
+    for entry, part in zip(data.get("readable", []), built.get("readable", [])):  # and the parts the player rewrites
+        export.add_lod(entry["name"], part["mesh"])
     fbx_path = os.path.join(out_dir, variant + ".fbx")
     staged = os.path.join(out_dir, variant + ".staged.fbx")
     staged_atlas = os.path.join(out_dir, variant + "_impostor.staged.png")
@@ -130,7 +133,7 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
             record = data["lods"][-1]["impostor"]
             if record["atlas_sha256"] == impostor.NO_ATLAS:
                 started = time.perf_counter()
-                impostor.render(built["lods"][0], record, materials, staged_atlas, staged_normals, staged_smoothness)
+                impostor.render(lod0, record, materials, staged_atlas, staged_normals, staged_smoothness)
                 record["atlas_sha256"] = impostor.file_sha256(staged_atlas)
                 record["normals_sha256"] = impostor.file_sha256(staged_normals)
                 record["smoothness_sha256"] = impostor.file_sha256(staged_smoothness)
@@ -163,11 +166,20 @@ def build_variant(root, catalog_entry, asset_id, variant, material_ids):
     size =[round(data["bounds"]["max"][a] - data["bounds"]["min"][a], 4) for a in range(3)]
     tris = " / ".join(str(lod["tris"]) for lod in data["lods"])
     micro = "".join(f"  micro {m['name']} {m['count']} {m['kind']} {m['tris']} tris" for m in data["micro"])
+    micro += "".join(f"  readable {r['name']} {r['tris']} tris" for r in data.get("readable", []))
     wires = f"  {len(data['wires'])} wires" if data["wires"] else ""
     records = f"  {meta.elements_line(data['micro_elements'])}" if "micro_elements" in data else ""
     return (f"{variant}: {os.path.relpath(fbx_path, root)}  size {size} m  tris {tris}{micro}  "
             f"{len(data['collision'])} collision shapes{wires}{records}  fbx {os.path.getsize(fbx_path) / 1048576:.1f} MB  "
             "metadata written")
+
+
+def drawn_lod0(built):
+    """LOD0 as it is drawn: its mesh with its readable parts (lib.meta "readable"), which the audit, the hole contract
+    and the impostor take with it; the mesh itself when it has none."""
+    from lib import geometry
+    parts = [r["mesh"] for r in built.get("readable", []) if r["lod"] == 0]
+    return geometry.merged([built["lods"][0]] + parts) if parts else built["lods"][0]
 
 
 def listed_textures(meta_path):

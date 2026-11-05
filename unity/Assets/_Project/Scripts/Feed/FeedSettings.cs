@@ -30,8 +30,10 @@ namespace Fpv450.Feed
         public int fieldWidth = 1920;
         [Tooltip("The camera's AE gain, 1 by day (the Godot stand-in's). Task 1.7's AE loop replaces it.")]
         public float gain = 1f;
-        [Tooltip("The Godot feed's link artefacts, its free-running recovering dropouts and the tear's black wedge (D-026). Off (D-065): the noise is the analog camera's, and only the fiber loses the picture. On only for the FEED-00 A/B against Godot.")]
-        public bool godotLinkArtefacts;
+        [Tooltip("The Godot feed's free-running recovering dropouts to the no-signal screen, on its timer (D-026). On (D-085): the port's, and the FEED-00 A/B's; the fiber's own losses come on top.")]
+        public bool dropoutTimer = true;
+        [Tooltip("The black wedge a tear cuts in from the right edge, the pilot's \"black sticks\" (D-026). Off (D-065, kept by D-085): they look too artificial. On only for the FEED-00 A/B against Godot.")]
+        public bool tearWedge;
 
         [Header("The camera's read (p7e-camera-feel)")]
         [Tooltip("The CMOS rolling shutter and the exposure's blur from the flight's poses (RollingShutter), on a rig that is handed a track. Off reads the scene as before, as the FEED-00 A/B does.")]

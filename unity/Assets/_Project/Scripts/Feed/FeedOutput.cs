@@ -21,6 +21,8 @@ namespace Fpv450.Feed
         public Texture OsdCodes, OsdGlyphs;
         public float OsdCells = 1f;
         public Vector2 OsdCell = new Vector2(0.0350521f, 0.0657407f), OsdOrigin; // gd:42-43, Godot's defaults
+        /// The OSD's stick overlay at this field (D-084), off by default: the pass draws nothing more.
+        public FeedSticks Sticks;
         /// The camera's read (p7e-camera-feel): the field's track (<see cref="RollingShutter.Track"/>, 9 × 287 floats),
         /// and x = 1 to read through it (0: the old read), y = the pinhole's f in half-widths, z = the render's coverage.
         public Texture ShutterTrack;
