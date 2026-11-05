@@ -116,6 +116,12 @@ namespace Fpv450.Sim.Flight
         /// 0 without the bells.</summary>
         public Corners BellScrape, BellRub, BellKtChange;
 
+        /// <summary>Each motor's shaft after the step (p7f-damage 1.6, Contact.MotorShaft): its bend in its rotor's frame, rad (the
+        /// plastic hinge's rotation along blade 0 and across it); its bearings' added drag at the rotor's thrust, N·m; and a brinelled
+        /// bearing's outer-race ball-pass frequency, Hz (0 for sound bearings; the inner race's is it times (1 + D_w/d_p)/(1 −
+        /// D_w/d_p), the header's internals). All 0 without the shafts.</summary>
+        public Corners ShaftBendP, ShaftBendQ, BearingDrag, BallPassOuter;
+
         /// <summary>The flight's loose pieces (p7g-legs 1.3, design 4), or null: logged in the side record at 50 Hz
         /// (LogFormat.LooseBlock), never in the step record.</summary>
         public Contact.LoosePieces Loose;
@@ -242,6 +248,10 @@ namespace Fpv450.Sim.Flight
         /// motor, Index its corner (low 4 bits) and the band (high 4 bits: 0 the stator's, where the dent narrows the gap; 1 above
         /// or below it, toward the windings' end turns), by (Object, Shape) of Material or Surface at Point. A: the band's dent
         /// after it, m; B: the ring's load, N; C: the collapse load it passed, N.
+        /// Its shaft bent or a bearing brinelled (p7f-damage 1.6, design 9; Contact.MotorShaft), by the strike or the contact named
+        /// as above: band 2, the shaft's plastic hinge, A its bend after, rad, B the moment at the upper bearing, N·m, C the yield
+        /// moment it passed, N·m; band 3 the upper bearing and 4 the lower, A its races' dent after, m, B its radial load, N, C the
+        /// load it passed (its static rating C0r, or its largest so far), N.
         /// </summary>
         MotorDamaged = 21,
 
@@ -331,6 +341,21 @@ namespace Fpv450.Sim.Flight
         /// C: the throttle stick the stage holds, 0–1.
         /// </summary>
         Failsafe = 35,
+
+        /// <summary>
+        /// A blade was lost at its root (p7f-damage 1.6, design 11): a break left it at its first station or less. Part's prop,
+        /// Index the blade, on (Object, Shape) of Material or Surface at Point, after its BladeDamaged (Break). A: its tip radius
+        /// after, r/R; B: the mass the break took, kg; C: the broken station, r/R. Logged once a blade.
+        /// </summary>
+        BladeLost = 36,
+
+        /// <summary>
+        /// A prop was lost with its shaft (p7f-damage 1.6, design 9 and 11; Contact.MotorShaft): the moment at the upper bearing
+        /// passed the shaft's ultimate, so it broke there; from the next step the rotor makes no thrust and turns the bell alone.
+        /// Part the motor, Index its corner, by the strike or the contact named as MotorDamaged's. A: the moment, N·m; B: the
+        /// ultimate moment, N·m; C: the rotor's speed, rad/s.
+        /// </summary>
+        PropLost = 37,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>

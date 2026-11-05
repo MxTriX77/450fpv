@@ -353,6 +353,7 @@ namespace Fpv450.Sim.Contact
 
         // The motors' bells (p7f-damage 1.5): null until AttachBells; each shape's corner when it is a motor's sphere, else −1.
         MotorBell _bells;
+        MotorShaft _shafts; // the motors' shafts and bearings (p7f-damage 1.6), with the bells and props.blade; null without
         int[] _bellOf;
 
         /// <summary>A resting blade's load in the last Forces (p7f-damage 1.3b): the contact force on it (world, N) and its
@@ -782,10 +783,22 @@ namespace Fpv450.Sim.Contact
             _bellOf = new int[_shapes.Length];
             for (int i = 0; i < _bellOf.Length; i++) _bellOf[i] = -1;
             for (int c = 0; c < 4; c++) _bellOf[_bells.Shape(c)] = c;
+            // The shafts and bearings (p7f-damage 1.6): the bells' and the resting blades' loads, the strikes' (PropStrikes).
+            if (!_spec.MotorShaft || spec.Rotor == null) return;
+            _shafts = new MotorShaft(_spec, propulsion, spec, _bells);
+            _bells.Shaft = _shafts;
         }
 
         /// <summary>The motors' bells, or null without them.</summary>
         public MotorBell Bells => _bells;
+
+        /// <summary>The motors' shafts and bearings (p7f-damage 1.6), or null without them (no bells, no props.blade, or
+        /// ContactSpec.MotorShaft off).</summary>
+        public MotorShaft Shafts => _shafts;
+
+        // A pair as a load's cause (MotorShaft's events).
+        static FlightEvent Cause(in Pair p) =>
+            new FlightEvent { Object = p.Object, Shape = p.Shape, Material = p.Material, Surface = p.Surface, Point = p.Point };
 
         /// <summary>Whether rotor c's blades are its contact shapes now (it turns slower than BladeRestSpeed, no carve holds it).</summary>
         public bool Resting(int corner) => (_resting & (1 << corner)) != 0;
@@ -1110,6 +1123,7 @@ namespace Fpv450.Sim.Contact
             // moves with its rotor's turn, their moment about the shaft the rotor's in the next step's propulsion.
             if (_restLoads != null) ClearRest();
             _bells?.Begin(s);
+            _shafts?.Begin();
             for (int i = 0; i < _shapes.Length; i++)
             {
                 ContactRole role = _shapes[i].Role;
@@ -1150,6 +1164,9 @@ namespace Fpv450.Sim.Contact
                         Double3 fwb = Apply(ref p, i, k, fb, kn, cn, p.Depth, row, s, com, v, ref f, ref m, ref touching, ref strongest, ref strongestPair,
                             ref strongestForce);
                         Rest(i, p, s, fwb, fb, ks, kn, cn, row, v, bladeShare, r, motion, flat, along);
+                        // Its load on the hub (p7f-damage 1.6): through the shaft to the bearings, its own bending capped at the root.
+                        if (_shafts != null && fb > 0)
+                            _shafts.Add(c, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb), true, s.RotorSpeed[c], Cause(p));
                         continue;
                     }
                     double fn = kn * depth - cn * Double3.Dot(PointVelocity(s, p.Point), p.N);
@@ -1162,8 +1179,12 @@ namespace Fpv450.Sim.Contact
                         Double3 vb = PointVelocity(s, p.Point) + s.Attitude.Rotate(surface * (s.RotorSpeed[bell] * _bells.Radius(bell)));
                         Double3 fwb = Apply(ref p, i, k, fn, kn, cn, p.Depth, row, s, com, vb, ref f, ref m, ref touching, ref strongest, ref strongestPair,
                             ref strongestForce, _bells.Turning(bell));
-                        if (_bells.Pair(bell, fn, s.Attitude.InverseRotate(fwb - p.N * fn), surface, stator, kn, row.StaticFriction,
-                                out double dent, out double ringLoad, out double collapse))
+                        bool dented = _bells.Pair(bell, fn, s.Attitude.InverseRotate(fwb - p.N * fn), surface, stator, kn, row.StaticFriction,
+                            out double dent, out double ringLoad, out double collapse);
+                        // The ring's share of the pair's load goes to the shaft (p7f-damage 1.6); past the gap the teeth carry the rest.
+                        if (_shafts != null && fn > 0 && ringLoad > 0)
+                            _shafts.Add(bell, s.Attitude.InverseRotate(p.Point - s.Position), s.Attitude.InverseRotate(fwb) * (ringLoad / fn), false, 0, Cause(p));
+                        if (dented)
                         {
                             FlightEvent e = FlightEvent.Of(EventKind.MotorDamaged);
                             e.Part = (ushort)_bells.Part(bell);
@@ -1197,6 +1218,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
 
+            _shafts?.Finish(s, events);
             _bells?.Finish(s, _dt, ref trace);
             if (series) LegSums(s, axis, com, ref f, ref m, ref load, ref touching, ref strongest, ref strongestPair, ref strongestForce, events);
             LegTrace(ref trace);

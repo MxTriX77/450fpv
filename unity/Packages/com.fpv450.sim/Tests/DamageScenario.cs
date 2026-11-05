@@ -94,14 +94,16 @@ namespace Fpv450.Sim.Tests
         };
 
         /// <summary>Flies the hover with a damage set before arming (null for none), analysing rotor `analyse`'s 1/rev and, with
-        /// spectrum, the band's spectrum.</summary>
+        /// spectrum, the band's spectrum; before runs on the core before it arms, each after every step (p7f-damage 1.6's shafts).</summary>
         public static Result Hover(FlightSetup setup, Action<Propulsion> damage = null, int analyse = 0, bool spectrum = false) =>
             Hover(setup, out _, damage, analyse, spectrum);
 
-        public static Result Hover(FlightSetup setup, out FlightCore core, Action<Propulsion> damage = null, int analyse = 0, bool spectrum = false)
+        public static Result Hover(FlightSetup setup, out FlightCore core, Action<Propulsion> damage = null, int analyse = 0, bool spectrum = false,
+            Action<FlightCore> before = null, Action<FlightCore> each = null)
         {
             core = new FlightCore(setup);
             damage?.Invoke(core.Propulsion);
+            before?.Invoke(core);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, setup.StartPosition);
             int steps = (int)(Seconds * 1000), from = (int)(MeasuredFrom * 1000), n = steps - from;
@@ -116,6 +118,7 @@ namespace Fpv450.Sim.Tests
             for (int k = 0; k < steps; k++)
             {
                 core.Advance(pilot.Sticks(core, core.State.Step * FlightCore.StepUs));
+                each?.Invoke(core);
                 ref readonly FlightState s = ref core.State;
                 if (k < from)
                 {

@@ -297,7 +297,10 @@
         "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "the stator's laminations as heights above the motor's base, its published 15 mm (stator 31 × 15 mm, Flash Hobby Arthur 3115) standing 2 mm above the bell's lower lip, the windings' end turns and the can's top above it (no maker publishes the stack's place); the magnets face it across the gap there, so a dent can narrow the gap only between these heights (p7f-damage 1.5)"},
         "stator_diameter_m": {"value": 0.031, "label": "published", "note": "the stator's 31 mm (Flash Hobby Arthur 3115, Tarot 3115: 31 × 15 mm, 12N14P); the can, the back iron, the magnet and the gap fill the motor part's 37.2 mm to it, and its teeth carry the magnets' rub"},
         "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "6061-T6 aluminium's Young's modulus, 68.9 GPa (ASM), as can_yield_pa's alloy"},
-        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a low-carbon steel's Young's modulus, 200 GPa (ASM, AISI 1010–1018), as back_iron_yield_pa's steel"}
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a low-carbon steel's Young's modulus, 200 GPa (ASM, AISI 1010–1018), as back_iron_yield_pa's steel"},
+        "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "a quenched and tempered alloy steel's Young's modulus, 200–210 GPa (ASM), 200 GPa taken; with the 5 mm section it sets the shaft's elastic bending stiffness 3EI/l over the hub's lever (p7f-damage 1.6, design 9)"},
+        "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "the turning bell (can, back iron and magnets, with its share of the shaft): rotor_inertia_kg_m2's note's 35 g, about half the class's published 64 g motor (T-Motor Velox V3115); no maker publishes the split. Its mass and its centre carry a bent shaft's unbalance (p7f-damage 1.6)"},
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "the bell's centre of mass above the motor's base: the magnets and the back iron at the stator's middle (15.5 mm) drawn up by the can's top (assumed), 2 mm above the upper bearing"}
       }
     },
     {
@@ -334,7 +337,10 @@
         "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
         "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
         "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
-        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
+        "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
+        "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "as motors[0]"},
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"}
       }
     },
     {
@@ -371,7 +377,10 @@
         "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
         "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
         "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
-        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
+        "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
+        "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "as motors[0]"},
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"}
       }
     },
     {
@@ -408,7 +417,10 @@
         "stator_band_m": {"value": [0.008, 0.023], "label": "assumed", "note": "as motors[0]"},
         "stator_diameter_m": {"value": 0.031, "label": "published", "note": "as motors[0]"},
         "can_modulus_pa": {"value": 6.89e10, "label": "published", "note": "as motors[0]"},
-        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"}
+        "back_iron_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
+        "shaft_modulus_pa": {"value": 2.0e11, "label": "published", "note": "as motors[0]"},
+        "bell_mass_kg": {"value": 0.035, "label": "assumed", "note": "as motors[0]"},
+        "bell_centre_height_m": {"value": 0.018, "label": "assumed", "note": "as motors[0]"}
       }
     }
   ],

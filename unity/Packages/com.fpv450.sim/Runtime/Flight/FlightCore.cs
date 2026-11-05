@@ -501,6 +501,7 @@ namespace Fpv450.Sim.Flight
             // The blades' passes across what the discs cut: their work off the rotors, their impulses on the body, the damage
             // they leave (p7f-damage design 6), after the move as the strikes are sensed.
             if (_strikes != null) _strikes.Apply(angles, ref s, body, _events);
+            _contacts?.Shafts?.Trace(s, ref _trace); // the shafts after the strikes that bend them (p7f-damage 1.6)
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
 
             // The line steps with the drone where it now is (its force acts in the next step); at a rebuild mark the coil's
@@ -585,6 +586,22 @@ namespace Fpv450.Sim.Flight
 
         // The camera mount's acceleration over the step, body m/s²: the body origin's (from its velocities), the turn's at the
         // camera, α × r + ω × (ω × r), and the frame's elastic share (AirframeModes).
+        /// <summary>
+        /// The camera mount's vibration bands for the feed (FeedSignals.CameraVibration), m/s²: the stepped body's and the frame's
+        /// (VibrationBands.Field) with the brinelled bearings' ball-pass lines added in quadrature in the bands they fall in
+        /// (Contact.MotorShaft.BallPass, p7f-damage 1.6: above the step's Nyquist, so never stepped; an output only).
+        /// </summary>
+        public Double3 CameraVibration()
+        {
+            Double3 field = _vibration != null ? _vibration.Field : default;
+            Contact.MotorShaft shafts = _contacts?.Shafts;
+            if (shafts == null) return field;
+            Double3 lines = shafts.BallPass(_state.RotorSpeed, _mass.Properties.Mass);
+            if (lines.X == 0 && lines.Y == 0 && lines.Z == 0) return field;
+            return new Double3(DetMath.Sqrt(field.X * field.X + lines.X), DetMath.Sqrt(field.Y * field.Y + lines.Y),
+                DetMath.Sqrt(field.Z * field.Z + lines.Z));
+        }
+
         Double3 CameraAcceleration(in FlightState was, in FlightState now)
         {
             Double3 r = ModesSpec.Camera, w = now.BodyRate;
@@ -984,7 +1001,7 @@ namespace Fpv450.Sim.Flight
                 // The camera on the flexing frame: its elastic turn, and the mount's vibration bands.
                 signals.Live |= FeedSignalSet.CameraVibration;
                 signals.CameraAngularVelocity = _state.BodyRate + _modes.FrameRate(_state.ModeRate);
-                signals.CameraVibration = _vibration.Field;
+                signals.CameraVibration = CameraVibration();
             }
             signals.Live |= FeedSignalSet.MotorElectricalHz | FeedSignalSet.MotorCurrent | FeedSignalSet.MotorCurrentStep
                 | FeedSignalSet.PackVolts;

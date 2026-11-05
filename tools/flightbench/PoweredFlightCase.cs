@@ -222,17 +222,19 @@ namespace Fpv450.FlightBench
             // The physics integration 2 with the fiber's chain fixes (model 65, 62 merged onto 64), its audit against model 64: with
             // the known-wrong 0-force hold (FlightSetup.TetherZeroForceHold: 64's chain, its hold and its safe pass) the line's flight
             // is model 64's, every record and event. Every older audit below flies with it too (they audit 64's chain and its parents).
-            ulong line64 = GoldenFlights.FlyContact(Drone(), out FlightCore l64, tether: true, coulomb: false);
+            // Since model 68 (the shafts' block after 3040 bytes) the audits of models 63, 64 and 65 fly over model 63's 3040 bytes.
+            const int m63 = GoldenFlights.Model63Layout;
+            ulong line64 = GoldenFlights.FlyContact(Drone(), out FlightCore l64, tether: true, coulomb: false, layout: m63);
             bool k64 = line64 == GoldenFlights.Model64TetherHash && l64.Tether.Chain.ZeroForceHold && !l.Tether.Chain.ZeroForceHold;
             lok &= k64;
             Console.WriteLine($"tether-flight with the 0-force hold: 0x{line64:X16} ({(k64 ? "model 64's, bit for bit" : "NOT model 64's")}); its line "
                 + (l64.Tether.Broken ? $"breaks at step {l64.Tether.BrokenAt} by {l64.Tether.LastBreak.Mechanism}" : $"holds, {l64.Tether.PaidOut:F3} m paid out") + $", {l64.Tether.Chain.SafeSteps} safe steps, {l64.Tether.Chain.Wedges} wedges; with the rules the line "
                 + (l.Tether.Broken ? $"breaks at step {l.Tether.BrokenAt} by {l.Tether.LastBreak.Mechanism} at {(Fpv450.Sim.Tether.FiberMember)l.Tether.LastBreak.Kind} {l.Tether.LastBreak.Member}" : $"holds, {l.Tether.PaidOut:F3} m paid out")
                 + $", {l.Tether.Chain.SafeSteps} safe steps, {l.Tether.Chain.Corrections} corrections (64's {l64.Tether.Chain.Corrections}): {(k64 ? "PASS" : "FAIL")}");
-            ulong o63p = GoldenFlights.FlyPowered(Old(), out _), o63r = GoldenFlights.FlyPowered(Old(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
-                o63c = GoldenFlights.FlyContact(Old(), out _), o63g = GoldenFlights.FlyRange(Old(), out _), o63t = GoldenFlights.FlyTumble(Old(), out _, out _),
-                o63l = GoldenFlights.FlyContact(Old(), out FlightCore ol, tether: true, coulomb: false, body: false),
-                o63b = GoldenFlights.FlyContact(Old(), out FlightCore ob, tether: true, coulomb: false);
+            ulong o63p = GoldenFlights.FlyPowered(Old(), out _, layout: m63), o63r = GoldenFlights.FlyPowered(Old(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m63),
+                o63c = GoldenFlights.FlyContact(Old(), out _, layout: m63), o63g = GoldenFlights.FlyRange(Old(), out _, layout: m63), o63t = GoldenFlights.FlyTumble(Old(), out _, out _, layout: m63),
+                o63l = GoldenFlights.FlyContact(Old(), out FlightCore ol, tether: true, coulomb: false, body: false, layout: m63),
+                o63b = GoldenFlights.FlyContact(Old(), out FlightCore ob, tether: true, coulomb: false, layout: m63);
             bool k63 = o63p == GoldenFlights.Model63PoweredHash && o63r == GoldenFlights.Model63RainPoweredHash && o63c == GoldenFlights.Model63ContactHash
                 && o63g == GoldenFlights.Model63RangeHash && o63t == GoldenFlights.Model63TumbleHash && o63l == GoldenFlights.Model63TetherHash
                 && o63b == GoldenFlights.Model63BodyTetherHash;
@@ -554,14 +556,38 @@ namespace Fpv450.FlightBench
                 && b60l == GoldenFlights.Model60TetherHash;
             Console.WriteLine($"without the bells, over model 57's 2944 bytes: powered 0x{b60p:X16}, contact 0x{b60c:X16}, range 0x{b60g:X16}, tether 0x{b60l:X16} "
                 + $"({(k60 ? "model 60's, bit for bit" : "NOT model 60's")}): {(k60 ? "PASS" : "FAIL")}");
-            ulong f58p = GoldenFlights.FlyPowered(now, out _, edit: frameless), f58c = GoldenFlights.FlyContact(now, out _, edit: frameless),
-                f58g = GoldenFlights.FlyRange(now, out _, edit: frameless), f58l = GoldenFlights.FlyContact(now, out _, tether: true, coulomb: false, cuts: false, edit: frameless);
+            ulong f58p = GoldenFlights.FlyPowered(now, out _, edit: frameless, layout: m63), f58c = GoldenFlights.FlyContact(now, out _, edit: frameless, layout: m63),
+                f58g = GoldenFlights.FlyRange(now, out _, edit: frameless, layout: m63),
+                f58l = GoldenFlights.FlyContact(now, out _, tether: true, coulomb: false, cuts: false, edit: frameless, layout: m63);
             bool k58 = f58p == GoldenFlights.Model58PoweredHash && f58c == GoldenFlights.Model58ContactHash && f58g == GoldenFlights.Model58RangeHash
                 && f58l == GoldenFlights.Model58TetherHash;
-            Console.WriteLine($"without the skid's frame and the cuts: powered 0x{f58p:X16}, contact 0x{f58c:X16}, range 0x{f58g:X16}, tether 0x{f58l:X16} "
-                + $"({(k58 ? "the bells' model 58, bit for bit" : "NOT model 58's")}): {(k58 ? "PASS" : "FAIL")}");
+            Console.WriteLine($"without the skid's frame and the cuts, over model 63's 3040 bytes: powered 0x{f58p:X16}, contact 0x{f58c:X16}, range 0x{f58g:X16}, "
+                + $"tether 0x{f58l:X16} ({(k58 ? "the bells' model 58, bit for bit" : "NOT model 58's")}): {(k58 ? "PASS" : "FAIL")}");
+            // The physics integration 2 with the shafts (model 68, 66 merged onto 65), its audits. Against model 65: with the shafts
+            // and bearings off every golden on the canister over model 63's 3040 bytes is model 65's pin (the kept test
+            // WithoutTheShaftsEachGoldenIsModel65s flies them on too and checks the block zero). Against model 66: on model 63's
+            // drone.json, the fountain through the body, the 0-force hold and no blade root, every golden is model 66's pin over the
+            // whole record (OnModel63sDroneEachGoldenIsModel66s).
+            Action<FlightSetup> shaftsOff = GoldenFlights.WithoutTheShafts;
+            DroneSpec canister = Drone();
+            ulong s65p = GoldenFlights.FlyPowered(canister, out _, layout: m63, edit: shaftsOff), s65c = GoldenFlights.FlyContact(canister, out _, layout: m63, edit: shaftsOff),
+                s65g = GoldenFlights.FlyRange(canister, out _, layout: m63, edit: shaftsOff), s65l = GoldenFlights.FlyContact(canister, out _, tether: true, layout: m63, edit: shaftsOff);
+            bool k65 = s65p == GoldenFlights.Model65PoweredHash && s65c == GoldenFlights.Model65ContactHash && s65g == GoldenFlights.Model65RangeHash
+                && s65l == GoldenFlights.Model65TetherHash;
+            Console.WriteLine($"without the shafts and the bearings, over model 63's 3040 bytes: powered 0x{s65p:X16}, contact 0x{s65c:X16}, range 0x{s65g:X16}, "
+                + $"tether 0x{s65l:X16} ({(k65 ? "model 65's, bit for bit" : "NOT model 65's")}): {(k65 ? "PASS" : "FAIL")}");
+            Action<FlightSetup> rootless = GoldenFlights.WithoutTheBladeRoot;
+            ulong s66p = GoldenFlights.FlyPowered(now, out _, edit: rootless),
+                s66r = GoldenFlights.FlyPowered(now, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edit: rootless),
+                s66c = GoldenFlights.FlyContact(now, out _, edit: rootless), s66g = GoldenFlights.FlyRange(now, out _, edit: rootless),
+                s66l = GoldenFlights.FlyContact(now, out FlightCore l66, tether: true, coulomb: false, body: false, edit: rootless), s66t = GoldenFlights.FlyTumble(now, out _, out _);
+            bool k66 = s66p == GoldenFlights.Model66PoweredHash && s66r == GoldenFlights.Model66RainPoweredHash && s66c == GoldenFlights.Model66ContactHash
+                && s66g == GoldenFlights.Model66RangeHash && s66l == GoldenFlights.Model66TetherHash && s66t == GoldenFlights.Model66TumbleHash;
+            Console.WriteLine($"on the old coil through the body, with the 0-force hold and no blade root: powered 0x{s66p:X16}, rain 0x{s66r:X16}, contact 0x{s66c:X16}, "
+                + $"range 0x{s66g:X16}, tether 0x{s66l:X16}, tumble 0x{s66t:X16} ({(k66 ? "model 66's, bit for bit" : "NOT model 66's")}), the line "
+                + $"{(l66.Tether.Broken ? $"broken at step {l66.Tether.BrokenAt} by {l66.Tether.LastBreak.Mechanism}" : "whole")}: {(k66 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66;
         }
 
         public static bool Bench()

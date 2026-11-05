@@ -258,8 +258,20 @@ namespace Fpv450.Sim.Log
         ///    D-072): 52 merged onto 54: the record is 54's 3040 bytes; the tether entry 54's with 51's
         ///    FlightSetup.TetherFountainThroughBody and then 52's FlightSetup.TetherZeroForceHold after TetherOneStrength; the
         ///    contacts entry, the modes', the settings, the draws and the events 54's; no new event kind.
+        /// 56: p7f-damage 1.6, the shafts and the bearings (unity/physics/physics-integration-2--motor-shaft, on 53; assigned by D-072
+        ///    and D-074; 54 and 55 are the parallel lines'): after 53's 3040 bytes each motor's shaft bend (p, q), its bearings' drag
+        ///    and a brinelled bearing's outer ball-pass frequency (shaft_bend_p, shaft_bend_q, bearing_drag, ball_pass_outer; 128
+        ///    bytes, 3168 in all); the contacts entry gains, after the internals, the shafts' switch and their laws' coefficients
+        ///    (ContactSpec.MotorShaft, ShaftHingeShare, BearingFriction, BearingDentDrag), and the internals (in both entries) the
+        ///    shaft's modulus and the bell's mass and centre; MotorDamaged's bands 2 (the shaft), 3 and 4 (the upper and lower
+        ///    bearings); the events BladeLost (36) and PropLost (37).
+        /// 58: the physics integration 2 with the motor's shaft and bearings (unity/physics/physics-integration-2--int68, assigned
+        ///    by D-072; 57 is a parallel line's): 56 merged onto 55: the record is 56's 3168 bytes (55's 3040, then the shafts'
+        ///    block); the contacts entry 55's with 54's ContactSpec.BladeRoot and then 56's MotorShaft, ShaftHingeShare,
+        ///    BearingFriction and BearingDentDrag after the motors' internals, and the internals (in both entries) 56's; the tether
+        ///    entry, the modes', the settings and the draws 55's; the events 55's with 56's BladeLost (36) and PropLost (37).
         /// </summary>
-        public const int Version = 55;
+        public const int Version = 58;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -657,8 +669,24 @@ namespace Fpv450.Sim.Log
         ///    compose without new code. A flight with FlightSetup.TetherZeroForceHold steps as in 64; one on model 63's
         ///    drone.json (the fixture Model63Drone, GoldenFlights.Model63Tether) with FlightSetup.TetherFountainThroughBody
         ///    and ContactSpec.BladeRoot off steps as in 62 (its chain on 63's drone); a flight without the line steps as in 64.
+        /// 66: p7f-damage 1.6, the shafts and the bearings (on 63; unity/physics/physics-integration-2--motor-shaft, assigned by D-072;
+        ///    64 and 65 are the parallel lines'): with drone.json's internals and props.blade (Contact.MotorShaft), a blade pass's
+        ///    face impulse over its contact time, a resting prop's blades' load and a bell ring's load bend the shaft past its yield
+        ///    moment at the upper bearing (a plastic hinge in the rotating frame: Propulsion.SetShaft's unbalance, couples and tilted
+        ///    thrust; the bell's run-out rubbing past the gap), break it past its ultimate (PropLost: Propulsion.LoseProp), and
+        ///    brinell a bearing past C0r (a drag beside the bell's, a ball-pass line into CameraVibration, an output only); a blade
+        ///    broken at its root logs BladeLost. A flight whose shafts never pass their yield and whose bearings never pass C0r steps
+        ///    as in 63 over its 3040 bytes, the new block zero; with ContactSpec.MotorShaft off, as in 63.
+        /// 68: the physics integration 2 with the motor's shaft and bearings (unity/physics/physics-integration-2--int68, assigned
+        ///    by D-072; 67 is a parallel line's; the code is the parents' together): 66's shafts and bearings merged onto 65's
+        ///    canister, nozzle exit, chain fixes, body over the fountain and blade root. The shaft takes its loads where 65's
+        ///    passes and rests put them (a pass inside the blade's root, ContactSpec.BladeRoot, is none, so it loads no shaft). A
+        ///    flight whose shafts never pass their yield and whose bearings never pass C0r steps as in 65 over its 3040 bytes, the
+        ///    new block zero; with ContactSpec.MotorShaft off, as in 65; on model 63's drone.json (the fixture Model63Drone,
+        ///    GoldenFlights.Model63Tether), through the body, with FlightSetup.TetherZeroForceHold and ContactSpec.BladeRoot
+        ///    off, as in 66.
         /// </summary>
-        public const int ModelVersion = 65;
+        public const int ModelVersion = 68;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -681,8 +709,12 @@ namespace Fpv450.Sim.Log
         /// airframe's modes (1.4), then the rotors' interference (1.3d), then each rotor's own wake (D-064), then the fiber's
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
         /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
-        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5).</summary>
-        public const int StepSize = 3040, EventSize = 72, EndSize = 48;
+        /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6).</summary>
+        public const int StepSize = 3168, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the shafts (models 58–63's, formats 48–53: through the bells' block), over which a flight whose
+        /// shafts and bearings never yield keeps model 63's bits.</summary>
+        public const int Model63StepSize = 3040;
 
         /// <summary>The record before the motors' bells (models 52–57's, formats 42–47: through the resting blades' block), over which
         /// a flight whose bells never touch keeps model 57's bits.</summary>
@@ -734,6 +766,7 @@ namespace Fpv450.Sim.Log
                 "RainForce", "FilmMass", "CameraAir", "GroundDistance", "CeilingDistance", "InterferenceInflow", "Tether",
                 "LegState", "LegSet", "LegStiffnessFactor", "LegMoment", "CornerState", "LegSideGive", "LegJaw", "SkidFold", "LegLean",
                 "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1", "BellScrape", "BellRub", "BellKtChange",
+                "ShaftBendP", "ShaftBendQ", "BearingDrag", "BallPassOuter",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -920,6 +953,11 @@ namespace Fpv450.Sim.Log
             b.Corners("bell_scrape", "N.m, the bell's scrape against its turning rotor (at rest its static friction's hold); 0 without the bells");
             b.Corners("bell_rub", "N.m, the magnets' rub on the stator's teeth (the press past the gap, a dent's interference)");
             b.Corners("bell_kt_change", "the motor's Kt over the drawn one less 1, from its gap's flux (0 for a gap as new, and without the bells)");
+            // The shafts and the bearings (p7f-damage 1.6).
+            b.Corners("shaft_bend_p", "rad, the shaft's plastic hinge along its rotor's blade 0 (a rotation vector's part, the rotor's frame); 0 straight");
+            b.Corners("shaft_bend_q", "rad, the shaft's plastic hinge across blade 0 in the disc (q = p x up)");
+            b.Corners("bearing_drag", "N.m, the brinelled bearings' added drag at the rotor's thrust; 0 for sound bearings");
+            b.Corners("ball_pass_outer", "Hz, a brinelled bearing's outer-race ball-pass frequency at the rotor's speed; 0 for sound bearings");
             return b.Done(StepSize);
         }
 
@@ -1117,6 +1155,10 @@ namespace Fpv450.Sim.Log
             w.C4(t.BellScrape);
             w.C4(t.BellRub);
             w.C4(t.BellKtChange);
+            w.C4(t.ShaftBendP);
+            w.C4(t.ShaftBendQ);
+            w.C4(t.BearingDrag);
+            w.C4(t.BallPassOuter);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -1266,6 +1308,10 @@ namespace Fpv450.Sim.Log
             t.BellScrape = r.C4();
             t.BellRub = r.C4();
             t.BellKtChange = r.C4();
+            t.ShaftBendP = r.C4();
+            t.ShaftBendQ = r.C4();
+            t.BearingDrag = r.C4();
+            t.BallPassOuter = r.C4();
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

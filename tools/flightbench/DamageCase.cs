@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Fpv450.Sim;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.Tests;
@@ -103,7 +104,7 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
                 + "carves and stops a prop; disarmed, its braked props break no blade)");
             bool rest = Rest(spec);
-            return ok && tipped & rest & Bells(spec);
+            return ok && tipped & rest & Bells(spec) & Shafts(spec);
         }
 
         // p7f-damage 1.5 (design 8, 10): the motor's bell. Its rear-right bell pressed at 5 and 20 N on masonry under the prop, the
@@ -134,6 +135,41 @@ namespace Fpv450.FlightBench
             }
             Console.WriteLine($"    a side hit at the stator's height leaves the gap: {(h ? "PASS" : "FAIL")}");
             return s && h;
+        }
+
+        // p7f-damage 1.6 (design 9, 11): the shaft and the bearings, ShaftTests' scenarios printed. A bent shaft: rr's hub struck through
+        // the load law at 0.8, 1.2 and 2 M_y, then the 10 s hover (the known-wrong a flat Kt loss); a brinelled bearing: the law at
+        // 2·C0r; a lost blade at its root in the hover, the sticks centred (the known-wrong a scripted loss with no 1/rev); a root
+        // break's BladeLost. It fails where a form misses, the bent shaft does not shake past the known-wrong or the events are not
+        // logged; the lost blade's tilt is printed (the scenario's 45° claim is not the physics': ShaftTests' notes).
+        static bool Shafts(DroneSpec spec)
+        {
+            Console.WriteLine("  the shaft and the bearings (p7f-damage 1.6):");
+            ShaftScenarios.Bent straight = ShaftScenarios.Hover(spec, 1, 0), flat = ShaftScenarios.Hover(spec, 1, 0, flat: true);
+            ShaftScenarios.Bent b08 = ShaftScenarios.Hover(spec, 1, 0.8), b12 = ShaftScenarios.Hover(spec, 1, 1.2), b20 = ShaftScenarios.Hover(spec, 1, 2.0);
+            foreach (ShaftScenarios.Bent b in new[] { straight, flat, b08, b12, b20 }) Console.WriteLine("    " + b.Describe());
+            bool bent = b08.Bend == 0 && b12.Bends == 1 && b20.Bends == 1 && b12.Band > 2 * straight.Band && b20.Bound
+                && Math.Abs(flat.Band - straight.Band) < 0.1 * (b12.Band - straight.Band);
+            Console.WriteLine($"    a bent shaft shakes: {(bent ? "PASS" : "FAIL")} (the band {straight.Band:F4} → {b12.Band:F4} m/s² at 1.2 M_y; the flat loss {flat.Band:F4}; "
+                + "2 M_y's run-out binds the motor)");
+            var core = new FlightCore(ShaftScenarios.Setup(spec, 1));
+            MotorShaft s = core.Contacts.Shafts;
+            MotorInternals m = spec.Internals[0];
+            double l = s.Lever(0), span = s.Spacing(0), c0 = m.BearingStaticRating, force = 2 * c0 / (1 + l / span);
+            var events = new StepEvents(16);
+            ShaftScenarios.HubHit(core, 0, force * l / s.YieldMoment(0), events);
+            double dent = 1e-4 * m.BallDiameter * 4;
+            bool brinell = Math.Abs(s.DentUpper(0) - dent) <= 1e-9 * dent && s.PeakUpper(0) > c0;
+            Console.WriteLine($"    a brinelled bearing: {(brinell ? "PASS" : "FAIL")} (2 C0r: the upper dent {s.DentUpper(0) * 1e9:F3} nm, the form {dent * 1e9:F3}; the lower "
+                + $"{s.DentLower(0) * 1e9:F3} nm at {s.PeakLower(0):F1} N)");
+            ShaftScenarios.Lost lost = ShaftScenarios.LoseBlade(spec, 1), wrong = ShaftScenarios.LoseBlade(spec, 1, wrong: true);
+            Console.WriteLine("    " + lost.Describe());
+            Console.WriteLine("    " + wrong.Describe());
+            StrikeScenarios.Rig rod = ShaftScenarios.Rod(spec, 0.112, 0.008);
+            bool blade = lost.Band > 5 * wrong.Band && rod.Count(EventKind.BladeLost) == 2;
+            Console.WriteLine($"    a lost blade is flown: {(blade ? "PASS" : "FAIL")} (its band {lost.Band:F2} against the scripted loss's {wrong.Band:F4} m/s²; "
+                + $"{rod.Count(EventKind.BladeLost)} BladeLost at a root break; the tilt at 1 s {lost.TiltAfterOne:F2}°, never 45°)");
+            return bent && brinell && blade;
         }
 
         // p7f-damage 1.3b (design 16, D-082): props are parts at rest. The drone set down on one prop's blade (a steel block

@@ -167,6 +167,7 @@ namespace Fpv450.Sim.Log
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
             "BladeRoot",
+            "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
         };
 
         /// <summary>The legs' failure data the header records (in the contacts entry), checked against LegDamageSpec by the suite.</summary>
@@ -267,7 +268,7 @@ namespace Fpv450.Sim.Log
             "BellFrom", "BellTo", "CanThickness", "CanYield", "BackIronThickness", "BackIronYield", "Gap", "MagnetThickness",
             "MagnetRemanence", "MagnetPermeability", "ShaftDiameter", "ShaftYield", "ShaftUltimate", "HubHeight", "LowerBearingHeight",
             "UpperBearingHeight", "BearingStaticRating", "BearingDynamicRating", "BearingBalls", "BallDiameter", "PitchDiameter",
-            "StatorFrom", "StatorTo", "StatorDiameter", "CanModulus", "BackIronModulus",
+            "StatorFrom", "StatorTo", "StatorDiameter", "CanModulus", "BackIronModulus", "ShaftModulus", "BellMass", "BellCentre",
         };
 
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
@@ -916,6 +917,10 @@ namespace Fpv450.Sim.Log
                     e.Write(v);
                 WriteInternals(e, c.Motors);
                 e.Write(c.BladeRoot); // model 64 (format 54): no blade inside its root
+                // p7f-damage 1.6 (format 56): the shafts and the bearings, their switch and their laws' coefficients.
+                e.Write(c.MotorShaft);
+                foreach (double v in new[] { c.ShaftHingeShare, c.BearingFriction, c.BearingDentDrag })
+                    e.Write(v);
                 e.Write(c.Legs != null);
                 if (c.Legs == null) return;
                 LegDamageSpec l = c.Legs;
@@ -1694,6 +1699,10 @@ namespace Fpv450.Sim.Log
             c.BellDentArc = r.ReadDouble();
             c.Motors = ReadInternals(r);
             c.BladeRoot = r.ReadBoolean();
+            c.MotorShaft = r.ReadBoolean();
+            c.ShaftHingeShare = r.ReadDouble();
+            c.BearingFriction = r.ReadDouble();
+            c.BearingDentDrag = r.ReadDouble();
             if (!r.ReadBoolean()) return c;
             var l = new LegDamageSpec();
             for (int k = 0; k < 4; k++)
@@ -1882,7 +1891,8 @@ namespace Fpv450.Sim.Log
             return spec;
         }
 
-        // The motors' internals (motors[].internals, format 19; the stator and the moduli, format 48): a count, then each motor's.
+        // The motors' internals (motors[].internals, format 19; the stator and the moduli, format 48; the shaft's modulus and the
+        // bell's mass and centre, format 56): a count, then each motor's.
         static void WriteInternals(BinaryWriter e, MotorInternals[] motors)
         {
             motors = motors ?? new MotorInternals[0];
@@ -1900,6 +1910,8 @@ namespace Fpv450.Sim.Log
                 e.Write(m.BallDiameter);
                 e.Write(m.PitchDiameter);
                 foreach (double x in new[] { m.StatorFrom, m.StatorTo, m.StatorDiameter, m.CanModulus, m.BackIronModulus })
+                    e.Write(x);
+                foreach (double x in new[] { m.ShaftModulus, m.BellMass, m.BellCentre }) // format 56
                     e.Write(x);
             }
         }
@@ -1919,7 +1931,7 @@ namespace Fpv450.Sim.Log
                     BearingStaticRating = r.ReadDouble(), BearingDynamicRating = r.ReadDouble(), BearingBalls = r.ReadInt32(),
                     BallDiameter = r.ReadDouble(), PitchDiameter = r.ReadDouble(),
                     StatorFrom = r.ReadDouble(), StatorTo = r.ReadDouble(), StatorDiameter = r.ReadDouble(), CanModulus = r.ReadDouble(),
-                    BackIronModulus = r.ReadDouble(),
+                    BackIronModulus = r.ReadDouble(), ShaftModulus = r.ReadDouble(), BellMass = r.ReadDouble(), BellCentre = r.ReadDouble(),
                 };
             return list;
         }

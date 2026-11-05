@@ -112,6 +112,11 @@ namespace Fpv450.Sim.Flight
     ///   drag beside Kt·I0 (the bell's scrape, the magnets' rub), a Coulomb drag turning and a hold at rest; so a dragging motor
     ///   draws more current for the same thrust and reaches a current limit sooner, and one its drag holds at rest under drive is
     ///   bound (Bound). Never set, the motor is the drawn one, bit for bit.
+    /// - the shaft (Contact.MotorShaft, p7f-damage 1.6, SetShaft and LoseProp): a bent shaft's 1/rev loads, fixed in the rotating
+    ///   frame and turning with RotorAngle at each sub-step beside the unbalance: the masses' pull ω²·U at the hub, their couples
+    ///   ω²·K, the thrust tilted, T·u at the hub with its line through the hinge (a couple T·l·(u × ŷ)), and the drag torque's
+    ///   tilt, its reaction·Q·u. A broken shaft loses its prop: no thrust or air torque, J the bell's, no factory unbalance and no
+    ///   blades. Never set, the rotor is model 63's, bit for bit.
     /// </summary>
     public sealed class Propulsion
     {
@@ -206,6 +211,7 @@ namespace Fpv450.Sim.Flight
         // blades, and the step's 1/rev aerodynamic loads per rotor in its frame (DamagedRotor.Loads): moment and force, p and q.
         readonly DamagedRotor[] _rotors;
         int _damaged;
+        readonly double _propInertia; // the blades' and the hub's J, kg·m² (PropBlade.Inertia; a lost prop's)
         readonly double[] _soundInertia = new double[4];
         readonly double[] _momentP = new double[4], _momentQ = new double[4], _forceP = new double[4], _forceQ = new double[4];
 
@@ -214,6 +220,12 @@ namespace Fpv450.Sim.Flight
         // sub-step (bit 1 << corner), the drive's torque Kt·i there (N·m) and the bus voltage.
         readonly double[] _keDrawn = new double[4], _drag = new double[4], _heldDrive = new double[4];
         int _bound;
+
+        // The shafts (SetShaft, LoseProp; p7f-damage 1.6): the bent ones (bit 1 << corner) and each one's unbalance (kg·m), couple per
+        // ω² (kg·m²) and tilt u = φ × ŷ (rad), (p, q) in the rotor's frame, and its hub's lever over the hinge (m); the props lost.
+        int _bent, _lost;
+        readonly double[] _shaftUp = new double[4], _shaftUq = new double[4], _shaftKp = new double[4], _shaftKq = new double[4];
+        readonly double[] _shaftTp = new double[4], _shaftTq = new double[4], _shaftLever = new double[4];
 
         // Each hub's elastic velocity along +y (SetHubElastic), and whether the modes set it.
         Corners _hubElastic;
@@ -304,6 +316,7 @@ namespace Fpv450.Sim.Flight
             if (spec.Rotor != null)
             {
                 _rotors = new DamagedRotor[4];
+                _propInertia = spec.Rotor.Blade.Inertia(p.Diameter / 2, p.Blades);
                 for (int i = 0; i < 4; i++)
                 {
                     _soundInertia[i] = _inertia[i];
@@ -428,6 +441,53 @@ namespace Fpv450.Sim.Flight
             _drag[corner] = drag;
         }
 
+        /// <summary>
+        /// A rotor's bent shaft for the next step's sub-steps (Contact.MotorShaft, p7f-damage 1.6, design 9), in its frame (p along
+        /// blade 0, q = p × ŷ): the turning masses' unbalance, kg·m (its pull ω²·U at the hub), their couple per ω², kg·m², the
+        /// shaft's tilt u = φ × ŷ, rad (the thrust T·u at the hub, its line through the hinge, a couple T·lever·(u × ŷ); the drag
+        /// torque's reaction·Q·u), and the hub's lever over the hinge, m. All 0: straight, model 63's rotor bit for bit.
+        /// </summary>
+        public void SetShaft(int corner, double unbalanceP, double unbalanceQ, double coupleP, double coupleQ, double tiltP, double tiltQ, double lever)
+        {
+            _shaftUp[corner] = unbalanceP;
+            _shaftUq[corner] = unbalanceQ;
+            _shaftKp[corner] = coupleP;
+            _shaftKq[corner] = coupleQ;
+            _shaftTp[corner] = tiltP;
+            _shaftTq[corner] = tiltQ;
+            _shaftLever[corner] = lever;
+            bool bent = unbalanceP != 0 || unbalanceQ != 0 || coupleP != 0 || coupleQ != 0 || tiltP != 0 || tiltQ != 0;
+            if (bent) _bent |= 1 << corner;
+            else _bent &= ~(1 << corner);
+        }
+
+        /// <summary>
+        /// A rotor's prop lost with its broken shaft (Contact.MotorShaft, PropLost): from the next sub-step no thrust and no air
+        /// torque, its J the bell's (the drawn J less the prop's blades and hub, PropBlade.Inertia), no factory unbalance (the
+        /// prop's), its blades gone (trimmed to nothing, so nothing strikes or rests), no blade loads.
+        /// </summary>
+        public void LoseProp(int corner)
+        {
+            int bit = 1 << corner;
+            if ((_lost & bit) != 0) return;
+            _lost |= bit;
+            _unbalance[corner] = 0;
+            if (_rotors != null)
+            {
+                DamagedRotor r = _rotors[corner];
+                for (int b = 0; b < r.Blades; b++) r.Blade(b).Trim(0);
+                r.Rebuild();
+                _damaged &= ~bit;
+                _momentP[corner] = _momentQ[corner] = _forceP[corner] = _forceQ[corner] = 0;
+                _inertia[corner] = _soundInertia[corner] - _propInertia;
+            }
+            _thrust[corner] = _torque[corner] = _meanThrust[corner] = 0;
+        }
+
+        /// <summary>The rotors whose prop is lost (bit 1 &lt;&lt; corner), and those whose shaft is bent.</summary>
+        public int Lost => _lost;
+        public int Bent => _bent;
+
         /// <summary>A motor's Kt (= Ke) now, N·m/A, and its added drag torque, N·m (SetMotor).</summary>
         public double TorqueConstant(int corner) => _ke[corner];
         public double MotorDrag(int corner) => _drag[corner];
@@ -437,6 +497,9 @@ namespace Fpv450.Sim.Flight
         /// D-073); and that drive's torque Kt·i, N·m.</summary>
         public int Bound => _bound;
         public double HeldDrive(int corner) => _heldDrive[corner];
+
+        /// <summary>The bus voltage at the last sub-step, V (an output: Contact.MotorShaft's stalled drive Kt·V/R).</summary>
+        public double BusVolts { get; private set; }
 
         /// <summary>A motor's DC resistance as drawn (winding, ESC and leads), Ω.</summary>
         public double Resistance(int corner) => 1 / _invR[corner];
@@ -483,7 +546,7 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>Whether a prop carries an unbalance (MotorAsymmetry) or a rotor's blades are off the sheet (DamagedRotor), so
         /// the rotors load their hubs once a revolution.</summary>
-        public bool Unbalanced => _unbalanced || _damaged != 0;
+        public bool Unbalanced => _unbalanced || _damaged != 0 || _bent != 0;
 
         /// <summary>A rotor's blades (DamagedRotor), or null without PropulsionSpec.Rotor.</summary>
         public DamagedRotor Rotor(int corner) => _rotors?[corner];
@@ -501,6 +564,7 @@ namespace Fpv450.Sim.Flight
         /// </summary>
         public void Rebuild(int corner)
         {
+            if ((_lost & (1 << corner)) != 0) return; // a lost prop has no blades to rebuild
             DamagedRotor r = _rotors[corner];
             r.Rebuild();
             if (r.Sound)
@@ -524,9 +588,18 @@ namespace Fpv450.Sim.Flight
         {
             pull = _unbalanced ? FactoryPull(corner, angle, speed) : default;
             drag = couple = default;
+            if ((_bent & (1 << corner)) != 0)
+            {
+                ShaftLoads(corner, angle, speed, _thrust[corner], _torque[corner], out Double3 bentPull, out Double3 tilt, out Double3 bentCouple);
+                pull = pull + bentPull;
+                drag = tilt;
+                couple = bentCouple;
+            }
             if ((_damaged & (1 << corner)) == 0) return;
-            BladeLoads(corner, angle, speed, out Double3 lost, out drag, out couple);
+            BladeLoads(corner, angle, speed, out Double3 lost, out Double3 bladeDrag, out Double3 bladeCouple);
             pull = pull + lost;
+            drag = drag + bladeDrag;
+            couple = couple + bladeCouple;
         }
 
         /// <summary>A rotor's hub, body m.</summary>
@@ -964,7 +1037,7 @@ namespace Fpv450.Sim.Flight
                 loads.YawMoment += _reaction[i] * (_inertia[i] * (next - w) / h + torque);
                 loads.SupplyAmps[i] += drive * current;
                 loads.Speed[i] += next;
-                Turn(ref s, i, w, next, h, ref loads);
+                Turn(ref s, i, w, next, h, thrust, torque, ref loads);
                 if (back != 0) s.RotorAngle[i] = Wrapped(s.RotorAngle[i] + back);
                 if (held)
                 {
@@ -981,6 +1054,7 @@ namespace Fpv450.Sim.Flight
             s.PackCharge0 -= amps0 * h / _capacity[0];
             s.PackCharge1 -= amps1 * h / _capacity[1];
             loads.Volts = volts;
+            BusVolts = volts;
             loads.Amps0 = amps0;
             loads.Amps1 = amps1;
             loads.SubSteps++;
@@ -997,7 +1071,7 @@ namespace Fpv450.Sim.Flight
         // angle on the rotor, pulls the hub outward with U·ω² in the disc's plane. A clockwise rotor turns positively
         // about +y (DetMath.cs), so the unbalance at angle θ from body +x points along (cos θ, 0, −sin θ). A rotor whose
         // blades are off the sheet adds its blades' loads (BladeLoads) at the same angle and speed.
-        void Turn(ref FlightState s, int i, double w, double next, double h, ref RotorLoads loads)
+        void Turn(ref FlightState s, int i, double w, double next, double h, double thrust, double torque, ref RotorLoads loads)
         {
             double angle = s.RotorAngle[i] + (w + next) * 0.5 * h;
             while (angle >= TwoPi) angle -= TwoPi;
@@ -1007,6 +1081,13 @@ namespace Fpv450.Sim.Flight
                 Double3 f = FactoryPull(i, angle, next);
                 loads.UnbalanceForce = loads.UnbalanceForce + f;
                 loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hub[i], f);
+            }
+            if ((_bent & (1 << i)) != 0)
+            {
+                ShaftLoads(i, angle, next, thrust, torque, out Double3 pull, out Double3 tilt, out Double3 bentCouple);
+                Double3 f = pull + tilt;
+                loads.UnbalanceForce = loads.UnbalanceForce + f;
+                loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hub[i], f) + bentCouple;
             }
             if ((_damaged & (1 << i)) == 0) return;
             BladeLoads(i, angle, next, out Double3 lost, out Double3 drag, out Double3 couple);
@@ -1036,6 +1117,18 @@ namespace Fpv450.Sim.Flight
             lost = InBody(r.UnbalanceP * w2, r.UnbalanceQ * w2, cos, s * sin);
             drag = InBody(_forceP[i], _forceQ[i], cos, s * sin);
             couple = InBody(_momentP[i] + r.CoupleP * w2, _momentQ[i] + r.CoupleQ * w2, cos, s * sin);
+        }
+
+        // A bent shaft's loads at the rotor's angle ψ and speed ω with its thrust T and torque Q, body axes (SetShaft): the masses'
+        // pull ω²·U at the hub; the thrust's tilt T·u at the hub; the couples, ω²·K, T·lever·(u × ŷ) (u × ŷ = (−u_q, u_p)) and the
+        // drag torque's tilt reaction·Q·u.
+        void ShaftLoads(int i, double angle, double speed, double thrust, double torque, out Double3 pull, out Double3 tilt, out Double3 couple)
+        {
+            DetMath.SinCos(angle, out double sin, out double cos);
+            double s = _reaction[i], w2 = speed * speed, up = _shaftTp[i], uq = _shaftTq[i], tl = thrust * _shaftLever[i], rq = s * torque;
+            pull = InBody(_shaftUp[i] * w2, _shaftUq[i] * w2, cos, s * sin);
+            tilt = InBody(thrust * up, thrust * uq, cos, s * sin);
+            couple = InBody(_shaftKp[i] * w2 - tl * uq + rq * up, _shaftKq[i] * w2 + tl * up + rq * uq, cos, s * sin);
         }
 
         static Double3 InBody(double p, double q, double cos, double sin) => new Double3(p * cos - q * sin, 0, p * sin + q * cos);
@@ -1074,6 +1167,13 @@ namespace Fpv450.Sim.Flight
         // torque's advance ratio too: the blades see that inflow, so the props' published torque against J answers it.
         void RotorAero(int i, double w, out double thrust, out double torque)
         {
+            if ((_lost & (1 << i)) != 0)
+            {
+                // A lost prop (LoseProp): the bell turns in the air with nothing to load it but its motor's own drag.
+                thrust = torque = 0;
+                _meanThrust[i] = 0;
+                return;
+            }
             if ((_ring == null && _ground == null && _wake == null) || !(w > 0))
             {
                 Aero(w, _inflow[i], out thrust, out torque);
