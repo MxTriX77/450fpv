@@ -147,7 +147,7 @@ A contact on a turning bell SHALL slide on the bell's moving surface, its kineti
 
 #### Scenario: A dented bell rubs and can bind
 - **WHEN** a motor bell is struck sideways at 1, 3 and 6 m/s on concrete with the rotor at hover speed
-- **THEN** each dent past the collapse load is logged with its depth, a dent short of the gap changes Kt by the flux form within 1e-9 relative, a dent past it rubs with Roark's force and its torque and wears in over the printed time, and a rub past 0.42 N·m with the losses binds the motor with its ESC held at 40 A
+- **THEN** each dent past the collapse load is logged with its depth, a dent short of the gap changes Kt by the flux form within 1e-9 relative, a dent past it rubs with Roark's force and its torque and wears in over the printed time, a rub past 0.42 N·m with the losses binds the motor with its ESC held at 40 A (D-073's compared variant), and the class's ESC (no current limit) binds it only with a rub past the chain's own stalled drive at full duty, so the 40 A bind applied to the class's ESC fails
 
 ### Requirement: The shaft and the bearings
 The hub's strike loads SHALL bend the shaft past its yield moment (a run-out and a disc tilt fixed in the rotating frame, so a mass and a couple unbalance and a tilted thrust), break it past its ultimate (the prop lost), and brinell a bearing past its static rating (ISO 76: a drag torque, and a ball-pass vibration published to `CameraVibration` as its RMS, never stepped in the 1 kHz body).
@@ -163,13 +163,13 @@ The hub's strike loads SHALL bend the shaft past its yield moment (a run-out and
 ### Requirement: The ESC and the current show the damage
 Each motor's damage SHALL enter the existing motor and ESC model only as its torque constant, its added drag torques and its rotor's inertia, so the current, the current limit and the bus respond as built, and the OSD's current element (D-057) SHALL show it through `MotorCurrentTotalA` with no new element.
 
-#### Scenario: A dragging motor meets its limit sooner
-- **WHEN** the drone with one rubbing motor and the sound drone fly the same full punch from a 5 m/s descent on the same seed
-- **THEN** the rubbing motor's ESC reaches its 40 A limit earlier and holds it longer, and the step's total current is its motors' sum within 1e-9 relative
+#### Scenario: A dragging motor holds its limit longer
+- **WHEN** the drone with one rubbing motor and the sound drone fly the same full punch from a 5 m/s descent on the same seed, every ESC held at 40 A
+- **THEN** the rubbing motor's ESC reaches its limit no later than the sound drone's (in a full punch both meet it in the first steps), from a higher current before the punch, and holds it longer, and the step's total current is its motors' sum within 1e-9 relative
 
 #### Scenario: A trim raises the hover's current
-- **WHEN** the drone hovers with one blade trimmed by 12.7 mm and sound, on the same seed and pack charge
-- **THEN** the total current is higher with the trim, and `MotorCurrentTotalA` carries it to the OSD
+- **WHEN** the drone hovers with both blades of one prop trimmed by 12.7 mm and sound, on the same seed and pack charge
+- **THEN** the total current is higher with the trim, and `MotorCurrentTotalA` carries it to the OSD; one blade trimmed moves it by less than that rotor's share of its power change (printed: the long blade still sweeps the disc)
 
 ### Requirement: Breakage
 A blade broken at a station, a blade lost at its root, a prop lost with its shaft, a rotor jammed and a motor bound SHALL each be a logged event with its cause's strike, and the physics SHALL fly the result with nothing scripted.

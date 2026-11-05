@@ -591,7 +591,9 @@ namespace Fpv450.Sim.Tests
         // the stick anchor in series left 113 mm of penetration under 9.3 N. With the fix the same flight logs none (above).
         // Since model 57 (the props at rest on the line) model 50's flight needs the rest off too (GoldenFlights.WithoutTheRest):
         // with it on, a stopped rotor's blades are parts and the flight leaves 50's path before the legs part, and logs no
-        // tunnel either way (InTheWindNoTunnelThroughARigidShape flies it with both on).
+        // tunnel either way (InTheWindNoTunnelThroughARigidShape flies it with both on). Since model 58 (p7f-damage 1.5) the bells off
+        // too (GoldenFlights.WithoutTheBells): the crown's twigs meet a turning motor's band before the legs part, so with them on the
+        // flight leaves 50's path there.
         [Test]
         public void WithoutTheHangingGiveTheWindyCrownIsModel50s()
         {
@@ -599,7 +601,7 @@ namespace Fpv450.Sim.Tests
             RangeScenarios.Approach a = RangeScenarios.Find("crown");
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
                 a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate,
-                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); }); // since model 60 without the skid's frame too
+                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); }); // since model 60 without the skid's frame, since 63 the bells
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             Assert.That(p.Tunnels, Is.EqualTo(1));
             Assert.That(p.TunnelThrough[0], Is.EqualTo("skid_left through V01_L bark"));
