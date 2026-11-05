@@ -149,8 +149,9 @@ namespace Fpv450.FlightBench
                 Console.WriteLine($"    {name}: μ 0.5/0.4 {S(smooth)} m/s, caught {S(caught)} m/s");
             }
 
+            double first = c.FirstRestDeg(out string firstPart);
             Console.WriteLine($"legs off, the coil (the canister, at rest pitched {c.CoilRestPitchDeg:F2}° nose-down): {c.Mass:F3} kg, centre of mass {c.CoilAbove * 1e3:F2} mm over its axis (R {c.CoilRadius * 1e3:F1} mm); "
-                + $"the pack meets the ground at {c.PackRestDeg:F2}°; rate rolling {c.CoilRollingRate:F3} /s, on an axle {c.CoilAxleRate:F3} /s");
+                + $"the pack would meet the ground at {c.PackRestDeg:F2}°, the {firstPart} meets it first at {first:F2}°; rate rolling {c.CoilRollingRate:F3} /s, on an axle {c.CoilAxleRate:F3} /s");
             foreach (double from in new[] { 0.1, 0.5, 1, 2, 5 })
             {
                 double sim = LandingScenarios.RollTime(spec, m, h, false, from, 20, null, c.CoilRestPitchDeg), roll = c.CoilRockTime(from, 20), axle = c.CoilRockTime(from, 20, false);
