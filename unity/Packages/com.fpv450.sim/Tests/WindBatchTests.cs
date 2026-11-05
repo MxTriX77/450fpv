@@ -10,8 +10,9 @@ using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
 {
-    // The line's nodes' wind on the field's batch worker (WindBatch, p7d-tether 1.13): a flight with it and one with every
-    // node evaluated on the flight thread give the same records and events, bit for bit, and the worker does take points.
+    // The step's wind on the field's batch worker (WindBatch, p7d-tether 1.13: the hubs', the drag's and the record's points
+    // at the step's start and the line's nodes): a flight with it and one with every point evaluated on the flight thread
+    // give the same records and events, bit for bit, and the worker does take points.
     public sealed class WindBatchTests
     {
         // The test range's houses' start (D-077), legs on, the map's own Severe wind and the line: 4 s off the skids and up.
@@ -23,7 +24,7 @@ namespace Fpv450.Sim.Tests
             TestContext.Progress.WriteLine($"0x{worker:X16} with the worker ({byWorker} points on it, {byCaller} on the flight thread, "
                 + $"{nodes} nodes at the end), 0x{serial:X16} without");
             Assert.That(worker, Is.EqualTo(serial));
-            Assert.That(byWorker + byCaller, Is.GreaterThan(4000 * 3), "the nodes' wind went through the batch");
+            Assert.That(byWorker + byCaller, Is.GreaterThan(4000 * 3), "the step's wind went through the batch");
         }
 
         static ulong Fly(bool batch, out long byWorker, out long byCaller, out int nodes)
@@ -41,9 +42,10 @@ namespace Fpv450.Sim.Tests
             setup.TetherCoilPart = spec.Coil.Part;
             setup.TetherSpoolMass = spec.Coil.SpoolMass;
             var core = new FlightCore(setup);
-            WindBatch kept = core.Tether.WindBatch;
-            Assert.That(kept, Is.Not.Null, "a field with a profile gives the line its batch");
-            if (!batch) core.Tether.WindBatch = null;
+            WindBatch kept = core.WindBatch;
+            Assert.That(kept, Is.Not.Null, "a field with a profile gives a flight with the line its batch");
+            Assert.That(core.Tether.WindBatch, Is.SameAs(kept));
+            if (!batch) core.WindBatch = null;
             var pilot = new SimPilot(core.Controller, start.Position + new Double3(0, stand, 0));
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];

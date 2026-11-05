@@ -152,8 +152,8 @@ namespace Fpv450.FlightBench
                 + $"{line.Chain.Count} nodes, {line.TrailCount} trail points, {line.Chain.Corrections} extra solves, {line.Chain.SafeSteps} safe steps), "
                 + $"{steps} steps at 1 kHz: all {P(all, steps)}; on the ground (0–1.5 s) {P(ground, ng)}; the climb {P(climb, nc)}; "
                 + $"the cruise {P(cruise, nr)}; {over300} steps over 300 µs, {over1000} over 1 ms, {late} begun a period late; "
-                + (line.WindBatch == null ? "the nodes' wind on the flight thread; "
-                    : $"the nodes' wind {line.WindBatch.ByWorker} points on the worker, {line.WindBatch.ByCaller} on the flight thread; ")
+                + (core.WindBatch == null ? "the step's wind on the flight thread; "
+                    : $"the step's wind {core.WindBatch.ByWorker} points on the worker, {core.WindBatch.ByCaller} on the flight thread; ")
                 + $"allocation {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");
             return ok;
         }

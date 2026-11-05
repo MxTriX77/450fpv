@@ -570,10 +570,11 @@ namespace Fpv450.Sim.Tether
         }
 
         WindBatch _windBatch;
+        int _windFirst = -1, _windCursor = -1;
 
         /// <summary>
-        /// The batch worker the nodes' wind is evaluated on (WindField.Batch; FlightCore sets it where the field has a
-        /// profile), or null to evaluate every node in Loads. Either gives the same bits (WindBatch).
+        /// The batch worker the nodes' wind is evaluated on (FlightCore's, where the field has a profile), or null to evaluate
+        /// every node in Loads. Either gives the same bits (WindBatch).
         /// </summary>
         public WindBatch WindBatch
         {
@@ -582,23 +583,25 @@ namespace Fpv450.Sim.Tether
             {
                 _windBatch?.Join();
                 _windBatch = value;
+                _windFirst = -1;
             }
         }
 
-        /// <summary>Before the step's wind frame is begun: the last batch done, so nothing reads the frame as it changes.</summary>
-        public void SettleWind() => _windBatch?.Join();
-
         /// <summary>
-        /// After the step's wind frame is begun: every node's position but the exit's posted to the batch worker, whose winds
-        /// Loads takes for the nodes still there bit for bit (a node the contacts put in is evaluated in Loads).
+        /// After the step's wind frame is begun, while the core builds its batch: every node's position but the exit's added,
+        /// in order; Loads takes their winds for the nodes still there bit for bit (a node the contacts put in is evaluated
+        /// in Loads).
         /// </summary>
-        public void PostWind()
+        public void AddWind()
         {
+            _windFirst = -1;
             if (_windBatch == null || !_attached) return;
-            _windBatch.Clear();
             for (int i = 0; i + 1 < _chain.Count; i++)
-                if (!_windBatch.Add(_chain[i].Position)) break;
-            _windBatch.Post();
+            {
+                int at = _windBatch.Add(_chain[i].Position);
+                if (at < 0) break;
+                if (i == 0) _windFirst = at;
+            }
         }
 
         /// <summary>Step with the rotors' angles at the step's start (from), for the blade passes of the prop check (1.8).</summary>
@@ -671,7 +674,8 @@ namespace Fpv450.Sim.Tether
                 if (_rotors.BodyBlocks) _rotors.PlaceBody(s.Position, q);
                 _rotors.Begin(_hubs, up, _thrust, _hubAir, _hubGround);
             }
-            _windBatch?.Join();
+            _windCursor = _windBatch != null ? _windFirst : -1;
+            _windFirst = -1; // the batch's nodes are this step's only
             for (int i = 0; i < n - 1; i++) Loads(i, wind);
             ref CableNode end = ref _chain[n - 1];
             end.Drag = default;
@@ -823,7 +827,8 @@ namespace Fpv450.Sim.Tether
             ref CableNode a = ref _chain[i];
             int n = _chain.Count;
             Double3 x = a.Position;
-            if (_windBatch == null || !_windBatch.Take(x, out Double3 air)) air = wind.At(x);
+            if (_windCursor >= 0 && _windBatch.TryAt(_windCursor, x, out Double3 air)) _windCursor++;
+            else air = wind.At(x);
             if (_rotors != null) air = air + _rotors.At(x, _groundHeight[i], out _);
             Double3 t = (i + 1 < n ? _chain[i + 1].Position : x) - (i > 0 ? _chain[i - 1].Position : x);
             double tl = t.Length();
