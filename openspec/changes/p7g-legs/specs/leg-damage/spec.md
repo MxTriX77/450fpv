@@ -42,6 +42,10 @@ A leg below every capacity SHALL return to its shape exactly, as today.
 - **WHEN** a leg's foot meets a rigid edge sideways at a speed whose moment at the clamp passes the leg's fracture capacity (derived and printed)
 - **THEN** the leg breaks at its weakest section, the stub stays on the drone, the parted piece leaves as a loose body with its own mass, and the event names the leg, the load and the object hit
 
+#### Scenario: A skid's legs act as a frame fore and aft
+- **WHEN** the drone stands on its four legs and is pushed along its skids and then across them, and a frame leg's foot is loaded along the skid past its capacity
+- **THEN** along the skids each leg sways at the frame's give (its foot held square by its T-joint, the skid's bending and its pitch on the two legs, derived and printed) and across them at the cantilever's; a frame leg yields at its clamp's edge and at its T-joint's socket, each event naming the end; a lost leg leaves its sibling a cantilever both ways; and the known-wrong (one value both ways) sways along the skids as across them
+
 #### Scenario: A leg comes off
 - **WHEN** a leg's clamp carries an axial pull or a twist past its friction capacity (derived from the bolt's preload and the clamp's friction, printed)
 - **THEN** the whole leg leaves the drone with its mass and its T-joint, its skid hangs on the other leg or drops with it as the T-joint's capacity decides, and the event names the leg and the cause
