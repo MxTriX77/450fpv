@@ -28,7 +28,7 @@ namespace Fpv450.FlightBench
             }
             if (args.Length == 1 && args[0] == "--bench")
             {
-                Console.WriteLine("flightbench: 11 bench cases registered; " + Power.Describe());
+                Console.WriteLine("flightbench: 12 bench cases registered; " + Power.Describe());
                 bool ok = FreeBodyCase.Bench();
                 ok &= MassRebuildCase.Bench();
                 ok &= PoweredFlightCase.Bench();
@@ -40,6 +40,14 @@ namespace Fpv450.FlightBench
                 ok &= PosadkaStepCase.BenchMap();
                 ok &= PosadkaStepCase.BenchCut();
                 ok &= AirframeCase.Bench();
+                ok &= HousesStepCase.Bench();
+                if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
+                return ok ? 0 : 1;
+            }
+            if (args.Length == 2 && args[0] == "--bench" && args[1] == HousesStepCase.Name)
+            {
+                Console.WriteLine("flightbench: " + HousesStepCase.Name + " alone; " + Power.Describe());
+                bool ok = HousesStepCase.Bench();
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
@@ -109,7 +117,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step] | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
             return 2;
         }
     }
