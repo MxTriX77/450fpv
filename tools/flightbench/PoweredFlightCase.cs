@@ -508,14 +508,25 @@ namespace Fpv450.FlightBench
                 && b60l == GoldenFlights.Model60TetherHash;
             Console.WriteLine($"without the bells, over model 57's 2944 bytes: powered 0x{b60p:X16}, contact 0x{b60c:X16}, range 0x{b60g:X16}, tether 0x{b60l:X16} "
                 + $"({(k60 ? "model 60's, bit for bit" : "NOT model 60's")}): {(k60 ? "PASS" : "FAIL")}");
-            ulong f58p = GoldenFlights.FlyPowered(now, out _, edit: frameless), f58c = GoldenFlights.FlyContact(now, out _, edit: frameless),
-                f58g = GoldenFlights.FlyRange(now, out _, edit: frameless), f58l = GoldenFlights.FlyContact(now, out _, tether: true, cuts: false, edit: frameless);
+            const int m63 = GoldenFlights.Model63Layout; // since model 66, model 58's pins over the record's first 3040 bytes
+            ulong f58p = GoldenFlights.FlyPowered(now, out _, edit: frameless, layout: m63), f58c = GoldenFlights.FlyContact(now, out _, edit: frameless, layout: m63),
+                f58g = GoldenFlights.FlyRange(now, out _, edit: frameless, layout: m63),
+                f58l = GoldenFlights.FlyContact(now, out _, tether: true, cuts: false, edit: frameless, layout: m63);
             bool k58 = f58p == GoldenFlights.Model58PoweredHash && f58c == GoldenFlights.Model58ContactHash && f58g == GoldenFlights.Model58RangeHash
                 && f58l == GoldenFlights.Model58TetherHash;
-            Console.WriteLine($"without the skid's frame and the cuts: powered 0x{f58p:X16}, contact 0x{f58c:X16}, range 0x{f58g:X16}, tether 0x{f58l:X16} "
-                + $"({(k58 ? "the bells' model 58, bit for bit" : "NOT model 58's")}): {(k58 ? "PASS" : "FAIL")}");
+            Console.WriteLine($"without the skid's frame and the cuts, over model 63's 3040 bytes: powered 0x{f58p:X16}, contact 0x{f58c:X16}, range 0x{f58g:X16}, "
+                + $"tether 0x{f58l:X16} ({(k58 ? "the bells' model 58, bit for bit" : "NOT model 58's")}): {(k58 ? "PASS" : "FAIL")}");
+            // p7f-damage 1.6 (model 66), its audit: with the shafts and bearings off every golden over model 63's 3040 bytes is model
+            // 63's pin (the kept test WithoutTheShaftsEachGoldenIsModel63s flies them on too and checks the block zero).
+            Action<FlightSetup> shaftsOff = GoldenFlights.WithoutTheShafts;
+            ulong s63p = GoldenFlights.FlyPowered(now, out _, layout: m63, edit: shaftsOff), s63c = GoldenFlights.FlyContact(now, out _, layout: m63, edit: shaftsOff),
+                s63g = GoldenFlights.FlyRange(now, out _, layout: m63, edit: shaftsOff), s63l = GoldenFlights.FlyContact(now, out _, tether: true, layout: m63, edit: shaftsOff);
+            bool k63 = s63p == GoldenFlights.Model63PoweredHash && s63c == GoldenFlights.Model63ContactHash && s63g == GoldenFlights.Model63RangeHash
+                && s63l == GoldenFlights.Model63TetherHash;
+            Console.WriteLine($"without the shafts and the bearings, over model 63's 3040 bytes: powered 0x{s63p:X16}, contact 0x{s63c:X16}, range 0x{s63g:X16}, "
+                + $"tether 0x{s63l:X16} ({(k63 ? "model 63's, bit for bit" : "NOT model 63's")}): {(k63 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k63;
         }
 
         public static bool Bench()

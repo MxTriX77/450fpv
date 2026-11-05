@@ -300,7 +300,11 @@ namespace Fpv450.Sim.Tests
         // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
         // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
         // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong PoweredHash = 0xFCDD4AE45B2094A4UL;
+        // Model 66 (p7f-damage 1.6, the shafts and the bearings): re-recorded on the 3168-byte record (the shafts' block after 3040).
+        // Audited case by case: over its first 3040 bytes model 63's pin (Model63PoweredHash), every record and event, with the shafts on and
+        // off, the block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): no shaft passes its yield and
+        // no bearing its static rating in it.
+        public const ulong PoweredHash = 0xC4D5C624C30E66A4UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -370,7 +374,11 @@ namespace Fpv450.Sim.Tests
         // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
         // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
         // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong RainPoweredHash = 0x4A34B87D8D3CB8A9UL;
+        // Model 66 (p7f-damage 1.6, the shafts and the bearings): re-recorded on the 3168-byte record (the shafts' block after 3040).
+        // Audited case by case: over its first 3040 bytes model 63's pin (Model63RainPoweredHash), every record and event, with the shafts on and
+        // off, the block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): no shaft passes its yield and
+        // no bearing its static rating in it.
+        public const ulong RainPoweredHash = 0x588D9ABDBC72E0A9UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -456,6 +464,22 @@ namespace Fpv450.Sim.Tests
         public const ulong Model58PoweredHash = 0xFCDD4AE45B2094A4UL, Model58RainPoweredHash = 0x4A34B87D8D3CB8A9UL,
             Model58ContactHash = 0x35986B0BD8AEDDA9UL, Model58RangeHash = 0x1F8DB2FB55133D92UL, Model58TetherHash = 0x87866B2D06B0F191UL,
             Model58TumbleHash = 0xA07B024ABF6C7DD3UL;
+
+        /// <summary>p7f-damage 1.6 (model 66), its audit (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): model 63's record, its
+        /// first 3040 bytes (the record less the shafts' block at its end), and its pins, which every golden keeps bit for bit, every
+        /// record and event, with the shafts on (no golden's shaft passes its yield, no bearing its static rating) and off
+        /// (ContactSpec.MotorShaft), the block zero.</summary>
+        public const int Model63Layout = LogFormat.Model63StepSize;
+        public const ulong Model63PoweredHash = 0xFCDD4AE45B2094A4UL, Model63RainPoweredHash = 0x4A34B87D8D3CB8A9UL,
+            Model63ContactHash = 0x4D6E89806C9F0058UL, Model63RangeHash = 0xEFF887E0EA8DF960UL, Model63TetherHash = 0xCBB115FDD3A3A0C2UL,
+            Model63TumbleHash = 0xA07B024ABF6C7DD3UL;
+
+        /// <summary>A flight's contacts without the shafts and the bearings (p7f-damage 1.6's audit and known-wrong): a rigid shaft on
+        /// rigid bearings, as at model 63.</summary>
+        public static void WithoutTheShafts(FlightSetup s)
+        {
+            if (s.Contacts != null) s.Contacts.MotorShaft = false;
+        }
 
         /// <summary>A flight's contacts without the motors' bells (p7f-damage 1.5's audit and known-wrong): the can a rigid part, as
         /// at model 57.</summary>
@@ -782,7 +806,11 @@ namespace Fpv450.Sim.Tests
         // and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
         // no motor's band touches anything in it; without the skid's frame model 58's pin (Model58ContactHash) over the whole record
         // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong ContactHash = 0x4D6E89806C9F0058UL;
+        // Model 66 (p7f-damage 1.6, the shafts and the bearings): re-recorded on the 3168-byte record (the shafts' block after 3040).
+        // Audited case by case: over its first 3040 bytes model 63's pin (Model63ContactHash), every record and event, with the shafts on and
+        // off, the block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): no shaft passes its yield and
+        // no bearing its static rating in it.
+        public const ulong ContactHash = 0xFFFBEA9CDA89C058UL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -950,8 +978,11 @@ namespace Fpv450.Sim.Tests
         /// (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
         /// So the tether golden still breaks as at 60: rotor 2's disc at its tip at step 7304, the failsafe to Disarmed, a near
         /// piece of 11 nodes, 2 clips and 9 safe steps, 0 wedges: no bell touches the line's pieces or the ground through it.
+        /// Model 66 (p7f-damage 1.6, the shafts and the bearings): re-recorded on the 3168-byte record. Audited case by case: over its
+        /// first 3040 bytes model 63's pin (Model63TetherHash), every record and event, with the shafts on and off, the block zero
+        /// (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): rotor 2's disc cuts the line, nothing harder, and its legs land.
         /// </summary>
-        public const ulong TetherHash = 0xCBB115FDD3A3A0C2UL;
+        public const ulong TetherHash = 0xDD00954720F14CC2UL;
 
         /// <summary>The tether golden of p7d-tether 1.8 (model 56) on model 50's 2816 bytes, which the flight without the props
         /// at rest keeps (ContactSpec.BladeRest off: GoldenFlightTests.WithoutARestingPropEachGoldenIsModel56s).</summary>
@@ -1057,7 +1088,11 @@ namespace Fpv450.Sim.Tests
         // model 57's 2944 bytes model 60's pin (its 57's), every record and event, with the bells on and off, the block zero
         // (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s); without the skid's frame and the cuts model 58's pin over the
         // whole record (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong TumbleHash = 0xA07B024ABF6C7DD3UL;
+        // Model 66 (p7f-damage 1.6, the shafts and the bearings): re-recorded on the 3168-byte record (the shafts' block after 3040).
+        // Audited case by case: over its first 3040 bytes model 63's pin (Model63TumbleHash), every record and event, with the shafts on and
+        // off, the block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): no shaft passes its yield and
+        // no bearing its static rating in it.
+        public const ulong TumbleHash = 0xDDA88F905E375BD3UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1235,7 +1270,11 @@ namespace Fpv450.Sim.Tests
         // and event, with the bells on and off, the block zero on every record (GoldenFlightTests.WithoutTheBellsEachGoldenIsModel60s):
         // no motor's band touches anything in it; without the skid's frame model 58's pin (Model58RangeHash) over the whole record
         // (WithoutTheFrameAndTheCutsEachGoldenIsModel58s).
-        public const ulong RangeHash = 0xEFF887E0EA8DF960UL;
+        // Model 66 (p7f-damage 1.6, the shafts and the bearings): re-recorded on the 3168-byte record (the shafts' block after 3040).
+        // Audited case by case: over its first 3040 bytes model 63's pin (Model63RangeHash), every record and event, with the shafts on and
+        // off, the block zero on every record (GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel63s): no shaft passes its yield and
+        // no bearing its static rating in it.
+        public const ulong RangeHash = 0x6814962E6FCE6760UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
