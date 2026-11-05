@@ -82,6 +82,7 @@ namespace Fpv450.Sim.Tether
             ("fiber.coating_poisson_ratio", TetherValueKind.Positive),
             ("fiber.coating_hardness_pa", TetherValueKind.Positive),
             ("fiber.archard_wear_coefficient", TetherValueKind.Positive),
+            ("fiber.archard_wear_coefficient_mild", TetherValueKind.Positive),
             ("fiber.section_length_m", TetherValueKind.Positive),
             ("fiber.drag_cross_base", TetherValueKind.Positive),
             ("fiber.drag_cross_coefficient", TetherValueKind.Positive),

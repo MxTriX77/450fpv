@@ -17,7 +17,7 @@ namespace Fpv450.Replay
             + "                                         replay the flight; compare every record bit for bit, on the world\n"
             + "                                         the log names: 'floor', or the repository's maps/<id>\n"
             + "  replay --summary <log>                 the flight's summary; a cut log reads to its last whole record\n"
-            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>] [--disarm-at-touch] [--descent M/S]\n"
+            + "  replay --record <log> [--seconds S] [--realtime] [--wind still|calm|windy|severe] [--rain sunny|rain|severerain] [--wakes | --canopy] [--map <id> [--foot x,y,z,heading]] [--drone <drone.json>] [--line | --tether <tether.json>] [--coil-left M] [--disarm-at-touch] [--descent M/S]\n"
             + "  replay --record <log> --graze [--drone <drone.json>]\n"
             + "                                         fly the test range's wall graze (p7f-damage 1.3: a blade strike\n"
             + "                                         that chips the front-left blades, the drone flying on) and log it\n"
@@ -29,7 +29,7 @@ namespace Fpv450.Replay
             + "                                         (or the foot and heading --foot gives) in the map's own wind\n"
             + "                                         (its wakes, its belt's canopy and its cuts' cavity flow); --line\n"
             + "                                         flies it on the fiber (the repository's tether.json, or the file given);\n"
-            + "                                         --disarm-at-touch disarms as the legs first touch, not 2.5 s after;\n"
+            + "                                         --coil-left M leaves M of line on the coil (p7d-tether 1.8: it runs out, the line holds the drone and breaks); --disarm-at-touch disarms as the legs first touch, not 2.5 s after;\n"
             + "                                         --descent: its last metres' descent (0.5 m/s; 1.9 lands hard\n"
             + "                                         enough to bend a leg, p7g-legs 1.2)\n"
             + "  replay --record <log> --legs [--drone <drone.json>]\n"
@@ -207,7 +207,8 @@ namespace Fpv450.Replay
             double last = descent == null ? 0.5 : double.Parse(descent, System.Globalization.CultureInfo.InvariantCulture);
             if (!(last > 0 && last <= 2)) throw new ArgumentException("--descent must be in (0, 2] m/s");
             ScriptedFlight.Recorded r = ScriptedFlight.Fly(path, drone, (long)(duration * 1000), realtime, wind, Array.IndexOf(args, "--wakes") >= 0, rain,
-                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether, Array.IndexOf(args, "--disarm-at-touch") >= 0, last);
+                Array.IndexOf(args, "--canopy") >= 0, map, foot, tether, Array.IndexOf(args, "--disarm-at-touch") >= 0, last,
+                Option(args, "--coil-left") is string left ? double.Parse(left, System.Globalization.CultureInfo.InvariantCulture) : -1);
             LogEnd c = r.Counts;
             double perStep = (double)(r.Bytes - r.HeaderBytes) / c.Steps;
             Console.WriteLine($"record {Path.GetFileName(path)}: {(realtime ? "real time on the flight thread" : "virtual clock, the scheduler and the flush worker")}, {map ?? "floor"}, {wind} wind, {rain}, "

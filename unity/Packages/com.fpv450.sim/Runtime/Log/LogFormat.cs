@@ -194,8 +194,15 @@ namespace Fpv450.Sim.Log
         ///    stub's springs in the legs' data) with 43's EdgeRadius in each material row after its density; the tether entry
         ///    43's (TetherWithoutContacts after the design 4 air's switch, tether.json's contact block); the events 43's
         ///    (FiberContact 30, FiberSlip 31, WorldBug's causes 2-6); the record is 40's 2816 bytes.
+        /// 46: the fiber's cut risk, the link and the break (p7d-tether 1.8, unity/physics/physics-integration-2--fiber-cut, on
+        ///    45; assigned by D-072 and D-074): the tether entry gains the switches FlightSetup.TetherWithoutCuts and
+        ///    TetherOneStrength after TetherWithoutContacts; the settings gain failsafe_delay, failsafe_procedure,
+        ///    failsafe_throttle and failsafe_off_delay (FcSettings, by name); the draws gain fiber.span_strength's; the events
+        ///    TetherBreak (32), LinkDip (33), FiberSection (34) and Failsafe (35), WorldBug's cause 7 (FiberSectionsFull); the
+        ///    tether block's flags gain Broken (64) and Dip (128); the record is 45's 2816 bytes (the margin, the state and the
+        ///    least bend radius go into the record with 1.13's fields: here they are the feed's signals and the events).
         /// </summary>
-        public const int Version = 45;
+        public const int Version = 46;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -495,8 +502,15 @@ namespace Fpv450.Sim.Log
         ///    without the line, or with it and FlightSetup.TetherWithoutContacts, steps as in 51; one whose legs never part (no
         ///    hanging half, no stub) steps as in 53, and so does any flight with ContactSpec.HangingGive off and the stub's
         ///    spring 0.
+        /// 56: the fiber's cut risk, the link and the break (p7d-tether 1.8, design 7, 8, 14; on 55, assigned by D-072): the span's
+        ///    strength and each section's (fiber.section_strength, counter-based), Archard's wear at the contacts, the prop's,
+        ///    tension's, bend's, abrasion's and peel's checks each step, the break (the far piece left where it lies, the near
+        ///    piece hanging from the exit), the link's margin and dips, and the controller's Betaflight 4.5 failsafe on the break
+        ///    (no frame reaches it from the step after). A flight without the line, or with it and FlightSetup.TetherWithoutCuts,
+        ///    steps as in 55; one with the line whose checks never break it steps as in 55 too (the record and the state), its
+        ///    log gaining FiberSection and LinkDip events.
         /// </summary>
-        public const int ModelVersion = 55;
+        public const int ModelVersion = 56;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

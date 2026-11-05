@@ -30,6 +30,14 @@ namespace Fpv450.Sim.Tether
         /// <summary>One of the drone's own contact shapes (a skid, a leg, an arm, a can, a pack, the coil): a moving capstan, its
         /// reaction on the drone at the contact point.</summary>
         Part = 9,
+        /// <summary>The spool's exit lip (p7d-tether 1.8: a bend, a break or a link loss there; never a contact slot).</summary>
+        Lip = 10,
+        /// <summary>The pack's peel front inside the canister (1.8: a break there).</summary>
+        Peel = 11,
+        /// <summary>A rotor's disc (1.8: a prop cut; Part the rotor's part, Shape its disc shape).</summary>
+        Disc = 12,
+        /// <summary>The line's free span (1.8: a tension break between contacts, or the paid-out length's attenuation).</summary>
+        Span = 13,
     }
 
     /// <summary>
@@ -79,6 +87,11 @@ namespace Fpv450.Sim.Tether
         const int ShapeBuffer = 64, MaxHits = 2048, MaxSpent = 256, MaxReactions = 64;
         const double Cos45 = 0.7071067811865476;
 
+        // The microbend's surface class (p7d-tether 1.8, design 8; tether.json's link.microbend_rough_db_per_n and _smooth_): the
+        // physics_materials.json rows a line meets as a rough contact (millimetre-scale roughness: soil, bark, concrete, straw,
+        // fabric, the table's rationale), assumed by row; every other row is smooth (metal, polymer, glass, a conductor). Load-time.
+        static readonly string[] RoughMaterials = { "masonry", "concrete", "timber", "bark", "twig", "deadwood", "asbestos_cement", "straw", "fabric", "sandbag", "foliage" };
+
         /// <summary>The object a drone part's contact names (FiberContact's Object): the drone is one body, so its shapes merge
         /// by the 45° rule as one object's.</summary>
         public const int DroneObject = -2;
@@ -98,7 +111,7 @@ namespace Fpv450.Sim.Tether
 
         // The world's materials and surfaces by id: μs, μk, the arris, skipped (a homogenised shell), a layer.
         readonly double[] _matStatic, _matKinetic, _matEdge;
-        readonly bool[] _matSkip, _matLayer;
+        readonly bool[] _matSkip, _matLayer, _matRough;
         readonly double[] _surfStatic, _surfKinetic, _surfEdge;
         // The elements' tissue (surfaces.json's cover at the flight's moisture) and their friction (the twig and straw rows).
         readonly CoverSet _straw, _stem, _twig;
@@ -167,6 +180,7 @@ namespace Fpv450.Sim.Tether
             _matEdge = new double[top + 1];
             _matSkip = new bool[top + 1];
             _matLayer = new bool[top + 1];
+            _matRough = new bool[top + 1];
             for (int id = 0; id <= top; id++)
             {
                 _matStatic[id] = _polymerStatic;
@@ -174,6 +188,7 @@ namespace Fpv450.Sim.Tether
                 string name = id > 0 ? q.MaterialName((ushort)id) : null;
                 if (name == null) continue;
                 _matSkip[id] = name == "twig" || name == "foliage" || name == "razor_wire";
+                _matRough[id] = Array.IndexOf(RoughMaterials, name) >= 0;
                 if (spec == null || !spec.Row(name, out MaterialRow r)) continue;
                 _matStatic[id] = wet && r.HasWet ? r.WetStaticFriction : r.StaticFriction;
                 _matKinetic[id] = wet && r.HasWet ? r.WetKineticFriction : r.KineticFriction;
@@ -297,6 +312,9 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>The drone's reactions to the line on its parts after the last step: world N at body m, applied in the next.</summary>
         public int ReactionCount => _reactionCount;
+
+        /// <summary>No reactions for the next step (1.8: nothing of the line is left on the drone after a break at it).</summary>
+        public void ClearReactions() => _reactionCount = 0;
         public Double3 ReactionForce(int i) => _reactionForce[i];
         public Double3 ReactionPoint(int i) => _reactionPoint[i];
 
@@ -890,6 +908,7 @@ namespace Fpv450.Sim.Tether
             slot.Glide = m.Kind == FiberMember.Part;
             slot.Kinematic = m.Kind != FiberMember.Ground && m.Kind != FiberMember.Layer;
             slot.Edge = m.Edge;
+            slot.Rough = RoughOf(m);
             slot.Cap = cap;
             slot.Slide = slide;
             slot.Through = node.Material;
@@ -983,22 +1002,47 @@ namespace Fpv450.Sim.Tether
             Touching = touching;
         }
 
-        FlightEvent Named(EventKind kind, in CableContact c, Double3 point, double a, double b, double cc)
+        // A member's surface class for the microbend (RoughMaterials): the ground, a layer and the drawn elements rough (soil,
+        // straw, bark), the drone's parts and the conductors smooth, a shape or a record by its row.
+        bool RoughOf(in MemberSeg m)
+        {
+            switch (m.Kind)
+            {
+                case FiberMember.Ground:
+                case FiberMember.Layer:
+                case FiberMember.Twig:
+                case FiberMember.Stem:
+                case FiberMember.Straw:
+                    return true;
+                case FiberMember.Shape:
+                case FiberMember.Snag:
+                    return m.Surface != WorldIds.NoSurface || m.Material < _matRough.Length && _matRough[m.Material];
+                default:
+                    return false;
+            }
+        }
+
+        FlightEvent Named(EventKind kind, in CableContact c, Double3 point, double a, double b, double cc) =>
+            Named(kind, c.MemberKind, c.Member, point, a, b, cc);
+
+        /// <summary>An event of kind naming the member (memberKind, member) as FiberContact names it (Index its FiberMember, and
+        /// Object, Shape and Part), at point with A, B and C.</summary>
+        public FlightEvent Named(EventKind kind, byte memberKind, ulong member, Double3 point, double a, double b, double cc)
         {
             FlightEvent e = FlightEvent.Of(kind);
-            e.Index = c.MemberKind;
-            FiberMember m = (FiberMember)c.MemberKind;
+            e.Index = memberKind;
+            FiberMember m = (FiberMember)memberKind;
             if (m == FiberMember.Part)
             {
-                int shape = (int)c.Member;
+                int shape = (int)member;
                 e.Object = DroneObject;
                 e.Shape = shape;
                 e.Part = (ushort)_parts.Shape(shape).Part;
             }
             else
             {
-                e.Object = (int)(uint)(c.Member >> 32);
-                e.Shape = (int)(uint)c.Member;
+                e.Object = (int)(uint)(member >> 32);
+                e.Shape = (int)(uint)member;
             }
             e.Point = point;
             e.A = a;

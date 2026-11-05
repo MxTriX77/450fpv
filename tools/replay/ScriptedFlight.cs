@@ -299,7 +299,7 @@ namespace Fpv450.Replay
 
         public static Recorded Fly(string path, string dronePath, long steps, bool realtime, WindLevel wind = WindLevel.Windy, bool wakes = false,
             RainLevel rain = RainLevel.Sunny, bool canopy = false, string map = null, double[] footAt = null, string tetherPath = null,
-            bool disarmAtTouch = false, double descent = 0.5)
+            bool disarmAtTouch = false, double descent = 0.5, double coilLeft = -1)
         {
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(dronePath));
             string materialsPath = RepositoryMaterials()
@@ -308,6 +308,7 @@ namespace Fpv450.Replay
             SurfaceTable surfaces = SurfaceTable.Parse(File.ReadAllText(RepositorySurfaces()
                 ?? throw new FileNotFoundException("assets-src/surfaces.json was not found")));
             Loadout loadout = spec.Nominal;
+            if (coilLeft >= 0) loadout.CoilPaidOut = spec.Coil.FiberLength - coilLeft; // --coil-left: the coil runs out, the line holds the drone (p7d-tether 1.8)
             ContactSpec contacts = spec.BuildContacts(loadout, materials, materialsHash, surfaces);
             double stand = 0; // the body origin's height standing on the floor, the skids unloaded
             foreach (ContactShape s in contacts.Shapes)
@@ -413,7 +414,11 @@ namespace Fpv450.Replay
                     : $"tether.json 0x{setup.Tether.ContentHash:X16}, G₀ {core.Tether.PeelEnergy:F4} J/m: {core.Tether.PaidOut:F2} m paid out, "
                         + $"{core.Tether.Chain.Count} nodes, {core.Tether.TrailCount} trail points; the chain's guards: {core.Tether.Chain.Corrections} extra solves, "
                         + $"{core.Tether.Chain.Clips} clips, {core.Tether.Chain.SafeSteps} safe steps, {core.Tether.Chain.MergeClips} merge clips, "
-                        + $"{core.Tether.Chain.Wedges} wedges",
+                        + $"{core.Tether.Chain.Wedges} wedges; "
+                        + (core.Tether.Broken
+                            ? $"broken at step {core.Tether.BrokenAt} by {core.Tether.LastBreak.Mechanism} at {(Fpv450.Sim.Tether.FiberMember)core.Tether.LastBreak.Kind}, "
+                                + $"σ {core.Tether.LastBreak.Stress / 1e9:F3} GPa against {core.Tether.LastBreak.Strength / 1e9:F3}, the failsafe at stage {core.Failsafe?.Stage}"
+                            : $"whole, the link's margin {core.Tether.Link?.Margin:F2} dB, {core.Tether.Link?.Dips} dips"),
             };
         }
 

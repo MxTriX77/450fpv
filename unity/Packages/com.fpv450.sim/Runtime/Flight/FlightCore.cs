@@ -108,6 +108,14 @@ namespace Fpv450.Sim.Flight
         /// as model 50's line did; the audit against model 50 and a bench's known-wrong, never a pilot's flight.</summary>
         public bool TetherWithoutContacts;
 
+        /// <summary>The line without 1.8's cut risk and link (p7d-tether design 7, 8): it never breaks and carries no margin, as
+        /// model 55's line did; the audit against model 55, never a pilot's flight.</summary>
+        public bool TetherWithoutCuts;
+
+        /// <summary>The known-wrong one strength (p7d-tether design 16): every check, the bends' and the peel's, meets the span's
+        /// per-flight strength; a bench's model, never a pilot's flight.</summary>
+        public bool TetherOneStrength;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -192,6 +200,13 @@ namespace Fpv450.Sim.Flight
         StepTrace _trace;
         readonly StepEvents _events = new StepEvents();
         readonly Tether.FiberLine _tether; // the fiber (FlightSetup.Tether), or null
+        readonly Control.Failsafe _failsafe; // the controller's failsafe on the line's break (p7d-tether 1.8), or null
+        // The link's field window (FeedSignals): the exit's tension (sum, max), the least bend radius, the margin (sum, least).
+        int _linkCount;
+        double _sumTension, _maxTension, _leastBend = double.PositiveInfinity, _sumMargin, _leastMargin = double.PositiveInfinity;
+        double _fieldTension, _fieldTensionMax, _fieldBend = double.PositiveInfinity, _fieldMargin, _fieldMarginLeast;
+        LinkState _fieldLink;
+        bool _linkField; // a whole field has been published
         readonly Double3[] _tetherHubs;
         StickSample _stick; // the last step's sample in force, published with the signals (FeedSignals.Sticks)
 
@@ -304,7 +319,8 @@ namespace Fpv450.Sim.Flight
             if (setup.Tether != null)
             {
                 if (setup.TetherCoilPart >= _mass.PartCount) throw new ArgumentException("the line's coil part is not a part of the mass model", nameof(setup));
-                _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt, _contacts);
+                _tether = new Tether.FiberLine(setup.Tether, setup, _mass, Random, _state, Dt, _contacts, _propulsion);
+                if (_fc != null && !setup.TetherWithoutCuts) _failsafe = new Control.Failsafe(_settings, Dt);
                 _tetherHubs = new Double3[4];
                 if (setup.Propulsion != null)
                     for (int i = 0; i < 4; i++) _tetherHubs[i] = setup.Propulsion.Motors[i].Position;
@@ -410,8 +426,10 @@ namespace Fpv450.Sim.Flight
         public void Advance(in StickSample stick)
         {
             ref FlightState s = ref _state;
-            _stick = stick;
             _events.Clear();
+            // After the line's break no frame reaches the controller: it flies its failsafe's sample (p7d-tether 1.8).
+            StickSample flown = _failsafe != null && _failsafe.Active ? _failsafe.Filter(s.Step, stick, _events) : stick;
+            _stick = flown;
             s.BladeStrikes = default;
             Corners angles = s.RotorAngle; // where the blades start the step, for their passes (PropStrikes)
             BeginWind(s);
@@ -422,8 +440,8 @@ namespace Fpv450.Sim.Flight
             Double3 force = default;
             Double3 moment = default;
             Double3 airForce = default, airMoment = default;
-            if (_fc == null) s.Armed = stick.Arm;
-            else Propel(ref s, stick, body, ref force, ref moment, ref airForce, ref airMoment);
+            if (_fc == null) s.Armed = flown.Arm;
+            else Propel(ref s, flown, body, ref force, ref moment, ref airForce, ref airMoment);
             if (_aero != null) Drag(s, body, ref airForce, ref airMoment);
             Double3 airWorld = s.Attitude.Rotate(airForce);
             force = force + airWorld;
@@ -460,12 +478,14 @@ namespace Fpv450.Sim.Flight
             // mass and the airframe's modes follow, the body's motion kept (RigidBody: the state is the body origin's).
             if (_tether != null)
             {
-                _tether.Step(s, _tetherHubs, _rotorThrust, _wind, _events, ref _trace.Tether);
+                _tether.Step(s, _tetherHubs, _rotorThrust, _wind, _events, ref _trace.Tether, angles);
                 if (_tether.MassChanged)
                 {
                     _mass.SetPartMass(_tether.CoilPart, _tether.CoilMass);
                     _modes?.Rebuild(_mass, ref s.ModeShape, ref s.ModeRate);
                 }
+                if (_tether.BrokeThisStep) _failsafe?.Lose(s.Step, flown);
+                if (_tether.Link != null) LinkField();
             }
 
             // The film takes the water the drops brought this step; the next step flies its mass.
@@ -801,6 +821,33 @@ namespace Fpv450.Sim.Flight
             _fieldCount = 0;
         }
 
+        // The link's field window (FeedSignals, p7d-tether 1.8): this step's exit tension, least bend radius and margin into the
+        // window; a whole field publishes their means, maxima and least, and the state at its last step.
+        void LinkField()
+        {
+            double tension = _tether.ExitTension, bend = _tether.MinBendRadius, margin = _tether.Link.Margin;
+            _sumTension += tension;
+            _maxTension = DetMath.Max(_maxTension, tension);
+            if (bend < _leastBend) _leastBend = bend;
+            _sumMargin += margin;
+            if (margin < _leastMargin) _leastMargin = margin;
+            if (++_linkCount < FieldSteps) return;
+            double n = _linkCount;
+            _fieldTension = _sumTension / n;
+            _fieldTensionMax = _maxTension;
+            _fieldBend = _leastBend;
+            _fieldMargin = _sumMargin / n;
+            _fieldMarginLeast = _leastMargin;
+            _fieldLink = _tether.Link.State;
+            _linkField = true;
+            _sumTension = _maxTension = _sumMargin = 0;
+            _leastBend = _leastMargin = double.PositiveInfinity;
+            _linkCount = 0;
+        }
+
+        /// <summary>The flight controller's failsafe on the line's break (p7d-tether 1.8), or null without the line or its cuts.</summary>
+        public Control.Failsafe Failsafe => _failsafe;
+
         /// <summary>The gyro of a body rate: the pilot's axes in °/s (roll −ω_z, pitch +ω_x nose down, yaw +ω_y).</summary>
         public static Axes3 Gyro(Double3 bodyRate) => new Axes3
         {
@@ -840,9 +887,10 @@ namespace Fpv450.Sim.Flight
             CableChain line = _tether.Chain;
             int n = line.Count < FiberNodes.Capacity ? line.Count : FiberNodes.Capacity;
             for (int i = 0; i < n; i++) pose.FiberNodes[i] = line[i].Position;
-            pose.FiberNodeCount = n;
+            pose.FiberNodeCount = _tether.Attached ? n : 0;
             pose.FiberTrailCount = _tether.TrailCount;
             pose.FiberPaidOut = _tether.PaidOut;
+            pose.FiberBreakTrail = _tether.TrailBeforeBreak;
         }
 
         /// <summary>The feed signals of the current state (FeedSignals says which are live).</summary>
@@ -866,6 +914,24 @@ namespace Fpv450.Sim.Flight
                 signals.ImpactCount = _contacts.ImpactCount;
                 signals.ImpactPeakAccel = _contacts.ImpactPeakAccel;
                 signals.ImpactImpulse = _contacts.ImpactImpulse;
+            }
+            if (_tether != null && _tether.Link != null)
+            {
+                // The link (p7d-tether 1.8): the field's exit tension (mean and max), least bend radius, margin (mean and least)
+                // and state; before the first whole field the current step's. The break and the dips as their steps and counts.
+                signals.Live |= FeedSignalSet.FiberTension | FeedSignalSet.FiberMinBendRadius | FeedSignalSet.LinkState | FeedSignalSet.LinkMargin;
+                Tether.FiberLink link = _tether.Link;
+                signals.FiberTensionN = _linkField ? _fieldTension : _tether.ExitTension;
+                signals.FiberTensionMaxN = _linkField ? _fieldTensionMax : _tether.ExitTension;
+                signals.FiberMinBendRadiusM = _linkField ? _fieldBend : _tether.MinBendRadius;
+                signals.LinkMarginDb = _linkField ? _fieldMargin : link.Margin;
+                signals.LinkMarginLeastDb = _linkField ? _fieldMarginLeast : link.Margin;
+                signals.LinkState = _linkField ? _fieldLink : link.State;
+                signals.LinkDips = link.Dips;
+                signals.LinkInDip = link.InDip;
+                signals.LinkLossCause = link.InDip ? link.DipKind : link.Largest >= 0 ? _tether.Cuts.Bend(link.Largest).Kind : (byte)0;
+                signals.TetherBreakStep = _tether.BrokenAt;
+                signals.TetherBreakMechanism = _tether.Broken ? (byte)_tether.LastBreak.Mechanism : (byte)0;
             }
             if (_propulsion == null) return;
             if (_modes != null)

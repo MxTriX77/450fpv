@@ -271,6 +271,42 @@ namespace Fpv450.Sim.Flight
         /// (its release force or Euler's load, N), or its slide-off press, m, negated.
         /// </summary>
         FiberSlip = 31,
+
+        /// <summary>
+        /// The line broke (p7d-tether 1.8, design 7): Index its TetherMechanism (low 4 bits) and the place's FiberMember (high 4
+        /// bits), the place named as FiberContact names a member (a shape, an element, a record, a conductor, the drone's part), or
+        /// the drone (Object −2) and the coil's Part for the exit lip and the peel front, the rotor's disc shape and part for the
+        /// prop, Object −1 for the free span; Point the break. A: the line's turn there, rad (the prop: the crossing's radius, m);
+        /// B: the tension, N; C: the bend's radius R_eff, m (∞ for tension; the prop: the blade's speed there, m/s). The strength it
+        /// met follows it in the same step as FiberSection with Index 0x80 (none for the prop and the wedge). The link is Broken
+        /// and the margin −∞ from this step.
+        /// </summary>
+        TetherBreak = 32,
+
+        /// <summary>
+        /// The link's margin crossed the receiver's threshold (p7d-tether 1.8, design 8). At a dip's start: Index the FiberMember
+        /// of the bend with the largest loss, named as TetherBreak's place, A the margin, dB, B that loss, dB, C 0. At its end
+        /// (Index | 0x80): the member with the largest loss at the dip's least, A the dip's length, s, B its least margin, dB, C
+        /// that loss, dB.
+        /// </summary>
+        LinkDip = 33,
+
+        /// <summary>
+        /// A section's strength read (p7d-tether 1.8, design 7, 14): Index its SectionBand (low 2 bits: intact, flaw, abraded,
+        /// span), 0x40 when it wore through its coating now (its abraded draw), 0x80 when it is the strength a break met; the
+        /// member it was read at named as TetherBreak's place. A: the section's start s, m (the span's: the break's section);
+        /// B: its strength, Pa; C: the stress it met, Pa (a wear-through: the wear's depth, m). Logged at a section's first read
+        /// at a contact; at the lip and the peel when its stress first passes half its strength, and at a break.
+        /// </summary>
+        FiberSection = 34,
+
+        /// <summary>
+        /// The flight controller's failsafe moved on a stage (Betaflight 4.5's, p7d-tether 1.8, design 8): Index its
+        /// Control.FailsafeStage (0 the receiver declared the signal lost, 1 stage 1's channel fallbacks, 2 stage 2's
+        /// failsafe_procedure, 3 disarmed). A: the time since the last good frame, s; B: failsafe_procedure (0 DROP, 1 AUTO_LAND);
+        /// C: the throttle stick the stage holds, 0–1.
+        /// </summary>
+        Failsafe = 35,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>
@@ -312,6 +348,9 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>A segment's query met more shapes than the fiber's buffer holds: it was asked again at the insertion gap.</summary>
         FiberShapesFull = 6,
+
+        /// <summary>The fiber's section table (FiberCuts.Capacity) was full: sections past it are not logged or worn (p7d-tether 1.8).</summary>
+        FiberSectionsFull = 7,
     }
 
     /// <summary>MixerSaturation's Index.</summary>

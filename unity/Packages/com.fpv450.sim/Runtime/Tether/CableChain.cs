@@ -51,6 +51,12 @@ namespace Fpv450.Sim.Tether
         /// slide shows as a change); whether it was set afresh this step, and whether line was sliding through it.</summary>
         public double Edge, Cap, Slide, Through;
         public bool Fresh, Sliding;
+        /// <summary>The caller's, opaque to the chain: the member's surface class for the line's microbend loss (p7d-tether 1.8):
+        /// rough (soil, bark, concrete, straw) or smooth.</summary>
+        public bool Rough;
+        /// <summary>The caller's, opaque to the chain: how far the member's touch has moved along the line from the node's
+        /// material point since the slot was set, m (the line gliding past a member along its length: 1.8's wear).</summary>
+        public double Rubbed;
 
         /// <summary>The chain's: the hold is set (the node pressed on the member in the last step).</summary>
         public bool Engaged;

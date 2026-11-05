@@ -43,7 +43,11 @@ namespace Fpv450.Sim.Flight
     /// - RainRate: filled (p7c-wind 1.7), the setup's rain: the flight's drawn rate, 0 when Sunny
     /// - CameraVibration: filled (p7b-airframe 1.4, PR-1's throttle-punch shake) with the airframe's modes (VibrationBands);
     ///   with them CameraAngularVelocity gains the frame's elastic turn
-    /// - FiberTension, FiberMinBendRadius, LinkState, LinkMargin: stub; 7d
+    /// - FiberTension, FiberMinBendRadius, LinkState, LinkMargin: filled (p7d-tether 1.8) for a flight with the line and its
+    ///   cuts (FiberLine, FiberCuts, FiberLink): the exit's tension (field mean and max), the line's least bend radius (the
+    ///   field's least, the lip's among the bends), the margin (field mean and least; −∞ once broken) and the state (the field's
+    ///   last step's); the dips and the break as LinkDips, LinkInDip, LinkLossCause and TetherBreakStep, with their LinkDip and
+    ///   TetherBreak events in the log
     /// K§11.8's other rows are not the physics': scene light, sun and time of day (the renderer), the OSD state (the
     /// app).
     ///
@@ -97,16 +101,29 @@ namespace Fpv450.Sim.Flight
         /// <summary>The flight has ended in a crash (1.6).</summary>
         public bool Crashed;
 
-        /// <summary>Fiber tension at the spool exit, N.</summary>
-        public double FiberTensionN;
+        /// <summary>Fiber tension at the spool exit, N: field mean and field max.</summary>
+        public double FiberTensionN, FiberTensionMaxN;
 
-        /// <summary>The fiber's minimum bend radius along the paid-out length, m.</summary>
+        /// <summary>The fiber's minimum bend radius along the paid-out length (every pressing contact's wrap and the exit lip),
+        /// m: the field's least; +∞ for a line bent nowhere.</summary>
         public double FiberMinBendRadiusM;
 
         public LinkState LinkState;
 
-        /// <summary>The link's optical margin above the receiver threshold, dB.</summary>
-        public double LinkMarginDb;
+        /// <summary>The link's optical margin above the receiver threshold, dB: field mean and field least; −∞ once broken.</summary>
+        public double LinkMarginDb, LinkMarginLeastDb;
+
+        /// <summary>The link's dips begun so far this flight, and whether one is on at this step (p7d-tether 1.8).</summary>
+        public int LinkDips;
+        public bool LinkInDip;
+
+        /// <summary>The bend with the largest loss now (the dip's at its least while one is on), as its FiberMember (Lip the exit
+        /// lip); 0 for none.</summary>
+        public byte LinkLossCause;
+
+        /// <summary>The step count at the line's break, −1 while whole, and its TetherMechanism (0 while whole).</summary>
+        public long TetherBreakStep;
+        public byte TetherBreakMechanism;
 
         /// <summary>The rain's rate, mm/h (FEED-13's lens drops); 0 when Sunny.</summary>
         public double RainRateMmPerHour;

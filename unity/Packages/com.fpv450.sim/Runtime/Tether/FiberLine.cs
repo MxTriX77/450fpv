@@ -97,6 +97,10 @@ namespace Fpv450.Sim.Tether
         Wedge = 16,
         /// <summary>The line's spool is the known-wrong two-way one (design 16).</summary>
         TwoWay = 32,
+        /// <summary>The line is broken (1.8): this step or before.</summary>
+        Broken = 64,
+        /// <summary>The link is in a dip after the step (1.8).</summary>
+        Dip = 128,
     }
 
     /// <summary>
@@ -123,8 +127,14 @@ namespace Fpv450.Sim.Tether
     ///   the rotors' air passes what holds it.
     /// - The launch: the line laid on the ground from its anchor (launch.anchor_behind_start_m behind the start, or a given
     ///   layout) to beneath the exit, then up to it.
+    /// - Cut risk and the link (1.8, unless FlightSetup.TetherWithoutCuts): after the chain's step a segment crossing a turning
+    ///   disc is cut at the next blade pass (the prop), then FiberCuts' tension, bend, abrasion and peel checks; the first that
+    ///   holds breaks the line (TetherBreak, its strength as FiberSection): the far piece is left in the trail where it lies, the
+    ///   near piece hangs from the exit with a free end (no trail from then), or nothing hangs after a break at the drone (the
+    ///   lip, the peel, the exit's segment). FiberLink's margin and dips each step (LinkDip); Broken and −∞ from the break.
     /// The randomness: spool.peel (G₀, one draw a flight) and spool.irregularity (per section_length_m of line, counter-based
-    /// on the section's index, logged in the step record while at the peel). Nothing about where the line lies is drawn.
+    /// on the section's index, logged in the step record while at the peel); 1.8's fiber.span_strength and
+    /// fiber.section_strength (FiberCuts). Nothing about where the line lies is drawn.
     /// Engine-free, + − × ÷ √ and DetMath, preallocated: 0 B a step.
     /// </summary>
     public sealed class FiberLine
@@ -191,8 +201,19 @@ namespace Fpv450.Sim.Tether
         // The contacts of 1.7 (null: the line meets the plane alone, as model 50's, FlightSetup.TetherWithoutContacts).
         readonly FiberContacts _contacts;
 
+        // The cuts and the link of 1.8 (null: the line never breaks and carries no link, as model 55's,
+        // FlightSetup.TetherWithoutCuts), and the rotors' discs the prop check reads.
+        readonly FiberCuts _cuts;
+        readonly FiberLink _link;
+        readonly Propulsion _propulsion;
+        readonly int _blades;
+        readonly double _rotorRadius, _hubRadius;
+        readonly double[] _spin = new double[4], _discHalf = new double[4];
+        readonly int[] _discShape = { -1, -1, -1, -1 }, _discPart = { -1, -1, -1, -1 };
+        bool _attached = true;
+
         public FiberLine(TetherTable table, FlightSetup setup, MassModel mass, FlightRandom random, in FlightState start, double dt,
-            ContactModel parts = null)
+            ContactModel parts = null, Propulsion propulsion = null)
         {
             if (table == null) throw new ArgumentNullException(nameof(table));
             _table = table;
@@ -277,7 +298,59 @@ namespace Fpv450.Sim.Tether
             _exitMaterial0 = _chain[_chain.Count - 1].Material;
             if (!setup.TetherWithoutContacts)
                 _contacts = new FiberContacts(table, setup, World, parts, _radius, _mass, GroundStiffnessPerMetre, GroundHold, dt);
+
+            // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
+            if (!setup.TetherWithoutCuts)
+            {
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength);
+                _link = new FiberLink(table);
+            }
+            _propulsion = propulsion;
+            if (setup.Propulsion != null)
+            {
+                _blades = setup.Propulsion.Props.Blades;
+                _rotorRadius = setup.Propulsion.Props.Diameter / 2;
+                PropBlade blade = setup.Propulsion.Rotor?.Blade;
+                _hubRadius = blade != null ? blade.HubDiameter / 2 : 0; // the blade's root: none without props.blade (assumed)
+                for (int i = 0; i < 4; i++) _spin[i] = setup.Propulsion.Motors[i].Clockwise ? -1 : 1;
+            }
+            if (setup.Contacts != null)
+                for (int i = 0; i < setup.Contacts.Shapes.Length; i++)
+                {
+                    ContactShape d = setup.Contacts.Shapes[i];
+                    if (d.Role != ContactRole.Disc || d.Corner < 0 || d.Corner > 3) continue;
+                    _discHalf[d.Corner] = d.HalfThickness;
+                    _discShape[d.Corner] = i;
+                    _discPart[d.Corner] = d.Part;
+                }
         }
+
+        /// <summary>The line's cut risk (1.8), or null without it (FlightSetup.TetherWithoutCuts).</summary>
+        public FiberCuts Cuts => _cuts;
+
+        /// <summary>The optical link (1.8), or null without the cuts.</summary>
+        public FiberLink Link => _link;
+
+        /// <summary>The line broke this flight; this step; how (valid once Broken); the step count at the break.</summary>
+        public bool Broken { get; private set; }
+        public bool BrokeThisStep { get; private set; }
+        public FiberBreak LastBreak { get; private set; }
+        public long BrokenAt { get; private set; } = -1;
+
+        /// <summary>A piece of line still hangs from the exit (false after a break at the drone: the lip, the peel, the exit's
+        /// segment). The far piece is the trail's from the break on.</summary>
+        public bool Attached => _attached;
+
+        /// <summary>The trail's points before the far piece of a break (the renderer's: the laid trail ends there and the far
+        /// piece follows to TrailCount, the chain, the near piece, not joined to it); 0 while whole (the trail always holds
+        /// its anchor, so a break's count is at least 1).</summary>
+        public int TrailBeforeBreak { get; private set; }
+
+        /// <summary>The exit's tension after the last step, N (0 once nothing hangs from it).</summary>
+        public double ExitTension => _attached && _chain.Count >= 2 ? _chain.Tension(_chain.Count - 2) : 0;
+
+        /// <summary>The line's least bend radius after the last step, m: the cuts' (every bend and the lip), else the contacts'.</summary>
+        public double MinBendRadius => _cuts != null ? _cuts.MinBendRadius : _contacts != null ? _contacts.MinBendRadius : double.PositiveInfinity;
 
         /// <summary>The line's contacts (p7d-tether 1.7), or null without them (FlightSetup.TetherWithoutContacts).</summary>
         public FiberContacts Contacts => _contacts;
@@ -469,6 +542,23 @@ namespace Fpv450.Sim.Tether
         /// </summary>
         public void Step(in FlightState s, Double3[] hubsBody, in Corners thrust, WindField wind, StepEvents events, ref TetherTrace trace)
         {
+            Corners still = s.RotorAngle;
+            Step(s, hubsBody, thrust, wind, events, ref trace, still);
+        }
+
+        /// <summary>Step with the rotors' angles at the step's start (from), for the blade passes of the prop check (1.8).</summary>
+        public void Step(in FlightState s, Double3[] hubsBody, in Corners thrust, WindField wind, StepEvents events, ref TetherTrace trace, in Corners from)
+        {
+            BrokeThisStep = false;
+            if (!_attached)
+            {
+                _force = default;
+                trace.PaidOut = PaidOut;
+                trace.Flags = (byte)TetherFlags.Broken;
+                trace.Nodes = 0;
+                trace.Trail = _trailCount;
+                return;
+            }
             int n = _chain.Count;
             Quat q = s.Attitude;
 
@@ -537,6 +627,7 @@ namespace Fpv450.Sim.Tether
             long corrections = _chain.Corrections, safe = _chain.SafeSteps, clips = _chain.Clips, wedges = _chain.Wedges;
             _chain.Step(_dt);
             byte flags = 0;
+            int wedgeNode = -1;
             if (_chain.SpoolPaying) flags |= (byte)TetherFlags.Paying;
             if (empty) flags |= (byte)TetherFlags.CoilEmpty;
             if (_chain.Clips != clips) flags |= (byte)TetherFlags.Clipped;
@@ -553,9 +644,34 @@ namespace Fpv450.Sim.Tether
                 e.B = w.Deficit;
                 e.C = w.Removable;
                 events.Add(e);
+                wedgeNode = w.Node;
             }
 
             _contacts?.Finish(_chain, s, events);
+
+            // The cuts and the link (1.8): a break leaves the near piece hanging from the exit, the far piece where it lies.
+            if (_cuts != null && !Broken)
+            {
+                Cut(s, from, wedgeNode, events);
+                if (!_attached)
+                {
+                    _force = default;
+                    _contacts?.ClearReactions();
+                    trace.PaidOut = PaidOut;
+                    trace.PayoutSpeed = _chain.SpoolSpeed;
+                    trace.PayoutTension = _chain.SpoolPackTension;
+                    trace.LipAngle = _lipAngle;
+                    trace.Irregularity = irregularity;
+                    trace.Nodes = 0;
+                    trace.Trail = _trailCount;
+                    trace.Flags = (byte)(flags | (byte)TetherFlags.Broken);
+                    long extra = _chain.Corrections - corrections;
+                    trace.Corrections = (byte)(extra > 255 ? 255 : extra);
+                    return;
+                }
+            }
+            if (Broken) flags |= (byte)TetherFlags.Broken;
+            if (_link != null && _link.InDip) flags |= (byte)TetherFlags.Dip;
 
             // The coil: a rebuild at each coil_rebuild_m of line paid out this flight.
             MassChanged = false;
@@ -579,7 +695,7 @@ namespace Fpv450.Sim.Tether
                 }
             }
 
-            FreezeAndLift(events);
+            if (!Broken) FreezeAndLift(events); // the near piece of a break has a free end: no trail
 
             // The line's force on the drone for the next step: the exit's tension along the first segment, less the momentum
             // flux μ·ṡ² the leaving line carries (it leaves at its own velocity; the coil's mass change is no force).
@@ -680,6 +796,197 @@ namespace Fpv450.Sim.Tether
             Double3 still = air - t * Double3.Dot(air, t);
             double us = still.Length();
             _airPerMetre[i] = _drag.PerMetre(us);
+        }
+
+        // ---- the cuts and the link (1.8) ----
+
+        // After the chain's step: a non-finite node broken there (the wedge), the prop's check, then the line's bends, the wear
+        // and FiberCuts' checks in design 7's order; the first that holds breaks the line, else the link's margin and its dip.
+        void Cut(in FlightState s, in Corners from, int wedgeNode, StepEvents events)
+        {
+            int n = _chain.Count;
+            Quat q = s.Attitude;
+            FiberBreak b = default;
+            bool found = false;
+            if (wedgeNode >= 0)
+            {
+                found = true;
+                b.Mechanism = TetherMechanism.Wedge;
+                b.Kind = (byte)FiberMember.Span;
+                b.Segment = -1;
+                b.Node = wedgeNode > 0 && wedgeNode < n - 1 ? wedgeNode : -1;
+                int at = wedgeNode >= 0 && wedgeNode < n ? wedgeNode : n - 1;
+                b.Material = _chain[at].Material;
+                b.Point = _chain[at].Position;
+                b.Radius = double.PositiveInfinity;
+            }
+            if (!found) found = Prop(s, from, out b);
+            ref CableNode exit = ref _chain[n - 1];
+            Double3 aft = q.Rotate(new Double3(0, 0, -1));
+            Double3 first = _chain[n - 2].Position - exit.Position;
+            double lip = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
+            _cuts.Collect(_chain, lip, _chain.Tension(n - 2), exit.Position);
+            _cuts.Wear(_chain, _dt, _contacts, events);
+            if (!found)
+            {
+                double sdot = _chain.SpoolSpeed, peelAt = exit.Material + _balloonLength;
+                double peel = _peelEnergy * Irregularity(peelAt) * (sdot > _referenceRate ? DetMath.Exp(_rateExponent * DetMath.Log(sdot / _referenceRate)) : 1);
+                found = _cuts.Check(_chain, _chain.SpoolPaying, peel, _chain.SpoolPackTension, peelAt, _contacts, events, out b);
+            }
+            if (found)
+            {
+                Break(b, s, events);
+                return;
+            }
+            _link.Update(exit.Material, _cuts, s.Step);
+            if (_link.DipBegan)
+            {
+                ref readonly FiberBend l = ref _cuts.Bend(_link.Largest >= 0 ? _link.Largest : _cuts.BendCount - 1);
+                FlightEvent e = Place(EventKind.LinkDip, l.Kind, l.Member, _contacts, l.Point, _link.Margin, _link.LargestLoss, 0);
+                e.Index = l.Kind;
+                events.Add(e);
+            }
+            if (_link.DipEnded)
+            {
+                FlightEvent e = Place(EventKind.LinkDip, _link.DipKind, _link.DipMember, _contacts, _link.DipPoint,
+                    (s.Step - _link.DipStart) * _dt, _link.DipLeast, _link.DipLoss);
+                e.Index = (byte)(_link.DipKind | 0x80);
+                events.Add(e);
+            }
+        }
+
+        // The prop's check (design 7): a segment crossing a turning disc (its slab, the blade's half-thickness either side of
+        // the plane) between the blade's root and its tip is struck at the next blade pass: the pass in this step if a blade
+        // crosses the crossing's azimuth between its angle at the step's start and now (PropStrikes' rule), so the line is cut
+        // there (assumed certain: a 0.25 mm glass line struck at tens of m/s, PHY-19).
+        bool Prop(in FlightState s, in Corners from, out FiberBreak b)
+        {
+            b = default;
+            if (_blades == 0) return false;
+            int n = _chain.Count;
+            Quat q = s.Attitude;
+            Double3 up = q.Rotate(new Double3(0, 1, 0));
+            const double TwoPi = 2 * 3.141592653589793;
+            for (int c = 0; c < 4; c++)
+            {
+                double omega = s.RotorSpeed[c];
+                if (!(omega > 0)) continue;
+                Double3 hub = _hubs[c];
+                double h = _discHalf[c];
+                double start = from[c], sweep = s.RotorAngle[c] - start;
+                if (sweep < 0) sweep += TwoPi;
+                for (int j = 0; j < n - 1; j++)
+                {
+                    Double3 pa = _chain[j].Position, pb = _chain[j + 1].Position;
+                    double za = Double3.Dot(pa - hub, up), zb = Double3.Dot(pb - hub, up);
+                    if (za > h && zb > h || za < -h && zb < -h) continue;
+                    double f = za * zb < 0 ? za / (za - zb) : DetMath.Abs(za) <= DetMath.Abs(zb) ? 0 : 1;
+                    Double3 p = pa + (pb - pa) * f, rel = p - hub;
+                    rel = rel - up * Double3.Dot(rel, up);
+                    double r = rel.Length();
+                    if (!(r >= _hubRadius) || !(r <= _rotorRadius)) continue;
+                    Double3 v = q.InverseRotate(rel);
+                    double psi = Wrap(DetMath.Atan2(_spin[c] * v.Z, v.X));
+                    for (int bl = 0; bl < _blades; bl++)
+                    {
+                        double tip = _propulsion?.Rotor(c) != null ? _propulsion.Rotor(c).Blade(bl).TipRadius : 1;
+                        if (!(r <= tip * _rotorRadius)) continue;
+                        double ahead = Wrap(psi - (start + TwoPi * bl / _blades));
+                        if (!(ahead > 0 && ahead <= sweep)) continue;
+                        b.Mechanism = TetherMechanism.Prop;
+                        b.Kind = (byte)FiberMember.Disc;
+                        b.Member = (ulong)c;
+                        b.Segment = j;
+                        b.Fraction = f;
+                        b.Node = j + 1 < n - 1 ? j + 1 : -1;
+                        b.Material = _chain[j].Material + (_chain[j + 1].Material - _chain[j].Material) * f;
+                        b.Turn = r;
+                        b.Tension = _chain.Tension(j);
+                        b.Radius = omega * r;
+                        b.Point = p;
+                        b.Section = _cuts.Section(b.Material);
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        static double Wrap(double a)
+        {
+            const double TwoPi = 2 * 3.141592653589793;
+            while (a >= TwoPi) a -= TwoPi;
+            while (a < 0) a += TwoPi;
+            return a;
+        }
+
+        // The break: its events (the strength it met as FiberSection with 0x80, then TetherBreak), the link lost, and the line
+        // parted at the break's node: the far piece (the chain behind it) into the trail where it lies; the near piece the
+        // chain from it to the exit, its end free; at the drone (the lip, the peel, the exit's segment) nothing hangs.
+        void Break(in FiberBreak b, in FlightState s, StepEvents events)
+        {
+            if (b.Mechanism != TetherMechanism.Prop && b.Mechanism != TetherMechanism.Wedge)
+                events.Add(_cuts.SectionEvent(_contacts, b.Kind, b.Member, b.Point, b.Section, b.Strength, b.Band, b.Stress, true));
+            FlightEvent e = Place(EventKind.TetherBreak, b.Kind, b.Member, _contacts, b.Point, b.Turn, b.Tension, b.Radius);
+            e.Index = (byte)((byte)b.Mechanism | b.Kind << 4);
+            if (b.Kind == (byte)FiberMember.Disc)
+            {
+                int c = (int)b.Member;
+                e.Object = FiberContacts.DroneObject;
+                e.Shape = _discShape[c];
+                e.Part = _discPart[c] >= 0 ? (ushort)_discPart[c] : FlightEvent.NoPart;
+            }
+            else if (b.Kind == (byte)FiberMember.Lip || b.Kind == (byte)FiberMember.Peel)
+                e.Part = _coilPart >= 0 ? (ushort)_coilPart : FlightEvent.NoPart;
+            events.Add(e);
+
+            Broken = true;
+            BrokeThisStep = true;
+            BrokenAt = s.Step;
+            LastBreak = b;
+            _link.Break();
+
+            int k = b.Node;
+            if (b.Segment >= 0 && _chain.SplitAt(b.Segment, b.Fraction)) k = b.Segment + 1;
+            int n = _chain.Count;
+            TrailBeforeBreak = _trailCount;
+            int last = k > 0 && k < n - 1 ? k : n - 1;
+            for (int i = 1; i <= last && _trailCount < _trail.Length; i++)
+            {
+                _trail[_trailCount] = _chain[i].Position;
+                _trailMaterial[_trailCount] = _chain[i].Material;
+                _trailHeld[_trailCount] = 0;
+                _trailCount++;
+            }
+            if (!(k > 0 && k < n - 1))
+            {
+                _attached = false;
+                return;
+            }
+            for (int r = 0; r < k; r++) _chain.RemoveFirst();
+            ref CableNode end = ref _chain[0];
+            end.AnchorStiffness = 0;
+            end.AnchorDamping = 0;
+            end.AnchorFollows = false;
+            end.RestTime = 0;
+        }
+
+        /// <summary>An event of kind at a place of the line: a member as FiberContact names it (through names), or the spool's
+        /// exit lip and peel front (Object the drone, Shape none), a rotor's disc or the free span (Object none); A, B and C.</summary>
+        public static FlightEvent Place(EventKind kind, byte memberKind, ulong member, FiberContacts names, Double3 point, double a, double b, double c)
+        {
+            if (memberKind <= (byte)FiberMember.Part && memberKind != (byte)FiberMember.None && names != null)
+                return names.Named(kind, memberKind, member, point, a, b, c);
+            FlightEvent e = FlightEvent.Of(kind);
+            e.Index = memberKind;
+            e.Object = memberKind == (byte)FiberMember.Lip || memberKind == (byte)FiberMember.Peel || memberKind == (byte)FiberMember.Disc
+                ? FiberContacts.DroneObject : -1;
+            e.Shape = -1;
+            e.Point = point;
+            e.A = a;
+            e.B = b;
+            e.C = c;
+            return e;
         }
 
         // ---- the trail ----
