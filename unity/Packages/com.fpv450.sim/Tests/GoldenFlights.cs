@@ -344,7 +344,12 @@ namespace Fpv450.Sim.Tests
         // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72PoweredHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 the arms carry the factory 1/rev from step 2 and the path keeps within 1.8 mm and 0.03° (135.4967 m up at 10 s against 135.4976); against 72 it is 73's move against 70 (the chop, 92.6° by 6 s, 45.47 m apart at 10 s); armed, no contact, no crash.
-        public const ulong PoweredHash = 0x84E4FA38BA6C213BUL;
+        // Model 75: 0x84E4FA38BA6C213B.
+        // Model 76 (D-087, the edgewise flow's thrust and torque): re-recorded on 75's record. Audited case by case: without
+        // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75PoweredHash), every record and event
+        // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 21 (the first armed
+        // step); the Windy flight and its stick steps gain the edgewise flow's lift: 143.8328 m up at 10 s against 135.4967, at most 13.7° apart.
+        public const ulong PoweredHash = 0x8106C2D393DFAA8DUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -451,7 +456,12 @@ namespace Fpv450.Sim.Tests
         // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72RainPoweredHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 from step 2, within 2.7 mm and 0.03° (136.8783 m up against 136.8794); against 72 the chop's 88.2° by 6 s, 43.47 m apart at 10 s.
-        public const ulong RainPoweredHash = 0x5CA781F2ADAF639BUL;
+        // Model 75: 0x5CA781F2ADAF639B.
+        // Model 76 (D-087, the edgewise flow's thrust and torque): re-recorded on 75's record. Audited case by case: without
+        // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75RainPoweredHash), every record and event
+        // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 21; 142.5168 m up at
+        // 10 s against 136.8783, at most 15.4° apart.
+        public const ulong RainPoweredHash = 0x94CF8CDFA5E5E538UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -586,6 +596,12 @@ namespace Fpv450.Sim.Tests
         public const ulong Model68PoweredHash = 0x9A30E334BF1CE809UL, Model68RainPoweredHash = 0xF6F5495C2A88B995UL,
             Model68ContactHash = 0xDB9CD4249127070CUL, Model68RangeHash = 0xA5D9361E8D1C945FUL, Model68TetherHash = 0xA77A4DEF62161B53UL,
             Model68TumbleHash = 0x3280F96176B5ACD7UL;
+
+        /// <summary>The climb after a pitch-back (model 76, D-087), its audit against model 75: every golden flown without the edgewise
+        /// flow's thrust and torque (RotorFlappingSpec.EdgewiseThrust off; Edgewise) keeps model 75's pins bit for bit, every record
+        /// and event: GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s. The record is 75's; the tumble flies no rotor.</summary>
+        public const ulong Model75PoweredHash = 0x84E4FA38BA6C213BUL, Model75RainPoweredHash = 0x5CA781F2ADAF639BUL,
+            Model75ContactHash = 0x7F03EE80D3FB7004UL, Model75RangeHash = 0x83DA30D19B802F9FUL, Model75TetherHash = 0xF792F9225BCA52E9UL;
 
         /// <summary>The physics integration 2 with the losses (model 75), its audit against model 73: model 73's record, its first 3360
         /// bytes (the record less the arms' block at its end), over which every golden flies the clean sensors (CleanSensors: a layout
@@ -997,7 +1013,12 @@ namespace Fpv450.Sim.Tests
         // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72ContactHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 from step 3, within 0.05 mm and 0.01°, the same 3 impacts and rest (0.2496 m up on 4 pairs); against 72 at most 11.7 mm and 0.94°, at rest 3.4 mm apart.
-        public const ulong ContactHash = 0x7F03EE80D3FB7004UL;
+        // Model 75: 0x7F03EE80D3FB7004.
+        // Model 76 (D-087, the edgewise flow's thrust and torque): re-recorded on 75's record. Audited case by case: without
+        // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75ContactHash), every record and event
+        // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 9; at most 11.9 mm and
+        // 0.61° apart, the same 3 impacts, at rest 0.2497 m up on 4 pairs, 2.2 mm from 75's rest.
+        public const ulong ContactHash = 0x461C89E4B98BAA7AUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1246,7 +1267,12 @@ namespace Fpv450.Sim.Tests
         /// event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
         /// over model 68's 3168 bytes and the arms' block, model 72's pin (Model72TetherHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         /// Against 73 from step 3, within 0.6 mm and 0.04°, 3 impacts, the line whole (0.231 m paid out), at rest 0.5 mm from 73's; against 72 at most 12.1 mm and 0.94°, at rest 3.6 mm apart.
-        public const ulong TetherHash = 0xF792F9225BCA52E9UL;
+        /// Model 75: 0xF792F9225BCA52E9.
+        /// Model 76 (D-087, the edgewise flow's thrust and torque): re-recorded on 75's record. Audited case by case: without
+        /// the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75TetherHash), every record and event
+        /// (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 9; at most 11.9 mm and
+        /// 0.61° apart, 3 impacts, the line whole (0.235 m paid out against 0.231), at rest 2.0 mm from 75's.
+        public const ulong TetherHash = 0x7122003D41C5E7BCUL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1606,7 +1632,12 @@ namespace Fpv450.Sim.Tests
         // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72RangeHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 from step 3, within 0.05 mm and 0.004°, 4 impacts as 73's, at rest 0.2452 m up on 8 pairs; against 72 at most 16.6 mm and 0.61°, at rest 2.1 mm apart.
-        public const ulong RangeHash = 0x83DA30D19B802F9FUL;
+        // Model 75: 0x83DA30D19B802F9F.
+        // Model 76 (D-087, the edgewise flow's thrust and torque): re-recorded on 75's record. Audited case by case: without
+        // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75RangeHash), every record and event
+        // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 9; at most 7.0 mm and
+        // 0.17° apart, 3 impacts against 4, at rest 0.2452 m up on 8 pairs, 1.4 mm from 75's rest.
+        public const ulong RangeHash = 0xAF745CC52447E017UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -1858,7 +1889,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false)
+            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -1874,6 +1905,7 @@ namespace Fpv450.Sim.Tests
             Heat(setup, heat, layout);
             setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             if (layout < LogFormat.StepSize) CleanSensors(setup);
+            Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
@@ -1924,7 +1956,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false, bool? edgewise = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1956,6 +1988,7 @@ namespace Fpv450.Sim.Tests
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);
+            Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -2017,7 +2050,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false)
+            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2040,6 +2073,7 @@ namespace Fpv450.Sim.Tests
             Heat(setup, heat, layout);
             setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             if (layout < LogFormat.StepSize) CleanSensors(setup);
+            Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
@@ -2148,6 +2182,15 @@ namespace Fpv450.Sim.Tests
                 checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
+        }
+
+        /// <summary>The edgewise flow's thrust and torque (D-087, model 76; RotorFlappingSpec.EdgewiseThrust) in a golden flight: edgewise,
+        /// or by default on for the current pins and off for every kept audit of an older model (one flown with airmode on, or over a
+        /// parent's layout short of LogFormat.StepSize), whose pins predate it. The audit of model 76 against 75 is
+        /// GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s.</summary>
+        public static void Edgewise(FlightSetup setup, bool? edgewise, int layout, bool airmode)
+        {
+            if (setup.Flapping != null && !(edgewise ?? (!airmode && layout >= LogFormat.StepSize))) setup.Flapping.EdgewiseThrust = false;
         }
 
         /// <summary>The clean sensors (model 68's airframe and gyro, p7f-damage 1.6, the losses): the arms stiff in their plane and no gyro range.

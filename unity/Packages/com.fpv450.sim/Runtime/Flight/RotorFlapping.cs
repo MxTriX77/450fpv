@@ -29,6 +29,13 @@ namespace Fpv450.Sim.Flight
     ///   κ_x = (15π/32)·tan(χ/2), tan χ = μ/λ (Pitt, D. M., Peters, D. A., Vertica 5, 1981, published), χ held at 90°.
     /// - The rotor's in-plane force stays the H-force (DroneProps.HForce, at the hub): the flapping adds only its hub moment,
     ///   not the tilted thrust's in-plane part T·β₁c (that is inside the H-force in shaft axes, so it is not counted twice).
+    /// - The edgewise flow's thrust and torque (EdgewiseThrust, D-087, model 76): the same blade elements, averaged over a
+    ///   turn with uniform inflow, C_T = (N_b·a/2πR)·(J₂ + μ²·J₀/2 − λ·I₁) and C_Q = (N_b/2πR)·(a·(λ·J₂ − λ²·I₁) + c_d0·(I₃ +
+    ///   μ²·I₁/2)), λ = λ_c + λ_i with Glauert's λ_i = C_T/(2·√(μ² + λ²)) solved by Newton's method (Johnson 1980 §4.1,
+    ///   §5.2; Leishman 2006 §2.14, published). Propulsion takes their ratio to the axial rotor's at the same climb inflow,
+    ///   η(J, μ) = C(J/π, μ)/C(J/π, 0), onto the props' measured axial tables (EdgewiseRatios): the edgewise flow sweeps the
+    ///   wake off the disc, so the induced inflow falls (translational lift) and the thrust falls faster with a climb
+    ///   (Padfield's Z_w in forward flight), which an axial-only table does not know.
     /// Basic operations only; ApplyTo is per step, allocation-free.
     /// </summary>
     public sealed class RotorFlappingSpec
@@ -69,7 +76,21 @@ namespace Fpv450.Sim.Flight
         /// <summary>The air's density, kg/m³ (drone.json's aero air_density_kg_m3, 1.225, published ISA).</summary>
         public double AirDensity = 1.225;
 
-        double _i1, _i2, _i3, _j1, _j2, _j3;
+        /// <summary>Whether the rotors' thrust and torque take the edgewise flow (EdgewiseRatios, D-087, model 76); off, the
+        /// props' axial tables alone, model 75's rotor (the known-wrong: no translational lift, the hover's climb damping at
+        /// every airspeed).</summary>
+        public bool EdgewiseThrust = true;
+
+        /// <summary>The sections' profile drag coefficient c_d0, for the edgewise flow's torque: 0.049 (derived: p7c-wind 1.6's
+        /// fit with ZeroLiftAngle, DamagedRotorSpec.ProfileDrag).</summary>
+        public double ProfileDrag = 0.049;
+
+        /// <summary>The edgewise tables' in-plane advance ratios μ = V_∥/ΩR: 0 to 0.5 by 0.025 (assumed: past 0.5 the uniform
+        /// inflow's blade elements leave their validity, the reverse-flow circle reaching half the span, so the ratio holds).</summary>
+        public const double EdgewiseMuStep = 0.025;
+        public const int EdgewiseMuPoints = 21;
+
+        double _i1, _i2, _i3, _j0, _j1, _j2, _j3;
         bool _ready;
 
         public RotorFlappingSpec Clone()
@@ -97,7 +118,7 @@ namespace Fpv450.Sim.Flight
                 || Chords.Length != Stations.Length || Angles.Length != Stations.Length)
                 throw new InvalidOperationException("the blade needs two stations or more, each with a chord and an angle");
             double g = DetMath.Sqrt(0.6) / 2;
-            double i1 = 0, i2 = 0, i3 = 0, j1 = 0, j2 = 0, j3 = 0;
+            double i1 = 0, i2 = 0, i3 = 0, j0 = 0, j1 = 0, j2 = 0, j3 = 0;
             const int Cells = 16;
             for (int k = 0; k + 1 < Stations.Length; k++)
             {
@@ -114,12 +135,55 @@ namespace Fpv450.Sim.Flight
                         double th = Angles[k] + (Angles[k + 1] - Angles[k]) * t;
                         double cx = c * x * w, cx2 = cx * x, cx3 = cx2 * x;
                         i1 += cx; i2 += cx2; i3 += cx3;
-                        j1 += cx * th; j2 += cx2 * th; j3 += cx3 * th;
+                        j0 += c * w * th; j1 += cx * th; j2 += cx2 * th; j3 += cx3 * th;
                     }
                 }
             }
-            _i1 = i1; _i2 = i2; _i3 = i3; _j1 = j1; _j2 = j2; _j3 = j3;
+            _i1 = i1; _i2 = i2; _i3 = i3; _j0 = j0; _j1 = j1; _j2 = j2; _j3 = j3;
             _ready = true;
+        }
+
+        /// <summary>
+        /// The rotor's C_T and C_Q (on ρ·A·(ΩR)² and ρ·A·(ΩR)²·R) at a climb inflow λ_c = V_a/ΩR and an in-plane advance ratio
+        /// μ = V_∥/ΩR, from the blade elements with Glauert's uniform induced inflow (see the class), and that inflow λ.
+        /// </summary>
+        public void CombinedFlow(double lambdaC, double mu, out double ct, out double cq, out double lambda)
+        {
+            Prepare();
+            double k = Blades * LiftSlope / (2 * Pi * Radius), m2 = mu * mu, theta = _j2 + 0.5 * m2 * _j0;
+            double l = lambdaC + DetMath.Sqrt(DetMath.Max(k * theta, 1e-9) / 2);
+            for (int n = 0; n < 40; n++)
+            {
+                double c = k * (theta - l * _i1), v = DetMath.Sqrt(m2 + l * l);
+                double f = l - lambdaC - c / (2 * v), df = 1 + k * _i1 / (2 * v) + c * l / (2 * v * v * v);
+                l -= f / df;
+            }
+            lambda = l;
+            ct = k * (theta - l * _i1);
+            cq = Blades / (2 * Pi * Radius) * (LiftSlope * (l * _j2 - l * l * _i1) + ProfileDrag * (_i3 + 0.5 * m2 * _i1));
+        }
+
+        /// <summary>
+        /// The edgewise flow's ratios on the props' axial tables (D-087): at each advance ratio J of the grid given (the props'
+        /// published one, with the descent's held limit first) and each μ of 0, EdgewiseMuStep, … (EdgewiseMuPoints), the thrust's
+        /// and the torque's η = C(J/π, μ)/C(J/π, 0), row-major by J. Allocates its tables (at a setup, never in steady state).
+        /// </summary>
+        public void EdgewiseRatios(double[] advance, out double[] thrust, out double[] torque)
+        {
+            int nj = advance.Length;
+            thrust = new double[nj * EdgewiseMuPoints];
+            torque = new double[nj * EdgewiseMuPoints];
+            for (int j = 0; j < nj; j++)
+            {
+                double lc = advance[j] / Pi;
+                CombinedFlow(lc, 0, out double ct0, out double cq0, out _);
+                for (int m = 0; m < EdgewiseMuPoints; m++)
+                {
+                    CombinedFlow(lc, m * EdgewiseMuStep, out double ct, out double cq, out _);
+                    thrust[j * EdgewiseMuPoints + m] = m == 0 ? 1 : ct / ct0;
+                    torque[j * EdgewiseMuPoints + m] = m == 0 ? 1 : cq / cq0;
+                }
+            }
         }
 
         /// <summary>

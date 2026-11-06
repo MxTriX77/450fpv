@@ -249,6 +249,12 @@ namespace Fpv450.Sim.Flight
         // The step's inflow and in-plane airspeed per rotor, and each rotor's thrust and torque at its present speed.
         Corners _inflow;
         readonly Double3[] _inPlane = new Double3[4];
+        Corners _inPlaneSpeed; // |_inPlane|, m/s, for the edgewise ratios
+
+        // The edgewise flow's ratios on the axial tables (RotorFlappingSpec.EdgewiseRatios, D-087), on _edgeJ (the descent's
+        // held limit, then the props' grid) by μ; null without the flapping's blade or with EdgewiseThrust off (model 75's).
+        double[] _edgeJ, _edgeThrust, _edgeTorque;
+        RotorFlappingSpec _flapping;
         readonly double[] _thrust = new double[4], _torque = new double[4];
 
         public Propulsion(PropulsionSpec spec) : this(spec, null) { }
@@ -673,8 +679,26 @@ namespace Fpv450.Sim.Flight
         /// <summary>A rotor's in-plane drag at a speed (rad/s) with this step's in-plane airspeed, body N.</summary>
         public Double3 HForce(int corner, double speed) => _inPlane[corner] * (-_hPerSpeed * speed);
 
-        /// <summary>The rotors' flapping (RotorFlappingSpec, p7b-airframe 1.3c): null for none. FlightCore sets its own copy.</summary>
-        public RotorFlappingSpec Flapping { get; set; }
+        /// <summary>The rotors' flapping (RotorFlappingSpec, p7b-airframe 1.3c): null for none. FlightCore sets its own copy. With
+        /// its EdgewiseThrust, setting it builds the edgewise flow's ratios on the props' axial tables (D-087; it allocates them,
+        /// at a setup).</summary>
+        public RotorFlappingSpec Flapping
+        {
+            get => _flapping;
+            set
+            {
+                _flapping = value;
+                _edgeJ = _edgeThrust = _edgeTorque = null;
+                if (value == null || !value.EdgewiseThrust) return;
+                _edgeJ = new double[_j.Length + 1];
+                _edgeJ[0] = DescentAdvanceRatioLimit;
+                for (int k = 0; k < _j.Length; k++) _edgeJ[k + 1] = _j[k];
+                value.EdgewiseRatios(_edgeJ, out _edgeThrust, out _edgeTorque);
+            }
+        }
+
+        /// <summary>Whether the rotors take the edgewise flow's thrust and torque (Flapping's EdgewiseThrust).</summary>
+        public bool HasEdgewise => _edgeThrust != null;
 
         /// <summary>
         /// A rotor's hub moment from its edgewise flow at a speed (rad/s) and thrust (N) with this step's inflow, body N·m
@@ -760,6 +784,7 @@ namespace Fpv450.Sim.Flight
                 if (_elastic) air.Y += _hubElastic[i];
                 _inflow[i] = air.Y;
                 _inPlane[i] = new Double3(air.X, 0, air.Z);
+                if (_edgeThrust != null) _inPlaneSpeed[i] = DetMath.Sqrt(air.X * air.X + air.Z * air.Z);
                 if (_ring != null)
                 {
                     _ringInflow[i] = s.RingInflow[i];
@@ -1220,6 +1245,58 @@ namespace Fpv450.Sim.Flight
             return (b + DetMath.Sqrt(DetMath.Max(disc, 0))) / (2 * a);
         }
 
+        /// <summary>A rotor's thrust, N, and drag torque, N·m, at speed w (rad/s) with axial inflow va (m/s) and in-plane airspeed
+        /// vp (m/s, 0 or more): Aero's, times the edgewise flow's ratios when the rotors take them (HasEdgewise).</summary>
+        public void Aero(double w, double va, double vp, out double thrust, out double torque)
+        {
+            Aero(w, va, out thrust, out torque);
+            if (_edgeThrust == null || !(w > 0)) return;
+            double advance = va / (w * (_diameter / TwoPi));
+            Edgewise(advance, advance, vp / (w * (0.5 * _diameter)), ref thrust, ref torque);
+        }
+
+        // The edgewise flow's ratios (D-087) at the thrust's and the torque's advance ratios and μ, bilinear on the tables, held
+        // at their ends.
+        void Edgewise(double jt, double jq, double mu, ref double thrust, ref double torque)
+        {
+            thrust *= EdgewiseRatio(_edgeThrust, jt, mu);
+            torque *= EdgewiseRatio(_edgeTorque, jq, mu);
+        }
+
+        double EdgewiseRatio(double[] table, double j, double mu)
+        {
+            const int M = RotorFlappingSpec.EdgewiseMuPoints;
+            double[] x = _edgeJ;
+            int n = x.Length, k = 0;
+            double tj = 0;
+            if (j >= x[n - 1])
+            {
+                k = n - 2;
+                tj = 1;
+            }
+            else if (j > x[0])
+            {
+                while (j >= x[k + 1]) k++;
+                tj = (j - x[k]) / (x[k + 1] - x[k]);
+            }
+            double fm = mu / RotorFlappingSpec.EdgewiseMuStep;
+            int m = 0;
+            double tm = 0;
+            if (fm >= M - 1)
+            {
+                m = M - 2;
+                tm = 1;
+            }
+            else if (fm > 0)
+            {
+                m = (int)fm;
+                tm = fm - m;
+            }
+            int a = k * M + m, b = a + M;
+            double lo = table[a] + tm * (table[a + 1] - table[a]), hi = table[b] + tm * (table[b + 1] - table[b]);
+            return lo + tj * (hi - lo);
+        }
+
         /// <summary>A rotor's thrust, N, and drag torque, N·m, at speed w (rad/s) with axial inflow va (m/s).</summary>
         public void Aero(double w, double va, out double thrust, out double torque)
         {
@@ -1254,6 +1331,11 @@ namespace Fpv450.Sim.Flight
             if ((_ring == null && _ground == null && _wake == null) || !(w > 0))
             {
                 Aero(w, _inflow[i], out thrust, out torque);
+                if (_edgeThrust != null && w > 0)
+                {
+                    double a0 = _inflow[i] / (w * (_diameter / TwoPi));
+                    Edgewise(a0, a0, _inPlaneSpeed[i] / (w * (0.5 * _diameter)), ref thrust, ref torque);
+                }
                 Immerse(i, ref thrust, ref torque);
                 if ((_damaged & (1 << i)) != 0)
                 {
@@ -1277,6 +1359,7 @@ namespace Fpv450.Sim.Flight
             if (_ground != null) mean *= _surfaceGain[i];
             double jq = own == 0 ? advance : held + own * _ringAdvance / w;
             torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, jq) * w2;
+            if (_edgeThrust != null) Edgewise(j, jq, _inPlaneSpeed[i] / (w * (0.5 * _diameter)), ref mean, ref torque);
             bool damaged = (_damaged & (1 << i)) != 0;
             if (damaged)
             {

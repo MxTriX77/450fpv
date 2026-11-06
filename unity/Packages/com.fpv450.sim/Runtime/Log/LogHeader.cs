@@ -145,7 +145,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] FlappingFieldsLogged =
         {
             "LiftSlope", "ZeroLiftAngle", "BendingFrequency", "Southwell", "SkewGain", "Radius", "Blades", "BladeInertia",
-            "Stations", "Chords", "Angles", "AirDensity",
+            "Stations", "Chords", "Angles", "AirDensity", "EdgewiseThrust", "ProfileDrag",
         };
 
         /// <summary>The wake's fields the header records, checked against RotorInterferenceSpec by the suite.</summary>
@@ -1068,6 +1068,8 @@ namespace Fpv450.Sim.Log
                     e.Write(f.Chords[i]);
                     e.Write(f.Angles[i]);
                 }
+                e.Write(f.EdgewiseThrust);
+                e.Write(f.ProfileDrag);
             });
             Entry(w, TagModes, e =>
             {
@@ -1520,6 +1522,8 @@ namespace Fpv450.Sim.Log
                             Flapping.Chords[i] = r.ReadDouble();
                             Flapping.Angles[i] = r.ReadDouble();
                         }
+                        Flapping.EdgewiseThrust = r.ReadBoolean();
+                        Flapping.ProfileDrag = r.ReadDouble();
                         break;
                     case TagInterference:
                         if (!r.ReadBoolean())

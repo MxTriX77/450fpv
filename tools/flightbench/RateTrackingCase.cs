@@ -59,7 +59,7 @@ namespace Fpv450.FlightBench
         }
 
         /// <summary>The session's flight (the player branch's SessionSetup.Build) on the floor world, 100 m up.</summary>
-        static FlightSetup Setup(DroneSpec spec, double payload, in FcSettings settings, ulong seed)
+        internal static FlightSetup Setup(DroneSpec spec, double payload, in FcSettings settings, ulong seed)
         {
             var loadout = new Loadout { Payload = payload, Legs = true, CoilPaidOut = 0 };
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
@@ -400,7 +400,7 @@ namespace Fpv450.FlightBench
         }
 
         // The rotor interference's table, built once for the process (SessionSetup.Prepare), so the parallel flights share it.
-        static void SessionSetupPrepare(DroneSpec spec)
+        internal static void SessionSetupPrepare(DroneSpec spec)
         {
             var hubs = new Double3[4];
             for (int i = 0; i < 4; i++) hubs[i] = spec.Motors[i].Position;

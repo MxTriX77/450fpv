@@ -292,8 +292,11 @@ namespace Fpv450.Sim.Log
         ///    parallel line's): 62's arms merged onto 63: after 63's 3360 bytes (58's 3168, then the heat's 192) 62's arms' block
         ///    (176 bytes, 3536 in all), so 63's record is this one's first 3360 bytes and 62's is its first 3168 and its last 176; the
         ///    header both sides' (the contacts entry 60's, the modes' and the setup entries 62's); the events 63's with 62's ArmBroken (38).
+        /// 66: the climb after a pitch-back (unity/physics/physics-integration-2--climb, on 65; assigned by D-072): the flapping's
+        ///    entry gains, after its stations, RotorFlappingSpec.EdgewiseThrust and ProfileDrag. The record (3536 bytes) and the
+        ///    events are 65's.
         /// </summary>
-        public const int Version = 65;
+        public const int Version = 66;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -739,8 +742,12 @@ namespace Fpv450.Sim.Log
         ///    motor both leave the bus (no drive), a failed one alone brakes. With the clean sensors (ArmInPlane off, GyroRange 0) a
         ///    flight steps as in 73 over its 3360 bytes; with airmode on and ContactSpec.MotorHeat off as in 72 over 68's 3168 bytes
         ///    and the arms' block.
+        /// 76: the climb after a pitch-back (D-087; unity/physics/physics-integration-2--climb, on 75; assigned by D-072): each rotor's
+        ///    thrust and torque take the edgewise flow through its disc (RotorFlappingSpec.EdgewiseThrust): the props' measured axial
+        ///    tables times the blade elements' ratio in combined flow with Glauert's inflow, η(J, μ) (translational lift, and the
+        ///    climb's damping in forward flight). A flight without flapping, or with EdgewiseThrust off, steps as in 75.
         /// </summary>
-        public const int ModelVersion = 75;
+        public const int ModelVersion = 76;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

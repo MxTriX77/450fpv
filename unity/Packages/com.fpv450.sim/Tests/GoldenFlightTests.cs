@@ -121,6 +121,27 @@ namespace Fpv450.Sim.Tests
             Assert.That(block, Is.EqualTo(0), "the arms' block is zero with the clean sensors");
         }
 
+        // Model 76 (D-087, the climb after a pitch-back), its audit against model 75: without the edgewise flow's thrust and torque
+        // (RotorFlappingSpec.EdgewiseThrust off: the props' axial tables alone) each golden is its model 75 pin, every record and
+        // event; with it each is its pin. So the edgewise flow is the whole of 76's move. The tumble flies no rotor and keeps its pin.
+        [Test]
+        public void WithoutTheEdgewiseFlowEachGoldenIsModel75s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const string sw = "no edgewise flow";
+            Audit("powered", "model 75", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, edgewise: !old), c),
+                GoldenFlights.Model75PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 75", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, edgewise: !old), c),
+                GoldenFlights.Model75RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 75", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, edgewise: !old), c),
+                GoldenFlights.Model75ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 75", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, edgewise: !old), c),
+                GoldenFlights.Model75RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 75", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, edgewise: !old), c),
+                GoldenFlights.Model75TetherHash, GoldenFlights.TetherHash, sw);
+        }
+
         // Model 75, its audit against model 72 (p7f-damage 1.6's losses, on 68): with Betaflight's airmode on (as 72 flew) and the
         // motors' heat off (ContactSpec.MotorHeat, as 72 flew), the arms and the gyro's range on, each golden over model 72's bytes
         // (the record's first 3168 and its last 176: the heat's 192 at Model68Layout skipped, GoldenFlights.HeatSkip) is its model

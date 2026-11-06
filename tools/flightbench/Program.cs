@@ -117,6 +117,11 @@ namespace Fpv450.FlightBench
                 Console.WriteLine("flightbench: how the drone tracks its controller's setpoint (reference-notes/rate-tracking.md)");
                 return RateTrackingCase.Run() ? 0 : 1;
             }
+            if (args.Length == 1 && args[0] == "--pitch-back")
+            {
+                Console.WriteLine("flightbench: the climb after a pitch-back at a fixed throttle (D-087)");
+                return PitchBackCase.Run() ? 0 : 1;
+            }
             if (args.Length >= 2 && args[0] == "--rate-log")
                 return RateTrackingCase.RunLogs(args[1..]) ? 0 : 1;
             if (args.Length >= 1 && args[0] == "--probe")
@@ -125,7 +130,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step] | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --rate-log <log>...");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step] | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>...");
             return 2;
         }
     }
