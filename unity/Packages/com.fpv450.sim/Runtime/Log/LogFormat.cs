@@ -307,8 +307,11 @@ namespace Fpv450.Sim.Log
         /// 69: the physics integration 2 with the climb's edgewise thrust and the fiber's Newton step (unity/physics/physics-integration-2--int79,
         ///    assigned by D-072): 68's tether entry (FlightSetup.TetherLinearStep) merged onto 66's flapping entry
         ///    (RotorFlappingSpec.EdgewiseThrust and ProfileDrag); the record is 65's 3536 bytes, the events 65's; no new event kind.
+        /// 70: the arm on sourced data (unity/physics/physics-integration-2--arm-break, on 69; assigned by D-072): the modes' entry
+        ///    gains, after ArmShearStrength, AirframeModesSpec.ArmStrainBreak, ArmShearFailureStrain and ArmInterlaminarStrength; the
+        ///    start's entry, after GyroRange, FlightSetup.GyroAntiAlias. The record is 65's 3536 bytes, the events 65's; no new event kind.
         /// </summary>
-        public const int Version = 69;
+        public const int Version = 70;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -795,8 +798,13 @@ namespace Fpv450.Sim.Log
         ///    air and the chain the drone's pose and parts: they compose without new code. With EdgewiseThrust off a flight steps as
         ///    in 78; with FlightSetup.TetherLinearStep and model 70's drone.json, exit, lip and peel as in 76; every flight without the
         ///    line steps as in 76.
+        /// 80: the arm on sourced data (p7f-damage, docs/research/arm-plates-and-blade-loss.md; unity/physics/physics-integration-2--arm-break,
+        ///    on 79; assigned by D-072): the arm's twist breaks on its root's in-plane shear strain (4 %) and its short edge's
+        ///    interlaminar shear (ILSS 60 MPa), not the linear 90 MPa (AirframeModesSpec.ArmStrainBreak); the plate's damping ratio
+        ///    0.007, not 0.02 (ArmDamping); and the gyro senses through its 258 Hz 2nd-order anti-alias filter before its range's clip
+        ///    (FlightSetup.GyroAntiAlias). With ArmStrainBreak off, ArmDamping 0.02 and GyroAntiAlias 0 a flight steps as in 79.
         /// </summary>
-        public const int ModelVersion = 79;
+        public const int ModelVersion = 80;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

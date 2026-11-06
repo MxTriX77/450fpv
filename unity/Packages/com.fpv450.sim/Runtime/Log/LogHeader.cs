@@ -116,7 +116,7 @@ namespace Fpv450.Sim.Log
             "TetherTwoWay", "TetherDesign4Air", "TetherWithoutContacts", "TetherWithoutCuts", "TetherOneStrength",
             "TetherFountainThroughBody",
             "TetherZeroForceHold", "GyroRange",
-            "TetherLinearStep",
+            "TetherLinearStep", "GyroAntiAlias",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -128,7 +128,8 @@ namespace Fpv450.Sim.Log
         {
             "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "MountDamping",
             "Camera", "TipMass", "PayloadPart", "CoilPart", "CoilHousingPart", "ArmInPlane", "ArmShearModulus", "ArmFlexuralStrength",
-            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia",
+            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia", "ArmStrainBreak", "ArmShearFailureStrain",
+            "ArmInterlaminarStrength",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -383,6 +384,9 @@ namespace Fpv450.Sim.Log
         /// <summary>The gyro's full scale, °/s (FlightSetup.GyroRange; 0 none).</summary>
         public double GyroRange;
 
+        /// <summary>The gyro's anti-alias filter, Hz (FlightSetup.GyroAntiAlias; 0 none).</summary>
+        public double GyroAntiAlias;
+
         /// <summary>
         /// Where the sticks came from, the device's product name, and the histogram of its report intervals over the
         /// window the input layer measured before the flight (null when none was measured: a keyboard or a bench).
@@ -433,6 +437,7 @@ namespace Fpv450.Sim.Log
                 StartBodyRate = setup.StartBodyRate,
                 StartPackCharge = setup.StartPackCharge,
                 GyroRange = setup.GyroRange,
+                GyroAntiAlias = setup.GyroAntiAlias,
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
                 WindParameters = PresetOf(setup.Wind.Level),
@@ -551,6 +556,7 @@ namespace Fpv450.Sim.Log
                 StartBodyRate = StartBodyRate,
                 StartPackCharge = StartPackCharge,
                 GyroRange = GyroRange,
+                GyroAntiAlias = GyroAntiAlias,
                 Aero = Aero?.Clone(),
                 Wind = Wind,
                 Rain = Rain,
@@ -1093,6 +1099,9 @@ namespace Fpv450.Sim.Log
                 e.Write(m.ArmInPlane);
                 foreach (double x in new[] { m.ArmShearModulus, m.ArmFlexuralStrength, m.ArmShearStrength })
                     e.Write(x);
+                e.Write(m.ArmStrainBreak);
+                e.Write(m.ArmShearFailureStrain);
+                e.Write(m.ArmInterlaminarStrength);
                 for (int i = 0; i < 4; i++)
                 {
                     e.Write(m.HubHeight[i]);
@@ -1216,6 +1225,7 @@ namespace Fpv450.Sim.Log
                 V3(e, StartBodyRate);
                 e.Write(StartPackCharge);
                 e.Write(GyroRange);
+                e.Write(GyroAntiAlias);
             });
             Entry(w, TagLayouts, e =>
             {
@@ -1565,7 +1575,8 @@ namespace Fpv450.Sim.Log
                             TipMass = new[] { r.ReadDouble(), r.ReadDouble(), r.ReadDouble(), r.ReadDouble() },
                             PayloadPart = r.ReadInt32(), CoilPart = r.ReadInt32(), CoilHousingPart = r.ReadInt32(),
                             ArmInPlane = r.ReadBoolean(), ArmShearModulus = r.ReadDouble(), ArmFlexuralStrength = r.ReadDouble(),
-                            ArmShearStrength = r.ReadDouble(),
+                            ArmShearStrength = r.ReadDouble(), ArmStrainBreak = r.ReadBoolean(), ArmShearFailureStrain = r.ReadDouble(),
+                            ArmInterlaminarStrength = r.ReadDouble(),
                         };
                         for (int i = 0; i < 4; i++)
                         {
@@ -1645,6 +1656,7 @@ namespace Fpv450.Sim.Log
                         StartBodyRate = V3(r);
                         StartPackCharge = r.ReadDouble();
                         GyroRange = r.ReadDouble();
+                        GyroAntiAlias = r.ReadDouble();
                         break;
                     case TagLayouts:
                         sawLayouts = true;

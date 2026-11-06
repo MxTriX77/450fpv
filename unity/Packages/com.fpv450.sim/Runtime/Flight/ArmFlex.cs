@@ -22,7 +22,18 @@ namespace Fpv450.Sim.Flight
     ///
     /// The arm's root (Roark): the bend's moment k_b·x·L over the plate's section modulus t·w²/6, and the twist's torque k_t·θ at
     /// the long face's middle, 3T/(8ab²)·(1 + 0.6095β + 0.8865β² − 1.8023β³ + 0.9100β⁴), β = b/a (Roark's rectangle 2a × 2b).
-    /// Their share of ArmFlexuralStrength and ArmShearStrength is the arm's load; past 1 the arm breaks at its clamp: Broken
+    /// The bend's share of ArmFlexuralStrength, and the twist's (model 80, AirframeModesSpec.ArmStrainBreak; the reading,
+    /// docs/research/arm-plates-and-blade-loss.md §6–7): its in-plane shear strain at the long face's middle, τ/G₁₂ (the twist's
+    /// geometry), over ArmShearFailureStrain (woven coupons soften past about 1 % and reach 3–5 % unbroken, so the linear stress at
+    /// 2 % breaks them too soon), and its interlaminar shear at the short face's middle, the plies' own plane, over
+    /// ArmInterlaminarStrength: Saint-Venant's series there, G·(θ/L)·(16b/π²)·Σ(−1)^k·tanh((2k+1)πa/2b)/(2k+1)², is
+    /// G·(θ/L)·16b·C/π² with Catalan's C = 0.915966 (published) once tanh is 1 (a/b 4.17 here: 4e-6 off; Timoshenko and Goodier),
+    /// 0.744 of the long face's peak on this plate (derived), so with ILSS about 0.6 of the in-plane strength it governs: on the
+    /// 25 × 6 mm plate at G₁₂ 4.5 GPa it breaks at 30.9° of twist (γ 1.79 %), where the strain alone would hold to 68.9° and the
+    /// linear 90 MPa broke at 34.5° (derived). Off: model 79's twist, its linear stress's share of ArmShearStrength.
+    /// Assumed: free warping (the clamp's restraint of the section's warping, which raises the root's stresses, is left out) and
+    /// the linear stiffness past the shear's 1 % (the softening would lower the twist mode with the amplitude; the large twist's
+    /// Wagner stiffening is about 1 % at 30°, derived). The larger share is the arm's load; past 1 the arm breaks at its clamp: Broken
     /// carries it, the core logs ArmBroken and its corner's prop is lost (Propulsion.LoseProp: assumed, the motor hangs on its
     /// leads and lifts nothing) and the broken arm carries nothing more. Its state is the FlightState's (ArmBend, ArmTwist, their
     /// rates, ArmBroken); this holds constants and the step's peaks only. Semi-implicit Euler at the sub-step: its modes, 88 and
@@ -33,9 +44,14 @@ namespace Fpv450.Sim.Flight
         readonly Double3[] _arm = new Double3[4], _lat = new Double3[4], _tip = new Double3[4], _hubs = new Double3[4];
         readonly double[] _height = new double[4], _kb = new double[4], _kt = new double[4], _cb = new double[4], _ct = new double[4];
         readonly double[] _ia = new double[4], _ib = new double[4], _id = new double[4];
-        readonly double _bendStress, _twistStress, _flexural, _shear;
+        readonly double _bendStress, _twistStress, _flexural, _shear, _twistStrain, _edgeStress, _failureStrain, _interlaminar;
+        readonly bool _strainBreak;
         Corners _peak;
         int _breaking;
+
+        /// <summary>Catalan's constant, Σ(−1)^k/(2k+1)² (published).</summary>
+        const double Catalan = 0.915965594177219;
+        const double PiSquared = 9.869604401089358;
 
         public ArmFlex(AirframeModesSpec spec, Double3[] hubs)
         {
@@ -47,6 +63,11 @@ namespace Fpv450.Sim.Flight
             _twistStress = kt * 3 / (8 * a * b * b) * (1 + 0.6095 * beta + 0.8865 * beta * beta - 1.8023 * beta * beta * beta + 0.9100 * beta * beta * beta * beta);
             _flexural = spec.ArmFlexuralStrength;
             _shear = spec.ArmShearStrength;
+            _strainBreak = spec.ArmStrainBreak;
+            _twistStrain = _twistStress / spec.ArmShearModulus;
+            _edgeStress = spec.ArmShearModulus * 16 * b * Catalan / (PiSquared * l);
+            _failureStrain = spec.ArmShearFailureStrain;
+            _interlaminar = spec.ArmInterlaminarStrength;
             for (int i = 0; i < 4; i++)
             {
                 double r = DetMath.Sqrt(hubs[i].X * hubs[i].X + hubs[i].Z * hubs[i].Z);
@@ -73,6 +94,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>The root's stress per metre of bend and per radian of twist, Pa.</summary>
         public double BendStress => _bendStress;
         public double TwistStress => _twistStress;
+
+        /// <summary>The root's in-plane shear strain per radian of twist (the long face's middle), and its interlaminar shear stress
+        /// per radian (the short face's middle), Pa.</summary>
+        public double TwistStrain => _twistStrain;
+        public double EdgeStress => _edgeStress;
 
         /// <summary>The arms the last step broke, bit 1 &lt;&lt; corner (the core logs them and loses their props).</summary>
         public int Breaking => _breaking;
@@ -113,7 +139,10 @@ namespace Fpv450.Sim.Flight
             loads.UnbalanceMoment = loads.UnbalanceMoment + Double3.Cross(_hubs[i], radial) + Double3.Cross(_tip[i], carried)
                 + (couple - arm * about) + arm * (_kt[i] * th + _ct[i] * vt) + lat * (-vt * spin);
 
-            double load = DetMath.Max(DetMath.Abs(x) * _bendStress / _flexural, DetMath.Abs(th) * _twistStress / _shear);
+            double twist = DetMath.Abs(th);
+            double load = DetMath.Max(DetMath.Abs(x) * _bendStress / _flexural, _strainBreak
+                ? DetMath.Max(twist * _twistStrain / _failureStrain, twist * _edgeStress / _interlaminar)
+                : twist * _twistStress / _shear);
             if (load > _peak[i]) _peak[i] = load;
             if (load < 1) return;
             s.ArmBroken |= (byte)bit;

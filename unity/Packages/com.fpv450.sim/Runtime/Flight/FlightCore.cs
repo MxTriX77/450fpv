@@ -135,6 +135,14 @@ namespace Fpv450.Sim.Flight
         /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>
         public double GyroRange = 2000;
 
+        /// <summary>The gyro's anti-alias filter, Hz (model 80; docs/research/arm-plates-and-blade-loss.md §5): a 2nd-order low-pass on
+        /// each axis the sensor senses, before its sampling and its range's clip, a fixed part of the flown chain: 258 (published:
+        /// Betaflight 4.5's ICM-426xx driver sets the ICM-42688-P's AAF to 258 Hz at GYRO_HARDWARE_LPF_NORMAL, the TDK datasheet's
+        /// programmable 2nd-order AAF; the section Butterworth, assumed, as the reading's). Run at the controller's 4 kHz loop on the
+        /// plant's ramp (Betaflight's biquad, prewarped: within 0.2 % of the analog filter there, derived), so 150 Hz passes 95 %
+        /// and 230 Hz 78 %. 0: none, model 79's gyro.</summary>
+        public double GyroAntiAlias = 258;
+
         /// <summary>The runtime objects the flight places in its world, in order (the launch stand, a test's pole); the
         /// flight resets the world's own first.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -227,6 +235,8 @@ namespace Fpv450.Sim.Flight
         readonly VibrationBands _vibration; // the camera mount's vibration, with the modes
         readonly ArmFlex _arms; // the arms in their plane (AirframeModesSpec.ArmInPlane), or null
         readonly double _gyroRange; // the gyro's full scale, °/s (FlightSetup.GyroRange; 0 none)
+        readonly Control.Biquad[] _antiAlias; // the gyro's anti-alias filter per axis (FlightSetup.GyroAntiAlias), or null
+        Axes3 _gyroSensed; // the frame's rate the sensor sensed at the last step's end, °/s, before its filter: the ramp's start
         Corners _rotorThrust = default; // each rotor's mean thrust over the step's sub-steps, for the modes
         ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
@@ -330,6 +340,17 @@ namespace Fpv450.Sim.Flight
                 _fc = new FlightController(_settings, clockwise);
                 _state.PackCharge0 = _state.PackCharge1 = setup.StartPackCharge;
                 _fc.Reset(ref _state.Fc, Gyro(_state.BodyRate));
+                if (setup.GyroAntiAlias > 0)
+                {
+                    // At rest on the start's rate: each section's delay line holds it, so the filter starts settled.
+                    _gyroSensed = Gyro(_state.BodyRate);
+                    _antiAlias = new Control.Biquad[3];
+                    for (int a = 0; a < 3; a++)
+                    {
+                        _antiAlias[a] = Control.Biquad.Lowpass(setup.GyroAntiAlias, FlightController.LoopDt * 1e6);
+                        _antiAlias[a].X1 = _antiAlias[a].X2 = _antiAlias[a].Y1 = _antiAlias[a].Y2 = _gyroSensed[a];
+                    }
+                }
             }
 
             // The world as this flight finds it: its runtime objects in order, then the contacts at the start pose.
@@ -795,8 +816,16 @@ namespace Fpv450.Sim.Flight
             _arms?.BeginStep();
             // The gyro on the frame: the rigid body's rate and, with the modes, the frame's elastic turn; its sensor's range
             // clips each axis (FlightSetup.GyroRange, model 72), and the step's largest axis before the clip is traced.
+            // With its anti-alias filter (FlightSetup.GyroAntiAlias, model 80) the sensor's ramp runs from the rate it sensed at the
+            // last step's end, each loop's point is filtered and then clipped (Sense), and the trace's peak is the filtered one's.
             Axes3 from = s.Fc.GyroPrev, to = Gyro(_modes == null ? s.BodyRate : s.BodyRate + _modes.FrameRate(s.ModeRate));
-            if (_gyroRange > 0)
+            if (_antiAlias != null)
+            {
+                from = _gyroSensed;
+                _gyroSensed = to;
+                _trace.GyroPeak = 0;
+            }
+            else if (_gyroRange > 0)
             {
                 _trace.GyroPeak = DetMath.Max(DetMath.Abs(to.Roll), DetMath.Max(DetMath.Abs(to.Pitch), DetMath.Abs(to.Yaw)));
                 to.Roll = DetMath.Max(-_gyroRange, DetMath.Min(_gyroRange, to.Roll));
@@ -820,6 +849,7 @@ namespace Fpv450.Sim.Flight
                     gyro.Pitch = from.Pitch + (to.Pitch - from.Pitch) * t;
                     gyro.Yaw = from.Yaw + (to.Yaw - from.Yaw) * t;
                 }
+                if (_antiAlias != null) Sense(ref gyro);
                 _fc.Loop(ref s.Fc, s.Armed, gyro, s.RotorSpeed, ref duty, ref loss);
                 _propulsion.SubStep(ref s, duty, s.Armed, FlightController.LoopDt, ref loads);
             }
@@ -1024,6 +1054,22 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The flight controller's failsafe on the line's break (p7d-tether 1.8), or null without the line or its cuts.</summary>
         public Control.Failsafe Failsafe => _failsafe;
+
+        // The gyro's sensor on a loop's point of the plant's ramp (model 80): its anti-alias filter, then its range's clip (FlightSetup.
+        // GyroAntiAlias, GyroRange); the step's largest filtered axis before the clip is traced.
+        void Sense(ref Axes3 gyro)
+        {
+            for (int a = 0; a < 3; a++)
+            {
+                double x = _antiAlias[a].ApplyDF1(gyro[a]);
+                if (_gyroRange > 0)
+                {
+                    _trace.GyroPeak = DetMath.Max(_trace.GyroPeak, DetMath.Abs(x));
+                    x = DetMath.Max(-_gyroRange, DetMath.Min(_gyroRange, x));
+                }
+                gyro[a] = x;
+            }
+        }
 
         /// <summary>The gyro of a body rate: the pilot's axes in °/s (roll −ω_z, pitch +ω_x nose down, yaw +ω_y).</summary>
         public static Axes3 Gyro(Double3 bodyRate) => new Axes3

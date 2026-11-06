@@ -21,7 +21,7 @@ namespace Fpv450.Sim.Flight
     public sealed class AirframeModesSpec
     {
         /// <summary>The arm plate's flexural modulus, Pa: 55 GPa (assumed, inside the published 45–70 GPa of woven 3K carbon
-        /// plate, the quasi-isotropic laminate the class's arms are cut from).</summary>
+        /// plate; the reading's 0/90 woven 55–70 GPa, docs/research/arm-plates-and-blade-loss.md §2).</summary>
         public double ArmModulus = 55e9;
 
         /// <summary>The arm plate's width and thickness, m: 25 × 6 mm (published: the CX10 ECO class's 6 mm arm, drone.json's
@@ -33,9 +33,12 @@ namespace Fpv450.Sim.Flight
         /// cantilever with a tip mass).</summary>
         public double ArmTipShare = 33.0 / 140.0;
 
-        /// <summary>The arm's structural damping ratio: 0.02 (assumed: a carbon laminate's own 0.3–1 % with the bolted clamp's
-        /// friction; the prop's aerodynamic damping of the tip comes from its inflow, apart).</summary>
-        public double ArmDamping = 0.02;
+        /// <summary>The arm's structural damping ratio, every mode of the plate: 0.007 (published centre, model 80;
+        /// docs/research/arm-plates-and-blade-loss.md §2): a bolted CFRP frame's measured modes 0.45–0.91 % and CFRP plates'
+        /// 0.39–1.32 % ([RAFT], 2022), and the twist's material ζ = η/2 from the in-plane shear loss factor 0.9–1.35 %, 0.0045–0.007
+        /// (derived from Adams–Bacon's ψ_LT 8.5 %, [ADB]); 0.007 is where both meet. The prop's aerodynamic damping of the tip comes
+        /// from its inflow, apart. Model 79's 0.02 (assumed: the laminate's 0.3–1 % with the clamp's friction) is the kept audits'.</summary>
+        public double ArmDamping = 0.007;
 
         /// <summary>A strapped mount's stiffness every way: 30 kN/m (assumed: the coil's canister on its two printed hangers
         /// and the bottle's two straps through the plate, 10–100 kN/m).</summary>
@@ -70,8 +73,27 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>The arm plate's flexural strength, Pa: 600 MPa (assumed: a 3K twill carbon/epoxy laminate; a single-ply 3K
         /// twill T300 prepreg publishes 882 MPa to ISO 14125, a thick cut plate's lower fibre share less), and its in-plane shear
-        /// strength, Pa: 90 MPa (assumed, woven carbon/epoxy's 80–125 MPa). Past either at the root the arm breaks (ArmFlex).</summary>
+        /// strength, Pa: 90 MPa (assumed, woven carbon/epoxy's 80–125 MPa). Past either at the root the arm breaks (ArmFlex); since
+        /// model 80 the shear strength is the known-wrong linear law's alone (ArmStrainBreak off).</summary>
         public double ArmFlexuralStrength = 600e6, ArmShearStrength = 90e6;
+
+        /// <summary>The arm's twist breaks it on its strains, not on a linear shear stress (model 80, ArmFlex; the reading's first
+        /// change, docs/research/arm-plates-and-blade-loss.md §6–7): the root's in-plane shear strain against ArmShearFailureStrain and
+        /// the short edge's interlaminar shear against ArmInterlaminarStrength. Off: model 79's law, the root's linear in-plane stress
+        /// against ArmShearStrength (90 MPa at 2 % strain), which woven coupons pass unbroken (the kept audits and the known-wrong).</summary>
+        public bool ArmStrainBreak = true;
+
+        /// <summary>The plate's in-plane shear strain at failure: 0.04 (inference, the reading's typical 3–5 % for 0/90 woven
+        /// carbon/epoxy: ISO 14129 reports the shear strength at failure or at 5 % strain, and woven coupons reach it, softening past
+        /// about 1 % [ISO], [CMH], [E650]; 4 % is the band's middle). Strain is the twist's geometry, so the linear model's strain holds
+        /// past the material's linear range where its stress does not.</summary>
+        public double ArmShearFailureStrain = 0.04;
+
+        /// <summary>The plate's interlaminar shear strength, Pa: 60 MPa (published typical: CMH-17's T700 plain weave 59.9 MPa mean,
+        /// B-basis 55.3 [CMH]; Toray E650's 3K twill 57 MPa, ISO 14130 [E650]; a 3K twill T300 prepreg's 69.8 MPa [CC]). The short
+        /// beam's strength is a linear-elastic beam formula's at the failure load, so it is met by the linear model's short-edge stress
+        /// (assumed: the matrix-dominated interlaminar response linear to it, as design practice applies the allowable).</summary>
+        public double ArmInterlaminarStrength = 60e6;
 
         /// <summary>Each corner's hub above its arm's mid-plane, m; its tip's first moment of mass about the mid-plane, Σm·h (kg·m),
         /// and its tip's inertia about the arm's axis, Σ(m·h² + I_own) (kg·m²): the motor's and the prop's parts (DroneSpec.BuildModes),
