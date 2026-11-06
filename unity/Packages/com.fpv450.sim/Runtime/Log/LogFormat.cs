@@ -279,8 +279,11 @@ namespace Fpv450.Sim.Log
         ///    WindingTimeConstant, ScrapeWearCoefficient), and the internals (in both entries) the winding's resistance, copper,
         ///    conductance and end turns, the slots, the insulation's rating and breakdown, the magnets' maximum and coefficient, the
         ///    emissivity, the openings and the motor's mass; MotorDamaged's bands 5 to 8; no new event kind.
+        /// 63: the physics integration 2 with D-086's controller (unity/physics/physics-integration-2--int73, assigned by D-072; 61 and
+        ///    62 are parallel lines'): 69's controller (format 55's layout, no record, header or event change) merged onto 60: the
+        ///    record is 60's 3360 bytes, the header 60's (the settings carry airmode as before), the events 60's; no new event kind.
         /// </summary>
-        public const int Version = 60;
+        public const int Version = 63;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -702,8 +705,19 @@ namespace Fpv450.Sim.Log
         ///    (Propulsion.Fail: no drive, a three-phase short's brake); soil a turning bell scrapes or a blade carves next to it
         ///    enters the gap, drags by its cohesion and, packed, binds. Every flight with the bells heats, so every golden moves;
         ///    with ContactSpec.MotorHeat off a flight steps as in 68 over its 3168 bytes, the new block zero.
+        /// 69: D-086's controller (unity/physics/physics-integration-2--esc-airmode, on 65; assigned by D-072): FcSettings.Default
+        ///    flies without Betaflight's airmode (the pilot's answer): below half throttle the mixer keeps 0.5 + throttle of the PID
+        ///    mix, and under min_check the I term is held at zero. The settings ride in the header as before, so a flight with
+        ///    airmode on steps as in 65. The ESC's disarm is unchanged: drone.json's BLHeli_S already has brake on stop off (its
+        ///    damped light brakes in the run loop, then every FET off). The record, the header and the events are 65's (format 55).
+        /// 73: the physics integration 2 with D-086's controller (unity/physics/physics-integration-2--int73, assigned by D-072;
+        ///    71 and 72 are parallel lines'; the code is the parents' together): 69's controller (no airmode in FcSettings.Default,
+        ///    MixerSaturation counting only the mix's range and the PID-sum limits) merged onto 70's heat and dirt, shafts,
+        ///    bearings, bells, canister, cuts and chain fixes. 69 changes only the controller's settings and the mixer's loss and 70
+        ///    the contacts and Propulsion, so they compose without new code. A flight with airmode on steps as in 70; one with
+        ///    ContactSpec.MotorHeat off whose shafts never pass their yield (every golden) steps as in 69 over 63's 3040 bytes.
         /// </summary>
-        public const int ModelVersion = 70;
+        public const int ModelVersion = 73;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

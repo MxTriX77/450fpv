@@ -573,11 +573,12 @@ namespace Fpv450.Sim.Tests
         /// flown 2 s past it. ground is the stub floor or the range.
         /// </summary>
         public static Landing Land(DroneSpec spec, FlightWorld world, Double3 at, double descent, double forward = 0, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, bool rigid = false, Func<ContactSpec, ContactSpec> legs = null)
+            SurfaceTable table = null, bool rigid = false, Func<ContactSpec, ContactSpec> legs = null, bool? airmode = null)
         {
             double stand = Standing(spec);
             FlightSetup setup = Setup(spec, world, at + new Double3(0, stand, 0), rain, table: table, rigid: rigid);
             if (legs != null) setup.Contacts = legs(setup.Contacts);
+            if (airmode != null) setup.Settings.airmode = airmode.Value; // Betaflight's airmode (model 65's; off since 69, D-086)
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, at + new Double3(0, stand + 1, 0));

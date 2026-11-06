@@ -55,7 +55,8 @@ namespace Fpv450.FlightBench
 
             Console.WriteLine("  touchdowns: the lowest lateral speed (m/s) that tips the drone over; the caught skid's mechanics and its friction ratio J_t/J_n");
             Console.WriteLine("    the mechanics' columns rigid across (dead legs, caught; free, caught), the rest on the soft legs");
-            Console.WriteLine("    roll  descent | mechanics (J_t/J_n) | dead legs, caught | free, caught | soft, caught | free, μ 0.5/0.4 | disarmed | armed, cut | held, μ 0.5 | held, caught");
+            Console.WriteLine("    the powered columns without airmode (FcSettings.Default since model 69, D-086); \"on\" the compared variant, model 70's");
+            Console.WriteLine("    roll  descent | mechanics (J_t/J_n) | dead legs, caught | free, caught | soft, caught | free, μ 0.5/0.4 | disarmed | armed, cut | held, μ 0.5 | held, caught | on: cut | on: held, caught");
             foreach (double descent in new[] { 0.0, 0.5 })
                 foreach (double roll in new[] { 0.0, 5, 10, 15, 20 })
                 {
@@ -77,13 +78,19 @@ namespace Fpv450.FlightBench
                     double hs = LandingScenarios.CriticalSpeed(spec, m, h, t);
                     t.Edit = LandingScenarios.GroundFriction(10);
                     double hc = LandingScenarios.CriticalSpeed(spec, m, h, t);
-                    Console.WriteLine($"    {roll,4:F0}° {descent,5:F1}    | {mech,9:F3} ({a.CatchFriction(roll, descent, mech),4:F2})   | {S(fd),17} | {S(fc),12} | {S(soft),12} | {S(fs),15} | {S(dis),8} | {S(cut),10} | {S(hs),11} | {S(hc),12}");
+                    t.Airmode = true;
+                    double hcOn = LandingScenarios.CriticalSpeed(spec, m, h, t);
+                    t.Edit = null;
+                    t.Power = LandingScenarios.Power.Cut;
+                    double cutOn = LandingScenarios.CriticalSpeed(spec, m, h, t);
+                    Console.WriteLine($"    {roll,4:F0}° {descent,5:F1}    | {mech,9:F3} ({a.CatchFriction(roll, descent, mech),4:F2})   | {S(fd),17} | {S(fc),12} | {S(soft),12} | {S(fs),15} | {S(dis),8} | {S(cut),10} | {S(hs),11} | {S(hc),12} | {S(cutOn),7} | {S(hcOn),15}");
                     if (roll > 0 && descent > 0)
                         Row($"    the caught skid at {roll}°, {descent} m/s down", Math.Abs(fd / mech - 1) < 0.01 && Math.Abs(fc / mech - 1) < 0.15,
                             $"on dead legs {fd:F3}, on the legs {fc:F3}, against {mech:F3}");
                 }
             // The disarmed column by the ESC's rule on Betaflight's DShot 0 (p6-flight-core 1.6c, EscDisarm): drone.json's
-            // BLHeli_S, model 38's freewheel (the known-wrong) and the compared variants G7's ESC-firmware question decides.
+            // BLHeli_S with brake on stop off (D-086: the firmware's damped light brakes in its run loop, then every FET off),
+            // model 38's freewheel (the known-wrong) and the compared variants (brake on stop on; Bluejay).
             var rules = new[] { EscDisarm.Freewheel, EscDisarm.BlheliS, EscDisarm.BlheliSBrakeOnStop, EscDisarm.Bluejay, EscDisarm.BluejayBrakeOnStop };
             Console.WriteLine("  disarmed at the touch, by the ESC's rule: the lowest lateral speed (m/s) that tips the drone over");
             Console.WriteLine("    roll  descent | freewheel (38) | blheli_s | blheli_s, brake on stop | bluejay | bluejay, brake on stop");
@@ -163,13 +170,14 @@ namespace Fpv450.FlightBench
             Row("  known-wrong, a frictionless coil", Math.Abs(slides / c.CoilRockTime(1, 20) - 1) > 0.10, $"{slides:F3} s from 1° (it slides out from under, as an axle)");
             double damped = LandingScenarios.RollTime(spec, m, h, false, 1, 20, LandingScenarios.BodyDamping(2), c.CoilRestPitchDeg);
             Row("  an overdamped contact (ζ 2)", Math.Abs(damped / LandingScenarios.RollTime(spec, m, h, false, 1, 20, null, c.CoilRestPitchDeg) - 1) < 0.02, $"{damped:F3} s from 1°: rolling compresses and slips nothing");
-            foreach (var p in new[] { LandingScenarios.Power.Disarmed, LandingScenarios.Power.Cut, LandingScenarios.Power.Held })
-            {
-                var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = p, ReachDeg = 20, Seconds = 6 };
-                var o = LandingScenarios.Run(spec, m, h, t);
-                Console.WriteLine($"  powered onto the coil at 1°, {p}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s "
-                    + $"(the touch at {o.TouchDescent:F3} m/s down, {o.TouchAt:F3} s after the throttle's step)");
-            }
+            foreach (bool? air in new bool?[] { null, true })
+                foreach (var p in new[] { LandingScenarios.Power.Disarmed, LandingScenarios.Power.Cut, LandingScenarios.Power.Held })
+                {
+                    var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = p, ReachDeg = 20, Seconds = 6, Airmode = air };
+                    var o = LandingScenarios.Run(spec, m, h, t);
+                    Console.WriteLine($"  powered onto the coil at 1°, {p}{(air == true ? ", airmode on (70)" : "")}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s "
+                        + $"(the touch at {o.TouchDescent:F3} m/s down, {o.TouchAt:F3} s after the throttle's step)");
+                }
             foreach (EscDisarm rule in rules)
             {
                 var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = LandingScenarios.Power.Disarmed, ReachDeg = 20, Seconds = 6, Esc = rule };

@@ -84,9 +84,13 @@ namespace Fpv450.Sim.Tests
                 + $"the busiest block {busiest:F2} of the in-phase bound; with it, {boosted} seeds' angles past the floor");
         }
 
-        // The known-wrong loop for "never buzzes": the builder's D gains (and D min) × 4 put the loop on the edge of a buzz,
+        // The known-wrong loop for "never buzzes": the builder's D gains (and D min) × Edge put the loop on the edge of a buzz,
         // and it chases the props' vibration: the ESCs' commands jump and the body vibrates far past the props' in-phase pull.
-        // × 3 still holds (the D-term's filters), so the bound sits where the loop's own margin ends.
+        // × 3 still holds (the D-term's filters), so the bound sits where the loop's own margin ends. Edge was 4 until model 69:
+        // without airmode (D-086) the hover below half throttle keeps 0.5 + throttle of the mix (0.94 at this hover), so × 4
+        // holds (0.5 of the bound, its ESCs' largest step 5.9e-7) and × 4.5 buzzes (35.6 × the bound; model 65's × 4: 34 ×).
+        const double Edge = 4.5;
+
         [Test]
         public void ALoopOnTheEdgeOfABuzzFailsSteady()
         {
@@ -94,14 +98,14 @@ namespace Fpv450.Sim.Tests
             AsymmetryScenario.Run run = AsymmetryScenario.Flown(spec);
             FlightSetup setup = AsymmetryScenario.Setup(spec, 1, true);
             Control.FcSettings fc = setup.Settings;
-            fc.d_roll *= 4;
-            fc.d_min_roll *= 4;
-            fc.d_pitch *= 4;
-            fc.d_min_pitch *= 4;
+            fc.d_roll *= Edge;
+            fc.d_min_roll *= Edge;
+            fc.d_pitch *= Edge;
+            fc.d_min_pitch *= Edge;
             setup.Settings = fc;
             AsymmetryScenario.Result r = AsymmetryScenario.Hover(setup, out FlightCore core);
             AsymmetryScenario.Prediction p = AsymmetryScenario.Predict(run.Model, core.Draws);
-            TestContext.Out.WriteLine($"D x 4: the ESCs' largest step {r.DutyJump:E2}, the busiest block {r.VibrationMax / p.VibrationInPhase:F1} of the in-phase bound");
+            TestContext.Out.WriteLine($"D x {Edge}: the ESCs' largest step {r.DutyJump:E2}, the busiest block {r.VibrationMax / p.VibrationInPhase:F1} of the in-phase bound");
             Assert.That(AsymmetryScenario.Steady(r, p), Is.False, "it buzzes");
             Assert.That(r.VibrationMax, Is.GreaterThan(p.VibrationInPhase), "past the props' own pull");
         }

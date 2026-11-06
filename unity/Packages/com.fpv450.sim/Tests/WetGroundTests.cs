@@ -338,8 +338,8 @@ namespace Fpv450.Sim.Tests
                         if (firstPull < 0) firstPull = a.Count;
                     }
                     peak = Math.Max(peak, pull);
-                });
-                ulong off = GoldenFlights.FlyContact(spec, out FlightCore cb, rain: rain, table: without, layout: GoldenFlights.Model28Layout, yawI: false, after: core => { b.Add(core.State.Position.Y); eb += core.Events.Count; });
+                }, airmode: true);
+                ulong off = GoldenFlights.FlyContact(spec, out FlightCore cb, rain: rain, table: without, layout: GoldenFlights.Model28Layout, yawI: false, after: core => { b.Add(core.State.Position.Y); eb += core.Events.Count; }, airmode: true);
                 int first = -1, rose = -1, roseOff = -1;
                 double most = 0;
                 for (int i = 0; i < a.Count; i++)

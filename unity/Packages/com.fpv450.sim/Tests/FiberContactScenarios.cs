@@ -601,7 +601,7 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>V01_L on the test range: the line laid on the ground from an anchor 10 m west of the trunk (1 m south of it) to
-        /// the drone 10 m east; the drone climbs to 14 m (over the crown's top) and flies west over the tree to 8 m past the trunk
+        /// the drone 10 m east; the drone climbs to 12 m (14 m, over the crown's top, before model 73) and flies west over the tree to 8 m past the trunk
         /// at 3 m/s, back east and west again, so the line from its anchor is drawn up through and over the crown.</summary>
         public static Shells Crown(DroneSpec spec, double seconds = 30)
         {
@@ -620,7 +620,10 @@ namespace Fpv450.Sim.Tests
             TetherScenarios.Fly(setup, seconds, (t, core, pilot) =>
             {
                 pilot.HoldVelocity = false;
-                double y = stand + DetMath.Min(14, 2 * t), u = t < 7 ? 0 : 3 * (t - 7), x;
+                // Since model 73 at 12 m (14 m until then): at 13 and 14 m the hanging line only grazed the crown (0–8 limb contacts
+                // in 30 s and no record over airmode on and off, the motors' heat on and off: 0 without airmode with the heat), at
+                // 12 m it meets it in every one (10–39 limbs, 7–58 records).
+                double y = stand + DetMath.Min(12, 2 * t), u = t < 7 ? 0 : 3 * (t - 7), x;
                 // From 10 m east to 8 m west (18 m), then east to 8 m and west to 8 m again (16 m legs).
                 double w = (u - 18) % 32;
                 x = u < 18 ? 10 - u : w < 16 ? -8 + w : 8 - (w - 16);

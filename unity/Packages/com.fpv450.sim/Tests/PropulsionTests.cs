@@ -680,6 +680,47 @@ namespace Fpv450.Sim.Tests
             Assert.That(bluejayBrake[400], Is.LessThan(1e-6), "Bluejay's rotor stopped");
         }
 
+        // Disarmed 400 ms from the hover's duty on a body held at rest (every ESC past its run loop by then), then every rotor
+        // spun to kick rad/s as the air would spin a windmilling prop: the rear right rotor's speed after each 1 ms step from the kick.
+        static List<double> KickAfterTheDisarm(EscDisarm rule, double kick, int steps)
+        {
+            var prop = new Propulsion(Disarming(rule));
+            var s = new FlightState { Attitude = Quat.Identity, PackCharge0 = 1, PackCharge1 = 1 };
+            var hover = new Corners { RearRight = 0.47, FrontRight = 0.47, RearLeft = 0.47, FrontLeft = 0.47 };
+            for (int k = 0; k < 3000; k++) Step(prop, ref s, hover);
+            for (int k = 0; k < 400; k++) Step(prop, ref s, default, false);
+            for (int i = 0; i < 4; i++) s.RotorSpeed[i] = kick;
+            var speed = new List<double> { s.RotorSpeed.RearRight };
+            for (int k = 0; k < steps; k++)
+            {
+                Step(prop, ref s, default, false);
+                speed.Add(s.RotorSpeed.RearRight);
+            }
+            return speed;
+        }
+
+        [Test]
+        public void WithBrakeOnStopOffADisarmedMotorFreewheelsPastItsRunLoop()
+        {
+            // D-086 (the pilot: brake on stop is off). BLHeli_S 16.7 with Pgm_Brake_On_Stop 0, published: past its run loop
+            // (run6_brake_done: a commutation period over 32 ms, about 1220 eRPM) run_to_wait_for_power_on calls switch_power_off
+            // and turns on its com FETs only under Pgm_Brake_On_Stop; wait_for_power_on turns no FET on. So a disarmed rotor the
+            // air spins again freewheels: friction and drag alone, as model 38's Freewheel, bit for bit (the ESC stays off until armed
+            // again: it starts a motor only on power on). Brake on stop (the compared
+            // variant) shorts the three phases: the same kick dies at the short's rate. The braking before (damped light's
+            // complementary PWM at zero duty) is the firmware's run loop with brake on stop off
+            // (ADisarmedBlheliSBrakesItsMotorAsTheShortedDcMotor).
+            const double kick = 300;
+            List<double> off = KickAfterTheDisarm(EscDisarm.BlheliS, kick, 100);
+            List<double> free = KickAfterTheDisarm(EscDisarm.Freewheel, kick, 100);
+            List<double> brake = KickAfterTheDisarm(EscDisarm.BlheliSBrakeOnStop, kick, 100);
+            TestContext.Out.WriteLine($"kicked to {F(kick, "0")} rad/s 400 ms after the disarm, 50 ms on: brake on stop off {F(off[50], "0.0")}, "
+                + $"freewheel {F(free[50], "0.0")}, brake on stop {F(brake[50], "0.0")} rad/s");
+            for (int k = 0; k <= 100; k++) Assert.That(off[k], Is.EqualTo(free[k]), $"brake on stop off freewheels, bit for bit ({k} ms)");
+            Assert.That(off[50], Is.GreaterThan(0.8 * kick), "it keeps most of its speed over 50 ms");
+            Assert.That(brake[50], Is.LessThan(0.5 * off[50]), "the known-wrong for D-086, brake on stop, holds it");
+        }
+
         // ---- The builder's PIDs hold a stable loop ----
 
         struct StepResult

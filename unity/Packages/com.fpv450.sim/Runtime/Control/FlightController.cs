@@ -335,7 +335,8 @@ namespace Fpv450.Sim.Control
         /// <summary>
         /// One 4 kHz loop: the filter chain on gyro (°/s, pilot axes, this loop's reading) and the motors' speeds
         /// (rad/s, bidirectional DShot), the RC smoothing, the PID on the filtered gyro and the mixer. duty is each
-        /// ESC's command, 0–1 of its full duty (DShot 48–2047), zero while disarmed (the ESC lets its motor freewheel);
+        /// ESC's command, 0–1 of its full duty (DShot 48–2047), zero while disarmed (DShot 0: the ESC's firmware decides what its
+        /// motor does, EscDisarm);
         /// loss gathers what the mixer did not deliver while armed.
         /// </summary>
         public void Loop(ref FcState s, bool armed, in Axes3 gyro, in Corners motorSpeed, ref Corners duty, ref MixerLoss loss)
@@ -493,10 +494,14 @@ namespace Fpv450.Sim.Control
                 duty[c] = armed ? (motor - DshotMinThrottle) / DshotRange : 0;
             }
 
+            // The loss is what the mix's range and the PID-sum limits took (a saturation, MixerSaturation): without airmode
+            // the transition's attenuation below half throttle is the authority Betaflight sets, not a loss. With airmode the
+            // share kept is the normalisation itself (1 / range is 1.0 / range), so airmode on keeps model 65's bits.
             if (!armed) return;
-            loss.Roll = DetMath.Max(loss.Roll, Lost(sum.Roll, roll * normalisation));
-            loss.Pitch = DetMath.Max(loss.Pitch, Lost(sum.Pitch, pitch * normalisation));
-            loss.Yaw = DetMath.Max(loss.Yaw, Lost(sum.Yaw, yaw * normalisation));
+            double kept = range > 1 ? 1 / range : 1;
+            loss.Roll = DetMath.Max(loss.Roll, Lost(sum.Roll, roll * kept));
+            loss.Pitch = DetMath.Max(loss.Pitch, Lost(sum.Pitch, pitch * kept));
+            loss.Yaw = DetMath.Max(loss.Yaw, Lost(sum.Yaw, yaw * kept));
             loss.Collective = DetMath.Max(loss.Collective, commanded - throttle);
         }
 
