@@ -792,7 +792,8 @@ namespace Fpv450.App
                 long stepped = session.Poses.LatestStep - crashStep;
                 // Under physics: it moved off the crash pose, wherever it lands (the ground below the wall, or the eave and
                 // the roof, where the airframe's effects and the throttle's ramp down can carry it). It need not rest:
-                // armed at zero throttle, airmode works the motors against what it lies on, as Betaflight's does. Unless the
+                // armed at zero throttle the motors idle and the mixer still works them against what it lies on (no
+                // airmode since D-086: half the PID mix below half throttle, the I term held under min_check). Unless the
                 // crash broke the line (p7d-tether 1.8, from model 56): the receiver has lost the link, and Betaflight's
                 // failsafe drops the drone at stage 2 and disarms it, 1.5 s after the last good frame; the OSD then reads DISARMED.
                 Quat a = atCrash.Attitude, b = lying.Attitude;

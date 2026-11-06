@@ -1010,7 +1010,7 @@ namespace Fpv450.Tests.Session
             long crashed = core.State.Step;
             double crashY = core.State.Position.Y;
             rig.Radio.Throttle = 0;
-            // With the airframe's effects it lands hopping (airmode's motors against the floor), so the floor is the
+            // With the airframe's effects it lands hopping (the idling motors' mix against the floor), so the floor is the
             // steps it touches below the box, not one instant's contact.
             int floor = 0;
             for (int ms = 0; ms < 1500; ms++)
