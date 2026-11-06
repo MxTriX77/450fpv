@@ -16,7 +16,7 @@
 // new; a shape's rotation is its ShapeGeometry axes; Time is a double; the Time rule
 // latches every first touch during the step (IWorldQuery). Task 1.5: a box's closest
 // approach along a core is exact (BoxMinimizer), where Shapes.cs searched it, and a box
-// sweep that provably cannot touch ends early (Clear). Task 1.4: the sweep is
+// sweep that provably cannot touch ends early (Clearance). Task 1.4: the sweep is
 // generic over the shape's closest approach (IClosest), so a primitive and a wire share
 // one Time rule; a wire's candidate segments are found along its chord (WireRange); a
 // ray that starts inside any segment of a wire does not hit that wire. QA's review B3 (QueryVersion 3): a
@@ -54,6 +54,10 @@ namespace Fpv450.Sim.World
 
         public bool Overlaps(in Bounds b) =>
             Min.X <= b.Max.X && b.Min.X <= Max.X && Min.Y <= b.Max.Y && b.Min.Y <= Max.Y && Min.Z <= b.Max.Z && b.Min.Z <= Max.Z;
+
+        /// <summary>Whether b lies inside these bounds (closed; false for a NaN side).</summary>
+        public bool Holds(in Bounds b) =>
+            Min.X <= b.Min.X && b.Max.X <= Max.X && Min.Y <= b.Min.Y && b.Max.Y <= Max.Y && Min.Z <= b.Min.Z && b.Max.Z <= Max.Z;
 
         /// <summary>The world bounds of a box, sphere, capsule or cylinder (a cylinder's are its capsule's: conservative).</summary>
         public static Bounds OfShape(in ShapeGeometry s)
@@ -94,8 +98,11 @@ namespace Fpv450.Sim.World
     {
         void Closest(Double3 p, Double3 q, double r, out Near near);
 
-        /// <summary>True only if the swept capsule stays more than `beyond` from the shape from `t` to the step's end (ShapeMath.Clear).</summary>
-        bool Clear(in Capsule previous, in Capsule current, double t, double beyond);
+        /// <summary>
+        /// How far the swept capsule provably stays from the shape from `t` to the step's end (ShapeMath.Clearance); −∞ where
+        /// it proves nothing. The sweep counts it clear of `beyond` when it exceeds beyond + ClearSlack.
+        /// </summary>
+        double Clearance(in Capsule previous, in Capsule current, double t);
 
         /// <summary>
         /// The separating-plane bound of the sweep from `t` (ShapeMath.Bound): the first t' in [t, 1] at which the swept
@@ -117,7 +124,7 @@ namespace Fpv450.Sim.World
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_s, p, q, r, out near);
 
-        public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) => ShapeMath.Clear(_s, previous, current, t, beyond);
+        public double Clearance(in Capsule previous, in Capsule current, double t) => ShapeMath.Clearance(_s, previous, current, t);
 
         public double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
             ShapeMath.Bound(_s, previous, current, t, near, out apart);
@@ -139,8 +146,8 @@ namespace Fpv450.Sim.World
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.Closest(_prims[_index].Geometry, p, q, r, out near);
 
-        public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) =>
-            ShapeMath.Clear(_prims[_index].Geometry, previous, current, t, beyond);
+        public double Clearance(in Capsule previous, in Capsule current, double t) =>
+            ShapeMath.Clearance(_prims[_index].Geometry, previous, current, t);
 
         public double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
             ShapeMath.Bound(_prims[_index].Geometry, previous, current, t, near, out apart);
@@ -174,7 +181,7 @@ namespace Fpv450.Sim.World
 
         public void Closest(Double3 p, Double3 q, double r, out Near near) => ShapeMath.WireClosest(this, p, q, r, out near);
 
-        public bool Clear(in Capsule previous, in Capsule current, double t, double beyond) => false;
+        public double Clearance(in Capsule previous, in Capsule current, double t) => double.NegativeInfinity;
 
         public double Bound(in Capsule previous, in Capsule current, double t, in Near near, out bool apart) =>
             ShapeMath.WireBound(this, previous, current, t, out apart);
@@ -201,7 +208,7 @@ namespace Fpv450.Sim.World
         private const int MaxSteps = 2 * MaxAdvance;
         /// <summary>Touch's halvings at most: t in (0, 1] has no more bits.</summary>
         private const int MaxHalvings = 64;
-        /// <summary>Clear's margin over TouchDistance for its own rounding (coordinates of a few hundred metres), m.</summary>
+        /// <summary>Clearance's margin over TouchDistance for its own rounding (coordinates of a few hundred metres), m.</summary>
         private const double ClearSlack = 1e-9;
         /// <summary>The largest double below 1: a Time below 1 never reads as the current pose.</summary>
         private const double BelowOne = 0.99999999999999989;
@@ -226,8 +233,11 @@ namespace Fpv450.Sim.World
             time = 1;
             // A box that the whole sweep stays clear of and that the current pose is beyond the margin of: no contact,
             // without a closest approach (the AABB check passes yawed and tilted boxes that are far in their own frame).
-            bool clear = s.Clear(previous, current, 0, TouchDistance);
-            if (clear && s.Clear(current, current, 0, margin))
+            double clearance = s.Clearance(previous, current, 0);
+            bool clear = clearance > TouchDistance + ClearSlack;
+            // A still capsule (the fiber's: previous and current the same pose) has the same clearance at its current pose:
+            // the same bound, its zero moves aside, so it is taken once.
+            if (clear && (Still(previous, current) ? clearance : s.Clearance(current, current, 0)) > margin + ClearSlack)
             {
                 near = default;
                 return false;
@@ -257,7 +267,7 @@ namespace Fpv450.Sim.World
                     if (first.Distance <= TouchDistance)
                         break;
                     double bound = s.Bound(previous, current, t, first, out bool apart);
-                    if (apart || s.Clear(previous, current, t, TouchDistance))
+                    if (apart || s.Clearance(previous, current, t) > TouchDistance + ClearSlack)
                         return near.Distance <= margin; // never touched: a bound proves it for the rest of the step
                     if (i == MaxSteps)
                     {
@@ -318,26 +328,32 @@ namespace Fpv450.Sim.World
             return hi;
         }
 
+        /// <summary>Whether two poses of a capsule core are the same (==, so a signed zero's two signs are one).</summary>
+        private static bool Still(in Capsule previous, in Capsule current) =>
+            previous.A.X == current.A.X && previous.A.Y == current.A.Y && previous.A.Z == current.A.Z
+            && previous.B.X == current.B.X && previous.B.Y == current.B.Y && previous.B.Z == current.B.Z;
+
         /// <summary>
-        /// Whether the capsule swept from `previous` to `current` provably stays more than `beyond` from the box `s` from
-        /// `t` to 1 (false for every other kind: the sweep then advances as before). A box's signed distance is at least
+        /// How far the capsule swept from `previous` to `current` provably stays from the box `s` from `t` to 1: the sweep
+        /// counts it clear of `beyond` when the clearance exceeds beyond + ClearSlack (−∞ for every other kind: the sweep
+        /// then advances as before). A box's signed distance is at least
         /// max_i(|x_i| − h_i) in its own frame, the segment's least |x_i| at `t` is exact, and |x_i| of any core point
         /// changes by at most the larger of the core ends' moves along axis i per unit of t; so the bound at t = 1 holds
         /// for the whole rest of the step. It only ends the advancement early where the Lipschitz step would creep (a
         /// capsule sliding along a face): a sweep it ends would never have touched, so every result is the same, except
         /// that a slide that used to give up after MaxAdvance steps (a touch counted where there was none) is now clear.
         /// </summary>
-        public static bool Clear(in ShapeGeometry s, in Capsule previous, in Capsule current, double t, double beyond)
+        public static double Clearance(in ShapeGeometry s, in Capsule previous, in Capsule current, double t)
         {
             if (s.Kind != ShapeKind.Box)
-                return false;
+                return double.NegativeInfinity;
             Double3 da = current.A - previous.A, db = current.B - previous.B;
             Double3 lp = ToLocal(s, previous.A + da * t - s.Center), lq = ToLocal(s, previous.B + db * t - s.Center);
             Double3 la = ToLocal(s, da), lb = ToLocal(s, db), h = s.HalfExtents;
             double rest = 1 - t;
             double bound = DetMath.Max(AxisBound(lp.X, lq.X, la.X, lb.X, h.X, rest),
                 DetMath.Max(AxisBound(lp.Y, lq.Y, la.Y, lb.Y, h.Y, rest), AxisBound(lp.Z, lq.Z, la.Z, lb.Z, h.Z, rest)));
-            return bound - current.Radius > beyond + ClearSlack;
+            return bound - current.Radius;
         }
 
         /// <summary>

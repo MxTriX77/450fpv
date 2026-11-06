@@ -107,6 +107,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Wind.MapWind+<>c", "<>9__7_0", "MapWind.Strips' conversion, read by WindSetup (setup)" },
             { "Fpv450.Sim.World.MapWorld", "MicroKindNames", "ParseElements, the micro-detail sidecars' reader (map load)" },
             { "Fpv450.Sim.World.MapWorld", "SurfaceIds", "the map's load, SurfaceTable.Parse and AddObject's shape check (the FlightCore constructor)" },
+            { "Fpv450.Sim.World.MapWorld", "_region", "[ThreadStatic], no type init: the loading thread's is made at the map's load, another thread's (the flight thread's) at its first small StaticContacts or Raycast, the first step; never after" },
         };
 
         [Test]
