@@ -433,7 +433,8 @@ namespace Fpv450.Sim.Tests
         // least 2 % faster than the others and the camera's 50–200 Hz band stays within twice the sound drone's; the one-blade
         // trim lifts the band above the factory band's 99.5th percentile, its spectrum peaking within 2 % of that rotor's rate.
         // The known-wrong, the one-blade trim's thrust loss with no 1/rev (both blades' pitch set down until the rotor loses as
-        // much, a rotor that is weaker but even), stays inside the factory band.
+        // much, a rotor that is weaker but even), stays inside the factory band. Since model 72 (the arms in their plane) paired by
+        // seed: seed 1's own sound hover sits at the 20 000 seeds' 99.5th percentile, so the known-wrong stays within 10 % of it.
         [Test]
         public void ASymmetricTrimSpeedsItsRotorUp()
         {
@@ -452,7 +453,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(both.Band, Is.LessThanOrEqualTo(2 * sound.Band), "the symmetric trim adds little 1/rev");
             Assert.That(one.Band, Is.GreaterThan(DamageScenario.FactoryBandHigh), "the one-blade trim's shake");
             Assert.That(one.PeakHz, Is.EqualTo(one.RotorHz).Within(0.02 * one.RotorHz), "at the damaged rotor's rate");
-            Assert.That(even.Band, Is.LessThanOrEqualTo(DamageScenario.FactoryBandHigh), "the known-wrong stays inside the factory band");
+            Assert.That(even.Band, Is.LessThanOrEqualTo(1.1 * sound.Band), "the known-wrong stays at the same seed's sound hover");
         }
 
         // The rear right rotor's two blades pitched down alike until its static thrust ratio is eta: a loss with no 1/rev.
@@ -474,7 +475,8 @@ namespace Fpv450.Sim.Tests
         // 12.7 mm, on the builder's filter chain: the attitude's peak to peak over the second 5 s is under 2°, the gyro's 1/rev
         // after the chain (RPM notches, dynamic notches, lowpasses) is at least 10 times weaker than the body rate's before it,
         // and the camera's 50–200 Hz band is above the factory band's 99.5th percentile. The known-wrong, the same thrust loss
-        // with no 1/rev (both blades pitched down alike, a scripted loss), leaves the camera inside the factory band. The chain
+        // with no 1/rev (both blades pitched down alike, a scripted loss), leaves the camera inside the factory band (since model
+        // 72 paired by seed: within 10 % of the same seed's sound hover, which sits at the 99.5th percentile). The chain
         // without its notches is printed beside: its lowpasses alone take the 1/rev down about 13 times.
         [Test]
         public void TheLoopIsNotFooledTheCameraIs()
@@ -482,6 +484,7 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = RepositoryDrone.Spec();
             DamageScenario.Result r = DamageScenario.Hover(DamageScenario.Setup(spec, 1), out FlightCore core, DamageScenario.Trim(0, 0.0127));
             DamageScenario.Result even = DamageScenario.Hover(DamageScenario.Setup(spec, 1), Even(core.Propulsion.Rotor(0).ThrustRatio(0)));
+            DamageScenario.Result sound = DamageScenario.Hover(DamageScenario.Setup(spec, 1));
             FlightSetup bare = DamageScenario.Setup(spec, 1);
             Control.FcSettings fc = bare.Settings;
             fc.rpm_filter_harmonics = 0;
@@ -491,11 +494,11 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"12.7 mm off one blade: roll {r.RollPeakToPeak:F3}° and pitch {r.PitchPeakToPeak:F3}° peak to peak, the gyro's 1/rev {r.GyroOneRev:F3} °/s "
                 + $"before the chain and {r.FilteredOneRev:F4} after ({r.GyroOneRev / r.FilteredOneRev:F0} ×), band {r.Band:E3} m/s² (the factory's 99.5 % {DamageScenario.FactoryBandHigh:E3})");
             TestContext.Out.WriteLine($"the chain without its RPM and dynamic notches: {w.GyroOneRev:F3} → {w.FilteredOneRev:F4} °/s ({w.GyroOneRev / w.FilteredOneRev:F0} ×), roll {w.RollPeakToPeak:F3}°, pitch {w.PitchPeakToPeak:F3}°");
-            TestContext.Out.WriteLine($"known-wrong, the same loss with no 1/rev: band {even.Band:E3} m/s²");
+            TestContext.Out.WriteLine($"known-wrong, the same loss with no 1/rev: band {even.Band:E3} m/s² (the sound hover's {sound.Band:E3})");
             Assert.That(Math.Max(r.RollPeakToPeak, r.PitchPeakToPeak), Is.LessThan(2), "the loop holds the attitude");
             Assert.That(r.GyroOneRev, Is.GreaterThanOrEqualTo(10 * r.FilteredOneRev), "the chain notches the 1/rev");
             Assert.That(r.Band, Is.GreaterThan(DamageScenario.FactoryBandHigh), "the camera shakes");
-            Assert.That(even.Band, Is.LessThanOrEqualTo(DamageScenario.FactoryBandHigh), "the known-wrong's camera does not");
+            Assert.That(even.Band, Is.LessThanOrEqualTo(1.1 * sound.Band), "the known-wrong's camera does not");
         }
     }
 }

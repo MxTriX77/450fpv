@@ -700,10 +700,27 @@ namespace Fpv450.Sim.Flight
             if (CameraLens.HasValue) m.Camera = CameraLens.Value;
             string[] corners = { "rr", "fr", "rl", "fl" };
             for (int i = 0; i < 4; i++)
-                m.TipMass[i] = Parts[PartIndex("motor_" + corners[i])].Mass + Parts[PartIndex("prop_" + corners[i])].Mass
-                    + m.ArmTipShare * Parts[PartIndex("arm_" + corners[i])].Mass;
+            {
+                DronePart motor = Parts[PartIndex("motor_" + corners[i])], prop = Parts[PartIndex("prop_" + corners[i])];
+                m.TipMass[i] = motor.Mass + prop.Mass + m.ArmTipShare * Parts[PartIndex("arm_" + corners[i])].Mass;
+                // The arm's twist (ArmFlex, model 72): heights over the arm's mid-plane, its part's centre.
+                double plane = Parts[PartIndex("arm_" + corners[i])].Position.Y;
+                m.HubHeight[i] = Motors[i].Position.Y - plane;
+                foreach (DronePart p in new[] { motor, prop })
+                {
+                    double h = p.Position.Y - plane;
+                    m.TwistMoment[i] += p.Mass * h;
+                    m.TwistInertia[i] += p.Mass * h * h + AcrossInertia(p);
+                }
+            }
             return m;
         }
+
+        // A part's own inertia about a horizontal axis through its centre, kg·m²: an upright solid cylinder's m(3r² + l²)/12 (the
+        // motors and the props, a prop the thin disc of its mean inertia), a box's about its x axis.
+        static double AcrossInertia(in DronePart p) => p.Kind == PartKind.Cylinder
+            ? p.Mass * (3 * p.Diameter * p.Diameter / 4 + p.Length * p.Length) / 12
+            : p.Mass * (p.Size.Y * p.Size.Y + p.Size.Z * p.Size.Z) / 12;
 
         /// <summary>
         /// The rotors' flapping (RotorFlappingSpec) on the props' sheet, in the aero block's air: the radius and blades from

@@ -335,7 +335,16 @@ namespace Fpv450.Sim.Tests
         // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 21 as 69 left 65's: within 1.4° to
         // 5.5 s (0.9°), the chop turns it 92.8° from 70's attitude by 6 s, and the weave climbs on another heading: 135.50 m up at
         // 10 s against 161.49, 45.40 m from 70's end (69: 135.64, 45.28 m from 65's); armed, no contact, no crash.
-        public const ulong PoweredHash = 0x12B0325673F1A5ACUL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 21 (the factory unbalance's 1/rev through the arms: twist at most 0.112°, arm load 0.0032, the gyro's peak 305.1 °/s, inside its 2000), ends 161.5429 m up.
+        // Model 73: 0x12B0325673F1A5AC. Model 72: 0x9F6716D436D70F1C.
+        // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
+        // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73PoweredHash), every record and
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72PoweredHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+        // Against 73 the arms carry the factory 1/rev from step 2 and the path keeps within 1.8 mm and 0.03° (135.4967 m up at 10 s against 135.4976); against 72 it is 73's move against 70 (the chop, 92.6° by 6 s, 45.47 m apart at 10 s); armed, no contact, no crash.
+        public const ulong PoweredHash = 0x84E4FA38BA6C213BUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -433,7 +442,16 @@ namespace Fpv450.Sim.Tests
         // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69RainPoweredHash;
         // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. As the powered flight: from step 21, through the chop (88.5° by 6 s),
         // 136.88 m up at 10 s against 161.67, 43.39 m from 70's end (69: 137.03, 43.32 m).
-        public const ulong RainPoweredHash = 0x2A128CBB8495E059UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 21 (twist at most 0.107°, arm load 0.0031, the gyro's peak 304.5 °/s), ends 161.7859 m up.
+        // Model 73: 0x2A128CBB8495E059. Model 72: 0x58C73FF5572B0E66.
+        // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
+        // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73RainPoweredHash), every record and
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72RainPoweredHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+        // Against 73 from step 2, within 2.7 mm and 0.03° (136.8783 m up against 136.8794); against 72 the chop's 88.2° by 6 s, 43.47 m apart at 10 s.
+        public const ulong RainPoweredHash = 0x5CA781F2ADAF639BUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -555,17 +573,37 @@ namespace Fpv450.Sim.Tests
             Model66ContactHash = 0xFFFBEA9CDA89C058UL, Model66RangeHash = 0x6814962E6FCE6760UL, Model66TetherHash = 0xDD00954720F14CC2UL,
             Model66TumbleHash = 0xDDA88F905E375BD3UL;
 
-        /// <summary>p7f-damage 1.6b (model 70), its audit: model 68's record, its first 3168 bytes (the record less the heat's block at
-        /// its end), which the audits of 66 and older fly over, the motors' heat off.</summary>
+        /// <summary>p7f-damage 1.6b (model 70) and 1.6's losses (model 72), their audits: model 68's record, its first 3168 bytes
+        /// (the record less the heat's and the arms' blocks), which the audits of 68 and older fly over, the motors' heat off and
+        /// the clean sensors (CleanSensors).</summary>
         public const int Model68Layout = LogFormat.Model68StepSize;
 
         /// <summary>The goldens at model 68 (the physics integration 2 with the shafts), over its whole 3168-byte record, which every golden
-        /// keeps bit for bit, every record and event, without the motors' heat and dirt (ContactSpec.MotorHeat off), the heat's block
-        /// zero: GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s. Model 68's tumble flies no rotor, so it keeps its pin over
-        /// those bytes either way.</summary>
+        /// keeps bit for bit, every record and event, without the motors' heat and dirt (ContactSpec.MotorHeat off), with the clean
+        /// sensors and airmode on, the heat's and the arms' blocks zero: GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s (70's
+        /// audit) and WithTheCleanSensorsEachGoldenIsModel68s (72's), the same flights since model 75. Model 68's tumble flies no rotor,
+        /// so it keeps its pin over those bytes either way.</summary>
         public const ulong Model68PoweredHash = 0x9A30E334BF1CE809UL, Model68RainPoweredHash = 0xF6F5495C2A88B995UL,
             Model68ContactHash = 0xDB9CD4249127070CUL, Model68RangeHash = 0xA5D9361E8D1C945FUL, Model68TetherHash = 0xA77A4DEF62161B53UL,
             Model68TumbleHash = 0x3280F96176B5ACD7UL;
+
+        /// <summary>The physics integration 2 with the losses (model 75), its audit against model 73: model 73's record, its first 3360
+        /// bytes (the record less the arms' block at its end), over which every golden flies the clean sensors (CleanSensors: a layout
+        /// short of LogFormat.StepSize) with the heat on and airmode off, and keeps model 73's pins bit for bit, every record and event:
+        /// GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s.</summary>
+        public const int Model73Layout = LogFormat.Model73StepSize;
+        public const ulong Model73PoweredHash = 0x12B0325673F1A5ACUL, Model73RainPoweredHash = 0x2A128CBB8495E059UL,
+            Model73ContactHash = 0x04F84E056E6150DBUL, Model73RangeHash = 0x89C0E49CE8BBAA43UL, Model73TetherHash = 0x7A7BF412F172A41BUL,
+            Model73TumbleHash = 0x5431D1EB9A8701D7UL;
+
+        /// <summary>Its audit against model 72 (p7f-damage 1.6's losses, on 68): model 72's record is this one's first 3168 bytes and its
+        /// last 176 (the arms' block), so a hash skips the heat's 192 bytes at Model68Layout (HeatSkip); every golden flown so with
+        /// airmode on and the heat off (ContactSpec.MotorHeat), the arms and the gyro's range on, keeps model 72's pins bit for bit,
+        /// every record and event: GoldenFlightTests.WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s.</summary>
+        public const int HeatSkip = LogFormat.Model73StepSize - LogFormat.Model68StepSize;
+        public const ulong Model72PoweredHash = 0x9F6716D436D70F1CUL, Model72RainPoweredHash = 0x58C73FF5572B0E66UL,
+            Model72ContactHash = 0x63DB5A624E7CD561UL, Model72RangeHash = 0xC6B3FFB9461F5871UL, Model72TetherHash = 0xC2BD29DB9E191B37UL,
+            Model72TumbleHash = 0xB4B9AFE7B9B45D17UL;
 
         /// <summary>A flight's contacts without the motors' heat and dirt (p7f-damage 1.6b's audit and known-wrong): motors that never heat
         /// nor foul, as at model 68.</summary>
@@ -950,7 +988,16 @@ namespace Fpv450.Sim.Tests
         // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69ContactHash;
         // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 9 and keeps its course: at most 3.5 mm and
         // 0.71° apart, 3 impacts as 70's, at rest 0.2496 m up on 4 pairs, 2.0 mm from 70's rest.
-        public const ulong ContactHash = 0x04F84E056E6150DBUL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 9 (twist at most 0.048°, arm load 0.0014, the gyro's peak 161.7 °/s), the same 3 impacts, at rest 0.2495 m up on 4 pairs.
+        // Model 73: 0x04F84E056E6150DB. Model 72: 0x63DB5A624E7CD561.
+        // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
+        // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73ContactHash), every record and
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72ContactHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+        // Against 73 from step 3, within 0.05 mm and 0.01°, the same 3 impacts and rest (0.2496 m up on 4 pairs); against 72 at most 11.7 mm and 0.94°, at rest 3.4 mm apart.
+        public const ulong ContactHash = 0x7F03EE80D3FB7004UL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1190,7 +1237,16 @@ namespace Fpv450.Sim.Tests
         /// whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69TetherHash;
         /// WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 9 and keeps its course: at most 4.1 mm and
         /// 0.74° apart, 3 impacts, the line whole (0.231 m paid out against 0.230), at rest 1.1 mm from 70's.
-        public const ulong TetherHash = 0x7A7BF412F172A41BUL;
+        /// Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        /// case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        /// bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 9 (twist at most 0.048°, arm load 0.0014, the gyro's peak 158.2 °/s), the line whole, at rest 0.2495 m up.
+        /// Model 73: 0x7A7BF412F172A41B. Model 72: 0xC2BD29DB9E191B37.
+        /// Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
+        /// case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73TetherHash), every record and
+        /// event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        /// over model 68's 3168 bytes and the arms' block, model 72's pin (Model72TetherHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+        /// Against 73 from step 3, within 0.6 mm and 0.04°, 3 impacts, the line whole (0.231 m paid out), at rest 0.5 mm from 73's; against 72 at most 12.1 mm and 0.94°, at rest 3.6 mm apart.
+        public const ulong TetherHash = 0xF792F9225BCA52E9UL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1326,7 +1382,16 @@ namespace Fpv450.Sim.Tests
         // Model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68): re-recorded on the 3360-byte record. Audited case by case: without
         // the heat's block over its first 3168 bytes model 68's pin (Model68TumbleHash), every record and event (GoldenFlightTests.
         // WithoutTheHeatEachGoldenIsModel68s): the tumble flies no rotor, so its 192 zero bytes are its whole move.
-        public const ulong TumbleHash = 0x5431D1EB9A8701D7UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves not at all (no rotors): model 68's records with the zero block appended.
+        // Model 73: 0x5431D1EB9A8701D7. Model 72: 0xB4B9AFE7B9B45D17.
+        // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
+        // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73TumbleHash), every record and
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72TumbleHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+        // It flies no rotor and no controller: model 73's records with the arms' 176 zero bytes appended, and over 72's bytes 72's pin.
+        public const ulong TumbleHash = 0x2BDEED11E769F217UL;
         public const int TumbleSteps = 10000;
 
         // 1.6b: first recorded with ModelVersion 7, on the test range's content RangeContent (MapWorld.ContentHash, query
@@ -1532,7 +1597,16 @@ namespace Fpv450.Sim.Tests
         // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69RangeHash;
         // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 9 and keeps its course: at most 4.4 mm and
         // 0.38° apart, 4 impacts as 70's, at rest in S04's straw on 8 pairs, 2.3 mm from 70's rest.
-        public const ulong RangeHash = 0x89C0E49CE8BBAA43UL;
+        // Model 72 (p7f-damage 1.6's losses: the arms in their plane, the gyro's range): re-recorded on the 3344-byte record. Audited
+        // case by case (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s): with the clean sensors model 68's pin over its 3168
+        // bytes, every record and event, the arms' block zero on every record; with them the flight moves from step 9 (twist at most 0.047°, arm load 0.0014, the gyro's peak 58.5 °/s), the same 4 impacts, at rest 0.2452 m up on 8 pairs.
+        // Model 73: 0x89C0E49CE8BBAA43. Model 72: 0xC6B3FFB9461F5871.
+        // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
+        // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73RangeHash), every record and
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72RangeHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+        // Against 73 from step 3, within 0.05 mm and 0.004°, 4 impacts as 73's, at rest 0.2452 m up on 8 pairs; against 72 at most 16.6 mm and 0.61°, at rest 2.1 mm apart.
+        public const ulong RangeHash = 0x83DA30D19B802F9FUL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -1799,6 +1873,7 @@ namespace Fpv450.Sim.Tests
             WithoutD064(setup, wake, motors, yawI);
             Heat(setup, heat, layout);
             setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
@@ -1880,6 +1955,7 @@ namespace Fpv450.Sim.Tests
                 setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
             }
             Heat(setup, heat, layout);
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -1963,6 +2039,7 @@ namespace Fpv450.Sim.Tests
             WithoutD064(setup, wake, motors, yawI);
             Heat(setup, heat, layout);
             setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
@@ -2038,6 +2115,7 @@ namespace Fpv450.Sim.Tests
             int layout = LogFormat.StepSize)
         {
             FlightSetup setup = TumbleSetup(spec);
+            if (layout < LogFormat.StepSize) CleanSensors(setup);
             core = new FlightCore(setup);
             MassProperties b = setup.Mass.Properties;
             Double3 c = b.CenterOfMass;
@@ -2070,6 +2148,16 @@ namespace Fpv450.Sim.Tests
                 checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
+        }
+
+        /// <summary>The clean sensors (model 68's airframe and gyro, p7f-damage 1.6, the losses): the arms stiff in their plane and no gyro range.
+        /// Every golden flown over an older model's record (a layout short of LogFormat.StepSize) flies them, so each kept audit of
+        /// models up to 68 and of 70–73 stays bit for bit; the audit of model 72 against 68 is GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s,
+        /// of model 75 against 73 WithTheCleanSensorsEachGoldenIsModel73s.</summary>
+        public static void CleanSensors(FlightSetup setup)
+        {
+            if (setup.Modes != null) setup.Modes.ArmInPlane = false;
+            setup.GyroRange = 0;
         }
 
         // D-064's sources off for an audit against model 19: no rotor wake (wake), the motors' resistance, friction and inertia

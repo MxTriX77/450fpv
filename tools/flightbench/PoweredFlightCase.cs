@@ -224,10 +224,11 @@ namespace Fpv450.FlightBench
             // event, so the controller is the whole move. Against model 69: without airmode, the motors' heat off and over model 63's
             // 3040 bytes (the shafts' and the heat's blocks zero) each golden is its model 69 pin. Every older audit below flies
             // airmode on (GoldenFlights' airmode); with it model 65's pins over model 63's 3040 bytes are 69's own audit (the shafts' row).
-            ulong a70p = GoldenFlights.FlyPowered(Drone(), out FlightCore ap, airmode: true),
-                a70r = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, airmode: true),
-                a70c = GoldenFlights.FlyContact(Drone(), out FlightCore ac, airmode: true), a70g = GoldenFlights.FlyRange(Drone(), out FlightCore ag, airmode: true),
-                a70l = GoldenFlights.FlyContact(Drone(), out FlightCore al, tether: true, airmode: true);
+            const int m73a = GoldenFlights.Model73Layout; // since model 75 over model 73's 3360 bytes, the clean sensors
+            ulong a70p = GoldenFlights.FlyPowered(Drone(), out FlightCore ap, airmode: true, layout: m73a),
+                a70r = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, airmode: true, layout: m73a),
+                a70c = GoldenFlights.FlyContact(Drone(), out FlightCore ac, airmode: true, layout: m73a), a70g = GoldenFlights.FlyRange(Drone(), out FlightCore ag, airmode: true, layout: m73a),
+                a70l = GoldenFlights.FlyContact(Drone(), out FlightCore al, tether: true, airmode: true, layout: m73a);
             bool k70 = a70p == GoldenFlights.Model70PoweredHash && a70r == GoldenFlights.Model70RainPoweredHash && a70c == GoldenFlights.Model70ContactHash
                 && a70g == GoldenFlights.Model70RangeHash && a70l == GoldenFlights.Model70TetherHash;
             Console.WriteLine($"with airmode (model 70's controller): powered 0x{a70p:X16}, rain 0x{a70r:X16}, contact 0x{a70c:X16}, range 0x{a70g:X16}, tether 0x{a70l:X16} "
@@ -361,15 +362,16 @@ namespace Fpv450.FlightBench
                     edit: GoldenFlights.WithoutTheFrame, airmode: true),
                 line46off = GoldenFlights.FlyContact(Old(), out _, tether: true, coulomb: false, fiberContacts: false, layout: m46, recirculation: false, edit: GoldenFlights.WithoutTheLever, airmode: true);
             Action<FlightSetup> slideOff = s => s.Contacts.TipSlide = false;
-            ulong cso = GoldenFlights.FlyContact(Drone(), out FlightCore cs, edit: slideOff, airmode: true), gso = GoldenFlights.FlyRange(Drone(), out FlightCore gs, edit: slideOff, airmode: true),
-                lso = GoldenFlights.FlyContact(Drone(), out FlightCore ls, tether: true, edit: slideOff, airmode: true);
+            ulong cso = GoldenFlights.FlyContact(Drone(), out FlightCore cs, edit: slideOff, airmode: true, layout: GoldenFlights.Model73Layout),
+                gso = GoldenFlights.FlyRange(Drone(), out FlightCore gs, edit: slideOff, airmode: true, layout: GoldenFlights.Model73Layout),
+                lso = GoldenFlights.FlyContact(Drone(), out FlightCore ls, tether: true, edit: slideOff, airmode: true, layout: GoldenFlights.Model73Layout);
             long carved = l46.Strikes.Passes + cs.Strikes.Passes + gs.Strikes.Passes + ls.Strikes.Passes;
             bool l44 = line46 == GoldenFlights.Model49TetherHash && line46off == GoldenFlights.Model46TetherHash && cso == GoldenFlights.Model70ContactHash && gso == GoldenFlights.Model70RangeHash
                 && lso == GoldenFlights.Model70TetherHash && carved == 0;
             lok &= l44;
             Console.WriteLine($"tether-flight on design 4's air: 0x{line46:X16} ({(line46 == GoldenFlights.Model49TetherHash ? "model 49's, bit for bit" : "NOT model 49's")}), "
                 + $"the lever off too 0x{line46off:X16} ({(line46off == GoldenFlights.Model46TetherHash ? "model 46's" : "NOT model 46's")}); "
-                + $"the tip slide off: contact 0x{cso:X16}, range 0x{gso:X16}, tether 0x{lso:X16} (model 70's pins, airmode on), {carved} blade passes: {(l44 ? "PASS" : "FAIL")}");
+                + $"the tip slide off: contact 0x{cso:X16}, range 0x{gso:X16}, tether 0x{lso:X16} (model 70's pins, airmode on, over model 73's 3360 bytes), {carved} blade passes: {(l44 ? "PASS" : "FAIL")}");
             // The physics integration 2's audit against p7d-tether (model 34): on the rigid floor the line's flight is model 31's.
             ulong line31 = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, coulomb: false, soil: false, yawI: false, layout: m38, recirculation: false, airmode: true);
             bool l31 = line31 == GoldenFlights.Model31TetherHash;
@@ -418,8 +420,9 @@ namespace Fpv450.FlightBench
                 t29 = GoldenFlights.FlyTumble(d, out _, out _, layout: m29);
             ulong r29 = GoldenFlights.FlyPowered(d, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m29, yawI: false, airmode: true);
             Action<FlightSetup> off = s => { if (s.Contacts != null) s.Contacts.BladeStrikes = false; };
-            ulong coff = GoldenFlights.FlyContact(Drone(), out _, edit: off, airmode: true), goff = GoldenFlights.FlyRange(Drone(), out _, edit: off, airmode: true),
-                loff = GoldenFlights.FlyContact(Drone(), out _, tether: true, edit: off, airmode: true);
+            ulong coff = GoldenFlights.FlyContact(Drone(), out _, edit: off, airmode: true, layout: GoldenFlights.Model73Layout),
+                goff = GoldenFlights.FlyRange(Drone(), out _, edit: off, airmode: true, layout: GoldenFlights.Model73Layout),
+                loff = GoldenFlights.FlyContact(Drone(), out _, tether: true, edit: off, airmode: true, layout: GoldenFlights.Model73Layout);
             bool zok = p29 == GoldenFlights.Model29PoweredHash && c29 == GoldenFlights.Model29ContactHash && g29 == GoldenFlights.Model29RangeHash
                 && t29 == GoldenFlights.Model29TumbleHash && r29 == GoldenFlights.Model29RainPoweredHash && coff == GoldenFlights.Model70ContactHash && goff == GoldenFlights.Model70RangeHash
                 && loff == GoldenFlights.Model70TetherHash
@@ -623,8 +626,33 @@ namespace Fpv450.FlightBench
                 && h68g == GoldenFlights.Model68RangeHash && h68l == GoldenFlights.Model68TetherHash && h68t == GoldenFlights.Model68TumbleHash;
             Console.WriteLine($"without the motors' heat and dirt, over model 68's 3168 bytes: powered 0x{h68p:X16}, rain 0x{h68r:X16}, contact 0x{h68c:X16}, "
                 + $"range 0x{h68g:X16}, tether 0x{h68l:X16}, tumble 0x{h68t:X16} ({(k68 ? "model 68's, bit for bit" : "NOT model 68's")}): {(k68 ? "PASS" : "FAIL")}");
+            // The physics integration 2 with the losses (model 75, 72 merged onto 73), its audits. Against model 73: with the clean
+            // sensors (the arms stiff in their plane, no gyro range; every flight over a layout short of the record) every golden over
+            // model 73's 3360 bytes is model 73's pin (WithTheCleanSensorsEachGoldenIsModel73s also checks the arms' block zero).
+            // Against model 72: with airmode on and the motors' heat off, over model 72's bytes (the record's first 3168 and its last
+            // 176, the heat's block skipped), every golden is model 72's pin (WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
+            const int m73 = GoldenFlights.Model73Layout;
+            ulong c73p = GoldenFlights.FlyPowered(canister, out _, layout: m73),
+                c73r = GoldenFlights.FlyPowered(canister, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m73),
+                c73c = GoldenFlights.FlyContact(canister, out _, layout: m73), c73g = GoldenFlights.FlyRange(canister, out _, layout: m73),
+                c73l = GoldenFlights.FlyContact(canister, out _, tether: true, layout: m73), c73t = GoldenFlights.FlyTumble(canister, out _, out _, layout: m73);
+            bool k73 = c73p == GoldenFlights.Model73PoweredHash && c73r == GoldenFlights.Model73RainPoweredHash && c73c == GoldenFlights.Model73ContactHash
+                && c73g == GoldenFlights.Model73RangeHash && c73l == GoldenFlights.Model73TetherHash && c73t == GoldenFlights.Model73TumbleHash;
+            Console.WriteLine($"with the clean sensors, over model 73's 3360 bytes: powered 0x{c73p:X16}, rain 0x{c73r:X16}, contact 0x{c73c:X16}, range 0x{c73g:X16}, "
+                + $"tether 0x{c73l:X16}, tumble 0x{c73t:X16} ({(k73 ? "model 73's, bit for bit" : "NOT model 73's")}): {(k73 ? "PASS" : "FAIL")}");
+            const int at72 = GoldenFlights.Model68Layout, skip72 = GoldenFlights.HeatSkip;
+            ulong a72p = GoldenFlights.FlyPowered(canister, out _, at72, skip72, heat: false, airmode: true),
+                a72r = GoldenFlights.FlyPowered(canister, out _, at72, skip72, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, heat: false, airmode: true),
+                a72c = GoldenFlights.FlyContact(canister, out _, at72, skip72, heat: false, airmode: true),
+                a72g = GoldenFlights.FlyRange(canister, out _, at72, skip72, heat: false, airmode: true),
+                a72l = GoldenFlights.FlyContact(canister, out _, at72, skip72, tether: true, heat: false, airmode: true),
+                a72t = GoldenFlights.FlyTumble(canister, out _, out _, at72, skip72);
+            bool k72 = a72p == GoldenFlights.Model72PoweredHash && a72r == GoldenFlights.Model72RainPoweredHash && a72c == GoldenFlights.Model72ContactHash
+                && a72g == GoldenFlights.Model72RangeHash && a72l == GoldenFlights.Model72TetherHash && a72t == GoldenFlights.Model72TumbleHash;
+            Console.WriteLine($"with airmode on and without the motors' heat, over model 72's bytes (the heat's 192 skipped): powered 0x{a72p:X16}, rain 0x{a72r:X16}, "
+                + $"contact 0x{a72c:X16}, range 0x{a72g:X16}, tether 0x{a72l:X16}, tumble 0x{a72t:X16} ({(k72 ? "model 72's, bit for bit" : "NOT model 72's")}): {(k72 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70 && k72 && k73;
         }
 
         public static bool Bench()

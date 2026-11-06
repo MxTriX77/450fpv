@@ -495,6 +495,9 @@ namespace Fpv450.Sim.Log
                 case EventKind.PieceDropped:
                     return "PIECE DROPPED: " + PartName(e.Part) + "'s piece (parts 0x" + ((int)e.C).ToString("X4", CultureInfo.InvariantCulture) + ") flies loose in slot "
                         + e.Index + ", " + G(e.A * 1000) + " g at " + G(e.B) + " m/s from " + V(e.Point, "0.000") + " m";
+                case EventKind.ArmBroken:
+                    return "ARM BROKEN: arm " + CornerName(e.Index) + " broke at its clamp under its rotor's turning load, " + G(e.A) + " of its strength (bend "
+                        + G(e.B * 1e-6) + " MPa, twist " + G(e.C * 1e-6) + " MPa); its prop is lost";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

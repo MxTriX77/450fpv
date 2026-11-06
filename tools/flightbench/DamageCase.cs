@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
+using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.Tests;
@@ -111,7 +112,7 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"  tipped landings: {(tipped ? "PASS" : "FAIL")} (each tips and stops on the ground, StrikeScenarios.TipStops, with no tunnel; armed, it "
                 + "carves and stops a prop; disarmed, its braked props break no blade)");
             bool rest = Rest(spec);
-            return ok && tipped & rest & Bells(spec) & Shafts(spec) & Heat(spec);
+            return ok && tipped & rest & Bells(spec) & Shafts(spec) & Heat(spec) & Losses(spec, Math.Min(seeds, 4));
         }
 
         // p7f-damage 1.6b (design 17, D-083): the motor's heat and dirt, HeatTests' scenarios printed. A jammed rotor at full throttle
@@ -156,6 +157,63 @@ namespace Fpv450.FlightBench
             return stall && cools && dirt && sooner && apart;
         }
 
+        // p7f-damage 1.6's losses (prop-motor-damage's "Breakage"; LossScenarios): a prop lost and a motor stopped, from the hover and
+        // the cruise at the nominal payload, the sticks centred and SimPilot flying; a blade lost at the setup's payloads 0, 1 and 2 kg,
+        // the hover and the cruise, both ways, and in the hover with the throttle chopped (LossScenarios.ChopThrottle); each on model
+        // 75 (since 75 on the pilot's controller, no airmode, with the motors' heat) and on model 68's clean sensors (the known-wrong)
+        // and over the seeds. It fails where a lost prop or a stopped motor does
+        // not drop its corner (LossScenarios.DropsItsCorner), a lost blade does not hold at steady throttle (BladeHolds), or its chop
+        // does not break the arm and drop the corner (ChopBreaksTheArm) while the clean sensors' chop holds (the known-wrong fails).
+        static bool Losses(DroneSpec spec, int seeds)
+        {
+            Console.WriteLine($"  a lost prop, a stopped motor and a lost blade (p7f-damage 1.6, the losses), {seeds} seeds a cell; airmode {FcSettings.Default.airmode} "
+                + "(the pilot's controller, D-086) and the motors' heat on (model 75); model 72's (airmode on, no heat) printed beside below");
+            bool ok = true;
+            void Cell(string what, Func<ulong, bool, LossScenarios.Result> fly, Func<LossScenarios.Result, bool> account, Func<LossScenarios.Result, bool> wrong)
+            {
+                var on = new LossScenarios.Result[seeds];
+                var clean = new LossScenarios.Result[seeds];
+                Parallel.For(0, 2 * seeds, n =>
+                {
+                    ulong seed = (ulong)(n % seeds + 1);
+                    if (n < seeds) on[n] = fly(seed, false);
+                    else clean[n - seeds] = fly(seed, true);
+                });
+                bool cell = true;
+                for (int n = 0; n < seeds; n++)
+                {
+                    cell &= account(on[n]) && (wrong == null || wrong(clean[n]));
+                    Console.WriteLine("    " + on[n].Describe());
+                    Console.WriteLine("      " + clean[n].Describe());
+                }
+                Console.WriteLine($"    {what}: {(cell ? "PASS" : "FAIL")}");
+                ok &= cell;
+            }
+            foreach (LossScenarios.Loss loss in new[] { LossScenarios.Loss.Prop, LossScenarios.Loss.Stopped, LossScenarios.Loss.Blade })
+                foreach (bool cruise in new[] { false, true })
+                    foreach (double payload in loss == LossScenarios.Loss.Blade ? new[] { 0.0, 1.0, 2.0 } : new[] { 1.0 })
+                        foreach (bool centred in new[] { true, false })
+                            Cell($"{loss}, {(cruise ? "cruise" : "hover")}, {payload} kg, {(centred ? "centred" : "held")}",
+                                (seed, clean) => LossScenarios.Fly(spec, loss, cruise, payload, centred, seed, clean),
+                                loss == LossScenarios.Loss.Blade ? (Func<LossScenarios.Result, bool>)(r => LossScenarios.BladeHolds(r)) : r => LossScenarios.DropsItsCorner(r), null);
+            foreach (double payload in new[] { 0.0, 1.0, 2.0 })
+                Cell($"Blade, hover, {payload} kg, the throttle chopped",
+                    (seed, clean) => LossScenarios.Fly(spec, LossScenarios.Loss.Blade, false, payload, true, seed, clean, chop: true),
+                    r => LossScenarios.ChopBreaksTheArm(r), r => double.IsNaN(r.TiltAt) && double.IsNaN(r.BrokeAt));
+            // Model 75's composition (72's losses on 73's controller and heat), seed 1 at 1 kg in the hover, sticks centred, printed
+            // beside the graded cells: model 72's own flight (airmode on, no heat), then each of 73's two changes alone.
+            foreach ((bool air, bool heat, string what) in new[] { (true, false, "model 72's (airmode on, no heat)"), (true, true, "airmode on with the heat"),
+                (false, false, "airmode off without the heat") })
+            {
+                Console.WriteLine($"    {what}, seed 1 (printed):");
+                foreach (LossScenarios.Loss loss in new[] { LossScenarios.Loss.Prop, LossScenarios.Loss.Stopped, LossScenarios.Loss.Blade })
+                    Console.WriteLine("      " + LossScenarios.Fly(spec, loss, false, 1.0, true, 1, airmode: air, heat: heat).Describe());
+                Console.WriteLine("      " + LossScenarios.Fly(spec, LossScenarios.Loss.Blade, false, 1.0, true, 1, chop: true, airmode: air, heat: heat).Describe());
+            }
+            Console.WriteLine($"  the losses: {(ok ? "PASS" : "FAIL")} (a lost prop and a stopped motor drop their corner; a lost blade holds at steady "
+                + "throttle, and a chop through its arm's twist mode breaks the arm, where the clean sensors' chop holds)");
+            return ok;
+        }
         // p7f-damage 1.5 (design 8, 10): the motor's bell. Its rear-right bell pressed at 5 and 20 N on masonry under the prop, the
         // drone holding that rotor's thrust (the scrape: μ_k·F_n·R on the rotor, the current rising with the push), and side hits
         // at 1, 3 and 6 m/s with the rotor at hover speed on concrete at the stator's height (the stator stops the ring short of
