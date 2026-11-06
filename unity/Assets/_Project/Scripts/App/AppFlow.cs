@@ -388,6 +388,44 @@ namespace Fpv450.App
                     Check(!_flight.Chase && eye != null && (eye.localPosition - _flight.CameraMount).magnitude < 1e-4f && Quaternion.Angle(eye.localRotation, Quaternion.identity) < 0.01f && feedOn,
                           "V again " + where + ": the FPV camera at the lens, the feed " + (feedOn ? "on" : "OFF"));
             }
+            // R pressed through the Input System, as the pilot's key (D-078, D-087): the flight restarts in the frame that
+            // reads the press, in whatever state it was, as a new flight from the same setup and start: step 0 on a whole
+            // line, the link intact, the failsafe cleared, its props whole and its legs intact, the feed's picture back.
+            IEnumerator PressR(string where)
+            {
+                FlightSession session = _flight.Host.Session;
+                int flights = session.Flights;
+                FlightChoices before = session.Choices;
+                Double3 from = session.Setup.StartPosition;
+                Keyboard k = Keyboard.current ?? InputSystem.AddDevice<Keyboard>("Smoke keyboard");
+                InputSystem.QueueStateEvent(k, new KeyboardState(FlightScene.RestartKey));
+                yield return null; // the frame that reads the press; its LateUpdate restarts
+                int read = Time.frameCount;
+                yield return new WaitForEndOfFrame();
+                bool atOnce = session.Flights == flights + 1 && _flight.ShownFlight == session.Flights;
+                InputSystem.QueueStateEvent(k, new KeyboardState());
+                yield return Until(() => session.Flights == flights + 1 && _flight.ShownFlight == session.Flights, 10);
+                int frames = Time.frameCount - read;
+                FlightCore core = session.Core;
+                PosePair pair = session.Poses.Read(); // a copy: an iterator holds no ref
+                bool whole = core.Propulsion.Rotor(0) != null;
+                for (int rotor = 0; whole && rotor < 4; rotor++)
+                    for (int blade = 0; blade < core.Propulsion.Rotor(rotor).Blades; blade++)
+                        whole &= core.Propulsion.Rotor(rotor).Blade(blade).Whole;
+                FpvCamera feed = _flight.Eye != null ? _flight.Eye.GetComponent<FpvCamera>() : null;
+                FeedLoss.State shown = feed != null && feed.Running ? feed.Events.Loss.Current : FeedLoss.State.Black;
+                FlightChoices c = session.Choices;
+                Check(atOnce && session.State == SessionState.Flying && pair.StartUs == session.StartUs && pair.Signals.LinkState == Fpv450.Sim.Flight.LinkState.Intact &&
+                      core.Failsafe != null && !core.Failsafe.Active && core.Tether != null && !core.Tether.Broken && whole &&
+                      pair.Current.LegState == 0 && pair.Current.CornerState == 0 && shown == FeedLoss.State.Picture &&
+                      c.StartPoint == before.StartPoint && c.Legs == before.Legs && c.Payload == before.Payload && c.Wind == before.Wind && c.Rain == before.Rain &&
+                      c.TimeOfDay == before.TimeOfDay && session.Setup.StartPosition.Equals(from),
+                      "R " + where + ": flight " + session.Flights + (atOnce ? " in the frame that read the press" : " " + frames + " frames after it") +
+                      ", from '" + c.StartPoint + "' at step " + pair.Current.Step + ": the link " + pair.Signals.LinkState + ", the failsafe " +
+                      (core.Failsafe != null ? (core.Failsafe.Active ? "ACTIVE" : "clear") : "none") + ", the line " + (core.Tether != null && !core.Tether.Broken ? "whole" : "BROKEN") +
+                      ", props " + (whole ? "whole" : "DAMAGED") + ", legs " + (pair.Current.LegState == 0 && pair.Current.CornerState == 0 ? "intact" : "DAMAGED") + ", the feed " + shown);
+                yield return Shot("restart_" + (where.StartsWith("after") ? "after_break" : "from_summary"));
+            }
             // The fiber's tube by name (FiberView's FiberSpan and FiberTrail0), drawn or not.
             MeshRenderer Tube(string name)
             {
@@ -719,7 +757,10 @@ namespace Fpv450.App
             // the placed object it hit, from the map. A pilot's build has no keyboard and skips it.
             // D-063: the crash ends nothing. The drone stays under physics with nothing over the picture: the throttle
             // down, it falls from the wall and lies where it lands, stepping on, until the pause's End flight, whose
-            // summary lists the crash.
+            // summary lists the crash. D-087: when the crash broke the line, R is pressed there instead, after the break with
+            // the failsafe at its stage, and must restart in the frame that reads it (PressR); the house flight's summary,
+            // read from its log, lists the crash, the break and the failsafe's stages. The restarted flight is then ended and
+            // R pressed from its summary.
             string lastStart = ground.Name;
             bool lastLegs = false; // the stand's flight
             double lastHour = 17.5;
@@ -751,7 +792,8 @@ namespace Fpv450.App
                 long stepped = session.Poses.LatestStep - crashStep;
                 // Under physics: it moved off the crash pose, wherever it lands (the ground below the wall, or the eave and
                 // the roof, where the airframe's effects and the throttle's ramp down can carry it). It need not rest:
-                // armed at zero throttle, airmode works the motors against what it lies on, as Betaflight's does. Unless the
+                // armed at zero throttle the motors idle and the mixer still works them against what it lies on (no
+                // airmode since D-086: half the PID mix below half throttle, the I term held under min_check). Unless the
                 // crash broke the line (p7d-tether 1.8, from model 56): the receiver has lost the link, and Betaflight's
                 // failsafe drops the drone at stage 2 and disarms it, 1.5 s after the last good frame; the OSD then reads DISARMED.
                 Quat a = atCrash.Attitude, b = lying.Attitude;
@@ -768,16 +810,53 @@ namespace Fpv450.App
                 yield return PressV("after the crash");
                 yield return Shot("crash_chase");
                 yield return PressV("after the crash");
-                host.Pause();
-                session.EndFlight(); // the pause's End flight
-                yield return Until(() => _flight.Summary != null, 30);
-                PostFlight summary = _flight.Summary;
+                string houseLog = session.LogPath;
+                PostFlight summary;
+                if (broke)
+                {
+                    // D-087: R after the break, the failsafe at its stage, restarts in the frame that reads the press; the
+                    // house flight's summary is then read from its log.
+                    yield return PressR("after the break, the failsafe " + (failsafe != null ? failsafe.Stage.ToString() : "none"));
+                    SessionInputs inputs = host.Inputs;
+                    Task<PostFlight> read = Task.Run(() => PostFlight.Read(houseLog, inputs.OpenWorld));
+                    yield return Until(() => read.IsCompleted, 30);
+                    summary = read.IsCompleted && !read.IsFaulted ? read.Result : null;
+                }
+                else
+                {
+                    host.Pause();
+                    session.EndFlight(); // the pause's End flight
+                    yield return Until(() => _flight.Summary != null, 30);
+                    summary = _flight.Summary;
+                }
                 FlightIncident crash = summary != null ? summary.Incidents.Find(i => i.Kind == FlightIncidentKind.Crash) : default;
                 Check(summary != null && summary.End.Kind == FlightEndKind.Pilot && summary.HasCrash && crash.Kind == FlightIncidentKind.Crash &&
                       summary.CrashObject == HouseBesideTrack && summary.Lines().Contains(summary.Describe(crash)),
-                      "End flight, and the summary lists the crash into the house: " + (summary != null ? string.Join(" | ", summary.Lines()) : "none"));
-                yield return Shot("summary_crash");
-                yield return Replays(session.LogPath, "into the house");
+                      (broke ? "R" : "End flight") + ", and the summary lists the crash into the house: " + (summary != null ? string.Join(" | ", summary.Lines()) : "none"));
+                if (broke)
+                {
+                    // D-087: the summary lists the break, where and how, and each failsafe stage the log has.
+                    List<FlightIncident> fiber = summary != null
+                        ? summary.Incidents.FindAll(i => i.Kind == FlightIncidentKind.FiberBreak || i.Kind == FlightIncidentKind.FailsafeStage)
+                        : new List<FlightIncident>();
+                    int stages = summary != null ? summary.Log.Count(EventKind.Failsafe) : -1;
+                    Check(fiber.Count > 0 && fiber.Count == stages + 1 && fiber[0].Kind == FlightIncidentKind.FiberBreak && summary.BreakPlace.Length > 0 &&
+                          fiber.TrueForAll(i => summary.Lines().Contains(summary.Describe(i))),
+                          "the summary lists the fiber's break and the failsafe's " + stages + " stages: " + string.Join(" | ", fiber.ConvertAll(i => summary.Describe(i))));
+                    yield return Replays(houseLog, "into the house");
+                    // The restarted flight's End flight, and R from its summary: the next starts in the frame that reads it.
+                    FlightSession again = host.Session;
+                    host.Pause();
+                    again.EndFlight();
+                    yield return Until(() => _flight.Summary != null, 30);
+                    yield return Shot("summary_after_restart");
+                    yield return PressR("from the summary");
+                }
+                else
+                {
+                    yield return Shot("summary_crash");
+                    yield return Replays(houseLog, "into the house");
+                }
             }
 
             FlightChoices saved = SetupStore.Load(Application.persistentDataPath, out string error);

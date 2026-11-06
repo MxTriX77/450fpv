@@ -75,7 +75,8 @@ namespace Fpv450.Sim.Flight
                 Volatile.Write(ref _hitches, _hitches + 1);
                 _recorder?.RecordHitch(hitch);
             }
-            for (long k = done; k < due; k++)
+            // Stop ends a pass between steps: a late thread's catch-up never holds up the pilot's end, pause or restart.
+            for (long k = done; k < due && !_stop; k++)
             {
                 _sticks.Consume(StepHostUs(k), out StickSample stick);
                 _core.Advance(stick);
@@ -98,7 +99,7 @@ namespace Fpv450.Sim.Flight
             _thread.Start();
         }
 
-        /// <summary>Stops the flight thread and waits for it.</summary>
+        /// <summary>Stops the flight thread and waits for it: at most the step it is in, never the rest of a catch-up pass.</summary>
         public void Stop()
         {
             _stop = true;

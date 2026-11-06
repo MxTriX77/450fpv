@@ -84,9 +84,10 @@ namespace Fpv450.Tests.Radio
                 foreach (FieldInfo f in typeof(FcSettings).GetFields(BindingFlags.Public | BindingFlags.Instance))
                     if (!FcSettingRow.Rows.Any(r => r.Name == f.Name) && !fromProfile.Contains(f.Name))
                         Assert.AreEqual(f.GetValue(core), f.GetValue(player), f.Name + " is FcSettings.Default's");
-                // The profile is silent on airmode, and its min_throttle is analog's (DShot ignores it): Betaflight
-                // 4.5's AIRMODE feature and dshot_idle_value, labelled in FcSettings.
-                Assert.IsTrue(s.airmode, "airmode");
+                // The profile is silent on airmode, and its min_throttle is analog's (DShot ignores it): the pilot flies
+                // without airmode (D-086, model 73; Betaflight 4.5's AIRMODE feature is on by default) and Betaflight's
+                // dshot_idle_value, labelled in FcSettings.
+                Assert.IsFalse(s.airmode, "no airmode (D-086)");
                 Assert.AreEqual(550, s.dshot_idle_value, "dshot_idle_value");
 
                 TestContext.WriteLine("defaults as the screen reads them:");
@@ -181,7 +182,7 @@ namespace Fpv450.Tests.Radio
                 Edit("thr_expo", 25);
                 Assert.AreEqual(new[] { 6.0, 25, 45, 28.5, 45, 25 }, new[] { s.roll_rc_rate, s.roll_srate, s.pitch_expo, s.yaw_srate, s.thr_mid, s.thr_expo });
                 s.anti_gravity_p_gain = 100.0 / 3;
-                s.airmode = false;
+                s.airmode = true; // off the pilot's default (D-086)
                 s.tpa_mode = TpaMode.PD;
 
                 FcSettingsStore.Save(dir, s);
@@ -262,7 +263,7 @@ namespace Fpv450.Tests.Radio
             FcSettings midMoved = FcSettingsStore.PlayerDefault;
             midMoved.thr_mid = 78;
             FcSettings yawMoved = FcSettingsStore.PlayerDefault;
-            yawMoved.yaw_srate = 30; yawMoved.thr_expo = 80; yawMoved.airmode = false;
+            yawMoved.yaw_srate = 30; yawMoved.thr_expo = 80; yawMoved.airmode = true;
             FcSettings oldValues = FcSettingsStore.PlayerDefault;
             oldValues.roll_rc_rate = oldValues.pitch_rc_rate = 5.5; oldValues.roll_srate = oldValues.pitch_srate = 22.5; oldValues.roll_expo = oldValues.pitch_expo = 34;
             oldValues.yaw_rc_rate = 8.5; oldValues.yaw_srate = 26; oldValues.yaw_expo = 15; oldValues.thr_mid = 50; oldValues.thr_expo = 10; oldValues.deadband = 2;
@@ -272,10 +273,10 @@ namespace Fpv450.Tests.Radio
                 ("format 1 before D-066, thr_mid moved",
                     Json("fpv450 fc settings 1", rows55.Concat(new[] { "\"thr_mid\": 78", "\"thr_expo\": 10" }).ToArray()), midMoved),
                 // The rows as D-066's build wrote them, yaw's max rate and thr_expo moved; and two settings off the screen,
-                // one at its default then (deadband 2) and one changed (airmode).
+                // one at its default then (deadband 2) and one changed (airmode on, off the default since D-086).
                 ("format 1 from D-066, yaw_srate and thr_expo moved",
                     Json("fpv450 fc settings 1", rows50.Concat(new[] { "\"yaw_srate\": 30", "\"yaw_expo\": 20", "\"thr_mid\": 100", "\"thr_expo\": 80",
-                        "\"deadband\": 2", "\"airmode\": false" }).ToArray()), yawMoved),
+                        "\"deadband\": 2", "\"airmode\": true" }).ToArray()), yawMoved),
                 // Today's format: the same values are the pilot's now.
                 ("format 2 holding old defaults' values",
                     Json("fpv450 fc settings 2", rows55.Concat(new[] { "\"thr_mid\": 50", "\"thr_expo\": 10", "\"deadband\": 2" }).ToArray()), oldValues),

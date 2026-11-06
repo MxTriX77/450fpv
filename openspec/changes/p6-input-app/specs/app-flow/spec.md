@@ -21,6 +21,11 @@ The drone SHALL be `p5-drone`'s D01 prefab for the setup's legs, and the FPV cam
 - **WHEN** the pilot pauses mid-flight, then restarts
 - **THEN** the physics stops stepping on pause and logs it, and the restart begins a new flight from the start point with a new seed, logged
 
+#### Scenario: R restarts at once in every state
+- **WHEN** the pilot presses R while flying, paused, during a recovering dropout, after a fiber break at any failsafe stage, after the failsafe's disarm, after a crash, or from the summary (D-078, D-087)
+- **THEN** the next flight starts in the frame that reads the key, from the same setup and start: a new flight core at step 0 with the line whole, the link intact, the failsafe cleared, whole props and intact legs, and the feed's picture back, whatever loss it was playing
+- **AND** the restart never waits for the physics thread to catch up: the thread stops between steps, and the last flight's log is complete to its last step
+
 ### Requirement: V switches the view, and nothing else
 In every build, V SHALL switch the flight's camera between the FPV camera at `drone.json`'s `camera.lens_m` and a third-person chase view behind and above the drone, and change nothing else (D-055): the feed, its noise and the OSD SHALL apply in both views, and the physics, the flight log and the input SHALL never see the key. The keys over a flight SHALL be Esc (pause), V (the view) and, in review builds, F (the feed off and on); C is retired.
 
@@ -30,7 +35,7 @@ In every build, V SHALL switch the flight's camera between the FPV camera at `dr
 - **AND** the flight's log is the same, byte for byte, as without the presses, and replays bit for bit
 
 ### Requirement: Only the pilot ends the flight, and the summary lists what happened
-The flight SHALL end only by the pilot: End flight or Restart from the pause menu, or leaving it (APP-04, D-063). A crash (an impact over its threshold), an upside-down rest on the ground, the failsafe, a battery cut-off or a disarm on the switch SHALL NOT end the flight and SHALL draw nothing over the picture: the drone stays in the world under physics (tumbling, falling, lying where it lands), the pilot watches through the feed or the chase view, and the OSD keeps reading the flight (DISARMED after a disarm or the failsafe, the pack as it sags on past the cut-off). Each SHALL be logged (the crash with its part and object, LOG-03), and the log keeps the arm state of every step. The post-flight summary SHALL show only once the pilot has ended the flight, from its log: time, distance, the end, battery used, the seed, and the flight's incidents in order with their times (the part, the object and its material for a crash).
+The flight SHALL end only by the pilot: End flight or Restart from the pause menu, or leaving it (APP-04, D-063). A crash (an impact over its threshold), an upside-down rest on the ground, the failsafe, a battery cut-off or a disarm on the switch SHALL NOT end the flight and SHALL draw nothing over the picture: the drone stays in the world under physics (tumbling, falling, lying where it lands), the pilot watches through the feed or the chase view, and the OSD keeps reading the flight (DISARMED after a disarm or the failsafe, the pack as it sags on past the cut-off). Each SHALL be logged (the crash with its part and object, LOG-03), and the log keeps the arm state of every step. The post-flight summary SHALL show only once the pilot has ended the flight, from its log: time, distance, the end, battery used, the seed, and the flight's incidents in order with their times (the part, the object and its material for a crash; for a fiber break its mechanism, where it broke and the tension, then each failsafe stage with its time after the last good frame, D-087).
 
 #### Scenario: A disarm in the air
 - **WHEN** the pilot disarms on the switch in the air, then re-arms with the throttle down

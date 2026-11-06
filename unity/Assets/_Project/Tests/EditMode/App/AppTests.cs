@@ -146,6 +146,59 @@ namespace Fpv450.Tests.App
             Assert.That(FeedSignalLog.Value(feed, FeedSignal.LinkState), Is.EqualTo("Broken by Prop"));
         }
 
+        // D-087: R, like every new flight, ends whatever loss the feed was playing, so the new flight's first field is the
+        // picture: a recovering dropout on Godot's timer (D-085), one held by the fiber's dip, and the staged loss of a break
+        // to the terminal blue. Two feeds on one seed reach the same lost field; the new flight (its link whole, no dips)
+        // resets one. The link's reading alone ends the dip's and the break's, but the timer's dropout ran on into the new
+        // flight, up to 0.8 s of its tell and outage: the pilot's "R doesn't restart RIGHT AWAY" after a signal loss.
+        [Test]
+        public void ANewFlightEndsTheFeedsLossAtOnce()
+        {
+            foreach (string loss in new[] { "the timer's dropout", "the dip's dropout", "the break's staged loss", "the terminal blue" })
+            {
+                FeedEvents reset = Lost(loss, out FeedLink resetLink), kept = Lost(loss, out FeedLink keptLink);
+                Assert.That(reset.Loss.Current, Is.Not.EqualTo(FeedLoss.State.Picture), loss + ": the picture lost");
+                FlightScene.NewFlightFeed(reset);
+                var whole = new StubFeedSignals(); // the new flight's link: intact, no dips
+                FeedLoss after = Field(reset, resetLink, whole), ran = Field(kept, keptLink, whole);
+                TestContext.WriteLine(loss + ": " + after.Current + " after R; without the reset " + ran.Current + (ran.Busy ? ", still running" : ""));
+                Assert.That((after.Current, after.Busy, after.Tell), Is.EqualTo((FeedLoss.State.Picture, false, 0f)), loss + ": the new flight's first field is the picture");
+                if (loss == "the timer's dropout") Assert.That(ran.Current, Is.Not.EqualTo(FeedLoss.State.Picture), "without it the timer's dropout runs on");
+            }
+        }
+
+        // A flight's feed on seed 7 to the first field its loss shows: the timer's dropout (the timer on, the link whole), the
+        // dip's (a dip from field 50), or a break at field 50 (the staged loss's first lost field, or 100 fields on, blue).
+        static FeedEvents Lost(string loss, out FeedLink link)
+        {
+            bool timer = loss == "the timer's dropout";
+            var events = new FeedEvents(7) { DropoutTimer = timer };
+            link = new FeedLink();
+            var s = new StubFeedSignals();
+            for (int field = 0; field < 5000; field++)
+            {
+                if (field == 50 && loss == "the dip's dropout")
+                {
+                    s.LinkDips = 1;
+                    s.LinkInDip = true;
+                }
+                if (field == 50 && (loss == "the break's staged loss" || loss == "the terminal blue")) s.LinkState = Fpv450.Feed.LinkState.Broken;
+                FeedLoss l = Field(events, link, s);
+                bool lost = l.Current != FeedLoss.State.Picture;
+                if (lost && (loss != "the terminal blue" || field >= 150)) return events;
+            }
+            Assert.Fail(loss + " never showed");
+            return events;
+        }
+
+        // The rig's field: the link read, then the field stepped.
+        static FeedLoss Field(FeedEvents events, FeedLink link, IFeedSignals s)
+        {
+            link.Apply(s, events.Loss, events.Field + 1);
+            events.AdvanceTo(events.Field + 1, 0f);
+            return events.Loss;
+        }
+
         [Test]
         public void TheFeedReadsThePhysicsWhereItIsLive()
         {
