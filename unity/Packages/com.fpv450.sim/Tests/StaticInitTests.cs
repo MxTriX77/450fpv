@@ -101,6 +101,8 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Tether.TetherTable", "Blocks", "TetherTable.Parse (load)" },
             { "Fpv450.Sim.Tether.FiberContacts", "RoughMaterials", "the FiberContacts constructor's material classes for the microbend (setup)" },
             { "Fpv450.Sim.Tether.TetherTable", "Fields", "TetherTable.Parse and its derived-value checks (load)" },
+            { "Fpv450.Sim.Wind.WakeGridCache", "Lock", "WakeGridCache.Worker, from the WindField constructor (setup): the last flight's wake grid, kept for the next" },
+            { "Fpv450.Sim.Wind.WakeGridCache", "_last", "WakeGridCache.Worker, from the WindField constructor (setup): the last flight's wake grid, kept for the next" },
             { "Fpv450.Sim.Wind.MapWind+<>c", "<>9", "the lambda cache of MapWind.Strips, read by WindSetup (setup)" },
             { "Fpv450.Sim.Wind.MapWind+<>c", "<>9__7_0", "MapWind.Strips' conversion, read by WindSetup (setup)" },
             { "Fpv450.Sim.World.MapWorld", "MicroKindNames", "ParseElements, the micro-detail sidecars' reader (map load)" },
