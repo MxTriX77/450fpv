@@ -15,6 +15,20 @@ namespace Fpv450.Sim.Tests
 
         static void Print(string s) => TestContext.Progress.WriteLine(s);
 
+        // The grid and the cause table fly the session's drone (p7d-tether 1.11), FIBER_AIRFRAME=bare the bare drone they flew to
+        // model 79; the switch is reset when the test ends, so no other scenario flies it.
+        static IDisposable TheSessionDrone()
+        {
+            FiberCutScenarios.SessionDrone = !FiberCutScenarios.BareAirframe;
+            Print(FiberCutScenarios.SessionDrone ? "the session's drone (SessionSetup.Build's airframe)" : "the bare drone (FIBER_AIRFRAME=bare)");
+            return new Bare();
+        }
+
+        sealed class Bare : IDisposable
+        {
+            public void Dispose() => FiberCutScenarios.SessionDrone = false;
+        }
+
         // fiber-tether: "The draws cover their bounds".
         [Test]
         public void TheDrawsCoverTheirBounds()
@@ -395,6 +409,7 @@ namespace Fpv450.Sim.Tests
         [Test, Explicit("the pilot's causes over seeds, printed: minutes")]
         public void ThePilotsCausesOverSeeds()
         {
+            using IDisposable airframe = TheSessionDrone();
             int seeds = int.TryParse(Environment.GetEnvironmentVariable("FIBER_SEEDS"), out int n) ? n : 10;
             string which = Environment.GetEnvironmentVariable("FIBER_PROBE") ?? "all";
             var cases = new (string Name, Func<ulong, FiberCutScenarios.Outcome> Fly)[]
@@ -443,6 +458,7 @@ namespace Fpv450.Sim.Tests
         [Test, Explicit("the turn and reverse grid over seeds, printed: minutes")]
         public void TheTurnsAndReversesOverSeeds()
         {
+            using IDisposable airframe = TheSessionDrone();
             int seeds = int.TryParse(Environment.GetEnvironmentVariable("FIBER_SEEDS"), out int n) ? n : 5;
             int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 6;
             string winds = Environment.GetEnvironmentVariable("FIBER_WINDS") ?? "Calm,Windy";
@@ -482,6 +498,122 @@ namespace Fpv450.Sim.Tests
                     }
                     Print($"== {wn} {cells[c].Name}: " + string.Join(", ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Key} {kv.Value}")) + $" of {seeds}");
                 }
+            }
+        }
+
+        // p7d-tether 1.11: a sharp reverse traced step by step on the session's drone (FIBER_AIRFRAME=bare the bare drone): the
+        // pose and the climb, the rotors, the lip (wrap, tension, stress), the line's first nodes from the nozzle in body axes, and
+        // each rear disc's nearest node (its height over the disc's plane and its distance from the hub's axis), every FIBER_EVERY
+        // steps from FIBER_FROM s and every step of the last 40 before a break.
+        [Test, Explicit("a probe: a sharp reverse's line against the rear discs, printed step by step from FIBER_FROM s")]
+        public void ProbeTheReversesRearDiscs()
+        {
+            ulong seed = ulong.TryParse(Environment.GetEnvironmentVariable("FIBER_SEED"), out ulong v) ? v : 1;
+            double speed = double.TryParse(Environment.GetEnvironmentVariable("FIBER_SPEED"), out double sp) ? sp : 15;
+            double from = double.TryParse(Environment.GetEnvironmentVariable("FIBER_FROM"), out double f) ? f : 10.9;
+            int every = int.TryParse(Environment.GetEnvironmentVariable("FIBER_EVERY"), out int e) ? e : 20;
+            WindLevel wind = Environment.GetEnvironmentVariable("FIBER_WIND") == "Windy" ? WindLevel.Windy : WindLevel.Calm;
+            DroneSpec spec = Spec;
+            var hubs = new Double3[4];
+            for (int m = 0; m < 4; m++) hubs[m] = spec.Motors[m].Position;
+            double radius = spec.Props.Diameter / 2;
+            var lines = new System.Collections.Generic.List<(long K, string S)>();
+            using IDisposable airframe = TheSessionDrone();
+            FiberCutScenarios.StopAtBreak = true;
+            FiberCutScenarios.Each = core =>
+            {
+                long k = core.State.Step;
+                if (k * FlightCore.Dt < from) return;
+                ref readonly FlightState s = ref core.State;
+                FiberLine l = core.Tether;
+                Double3 nose = s.Attitude.Rotate(new Double3(0, 0, 1)), up = s.Attitude.Rotate(new Double3(0, 1, 0));
+                double pitch = DetMath.Atan2(nose.Y, DetMath.Sqrt(nose.X * nose.X + nose.Z * nose.Z)) * 180 / Math.PI;
+                string head = $"t {k * FlightCore.Dt:0.000} y {s.Position.Y:0.000} z {s.Position.Z:0.000} vy {s.Velocity.Y:0.00} vz {s.Velocity.Z:0.00} nose-up {pitch:0.0}° " +
+                    $"rate ({s.BodyRate.X:0.00},{s.BodyRate.Y:0.00},{s.BodyRate.Z:0.00}) ω rear {s.RotorSpeed[0]:0}/{s.RotorSpeed[2]:0} front {s.RotorSpeed[1]:0}/{s.RotorSpeed[3]:0} ring rear {s.RingInflow[0]:0.00}/{s.RingInflow[2]:0.00} m/s latched {s.RingLatched} throttle {s.Fc.Throttle:0.00}";
+                if (l.Broken || !l.Attached) { lines.Add((k, head + " BROKEN")); return; }
+                CableChain c = l.Chain;
+                int n = c.Count;
+                if (lines.Count == 0)
+                {
+                    // The whole line once at the start: each node's world z and height, its tension, then the trail's last points.
+                    string all = $"the line at t {k * FlightCore.Dt:0.000}: {n} nodes, trail {l.TrailCount};";
+                    for (int i = 0; i < n; i++) all += $" ({c[i].Position.Z:0.0},{c[i].Position.Y:0.00}{(i < n - 1 ? $",{c.Tension(i):0.000}" : "")})";
+                    all += " | trail's last:";
+                    for (int i = Math.Max(0, l.TrailCount - 5); i < l.TrailCount; i++) all += $" ({l.Trail[i].Z:0.0},{l.Trail[i].Y:0.00})";
+                    Print(all);
+                }
+                ref readonly FiberBend lip = ref l.Cuts.Bend(l.Cuts.BendCount - 1);
+                string body = $" | lip {lip.Turn * 180 / Math.PI:0.0}° T {lip.Tension:0.000} N σ {lip.Stress / 1e9:0.000} GPa exitT {l.ExitTension:0.000} sdot {c.SpoolSpeed:0.00} paid {l.PaidOut:0.00} n {n} |";
+                for (int i = n - 1; i >= Math.Max(0, n - 6); i--)
+                {
+                    Double3 b = s.Attitude.InverseRotate(c[i].Position - s.Position);
+                    body += $" [{n - 1 - i} ({b.X:0.000},{b.Y:0.000},{b.Z:0.000}) T {(i < n - 1 ? c.Tension(i) : 0):0.000}]";
+                }
+                foreach (int m in new[] { 0, 2 })
+                {
+                    Double3 hub = s.Position + s.Attitude.Rotate(hubs[m]);
+                    double best = double.PositiveInfinity, bz = 0, blat = 0;
+                    int bi = -1;
+                    for (int i = 0; i < n; i++)
+                    {
+                        Double3 q = c[i].Position - hub;
+                        double z = Double3.Dot(q, up), lat = (q - up * z).Length();
+                        double rim = lat < radius ? DetMath.Abs(z) : DetMath.Sqrt((lat - radius) * (lat - radius) + z * z);
+                        if (rim < best) { best = rim; bi = i; bz = z; blat = lat; }
+                    }
+                    body += $" | disc {m}: node {n - 1 - bi} rim {best * 1e3:0} mm, over the plane {bz * 1e3:0} mm, off the axis {blat * 1e3:0} mm";
+                }
+                lines.Add((k, head + body));
+            };
+            FiberCutScenarios.Outcome o;
+            try
+            {
+                o = FiberCutScenarios.SharpReverse(spec, wind, seed, null, speed);
+            }
+            finally
+            {
+                FiberCutScenarios.Each = null;
+                FiberCutScenarios.StopAtBreak = false;
+            }
+            for (int i = 0; i < lines.Count; i++)
+                if (i % every == 0 || i >= lines.Count - 40) Print(lines[i].S);
+            Print($"{wind} seed {seed} from {speed * 3.6:0} km/h: {o}");
+        }
+
+        // p7d-tether 1.11: how near each sharp reverse comes to tearing at the hole's edge, on the session's drone (FIBER_AIRFRAME=bare
+        // the bare drone), Calm, 36–100 km/h, seeds 1–FIBER_SEEDS, one after another: the most stress at the lip while the line is
+        // whole, with its wrap and tension, and the outcome.
+        [Test, Explicit("a probe: the sharp reverses' most stress at the hole's edge, printed")]
+        public void ProbeTheReversesEdge()
+        {
+            int seeds = int.TryParse(Environment.GetEnvironmentVariable("FIBER_SEEDS"), out int n) ? n : 10;
+            using IDisposable airframe = TheSessionDrone();
+            double most = 0, turn = 0, tension = 0, at = 0;
+            FiberCutScenarios.Each = core =>
+            {
+                FiberLine l = core.Tether;
+                if (core.State.Step < 11000 || l.Broken || !l.Attached) return;
+                ref readonly FiberBend lip = ref l.Cuts.Bend(l.Cuts.BendCount - 1);
+                if (!(lip.Stress > most)) return;
+                most = lip.Stress;
+                turn = lip.Turn;
+                tension = lip.Tension;
+                at = core.State.Step * FlightCore.Dt;
+            };
+            try
+            {
+                foreach (double v in new[] { 10, 15, 20, 25, 27.8 })
+                    for (ulong seed = 1; seed <= (ulong)seeds; seed++)
+                    {
+                        most = turn = tension = at = 0;
+                        FiberCutScenarios.Outcome o = FiberCutScenarios.SharpReverse(Spec, WindLevel.Calm, seed, null, v);
+                        Print($"{v * 3.6:0} km/h seed {seed}: the edge's most σ {most / 1e9:0.000} GPa at {at:0.000} s (θ {turn * 180 / Math.PI:0}°, T {tension:0.000} N); " +
+                            (o.Broken ? $"cut {o.Mechanism} at {o.Place} t {o.Time:0.000} s" : "whole"));
+                    }
+            }
+            finally
+            {
+                FiberCutScenarios.Each = null;
             }
         }
 
