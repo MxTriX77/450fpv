@@ -35,6 +35,10 @@ namespace Fpv450.FlightBench
 
         public static DroneSpec Drone() => DroneSpec.Parse(DroneText());
 
+        // Model 74 (the nozzle bent to the pilot's 27.5°): every kept audit of models 64–70 flies model 70's drone.json (a fixture), whose
+        // line FlyContact lets out of its 15° nozzle over the 4 mm lip with the old peel (GoldenFlights.Model70Tether).
+        static DroneSpec M70() => DroneSpec.Parse(Repository(GoldenFlights.Model70DronePath));
+
         // Model 64 (D01's canister): every kept audit of models up to 63 flies model 63's drone.json, the old coil beneath the
         // frame (a fixture), whose line FlyContact lets out at the old rear cap (GoldenFlights.Model63Tether).
         static DroneSpec Old() => DroneSpec.Parse(Repository(GoldenFlights.Model63DronePath));
@@ -228,10 +232,12 @@ namespace Fpv450.FlightBench
                 a70r = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, airmode: true),
                 a70c = GoldenFlights.FlyContact(Drone(), out FlightCore ac, airmode: true), a70g = GoldenFlights.FlyRange(Drone(), out FlightCore ag, airmode: true),
                 a70l = GoldenFlights.FlyContact(Drone(), out FlightCore al, tether: true, airmode: true);
+            // Since model 77 (74's bent nozzle on the line) the drone.json is 74's, so with airmode on each golden is its model 74 pin
+            // (74 kept 70's pins but the tether's, Model74TetherHash).
             bool k70 = a70p == GoldenFlights.Model70PoweredHash && a70r == GoldenFlights.Model70RainPoweredHash && a70c == GoldenFlights.Model70ContactHash
-                && a70g == GoldenFlights.Model70RangeHash && a70l == GoldenFlights.Model70TetherHash;
-            Console.WriteLine($"with airmode (model 70's controller): powered 0x{a70p:X16}, rain 0x{a70r:X16}, contact 0x{a70c:X16}, range 0x{a70g:X16}, tether 0x{a70l:X16} "
-                + $"({(k70 ? "model 70's, bit for bit" : "NOT model 70's")}); without it the powered flight ends {(core.State.Position - ap.State.Position).Length():F3} m from it, "
+                && a70g == GoldenFlights.Model70RangeHash && a70l == GoldenFlights.Model74TetherHash;
+            Console.WriteLine($"with airmode (model 74's controller): powered 0x{a70p:X16}, rain 0x{a70r:X16}, contact 0x{a70c:X16}, range 0x{a70g:X16}, tether 0x{a70l:X16} "
+                + $"({(k70 ? "model 74's, bit for bit" : "NOT model 74's")}); without it the powered flight ends {(core.State.Position - ap.State.Position).Length():F3} m from it, "
                 + $"the contact {(c.State.Position - ac.State.Position).Length() * 1e3:F1} mm ({c.Contacts.ImpactCount} impacts against {ac.Contacts.ImpactCount}), the range "
                 + $"{(g.State.Position - ag.State.Position).Length() * 1e3:F1} mm ({g.Contacts.ImpactCount} against {ag.Contacts.ImpactCount}), the tether "
                 + $"{(l.State.Position - al.State.Position).Length() * 1e3:F1} mm: {(k70 ? "PASS" : "FAIL")}");
@@ -239,7 +245,7 @@ namespace Fpv450.FlightBench
             ulong h69p = GoldenFlights.FlyPowered(Drone(), out _, layout: m63h),
                 h69r = GoldenFlights.FlyPowered(Drone(), out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, layout: m63h),
                 h69c = GoldenFlights.FlyContact(Drone(), out _, layout: m63h), h69g = GoldenFlights.FlyRange(Drone(), out _, layout: m63h),
-                h69l = GoldenFlights.FlyContact(Drone(), out _, tether: true, layout: m63h);
+                h69l = GoldenFlights.FlyContact(M70(), out _, tether: true, layout: m63h); // since model 77 the straight nozzle (Model70Drone)
             bool k69 = h69p == GoldenFlights.Model69PoweredHash && h69r == GoldenFlights.Model69RainPoweredHash && h69c == GoldenFlights.Model69ContactHash
                 && h69g == GoldenFlights.Model69RangeHash && h69l == GoldenFlights.Model69TetherHash;
             Console.WriteLine($"without airmode, the motors' heat and over model 63's 3040 bytes: powered 0x{h69p:X16}, rain 0x{h69r:X16}, contact 0x{h69c:X16}, "
@@ -249,7 +255,9 @@ namespace Fpv450.FlightBench
             // is model 64's, every record and event. Every older audit below flies with it too (they audit 64's chain and its parents).
             // Since model 68 (the shafts' block after 3040 bytes) the audits of models 63, 64 and 65 fly over model 63's 3040 bytes.
             const int m63 = GoldenFlights.Model63Layout;
-            ulong line64 = GoldenFlights.FlyContact(Drone(), out FlightCore l64, tether: true, coulomb: false, layout: m63, airmode: true);
+            // Since model 74 the audits of models 64–70 on the canister fly model 70's drone.json (Model70Drone, its nozzle straight),
+            // whose line FlyContact lets out of its 15° nozzle over the 4 mm lip with the old peel (GoldenFlights.Model70Tether).
+            ulong line64 = GoldenFlights.FlyContact(M70(), out FlightCore l64, tether: true, coulomb: false, layout: m63, airmode: true);
             bool k64 = line64 == GoldenFlights.Model64TetherHash && l64.Tether.Chain.ZeroForceHold && !l.Tether.Chain.ZeroForceHold;
             lok &= k64;
             Console.WriteLine($"tether-flight with the 0-force hold: 0x{line64:X16} ({(k64 ? "model 64's, bit for bit" : "NOT model 64's")}); its line "
@@ -594,7 +602,7 @@ namespace Fpv450.FlightBench
             // drone.json, the fountain through the body, the 0-force hold and no blade root, every golden is model 66's pin over the
             // whole record (OnModel63sDroneEachGoldenIsModel66s).
             Action<FlightSetup> shaftsOff = GoldenFlights.WithoutTheShafts;
-            DroneSpec canister = Drone();
+            DroneSpec canister = M70(); // since model 74 a fixture (the nozzle straight on the 15° canister)
             ulong s65p = GoldenFlights.FlyPowered(canister, out _, layout: m63, edit: shaftsOff, airmode: true), s65c = GoldenFlights.FlyContact(canister, out _, layout: m63, edit: shaftsOff, airmode: true),
                 s65g = GoldenFlights.FlyRange(canister, out _, layout: m63, edit: shaftsOff, airmode: true), s65l = GoldenFlights.FlyContact(canister, out _, tether: true, layout: m63, edit: shaftsOff, airmode: true);
             bool k65 = s65p == GoldenFlights.Model65PoweredHash && s65c == GoldenFlights.Model65ContactHash && s65g == GoldenFlights.Model65RangeHash
@@ -623,8 +631,20 @@ namespace Fpv450.FlightBench
                 && h68g == GoldenFlights.Model68RangeHash && h68l == GoldenFlights.Model68TetherHash && h68t == GoldenFlights.Model68TumbleHash;
             Console.WriteLine($"without the motors' heat and dirt, over model 68's 3168 bytes: powered 0x{h68p:X16}, rain 0x{h68r:X16}, contact 0x{h68c:X16}, "
                 + $"range 0x{h68g:X16}, tether 0x{h68l:X16}, tumble 0x{h68t:X16} ({(k68 ? "model 68's, bit for bit" : "NOT model 68's")}): {(k68 ? "PASS" : "FAIL")}");
+            // p7d-tether 1.8 (model 74), its audit against model 70: on model 70's drone.json (its nozzle straight on the 15° canister) with model 70's
+            // exit, lip and peel (Model70Tether) every golden is model 70's pin (the kept test WithTheOldExitAndPeelEachGoldenIsModel70s).
+            // Since model 77 (73's controller on the line) flown with airmode on, as model 70 flew.
+            ulong e70p = GoldenFlights.FlyPowered(canister, out _, airmode: true),
+                e70r = GoldenFlights.FlyPowered(canister, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, airmode: true),
+                e70c = GoldenFlights.FlyContact(canister, out _, airmode: true), e70g = GoldenFlights.FlyRange(canister, out _, airmode: true),
+                e70l = GoldenFlights.FlyContact(canister, out FlightCore l70, tether: true, airmode: true), e70t = GoldenFlights.FlyTumble(canister, out _, out _);
+            bool k70e = e70p == GoldenFlights.Model70PoweredHash && e70r == GoldenFlights.Model70RainPoweredHash && e70c == GoldenFlights.Model70ContactHash
+                && e70g == GoldenFlights.Model70RangeHash && e70l == GoldenFlights.Model70TetherHash && e70t == GoldenFlights.Model70TumbleHash;
+            Console.WriteLine($"with the straight 15° nozzle, the 4 mm lip and the old peel on model 70's drone.json: powered 0x{e70p:X16}, rain 0x{e70r:X16}, contact 0x{e70c:X16}, "
+                + $"range 0x{e70g:X16}, tether 0x{e70l:X16}, tumble 0x{e70t:X16} ({(k70e ? "model 70's, bit for bit" : "NOT model 70's")}), the line "
+                + $"{(l70.Tether.Broken ? $"broken at step {l70.Tether.BrokenAt} by {l70.Tether.LastBreak.Mechanism}" : "whole")}: {(k70e ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70 && k70e;
         }
 
         public static bool Bench()

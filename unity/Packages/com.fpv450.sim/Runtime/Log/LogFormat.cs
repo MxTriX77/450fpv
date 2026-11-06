@@ -716,8 +716,22 @@ namespace Fpv450.Sim.Log
         ///    bearings, bells, canister, cuts and chain fixes. 69 changes only the controller's settings and the mixer's loss and 70
         ///    the contacts and Propulsion, so they compose without new code. A flight with airmode on steps as in 70; one with
         ///    ContactSpec.MotorHeat off whose shafts never pass their yield (every golden) steps as in 69 over 63's 3040 bytes.
+        /// 74: p7d-tether 1.8, the fiber cuts where the pilot says (D-086, D-087; on 70; unity/physics/physics-integration-2--fiber-cut2,
+        ///    assigned by D-072; 71–73 are parallel lines'): the nozzle bent at its collar so the line leaves its hole 27.5° down
+        ///    (drone.json's coil_nozzle contact, the canister still at 15°; tether.json's exit), the hole's sharp edge
+        ///    (spool.lip_radius_m 0.3 mm for 64's 4 mm flared lip) under the exit's tension as the one-way spool lets it out (its law
+        ///    paying, its hold else, never a segment stretched past it in the step's end), and its wear (FiberCuts.WearLip: the line
+        ///    paying out over it and its lead turning round it, at spool.lip_archard_wear_coefficient beyond the angle the bore
+        ///    passes it free), and the peel's rate law referred to the published payout rate (spool.peel_reference_rate_m_s 100 m/s
+        ///    for 1). Three new
+        ///    rows in the tether entry, which writes every row (the format unchanged). On model 70's drone.json (the fixture
+        ///    Model70Drone) with model 70's exit, lip and peel (GoldenFlights.Model70Tether; its hole's radius 0, so no lead turns
+        ///    round it) a flight steps as in 70.
+        /// 77: the physics integration 2 with the fiber's cut at the hole's edge (unity/physics/physics-integration-2--chain-spikes,
+        ///    assigned by D-072; 75 and 76 are parallel lines'): 74's bent nozzle, sharp edge, its wear and the peel's reference
+        ///    merged onto 73's controller (they touch disjoint code). A flight with airmode on steps as in 74.
         /// </summary>
-        public const int ModelVersion = 73;
+        public const int ModelVersion = 77;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

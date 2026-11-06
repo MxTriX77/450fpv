@@ -242,15 +242,16 @@ namespace Fpv450.FlightBench
             RestScenarios.RackPose(spec, out Double3 p, out _, out double roll);
             RestScenarios.Result rack = RestScenarios.Rack(spec), wrong = RestScenarios.Rack(spec, rest: false, arm: false);
             RestScenarios.RackSweep rw = RestScenarios.Racks(spec);
-            int half = rw.N / 2;
-            // Since model 64 the canister bears the rolled drone too: the blade over 1 N on some seeds, not most (RestTests).
-            bool r = rw.Rests > 0 && rw.Strikes > half && rw.Chips > half && rw.Moves > half && rw.Over > half && rw.Notches > 0 && rw.OnTheRail > 0
-                && rw.WrongBearsNothing == rw.N && rw.Tunnels == 0;
+            // Since model 64 the canister bears the rolled drone too: the blade over 1 N on some seeds, not most (RestTests); since
+            // model 74 the bent nozzle as well, so the case is judged on every seed whose blade bears.
+            bool r = rw.Rests > 0 && rw.BearingStrikes == rw.Rests && rw.BearingChips == rw.Rests && rw.BearingMoves == rw.Rests && rw.BearingOver == rw.Rests
+                && rw.Strikes > rw.Rests && rw.Notches > 0 && rw.OnTheRail > 0 && rw.WrongBearsNothing == rw.N && rw.Tunnels == 0;
             Console.WriteLine($"    on R01_A's roof rack (set down rolled {roll * 57.29577951308232:F1}° at ({p.X:F3}, {p.Y:F3}, {p.Z:F3}), 3 s disarmed, then 3 s armed at idle): "
                 + rack.Describe());
             Console.WriteLine("      the prop passing through (model 50), disarmed: " + wrong.Describe());
             Console.WriteLine($"    arming with a prop on the rack moves the drone: {(r ? "PASS" : "FAIL")} (over {rw.N} seeds: rests on the blade {rw.Rests}, "
-                + $"strikes {rw.Strikes}, chips {rw.Chips}, notches {rw.Notches}, the rail first {rw.OnTheRail}, moves {rw.Moves}, over the known-wrong {rw.Over}, "
+                + $"strikes {rw.Strikes} ({rw.BearingStrikes} of those it bears on), chips {rw.Chips} ({rw.BearingChips}), notches {rw.Notches}, the rail first {rw.OnTheRail}, "
+                + $"moves {rw.Moves} ({rw.BearingMoves}), over the known-wrong {rw.Over} ({rw.BearingOver}), "
                 + $"the known-wrong bears nothing {rw.WrongBearsNothing}, {rw.Crashes} crashes (driven off the roof), {rw.Tunnels} tunnels)");
             // Information: a blade that carries a real share of the drone holds an idle motor by its friction (μ·N·r against the
             // idle's Kt·d·V/R less Kt·I0), so arming stalls it: the front-left blade's root pressed in the rail's crotch with the

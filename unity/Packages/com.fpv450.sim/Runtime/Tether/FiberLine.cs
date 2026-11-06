@@ -162,6 +162,11 @@ namespace Fpv450.Sim.Tether
 
         // The spool.
         readonly Double3 _exitBody, _exitLead;
+
+        // Two body axes square to the nozzle's (the lead's azimuth about it, the hole's edge's wear) and the azimuth after the last
+        // step (NaN before the first).
+        readonly Double3 _azimuthX, _azimuthY;
+        double _lipAzimuth = double.NaN;
         readonly double _lipFriction, _peelEnergy, _rateExponent, _referenceRate, _balloonLength, _balloonMass, _sectionLength;
         readonly double _irregularityLo, _irregularityHi;
         readonly SeedStream _irregularity;
@@ -242,6 +247,9 @@ namespace Fpv450.Sim.Tether
             double[] lead = table.Row("spool.exit_direction").Values;
             double leadLength = DetMath.Sqrt(lead[0] * lead[0] + lead[1] * lead[1] + lead[2] * lead[2]);
             _exitLead = new Double3(lead[0] / leadLength, lead[1] / leadLength, lead[2] / leadLength);
+            Double3 across = new Double3(1, 0, 0) - _exitLead * _exitLead.X;
+            _azimuthX = across * (1 / across.Length());
+            _azimuthY = Double3.Cross(_exitLead, _azimuthX);
             _lipFriction = table.Number("spool.lip_friction");
             _rateExponent = table.Number("spool.peel_rate_exponent");
             _referenceRate = table.Number("spool.peel_reference_rate_m_s");
@@ -387,6 +395,10 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>The exit, body m.</summary>
         public Double3 ExitBody => _exitBody;
+
+        /// <summary>The hole's edge's wear on the section at the lip after the last step, as a share of the coating (FiberCuts.WearLip):
+        /// one pass's while line pays out, the section's sum while it is held.</summary>
+        public double LipWear { get; private set; }
 
         /// <summary>The nozzle's axis out of the exit, body frame, a unit vector (spool.exit_direction).</summary>
         public Double3 ExitLead => _exitLead;
@@ -890,7 +902,29 @@ namespace Fpv450.Sim.Tether
             Double3 aft = q.Rotate(_exitLead);
             Double3 first = _chain[n - 2].Position - exit.Position;
             double lip = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
-            _cuts.Collect(_chain, lip, _chain.Tension(n - 2), exit.Position);
+            // The line's tension at the hole: the exit segment's, never above what the one-way spool lets out at (D-087): paying, its
+            // law's (the pack's resistance through the lip's capstan, the balloon's inertia and the momentum flux), else its hold;
+            // a segment stretched past it after the payout (a node moved by a contact in the step's end) is the payout's next step,
+            // not a pull on the glass.
+            double lipTension = _chain.Tension(n - 2);
+            ref readonly CableSpool spool = ref _chain.Spool;
+            if (spool.Active && !spool.Locked && !spool.TwoWay)
+            {
+                double most = _chain.SpoolPaying ? _chain.SpoolExitTension : spool.Lip * spool.Peel;
+                if (lipTension > most) lipTension = most;
+            }
+            _cuts.Collect(_chain, lip, lipTension, exit.Position);
+            // The hole's edge (D-087): the line paying out over it, and its lead turning about the nozzle's axis.
+            Double3 lead = q.InverseRotate(first);
+            double azimuth = DetMath.Atan2(Double3.Dot(lead, _azimuthY), Double3.Dot(lead, _azimuthX)), turn = 0;
+            if (!double.IsNaN(_lipAzimuth))
+            {
+                turn = azimuth - _lipAzimuth;
+                if (turn > 3.141592653589793) turn -= 2 * 3.141592653589793;
+                else if (turn < -3.141592653589793) turn += 2 * 3.141592653589793;
+            }
+            _lipAzimuth = azimuth;
+            LipWear = _cuts.WearLip(_chain.SpoolPaying ? _chain.SpoolSpeed * _dt : 0, turn, exit.Material, _contacts, events);
             _cuts.Wear(_chain, _dt, _contacts, events);
             if (!found)
             {
