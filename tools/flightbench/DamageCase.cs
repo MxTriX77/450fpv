@@ -210,6 +210,12 @@ namespace Fpv450.FlightBench
                     Console.WriteLine("      " + LossScenarios.Fly(spec, loss, false, 1.0, true, 1, airmode: air, heat: heat).Describe());
                 Console.WriteLine("      " + LossScenarios.Fly(spec, LossScenarios.Loss.Blade, false, 1.0, true, 1, chop: true, airmode: air, heat: heat).Describe());
             }
+            // The chop's arm on sourced data (model 80; docs/research/arm-plates-and-blade-loss.md), seed 1 at 1 kg, printed: each
+            // damping's and law's share of the plate's strengths with the arm unbreakable, the flown outcomes, model 79's arm and gyro,
+            // and the quasi-isotropic plate as a variant row (LossScenarios.ChopTable; graded in LossTests.TheChopsArmIsGradedOnItsStrains).
+            Console.WriteLine("    the chop's arm on sourced data (model 80), 1 kg, seed 1 (printed):");
+            foreach ((string row, LossScenarios.Result r) in LossScenarios.ChopTable(spec, 1.0, 1))
+                Console.WriteLine($"      {row}: {r.Arm()}; {(double.IsNaN(r.TiltAt) ? "never 45°" : $"45° at {r.TiltAt * 1e3:F0} ms")}, {r.Drop:F2} m lost");
             Console.WriteLine($"  the losses: {(ok ? "PASS" : "FAIL")} (a lost prop and a stopped motor drop their corner; a lost blade holds at steady "
                 + "throttle, and a chop through its arm's twist mode breaks the arm, where the clean sensors' chop holds)");
             return ok;

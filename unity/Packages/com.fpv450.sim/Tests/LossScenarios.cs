@@ -10,7 +10,8 @@ namespace Fpv450.Sim.Tests
     /// setup's range (APP-03: 0–2 kg), with the sticks centred (acro: the rates held at zero, the throttle where the pilot left
     /// it) or the simulated pilot still flying (SimPilot: holding its point, or its cruise's velocity). ShaftScenarios.Setup's
     /// flight (the factory draws, the vortex rings, the wakes, the flapping, the modes, the contacts with their bells, shafts
-    /// and bearings, since model 75 the motors' heat and dirt) with model 72's arms in their plane and the gyro's range, on the
+    /// and bearings, since model 75 the motors' heat and dirt) with model 72's arms in their plane and the gyro's range (since model
+    /// 80 the arm breaking on its strains, damped at 0.007, and the gyro's anti-alias filter), on the
     /// pilot's controller (no airmode, D-086); clean flies model 68's clean sensors (the
     /// arms stiff in their plane, no gyro range: GoldenFlights.CleanSensors), the known-wrong. LossTests asserts them;
     /// tools/flightbench --damage prints them over the loads and the seeds.
@@ -59,9 +60,20 @@ namespace Fpv450.Sim.Tests
             /// <summary>The camera's 50–200 Hz band over the second, m/s² RMS (VibrationBands' Y).</summary>
             public double Band;
 
-            /// <summary>The losing arm's largest load (its root's stress over its strength), its largest twist, degrees, and its
+            /// <summary>The losing arm's largest load (its root's larger share of its strengths, ArmFlex), its largest twist, degrees, and its
             /// tip's largest bend across it, mm; whether it broke, and when, s after the loss (NaN never).</summary>
             public double ArmLoad, Twist, Bend, BrokeAt;
+
+            /// <summary>The losing arm's root at its largest twist and bend (model 80; ArmFlex): its in-plane shear strain, its short
+            /// edge's interlaminar shear stress and its linear in-plane shear stress (model 79's law), Pa, and its bend's root stress,
+            /// Pa; each law's share of the plate's strengths (AirframeModesSpec's defaults, whatever the flight's law and strengths, so
+            /// an unbreakable arm prints how far past them it went).</summary>
+            public double Strain, EdgeStress, LinearStress, BendStress, StrainShare, EdgeShare, LinearShare, BendShare;
+
+            public string Arm() =>
+                $"rr's arm: twist {Twist:F2}°, γ {Strain * 100:F2} % ({StrainShare:F3} of its failure strain), edge τ {EdgeStress / 1e6:F1} MPa "
+                + $"({EdgeShare:F3} of ILSS), linear τ {LinearStress / 1e6:F1} MPa ({LinearShare:F3} of model 79's 90 MPa), bend {Bend:F2} mm "
+                + $"({BendShare:F3} of its flexural strength); load {ArmLoad:F3}{(double.IsNaN(BrokeAt) ? ", whole" : $", BROKEN at {BrokeAt * 1e3:F0} ms")}";
 
             /// <summary>The ESC's commutation: the losing rotor's largest relative speed change over one commutation (60° electrical)
             /// in the second, against the share of a commutation period its zero crossing may move before the ESC misses it.</summary>
@@ -107,6 +119,48 @@ namespace Fpv450.Sim.Tests
         /// (ArmBroken), its prop is lost, and when the throttle comes back the drone rolls toward that corner past 45°.</summary>
         public static bool ChopBreaksTheArm(in Result r) => !double.IsNaN(r.BrokeAt) && !double.IsNaN(r.TiltAt) && r.TiltAt > r.BrokeAt;
 
+        /// <summary>The arm's plate that never breaks (the chop's table, model 80): every strength infinite, so the flight shows how far
+        /// past each law's strength its twist and bend went.</summary>
+        public static void Unbreakable(FlightSetup s)
+        {
+            s.Modes.ArmFlexuralStrength = s.Modes.ArmShearStrength = s.Modes.ArmInterlaminarStrength = s.Modes.ArmShearFailureStrain = double.PositiveInfinity;
+        }
+
+        /// <summary>The quasi-isotropic arm (0/±45/90 woven), a variant only, never the default (the reading's §2, derived: G₁₂ about
+        /// 17 GPa from E/(2(1 + ν)), E about 45 GPa, the mean of the 0/90 and ±45 values): its twist mode moves to about 171 Hz, into the
+        /// hover's 1/rev. Its interlaminar strength and failure strain are kept (assumed: the same matrix).</summary>
+        public static void QuasiIsotropic(FlightSetup s)
+        {
+            s.Modes.ArmShearModulus = 17e9;
+            s.Modes.ArmModulus = 45e9;
+        }
+
+        /// <summary>
+        /// The chop's arm on sourced data (model 80; docs/research/arm-plates-and-blade-loss.md §6–7), printed: a lost blade's chop
+        /// (and a lost blade at steady throttle) in the hover at a payload on a seed, the sticks centred, each row's plate and law:
+        /// the arm unbreakable at ζ 0.005, 0.007 (the flown), 0.01 and model 79's 0.02, so each law's share of its strength shows how
+        /// far past it the twist went; then the flown outcomes: model 80's law at ζ 0.005, 0.007 and 0.01, the strain alone (the
+        /// interlaminar check off), model 79's arm and gyro whole (GoldenFlights.Model79Arm); then the quasi-isotropic plate
+        /// (QuasiIsotropic), a variant only, unbreakable and flown, in the chop and at steady throttle.
+        /// </summary>
+        public static System.Collections.Generic.IEnumerable<(string Row, Result Result)> ChopTable(DroneSpec spec, double payload, ulong seed)
+        {
+            Action<FlightSetup> Damping(double z) => s => s.Modes.ArmDamping = z;
+            Action<FlightSetup> Plus(Action<FlightSetup> a, Action<FlightSetup> b) => s => { a(s); b(s); };
+            Result Chop(Action<FlightSetup> e) => Fly(spec, Loss.Blade, false, payload, true, seed, chop: true, edit: e);
+            foreach (double z in new[] { 0.005, 0.007, 0.01, GoldenFlights.Model79ArmDamping })
+                yield return ($"the chop, unbreakable, ζ {z}", Chop(Plus(Damping(z), Unbreakable)));
+            foreach (double z in new[] { 0.005, 0.007, 0.01 })
+                yield return ($"the chop, model 80's law (strain 4 %, ILSS 60 MPa), ζ {z}", Chop(Damping(z)));
+            yield return ("the chop, the strain alone (no interlaminar check), ζ 0.007", Chop(s => s.Modes.ArmInterlaminarStrength = double.PositiveInfinity));
+            yield return ("the chop, model 79's arm and gyro (linear 90 MPa, ζ 0.02, no AAF)", Chop(GoldenFlights.Model79Arm));
+            yield return ("the chop, model 80's law without the AAF", Chop(s => s.GyroAntiAlias = 0));
+            yield return ("quasi-isotropic (G₁₂ 17 GPa, E 45 GPa; a variant), the chop, unbreakable", Chop(Plus(QuasiIsotropic, Unbreakable)));
+            yield return ("quasi-isotropic, the chop, model 80's law", Chop(QuasiIsotropic));
+            yield return ("quasi-isotropic, steady throttle (no chop), model 80's law",
+                Fly(spec, Loss.Blade, false, payload, true, seed, edit: QuasiIsotropic));
+        }
+
         /// <summary>The flight's setup on a seed at a payload; clean: model 68's clean sensors; heat false: the motors without their
         /// heat and dirt (GoldenFlights.WithoutTheHeat, model 72's motors).</summary>
         public static FlightSetup Setup(DroneSpec spec, ulong seed, double payload, bool clean, bool heat = true)
@@ -125,10 +179,11 @@ namespace Fpv450.Sim.Tests
         /// ChopSeconds). By default on the pilot's controller (FcSettings.Default: no airmode, D-086) with the motors' heat and dirt
         /// (model 75); airmode true and heat false fly model 72's (Betaflight's airmode on, the motors without their heat).</summary>
         public static Result Fly(DroneSpec spec, Loss loss, bool cruising, double payload, bool centred, ulong seed, bool clean = false, bool chop = false,
-            bool airmode = false, bool heat = true)
+            bool airmode = false, bool heat = true, Action<FlightSetup> edit = null)
         {
             FlightSetup setup = Setup(spec, seed, payload, clean, heat);
             setup.Settings.airmode = airmode;
+            edit?.Invoke(setup);
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, setup.StartPosition);
@@ -206,6 +261,23 @@ namespace Fpv450.Sim.Tests
                 speed = w;
             }
             r.Band = Math.Sqrt(band);
+            if (setup.Modes != null)
+            {
+                // The arm's root at the flight's largest twist and bend, on the flight's own plate, against the plate's strengths.
+                AirframeModesSpec m = setup.Modes, plate = new AirframeModesSpec();
+                var hubs = new Double3[4];
+                for (int i = 0; i < 4; i++) hubs[i] = setup.Propulsion.Motors[i].Position;
+                var arm = new ArmFlex(m, hubs);
+                double th = r.Twist / RadToDeg;
+                r.Strain = th * arm.TwistStrain;
+                r.EdgeStress = th * arm.EdgeStress;
+                r.LinearStress = th * arm.TwistStress;
+                r.BendStress = r.Bend * 1e-3 * arm.BendStress;
+                r.StrainShare = r.Strain / plate.ArmShearFailureStrain;
+                r.EdgeShare = r.EdgeStress / plate.ArmInterlaminarStrength;
+                r.LinearShare = r.LinearStress / plate.ArmShearStrength;
+                r.BendShare = r.BendStress / plate.ArmFlexuralStrength;
+            }
             return r;
         }
     }

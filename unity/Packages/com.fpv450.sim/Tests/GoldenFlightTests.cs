@@ -195,6 +195,79 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model76TetherHash, GoldenFlights.TetherHash, "the linear step and model 70's exit, lip and peel");
         }
 
+        // Model 80 (the arm on sourced data, docs/research/arm-plates-and-blade-loss.md), its audit against model 79: with model 79's
+        // arm and gyro (GoldenFlights.Model79Arm: the twist broken on the linear 90 MPa stress, the plate damped at 0.02, no
+        // anti-alias filter) each golden is its model 79 pin over the whole record (79's record, 3536 bytes), every record and
+        // event; without them each is its pin. So the arm's law, its damping and the gyro's filter are the whole of 80's move
+        // against 79. The tumble flies no rotor and keeps its pin.
+        [Test]
+        public void WithoutTheArmChangesEachGoldenIsModel79s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const string sw = "model 79's arm and gyro";
+            Audit("powered", "model 79", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, arm: !old), c),
+                GoldenFlights.Model79PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 79", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, arm: !old), c),
+                GoldenFlights.Model79RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 79", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, arm: !old), c),
+                GoldenFlights.Model79ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 79", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, arm: !old), c),
+                GoldenFlights.Model79RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 79", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, arm: !old), c),
+                GoldenFlights.Model79TetherHash, GoldenFlights.TetherHash, sw);
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.TumbleHash), "tumble (no rotor)");
+        }
+
+        // Model 80's three changes, each alone against model 79 (printed, not pinned): the arm's strain law alone, the damping alone
+        // and the gyro's filter alone, each on model 79's other two, so the audit's move splits by its causes: the first step whose
+        // state (pose, rates, the rotors, the arms) leaves 79's, and the largest distance and turn apart. The strain law moves only
+        // the logged arm load (the trace's share of its strength) while no arm breaks: its state never leaves 79's.
+        [Test]
+        public void TheArmChangesEachAloneArePrinted()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            foreach ((string what, Action<FlightSetup> only) in new (string, Action<FlightSetup>)[]
+                     {
+                         ("the strain law alone", s => s.Modes.ArmStrainBreak = true),
+                         ("the damping 0.007 alone", s => s.Modes.ArmDamping = new AirframeModesSpec().ArmDamping),
+                         ("the 258 Hz filter alone", s => s.GyroAntiAlias = new FlightSetup().GyroAntiAlias),
+                     })
+                foreach ((string name, Func<Action<FlightSetup>, Action<byte[]>, ulong> fly) in new (string, Func<Action<FlightSetup>, Action<byte[]>, ulong>)[]
+                         {
+                             ("powered", (e, k) => GoldenFlights.FlyPowered(spec, out _, arm: false, edit: e, onRecord: k)),
+                             ("contact", (e, k) => GoldenFlights.FlyContact(spec, out _, arm: false, edit: e, onRecord: k)),
+                             ("range", (e, k) => GoldenFlights.FlyRange(spec, out _, arm: false, edit: e, onRecord: k)),
+                             ("tether", (e, k) => GoldenFlights.FlyContact(spec, out _, tether: true, arm: false, edit: e, onRecord: k)),
+                         })
+                {
+                    var a = new System.Collections.Generic.List<FlightState>();
+                    var b = new System.Collections.Generic.List<FlightState>();
+                    Action<byte[]> Keep(System.Collections.Generic.List<FlightState> into) => r =>
+                    {
+                        LogFormat.DecodeStep(r, out FlightState st, out _, out _);
+                        into.Add(st);
+                    };
+                    fly(null, Keep(a));
+                    ulong h = fly(only, Keep(b));
+                    int first = -1;
+                    double far = 0, turn = 0;
+                    for (int k = 0; k < a.Count && k < b.Count; k++)
+                    {
+                        FlightState x = a[k], y = b[k];
+                        bool same = x.Position.Equals(y.Position) && x.Attitude.Equals(y.Attitude) && x.Velocity.Equals(y.Velocity)
+                            && x.BodyRate.Equals(y.BodyRate) && x.RotorSpeed.Equals(y.RotorSpeed) && x.ArmTwist.Equals(y.ArmTwist)
+                            && x.ArmBend.Equals(y.ArmBend) && x.ArmBroken == y.ArmBroken;
+                        if (!same && first < 0) first = k + 1;
+                        far = Math.Max(far, (x.Position - y.Position).Length());
+                        double dot = Math.Abs(x.Attitude.X * y.Attitude.X + x.Attitude.Y * y.Attitude.Y + x.Attitude.Z * y.Attitude.Z + x.Attitude.W * y.Attitude.W);
+                        turn = Math.Max(turn, 2 * Math.Acos(Math.Min(1, dot)) * 180 / Math.PI);
+                    }
+                    TestContext.Progress.WriteLine($"{what}, {name}: 0x{h:X16}; the state {(first < 0 ? "79's at every step" : $"leaves 79's at step {first}")}, "
+                        + $"at most {far * 1e3:F2} mm and {turn:F3}° apart");
+                }
+        }
+
         // Model 75, its audit against model 72 (p7f-damage 1.6's losses, on 68): with Betaflight's airmode on (as 72 flew) and the
         // motors' heat off (ContactSpec.MotorHeat, as 72 flew), the arms and the gyro's range on, each golden over model 72's bytes
         // (the record's first 3168 and its last 176: the heat's 192 at Model68Layout skipped, GoldenFlights.HeatSkip) is its model

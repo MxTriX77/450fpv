@@ -739,9 +739,21 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"with the linear step, the straight 15° nozzle, the 4 mm lip and the old peel on model 70's drone.json, the edgewise thrust on: tether 0x{o76l:X16} "
                 + $"({(k76o ? "model 76's, bit for bit" : "NOT model 76's")}), the line {(l76o.Tether.Broken ? $"broken at step {l76o.Tether.BrokenAt}" : $"whole, {l76o.Tether.PaidOut:F3} m paid out")}: "
                 + $"{(k76o ? "PASS" : "FAIL")}");
+            // The arm on sourced data (model 80, on 79), its audit against model 79: with model 79's arm and gyro (the twist broken on
+            // its linear 90 MPa stress, the plate damped at 0.02, no anti-alias filter: GoldenFlights.Model79Arm) every golden is model
+            // 79's pin over the whole record, every record and event (GoldenFlightTests.WithoutTheArmChangesEachGoldenIsModel79s).
+            DroneSpec d80 = Drone();
+            ulong a79p = GoldenFlights.FlyPowered(d80, out _, arm: false),
+                a79r = GoldenFlights.FlyPowered(d80, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, arm: false),
+                a79c = GoldenFlights.FlyContact(d80, out _, arm: false), a79g = GoldenFlights.FlyRange(d80, out _, arm: false),
+                a79l = GoldenFlights.FlyContact(d80, out _, tether: true, arm: false);
+            bool k79a = a79p == GoldenFlights.Model79PoweredHash && a79r == GoldenFlights.Model79RainPoweredHash && a79c == GoldenFlights.Model79ContactHash
+                && a79g == GoldenFlights.Model79RangeHash && a79l == GoldenFlights.Model79TetherHash;
+            Console.WriteLine($"with model 79's arm and gyro: powered 0x{a79p:X16}, rain 0x{a79r:X16}, contact 0x{a79c:X16}, range 0x{a79g:X16}, tether 0x{a79l:X16} "
+                + $"({(k79a ? "model 79's, bit for bit" : "NOT model 79's")}): {(k79a ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
                 && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70 && k72 && k73 && k75 && k70e && k77n && k75o
-                && k78w && k76o;
+                && k78w && k76o && k79a;
         }
 
         public static bool Bench()

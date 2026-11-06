@@ -79,6 +79,36 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // The chop's arm on sourced data (model 80; LossScenarios.ChopTable), printed at 1 kg on seed 1: each damping's and law's
+        // share of the plate's strengths, and the flown outcomes. Graded: unbreakable, the chop's twist passes the plate's
+        // interlaminar strength and its failure strain at every sourced damping (0.005–0.01); flown, the chop breaks the arm under
+        // model 80's law, the short edge's interlaminar shear first (the reading's inference: it governs), and the strain alone breaks
+        // it later; model 79's arm and gyro break it as model 79 did. The outcome does not hang on the damping: the resonance passes
+        // the plate's strength on its rising edge, within a millisecond at ζ 0.005, 0.007 and 0.01.
+        [Test]
+        public void TheChopsArmIsGradedOnItsStrains()
+        {
+            var rows = new System.Collections.Generic.List<(string Row, LossScenarios.Result Result)>(LossScenarios.ChopTable(Spec, 1.0, 1));
+            foreach ((string row, LossScenarios.Result r) in rows)
+            {
+                TestContext.Out.WriteLine(row + ": " + r.Arm());
+                TestContext.Out.WriteLine("  " + r.Describe());
+            }
+            LossScenarios.Result Row(string start) => rows.Find(x => x.Row.StartsWith(start, StringComparison.Ordinal)).Result;
+            foreach (string z in new[] { "0.005", "0.007", "0.01" })
+            {
+                LossScenarios.Result u = Row("the chop, unbreakable, ζ " + z), f = Row("the chop, model 80's law (strain 4 %, ILSS 60 MPa), ζ " + z);
+                Assert.That(u.EdgeShare, Is.GreaterThan(1), "past ILSS at ζ " + z);
+                Assert.That(u.StrainShare, Is.GreaterThan(1), "past the failure strain at ζ " + z);
+                Assert.That(LossScenarios.ChopBreaksTheArm(f), Is.True, "the chop breaks the arm at ζ " + z);
+                Assert.That(f.EdgeShare, Is.GreaterThan(f.StrainShare), "the interlaminar shear governs at ζ " + z);
+            }
+            LossScenarios.Result flown = Row("the chop, model 80's law (strain 4 %, ILSS 60 MPa), ζ 0.007"), strain = Row("the chop, the strain alone");
+            Assert.That(LossScenarios.ChopBreaksTheArm(strain), Is.True, "the strain alone breaks it too");
+            Assert.That(strain.BrokeAt, Is.GreaterThan(flown.BrokeAt), "later than the interlaminar check");
+            Assert.That(LossScenarios.ChopBreaksTheArm(Row("the chop, model 79's arm and gyro")), Is.True, "model 79's chop breaks it");
+        }
+
         // The arms in their plane carrying a lost blade's 1/rev, through an arm's break (ArmBroken, LoseProp) and the gyro's range,
         // allocate nothing in a step.
         [Test]
