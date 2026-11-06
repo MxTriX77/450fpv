@@ -50,6 +50,9 @@ namespace Fpv450.Sim.Tests
             public long After;
             /// <summary>The break's point in the body's axes, m (x right, y up, z forward).</summary>
             public Double3 BodyPoint;
+            /// <summary>The hole's edge while the line is whole, from Watch.From: its most bend stress, Pa, when, s, and the wrap, rad,
+            /// and tension, N, then (p7d-tether 1.11).</summary>
+            public double EdgeMost, EdgeAt, EdgeTurn, EdgeTension;
 
             public override string ToString() => Broken
                 ? $"cut {Mechanism} at {Place} (obj {Object} shape {Shape} part {Part}) t {Time:0.000} s, σ {Stress / 1e9:0.000} GPa vs {Strength / 1e9:0.000}, θ {Turn:0.000}, T {Tension:0.000} N, R {Radius * 1e3:0.000} mm, at body ({BodyPoint.X:0.000}, {BodyPoint.Y:0.000}, {BodyPoint.Z:0.000}) m; rim {Rim * 1e3:0.0} mm, exit {ExitMost:0.000} N, lip {LipMost * 180 / Pi:0} deg, margin {MarginLeast:0.00} dB"
@@ -62,6 +65,8 @@ namespace Fpv450.Sim.Tests
             public Outcome O = new Outcome { Rim = double.PositiveInfinity, MarginLeast = double.PositiveInfinity, BendLeast = double.PositiveInfinity };
             readonly FlightSetup _setup;
             readonly double _radius;
+            /// <summary>The time from which the hole's edge's most stress is read, s.</summary>
+            public double From;
             Double3[] _far;
             int _farFrom;
 
@@ -136,8 +141,16 @@ namespace Fpv450.Sim.Tests
                 {
                     if (f.Link.Margin < O.MarginLeast) O.MarginLeast = f.Link.Margin;
                     O.Dips = f.Link.Dips;
-                    double lip = f.Cuts.Bend(f.Cuts.BendCount - 1).Turn;
+                    ref readonly FiberBend edge = ref f.Cuts.Bend(f.Cuts.BendCount - 1);
+                    double lip = edge.Turn;
                     if (lip > O.LipMost) O.LipMost = lip;
+                    if (s.Step * Dt >= From && edge.Stress > O.EdgeMost)
+                    {
+                        O.EdgeMost = edge.Stress;
+                        O.EdgeAt = s.Step * Dt;
+                        O.EdgeTurn = edge.Turn;
+                        O.EdgeTension = edge.Tension;
+                    }
                     if (f.MinBendRadius < O.BendLeast) O.BendLeast = f.MinBendRadius;
                 }
                 CableChain line = f.Chain;
@@ -206,6 +219,15 @@ namespace Fpv450.Sim.Tests
             s.Modes = spec.BuildModes();
         }
 
+        /// <summary>tether.json with one band row's bounds replaced (p7d-tether 1.11's sensitivity).</summary>
+        public static TetherTable WithBand(TetherTable table, string name, double low, double high)
+        {
+            var rows = (TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+                if (rows[i].Name == name) rows[i].Values = new[] { low, high };
+            return new TetherTable(rows, table.ContentHash);
+        }
+
         /// <summary>tether.json with one row's value replaced (a known-wrong's table).</summary>
         public static TetherTable With(TetherTable table, string name, double value)
         {
@@ -234,10 +256,11 @@ namespace Fpv450.Sim.Tests
             return setup;
         }
 
-        /// <summary>Flies setup for seconds under plan (TetherScenarios.Fly's arming), the watch on every step.</summary>
-        static Outcome Run(FlightSetup setup, double seconds, TetherScenarios.Plan plan, Action<FlightCore, SimPilot> init = null)
+        /// <summary>Flies setup for seconds under plan (TetherScenarios.Fly's arming), the watch on every step (the edge's stress
+        /// read from edgeFrom s).</summary>
+        static Outcome Run(FlightSetup setup, double seconds, TetherScenarios.Plan plan, Action<FlightCore, SimPilot> init = null, double edgeFrom = 0)
         {
-            var w = new Watch(setup);
+            var w = new Watch(setup) { From = edgeFrom };
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, setup.StartPosition);
             init?.Invoke(core, pilot);
@@ -284,7 +307,41 @@ namespace Fpv450.Sim.Tests
                 pilot.MaxTiltSin = t < 11 ? cruiseTilt : 0.866;
                 pilot.TargetVelocity = new Double3(0, 0, t < 11 ? speed : -8);
                 pilot.Target = new Double3(0, y, core.State.Position.Z);
-            });
+            }, edgeFrom: 11);
+        }
+
+        /// <summary>
+        /// The pilot's own reverse (D-087, p7d-tether 1.11): SharpReverse's course to 11 s, then a pitch-back to 8 m/s back along
+        /// the path at the cruise's throttle held (the stick's mean over 10.5–11 s), so no height loop lets the drone sink onto its
+        /// line: the thrust turned up by the pitch lifts it, as the pilot flies it; on to 16 s.
+        /// </summary>
+        public static Outcome PitchBack(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null, double speed = 15)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            double cruiseTilt = speed > 15 ? 0.866 : 0.5736;
+            double sum = 0;
+            int count = 0;
+            return Run(setup, 16, (t, core, pilot) =>
+            {
+                double y = stand + DetMath.Min(10, 2 * t);
+                if (t < 5)
+                {
+                    pilot.HoldVelocity = false;
+                    pilot.Target = new Double3(0, y, 0);
+                    return;
+                }
+                if (t >= 10.5 && t < 11)
+                {
+                    sum += pilot.Throttle;
+                    count++;
+                }
+                else if (t >= 11 && double.IsNaN(pilot.HeldThrottle)) pilot.HeldThrottle = sum / count;
+                pilot.HoldVelocity = true;
+                pilot.MaxTiltSin = t < 11 ? cruiseTilt : 0.866;
+                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? speed : -8);
+                pilot.Target = new Double3(0, y, core.State.Position.Z);
+            }, edgeFrom: 11);
         }
 
         /// <summary>A turn at speed, what the turn did and the line's outcome.</summary>

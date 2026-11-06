@@ -481,7 +481,14 @@ namespace Fpv450.Sim.Tests
                 foreach (double v in speeds)
                 {
                     double vv = v;
-                    cells.Add(($"{vv * 3.6:0} km/h, reverse to −8 m/s", s => (FiberCutScenarios.SharpReverse(Spec, wind, s, null, vv), "")));
+                    cells.Add(($"{vv * 3.6:0} km/h, reverse to −8 m/s", s => Edge(FiberCutScenarios.SharpReverse(Spec, wind, s, null, vv))));
+                }
+                // p7d-tether 1.11: the pilot's own reverse, a pitch-back at the cruise's throttle held, from 36–100 km/h.
+                foreach (double v in speeds)
+                {
+                    if (v < 10) continue;
+                    double vv = v;
+                    cells.Add(($"{vv * 3.6:0} km/h, pitch-back to −8 m/s, throttle held", s => Edge(FiberCutScenarios.PitchBack(Spec, wind, s, null, vv))));
                 }
                 var results = new (FiberCutScenarios.Outcome O, string Note)[cells.Count, seeds];
                 var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = threads };
@@ -497,6 +504,94 @@ namespace Fpv450.Sim.Tests
                         Print($"{wn} {cells[c].Name} seed {s + 1}: {o}; {results[c, s].Note}");
                     }
                     Print($"== {wn} {cells[c].Name}: " + string.Join(", ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Key} {kv.Value}")) + $" of {seeds}");
+                }
+            }
+        }
+
+        static (FiberCutScenarios.Outcome, string) Edge(FiberCutScenarios.Outcome o) =>
+            (o, $"the edge's most σ {o.EdgeMost / 1e9:0.000} GPa at {o.EdgeAt:0.000} s (θ {o.EdgeTurn * 180 / Math.PI:0}°, T {o.EdgeTension:0.000} N); ends {o.Height:0.0} m up");
+
+        static string Code(FiberCutScenarios.Outcome o) => !o.Broken ? "W" : o.Mechanism == TetherMechanism.Prop ? "D"
+            : o.Mechanism == TetherMechanism.Tension ? "T" : o.Mechanism == TetherMechanism.Bend ? (o.Place == FiberMember.Lip ? "L" : "B")
+            : o.Mechanism == TetherMechanism.Abrasion ? (o.Place == FiberMember.Lip ? "A" : "a") : o.Mechanism.ToString();
+
+        // p7d-tether 1.11: the sensitivity of the reverses (the sharp reverse and the pilot's pitch-back at the cruise's throttle held,
+        // 36–100 km/h) to the spool's three numbers, on the session's drone (FIBER_AIRFRAME=bare the bare drone), seeds 1–FIBER_SEEDS
+        // (10 by default) in Calm and Windy (FIBER_WINDS): per configuration, row and wind, the cuts by cause (W whole, D disc, T tension
+        // on the span, L bend at the hole's edge, A abrasion at it, B bend elsewhere, a abrasion elsewhere) and the hole's edge's most
+        // stress from the stick (11 s) while whole: its mean and most, and how many flights pass 3.0 GPa, the intact band's floor.
+        // FIBER_CONFIGS picks configurations by number (0 the base; all by default); FIBER_THREADS flights at once (10 by default).
+        [Test, Explicit("the reverses' sensitivity to the spool's numbers, printed: minutes")]
+        public void TheReversesSensitivityToTheSpool()
+        {
+            using IDisposable airframe = TheSessionDrone();
+            int seeds = int.TryParse(Environment.GetEnvironmentVariable("FIBER_SEEDS"), out int n) ? n : 10;
+            int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 10;
+            string winds = Environment.GetEnvironmentVariable("FIBER_WINDS") ?? "Calm,Windy";
+            string pick = Environment.GetEnvironmentVariable("FIBER_CONFIGS");
+            double[] g = TetherScenarios.Table().Row("spool.peel_energy_j_m").Values;
+            const double Gram = 9.80665e-3;
+            var configs = new (string Name, Action<FlightSetup> Edit)[]
+            {
+                ("base", null),
+                ("G0 0.01–2 g (US 5,167,382's reduced adhesive)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 0.01 * Gram, 2 * Gram)),
+                ("G0 5–10 g (US 5,167,382's conventional pack)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 5 * Gram, 10 * Gram)),
+                ("G0 ×2 (4–20 g)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 2 * g[0], 2 * g[1])),
+                ("n 0.1", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.1)),
+                ("n 0.3", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3)),
+                ("n 0.3, v_ref 1 m/s", s =>
+                {
+                    s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3);
+                    s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_reference_rate_m_s", 1);
+                }),
+                ("μ 0.15", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.15)),
+                ("μ 0.45", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.45)),
+                ("μ 0.75", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.75)),
+            };
+            double[] speeds = { 10, 15, 20, 25, 27.8 };
+            for (int ci = 0; ci < configs.Length; ci++)
+            {
+                var config = configs[ci];
+                if (pick != null && Array.IndexOf(pick.Split(','), ci.ToString()) < 0) continue;
+                foreach (string wn in winds.Split(','))
+                {
+                    WindLevel wind = wn == "Windy" ? WindLevel.Windy : WindLevel.Calm;
+                    var flights = new FiberCutScenarios.Outcome[2, speeds.Length, seeds];
+                    var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = threads };
+                    System.Threading.Tasks.Parallel.For(0, 2 * speeds.Length * seeds, options, i =>
+                    {
+                        int row = i / (speeds.Length * seeds), v = i / seeds % speeds.Length, s = i % seeds;
+                        flights[row, v, s] = row == 0
+                            ? FiberCutScenarios.SharpReverse(Spec, wind, (ulong)(s + 1), config.Edit, speeds[v])
+                            : FiberCutScenarios.PitchBack(Spec, wind, (ulong)(s + 1), config.Edit, speeds[v]);
+                    });
+                    for (int row = 0; row < 2; row++)
+                    {
+                        string name = row == 0 ? "sharp reverse" : "pitch-back, throttle held";
+                        var all = new System.Collections.Generic.SortedDictionary<string, int>();
+                        double sum = 0, most = 0;
+                        int over = 0;
+                        string cells = "";
+                        for (int v = 0; v < speeds.Length; v++)
+                        {
+                            var counts = new System.Collections.Generic.SortedDictionary<string, int>();
+                            for (int s = 0; s < seeds; s++)
+                            {
+                                FiberCutScenarios.Outcome o = flights[row, v, s];
+                                string c = Code(o);
+                                counts[c] = counts.TryGetValue(c, out int k) ? k + 1 : 1;
+                                all[c] = all.TryGetValue(c, out int ka) ? ka + 1 : 1;
+                                sum += o.EdgeMost;
+                                if (o.EdgeMost > most) most = o.EdgeMost;
+                                if (o.EdgeMost >= 3.0e9) over++;
+                                Print($"[{ci} {config.Name}] {wn} {name} {speeds[v] * 3.6:0} km/h seed {s + 1}: {o}; " + Edge(o).Item2);
+                            }
+                            cells += $" | {speeds[v] * 3.6:0}: " + string.Join(" ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Value}{kv.Key}"));
+                        }
+                        int total = speeds.Length * seeds;
+                        Print($"== [{ci} {config.Name}] {wn} {name}:{cells} | all " + string.Join(" ", System.Linq.Enumerable.Select(all, kv => $"{kv.Value}{kv.Key}"))
+                            + $" of {total}; the edge's most σ mean {sum / total / 1e9:0.000} GPa, most {most / 1e9:0.000}, at or past 3.0 GPa {over}");
+                    }
                 }
             }
         }
