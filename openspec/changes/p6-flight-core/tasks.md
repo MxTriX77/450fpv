@@ -151,6 +151,60 @@ Branch `unity/physics/p6-flight-core` off `unity/main` (D-042). The sim work is 
       - **The 120 s scripted flight** (contacts, a landing, the chain, real time): 120 045 steps, 6 hitches, touched down at 0.498 m/s; 324 events replayed bit for bit in 1.73 s.
       - **Bench** on AC (Balanced, best performance, 3201 MHz), 0 B everywhere: the powered step p50 10.7 µs, p99 53.9 µs; with its record p50 9.7, p99 30.3; legs on the floor p50 8.3, p99 14.1; legs off on the stand p50 41.4, p99 63.8.
       - **Text** (D-045): the propulsion spec's step scenario re-derived for the chain (stable, the overshoot a 30–45 % regression band), its filter and sag scenarios added; design 4, its Risks and Open Questions; the log spec's 1 kHz list.
+- [x] 1.4c [physics-engineer] The climb after a pitch-back at a fixed throttle (D-087; PHY-01, PHY-03): the pilot's "after pitch backward it's kind taking a long time to adjust altitude", flown, graded against the closed form and a known-wrong, its cause fixed, nothing tuned.
+  - **As built** (`unity/physics/physics-integration-2--climb`, on 75; `LogFormat.ModelVersion` 76, `LogFormat.Version` 66, assigned by D-072; `Runtime/Flight/{RotorFlapping,Propulsion}.cs`, `Runtime/Log/{LogHeader,LogFormat,FlightLogReader}.cs`, `Tests/EdgewiseThrustTests.cs` new, `tools/flightbench --pitch-back` new):
+    - **The scenario** (`tools/flightbench/PitchBackCase.cs`): the session's drone (`RateTrackingCase.Setup`: legs on, the coil full, a full pack, Calm, every airframe effect, the player default), 400 m up, cruises 24 s at 30° nose-down with its height held on the throttle. The throttle is then the last 4 s' mean, held 1 s, and the pilot's hands (an attitude loop, 10 rad/s per rad and 400 °/s at most, assumed: a quick, clean pitch-back) pitch back to 20°, 10° or 0° with the throttle held; 12 s recorded. Loads 0, 1, 2 kg (4.080, 5.080, 6.080 kg). It prints the vertical speed, the height, the speed, the rpm, the inflow and each vertical force against time, and the vertical damping D = −∂F_y/∂v_y by term with τ = m/D at the pitch-back, 0.5 s after it and at 12 s.
+    - **What made it slow** (model 75, measured): the rotors' thrust read only the axial inflow through the disc (the props' table against J).
+      - In the 30° cruise at 21–26 m/s each disc sees 10.7–13.1 m/s axially and 18–23 m/s in its plane. The table derates the thrust to about 0.69 and nothing gives the edgewise flow's share back, so the cruise needs 56.6 / 65.5 / 74.2 % throttle (0 / 1 / 2 kg).
+      - Pitched back, the speed's axial inflow goes, the thrust returns toward static, and the climb must replace the lost inflow. The rotors damp that climb with the axial slope at every airspeed, blind to the in-plane flow.
+      - The climb rate rose for the whole 12 s in every case (its peak at 11.4–12.0 s): 4.5–5.3 m/s at 20°, 7.7–9.9 at 10°, 9.9–12.1 at 0°; 63 % of it at 1.9–3.0 s.
+    - **The closed form** (published: Johnson, Helicopter Theory, 1980, §4.1 and §5.2; Leishman 2006 §2.14; Padfield's Z_w): blade elements on the props' own sheet (RotorFlappingSpec's chord, helix and α_L0, a 5.7, p7c-wind 1.6's fit), averaged over a turn with Glauert's uniform inflow: C_T = (N_b·a/2πR)·(J₂ + μ²J₀/2 − λI₁), λ = λ_c + C_T/(2√(μ² + λ²)).
+      - Axially it gives the published table within 0.023 to J 0.28 (static 12.23 N at 9000 rpm against APC's 12.43).
+      - Its climb slope dC_T/dλ_c is Padfield's −2sλ₀/(4λ₀ + s) in hover (s = K·I₁ = 0.113, λ₀ 0.083) and tends to his forward −2sμ/(2μ + s): 2.0–2.3 times the hover's at μ 0.2–0.4.
+      - At the cruise's state (va 10.7, vp 19.7 m/s) the edgewise flow adds 24 % to the thrust at the same rpm: translational lift, the wake swept off the disc (λ_i 4.35 against 5.48 m/s).
+    - **The fix** (the cause, not a gain): each rotor's thrust and torque are the props' measured axial tables times the blade elements' own ratio in combined flow, η(J, μ) = C(J/π, μ)/C(J/π, 0) (`RotorFlappingSpec.CombinedFlow`, `EdgewiseRatios`; `Propulsion.RotorAero`).
+      - Tabled at a setup on the props' J grid (with the descent's held −0.05) by μ from 0 to 0.5 in 0.025 steps, read bilinearly at each sub-step; held past μ 0.5 (assumed: the reverse-flow circle reaches half the span there).
+      - The torque's ratio adds c_d0 0.049 (derived, DamagedRotorSpec's fit, `RotorFlappingSpec.ProfileDrag`): the induced torque falls with the edgewise flow (0.87 at J 0, μ 0.16).
+      - On when the flight has the flapping's blade (`EdgewiseThrust`, default true: the session's drone and every golden); off flies model 75's rotor, bit for bit. Without in-plane flow nothing moves: η(J, 0) is 1 exactly. The header's flapping entry records both new fields (format 66).
+    - **After** (model 76; the known-wrong, model 75, in brackets):
+
+      | Load | Pitch-back | Cruise throttle | 63 % of the climb's peak | Peak climb, at | At 12 s | τ = m/D at 0.5 s / 12 s |
+      |---|---|---|---|---|---|---|
+      | 0 kg | 30° → 20° | 51.7 % (56.6) | 1.54 s (2.39) | 3.95 m/s, 12.0 s (4.51, 12.0) | 3.95 (4.51) | 1.27 / 1.32 s (1.62 / 1.48) |
+      | 0 kg | 30° → 10° | | 1.13 s (2.06) | 6.26, 8.5 s (7.70, 11.8) | 6.14 (7.69) | 1.20 / 1.40 (1.68 / 1.41) |
+      | 0 kg | 30° → 0° | | 1.01 s (1.90) | 8.06, 4.0 s (9.86, 12.0) | 7.24 (9.86) | 1.14 / 1.63 (1.81 / 1.38) |
+      | 1 kg | 30° → 20° | 59.5 % (65.5) | 1.88 s (2.98) | 4.57, 10.0 s (5.17, 11.4) | 4.43 (5.12) | 1.42 / 1.49 (1.82 / 1.65) |
+      | 1 kg | 30° → 10° | | 1.35 s (2.51) | 7.37, 12.0 s (8.96, 12.0) | 7.37 (8.95) | 1.31 / 1.56 (1.88 / 1.56) |
+      | 1 kg | 30° → 0° | | 1.08 s (2.11) | 8.93, 4.4 s (10.96, 12.0) | 8.24 (10.96) | 1.25 / 1.79 (2.02 / 1.55) |
+      | 2 kg | 30° → 20° | 67.1 % (74.2) | 1.97 s (2.91) | 4.83, 7.9 s (5.34, 11.4) | 4.61 (5.27) | 1.56 / 1.64 (1.98 / 1.83) |
+      | 2 kg | 30° → 10° | | 1.55 s (2.80) | 8.26, 7.9 s (9.85, 11.4) | 8.00 (9.79) | 1.43 / 1.68 (2.07 / 1.71) |
+      | 2 kg | 30° → 0° | | 1.20 s (2.42) | 9.79, 5.2 s (12.13, 11.8) | 9.31 (12.12) | 1.35 / 1.94 (2.22 / 1.70) |
+
+    - **Each term's share of D, 0.5 s after the pitch-back** (N per m/s, 0 kg, 30° → 20° / → 0°):
+      - the rotors at a held speed 2.500 / 2.546;
+      - the motors' speed at the held duty −0.165 / +0.312 (axially the unloaded prop spins up; in strong edgewise flow the torque's ratio rises with the inflow, so the prop slows);
+      - the H-force 0.022 / 0.000;
+      - the body's and the coil's drag 0.856 / 0.721;
+      - total 3.21 / 3.58.
+      - The rotors' held slope is the closed form's (the measured axial slope times the blade elements' edgewise factor on it) within 1.5 % on every row at all three instants. Model 75's is 0.60–0.80 of it at 0.5 s.
+    - **What the physics gives, and what is left of "slow":**
+      - The climb rate's time constant is τ = m/D ≈ 1.1–1.9 s for this class (D/m 0.5–0.9 /s in forward flight; about 0.3 /s in hover, where the body's drag adds nothing near 0 m/s). It is not a fraction of a second: nothing in the closed form at 4–6 kg on four 10-inch props gives that.
+      - The rest of the long settle is the speed. At a held throttle the climb replaces the axial inflow the slower flight no longer gives, so it follows the speed's own bleed, a drag time scale of 3–5 s.
+      - With the edgewise flow, level discs (0°) now peak at 4.0–5.2 s and fall as the translational lift fades; 20° and 10° settle onto a steady climb (3.9–8 m/s) as the speed settles. A held throttle after a pitch-back does not hold the height in this physics: the pilot's throttle does.
+    - **Not changed** (each checked against τ's second): the induced inflow's dynamics (Pitt–Peters' lag is milliseconds at this disc loading); the controller's throttle terms (a held throttle fires no anti-gravity; D-086 has no airmode); the ESC's lag (tens of ms).
+    - **The tests** (`EdgewiseThrustTests`):
+      - the blade elements' axial ratio against the props' published table (0.03, to J 0.3);
+      - the climb slope Padfield's in hover (1e-4) and his forward form at μ 0.2–0.4 (8 %), the axial-only rotor off it by over 25 %;
+      - the propulsion's ratio on the table against the blade elements at five points (1 %), exactly the table without in-plane flow, the known-wrong the axial table.
+      - `flightbench --pitch-back` fails if the rotors' slope leaves the closed form by 10 %, if level discs' climb does not peak before 8 s and fall 3 %, or if the known-wrong passes either.
+    - **The goldens** (model 76), each audited by `GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s`: without the edgewise flow each is its model 75 pin, every record and event.
+      - powered `0x84E4FA38BA6C213B` → `0x8106C2D393DFAA8D`: from step 21, the Windy flight's steps gain the edgewise lift, 143.83 m up at 10 s against 135.50, at most 13.7° apart;
+      - rain `0x5CA781F2ADAF639B` → `0x94CF8CDFA5E5E538`: from step 21, 142.52 m against 136.88, at most 15.4°;
+      - contact `0x7F03EE80D3FB7004` → `0x461C89E4B98BAA7A`: from step 9, at most 11.9 mm and 0.61°, the same 3 impacts, at rest 2.2 mm from 75's;
+      - range `0x83DA30D19B802F9F` → `0xAF745CC52447E017`: from step 9, at most 7.0 mm and 0.17°, 3 impacts against 4, at rest 1.4 mm from 75's;
+      - tether `0xF792F9225BCA52E9` → `0x7122003D41C5E7BC`: from step 9, at most 11.9 mm and 0.61°, the line whole (0.235 m paid out against 0.231);
+      - the tumble flies no rotor and keeps its pin. Every older kept audit flies without the edgewise flow (`GoldenFlights.Edgewise`: airmode on, or a parent's layout) and keeps its pins.
+    - **The checks:** `dotnet test tools/simtests` 751 of 751 (17 m 2 s under load); `flightbench --golden` 54 PASS, 0 FAIL (the model 75 audit among them); `--landing` 29 PASS, `--contacts` 74 PASS, `--pitch-back` PASS, `--rate-tracking` run (prints only); `replay --record --wind windy`: 120 000 steps, landed at 0.459 m/s, then matched 120 000 steps and 109 events bit for bit; `precommit.py --tree HEAD` 2919 files, 0 findings; `openspec validate --all --strict` 26 passed. Timings are under load (the CPU shared with another session). Not run: Unity's EditMode.
 - [x] 1.5 [physics-engineer] Aero basics and the stand-in wind (design 6, 8):
   - **What:** body drag with along and across areas, the rotor H-force, coil drag at the coil as `drone.json` places it, the stand-in mean and turbulence per level, labelled.
   - **From 1.4:** `Propulsion.BeginStep` must subtract the wind from each rotor's inflow; add the rotors' gyroscopic moment and choose the ESC's current-limit policy (1.4 models none, so a full-yaw spin-up gives about 1680 °/s² for 50 ms against a steady 796 °/s², resting on the rotor inertia's ±30 %).
