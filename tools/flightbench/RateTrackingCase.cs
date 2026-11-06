@@ -117,7 +117,7 @@ namespace Fpv450.FlightBench
             new Variant { Name = "rotor inertia x0.5", Setup = s => ScaleInertia(s, 0.5) },
             new Variant { Name = "D-064's spreads off (motors and wakes)", Setup = s => { s.Asymmetry = null; s.RotorWake = null; } },
             new Variant { Name = "rigid airframe (no modes)", Setup = s => s.Modes = null },
-            new Variant { Name = "airmode off", Settings = s => { s.airmode = false; return s; } },
+            new Variant { Name = "airmode on (model 65's)", Settings = s => { s.airmode = true; return s; } },
             new Variant { Name = "pidsum_limit_yaw 1000", YawOnly = true, Settings = s => { s.pidsum_limit_yaw = 1000; return s; } },
             // The pilot's other builds, as Betaflight flies them (the yaw I x2.5, the controller's own since model 36): the
             // OTU10 configs' set (the section-1 set x1.2 on roll and pitch, feedforward 80), and the yaw of the Beshketnyk 10x8
