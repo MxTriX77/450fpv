@@ -166,9 +166,28 @@ namespace Fpv450.Sim.Tests
         /// without them (the same cause, by a disc, 0.7 s earlier; not traced).</summary>
         public static readonly bool ZeroForceHold = System.Environment.GetEnvironmentVariable("FIBER_HOLD") == "zero";
 
+        /// <summary>FIBER_LIP=flared flies every scenario over model 64–73's 4 mm flared lip (the known-wrong for the hole's edge);
+        /// FIBER_LIPWEAR=severe with the severe Archard k on the hole's edge (a bare grooved plastic hole: the known-wrong for its
+        /// wear); FIBER_PEEL=old with model 56–73's peel reference rate, 1 m/s (the known-wrong for the cruise's peel).</summary>
+        public static readonly bool FlaredLip = System.Environment.GetEnvironmentVariable("FIBER_LIP") == "flared",
+            SevereLip = System.Environment.GetEnvironmentVariable("FIBER_LIPWEAR") == "severe",
+            OldPeel = System.Environment.GetEnvironmentVariable("FIBER_PEEL") == "old";
+
+        /// <summary>tether.json with one row's value replaced (a known-wrong's table).</summary>
+        public static TetherTable With(TetherTable table, string name, double value)
+        {
+            var rows = (TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+                if (rows[i].Name == name) rows[i].Values = new[] { value };
+            return new TetherTable(rows, table.ContentHash);
+        }
+
         static FlightSetup Setup(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit)
         {
             FlightSetup setup = TetherScenarios.Setup(spec, wind, seed: seed, cuts: true);
+            if (FlaredLip) setup.Tether = With(setup.Tether, "spool.lip_radius_m", 0.004);
+            if (SevereLip) setup.Tether = With(setup.Tether, "spool.lip_archard_wear_coefficient", setup.Tether.Number("fiber.archard_wear_coefficient"));
+            if (OldPeel) setup.Tether = With(setup.Tether, "spool.peel_reference_rate_m_s", 1);
             if (ThroughTheBody) setup.TetherFountainThroughBody = true;
             if (ZeroForceHold) setup.TetherZeroForceHold = true;
             edit?.Invoke(setup);
@@ -194,6 +213,8 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 w.Step(core);
+                Each?.Invoke(core);
+                if (w.O.Broken && StopAtBreak) break;
             }
             return w.O;
         }
@@ -233,6 +254,10 @@ namespace Fpv450.Sim.Tests
             /// <summary>The speed and the nose's pitch (down +) in the cruise just before the turn, m/s and rad; the most rate of the
             /// nose's heading and of the path's in the turn, rad/s; the most horizontal acceleration, m/s².</summary>
             public double Speed, Pitch, NoseRate, PathRate, Lateral;
+            /// <summary>In the turn and after it, while the line is whole: the most lip wrap, rad, and tension at the lip, N; the most wear of
+            /// the hole's edge on a section, a share of the coating; the sections in FiberCuts' table at the end, and the WorldBugs.</summary>
+            public double LipTurn, ExitTurn, LipWear;
+            public int Sections, Bugs;
         }
 
         /// <summary>
@@ -291,6 +316,15 @@ namespace Fpv450.Sim.Tests
                 lastNose = noseYaw;
                 lastPath = pathYaw;
                 lastV = s.Velocity;
+                FiberLine f = core.Tether;
+                for (int i = 0; i < core.Events.Count; i++) if (core.Events[i].Kind == EventKind.WorldBug) r.Bugs++;
+                if (f.Cuts != null) r.Sections = f.Cuts.Sections;
+                if (f.Broken || !f.Attached) return;
+                if (f.LipWear > r.LipWear) r.LipWear = f.LipWear;
+                if (t < 11 || f.Cuts == null) return;
+                ref readonly FiberBend lipBend = ref f.Cuts.Bend(f.Cuts.BendCount - 1);
+                if (lipBend.Turn > r.LipTurn) r.LipTurn = lipBend.Turn;
+                if (lipBend.Tension > r.ExitTurn) r.ExitTurn = lipBend.Tension;
             });
             return r;
         }

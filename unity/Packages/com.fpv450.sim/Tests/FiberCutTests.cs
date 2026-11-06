@@ -112,12 +112,20 @@ namespace Fpv450.Sim.Tests
         // the drone's parts, which the line meets through its contacts, never a disc that cuts at a blade's pass (FiberLine.Prop,
         // as PropStrikes passes no resting blade). The rule, not a flight: the disc's cut above (seed 1, rotor 0 at step 17 461)
         // flown with ContactSpec.BladeRestSpeed past every rotor's speed, so every rotor's blades stay parts all flight, is never
-        // cut by a pass; flown as it is, it is.
+        // cut by a pass; flown as it is, it is. Since model 74 (the 27.5° exit, the hole's edge, the peel) the first seed of 1–6
+        // whose disc cuts the line, as FromTheBreakToTheDisarm takes it (seed 1 stays whole to its end since then).
         [Test]
         public void ARestingBladeCutsNothingByItsPass()
         {
-            FiberCutScenarios.Disarm turning = FiberCutScenarios.CutByADisc(Spec, 1);
-            FiberCutScenarios.Disarm resting = FiberCutScenarios.CutByADisc(Spec, 1, s => s.Contacts.BladeRestSpeed = 1e4);
+            ulong seed = 1;
+            FiberCutScenarios.Disarm turning = default;
+            for (; seed <= 6; seed++)
+            {
+                turning = FiberCutScenarios.CutByADisc(Spec, seed);
+                if (turning.Mechanism == TetherMechanism.Prop) break;
+            }
+            Print($"seed {seed}");
+            FiberCutScenarios.Disarm resting = FiberCutScenarios.CutByADisc(Spec, seed, s => s.Contacts.BladeRestSpeed = 1e4);
             Print($"turning: {turning.Mechanism} on rotor {turning.Corner} at step {turning.BreakStep}; every rotor resting: "
                 + (resting.BreakStep >= 0 ? $"{resting.Mechanism} at step {resting.BreakStep}" : "whole"));
             Assert.That(turning.Mechanism, Is.EqualTo(TetherMechanism.Prop), "a turning disc cuts at its pass");
@@ -311,7 +319,7 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        // D-087's grid: turns of 90° at each speed up to 100 km/h and each heading rate (0 the straight cruise), and sudden
+        // D-087's grid: turns of 90° and 180° at each speed up to 100 km/h and each heading rate (0 the straight cruise), and sudden
         // reverses from each speed, over seeds (FIBER_SEEDS, 5 by default) in Calm and Windy; each cell's cuts, mechanisms and
         // places, and what the drone made of the turn, printed (FIBER_THREADS flights at once, 6 by default; each flight is its
         // own core, so the order of the runs never moves a bit).
@@ -328,12 +336,13 @@ namespace Fpv450.Sim.Tests
                 var cells = new System.Collections.Generic.List<(string Name, Func<ulong, (FiberCutScenarios.Outcome O, string Note)> Fly)>();
                 foreach (double v in speeds)
                     foreach (double r in rates)
+                        foreach (double turn in r == 0 ? new double[] { 0 } : new double[] { 90, 180 })
                     {
-                        double vv = v, rr = r;
-                        cells.Add(($"{vv * 3.6:0} km/h, {(rr == 0 ? "cruise" : $"turn {rr:0} °/s")}", s =>
+                        double vv = v, rr = r, deg = turn;
+                        cells.Add(($"{vv * 3.6:0} km/h, {(rr == 0 ? "cruise" : $"turn {deg:0}° at {rr:0} °/s")}", s =>
                         {
-                            FiberCutScenarios.Turned t = FiberCutScenarios.Turn(Spec, wind, s, vv, rr);
-                            return (t.O, $"v {t.Speed:0.0} m/s, pitch {t.Pitch * 180 / Math.PI:0.0}°, nose {t.NoseRate * 180 / Math.PI:0} °/s, path {t.PathRate * 180 / Math.PI:0} °/s, {t.Lateral / 9.80665:0.0} g");
+                            FiberCutScenarios.Turned t = FiberCutScenarios.Turn(Spec, wind, s, vv, rr, deg == 0 ? 90 : deg);
+                            return (t.O, $"v {t.Speed:0.0} m/s, pitch {t.Pitch * 180 / Math.PI:0.0}°, nose {t.NoseRate * 180 / Math.PI:0} °/s, path {t.PathRate * 180 / Math.PI:0} °/s, {t.Lateral / 9.80665:0.0} g; in the turn lip {t.LipTurn * 180 / Math.PI:0}°, exit {t.ExitTurn:0.000} N; the edge's wear {t.LipWear:0.0000} of the coating; {t.Sections} sections, {t.Bugs} bugs");
                         }));
                     }
                 foreach (double v in speeds)
@@ -357,6 +366,38 @@ namespace Fpv450.Sim.Tests
                     Print($"== {wn} {cells[c].Name}: " + string.Join(", ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Key} {kv.Value}")) + $" of {seeds}");
                 }
             }
+        }
+
+        [Test, Explicit("a probe: the line at the exit through a turn, printed step by step from FIBER_FROM s")]
+        public void ProbeTheTurnsExit()
+        {
+            ulong seed = ulong.TryParse(Environment.GetEnvironmentVariable("FIBER_SEED"), out ulong v) ? v : 1;
+            double speed = double.TryParse(Environment.GetEnvironmentVariable("FIBER_SPEED"), out double sp) ? sp : 5;
+            double rate = double.TryParse(Environment.GetEnvironmentVariable("FIBER_RATE"), out double r) ? r : 90;
+            double from = double.TryParse(Environment.GetEnvironmentVariable("FIBER_FROM"), out double f) ? f : 11;
+            FiberCutScenarios.StopAtBreak = true;
+            FiberCutScenarios.Each = core =>
+            {
+                if (core.State.Step * FlightCore.Dt < from) return;
+                FiberLine l = core.Tether;
+                CableChain c = l.Chain;
+                int n = c.Count;
+                if (!l.Attached || n < 3) return;
+                string nodes = "";
+                int most = 0;
+                for (int j = 1; j < n - 1; j++) if (c.Tension(j) > c.Tension(most)) most = j;
+                int lo = Environment.GetEnvironmentVariable("FIBER_AT") == "most" ? Math.Max(0, most - 2) : Math.Max(0, n - 4);
+                for (int i = lo; i < Math.Min(n, lo + 5); i++)
+                {
+                    Double3 b = core.State.Attitude.InverseRotate(c[i].Position - core.State.Position);
+                    nodes += $" [{i} s={c[i].Material:0.000} b=({b.X:0.000},{b.Y:0.000},{b.Z:0.000}) v={c[i].Velocity.Length():0.00} T={(i < n - 1 ? c.Tension(i) : 0):0.000} c0={(c[i].Contact0.Active ? ((FiberMember)c[i].Contact0.MemberKind).ToString() + c[i].Contact0.Member + ":" + c[i].Contact0.NormalForce.ToString("0.000") : "-")} c1={(c[i].Contact1.Active ? ((FiberMember)c[i].Contact1.MemberKind).ToString() + c[i].Contact1.Member + ":" + c[i].Contact1.NormalForce.ToString("0.000") : "-")}]";
+                }
+                Print($"k {core.State.Step} n {n} sdot {c.SpoolSpeed:0.000} paying {c.SpoolPaying} pack {c.SpoolPackTension:0.000} exitT {c.SpoolExitTension:0.000} lip {l.Cuts.Bend(l.Cuts.BendCount - 1).Turn * 180 / Math.PI:0.0} broken {l.Broken}{nodes}");
+            };
+            FiberCutScenarios.Turned t = FiberCutScenarios.Turn(Spec, WindLevel.Calm, seed, speed, rate);
+            FiberCutScenarios.Each = null;
+            FiberCutScenarios.StopAtBreak = false;
+            Print(t.O.ToString());
         }
 
         [Test, Explicit("a probe: the sharp liftoff's tension, printed")]
