@@ -294,6 +294,9 @@ namespace Fpv450.Sim.Tests
         public struct RackSweep
         {
             public int N, Rests, Strikes, Chips, Notches, Moves, Over, OnTheRail, WrongBearsNothing, Crashes, Tunnels;
+            /// <summary>Of the seeds whose blade bears (over 1 N, Rests): those it strikes armed, chips, moves (over 1 mm) and rests over
+            /// the known-wrong (over 3 mm) on: the pilot's case is a blade resting on the rail.</summary>
+            public int BearingStrikes, BearingChips, BearingMoves, BearingOver;
         }
 
         public static RackSweep Racks(DroneSpec spec, Action<FlightSetup> edit = null, Action<ulong, Result, Result> each = null)
@@ -304,7 +307,14 @@ namespace Fpv450.Sim.Tests
                 Result r = Rack(spec, seed: seed, edit: edit), wrong = Rack(spec, rest: false, arm: false, seed: seed, edit: edit);
                 each?.Invoke(seed, r, wrong);
                 w.N++;
-                if (r.Load > 1) w.Rests++;
+                if (r.Load > 1)
+                {
+                    w.Rests++;
+                    if (r.Strikes > 0) w.BearingStrikes++;
+                    if (r.Damaged > 0 && r.Lost > 0) w.BearingChips++;
+                    if (r.Travel > 0.001) w.BearingMoves++;
+                    if (r.HubAtArming - wrong.HubHeight > 0.003) w.BearingOver++;
+                }
                 if (r.Strikes > 0) w.Strikes++;
                 if (r.Damaged > 0 && r.Lost > 0) w.Chips++;
                 if (r.Notches > 0) w.Notches++;
