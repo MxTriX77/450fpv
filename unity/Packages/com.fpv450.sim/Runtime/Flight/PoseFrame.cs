@@ -63,6 +63,10 @@ namespace Fpv450.Sim.Flight
         public uint LegState, CornerState;
         public Corners3 LegSet, SkidFold;
 
+        /// <summary>Each leg's frame sway in its set (LegDamage.Sway, rad; p7g-legs, model 54): the part of the set's z its skid
+        /// half does not turn by (LegDamage.HalfRotation). 0 for a cantilever's set. Render-side only.</summary>
+        public Corners LegSway;
+
         /// <summary>The pieces the legs dropped, where each one is now.</summary>
         public LoosePoses Loose;
 
@@ -102,6 +106,7 @@ namespace Fpv450.Sim.Flight
                 CornerState = b.CornerState,
                 LegSet = b.LegSet,
                 SkidFold = b.SkidFold,
+                LegSway = b.LegSway,
                 Loose = b.Loose,
             };
             for (int i = 0; i < LoosePoses.Slots; i++)
