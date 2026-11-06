@@ -341,7 +341,7 @@ namespace Fpv450.Sim.Tests
         // Model 73: 0x12B0325673F1A5AC. Model 72: 0x9F6716D436D70F1C.
         // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
         // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73PoweredHash), every record and
-        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72PoweredHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 the arms carry the factory 1/rev from step 2 and the path keeps within 1.8 mm and 0.03° (135.4967 m up at 10 s against 135.4976); against 72 it is 73's move against 70 (the chop, 92.6° by 6 s, 45.47 m apart at 10 s); armed, no contact, no crash.
         // Model 75: 0x84E4FA38BA6C213B.
@@ -453,7 +453,7 @@ namespace Fpv450.Sim.Tests
         // Model 73: 0x2A128CBB8495E059. Model 72: 0x58C73FF5572B0E66.
         // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
         // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73RainPoweredHash), every record and
-        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72RainPoweredHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 from step 2, within 2.7 mm and 0.03° (136.8783 m up against 136.8794); against 72 the chop's 88.2° by 6 s, 43.47 m apart at 10 s.
         // Model 75: 0x5CA781F2ADAF639B.
@@ -568,12 +568,6 @@ namespace Fpv450.Sim.Tests
         public const ulong Model69PoweredHash = 0x93D4D1BDB2401A3AUL, Model69RainPoweredHash = 0xF1CE7685204053A8UL,
             Model69ContactHash = 0xF6D691B7F343B9B3UL, Model69RangeHash = 0xF596683309EC0C82UL, Model69TetherHash = 0x0173580B6CA55F76UL;
 
-        /// <summary>The goldens at model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68), which every golden keeps over the whole
-        /// record with Betaflight's airmode on, every record and event: GoldenFlightTests.WithAirmodeEachGoldenIsModel70s. The tumble
-        /// has no controller and keeps its pin (TumbleHash).</summary>
-        public const ulong Model70PoweredHash = 0xFCE8C669C79CF83BUL, Model70RainPoweredHash = 0x1B6B2E3BCB21166AUL,
-            Model70ContactHash = 0x156940B66C279FBBUL, Model70RangeHash = 0x19A3439000A1E46CUL, Model70TetherHash = 0x7A350488F265056CUL;
-
         /// <summary>The goldens at model 66 (p7f-damage 1.6, the shafts and the bearings, on 63), over the whole 3168-byte record, which
         /// every golden keeps bit for bit, every record and event, on model 63's drone.json (the old coil, Model63Drone, its line out of
         /// the old rear cap: Model63Tether), the fountain through the body (FlightSetup.TetherFountainThroughBody), the known-wrong
@@ -606,7 +600,7 @@ namespace Fpv450.Sim.Tests
         /// <summary>The physics integration 2 with the losses (model 75), its audit against model 73: model 73's record, its first 3360
         /// bytes (the record less the arms' block at its end), over which every golden flies the clean sensors (CleanSensors: a layout
         /// short of LogFormat.StepSize) with the heat on and airmode off, and keeps model 73's pins bit for bit, every record and event:
-        /// GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s.</summary>
+        /// GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s.</summary>
         public const int Model73Layout = LogFormat.Model73StepSize;
         public const ulong Model73PoweredHash = 0x12B0325673F1A5ACUL, Model73RainPoweredHash = 0x2A128CBB8495E059UL,
             Model73ContactHash = 0x04F84E056E6150DBUL, Model73RangeHash = 0x89C0E49CE8BBAA43UL, Model73TetherHash = 0x7A7BF412F172A41BUL,
@@ -620,6 +614,41 @@ namespace Fpv450.Sim.Tests
         public const ulong Model72PoweredHash = 0x9F6716D436D70F1CUL, Model72RainPoweredHash = 0x58C73FF5572B0E66UL,
             Model72ContactHash = 0x63DB5A624E7CD561UL, Model72RangeHash = 0xC6B3FFB9461F5871UL, Model72TetherHash = 0xC2BD29DB9E191B37UL,
             Model72TumbleHash = 0xB4B9AFE7B9B45D17UL;
+
+        /// <summary>The goldens at model 70 (the physics integration 2 with the motors' heat), which model 70's drone.json (Model70Drone)
+        /// with model 70's exit, lip and peel (Model70Tether) keeps bit for bit, every record and event:
+        /// GoldenFlightTests.WithTheOldExitAndPeelEachGoldenIsModel70s; with Betaflight's airmode on since model 77 (73's controller).
+        /// Every kept audit of models 64–70 flies that drone since model 74. Model 74 kept every one of them but the tether's
+        /// (Model74TetherHash), which every golden keeps on the repository's drone.json with airmode on (GoldenFlightTests.
+        /// WithAirmodeEachGoldenIsModel74s).</summary>
+        public const ulong Model70PoweredHash = 0xFCE8C669C79CF83BUL, Model70RainPoweredHash = 0x1B6B2E3BCB21166AUL,
+            Model70ContactHash = 0x156940B66C279FBBUL, Model70RangeHash = 0x19A3439000A1E46CUL, Model70TetherHash = 0x7A350488F265056CUL,
+            Model70TumbleHash = 0x5431D1EB9A8701D7UL;
+
+        /// <summary>The tether golden at model 74 (p7d-tether 1.8, the bent nozzle, on 70); model 74's other goldens are model 70's.</summary>
+        public const ulong Model74TetherHash = 0x3911B157986C67C6UL;
+
+        /// <summary>The tether golden of model 77's merge (74 onto 73, before 77's chain), which the flight with the known-wrong linear
+        /// step keeps (FlightSetup.TetherLinearStep: GoldenFlightTests.WithTheLinearStepTheTetherGoldenIsTheMerges).</summary>
+        public const ulong Model77MergeTetherHash = 0x54648DC48823F74EUL;
+
+        /// <summary>The physics integration 2 with the fiber's Newton step and its cut criteria (model 78, 77 merged onto 75), its audits.
+        /// Model 75's tether golden, which the flight with the known-wrong linear step on model 70's drone.json (Model70Drone) with
+        /// model 70's exit, lip and peel (Model70Tether) keeps over the whole record, every record and event: GoldenFlightTests.
+        /// WithTheLinearStepAndTheOldExitTheTetherGoldenIsModel75s (75's other goldens are this model's own pins). Model 77's tether
+        /// golden, which the flight with the clean sensors over model 73's 3360 bytes (77's record) and the Newton step keeps, every
+        /// record and event (77's other goldens are model 73's pins): GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s.
+        /// Model 75's tether pin is declared with its other pins (above, the climb's audit).</summary>
+        public const ulong Model77TetherHash = 0xE8890ECCC20EAB59UL;
+
+        /// <summary>The physics integration 2 with the climb's edgewise thrust and the fiber's Newton step (model 79, 76 merged onto
+        /// 78), its audits. Model 78's tether golden, which the flight without the edgewise flow's thrust and torque
+        /// (RotorFlappingSpec.EdgewiseThrust off) keeps over the whole record, every record and event (78's other goldens are model
+        /// 75's pins): GoldenFlightTests.WithoutTheEdgewiseThrustEachGoldenIsModel78s. Model 76's tether golden, which the flight with
+        /// the known-wrong linear step on model 70's drone.json (Model70Drone) with model 70's exit, lip and peel (Model70Tether)
+        /// keeps, every record and event (76's other goldens are this model's own pins):
+        /// GoldenFlightTests.WithTheLinearStepAndTheOldExitEachGoldenIsModel76s.</summary>
+        public const ulong Model76TetherHash = 0x7122003D41C5E7BCUL, Model78TetherHash = 0x986F2B87C9E6E17DUL;
 
         /// <summary>A flight's contacts without the motors' heat and dirt (p7f-damage 1.6b's audit and known-wrong): motors that never heat
         /// nor foul, as at model 68.</summary>
@@ -1010,7 +1039,7 @@ namespace Fpv450.Sim.Tests
         // Model 73: 0x04F84E056E6150DB. Model 72: 0x63DB5A624E7CD561.
         // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
         // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73ContactHash), every record and
-        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72ContactHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 from step 3, within 0.05 mm and 0.01°, the same 3 impacts and rest (0.2496 m up on 4 pairs); against 72 at most 11.7 mm and 0.94°, at rest 3.4 mm apart.
         // Model 75: 0x7F03EE80D3FB7004.
@@ -1264,15 +1293,54 @@ namespace Fpv450.Sim.Tests
         /// Model 73: 0x7A7BF412F172A41B. Model 72: 0xC2BD29DB9E191B37.
         /// Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
         /// case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73TetherHash), every record and
-        /// event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        /// event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         /// over model 68's 3168 bytes and the arms' block, model 72's pin (Model72TetherHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         /// Against 73 from step 3, within 0.6 mm and 0.04°, 3 impacts, the line whole (0.231 m paid out), at rest 0.5 mm from 73's; against 72 at most 12.1 mm and 0.94°, at rest 3.6 mm apart.
-        /// Model 75: 0xF792F9225BCA52E9.
+        /// Model 74 (p7d-tether 1.8, the fiber cuts where the pilot says, on 70): re-recorded. Audited case by case: on model 70's
+        /// drone.json (Model70Drone, its nozzle straight on the canister's 15°) with model 70's exit, lip and peel (Model70Tether) model
+        /// 70's pin (Model70TetherHash), every record and event (GoldenFlightTests.WithTheOldExitAndPeelEachGoldenIsModel70s); on the
+        /// nozzle bent to 27.5° with model 70's lip, peel and no edge wear these bits, so the hole's edge, its wear and the peel's
+        /// reference leave this golden, whose line never pays out over a wrap that bends it near its strength, and the exit is its
+        /// whole move: the launch lays the line from the lower tip along the steeper lead. The line stays whole: 0.2189 m paid out,
+        /// 15 nodes, trail 7, 17 sections read, 0 wedges, 6 clips, 83 safe steps (70: 3 and 3), at rest 0.2494 m up. Every golden
+        /// without the line keeps its pin (the bent nozzle meets nothing in them).
+        /// Model 77's merge (74 onto 73, unity/physics/physics-integration-2--chain-spikes; the merge alone, before 77's chain): re-recorded,
+        /// 0x54648DC48823F74E. Audited case by case: with airmode on it is model 74's pin (Model74TetherHash), every record and event
+        /// (flightbench --golden), so the controller is the whole move against 74; on model 70's drone.json (Model70Drone) without
+        /// airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69TetherHash), so the bent nozzle is the whole move
+        /// against 73. The line stays whole: 0.220 m paid out, 15 nodes, trail 7, 5 clips, 82 safe steps, 0 wedges, at rest 0.2495 m up.
+        /// Model 77 (1.8's finding 2, on the merge: the chain's step solved to backward Euler's own by the segments' Newton solves):
+        /// re-recorded. Audited case by case: with the known-wrong linear step (FlightSetup.TetherLinearStep)
+        /// it is the merge's pin (Model77MergeTetherHash), every record and event, and with airmode on too model 74's (Model74TetherHash;
+        /// GoldenFlightTests.WithTheLinearStepTheTetherGoldenIsTheMerges, WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the
+        /// chain is the whole move against the merge. It leaves the merge's records at step 27 (the spool-up) and keeps its course: at
+        /// most 0.6 mm and 0.05° apart, 3 impacts, the line whole (0.220 m paid out, as the merge's), at rest 0.1 mm from the merge's,
+        /// 0.2496 m up; 3733 Newton solves, 3 steps past their budget; 6837 corrections (the merge 6677), 0 safe steps (82), 2 clips (5).
+        /// Every golden without the line keeps its pin.
+        /// Model 78 (the physics integration 2 with the fiber's Newton step and its cut criteria, 77 merged onto 75): re-recorded on the
+        /// 3536-byte record. Audited case by case: with the clean sensors over its first 3360 bytes model 77's pin (Model77TetherHash),
+        /// every record and event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with the linear
+        /// step on model 70's drone.json with model 70's exit, lip and peel model 75's (Model75TetherHash; WithTheLinearStepAndThe
+        /// OldExitTheTetherGoldenIsModel75s). Against 77 from step 2 (the arms carrying the factory 1/rev), within 0.5 mm and 0.05°,
+        /// 3 impacts, the line whole (0.220 m paid out, as 77's), at rest 0.3 mm from 77's; against 75 at most 0.6 mm and 0.06°, at
+        /// rest 0.4 mm apart (75 paid out 0.231 m from the straight nozzle). 3494 Newton solves (77: 3733), 4 steps past their
+        /// budget (77: 3), 2 clips, 0 safe steps, 0 wedges, 0.2496 m up. Every golden without the line keeps its pin.
+        /// Model 75: 0xF792F9225BCA52E9. Model 77: 0xE8890ECCC20EAB59.
         /// Model 76 (D-087, the edgewise flow's thrust and torque): re-recorded on 75's record. Audited case by case: without
         /// the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75TetherHash), every record and event
         /// (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 9; at most 11.9 mm and
         /// 0.61° apart, 3 impacts, the line whole (0.235 m paid out against 0.231), at rest 2.0 mm from 75's.
-        public const ulong TetherHash = 0x7122003D41C5E7BCUL;
+        /// Model 76: 0x7122003D41C5E7BC. Model 78: 0x986F2B87C9E6E17D.
+        /// Model 79 (the physics integration 2 with the climb's edgewise thrust and the fiber's Newton step, 76 merged onto 78):
+        /// re-recorded on the 3536-byte record. Audited case by case: without the edgewise flow's thrust and torque model 78's pin
+        /// (Model78TetherHash), every record and event (GoldenFlightTests.WithoutTheEdgewiseThrustEachGoldenIsModel78s); with the
+        /// known-wrong linear step on model 70's drone.json with model 70's exit, lip and peel model 76's (Model76TetherHash;
+        /// WithTheLinearStepAndTheOldExitEachGoldenIsModel76s). Against 78 from step 9 (the spool-up, the rotors' first edgewise
+        /// flow), within 11.9 mm and 0.59°, 3 impacts, the line whole (0.224 m paid out against 0.220), at rest 0.2497 m up, 2.2 mm
+        /// from 78's: 76's move against 75 (11.9 mm, 0.61°, at rest 2.0 mm apart). Against 76 from step 1 (the line laid from the
+        /// bent nozzle), within 0.6 mm and 0.04°, at rest 0.6 mm apart (76 paid out 0.235 m from the straight nozzle). Every golden
+        /// without the line keeps its pin (76's).
+        public const ulong TetherHash = 0x0CF4962A5D6DB24AUL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1414,7 +1482,7 @@ namespace Fpv450.Sim.Tests
         // Model 73: 0x5431D1EB9A8701D7. Model 72: 0xB4B9AFE7B9B45D17.
         // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
         // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73TumbleHash), every record and
-        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72TumbleHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // It flies no rotor and no controller: model 73's records with the arms' 176 zero bytes appended, and over 72's bytes 72's pin.
         public const ulong TumbleHash = 0x2BDEED11E769F217UL;
@@ -1629,7 +1697,7 @@ namespace Fpv450.Sim.Tests
         // Model 73: 0x89C0E49CE8BBAA43. Model 72: 0xC6B3FFB9461F5871.
         // Model 75 (the physics integration 2 with the losses, 72 merged onto 73): re-recorded on the 3536-byte record. Audited
         // case by case: with the clean sensors over its first 3360 bytes model 73's pin (Model73RangeHash), every record and
-        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel73s); with airmode on and the heat off,
+        // event, the arms' block zero (GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel77s); with airmode on and the heat off,
         // over model 68's 3168 bytes and the arms' block, model 72's pin (Model72RangeHash; WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s).
         // Against 73 from step 3, within 0.05 mm and 0.004°, 4 impacts as 73's, at rest 0.2452 m up on 8 pairs; against 72 at most 16.6 mm and 0.61°, at rest 2.1 mm apart.
         // Model 75: 0x83DA30D19B802F9F.
@@ -1672,6 +1740,9 @@ namespace Fpv450.Sim.Tests
         /// model 68 with model 66's three internals per motor (shaft_modulus_pa, bell_mass_kg, bell_centre_height_m, which the loader
         /// requires): model 66's drone.json, the layout 63's.</summary>
         public const string Model63DronePath = "unity/Packages/com.fpv450.sim/Tests/Fixtures/drone-model63.json";
+
+        /// <summary>Model 70's drone.json (D01's nozzle straight on its 15° canister), a fixture since model 74's bent nozzle (Model70Drone).</summary>
+        public const string Model70DronePath = "unity/Packages/com.fpv450.sim/Tests/Fixtures/drone-model70.json";
 
         /// <summary>Model 11's pack table (drone.json's before p7b-airframe 1.5: one cell at charge 0, 0.1, …, 1, from 3.0 V),
         /// which the kept audits of models 7–11 fly on.</summary>
@@ -1935,7 +2006,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static Tether.TetherTable Model63Tether(Tether.TetherTable table)
         {
-            var rows = (Tether.TetherRow[])table.Rows.Clone();
+            var rows = (Tether.TetherRow[])Model70Tether(table).Rows.Clone();
             for (int i = 0; i < rows.Length; i++)
             {
                 if (rows[i].Name == "spool.exit_position_m") rows[i].Values = new[] { 0, -0.053, -0.1 };
@@ -1943,6 +2014,42 @@ namespace Fpv450.Sim.Tests
                 else if (rows[i].Name == "spool.lip_radius_m") rows[i].Values = new[] { 0.002 };
             }
             return new Tether.TetherTable(rows, table.ContentHash);
+        }
+
+        /// <summary>
+        /// tether.json as models 64–70 flew it, for model 70's drone (Model70Drone, its nozzle straight on the canister's 15°): the
+        /// line leaving its nozzle's tip, (0, −0.170081, −0.204958), aft and 15° down, over the 4 mm flared lip, the peel's rate law referred to
+        /// 1 m/s; the hole's edge wears nothing (its radius 0, so no lead turns round it and the bore passes no angle free, and its
+        /// k 0); every other row the file's (model 74 changed only these: GoldenFlightTests.WithTheOldExitAndPeelEachGoldenIsModel70s).
+        /// </summary>
+        public static Tether.TetherTable Model70Tether(Tether.TetherTable table)
+        {
+            var rows = (Tether.TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (rows[i].Name == "spool.exit_position_m") rows[i].Values = new[] { 0, -0.170081, -0.204958 };
+                else if (rows[i].Name == "spool.exit_direction") rows[i].Values = new[] { 0, -0.258819, -0.965926 };
+                else if (rows[i].Name == "spool.lip_radius_m") rows[i].Values = new[] { 0.004 };
+                else if (rows[i].Name == "spool.peel_reference_rate_m_s") rows[i].Values = new double[] { 1 };
+                else if (rows[i].Name == "spool.lip_archard_wear_coefficient") rows[i].Values = new double[] { 0 };
+                else if (rows[i].Name == "spool.mouth_radius_m") rows[i].Values = new double[] { 0 };
+            }
+            return new Tether.TetherTable(rows, table.ContentHash);
+        }
+
+        /// <summary>The tether table a drone flies: model 63's for model 63's drone (no housing), model 70's for model 70's (its
+        /// nozzle straight on the canister's 15°: Model70Drone), else the file's.</summary>
+        public static Tether.TetherTable TetherFor(DroneSpec spec, Tether.TetherTable table) =>
+            spec.Coil.Housing < 0 ? Model63Tether(table) : OnModel70sNozzle(spec) ? Model70Tether(table) : table;
+
+        /// <summary>Whether a drone's nozzle runs straight on its canister's 15° as at models 64–70 (its coil_nozzle capsule's aft core
+        /// end at y −0.166717; model 74's, bent to 27.5°, at −0.178284).</summary>
+        public static bool OnModel70sNozzle(DroneSpec spec)
+        {
+            if (spec.Coil.Housing < 0 || spec.Contacts == null) return false;
+            foreach (Contact.ContactShape s in spec.Contacts.Shapes)
+                if (s.Name == "coil_nozzle") return DetMath.Abs(s.A.Y - -0.166717) < 1e-9;
+            return false;
         }
 
         /// <summary>
@@ -1956,7 +2063,8 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false, bool? edgewise = null)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
+            bool? linearStep = null, bool? edgewise = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1977,7 +2085,7 @@ namespace Fpv450.Sim.Tests
             if (tether)
             {
                 setup.Tether = Tether.TetherTable.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
-                if (spec.Coil.Housing < 0) setup.Tether = Model63Tether(setup.Tether); // model 63's drone (Model63Drone): its rear cap's exit
+                setup.Tether = TetherFor(spec, setup.Tether); // model 63's drone (Model63Drone): its rear cap's exit; model 70's (Model70Drone): its straight 15° nozzle
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
                 setup.TetherDesign4Air = !recirculation; // p7d-tether 1.6b: false flies design 4's field, models 31–44's line
@@ -1985,6 +2093,10 @@ namespace Fpv450.Sim.Tests
                 setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
                 setup.TetherFountainThroughBody = !body || !cuts || !fiberContacts; // model 61: false flies model 59's fountain; an older line is older still
                 setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
+                // Model 77: every model before it solved the line's step on its start's linearisation (FlightSetup.TetherLinearStep),
+                // so every kept audit of one flies it: each flies Betaflight's airmode on (models before 69) or over an older record's
+                // layout (69's own audit and older); linearStep says so outright.
+                setup.TetherLinearStep = linearStep ?? (airmode || layout != LogFormat.StepSize);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);
@@ -2196,7 +2308,7 @@ namespace Fpv450.Sim.Tests
         /// <summary>The clean sensors (model 68's airframe and gyro, p7f-damage 1.6, the losses): the arms stiff in their plane and no gyro range.
         /// Every golden flown over an older model's record (a layout short of LogFormat.StepSize) flies them, so each kept audit of
         /// models up to 68 and of 70–73 stays bit for bit; the audit of model 72 against 68 is GoldenFlightTests.WithTheCleanSensorsEachGoldenIsModel68s,
-        /// of model 75 against 73 WithTheCleanSensorsEachGoldenIsModel73s.</summary>
+        /// of model 75 against 73 WithTheCleanSensorsEachGoldenIsModel77s.</summary>
         public static void CleanSensors(FlightSetup setup)
         {
             if (setup.Modes != null) setup.Modes.ArmInPlane = false;

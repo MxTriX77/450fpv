@@ -88,6 +88,9 @@ namespace Fpv450.FlightBench
             for (int p = 0; p < 5; p++) phase[p] = new long[steps];
             var all = new long[steps];
             int over300 = 0, over1000 = 0;
+            var newton = new long[5];
+            var newtonSteps = new long[5];
+            long newtonMax = 0;
             long crashed = -1, allocated = 0, wall = Stopwatch.GetTimestamp(), late = 0;
             double tick = Stopwatch.Frequency / 1000.0, us = 1e6 / Stopwatch.Frequency;
             for (int k = 0; k < steps; k++)
@@ -98,15 +101,20 @@ namespace Fpv450.FlightBench
                 double t = k * 0.001;
                 bool whole = !core.Tether.Broken && crashed < 0;
                 StickSample stick = Sticks(pilot, core, foot, stand, t, core.State.Step * FlightCore.StepUs);
+                long solves = core.Tether.Chain.NewtonSolves;
                 long a = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
                 long dt = Stopwatch.GetTimestamp() - t0;
                 if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                solves = core.Tether.Chain.NewtonSolves - solves; // model 77's segments' Newton solves this step
+                if (solves > newtonMax) newtonMax = solves;
                 if (crashed < 0 && core.State.Crashed) crashed = core.State.Step;
                 if (dt * us > 300) over300++;
                 if (dt * us > 1000) over1000++;
                 int p = !whole ? 4 : t < 1.5 ? 0 : t < TThrough ? 1 : t < TInside ? 2 : 3;
                 phase[p][count[p]++] = dt;
+                newton[p] += solves;
+                if (solves > 0) newtonSteps[p]++;
                 all[k] = dt;
             }
             string P(long[] x, int n)
@@ -129,7 +137,9 @@ namespace Fpv450.FlightBench
                 + (crashed >= 0 ? $"the drone crashed at step {crashed}, " : "")
                 + $"the drone {(inside ? "inside the room" : "not in the room")} at the end, {steps} steps at 1 kHz: all {P(all, steps)}; "
                 + $"on the ground (0–1.5 s) {P(phase[0], count[0])}; the approach {P(phase[1], count[1])}; the window ({TThrough}–{TInside} s) "
-                + $"{P(phase[2], count[2])}; inside the house ({count[3]} steps) {P(phase[3], count[3])}; after the break or the crash "
+                + $"{P(phase[2], count[2])}; inside the house ({count[3]} steps) {P(phase[3], count[3])}; Newton solves (model 77's) on the ground, the approach, "
+                + $"the window, inside and after: {newton[0]}, {newton[1]}, {newton[2]}, {newton[3]}, {newton[4]} (inside {(count[3] > 0 ? (double)newton[3] / count[3] : 0):F3} a step, "
+                + $"{newtonSteps[3]} steps with one or more), at most {newtonMax} a step, {line.Chain.NewtonUnconverged} steps past the budget; after the break or the crash "
                 + $"({count[4]} steps) {P(phase[4], count[4])}; {over300} steps over 300 µs, {over1000} over 1 ms, {late} begun a period late; "
                 + (core.WindBatch == null ? "the step's wind on the flight thread; "
                     : $"the step's wind {core.WindBatch.ByWorker} points on the worker, {core.WindBatch.ByCaller} on the flight thread; ")

@@ -117,7 +117,7 @@ namespace Fpv450.FlightBench
             var cruise = new long[steps];
             var after = new long[steps];
             int ng = 0, nc = 0, nr = 0, na = 0, over300 = 0, over1000 = 0;
-            long crashed = -1;
+            long crashed = -1, newtonCruise = 0, newtonStepsCruise = 0, newtonMax = 0;
             long allocated = 0, wall = Stopwatch.GetTimestamp(), late = 0;
             double tick = Stopwatch.Frequency / 1000.0, us = 1e6 / Stopwatch.Frequency;
             for (int k = 0; k < steps; k++)
@@ -129,10 +129,18 @@ namespace Fpv450.FlightBench
                 double t = k * 0.001;
                 bool whole = !core.Tether.Broken && crashed < 0; // the flight as the step begins
                 StickSample stick = Sticks(pilot, core, foot, stand, t, core.State.Step * FlightCore.StepUs);
+                long solves = core.Tether.Chain.NewtonSolves;
                 long a = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
                 long dt = Stopwatch.GetTimestamp() - t0;
                 if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                solves = core.Tether.Chain.NewtonSolves - solves; // model 77's segments' Newton solves this step
+                if (solves > newtonMax) newtonMax = solves;
+                if (t >= 12 && whole)
+                {
+                    newtonCruise += solves;
+                    if (solves > 0) newtonStepsCruise++;
+                }
                 if (crashed < 0 && core.State.Crashed) crashed = core.State.Step;
                 if (dt * us > 300) over300++;
                 if (dt * us > 1000) over1000++;
@@ -163,7 +171,8 @@ namespace Fpv450.FlightBench
                 + (line.Broken ? $"the line broke at step {line.BrokenAt} ({line.LastBreak.Mechanism}), " : "")
                 + (crashed >= 0 ? $"the drone crashed at step {crashed}, " : "")
                 + $"{steps} steps at 1 kHz: all {P(all, steps)}; on the ground (0–1.5 s) {P(ground, ng)}; the climb {P(climb, nc)}; "
-                + $"the cruise with the line whole ({nr} steps) {P(cruise, nr)}; after the break or the crash ({na} steps) {P(after, na)}; {over300} steps over 300 µs, {over1000} over 1 ms, {late} begun a period late; "
+                + $"the cruise with the line whole ({nr} steps) {P(cruise, nr)}, {newtonCruise} Newton solves in it ({(nr > 0 ? (double)newtonCruise / nr : 0):F3} a step, "
+                + $"{newtonStepsCruise} steps with one or more; {line.Chain.NewtonSolves} in the flight, at most {newtonMax} a step, {line.Chain.NewtonUnconverged} steps past the budget); after the break or the crash ({na} steps) {P(after, na)}; {over300} steps over 300 µs, {over1000} over 1 ms, {late} begun a period late; "
                 + (core.WindBatch == null ? "the step's wind on the flight thread; "
                     : $"the step's wind {core.WindBatch.ByWorker} points on the worker, {core.WindBatch.ByCaller} on the flight thread; ")
                 + $"allocation {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B)");

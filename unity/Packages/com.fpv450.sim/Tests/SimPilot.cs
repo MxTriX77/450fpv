@@ -30,6 +30,9 @@ namespace Fpv450.Sim.Tests
         /// <summary>The nose's bearing to hold, as a horizontal unit vector in the world (+Z north by default).</summary>
         public Double3 Heading = new Double3(0, 0, 1);
 
+        /// <summary>A yaw rate fed forward about the world's up, rad/s (a turn whose heading moves at this rate); 0 none.</summary>
+        public double YawRate;
+
         public double AttitudeGain = 5, PositionGain = 0.6, VelocityGain = 1.2, PositionIntegral = 0.05, VelocityIntegral = 0.3;
         public double YawGain = 2, ThrottleBase = 0.5, ThrottleGain = 0.1, ThrottleDamping = 0.1;
         public double MaxTiltSin = 0.5736; // sin 35°
@@ -102,6 +105,7 @@ namespace Fpv450.Sim.Tests
             double n = DetMath.Sqrt(nose.X * nose.X + nose.Z * nose.Z);
             double headingError = n > 1e-6 ? (nose.Z * Heading.X - nose.X * Heading.Z) / n : 0;
             Double3 rate = turn + s.Attitude.InverseRotate(new Double3(0, YawGain * headingError, 0));
+            if (YawRate != 0) rate = rate + s.Attitude.InverseRotate(new Double3(0, YawRate, 0));
 
             // Height on the throttle.
             double throttle = ThrottleBase + ThrottleGain * (Target.Y - s.Position.Y) - ThrottleDamping * s.Velocity.Y;

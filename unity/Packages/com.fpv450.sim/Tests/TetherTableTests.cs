@@ -84,7 +84,8 @@ namespace Fpv450.Sim.Tests
 
         // The values the table derives from drone.json (design 1): the line's mass per metre from the coil's fiber, and (model
         // 64) the exit at the canister's nozzle tip, leaving along the nozzle's axis: the coil_nozzle contact's aft core end plus
-        // its radius down the canister's axis (D01's canister, coil.housing), to tether.json's 1e-6 m.
+        // its radius down the nozzle's own axis (D01's canister, coil.housing; since model 74 the nozzle is bent 12.5° below the
+        // canister's 15°, so the line leaves at the pilot's 27.5°, D-086), to tether.json's 1e-6 m.
         [Test]
         public void TheValuesDerivedFromDroneJsonAgreeWithIt()
         {
@@ -95,7 +96,8 @@ namespace Fpv450.Sim.Tests
             DronePart canister = drone.Parts[drone.Coil.Housing];
             Contact.ContactShape nozzle = Array.Find(drone.Contacts.Shapes, x => x.Name == "coil_nozzle");
             Assert.That(nozzle.Part, Is.EqualTo(drone.Coil.Housing), "the nozzle is the canister's");
-            Double3 aft = canister.Axis * -1, tip = nozzle.A + aft * nozzle.Radius;
+            Double3 chord = nozzle.A - nozzle.B, aft = chord * (1 / chord.Length()), tip = nozzle.A + aft * nozzle.Radius;
+            Assert.That(Double3.Dot(aft, canister.Axis), Is.LessThan(0), "the nozzle points aft out of the canister");
             Assert.That(t.Row("spool.exit_position_m").Values, Is.EqualTo(new[] { tip.X, tip.Y, tip.Z }).Within(1e-6), "the line leaves at the nozzle's tip");
             Assert.That(t.Row("spool.exit_direction").Values, Is.EqualTo(new[] { aft.X, aft.Y, aft.Z }).Within(1e-6), "along the nozzle, aft and down");
         }

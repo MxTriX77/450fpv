@@ -550,6 +550,51 @@ namespace Fpv450.Sim.Tests
         // EA scaled 0.1–10×, segments stretched or slack, random velocities, fixed anchors, members on and off, two on one
         // node, capstan or not, insertion and merging on some), each stepped 40 times with nothing doing work on it: no
         // step's energy rises more than 1e-12 of its magnitude, no value is non-finite, no wedge.
+        // p7d-tether 1.8's finding 2 (model 77): a taut 10 mm fiber segment swung about its anchored end at 1 m/s, as a drone's
+        // part swings the line's last centimetres in a turn. Its true pull is the node's centripetal m·v²/ℓ (0.03 mN) and the
+        // swing keeps its speed but for backward Euler's labelled damping (ω·dt = 0.1 a step: 16 % over the quarter turn). A step
+        // that takes the segment's tangent at its start only (the known-wrong CableChain.LinearStep, model 74's) ends the
+        // segment stretched by the turn it never saw, δ²/(2ℓ) with δ = v·dt: EA·δ²/(2ℓ²), 4.5 N on the table's EA. Here that
+        // stretch is 650 times the swing's kinetic energy, so the check solves the step again on its majorizers, which stop the
+        // swing dead (in a flight the drone's work on the line pays for it, and the cuts read it as tension). With the
+        // segments' Newton solves each step's end tension is within NewtonTolerance of its model's: the swing reads its pull.
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ASwungSegmentReadsItsPullNotItsTurn(bool linearStep)
+        {
+            const double length = 0.01, speed = 1;
+            var chain = new CableChain(4, FiberMass, FiberStiffness) { Gravity = default, LinearStep = linearStep };
+            chain.Reset(new[] { new Double3(0, 0, 0), new Double3(length, 0, 0) }, new[] { 0.0, length }, 2);
+            Anchor(chain, 0, 1e6);
+            chain[1].Velocity = new Double3(0, 0, speed);
+            double most = 0;
+            int steps = (int)(0.5 * Math.PI * length / speed / Dt);
+            for (int k = 0; k < steps; k++)
+            {
+                chain.Step(Dt);
+                double t = chain.Tension(0);
+                if (t > most) most = t;
+            }
+            double turn = FiberStiffness * (speed * Dt) * (speed * Dt) / (2 * length * length);
+            double pull = chain[1].Mass * speed * speed / length, kept = chain[1].Velocity.Length();
+            TestContext.WriteLine($"{(linearStep ? "the linear step (model 74)" : "Newton on the segments")}: the most end tension over {steps} steps "
+                + $"{most:0.0000000} N against the centripetal pull {pull:0.0000000} N and the turn's stretch EA·δ²/(2ℓ²) {turn:0.000} N; the swing's speed "
+                + $"{kept:0.000} m/s of {speed}; {chain.SafeSteps} safe steps, {chain.NewtonSolves} Newton solves, {chain.NewtonUnconverged} unconverged");
+            if (linearStep)
+            {
+                Assert.That(chain.SafeSteps, Is.GreaterThan(0), "the turn's stretch is a breach the motion cannot pay");
+                Assert.That(kept, Is.LessThan(0.1 * speed), "the safe solve stops the swing");
+                Assert.That(chain.NewtonSolves, Is.Zero);
+            }
+            else
+            {
+                Assert.That(most, Is.LessThan(pull + CableChain.NewtonTolerance), "the swing reads its pull");
+                Assert.That(kept, Is.GreaterThan(0.8 * speed), "the swing keeps its speed but for backward Euler's damping");
+                Assert.That(chain.SafeSteps, Is.Zero);
+                Assert.That(chain.NewtonUnconverged, Is.Zero);
+            }
+        }
+
         [Test]
         public void EnergyIsNeverGained()
         {
@@ -848,7 +893,7 @@ namespace Fpv450.Sim.Tests
         // ---- 0 B, the bits, the cost ----
 
         // A busy line: anchored at one end, swung by the other, over a capstan rod and a floor, splitting and merging.
-        static CableChain Busy()
+        static CableChain Busy(bool linearStep = false)
         {
             const int n = 24;
             var x = new Double3[n];
@@ -858,7 +903,7 @@ namespace Fpv450.Sim.Tests
                 s[i] = 0.25 * i;
                 x[i] = new Double3(0.25 * i, 1 + 0.05 * Math.Sin(i), 0.01 * i);
             }
-            var chain = new CableChain(64, FiberMass, FiberStiffness) { Gravity = Down };
+            var chain = new CableChain(64, FiberMass, FiberStiffness) { Gravity = Down, LinearStep = linearStep };
             chain.Reset(x, s, n);
             Anchor(chain, 0, 1e4);
             chain[n - 1].AnchorStiffness = 1e3;
@@ -909,6 +954,7 @@ namespace Fpv450.Sim.Tests
             TestContext.WriteLine($"the busy line after 3000 steps: 0x{a:X16}");
             Assert.That(b, Is.EqualTo(a));
             Assert.That(a, Is.EqualTo(PinnedBusy), "recorded on .NET 10");
+            Assert.That(BusyHash(true), Is.EqualTo(Model74Busy), "the linear step: model 74's pin");
         }
 
         // 1.5's pin 0x5BCF01C10EFF9831; p7d-tether 1.7 re-recorded it: the busy line carries two capstan contacts, whose hold
@@ -916,11 +962,14 @@ namespace Fpv450.Sim.Tests
         // Audited: with that one rule reverted (a temporary edit: a capstan's hold never slips) the line is 1.5's pin bit for
         // bit and every chain test passes, so the members' new caller fields (Glide, Free, Kinematic off here), the split's
         // copied certificate and the line's tangent change no bit.
-        const ulong PinnedBusy = 0x112D5EE7424B4F52UL;
+        // Model 77 re-recorded it (1.8's finding 2, the segments' Newton solves): audited, with the known-wrong linear step
+        // (CableChain.LinearStep) the line is 1.7's pin bit for bit (Model74Busy, kept in the test), so the Newton solves are
+        // the whole move.
+        const ulong PinnedBusy = 0xBB18CFFF675734B9UL, Model74Busy = 0x112D5EE7424B4F52UL;
 
-        static ulong BusyHash()
+        static ulong BusyHash(bool linearStep = false)
         {
-            CableChain chain = Busy();
+            CableChain chain = Busy(linearStep);
             for (int step = 0; step < 3000; step++)
             {
                 Swing(chain, step);

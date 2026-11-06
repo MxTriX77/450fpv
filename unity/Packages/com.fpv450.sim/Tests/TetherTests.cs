@@ -179,20 +179,28 @@ namespace Fpv450.Sim.Tests
             // but no longer draws it nearer a rim than it lay (290.6 mm at full, 240.8 at hover; on the old coil 0.24–0.29 m nearer
             // than design 4's field). Design 4's field, the known-wrong, now draws it at full throttle too (the climbing exit pulls
             // the piece rising to it), but at hover it lifts nothing (−0.01 mm), where the fountain lifts it 167 mm.
-            Assert.That(wrongHover.Lift, Is.LessThan(hover.Lift - 0.05), "design 4's field does not lift the line at hover: the known-wrong fails");
+            // Since model 74 (the line leaving 27.5° down from a tip 14 mm lower, D-086) the line rises to the exit more steeply and
+            // the piece beside the skids lies in the canister's lee at hover: the fountain lifts it nothing there either (0.00 mm),
+            // and at full throttle 431 mm against design 4's 223 mm, drawing it to 196 mm of a rim at 2.26 m/s where design 4's
+            // field leaves it at 297 mm unmoved. So the known-wrong is judged at full throttle, the rims at 0.15 m, and the approach
+            // at full; and the fountain's law (ExpectedAir writes it without the body's blocking, model 61) is checked on the punch
+            // with the fountain through the body, where the blocked flight's nodes in the lee differ from it by design.
+            Assert.That(wrongFull.Lift, Is.LessThan(full.Lift - 0.05), "design 4's field lifts the line far less at full throttle: the known-wrong fails");
             foreach ((TetherScenarios.Punch p, TetherScenarios.Punch wrong) in new[] { (full, wrongFull), (hover, wrongHover) })
             {
                 Assert.That(wrong.Rim, Is.GreaterThan(0.2), "design 4's field alone holds the line beside the skids off the rims: the known-wrong");
-                Assert.That(p.Rim, Is.GreaterThan(0.2), "the canister over it: the line beside the skids is not drawn into a disc");
+                Assert.That(p.Rim, Is.GreaterThan(0.15), "the canister over it: the line beside the skids is not drawn into a disc");
                 Assert.That(p.Crossed, Is.EqualTo(0), "no segment crosses a turning disc");
-                Assert.That(p.PeakApproach, Is.GreaterThan(wrong.PeakApproach), "faster than design 4's field");
                 Assert.That(p.LineRim, Is.LessThan(wrong.LineRim), "and carries the line rising to the exit nearer the rear discs' inboard rims");
             }
-            foreach (TetherScenarios.Punch p in new[] { full, hover, wrongFull, wrongHover })
-            {
+            Assert.That(full.PeakApproach, Is.GreaterThan(wrongFull.PeakApproach), "faster than design 4's field at full throttle");
+            TetherScenarios.Punch lawFull = TetherScenarios.Liftoff(Spec, true, throughBody: true), lawHover = TetherScenarios.Liftoff(Spec, false, throughBody: true);
+            Print($"the fountain through the body: air within {lawFull.AirError:E2} at full, {lawHover.AirError:E2} at hover; with the body's blocking "
+                + $"{full.AirError:E2} and {hover.AirError:E2} (its lee)");
+            foreach (TetherScenarios.Punch p in new[] { lawFull, lawHover, wrongFull, wrongHover })
                 Assert.That(p.AirError, Is.LessThan(0.01), "each node's air is the field's law at it");
+            foreach (TetherScenarios.Punch p in new[] { full, hover, wrongFull, wrongHover, lawFull, lawHover })
                 Assert.That(p.DragError, Is.LessThan(0.01), "its drag the law's");
-            }
         }
 
         // The punch's fastest approach to a rim over seeds 1–30 (the spool's draws), at full throttle and at hover thrust.
