@@ -651,8 +651,19 @@ namespace Fpv450.FlightBench
                 && a72g == GoldenFlights.Model72RangeHash && a72l == GoldenFlights.Model72TetherHash && a72t == GoldenFlights.Model72TumbleHash;
             Console.WriteLine($"with airmode on and without the motors' heat, over model 72's bytes (the heat's 192 skipped): powered 0x{a72p:X16}, rain 0x{a72r:X16}, "
                 + $"contact 0x{a72c:X16}, range 0x{a72g:X16}, tether 0x{a72l:X16}, tumble 0x{a72t:X16} ({(k72 ? "model 72's, bit for bit" : "NOT model 72's")}): {(k72 ? "PASS" : "FAIL")}");
+            // The climb after a pitch-back (model 76, D-087), its audit against model 75: without the edgewise flow's thrust and torque
+            // (RotorFlappingSpec.EdgewiseThrust off) every golden is model 75's pin (WithoutTheEdgewiseFlowEachGoldenIsModel75s).
+            DroneSpec d76 = Drone();
+            ulong e75p = GoldenFlights.FlyPowered(d76, out _, edgewise: false),
+                e75r = GoldenFlights.FlyPowered(d76, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edgewise: false),
+                e75c = GoldenFlights.FlyContact(d76, out _, edgewise: false), e75g = GoldenFlights.FlyRange(d76, out _, edgewise: false),
+                e75l = GoldenFlights.FlyContact(d76, out _, tether: true, edgewise: false);
+            bool k75 = e75p == GoldenFlights.Model75PoweredHash && e75r == GoldenFlights.Model75RainPoweredHash && e75c == GoldenFlights.Model75ContactHash
+                && e75g == GoldenFlights.Model75RangeHash && e75l == GoldenFlights.Model75TetherHash;
+            Console.WriteLine($"without the edgewise flow: powered 0x{e75p:X16}, rain 0x{e75r:X16}, contact 0x{e75c:X16}, range 0x{e75g:X16}, tether 0x{e75l:X16} "
+                + $"({(k75 ? "model 75's, bit for bit" : "NOT model 75's")}): {(k75 ? "PASS" : "FAIL")}");
             return ok && cok && rangeOk && rok && tok && m22 && mok && eok && aok && uok && pok && k28 && lok && y34 && sok26 && zok && k38 && k35
-                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70 && k72 && k73;
+                && m26 && m37 && k39 && k44 && k41 && k46 && k59 && k54 && k60 && k58 && k65 && k66 && k68 && k69 && k70 && k72 && k73 && k75;
         }
 
         public static bool Bench()
