@@ -17,6 +17,7 @@ REPO = Path(__file__).resolve().parents[3]
 VARIANTS = ("D01_legs_on", "D01_legs_off")
 BOTTLE = "D01_bottle"  # the bottle alone, which the player scales to the setup's payload
 MM = 0.001
+SEAM = drone.SEAM_M
 
 
 def load(variant):
@@ -270,31 +271,50 @@ def _capsule_bounds(shapes):
 @pytest.mark.parametrize("variant", VARIANTS)
 def test_canister_is_its_part_and_its_nozzle_the_lines_exit(variant, spec, built):
     """The class's canister (docs/reference-notes/spool-exit-and-rear.md): the part's body end to end and its
-    diameter, the cone and the nozzle aft of it on its axis; the nozzle's tip the metadata's port and the flight's
-    nozzle capsule's end, inside the class's measured band: 0.03-0.08 m aft of the rear motors' axis, 0.12-0.20 m
-    below the arm plane, pointing aft and 7-20 deg down; the hangers up to the bottom plate, the body clear of the
-    packs, the flight's canister contacts round the drawn canister."""
+    diameter, a clear shell of canister.wall_m hollow round the coil (D-086), the cone aft of it on its axis and the
+    nozzle bent 12.5 deg further down at the collar, so the line leaves its tip 27.5 deg down (D-086's 25-30 deg); the
+    nozzle's tip the metadata's port and the flight's nozzle capsule's end, inside the class's measured band:
+    0.03-0.08 m aft of the rear motors' axis, 0.12-0.20 m below the arm plane; the hangers up to the bottom plate, the
+    body clear of the packs, the flight's canister contacts round the drawn canister."""
     params = load(variant)
     layout, parts = layout_parts(params)
     can, k = layout.part("canister"), params["canister"]
     f, _ = drone.mount_frame(params, layout, "canister")
     assert abs(sum(f.v[a] * f.w[a] for a in range(3))) < 1e-12 and f.v[1] < 0  # down, square to the tilted axis
-    local = _local(f, can["position_m"], parts["canister"].vertices)
-    zt, zn, zr, zf = drone.canister_stations(params, layout)
-    assert max(p[2] for p in local) == pytest.approx(can["length_m"] / 2, abs=1e-9)
-    assert min(p[2] for p in local) == pytest.approx(-can["length_m"] / 2 - k["cone_m"] - k["nozzle_m"], abs=1e-9)
-    assert zt == pytest.approx(min(p[2] for p in local), abs=1e-12)
-    assert max(math.hypot(p[0], p[1]) for p in local) == pytest.approx(can["diameter_m"] / 2, abs=1e-9)
-    nozzle = [math.hypot(p[0], p[1]) for p in local if p[2] < zn - 1e-9]
-    assert max(nozzle) == pytest.approx(k["mouth_d_m"] / 2, abs=1e-9)
-    assert min(r for r in nozzle if r > 1e-9) == pytest.approx(k["bore_d_m"] / 2, abs=1e-9)  # an open bore
+    fn, (zt, zb, zs) = drone.nozzle_frame(params, layout)
+    zt0, zn, zr, zf = drone.canister_stations(params, layout)
+    assert fn.origin == pytest.approx(f.at(0, 0, zn), abs=1e-12) and fn.u == pytest.approx(f.u, abs=1e-12)
+    assert math.degrees(math.acos(sum(fn.w[a] * f.w[a] for a in range(3)))) == pytest.approx(12.5, abs=1e-9)
+    R, t = can["diameter_m"] / 2, k["wall_m"]
+    body = _local(f, can["position_m"], parts["canister"].vertices)
+    nozzle = _local(fn, fn.origin, parts["canister"].vertices)
+    picked = [i for i, (n, b) in enumerate(zip(nozzle, body))  # aft of the collar: the nozzle alone
+              if b[2] < zn - 1e-9 or n[2] < zb + 1e-9 and math.hypot(n[0], n[1]) <= k["mouth_d_m"] / 2 + 1e-9]
+    on_nozzle = [nozzle[i] for i in picked]
+    assert min(n[2] for n in on_nozzle) == pytest.approx(zt, abs=1e-12) == -k["nozzle_m"]
+    assert max(math.hypot(n[0], n[1]) for n in on_nozzle) == pytest.approx(k["mouth_d_m"] / 2, abs=1e-9)
+    assert min(r for r in (math.hypot(n[0], n[1]) for n in on_nozzle) if r > 1e-9) == pytest.approx(
+        k["bore_d_m"] / 2, abs=1e-9)  # an open bore
+    rest = [b for i, b in enumerate(body) if i not in set(picked)]  # the cone and the shell
+    assert max(b[2] for b in rest) == pytest.approx(can["length_m"] / 2, abs=1e-9)
+    assert min(b[2] for b in rest) == pytest.approx(zn, abs=1e-9) and zt0 == zn - k["nozzle_m"]
+    assert max(math.hypot(b[0], b[1]) for b in rest) == pytest.approx(R, abs=1e-9)
+    # hollow: the shell's inner wall at R - t and its inner lid t behind the front face, nothing else inside the body
+    inside = [b for b in rest if zr + 1e-9 < b[2] < zf - 1e-9 and math.hypot(b[0], b[1]) < R - SEAM - 1e-9]
+    assert inside and all(math.hypot(b[0], b[1]) == pytest.approx(R - t, abs=1e-9) or
+                          b[2] == pytest.approx(zf - t, abs=1e-9) for b in inside)
+    shell = {slot for indices, _, _, slot in parts["canister"].faces if any(body[i][2] > zr + 1e-6 for i in indices)}
+    assert shell == {"shell"}  # the body, its lid and seam all the clear shell
 
     tip, out = drone.fiber_exit(params, layout)
     assert built[variant]["ports"] == [{"id": drone.EXIT, "position": list(tip), "direction": list(out),
                                         "max_diameter_m": k["bore_d_m"]}]
     rear = min(h[2] for h in layout.hubs)
     assert 0.03 <= rear - tip[2] <= 0.08 and 0.12 <= -tip[1] <= 0.20
-    assert out[0] == 0.0 and out[2] < 0 and 7.0 <= math.degrees(math.asin(-out[1])) <= 20.0
+    assert out[0] == 0.0 and out[2] < 0 and math.degrees(math.asin(-out[1])) == pytest.approx(27.5, abs=1e-9)
+    assert tip == pytest.approx((0, -0.184287, -0.199435), abs=1e-6)  # drone.json's model-74 nozzle tip
+    # model 74's exit direction, the chord of drone.json's coil_nozzle (its ends to 1e-6 m over 0.057 m: 2e-6 off 27.5)
+    assert out == pytest.approx((0, -0.4617504, -0.8870099), abs=3e-6)
 
     shapes = {s["name"]: s for s in spec["contacts"]["shapes"]}
     flight = [shapes[n] for n in ("coil", "coil_aft", "coil_fore", "coil_cone", "coil_nozzle")]

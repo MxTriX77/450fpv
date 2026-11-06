@@ -1306,8 +1306,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1294485002441542364}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.6087613, y: 0, z: 0, w: 0.79335344}
-  m_LocalPosition: {x: 0, y: -0.161023, z: -0.171151}
+  m_LocalRotation: {x: 0.5187731, y: 0, z: 0, w: 0.85491204}
+  m_LocalPosition: {x: 0, y: -0.168125, z: -0.168389}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1820,6 +1820,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
   - {fileID: 2100000, guid: 5f29ab7d87cae0649813840ce73566c7, type: 2}
   - {fileID: 2100000, guid: ec9cdcf3c0b1c3241a4939727f3be831, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3353,6 +3354,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 2728326bfb1626343bd5cc8d2226c1ab, type: 2}
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
   - {fileID: 2100000, guid: ec9cdcf3c0b1c3241a4939727f3be831, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -6643,6 +6645,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
   - {fileID: 2100000, guid: 5f29ab7d87cae0649813840ce73566c7, type: 2}
   - {fileID: 2100000, guid: ec9cdcf3c0b1c3241a4939727f3be831, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -8010,8 +8013,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8294674671901660997}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.6087613, y: 0, z: 0, w: 0.79335344}
-  m_LocalPosition: {x: 0, y: -0.16937, z: -0.202302}
+  m_LocalRotation: {x: 0.5187731, y: 0, z: 0, w: 0.85491204}
+  m_LocalPosition: {x: 0, y: -0.183017, z: -0.196995}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -8253,6 +8256,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 86ebec4f1fe8a594aae1eaf8fdb74023, type: 2}
   - {fileID: 2100000, guid: 2728326bfb1626343bd5cc8d2226c1ab, type: 2}
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -9109,7 +9113,7 @@ MonoBehaviour:
   id: D01
   variant: D01_legs_on
   generator: drone
-  paramsSha256: 74ee58b7841276cf81c02e1dbb74120ebfcd91d8e521e15cf6940b9b13e92bf5
+  paramsSha256: e067ab91c045072b9c683fcfb12aff2c84af2bd3b825bc20efa971869596ec53
   units: m
   frame: unity-lh-yup
   bounds:
@@ -9117,19 +9121,19 @@ MonoBehaviour:
     m_Extent: {x: 0.28681, y: 0.14945, z: 0.24439849}
   lods:
   - mesh: D01_legs_on_LOD0
-    tris: 12746
+    tris: 12930
     switchDistanceM: 0
     thinWire: 0
   - mesh: D01_legs_on_LOD1
-    tris: 5268
+    tris: 5380
     switchDistanceM: 3
     thinWire: 0
   - mesh: D01_legs_on_LOD2
-    tris: 1976
+    tris: 2028
     switchDistanceM: 10
     thinWire: 0
   - mesh: D01_legs_on_LOD3
-    tris: 336
+    tris: 364
     switchDistanceM: 35
     thinWire: 0
   micro: []
@@ -9149,6 +9153,9 @@ MonoBehaviour:
     physics: plastic
   - slot: prop
     visual: drone_prop
+    physics: plastic
+  - slot: shell
+    visual: drone_shell
     physics: plastic
   - slot: strap
     visual: drone_strap
@@ -9539,19 +9546,19 @@ MonoBehaviour:
     material: plastic
     landable: 0
   - kind: 3
-    center: {x: 0, y: -0.161023, z: -0.171151}
+    center: {x: 0, y: -0.168125, z: -0.168389}
     size: {x: 0, y: 0, z: 0}
     radius: 0.009
     height: 0.07
-    rotation: {x: 0.608761, y: 0, z: 0, w: 0.793353}
+    rotation: {x: 0.518773, y: 0, z: 0, w: 0.854912}
     material: steel
     landable: 0
   - kind: 3
-    center: {x: 0, y: -0.16937, z: -0.202302}
+    center: {x: 0, y: -0.183017, z: -0.196995}
     size: {x: 0, y: 0, z: 0}
     radius: 0.013
     height: 0.0055
-    rotation: {x: 0.608761, y: 0, z: 0, w: 0.793353}
+    rotation: {x: 0.518773, y: 0, z: 0, w: 0.854912}
     material: steel
     landable: 0
   - kind: 0
@@ -9574,8 +9581,8 @@ MonoBehaviour:
   windVolumes: []
   ports:
   - id: fiber_exit
-    position: {x: 0, y: -0.170081, z: -0.204958}
-    direction: {x: 0, y: -0.258819, z: -0.965926}
+    position: {x: 0, y: -0.184286, z: -0.199434}
+    direction: {x: 0, y: -0.461749, z: -0.887011}
     maxDiameterM: 0.012
   wires: []
   holes: []

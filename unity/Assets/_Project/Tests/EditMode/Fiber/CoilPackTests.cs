@@ -206,7 +206,7 @@ namespace Fpv450.Tests.Fiber
 
         /// <summary>
         /// A drone model whose spool is drone.py's LOD0 lathe (the rear cap Ø72 mm, the ribbed pack at the spec's diameter and
-        /// the look's 0.6 mm ribs, the front hoop Ø90 mm) on a child at the coil's centre turned 30° about its axis, with a
+        /// the look's 0.6 mm ribs, the front hoop Ø90 mm) on a child at the coil's centre along its axis, turned 30° about it, with a
         /// cable tie's head box on the cap (its corners near the pack's radius), and a pack box beside it; the model itself
         /// placed and turned in the world.
         /// </summary>
@@ -217,7 +217,8 @@ namespace Fpv450.Tests.Fiber
             var spool = new GameObject("coil");
             spool.transform.SetParent(model.transform, false);
             spool.transform.localPosition = shape.Centre;
-            spool.transform.localRotation = Quaternion.AngleAxis(30f, Vector3.forward);
+            // The lathe's z along the coil's axis (since the canister, tilted 15° rear-down), turned 30° about it.
+            spool.transform.localRotation = Quaternion.FromToRotation(Vector3.forward, shape.Axis) * Quaternion.AngleAxis(30f, Vector3.forward);
             coil = spool.AddComponent<MeshFilter>();
             coil.sharedMesh = Spool(shape);
             spool.AddComponent<MeshRenderer>();

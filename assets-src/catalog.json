@@ -5,7 +5,7 @@
       "class": "drone",
       "generator": "drone",
       "variants": ["D01_legs_on", "D01_legs_off", "D01_bottle"],
-      "materials": { "carbon": "drone_carbon", "metal": "drone_metal", "prop": "drone_prop", "plastic": "drone_plastic", "strap": "drone_strap", "lead": "drone_lead", "bottle": "drone_bottle" }
+      "materials": { "carbon": "drone_carbon", "metal": "drone_metal", "prop": "drone_prop", "plastic": "drone_plastic", "strap": "drone_strap", "lead": "drone_lead", "bottle": "drone_bottle", "shell": "drone_shell" }
     },
     "D02": {
       "class": "drone",

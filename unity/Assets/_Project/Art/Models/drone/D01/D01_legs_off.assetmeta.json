@@ -3,13 +3,13 @@
   "id": "D01",
   "variant": "D01_legs_off",
   "generator": "drone",
-  "params_sha256": "ca811a8b3115e997c360b6c7f601eea37e4ef033bab50d280943474b76c25ff3",
+  "params_sha256": "096150310f90fae8541f72a18f8cd96d6f287bf0f84a0617c665442f072a2847",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
       -0.286709,
-      -0.188579,
+      -0.195818,
       -0.263797
     ],
     "max": [
@@ -21,25 +21,25 @@
   "lods": [
     {
       "mesh": "D01_legs_off_LOD0",
-      "tris": 12746,
+      "tris": 12930,
       "switch_distance_m": 0.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD1",
-      "tris": 5268,
+      "tris": 5380,
       "switch_distance_m": 3.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD2",
-      "tris": 1976,
+      "tris": 2028,
       "switch_distance_m": 10.0,
       "thin_wire": false
     },
     {
       "mesh": "D01_legs_off_LOD3",
-      "tris": 336,
+      "tris": 364,
       "switch_distance_m": 35.0,
       "thin_wire": false
     }
@@ -70,6 +70,11 @@
     {
       "slot": "prop",
       "visual": "drone_prop",
+      "physics": "plastic"
+    },
+    {
+      "slot": "shell",
+      "visual": "drone_shell",
       "physics": "plastic"
     },
     {
@@ -833,16 +838,16 @@
       "shape": "cylinder",
       "center": [
         0.0,
-        -0.161023,
-        -0.171151
+        -0.168125,
+        -0.168389
       ],
       "radius": 0.009,
       "height": 0.07,
       "rotation": [
-        0.608761,
+        0.518773,
         0.0,
         0.0,
-        0.793353
+        0.854912
       ],
       "material": "steel",
       "landable": false
@@ -851,16 +856,16 @@
       "shape": "cylinder",
       "center": [
         0.0,
-        -0.16937,
-        -0.202302
+        -0.183017,
+        -0.196995
       ],
       "radius": 0.013,
       "height": 0.0055,
       "rotation": [
-        0.608761,
+        0.518773,
         0.0,
         0.0,
-        0.793353
+        0.854912
       ],
       "material": "steel",
       "landable": false
@@ -915,13 +920,13 @@
       "id": "fiber_exit",
       "position": [
         0.0,
-        -0.170081,
-        -0.204958
+        -0.184286,
+        -0.199434
       ],
       "direction": [
         0.0,
-        -0.258819,
-        -0.965926
+        -0.461749,
+        -0.887011
       ],
       "max_diameter_m": 0.012
     }

@@ -285,6 +285,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
   - {fileID: 2100000, guid: 5f29ab7d87cae0649813840ce73566c7, type: 2}
   - {fileID: 2100000, guid: ec9cdcf3c0b1c3241a4939727f3be831, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -440,8 +441,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1687584566844800761}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.6087613, y: 0, z: 0, w: 0.79335344}
-  m_LocalPosition: {x: 0, y: -0.161023, z: -0.171151}
+  m_LocalRotation: {x: 0.5187731, y: 0, z: 0, w: 0.85491204}
+  m_LocalPosition: {x: 0, y: -0.168125, z: -0.168389}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1599,8 +1600,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4787566594231321325}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.6087613, y: 0, z: 0, w: 0.79335344}
-  m_LocalPosition: {x: 0, y: -0.16937, z: -0.202302}
+  m_LocalRotation: {x: 0.5187731, y: 0, z: 0, w: 0.85491204}
+  m_LocalPosition: {x: 0, y: -0.183017, z: -0.196995}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1804,6 +1805,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 86ebec4f1fe8a594aae1eaf8fdb74023, type: 2}
   - {fileID: 2100000, guid: 2728326bfb1626343bd5cc8d2226c1ab, type: 2}
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2300,27 +2302,27 @@ MonoBehaviour:
   id: D01
   variant: D01_legs_off
   generator: drone
-  paramsSha256: ca811a8b3115e997c360b6c7f601eea37e4ef033bab50d280943474b76c25ff3
+  paramsSha256: 096150310f90fae8541f72a18f8cd96d6f287bf0f84a0617c665442f072a2847
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0.00010100007, y: -0.0715395, z: -0.036219493}
-    m_Extent: {x: 0.28681, y: 0.117039494, z: 0.2275775}
+    m_Center: {x: 0.00010100007, y: -0.075159006, z: -0.036219493}
+    m_Extent: {x: 0.28681, y: 0.120659, z: 0.2275775}
   lods:
   - mesh: D01_legs_off_LOD0
-    tris: 12746
+    tris: 12930
     switchDistanceM: 0
     thinWire: 0
   - mesh: D01_legs_off_LOD1
-    tris: 5268
+    tris: 5380
     switchDistanceM: 3
     thinWire: 0
   - mesh: D01_legs_off_LOD2
-    tris: 1976
+    tris: 2028
     switchDistanceM: 10
     thinWire: 0
   - mesh: D01_legs_off_LOD3
-    tris: 336
+    tris: 364
     switchDistanceM: 35
     thinWire: 0
   micro: []
@@ -2340,6 +2342,9 @@ MonoBehaviour:
     physics: plastic
   - slot: prop
     visual: drone_prop
+    physics: plastic
+  - slot: shell
+    visual: drone_shell
     physics: plastic
   - slot: strap
     visual: drone_strap
@@ -2650,19 +2655,19 @@ MonoBehaviour:
     material: plastic
     landable: 0
   - kind: 3
-    center: {x: 0, y: -0.161023, z: -0.171151}
+    center: {x: 0, y: -0.168125, z: -0.168389}
     size: {x: 0, y: 0, z: 0}
     radius: 0.009
     height: 0.07
-    rotation: {x: 0.608761, y: 0, z: 0, w: 0.793353}
+    rotation: {x: 0.518773, y: 0, z: 0, w: 0.854912}
     material: steel
     landable: 0
   - kind: 3
-    center: {x: 0, y: -0.16937, z: -0.202302}
+    center: {x: 0, y: -0.183017, z: -0.196995}
     size: {x: 0, y: 0, z: 0}
     radius: 0.013
     height: 0.0055
-    rotation: {x: 0.608761, y: 0, z: 0, w: 0.793353}
+    rotation: {x: 0.518773, y: 0, z: 0, w: 0.854912}
     material: steel
     landable: 0
   - kind: 0
@@ -2685,8 +2690,8 @@ MonoBehaviour:
   windVolumes: []
   ports:
   - id: fiber_exit
-    position: {x: 0, y: -0.170081, z: -0.204958}
-    direction: {x: 0, y: -0.258819, z: -0.965926}
+    position: {x: 0, y: -0.184286, z: -0.199434}
+    direction: {x: 0, y: -0.461749, z: -0.887011}
     maxDiameterM: 0.012
   wires: []
   holes: []
@@ -2710,7 +2715,7 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6331894110514188447}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0.00010100007, y: -0.0715395, z: -0.036219493}
+  m_LocalReferencePoint: {x: 0.00010100007, y: -0.075159006, z: -0.036219493}
   m_Size: 0.57362
   m_FadeMode: 0
   m_AnimateCrossFading: 0
@@ -3113,6 +3118,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
   - {fileID: 2100000, guid: 5f29ab7d87cae0649813840ce73566c7, type: 2}
   - {fileID: 2100000, guid: ec9cdcf3c0b1c3241a4939727f3be831, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3207,6 +3213,7 @@ MeshRenderer:
   - {fileID: 2100000, guid: 2728326bfb1626343bd5cc8d2226c1ab, type: 2}
   - {fileID: 2100000, guid: 1da591e926580504faf63c637d1500c0, type: 2}
   - {fileID: 2100000, guid: ec9cdcf3c0b1c3241a4939727f3be831, type: 2}
+  - {fileID: 2100000, guid: 148268c5bcb7e7848bb7125de682b70c, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
