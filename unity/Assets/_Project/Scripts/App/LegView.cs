@@ -35,7 +35,8 @@ namespace Fpv450.App
     /// above the clamp's edge (Stub), the tube below it (Leg), the T-joint and the skid's half under the leg, as D01 draws
     /// them, each its own mesh per LOD, &lt;variant&gt;_LOD&lt;n&gt;_&lt;kind&gt;_&lt;corner&gt; (Kinds, LegDamage.Names).
     /// As the contact model places the shapes: the leg's set (PoseFrame.LegSet, as LegDamage.Set) turns the tube below the edge,
-    /// its T-joint and its skid half about the clamp's edge (LegDamageSpec.Clamp) by LegDamage.SetRotation; a half hanging
+    /// its T-joint and its skid half about the clamp's edge (LegDamageSpec.Clamp) by LegDamage.SetRotation, the half less a
+    /// frame leg's sway about its bore (HalfSet); a half hanging
     /// from the other T-joint on its skid goes with that leg's set and then turns about that leg's bore (Bore) by its fold
     /// (PoseFrame.SkidFold; the hanging cantilever's elastic give is the contact model's, not drawn). The stub stays straight
     /// in the clamp. A broken leg (CornerState.Stub) keeps its stub; a tube that slid out (TubeGone) takes it; a skid gone
@@ -74,13 +75,25 @@ namespace Fpv450.App
         /// <summary>Leg c's set: its tube below the edge, its T-joint and its skid half, about its clamp's edge.</summary>
         public static Rigid Set(in PoseFrame pose, LegDamageSpec legs, int c) => Rigid.About(legs.Clamp[c], Turn(SetRotation(pose.LegSet[c])));
 
-        /// <summary>Corner c's skid half on the drone: with its leg's set, or hanging, with the other leg's set and its fold
-        /// about that leg's bore.</summary>
+        /// <summary>Leg c's skid half carried by its set: as its tube (Set), but for a frame leg's sway (PoseFrame.LegSway,
+        /// model 54), which carries its T-joint square: its bore where the tube's turn takes it, the half turned about it by
+        /// the set less the sway (LegDamage.HalfRotation), as ContactModel.HalfRotated places its shapes.</summary>
+        public static Rigid HalfSet(in PoseFrame pose, LegDamageSpec legs, int c)
+        {
+            double sway = pose.LegSway[c];
+            if (sway == 0) return Set(pose, legs, c);
+            Double3 set = pose.LegSet[c], bore = legs.Bore[c];
+            Quat q = Turn(new Double3(-(set.Z - sway), set.Y, set.X));
+            return new Rigid(q, Set(pose, legs, c).Apply(bore) - q.Rotate(bore));
+        }
+
+        /// <summary>Corner c's skid half on the drone: with its leg's set (HalfSet), or hanging, with the other leg's and its
+        /// fold about that leg's bore.</summary>
         public static Rigid SkidHalf(in PoseFrame pose, LegDamageSpec legs, int c)
         {
-            if ((Corner(pose, c) & CornerState.Hanging) == 0) return Set(pose, legs, c);
+            if ((Corner(pose, c) & CornerState.Hanging) == 0) return HalfSet(pose, legs, c);
             int h = legs.Sibling[c];
-            Rigid held = Set(pose, legs, h);
+            Rigid held = HalfSet(pose, legs, h);
             return Rigid.About(held.Apply(legs.Bore[h]), Turn(pose.SkidFold[c])).After(held);
         }
 

@@ -1049,6 +1049,9 @@ namespace Fpv450.Sim.Flight
                 LegSet = _trace.LegSet,
                 SkidFold = _trace.SkidFold,
             };
+            Contact.LegDamage legs = _contacts?.Legs;
+            if (legs != null)
+                for (int c = 0; c < 4; c++) pose.LegSway[c] = legs.Sway(c);
             if (_loose != null)
                 for (int i = 0; i < Contact.LoosePieces.Slots; i++)
                 {

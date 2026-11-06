@@ -154,7 +154,8 @@ namespace Fpv450.Tests.App
             Assert.That(LegPlacement.Corner(pose, rl) & CornerState.Stub, Is.EqualTo(CornerState.Stub), "rear left broken at its clamp's edge");
             LegPlacement.Place stub = LegPlacement.Of(pose, legs, Part.Stub, rl);
             Assert.That((stub.Drawn, stub.Slot), Is.EqualTo((true, -1)), "its stub stays in the clamp");
-            ShapesAsDrawn(core, pose, fr); // the bent front right
+            Assert.That(pose.LegSway[fr], Is.EqualTo(core.Contacts.Legs.Sway(fr)).And.Not.EqualTo(0.0), "the pose carries front right's frame sway");
+            ShapesAsDrawn(core, pose, fr); // the bent front right, its skid half turned by its set less its sway
 
             LegPlacement.Place leg = LegPlacement.Of(pose, legs, Part.Leg, rl), joint = LegPlacement.Of(pose, legs, Part.TJoint, rl);
             Assert.That(leg.Slot, Is.GreaterThanOrEqualTo(0), "its tube below the edge flies in a piece");
