@@ -59,6 +59,13 @@ namespace Fpv450.FlightBench
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
+            if (args.Length == 2 && args[0] == "--bench" && args[1] == BuildCase.Name)
+            {
+                Console.WriteLine("flightbench: " + BuildCase.Name + " alone; " + Power.Describe());
+                bool ok = BuildCase.Bench();
+                if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
+                return ok ? 0 : 1;
+            }
             if (args.Length == 1 && args[0] == "--scenarios")
             {
                 Console.WriteLine("flightbench: the aero and wind scenarios (p6-flight-core 1.5)");
