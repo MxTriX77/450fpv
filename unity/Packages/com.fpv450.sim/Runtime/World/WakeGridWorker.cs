@@ -1,5 +1,7 @@
 // WakeGridWorker: the wake grid's worker thread and its deterministic handover (p7c-wind 1.3, design 4, K§6.7).
-// - The first grid is built before the flight, on the caller's thread (the constructor).
+// - The first grid is built before the flight, on the caller's thread (the constructor, or WakeGridCache's copy of a
+//   build for the same obstacles and direction); the spare is only allocated, since the worker rebuilds it before
+//   anything reads it.
 // - Step (the flight thread, every step): once the wind's direction is more than 5° from the active grid's (K§6.7),
 //   it asks the worker for a grid at that direction and notes the step. The new grid takes over LatencySteps later,
 //   and fades in over FadeSteps (Sample blends the two). Both steps are fixed counts from the request, never "when the
@@ -65,10 +67,13 @@ namespace Fpv450.Sim.World
         public double LastBuildSeconds => Interlocked.Read(ref _lastBuildTicks) / (double)Stopwatch.Frequency;
 
         /// <summary>Builds the first grid (for wind from `fromDeg`, degrees) and starts the worker.</summary>
-        public WakeGridWorker(WakeObstacles obstacles, double fromDeg)
+        public WakeGridWorker(WakeObstacles obstacles, double fromDeg) : this(WakeGrid.Build(obstacles, fromDeg)) { }
+
+        /// <summary>Starts the worker with `first` as the active grid (built for its FromDeg); the worker owns it from now.</summary>
+        public WakeGridWorker(WakeGrid first)
         {
-            _grids[0] = WakeGrid.Build(obstacles, fromDeg);
-            _grids[1] = WakeGrid.Build(obstacles, fromDeg);
+            _grids[0] = first ?? throw new ArgumentNullException(nameof(first));
+            _grids[1] = WakeGrid.Spare(first.Obstacles);
             // Below normal: the precompute yields to the flight thread whenever they share a core.
             _thread = new Thread(Run) { IsBackground = true, Name = "wake grid", Priority = ThreadPriority.BelowNormal };
             _thread.Start();

@@ -45,6 +45,7 @@
 // Not modelled (task 1.3's handoff): the slow-down upwind of an obstacle, a second wake under a nearer one, terrain.
 
 using System;
+using System.Threading.Tasks;
 
 namespace Fpv450.Sim.World
 {
@@ -185,20 +186,50 @@ namespace Fpv450.Sim.World
         }
 
         /// <summary>
-        /// The wakes of every cell for wind from `fromDeg` (degrees). Deterministic and allocation-bounded (one array);
-        /// call it on a worker (WakeGridWorker) or before a flight.
+        /// The wakes of every cell for wind from `fromDeg` (degrees), the cells' rows spread over the host's cores (load
+        /// time: it allocates). Deterministic: each cell's coefficients are computed from the obstacles and the direction
+        /// alone, by the same operations on any thread, so the grid's bits are Rebuild's (one thread). Call it before a
+        /// flight (WakeGridCache); the worker's in-flight builds are Rebuild's.
         /// </summary>
         public static WakeGrid Build(WakeObstacles obstacles, double fromDeg)
         {
             if (obstacles == null) throw new ArgumentNullException(nameof(obstacles));
             var grid = new WakeGrid(obstacles);
-            grid.Rebuild(fromDeg);
+            grid.Direction(fromDeg);
+            int steps = grid.Extents();
+            Parallel.For(0, obstacles.NZ, j =>
+            {
+                for (int k = j * obstacles.NX, end = k + obstacles.NX; k < end; k++) grid.FillCell(k, steps);
+            });
             return grid;
         }
 
-        /// <summary>Rebuilds this grid in place for another direction, allocating nothing (the worker's spare grid). Never
-        /// while another thread samples it.</summary>
+        /// <summary>A grid of these obstacles with nothing built (the worker's spare, which only a Rebuild fills before it
+        /// is read): allocates.</summary>
+        public static WakeGrid Spare(WakeObstacles obstacles) =>
+            new WakeGrid(obstacles ?? throw new ArgumentNullException(nameof(obstacles)));
+
+        /// <summary>A copy of this grid, bit for bit (WakeGridCache's): allocates.</summary>
+        public WakeGrid Copy()
+        {
+            var copy = new WakeGrid(Obstacles);
+            copy.Direction(FromDeg);
+            Array.Copy(_cells, copy._cells, _cells.Length);
+            Array.Copy(_y0, copy._y0, _y0.Length);
+            Array.Copy(_y1, copy._y1, _y1.Length);
+            return copy;
+        }
+
+        /// <summary>Rebuilds this grid in place for another direction, on this thread, allocating nothing (the worker's
+        /// spare grid). Never while another thread samples it.</summary>
         public void Rebuild(double fromDeg)
+        {
+            Direction(fromDeg);
+            int steps = Extents();
+            for (int k = 0, n = _cells.Length; k < n; k++) FillCell(k, steps);
+        }
+
+        void Direction(double fromDeg)
         {
             FromDeg = fromDeg;
             DetMath.SinCos(fromDeg * 0.017453292519943295, out double sin, out double cos);
@@ -206,10 +237,11 @@ namespace Fpv450.Sim.World
             UpZ = cos;
             AcrossX = cos;
             AcrossZ = -sin;
-            Fill();
         }
 
-        void Fill()
+        // Clears the cells, sets each group's crosswind extent for the direction and returns the march's steps: the part
+        // of a build every cell reads, before any cell is filled.
+        int Extents()
         {
             WakeObstacles o = Obstacles;
             int nCells = o.NX * o.NZ;
@@ -230,78 +262,82 @@ namespace Fpv450.Sim.World
             }
 
             double reach = DetMath.Min(ReachCapM, ReachHeights * o.MaxTop);
-            int steps = (int)(reach / MarchStep);
-            for (int k = 0; k < nCells; k++)
+            return (int)(reach / MarchStep);
+        }
+
+        // Cell k's coefficients: reads the obstacles, the direction and the extents, writes cell k alone.
+        void FillCell(int k, int steps)
+        {
+            WakeObstacles o = Obstacles;
+            double[] y0 = _y0, y1 = _y1;
+            o.Centre(k, out double cx, out double cz);
+            double yc = cx * AcrossX + cz * AcrossZ;
+            if (o.IsObstacle(k))
             {
-                o.Centre(k, out double cx, out double cz);
-                double yc = cx * AcrossX + cz * AcrossZ;
-                if (o.IsObstacle(k))
+                // Inside: the path from the obstacle's windward edge to this cell, at X = 0, this cell's own top and base.
+                Through(cx, cz, 0, out Hit inside);
+                inside.X = 0;
+                inside.H = o.Top(k);
+                inside.B = o.Base(k);
+                _cells[k] = Coefficients(inside, 1, 0, 0);
+                return;
+            }
+
+            Hit direct = default, side = default;
+            bool haveDirect = false, haveSide = false;
+            double sideWeight = 0, gapJet = 0;
+            for (int s = 1; s <= steps; s++)
+            {
+                double d = s * MarchStep, px = cx + d * UpX, pz = cz + d * UpZ;
+                int q = o.CellAt(px, pz);
+                if (q < 0) break; // beyond the grid: open
+                if (o.IsObstacle(q))
                 {
-                    // Inside: the path from the obstacle's windward edge to this cell, at X = 0, this cell's own top and base.
-                    Through(cx, cz, 0, out Hit inside);
-                    inside.X = 0;
-                    inside.H = o.Top(k);
-                    inside.B = o.Base(k);
-                    _cells[k] = Coefficients(inside, 1, 0, 0);
+                    Through(px, pz, d - 0.5 * MarchStep, out Hit hit);
+                    if (hit.X <= ReachHeights * hit.H)
+                    {
+                        direct = hit;
+                        haveDirect = true;
+                        break;
+                    }
+                    s += (int)(hit.L / MarchStep); // past this obstacle: its wake does not reach
                     continue;
                 }
+                if ((s & 1) != 0 || !o.IsNear(q)) continue;
 
-                Hit direct = default, side = default;
-                bool haveDirect = false, haveSide = false;
-                double sideWeight = 0, gapJet = 0;
-                for (int s = 1; s <= steps; s++)
+                // The side probes: the nearest obstacle cell to each side of the clear path at this distance.
+                int left = Probe(px, pz, -1), right = Probe(px, pz, 1);
+                if (left == 0 && right == 0) continue;
+                double phiL = 0, phiR = 0;
+                Hit hl = default, hr = default;
+                if (left > 0)
                 {
-                    double d = s * MarchStep, px = cx + d * UpX, pz = cz + d * UpZ;
-                    int q = o.CellAt(px, pz);
-                    if (q < 0) break; // beyond the grid: open
-                    if (o.IsObstacle(q))
-                    {
-                        Through(px, pz, d - 0.5 * MarchStep, out Hit hit);
-                        if (hit.X <= ReachHeights * hit.H)
-                        {
-                            direct = hit;
-                            haveDirect = true;
-                            break;
-                        }
-                        s += (int)(hit.L / MarchStep); // past this obstacle: its wake does not reach
-                        continue;
-                    }
-                    if ((s & 1) != 0 || !o.IsNear(q)) continue;
-
-                    // The side probes: the nearest obstacle cell to each side of the clear path at this distance.
-                    int left = Probe(px, pz, -1), right = Probe(px, pz, 1);
-                    if (left == 0 && right == 0) continue;
-                    double phiL = 0, phiR = 0;
-                    Hit hl = default, hr = default;
-                    if (left > 0)
-                    {
-                        Through(px - left * WakeObstacles.Cell * AcrossX, pz - left * WakeObstacles.Cell * AcrossZ, d, out hl);
-                        phiL = hl.X <= ReachHeights * hl.H ? Spread(yc, hl, y0, y1) : 0;
-                    }
-                    if (right > 0)
-                    {
-                        Through(px + right * WakeObstacles.Cell * AcrossX, pz + right * WakeObstacles.Cell * AcrossZ, d, out hr);
-                        phiR = hr.X <= ReachHeights * hr.H ? Spread(yc, hr, y0, y1) : 0;
-                    }
-                    bool gap = left > 0 && right > 0 && hl.X <= ReachHeights * hl.H && hr.X <= ReachHeights * hr.H;
-                    if (!gap && phiL < SideMinWeight && phiR < SideMinWeight) continue;
-                    haveSide = true;
-                    bool useLeft = left > 0 && (right == 0 || phiL >= phiR);
-                    side = useLeft ? hl : hr;
-                    sideWeight = DetMath.Min(1, phiL + phiR);
-                    if (gap)
-                    {
-                        double width = (left + right - 1) * WakeObstacles.Cell;
-                        gapJet = GapJetAmp * (1 - side.Beta) * WakeGridMath.Exp(-d / (GapJetDecayWidths * width));
-                    }
-                    break; // the nearest obstacle: a side one, met while the cell's own path is still clear
+                    Through(px - left * WakeObstacles.Cell * AcrossX, pz - left * WakeObstacles.Cell * AcrossZ, d, out hl);
+                    phiL = hl.X <= ReachHeights * hl.H ? Spread(yc, hl, y0, y1) : 0;
                 }
-
-                if (haveSide)
-                    _cells[k] = Coefficients(side, sideWeight, gapJet, 0);
-                else if (haveDirect)
-                    _cells[k] = Coefficients(direct, Spread(yc, direct, y0, y1), 0, Width(direct, y0, y1));
+                if (right > 0)
+                {
+                    Through(px + right * WakeObstacles.Cell * AcrossX, pz + right * WakeObstacles.Cell * AcrossZ, d, out hr);
+                    phiR = hr.X <= ReachHeights * hr.H ? Spread(yc, hr, y0, y1) : 0;
+                }
+                bool gap = left > 0 && right > 0 && hl.X <= ReachHeights * hl.H && hr.X <= ReachHeights * hr.H;
+                if (!gap && phiL < SideMinWeight && phiR < SideMinWeight) continue;
+                haveSide = true;
+                bool useLeft = left > 0 && (right == 0 || phiL >= phiR);
+                side = useLeft ? hl : hr;
+                sideWeight = DetMath.Min(1, phiL + phiR);
+                if (gap)
+                {
+                    double width = (left + right - 1) * WakeObstacles.Cell;
+                    gapJet = GapJetAmp * (1 - side.Beta) * WakeGridMath.Exp(-d / (GapJetDecayWidths * width));
+                }
+                break; // the nearest obstacle: a side one, met while the cell's own path is still clear
             }
+
+            if (haveSide)
+                _cells[k] = Coefficients(side, sideWeight, gapJet, 0);
+            else if (haveDirect)
+                _cells[k] = Coefficients(direct, Spread(yc, direct, y0, y1), 0, Width(direct, y0, y1));
         }
 
         /// <summary>The obstacle's crosswind width, m (its group's extent).</summary>

@@ -294,7 +294,7 @@ namespace Fpv450.WorldBench
                 times.Add((Stopwatch.GetTimestamp() - t0) * 1e3 / Stopwatch.Frequency);
             }
             times.Sort();
-            Console.WriteLine(FormattableString.Invariant($"  build on the calling thread (300 x 300 cells, 10 deg): median {times[1]:F1} ms of 3 (min {times[0]:F1}, max {times[2]:F1})"));
+            Console.WriteLine(FormattableString.Invariant($"  build before a flight, over the cores (300 x 300 cells, 10 deg): median {times[1]:F1} ms of 3 (min {times[0]:F1}, max {times[2]:F1})"));
             Console.WriteLine($"  1 kHz loop, {Steps} steps of Step + {Points} samples each ({power}):");
 
             Run control = Fly(obstacles, Mode.Control);
