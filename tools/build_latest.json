@@ -1,9 +1,7 @@
 {
   "about": "What tools/build_latest.ps1 builds: the newest playable state. The orchestrator keeps this current as branches land; every listed merge is checked to be conflict-free when it changes. Branch names are without origin/; paths are relative to unity/.",
   "base": "unity/physics/physics-integration-2",
-  "merge": [
-    "unity/game/p6-input-app--line-smoke"
-  ],
+  "merge": [],
   "method": "Fpv450.Build.Windows",
   "unity_args": [
     "-review"
@@ -14,5 +12,5 @@
     "-smoketest",
     "-windowed"
   ],
-  "contents": "The test-range beta at physics model 68, from the build line (it now holds the player): the step about 48 % faster in flight (the wind on a worker thread, the fiber's part checks cut; results bit for bit); legs that set, crack, break and come off, drawn and listed in the summary, as levers and a frame fore and aft; props as parts at rest and the idle strike (D-082); the motor's bell (scrape, rub, bind) and its shaft and bearings (bend, shake, brinell, a lost blade or prop) (D-083); D01's coil in the class's canister with the fiber leaving its nozzle aft and down, the body blocking the rotors' fountain, the fiber's contacts, cuts and Betaflight's failsafe after a break, the feed showing fiber dips and breaks; the no-signal dropouts back without the black sticks (D-085), the small stick overlay (D-084); the analog feed, OSD, R, C, X, V, pause, the summary and the flight log. Not yet: airmode off (D-086), the motors' heat and dirt, the canister re-tilt and see-through look, per-flight balance offsets, the fiber chain's next speed cut, soft wires, vegetation on the legs and props."
+  "contents": "The test-range beta at physics model 79, from the build line (it holds the player): the climb after a pitch-back settles about twice as fast (the rotors' edgewise flow; cruise throttle 5-7 points lower) (D-087); the fiber's chain solved by Newton, so no false tension snaps: cruise to 100 km/h and ordinary turns keep the line whole, sharp turns and reverses still cut (D-087); the line leaves a 27.5 deg bent nozzle from a see-through canister (D-086); airmode off and the ESC's brake off (D-086); the motors' heat and dirt; a lost prop flips, a lost blade shakes; R restarts at once, a new flight builds in about 30-40 ms; the house's shape checks and the fiber's checks faster (the lag near the first house cut, not yet gone); a bent leg's skid drawn where the physics has it; plus everything before: legs that set, crack and break, props at rest, the motor's bell and shaft, the fiber's contacts and Betaflight's failsafe, the dropouts without the black sticks, the analog feed, OSD, R, C, X, V, pause, the summary and the flight log. Not yet: per-flight balance offsets, the arm break re-graded on sourced data, the fiber tearing at the hole's edge on a reverse, soft wires, vegetation on the legs and props."
 }
