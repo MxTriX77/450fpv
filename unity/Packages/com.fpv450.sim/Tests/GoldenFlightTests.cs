@@ -522,7 +522,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyContact(spec, out FlightCore old, tether: true, coulomb: false, body: false, layout: m63), Is.EqualTo(GoldenFlights.Model63TetherHash),
                 "tether, the fountain through the body");
             ulong blocked = GoldenFlights.FlyContact(spec, out FlightCore merged, tether: true, coulomb: false, layout: m63);
-            ulong canister = GoldenFlights.FlyContact(RepositoryDrone.Spec(), out FlightCore now, tether: true, coulomb: false, layout: m63);
+            ulong canister = GoldenFlights.FlyContact(Model70Drone.Spec(), out FlightCore now, tether: true, coulomb: false, layout: m63);
             string Outcome(FlightCore c) => c.Tether.Broken
                 ? $"broken at step {c.Tether.BrokenAt} by {c.Tether.LastBreak.Mechanism} at {(FiberMember)c.Tether.LastBreak.Kind} {c.Tether.LastBreak.Member}"
                 : $"whole, {c.Tether.PaidOut:F3} m paid out";
@@ -661,7 +661,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheShaftsEachGoldenIsModel65s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model70Drone.Spec(); // since model 74 its drone.json is a fixture (the nozzle straight on the 15° canister)
             const int m63 = GoldenFlights.Model63Layout;
             int block = 0;
             void Zero(byte[] record)
@@ -708,6 +708,36 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m68), Is.EqualTo(GoldenFlights.Model66TumbleHash), "tumble");
         }
 
+        // p7d-tether 1.8's audit (model 74, the fiber cuts where the pilot says, off 70), kept: on model 70's drone.json (Model70Drone,
+        // its nozzle straight on the canister's 15°) with model 70's exit, 4 mm lip and peel referred to 1 m/s (GoldenFlights.
+        // Model70Tether, the hole's edge wearing nothing) every golden is model 70's pin, every record and event; on the repository's
+        // drone.json (the nozzle bent to 27.5°) every golden without the line is model 70's pin too, and the tether golden with model
+        // 70's lip, peel and no edge wear is model 74's. So the bent nozzle's exit is the whole of the tether golden's move, and the
+        // hole's edge, its wear and the peel's reference leave every golden.
+        [Test]
+        public void WithTheOldExitAndPeelEachGoldenIsModel70s()
+        {
+            DroneSpec spec = Model70Drone.Spec();
+            Assert.That(GoldenFlights.FlyPowered(spec, out _), Is.EqualTo(GoldenFlights.Model70PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
+                Is.EqualTo(GoldenFlights.Model70RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _), Is.EqualTo(GoldenFlights.Model70ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _), Is.EqualTo(GoldenFlights.Model70RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true), Is.EqualTo(GoldenFlights.Model70TetherHash), "tether");
+            Assert.That(line.Tether.Cuts, Is.Not.Null, "with the cuts");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.Model70TumbleHash), "tumble");
+            DroneSpec now = RepositoryDrone.Spec();
+            Assert.That(GoldenFlights.FlyContact(now, out _), Is.EqualTo(GoldenFlights.Model70ContactHash), "the bent nozzle meets nothing in the contact golden");
+            Assert.That(GoldenFlights.TetherHash, Is.Not.EqualTo(GoldenFlights.Model70TetherHash), "the exit moves the tether golden");
+            Assert.That(GoldenFlights.FlyContact(now, out _, tether: true, edit: x =>
+            {
+                x.Tether = FiberCutScenarios.With(x.Tether, "spool.lip_radius_m", 0.004);
+                x.Tether = FiberCutScenarios.With(x.Tether, "spool.peel_reference_rate_m_s", 1);
+                x.Tether = FiberCutScenarios.With(x.Tether, "spool.lip_archard_wear_coefficient", 0);
+                x.Tether = FiberCutScenarios.With(x.Tether, "spool.mouth_radius_m", 0);
+            }), Is.EqualTo(GoldenFlights.TetherHash), "the tether golden on the 27.5° exit with 70's lip and peel");
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the
@@ -716,7 +746,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheHeatEachGoldenIsModel68s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model70Drone.Spec(); // since model 74 its drone.json is a fixture (the nozzle straight on the 15° canister)
             const int m68 = GoldenFlights.Model68Layout;
             int block = 0;
             void Zero(byte[] record)
@@ -802,7 +832,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheCoulombHoldEachGoldenIsModel64s()
         {
-            DroneSpec spec = RepositoryDrone.Spec();
+            DroneSpec spec = Model70Drone.Spec(); // since model 74 its drone.json is a fixture (the nozzle straight on the 15° canister)
             var rec64 = new System.Collections.Generic.List<ulong>();
             var rec65 = new System.Collections.Generic.List<ulong>();
             var ev64 = new System.Collections.Generic.List<string>();

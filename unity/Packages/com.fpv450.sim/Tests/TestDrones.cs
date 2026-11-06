@@ -57,6 +57,21 @@ namespace Fpv450.Sim.Tests
         public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
     }
 
+    // Model 70's drone.json, D01's canister tilted 15° rear-down with its nozzle straight on its axis, kept as a fixture when model
+    // 74 bent the nozzle to the pilot's 27.5° (D-086), so every kept golden audit of models 64–70 still flies the file it was
+    // recorded on (GoldenFlights.FlyContact and TetherScenarios give it model 70's exit, lip and peel: GoldenFlights.Model70Tether).
+    public static class Model70Drone
+    {
+        public const string RelativePath = GoldenFlights.Model70DronePath;
+
+        static DroneSpec _spec;
+
+        public static string Text() => File.ReadAllText(TestFiles.Find(RelativePath));
+
+        public static DroneSpec Spec() => _spec ?? (_spec = DroneSpec.Parse(Text()));
+
+    }
+
     // A repository file, found from this file's own path (the .NET tools compile it in place) or from Unity's project
     // folder (unity/, the editor's working directory).
     public static class TestFiles
