@@ -116,6 +116,7 @@ namespace Fpv450.Sim.Log
             "TetherTwoWay", "TetherDesign4Air", "TetherWithoutContacts", "TetherWithoutCuts", "TetherOneStrength",
             "TetherFountainThroughBody",
             "TetherZeroForceHold",
+            "TetherLinearStep",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -365,6 +366,7 @@ namespace Fpv450.Sim.Log
         public bool TetherWithoutCuts, TetherOneStrength;
         public bool TetherFountainThroughBody;
         public bool TetherZeroForceHold;
+        public bool TetherLinearStep;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -452,6 +454,7 @@ namespace Fpv450.Sim.Log
                 TetherOneStrength = setup.TetherOneStrength,
                 TetherFountainThroughBody = setup.TetherFountainThroughBody,
                 TetherZeroForceHold = setup.TetherZeroForceHold,
+                TetherLinearStep = setup.TetherLinearStep,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -566,6 +569,7 @@ namespace Fpv450.Sim.Log
                 TetherOneStrength = TetherOneStrength,
                 TetherFountainThroughBody = TetherFountainThroughBody,
                 TetherZeroForceHold = TetherZeroForceHold,
+                TetherLinearStep = TetherLinearStep,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -1121,6 +1125,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherOneStrength);
                 e.Write(TetherFountainThroughBody);
                 e.Write(TetherZeroForceHold);
+                e.Write(TetherLinearStep);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1565,6 +1570,7 @@ namespace Fpv450.Sim.Log
                         TetherOneStrength = r.ReadBoolean();
                         TetherFountainThroughBody = r.ReadBoolean();
                         TetherZeroForceHold = r.ReadBoolean();
+                        TetherLinearStep = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {

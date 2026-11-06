@@ -282,8 +282,12 @@ namespace Fpv450.Sim.Log
         /// 63: the physics integration 2 with D-086's controller (unity/physics/physics-integration-2--int73, assigned by D-072; 61 and
         ///    62 are parallel lines'): 69's controller (format 55's layout, no record, header or event change) merged onto 60: the
         ///    record is 60's 3360 bytes, the header 60's (the settings carry airmode as before), the events 60's; no new event kind.
+        /// 67: model 77, the fiber's chain solves its segments to backward Euler's own step (unity/physics/physics-integration-2--chain-spikes,
+        ///    assigned by D-072; 64–66 are parallel lines'): the header's tether entry gains FlightSetup.TetherLinearStep (the
+        ///    known-wrong linear step, model 74's chain) after TetherZeroForceHold; the record is 63's 3360 bytes and the events
+        ///    63's (the Newton solves are not logged: a replay recounts them bit for bit, CableChain.NewtonSolves).
         /// </summary>
-        public const int Version = 63;
+        public const int Version = 67;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -729,7 +733,17 @@ namespace Fpv450.Sim.Log
         ///    round it) a flight steps as in 70.
         /// 77: the physics integration 2 with the fiber's cut at the hole's edge (unity/physics/physics-integration-2--chain-spikes,
         ///    assigned by D-072; 75 and 76 are parallel lines'): 74's bent nozzle, sharp edge, its wear and the peel's reference
-        ///    merged onto 73's controller (they touch disjoint code). A flight with airmode on steps as in 74.
+        ///    merged onto 73's controller (they touch disjoint code); with airmode on the merge steps as in 74. Then p7d-tether 1.8's
+        ///    finding 2, the span's tension spikes at the drone's parts, at their cause: the chain solved its step on the start's
+        ///    linearisation alone. A taut segment's model was its tangent at the start, so a segment the solve rotated by δ ended
+        ///    stretched by δ²/(2ℓ), which no force in the solve made (4.7 N read for 0.03 N applied on a 10 mm segment turned 1 mm),
+        ///    and one modelled slack that ended taut once the correction passes were spent carried tension nothing applied; the cuts
+        ///    broke the line on both. While a segment ends taut with its tension more than CableChain.NewtonTolerance (1 mN) from its
+        ///    model's, the step is solved again from its start with its exact tangent at the last solve's end (CableChain.Relinearise:
+        ///    Newton on the segments, after the active set, one way, slack to taut, at most CableChain.MaxNewton 8 solves a step; the
+        ///    spool's segment keeps its own model; the safe solve its start's majorizers). With FlightSetup.TetherLinearStep (and with
+        ///    FlightSetup.TetherZeroForceHold) a flight steps linearly: as the merge (and with airmode on too as in 74); every flight
+        ///    without the line steps as before.
         /// </summary>
         public const int ModelVersion = 77;
 

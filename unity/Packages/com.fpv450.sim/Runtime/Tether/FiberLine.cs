@@ -283,7 +283,7 @@ namespace Fpv450.Sim.Tether
 
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"))
             {
-                Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold,
+                Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
             };
             _at = new XZ[nodes + 4];
             _ground = new GroundSample[nodes + 4];
