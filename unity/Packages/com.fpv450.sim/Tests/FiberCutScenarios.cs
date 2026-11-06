@@ -183,6 +183,29 @@ namespace Fpv450.Sim.Tests
         /// edgewise thrust then never acts (model 79's integration, p7d-tether 1.8).</summary>
         public static readonly string Blade = System.Environment.GetEnvironmentVariable("FIBER_BLADE");
 
+        /// <summary>Whether the scenarios fly the session's airframe (SessionAirframe), set by the D-087 grid and the cause table
+        /// (p7d-tether 1.11) for their run: off, they fly TetherScenarios.Setup's bare drone, as every other scenario does.</summary>
+        public static bool SessionDrone;
+
+        /// <summary>FIBER_AIRFRAME=bare flies the grid and the cause table on the bare drone (no flapping's blade, ground effect,
+        /// vortex ring, interference, asymmetry, build tolerance, wake unsteadiness or modes), as they flew to model 79: the audits'.</summary>
+        public static readonly bool BareAirframe = System.Environment.GetEnvironmentVariable("FIBER_AIRFRAME") == "bare";
+
+        /// <summary>The airframe's effects as SessionSetup.Build gives the player (the powered golden's and the build tolerance):
+        /// the motors' asymmetry, the build tolerance, the vortex rings, the ground and ceiling effect, each rotor's wake
+        /// unsteadiness, the flapping's blade with its edgewise thrust, the rotors' interference and the airframe's modes.</summary>
+        public static void SessionAirframe(DroneSpec spec, FlightSetup s)
+        {
+            s.Asymmetry = spec.BuildAsymmetry();
+            s.Placement = spec.BuildPlacement();
+            s.VortexRing = spec.BuildVortexRing();
+            s.GroundEffect = spec.BuildGroundEffect();
+            s.RotorWake = spec.BuildRotorWake();
+            s.Flapping = spec.BuildFlapping();
+            s.Interference = spec.BuildInterference();
+            s.Modes = spec.BuildModes();
+        }
+
         /// <summary>tether.json with one row's value replaced (a known-wrong's table).</summary>
         public static TetherTable With(TetherTable table, string name, double value)
         {
@@ -201,6 +224,7 @@ namespace Fpv450.Sim.Tests
             if (ThroughTheBody) setup.TetherFountainThroughBody = true;
             if (ZeroForceHold) setup.TetherZeroForceHold = true;
             if (LinearStep) setup.TetherLinearStep = true;
+            if (SessionDrone) SessionAirframe(spec, setup);
             if (Blade == "edgewise" || Blade == "axial")
             {
                 setup.Flapping = spec.BuildFlapping();
@@ -359,6 +383,7 @@ namespace Fpv450.Sim.Tests
             map.Geometry(tree, 0, out ShapeGeometry trunk);
             Double3 centre = new Double3(trunk.Center.X, 0, trunk.Center.Z);
             FlightSetup setup = TetherScenarios.Setup(spec, wind, seed: seed, cuts: true);
+            if (SessionDrone) SessionAirframe(spec, setup);
             setup.World = new FlightWorld(map);
             double stand = TetherScenarios.Stand(setup);
             setup.StartPosition = new Double3(centre.X + 10, stand, centre.Z - 1);
