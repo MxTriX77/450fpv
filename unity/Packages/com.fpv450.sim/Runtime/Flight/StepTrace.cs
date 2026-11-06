@@ -127,6 +127,12 @@ namespace Fpv450.Sim.Flight
         /// its drag, N·m; its state (MotorHealth.Sound 0, Hot 1, Shorted 2, Failed 3). All 0 without the motors' heat.</summary>
         public Corners WindingTemperature, StatorTemperature, HeatKtChange, DirtMass, DirtDrag, MotorState;
 
+        /// <summary>Each arm's largest load over the step (p7f-damage 1.6, the losses, Flight.ArmFlex): its root's bend or twist stress over the
+        /// plate's strength, the larger; and the gyro's largest axis before its range clips it, °/s (FlightSetup.GyroRange). 0
+        /// without the arms in their plane, and without the gyro's range.</summary>
+        public Corners ArmLoad;
+        public double GyroPeak;
+
         /// <summary>The flight's loose pieces (p7g-legs 1.3, design 4), or null: logged in the side record at 50 Hz
         /// (LogFormat.LooseBlock), never in the step record.</summary>
         public Contact.LoosePieces Loose;
@@ -367,6 +373,13 @@ namespace Fpv450.Sim.Flight
         /// ultimate moment, N·m; C: the rotor's speed, rad/s.
         /// </summary>
         PropLost = 37,
+
+        /// <summary>
+        /// An arm broke at its clamp (p7f-damage 1.6, the losses, model 72; Flight.ArmFlex): its root's bend or twist under its rotor's turning
+        /// loads passed the plate's strength; from the next step its prop is lost (the motor hangs on its leads). Index its corner.
+        /// A: its load (the larger stress's share of its strength); B: the bend's root stress, Pa; C: the twist's, Pa.
+        /// </summary>
+        ArmBroken = 38,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>

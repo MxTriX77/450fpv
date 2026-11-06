@@ -81,5 +81,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The step's blade strikes per rotor and blade (p7a-ground design 9, p7f-damage design 4): what struck each
         /// blade this step, written by the strikes and read by the damage in the same step; cleared at the step's start.</summary>
         public BladeStrikes BladeStrikes;
+
+        /// <summary>Each arm in its plane (ArmFlex, p7f-damage 1.6, the losses, model 72): its tip's bend across the arm, m, and the arm's
+        /// twist about its axis, rad, with their rates; the arms broken at their clamp, bit 1 &lt;&lt; corner. 0 without it.</summary>
+        public Corners ArmBend, ArmBendRate, ArmTwist, ArmTwistRate;
+        public byte ArmBroken;
     }
 }

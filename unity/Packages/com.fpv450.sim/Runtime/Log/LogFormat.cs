@@ -282,8 +282,18 @@ namespace Fpv450.Sim.Log
         /// 63: the physics integration 2 with D-086's controller (unity/physics/physics-integration-2--int73, assigned by D-072; 61 and
         ///    62 are parallel lines'): 69's controller (format 55's layout, no record, header or event change) merged onto 60: the
         ///    record is 60's 3360 bytes, the header 60's (the settings carry airmode as before), the events 60's; no new event kind.
+        /// 62: p7f-damage 1.6, the losses, a lost prop and a lost blade graded (unity/physics/physics-integration-2--prop-loss, on 58; assigned
+        ///    by D-072; 59–61 are the parallel lines'): after 58's 3168 bytes each arm's bend across the arm and twist with their
+        ///    rates, its load, the gyro's peak before its range and the arms broken (arm_bend, arm_bend_rate, arm_twist,
+        ///    arm_twist_rate, arm_load, gyro_peak, arm_broken; 176 bytes, 3344 in all); the modes' entry gains, after the camera's
+        ///    parts, ArmInPlane, ArmShearModulus, ArmFlexuralStrength, ArmShearStrength and each corner's HubHeight, TwistMoment and
+        ///    TwistInertia; the setup entry FlightSetup.GyroRange after TetherZeroForceHold; the event ArmBroken (38).
+        /// 65: the physics integration 2 with the losses (unity/physics/physics-integration-2--int75, assigned by D-072; 64 is a
+        ///    parallel line's): 62's arms merged onto 63: after 63's 3360 bytes (58's 3168, then the heat's 192) 62's arms' block
+        ///    (176 bytes, 3536 in all), so 63's record is this one's first 3360 bytes and 62's is its first 3168 and its last 176; the
+        ///    header both sides' (the contacts entry 60's, the modes' and the setup entries 62's); the events 63's with 62's ArmBroken (38).
         /// </summary>
-        public const int Version = 63;
+        public const int Version = 65;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -716,8 +726,21 @@ namespace Fpv450.Sim.Log
         ///    bearings, bells, canister, cuts and chain fixes. 69 changes only the controller's settings and the mixer's loss and 70
         ///    the contacts and Propulsion, so they compose without new code. A flight with airmode on steps as in 70; one with
         ///    ContactSpec.MotorHeat off whose shafts never pass their yield (every golden) steps as in 69 over 63's 3040 bytes.
+        /// 72: p7f-damage 1.6, the losses, a lost prop and a lost blade graded (unity/physics/physics-integration-2--prop-loss, on 68; assigned
+        ///    by D-072; 69–71 are the parallel lines'): each arm in its plane (Flight.ArmFlex, AirframeModesSpec.ArmInPlane): the tip's
+        ///    bend across the arm and the arm's twist carry the rotor's in-plane 1/rev to the body, the twist tilts the thrust and
+        ///    turns the spinning rotor, and an arm past its strength breaks (ArmBroken, its prop lost); the gyro's range clips each
+        ///    axis the controller reads at ±FlightSetup.GyroRange (2000 °/s). With ArmInPlane off and GyroRange 0 (the clean sensors) a
+        ///    flight steps as in 68 over its 3168 bytes, the new block zero.
+        /// 75: the physics integration 2 with the losses (unity/physics/physics-integration-2--int75, assigned by D-072; 74 is a
+        ///    parallel line's; the code is the parents' together): 72's arms in their plane, the gyro's range and Propulsion.StopEsc
+        ///    merged onto 73's heat and dirt and D-086's controller. The arms carry the rotors' in-plane loads, the heat reads the
+        ///    windings' current and sets their resistance and Kt, the controller reads the clipped gyro; a stopped ESC and a failed
+        ///    motor both leave the bus (no drive), a failed one alone brakes. With the clean sensors (ArmInPlane off, GyroRange 0) a
+        ///    flight steps as in 73 over its 3360 bytes; with airmode on and ContactSpec.MotorHeat off as in 72 over 68's 3168 bytes
+        ///    and the arms' block.
         /// </summary>
-        public const int ModelVersion = 73;
+        public const int ModelVersion = 75;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
@@ -741,11 +764,16 @@ namespace Fpv450.Sim.Log
         /// line (p7d-tether 1.6), then the blades' strikes (p7f-damage 1.3), then the legs' state (p7g-legs 1.2), then each
         /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
         /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6), then the motors'
-        /// heat and dirt (1.6b).</summary>
-        public const int StepSize = 3360, EventSize = 72, EndSize = 48;
+        /// heat and dirt (1.6b), then the arms in their plane, the gyro's peak and the arms broken (1.6, the losses).</summary>
+        public const int StepSize = 3536, EventSize = 72, EndSize = 48;
+
+        /// <summary>The record before the arms' block (models 70–73's, formats 60–63: through the heat's block), over which a flight
+        /// with the clean sensors (its arms stiff in their plane, no gyro range) keeps model 73's bits.</summary>
+        public const int Model73StepSize = 3360;
 
         /// <summary>The record before the motors' heat (models 66–68's, formats 56–58: through the shafts' block), over which a flight
-        /// without the heat keeps model 68's bits.</summary>
+        /// without the heat and with the clean sensors keeps model 68's bits; model 72's record is these bytes and the arms' block
+        /// (from Model73StepSize on).</summary>
         public const int Model68StepSize = 3168;
 
         /// <summary>The record before the shafts (models 58–63's, formats 48–53: through the bells' block), over which a flight whose
@@ -785,7 +813,8 @@ namespace Fpv450.Sim.Log
         // logged (a new layout) or the suite fails.
         public static readonly string[] StateFieldsLogged =
             { "Step", "Position", "Velocity", "Attitude", "BodyRate", "Armed", "RotorSpeed", "EscCommand", "PackCharge0", "PackCharge1", "Fc", "EscLimited", "Crashed", "RotorAngle",
-              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow", "BladeStrikes" };
+              "RingInflow", "RingThrust", "RingLatched", "WashInflow", "ModeShape", "ModeRate", "InterferenceShare", "WakeInflow", "BladeStrikes",
+              "ArmBend", "ArmBendRate", "ArmTwist", "ArmTwistRate", "ArmBroken" };
         public static readonly string[] FcFieldsLogged =
         {
             "RcCommand", "RcThrottle", "RcDataThrottle", "RawSetpoint", "FfDeltaPrev", "FfSpeedPrev", "FfAccelPrev", "FfRaw",
@@ -804,6 +833,7 @@ namespace Fpv450.Sim.Log
                 "BladeLoad0", "BladeLoad1", "BladeBend0", "BladeBend1", "BellScrape", "BellRub", "BellKtChange",
                 "ShaftBendP", "ShaftBendQ", "BearingDrag", "BallPassOuter",
                 "WindingTemperature", "StatorTemperature", "HeatKtChange", "DirtMass", "DirtDrag", "MotorState",
+                "ArmLoad", "GyroPeak",
                 "Loose", // the side record's (LooseBlock)
             };
         public static readonly string[] TetherTraceFieldsLogged =
@@ -1002,6 +1032,15 @@ namespace Fpv450.Sim.Log
             b.Corners("dirt_mass", "kg, the soil in the motor's gap");
             b.Corners("dirt_drag", "N.m, the dirt's drag on the rotor (its cohesion bridged, packed past the gap)");
             b.Corners("motor_state", "0 sound, 1 its magnets past their maximum, 2 a coil shorted, 3 failed");
+            // The arms in their plane and the gyro's range (p7f-damage 1.6, the losses).
+            b.Corners("arm_bend", "m, the arm's tip bent across the arm in the arm plane (along arm x up); 0 without the arms in their plane");
+            b.Corners("arm_bend_rate", "m/s, its rate");
+            b.Corners("arm_twist", "rad, the arm's twist about its own axis (outward from the centre) at its tip");
+            b.Corners("arm_twist_rate", "rad/s, its rate");
+            b.Corners("arm_load", "the arm root's largest stress over the step over the plate's strength (bend or twist, the larger); past 1 it broke");
+            b.Add("gyro_peak", "deg/s, the gyro's largest axis this step before its range clips it", LogFieldType.F64);
+            b.Add("arm_broken", "the arms broken at their clamp, bit 1 << corner", LogFieldType.U8);
+            b.Add("arm.reserved", "zero", LogFieldType.Pad, 7);
             return b.Done(StepSize);
         }
 
@@ -1209,6 +1248,14 @@ namespace Fpv450.Sim.Log
             w.C4(t.DirtMass);
             w.C4(t.DirtDrag);
             w.C4(t.MotorState);
+            w.C4(s.ArmBend);
+            w.C4(s.ArmBendRate);
+            w.C4(s.ArmTwist);
+            w.C4(s.ArmTwistRate);
+            w.C4(t.ArmLoad);
+            w.F64(t.GyroPeak);
+            w.U8(s.ArmBroken);
+            w.Zero(7);
         }
 
         public static void DecodeStep(ReadOnlySpan<byte> src, out FlightState s, out StickSample k, out StepTrace t)
@@ -1368,6 +1415,14 @@ namespace Fpv450.Sim.Log
             t.DirtMass = r.C4();
             t.DirtDrag = r.C4();
             t.MotorState = r.C4();
+            s.ArmBend = r.C4();
+            s.ArmBendRate = r.C4();
+            s.ArmTwist = r.C4();
+            s.ArmTwistRate = r.C4();
+            t.ArmLoad = r.C4();
+            t.GyroPeak = r.F64();
+            s.ArmBroken = r.U8();
+            r.Skip(7);
         }
 
         /// <summary>The stick sample of a step record, without decoding the rest.</summary>

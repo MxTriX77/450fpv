@@ -41,26 +41,27 @@ namespace Fpv450.Sim.Tests
             Assert.That(with, Is.EqualTo(without), "1.4b's layout, every bit, with the contacts and without them");
         }
 
-        // Model 73 (the physics integration 2 with D-086's controller: 69 merged onto 70), its audit against model 70: with
+        // Model 73 (the physics integration 2 with D-086's controller: 69 merged onto 70), its audit against model 70, kept: with
         // Betaflight's airmode on, as every model before 69 flew it, each golden is its model 70 pin over the whole record, every
-        // record and event; without it each is its pin above. So the controller is the whole of 73's move against 70. The tumble
-        // has no controller and keeps its pin.
+        // record and event; without it each is its model 73 pin. So the controller is the whole of 73's move against 70. The tumble
+        // has no controller and keeps its pin. Since model 75 (72 merged onto 73) over model 73's 3360 bytes, the clean sensors.
         [Test]
         public void WithAirmodeEachGoldenIsModel70s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             WindSetup calm = WindSetup.Of(WindLevel.Calm);
             Assert.That(FcSettings.Default.airmode, Is.False);
-            Audit("powered", "model 70", (air, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, airmode: air), c),
-                GoldenFlights.Model70PoweredHash, GoldenFlights.PoweredHash);
-            Audit("rain", "model 70", (air, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, airmode: air), c),
-                GoldenFlights.Model70RainPoweredHash, GoldenFlights.RainPoweredHash);
-            Audit("contact", "model 70", (air, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, airmode: air), c),
-                GoldenFlights.Model70ContactHash, GoldenFlights.ContactHash);
-            Audit("range", "model 70", (air, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, airmode: air), c),
-                GoldenFlights.Model70RangeHash, GoldenFlights.RangeHash);
-            Audit("tether", "model 70", (air, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, airmode: air), c),
-                GoldenFlights.Model70TetherHash, GoldenFlights.TetherHash);
+            const int m73 = GoldenFlights.Model73Layout; // since model 75 over model 73's 3360 bytes, the clean sensors
+            Audit("powered", "model 70", (air, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, airmode: air, layout: m73), c),
+                GoldenFlights.Model70PoweredHash, GoldenFlights.Model73PoweredHash);
+            Audit("rain", "model 70", (air, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, airmode: air, layout: m73), c),
+                GoldenFlights.Model70RainPoweredHash, GoldenFlights.Model73RainPoweredHash);
+            Audit("contact", "model 70", (air, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, airmode: air, layout: m73), c),
+                GoldenFlights.Model70ContactHash, GoldenFlights.Model73ContactHash);
+            Audit("range", "model 70", (air, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, airmode: air, layout: m73), c),
+                GoldenFlights.Model70RangeHash, GoldenFlights.Model73RangeHash);
+            Audit("tether", "model 70", (air, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, airmode: air, layout: m73), c),
+                GoldenFlights.Model70TetherHash, GoldenFlights.Model73TetherHash);
         }
 
         // Model 69 (D-086: the pilot flies without airmode, FcSettings.Default's since 69), its audit against model 65, kept: with
@@ -88,7 +89,73 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model65TetherHash, GoldenFlights.Model69TetherHash);
         }
 
-        static void Audit(string name, string model, Func<bool, Action<byte[]>, (ulong hash, FlightCore core)> fly, ulong older, ulong pin)
+        // Model 75 (the physics integration 2 with the losses: 72 merged onto 73), its audit against model 73: with the clean sensors
+        // (GoldenFlights.CleanSensors: the arms stiff in their plane, no gyro range; every flight over a layout short of the record)
+        // each golden over model 73's 3360 bytes is its model 73 pin, every record and event, the arms' block zero on every record;
+        // with them each is its pin. So the arms and the gyro's range are the whole of 75's move against 73.
+        [Test]
+        public void WithTheCleanSensorsEachGoldenIsModel73s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const int m73 = GoldenFlights.Model73Layout;
+            int block = 0;
+            Action<byte[]> Zero(bool clean, Action<byte[]> keep) => r =>
+            {
+                keep(r);
+                if (clean) for (int i = m73; i < LogFormat.StepSize; i++) if (r[i] != 0) block++;
+            };
+            int Layout(bool clean) => clean ? m73 : LogFormat.StepSize;
+            const string sw = "the clean sensors";
+            Audit("powered", "model 73", (clean, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: Zero(clean, keep), layout: Layout(clean)), c),
+                GoldenFlights.Model73PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 73", (clean, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: Zero(clean, keep), layout: Layout(clean)), c),
+                GoldenFlights.Model73RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 73", (clean, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: Zero(clean, keep), layout: Layout(clean)), c),
+                GoldenFlights.Model73ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 73", (clean, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: Zero(clean, keep), layout: Layout(clean)), c),
+                GoldenFlights.Model73RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 73", (clean, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: Zero(clean, keep), layout: Layout(clean)), c),
+                GoldenFlights.Model73TetherHash, GoldenFlights.TetherHash, sw);
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m73), Is.EqualTo(GoldenFlights.Model73TumbleHash), "tumble");
+            Assert.That(block, Is.EqualTo(0), "the arms' block is zero with the clean sensors");
+        }
+
+        // Model 75, its audit against model 72 (p7f-damage 1.6's losses, on 68): with Betaflight's airmode on (as 72 flew) and the
+        // motors' heat off (ContactSpec.MotorHeat, as 72 flew), the arms and the gyro's range on, each golden over model 72's bytes
+        // (the record's first 3168 and its last 176: the heat's 192 at Model68Layout skipped, GoldenFlights.HeatSkip) is its model
+        // 72 pin, every record and event, the heat's block zero on every record; without them each is its pin. So D-086's controller
+        // and the heat are the whole of 75's move against 72.
+        [Test]
+        public void WithAirmodeAndWithoutTheHeatEachGoldenIsModel72s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const int at = GoldenFlights.Model68Layout, skip = GoldenFlights.HeatSkip;
+            int block = 0;
+            Action<byte[]> Zero(bool old, Action<byte[]> keep) => r =>
+            {
+                keep(r);
+                if (old) for (int i = at; i < at + skip; i++) if (r[i] != 0) block++;
+            };
+            int At(bool old) => old ? at : LogFormat.StepSize;
+            int Skip(bool old) => old ? skip : 0;
+            const string sw = "airmode on and the heat off";
+            Audit("powered", "model 72", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, At(old), Skip(old), onRecord: Zero(old, keep), heat: !old, airmode: old), c),
+                GoldenFlights.Model72PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 72", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, At(old), Skip(old), wind: calm, rain: RainLevel.SevereRain, onRecord: Zero(old, keep),
+                heat: !old, airmode: old), c), GoldenFlights.Model72RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 72", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, At(old), Skip(old), onRecord: Zero(old, keep), heat: !old, airmode: old), c),
+                GoldenFlights.Model72ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 72", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, At(old), Skip(old), onRecord: Zero(old, keep), heat: !old, airmode: old), c),
+                GoldenFlights.Model72RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 72", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, At(old), Skip(old), tether: true, onRecord: Zero(old, keep), heat: !old,
+                airmode: old), c), GoldenFlights.Model72TetherHash, GoldenFlights.TetherHash, sw);
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip), Is.EqualTo(GoldenFlights.Model72TumbleHash), "tumble (no rotor: the heat's zero block alone)");
+            Assert.That(block, Is.EqualTo(0), "the heat's block is zero without the heat");
+        }
+
+        static void Audit(string name, string model, Func<bool, Action<byte[]>, (ulong hash, FlightCore core)> fly, ulong older, ulong pin, string sw = "airmode")
         {
             var on = new System.Collections.Generic.List<FlightState>();
             var off = new System.Collections.Generic.List<FlightState>();
@@ -119,10 +186,10 @@ namespace Fpv450.Sim.Tests
             FlightState ea = ca.State, eb = cb.State;
             string Contacts(FlightCore c) => c.Contacts == null ? "" : $", {c.Contacts.ImpactCount} impacts, {c.Trace.ContactsTouching} touching";
             string Line(FlightCore c) => c.Tether == null ? "" : c.Tether.Broken ? $", the line broken at step {c.Tether.BrokenAt} by {c.Tether.LastBreak.Mechanism}" : $", the line whole, {c.Tether.PaidOut:F3} m paid out";
-            TestContext.Progress.WriteLine($"{name}: airmode on 0x{a:X16} ({model} 0x{older:X16}), off 0x{b:X16}; the records the same for {first} of {offBits.Count} steps; "
+            TestContext.Progress.WriteLine($"{name}: {sw} on 0x{a:X16} ({model} 0x{older:X16}), off 0x{b:X16}; the records the same for {first} of {offBits.Count} steps; "
                 + $"at most {far * 1e3:F1} mm and {turn:F2}° apart (at{marks}), the largest body rate {rateOn:F0} °/s on and {rateOff:F0} off, the ends {(ea.Position - eb.Position).Length() * 1e3:F1} mm apart; on: {ea.Position.Y:F4} m up, armed {ea.Armed}, crashed {ea.Crashed}{Contacts(ca)}{Line(ca)}; "
                 + $"off: {eb.Position.Y:F4} m up, armed {eb.Armed}, crashed {eb.Crashed}{Contacts(cb)}{Line(cb)}");
-            Assert.That(a, Is.EqualTo(older), name + " with airmode: " + model + "'s");
+            Assert.That(a, Is.EqualTo(older), name + " with " + sw + ": " + model + "'s");
             Assert.That(b, Is.EqualTo(pin), name + " without: the pin");
         }
 
@@ -799,6 +866,10 @@ namespace Fpv450.Sim.Tests
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the
         // bells has from its first step: the windings take their current's I²R at once) and its 192 bytes are the whole of 70's move
         // against 68.
+        // Since model 75 (72 merged onto 73) it is p7f-damage 1.6's losses' audit (model 72, off 68) too, folded in (72's
+        // WithTheCleanSensorsEachGoldenIsModel68s flew the same flights): over model 68's bytes every flight flies the clean sensors
+        // (GoldenFlights.CleanSensors: the arms stiff in their plane, no gyro range), and the heat's and the arms' blocks are zero on
+        // every record. So the arms in their plane and the gyro's range are the whole of 72's move against 68.
         [Test]
         public void WithoutTheHeatEachGoldenIsModel68s()
         {
@@ -817,7 +888,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyContact(spec, out FlightCore line, tether: true, layout: m68, onRecord: Zero, airmode: true), Is.EqualTo(GoldenFlights.Model68TetherHash), "tether");
             Assert.That(line.Tether.Cuts, Is.Not.Null, "with the cuts");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, layout: m68), Is.EqualTo(GoldenFlights.Model68TumbleHash), "tumble");
-            Assert.That(block, Is.EqualTo(0), "the heat's block is zero");
+            Assert.That(block, Is.EqualTo(0), "the heat's and the arms' blocks are zero");
             // And the heat on: every golden moves (each heats from its first powered step), its block not zero.
             Assert.That(GoldenFlights.FlyPowered(spec, out _, layout: m68, heat: true, airmode: true), Is.Not.EqualTo(GoldenFlights.Model68PoweredHash), "powered, heated");
         }
@@ -1419,7 +1490,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.Model68Layout - GoldenFlights.Model63Layout, Is.EqualTo(128), "four motors' bend, bearings' drag and ball-pass frequency, to model 68's record's end");
             Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model68Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "winding_temperature.rear_right")),
                 "p7f-damage 1.6b's heat follows the shafts (model 70)");
-            Assert.That(LogFormat.StepSize - GoldenFlights.Model68Layout, Is.EqualTo(192), "four motors' temperatures, Kt change, dirt, its drag and state, to the record's end");
+            Assert.That(GoldenFlights.Model73Layout - GoldenFlights.Model68Layout, Is.EqualTo(192), "four motors' temperatures, Kt change, dirt, its drag and state, to model 73's record's end");
+            Assert.That(LogFormat.FieldAt(LogFormat.StepFields, GoldenFlights.Model73Layout), Is.EqualTo(System.Array.FindIndex(LogFormat.StepFields, f => f.Name == "arm_bend.rear_right")),
+                "p7f-damage 1.6's losses' arms follow the heat (model 75; after the shafts in model 72's record)");
+            Assert.That(LogFormat.StepSize - GoldenFlights.Model73Layout, Is.EqualTo(176), "four arms' bend, twist, their rates and load, the gyro's peak and the arms broken, to the record's end");
         }
     }
 }
