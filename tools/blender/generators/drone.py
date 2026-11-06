@@ -31,15 +31,18 @@ and the LODs. The spec's parts are mass shapes; each is drawn as follows.
 - **Coil** (coil; legs_off.moved): T's spool, the wound pack on its bobbin, inside the canister along the part's axis
   (its v the axis' normal towards the ground): the fiber pack's diameter the part's at full spool, shrinking with
   `payout` to the core as its volume leaves; the light grey rear cap with its recessed three-spoke hub and the line's
-  hole, the black front hoop; the part's length end to end. The canister hides it; it is drawn for the player's pack.
+  hole, the black front hoop; the part's length end to end. It shows through the clear canister (D-086).
   The pack (its rear face from the cap's rim, the ribbed winding, the hoop's rear face to its rim: every vertex the
   player moves as the line pays out, p7d-tether 1.14's CoilPack) is its own mesh per LOD, `coil_pack` under the
   metadata's `readable`, so the importer makes only it readable and the rest of the drone keeps no CPU copy.
 - **Canister** (canister; the class's, docs/reference-notes/spool-exit-and-rear.md): the part's body exactly (its
-  diameter, its length end to end, its axis tilted rear-down), a lid seam near its front face; aft of the body the
-  black cone (canister.cone_m) to its collar, then the aluminium nozzle (canister.nozzle_*) with its bore and a mouth
-  flared over a rounded lip (lip_r_m), whose tip is the line's exit (`fiber_exit`, the metadata's port: the tip and
-  the direction down the axis aft); two black printed hangers from the bottom plate's underside down to the body,
+  diameter, its length end to end, its axis tilted rear-down) as a clear shell (D-086: the coil and its shrinking
+  pack show through it) of canister.wall_m, a tube and its front lid with a seam near the front face, hollow round
+  the coil; aft of the body the black cone (canister.cone_m) to its collar, then the aluminium nozzle
+  (canister.nozzle_*), bent canister.nozzle_bend_deg further down at the collar (D-086: the line leaves its hole at
+  about 25-30 deg; drone.json's coil_nozzle), seated in the collar, with its bore and a mouth flared over a rounded
+  lip (lip_r_m), whose tip is the line's exit (`fiber_exit`, the metadata's port: the tip and the direction down the
+  nozzle's own axis aft); two black printed hangers from the bottom plate's underside down to the body,
   each with a cable tie round the body through it, and the fiber's connector on the body's top with its lead to the
   plate (the fixed end, to the transceiver).
 - **Bottle** (payload; legs_off.moved; payload_kg): a plain plastic bottle (D-050) sized by its water. The part is
@@ -93,10 +96,11 @@ PALETTES = {
     "strap": ("black", "purple"),
     "lead": ("red", "black"),
     "bottle": ("body", "cap"),
+    "shell": ("clear",),
 }
 # The object sheet's material ids (Physics role).
 PHYSICS = {"carbon": "carbon_composite","metal": "steel", "prop": "plastic", "plastic": "plastic", "strap": "fabric",
-           "lead": "cable", "bottle": "plastic"}
+           "lead": "cable", "bottle": "plastic", "shell": "plastic"}
 BLADE_MAX_TWIST_DEG = 35.0  # a blade's root turns no steeper than this into the hub (assumed: molded props)
 # A blade's chord along the radius, as a share of prop.chord_m at r / R (the sheet: widest near a third of the
 # radius, a slender scimitar; assumed shape); the tip's own chord closes it, then a round tip.
@@ -110,6 +114,7 @@ HANGER_HALF_M = 0.022  # a printed hanger's half-width across the canister (assu
 PIGTAIL_R_M = 0.0015  # the fiber's fixed end, a 3 mm jacketed pigtail (assumed)
 MOUTH_BAND_M = 0.0015  # the nozzle mouth's rim band before its flare (assumed)
 SEAM_M = 0.001  # the canister lid's seam, its width and depth (assumed)
+NOZZLE_SEAT_M = 0.004  # how far the nozzle's tube sits in the cone's collar past its face (assumed)
 EXIT = "fiber_exit"  # the line's exit: the metadata's port at the nozzle's tip
 NECK_M, RING_M = 0.010, 0.003  # a PET bottle's neck under its cap and its support ring's lip (assumed)
 LEAD_R_M = 0.00225  # 10 AWG silicone with its jacket, Ø4.5 mm (the sheet)
@@ -160,6 +165,10 @@ PARAMS = {
     "canister.nozzle_m": {"type": "float", "range": (0.04, 0.10), "default": 0.070,
                           "effect": "the nozzle's length from the collar to its tip"},
     "canister.nozzle_d_m": {"type": "float", "range": (0.010, 0.025), "default": 0.018, "effect": "the nozzle's tube"},
+    "canister.nozzle_bend_deg": {"type": "float", "range": (0.0, 30.0), "default": 12.5,
+                                 "effect": "the nozzle bent this much further down than the canister's axis at the collar"},
+    "canister.wall_m": {"type": "float", "range": (0.001, 0.005), "default": 0.002,
+                        "effect": "the clear shell's wall, its tube and front lid"},
     "canister.bore_d_m": {"type": "float", "range": (0.004, 0.020), "default": 0.012, "effect": "the nozzle's bore"},
     "canister.lip_r_m": {"type": "float", "range": (0.001, 0.010), "default": 0.004,
                          "effect": "the mouth's rounded lip, the radius the line turns over"},
@@ -281,6 +290,7 @@ WRAP, LIME, YELLOW, PCB, LENS = (paint("plastic", c) for c in ("pack_wrap", "lim
 STRAP, STRAP_EDGE_PAINT = paint("strap", "black"), paint("strap", "purple")
 RED, LEAD_BLACK = paint("lead", "red"), paint("lead", "black")
 BODY, CAP = paint("bottle", "body"), paint("bottle", "cap")
+SHELL = paint("shell", "clear")
 
 
 # --- params ------------------------------------------------------------------------------------------------------
@@ -340,6 +350,10 @@ def _canister_problems(spec, params):
     problems = []
     if not rb < ro < k["collar_d_m"] / 2 < R:
         problems.append("the nozzle's bore, its tube, the cone's collar and the body must grow in that order")
+    if not SEAM_M < k["wall_m"] < R - k["collar_d_m"] / 2:
+        problems.append("the shell's wall must be deeper than the lid's seam and leave the body hollow past the collar")
+    if ro * math.tan(math.radians(k["nozzle_bend_deg"])) + NOZZLE_SEAT_M >= k["cone_m"]:
+        problems.append("the bent nozzle's seat must lie inside the cone")
     if not (ro < rm and rb + k["lip_r_m"] < rm):
         problems.append("the mouth must flare past the nozzle's tube and the lip round its bore")
     if MOUTH_BAND_M + (rm - ro) >= k["nozzle_m"] or k["lip_r_m"] >= k["nozzle_m"]:
@@ -353,7 +367,7 @@ def _canister_problems(spec, params):
         d = sub(add(cc, scale(cw, end * value(coil["length_m"]) / 2)), c)
         along = dot(d, w)
         across = math.sqrt(max(0.0, dot(d, d) - along * along))
-        if abs(along) > L / 2 + 1e-9 or across + params["coil"]["hoop_d_m"] / 2 > R:
+        if abs(along) > L / 2 - k["wall_m"] + 1e-9 or across + params["coil"]["hoop_d_m"] / 2 > R - k["wall_m"]:
             problems.append("the coil's bobbin (its part, its hoop) must lie inside the canister's body")
             break
     return problems
@@ -391,13 +405,15 @@ def build(params):
     tip, out = fiber_exit(params, layout)
     can, k = layout.part("canister"), params["canister"]
     fc, _ = mount_frame(params, layout, "canister")
-    zt, _, zr, zf = canister_stations(params, layout)
-    lowest = min(fc.at(0, s * r, z)[1] for s in (-1, 1) for z, r in ((zr, can["diameter_m"] / 2),
-                 (zf, can["diameter_m"] / 2), (zt, k["mouth_d_m"] / 2)))
-    report.append(f"canister body {can['diameter_m']:g} x {can['length_m']:g} m, cone {k['cone_m']:g} m, nozzle "
-                  f"{k['nozzle_m']:g} m (tube {k['nozzle_d_m']:g}, bore {k['bore_d_m']:g}, mouth "
-                  f"{k['mouth_d_m']:g} m, lip r {k['lip_r_m']:g} m), tilted {math.degrees(math.asin(-out[1])):.2f} deg "
-                  f"rear-down; the line's exit at the nozzle tip ({tip[0]:.6f}, {tip[1]:.6f}, {tip[2]:.6f}) m "
+    fn, (zt, _, _) = nozzle_frame(params, layout)
+    _, _, zr, zf = canister_stations(params, layout)
+    lowest = min([fc.at(0, s * can["diameter_m"] / 2, z)[1] for s in (-1, 1) for z in (zr, zf)]
+                 + [fn.at(0, s * k["mouth_d_m"] / 2, zt)[1] for s in (-1, 1)])
+    report.append(f"canister body {can['diameter_m']:g} x {can['length_m']:g} m, a clear shell of {k['wall_m']:g} m, "
+                  f"cone {k['cone_m']:g} m, nozzle {k['nozzle_m']:g} m (tube {k['nozzle_d_m']:g}, bore "
+                  f"{k['bore_d_m']:g}, mouth {k['mouth_d_m']:g} m, lip r {k['lip_r_m']:g} m), the body tilted "
+                  f"{math.degrees(math.asin(-fc.w[1])):.2f} deg rear-down, the nozzle bent {k['nozzle_bend_deg']:g} deg "
+                  f"more: the line leaves {math.degrees(math.asin(-out[1])):.2f} deg down; the line's exit at the nozzle tip ({tip[0]:.6f}, {tip[1]:.6f}, {tip[2]:.6f}) m "
                   f"leaving ({out[0]:.6f}, {out[1]:.6f}, {out[2]:.6f}), "
                   f"{min(h[2] for h in layout.hubs) - tip[2]:.4f} m aft of the rear motors' axis and "
                   f"{-tip[1]:.4f} m below the arm plane; its lowest point y {lowest:.4f} m")
@@ -1193,33 +1209,70 @@ def _coil_pack(m, q, params, layout):
 # --- canister -----------------------------------------------------------------------------------------------------
 
 def canister_stations(params, layout):
-    """The canister along its axis from its part's centre: the nozzle's tip, the collar (the nozzle's root, the cone's
-    end), the body's rear and front faces."""
+    """The canister along its axis from its part's centre: the nozzle's tip (straight on, its station unbent; the bent
+    nozzle's tip is nozzle_frame's), the collar (the nozzle's root, the cone's end), the body's rear and front faces."""
     part, k = layout.part("canister"), params["canister"]
     zr, zf = -part["length_m"] / 2, part["length_m"] / 2
     zn = zr - k["cone_m"]
     return zn - k["nozzle_m"], zn, zr, zf
 
 
-def fiber_exit(params, layout):
-    """The line's exit: the nozzle tip's centre and the unit direction the line leaves in, down the axis aft."""
+def nozzle_frame(params, layout):
+    """The nozzle's own frame: origin the collar's centre, w its axis into the canister, turned from the canister's by
+    canister.nozzle_bend_deg about u so the tip points further down (towards the canister frame's v, the ground); its
+    stations along w: the tip (-nozzle_m), the bore's end and the seat in the collar, each past where the tilted
+    collar face meets the tube (0 when straight), so the bore stays aft of it and the tube's root inside the cone."""
     f, _ = mount_frame(params, layout, "canister")
-    return f.at(0, 0, canister_stations(params, layout)[0]), tuple(0.0 - x for x in f.w)
+    k = params["canister"]
+    _, zn, _, _ = canister_stations(params, layout)
+    b = math.radians(k["nozzle_bend_deg"])
+    w = sub(scale(f.w, math.cos(b)), scale(f.v, math.sin(b)))
+    v = add(scale(f.v, math.cos(b)), scale(f.w, math.sin(b)))
+    lean = k["nozzle_d_m"] / 2 * math.tan(b)
+    return Frame(f.at(0, 0, zn), f.u, v, w), (-k["nozzle_m"], -lean, lean + NOZZLE_SEAT_M)
 
 
-def canister_profile(params, layout, q):
-    """The canister's lathe profile at LOD q and its paints: from the bore's end, out through the nozzle's bore and
-    over its rounded lip, the rim and the flared mouth, back along the tube to the collar, up the cone, along the body
-    (a lid's seam at LOD0) to its front face. LOD3 keeps the tube, the cone and the body."""
+def fiber_exit(params, layout):
+    """The line's exit: the nozzle tip's centre and the unit direction the line leaves in, down the nozzle's axis aft."""
+    fn, (zt, _, _) = nozzle_frame(params, layout)
+    return fn.at(0, 0, zt), tuple(0.0 - x for x in fn.w)
+
+
+def shell_profile(params, layout, q):
+    """The clear shell's lathe profile (canister frame) and its paints: hollow by canister.wall_m, from the inner lid's
+    face on the axis out and back along the inner wall to the body's rear face, over its rim, forward along the outside
+    (a lid's seam at LOD0) and in over the front lid to the axis. The cone closes its rear (cone_profile)."""
     part, k = layout.part("canister"), params["canister"]
-    R = part["diameter_m"] / 2
-    zt, zn, zr, zf = canister_stations(params, layout)
-    rb, ro, rm, rl, rc = k["bore_d_m"] / 2, k["nozzle_d_m"] / 2, k["mouth_d_m"] / 2, k["lip_r_m"], k["collar_d_m"] / 2
+    R, t = part["diameter_m"] / 2, k["wall_m"]
+    _, _, zr, zf = canister_stations(params, layout)
+    profile = [(zf - t, 0.0), (zf - t, R - t), (zr, R - t), (zr, R)]
+    if q == 0:  # the lid's seam
+        zs = zf - k["lid_m"]
+        profile += [(zs - SEAM_M / 2, R), (zs - SEAM_M / 2, R - SEAM_M), (zs + SEAM_M / 2, R - SEAM_M),
+                    (zs + SEAM_M / 2, R)]
+    profile += [(zf, R), (zf, 0.0)]
+    return profile, [SHELL] * (len(profile) - 1)
+
+
+def cone_profile(params, layout):
+    """The black cone's lathe profile (canister frame) and its paints: the collar's face, the cone up to the body's
+    rear rim, and its front face across the body's end, inside the shell."""
+    part, k = layout.part("canister"), params["canister"]
+    _, zn, zr, _ = canister_stations(params, layout)
+    return [(zn, 0.0), (zn, k["collar_d_m"] / 2), (zr, part["diameter_m"] / 2), (zr, 0.0)], [BLACK] * 3
+
+
+def nozzle_profile(params, layout, q):
+    """The nozzle's lathe profile (nozzle_frame) at LOD q and its paints: from the bore's end, out through the bore
+    and over its rounded lip, the rim and the flared mouth, back along the tube to its seat in the collar. LOD3 keeps
+    the tube."""
+    k = params["canister"]
+    _, (zt, zb, zs) = nozzle_frame(params, layout)
+    rb, ro, rm, rl = k["bore_d_m"] / 2, k["nozzle_d_m"] / 2, k["mouth_d_m"] / 2, k["lip_r_m"]
     if q == 3:
-        return ([(zt, 0.0), (zt, ro), (zn, ro), (zn, rc), (zr, R), (zf, R), (zf, 0.0)],
-                [ZINC, ZINC, BLACK, BLACK, PRINT, PRINT])
+        return [(zt, 0.0), (zt, ro), (zs, ro), (zs, 0.0)], [ZINC] * 3
     arc = (6, 3, 1)[q]
-    profile, paints = [(zn, 0.0), (zn, rb), (zt + rl, rb)], [RECESS, ZINC]
+    profile, paints = [(zb, 0.0), (zb, rb), (zt + rl, rb)], [RECESS, ZINC]
     for i in range(1, arc + 1):  # the lip, rounded out to the rim: the radius the line turns over
         a = math.pi / 2 * i / arc
         profile.append((zt + rl - rl * math.sin(a), rb + rl - rl * math.cos(a)))
@@ -1231,23 +1284,19 @@ def canister_profile(params, layout, q):
         a = math.pi / 2 * i / arc
         profile.append((zt + MOUTH_BAND_M + rho - rho * math.cos(a), rm - rho * math.sin(a)))
         paints.append(ZINC)
-    profile += [(zn, ro), (zn, rc), (zr, R)]
-    paints += [ZINC, BLACK, BLACK]
-    if q == 0:  # the lid's seam
-        zs = zf - k["lid_m"]
-        profile += [(zs - SEAM_M / 2, R), (zs - SEAM_M / 2, R - SEAM_M), (zs + SEAM_M / 2, R - SEAM_M),
-                    (zs + SEAM_M / 2, R)]
-        paints += [PRINT, RECESS, RECESS, RECESS]
-    profile += [(zf, R), (zf, 0.0)]
-    paints += [PRINT, PRINT]
+    profile += [(zs, ro), (zs, 0.0)]
+    paints += [ZINC, ZINC]
     return profile, paints
 
 
 def _canister(m, q, params, layout):
-    """The canister round the coil (the class's: a body, a cone and a nozzle on one axis, tilted rear-down)."""
+    """The canister round the coil (the class's: a body and a cone on one axis, tilted rear-down, the body a clear
+    shell; the nozzle bent down at the collar)."""
     f, _ = mount_frame(params, layout, "canister")
-    profile, paints = canister_profile(params, layout, q)
-    lathe(m, f, profile, COIL_SEGMENTS[q], paints)
+    fn, _ = nozzle_frame(params, layout)
+    for frame, (profile, paints) in ((f, shell_profile(params, layout, q)), (f, cone_profile(params, layout)),
+                                     (fn, nozzle_profile(params, layout, q))):
+        lathe(m, frame, profile, COIL_SEGMENTS[q], paints)
 
 
 def hanger_boxes(params, layout):
@@ -1498,20 +1547,21 @@ def _collision(params, layout):
 
 
 def _canister_shapes(params, layout):
-    """The canister (the coil inside it): its body, its cone in three steps at their middles' radii, its nozzle and
-    its flared mouth (metal: the motors' steel stands for the aluminium), its hangers."""
+    """The canister (the coil inside it): its body, its cone in three steps at their middles' radii, its bent nozzle
+    and its flared mouth (metal: the motors' steel stands for the aluminium), its hangers."""
     f, _ = mount_frame(params, layout, "canister")
     part, k = layout.part("canister"), params["canister"]
     R, rc = part["diameter_m"] / 2, k["collar_d_m"] / 2
-    zt, zn, zr, zf = canister_stations(params, layout)
+    _, zn, zr, zf = canister_stations(params, layout)
     plastic, metal = PHYSICS["plastic"], PHYSICS["metal"]
     shapes = [_cylinder(f.at(0, 0, zr), f.at(0, 0, zf), R, plastic)]
     for i in range(3):
         shapes.append(_cylinder(f.at(0, 0, zn + (zr - zn) * i / 3), f.at(0, 0, zn + (zr - zn) * (i + 1) / 3),
                                 rc + (R - rc) * (i + 0.5) / 3, plastic))
-    shapes.append(_cylinder(f.at(0, 0, zt), f.at(0, 0, zn), k["nozzle_d_m"] / 2, metal))
+    fn, (zt, _, _) = nozzle_frame(params, layout)  # the nozzle on its own, bent axis
+    shapes.append(_cylinder(fn.at(0, 0, zt), fn.at(0, 0, 0), k["nozzle_d_m"] / 2, metal))
     flare = MOUTH_BAND_M + (k["mouth_d_m"] - k["nozzle_d_m"]) / 2
-    shapes.append(_cylinder(f.at(0, 0, zt), f.at(0, 0, zt + flare), k["mouth_d_m"] / 2, metal))
+    shapes.append(_cylinder(fn.at(0, 0, zt), fn.at(0, 0, zt + flare), k["mouth_d_m"] / 2, metal))
     for lo, hi in hanger_boxes(params, layout):
         shapes.append(_box_shape([(lo[a] + hi[a]) / 2 for a in range(3)], [hi[a] - lo[a] for a in range(3)],
                                  [0, 0, 0, 1], plastic))

@@ -43,6 +43,7 @@ TARGETS = {
 # A palette recipe's documented linear gain over its colours, where it is not 1: (gain, where it is written).
 GAINS = {
     "glass": (0.15, "p1-r01-vaz-sedan task 1.3: #a9bdb4 x tint 0.15"),
+    "drone_shell": (0.15, "p7d-tether, D01's clear canister: #d3dcdf x tint 0.15, glass's"),
 }
 
 
