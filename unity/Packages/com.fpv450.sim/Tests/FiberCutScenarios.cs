@@ -166,11 +166,35 @@ namespace Fpv450.Sim.Tests
         /// without them (the same cause, by a disc, 0.7 s earlier; not traced).</summary>
         public static readonly bool ZeroForceHold = System.Environment.GetEnvironmentVariable("FIBER_HOLD") == "zero";
 
+        /// <summary>FIBER_CHAIN=linear flies every scenario with the known-wrong linear step (FlightSetup.TetherLinearStep, model 74's
+        /// chain: the line's step on its start's linearisation alone, 1.8's finding 2).</summary>
+        public static readonly bool LinearStep = System.Environment.GetEnvironmentVariable("FIBER_CHAIN") == "linear";
+
+        /// <summary>FIBER_LIP=flared flies every scenario over model 64–73's 4 mm flared lip (the known-wrong for the hole's edge);
+        /// FIBER_LIPWEAR=severe with the severe Archard k on the hole's edge (a bare grooved plastic hole: the known-wrong for its
+        /// wear); FIBER_PEEL=old with model 56–73's peel reference rate, 1 m/s (the known-wrong for the cruise's peel).</summary>
+        public static readonly bool FlaredLip = System.Environment.GetEnvironmentVariable("FIBER_LIP") == "flared",
+            SevereLip = System.Environment.GetEnvironmentVariable("FIBER_LIPWEAR") == "severe",
+            OldPeel = System.Environment.GetEnvironmentVariable("FIBER_PEEL") == "old";
+
+        /// <summary>tether.json with one row's value replaced (a known-wrong's table).</summary>
+        public static TetherTable With(TetherTable table, string name, double value)
+        {
+            var rows = (TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+                if (rows[i].Name == name) rows[i].Values = new[] { value };
+            return new TetherTable(rows, table.ContentHash);
+        }
+
         static FlightSetup Setup(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit)
         {
             FlightSetup setup = TetherScenarios.Setup(spec, wind, seed: seed, cuts: true);
+            if (FlaredLip) setup.Tether = With(setup.Tether, "spool.lip_radius_m", 0.004);
+            if (SevereLip) setup.Tether = With(setup.Tether, "spool.lip_archard_wear_coefficient", setup.Tether.Number("fiber.archard_wear_coefficient"));
+            if (OldPeel) setup.Tether = With(setup.Tether, "spool.peel_reference_rate_m_s", 1);
             if (ThroughTheBody) setup.TetherFountainThroughBody = true;
             if (ZeroForceHold) setup.TetherZeroForceHold = true;
+            if (LinearStep) setup.TetherLinearStep = true;
             edit?.Invoke(setup);
             return setup;
         }
@@ -194,6 +218,8 @@ namespace Fpv450.Sim.Tests
                 }
                 core.Advance(stick);
                 w.Step(core);
+                Each?.Invoke(core);
+                if (w.O.Broken && StopAtBreak) break;
             }
             return w.O;
         }
@@ -204,10 +230,12 @@ namespace Fpv450.Sim.Tests
         /// "Overly sharp reverse" (design 16's course): up to 10 m, along +z to 15 m/s, then at 11 s a full reverse to 8 m/s back
         /// along the path (the pilot's tilt up to 60° for it, so within 2 s), on to 16 s. The known-wrong: the two-way spool.
         /// </summary>
-        public static Outcome SharpReverse(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null)
+        public static Outcome SharpReverse(DroneSpec spec, WindLevel wind, ulong seed, Action<FlightSetup> edit = null, double speed = 15)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
+            // Past 15 m/s the cruise needs the pilot's 60° (the drone's drag at 20–28 m/s); at 15 and under, design 16's 35°.
+            double cruiseTilt = speed > 15 ? 0.866 : 0.5736;
             return Run(setup, 16, (t, core, pilot) =>
             {
                 double y = stand + DetMath.Min(10, 2 * t);
@@ -218,11 +246,95 @@ namespace Fpv450.Sim.Tests
                     return;
                 }
                 pilot.HoldVelocity = true;
-                pilot.MaxTiltSin = t < 11 ? 0.5736 : 0.866;
-                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? 15 : -8);
+                pilot.MaxTiltSin = t < 11 ? cruiseTilt : 0.866;
+                pilot.TargetVelocity = new Double3(0, 0, t < 11 ? speed : -8);
                 pilot.Target = new Double3(0, y, core.State.Position.Z);
             });
         }
+
+        /// <summary>A turn at speed, what the turn did and the line's outcome.</summary>
+        public struct Turned
+        {
+            public Outcome O;
+            /// <summary>The speed and the nose's pitch (down +) in the cruise just before the turn, m/s and rad; the most rate of the
+            /// nose's heading and of the path's in the turn, rad/s; the most horizontal acceleration, m/s².</summary>
+            public double Speed, Pitch, NoseRate, PathRate, Lateral;
+            /// <summary>In the turn and after it, while the line is whole: the most lip wrap, rad, and tension at the lip, N; the most wear of
+            /// the hole's edge on a section, a share of the coating; the sections in FiberCuts' table at the end, and the WorldBugs.</summary>
+            public double LipTurn, ExitTurn, LipWear;
+            public int Sections, Bugs;
+        }
+
+        /// <summary>
+        /// A turn at speed (D-087's grid): up to 10 m, along +z to speed (m/s) at the pilot's 60° tilt, then at 11 s the nose and
+        /// the path turned right through degrees, the heading moving at rate (°/s, the yaw fed forward; 0 a straight cruise), the
+        /// velocity held along the heading at speed, on to 16 s. What the drone makes of it (its nose's and path's rates, its
+        /// acceleration) is the physics', printed beside the line's outcome.
+        /// </summary>
+        public static Turned Turn(DroneSpec spec, WindLevel wind, ulong seed, double speed, double rate, double degrees = 90,
+            Action<FlightSetup> edit = null)
+        {
+            FlightSetup setup = Setup(spec, wind, seed, edit);
+            double stand = TetherScenarios.Stand(setup);
+            double w = rate * Pi / 180, total = degrees * Pi / 180;
+            var r = new Turned();
+            double lastNose = double.NaN, lastPath = double.NaN;
+            Double3 lastV = default;
+            r.O = Run(setup, 16, (t, core, pilot) =>
+            {
+                ref readonly FlightState s = ref core.State;
+                double y = stand + DetMath.Min(10, 2 * t);
+                if (t < 5)
+                {
+                    pilot.HoldVelocity = false;
+                    pilot.Target = new Double3(0, y, 0);
+                    return;
+                }
+                pilot.HoldVelocity = true;
+                pilot.MaxTiltSin = 0.866;
+                double psi = t < 11 ? 0 : DetMath.Min(total, w * (t - 11));
+                DetMath.SinCos(psi, out double sin, out double cos);
+                pilot.Heading = new Double3(sin, 0, cos);
+                pilot.YawRate = t >= 11 && w * (t - 11) < total ? w : 0;
+                pilot.TargetVelocity = new Double3(speed * sin, 0, speed * cos);
+                pilot.Target = new Double3(s.Position.X, y, s.Position.Z);
+                Double3 nose = s.Attitude.Rotate(new Double3(0, 0, 1));
+                double noseYaw = DetMath.Atan2(nose.X, nose.Z), pathYaw = DetMath.Atan2(s.Velocity.X, s.Velocity.Z);
+                if (t < 11)
+                {
+                    r.Speed = DetMath.Sqrt(s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z);
+                    r.Pitch = -DetMath.Atan2(nose.Y, DetMath.Sqrt(nose.X * nose.X + nose.Z * nose.Z));
+                }
+                else if (!core.Tether.Broken)
+                {
+                    // Rates over the pilot's 4-step period's samples would alias: each step's, unwrapped.
+                    if (!double.IsNaN(lastNose))
+                    {
+                        double dn = Wrap(noseYaw - lastNose) / Dt, dp = Wrap(pathYaw - lastPath) / Dt;
+                        if (DetMath.Abs(dn) > r.NoseRate) r.NoseRate = DetMath.Abs(dn);
+                        if (DetMath.Abs(dp) > r.PathRate && r.Speed > 1) r.PathRate = DetMath.Abs(dp);
+                        Double3 a = (s.Velocity - lastV) * (1 / Dt);
+                        double lat = DetMath.Sqrt(a.X * a.X + a.Z * a.Z);
+                        if (lat > r.Lateral) r.Lateral = lat;
+                    }
+                }
+                lastNose = noseYaw;
+                lastPath = pathYaw;
+                lastV = s.Velocity;
+                FiberLine f = core.Tether;
+                for (int i = 0; i < core.Events.Count; i++) if (core.Events[i].Kind == EventKind.WorldBug) r.Bugs++;
+                if (f.Cuts != null) r.Sections = f.Cuts.Sections;
+                if (f.Broken || !f.Attached) return;
+                if (f.LipWear > r.LipWear) r.LipWear = f.LipWear;
+                if (t < 11 || f.Cuts == null) return;
+                ref readonly FiberBend lipBend = ref f.Cuts.Bend(f.Cuts.BendCount - 1);
+                if (lipBend.Turn > r.LipTurn) r.LipTurn = lipBend.Turn;
+                if (lipBend.Tension > r.ExitTurn) r.ExitTurn = lipBend.Tension;
+            });
+            return r;
+        }
+
+        static double Wrap(double a) => a > Pi ? a - 2 * Pi : a < -Pi ? a + 2 * Pi : a;
 
         /// <summary>
         /// "Snagging on trees" (design 16's course): V01_L on the test range, the line laid west to east under it, the drone over

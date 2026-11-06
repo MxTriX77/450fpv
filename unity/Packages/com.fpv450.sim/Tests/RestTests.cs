@@ -96,12 +96,16 @@ namespace Fpv450.Sim.Tests
                 + $"{w.OnTheRail}, moves {w.Moves}, over the known-wrong {w.Over}, the known-wrong bears nothing {w.WrongBearsNothing}, {w.Crashes} crashes (driven off the roof), {w.Tunnels} tunnels");
             // Since model 64 the canister hangs 0.06 m lower than the old coil, and rolled onto its left skid the drone rests on it
             // as well on most seeds (the canister, leg_fl, pack_left and the payload at 0x450F): the blade bears over 1 N on 8 of 20
-            // (most on the old coil). Armed, the idle blade still strikes, chips and moves the drone on most.
+            // (most on the old coil). Armed, the idle blade still strikes, chips and moves the drone on most. Since model 74 (the
+            // nozzle bent 12.5° lower, D-086) the nozzle props the rolled drone too: the blade bears on 6 of 20 and strikes on 9 (11 of
+            // 20 at 70), so the pilot's case, a blade resting on the rail, is judged where it is the case: on every seed whose blade
+            // bears, armed, it strikes, chips, moves the drone and rests over the known-wrong.
             Assert.That(w.Rests, Is.GreaterThan(0), "disarmed, the drone rests on the blade (over 1 N) on some seeds");
-            Assert.That(w.Strikes, Is.GreaterThan(w.N / 2), "armed at idle, the blade strikes on most");
-            Assert.That(w.Chips, Is.GreaterThan(w.N / 2), "and chips: damaged, its material lost");
-            Assert.That(w.Moves, Is.GreaterThan(w.N / 2), "the drone moves (over 1 mm)");
-            Assert.That(w.Over, Is.GreaterThan(w.N / 2), "it rests over the known-wrong, the prop in the rail (over 3 mm)");
+            Assert.That(w.BearingStrikes, Is.EqualTo(w.Rests), "armed at idle, a bearing blade strikes");
+            Assert.That(w.BearingChips, Is.EqualTo(w.Rests), "and chips: damaged, its material lost");
+            Assert.That(w.BearingMoves, Is.EqualTo(w.Rests), "the drone moves (over 1 mm)");
+            Assert.That(w.BearingOver, Is.EqualTo(w.Rests), "it rests over the known-wrong, the prop in the rail (over 3 mm)");
+            Assert.That(w.Strikes, Is.GreaterThan(w.Rests), "and an idle blade near the roof strikes on more seeds than bear on it");
             Assert.That(w.Notches, Is.GreaterThan(0), "on some its leading edge is crushed on the steel, a share of its chord");
             Assert.That(w.OnTheRail, Is.GreaterThan(0), "on some the rail is struck first");
             Assert.That(w.WrongBearsNothing, Is.EqualTo(w.N), "the known-wrong's blade bears nothing");
