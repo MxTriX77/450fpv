@@ -427,10 +427,11 @@ namespace Fpv450.Sim.Tests
             public int[] Passes, InSoil, Bound;
             public string Resting;
             public int Tunnels;
+            public bool Airmode, PitchTip;
 
             public string Describe()
             {
-                var s = new System.Text.StringBuilder($"throttle {Throttle:F2} for {Seconds:F0} s, resting on{Resting}:");
+                var s = new System.Text.StringBuilder($"throttle {Throttle:F2} for {Seconds:F0} s, airmode {(Airmode ? "on" : "off")}, {(PitchTip ? "pitched (model 70's start)" : "rolled")} {TipDegrees}°, resting on{Resting}:");
                 for (int c = 0; c < 4; c++)
                     s.Append($"\n      {Ids[c]}: fails at {At(FailAt[c])} (shorted {At(ShortAt[c])}), {Amps[c]:F1} A mean, the windings' peak {PeakWinding[c]:F0} °C, "
                         + $"{Passes[c]} blade passes ({InSoil[c]} in the soil), the shortest blade {ShortestTip[c] * 127:F1} mm, dirt {Dirt[c] * 1e6:F0} mg (packed {At(PackedAt[c])}), {Bound[c]} binds");
@@ -439,19 +440,24 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        /// <summary>The drone's tip: inverted (rolled 180°) and then turned TipDegrees about world x, so it settles on its payload and
-        /// one side's motors and props, as a drone upside down on the ground lies (its payload holds the flat inversion's props off the
-        /// soil: probed).</summary>
+        /// <summary>The drone's tip: inverted (rolled 180°) and then rolled TipDegrees about world z onto its left side, so it rests on its
+        /// payload and its left motors and props, as a drone upside down on the ground lies (its payload holds the flat inversion's props
+        /// off the soil). A static rest by the geometry: armed at zero throttle it stays there with airmode and without (probed, model
+        /// 73). Until model 73 the tip was about world x (pitch, pitchTip): the drop lands it flat on its payload alone, and only
+        /// airmode's zero-throttle mix (its desaturation lifting the collective) rolled it onto its left motors in the settle's
+        /// 1.0–1.4 s; without airmode (D-086) it lies flat, its props clear of the soil.</summary>
         public const double TipDegrees = 24;
 
         /// <summary>The pilot's case's setup: the drone upside down and tipped TipDegrees, 3 mm over the dirt track (Sunny, surfaces.json's
-        /// soil); heat false without the motors' heat and dirt.</summary>
-        public static FlightSetup UpsideSetup(DroneSpec spec, bool heat = true, ulong seed = 0x450F)
+        /// soil); heat false without the motors' heat and dirt; airmode Betaflight's airmode (on: model 70's controller; null:
+        /// FcSettings.Default's, off since model 69, D-086); pitchTip the tip about world x, model 70's start.</summary>
+        public static FlightSetup UpsideSetup(DroneSpec spec, bool heat = true, ulong seed = 0x450F, bool? airmode = null, bool pitchTip = false)
         {
             FlightSetup setup = SoilScenarios.Setup(spec, SoilScenarios.Floor("dirt_track"), default, seed: seed);
             setup.Contacts.MotorHeat = heat;
+            if (airmode != null) setup.Settings.airmode = airmode.Value;
             double h = TipDegrees * Math.PI / 360;
-            Quat q = new Quat(Math.Sin(h), 0, 0, Math.Cos(h)) * new Quat(0, 0, 1, 0);
+            Quat q = (pitchTip ? new Quat(Math.Sin(h), 0, 0, Math.Cos(h)) : new Quat(0, 0, -Math.Sin(h), Math.Cos(h))) * new Quat(0, 0, 1, 0);
             double low = 0;
             foreach (ContactShape s in setup.Contacts.Shapes)
             {
@@ -470,11 +476,13 @@ namespace Fpv450.Sim.Tests
         /// windings' peak, its blades' passes and the soil's share, its dirt and binds. heat false: no heat nor dirt (the known-wrong
         /// below is in HeatTests: a fixed timer).
         /// </summary>
-        public static Upturned Upside(DroneSpec spec, double throttle, bool heat = true, double seconds = 30, ulong seed = 0x450F)
+        public static Upturned Upside(DroneSpec spec, double throttle, bool heat = true, double seconds = 30, ulong seed = 0x450F, bool? airmode = null,
+            bool pitchTip = false)
         {
-            var core = new FlightCore(UpsideSetup(spec, heat, seed));
+            var core = new FlightCore(UpsideSetup(spec, heat, seed, airmode, pitchTip));
             var r = new Upturned
             {
+                Airmode = core.Settings.airmode, PitchTip = pitchTip,
                 Throttle = throttle, Seconds = seconds, FailAt = Nan(), ShortAt = Nan(), PackedAt = Nan(), Amps = new double[4], PeakWinding = new double[4],
                 Dirt = new double[4], ShortestTip = new double[4], Passes = new int[4], InSoil = new int[4], Bound = new int[4],
             };

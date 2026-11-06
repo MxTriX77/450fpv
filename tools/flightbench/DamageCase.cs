@@ -78,7 +78,7 @@ namespace Fpv450.FlightBench
             // 48 the legs fly rigid across (StrikeScenarios.TippedLanding) and a disarmed drone's ESCs brake (drone.json's BLHeli_S):
             // its props are stopped before they reach the soil, so a disarmed landing must tip, stop and break no blade, and the
             // ESCs freewheeling (model 38's coast, the known-wrong) are printed beside it. Since model 69 the armed landing flies
-            // without airmode (D-086), airmode on (model 65's) beside it.
+            // without airmode (D-086), airmode on (model 65's; on the line since model 73, model 70's) beside it.
             Console.WriteLine("  tipped landings (the props in the soil; p7f-damage 1.3's soil carve):");
             bool tipped = true;
             foreach (bool disarm in new[] { false, true })
@@ -99,7 +99,7 @@ namespace Fpv450.FlightBench
                         {
                             // Armed at zero throttle without airmode since model 69 (D-086); with it, model 65's controller.
                             StrikeScenarios.TipResult air = StrikeScenarios.TippedLanding(spec, World(site, out at), at, rain, SoilScenarios.Table(), disarm, airmode: true);
-                            Console.WriteLine("      airmode on (model 65's): " + air.Describe());
+                            Console.WriteLine("      airmode on (model 70's): " + air.Describe());
                             continue;
                         }
                         StrikeScenarios.TipResult free = StrikeScenarios.TippedLanding(StrikeScenarios.Freewheeling(PoweredFlightCase.Drone()), World(site, out at), at, rain,
@@ -140,6 +140,10 @@ namespace Fpv450.FlightBench
             double[] throttles = { 0.3, 0.45, 0.6 };
             var runs = throttles.Select(t => HeatScenarios.Upside(spec, t)).ToArray();
             foreach (HeatScenarios.Upturned u in runs) Console.WriteLine("    " + u.Describe());
+            // Since model 73 (no airmode, D-086) rolled onto the left side; model 70's start (pitched), with airmode and without, beside.
+            foreach (bool air in new[] { true, false })
+                foreach (double t in throttles)
+                    Console.WriteLine("      model 70's start: " + HeatScenarios.Upside(spec, t, airmode: air, pitchTip: true).Describe());
             double First(HeatScenarios.Upturned u) => u.FailAt.Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.PositiveInfinity).Min();
             bool sooner = true;
             for (int i = 1; i < runs.Length; i++) sooner &= First(runs[i]) <= First(runs[i - 1]);
