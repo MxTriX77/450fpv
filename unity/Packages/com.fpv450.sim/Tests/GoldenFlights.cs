@@ -574,6 +574,10 @@ namespace Fpv450.Sim.Tests
         /// <summary>The tether golden at model 74 (p7d-tether 1.8, the bent nozzle, on 70); model 74's other goldens are model 70's.</summary>
         public const ulong Model74TetherHash = 0x3911B157986C67C6UL;
 
+        /// <summary>The tether golden of model 77's merge (74 onto 73, before 77's chain), which the flight with the known-wrong linear
+        /// step keeps (FlightSetup.TetherLinearStep: GoldenFlightTests.WithTheLinearStepTheTetherGoldenIsTheMerges).</summary>
+        public const ulong Model77MergeTetherHash = 0x54648DC48823F74EUL;
+
         /// <summary>A flight's contacts without the motors' heat and dirt (p7f-damage 1.6b's audit and known-wrong): motors that never heat
         /// nor foul, as at model 68.</summary>
         public static void WithoutTheHeat(FlightSetup s)
@@ -1210,7 +1214,15 @@ namespace Fpv450.Sim.Tests
         /// (flightbench --golden), so the controller is the whole move against 74; on model 70's drone.json (Model70Drone) without
         /// airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69TetherHash), so the bent nozzle is the whole move
         /// against 73. The line stays whole: 0.220 m paid out, 15 nodes, trail 7, 5 clips, 82 safe steps, 0 wedges, at rest 0.2495 m up.
-        public const ulong TetherHash = 0x54648DC48823F74EUL;
+        /// Model 77 (1.8's finding 2, on the merge: the chain's step solved to backward Euler's own by the segments' Newton solves):
+        /// re-recorded. Audited case by case: with the known-wrong linear step (FlightSetup.TetherLinearStep)
+        /// it is the merge's pin (Model77MergeTetherHash), every record and event, and with airmode on too model 74's (Model74TetherHash;
+        /// GoldenFlightTests.WithTheLinearStepTheTetherGoldenIsTheMerges, WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the
+        /// chain is the whole move against the merge. It leaves the merge's records at step 27 (the spool-up) and keeps its course: at
+        /// most 0.6 mm and 0.05° apart, 3 impacts, the line whole (0.220 m paid out, as the merge's), at rest 0.1 mm from the merge's,
+        /// 0.2496 m up; 3733 Newton solves, 3 steps past their budget; 6837 corrections (the merge 6677), 0 safe steps (82), 2 clips (5).
+        /// Every golden without the line keeps its pin.
+        public const ulong TetherHash = 0xE8890ECCC20EAB59UL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1908,7 +1920,8 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
+            bool? linearStep = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1937,6 +1950,10 @@ namespace Fpv450.Sim.Tests
                 setup.TetherWithoutCuts = !cuts || !fiberContacts; // p7d-tether 1.8: false flies model 55's line (no cut, no link); a line without its contacts is older still
                 setup.TetherFountainThroughBody = !body || !cuts || !fiberContacts; // model 61: false flies model 59's fountain; an older line is older still
                 setup.TetherZeroForceHold = !coulomb; // p7d-tether 1.7's part slots (model 62): false flies model 59's chain (its 0-force hold, its safe pass)
+                // Model 77: every model before it solved the line's step on its start's linearisation (FlightSetup.TetherLinearStep),
+                // so every kept audit of one flies it: each flies Betaflight's airmode on (models before 69) or over an older record's
+                // layout (69's own audit and older); linearStep says so outright.
+                setup.TetherLinearStep = linearStep ?? (airmode || layout != LogFormat.StepSize);
             }
             Heat(setup, heat, layout);
             edit?.Invoke(setup);

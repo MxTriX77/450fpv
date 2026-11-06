@@ -327,6 +327,57 @@ namespace Fpv450.Sim.Tests
             Assert.That(f.Dips, Is.EqualTo(0));
         }
 
+        // 1.8's finding 2 (model 77), the scenario where the old rule's spike appears and the fix holds: a U-turn at 5 m/s, the heading
+        // at 90 °/s, Calm, seed 5 (D-087's grid). The line's last centimetres swing across the right skid's rear and the body. With
+        // the known-wrong linear step (model 74's chain) the segments the step rotates end stretched by δ²/(2ℓ), read up to
+        // 19 N on 10–16 mm segments where the solve applied 0.01–0.05 N, and the span's tension check cuts the line there (12.946 s,
+        // 19.3 N; 502 steps of the turn read over 1 N); with the chain's Newton solves the line is whole and the most end-of-step
+        // tension in the turn is 0.2 N, what the step applied.
+        [Test]
+        public void AUTurnsSpanReadsWhatTheStepApplied()
+        {
+            double most = 0;
+            long over = 0;
+            FiberCutScenarios.Each = core =>
+            {
+                if (core.State.Step < 11000 || !core.Tether.Attached) return;
+                CableChain c = core.Tether.Chain;
+                double m = 0;
+                for (int j = 0; j < c.Count - 1; j++) if (c.Tension(j) > m) m = c.Tension(j);
+                if (m > most) most = m;
+                if (m > 1) over++;
+            };
+            FiberCutScenarios.Turned now;
+            double oldMost;
+            long oldOver;
+            FiberCutScenarios.Turned old;
+            try
+            {
+                now = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180);
+                double nowMost = most;
+                long nowOver = over;
+                most = 0;
+                over = 0;
+                old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherLinearStep = true);
+                oldMost = most;
+                oldOver = over;
+                most = nowMost;
+                over = nowOver;
+            }
+            finally
+            {
+                FiberCutScenarios.Each = null;
+            }
+            Print($"Newton on the segments: {now.O}; the most span tension in the turn {most:0.000} N, {over} steps over 1 N");
+            Print($"the linear step (model 74): {old.O}; the most span tension in the turn {oldMost:0.000} N, {oldOver} steps over 1 N");
+            Assert.That(old.O.Broken, Is.True, "the known-wrong cuts");
+            Assert.That(old.O.Mechanism, Is.EqualTo(TetherMechanism.Tension));
+            Assert.That(old.O.Place, Is.EqualTo(FiberMember.Span));
+            Assert.That(now.O.Broken, Is.False, "the line is whole");
+            Assert.That(most, Is.LessThan(1.0), "the span reads what the step applied");
+            Assert.That(over * 10, Is.LessThan(oldOver), "a tenth of the known-wrong's steps over 1 N at most");
+        }
+
         // The pilot's account (docs/pilot-questions.md, PHY-19): a normal liftoff does not cut the line.
         [Test]
         public void ANormalLiftoffDoesNotCut()

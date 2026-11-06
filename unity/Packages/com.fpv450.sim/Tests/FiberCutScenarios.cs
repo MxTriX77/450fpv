@@ -166,6 +166,10 @@ namespace Fpv450.Sim.Tests
         /// without them (the same cause, by a disc, 0.7 s earlier; not traced).</summary>
         public static readonly bool ZeroForceHold = System.Environment.GetEnvironmentVariable("FIBER_HOLD") == "zero";
 
+        /// <summary>FIBER_CHAIN=linear flies every scenario with the known-wrong linear step (FlightSetup.TetherLinearStep, model 74's
+        /// chain: the line's step on its start's linearisation alone, 1.8's finding 2).</summary>
+        public static readonly bool LinearStep = System.Environment.GetEnvironmentVariable("FIBER_CHAIN") == "linear";
+
         /// <summary>FIBER_LIP=flared flies every scenario over model 64–73's 4 mm flared lip (the known-wrong for the hole's edge);
         /// FIBER_LIPWEAR=severe with the severe Archard k on the hole's edge (a bare grooved plastic hole: the known-wrong for its
         /// wear); FIBER_PEEL=old with model 56–73's peel reference rate, 1 m/s (the known-wrong for the cruise's peel).</summary>
@@ -190,6 +194,7 @@ namespace Fpv450.Sim.Tests
             if (OldPeel) setup.Tether = With(setup.Tether, "spool.peel_reference_rate_m_s", 1);
             if (ThroughTheBody) setup.TetherFountainThroughBody = true;
             if (ZeroForceHold) setup.TetherZeroForceHold = true;
+            if (LinearStep) setup.TetherLinearStep = true;
             edit?.Invoke(setup);
             return setup;
         }

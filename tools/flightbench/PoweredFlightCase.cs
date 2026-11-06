@@ -219,7 +219,17 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"tether-flight: {GoldenFlights.ContactSteps} steps with the line, hash 0x{line:X16} "
                 + $"({(line == GoldenFlights.TetherHash ? "matches" : $"golden 0x{GoldenFlights.TetherHash:X16}")}), {l.Tether.PaidOut:F3} m paid out, "
                 + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
-                + $"{l.Tether.Chain.Wedges} wedges, ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+                + $"{l.Tether.Chain.Wedges} wedges, {l.Tether.Chain.NewtonSolves} Newton solves ({l.Tether.Chain.NewtonUnconverged} steps past their budget), "
+                + $"ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+            // Model 77 (1.8's finding 2: the segments' Newton solves), its audit against its merge (74 onto 73): with
+            // the known-wrong linear step (FlightSetup.TetherLinearStep) the tether golden is the merge's, every record and event, and with airmode
+            // on too model 74's (the audit with airmode below), so the chain is the whole of 77's move against the merge.
+            ulong one77 = GoldenFlights.FlyContact(Drone(), out FlightCore l77, tether: true, linearStep: true);
+            bool k77 = one77 == GoldenFlights.Model77MergeTetherHash && l77.Tether.Chain.NewtonSolves == 0;
+            lok &= k77;
+            Console.WriteLine($"tether-flight with the linear step: 0x{one77:X16} ({(k77 ? "the merge's, bit for bit" : "NOT the merge's")}), "
+                + $"{l77.Tether.PaidOut:F3} m paid out, {l77.Tether.Chain.Clips} clips, {l77.Tether.Chain.SafeSteps} safe steps, {l77.Tether.Chain.Corrections} corrections "
+                + $"(with the Newton solves {l.Tether.Chain.Corrections}): {(k77 ? "PASS" : "FAIL")}");
             // Model 64's audit against model 63 (D01's canister; since model 65 with the 0-force hold): on model 63's drone.json (the old coil, Old(); its line leaves the
             // old rear cap, GoldenFlights.Model63Tether) with the fountain through the body every golden is model 63's pin, every
             // record and event; with 61's blocking the tether golden is the merge's on the old coil. Every audit below flies Old().
@@ -373,11 +383,11 @@ namespace Fpv450.FlightBench
                 lso = GoldenFlights.FlyContact(Drone(), out FlightCore ls, tether: true, edit: slideOff, airmode: true);
             long carved = l46.Strikes.Passes + cs.Strikes.Passes + gs.Strikes.Passes + ls.Strikes.Passes;
             bool l44 = line46 == GoldenFlights.Model49TetherHash && line46off == GoldenFlights.Model46TetherHash && cso == GoldenFlights.Model70ContactHash && gso == GoldenFlights.Model70RangeHash
-                && lso == GoldenFlights.Model70TetherHash && carved == 0;
+                && lso == GoldenFlights.Model74TetherHash && carved == 0; // since model 77 the bent nozzle's: model 74's tether pin
             lok &= l44;
             Console.WriteLine($"tether-flight on design 4's air: 0x{line46:X16} ({(line46 == GoldenFlights.Model49TetherHash ? "model 49's, bit for bit" : "NOT model 49's")}), "
                 + $"the lever off too 0x{line46off:X16} ({(line46off == GoldenFlights.Model46TetherHash ? "model 46's" : "NOT model 46's")}); "
-                + $"the tip slide off: contact 0x{cso:X16}, range 0x{gso:X16}, tether 0x{lso:X16} (model 70's pins, airmode on), {carved} blade passes: {(l44 ? "PASS" : "FAIL")}");
+                + $"the tip slide off: contact 0x{cso:X16}, range 0x{gso:X16}, tether 0x{lso:X16} (model 74's pins, airmode on), {carved} blade passes: {(l44 ? "PASS" : "FAIL")}");
             // The physics integration 2's audit against p7d-tether (model 34): on the rigid floor the line's flight is model 31's.
             ulong line31 = GoldenFlights.FlyContact(Bare(), out _, tether: true, fiberContacts: false, coulomb: false, soil: false, yawI: false, layout: m38, recirculation: false, airmode: true);
             bool l31 = line31 == GoldenFlights.Model31TetherHash;
@@ -430,7 +440,7 @@ namespace Fpv450.FlightBench
                 loff = GoldenFlights.FlyContact(Drone(), out _, tether: true, edit: off, airmode: true);
             bool zok = p29 == GoldenFlights.Model29PoweredHash && c29 == GoldenFlights.Model29ContactHash && g29 == GoldenFlights.Model29RangeHash
                 && t29 == GoldenFlights.Model29TumbleHash && r29 == GoldenFlights.Model29RainPoweredHash && coff == GoldenFlights.Model70ContactHash && goff == GoldenFlights.Model70RangeHash
-                && loff == GoldenFlights.Model70TetherHash
+                && loff == GoldenFlights.Model74TetherHash // since model 77 the bent nozzle's: model 74's tether pin
                 && cc.Strikes != null && cc.Strikes.Passes == 0 && gc.Strikes.Passes == 0;
             Console.WriteLine($"over model 29's 1904 bytes: powered 0x{p29:X16}, contact 0x{c29:X16}, range 0x{g29:X16}, rain 0x{r29:X16}, tumble 0x{t29:X16} "
                 + $"({(zok ? "model 29's, bit for bit" : "NOT model 29's")}), {cc.Strikes?.Passes} and {gc.Strikes?.Passes} blade passes in the contact and range flights; "
