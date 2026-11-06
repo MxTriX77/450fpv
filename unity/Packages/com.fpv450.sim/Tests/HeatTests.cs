@@ -106,6 +106,13 @@ namespace Fpv450.Sim.Tests
             double[] throttles = { 0.3, 0.45, 0.6 };
             var runs = throttles.Select(t => HeatScenarios.Upside(spec, t)).ToArray();
             foreach (HeatScenarios.Upturned u in runs) TestContext.Out.WriteLine(u.Describe());
+            // Since model 73 without airmode (D-086), rolled onto the left side (HeatScenarios.TipDegrees). Printed beside, not asserted:
+            // the same start with airmode on (model 70's controller), and model 70's own start (pitched), with airmode (model 70's case,
+            // its times to the ms) and without it (flat on its payload, the props clear of the soil: none fails).
+            foreach (double t in throttles) TestContext.Out.WriteLine("  airmode on: " + HeatScenarios.Upside(spec, t, airmode: true).Describe());
+            foreach (bool air in new[] { true, false })
+                foreach (double t in throttles)
+                    TestContext.Out.WriteLine("  model 70's start: " + HeatScenarios.Upside(spec, t, airmode: air, pitchTip: true).Describe());
             double First(HeatScenarios.Upturned u) => u.FailAt.Where(x => !double.IsNaN(x)).DefaultIfEmpty(double.PositiveInfinity).Min();
             for (int i = 1; i < runs.Length; i++)
                 Assert.That(First(runs[i]), Is.LessThanOrEqualTo(First(runs[i - 1])), "a higher throttle fails them sooner");

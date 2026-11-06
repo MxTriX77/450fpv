@@ -200,10 +200,14 @@ namespace Fpv450.Sim.Tests
         /// <summary>The scenario's verdict on one flight held low, with the ring-off flight held the same: entered within the
         /// hold's first 0.1 s at the 3 m/s descent (at most 3.5 m/s), from η at or past the entry; lost thrust; wobbled at
         /// least 1.5 times the ringless flight's 10 ms rate change; and stayed in the ring below the entry rate on the way
-        /// out, leaving below the exit rate.</summary>
-        public static bool HeavyOnLowThrottle(in Result on, in Result off, VortexRingSpec ring) =>
+        /// out, leaving below the exit rate. wobble is the share of the ringless flight's change it must reach (1.5, assumed).</summary>
+        /// <summary>Of Seeds' 20, how many must wobble 1.5 × their ringless flight (every one more than it); since model 69
+        /// (D-086, no airmode) 19, assumed: VortexRingTests.HeavyOnLowThrottleOnTwentySeeds.</summary>
+        public const int WobblingSeeds = 19;
+
+        public static bool HeavyOnLowThrottle(in Result on, in Result off, VortexRingSpec ring, double wobble = 1.5) =>
             on.EntriesBefore == 0 && on.EntriesInHold >= 1 && on.EntryAfter <= 0.1 && on.EntryDescent <= 3.5 && on.EntryRate >= ring.EntryRate
-            && on.ThrustRatio < 0.97 && on.RingMomentRms > 0 && on.WobbleRms >= 1.5 * off.WobbleRms
+            && on.ThrustRatio < 0.97 && on.RingMomentRms > 0 && on.WobbleRms >= wobble * off.WobbleRms
             && on.LowestHeld < ring.EntryRate && on.ExitRate < ring.ExitRate && on.Exits >= on.Entries;
 
         /// <summary>The higher throttle's verdict: no ring from the hover's settled second to the recovery's end.</summary>

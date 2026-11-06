@@ -1,7 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: A Betaflight 4.5 flight controller in acro
-The controller SHALL mirror Betaflight 4.5 (D-023): ACTUAL rates, the throttle curve (`thr_mid`, `thr_expo`), deadband, RC smoothing, feedforward, PID with Betaflight's scaling, D min, I-term relax and throttle boost, in acro only with no self-levelling. It SHALL run at its real 4 kHz, sub-stepped deterministically inside the 1 kHz step, and read its settings from one record named by Betaflight CLI names. The defaults SHALL be the pilot's profiles (D-023) and the real builder's PIDs (roll 65/20/70, pitch 60/20/65, yaw I 30).
+The controller SHALL mirror Betaflight 4.5 (D-023): ACTUAL rates, the throttle curve (`thr_mid`, `thr_expo`), deadband, RC smoothing, feedforward, PID with Betaflight's scaling, D min, I-term relax and throttle boost, in acro only with no self-levelling. It SHALL run at its real 4 kHz, sub-stepped deterministically inside the 1 kHz step, and read its settings from one record named by Betaflight CLI names. The defaults SHALL be the pilot's profiles (D-023) and the real builder's PIDs (roll 65/20/70, pitch 60/20/65, yaw I 30), flown without airmode (the pilot, D-086) as Betaflight 4.5 flies it off: below half throttle the mixer keeps 0.5 + throttle of the PID mix and still lifts the collective off idle, and under `min_check` the I term is held at zero; airmode SHALL stay a switch (the compared variant). The failsafe SHALL be Betaflight's DROP (no return-to-home, D-086), started only by the line's break: a picture lost on the fiber leaves the pilot's sticks reaching the controller.
+
+#### Scenario: Without airmode zero throttle halves the mix and holds no I
+- **WHEN** the armed controller at zero throttle meets a held rate error (100 °/s of roll for 0.5 s), once without airmode and once with it (activated past its 25 % start)
+- **THEN** without it the I term is zero and the motors' spread is half the mix's (within 1e-6), not none; with it the I term winds and the whole mix is delivered
+
+#### Scenario: A video loss keeps control; only a break ends it
+- **WHEN** the line's link margin is under the receiver's threshold from the first step (the picture lost) while the pilot climbs to 1.5 m, and then the sharp reverse's disc cuts the line with the picture still lost
+- **THEN** in the first flight no failsafe starts, the drone stays armed and ends within 0.2 m of the pilot's target; in the second, from the break no stick reaches the controller and stage 2's DROP disarms it
 
 #### Scenario: ACTUAL rates as Betaflight computes them
 - **WHEN** the rate curve is evaluated at stick positions 0, 0.25, 0.5, 0.75 and 1 for the default settings
@@ -23,18 +31,22 @@ The controller SHALL filter the gyro and the D term as Betaflight 4.5 does on th
 - **THEN** the hover stick spans less than 2 % (measured 1.19 %), where without compensation the sagging packs need more throttle by over 5 % (measured 22.2 %)
 
 ### Requirement: An X mixer that saturates honestly
-The mixer SHALL map collective, roll, pitch and yaw to four motor commands for an X quad as Betaflight 4.5's does: limit the PID sums, scale the mix into range, then desaturate the collective so that no motor clips, so that yaw saturates first, as on the real drone (K§5.3).
+The mixer SHALL map collective, roll, pitch and yaw to four motor commands for an X quad as Betaflight 4.5's does: limit the PID sums, scale the mix into range, then desaturate the collective so that no motor clips, so that yaw saturates first, as on the real drone (K§5.3). A saturation is what the mix's range and the PID-sum limits take; without airmode the attenuation below half throttle is the authority Betaflight sets, not a saturation.
 
 #### Scenario: Yaw saturates first and the collective yields
 - **WHEN** the wind clip's maximum yaw and roll demands (288 and 412 °/s², wind.md §5.5) are set against the nominal drone's full thrust, and full yaw is commanded at mixer throttles from 0.45 to 0.85
 - **THEN** yaw runs out of mix past a collective of about 0.81 of full thrust and roll only past about 0.98 (K§5.3's 0.72 re-derived with κ = 0.0144 m and a fixed yaw moment; full thrust at the ESCs' 40 A limit), and above a mixer throttle of about 0.625 (1 less the yaw P term's 0.375 of the mix) the collective delivered falls below the commanded one while yaw, roll and pitch keep their authority, with a MixerSaturation event naming the collective
 
 ### Requirement: ESC, motor and rotor
-Each rotor SHALL follow its command through an ESC filter and the motor's first-order lag, a DC motor whose lag follows from its resistance, its rotor's inertia and the prop's load, updated without transcendental functions, and produce thrust T = k_T·n² and torque Q = κ·T with k_T and κ from `drone.json`'s prop, varying with rpm as its published table says (κ = 0.0144 m, derived, for the APC 10x4.5MR). The thrust SHALL be derated by the axial inflow through the tilted disc from momentum theory, never by a flat factor (PHB-03), the inflow being each hub's velocity through the air (the wind at the hub taken off). Each ESC SHALL hold its motor's current at `drone.json`'s current limit while it drives (the policy of task 1.5: the motor's published 40 A as the ESC's current protection), logging when it begins and ends. On a disarm each ESC SHALL do with its spinning motor what its firmware does on Betaflight's DShot 0 (`drone.json`'s `esc_disarm`, task 1.6c): the class's BLHeli_S stays in its run loop at zero power, its complementary PWM shorting the active phases, so the motor brakes as the DC motor at zero duty with no supply current, until its firmware's minimum speed, and then coasts; brake on stop and Bluejay are compared variants.
+Each rotor SHALL follow its command through an ESC filter and the motor's first-order lag, a DC motor whose lag follows from its resistance, its rotor's inertia and the prop's load, updated without transcendental functions, and produce thrust T = k_T·n² and torque Q = κ·T with k_T and κ from `drone.json`'s prop, varying with rpm as its published table says (κ = 0.0144 m, derived, for the APC 10x4.5MR). The thrust SHALL be derated by the axial inflow through the tilted disc from momentum theory, never by a flat factor (PHB-03), the inflow being each hub's velocity through the air (the wind at the hub taken off). Each ESC SHALL hold its motor's current at `drone.json`'s current limit while it drives (the policy of task 1.5: the motor's published 40 A as the ESC's current protection), logging when it begins and ends. On a disarm each ESC SHALL do with its spinning motor what its firmware does on Betaflight's DShot 0 (`drone.json`'s `esc_disarm`, task 1.6c): the class's BLHeli_S stays in its run loop at zero power, its complementary PWM shorting the active phases, so the motor brakes as the DC motor at zero duty with no supply current, until its firmware's minimum speed, and then coasts: brake on stop is off (D-086), as BLHeli_S's and Bluejay's defaults have it, so past the run loop a disarmed motor freewheels; brake on stop and Bluejay are compared variants.
 
 #### Scenario: A disarm brakes the motors
 - **WHEN** every motor runs at the hover's duty and the drone is disarmed
 - **THEN** each rotor slows as the shorted DC motor (J·ω̇ = −Ke²/R·ω − Kt·I0 − Q) to within 1.5 ms at half and a tenth of its speed, the packs supply no current while it brakes, the rotor coasts on its friction once below the firmware's minimum speed (about 1220 eRPM for BLHeli_S, 1330 for Bluejay), and the freewheeling ESC of model 38 (the known-wrong) keeps half its speed for more than 1.5 times as long
+
+#### Scenario: With brake on stop off a disarmed motor freewheels past its run loop
+- **WHEN** 400 ms after a disarm from the hover's duty (every ESC past its run loop) every rotor is spun to 300 rad/s, as the air spins a windmilling prop
+- **THEN** with brake on stop off each rotor slows as model 38's freewheel does, bit for bit, keeping over 0.8 of its speed for 50 ms, where brake on stop (the known-wrong for D-086) holds it under half that
 
 #### Scenario: The ESC holds the motor at its current limit
 - **WHEN** every ESC steps from idle to full duty on a full pack

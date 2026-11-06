@@ -327,10 +327,11 @@ namespace Fpv450.Sim.Tests
 
         public static TipResult TippedLanding(DroneSpec spec, FlightWorld world, Double3 at, RainLevel rain, SurfaceTable table, bool disarm,
             double lateral = 2.5, System.Action<FlightSetup, FlightCore> started = null, System.Action<FlightCore, StickSample> stepped = null,
-            bool tipSlide = true, bool rigidAcross = true, System.Func<ContactSpec, ContactSpec> edit = null)
+            bool tipSlide = true, bool rigidAcross = true, System.Func<ContactSpec, ContactSpec> edit = null, bool? airmode = null)
         {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain, table: table, rigid: table == null);
+            if (airmode != null) setup.Settings.airmode = airmode.Value; // Betaflight's airmode (model 65's; off since 69, D-086)
             if (rigidAcross) setup.Contacts = LandingScenarios.RigidAcross()(setup.Contacts);
             if (edit != null) setup.Contacts = edit(setup.Contacts); // e.g. the legs without the skid's frame (p7g-legs, model 54)
             setup.Contacts.TipSlide = tipSlide;

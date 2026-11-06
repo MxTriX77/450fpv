@@ -17,8 +17,8 @@ namespace Fpv450.Sim.Tests
     public static class LandingScenarios
     {
         /// <summary>How the drone comes down: a free body (no propulsion: the rigid-body answer's own case), or powered and
-        /// armed with airmode active and the sticks centred at the hover throttle, which at the first touch is cut to zero
-        /// (still armed), held, or disarmed.</summary>
+        /// armed (without airmode, FcSettings.Default since model 69, D-086; Touch.Airmode flies it on) with the sticks
+        /// centred at the hover throttle, which at the first touch is cut to zero (still armed), held, or disarmed.</summary>
         public enum Power { Free, Cut, Held, Disarmed }
 
         /// <summary>A powered touch comes this long after the throttle's step, s (assumed; N4 asks at least 0.4 s: the rotors
@@ -74,6 +74,10 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>Every ESC's disarm rule in place of drone.json's (a compared variant), or null.</summary>
             public EscDisarm? Esc;
+
+            /// <summary>Betaflight's airmode in place of FcSettings.Default's (off since model 69, D-086; on is model 65's, the
+            /// compared variant), or null.</summary>
+            public bool? Airmode;
 
             /// <summary>The lateral speed's way: negative against body +x (or +z), else along it (p7g-legs 1.3: each side in turn).</summary>
             public double Sign;
@@ -236,6 +240,7 @@ namespace Fpv450.Sim.Tests
                     setup.GroundEffect = _spec.BuildGroundEffect();
                     setup.RotorWake = _spec.BuildRotorWake();
                     setup.StartPackCharge = 0.9;
+                    if (_t.Airmode != null) setup.Settings.airmode = _t.Airmode.Value;
                 }
                 var core = new FlightCore(setup);
                 _t.Prepare?.Invoke(core);

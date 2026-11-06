@@ -22,7 +22,9 @@ namespace Fpv450.Sim.Tests
     /// LogFormat.ModelVersion and is audited case by case (CLAUDE.md). Since model 36 (Betaflight's yaw I) every kept audit
     /// against an earlier model flies model 34's yaw I (yawI false, Model34YawI). Since model 40 (the physics integration 2
     /// with p7f-damage) every kept audit of the line's flies without props.blade (WithoutTheBlade, a freshly parsed spec), and
-    /// every kept audit of p7f-damage's without the line's mechanisms (no soil, no area laws, model 34's yaw I).
+    /// every kept audit of p7f-damage's without the line's mechanisms (no soil, no area laws, model 34's yaw I). Since model 69
+    /// (D-086: no airmode, FcSettings.Default's) every kept audit against an earlier model flies Betaflight's airmode on
+    /// (airmode true), as every model before 69 did.
     /// </summary>
     public static class GoldenFlights
     {
@@ -319,7 +321,21 @@ namespace Fpv450.Sim.Tests
         // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68PoweredHash), every record and event, the heat's block
         // zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
         // step (the windings take their current's I²R at once).
-        public const ulong PoweredHash = 0xFCE8C669C79CF83BUL;
+        // Model 70: 0xFCE8C669C79CF83B.
+        // Model 65: 0xB066BF9F2ADF9A09. Model 69 (D-086: no airmode, FcSettings.Default's): re-recorded on 65. Audited case by case:
+        // with airmode on it is model 65's pin, every record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s,
+        // flightbench --golden), so airmode is the whole move. It leaves 65's path at step 21, the first armed loop below half
+        // throttle (0.5 + throttle of the mix). Through the steps and the punch it stays within 1.4° (0.9° at 5.5 s); the chop to zero
+        // throttle (5.5–6 s: the I term held at zero, half the mix, in Windy air through the rotors' own wash) turns it 93° from
+        // 65's attitude by 6 s, and acro holds no attitude, so the weave climbs on another heading: 135.64 m up at 10 s against
+        // 161.54, 45.28 m from 65's end; armed, no contact, no crash.
+        // Model 73 (the physics integration 2 with D-086's controller, 69 merged onto 70): re-recorded. Audited case by case: with airmode on it is model 70's pin (Model70PoweredHash), every
+        // record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the controller is the
+        // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69PoweredHash;
+        // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 21 as 69 left 65's: within 1.4° to
+        // 5.5 s (0.9°), the chop turns it 92.8° from 70's attitude by 6 s, and the weave climbs on another heading: 135.50 m up at
+        // 10 s against 161.49, 45.40 m from 70's end (69: 135.64, 45.28 m from 65's); armed, no contact, no crash.
+        public const ulong PoweredHash = 0x12B0325673F1A5ACUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -407,7 +423,17 @@ namespace Fpv450.Sim.Tests
         // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68RainPoweredHash), every record and event, the
         // heat's block zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first
         // powered step.
-        public const ulong RainPoweredHash = 0x1B6B2E3BCB21166AUL;
+        // Model 70: 0x1B6B2E3BCB21166A.
+        // Model 65: 0x5557901256899D95. Model 69 (D-086: no airmode, FcSettings.Default's): re-recorded on 65. Audited case by case:
+        // with airmode on it is model 65's pin, every record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s,
+        // flightbench --golden), so airmode is the whole move. As the powered flight: from step 21, through the chop, 137.03 m
+        // up at 10 s against 161.79, 43.32 m from 65's end; the film 11.20 g.
+        // Model 73 (the physics integration 2 with D-086's controller, 69 merged onto 70): re-recorded. Audited case by case: with airmode on it is model 70's pin (Model70RainPoweredHash), every
+        // record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the controller is the
+        // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69RainPoweredHash;
+        // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. As the powered flight: from step 21, through the chop (88.5° by 6 s),
+        // 136.88 m up at 10 s against 161.67, 43.39 m from 70's end (69: 137.03, 43.32 m).
+        public const ulong RainPoweredHash = 0x2A128CBB8495E059UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -502,10 +528,23 @@ namespace Fpv450.Sim.Tests
         /// <summary>The goldens at model 65 (the physics integration 2 with the fiber's chain fixes, on the canister), over model 63's
         /// 3040 bytes, which every golden keeps bit for bit, every record and event, with the shafts on (no golden's shaft passes its
         /// yield, no bearing its static rating) and off (ContactSpec.MotorShaft), the shafts' block zero:
-        /// GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s.</summary>
+        /// GoldenFlightTests.WithoutTheShaftsEachGoldenIsModel65s. Since model 73 (D-086's controller on the line) flown with Betaflight's
+        /// airmode on, as model 65 flew; that is also model 69's audit against 65 (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s).</summary>
         public const ulong Model65PoweredHash = 0xB066BF9F2ADF9A09UL, Model65RainPoweredHash = 0x5557901256899D95UL,
             Model65ContactHash = 0x1CA80F585605010CUL, Model65RangeHash = 0xC58CD318318B665FUL, Model65TetherHash = 0xEC47127E19B6CF53UL,
             Model65TumbleHash = 0xA96AB25DE2391ED7UL;
+
+        /// <summary>The goldens at model 69 (D-086's controller, unity/physics/physics-integration-2--esc-airmode, on 65: no airmode),
+        /// which every golden keeps over model 63's 3040 bytes without the motors' heat (the shafts' and the heat's blocks zero), every
+        /// record and event, airmode off and the shafts on: GoldenFlightTests.WithAirmodeEachGoldenIsModel65s (airmode on: 65's). The tumble has no controller (Model65TumbleHash).</summary>
+        public const ulong Model69PoweredHash = 0x93D4D1BDB2401A3AUL, Model69RainPoweredHash = 0xF1CE7685204053A8UL,
+            Model69ContactHash = 0xF6D691B7F343B9B3UL, Model69RangeHash = 0xF596683309EC0C82UL, Model69TetherHash = 0x0173580B6CA55F76UL;
+
+        /// <summary>The goldens at model 70 (p7f-damage 1.6b, the motors' heat and dirt, on 68), which every golden keeps over the whole
+        /// record with Betaflight's airmode on, every record and event: GoldenFlightTests.WithAirmodeEachGoldenIsModel70s. The tumble
+        /// has no controller and keeps its pin (TumbleHash).</summary>
+        public const ulong Model70PoweredHash = 0xFCE8C669C79CF83BUL, Model70RainPoweredHash = 0x1B6B2E3BCB21166AUL,
+            Model70ContactHash = 0x156940B66C279FBBUL, Model70RangeHash = 0x19A3439000A1E46CUL, Model70TetherHash = 0x7A350488F265056CUL;
 
         /// <summary>The goldens at model 66 (p7f-damage 1.6, the shafts and the bearings, on 63), over the whole 3168-byte record, which
         /// every golden keeps bit for bit, every record and event, on model 63's drone.json (the old coil, Model63Drone, its line out of
@@ -901,7 +940,17 @@ namespace Fpv450.Sim.Tests
         // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68ContactHash), every record and event, the heat's block
         // zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
         // step (the windings take their current's I²R at once).
-        public const ulong ContactHash = 0x156940B66C279FBBUL;
+        // Model 70: 0x156940B66C279FBB.
+        // Model 65: 0x1CA80F585605010C. Model 69 (D-086: no airmode, FcSettings.Default's): re-recorded on 65. Audited case by case:
+        // with airmode on it is model 65's pin, every record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s,
+        // flightbench --golden), so airmode is the whole move. It leaves 65's path at step 9 and keeps its course: at most 6.8
+        // mm and 0.95° apart, 3 impacts as 65's, at rest 0.2495 m up on 4 pairs, 4.7 mm from 65's rest.
+        // Model 73 (the physics integration 2 with D-086's controller, 69 merged onto 70): re-recorded. Audited case by case: with airmode on it is model 70's pin (Model70ContactHash), every
+        // record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the controller is the
+        // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69ContactHash;
+        // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 9 and keeps its course: at most 3.5 mm and
+        // 0.71° apart, 3 impacts as 70's, at rest 0.2496 m up on 4 pairs, 2.0 mm from 70's rest.
+        public const ulong ContactHash = 0x04F84E056E6150DBUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1131,7 +1180,17 @@ namespace Fpv450.Sim.Tests
         /// the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68TetherHash), every record and event, the heat's block
         /// zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
         /// step (the windings take their current's I²R at once).
-        public const ulong TetherHash = 0x7A350488F265056CUL;
+        /// Model 70: 0x7A350488F265056C.
+        /// Model 65: 0xEC47127E19B6CF53. Model 69 (D-086: no airmode, FcSettings.Default's): re-recorded on 65. Audited case by case:
+        /// with airmode on it is model 65's pin, every record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s,
+        /// flightbench --golden), so airmode is the whole move. It leaves 65's path at step 9 and keeps its course: at most 7.2
+        /// mm and 1.04° apart, 3 impacts, the line whole (0.231 m paid out against 0.230), at rest 5.0 mm from 65's.
+        /// Model 73 (the physics integration 2 with D-086's controller, 69 merged onto 70): re-recorded. Audited case by case: with airmode on it is model 70's pin (Model70TetherHash), every
+        /// record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the controller is the
+        /// whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69TetherHash;
+        /// WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 9 and keeps its course: at most 4.1 mm and
+        /// 0.74° apart, 3 impacts, the line whole (0.231 m paid out against 0.230), at rest 1.1 mm from 70's.
+        public const ulong TetherHash = 0x7A7BF412F172A41BUL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -1463,7 +1522,17 @@ namespace Fpv450.Sim.Tests
         // the heat (ContactSpec.MotorHeat off) over its first 3168 bytes model 68's pin (Model68RangeHash), every record and event, the heat's block
         // zero on every record (GoldenFlightTests.WithoutTheHeatEachGoldenIsModel68s); with it every record moves from the first powered
         // step (the windings take their current's I²R at once).
-        public const ulong RangeHash = 0x19A3439000A1E46CUL;
+        // Model 70: 0x19A3439000A1E46C.
+        // Model 65: 0xC58CD318318B665F. Model 69 (D-086: no airmode, FcSettings.Default's): re-recorded on 65. Audited case by case:
+        // with airmode on it is model 65's pin, every record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel65s,
+        // flightbench --golden), so airmode is the whole move. It leaves 65's path at step 9 and keeps its course: at most 5.8
+        // mm and 0.70° apart, 3 impacts against 4, at rest in S04's straw on 8 pairs, 1.7 mm from 65's rest.
+        // Model 73 (the physics integration 2 with D-086's controller, 69 merged onto 70): re-recorded. Audited case by case: with airmode on it is model 70's pin (Model70RangeHash), every
+        // record and event (GoldenFlightTests.WithAirmodeEachGoldenIsModel70s, flightbench --golden), so the controller is the
+        // whole move against 70; without airmode, the heat off, over model 63's 3040 bytes it is model 69's (Model69RangeHash;
+        // WithAirmodeEachGoldenIsModel65s), so the heat is the whole move against 69. It leaves 70's path at step 9 and keeps its course: at most 4.4 mm and
+        // 0.38° apart, 4 impacts as 70's, at rest in S04's straw on 8 pairs, 2.3 mm from 70's rest.
+        public const ulong RangeHash = 0x89C0E49CE8BBAA43UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -1715,7 +1784,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null)
+            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -1729,6 +1798,7 @@ namespace Fpv450.Sim.Tests
             if (!ground) setup.GroundEffect = null;
             WithoutD064(setup, wake, motors, yawI);
             Heat(setup, heat, layout);
+            setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var record = new byte[LogFormat.StepSize];
@@ -1779,7 +1849,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, Action<FlightCore> after = null, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
-            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null)
+            bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -1796,6 +1866,7 @@ namespace Fpv450.Sim.Tests
             if (modes) setup.Modes = spec.BuildModes();
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors, yawI);
+            setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             if (tether)
             {
                 setup.Tether = Tether.TetherTable.Parse(System.IO.File.ReadAllText(ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
@@ -1870,7 +1941,7 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null)
+            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -1891,6 +1962,7 @@ namespace Fpv450.Sim.Tests
             setup.RotorWake = spec.BuildRotorWake();
             WithoutD064(setup, wake, motors, yawI);
             Heat(setup, heat, layout);
+            setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
