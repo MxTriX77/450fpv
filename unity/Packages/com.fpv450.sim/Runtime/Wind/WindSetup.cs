@@ -52,7 +52,7 @@ namespace Fpv450.Sim.Wind
         /// (MapWind.Cuts). The obstacles and cuts are the world's, never drawn; the flight's seed draws the wind's
         /// direction, strength and eddies as for any level. Still and Steady air have none: Of(level). Load time: it reads
         /// the map's placed volumes and hole records; the wake grid itself is built when the flight's WindField is (its
-        /// worker, off the flight thread after the first grid).
+        /// worker, off the flight thread after the first grid; the first kept for the next flight, WakeGridCache).
         /// </summary>
         public static WindSetup ForMap(MapWorld map, WindLevel level)
         {

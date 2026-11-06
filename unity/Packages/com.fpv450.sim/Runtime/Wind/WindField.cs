@@ -450,9 +450,9 @@ namespace Fpv450.Sim.Wind
             }
             if (setup.Wakes == null) return;
 
-            // The wakes (p7c-wind 1.5): the grid for the history's first bearing, and the eddies from the counter-based
-            // stream wind.wake.
-            WakeObstacles obstacles = setup.Wakes.Checked().Obstacles();
+            // The wakes (p7c-wind 1.5): the grid for the history's first bearing (the last flight's copy when it had the
+            // same obstacles and bearing, WakeGridCache), and the eddies from the counter-based stream wind.wake.
+            WakeLayout layout = setup.Wakes.Checked();
             SeedStream wake = random.Open("wind.wake");
             int ne = preset.WakeModes;
             _eddyDir = new Double3[ne];
@@ -472,7 +472,7 @@ namespace Fpv450.Sim.Wind
                 _eddyAmp[m] = Across(k, Unit(wake, i + 3)) * unit;
                 _eddyPhase[m] = TwoPi * Unit(wake, i + 4);
             }
-            _wakes = new WakeGridWorker(obstacles, _fromDeg[0]);
+            _wakes = WakeGridCache.Worker(layout, _fromDeg[0]);
         }
 
         /// <summary>Stops the wake grid's worker and the batch's, if the flight has them.</summary>
