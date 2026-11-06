@@ -1243,7 +1243,9 @@ namespace Fpv450.Tests.Session
         // end, where the steel bumper is (at the flight model 19 the old 108° and lower throttle skimmed past it into a
         // fence; with the airframe's effects on, the level 0.52 flew over the bumper into the body's sheet metal, and 0.51
         // met the bumper at 101°, 103° and 105°; from model 64 0.51 meets the body's sheet metal at 103° and 105°, and 0.52
-        // meets the bumper with the canister at 103°, 105° and 107°, 8.5–9.0 m/s, while 0.50 and 0.48 fly past or low). The summary names the placed car by MapWorld.ObjectName, through the
+        // meets the bumper with the canister at 103°, 105° and 107°, 8.5–9.0 m/s, while 0.50 and 0.48 fly past or low; at
+        // model 79 0.52 meets the body's sheet metal at 101°–107°, 0.53 meets the bumper with the canister at 103°, 105° and
+        // 107°, 9.0–9.6 m/s, and 0.54 the glass or nothing). The summary names the placed car by MapWorld.ObjectName, through the
         // log's world id and hash; without the world, or with another, it is "object N".
         [Test]
         public void ACrashIntoTheRangesCarNamesIt()
@@ -1264,7 +1266,7 @@ namespace Fpv450.Tests.Session
             FlightCore core = rig.Session.Core;
             for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
             {
-                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.52; // lift, then low and level
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.53; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }
