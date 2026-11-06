@@ -55,7 +55,7 @@ namespace Fpv450.FlightBench
 
             Console.WriteLine("  touchdowns: the lowest lateral speed (m/s) that tips the drone over; the caught skid's mechanics and its friction ratio J_t/J_n");
             Console.WriteLine("    the mechanics' columns rigid across (dead legs, caught; free, caught), the rest on the soft legs");
-            Console.WriteLine("    the powered columns without airmode (FcSettings.Default since model 69, D-086); \"on\" the compared variant, model 65's");
+            Console.WriteLine("    the powered columns without airmode (FcSettings.Default since model 69, D-086); \"on\" the compared variant, model 70's");
             Console.WriteLine("    roll  descent | mechanics (J_t/J_n) | dead legs, caught | free, caught | soft, caught | free, μ 0.5/0.4 | disarmed | armed, cut | held, μ 0.5 | held, caught | on: cut | on: held, caught");
             foreach (double descent in new[] { 0.0, 0.5 })
                 foreach (double roll in new[] { 0.0, 5, 10, 15, 20 })
@@ -175,7 +175,7 @@ namespace Fpv450.FlightBench
                 {
                     var t = new LandingScenarios.Touch { Legs = false, RollDeg = 1, Descent = 0.1, Power = p, ReachDeg = 20, Seconds = 6, Airmode = air };
                     var o = LandingScenarios.Run(spec, m, h, t);
-                    Console.WriteLine($"  powered onto the coil at 1°, {p}{(air == true ? ", airmode on (65)" : "")}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s "
+                    Console.WriteLine($"  powered onto the coil at 1°, {p}{(air == true ? ", airmode on (70)" : "")}: 20° {S(o.Reached)} s after the touch, at {o.EndTilt:F1}° after 6 s "
                         + $"(the touch at {o.TouchDescent:F3} m/s down, {o.TouchAt:F3} s after the throttle's step)");
                 }
             foreach (EscDisarm rule in rules)
