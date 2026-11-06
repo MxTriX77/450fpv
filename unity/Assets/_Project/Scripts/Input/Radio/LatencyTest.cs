@@ -132,6 +132,9 @@ namespace Fpv450.Input.Radio
                     var scheduler = new FlightScheduler(core, inbox, new PoseBuffer(), clock, probe);
                     scheduler.Start(startUs);
                     Sleep(clock, startUs + steps * FlightCore.StepUs + 5000);
+                    // A thread behind real time (a loaded host) runs its catch-up, which Stop now cuts between steps:
+                    // the bench waits for every step it measures (10 s at most) before it stops the flight.
+                    for (int wait = 0; core.State.Step < steps && scheduler.Fault == null && wait < 10000; wait++) Thread.Sleep(1);
                     scheduler.Stop();
                     reader.Inbox = null;
                     recorder.Close(inbox.Dropped);
