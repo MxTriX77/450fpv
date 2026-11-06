@@ -295,8 +295,20 @@ namespace Fpv450.Sim.Log
         /// 66: the climb after a pitch-back (unity/physics/physics-integration-2--climb, on 65; assigned by D-072): the flapping's
         ///    entry gains, after its stations, RotorFlappingSpec.EdgewiseThrust and ProfileDrag. The record (3536 bytes) and the
         ///    events are 65's.
+        /// 67: model 77, the fiber's chain solves its segments to backward Euler's own step (unity/physics/physics-integration-2--chain-spikes,
+        ///    assigned by D-072; 64–66 are parallel lines'): the header's tether entry gains FlightSetup.TetherLinearStep (the
+        ///    known-wrong linear step, model 74's chain) after TetherZeroForceHold; the record is 63's 3360 bytes and the events
+        ///    63's (the Newton solves are not logged: a replay recounts them bit for bit, CableChain.NewtonSolves).
+        /// 68: the physics integration 2 with the fiber's Newton step and its cut criteria (unity/physics/physics-integration-2--int78,
+        ///    assigned by D-072; 66 is a parallel line's): 67's tether entry (FlightSetup.TetherLinearStep after TetherZeroForceHold)
+        ///    merged onto 65: the record is 65's 3536 bytes (63's 3360, then 62's arms' block), so 67's record is its first 3360
+        ///    bytes; the header both sides' (the setup entry 62's GyroRange and 67's TetherLinearStep, the tether entry 74's rows);
+        ///    the events 65's; no new event kind.
+        /// 69: the physics integration 2 with the climb's edgewise thrust and the fiber's Newton step (unity/physics/physics-integration-2--int79,
+        ///    assigned by D-072): 68's tether entry (FlightSetup.TetherLinearStep) merged onto 66's flapping entry
+        ///    (RotorFlappingSpec.EdgewiseThrust and ProfileDrag); the record is 65's 3536 bytes, the events 65's; no new event kind.
         /// </summary>
-        public const int Version = 66;
+        public const int Version = 69;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -742,12 +754,49 @@ namespace Fpv450.Sim.Log
         ///    motor both leave the bus (no drive), a failed one alone brakes. With the clean sensors (ArmInPlane off, GyroRange 0) a
         ///    flight steps as in 73 over its 3360 bytes; with airmode on and ContactSpec.MotorHeat off as in 72 over 68's 3168 bytes
         ///    and the arms' block.
+        /// 74: p7d-tether 1.8, the fiber cuts where the pilot says (D-086, D-087; on 70; unity/physics/physics-integration-2--fiber-cut2,
+        ///    assigned by D-072; 71–73 are parallel lines'): the nozzle bent at its collar so the line leaves its hole 27.5° down
+        ///    (drone.json's coil_nozzle contact, the canister still at 15°; tether.json's exit), the hole's sharp edge
+        ///    (spool.lip_radius_m 0.3 mm for 64's 4 mm flared lip) under the exit's tension as the one-way spool lets it out (its law
+        ///    paying, its hold else, never a segment stretched past it in the step's end), and its wear (FiberCuts.WearLip: the line
+        ///    paying out over it and its lead turning round it, at spool.lip_archard_wear_coefficient beyond the angle the bore
+        ///    passes it free), and the peel's rate law referred to the published payout rate (spool.peel_reference_rate_m_s 100 m/s
+        ///    for 1). Three new
+        ///    rows in the tether entry, which writes every row (the format unchanged). On model 70's drone.json (the fixture
+        ///    Model70Drone) with model 70's exit, lip and peel (GoldenFlights.Model70Tether; its hole's radius 0, so no lead turns
+        ///    round it) a flight steps as in 70.
         /// 76: the climb after a pitch-back (D-087; unity/physics/physics-integration-2--climb, on 75; assigned by D-072): each rotor's
         ///    thrust and torque take the edgewise flow through its disc (RotorFlappingSpec.EdgewiseThrust): the props' measured axial
         ///    tables times the blade elements' ratio in combined flow with Glauert's inflow, η(J, μ) (translational lift, and the
         ///    climb's damping in forward flight). A flight without flapping, or with EdgewiseThrust off, steps as in 75.
+        /// 77: the physics integration 2 with the fiber's cut at the hole's edge (unity/physics/physics-integration-2--chain-spikes,
+        ///    assigned by D-072; 75 and 76 are parallel lines'): 74's bent nozzle, sharp edge, its wear and the peel's reference
+        ///    merged onto 73's controller (they touch disjoint code); with airmode on the merge steps as in 74. Then p7d-tether 1.8's
+        ///    finding 2, the span's tension spikes at the drone's parts, at their cause: the chain solved its step on the start's
+        ///    linearisation alone. A taut segment's model was its tangent at the start, so a segment the solve rotated by δ ended
+        ///    stretched by δ²/(2ℓ), which no force in the solve made (4.7 N read for 0.03 N applied on a 10 mm segment turned 1 mm),
+        ///    and one modelled slack that ended taut once the correction passes were spent carried tension nothing applied; the cuts
+        ///    broke the line on both. While a segment ends taut with its tension more than CableChain.NewtonTolerance (1 mN) from its
+        ///    model's, the step is solved again from its start with its exact tangent at the last solve's end (CableChain.Relinearise:
+        ///    Newton on the segments, after the active set, one way, slack to taut, at most CableChain.MaxNewton 8 solves a step; the
+        ///    spool's segment keeps its own model; the safe solve its start's majorizers). With FlightSetup.TetherLinearStep (and with
+        ///    FlightSetup.TetherZeroForceHold) a flight steps linearly: as the merge (and with airmode on too as in 74); every flight
+        ///    without the line steps as before.
+        /// 78: the physics integration 2 with the fiber's Newton step and its cut criteria (unity/physics/physics-integration-2--int78,
+        ///    assigned by D-072; 76 is a parallel line's; the code is the parents' together): 77's bent nozzle, sharp edge, its wear,
+        ///    the peel's reference and CableChain's Newton step merged onto 75's arms in their plane, the gyro's range, the heat and
+        ///    D-086's controller. The chain reads the drone's pose and parts, the arms and the heat the rotors: they compose without
+        ///    new code. With FlightSetup.TetherLinearStep, model 70's exit, lip and peel and the clean sensors a flight steps as in
+        ///    73 (and so, with the line, as 77's linear step on 73's controller); with the clean sensors as in 77 over its 3360
+        ///    bytes; with the linear step, 70's exit, lip and peel as in 75; every flight without the line steps as in 75.
+        /// 79: the physics integration 2 with the climb's edgewise thrust and the fiber's Newton step (unity/physics/physics-integration-2--int79,
+        ///    assigned by D-072; the code is the parents' together): 76's edgewise flow through each disc (RotorFlappingSpec.EdgewiseThrust)
+        ///    merged onto 78's bent nozzle, sharp edge, its wear, the peel's reference and CableChain's Newton step. The rotors read the
+        ///    air and the chain the drone's pose and parts: they compose without new code. With EdgewiseThrust off a flight steps as
+        ///    in 78; with FlightSetup.TetherLinearStep and model 70's drone.json, exit, lip and peel as in 76; every flight without the
+        ///    line steps as in 76.
         /// </summary>
-        public const int ModelVersion = 76;
+        public const int ModelVersion = 79;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

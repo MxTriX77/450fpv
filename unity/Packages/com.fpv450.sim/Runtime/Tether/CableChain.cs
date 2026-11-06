@@ -203,6 +203,17 @@ namespace Fpv450.Sim.Tether
         /// motion, m (numerical: the line's pull draws a resting node a few millimetres in a step at most).</summary>
         public const double KinematicBand = 0.002;
 
+        /// <summary>The segments' Newton solves a step may add, and the tension error that takes one, N (numerical; 1 mN is 2 % of
+        /// the pack's least peel, 0.05 N, and 0.01 % of the proof load). A taut segment's model is its exact tangent at the
+        /// linearisation's point (the step's start, then each solve's end), so a segment the solve rotates by δ reads at its end
+        /// the stretch δ²/(2ℓ) the tangent never saw: EA·δ²/(2ℓ²), 4.7 N for 1 mm on 10 mm, against 0.03 N the solve applied
+        /// (1.8's finding 2); and one modelled slack that ends taut (the correction passes spent) carries a tension no force in
+        /// the solve made. While a segment's end tension and its model's differ by more than NewtonTolerance, the step is solved
+        /// again from its start with the true energy's tangent at the last solve's end (Newton on the segments, the same dt:
+        /// backward Euler's own solution, never a sub-step).</summary>
+        public const int MaxNewton = 8; // numerical: a reverse's line whipped round the body's parts at 10 m/s takes 5–8
+        public const double NewtonTolerance = 1e-3;
+
         public readonly int Capacity;
         /// <summary>kg/m and N: the line's (the table's or the wire record's).</summary>
         public readonly double MassPerMetre, AxialStiffness;
@@ -247,6 +258,19 @@ namespace Fpv450.Sim.Tether
         /// bench's model and the audit, never a pilot's flight.</summary>
         public bool ZeroForceHold;
 
+        /// <summary>The known-wrong linear step (model 74's chain, FlightSetup.TetherLinearStep): the step solved on its start's
+        /// linearisation alone, every segment's model its tangent at the step's start; so a segment the solve rotates ends stretched
+        /// by δ²/(2ℓ) and one modelled slack ends taut once the corrections are spent, each read as tension by the cuts (1.8's
+        /// finding 2). Model 74's chain bit for bit: a bench's model and the audit, never a pilot's flight. ZeroForceHold (model
+        /// 59's chain) steps linearly too.</summary>
+        public bool LinearStep;
+
+        /// <summary>The Newton solves taken (Relinearise, at most MaxNewton a step), and the steps that ended with
+        /// a segment's tension still past NewtonTolerance from its model (the budget spent): the linearisation's residue left in the
+        /// line.</summary>
+        public long NewtonSolves { get; private set; }
+        public long NewtonUnconverged { get; private set; }
+
         /// <summary>The spool at the last node (the caller's, before each step); inactive by default.</summary>
         public CableSpool Spool;
         /// <summary>The balloon's speed ṡ, m/s: line leaving the exit (state; negative only while a two-way spool takes line
@@ -269,6 +293,12 @@ namespace Fpv450.Sim.Tether
         readonly byte[] _segKind;
         readonly Double3[] _segDir;
         readonly double[] _segLen, _segTension, _segStiff, _segEnergy;
+        // A segment's linearisation moved off the step's start by a Newton solve: the point's offset from the start's segment
+        // vector, and the start's model kept for the safe solve.
+        readonly bool[] _segMoved;
+        readonly Double3[] _segOffset, _segDir0;
+        readonly byte[] _segKind0;
+        readonly double[] _segLen0, _segTension0, _segEnergy0;
 
         readonly Sym3[] _diag, _off, _invD;
         readonly Double3[] _rhs, _y, _pred;
@@ -298,6 +328,13 @@ namespace Fpv450.Sim.Tether
             _segTension = new double[capacity];
             _segStiff = new double[capacity];
             _segEnergy = new double[capacity];
+            _segMoved = new bool[capacity];
+            _segOffset = new Double3[capacity];
+            _segDir0 = new Double3[capacity];
+            _segKind0 = new byte[capacity];
+            _segLen0 = new double[capacity];
+            _segTension0 = new double[capacity];
+            _segEnergy0 = new double[capacity];
             _diag = new Sym3[capacity];
             _off = new Sym3[capacity];
             _invD = new Sym3[capacity];
@@ -499,6 +536,7 @@ namespace Fpv450.Sim.Tether
                 double len = d.Length(), rest = _nodes[j + 1].Material - _nodes[j].Material, k = AxialStiffness / rest;
                 _segStiff[j] = k;
                 _segLen[j] = len;
+                _segMoved[j] = false;
                 if (len >= rest && len > 0)
                 {
                     _segKind[j] = 1;
@@ -548,6 +586,7 @@ namespace Fpv450.Sim.Tether
                 // segment is solved safe as the elastic one it is (majorized below, as every other); one paying keeps its model.
                 bool held = !ZeroForceHold && Spool.Active && n >= 2 && _segKind[n - 2] == 4 && !(SpoolPaid > 0);
                 Restore(n);
+                Unmove(n);
                 if (held) ElasticModel(n - 2);
                 for (int j = 0; j + 1 < n; j++)
                     if (_segLen[j] > 0 && _segKind[j] != 4) // a paying spool's model is linear and dissipative while line flows
@@ -606,7 +645,7 @@ namespace Fpv450.Sim.Tether
             out double removable, out int bad)
         {
             int n = Count;
-            for (int pass = 0; ; pass++)
+            for (int pass = 0, corrections = 0, newton = 0; ; pass++)
             {
                 // A pass after the first solves again from the lowest node whose model the correction changed: below it the
                 // blocks and the forward sweep are the last pass's, the same values, so the same bits.
@@ -614,8 +653,22 @@ namespace Fpv450.Sim.Tether
                 Assemble(dt, from);
                 Solve(from);
                 for (int i = 0; i < n; i++) _nodes[i].Position = _x0[i] + _nodes[i].Velocity * dt;
-                if (safe ? !SafeMissed(pass) : pass == MaxCorrections || !Correct(pass == 0)) break;
-                Corrections++;
+                // The active set first (a touch or a tightening missed, a hold let go), then the segments' Newton solves.
+                bool newtonPass = false;
+                if (safe ? SafeMissed(pass) : corrections < MaxCorrections && Correct(pass == 0)) corrections++;
+                else if (safe || LinearStep || ZeroForceHold) break; // the known-wrongs: their models' linear steps
+                else if (newton < MaxNewton && Newton())
+                {
+                    newton++;
+                    newtonPass = true;
+                }
+                else
+                {
+                    if (newton == MaxNewton && Relinearise(false)) NewtonUnconverged++;
+                    break;
+                }
+                if (newtonPass) NewtonSolves++;
+                else Corrections++;
                 for (int i = 0; i < n; i++)
                 {
                     _nodes[i].Position = _x0[i];
@@ -724,6 +777,72 @@ namespace Fpv450.Sim.Tether
             if (i < _dirty) _dirty = i;
         }
 
+        // After a pass on settled contacts: every segment (not the spool's) that ends taut with its true tension more than
+        // NewtonTolerance from its model's there takes its exact tangent at that end (its point, direction, length, tension and
+        // energy), the step to be solved again from its start (apply); true if any did (or, not applying, would). So a segment
+        // modelled slack that ends taut (a tightening the correction passes left, or met after them) is taken as one modelled taut
+        // that ends rotated. One way only: a segment that ends slack keeps its model (let go, the parts' holds on its nodes stretch
+        // it in the next solve, 0.9 mm past its rest on 10.5 mm, 75 N: Newton cycling across the slack's kink). The tangent's
+        // quadratic about that point is the model the deficit is taken against (SegmentDeficit), as the start's was.
+        bool Relinearise(bool apply)
+        {
+            bool any = false;
+            int n = Count, last = Spool.Active ? n - 2 : n - 1; // the spool's segment is its own model's (ChooseSpool, SpoolMissed)
+            for (int j = 0; j < last; j++)
+            {
+                byte kind = _segKind[j];
+                if (kind > 2) continue;
+                Double3 d = _nodes[j + 1].Position - _nodes[j].Position;
+                double len = d.Length(), rest = _nodes[j + 1].Material - _nodes[j].Material, k = _segStiff[j];
+                if (!(len > rest)) continue;
+                double truth = k * (len - rest);
+                double model = kind == 0 ? 0 : (kind == 1 ? _segTension[j] : 0) + k * (Double3.Dot(_segDir[j], d) - _segLen[j]);
+                double error = truth - model;
+                if (!(error > NewtonTolerance || error < -NewtonTolerance)) continue;
+                any = true;
+                if (!apply) return true;
+                if (!_segMoved[j])
+                {
+                    _segMoved[j] = true;
+                    _segKind0[j] = kind;
+                    _segDir0[j] = _segDir[j];
+                    _segLen0[j] = _segLen[j];
+                    _segTension0[j] = _segTension[j];
+                    _segEnergy0[j] = _segEnergy[j];
+                }
+                _segKind[j] = 1;
+                _segDir[j] = d * (1 / len);
+                _segLen[j] = len;
+                _segTension[j] = truth;
+                _segEnergy[j] = 0.5 * k * (len - rest) * (len - rest);
+                _segOffset[j] = d - (_x0[j + 1] - _x0[j]);
+                Dirty(j);
+            }
+            return any;
+        }
+
+        // A Newton pass's changes, the segments' tangents: true if any.
+        bool Newton()
+        {
+            _dirty = Count;
+            return Relinearise(true);
+        }
+
+        // The segments' models at the step's start again (the safe solve's majorizers are built from them).
+        void Unmove(int n)
+        {
+            for (int j = 0; j + 1 < n; j++)
+            {
+                if (!_segMoved[j]) continue;
+                _segMoved[j] = false;
+                _segKind[j] = _segKind0[j];
+                _segDir[j] = _segDir0[j];
+                _segLen[j] = _segLen0[j];
+                _segTension[j] = _segTension0[j];
+                _segEnergy[j] = _segEnergy0[j];
+            }
+        }
+
         static void Speculate(Double3 x, ref CableContact c)
         {
             if (!c.Active || c.Mode != 0) return;
@@ -788,6 +907,15 @@ namespace Fpv450.Sim.Tether
                     Double3 pull = d * (dt * _segTension[j]);
                     if (own) _rhs[j] = _rhs[j] + pull;
                     _rhs[j + 1] = _rhs[j + 1] - pull;
+                }
+                if (_segMoved[j])
+                {
+                    // The tangent at a Newton point x̂ (Relinearise): its force at the start's x₀ is T̂·d + K·(x₀ − x̂) along the segment
+                    // vector, so the stiffness's pull back from the point's offset joins the right-hand side.
+                    Double3 w = _segOffset[j];
+                    Double3 back = (d * (along * Double3.Dot(d, w)) + w * across) * -dt;
+                    if (own) _rhs[j] = _rhs[j] + back;
+                    _rhs[j + 1] = _rhs[j + 1] - back;
                 }
                 Sym3 k = Outer(d, along * dt2) + Iso(across * dt2);
                 if (own) _diag[j] = _diag[j] + k;

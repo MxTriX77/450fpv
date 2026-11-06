@@ -125,6 +125,10 @@ namespace Fpv450.Sim.Flight
         /// so a line in a crotch of two parts is carried with nothing pressing it, and the energy check's safe pass keeps the spool's
         /// paying model on a segment that pays nothing (model 59's chain); the audit against model 59 and a bench's known-wrong, never a pilot's flight.</summary>
         public bool TetherZeroForceHold;
+        /// <summary>The known-wrong linear step (p7d-tether 1.8, model 74's chain): the line's step solved on its start's
+        /// linearisation alone (CableChain.LinearStep: each segment's tangent at the step's start), whose residue the cuts read as
+        /// tension (1.8's finding 2); the audit against model 74 and a bench's known-wrong, never a pilot's flight.</summary>
+        public bool TetherLinearStep;
 
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
