@@ -702,8 +702,19 @@ namespace Fpv450.Sim.Log
         ///    (Propulsion.Fail: no drive, a three-phase short's brake); soil a turning bell scrapes or a blade carves next to it
         ///    enters the gap, drags by its cohesion and, packed, binds. Every flight with the bells heats, so every golden moves;
         ///    with ContactSpec.MotorHeat off a flight steps as in 68 over its 3168 bytes, the new block zero.
+        /// 74: p7d-tether 1.8, the fiber cuts where the pilot says (D-086, D-087; on 70; unity/physics/physics-integration-2--fiber-cut2,
+        ///    assigned by D-072; 71–73 are parallel lines'): the nozzle bent at its collar so the line leaves its hole 27.5° down
+        ///    (drone.json's coil_nozzle contact, the canister still at 15°; tether.json's exit), the hole's sharp edge
+        ///    (spool.lip_radius_m 0.3 mm for 64's 4 mm flared lip) under the exit's tension as the one-way spool lets it out (its law
+        ///    paying, its hold else, never a segment stretched past it in the step's end), and its wear (FiberCuts.WearLip: the line
+        ///    paying out over it and its lead turning round it, at spool.lip_archard_wear_coefficient beyond the angle the bore
+        ///    passes it free), and the peel's rate law referred to the published payout rate (spool.peel_reference_rate_m_s 100 m/s
+        ///    for 1). Three new
+        ///    rows in the tether entry, which writes every row (the format unchanged). On model 70's drone.json (the fixture
+        ///    Model70Drone) with model 70's exit, lip and peel (GoldenFlights.Model70Tether; its hole's radius 0, so no lead turns
+        ///    round it) a flight steps as in 70.
         /// </summary>
-        public const int ModelVersion = 70;
+        public const int ModelVersion = 74;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

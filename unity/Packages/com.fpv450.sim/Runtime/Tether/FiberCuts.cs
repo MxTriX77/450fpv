@@ -72,7 +72,10 @@ namespace Fpv450.Sim.Tether
     ///   Each band is its quantile table, read piecewise linearly: + − × ÷ only.
     /// - The bends after each step (Collect): every pressing contact, neighbouring nodes on one capstan member as one wrap of
     ///   their whole turn (the elastica over a point edge takes the wrap's θ), R_eff = max(R_edge + c, √(EI/T)/(2·sin(θ/4))),
-    ///   σ = E·r/R_eff + T/A_g; and the exit lip (spool.lip_radius_m at the lip's wrap θ_e under the exit's tension).
+    ///   σ = E·r/R_eff + T/A_g; and the exit lip, the hole's edge (spool.lip_radius_m at the lip's wrap θ_e under the exit's
+    ///   tension: its 0.3 mm is under the elastica's radius at every tension the exit meets, so the elastica decides there).
+    /// - The hole's edge's wear (WearLip, D-087): the line paying out over it and its lead turning round it, at the edge's own
+    ///   Archard k (spool.lip_archard_wear_coefficient), beyond the angle the bore lets the line leave without touching it.
     /// - Abrasion (Wear): a section pressed on a member other than the ground or a layer (the coating on soil or straw under the
     ///   line's own weight is far from the edge's Hertz regime: assumed) wears by Archard, h += k·p·Δx/H, p the Hertz mean pressure
     ///   of the line (r = coating radius) on the arris (max(R_edge, c), crossed cylinders: R = √(r·R₂), E* = E_c/(1 − ν²)), never
@@ -108,7 +111,7 @@ namespace Fpv450.Sim.Tether
         public const double AbrasiveEdge = 0.001;
 
         readonly double _youngs, _glassRadius, _glassArea, _bending, _coating, _lineRadius, _reduced, _hardness, _severe, _mild;
-        readonly double _sectionLength, _flawChance, _lipRadius;
+        readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle;
         readonly double[] _span, _flaw, _intact, _abraded;
         readonly double _macroA, _macroRadiusA, _macroDecay, _microSmooth, _microRough;
         readonly bool _oneStrength;
@@ -147,6 +150,10 @@ namespace Fpv450.Sim.Tether
             _intact = table.Row("strength.intact_pa").Values;
             _abraded = table.Row("strength.abraded_pa").Values;
             _lipRadius = table.Number("spool.lip_radius_m");
+            _lipWear = table.Number("spool.lip_archard_wear_coefficient");
+            _mouthRadius = table.Number("spool.mouth_radius_m");
+            // The line lies across the bore before it bends over the hole's edge: no touch within atan(2·r_m/L_n) of the axis.
+            _freeAngle = DetMath.Atan2(2 * _mouthRadius, table.Number("spool.nozzle_length_m"));
             _macroA = table.Number("link.macrobend_loss_a_db");
             _macroRadiusA = table.Number("link.macrobend_radius_a_m");
             _macroDecay = table.Number("link.macrobend_decay_per_m");
@@ -423,6 +430,63 @@ namespace Fpv450.Sim.Tether
                 }
             }
             return through;
+        }
+
+        /// <summary>
+        /// The hole's edge's wear over the step (after Collect; p7d-tether 1.8, D-087): the line pressed on the edge at the lip's
+        /// wrap θ under the exit's tension T, beyond the angle it passes the bore free (spool.nozzle_length_m, spool.mouth_radius_m).
+        /// Its load per metre q = T/R_eff over the wrap's length R_eff·θ; Hertz's line contact of the coating on the edge, half-width
+        /// b = √(4·q·r_c/(π·E*)), mean pressure p = q/(2b), never above H (plastic: 2b = q/H). Archard at the lip's own k
+        /// (spool.lip_archard_wear_coefficient): line paying out (payout m this step) passes the edge once, each point sliding
+        /// R_eff·θ along it and, as the lead turns about the nozzle's axis (turn rad this step), r_m·turn round it for every
+        /// payout's worth, so its one pass wears k·p·R_eff·θ·√(1 + (r_m·turn/payout)²)/H, and the section at the lip wears through
+        /// when that reaches the coating; line held still (no payout) rubs round the edge in place, k·p·r_m·turn on the section at
+        /// the lip, its depth summed (Depth). A section worn through takes its abraded strength (FiberSection Abraded | 0x40 at the
+        /// Lip); returns its depth's share of the coating this step (0 untouched, ≥ 1 worn through).
+        /// </summary>
+        public double WearLip(double payout, double turn, double material, FiberContacts names, StepEvents events)
+        {
+            ref readonly FiberBend lip = ref _bends[_bendCount - 1];
+            if (!(lip.Turn > _freeAngle) || !(lip.Tension > 0) || !(lip.Radius < double.PositiveInfinity)) return 0;
+            double q = lip.Tension / lip.Radius;
+            double half = DetMath.Sqrt(4 * q * _lineRadius / (Pi * _reduced));
+            double p = q / (2 * half);
+            if (p > _hardness) p = _hardness;
+            double across = _mouthRadius * DetMath.Abs(turn);
+            long sec = Section(material);
+            double depth;
+            int slot;
+            if (payout > 0)
+            {
+                double ratio = across / payout;
+                depth = _lipWear * p * lip.Radius * lip.Turn * DetMath.Sqrt(1 + ratio * ratio) / _hardness;
+                if (!(depth >= _coating)) return depth / _coating;
+                slot = Slot(sec, events, lip.Point);
+                if (slot < 0 || _worn[slot]) return depth / _coating;
+            }
+            else
+            {
+                if (!(across > 0)) return 0;
+                slot = Slot(sec, events, lip.Point);
+                if (slot < 0) return 0;
+                _direct[slot] += _lipWear * p * across;
+                double lo = material, hi = material;
+                if (lo < _lo[slot]) _lo[slot] = lo;
+                if (hi > _hi[slot]) _hi[slot] = hi;
+                depth = Depth(slot, 0);
+                if (_worn[slot] || !(depth >= _coating)) return depth / _coating;
+            }
+            _worn[slot] = true;
+            _wornStrength[slot] = AbradedDraw(sec);
+            _wornList[_wornCount++] = slot;
+            if (names != null)
+            {
+                FlightEvent e = FiberLine.Place(EventKind.FiberSection, (byte)FiberMember.Lip, 0, names, lip.Point, sec * _sectionLength,
+                    _wornStrength[slot], depth);
+                e.Index = (byte)SectionBand.Abraded | 0x40;
+                events.Add(e);
+            }
+            return depth / _coating;
         }
 
         // The depth of a slot's wear, m: the direct rubs and the passes over the swept range (no shorter than the contact's width).
