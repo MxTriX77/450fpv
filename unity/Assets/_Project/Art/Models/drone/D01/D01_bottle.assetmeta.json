@@ -3,7 +3,7 @@
   "id": "D01",
   "variant": "D01_bottle",
   "generator": "drone",
-  "params_sha256": "7fbd4fe3459ddd84dfe32f8ef65340390aa4274d6d3c0143aa479e484e2b0e47",
+  "params_sha256": "f1d0fc48fa73edf8ddfbd2e8e4c5f1bb51cf1a4c1c9469d785c8323da1a5e2a6",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
