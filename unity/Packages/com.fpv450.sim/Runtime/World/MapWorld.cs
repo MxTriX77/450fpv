@@ -25,6 +25,12 @@
 //   (S04's patch of long, crossing strips) stays in the grid, where its tree would visit
 //   more nodes than the grid walks shapes. Runtime objects are checked by their bounds
 //   first.
+// - The house's queries (p6-world-query, D-087: the step inside Z01's room): a cell's list holds each
+//   item's bounds beside it; a small query (each side of its bounds at most 1 m: a drone's part, a fiber
+//   node, a rotor's ray) tests the items of the thread's region that holds it (RegionCache), not the
+//   cells; the ground is skipped where every core end is above it by more than the margin (AboveGround);
+//   and a still capsule's box clearance is taken once (ShapeMath.Sweep). Each tests exactly the shapes
+//   the grid walk tests, or proves the skipped one gives none, so every result keeps its bits.
 // - Wires for physics (p7d-tether 1.2): StaticContacts and Raycast skip every wire under QueryFilter.NoWires;
 //   WiresNear, the conductors' envelope index, their ports and ends are MapWorldWires.cs.
 // - Snag records for the fiber (p7d-tether 1.3): SnagsNear and its index are MapWorldSnags.cs.
@@ -71,6 +77,17 @@ namespace Fpv450.Sim.World
             public int Right, First, Count;
         }
 
+        /// <summary>
+        /// A cell's listed item with what the walk reads before it: shape i, or ~o for object o's tree, its bounds and the cell
+        /// of their minimum corner. Contiguous per cell, so a walk past a building's boxes reads a cell's list and not each
+        /// shape's whole record (the house's queries: the same tests in the same order).
+        /// </summary>
+        private struct CellItem
+        {
+            public Bounds Box;
+            public int Item, CellX, CellZ;
+        }
+
         /// <summary>A ground patch's footprint (BandCount 0) or a hole band (its centre line in _band, half its width, its instance).</summary>
         private struct Gap
         {
@@ -90,12 +107,14 @@ namespace Fpv450.Sim.World
         private readonly double[] _wireProj;   // distance along its wire's chord (AxisY) from the first point, m, rising
         private readonly double _gridX, _gridZ;
         private readonly int _nx, _nz;
-        private readonly int[] _cellStart, _cellItems; // per cell, row-major from (_gridX, _gridZ): shape i, or ~o for object o's tree
+        private readonly int[] _cellStart;             // per cell, row-major from (_gridX, _gridZ), its first item in _cellItems
+        private readonly CellItem[] _cellItems;
         private readonly Bounds[] _objBox;             // a tree object's bounds (its root's)
         private readonly int[] _objCellX, _objCellZ;   // the cell of a tree object's bounds' minimum corner
         private readonly int[] _objRoot;               // each object's root node; -1 for none (its shapes are in the grid)
         private readonly Node[] _nodes;
         private readonly int[] _leafPrims;             // the trees' prims, leaf by leaf
+        private readonly Bounds[] _leafBox;            // their bounds, beside them
         private readonly Gap[] _gaps;
         private readonly XZ[] _band;
         private readonly int[] _gapStart, _gapItems;
@@ -177,46 +196,34 @@ namespace Fpv450.Sim.World
             double speed = DetMath.Max((current.A - previous.A).Length(), (current.B - previous.B).Length());
             int count = 0;
             // The ground answers only where its contact point lies outside every patch and band (W3: per contact point).
-            if (ShapeMath.Sweep(_ground, previous, current, margin, speed, out Near near, out double time) && !InGap(near.Point.X, near.Point.Z))
+            Near near;
+            double time;
+            if (!AboveGround(previous, current, margin) && ShapeMath.Sweep(_ground, previous, current, margin, speed, out near, out time)
+                && !InGap(near.Point.X, near.Point.Z))
                 ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, _ground));
 
             Span<int> stack = stackalloc int[MaxDepth + 2];
-            CellRange(reach, out int x0, out int x1, out int z0, out int z1);
-            for (int cz = z0; cz <= z1; cz++)
+            RegionCache cached = Region(reach, out int entry);
+            if (cached != null)
             {
-                for (int cx = x0; cx <= x1; cx++)
+                // The region's items: every item whose bounds meet the reach is among them (the region holds the reach).
+                for (int k = entry * RegionCache.Capacity, end = k + cached.Count[entry]; k < end; k++)
+                    if (cached.Items[k].Box.Overlaps(reach))
+                        SweepItem(cached.Items[k].Item, stack, previous, current, margin, speed, reach, noWires, results, ref count);
+            }
+            else
+            {
+                CellRange(reach, out int x0, out int x1, out int z0, out int z1);
+                for (int cz = z0; cz <= z1; cz++)
                 {
-                    int cell = cz * _nx + cx;
-                    for (int k = _cellStart[cell]; k < _cellStart[cell + 1]; k++)
+                    for (int cx = x0; cx <= x1; cx++)
                     {
-                        int item = _cellItems[k];
-                        if (item >= 0)
+                        int cell = cz * _nx + cx;
+                        for (int k = _cellStart[cell]; k < _cellStart[cell + 1]; k++)
                         {
-                            ref readonly Prim p = ref _prims[item];
-                            if ((p.CellX > x0 ? p.CellX : x0) == cx && (p.CellZ > z0 ? p.CellZ : z0) == cz && p.Box.Overlaps(reach))
-                                SweepPrim(item, previous, current, margin, speed, reach, noWires, results, ref count);
-                            continue;
-                        }
-                        int o = ~item;
-                        if ((_objCellX[o] > x0 ? _objCellX[o] : x0) != cx || (_objCellZ[o] > z0 ? _objCellZ[o] : z0) != cz || !_objBox[o].Overlaps(reach))
-                            continue;
-                        int top = 0;
-                        stack[top++] = _objRoot[o];
-                        while (top > 0)
-                        {
-                            int at = stack[--top];
-                            ref readonly Node node = ref _nodes[at];
-                            if (!node.Box.Overlaps(reach))
-                                continue;
-                            if (node.Count == 0)
-                            {
-                                stack[top++] = node.Right;
-                                stack[top++] = at + 1;
-                                continue;
-                            }
-                            for (int m = node.First; m < node.First + node.Count; m++)
-                                if (_prims[_leafPrims[m]].Box.Overlaps(reach))
-                                    SweepPrim(_leafPrims[m], previous, current, margin, speed, reach, noWires, results, ref count);
+                            ref readonly CellItem e = ref _cellItems[k];
+                            if ((e.CellX > x0 ? e.CellX : x0) == cx && (e.CellZ > z0 ? e.CellZ : z0) == cz && e.Box.Overlaps(reach))
+                                SweepItem(e.Item, stack, previous, current, margin, speed, reach, noWires, results, ref count);
                         }
                     }
                 }
@@ -233,6 +240,49 @@ namespace Fpv450.Sim.World
                 }
             }
             return count;
+        }
+
+        /// <summary>
+        /// Whether every core end of both poses lies higher above the ground's plane than its radius, the margin and 2 µm,
+        /// so its sweep finds no contact: the ground is level (its AxisY (0, 1, 0), the loader's), so the sweep's every
+        /// distance to it, at its current pose and in its separating-plane bound, is an end's y less the plane's less the
+        /// radius, these same differences (a dot with (0, 1, 0) adds only zeros), and over TouchDistance + ClearSlack and
+        /// the margin they prove the plane apart and the current pose beyond the margin (ShapeMath.Sweep). The same answer
+        /// without the sweep (finite coordinates): a drone or a line in a room is far above the plane.
+        /// </summary>
+        private bool AboveGround(in Capsule previous, in Capsule current, double margin)
+        {
+            double y = _ground.Center.Y, r = current.Radius, above = (margin > 0 ? margin : 0) + 2e-6;
+            return previous.A.Y - y - r > above && previous.B.Y - y - r > above && current.A.Y - y - r > above && current.B.Y - y - r > above;
+        }
+
+        /// <summary>A cell item's sweeps whose bounds meet the reach: shape i's, or those of object ~i's tree (SweepPrim).</summary>
+        private void SweepItem(int item, Span<int> stack, in Capsule previous, in Capsule current, double margin, double speed, in Bounds reach,
+            bool noWires, Span<StaticContact> results, ref int count)
+        {
+            if (item >= 0)
+            {
+                SweepPrim(item, previous, current, margin, speed, reach, noWires, results, ref count);
+                return;
+            }
+            int top = 0;
+            stack[top++] = _objRoot[~item];
+            while (top > 0)
+            {
+                int at = stack[--top];
+                ref readonly Node node = ref _nodes[at];
+                if (!node.Box.Overlaps(reach))
+                    continue;
+                if (node.Count == 0)
+                {
+                    stack[top++] = node.Right;
+                    stack[top++] = at + 1;
+                    continue;
+                }
+                for (int m = node.First; m < node.First + node.Count; m++)
+                    if (_leafBox[m].Overlaps(reach))
+                        SweepPrim(_leafPrims[m], previous, current, margin, speed, reach, noWires, results, ref count);
+            }
         }
 
         /// <summary>Placed shape i's sweep, its contact inserted in canonical order; none for a wire when noWires.</summary>
@@ -305,42 +355,27 @@ namespace Fpv450.Sim.World
             }
 
             Span<int> stack = stackalloc int[MaxDepth + 2];
-            CellRange(reach, out int x0, out int x1, out int z0, out int z1);
-            for (int cz = z0; cz <= z1; cz++)
+            RegionCache cached = Region(reach, out int entry);
+            if (cached != null)
             {
-                for (int cx = x0; cx <= x1; cx++)
+                // The region's items (StaticContacts); Take keeps the first in canonical order on a tie, whatever the order.
+                for (int k = entry * RegionCache.Capacity, end = k + cached.Count[entry]; k < end; k++)
+                    if (cached.Items[k].Box.Overlaps(reach))
+                        RayItem(cached.Items[k].Item, stack, o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
+            }
+            else
+            {
+                CellRange(reach, out int x0, out int x1, out int z0, out int z1);
+                for (int cz = z0; cz <= z1; cz++)
                 {
-                    int cell = cz * _nx + cx;
-                    for (int k = _cellStart[cell]; k < _cellStart[cell + 1]; k++)
+                    for (int cx = x0; cx <= x1; cx++)
                     {
-                        int item = _cellItems[k];
-                        if (item >= 0)
+                        int cell = cz * _nx + cx;
+                        for (int k = _cellStart[cell]; k < _cellStart[cell + 1]; k++)
                         {
-                            ref readonly Prim p = ref _prims[item];
-                            if ((p.CellX > x0 ? p.CellX : x0) == cx && (p.CellZ > z0 ? p.CellZ : z0) == cz && p.Box.Overlaps(reach))
-                                RayPrim(item, o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
-                            continue;
-                        }
-                        int ob = ~item;
-                        if ((_objCellX[ob] > x0 ? _objCellX[ob] : x0) != cx || (_objCellZ[ob] > z0 ? _objCellZ[ob] : z0) != cz || !_objBox[ob].Overlaps(reach))
-                            continue;
-                        int top = 0;
-                        stack[top++] = _objRoot[ob];
-                        while (top > 0)
-                        {
-                            int at = stack[--top];
-                            ref readonly Node node = ref _nodes[at];
-                            if (!node.Box.Overlaps(reach))
-                                continue;
-                            if (node.Count == 0)
-                            {
-                                stack[top++] = node.Right;
-                                stack[top++] = at + 1;
-                                continue;
-                            }
-                            for (int m = node.First; m < node.First + node.Count; m++)
-                                if (_prims[_leafPrims[m]].Box.Overlaps(reach))
-                                    RayPrim(_leafPrims[m], o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
+                            ref readonly CellItem e = ref _cellItems[k];
+                            if ((e.CellX > x0 ? e.CellX : x0) == cx && (e.CellZ > z0 ? e.CellZ : z0) == cz && e.Box.Overlaps(reach))
+                                RayItem(e.Item, stack, o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
                         }
                     }
                 }
@@ -367,6 +402,35 @@ namespace Fpv450.Sim.World
                 hit.Normal = normal;
             }
             return hit;
+        }
+
+        /// <summary>A cell item's entries whose bounds meet the reach: shape i's, or those of object ~i's tree (RayPrim).</summary>
+        private void RayItem(int item, Span<int> stack, Double3 o, Double3 d, in Bounds reach, bool noWires, ref bool found, ref double best,
+            ref Double3 normal, ref RayHit hit)
+        {
+            if (item >= 0)
+            {
+                RayPrim(item, o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
+                return;
+            }
+            int top = 0;
+            stack[top++] = _objRoot[~item];
+            while (top > 0)
+            {
+                int at = stack[--top];
+                ref readonly Node node = ref _nodes[at];
+                if (!node.Box.Overlaps(reach))
+                    continue;
+                if (node.Count == 0)
+                {
+                    stack[top++] = node.Right;
+                    stack[top++] = at + 1;
+                    continue;
+                }
+                for (int m = node.First; m < node.First + node.Count; m++)
+                    if (_leafBox[m].Overlaps(reach))
+                        RayPrim(_leafPrims[m], o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
+            }
         }
 
         /// <summary>Placed shape i's entry by the ray o + t·d, kept by Take; none for a wire when noWires.</summary>
@@ -522,6 +586,55 @@ namespace Fpv450.Sim.World
 
         // ---- The grid ----------------------------------------------------------------------------------------------
 
+        /// <summary>
+        /// The thread's region (RegionCache) that holds a small reach (each side at most RegionCache.Reach), gathered from the
+        /// grid on a miss over the reach grown by RegionCache.Grow on every side; null for a larger reach, or for a region of
+        /// more than RegionCache.Capacity items: those walk the grid.
+        /// </summary>
+        private RegionCache Region(in Bounds reach, out int entry)
+        {
+            entry = -1;
+            if (!(reach.Max.X - reach.Min.X <= RegionCache.Reach && reach.Max.Y - reach.Min.Y <= RegionCache.Reach
+                && reach.Max.Z - reach.Min.Z <= RegionCache.Reach))
+                return null;
+            RegionCache c = _region ?? (_region = new RegionCache());
+            for (int e = 0; e < RegionCache.Entries; e++)
+            {
+                if (c.World[e] == this && c.Region[e].Holds(reach))
+                {
+                    entry = e;
+                    return c;
+                }
+            }
+            int slot = c.Next, first = slot * RegionCache.Capacity, n = 0;
+            var grow = new Double3(RegionCache.Grow, RegionCache.Grow, RegionCache.Grow);
+            var region = new Bounds(reach.Min - grow, reach.Max + grow);
+            c.World[slot] = null; // until it is whole
+            CellRange(region, out int x0, out int x1, out int z0, out int z1);
+            for (int cz = z0; cz <= z1; cz++)
+            {
+                for (int cx = x0; cx <= x1; cx++)
+                {
+                    int cell = cz * _nx + cx;
+                    for (int k = _cellStart[cell]; k < _cellStart[cell + 1]; k++)
+                    {
+                        ref readonly CellItem e = ref _cellItems[k];
+                        if ((e.CellX > x0 ? e.CellX : x0) != cx || (e.CellZ > z0 ? e.CellZ : z0) != cz || !e.Box.Overlaps(region))
+                            continue;
+                        if (n == RegionCache.Capacity)
+                            return null;
+                        c.Items[first + n++] = e;
+                    }
+                }
+            }
+            c.World[slot] = this;
+            c.Region[slot] = region;
+            c.Count[slot] = n;
+            c.Next = slot + 1 < RegionCache.Entries ? slot + 1 : 0;
+            entry = slot;
+            return c;
+        }
+
         // Monotone in x, so a box's cells and its points' cells agree; outside the extent the edge cell; NaN cell 0.
         private int CellX(double x)
         {
@@ -541,6 +654,32 @@ namespace Fpv450.Sim.World
             x1 = CellX(b.Max.X);
             z0 = CellZ(b.Min.Z);
             z1 = CellZ(b.Max.Z);
+        }
+    }
+
+    public sealed partial class MapWorld
+    {
+        [ThreadStatic] private static RegionCache _region;
+
+        /// <summary>
+        /// A thread's last few regions of the grid, each with the cell items whose bounds meet it (the house's queries). A
+        /// drone's parts and the fiber's nodes ask many small queries a step in one region, beside a building whose cells list
+        /// a score of boxes each: a query whose reach a region holds tests the region's few items instead of walking the cells.
+        /// Every item whose bounds meet the reach meets the region, so a query tests exactly the shapes it tests walking the
+        /// grid, and its results are the same bits (StaticContacts inserts in canonical order whatever the order of its
+        /// tests). Per thread, so queries stay reentrant and callable from any thread; allocated at a thread's first small
+        /// query, then nothing. It holds no runtime objects, which are checked apart.
+        /// </summary>
+        private sealed class RegionCache
+        {
+            /// <summary>Regions kept; items a region holds at most; a reach's largest side to use one, and a region's growth on every side, m.</summary>
+            public const int Entries = 8, Capacity = 32;
+            public const double Reach = 1.0, Grow = 0.5;
+            public readonly MapWorld[] World = new MapWorld[Entries];
+            public readonly Bounds[] Region = new Bounds[Entries];
+            public readonly int[] Count = new int[Entries];
+            public readonly CellItem[] Items = new CellItem[Entries * Capacity];
+            public int Next;
         }
     }
 

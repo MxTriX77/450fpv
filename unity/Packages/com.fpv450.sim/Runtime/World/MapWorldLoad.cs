@@ -281,9 +281,20 @@ namespace Fpv450.Sim.World
                 p.CellX = CellX(p.Box.Min.X);
                 p.CellZ = CellZ(p.Box.Min.Z);
                 return (p.CellX, CellX(p.Box.Max.X), p.CellZ, CellZ(p.Box.Max.Z));
-            }, out _cellStart, out _cellItems);
-            for (int k = 0; k < _cellItems.Length; k++)
-                _cellItems[k] = listed[_cellItems[k]];
+            }, out _cellStart, out int[] cellListed);
+            _cellItems = new CellItem[cellListed.Length];
+            for (int k = 0; k < cellListed.Length; k++)
+            {
+                int item = listed[cellListed[k]];
+                _cellItems[k] = item < 0
+                    ? new CellItem { Box = _objBox[~item], Item = item, CellX = _objCellX[~item], CellZ = _objCellZ[~item] }
+                    : new CellItem { Box = _prims[item].Box, Item = item, CellX = _prims[item].CellX, CellZ = _prims[item].CellZ };
+            }
+            _leafBox = new Bounds[_leafPrims.Length];
+            for (int k = 0; k < _leafPrims.Length; k++)
+                _leafBox[k] = _prims[_leafPrims[k]].Box;
+            if (_region == null)
+                _region = new RegionCache(); // the loading thread's, so its first query allocates nothing
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
             PlaceMicro(rowMeta, rowPosition, rowYaw);
             WorldBugs = PlaceWires(rowMeta, rowPosition, rowYaw, rowClass, file);

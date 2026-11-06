@@ -869,6 +869,107 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        /// <summary>
+        /// The thread's regions (MapWorld's region cache): small queries by Z01's west window and through its room, a drone's part
+        /// swept 2 mm a step and a fiber node held still (a 0.3 m margin), get the same bits whatever regions the thread holds: in order, in
+        /// reverse, and each after queries elsewhere have pushed every region out.
+        /// </summary>
+        [Test]
+        public void Regions_SmallQueriesBesideAHouseGetTheSameBitsInAnyOrder()
+        {
+            MapWorld world = World;
+            const int count = 2400;
+            var queries = new (Capsule Previous, Capsule Current, double Margin)[count];
+            for (int i = 0; i < count; i++)
+            {
+                // Across the north wall (z −51.46…−51.00) by the window (x −175.0…−174.2, y 0.94…1.95) and its jambs and sill, and
+                // through the west room (x −176.55…−174.02) by its walls, floor and ceiling (2.41 m).
+                double u = (double)i / count, z = -49.0 - 6.0 * u, x = -175.0 + 0.9 * Math.Sin(9 * u), y = 1.0 + 0.6 * Math.Sin(5 * u);
+                var a = new Double3(x, y, z);
+                if (i % 2 == 0)
+                {
+                    var arm = new Double3(0.12, 0.01, 0.05);
+                    var step = new Double3(0.0004, 0.0001, 0.002);
+                    queries[i] = (new Capsule(a - step, a - step + arm, 0.02), new Capsule(a, a + arm, 0.02), Margin);
+                }
+                else
+                {
+                    var node = new Capsule(a, a, 0.001);
+                    queries[i] = (node, node, 0.3);
+                }
+            }
+            ulong Hash(StaticContact[] buffer, int n)
+            {
+                ulong h = WorldHash.Offset;
+                void Add(double v)
+                {
+                    ulong bits = (ulong)BitConverter.DoubleToInt64Bits(v);
+                    for (int k = 0; k < 8; k++)
+                        h = (h ^ (byte)(bits >> 8 * k)) * 0x100000001B3UL;
+                }
+                Add(n);
+                for (int k = 0; k < Math.Min(n, buffer.Length); k++)
+                {
+                    StaticContact c = buffer[k];
+                    Add(c.Point.X); Add(c.Point.Y); Add(c.Point.Z); Add(c.Normal.X); Add(c.Normal.Y); Add(c.Normal.Z);
+                    Add(c.Distance); Add(c.Object); Add(c.Shape); Add(c.Material); Add(c.Surface); Add(c.WireParam); Add(c.Time);
+                }
+                return h;
+            }
+            ulong[] Run(int order)
+            {
+                var hashes = new ulong[count];
+                var buffer = new StaticContact[32];
+                var far = new StaticContact[32];
+                for (int j = 0; j < count; j++)
+                {
+                    int i = order == 1 ? count - 1 - j : j;
+                    if (order == 2)
+                        for (int k = 0; k < 9; k++) // nine regions far apart in the open field: every region pushed out
+                        {
+                            var p = new Double3(100 + 10 * k, 1, 100);
+                            world.StaticContacts(new Capsule(p, p, 0.01), new Capsule(p, p, 0.01), Margin, far);
+                        }
+                    var q = queries[i];
+                    hashes[i] = Hash(buffer, world.StaticContacts(q.Previous, q.Current, q.Margin, buffer));
+                }
+                return hashes;
+            }
+            var runs = new ulong[3][];
+            var errors = new Exception[3];
+            var threads = new Thread[3];
+            for (int t = 0; t < 3; t++)
+            {
+                int me = t;
+                threads[t] = new Thread(() =>
+                {
+                    try
+                    {
+                        runs[me] = Run(me);
+                    }
+                    catch (Exception e)
+                    {
+                        errors[me] = e;
+                    }
+                });
+                threads[t].Start();
+            }
+            foreach (Thread thread in threads)
+                thread.Join();
+            for (int t = 0; t < 3; t++)
+                Assert.That(errors[t], Is.Null, $"thread {t}");
+            ulong none = Hash(new StaticContact[32], 0);
+            int touching = 0;
+            for (int i = 0; i < count; i++)
+            {
+                Assert.That(runs[1][i], Is.EqualTo(runs[0][i]), $"query {i} in reverse");
+                Assert.That(runs[2][i], Is.EqualTo(runs[0][i]), $"query {i} with every region pushed out");
+                touching += runs[0][i] != none ? 1 : 0;
+            }
+            TestContext.Out.WriteLine($"  {touching} of {count} queries meet a shape");
+            Assert.That(touching, Is.GreaterThan(count / 10), "the queries meet the house's boxes");
+        }
+
         [Test]
         public void BatchedEqualsSingle_ForSamplesAndRays()
         {
