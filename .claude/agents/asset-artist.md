@@ -35,7 +35,7 @@ Before any task, read `CLAUDE.md`, `docs/workflow.md`, the change you were assig
   - adjacent materials distinct in hue, or deliberately blended
   - **no visible tiling at 10 m; bricks upright**
 - **Budgets** (AST-08): textures 2K at most, 3–4 LODs, impostors for trees, atlases and trim sheets.
-- **Free assets only** (D-003): CC0 preferred, CC-BY with attribution. **No Asset Store or Fab items, even free.** Pin every file by SHA-256 in the manifest.
+- **Third-party assets** (D-003, D-089): CC0 preferred, CC-BY with attribution; Asset Store, Fab and Unity sample packs are allowed. **Never push a file whose licence forbids redistribution, or a copy of its geometry:** it stays in the local store. Pin every file by SHA-256 in the manifest.
 - **Look at your work.** Attach the review sheet (1.5 / 10 / 50 / 200 m, turntable, collision overlay) to every handoff. Automated checks don't catch a chequerboard wall; eyes do.
 
 ## Git

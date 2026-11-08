@@ -2,7 +2,7 @@
 
 **450fpv** is a lightweight, ultra-realistic **heavy fiber-optic cargo FPV simulator** in Unity.
 - **One drone:** "Svinoriz 10 Opto" (10-inch).
-- **One map:** about three adjacent Ukrainian villages and their land.
+- **One map:** the friend's farmland, adopted as it is (D-088): 1 × 1 km of fields, tracks, tree belts and a ruined village on rolling hills. The plan is [docs/final-world-plan.md](docs/final-world-plan.md).
 - **An analog PAL goggles feed.**
 - **Physics** that is physical, seeded and logged.
 
@@ -59,10 +59,10 @@
 - **No** places, coordinates, dates, OSD values, unit details, people or specifics of the pilot's sorties, in any file, commit or message.
 - **Maps:** no georeferencing; signs use **invented** names.
 - **The OSD** reads **"Svinoriz 10 Opto"** and **"! SAFE !"**. Never revert either.
-- **Free assets only:**
-  - CC0 preferred, CC-BY with attribution
-  - **no paid, Asset Store or Fab content, not even free items**
-  - every third-party file is pinned in `tools/assets/manifest.json`, and `CREDITS.md` is generated from it
+- **Third-party assets (D-089):**
+  - CC0 preferred for new work, CC-BY with attribution; Asset Store, Fab/Quixel and Unity sample packs are allowed
+  - **never push a file whose licence forbids redistribution**, or anything that copies its geometry: it stays in the git-ignored local store, linked into each checkout
+  - every third-party file is pinned in `tools/assets/manifest.json` (local-only ones marked so), and `CREDITS.md` is generated from it
 
 ## Engineering rules that bite
 - **The analog feed is a faithful port of the Godot feed** (D-026): `docs/legacy/video-feed-godot/`, A/B-checked against the original. The pilot wants the noise "very much similar".
