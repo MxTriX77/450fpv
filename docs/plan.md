@@ -150,7 +150,7 @@ This is the pilot's seven-step plan (2026-10-17), "made right". Their order stay
 
 ---
 
-## Phase 3: World (G3, UAT-2) · dropped (D-047: the test range is the map)
+## Phase 3: World (G3, UAT-2) · back as the friend's farmland (D-088): see [final-world-plan.md](final-world-plan.md)
 
 **Goal:** the full composite map, explorable in noclip, built from an editable layout, with the deterministic world-query core underneath.
 **Owners:** world-builder (layout, compiler, terrain, placement), physics-engineer (world-query core review and the contact probe), tech-artist (performance, distance look), QA.

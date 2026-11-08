@@ -699,3 +699,28 @@ The pilot, 2026-11-06, on the model-68 build.
 - **R after a signal loss:** "sometimes R doesn't restart the race RIGHT AWAY". R restarts at once in every state, a lost link and a broken fiber included.- **Speed alone doesn't cut the fiber:** "in real life when flying very fast you'd think it'd cut easily - it wouldn't. They are designed to fly up to 80-100km/h. However, obviously when on a higher speed, a sharp turn increases the chance to cut." Cruise up to 80–100 km/h keeps the line whole; the risk rises with a sharp turn's rate at speed. (The spool's peel band that cut cruising lines at 15 m/s is wrong against this.)
 - **The climb after a pitch-back settles too slowly:** at a fixed throttle, pitching back from cruise lifts the drone (the thrust turns upward), as in real life, "but after pitch backward it's kind taking a long time to adjust altitude". A climbing rotor's thrust falls with its climb rate (its inflow), so the climb rate settles fast; the vertical damping and the motors' response are checked against rotor theory and the class's data.
 
+
+## D-088 The final world is the friend's farmland, adopted as it is · Accepted
+The pilot, 2026-11-08: "i love object trees and stuff and the map in general in the new world". A friend built a seeded 1 × 1 km farmland in Unity (11 fields, tracks, tree belts, a ruined village, hills of 12–42 m, surround tiles to about 4 km); the pilot wants it implemented as it is.
+- **It is the map.** Supersedes D-047's "the test range is the map" for the player; the test range stays only for headless tests and benches, so its straw leaves the game.
+- **Its layout, look and objects stay.** WLD-01 to WLD-09 hold only where the farmland meets them; its size and relief replace WLD-01's 4 × 4 km and WLD-02's numbers.
+- **The hills are wanted:** the sim gets a heightfield ground (the world core has none today).
+- The plan is [final-world-plan.md](final-world-plan.md).
+
+## D-089 Third-party packs are allowed; what can't be redistributed stays local · Accepted
+The pilot, 2026-11-08: relax the asset rule, and don't push what can't be pushed.
+- **Supersedes D-003's free-assets-only rule:** Asset Store, Fab and Quixel, and Unity sample packs are allowed (the farmland's grass, pines, bushes and house model come from them). CC0 is still preferred for new work.
+- **Never pushed:** a file whose licence forbids redistribution, or anything that copies its geometry. It lives in a git-ignored local store, linked into each checkout and worktree; the manifest marks it local-only, `CREDITS.md` credits it, and the hygiene scan blocks its paths. The player build includes it.
+- **The world leaves `reference/`:** it is source, not reference material. `reference/` stays the pilot's footage and photos only, with its rules unchanged.
+
+## D-090 Our objects on the farmland · Accepted
+The pilot, 2026-11-08.
+- **The trench:** one `E01_curving` in each field F1–F11, at a seeded random spot and yaw, fully inside the field; cut into the terrain.
+- **The houses and the cars:** `H01_I`, `H01_D`, `R01_A` and `R01_F` in the village, on free ground, level on the terrain.
+- The friend's five ruins and their debris stay, and get physics data like every other object.
+
+## D-091 A physics acceptance gate before any beta · Accepted
+The pilot, 2026-11-08: the simulator must be ready for a Steam release; no more fix, test, fix, and the sluggishness back again.
+- **No beta goes to the pilot until the scenario suite passes** on two overnight runs in a row: PLT-04's budgets in the player, 0 late steps, exact replays, finite steps, no tunnelling, forces within physical bounds, 0 B steady state, and the pilot's complaints as named tests ([final-world-plan.md](final-world-plan.md) §6).
+- **The lag first:** the model-79 logs are read before the world comes in, so the cause isn't carried onto the new map.
+- **The map's edge:** the sim knows the ground heights of the surround and far tiles too (no objects there), so a long fiber flight meets no invisible wall.
