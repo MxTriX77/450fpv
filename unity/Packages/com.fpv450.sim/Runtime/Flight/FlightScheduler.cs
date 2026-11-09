@@ -11,6 +11,9 @@ namespace Fpv450.Sim.Flight
     /// pose. A pass that finds two or more steps due runs them all, back to back, as real 1 ms steps and logs one
     /// hitch: a late thread changes when a step runs, never what it computes.
     ///
+    /// Timing (p7h-step-budget 1.1): it times each step's Advance on the same clock into Times, which only the log's end
+    /// and the player's line read; timing never feeds the state.
+    ///
     /// Waiting: the thread sleeps 1 ms while more than 2 ms remain and yields otherwise, so it holds a core near 1 kHz.
     /// Tests and drivers without a thread call Begin and then RunDue with their own clock.
     /// </summary>
@@ -21,23 +24,29 @@ namespace Fpv450.Sim.Flight
         readonly PoseBuffer _poses;
         readonly IHostClock _clock;
         readonly IFlightRecorder _recorder;
+        readonly StepTimes _times;
         Thread _thread;
         volatile bool _stop;
         long _startUs;
         long _hitches;
         bool _begun;
 
-        public FlightScheduler(FlightCore core, StickInbox sticks, PoseBuffer poses, IHostClock clock, IFlightRecorder recorder = null)
+        /// <summary>times: the flight's step timer, kept across the schedulers of one flight (its pauses); a new one when null.</summary>
+        public FlightScheduler(FlightCore core, StickInbox sticks, PoseBuffer poses, IHostClock clock, IFlightRecorder recorder = null, StepTimes times = null)
         {
             _core = core ?? throw new ArgumentNullException(nameof(core));
             _sticks = sticks ?? throw new ArgumentNullException(nameof(sticks));
             _poses = poses ?? throw new ArgumentNullException(nameof(poses));
             _clock = clock ?? throw new ArgumentNullException(nameof(clock));
             _recorder = recorder;
+            _times = times ?? new StepTimes();
         }
 
         /// <summary>HostClock µs of step 0.</summary>
         public long StartUs => _startUs;
+
+        /// <summary>Each step's Advance on the host clock; read it once the flight thread has stopped.</summary>
+        public StepTimes Times => _times;
 
         /// <summary>Hitches logged so far.</summary>
         public long HitchCount => Volatile.Read(ref _hitches);
@@ -79,7 +88,9 @@ namespace Fpv450.Sim.Flight
             for (long k = done; k < due && !_stop; k++)
             {
                 _sticks.Consume(StepHostUs(k), out StickSample stick);
+                long t0 = _clock.NowUs();
                 _core.Advance(stick);
+                _times.Add(_clock.NowUs() - t0);
                 _recorder?.RecordStep(_core.State, stick, _core.Trace, _core.Events);
                 _core.GetPose(out PoseFrame pose);
                 _core.GetSignals(out FeedSignals signals);
