@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The lag probe (L1, the model-79 lag): reads the player's flight logs for their hitches, events and state, and
+       replays them headless with per-phase step timing. It compiles the sim core's own Runtime sources, except three
+       files it takes as timed copies (timed_sources.py: the runtime's text with clock marks, generated at build time,
+       never committed), so the runtime itself carries no timing code. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>lagprobe</AssemblyName>
+    <SimRuntime>$(MSBuildThisFileDirectory)../../unity/Packages/com.fpv450.sim/Runtime</SimRuntime>
+    <TimedDir>$(BaseIntermediateOutputPath)timed/</TimedDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(SimRuntime)/**/*.cs" Exclude="$(SimRuntime)/Flight/FlightCore.cs;$(SimRuntime)/Tether/FiberLine.cs;$(SimRuntime)/Flight/FlightWorld.cs" />
+  </ItemGroup>
+
+  <Target Name="TimedSources" BeforeTargets="CoreCompile"
+          Inputs="timed_sources.py;$(SimRuntime)/Flight/FlightCore.cs;$(SimRuntime)/Tether/FiberLine.cs;$(SimRuntime)/Flight/FlightWorld.cs"
+          Outputs="$(TimedDir)FlightCore.Timed.cs;$(TimedDir)FiberLine.Timed.cs;$(TimedDir)FlightWorld.Timed.cs">
+    <Exec Command="python &quot;$(MSBuildThisFileDirectory)timed_sources.py&quot; &quot;$(SimRuntime)&quot; &quot;$(TimedDir)&quot;" />
+  </Target>
+
+  <Target Name="TimedCompile" BeforeTargets="CoreCompile" AfterTargets="TimedSources">
+    <ItemGroup>
+      <Compile Include="$(TimedDir)FlightCore.Timed.cs;$(TimedDir)FiberLine.Timed.cs;$(TimedDir)FlightWorld.Timed.cs" />
+    </ItemGroup>
+  </Target>
+</Project>
