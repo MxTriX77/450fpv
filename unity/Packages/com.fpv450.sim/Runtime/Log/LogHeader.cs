@@ -1278,8 +1278,9 @@ namespace Fpv450.Sim.Log
                     throw new FlightLogException("not a flight log (no FPV450LG magic)");
             uint version = BinaryPrimitives.ReadUInt32LittleEndian(prologue.AsSpan(8));
             uint length = BinaryPrimitives.ReadUInt32LittleEndian(prologue.AsSpan(12));
-            if (version != LogFormat.Version)
-                throw new FlightLogException("the log's format is version " + version + "; this build reads version " + LogFormat.Version);
+            if (version != LogFormat.Version && version != LogFormat.Format69)
+                throw new FlightLogException("the log's format is version " + version + "; this build reads versions " + LogFormat.Version + " and "
+                    + LogFormat.Format69);
             if (length > 64u << 20)
                 throw new FlightLogException("the header's length (" + length + " bytes) is not plausible");
             var bytes = new byte[length];
@@ -2035,11 +2036,13 @@ namespace Fpv450.Sim.Log
             return xs;
         }
 
-        /// <summary>True when a layout the log declares is not the one this build writes (field for field).</summary>
+        /// <summary>True when a layout the log declares is not the one this build writes (field for field), or for a format-69
+        /// log, not that format's end block.</summary>
         public bool LayoutsDiffer(out string which)
         {
+            LogField[] end = FormatVersion == LogFormat.Format69 ? LogFormat.Format69EndFields : LogFormat.EndFields;
             which = Differs(StepFields, LogFormat.StepFields) ? "step" : Differs(EventFields, LogFormat.EventFields) ? "event"
-                : Differs(EndFields, LogFormat.EndFields) ? "end" : null;
+                : Differs(EndFields, end) ? "end" : null;
             return which != null;
         }
 

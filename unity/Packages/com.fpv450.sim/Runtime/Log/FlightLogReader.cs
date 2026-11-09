@@ -29,8 +29,8 @@ namespace Fpv450.Sim.Log
     /// Reads a flight log block by block (design 10, LOG-02). A log cut anywhere (the game killed, the disk full) reads
     /// to its last whole block: Next then returns false with CutAt at the first byte it could not use and CutReason
     /// saying why. A log closed properly ends with its end block (Complete, End). A block kind this build does not know
-    /// is skipped by its length. The header must be whole and of this format version, or the constructor throws
-    /// FlightLogException.
+    /// is skipped by its length. The header must be whole and of this format version or of format 69 (LogFormat.Format69,
+    /// its end block without the step times), or the constructor throws FlightLogException.
     /// </summary>
     public sealed class FlightLogReader : IDisposable
     {
@@ -102,7 +102,7 @@ namespace Fpv450.Sim.Log
                 int length = BinaryPrimitives.ReadUInt16LittleEndian(_head.AsSpan(2));
                 int expected = kind == LogFormat.StepBlock ? LogFormat.StepSize
                     : kind == LogFormat.EventBlock ? LogFormat.EventSize
-                    : kind == LogFormat.EndBlock ? LogFormat.EndSize
+                    : kind == LogFormat.EndBlock ? (Header.FormatVersion == LogFormat.Format69 ? LogFormat.Format69EndSize : LogFormat.EndSize)
                     : kind == LogFormat.LooseBlock ? Contact.LoosePieces.RecordSize : -1;
                 if (kind == 0) return Cut(start, "a block of kind 0: the rest of the file is not log data");
                 if (expected >= 0 && length != expected)
@@ -382,8 +382,11 @@ namespace Fpv450.Sim.Log
 
             string length = Steps + " step records, " + Seconds.ToString("0.000", c) + " s";
             if (Complete)
+            {
                 w.WriteLine("flight: " + length + "; complete (end block: " + End.Steps + " steps, " + End.Events + " events, " + End.Hitches
                     + " hitches, " + End.LogWaits + " log waits, " + End.SticksDropped + " stick reports dropped, " + End.EventsLost + " events lost)");
+                w.WriteLine("  step times: " + (h.FormatVersion == LogFormat.Format69 ? "not in a format-" + LogFormat.Format69 + " log" : End.Times.ToString()));
+            }
             else
                 w.WriteLine("flight: " + length + "; CUT at byte " + CutAt + ": " + CutReason + "; read to the last whole record"
                     + (HasSteps ? ", step " + Last.State.Step : ""));

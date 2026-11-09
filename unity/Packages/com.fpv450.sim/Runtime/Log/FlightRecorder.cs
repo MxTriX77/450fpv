@@ -82,7 +82,7 @@ namespace Fpv450.Sim.Log
             }
         }
 
-        /// <summary>What has been recorded so far (SticksDropped is set at Close).</summary>
+        /// <summary>What has been recorded so far (SticksDropped and Times are set at Close).</summary>
         public LogEnd Counts => _counts;
 
         /// <summary>Bytes on the stream: the header and everything flushed.</summary>
@@ -156,9 +156,10 @@ namespace Fpv450.Sim.Log
 
         /// <summary>
         /// Drains the ring, writes the end block and closes the stream (if owned). Once, after the flight thread has
-        /// stopped; sticksDropped is the stick inbox's count (StickInbox.Dropped).
+        /// stopped; sticksDropped is the stick inbox's count (StickInbox.Dropped), times the flight's step times
+        /// (FlightScheduler.Times; zero for a flight not run by a scheduler).
         /// </summary>
-        public void Close(long sticksDropped = 0)
+        public void Close(long sticksDropped = 0, StepTimeSummary times = default)
         {
             if (_closed) return;
             _closed = true;
@@ -169,6 +170,7 @@ namespace Fpv450.Sim.Log
                 if (_fault == null)
                 {
                     _counts.SticksDropped = sticksDropped;
+                    _counts.Times = times;
                     var end = new byte[LogFormat.BlockHeaderSize + LogFormat.EndSize];
                     LogFormat.EncodeBlockHeader(end, LogFormat.EndBlock, LogFormat.EndSize);
                     LogFormat.EncodeEnd(end.AsSpan(LogFormat.BlockHeaderSize), _counts);
