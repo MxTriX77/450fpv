@@ -70,7 +70,7 @@ namespace Fpv450.App
                 inputs.KeyboardAllowed = KeyboardFallback.Allowed;
                 inputs.Build = Application.version;
                 Inputs = inputs;
-                Session = new FlightSession(inputs);
+                Session = new FlightSession(inputs) { Ended = LogStepTimes };
                 _prepared = Task.Run(() =>
                 {
                     var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -135,6 +135,9 @@ namespace Fpv450.App
             if (Session.Restart()) Logged();
             else _wanted = true;
         }
+
+        // One line a flight in Player.log once it has ended (p7h-step-budget 1.1): its steps' own times on the host clock.
+        void LogStepTimes() => Debug.Log("[Flight] flight " + Session.Flights + " step times: " + Session.StepTimes.Summary());
 
         void Logged() =>
             Debug.Log("[Flight] flight " + Session.Flights + " at '" + Session.StartPoint.Name + "' on " + Session.Input + ", legs "
