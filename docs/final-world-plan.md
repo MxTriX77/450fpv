@@ -42,12 +42,14 @@ L  the lag's cause (logs first)  ──►  W  the world in  ──►  A  the a
 
 ## 3. Phase L: the lag's cause
 
+Order (the pilot, 2026-11-09): L1, then L4 and L5, then decide L6. Only L6 can be map-specific, so it waits for the evidence: if the straw is the cause, L6 is dropped (the straw leaves with the test range in W1); if the cause is general, L6 is folded into W3 and designed against the farmland.
+
 | Unit | Role · tier | Goal | Done when |
 |---|---|---|---|
-| L1, L2, L3 | QA · Quick, one per flight (35, 37, 38), in parallel | Build `tools/replay` from the build line, then read: the `Hitch` events over the whole flight and ±10 s of the bug (step, steps, how late); the events (prop strikes, straw cuts, motor health, fiber contacts); where the drone and the fiber's nodes were, against the straw patches and the houses. Replay the late stretches with per-phase step timing (.NET). Classify the case: the sim behind real time, a render drop, input, or a physics state. Make contact sheets from the video only if the log can't decide. | `docs/reports/lag/flight-<n>.md` names the cause with the evidence (events, timings) |
+| L1 | QA · Quick, one agent for all three flights (35, 37, 38) | Build `tools/replay` from the build line, then read: the `Hitch` events over the whole flight and ±10 s of the bug (step, steps, how late); the events (prop strikes, straw cuts, motor health, fiber contacts); where the drone and the fiber's nodes were, against the straw patches and the houses. Replay the late stretches with per-phase step timing (.NET). Classify the case: the sim behind real time, a render drop, input, or a physics state. Make contact sheets from the video only if the log can't decide. | `docs/reports/lag/model-79-flights.md` names the cause per flight with the evidence (events, timings) |
 | L4 | Game developer, physics review · Standard | Step time inside the player (Mono): per-step wall time, an overrun counter, and p50/p99/max per flight, in the log's end record and the development overlay | The player reports its own step times; format 72 if the end record changes |
 | L5 | Physics engineer · Standard | **A lag cap:** once the sim is behind by more than a bound the physics engineer computes and justifies (the pilot's control latency), it moves its time base forward instead of running the backlog. Logged as a `Hitch` with a new cause; replays stay exact, because the sticks are logged per step. | A slow stretch costs one bounded hiccup, never growing control lag; tests show it |
-| L6 | Owner of the cause · Standard | Fix the root cause L1–L3 found. If it's the fiber's queries among dense shapes, fix the cost path itself, not just the straw: the new world has 1,650 trees and bushes and a village. | The three flights' worst stretches replay within the step budget |
+| L6 | Owner of the cause · Standard, only if the cause is general | Fix the root cause L1 found. If it's the fiber's queries among dense shapes, fix the cost path itself, not just the straw: the new world has 1,650 trees and bushes and a village. | The three flights' worst stretches replay within the step budget |
 
 ## 4. Phase W: the world in
 
