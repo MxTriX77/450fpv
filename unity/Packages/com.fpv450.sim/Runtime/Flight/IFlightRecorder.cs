@@ -4,18 +4,23 @@ namespace Fpv450.Sim.Flight
 {
     /// <summary>
     /// A late scheduler pass (PLT-04): the first pending step started LateUs after its due time, and Steps steps were
-    /// run back to back to catch up. Hitches change no state; only the log sees them.
+    /// run back to back to catch up. Or a drop (DroppedUs over 0, p7h-step-budget 2.1): step Step was about to start
+    /// LateUs late, past FlightScheduler.MaxOwedUs, so every later step's host time moved DroppedUs later. Hitches change
+    /// no state; only the log sees them.
     /// </summary>
     public struct Hitch
     {
         /// <summary>The first late step's index.</summary>
         public long Step;
 
-        /// <summary>Steps run in the catch-up pass, 2 or more.</summary>
+        /// <summary>Steps run in the catch-up pass, 2 or more; 0 for a drop.</summary>
         public long Steps;
 
-        /// <summary>How late the first of them started, µs of host time.</summary>
+        /// <summary>How late the first of them started, µs of host time; a drop's, before it.</summary>
         public long LateUs;
+
+        /// <summary>A drop's move of the time base, µs (LateUs − MaxOwedUs); 0 for a late pass.</summary>
+        public long DroppedUs;
     }
 
     /// <summary>

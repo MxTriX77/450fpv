@@ -272,7 +272,8 @@ namespace Fpv450.Sim.Flight
         public PoseFrame Previous, Current;
         public FeedSignals Signals;
 
-        /// <summary>HostClock µs of step 0: step k is nominally at StartUs + k × FlightCore.StepUs.</summary>
+        /// <summary>HostClock µs of step 0: step k is nominally at StartUs + k × FlightCore.StepUs. The scheduler's time
+        /// base, so a drop (FlightScheduler.MaxOwedUs) moves it later.</summary>
         public long StartUs;
 
         /// <summary>

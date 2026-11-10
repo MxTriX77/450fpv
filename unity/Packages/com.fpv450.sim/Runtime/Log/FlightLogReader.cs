@@ -457,6 +457,9 @@ namespace Fpv450.Sim.Log
                         ? "hitch: the log's ring was full and the flight thread waited " + G(e.A) + " x 1 ms"
                         : e.Index == (byte)HitchCause.Pause
                         ? "PAUSED for " + G(e.B) + " us: no step ran, and the later steps run that much later"
+                        : e.Index == (byte)HitchCause.Drop
+                        ? "hitch: the scheduler was " + G(e.A) + " us behind, past its " + G(FlightScheduler.MaxOwedUs) + " us cap: it dropped " + G(e.B)
+                          + " us, and the later steps run that much later"
                         : "hitch: the scheduler ran " + G(e.A) + " steps to catch up, the first " + G(e.B) + " us late";
                 case EventKind.EventsLost:
                     return G(e.A) + " events lost: the step's event buffer was full (a producer bug)";

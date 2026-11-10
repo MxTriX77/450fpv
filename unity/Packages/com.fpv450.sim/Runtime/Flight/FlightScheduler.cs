@@ -9,16 +9,27 @@ namespace Fpv450.Sim.Flight
     /// host clock. Step k is due at StepHostUs(k) = StartUs + k ms, the instant its stick input is complete; it then
     /// consumes the sample in force at that instant, advances 1 ms, hands the state to the recorder and publishes the
     /// pose. A pass that finds two or more steps due runs them all, back to back, as real 1 ms steps and logs one
-    /// hitch: a late thread changes when a step runs, never what it computes.
+    /// hitch: a thread late by no more than the cap (below) changes when a step runs, never what it computes.
     ///
     /// Timing (p7h-step-budget 1.1): it times each step's Advance on the same clock into Times, which only the log's end
     /// and the player's line read; timing never feeds the state.
+    ///
+    /// The lag cap (p7h-step-budget 2.1, design 2 and 3): a step about to start more than MaxOwedUs after its host time moves
+    /// the time base (StartUs) later, so that it starts exactly MaxOwedUs late. The backlog past the cap is dropped, never
+    /// run: no step is skipped and every step is still 1 ms, but the sticks are read at the moved host times, so no step
+    /// reads a stick older than the cap. Each move is a Drop hitch; the poses and the sticks' hold follow it.
     ///
     /// Waiting: the thread sleeps 1 ms while more than 2 ms remain and yields otherwise, so it holds a core near 1 kHz.
     /// Tests and drivers without a thread call Begin and then RunDue with their own clock.
     /// </summary>
     public sealed class FlightScheduler
     {
+        /// <summary>
+        /// B, the most a step may start after its host time, µs: one PAL field (FlightCore.FieldSteps, 20 ms; derived from
+        /// the pilot's control loop, which closes through the feed, design 2 of p7h-step-budget). Never tuned.
+        /// </summary>
+        public const long MaxOwedUs = FlightCore.FieldSteps * FlightCore.StepUs;
+
         readonly FlightCore _core;
         readonly StickInbox _sticks;
         readonly PoseBuffer _poses;
@@ -42,7 +53,7 @@ namespace Fpv450.Sim.Flight
             _times = times ?? new StepTimes();
         }
 
-        /// <summary>HostClock µs of step 0.</summary>
+        /// <summary>HostClock µs of step 0 on the current time base: Begin's, moved later by every drop.</summary>
         public long StartUs => _startUs;
 
         /// <summary>Each step's Advance on the host clock; read it once the flight thread has stopped.</summary>
@@ -70,16 +81,20 @@ namespace Fpv450.Sim.Flight
 
         /// <summary>
         /// One scheduler pass at host time nowUs: runs every step due by then and returns how many it ran. Two or more
-        /// make a hitch.
+        /// make a hitch. A step that would start more than MaxOwedUs late first moves the time base (a drop), so a pass
+        /// owes at most MaxOwedUs when it begins, and each later step of it is capped again as it starts, on the clock.
         /// </summary>
         public long RunDue(long nowUs)
         {
             long done = _core.State.Step;
             if (nowUs < StepHostUs(done)) return 0;
+            Cap(done, nowUs);
             long due = (nowUs - _startUs) / FlightCore.StepUs + 1;
             long pending = due - done;
+            long passUs = 0;
             if (pending >= 2)
             {
+                passUs = _clock.NowUs();
                 var hitch = new Hitch { Step = done, Steps = pending, LateUs = nowUs - StepHostUs(done) };
                 Volatile.Write(ref _hitches, _hitches + 1);
                 _recorder?.RecordHitch(hitch);
@@ -87,6 +102,7 @@ namespace Fpv450.Sim.Flight
             // Stop ends a pass between steps: a late thread's catch-up never holds up the pilot's end, pause or restart.
             for (long k = done; k < due && !_stop; k++)
             {
+                if (k > done) Cap(k, nowUs + _clock.NowUs() - passUs); // the pass's own time so far
                 _sticks.Consume(StepHostUs(k), out StickSample stick);
                 long t0 = _clock.NowUs();
                 _core.Advance(stick);
@@ -97,6 +113,21 @@ namespace Fpv450.Sim.Flight
                 _poses.Publish(pose, signals);
             }
             return pending;
+        }
+
+        // Step `step` starts at host time atUs. Past MaxOwedUs late, the time base moves later by the excess so that it
+        // starts exactly MaxOwedUs late: the excess is dropped (a Drop hitch), and the poses and the sticks' hold follow.
+        void Cap(long step, long atUs)
+        {
+            long lateUs = atUs - StepHostUs(step);
+            if (lateUs <= MaxOwedUs) return;
+            long dropUs = lateUs - MaxOwedUs;
+            _startUs += dropUs;
+            _poses.MoveStart(_startUs);
+            _sticks.MoveHold(dropUs);
+            var hitch = new Hitch { Step = step, LateUs = lateUs, DroppedUs = dropUs };
+            Volatile.Write(ref _hitches, _hitches + 1);
+            _recorder?.RecordHitch(hitch);
         }
 
         /// <summary>Begins now and runs the flight on its own thread.</summary>

@@ -90,5 +90,11 @@ namespace Fpv450.Sim.Control
             _held = sample;
             _heldUntilUs = untilHostUs;
         }
+
+        /// <summary>
+        /// Consumer: every later step's host time moved us later (FlightScheduler's drop), so a hold moves with them and
+        /// still covers the same steps.
+        /// </summary>
+        public void MoveHold(long us) => _heldUntilUs += us;
     }
 }

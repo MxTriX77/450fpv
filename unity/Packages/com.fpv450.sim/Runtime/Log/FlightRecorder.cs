@@ -124,16 +124,17 @@ namespace Fpv450.Sim.Log
             Volatile.Write(ref _written, _cursor);
         }
 
-        /// <summary>A late scheduler pass, stamped with the state its first late step made.</summary>
+        /// <summary>A late scheduler pass or a drop, stamped with the state its first late step made.</summary>
         public void RecordHitch(in Hitch hitch)
         {
             if (_closed || Volatile.Read(ref _fault) != null) return;
             long step = hitch.Step + 1;
             if (!Reserve(EventBlockSize, step)) return;
             FlightEvent e = FlightEvent.Of(EventKind.Hitch);
-            e.Index = (byte)HitchCause.Late;
-            e.A = hitch.Steps;
-            e.B = hitch.LateUs;
+            bool drop = hitch.DroppedUs > 0;
+            e.Index = (byte)(drop ? HitchCause.Drop : HitchCause.Late);
+            e.A = drop ? hitch.LateUs : hitch.Steps;
+            e.B = drop ? hitch.DroppedUs : hitch.LateUs;
             PutEvent(step, e);
             _counts.Hitches++;
             Volatile.Write(ref _written, _cursor);

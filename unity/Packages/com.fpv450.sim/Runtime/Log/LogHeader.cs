@@ -393,7 +393,8 @@ namespace Fpv450.Sim.Log
 
         /// <summary>
         /// HostClock µs of step 0 (FlightScheduler.StartUs), the clock the sticks' HostUs are in, so step k's stick age is
-        /// StartHostUs + k·1000 − its HostUs; 0 when not recorded (a bench, a replay, a log before 1.5).
+        /// StartHostUs + k·1000 + the B of every Pause and Drop hitch up to it − its HostUs; 0 when not recorded (a bench,
+        /// a replay, a log before 1.5).
         /// </summary>
         public long StartHostUs;
 
