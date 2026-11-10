@@ -1576,12 +1576,13 @@ namespace Fpv450.Tests.Session
                 session.Resume();
                 Frames(session, 300000);
                 session.EndFlight();
+                long endedUs = HostClock.Instance.NowUs();
                 FlightSummary s = FlightSummary.Read(session.LogPath);
                 // A stall past the lag cap on a loaded host drops its excess (p7h-step-budget 2.1): the log carries each drop.
                 long dropped = 0;
                 foreach (LoggedEvent e in s.Events)
                     if (e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop) dropped += (long)e.Event.B;
-                long flown = HostClock.Instance.NowUs() - session.StartUs - session.PausedUs - dropped;
+                long flown = endedUs - session.StartUs - session.PausedUs - dropped;
                 TestContext.WriteLine("on the flight thread: " + s.Steps + " steps in " + (flown / 1000) + " ms flown, a pause of " + (session.PausedUs / 1000)
                     + " ms, " + session.Hitches + " hitches; started " + ((session.StartUs - t0) / 1000.0).ToString("0.0") + " ms after Start returned");
                 Assert.That(s.Complete, s.CutReason);
