@@ -935,6 +935,35 @@ namespace Fpv450.Tests.Session
             }
         }
 
+        // p7h-step-budget 2.1: a flight 100 ms behind drops 80 ms of it (the 20 ms cap, FlightScheduler.MaxOwedUs), then
+        // pauses 200 ms. The pause moves the later steps by the pause alone, from the scheduler's moved time base: the log's
+        // Pause hitch and PausedUs are 200 ms, the drop's 80 ms is its own hitch, and the log replays bit for bit.
+        [Test]
+        public void APauseAfterADropMovesTheStepsByThePauseAlone()
+        {
+            Rig rig = Make();
+            rig.Session.Start();
+            rig.Run(100);
+            rig.Clock.Now += 100000; // the next pass comes 100 ms after the step it owes was due
+            rig.Run(50);
+            rig.Session.Pause();
+            rig.Run(200);
+            rig.Session.Resume();
+            rig.Run(50);
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            List<LoggedEvent> hitches = p.Log.Events.FindAll(e => e.Event.Kind == EventKind.Hitch
+                && (e.Event.Index == (byte)HitchCause.Drop || e.Event.Index == (byte)HitchCause.Pause));
+            Assert.That(hitches.ConvertAll(e => ((HitchCause)e.Event.Index, e.Event.A, e.Event.B)),
+                Is.EqualTo(new[] { (HitchCause.Drop, 100000.0, 80000.0), (HitchCause.Pause, 0.0, 200000.0) }), "the drop, then the pause alone");
+            Assert.That(rig.Session.PausedUs, Is.EqualTo(200000));
+            ReplayResult replay;
+            using (FileStream f = File.OpenRead(rig.Session.LogPath))
+                replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+        }
+
         // D-087: the summary lists the fiber's break, its mechanism, where and the tension, and each stage of Betaflight's
         // failsafe on the lost link with its time after the last good frame, worded as the other lines and in step order:
         // here pulled apart in the free span, the signal lost 0.1 s on, stage 1 at 0.4 s, DROP and its disarm at 1.5 s
@@ -1547,8 +1576,12 @@ namespace Fpv450.Tests.Session
                 session.Resume();
                 Frames(session, 300000);
                 session.EndFlight();
-                long flown = HostClock.Instance.NowUs() - session.StartUs - session.PausedUs;
                 FlightSummary s = FlightSummary.Read(session.LogPath);
+                // A stall past the lag cap on a loaded host drops its excess (p7h-step-budget 2.1): the log carries each drop.
+                long dropped = 0;
+                foreach (LoggedEvent e in s.Events)
+                    if (e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop) dropped += (long)e.Event.B;
+                long flown = HostClock.Instance.NowUs() - session.StartUs - session.PausedUs - dropped;
                 TestContext.WriteLine("on the flight thread: " + s.Steps + " steps in " + (flown / 1000) + " ms flown, a pause of " + (session.PausedUs / 1000)
                     + " ms, " + session.Hitches + " hitches; started " + ((session.StartUs - t0) / 1000.0).ToString("0.0") + " ms after Start returned");
                 Assert.That(s.Complete, s.CutReason);
