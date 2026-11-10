@@ -137,7 +137,7 @@ namespace Fpv450.Input.Radio
                     for (int wait = 0; core.State.Step < steps && scheduler.Fault == null && wait < 10000; wait++) Thread.Sleep(1);
                     scheduler.Stop();
                     reader.Inbox = null;
-                    recorder.Close(inbox.Dropped);
+                    recorder.Close(inbox.Dropped, scheduler.Times.Summary());
                     if (scheduler.Fault != null) throw new InvalidOperationException("the flight thread failed", scheduler.Fault);
                     if (recorder.Fault != null) throw new IOException("the log failed", recorder.Fault);
                     test.Hitches = scheduler.HitchCount;
