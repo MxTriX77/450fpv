@@ -189,7 +189,7 @@ namespace Fpv450.App.Session
         public long StartUs => _startUs;
         public long PausedUs => _shiftUs;
 
-        /// <summary>The flight's late scheduler passes so far (the pauses are not among them).</summary>
+        /// <summary>The flight's late scheduler passes and drops so far (the pauses are not among them).</summary>
         public long Hitches => _hitches + (_stepping ? _scheduler.HitchCount : 0);
 
         /// <summary>Flights started in this session.</summary>
@@ -401,13 +401,14 @@ namespace Fpv450.App.Session
 
         // The end of a pause: step 0's host time moved by it (a step already due when it began is due now), the move
         // logged before the next step as a Pause hitch, and a loss the pause drained held for the first RC frame after it.
+        // The stopped scheduler's time base already holds the pauses and drops before this one (FlightScheduler.MaxOwedUs).
         long Unpause()
         {
             long now = _in.Clock.NowUs();
             long k = _core.State.Step;
-            long start = _startUs + _shiftUs + (now - _pausedAtUs);
+            long start = _scheduler.StartUs + (now - _pausedAtUs);
             if (start + k * FlightCore.StepUs < now) start = now - k * FlightCore.StepUs;
-            long moved = start - _startUs - _shiftUs;
+            long moved = start - _scheduler.StartUs;
             _shiftUs += moved;
             _log.RecordPause(k + 1, moved);
             if (_lostWhilePaused)
