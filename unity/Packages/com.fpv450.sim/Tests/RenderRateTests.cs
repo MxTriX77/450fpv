@@ -130,7 +130,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // The same flight on the real flight thread and the real clock, read by a renderer on this thread, matches a
-        // plain loop applying the consumption rule independently, step for step.
+        // plain loop applying the consumption rule independently, step for step (at the host times its drops moved).
         [Test]
         public void TheFlightThreadMatchesAPlainLoop()
         {
@@ -166,10 +166,12 @@ namespace Fpv450.Sim.Tests
 
             var core = new FlightCore(FreeBody());
             StickSample inForce = StickSample.Neutral;
-            int next = 0;
+            int next = 0, hitch = 0;
+            long droppedUs = 0; // a host stall past the cap (p7h-step-budget 2.1) moves the later steps by its logged drop
             for (int k = 0; k < n; k++)
             {
-                long stepUs = start + k * FlightCore.StepUs;
+                for (; hitch < dump.Hitches.Count && dump.Hitches[hitch].Step <= k; hitch++) droppedUs += dump.Hitches[hitch].DroppedUs;
+                long stepUs = start + k * FlightCore.StepUs + droppedUs;
                 while (next < sticks.Length && sticks[next].HostUs <= stepUs) inForce = sticks[next++];
                 core.Advance(inForce);
                 Assert.That(StateDump.Hash(core.State, inForce), Is.EqualTo(dump[k]), "step " + (k + 1));
