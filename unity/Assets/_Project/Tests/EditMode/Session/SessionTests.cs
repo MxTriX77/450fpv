@@ -667,6 +667,48 @@ namespace Fpv450.Tests.Session
             Assert.That(PostFlight.Read(log).End.Kind, Is.EqualTo(FlightEndKind.Pilot));
         }
 
+        // p7h-step-budget 1.1, "A flight reports its step times", in the player: each flight's steps are timed across its pause,
+        // and Restart's new flight starts afresh. Ended tells the host (its Player.log line) once a flight has ended, with that
+        // flight's numbers, which its log's end record carries, and the log replays bit for bit. The test clock stands still
+        // while a step runs, so each step takes 0 µs here; FlightLogTests.AFlightReportsItsStepTimes checks the times.
+        [Test]
+        public void EachFlightReportsItsStepTimes()
+        {
+            Rig rig = Make();
+            var ended = new List<(int flight, long steps, StepTimeSummary times, string log)>();
+            rig.Session.Ended = () => ended.Add((rig.Session.Flights, rig.Session.Core.State.Step, rig.Session.StepTimes.Summary(), rig.Session.LogPath));
+            rig.Session.Start();
+            rig.ArmCycle();
+            rig.Radio.Throttle = 0.3;
+            rig.Run(300);
+            rig.Session.Pause();
+            rig.Run(100);
+            rig.Session.Resume();
+            rig.Run(200);
+            Assert.That(ended, Is.Empty, "no flight has ended yet");
+            Assert.That(rig.Session.Restart(), Is.True);
+            Assert.That(ended.Count, Is.EqualTo(1), "the first flight ended before the second began");
+            rig.Run(50);
+            rig.Session.EndFlight();
+
+            Assert.That(ended.Count, Is.EqualTo(2), "one call a flight");
+            Assert.That(ended[0].steps, Is.GreaterThan(500));
+            for (int n = 0; n < ended.Count; n++)
+            {
+                (int flight, long steps, StepTimeSummary times, string log) = ended[n];
+                TestContext.WriteLine("flight " + flight + " step times: " + times);
+                Assert.That(flight, Is.EqualTo(n + 1));
+                Assert.That(times.Count, Is.EqualTo(steps), "flight " + flight + ": each of its steps timed once, across the pause");
+                FlightSummary s = FlightSummary.Read(log);
+                Assert.That(s.Complete, s.CutReason);
+                Assert.That(s.End.Times, Is.EqualTo(times), "flight " + flight + ": the end record carries the line's numbers");
+                ReplayResult replay;
+                using (FileStream f = File.OpenRead(log))
+                    replay = FlightReplay.Run(f, id => id == "floor" ? FlightWorld.Floor() : null, _spec.ContentHash, materialsHash: _materialsHash);
+                Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            }
+        }
+
         // D-078: R restarts a flight in the air, not paused, at once: the same setup and the same start point (the second
         // of two), a new seed and log, step 0 at rest where the first began; the first ended by the pilot.
         [Test]

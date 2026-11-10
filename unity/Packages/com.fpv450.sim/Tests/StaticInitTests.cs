@@ -51,6 +51,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Log.LogFormat", "EndFields", "LogHeader's construction (setup) and the log's readers (replay)" },
             { "Fpv450.Sim.Log.LogFormat", "EventFields", "LogHeader's construction (setup) and the log's readers (replay)" },
             { "Fpv450.Sim.Log.LogFormat", "FcFieldsLogged", "read only by the suite's log-coverage tests" },
+            { "Fpv450.Sim.Log.LogFormat", "Format69EndFields", "the log's readers, for a format-69 log's end layout (replay)" },
             { "Fpv450.Sim.Log.LogFormat", "LooseFields", "FlightReplay's divergence report (replay)" },
             { "Fpv450.Sim.Log.LogFormat", "Magic", "the log's prologue, written by the FlightRecorder constructor (setup) and checked by the readers" },
             { "Fpv450.Sim.Log.LogFormat", "StateFieldsLogged", "read only by the suite's log-coverage tests" },

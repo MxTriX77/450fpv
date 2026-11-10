@@ -307,8 +307,16 @@ namespace Fpv450.Sim.Log
         /// 69: the physics integration 2 with the climb's edgewise thrust and the fiber's Newton step (unity/physics/physics-integration-2--int79,
         ///    assigned by D-072): 68's tether entry (FlightSetup.TetherLinearStep) merged onto 66's flapping entry
         ///    (RotorFlappingSpec.EdgewiseThrust and ProfileDrag); the record is 65's 3536 bytes, the events 65's; no new event kind.
+        /// 72: p7h-step-budget 1.1, the step's own clock (unity/physics/physics-integration-2--step-budget, on 69; assigned by the
+        ///    orchestrator; 70 and 71 are parallel lines'): the end block gains, after 69's six counts, the steps timed, the overruns
+        ///    past 1 ms, the p50, p99 and p99.9 and the max of each step's advance on the host clock (StepTimeSummary; 48 bytes, 96
+        ///    in all). The record, the header and the events are 69's, so this build still reads and replays a format-69 log
+        ///    (Format69: its end block is Format69EndSize bytes, without the times).
         /// </summary>
-        public const int Version = 69;
+        public const int Version = 72;
+
+        /// <summary>The format before the step times, read as well (72's layouts, its end block the first Format69EndSize bytes).</summary>
+        public const int Format69 = 69;
 
         /// <summary>
         /// The flight model's version: raised with every code change that alters a step's result for the same header
@@ -821,7 +829,10 @@ namespace Fpv450.Sim.Log
         /// leg's side give, jaws and hanging fold (1.3), then each leg's lean (1.4), then the resting blades' loads and
         /// deflections (p7f-damage 1.3b), then the motors' bells (1.5), then the shafts and the bearings (1.6), then the motors'
         /// heat and dirt (1.6b), then the arms in their plane, the gyro's peak and the arms broken (1.6, the losses).</summary>
-        public const int StepSize = 3536, EventSize = 72, EndSize = 48;
+        public const int StepSize = 3536, EventSize = 72, EndSize = 96;
+
+        /// <summary>A format-69 log's end block: the six counts, without the step times.</summary>
+        public const int Format69EndSize = 48;
 
         /// <summary>The record before the arms' block (models 70–73's, formats 60–63: through the heat's block), over which a flight
         /// with the clean sensors (its arms stiff in their plane, no gyro range) keeps model 73's bits.</summary>
@@ -902,7 +913,8 @@ namespace Fpv450.Sim.Log
 
         public static readonly LogField[] StepFields = BuildStepFields();
         public static readonly LogField[] EventFields = BuildEventFields();
-        public static readonly LogField[] EndFields = BuildEndFields();
+        public static readonly LogField[] EndFields = BuildEndFields(true);
+        public static readonly LogField[] Format69EndFields = BuildEndFields(false);
         public static readonly LogField[] LooseFields = BuildLooseFields();
 
         // After the tables: static fields initialise in this order.
@@ -1136,7 +1148,7 @@ namespace Fpv450.Sim.Log
             return b.Done(EventSize);
         }
 
-        static LogField[] BuildEndFields()
+        static LogField[] BuildEndFields(bool times)
         {
             var b = new Layout();
             b.Add("steps", "step records written", LogFieldType.I64);
@@ -1145,6 +1157,14 @@ namespace Fpv450.Sim.Log
             b.Add("log_waits", "times the flight thread waited for a full ring", LogFieldType.I64);
             b.Add("sticks_dropped", "stick reports refused by a full inbox", LogFieldType.I64);
             b.Add("events_lost", "events refused by a full step buffer", LogFieldType.I64);
+            if (!times) return b.Done(Format69EndSize);
+            // Format 72: each step's advance on the host clock (FlightScheduler.Times).
+            b.Add("step_times", "steps timed on the host clock", LogFieldType.I64);
+            b.Add("step_overruns", "steps whose advance took over 1 ms", LogFieldType.I64);
+            b.Add("step_p50_us", "us, nearest rank in 1 us bins to 10 ms, then the max", LogFieldType.I64);
+            b.Add("step_p99_us", "us, nearest rank in 1 us bins to 10 ms, then the max", LogFieldType.I64);
+            b.Add("step_p999_us", "us, nearest rank in 1 us bins to 10 ms, then the max", LogFieldType.I64);
+            b.Add("step_max_us", "us, the slowest step's advance", LogFieldType.I64);
             return b.Done(EndSize);
         }
 
@@ -1543,11 +1563,19 @@ namespace Fpv450.Sim.Log
             w.I64(end.LogWaits);
             w.I64(end.SticksDropped);
             w.I64(end.EventsLost);
+            w.I64(end.Times.Count);
+            w.I64(end.Times.Overruns);
+            w.I64(end.Times.P50Us);
+            w.I64(end.Times.P99Us);
+            w.I64(end.Times.P999Us);
+            w.I64(end.Times.MaxUs);
         }
 
+        /// <summary>An end block of EndSize bytes, or a format-69 one of Format69EndSize (its Times stay zero).</summary>
         public static void DecodeEnd(ReadOnlySpan<byte> src, out LogEnd end)
         {
-            var r = new Reader(src.Slice(0, EndSize));
+            bool times = src.Length >= EndSize;
+            var r = new Reader(src.Slice(0, times ? EndSize : Format69EndSize));
             end = new LogEnd
             {
                 Steps = r.I64(),
@@ -1556,6 +1584,16 @@ namespace Fpv450.Sim.Log
                 LogWaits = r.I64(),
                 SticksDropped = r.I64(),
                 EventsLost = r.I64(),
+            };
+            if (!times) return;
+            end.Times = new StepTimeSummary
+            {
+                Count = r.I64(),
+                Overruns = r.I64(),
+                P50Us = r.I64(),
+                P99Us = r.I64(),
+                P999Us = r.I64(),
+                MaxUs = r.I64(),
             };
         }
 
@@ -1743,9 +1781,11 @@ namespace Fpv450.Sim.Log
         }
     }
 
-    /// <summary>The end block: what the recorder wrote and what the flight lost, counted at the close.</summary>
+    /// <summary>The end block: what the recorder wrote and what the flight lost, counted at the close, and the step times
+    /// (format 72; zero in a format-69 log).</summary>
     public struct LogEnd
     {
         public long Steps, Events, Hitches, LogWaits, SticksDropped, EventsLost;
+        public StepTimeSummary Times;
     }
 }

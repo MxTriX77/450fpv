@@ -17,7 +17,8 @@ namespace Fpv450.Sim.Tests
     // bootstrap drone with its flight controller and propulsion (1.4), its drag in the Windy wind (1.5; the field, p7c-wind 1.4),
     // launched into the air and flown by a scripted pilot, through the scheduler, the ring and the flush worker; the refusals, a divergence named by step and field,
     // a full ring that waits and logs a hitch, the header's round trip, and the guards that keep the record and the
-    // header covering the state and the setup as later tasks extend them.
+    // header covering the state and the setup as later tasks extend them. p7h-step-budget 1.1: the step times in the end
+    // block, their 0 B, and a format-69 log still read.
     public sealed class FlightLogTests
     {
         const long StartUs = 1000000;
@@ -264,6 +265,165 @@ namespace Fpv450.Sim.Tests
                     Assert.That(hitches, Is.GreaterThan(100), "late passes catch up and log it");
                 }
             }
+        }
+
+        // p7h-step-budget 1.1, "A flight reports its step times": a host clock on which only the steps take time (its time is
+        // the cost of the steps the core has run), so step k's Advance takes StepCost(k) µs whoever reads the clock, and when.
+        sealed class StepCostClock : IHostClock
+        {
+            public FlightCore Core;
+            public Func<long, long> Cost;
+            long _steps, _now;
+
+            public long NowUs()
+            {
+                for (; _steps < Core.State.Step; _steps++) _now += Cost(_steps);
+                return _now;
+            }
+        }
+
+        const int TimedSteps = 3000;
+
+        // 2960 steps of 240 µs, 30 of 900, 7 of 1500 and 3 of 12000 (past the bins' 10 ms): p50 240, p99 900, p99.9 1500 at
+        // its rank's very step, max 12000, and 10 over 1 ms.
+        static long StepCost(long k) => k % 1000 == 999 ? 12000 : k % 400 == 123 && k < 2800 ? 1500 : k % 100 == 50 ? 900 : 240;
+
+        // The scripted flight's first 3 s through the scheduler, each pass at its step's time, on the step-cost clock. The
+        // ring holds the whole flight, so no LogFull wait depends on the flush worker.
+        static byte[] FlyTimed(Func<long, long> cost, out StepTimeSummary times)
+        {
+            DroneSpec spec = BootstrapDrone.Spec();
+            FlightSetup setup = Setup(spec);
+            var core = new FlightCore(setup);
+            var log = new MemoryStream();
+            var recorder = new FlightRecorder(log, Header(setup, core, spec), 1 << 24, ownsStream: false);
+            var inbox = new StickInbox();
+            var scheduler = new FlightScheduler(core, inbox, new PoseBuffer(), new StepCostClock { Core = core, Cost = cost }, recorder);
+            scheduler.Begin(StartUs);
+            for (int k = 0; k < TimedSteps; k++)
+            {
+                long due = scheduler.StepHostUs(k);
+                if (k % 4 == 0) inbox.TryWrite(Report(k / 4, due));
+                scheduler.RunDue(due);
+            }
+            times = scheduler.Times.Summary();
+            recorder.Close(inbox.Dropped, times);
+            Assert.That(recorder.Fault, Is.Null);
+            return log.ToArray();
+        }
+
+        [Test]
+        public void AFlightReportsItsStepTimes()
+        {
+            byte[] log = FlyTimed(StepCost, out StepTimeSummary times);
+            var costs = new long[TimedSteps];
+            for (int k = 0; k < TimedSteps; k++) costs[k] = StepCost(k);
+            Array.Sort(costs);
+            long Rank(int permille) => costs[(TimedSteps * permille + 999) / 1000 - 1];
+            Assert.That((times.Count, times.Overruns, times.P50Us, times.P99Us, times.P999Us, times.MaxUs),
+                Is.EqualTo((3000L, 10L, Rank(500), Rank(990), Rank(999), costs[TimedSteps - 1])), "nearest rank of the sorted costs");
+            Assert.That((times.P50Us, times.P99Us, times.P999Us, times.MaxUs), Is.EqualTo((240L, 900L, 1500L, 12000L)));
+
+            FlightSummary s = FlightSummary.Read(new MemoryStream(log));
+            Assert.That(s.Complete, s.CutReason);
+            Assert.That(s.End.Times, Is.EqualTo(times), "the end record carries them");
+            var text = new StringWriter();
+            s.Print(text);
+            StringAssert.Contains("format " + LogFormat.Version + ", model " + LogFormat.ModelVersion, text.ToString());
+            StringAssert.Contains("step times: 3000 steps, 10 over 1 ms, p50 240 us, p99 900 us, p99.9 1500 us, max 12000 us", text.ToString());
+
+            ReplayResult r = FlightReplay.Run(new MemoryStream(log), OpenWorld, BootstrapDrone.Spec().ContentHash);
+            Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
+            Assert.That(r.Steps, Is.EqualTo(TimedSteps));
+
+            // Timing never feeds the state: every step free, the header, the records, the events, the end's counts and its
+            // steps timed are the same bytes; the first that differs is the end's overruns.
+            byte[] free = FlyTimed(k => 0, out StepTimeSummary none);
+            Assert.That((none.Count, none.Overruns, none.MaxUs), Is.EqualTo((3000L, 0L, 0L)));
+            Assert.That(free.Length, Is.EqualTo(log.Length));
+            int overruns = Array.Find(LogFormat.EndFields, f => f.Name == "step_overruns").Offset;
+            Assert.That(FirstDifference(free, log), Is.EqualTo(log.Length - LogFormat.EndSize + overruns));
+        }
+
+        // The first byte where a and b differ, or the shorter's length.
+        static int FirstDifference(byte[] a, byte[] b)
+        {
+            int n = Math.Min(a.Length, b.Length), i = 0;
+            while (i < n && a[i] == b[i]) i++;
+            return i;
+        }
+
+        // p7h-step-budget 1.1, "The timer costs nothing in steady state": 60 s of the scripted flight through the scheduler, its
+        // step timer on the process's own clock (HostClock), into the recorder's ring and flush worker; after the first step
+        // the flight thread allocates 0 B.
+        [Test]
+        public void TheTimerCostsNothingInSteadyState()
+        {
+            const long steps = 60000;
+            DroneSpec spec = BootstrapDrone.Spec();
+            FlightSetup setup = Setup(spec);
+            var core = new FlightCore(setup);
+            var recorder = new FlightRecorder(Stream.Null, Header(setup, core, spec), FlightRecorder.DefaultCapacity, ownsStream: false);
+            var inbox = new StickInbox();
+            var scheduler = new FlightScheduler(core, inbox, new PoseBuffer(), HostClock.Instance, recorder);
+            scheduler.Begin(StartUs);
+            long allocated = 0;
+            for (long k = 0; k < steps; k++)
+            {
+                long due = scheduler.StepHostUs(k);
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                if (k % 4 == 0) inbox.TryWrite(Report((int)(k / 4), due));
+                scheduler.RunDue(due);
+                if (k >= 1) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+            }
+            StepTimeSummary times = scheduler.Times.Summary();
+            recorder.Close(inbox.Dropped, times);
+            TestContext.WriteLine("60 s on this host: " + times);
+            Assert.That(recorder.Fault, Is.Null);
+            Assert.That(allocated, Is.Zero, "0 B a step after the first, the timer on");
+            Assert.That(times.Count, Is.EqualTo(steps));
+            Assert.That(times.MaxUs, Is.GreaterThan(0), "timed on the host's clock");
+        }
+
+        // The brief's "old logs still read": a format-69 log (the same records, its end block the six counts alone) reads whole
+        // and replays bit for bit; its summary says it holds no step times. Another format is refused.
+        [Test]
+        public void AFormat69LogStillReads()
+        {
+            var log = new MemoryStream();
+            LogHeader header = Record(log, 300);
+            byte[] bytes = log.ToArray();
+            long headerLength = header.Length;
+            header.FormatVersion = LogFormat.Format69;
+            header.EndFields = LogFormat.Format69EndFields;
+            byte[] head = header.Encode();
+            var old = new MemoryStream();
+            old.Write(head, 0, head.Length);
+            old.Write(bytes, (int)headerLength, (int)(bytes.Length - headerLength - LogFormat.BlockHeaderSize - LogFormat.EndSize));
+            var end = new byte[LogFormat.BlockHeaderSize + LogFormat.Format69EndSize];
+            LogFormat.EncodeBlockHeader(end, LogFormat.EndBlock, LogFormat.Format69EndSize);
+            Array.Copy(bytes, bytes.Length - LogFormat.EndSize, end, LogFormat.BlockHeaderSize, LogFormat.Format69EndSize);
+            old.Write(end, 0, end.Length);
+            byte[] format69 = old.ToArray();
+            Assert.That(BitConverter.ToUInt32(format69, 8), Is.EqualTo((uint)LogFormat.Format69), "the prologue's version");
+
+            FlightSummary s = FlightSummary.Read(new MemoryStream(format69));
+            Assert.That(s.HeaderProblem, Is.Null);
+            Assert.That(s.Complete, s.CutReason);
+            Assert.That((s.Steps, s.End.Steps), Is.EqualTo((300L, 300L)));
+            Assert.That(s.End.Times, Is.EqualTo(default(StepTimeSummary)));
+            var text = new StringWriter();
+            s.Print(text);
+            StringAssert.Contains("format 69, model " + LogFormat.ModelVersion, text.ToString());
+            StringAssert.Contains("step times: not in a format-69 log", text.ToString());
+            ReplayResult r = FlightReplay.Run(new MemoryStream(format69), OpenWorld, BootstrapDrone.Spec().ContentHash);
+            Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
+            Assert.That(r.Steps, Is.EqualTo(300));
+
+            format69[8] = 70;
+            FlightSummary other = FlightSummary.Read(new MemoryStream(format69));
+            Assert.That(other.Header, Is.Null);
+            StringAssert.Contains("format is version 70; this build reads versions 72 and 69", other.HeaderProblem);
         }
 
         [Test]

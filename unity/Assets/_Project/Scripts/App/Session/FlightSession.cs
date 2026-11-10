@@ -130,6 +130,8 @@ namespace Fpv450.App.Session
     /// - **ends only by the pilot** (D-063): Restart, EndFlight and Dispose. A crash, an upside-down rest, the failsafe
     ///   or the battery cut-off ends nothing: the drone stays under physics, each step goes to the log, and PostFlight
     ///   lists them when the pilot ends the flight. A failed flight thread ends it too (Fault).
+    /// - **is timed** (p7h-step-budget 1.1): each step's advance on the host clock, across its pauses (StepTimes), goes to
+    ///   its log's end block, and Ended tells the host once it has ended
     /// The session never starts or stops the app's radio (the app does, on quit and on a domain reload); it sets the
     /// reader's inbox for each flight and clears it at the end.
     /// </summary>
@@ -145,6 +147,7 @@ namespace Fpv450.App.Session
         public const long RcFrameSteps = FlightController.LoopsPerRcFrame / FlightController.LoopsPerStep;
 
         readonly SessionInputs _in;
+        readonly StepTimes _times = new StepTimes();
         IDisposable _period;
         FlightCore _core;
         FlightScheduler _scheduler;
@@ -191,6 +194,13 @@ namespace Fpv450.App.Session
 
         /// <summary>Flights started in this session.</summary>
         public int Flights { get; private set; }
+
+        /// <summary>The current (or last) flight's step times on the host clock: read them only while the flight is not stepping.</summary>
+        public StepTimes StepTimes => _times;
+
+        /// <summary>Called on the scene's thread once each flight has ended and its log is closed (before a Restart's new
+        /// flight starts): Flights, End, StepTimes and LogPath are the ended flight's.</summary>
+        public Action Ended;
 
         /// <summary>How the last flight ended (None while one flies).</summary>
         public FlightEnd End { get; private set; }
@@ -256,6 +266,7 @@ namespace Fpv450.App.Session
             _startUs = startUs;
             _shiftUs = 0;
             _hitches = 0;
+            _times.Reset();
             _lostWhilePaused = false;
             _heldToStep = 0;
             End = default;
@@ -372,7 +383,7 @@ namespace Fpv450.App.Session
         // A scheduler for the steps from the core's state on, step 0 at startUs (a resumed flight's moved start).
         void Step(long startUs)
         {
-            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log);
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log, _times);
             if (_in.Threaded) _scheduler.Start(startUs);
             else _scheduler.Begin(startUs);
             _stepping = true;
@@ -411,7 +422,7 @@ namespace Fpv450.App.Session
         // frame has run.
         void RunHeldFrame(long startUs)
         {
-            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log);
+            _scheduler = new FlightScheduler(_core, _inbox, Poses, _in.Clock, _log, _times);
             _scheduler.Begin(startUs);
             while (_core.State.Step < _heldToStep)
                 _scheduler.RunDue(_scheduler.StepHostUs(_core.State.Step));
@@ -429,10 +440,11 @@ namespace Fpv450.App.Session
             if (_stepping) StopStepping();
             _core.Wind.Dispose(); // a map's wake grid: its worker thread and about 17 MB
             if (_keyboard == null && _in.Reader != null && _in.Reader.Inbox == _inbox) _in.Reader.Inbox = null;
-            _log.Close(_inbox.Dropped);
+            _log.Close(_inbox.Dropped, _times.Summary());
             LogFault = _log.Fault;
             End = end;
             State = SessionState.Ended;
+            Ended?.Invoke();
         }
 
         static ulong RandomSeed()
