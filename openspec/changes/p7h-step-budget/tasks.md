@@ -4,7 +4,7 @@ Order: 1.1, then 2.1 once 1.1 has landed and L1's report (`docs/reports/lag/mode
 
 ## 1. The step's own clock (plan unit L4)
 
-- [ ] 1.1 [physics-engineer] Time each step's `Advance` in `FlightScheduler` with its `IHostClock`: count, overruns past 1 ms, a fixed-bin histogram (p50, p99, p99.9) and the max, 0 B. Carry them in the log's end record (format 72), print them in the summary reader, and have the session host write one line per flight to `Player.log`. Tests: the two scenarios of "The player measures its own steps". Checks: `dotnet test tools/simtests`, flightbench `--golden` (unchanged), the EditMode suite.
+- [x] 1.1 [physics-engineer] Time each step's `Advance` in `FlightScheduler` with its `IHostClock`: count, overruns past 1 ms, a fixed-bin histogram (p50, p99, p99.9) and the max, 0 B. Carry them in the log's end record (format 72), print them in the summary reader, and have the session host write one line per flight to `Player.log`. Tests: the two scenarios of "The player measures its own steps". Checks: `dotnet test tools/simtests`, flightbench `--golden` (unchanged), the EditMode suite.
 
 ## 2. The lag cap (plan unit L5)
 
