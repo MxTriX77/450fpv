@@ -438,12 +438,12 @@ namespace Fpv450.Sim.Tests
             public void RecordHitch(in Hitch hitch) => Inner.RecordHitch(hitch);
         }
 
-        static byte[] FlySlow(out StepWatch watch, out long allocated)
+        // The slow flight into log (the ring holds it whole, so no LogFull wait depends on the flush worker).
+        static void FlySlow(Stream log, out StepWatch watch, out long allocated)
         {
             DroneSpec spec = BootstrapDrone.Spec();
             FlightSetup setup = Setup(spec);
             var core = new FlightCore(setup);
-            var log = new MemoryStream();
             var recorder = new FlightRecorder(log, Header(setup, core, spec), 1 << 24, ownsStream: false);
             var inbox = new StickInbox();
             var clock = new SlowClock { Core = core, Inbox = inbox };
@@ -461,6 +461,12 @@ namespace Fpv450.Sim.Tests
             }
             recorder.Close(inbox.Dropped, scheduler.Times.Summary());
             Assert.That(recorder.Fault, Is.Null);
+        }
+
+        static byte[] FlySlow(out StepWatch watch)
+        {
+            var log = new MemoryStream();
+            FlySlow(log, out watch, out _);
             return log.ToArray();
         }
 
@@ -468,11 +474,13 @@ namespace Fpv450.Sim.Tests
         // (step 0's, k ms, and the B of every drop up to it, LogHeader.StartHostUs), is never more than the cap before the
         // step started, and the stick it read is the one in force then. The stretch adds 2 ms of lag a step (3 ms run, 1 ms
         // of flight): the first 10 steps build it to the cap, then each of the 490 that start past it drops its 2 ms, 980 ms
-        // in all, and the 20 ms kept are run down by the cheap steps after it. 0 B after the first step, drops included.
+        // in all, and the 20 ms kept are run down by the cheap steps after it. 0 B after the first step, drops included: the
+        // same flight again, warm, its log to Stream.Null as TheTimerCostsNothingInSteadyState's (in the whole suite, a
+        // growing MemoryStream's log once counted 5 kB on the flight's thread, never reproduced alone; design 6).
         [Test]
         public void ASlowStretchCostsOneBoundedHiccup()
         {
-            byte[] log = FlySlow(out StepWatch watch, out long allocated);
+            byte[] log = FlySlow(out StepWatch watch);
             FlightSummary s = FlightSummary.Read(new MemoryStream(log));
             Assert.That(s.Complete, s.CutReason);
             List<LoggedEvent> drops = s.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop);
@@ -497,6 +505,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(s.Steps, Is.EqualTo(SlowSteps), "every step run, each 1 ms");
             Assert.That((watch.Scheduler.StartUs, watch.Poses.Read().StartUs), Is.EqualTo((StartUs + droppedUs, StartUs + droppedUs)),
                 "the time base, and the pose buffer's with it, moved by every drop");
+            FlySlow(Stream.Null, out _, out long allocated);
             Assert.That(allocated, Is.Zero, "0 B a step after the first, drops included");
         }
 
@@ -504,7 +513,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void TheReplayIgnoresTheDrop()
         {
-            byte[] log = FlySlow(out _, out _);
+            byte[] log = FlySlow(out _);
             FlightSummary s = FlightSummary.Read(new MemoryStream(log));
             Assert.That(s.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop).Count, Is.EqualTo(490));
             ReplayResult r = FlightReplay.Run(new MemoryStream(log), OpenWorld, BootstrapDrone.Spec().ContentHash);

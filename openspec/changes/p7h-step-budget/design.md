@@ -82,6 +82,10 @@ So **B = one field = 20 ms (derived).** Any cap up to a field costs the pilot at
 - **A pass of one step** (steady state) reads no extra clock and allocates nothing.
 - **A catch-up pass** reads the clock once more per step (`QueryPerformanceCounter`, tens of ns: published order of magnitude).
 - **0 B** after the first step, through 490 drops (tested).
+  - The test measures a warm second flight whose log goes to `Stream.Null`, as `TheTimerCostsNothingInSteadyState` does.
+  - In one of three whole-suite runs, the first flight, its log into a growing `MemoryStream`, counted 5,264 B on the flight's thread (measured).
+  - It never came back alone: not under 30–77 forced or natural collections from another thread, nor after a 6 s idle. Every other check of that run passed.
+  - Its cause is not found (open). The step path has no pool, lazy cache or wait that allocates.
 
 ## 7. Limits
 - **The slow stretch is still slow.** At 3 ms a step, the feed shows about 17 fields a second (derived). L6 is the fix.
