@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, task 1.1 (the heightfield)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield) and 2.1 (the fiber's query cost)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -200,3 +200,141 @@ The spacing law (`tether.json`: 0.1 m near the exit, then growing by 0.5 m per m
 ## Risks
 - **The bench ran on a shared machine in "best power efficiency" mode.** The test range's own rows ran slower than D-061 recorded: E01's run was 103.8 µs at p99 in the final run and 93.5 µs in the first, against under 60 then, on unchanged code. The farmland's rows are judged in that run, beside the test range's. QA (4.1) should rerun `--bench` on a quiet machine in the usual mode; a faster run would only lower them.
 - **Overlapping tiles whose surfaces cross** are refused at load (the step derivation). The farmland's overlaps are 1.276 m apart at least (W2, measured).
+
+# Task 2.1: the fiber's query cost (L6)
+
+**Owner of this part:** physics-engineer · **For:** 1.2's re-run, 2.2, 4.1 (qa-engineer) · **Requirements:** PLT-04, PHY-18, LOG-02 · **Model:** 79, unchanged (no contact answer changes) · **QueryVersion:** 8, unchanged answers (the API gains a filter and a call)
+
+## The cause (L1, `docs/reports/lag/model-79-flights.md`)
+- **Every step,** `FiberContacts.ShapeHits` ran one whole `StaticContacts` query on each laid segment its clearance certificate did not clear: one resting on a shape or within the 0.5 m margin of one. A node with a shape's hit ran a second, smaller query (`NodeShapes`).
+- **A query's cost grows with its bounding box,** not its capsule. The far segments are 20–200 m long (500 m on a 2 km line), so a diagonal one walks every 2 m cell of a box a hundred metres wide.
+- **Since 1.1 every query near the ground also pays for the terrain,** which the fiber throws away (its nodes take the ground from `SampleGround`'s batch).
+- **Profiling the three flights after the first fix** (a diagnostic copy of `tools/lagprobe` that times `Prepare`'s parts; not committed) found two more costs in the fiber's own gathering, both quadratic in the line's contacts:
+  - `AddHit` scanned back over the segment's hits for each new one: 36,580 iterations a step in flight 37's crash into the straw.
+  - `CacheHits` cut a 199 m segment into 798 pieces of 0.25 m and walked the cache cube's clamped edge cells for each.
+
+## Decisions
+
+### 1. Two additions to the world query (signed off here, the API's physics side)
+- **`QueryFilter.NoGround`:** `StaticContacts` leaves the ground out, plane or terrain. Raycast ignores it. Everything else is answered as before.
+- **`IWorldQuery.ShapeContact(obj, shape, previous, current, margin, out contact)`:** the contact `StaticContacts` gives for one placed or runtime shape, to the bit: the same bounds check against the query's reach and the same sweep (`SweepPrim`'s, a runtime prim's two lines). False for the ground, a wire or a pair that does not exist.
+  - It is an interface call, not a fiber-side copy of `ShapeMath`, so the world owns its math and the benches time it as a world query (`TimedQuery`, `tools/lagprobe`'s `Shape` kind).
+  - `FloorWorld`, `MapWorld`, the three test worlds and `TimedQuery` implement it. `FlightWorld` forwards it.
+- **QueryVersion stays 8:** no answer to an existing call changes (the goldens below), and 8 is this change's own version, not yet merged.
+
+### 2. The near lists (`FiberContacts`)
+- **A segment the certificate does not clear keeps a list:** the shapes one `StaticContacts` found within the margin plus the skin of a core it lay on, the ground left out (`NoWires | NoGround`), with their distances then, in canonical order.
+- **The list holds while both ends of the segment lie within the skin of its core.** The distance from a segment is convex, so the whole segment lies within its ends' larger distance d1 of the core. A shape's distance from the segment is then:
+  - at least its listed distance less d1, so every shape within the margin of the segment is on the list;
+  - at most its listed distance (or 0, if the core met it) plus d2, the core's ends' larger distance from the segment.
+- **Each step,** a listed shape whose lower bound leaves it possibly within `KeepGap` is asked alone (`ShapeContact` at the margin): its hit is the query's own, in the query's order. The others only decide the certificate: one surely within the margin denies it, and only where none is sure are those straddling the margin asked.
+- **The query's own buffer is kept exact.** The old query counted the ground and every shape within the margin against its 64; on overflow it re-asked at `KeepGap`.
+  - Where the listed shapes possibly within the margin reach 64, the list still answers if one is surely within the margin and fewer than 64 may be within `KeepGap`: overflow or not, the hits are the same (each shape within `KeepGap`, its same contact, the same order) and there is no certificate.
+  - Otherwise, and where a list overflows its own 256, the old query answers, unchanged.
+- **A node's shape** (`Evaluate`) is asked alone when its segment counted fewer than 64 shapes possibly within `KeepGap` (a node on a segment is no nearer a shape than the segment, so the node's own query could not have dropped one), else by the node's query as before. A shape both segments by a node name is asked once.
+- **The numbers:**
+  - the skin, 0.25 m (assumed): a resting segment keeps its list for good, and a line dragged past shapes at 20 m/s rebuilds about once in 12 steps
+  - the slack, 1 µm (numerical): far above a closest approach's rounding a kilometre out (a cylinder's search reads a few nm long), so no bound is decided by rounding
+  - the capacity, 256 a list (assumed: four times the query's buffer)
+  - the slots, two a node (each node names at most one, and a segment rebuilds at most once a step); a slot no node names is free at the next step
+- **Where the list lives:** `CableNode.Near`, the node's slot plus one. It moves with the node and a split's new node takes its segment's, as `Cleared` does. A list is judged only by its own core, so a node holding a stale one just rebuilds.
+- **Exact by construction, and checked:** `FiberContacts.NearLists` off gives the old path, the differential tests' reference.
+
+### 3. The object grid's corridor (`MapWorld.StaticContacts`)
+- **A reach of more than 16 cells walks only its corridor,** row by row: the cells the hull of the sweep's four core ends reaches in x–z within the pad and 1 µm (numerical). That is the terrain's corridor (1.1, §7) applied to the 2 m object grid; `TerrainSweep.Clip` is shared.
+- **Exact:** every core pose of the sweep lies in the hull, so a shape that can come within the margin meets the corridor; the contacts go in canonical order whatever visits them; an item is visited once, in the first corridor cell (row by row) its own cells share. An edge row stands for everything beyond the grid on its side, so its band reaches to the bounds' side.
+- **The tree inside an object** (a house's boxes) still walks its object's bounds against the reach box: with the near lists that walk runs only at a rebuild.
+
+### 4. The fiber's own gathering (`FiberContacts`)
+- **`AddHit`** finds the segment's earlier hit of a member in a table of that segment's generation (open addressing, 4,096 slots), not by a scan back. A segment holds at most one hit a member, so it finds what the scan found.
+- **`CacheHits`** passes over a piece whose cells are the last visited piece's (a piece outside the cube is clamped onto its edge cells), stops once the pieces have met the cube and left it, and rejects a member farther than its reach on one axis before the closest approach.
+  - The stop is exact while the line's radius is under `FiberCache.LineReach` (0.25 mm; the wettest line's is 0.2 mm), else it is not taken: a member kept lies within its reach of a point of the segment within the cache's sure radius, the grid lists it in that point's cell, the piece holding the point visits it, and the pieces meeting the cube are one run.
+
+## No answer changed (the evidence)
+- **The pilot's three model-79 flights replay bit for bit** on this core: 18,147, 66,941 and 234,901 step records (flights 37, 38 and 35), through `tools/lagprobe phases` and `flightbench --replay-step` alike.
+  - The logs are of QueryVersion 7, so `tools/replay` refuses them, as LOG-02 says it must.
+  - The two timed replays compare every record instead, so a changed answer would show as a diverging record.
+- **The differential tests** (`FiberContactTests.TheNearListsChangeNoBit`) fly two lines in lockstep on the test range, the second with the near lists off. They compare every step's record and events as the log writes them:
+
+| Flight | Steps | First differing | Node-steps held by a shape | Whole queries, near lists / without |
+|---|---|---|---|---|
+| Dragged through S04's straw, Severe wind | 10,000 | none | 79,874 | 601 / 263,463 (1,666,906 one-shape checks) |
+| Held on the yard's gate and house (as flight 35) | 12,000 | none | 28,164 | 407 / 88,283 (162,892 checks) |
+
+- **The world:**
+  - `MapWorldTests.StaticContacts_AreEveryShapesOwn_OnLongReaches_AndNoGroundLeavesOnlyThePlane` runs 300 seeded reaches: still segments up to 150 m and sweeps moving up to 5 m, across the yard, the straw and the posadka's verge. 153 of them walk the corridor. `StaticContacts` gives the same contacts to the bit as `ShapeContact` over every shape, and `NoGround` removes the plane's contact and nothing else.
+  - `FloorWorldTests.NoGroundAndShapeContact_AreStaticContactsWithoutTheFloor_ShapeByShape` checks the same, still and swept.
+  - `worldbench --golden`: all 37 cases pass unchanged, nothing re-recorded (floor 5, test range 14, wakes 11, farmland 7).
+- **`flightbench --golden`:** all 6 cases match, nothing re-recorded.
+- **So the model stays 79,** and no golden moved.
+
+## Costs
+
+**The machine was loaded** throughout:
+- Other sessions held it at 48–100 % CPU (measured, `Win32_Processor.LoadPercentage`).
+- It ran on AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz.
+- Means and p50s repeat. p99s and maxima carry the other sessions' preemptions, so QA reruns these on a quiet machine.
+
+**Before and after, the same tool back to back** (measured, `tools/lagprobe phases`). "Before" is this branch's head before 2.1, built from `git archive`.
+- The numbers are means per step, µs.
+- "Fiber q" is the world queries inside the line's step: lagprobe's tether q, its per-call timers included.
+
+| Stretch | Step before → after | Fiber q before → after | Whole StaticContacts a step before → after |
+|---|---|---|---|
+| 35, the yard hover (135–155 s) | 254–429 → 210–236 | 98–193 → 49–62 | 103–199 µs at 80–90 calls → 7–9 µs at 45 calls |
+| 35, leaving, the crash and after (160–235 s) | 386–618 → 223–312 | 252–359 → 70–83 | 266–372 µs at 105–137 calls → 15–21 µs at 65–97 calls |
+| 38, the laid end on the verge (64–66 s) | 380–584 → 202–239 | 211–377 → 35–47 | 214–376 µs at 47–48 calls → 7–14 µs at 45 calls |
+| 37, in the straw (13–14 s) | 374–536 → 382–434 | 169–190 → 140–155 | 146–157 µs at 65–80 calls → 26–36 µs at 45 calls |
+| 37, the crash into the straw (17–18 s) | 579–918 → 489–747 | 105–236 → 66–168 | 103–216 µs at 112–162 calls → 41–88 µs at 95–139 calls |
+
+The last column holds the drone's own contact queries too: about 45 calls and 6–9 µs a step in flight.
+
+The one-shape checks that replace the whole queries cost 22–97 µs at 49–185 calls a step in these stretches (lagprobe's `Shape` kind, its timers included).
+
+**The clean timing** (measured, `flightbench --replay-step`). The step is timed with no timer inside it; the world queries are timed in a second pass (`TimedQuery`).
+
+| Window | Step p50 | Step p99 | World queries p50 | World queries p99 | Allocated |
+|---|---|---|---|---|---|
+| 38, 63.5–67 s | 165.6 µs | 592.2 µs | 35.2 µs | 87.6 µs | 0 B |
+| 35, 135–155 s | 172.2 µs | 513.7 µs | 53.1 µs | 130.9 µs | 0 B |
+| 35, 155–235 s | 184.4 µs | 506.6 µs | 77.2 µs | 194.3 µs | 0 B |
+| 37, 12–14 s | 317.7 µs | 1,233.6 µs | 55.3 µs | 188.6 µs | 0 B |
+| 37, 17–18.2 s | 528.7 µs | 1,822.1 µs | 88.1 µs | 459.0 µs | 0 B |
+
+**Judged against PLT-04** (p99 ≤ 300 µs, world queries < 60 µs):
+- **The lag's cause is gone.** No resting segment pays a whole query each step. The step's mean in the yard and on the verge is about half what it was, under L1's "kept up" line (about 400 µs in .NET; the player is about 2× slower).
+- **Not met at p99 on this machine,** in any window. 35's and 38's p50s are 165–185 µs, so their p99s of 500–600 µs are for a quiet run to judge (QA).
+- **35's world queries stay near the line once crashed** (p50 77 µs). A line wrapped on the gate's planks takes about 150 one-shape checks a step: two for each touching shape, the segment's hit and its node's. That is the floor of this contact model's answers, since each hit's point and normal are asked anew each step.
+- **37 is not met, and L6 does not reach it.** Its straw stretches spend the step elsewhere, not in the whole-query path this task cuts (a follow-up unit, below):
+  - in the line's elements: S04's stems and straws through the caches
+  - in the hubs' `SoilUnder` rays through the straw boxes: 60–100 µs, L1's own note
+  - in the crash, in the drone's own contacts
+
+**The 1.5 km line over the farmland** (measured, `flightbench --bench farmland-line-step`, the terrain alone):
+- **The flight:** 1,602 m of route, 1,977.5 m paid out, 32 nodes, 2 trail points; the line whole and the drone up.
+- **The line's costs:** 45,833 whole queries over 205,521 steps, each a certificate's renewal with the ground left out. No one-shape checks: the farmland has no objects yet.
+- **The step:** p99 337.0 µs and 352.5 µs over two runs, 0 B after the first step.
+  - The route: p99 310.1–330.9 µs.
+  - The hover: p99 311.1–375.1 µs.
+  - p50 131–181 µs.
+- **Its world queries:** p50 17.4–19.1 µs, p99 96.2–107.9 µs, 40.8 calls a step.
+  - A diagnostic split of the steps over 60 µs (not committed) puts half of them in the first 12 s, on the ground and in the climb.
+  - The drone's own contact queries on the terrain carry them; the fiber's whole queries are 0.06–0.16 a step there. So they are 2.2's slopes, not the line.
+- **Before 2.1,** each of those 45,833 queries also swept the terrain: 179 µs at 200 m (1.1's table), more for the 500 m far segments of a 2 km line.
+
+**`worldbench --bench`** (measured; the machine at 100 % CPU when it began) printed 1 row over budget on the floor and 1 on the farmland. Neither is 2.1's code:
+- **The floor's capsules (144.0 ms per 100,000) were the load.** Its rays, whose code 2.1 does not touch, ran 4× slower in the same run.
+- **Interleaved runs settle it:** this branch's head before 2.1 and after 2.1, built from `git archive` and run three times each in turn, give 33.7–37.0 ms and 32.6–36.5 ms (budget 100 ms).
+- **The farmland's 100,000 samples (52.4 ms, budget 10 ms)** run `SampleGround`, which 2.1 does not change.
+- **Physics' pattern is within budget on both maps:** test range 80.1 ms per 100,000 capsules and 59.9 ms per 100,000 rays; farmland 91.0 and 58.2 ms.
+- **The farmland's laid-segment rows** (the default filter, so they still pay the terrain): medians of 4.0, 5.7, 17.0, 64.2 and 149.4 µs at 0.5, 2, 10, 50 and 200 m.
+
+## For 1.2's re-run and the next units
+- **After 1.2,** `flightbench --bench farmland-line-step` lays the same line through the village and the F6|F7, F3|F5 and F4|F10 belts. The case's world is `MapWorld.Load(root, "farmland")`, so the objects come with 1.2 and nothing in the case changes.
+- **Suggested follow-up for flight 37's straw** (not this task):
+  - the elements' walk (`CacheHits` tests each cached stem per segment)
+  - `SoilUnder`'s repeated rays through stacked straw boxes
+  - the drone's contacts in a crash
+- **Unchanged, flagged:** the clearance certificate lets a segment's ends move the margin less the line's radius from the certified core before the next query.
+  - So a shape can come within the line's radius of a certified segment, inside `InsertGap`, without a slot.
+  - `margin − InsertGap` would close it, but that changes answers (a new model). It is noted here, not changed.

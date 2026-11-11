@@ -10,7 +10,7 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; then 2.2, 
 
 ## 2. The flight on hills
 
-- [ ] 2.1 [physics-engineer] L6, the fiber's query cost: no full `StaticContacts` query per step for a resting segment near shapes, and no terrain cost for the fiber's own queries (its nodes take the ground from `SampleGround`; 1.1's design suggests a `QueryFilter.NoGround`). The three model-79 flights' worst stretches (L1's report) and a 1.5 km line laid over the farmland's terrain replay within PLT-04's step budget in .NET; the same line through a tree belt and the village is re-run after 1.2. Same checks as 1.1.
+- [x] 2.1 [physics-engineer] L6, the fiber's query cost: no full `StaticContacts` query per step for a resting segment near shapes, and no terrain cost for the fiber's own queries (its nodes take the ground from `SampleGround`; 1.1's design suggests a `QueryFilter.NoGround`). The three model-79 flights' worst stretches (L1's report) and a 1.5 km line laid over the farmland's terrain replay within PLT-04's step budget in .NET; the same line through a tree belt and the village is re-run after 1.2. Same checks as 1.1.
 - [ ] 2.2 [physics-engineer] The legs' and crash contact on slopes of 0–38°, the fiber's ground contact over the heightfield, and the furrow decision with its reason. flightbench rows on slopes; model 82 if the contact model changes, with goldens audited. Same checks as 1.1.
 
 ## 3. Flight on the farmland
