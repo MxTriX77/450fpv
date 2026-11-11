@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "about": "Vendor pieces (w4b-farmland-ruins, D-089, D-090): meshes of the local store that we place but never export. tools/blender/vendor_build.py writes their physics metadata only; each variant's params are assets-src/<class>/<variant>.json, and each slot's visual is the friend's URP material (FarmLandBuilder.Village.cs, HouseMaterials).",
+  "assets": {
+    "N01": {
+      "class": "ruins",
+      "generator": "vendor_ruin",
+      "variants": ["Ruin_RoofCollapsed", "Ruin_Walls", "Ruin_Walls_mirrored", "Ruin_Burnt", "Ruin_Stump"],
+      "materials": {
+        "OldHouseMapIndoorWall01": "House_IndoorWall",
+        "OldHouseMapWood01": "House_Wood01",
+        "OldHouseMapWood02": "House_Wood02",
+        "WindowsMat01": "House_Windows",
+        "OldHouseMapIndoorWall01_Burnt": "House_IndoorWall_Burnt",
+        "OldHouseMapWood01_Burnt": "House_Wood01_Burnt",
+        "OldHouseMapWood02_Burnt": "House_Wood02_Burnt",
+        "WindowsMat01_Burnt": "House_Windows_Burnt"
+      }
+    },
+    "N02": {
+      "class": "ruins",
+      "generator": "vendor_ruin",
+      "variants": ["Debris_RoofSheet_A", "Debris_RoofSheet_B", "Debris_WallPanel", "Debris_Window", "Door01", "Door02",
+                   "Door03", "Door04"],
+      "materials": {
+        "OldHouseMapIndoorWall01": "House_IndoorWall",
+        "OldHouseMapWood01": "House_Wood01",
+        "OldHouseMapWood02": "House_Wood02",
+        "DoorsMap01": "House_Doors"
+      }
+    }
+  }
+}
