@@ -531,24 +531,25 @@ namespace Fpv450.WorldBench
         /// spheres each, 4 arms, the coil, and 4 prop discs with their chords and rings on demand; 12 samples (the supports
         /// and rotors); 8 rays (4 rotors, up and down).
         /// </summary>
-        private static Pattern PhysicsPattern()
+        private static Pattern PhysicsPattern(Func<Double3, Double3> turn = null)
         {
+            Func<Double3, Double3> T = turn ?? (v => v); // the drone's attitude: its parts' offsets turned (the farmland's landing on a slope)
             var parts = new List<(Double3, Double3, double)>();
             var samples = new List<Double3>();
             var rotors = new List<Double3>();
             for (int c = 0; c < 4; c++)
             {
                 double sx = (c & 1) == 0 ? 1 : -1, sz = (c & 2) == 0 ? 1 : -1;
-                Double3 joint = new Double3(sx * 0.099, -0.248, sz * 0.099), end = new Double3(sx * 0.099, -0.248, sz * 0.220);
+                Double3 joint = T(new Double3(sx * 0.099, -0.248, sz * 0.099)), end = T(new Double3(sx * 0.099, -0.248, sz * 0.220));
                 parts.Add((joint, end, 0.005));
                 parts.Add((joint, joint, 0.005));
                 parts.Add((end, end, 0.005));
-                parts.Add((new Double3(sx * 0.03, 0, sz * 0.03), new Double3(sx * 0.16, 0, sz * 0.16), 0.003));
+                parts.Add((T(new Double3(sx * 0.03, 0, sz * 0.03)), T(new Double3(sx * 0.16, 0, sz * 0.16)), 0.003));
                 samples.Add(joint);
                 samples.Add(end);
-                rotors.Add(new Double3(sx * 0.16, 0.03, sz * 0.16));
+                rotors.Add(T(new Double3(sx * 0.16, 0.03, sz * 0.16)));
             }
-            parts.Add((new Double3(0, 0.02, -0.1), new Double3(0, 0.02, 0.1), 0.04));
+            parts.Add((T(new Double3(0, 0.02, -0.1)), T(new Double3(0, 0.02, 0.1)), 0.04));
             samples.AddRange(rotors);
             return new Pattern("physics 12 + 17 + 4 discs + 8", parts, rotors.ToArray(), samples.ToArray(), rotors.ToArray(), 0);
         }

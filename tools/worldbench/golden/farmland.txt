@@ -1,0 +1,9 @@
+# worldbench golden: the farmland's terrain (w3-farmland-ground 1.1). FNV-1a 64 over every result field's bits.
+# Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record
+query_version 8
+content_hash 8d5991fb58de531a
+farmland.probes afaae6db1824f68a
+farmland.steps 68109475c275a8ee
+farmland.ground 57700b4dd1e01aaf
+farmland.contacts 8f7279e5f8dd8628
+farmland.rays 79c61d5e6605d1cd
