@@ -753,3 +753,9 @@ The orchestrator, 2026-11-11, on W4a's tree and bush physics (`w4a-farmland-vege
 - **Accepted for W, so the pilot can fly the farmland:** the build prints the AST-05 audit for every variant and never refuses on it.
 - **Phase A fixes it,** with a primitive for flares or a finer fit. The same debt covers the coarse crown shells (felt 0.3–0.7 m before the drawn leaves) and the branches inferred under leaf cards.
 - AST-05 stands as written for everything else, including every asset we generate.
+
+## D-097 The world-query API gains a one-shape contact and a no-ground filter · Accepted
+The orchestrator, 2026-11-12, on W3's task 2.1 (`w3-farmland-ground`, design.md), the fix for the fiber's query cost (L6). The interface's own comment makes any change to it a superseding decision (it cites D-041, which is about efficiency, so that citation is stale); this entry is that decision, for these two additions only.
+- **`IWorldQuery.ShapeContact`** returns `StaticContacts`' own contact for one shape, to the bit. A laid fiber segment keeps a list of the shapes near it and re-asks only those, instead of running a whole query every step.
+- **`QueryFilter.NoGround`** leaves the ground out of `StaticContacts`. The fiber takes the ground from `SampleGround`, so its queries no longer pay for the terrain.
+- No answer changes: physics model 79 and `QueryVersion` 8 stand, and every replay is bit for bit. Every implementer of the interface carries both.
