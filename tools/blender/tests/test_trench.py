@@ -73,7 +73,10 @@ def test_hole_contract_holds(e01):
     text = "\n".join(lines)
     assert ", 0 miss every filler" in text and "0.71 m past their edges" in text
     margin = float(text.split("the least ")[1].split(" m inside")[0])
-    assert 0.65 - 1e-6 <= margin < 0.66, "the band is 0.65 m wider than the widest crumble on each side"
+    run = e01[3]
+    assert run.margin == pytest.approx(math.sqrt(2) * 0.9765625 + trench.HOLE_SEAM_M)
+    assert run.margin - 1e-4 <= margin < run.margin + 0.01, \
+        "the bands reach a farmland hole cell's diagonal and a seam past the widest crumble and the niches"
     assert "0 landable;" in text and "F-8 no wind obstacle: 0 wind volumes" in text
     assert f"the fillers' top within {trench.RING_DROP_M * 1000:.1f} mm" in text, "past the ends F-3 reads the ring"
 
@@ -245,9 +248,10 @@ def test_default_section_inscribes_0_75(e01_params):
 
 
 def test_holes_records(e01):
-    """The run's record: a point per metre at least, [x, 0, z], the cut's top width and depth, a 2.35 m band (the lip,
-    its widest jitter and crumble, 0.65 m a side); then one record per niche from the run's centre line square to its
-    back, 0.8 m wide, 1.35 m deep, a 2.1 m band."""
+    """The run's record: a point per metre at least, [x, 0, z], the cut's top width and depth, a 3.852 m band (the lip,
+    its widest jitter and crumble, a farmland hole cell's diagonal and a seam a side); then one record per niche from
+    the run's centre line square to its back, 0.8 m wide, 1.35 m deep, a 3.602 m band (w5-farmland-objects: at least
+    3.6 m, a half-width of at least 0.4 + 1.381 m)."""
     _, built, data, run = e01
     records = data["holes"]
     assert [r["id"] for r in records] == ["run", "niche_0", "niche_1"]
@@ -255,14 +259,85 @@ def test_holes_records(e01):
     assert all(p[1] == 0.0 for p in line) and line[0] == [0.0, 0.0, 0.0]
     spacing = [math.dist(a, b) for a, b in zip(line, line[1:])]
     assert max(spacing) <= 1.0 + 1e-5 and sum(spacing) == pytest.approx(24.0, abs=0.02)
-    assert (records[0]["top_width_m"], records[0]["depth_m"], records[0]["band_width_m"]) == (0.8, 1.5, 2.35)
+    assert (records[0]["top_width_m"], records[0]["depth_m"]) == (0.8, 1.5)
+    assert records[0]["band_width_m"] == pytest.approx(3.852136, abs=1e-6)
     for k, record in enumerate(records[1:]):
         i = run.niche_segments[k]
         (x0, _, z0), (x1, _, z1) = record["centre_line"]
         t = run.t[i]
         assert abs((x1 - x0) * t[0] + (z1 - z0) * t[1]) < 1e-5, "square to the run (the metadata keeps micrometres)"
         assert run.distance(x0, z0) < 1e-5 and math.hypot(x1 - x0, z1 - z0) == pytest.approx(run.niche_reach_of(i), abs=1e-5)
-        assert (record["top_width_m"], record["depth_m"], record["band_width_m"]) == (0.8, 1.35, 2.1)
+        assert (record["top_width_m"], record["depth_m"]) == (0.8, 1.35)
+        assert record["band_width_m"] == pytest.approx(3.602136, abs=1e-6)
+    assert min(r["band_width_m"] for r in records) >= 3.6 and min(r["band_width_m"] for r in records) / 2 >= 1.781
+
+
+@pytest.mark.parametrize("yaw_deg, dx, dz", [(0.0, 0.0, 0.0), (17.0, 0.31, 0.77), (45.0, 0.5, 0.5),
+                                             (133.0, 0.9, 0.05), (271.5, 0.61, 0.29)])
+def test_the_bands_hold_the_farmlands_hole_cells(e01, yaw_deg, dx, dz):
+    """W2 design §4, rules 2 and 3 (w5-farmland-objects): placed on the farmland's grid of hole_cell_m at this yaw and
+    offset, every cell that meets an opening (the drawn lip's widest about the run's centre line, a niche's width about
+    its own, ends included) lies inside the bands at every point sampled 0.1 m apart: no naked hole."""
+    params, _, data, run = e01
+    cell = params["hole_cell_m"]
+    c, s = math.cos(math.radians(yaw_deg)), math.sin(math.radians(yaw_deg))
+    opening = {"run": run.top + run.jitter_m + run.crumble_m}  # a niche's: its width's half
+    lines = [(r["band_width_m"] / 2, opening.get(r["id"], r["top_width_m"] / 2),
+              [(p[0] * c - p[2] * s + dx, p[0] * s + p[2] * c + dz) for p in r["centre_line"]]) for r in data["holes"]]
+    xs = [p[0] for _, _, pts in lines for p in pts]
+    zs = [p[1] for _, _, pts in lines for p in pts]
+    steps = [k * 0.1 for k in range(math.ceil(cell / 0.1))] + [cell]
+    cells = naked = 0
+    for a in range(math.floor((min(xs) - 1.0) / cell), math.ceil((max(xs) + 1.0) / cell)):
+        for b in range(math.floor((min(zs) - 1.0) / cell), math.ceil((max(zs) + 1.0) / cell)):
+            square = (a * cell, b * cell, (a + 1) * cell, (b + 1) * cell)
+            if not any(_square_to_line(square, pts) <= r_open for _, r_open, pts in lines):
+                continue
+            cells += 1
+            naked += sum(1 for u in steps for v in steps
+                         if not any(_point_to_line(square[0] + u, square[1] + v, pts) <= half for half, _, pts in lines))
+    assert cells > 2 * params["run_m"] / cell and naked == 0, (cells, naked)  # the run alone meets two cells a cell
+
+
+def _point_to_line(x, z, pts):
+    return min(math.sqrt(_seg_d2(x, z, a, b)) for a, b in zip(pts, pts[1:]))
+
+
+def _seg_d2(x, z, a, b):
+    ux, uz = b[0] - a[0], b[1] - a[1]
+    t = max(0.0, min(1.0, ((x - a[0]) * ux + (z - a[1]) * uz) / (ux * ux + uz * uz)))
+    return (x - a[0] - t * ux) ** 2 + (z - a[1] - t * uz) ** 2
+
+
+def _square_to_line(square, pts):
+    """The least distance in plan from an axis-aligned square (x0, z0, x1, z1) to a polyline: 0 where they cross,
+    else the least of its vertices to the square and the square's corners to its segments."""
+    x0, z0, x1, z1 = square
+    best = math.inf
+    for a, b in zip(pts, pts[1:]):
+        if _clips(square, a, b):
+            return 0.0
+        for p in (a, b):
+            best = min(best, math.hypot(max(x0 - p[0], 0.0, p[0] - x1), max(z0 - p[1], 0.0, p[1] - z1)))
+        for q in ((x0, z0), (x1, z0), (x0, z1), (x1, z1)):
+            best = min(best, math.sqrt(_seg_d2(q[0], q[1], a, b)))
+    return best
+
+
+def _clips(square, a, b):
+    """Whether segment a-b meets the square (Liang-Barsky)."""
+    t0, t1 = 0.0, 1.0
+    d = (b[0] - a[0], b[1] - a[1])
+    for k, (lo, hi) in enumerate(((square[0], square[2]), (square[1], square[3]))):
+        if d[k] == 0.0:
+            if not lo <= a[k] <= hi:
+                return False
+            continue
+        ta, tb = sorted(((lo - a[k]) / d[k], (hi - a[k]) / d[k]))
+        t0, t1 = max(t0, ta), min(t1, tb)
+        if t0 > t1:
+            return False
+    return True
 
 
 def test_surfaces_and_flags(e01):

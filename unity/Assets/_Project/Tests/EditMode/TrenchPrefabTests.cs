@@ -40,13 +40,14 @@ namespace Fpv450.Tests.EditMode
             Assert.That(run.centreLine[0], Is.EqualTo(Vector3.zero));
             Assert.That(run.topWidthM, Is.EqualTo(0.8f).Within(1e-5f));
             Assert.That(run.depthM, Is.EqualTo(1.5f).Within(1e-5f));
-            Assert.That(run.bandWidthM, Is.EqualTo(2.35f).Within(1e-5f), "the lip, its widest jitter and crumble, 0.65 m a side");
+            Assert.That(run.bandWidthM, Is.EqualTo(3.852136f).Within(1e-5f),
+                "the lip, its widest jitter and crumble, a farmland hole cell's diagonal and a 2 cm seam a side");
             foreach (AssetPhysicsMeta.Hole niche in meta.holes.Skip(1))
             {
                 Assert.That(niche.centreLine.Length, Is.EqualTo(2));
                 Assert.That(niche.topWidthM, Is.EqualTo(0.8f).Within(1e-5f));
                 Assert.That(niche.depthM, Is.EqualTo(1.35f).Within(1e-5f));
-                Assert.That(niche.bandWidthM, Is.EqualTo(2.1f).Within(1e-5f));
+                Assert.That(niche.bandWidthM, Is.EqualTo(3.602136f).Within(1e-5f));
             }
         }
 

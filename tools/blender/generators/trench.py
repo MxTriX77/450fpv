@@ -66,7 +66,9 @@ wedge on a bend's outside included (lib.holes holds the joints to 0.2 m). The wa
 LIP_DROP_M under the lip. The lip boxes are level and reach from the lip down to the block's bottom and out to
 BACKING_M past every band's edge (F-1: a cell marked by touch reaches 0.71 m past a band): they are the backing as
 well; under the berm their top is BERM_BOX_M down, under the berm's box, and beyond the toe, from BERM_SEAM_M inside
-the berm box's reach, it is y = 0, under the parapet's slope (F-3). Past each run end the berm turns round it as level
+the berm box's reach, it is y = 0, under the parapet's slope (F-3), out to BERM_SEAM_M inside the parapet's outer toe;
+a backing that reaches past that (the belt side's, behind the niches' bands) goes on with its top as under the berm,
+under the margin columns, so no belt_bare top lies level with theirs. Past each run end the berm turns round it as level
 grassed ground (task 1.7, R3): the end block's top is BERM_BOX_M down under the end's berm box, and round the band's
 end F-3's ring tops RING_DROP_M under that box, inside F-3's tolerance; so outside the cut every top a contact meets
 first is surface:belt_straw, never level with a belt_bare one. Nothing of the cut stands above y = 0 (F-4). The berm's
@@ -78,8 +80,11 @@ Gaps (design 5): at every interior sample the clear cross-section from the floor
 `xs_<chainage>`; the open top in slots of about a metre at y = 0 (_slot_stretches, R2), `slot_<chainage of its
 start>`; and each niche's mouth in the belt wall's plane, `mouth_<chainage of its middle>` (S5); narrowest_m the
 inscribed circle (lib.audit). Holes (design 6): the run's record (its samples as [x, 0, z], top_w_m, depth_m, its band
-top_w_m + width_jitter_m + 2 lip_crumble_m + 2 BAND_MARGIN_M) first, then one per niche from the run's centre line
-square to its farthest back point, the niche's width and sill depth, a band 2 (niche_m.w / 2 + BAND_MARGIN_M) wide.
+top_w_m + width_jitter_m + 2 lip_crumble_m + 2 m wide) first, then one per niche from the run's centre line square to
+its farthest back point, the niche's width and sill depth, a band 2 (niche_m.w / 2 + m) wide. Each band reaches m past
+the widest its opening reaches from its centre line, m the larger of BAND_MARGIN_M (F-2) and a hole cell's diagonal,
+sqrt(2) hole_cell_m, plus HOLE_SEAM_M (w5-farmland-objects: the map cuts every cell that meets an opening, and every
+point of every such cell must lie in a band, where the asset's shapes are the only ground).
 """
 import math
 import random
@@ -120,6 +125,8 @@ WALL_DOWN_M = 0.15        # a wall box reaches this far below the floor, into th
 FLOOR_SPREAD_M = 0.35     # the floor box reaches this past the floor's edges, under the wall boxes (derived: 0.3 + 0.05)
 BAND_MARGIN_M = 0.65      # F-2, settled: every cavity face this far inside the bands (0.25 + half a 0.5 m cell's diagonal)
 BACKING_M = 0.75          # settled: the lip boxes reach this past every band's edge (a cell marked by touch: 0.71 m)
+HOLE_SEAM_M = 0.02        # a band reaches this past the farthest a hole cell can (assumed: so the map's millimetre
+                          # rounding and the validator's samples on the cells' edges never decide)
 BERM_BOX_M = FILLER_M     # S4: the berm's box of grassed ground, this thick under its top (F-5, carried)
 BERM_OVER_M = 0.15        # the berm's boxes reach this past the parapet's inner toe, under its slope (assumed: at least
                           # FILLER_M wide with the widest lip, 0.7 - 0.525 + 0.15 = 0.325 m)
@@ -272,6 +279,10 @@ PARAMS = {
     "clods_per_m": {"type": "float", "range": (0.5, 2.0), "default": 1.0, "effect": "spilled clods per metre of floor"},
     "margin_m": {"type": "float", "range": (4.0, 10.0), "default": 6.0,
                  "effect": "plain ground round the run's bounding box"},
+    "hole_cell_m": {"type": "float", "range": (0.0, 1.0), "default": 0.9765625,
+                    "effect": "the hole cell of the map it is placed on (the farmland's 1000 / 1024 m): a cell that "
+                              "meets the opening reaches its diagonal past it, so each band reaches that (and "
+                              "HOLE_SEAM_M) past its opening, or BAND_MARGIN_M if that is more"},
     "revetment": {"type": "str", "range": "none, boards, wattle or mesh", "default": "none",
                   "effect": "E02's lining; only none is built"},
     "collapse": {"type": "float", "range": (0.0, 1.0), "default": 0.0, "effect": "E03's slump; only 0 is built"},
@@ -410,7 +421,9 @@ class Run:
         self.base = params["parapet_base_m"]
         self.slope = math.radians(params["parapet_slope_deg"])
         self.h = {1: params["parapet_h_m"]["belt"], -1: params["parapet_h_m"]["field"]}
-        self.band = self.top + self.jitter_m + self.crumble_m + BAND_MARGIN_M  # the run's band, half its width
+        # each band's reach past its opening: F-2's margin, or a hole cell's diagonal and a seam if that is more
+        self.margin = max(BAND_MARGIN_M, math.sqrt(2.0) * params["hole_cell_m"] + HOLE_SEAM_M)
+        self.band = self.top + self.jitter_m + self.crumble_m + self.margin  # the run's band, half its width
         rng = random.Random(f"trench path {params['seed']}")
         self.arcs = self._bends(rng)
         self.niche_spans = self._niche_spans()
@@ -431,7 +444,7 @@ class Run:
         self.niche = {"w": niche["w"], "h": niche["h"], "d": niche["d"]}
         self.niche_reach = self._niche_reach() if self.niche_segments else 0.0
         self.backing = {-1: self.band + BACKING_M,
-                        1: max(self.band, self.niche_reach + niche["w"] / 2 + BAND_MARGIN_M) + BACKING_M}
+                        1: max(self.band, self.niche_reach + niche["w"] / 2 + self.margin) + BACKING_M}
         self.parapet_line = {side: [self.at(j, side * (self.toe + self.base / 2)) for j in range(n + 1)] for side in SIDES}
 
     # the centre line
@@ -662,7 +675,7 @@ class Run:
             end = (start[0] + n[0] * self.niche_reach_of(i), start[1] + n[1] * self.niche_reach_of(i))
             records.append({"id": f"niche_{k}", "centre_line": [[start[0], 0.0, start[1]], [end[0], 0.0, end[1]]],
                             "top_width_m": self.niche["w"], "depth_m": self.depth - SILL_M,
-                            "band_width_m": 2 * (self.niche["w"] / 2 + BAND_MARGIN_M)})
+                            "band_width_m": 2 * (self.niche["w"] / 2 + self.margin)})
         return records
 
     def niche_reach_of(self, i):
@@ -1448,19 +1461,28 @@ def _lip_boxes(run, i, side, y0):
     the ground and the berm box over it to y = 0 (GROUND, landable: the berm is grassed ground), both from the lip
     line to BERM_OVER_M past the parapet's inner toe (at least FILLER_M), under the parapet's slope; beyond the toe
     the lip box from BERM_SEAM_M inside their reach out to the side's backing, from y0 to y = 0, its top under the
-    parapet's slope and never level with the berm (F-3: the fillers' top level at the bands' edges; task 1.7). The
-    cut's (CUT) are the backing as well."""
-    toe = run.toe - min(run.lip_offset(i, side), run.lip_offset(i + 1, side))  # the toe's farthest from the lip line
+    parapet's slope and never level with the berm (F-3: the fillers' top level at the bands' edges; task 1.7), out to
+    BERM_SEAM_M inside the parapet's outer toe; past that a backing goes on with the top of the lip box under the berm,
+    under the margin columns' top (w5-farmland-objects: the belt side's backing behind the niches' bands). The cut's
+    (CUT) are the backing as well."""
+    lip_near = min(run.lip_offset(i, side), run.lip_offset(i + 1, side))
+    toe = run.toe - lip_near  # the toe's farthest from the lip line
     reach = max(toe + BERM_OVER_M, FILLER_M)
     top = max(-BERM_BOX_M, min(y0 + FILLER_M, -EPS))  # a lip box under a niche's ceiling stays FILLER_M tall
-    return [_lip_box(run, i, side, y0, top, 0.0, reach, CUT, False),
-            _lip_box(run, i, side, -BERM_BOX_M, 0.0, 0.0, reach, GROUND, True),
-            _lip_box(run, i, side, y0, 0.0, reach - BERM_SEAM_M, None, CUT, False)]
+    boxes = [_lip_box(run, i, side, y0, top, 0.0, reach, CUT, False),
+             _lip_box(run, i, side, -BERM_BOX_M, 0.0, 0.0, reach, GROUND, True)]
+    outer = run.toe + run.base - max(run.lip_offset(i, side), run.lip_offset(i + 1, side)) - BERM_SEAM_M
+    back = run.backing[side] - lip_near
+    if back <= outer:
+        return boxes + [_lip_box(run, i, side, y0, 0.0, reach - BERM_SEAM_M, None, CUT, False)]
+    return boxes + [_lip_box(run, i, side, y0, 0.0, reach - BERM_SEAM_M, outer, CUT, False),
+                    _lip_box(run, i, side, y0, top, min(outer, back - FILLER_M), None, CUT, False)]
 
 
 def _lip_box(run, i, side, y0, y1, w0, w1, material, landable):
     """A level box along segment i's lip line, its faces w0 and w1 out from it (w1 None: to the side's backing), from
-    y0 to y1, past both joints (_span)."""
+    y0 to y1, past both joints (_span), and at least FILLER_M along it (F-5: far out on a bend's inside the mitre
+    planes close in, so a backing there is lengthened about its middle)."""
     lip0, lip1 = run.lip(i, side), run.lip(i + 1, side)
     ex = _unit((lip1[0] - lip0[0], 0.0, lip1[2] - lip0[2]))
     ey = (0.0, 1.0, 0.0)
@@ -1470,6 +1492,9 @@ def _lip_box(run, i, side, y0, y1, w0, w1, material, landable):
         w1 = run.backing[side] - min(run.lip_offset(i, side), run.lip_offset(i + 1, side))
     w = (w0, w1) if _dot(ez, (side * n[0], 0.0, side * n[1])) > 0 else (-w1, -w0)
     u0, u1 = _span(run, i, lip0, ex, ey, ez, (y0, y1), w)
+    short = FILLER_M - (u1 - u0)
+    if short > 0:
+        u0, u1 = u0 - short / 2, u1 + short / 2
     return _box(lip0, ex, ey, ez, (u0, y0, w[0]), (u1, y1, w[1]), material, landable)
 
 
