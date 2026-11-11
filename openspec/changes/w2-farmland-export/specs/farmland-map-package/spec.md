@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: The farmland exports as a map package
-The friend's generator SHALL write `maps/farmland/` with the heights of the map, the surround and the far ring, the ground class and grass density per cell, every tree, bush, ruin and debris placement with its variant, and the outlines of the fields and the village. The same seed SHALL give the same bytes, and `tools/map/validate.py` SHALL check the package.
+An exporter SHALL write `maps/farmland/` from the scene the friend's generator built, with the heights of the map, the surround and the far ring, the ground class and grass density per cell, every tree, bush, ruin and debris placement with its variant, and the outlines of the fields and the village. The same seed SHALL give the same bytes, and `tools/map/validate.py` SHALL check the package.
 
 #### Scenario: The package validates
 - **WHEN** `python tools/map/validate.py maps/farmland` runs on a fresh export
