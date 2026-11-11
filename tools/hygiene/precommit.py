@@ -186,6 +186,11 @@ def reference_path(path):
     return path.lower().startswith("reference/")
 
 
+def vendor_path(path):
+    """The local store (D-089): third-party packs whose licence forbids pushing them."""
+    return path.lower().startswith("vendor/")
+
+
 def footage_name(path):
     return FOOTAGE_NAME.match(posixpath.basename(path)) is not None
 
@@ -384,6 +389,7 @@ def notes_scope(path):
 PATH_RULES = (
     ("footage-ext", footage_ext),
     ("reference-path", reference_path),
+    ("vendor-path", vendor_path),
     ("footage-name", footage_name),
     ("media-location", media_location),
 )

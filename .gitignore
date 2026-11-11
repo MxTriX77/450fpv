@@ -10,6 +10,10 @@ reference/
 *.mkv
 *.avi
 
+# --- The local store (D-089): third-party packs that can't be pushed, and the farmland world ---
+# No trailing slash: in a worktree it is a junction (tools/vendor/link.ps1), which git may see as a link.
+/vendor
+
 # --- Unity (project lives in unity/) ---
 unity/[Ll]ibrary/
 unity/[Tt]emp/
