@@ -31,7 +31,8 @@ namespace Fpv450.App
     /// <remarks>
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
     /// (a preset, saved for the next start: QualityPreset). <c>-smoketest</c>
-    /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged; <c>-smokeshots &lt;folder&gt;</c>
+    /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged (on D3D12 it reads its own log
+    /// file for the pipeline library's line, so not with <c>-logFile -</c>); <c>-smokeshots &lt;folder&gt;</c>
     /// saves its screens there, and <c>-smokeseq &lt;n&gt;</c> beside them n consecutive frames at the punch-outs and the
     /// hover, FPV and chase (Sequence). <c>-camerafeel 0</c> flies the camera as before p7e-camera-feel (FlightScene.CameraFeel).
     /// <c>-smokewind &lt;Calm|Windy|Severe&gt;</c> flies the smoke test's flights in that wind (Calm by default), a look at
@@ -538,6 +539,16 @@ namespace Fpv450.App
             yield return Until(() => Time.frameCount > 3, 5);
             yield return new WaitForSecondsRealtime(0.5f);
             Check(_view == View.Menu, "the menu opens first");
+            // w1-farmland-world 2.4 (QA's F6): on D3D12 Unity's own line proves it read the pipeline library PsoLibrary keeps
+            // empty, so a Unity that renames the file fails here instead of quietly ending the crash fix on quit.
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Direct3D12)
+            {
+                if (PsoLibrary.FoundEmpty)
+                    Check(PlayerLogHas(PsoLibrary.InitFailure, out string log), "the player log has Unity's '" + PsoLibrary.InitFailure + "': the D3D12 pipeline library " +
+                          "starts empty (" + log + ")");
+                else
+                    Debug.Log("[Smoke] the D3D12 pipeline library was dropped this run, not read empty: its log line is the next run's check");
+            }
             yield return Shot("menu");
             Train();
             yield return null;
@@ -906,6 +917,23 @@ namespace Fpv450.App
             }
             Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
             Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
+        }
+
+        // The smoke test's: whether the player's log file has the line. A log to stdout (-logFile -) is no file, so the
+        // check fails there: give -logFile a path.
+        static bool PlayerLogHas(string line, out string log)
+        {
+            log = Application.consoleLogPath;
+            if (string.IsNullOrEmpty(log) || log == "-" || !File.Exists(log))
+            {
+                log = (log == "-" ? "the log goes to stdout" : string.IsNullOrEmpty(log) ? "no log file" : log + " not found") + ": give -logFile a path";
+                return false;
+            }
+            using (var reader = new StreamReader(new FileStream(log, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)))
+                for (string text = reader.ReadLine(); text != null; text = reader.ReadLine())
+                    if (text.Contains(line))
+                        return true;
+            return false;
         }
 
         // -smokelegs: the next flight's seed and start from its case; none (a restart) stands as a flight does.

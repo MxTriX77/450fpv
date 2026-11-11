@@ -141,8 +141,11 @@ if (-not $KeepWorktree) {
 
 if (-not $NoSmoke -and $plan.smoke_args.Count -gt 0) {
     Step "Smoke test"
-    & $exe @($plan.smoke_args) -logFile - 2>&1 | Select-String -Pattern "Smoke|PASS|FAIL|Exception|error" | ForEach-Object { Write-Host "  $($_.Line)" }
-    if ($LASTEXITCODE -ne 0) { Fail "the smoke test failed (exit $LASTEXITCODE)" }
+    $smokeLog = Join-Path $OutRoot "smoke.log" # a file, not stdout: the smoke test reads its own log (the D3D12 pipeline library's line)
+    & $exe @($plan.smoke_args) -logFile $smokeLog 2>&1 | Out-Null
+    $smokeExit = $LASTEXITCODE
+    Select-String -LiteralPath $smokeLog -Pattern "Smoke|PASS|FAIL|Exception|error" | ForEach-Object { Write-Host "  $($_.Line)" }
+    if ($smokeExit -ne 0) { Fail "the smoke test failed (exit $smokeExit); its log: $smokeLog" }
 }
 
 Step "Done in $([math]::Round(((Get-Date) - $started).TotalMinutes, 1)) min"

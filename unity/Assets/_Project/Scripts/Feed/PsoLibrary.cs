@@ -23,6 +23,14 @@ namespace Fpv450.Feed
     {
         public const string FileName = "dx12_pso_cache_lib.bin";
 
+        /// <summary>Unity's log line when it loads the empty file (task 2.4, the smoke test's check): it proves Unity still
+        /// reads the file this guard empties, so a Unity that renames it fails the smoke test instead of ending the fix.</summary>
+        public const string InitFailure = "PSO Cache Library Init Failure";
+
+        /// <summary>True when this D3D12 player run found the file already empty and read-only, so Unity's load of it
+        /// failed and the log has <see cref="InitFailure"/>; false when the run dropped an older library (or found none).</summary>
+        public static bool FoundEmpty { get; private set; }
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Startup()
         {
@@ -31,7 +39,8 @@ namespace Fpv450.Feed
             string path = Path.Combine(Application.temporaryCachePath, FileName);
             try
             {
-                if (KeepEmpty(path))
+                FoundEmpty = !KeepEmpty(path);
+                if (!FoundEmpty)
                     Debug.Log("[Feed] the D3D12 pipeline library from earlier runs is dropped; from the next run on, each starts empty (" + path + ")");
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
