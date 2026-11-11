@@ -900,10 +900,12 @@ namespace Fpv450.Tests.Session
             rig.Session.Dispose();
         }
 
-        // D-087: the flight thread may run behind real time (a loaded host, the step's cost in the house; a catch-up pass of
-        // 500–1155 steps was seen in the model-57 player). R must not wait for the whole pass: the scheduler stops between
-        // steps. Here the host is 10 s ahead of the flight's step 0, so the thread's pass has 10 000 steps due; R comes once
-        // the pass has begun and the restart returns with the last flight cut at a step, its log complete to that step.
+        // D-087: the flight thread may run behind real time (a loaded host, the step's cost in the house: 1.3–4.7 ms a step in
+        // the model-79 player). The lag cap (p7h-step-budget 2.1) leaves a pass at most 20 ms owed, so at most 21 steps due,
+        // but each may take ms. R must not wait for that pass: the scheduler stops between steps. Here the host is 10 s ahead
+        // of the flight's step 0, so the scheduler drops all but 20 ms and its pass has 21 steps due, and each read of the
+        // clock takes 5 ms, so each step (three reads) takes about 15 ms and the pass about 0.3 s. R comes once the pass has
+        // begun and the restart returns with the last flight cut at a step before the pass's end, its log complete to it.
         [Test]
         public void RDoesNotWaitForTheFlightThreadsCatchUp()
         {
@@ -919,17 +921,21 @@ namespace Fpv450.Tests.Session
                 session.Start();
                 FlightCore old = session.Core;
                 string log = session.LogPath;
+                long due = FlightScheduler.MaxOwedUs / FlightCore.StepUs + 1; // step 0, 20 ms late after the drop, and the 20 after it
+                clock.ReadMs = 5;
                 clock.Now = session.StartUs + 10000000;
                 var wait = System.Diagnostics.Stopwatch.StartNew();
-                while (session.Poses.LatestStep < 10 && wait.ElapsedMilliseconds < 10000) Thread.Sleep(1); // the thread's pass has begun
+                while (session.Poses.LatestStep < 1 && wait.ElapsedMilliseconds < 10000) Thread.Sleep(1); // the thread's pass has begun
                 var watch = System.Diagnostics.Stopwatch.StartNew();
                 Assert.That(session.Restart(), Is.True);
                 watch.Stop();
                 long ran = old.State.Step;
                 FlightSummary s = FlightSummary.Read(log);
-                TestContext.WriteLine("R after the catch-up's first steps: the last flight stopped at step " + ran + " of 10 000 due, the restart took "
+                LoggedEvent pass = s.Events.Find(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Late);
+                TestContext.WriteLine("R after the capped catch-up's first step: the last flight stopped at step " + ran + " of " + pass.Event.A + " due, the restart took "
                     + watch.ElapsedMilliseconds + " ms; its log " + s.Steps + " steps, complete " + s.Complete);
-                Assert.That(ran, Is.InRange(10, 9999), "the catch-up was cut at a step, not run to its end");
+                Assert.That(pass.Event.A, Is.EqualTo(due), "the pass the cap left");
+                Assert.That(ran, Is.InRange(1, due - 1), "the catch-up was cut at a step, not run to its end");
                 Assert.That((s.Complete, s.Steps), Is.EqualTo((true, ran)), "the log complete to that step");
                 Assert.That((session.State, session.Flights, session.Core.State.Step), Is.EqualTo((SessionState.Flying, 2, 0L)));
             }
@@ -1684,7 +1690,13 @@ namespace Fpv450.Tests.Session
         sealed class ManualClock : IHostClock
         {
             public long Now;
-            public long NowUs() => Now;
+            public int ReadMs; // each read takes this long in wall time, so a flight thread's steps do (they read it three times)
+
+            public long NowUs()
+            {
+                if (ReadMs > 0) Thread.Sleep(ReadMs);
+                return Now;
+            }
         }
 
         // The TX12's layout (8 axes 0–2047, AETR and the arm on ch5, RawStickMap's), reporting every 2 ms on the clock.
