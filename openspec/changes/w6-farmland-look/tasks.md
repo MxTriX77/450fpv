@@ -4,12 +4,13 @@ Order: 1.1, then 1.2, then 2.1. Branch `unity/physics/physics-integration-2--w6-
 
 ## 1. The look and the frame rate
 
-- [ ] 1.1 [tech-artist] The farmland looks like the friend's through our pipeline. At the friend's 10 saved cameras (the scene's capture views), in noclip with the feed off, ours matches theirs:
+- [x] 1.1 [tech-artist] The farmland looks like the friend's through our pipeline. At the friend's 10 saved cameras (the scene's capture views), in noclip with the feed off, ours matches theirs:
   - mean luma within 2 of 255;
   - soft shadows to a useful distance;
   - screen-space ambient occlusion;
   - the distance haze.
   Change only our pipeline assets, renderers and volumes; the friend's scene and the store stay untouched, and the feed stays as ported (D-026). Render the friend's side from a temporary copy of their project without `Library/`, never the store in place, and delete the copy afterwards. Write `design.md`: each setting changed, why, and its measured effect. Write a side-by-side sheet per camera (local only, `reference/_compare/` or the scratchpad). Checks: EditMode filtered, a review build, the smoke test, `precommit.py --tree HEAD`.
+  - As built (design.md): `URP-High` takes the friend's HDR grading, 400 m and 4 cascades of soft shadows (High) with their bias, and their SSAO on its renderer; the build keeps the exponential-squared fog variants (the haze). Every camera within 0.63 luma of the friend's (was up to 6.81 off); noclip 11.8 → 15.7–16.5 ms, feed on 18.8 → 27.0 ms; the analog passes byte-identical.
 - [ ] 1.2 [tech-artist] Frame rate, memory and load on the farmland (PLT-02, PLT-05, PLT-06), by PLT-07.
   - A fixed scripted camera path over the village, a tree belt and open fields, run with the feed on and in noclip at 1080p.
   - Tune grass distance and density, shadows, LODs and culling until the feed view's 1 % low ≥ 60 fps and average ≥ 100 fps, noclip's 1 % low ≥ 60, VRAM ≤ 4.5 GB, RAM ≤ 8 GB, and Explore loads in ≤ 20 s. Detail the PAL feed can't show goes first.
