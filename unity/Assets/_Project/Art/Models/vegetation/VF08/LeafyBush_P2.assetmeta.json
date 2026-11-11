@@ -3,7 +3,7 @@
   "id": "VF08",
   "variant": "LeafyBush_P2",
   "generator": "vendor_plant",
-  "params_sha256": "d4b578188dfc1a96713de4a428c23a8ed3e120472ce593936f7e5e284d8739f2",
+  "params_sha256": "347ed5f6863de4120573358560bdc13261e8d6e4de488613d0440663649c9cb0",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
@@ -5546,9 +5546,31 @@
     {
       "shape": "sphere",
       "center": [
-        -0.05,
-        1.15,
-        1.15
+        -0.75,
+        1.65,
+        -0.15
+      ],
+      "radius": 0.995063,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.95,
+        1.25,
+        -0.85
+      ],
+      "radius": 0.893193,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.75,
+        1.05,
+        0.65
       ],
       "radius": 0.903347,
       "material": "twig",
@@ -5557,33 +5579,11 @@
     {
       "shape": "sphere",
       "center": [
-        -0.55,
-        1.25,
-        -0.75
+        0.85,
+        1.55,
+        0.95
       ],
-      "radius": 0.882933,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.05,
-        1.25,
-        -0.95
-      ],
-      "radius": 0.77363,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.55,
-        1.05,
-        -1.05
-      ],
-      "radius": 0.856796,
+      "radius": 0.818936,
       "material": "twig",
       "landable": false
     },
@@ -5591,492 +5591,8 @@
       "shape": "sphere",
       "center": [
         -0.75,
-        0.95,
-        -1.35
-      ],
-      "radius": 0.77363,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.65,
-        0.75,
-        -0.75
-      ],
-      "radius": 0.668381,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.15,
-        1.95,
-        -0.35
-      ],
-      "radius": 0.641408,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.65,
-        1.55,
-        2.25
-      ],
-      "radius": 0.561472,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.15,
-        1.55,
-        -0.85
-      ],
-      "radius": 0.661729,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
-        1.25,
-        0.95
-      ],
-      "radius": 0.77363,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
         1.45,
-        -0.55
-      ],
-      "radius": 0.719623,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.05,
-        2.05,
-        -0.35
-      ],
-      "radius": 0.55371,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.75,
-        1.25,
-        0.35
-      ],
-      "radius": 0.382439,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.05,
-        2.45,
-        -0.45
-      ],
-      "radius": 0.496493,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.65,
-        1.45,
-        2.45
-      ],
-      "radius": 0.487854,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.15,
-        1.45,
-        1.05
-      ],
-      "radius": 0.790894,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.25,
-        1.95,
-        -0.55
-      ],
-      "radius": 0.641408,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.85,
-        0.45,
-        0.25
-      ],
-      "radius": 0.451914,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.65,
-        1.45,
-        -1.25
-      ],
-      "radius": 0.55371,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.55,
-        1.55,
-        0.85
-      ],
-      "radius": 0.634508,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
-        1.55,
-        1.05
-      ],
-      "radius": 0.719623,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.75,
-        0.65,
-        -1.25
-      ],
-      "radius": 0.487854,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.75,
-        2.05,
-        0.15
-      ],
-      "radius": 0.423299,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.95,
-        1.55,
-        -1.45
-      ],
-      "radius": 0.360611,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.25,
-        1.15,
-        0.95
-      ],
-      "radius": 0.505005,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.65,
-        2.25,
-        0.35
-      ],
-      "radius": 0.413397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.35,
-        1.55,
-        -1.35
-      ],
-      "radius": 0.451914,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.25,
-        2.25,
-        -0.45
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.55,
-        1.85,
-        -1.55
-      ],
-      "radius": 0.349287,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.25,
-        0.45,
-        -1.15
-      ],
-      "radius": 0.529839,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.45,
-        1.05,
-        -0.45
-      ],
-      "radius": 0.423299,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.95,
-        2.45,
-        0.15
-      ],
-      "radius": 0.313397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
-        2.65,
-        -0.25
-      ],
-      "radius": 0.287563,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.25,
-        0.95,
-        1.55
-      ],
-      "radius": 0.423299,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.05,
-        2.85,
-        0.55
-      ],
-      "radius": 0.287563,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.75,
-        0.85,
-        0.45
-      ],
-      "radius": 0.807825,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.65,
-        1.75,
-        -1.85
-      ],
-      "radius": 0.287563,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.85,
-        1.15,
-        1.15
-      ],
-      "radius": 0.829913,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
-        0.55,
-        -0.05
-      ],
-      "radius": 0.337662,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.45,
-        2.15,
-        1.35
-      ],
-      "radius": 0.360611,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.35,
-        0.35,
-        0.85
-      ],
-      "radius": 0.371655,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -2.35,
-        1.55,
-        -1.65
-      ],
-      "radius": 0.287563,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.95,
-        1.65,
-        -1.35
-      ],
-      "radius": 0.382439,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.85,
-        1.55,
         -0.95
-      ],
-      "radius": 0.337662,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.65,
-        1.15,
-        -1.55
-      ],
-      "radius": 0.349287,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.65,
-        0.85,
-        0.35
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.55,
-        1.25,
-        0.05
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.45,
-        1.45,
-        -0.05
-      ],
-      "radius": 0.423299,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.95,
-        1.65,
-        -0.15
       ],
       "radius": 0.813397,
       "material": "twig",
@@ -6085,77 +5601,44 @@
     {
       "shape": "sphere",
       "center": [
-        -1.15,
-        0.65,
-        -1.25
-      ],
-      "radius": 0.413397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.45,
-        1.55,
-        1.25
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.95,
-        1.65,
-        0.75
-      ],
-      "radius": 0.423299,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.35,
-        1.55,
-        1.05
-      ],
-      "radius": 0.349287,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
         -0.85,
-        1.35,
-        -1.85
+        1.15,
+        -1.35
+      ],
+      "radius": 0.790894,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.65,
+        0.75,
+        -0.65
+      ],
+      "radius": 0.661729,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.25,
+        1.85,
+        -0.35
+      ],
+      "radius": 0.856796,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.55,
+        2.45,
+        0.65
       ],
       "radius": 0.382439,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -1.15,
-        1.75,
-        -1.05
-      ],
-      "radius": 0.487854,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.75,
-        1.75,
-        -1.45
-      ],
-      "radius": 0.360611,
       "material": "twig",
       "landable": false
     },
@@ -6166,27 +5649,71 @@
         2.95,
         0.95
       ],
-      "radius": 0.287563,
+      "radius": 0.371655,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        -0.25,
-        0.95,
-        1.65
+        1.15,
+        1.65,
+        -0.55
       ],
-      "radius": 0.55371,
+      "radius": 0.668381,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        -0.25,
-        1.05,
-        1.95
+        -0.85,
+        1.25,
+        0.05
+      ],
+      "radius": 0.856796,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.75,
+        1.55,
+        -1.25
+      ],
+      "radius": 0.496493,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.15,
+        1.25,
+        1.05
+      ],
+      "radius": 0.882933,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.95,
+        1.55,
+        -1.45
+      ],
+      "radius": 0.413397,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.45,
+        0.85,
+        0.35
       ],
       "radius": 0.487854,
       "material": "twig",
@@ -6195,75 +5722,9 @@
     {
       "shape": "sphere",
       "center": [
-        -0.35,
-        1.15,
-        2.15
-      ],
-      "radius": 0.371655,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.25,
-        1.55,
-        2.15
-      ],
-      "radius": 0.371655,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.15,
-        2.15,
-        1.25
-      ],
-      "radius": 0.413397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.65,
-        1.95,
-        -0.05
-      ],
-      "radius": 0.634508,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.45,
-        2.55,
-        0.95
-      ],
-      "radius": 0.287563,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.65,
-        0.95,
-        -1.55
-      ],
-      "radius": 0.613397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        -0.35,
-        1.65,
-        1.55
+        -1.45,
+        1.25,
+        0.05
       ],
       "radius": 0.451914,
       "material": "twig",
@@ -6272,11 +5733,66 @@
     {
       "shape": "sphere",
       "center": [
-        -0.15,
-        2.55,
-        -0.85
+        -1.25,
+        1.15,
+        -1.45
       ],
-      "radius": 0.413397,
+      "radius": 0.59163,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.75,
+        0.95,
+        -1.35
+      ],
+      "radius": 0.785177,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -1.45,
+        1.35,
+        1.15
+      ],
+      "radius": 0.451914,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.95,
+        2.75,
+        0.55
+      ],
+      "radius": 0.371655,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.75,
+        0.95,
+        0.55
+      ],
+      "radius": 0.898283,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.25,
+        1.15,
+        1.65
+      ],
+      "radius": 0.700798,
       "material": "twig",
       "landable": false
     },
@@ -6284,30 +5800,19 @@
       "shape": "sphere",
       "center": [
         -0.05,
-        2.55,
-        -0.55
+        1.25,
+        1.75
       ],
-      "radius": 0.46112,
+      "radius": 0.719623,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        0.05,
-        0.65,
-        1.05
-      ],
-      "radius": 0.74406,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.25,
-        0.55,
-        -0.65
+        -0.25,
+        2.25,
+        -0.75
       ],
       "radius": 0.55371,
       "material": "twig",
@@ -6316,22 +5821,55 @@
     {
       "shape": "sphere",
       "center": [
-        0.45,
-        1.25,
-        2.15
+        -0.05,
+        2.45,
+        -0.55
       ],
-      "radius": 0.46112,
+      "radius": 0.55371,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        0.55,
-        1.45,
+        -0.05,
+        1.05,
+        -0.95
+      ],
+      "radius": 0.77363,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.05,
+        1.35,
         1.15
       ],
-      "radius": 0.840759,
+      "radius": 0.976412,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        -0.15,
+        0.85,
+        1.05
+      ],
+      "radius": 0.856796,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.85,
+        0.55,
+        0.45
+      ],
+      "radius": 0.529839,
       "material": "twig",
       "landable": false
     },
@@ -6340,20 +5878,9 @@
       "center": [
         0.55,
         1.85,
-        2.25
+        -1.45
       ],
-      "radius": 0.413397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.55,
-        2.05,
-        -1.95
-      ],
-      "radius": 0.273953,
+      "radius": 0.451914,
       "material": "twig",
       "landable": false
     },
@@ -6361,8 +5888,52 @@
       "shape": "sphere",
       "center": [
         0.65,
-        1.95,
+        1.75,
         2.15
+      ],
+      "radius": 0.55371,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.65,
+        1.65,
+        -1.55
+      ],
+      "radius": 0.451914,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        0.65,
+        1.35,
+        2.55
+      ],
+      "radius": 0.496493,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.05,
+        1.95,
+        1.55
+      ],
+      "radius": 0.55371,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.05,
+        2.35,
+        -0.25
       ],
       "radius": 0.382439,
       "material": "twig",
@@ -6371,121 +5942,33 @@
     {
       "shape": "sphere",
       "center": [
-        0.95,
-        2.05,
-        1.85
+        0.85,
+        2.35,
+        0.15
       ],
-      "radius": 0.423299,
+      "radius": 0.382439,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
+        1.05,
         0.75,
-        1.45,
-        2.75
-      ],
-      "radius": 0.413397,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        0.95,
-        1.65,
-        -1.15
-      ],
-      "radius": 0.46112,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
-        0.35,
-        0.75
-      ],
-      "radius": 0.423299,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.15,
-        2.25,
-        1.55
-      ],
-      "radius": 0.371655,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.45,
-        0.35,
-        -1.45
-      ],
-      "radius": 0.349287,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.25,
-        2.25,
-        1.45
-      ],
-      "radius": 0.349287,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.75,
-        0.55,
-        -1.65
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.25,
-        0.65,
         -0.15
       ],
-      "radius": 0.325708,
+      "radius": 0.529839,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        1.45,
-        1.05,
-        1.65
-      ],
-      "radius": 0.371655,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.55,
         1.15,
-        1.65
+        1.95,
+        1.45
       ],
-      "radius": 0.371655,
+      "radius": 0.55371,
       "material": "twig",
       "landable": false
     },
@@ -6493,65 +5976,43 @@
       "shape": "sphere",
       "center": [
         1.45,
-        1.75,
+        1.95,
+        1.25
+      ],
+      "radius": 0.545853,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.25,
+        0.35,
+        0.85
+      ],
+      "radius": 0.433013,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.45,
+        0.35,
         -1.05
       ],
-      "radius": 0.423299,
+      "radius": 0.513397,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        1.55,
+        1.65,
         0.55,
-        0.95
+        -1.35
       ],
-      "radius": 0.337662,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.55,
-        1.85,
-        -0.35
-      ],
-      "radius": 0.337662,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.65,
-        2.05,
-        0.65
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.65,
-        0.15,
-        -0.85
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.75,
-        0.85,
-        1.05
-      ],
-      "radius": 0.371655,
+      "radius": 0.513397,
       "material": "twig",
       "landable": false
     },
@@ -6559,54 +6020,76 @@
       "shape": "sphere",
       "center": [
         1.35,
-        1.25,
-        1.15
+        1.15,
+        1.25
       ],
-      "radius": 0.648244,
+      "radius": 0.694422,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        1.95,
+        1.35,
         1.85,
+        0.85
+      ],
+      "radius": 0.545853,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.75,
+        0.65,
+        -1.35
+      ],
+      "radius": 0.513397,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.15,
+        1.35,
+        -1.05
+      ],
+      "radius": 0.767798,
+      "material": "twig",
+      "landable": false
+    },
+    {
+      "shape": "sphere",
+      "center": [
+        1.85,
+        1.65,
         0.35
       ],
-      "radius": 0.325708,
+      "radius": 0.479083,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        1.85,
-        0.25,
-        -0.95
-      ],
-      "radius": 0.325708,
-      "material": "twig",
-      "landable": false
-    },
-    {
-      "shape": "sphere",
-      "center": [
-        1.85,
-        1.25,
+        1.75,
+        0.75,
         -1.25
       ],
-      "radius": 0.325708,
+      "radius": 0.55371,
       "material": "twig",
       "landable": false
     },
     {
       "shape": "sphere",
       "center": [
-        2.35,
-        0.45,
-        -0.95
+        1.85,
+        0.55,
+        -1.15
       ],
-      "radius": 0.287563,
+      "radius": 0.487854,
       "material": "twig",
       "landable": false
     }
@@ -6616,14 +6099,14 @@
     {
       "shape": "box",
       "center": [
-        0.045875,
-        1.544192,
-        0.482095
+        0.008732,
+        1.531969,
+        0.512168
       ],
       "size": [
-        5.024929,
-        3.088384,
-        5.296494
+        4.689848,
+        3.063939,
+        5.15907
       ],
       "rotation": [
         0.0,
@@ -6631,7 +6114,7 @@
         0.0,
         1.0
       ],
-      "porosity": 0.449816
+      "porosity": 0.499146
     }
   ],
   "ports": [],
@@ -11352,74 +10835,74 @@
       "kind": "hook",
       "points": [
         [
-          -0.10639,
-          0.959041,
-          1.011663
+          -0.222648,
+          0.602375,
+          0.338932
         ],
         [
-          -0.198631,
-          0.970524,
-          0.927287
+          -0.293249,
+          0.651028,
+          0.201682
         ],
         [
-          -0.260583,
-          0.966434,
-          0.865806
+          -0.288012,
+          0.760026,
+          0.235573
         ],
         [
-          -0.329751,
-          0.970659,
-          0.812454
+          -0.347268,
+          0.836334,
+          0.125466
         ],
         [
-          -0.39846,
-          0.949683,
-          0.753439
+          -0.411387,
+          0.815023,
+          0.065888
         ],
         [
-          -0.503992,
-          0.937687,
-          0.687161
+          -0.415465,
+          1.014067,
+          0.041544
         ],
         [
-          -0.581879,
-          0.863724,
-          0.615251
+          -0.523209,
+          0.994707,
+          -0.133937
         ],
         [
-          -0.718884,
-          0.868892,
-          0.583468
+          -0.579885,
+          1.050526,
+          -0.203169
         ],
         [
-          -0.864948,
-          0.834474,
-          0.547347
+          -0.540339,
+          1.301206,
+          -0.187579
         ],
         [
-          -1.01213,
-          0.798463,
-          0.53239
+          -0.570231,
+          1.419129,
+          -0.22171
         ],
         [
-          -1.129443,
-          0.719609,
-          0.52728
+          -0.628296,
+          1.490561,
+          -0.340453
         ],
         [
-          -1.27655,
-          0.669681,
-          0.555166
+          -0.636709,
+          1.627942,
+          -0.37598
         ],
         [
-          -1.469466,
-          0.782055,
-          0.689035
+          -0.808444,
+          1.578093,
+          -0.576219
         ],
         [
-          -1.611587,
-          1.4225,
-          0.985042
+          -0.830005,
+          1.71725,
+          -0.648782
         ]
       ],
       "radius_m": 0.0025,
@@ -11429,79 +10912,74 @@
       "kind": "hook",
       "points": [
         [
-          0.818142,
-          0.270533,
-          0.264265
+          -0.584585,
+          0.502853,
+          -0.912831
         ],
         [
-          0.8388,
-          0.344016,
-          0.150293
+          -0.60589,
+          0.572939,
+          -1.053308
         ],
         [
-          0.86761,
-          0.389312,
-          0.082967
+          -0.613681,
+          0.692302,
+          -1.000034
         ],
         [
-          0.861165,
-          0.44552,
-          0.006212
+          -0.636686,
+          0.758136,
+          -1.135408
         ],
         [
-          0.890195,
-          0.507717,
-          -0.07173
+          -0.672807,
+          0.7853,
+          -1.175241
         ],
         [
-          0.856177,
-          0.574786,
-          -0.1572
+          -0.679184,
+          0.926488,
+          -1.239975
         ],
         [
-          0.801785,
-          0.63498,
-          -0.246738
+          -0.730768,
+          0.909061,
+          -1.45964
         ],
         [
-          0.835684,
-          0.73176,
-          -0.336311
+          -0.740739,
+          1.04141,
+          -1.482293
         ],
         [
-          0.869995,
-          0.843683,
-          -0.421952
+          -0.72536,
+          1.249145,
+          -1.453817
         ],
         [
-          0.92096,
-          0.952324,
-          -0.491625
+          -0.729447,
+          1.399486,
+          -1.450615
         ],
         [
-          0.984895,
-          1.087256,
-          -0.546986
+          -0.747679,
+          1.485241,
+          -1.564967
         ],
         [
-          1.003847,
-          1.194872,
-          -0.609985
+          -0.749184,
+          1.599808,
+          -1.616317
         ],
         [
-          1.041309,
-          1.330121,
-          -0.65643
+          -0.847243,
+          1.575226,
+          -1.893317
         ],
         [
-          0.971988,
-          1.40986,
-          -0.741061
-        ],
-        [
-          0.5389,
-          1.397489,
-          -0.975112
+          -0.824361,
+          1.71092,
+          -1.904073
         ]
       ],
       "radius_m": 0.0025,
@@ -11511,79 +10989,74 @@
       "kind": "hook",
       "points": [
         [
-          0.46258,
-          0.130663,
-          -0.516162
+          0.151338,
+          0.405843,
+          -0.36693
         ],
         [
-          0.461642,
-          0.227339,
-          -0.618671
+          0.182969,
+          0.509208,
+          -0.484327
         ],
         [
-          0.488343,
-          0.284543,
-          -0.674777
+          0.105392,
+          0.573061,
+          -0.466308
         ],
         [
-          0.488176,
-          0.354424,
-          -0.741156
+          0.111847,
+          0.68793,
+          -0.557114
         ],
         [
-          0.463455,
-          0.421869,
-          -0.805646
+          0.131906,
+          0.698998,
+          -0.632924
         ],
         [
-          0.451661,
-          0.503773,
-          -0.88053
+          0.083619,
+          0.859278,
+          -0.669806
         ],
         [
-          0.374129,
-          0.568858,
-          -0.95846
+          0.154757,
+          0.923595,
+          -0.803846
         ],
         [
-          0.37655,
-          0.670389,
-          -1.036588
+          0.17285,
+          1.012242,
+          -0.882054
         ],
         [
-          0.405882,
-          0.796497,
-          -1.110549
+          0.088027,
+          1.198128,
+          -0.859862
         ],
         [
-          0.425439,
-          0.915252,
-          -1.172958
+          0.012742,
+          1.326756,
+          -0.84987
         ],
         [
-          0.475805,
-          1.054952,
-          -1.218303
+          0.017209,
+          1.446542,
+          -0.9019
         ],
         [
-          0.503775,
-          1.174814,
-          -1.266886
+          0.028785,
+          1.5831,
+          -0.93935
         ],
         [
-          0.532652,
-          1.31048,
-          -1.304528
+          0.190535,
+          1.612015,
+          -1.190873
         ],
         [
-          0.430968,
-          1.40077,
-          -1.38128
-        ],
-        [
-          0.048021,
-          1.399213,
-          -1.574072
+          0.211721,
+          1.724988,
+          -1.241421
         ]
       ],
       "radius_m": 0.0025,
@@ -11593,74 +11066,64 @@
       "kind": "hook",
       "points": [
         [
-          0.650602,
-          0.620887,
-          -0.548184
+          1.299645,
+          0.393478,
+          -0.905211
         ],
         [
-          0.688346,
-          0.756158,
-          -0.540376
+          1.290511,
+          0.515756,
+          -1.002915
         ],
         [
-          0.722363,
-          0.839198,
-          -0.544302
+          1.405458,
+          0.589524,
+          -1.02719
         ],
         [
-          0.736679,
-          0.934239,
-          -0.540353
+          1.361701,
+          0.653916,
+          -1.099985
         ],
         [
-          0.75845,
-          1.043473,
-          -0.54116
+          1.571325,
+          0.716647,
+          -1.086143
         ],
         [
-          0.718289,
-          1.158242,
-          -0.530118
+          1.464794,
+          0.846022,
+          -1.19306
         ],
         [
-          0.71356,
-          1.271256,
-          -0.537808
+          1.489573,
+          0.991646,
+          -1.237393
         ],
         [
-          0.788382,
-          1.407088,
-          -0.540304
+          1.53999,
+          1.118747,
+          -1.270762
         ],
         [
-          0.846316,
-          1.522753,
-          -0.552316
+          1.516679,
+          1.207217,
+          -1.335611
         ],
         [
-          0.91393,
-          1.641322,
-          -0.555797
+          1.480067,
+          1.345388,
+          -1.384928
         ],
         [
-          0.981623,
-          1.763086,
-          -0.550209
+          1.486828,
+          1.474719,
+          -1.407915
         ],
         [
-          1.054021,
-          1.877542,
-          -0.554087
-        ],
-        [
-          1.124417,
-          1.980896,
-          -0.560926
-        ],
-        [
-          1.606193,
-          1.855821,
-          -0.784576
+          1.945665,
+          1.494449,
+          -1.290794
         ]
       ],
       "radius_m": 0.0025,
@@ -11670,74 +11133,74 @@
       "kind": "hook",
       "points": [
         [
-          -0.624137,
-          0.226044,
-          -1.038596
+          -0.035367,
+          0.265722,
+          1.513028
         ],
         [
-          -0.68602,
-          0.301576,
-          -1.134815
+          -0.13318,
+          0.346574,
+          1.483094
         ],
         [
-          -0.706336,
-          0.35342,
-          -1.211698
+          -0.189269,
+          0.40973,
+          1.516343
         ],
         [
-          -0.761661,
-          0.403492,
-          -1.258889
+          -0.258233,
+          0.437367,
+          1.415002
         ],
         [
-          -0.794066,
-          0.481686,
-          -1.344288
+          -0.350837,
+          0.446128,
+          1.281162
         ],
         [
-          -0.911581,
-          0.531741,
-          -1.361268
+          -0.448996,
+          0.522728,
+          1.307251
         ],
         [
-          -0.97661,
-          0.602407,
-          -1.425901
+          -0.549562,
+          0.609314,
+          1.323177
         ],
         [
-          -0.996758,
-          0.714094,
-          -1.526459
+          -0.661848,
+          0.656535,
+          1.267048
         ],
         [
-          -0.999935,
-          0.826995,
-          -1.618316
+          -0.784462,
+          0.650211,
+          1.183114
         ],
         [
-          -0.993437,
-          0.953309,
-          -1.702031
+          -0.877014,
+          0.77484,
+          1.207956
         ],
         [
-          -0.99987,
-          1.068243,
-          -1.770638
+          -1.018491,
+          0.913365,
+          1.202528
         ],
         [
-          -0.984338,
-          1.199034,
-          -1.83803
+          -1.189297,
+          0.856561,
+          1.100528
         ],
         [
-          -1.235714,
-          1.241641,
-          -1.822609
+          -1.253071,
+          1.012108,
+          1.143248
         ],
         [
-          -1.588238,
-          1.211358,
-          -1.783552
+          -1.273021,
+          1.175042,
+          1.199324
         ]
       ],
       "radius_m": 0.0025,
@@ -11747,74 +11210,64 @@
       "kind": "hook",
       "points": [
         [
-          0.057409,
-          1.110636,
-          0.530937
+          0.036328,
+          1.080273,
+          0.541882
         ],
         [
-          -0.016093,
-          1.089871,
-          0.578081
+          -0.066842,
+          1.07557,
+          0.612009
         ],
         [
-          -0.069615,
-          1.072899,
-          0.622922
+          -0.118533,
+          1.030999,
+          0.658836
         ],
         [
-          -0.131004,
-          1.033398,
-          0.681058
+          -0.153959,
+          1.204296,
+          0.725675
         ],
         [
-          -0.212905,
-          1.069499,
-          0.777855
+          -0.220476,
+          1.244007,
+          0.8049
         ],
         [
-          -0.270682,
-          1.044997,
-          0.869443
+          -0.270731,
+          1.097721,
+          0.88274
         ],
         [
-          -0.327594,
-          1.063492,
-          0.978674
+          -0.364439,
+          1.047595,
+          1.048787
         ],
         [
-          -0.380252,
-          0.939965,
-          1.093173
+          -0.426322,
+          1.180052,
+          1.181655
         ],
         [
-          -0.417835,
-          0.91476,
-          1.239494
+          -0.45541,
+          1.063043,
+          1.322458
         ],
         [
-          -0.443976,
-          0.93773,
-          1.394168
+          -0.471067,
+          1.0718,
+          1.468972
         ],
         [
-          -0.471188,
-          1.035828,
-          1.570012
+          -0.506925,
+          1.241038,
+          1.618121
         ],
         [
-          -0.500007,
-          1.214171,
-          1.730365
-        ],
-        [
-          -0.542319,
-          1.497623,
-          1.828475
-        ],
-        [
-          -0.561776,
-          1.635391,
-          1.89568
+          -0.543515,
+          1.505495,
+          1.681827
         ]
       ],
       "radius_m": 0.0025,
@@ -11824,79 +11277,69 @@
       "kind": "hook",
       "points": [
         [
-          0.181846,
-          0.362912,
-          -0.360815
+          -0.147522,
+          1.062734,
+          1.030099
         ],
         [
-          0.160654,
-          0.460708,
-          -0.42969
+          -0.270787,
+          1.145977,
+          0.963481
         ],
         [
-          0.150577,
-          0.512479,
-          -0.474947
+          -0.334087,
+          1.144475,
+          0.907759
         ],
         [
-          0.147693,
-          0.581513,
-          -0.540927
+          -0.386497,
+          1.038666,
+          0.818932
         ],
         [
-          0.156751,
-          0.650873,
-          -0.62265
+          -0.439167,
+          1.034497,
+          0.78032
         ],
         [
-          0.135847,
-          0.756594,
-          -0.6844
+          -0.584262,
+          1.036432,
+          0.715506
         ],
         [
-          0.131878,
-          0.845698,
-          -0.760706
+          -0.701287,
+          1.032729,
+          0.685209
         ],
         [
-          0.101827,
-          0.970522,
-          -0.806327
+          -0.851828,
+          0.996223,
+          0.647746
         ],
         [
-          0.101913,
-          1.077049,
-          -0.878397
+          -0.958121,
+          0.849453,
+          0.56882
         ],
         [
-          0.081524,
-          1.218513,
-          -0.917079
+          -1.056807,
+          0.800741,
+          0.560477
         ],
         [
-          0.05541,
-          1.354739,
-          -0.941943
+          -1.226355,
+          0.806793,
+          0.611815
         ],
         [
-          0.047983,
-          1.486861,
-          -0.980659
+          -1.328626,
+          0.686871,
+          0.599288
         ],
         [
-          0.067428,
-          1.615912,
-          -1.035958
-        ],
-        [
-          0.243678,
-          1.625313,
-          -1.332217
-        ],
-        [
-          0.281836,
-          1.649307,
-          -1.502002
+          -1.290064,
+          0.379011,
+          0.432141
         ]
       ],
       "radius_m": 0.0025,
@@ -11906,84 +11349,74 @@
       "kind": "hook",
       "points": [
         [
-          -0.216462,
-          0.551492,
-          0.348939
+          0.665837,
+          0.442724,
+          -0.31741
         ],
         [
-          -0.26164,
-          0.634838,
-          0.273917
+          0.650786,
+          0.585332,
+          -0.418349
         ],
         [
-          -0.295286,
-          0.676561,
-          0.230589
+          0.543172,
+          0.605861,
+          -0.455537
         ],
         [
-          -0.340033,
-          0.730436,
-          0.170135
+          0.547863,
+          0.741242,
+          -0.533192
         ],
         [
-          -0.397412,
-          0.774138,
-          0.094188
+          0.515083,
+          0.807445,
+          -0.595564
         ],
         [
-          -0.443818,
-          0.865446,
-          0.022904
+          0.492749,
+          0.84406,
+          -0.63351
         ],
         [
-          -0.498092,
-          0.944117,
-          -0.042539
+          0.550004,
+          0.974144,
+          -0.699571
         ],
         [
-          -0.534395,
-          1.066487,
-          -0.106841
+          0.524352,
+          1.065059,
+          -0.780762
         ],
         [
-          -0.590624,
-          1.149158,
-          -0.191853
+          0.389165,
+          1.069465,
+          -0.904859
         ],
         [
-          -0.609485,
-          1.296093,
-          -0.234737
+          0.302923,
+          1.12199,
+          -1.059748
         ],
         [
-          -0.648815,
-          1.405326,
-          -0.316312
+          0.403416,
+          1.283887,
+          -1.086153
         ],
         [
-          -0.674233,
-          1.528611,
-          -0.368403
+          0.360331,
+          1.405381,
+          -1.207535
         ],
         [
-          -0.731829,
-          1.612778,
-          -0.482563
+          0.306014,
+          1.442225,
+          -1.346418
         ],
         [
-          -0.870834,
-          1.615242,
-          -0.641047
-        ],
-        [
-          -1.006099,
-          1.631928,
-          -0.741893
-        ],
-        [
-          -1.090683,
-          1.661596,
-          -0.801945
+          0.315991,
+          1.536367,
+          -1.405719
         ]
       ],
       "radius_m": 0.0025,
@@ -11993,79 +11426,69 @@
       "kind": "hook",
       "points": [
         [
-          0.703671,
-          0.468777,
-          -0.388852
+          -0.780145,
+          0.441996,
+          -0.187276
         ],
         [
-          0.781139,
-          0.523832,
-          -0.475844
+          -0.88375,
+          0.584142,
+          -0.177475
         ],
         [
-          0.823206,
-          0.593477,
-          -0.517548
+          -0.93362,
+          0.593917,
+          -0.043533
         ],
         [
-          0.878571,
-          0.658908,
-          -0.581531
+          -1.01843,
+          0.733401,
+          -0.076291
         ],
         [
-          0.89943,
-          0.7698,
-          -0.604076
+          -1.067623,
+          0.774281,
+          -0.058595
         ],
         [
-          0.941333,
-          0.867507,
-          -0.655102
+          -1.118071,
+          0.873916,
+          -0.097329
         ],
         [
-          1.002889,
-          0.952711,
-          -0.730122
+          -1.193066,
+          0.983638,
+          -0.117705
         ],
         [
-          1.076383,
-          1.034537,
-          -0.808724
+          -1.313153,
+          1.01632,
+          -0.032886
         ],
         [
-          1.136886,
-          1.124791,
-          -0.873996
+          -1.492838,
+          1.012303,
+          0.092882
         ],
         [
-          1.215354,
-          1.212048,
-          -0.948824
+          -1.507504,
+          1.194159,
+          -0.026757
         ],
         [
-          1.286634,
-          1.305896,
-          -1.007261
+          -1.610298,
+          1.340232,
+          -0.030443
         ],
         [
-          1.358207,
-          1.384803,
-          -1.083395
+          -1.776311,
+          1.343989,
+          0.032544
         ],
         [
-          1.470405,
-          1.396226,
-          -1.216911
-        ],
-        [
-          1.55636,
-          1.313872,
-          -1.445115
-        ],
-        [
-          1.584761,
-          1.283563,
-          -1.591133
+          -1.815778,
+          1.442699,
+          0.005221
         ]
       ],
       "radius_m": 0.0025,
@@ -12075,79 +11498,69 @@
       "kind": "hook",
       "points": [
         [
-          0.541048,
-          0.390805,
-          -0.293958
+          0.509914,
+          0.803967,
+          -0.472233
         ],
         [
-          0.516599,
-          0.474009,
-          -0.379812
+          0.552698,
+          0.935578,
+          -0.470043
         ],
         [
-          0.464966,
-          0.533598,
-          -0.431027
+          0.667527,
+          0.987217,
+          -0.499933
         ],
         [
-          0.445528,
-          0.602507,
-          -0.490632
+          0.670384,
+          1.103428,
+          -0.499128
         ],
         [
-          0.45253,
-          0.687225,
-          -0.561057
+          0.846765,
+          1.096123,
+          -0.559633
         ],
         [
-          0.412514,
-          0.759482,
-          -0.645643
+          0.781569,
+          1.276297,
+          -0.536984
         ],
         [
-          0.435323,
-          0.859799,
-          -0.715771
+          0.820182,
+          1.424218,
+          -0.520379
         ],
         [
-          0.362852,
-          0.902268,
-          -0.821247
+          0.957074,
+          1.520522,
+          -0.529748
         ],
         [
-          0.342134,
-          0.972636,
-          -0.915411
+          0.953822,
+          1.621854,
+          -0.550747
         ],
         [
-          0.404434,
-          1.094402,
-          -0.980329
+          0.962229,
+          1.777015,
+          -0.53641
         ],
         [
-          0.463472,
-          1.253554,
-          -1.043706
+          1.031364,
+          1.897653,
+          -0.519361
         ],
         [
-          0.513684,
-          1.393828,
-          -1.084629
+          1.203072,
+          1.947547,
+          -0.550941
         ],
         [
-          0.358521,
-          1.453752,
-          -1.273694
-        ],
-        [
-          0.326653,
-          1.531521,
-          -1.389844
-        ],
-        [
-          0.292483,
-          1.556179,
-          -1.517897
+          1.371324,
+          1.972378,
+          -0.580893
         ]
       ],
       "radius_m": 0.0025,
@@ -12157,84 +11570,69 @@
       "kind": "hook",
       "points": [
         [
-          0.09055,
-          0.158386,
-          1.460521
+          0.892046,
+          0.322914,
+          0.162081
         ],
         [
-          -0.022644,
-          0.237421,
-          1.414415
+          0.932183,
+          0.424069,
+          0.051762
         ],
         [
-          -0.102216,
-          0.296289,
-          1.409926
+          0.830564,
+          0.46641,
+          0.004188
         ],
         [
-          -0.176628,
-          0.330729,
-          1.345582
+          1.006778,
+          0.508953,
+          -0.051604
         ],
         [
-          -0.260939,
-          0.385473,
-          1.34105
+          0.962189,
+          0.618999,
+          -0.149495
         ],
         [
-          -0.343008,
-          0.405905,
-          1.264895
+          0.969519,
+          0.720692,
+          -0.234456
         ],
         [
-          -0.430202,
-          0.432355,
-          1.226801
+          0.933308,
+          0.796735,
+          -0.312599
         ],
         [
-          -0.542421,
-          0.460501,
-          1.165879
+          0.923943,
+          0.879377,
+          -0.403914
         ],
         [
-          -0.649198,
-          0.534263,
-          1.183761
+          0.891558,
+          0.971442,
+          -0.482009
         ],
         [
-          -0.767015,
-          0.619548,
-          1.183052
+          0.996373,
+          1.112219,
+          -0.530811
         ],
         [
-          -0.863527,
-          0.72602,
-          1.217794
+          0.860106,
+          1.218583,
+          -0.636917
         ],
         [
-          -0.985551,
-          0.824554,
-          1.196616
+          0.856027,
+          1.310873,
+          -0.704556
         ],
         [
-          -1.119738,
-          0.897081,
-          1.155114
-        ],
-        [
-          -1.24465,
-          0.960292,
-          1.128583
-        ],
-        [
-          -1.373292,
-          1.001545,
-          1.10811
-        ],
-        [
-          -1.474817,
-          1.062259,
-          1.101399
+          0.699767,
+          1.390778,
+          -0.817281
         ]
       ],
       "radius_m": 0.0025,
@@ -12244,84 +11642,69 @@
       "kind": "hook",
       "points": [
         [
-          -0.617078,
-          0.658691,
-          -0.687544
+          0.506779,
+          0.211364,
+          -0.612442
         ],
         [
-          -0.614056,
-          0.739928,
-          -0.792209
+          0.53545,
+          0.333231,
+          -0.704753
         ],
         [
-          -0.614203,
-          0.774779,
-          -0.879707
+          0.43882,
+          0.373461,
+          -0.742637
         ],
         [
-          -0.620242,
-          0.805503,
-          -0.977086
+          0.584483,
+          0.438549,
+          -0.795903
         ],
         [
-          -0.633997,
-          0.822548,
-          -1.069957
+          0.535578,
+          0.558244,
+          -0.875106
         ],
         [
-          -0.65598,
-          0.836013,
-          -1.167469
+          0.522887,
+          0.666926,
+          -0.945132
         ],
         [
-          -0.683817,
-          0.843965,
-          -1.286435
+          0.482551,
+          0.746256,
+          -1.012393
         ],
         [
-          -0.715421,
-          0.934337,
-          -1.383081
+          0.47464,
+          0.845199,
+          -1.089828
         ],
         [
-          -0.746657,
-          1.029711,
-          -1.475826
+          0.409111,
+          0.930685,
+          -1.162496
         ],
         [
-          -0.773408,
-          1.154575,
-          -1.55775
+          0.509384,
+          1.091878,
+          -1.197376
         ],
         [
-          -0.799125,
-          1.270045,
-          -1.65018
+          0.359139,
+          1.197136,
+          -1.289108
         ],
         [
-          -0.82453,
-          1.374332,
-          -1.77102
+          0.359856,
+          1.291776,
+          -1.34464
         ],
         [
-          -0.867521,
-          1.45867,
-          -1.888928
-        ],
-        [
-          -0.927021,
-          1.525684,
-          -1.997905
-        ],
-        [
-          -0.988738,
-          1.591664,
-          -2.092425
-        ],
-        [
-          -1.027713,
-          1.647489,
-          -2.154588
+          0.180373,
+          1.375936,
+          -1.445623
         ]
       ],
       "radius_m": 0.0025,
@@ -12331,69 +11714,59 @@
       "kind": "hook",
       "points": [
         [
-          1.301955,
-          0.37907,
-          -0.89082
+          0.962391,
+          0.751683,
+          1.137676
         ],
         [
-          1.355478,
-          0.464484,
-          -0.954279
+          1.082399,
+          0.767252,
+          1.168565
         ],
         [
-          1.397008,
-          0.530819,
-          -0.999218
+          1.177199,
+          0.792268,
+          1.262242
         ],
         [
-          1.38811,
-          0.592509,
-          -1.063148
+          1.2559,
+          0.801964,
+          1.281128
         ],
         [
-          1.392624,
-          0.687148,
-          -1.135163
+          1.311461,
+          0.816214,
+          1.41575
         ],
         [
-          1.433864,
-          0.788168,
-          -1.191584
+          1.47917,
+          0.919842,
+          1.329958
         ],
         [
-          1.474724,
-          0.917426,
-          -1.242967
+          1.557132,
+          1.001332,
+          1.47134
         ],
         [
-          1.508503,
-          1.031238,
-          -1.289779
+          1.65879,
+          1.058382,
+          1.456235
         ],
         [
-          1.550295,
-          1.171703,
-          -1.321758
+          1.755319,
+          1.159432,
+          1.471956
         ],
         [
-          1.563935,
-          1.295978,
-          -1.360691
+          1.858746,
+          1.273642,
+          1.425462
         ],
         [
-          1.610571,
-          1.427705,
-          -1.377697
-        ],
-        [
-          1.752736,
-          1.485774,
-          -1.375873
-        ],
-        [
-          2.187511,
-          1.452417,
-          -1.308091
+          1.775184,
+          1.252729,
+          1.884957
         ]
       ],
       "radius_m": 0.0025,
@@ -12403,74 +11776,69 @@
       "kind": "hook",
       "points": [
         [
-          -0.79278,
-          0.379793,
-          0.028572
+          0.734455,
+          0.591267,
+          -0.377373
         ],
         [
-          -0.881112,
-          0.460261,
-          0.039032
+          0.803501,
+          0.694604,
+          -0.437119
         ],
         [
-          -0.935398,
-          0.530415,
-          0.033368
+          0.876685,
+          0.687544,
+          -0.54596
         ],
         [
-          -1.008146,
-          0.60382,
-          0.030299
+          0.908819,
+          0.811893,
+          -0.57148
         ],
         [
-          -1.083195,
-          0.683635,
-          0.0196
+          0.995552,
+          0.754417,
+          -0.717316
         ],
         [
-          -1.164776,
-          0.769765,
-          0.013657
+          1.010591,
+          0.879817,
+          -0.738755
         ],
         [
-          -1.258595,
-          0.826315,
-          0.035961
+          1.101942,
+          0.972893,
+          -0.815852
         ],
         [
-          -1.36333,
-          0.889945,
-          0.052301
+          1.190686,
+          1.094744,
+          -0.879342
         ],
         [
-          -1.404536,
-          1.033272,
-          -0.042284
+          1.205226,
+          1.22109,
+          -0.904306
         ],
         [
-          -1.437759,
-          1.178493,
-          -0.116097
+          1.253288,
+          1.323344,
+          -0.957393
         ],
         [
-          -1.465455,
-          1.317423,
-          -0.175267
+          1.365066,
+          1.390281,
+          -1.042981
         ],
         [
-          -1.595796,
-          1.408185,
-          -0.11713
+          1.454254,
+          1.388195,
+          -1.160569
         ],
         [
-          -1.79501,
-          1.466532,
-          -0.01477
-        ],
-        [
-          -1.942559,
-          1.456127,
-          0.017001
+          1.548547,
+          1.384545,
+          -1.316194
         ]
       ],
       "radius_m": 0.0025,
@@ -12480,79 +11848,59 @@
       "kind": "hook",
       "points": [
         [
-          -0.712232,
-          0.893027,
-          0.633743
+          -0.696145,
+          1.356224,
+          0.184319
         ],
         [
-          -0.749363,
-          0.992417,
-          0.542825
+          -0.789947,
+          1.452085,
+          0.139654
         ],
         [
-          -0.783965,
-          1.070906,
-          0.493255
+          -0.803511,
+          1.526529,
+          0.02183
         ],
         [
-          -0.82222,
-          1.13119,
-          0.417236
+          -0.856523,
+          1.586457,
+          -0.02264
         ],
         [
-          -0.866911,
-          1.182641,
-          0.343285
+          -0.872548,
+          1.641945,
+          -0.114129
         ],
         [
-          -0.917736,
-          1.224191,
-          0.270501
+          -0.99464,
+          1.768666,
+          -0.081218
         ],
         [
-          -0.984231,
-          1.266087,
-          0.167702
+          -0.981767,
+          1.901102,
+          -0.210888
         ],
         [
-          -1.051428,
-          1.377873,
-          0.137639
+          -1.074885,
+          1.977887,
+          -0.198632
         ],
         [
-          -1.118272,
-          1.494546,
-          0.090728
+          -1.126907,
+          2.107439,
+          -0.222374
         ],
         [
-          -1.175415,
-          1.628598,
-          0.070897
+          -1.217306,
+          2.249964,
+          -0.171127
         ],
         [
-          -1.2447,
-          1.745274,
-          -0.005187
-        ],
-        [
-          -1.327277,
-          1.843371,
-          -0.090926
-        ],
-        [
-          -1.423071,
-          1.916321,
-          -0.167286
-        ],
-        [
-          -1.510064,
-          1.989478,
-          -0.222853
-        ],
-        [
-          -1.563635,
-          2.038511,
-          -0.256452
+          -0.99618,
+          2.28634,
+          -0.531967
         ]
       ],
       "radius_m": 0.0025,
@@ -12562,64 +11910,64 @@
       "kind": "hook",
       "points": [
         [
-          0.889998,
-          0.721631,
-          1.183064
+          -0.493687,
+          0.924933,
+          -0.153885
         ],
         [
-          1.002716,
-          0.731394,
-          1.233437
+          -0.510873,
+          1.081833,
+          -0.233665
         ],
         [
-          1.088222,
-          0.747134,
-          1.256553
+          -0.492665,
+          1.091855,
+          -0.339653
         ],
         [
-          1.187978,
-          0.771055,
-          1.25479
+          -0.507861,
+          1.243026,
+          -0.380771
         ],
         [
-          1.291731,
-          0.801361,
-          1.238815
+          -0.490897,
+          1.300342,
+          -0.411605
         ],
         [
-          1.406114,
-          0.850384,
-          1.285801
+          -0.521802,
+          1.439513,
+          -0.37072
         ],
         [
-          1.514675,
-          0.919599,
-          1.356193
+          -0.491018,
+          1.555641,
+          -0.432035
         ],
         [
-          1.617932,
-          0.996892,
-          1.394132
+          -0.450931,
+          1.646037,
+          -0.498414
         ],
         [
-          1.712706,
-          1.100062,
-          1.449859
+          -0.344446,
+          1.728992,
+          -0.639334
         ],
         [
-          1.792913,
-          1.192436,
-          1.516248
+          -0.441341,
+          1.939472,
+          -0.53137
         ],
         [
-          1.857612,
-          1.256243,
-          1.575023
+          -0.37453,
+          2.053368,
+          -0.620786
         ],
         [
-          1.781479,
-          1.167313,
-          2.071406
+          -0.28639,
+          2.145911,
+          -0.708723
         ]
       ],
       "radius_m": 0.0025,
@@ -12629,69 +11977,64 @@
       "kind": "hook",
       "points": [
         [
-          1.245629,
-          0.039852,
-          -0.792142
+          -0.754537,
+          1.017326,
+          0.579963
         ],
         [
-          1.34521,
-          0.069194,
-          -0.882853
+          -0.791453,
+          1.114879,
+          0.528853
         ],
         [
-          1.423869,
-          0.092151,
-          -0.935116
+          -0.825384,
+          1.200638,
+          0.49331
         ],
         [
-          1.472081,
-          0.120716,
-          -1.003406
+          -0.859958,
+          1.190149,
+          0.347096
         ],
         [
-          1.54395,
-          0.163439,
-          -1.077887
+          -0.921139,
+          1.294799,
+          0.271141
         ],
         [
-          1.566503,
-          0.207567,
-          -1.18962
+          -0.982914,
+          1.376338,
+          0.240445
         ],
         [
-          1.654866,
-          0.263876,
-          -1.256917
+          -1.029352,
+          1.508961,
+          0.210114
         ],
         [
-          1.766487,
-          0.342641,
-          -1.30878
+          -1.114764,
+          1.526713,
+          0.100273
         ],
         [
-          1.870559,
-          0.434512,
-          -1.353507
+          -1.142831,
+          1.731981,
+          0.106401
         ],
         [
-          1.968999,
-          0.530459,
-          -1.389455
+          -1.215276,
+          1.839245,
+          0.025126
         ],
         [
-          2.060637,
-          0.637029,
-          -1.414578
+          -1.371816,
+          1.811695,
+          -0.146762
         ],
         [
-          2.121969,
-          0.718727,
-          -1.461257
-        ],
-        [
-          1.978276,
-          0.727385,
-          -1.789595
+          -1.35773,
+          1.972251,
+          -0.111933
         ]
       ],
       "radius_m": 0.0025,
@@ -12701,54 +12044,64 @@
       "kind": "hook",
       "points": [
         [
-          0.773033,
-          0.89163,
-          1.334887
+          0.102729,
+          0.993999,
+          -0.555327
         ],
         [
-          0.784226,
-          0.869964,
-          1.340332
+          0.007957,
+          1.059324,
+          -0.587978
         ],
         [
-          0.802767,
-          0.859277,
-          1.343069
+          -0.072547,
+          1.092787,
+          -0.626074
         ],
         [
-          0.789848,
-          0.847109,
-          1.343832
+          -0.15703,
+          1.203161,
+          -0.589129
         ],
         [
-          0.76942,
-          0.802951,
-          1.336804
+          -0.240247,
+          1.158406,
+          -0.657421
         ],
         [
-          0.651543,
-          0.757533,
-          1.307133
+          -0.344227,
+          1.256191,
+          -0.620138
         ],
         [
-          0.416002,
-          0.668422,
-          1.297254
+          -0.504127,
+          1.2872,
+          -0.632214
         ],
         [
-          0.109113,
-          0.62022,
-          1.432279
+          -0.626876,
+          1.299322,
+          -0.641291
         ],
         [
-          0.002086,
-          1.177193,
-          1.862001
+          -0.762606,
+          1.341585,
+          -0.611097
         ],
         [
-          -0.033047,
-          1.323492,
-          1.95298
+          -0.919372,
+          1.41741,
+          -0.544791
+        ],
+        [
+          -0.991206,
+          1.568165,
+          -0.472651
+        ],
+        [
+          -1.136036,
+          1.461256,
+          -0.457137
         ]
       ],
       "radius_m": 0.0025,
@@ -12758,69 +12111,64 @@
       "kind": "hook",
       "points": [
         [
-          -0.464446,
-          0.837495,
-          -0.263782
+          0.461762,
+          1.182575,
+          0.637051
         ],
         [
-          -0.458644,
-          0.946039,
-          -0.317577
+          0.410445,
+          1.320241,
+          0.545299
         ],
         [
-          -0.453952,
-          1.009849,
-          -0.391386
+          0.288445,
+          1.334543,
+          0.524358
         ],
         [
-          -0.456771,
-          1.112621,
-          -0.4077
+          0.288304,
+          1.469882,
+          0.439362
         ],
         [
-          -0.452095,
-          1.220424,
-          -0.437597
+          0.274761,
+          1.521666,
+          0.396175
         ],
         [
-          -0.429773,
-          1.325426,
-          -0.49583
+          0.296073,
+          1.616503,
+          0.345168
         ],
         [
-          -0.415816,
-          1.442049,
-          -0.50589
+          0.26523,
+          1.720534,
+          0.260058
         ],
         [
-          -0.36459,
-          1.546713,
-          -0.575495
+          0.160679,
+          1.747487,
+          0.165884
         ],
         [
-          -0.396777,
-          1.701449,
-          -0.515241
+          0.066764,
+          1.801675,
+          0.031411
         ],
         [
-          -0.421415,
-          1.860434,
-          -0.495488
+          0.138908,
+          1.98229,
+          -0.014234
         ],
         [
-          -0.466833,
-          2.006448,
-          -0.441248
+          0.06025,
+          2.056508,
+          -0.148563
         ],
         [
-          -0.426026,
-          2.13282,
-          -0.53678
-        ],
-        [
-          -0.26811,
-          2.218863,
-          -0.714093
+          0.016574,
+          2.107646,
+          -0.250416
         ]
       ],
       "radius_m": 0.0025,
@@ -12830,59 +12178,64 @@
       "kind": "hook",
       "points": [
         [
-          1.190455,
-          0.575831,
-          0.688352
+          -0.636627,
+          0.272473,
+          -1.146364
         ],
         [
-          1.175282,
-          0.584449,
-          0.672318
+          -0.692017,
+          0.371241,
+          -1.235814
         ],
         [
-          1.197177,
-          0.550648,
-          0.671888
+          -0.736722,
+          0.414459,
+          -1.27508
         ],
         [
-          1.202361,
-          0.543578,
-          0.644257
+          -0.746883,
+          0.497226,
+          -1.367066
         ],
         [
-          1.19676,
-          0.541333,
-          0.590858
+          -0.76628,
+          0.594548,
+          -1.454078
         ],
         [
-          1.236418,
-          0.584935,
-          0.58717
+          -0.889873,
+          0.663843,
+          -1.46682
         ],
         [
-          1.418791,
-          1.000166,
-          0.824365
+          -0.904165,
+          0.757538,
+          -1.557063
         ],
         [
-          1.46817,
-          1.204223,
-          0.926245
+          -1.01392,
+          0.812276,
+          -1.582237
         ],
         [
-          1.526651,
-          1.335986,
-          1.02658
+          -0.970033,
+          0.970265,
+          -1.693686
         ],
         [
-          1.818897,
-          1.231357,
-          1.242121
+          -1.087798,
+          1.089104,
+          -1.717185
         ],
         [
-          1.994151,
-          1.209968,
-          1.36469
+          -1.19335,
+          1.164367,
+          -1.743012
+        ],
+        [
+          -1.377436,
+          1.232473,
+          -1.742879
         ]
       ],
       "radius_m": 0.0025,
@@ -12892,69 +12245,59 @@
       "kind": "hook",
       "points": [
         [
-          0.139878,
-          0.977406,
-          -0.536659
+          1.310216,
+          1.114841,
+          0.754599
         ],
         [
-          0.045346,
-          1.020015,
-          -0.590335
+          1.360247,
+          1.252788,
+          0.734182
         ],
         [
-          -0.017128,
-          1.037221,
-          -0.631052
+          1.474777,
+          1.301296,
+          0.661299
         ],
         [
-          -0.101337,
-          1.106329,
-          -0.63119
+          1.472616,
+          1.412045,
+          0.65978
         ],
         [
-          -0.220601,
-          1.114443,
-          -0.688952
+          1.580136,
+          1.421247,
+          0.561944
         ],
         [
-          -0.315391,
-          1.168555,
-          -0.677967
+          1.55766,
+          1.607127,
+          0.597909
         ],
         [
-          -0.438948,
-          1.146957,
-          -0.72622
+          1.696738,
+          1.707039,
+          0.544813
         ],
         [
-          -0.570079,
-          1.162268,
-          -0.722526
+          1.701007,
+          1.825111,
+          0.531204
         ],
         [
-          -0.726265,
-          1.198144,
-          -0.69138
+          1.696043,
+          1.964972,
+          0.536424
         ],
         [
-          -0.871161,
-          1.275022,
-          -0.621203
+          1.774621,
+          2.068322,
+          0.519153
         ],
         [
-          -0.996449,
-          1.396455,
-          -0.53298
-        ],
-        [
-          -1.092175,
-          1.545412,
-          -0.44739
-        ],
-        [
-          -1.163352,
-          1.670854,
-          -0.38805
+          1.983259,
+          2.082224,
+          0.390434
         ]
       ],
       "radius_m": 0.0025,
@@ -12964,64 +12307,59 @@
       "kind": "hook",
       "points": [
         [
-          -0.681226,
-          1.345086,
-          0.187376
+          0.616862,
+          1.644802,
+          1.704557
         ],
         [
-          -0.73768,
-          1.413311,
-          0.109524
+          0.575664,
+          1.596467,
+          1.671657
         ],
         [
-          -0.78304,
-          1.469576,
-          0.053227
+          0.489231,
+          1.5582,
+          1.56634
         ],
         [
-          -0.864137,
-          1.52517,
-          0.048021
+          0.397282,
+          1.604617,
+          1.470041
         ],
         [
-          -0.930444,
-          1.615475,
-          -0.005402
+          0.307412,
+          1.512445,
+          1.373494
         ],
         [
-          -0.979641,
-          1.719711,
-          -0.080687
+          0.231441,
+          1.50139,
+          1.339612
         ],
         [
-          -1.028988,
-          1.826127,
-          -0.13831
+          0.095221,
+          1.600041,
+          1.249276
         ],
         [
-          -1.077385,
-          1.949017,
-          -0.188998
+          0.027846,
+          1.413391,
+          1.17001
         ],
         [
-          -1.117007,
-          2.073853,
-          -0.230711
+          -0.093825,
+          1.452275,
+          1.10157
         ],
         [
-          -1.13356,
-          2.197536,
-          -0.292927
+          -0.200151,
+          1.402478,
+          1.011286
         ],
         [
-          -1.124482,
-          2.255816,
-          -0.396605
-        ],
-        [
-          -0.939803,
-          2.215293,
-          -0.790206
+          -0.360745,
+          1.572289,
+          0.995974
         ]
       ],
       "radius_m": 0.0025,
@@ -13031,59 +12369,64 @@
       "kind": "hook",
       "points": [
         [
-          0.934473,
-          0.735716,
-          0.998565
+          1.336338,
+          0.035977,
+          -0.833157
         ],
         [
-          0.921925,
-          0.742585,
-          0.991455
+          1.424419,
+          0.09555,
+          -0.926297
         ],
         [
-          0.932283,
-          0.706184,
-          0.974048
+          1.475762,
+          0.119787,
+          -0.982187
         ],
         [
-          0.911993,
-          0.715817,
-          0.937608
+          1.591915,
+          0.162558,
+          -1.011919
         ],
         [
-          0.975604,
-          0.772602,
-          0.926721
+          1.660175,
+          0.230975,
+          -1.09671
         ],
         [
-          1.19891,
-          1.033982,
-          1.033536
+          1.706302,
+          0.303181,
+          -1.195322
         ],
         [
-          1.286553,
-          1.221678,
-          1.100151
+          1.790865,
+          0.360694,
+          -1.261384
         ],
         [
-          1.374205,
-          1.361471,
-          1.165488
+          1.825397,
+          0.428839,
+          -1.353253
         ],
         [
-          1.503188,
-          1.427852,
-          1.226695
+          1.972371,
+          0.529685,
+          -1.344515
         ],
         [
-          1.862344,
-          1.305454,
-          1.280836
+          1.937284,
+          0.640217,
+          -1.533215
         ],
         [
-          1.970772,
-          1.322986,
-          1.282656
+          1.964334,
+          0.70542,
+          -1.624036
+        ],
+        [
+          1.931152,
+          0.763597,
+          -1.771322
         ]
       ],
       "radius_m": 0.0025,
@@ -13093,64 +12436,54 @@
       "kind": "hook",
       "points": [
         [
-          -0.773414,
-          1.089848,
-          -1.11325
+          0.908003,
+          0.755251,
+          0.992178
         ],
         [
-          -0.837462,
-          1.171788,
-          -1.15899
+          0.951043,
+          0.724353,
+          0.999033
         ],
         [
-          -0.889852,
-          1.237719,
-          -1.194034
+          0.923783,
+          0.756134,
+          0.979499
         ],
         [
-          -0.962246,
-          1.248984,
-          -1.22997
+          1.028404,
+          0.797726,
+          0.997722
         ],
         [
-          -1.044764,
-          1.300721,
-          -1.272172
+          1.156827,
+          0.932208,
+          1.041075
         ],
         [
-          -1.12219,
-          1.427225,
-          -1.311735
+          1.222762,
+          1.145809,
+          1.097541
         ],
         [
-          -1.200834,
-          1.525641,
-          -1.345681
+          1.239034,
+          1.319236,
+          1.121035
         ],
         [
-          -1.294183,
-          1.642059,
-          -1.364924
+          1.31491,
+          1.43487,
+          1.179247
         ],
         [
-          -1.375413,
-          1.743162,
-          -1.38654
+          1.663221,
+          1.335253,
+          1.2902
         ],
         [
-          -1.538277,
-          1.767431,
-          -1.405274
-        ],
-        [
-          -1.806245,
-          1.683132,
-          -1.453703
-        ],
-        [
-          -1.923567,
-          1.60779,
-          -1.535813
+          1.638215,
+          1.481469,
+          1.334087
         ]
       ],
       "radius_m": 0.0025,
@@ -13160,69 +12493,59 @@
       "kind": "hook",
       "points": [
         [
-          0.534237,
-          1.194047,
-          0.637049
+          0.574238,
+          1.260664,
+          1.806977
         ],
         [
-          0.443023,
-          1.268217,
-          0.581354
+          0.432615,
+          1.343546,
+          1.83325
         ],
         [
-          0.393097,
-          1.321348,
-          0.547222
+          0.347877,
+          1.291505,
+          1.813965
         ],
         [
-          0.301391,
-          1.372516,
-          0.506864
+          0.252515,
+          1.255069,
+          1.814048
         ],
         [
-          0.260879,
-          1.433724,
-          0.449689
+          0.127648,
+          1.270493,
+          1.852849
         ],
         [
-          0.225893,
-          1.531161,
-          0.369312
+          0.036667,
+          1.217892,
+          1.86256
         ],
         [
-          0.180533,
-          1.603451,
-          0.288116
+          -0.098313,
+          1.241924,
+          1.95536
         ],
         [
-          0.151097,
-          1.689587,
-          0.198728
+          -0.232432,
+          1.057856,
+          1.955721
         ],
         [
-          0.072059,
-          1.709016,
-          0.099797
+          -0.318471,
+          1.072395,
+          2.06357
         ],
         [
-          0.076737,
-          1.849775,
-          -0.008659
+          -0.412805,
+          0.966385,
+          2.137405
         ],
         [
-          0.016118,
-          1.956973,
-          -0.149892
-        ],
-        [
-          0.00811,
-          2.071715,
-          -0.248795
-        ],
-        [
-          -0.002283,
-          2.160463,
-          -0.340064
+          -0.5009,
+          0.800666,
+          2.164782
         ]
       ],
       "radius_m": 0.0025,
@@ -13232,69 +12555,59 @@
       "kind": "hook",
       "points": [
         [
-          1.187809,
-          1.221029,
-          0.827252
+          -0.788985,
+          1.089738,
+          -1.119142
         ],
         [
-          1.269143,
-          1.291823,
-          0.779417
+          -0.905148,
+          1.145208,
+          -1.162758
         ],
         [
-          1.324669,
-          1.340995,
-          0.739512
+          -0.928381,
+          1.259289,
+          -1.198643
         ],
         [
-          1.396712,
-          1.388327,
-          0.688483
+          -0.988847,
+          1.312521,
+          -1.238084
         ],
         [
-          1.470628,
-          1.457726,
-          0.635721
+          -0.983042,
+          1.468267,
+          -1.273391
         ],
         [
-          1.549612,
-          1.554359,
-          0.587045
+          -1.177731,
+          1.465244,
+          -1.299744
         ],
         [
-          1.63851,
-          1.629216,
-          0.530392
+          -1.212666,
+          1.582821,
+          -1.330427
         ],
         [
-          1.688238,
-          1.770025,
-          0.510066
+          -1.306999,
+          1.689177,
+          -1.35102
         ],
         [
-          1.763238,
-          1.885002,
-          0.479987
+          -1.518205,
+          1.680276,
+          -1.374101
         ],
         [
-          1.852281,
-          1.981227,
-          0.438612
+          -1.687623,
+          1.666011,
+          -1.411974
         ],
         [
-          2.008717,
-          1.991282,
-          0.324446
-        ],
-        [
-          2.109793,
-          1.998266,
-          0.198718
-        ],
-        [
-          2.168157,
-          2.018576,
-          0.119338
+          -1.791612,
+          1.702713,
+          -1.436066
         ]
       ],
       "radius_m": 0.0025,
@@ -13304,69 +12617,59 @@
       "kind": "hook",
       "points": [
         [
-          0.72337,
-          0.923901,
-          0.908098
+          0.721207,
+          0.993119,
+          0.917456
         ],
         [
-          0.79472,
-          0.995712,
-          0.845352
+          0.778784,
+          1.087822,
+          0.873626
         ],
         [
-          0.828608,
-          1.050926,
-          0.809939
+          0.841047,
+          1.134426,
+          0.808945
         ],
         [
-          0.860219,
-          1.162852,
-          0.767739
+          0.855981,
+          1.279929,
+          0.786369
         ],
         [
-          0.9174,
-          1.218505,
-          0.676418
+          0.894598,
+          1.272169,
+          0.698461
         ],
         [
-          0.932819,
-          1.319206,
-          0.61986
+          0.899022,
+          1.429074,
+          0.666257
         ],
         [
-          0.96145,
-          1.380652,
-          0.522245
+          0.898964,
+          1.578466,
+          0.622268
         ],
         [
-          0.970997,
-          1.485631,
-          0.430783
+          0.963809,
+          1.606212,
+          0.438146
         ],
         [
-          0.953477,
-          1.622072,
-          0.374311
+          0.953334,
+          1.711633,
+          0.358017
         ],
         [
-          0.94993,
-          1.749657,
-          0.2726
+          0.943932,
+          1.854297,
+          0.254788
         ],
         [
-          0.931184,
-          1.889933,
-          0.191926
-        ],
-        [
-          0.904089,
-          2.03007,
-          0.133608
-        ],
-        [
-          0.884128,
-          2.139428,
-          0.089635
+          0.920444,
+          1.995211,
+          0.22918
         ]
       ],
       "radius_m": 0.0025,
@@ -13376,64 +12679,59 @@
       "kind": "hook",
       "points": [
         [
-          1.035136,
-          1.281165,
-          -0.055618
+          1.154889,
+          1.307725,
+          -0.051091
         ],
         [
-          1.042929,
-          1.356852,
-          -0.147915
+          1.176982,
+          1.435945,
+          -0.159587
         ],
         [
-          1.020155,
-          1.423004,
-          -0.225413
+          1.122476,
+          1.494274,
+          -0.228397
         ],
         [
-          1.064017,
-          1.492058,
-          -0.292232
+          1.134381,
+          1.572973,
+          -0.308943
         ],
         [
-          1.058712,
-          1.560495,
-          -0.390104
+          1.165385,
+          1.633607,
+          -0.350691
         ],
         [
-          1.129209,
-          1.647886,
-          -0.456978
+          1.252466,
+          1.750443,
+          -0.419135
         ],
         [
-          1.0743,
-          1.672344,
-          -0.589283
+          1.181712,
+          1.787985,
+          -0.551713
         ],
         [
-          1.198258,
-          1.795233,
-          -0.627683
+          1.162863,
+          1.829857,
+          -0.691597
         ],
         [
-          1.28988,
-          1.933033,
-          -0.677508
+          1.264717,
+          1.989481,
+          -0.727803
         ],
         [
-          1.314113,
-          2.036624,
-          -0.767086
+          1.222655,
+          2.01944,
+          -0.917422
         ],
         [
-          1.264754,
-          2.096939,
-          -0.958419
-        ],
-        [
-          1.26852,
-          2.113082,
-          -1.084563
+          1.252665,
+          2.088238,
+          -0.984985
         ]
       ],
       "radius_m": 0.0025,
@@ -13443,69 +12741,59 @@
       "kind": "hook",
       "points": [
         [
-          -0.176802,
-          1.326301,
-          -0.641498
+          0.475839,
+          2.118905,
+          1.098946
         ],
         [
-          -0.280608,
-          1.41383,
-          -0.687198
+          0.332104,
+          2.088658,
+          1.062821
         ],
         [
-          -0.354152,
-          1.463241,
-          -0.727579
+          0.238985,
+          2.107163,
+          1.083381
         ],
         [
-          -0.433762,
-          1.509407,
-          -0.765079
+          0.118712,
+          2.038338,
+          1.037173
         ],
         [
-          -0.515184,
-          1.539146,
-          -0.821361
+          0.037582,
+          2.001486,
+          1.034629
         ],
         [
-          -0.613864,
-          1.567329,
-          -0.877244
+          -0.07683,
+          1.951352,
+          1.042375
         ],
         [
-          -0.716742,
-          1.641153,
-          -0.87083
+          -0.218853,
+          1.933778,
+          1.125285
         ],
         [
-          -0.822252,
-          1.739424,
-          -0.860966
+          -0.328662,
+          1.833612,
+          1.095627
         ],
         [
-          -0.920829,
-          1.85051,
-          -0.847001
+          -0.395994,
+          1.749295,
+          1.045093
         ],
         [
-          -1.052944,
-          1.919834,
-          -0.899127
+          -0.510341,
+          1.625547,
+          0.944478
         ],
         [
-          -1.179024,
-          1.987789,
-          -0.932372
-        ],
-        [
-          -1.299236,
-          2.036543,
-          -0.951406
-        ],
-        [
-          -1.381064,
-          2.086739,
-          -0.957926
+          -0.600222,
+          1.54586,
+          0.968693
         ]
       ],
       "radius_m": 0.0025,
@@ -13515,69 +12803,54 @@
       "kind": "hook",
       "points": [
         [
-          -0.283067,
-          1.548145,
-          -0.531167
+          -1.431163,
+          1.181225,
+          -1.220787
         ],
         [
-          -0.411455,
-          1.604579,
-          -0.552844
+          -1.54035,
+          1.21858,
+          -1.259804
         ],
         [
-          -0.501014,
-          1.636961,
-          -0.578724
+          -1.659706,
+          1.276917,
+          -1.263111
         ],
         [
-          -0.594252,
-          1.667399,
-          -0.594577
+          -1.732133,
+          1.302722,
+          -1.271734
         ],
         [
-          -0.684304,
-          1.6799,
-          -0.652441
+          -1.842736,
+          1.351898,
+          -1.351613
         ],
         [
-          -0.789151,
-          1.69025,
-          -0.69589
+          -1.94688,
+          1.435699,
+          -1.373974
         ],
         [
-          -0.910222,
-          1.739034,
-          -0.664591
+          -2.038753,
+          1.562724,
+          -1.250748
         ],
         [
-          -1.032336,
-          1.812861,
-          -0.62179
+          -2.130553,
+          1.658572,
+          -1.309683
         ],
         [
-          -1.15591,
-          1.881209,
-          -0.605633
+          -2.220353,
+          1.685183,
+          -1.410059
         ],
         [
-          -1.30802,
-          1.920742,
-          -0.645089
-        ],
-        [
-          -1.444317,
-          1.96014,
-          -0.654807
-        ],
-        [
-          -1.565544,
-          1.991467,
-          -0.655012
-        ],
-        [
-          -1.651842,
-          2.03374,
-          -0.645403
+          -2.314029,
+          1.765769,
+          -1.511656
         ]
       ],
       "radius_m": 0.0025,
@@ -13587,64 +12860,54 @@
       "kind": "hook",
       "points": [
         [
-          0.579697,
-          1.332258,
-          1.832931
+          0.817614,
+          1.262703,
+          1.508712
         ],
         [
-          0.46328,
-          1.310264,
-          1.820789
+          0.911584,
+          1.321898,
+          1.494452
         ],
         [
-          0.366833,
-          1.320084,
-          1.825079
+          1.023403,
+          1.38158,
+          1.475281
         ],
         [
-          0.277476,
-          1.259604,
-          1.813067
+          1.064955,
+          1.462685,
+          1.45949
         ],
         [
-          0.158279,
-          1.206488,
-          1.817402
+          1.245396,
+          1.461929,
+          1.428802
         ],
         [
-          0.065676,
-          1.152276,
-          1.825876
+          1.292607,
+          1.59894,
+          1.427095
         ],
         [
-          -0.026861,
-          1.078635,
-          1.836589
+          1.319353,
+          1.761547,
+          1.432463
         ],
         [
-          -0.151389,
-          1.064193,
-          1.900276
+          1.429987,
+          1.849746,
+          1.428148
         ],
         [
-          -0.270456,
-          1.006572,
-          1.970238
+          1.583063,
+          1.862448,
+          1.390692
         ],
         [
-          -0.370438,
-          0.92139,
-          2.034915
-        ],
-        [
-          -0.462796,
-          0.865472,
-          2.135353
-        ],
-        [
-          -0.544618,
-          0.680988,
-          2.12849
+          1.681574,
+          1.938296,
+          1.380203
         ]
       ],
       "radius_m": 0.0025,
@@ -13654,59 +12917,54 @@
       "kind": "hook",
       "points": [
         [
-          0.604076,
-          1.602536,
-          1.691818
+          -0.310398,
+          1.505901,
+          -0.473482
         ],
         [
-          0.580646,
-          1.602116,
-          1.682358
+          -0.380561,
+          1.574481,
+          -0.565124
         ],
         [
-          0.493576,
-          1.566186,
-          1.57338
+          -0.459478,
+          1.635718,
+          -0.637528
         ],
         [
-          0.414509,
-          1.482581,
-          1.492863
+          -0.509113,
+          1.694521,
+          -0.634385
         ],
         [
-          0.323542,
-          1.475337,
-          1.410812
+          -0.57287,
+          1.682315,
+          -0.747359
         ],
         [
-          0.237756,
-          1.443893,
-          1.333693
+          -0.689839,
+          1.730002,
+          -0.81473
         ],
         [
-          0.134854,
-          1.422376,
-          1.25472
+          -0.809784,
+          1.763194,
+          -0.889242
         ],
         [
-          0.022414,
-          1.432164,
-          1.183398
+          -0.939023,
+          1.7651,
+          -0.958214
         ],
         [
-          -0.081283,
-          1.400399,
-          1.111708
+          -1.106247,
+          1.854598,
+          -0.971117
         ],
         [
-          -0.214793,
-          1.408593,
-          1.018191
-        ],
-        [
-          -0.393458,
-          1.632194,
-          1.018906
+          -1.190614,
+          1.968836,
+          -0.947016
         ]
       ],
       "radius_m": 0.0025,
@@ -13716,64 +12974,49 @@
       "kind": "hook",
       "points": [
         [
-          -1.442812,
-          1.165699,
-          -0.982704
+          0.582777,
+          1.480448,
+          -1.163434
         ],
         [
-          -1.545222,
-          1.237417,
-          -1.061335
+          0.551835,
+          1.552173,
+          -1.24047
         ],
         [
-          -1.604146,
-          1.273463,
-          -1.127813
+          0.630767,
+          1.576897,
+          -1.354573
         ],
         [
-          -1.66475,
-          1.301106,
-          -1.19888
+          0.618462,
+          1.649799,
+          -1.462838
         ],
         [
-          -1.724893,
-          1.318306,
-          -1.283557
+          0.586645,
+          1.723653,
+          -1.548856
         ],
         [
-          -1.80997,
-          1.340801,
-          -1.372778
+          0.610543,
+          1.755249,
+          -1.675995
         ],
         [
-          -1.934403,
-          1.419715,
-          -1.381309
+          0.519361,
+          1.943881,
+          -1.737224
         ],
         [
-          -2.050129,
-          1.499314,
-          -1.411281
+          0.592489,
+          1.912949,
+          -1.929933
         ],
         [
-          -2.161629,
-          1.564862,
-          -1.497335
-        ],
-        [
-          -2.273185,
-          1.606169,
-          -1.581599
-        ],
-        [
-          -2.380635,
-          1.64088,
-          -1.643825
-        ],
-        [
-          -2.458923,
-          1.685383,
-          -1.677091
+          0.528951,
+          2.071065,
+          -1.936999
         ]
       ],
       "radius_m": 0.0025,
@@ -13783,64 +13026,54 @@
       "kind": "hook",
       "points": [
         [
-          0.51489,
-          2.20679,
-          1.169537
+          -0.447045,
+          1.636274,
+          -0.326558
         ],
         [
-          0.375077,
-          2.157402,
-          1.123169
+          -0.541564,
+          1.700764,
+          -0.395862
         ],
         [
-          0.289005,
-          2.118358,
-          1.097705
+          -0.640833,
+          1.750048,
+          -0.456833
         ],
         [
-          0.197845,
-          2.073369,
-          1.07008
+          -0.700132,
+          1.795284,
+          -0.434261
         ],
         [
-          0.096922,
-          2.022828,
-          1.047337
+          -0.771269,
+          1.79033,
+          -0.547225
         ],
         [
-          0.024615,
-          1.957889,
-          1.00381
+          -0.905852,
+          1.826674,
+          -0.586512
         ],
         [
-          -0.089397,
-          1.923488,
-          1.013446
+          -1.020729,
+          1.813323,
+          -0.676031
         ],
         [
-          -0.180247,
-          1.852804,
-          0.984005
+          -1.159427,
+          1.809858,
+          -0.724769
         ],
         [
-          -0.285452,
-          1.792292,
-          0.982109
+          -1.345936,
+          1.876601,
+          -0.697067
         ],
         [
-          -0.415835,
-          1.71043,
-          0.965616
-        ],
-        [
-          -0.517936,
-          1.60826,
-          0.861119
-        ],
-        [
-          -0.602896,
-          1.550698,
-          0.855831
+          -1.434551,
+          1.940919,
+          -0.66769
         ]
       ],
       "radius_m": 0.0025,
@@ -13850,54 +13083,54 @@
       "kind": "hook",
       "points": [
         [
-          0.859144,
-          2.101799,
-          0.310035
+          1.04863,
+          1.208048,
+          -0.616819
         ],
         [
-          0.864679,
-          2.138269,
-          0.192173
+          1.064922,
+          1.290546,
+          -0.725099
         ],
         [
-          0.8685,
-          2.160094,
-          0.09426
+          1.137058,
+          1.364389,
+          -0.799827
         ],
         [
-          0.8827,
-          2.178605,
-          0.007837
+          1.156435,
+          1.417065,
+          -0.871717
         ],
         [
-          0.922606,
-          2.234632,
-          -0.073952
+          1.203205,
+          1.482386,
+          -0.943259
         ],
         [
-          0.984976,
-          2.244643,
-          -0.220409
+          1.132907,
+          1.613941,
+          -1.035162
         ],
         [
-          1.085751,
-          2.258256,
-          -0.348859
+          1.230179,
+          1.727443,
+          -1.099558
         ],
         [
-          1.198729,
-          2.260092,
-          -0.445551
+          1.193191,
+          1.805544,
+          -1.173065
         ],
         [
-          1.343304,
-          2.507076,
-          -0.445505
+          1.122288,
+          1.942707,
+          -1.236319
         ],
         [
-          1.408828,
-          2.660274,
-          -0.440436
+          1.16494,
+          2.043733,
+          -1.275656
         ]
       ],
       "radius_m": 0.0025,
@@ -13907,889 +13140,54 @@
       "kind": "hook",
       "points": [
         [
-          1.054063,
-          1.184344,
-          -0.587905
+          -0.902544,
+          1.687717,
+          0.785874
         ],
         [
-          1.096019,
-          1.246224,
-          -0.680787
+          -1.025448,
+          1.656228,
+          0.81053
         ],
         [
-          1.11602,
-          1.300801,
-          -0.754656
+          -1.125273,
+          1.615583,
+          0.838986
         ],
         [
-          1.080403,
-          1.354787,
-          -0.831442
+          -1.202349,
+          1.52114,
+          0.849272
         ],
         [
-          1.083071,
-          1.435315,
-          -0.918909
+          -1.282348,
+          1.475161,
+          0.896983
         ],
         [
-          1.127681,
-          1.536706,
-          -1.006677
+          -1.402746,
+          1.420623,
+          0.979503
         ],
         [
-          1.157448,
-          1.639645,
-          -1.084442
+          -1.494181,
+          1.356596,
+          1.064817
         ],
         [
-          1.183737,
-          1.764281,
-          -1.155895
+          -1.537752,
+          1.225996,
+          1.05755
         ],
         [
-          1.190587,
-          1.880186,
-          -1.217859
+          -1.624521,
+          1.063563,
+          1.056765
         ],
         [
-          1.234565,
-          2.006971,
-          -1.26761
-        ],
-        [
-          1.441299,
-          2.006417,
-          -1.316181
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.540729,
-          0.975133,
-          -1.376483
-        ],
-        [
-          -0.649643,
-          1.033732,
-          -1.384217
-        ],
-        [
-          -0.739317,
-          1.03938,
-          -1.374718
-        ],
-        [
-          -0.826919,
-          1.093119,
-          -1.359691
-        ],
-        [
-          -0.913418,
-          1.165931,
-          -1.326844
-        ],
-        [
-          -1.047781,
-          1.217185,
-          -1.259485
-        ],
-        [
-          -1.154695,
-          1.267898,
-          -1.168505
-        ],
-        [
-          -1.208017,
-          1.399254,
-          -1.063364
-        ],
-        [
-          -1.210216,
-          1.579219,
-          -0.982361
-        ],
-        [
-          -1.161246,
-          1.786138,
-          -0.97878
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.776746,
-          1.307196,
-          1.505884
-        ],
-        [
-          0.850223,
-          1.371917,
-          1.494228
-        ],
-        [
-          0.9473,
-          1.380001,
-          1.480118
-        ],
-        [
-          1.058223,
-          1.38768,
-          1.456974
-        ],
-        [
-          1.156106,
-          1.460612,
-          1.433336
-        ],
-        [
-          1.274583,
-          1.531826,
-          1.41019
-        ],
-        [
-          1.344294,
-          1.669994,
-          1.403869
-        ],
-        [
-          1.456088,
-          1.761659,
-          1.389343
-        ],
-        [
-          1.604329,
-          1.818554,
-          1.366471
-        ],
-        [
-          1.74039,
-          1.84199,
-          1.308117
-        ],
-        [
-          1.841171,
-          1.871342,
-          1.248223
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.235789,
-          2.270223,
-          0.882812
-        ],
-        [
-          -0.333285,
-          2.371188,
-          0.837122
-        ],
-        [
-          -0.398883,
-          2.415232,
-          0.780058
-        ],
-        [
-          -0.476967,
-          2.454517,
-          0.718313
-        ],
-        [
-          -0.559355,
-          2.496285,
-          0.678013
-        ],
-        [
-          -0.659591,
-          2.565679,
-          0.653091
-        ],
-        [
-          -0.763177,
-          2.660781,
-          0.643038
-        ],
-        [
-          -0.859288,
-          2.772699,
-          0.6381
-        ],
-        [
-          -0.982518,
-          2.84548,
-          0.579613
-        ],
-        [
-          -1.108222,
-          2.884404,
-          0.536308
-        ],
-        [
-          -1.191055,
-          2.934224,
-          0.521749
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.862301,
-          1.509093,
-          0.711502
-        ],
-        [
-          -0.991129,
-          1.493265,
-          0.731675
-        ],
-        [
-          -1.068235,
-          1.49067,
-          0.754438
-        ],
-        [
-          -1.176989,
-          1.442255,
-          0.779479
-        ],
-        [
-          -1.270193,
-          1.383666,
-          0.808039
-        ],
-        [
-          -1.372323,
-          1.320987,
-          0.857851
-        ],
-        [
-          -1.478091,
-          1.330421,
-          0.98868
-        ],
-        [
-          -1.559431,
-          1.23626,
-          1.071246
-        ],
-        [
-          -1.615013,
-          1.221654,
-          1.224782
-        ],
-        [
-          -1.687357,
-          1.043013,
-          1.238411
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.818655,
-          1.822005,
-          1.629054
-        ],
-        [
-          0.890942,
-          1.886764,
-          1.54511
-        ],
-        [
-          0.941919,
-          1.931293,
-          1.477383
-        ],
-        [
-          1.005693,
-          1.964954,
-          1.407994
-        ],
-        [
-          1.093515,
-          2.05164,
-          1.39006
-        ],
-        [
-          1.191544,
-          2.142915,
-          1.377484
-        ],
-        [
-          1.323214,
-          2.163009,
-          1.313151
-        ],
-        [
-          1.477425,
-          2.205232,
-          1.278633
-        ],
-        [
-          1.585833,
-          2.38794,
-          1.350709
-        ],
-        [
-          1.666127,
-          2.48625,
-          1.381077
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.574919,
-          1.408747,
-          -1.073158
-        ],
-        [
-          0.575992,
-          1.502153,
-          -1.189441
-        ],
-        [
-          0.608993,
-          1.539166,
-          -1.271261
-        ],
-        [
-          0.63575,
-          1.575456,
-          -1.366577
-        ],
-        [
-          0.650411,
-          1.608609,
-          -1.46363
-        ],
-        [
-          0.630753,
-          1.674739,
-          -1.570338
-        ],
-        [
-          0.595495,
-          1.76329,
-          -1.67348
-        ],
-        [
-          0.581742,
-          1.848526,
-          -1.790925
-        ],
-        [
-          0.58714,
-          1.915607,
-          -1.929655
-        ],
-        [
-          0.578177,
-          1.956435,
-          -2.055664
-        ],
-        [
-          0.563878,
-          1.997832,
-          -2.139969
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.66462,
-          1.171878,
-          1.252716
-        ],
-        [
-          0.657479,
-          1.155377,
-          1.244933
-        ],
-        [
-          0.653948,
-          1.139493,
-          1.231815
-        ],
-        [
-          0.718893,
-          1.163739,
-          1.180006
-        ],
-        [
-          0.799637,
-          1.378882,
-          1.094325
-        ],
-        [
-          0.796028,
-          1.552296,
-          1.046401
-        ],
-        [
-          0.767025,
-          1.738619,
-          1.025502
-        ],
-        [
-          0.825101,
-          1.892407,
-          0.948547
-        ],
-        [
-          0.942007,
-          2.020812,
-          0.804983
-        ],
-        [
-          0.953892,
-          2.101183,
-          0.763155
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          1.366695,
-          1.092585,
-          0.989028
-        ],
-        [
-          1.432656,
-          1.18469,
-          0.928502
-        ],
-        [
-          1.485943,
-          1.232833,
-          0.876076
-        ],
-        [
-          1.545351,
-          1.291953,
-          0.813916
-        ],
-        [
-          1.618909,
-          1.322952,
-          0.734452
-        ],
-        [
-          1.681752,
-          1.430912,
-          0.676607
-        ],
-        [
-          1.717842,
-          1.58808,
-          0.651161
-        ],
-        [
-          1.7635,
-          1.706843,
-          0.596607
-        ],
-        [
-          1.891495,
-          1.71354,
-          0.416637
-        ],
-        [
-          2.001227,
-          1.716617,
-          0.337138
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.643273,
-          0.753069,
-          0.970388
-        ],
-        [
-          0.640387,
-          0.752038,
-          0.981584
-        ],
-        [
-          0.635881,
-          0.734842,
-          0.96866
-        ],
-        [
-          0.648427,
-          0.731952,
-          0.970479
-        ],
-        [
-          0.633129,
-          0.680117,
-          0.96381
-        ],
-        [
-          0.617271,
-          0.627521,
-          0.928109
-        ],
-        [
-          0.575944,
-          0.56737,
-          0.779553
-        ],
-        [
-          0.715047,
-          0.654203,
-          0.464365
-        ],
-        [
-          1.056124,
-          1.071474,
-          0.452511
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.295919,
-          2.014572,
-          -0.49478
-        ],
-        [
-          0.199425,
-          2.076811,
-          -0.554173
-        ],
-        [
-          0.110201,
-          2.109987,
-          -0.60099
-        ],
-        [
-          0.058322,
-          2.167964,
-          -0.655603
-        ],
-        [
-          0.008123,
-          2.246126,
-          -0.731565
-        ],
-        [
-          -0.019841,
-          2.349033,
-          -0.807183
-        ],
-        [
-          -0.106103,
-          2.356119,
-          -0.932478
-        ],
-        [
-          -0.148221,
-          2.454977,
-          -1.063322
-        ],
-        [
-          -0.142853,
-          2.615759,
-          -1.154204
-        ],
-        [
-          -0.144326,
-          2.708992,
-          -1.233249
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.072492,
-          2.350479,
-          -0.174412
-        ],
-        [
-          -0.14932,
-          2.382462,
-          -0.265508
-        ],
-        [
-          -0.212611,
-          2.40843,
-          -0.343344
-        ],
-        [
-          -0.255802,
-          2.428383,
-          -0.415991
-        ],
-        [
-          -0.290481,
-          2.464372,
-          -0.513525
-        ],
-        [
-          -0.32773,
-          2.498728,
-          -0.666828
-        ],
-        [
-          -0.343236,
-          2.476583,
-          -0.836925
-        ],
-        [
-          -0.300887,
-          2.525635,
-          -0.967123
-        ],
-        [
-          -0.186585,
-          2.797451,
-          -1.039875
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.288365,
-          1.402599,
-          2.208442
-        ],
-        [
-          0.355698,
-          1.402134,
-          2.309489
-        ],
-        [
-          0.408701,
-          1.357693,
-          2.37079
-        ],
-        [
-          0.476797,
-          1.329981,
-          2.450893
-        ],
-        [
-          0.552359,
-          1.355967,
-          2.555721
-        ],
-        [
-          0.631372,
-          1.368418,
-          2.66184
-        ],
-        [
-          0.702084,
-          1.420193,
-          2.782841
-        ],
-        [
-          0.786029,
-          1.420039,
-          2.905275
-        ],
-        [
-          0.88441,
-          1.408528,
-          3.01036
-        ],
-        [
-          0.991588,
-          1.394678,
-          3.085504
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.421675,
-          2.098738,
-          0.004389
-        ],
-        [
-          -0.445396,
-          2.108619,
-          -0.005354
-        ],
-        [
-          -0.477219,
-          2.08842,
-          -0.011267
-        ],
-        [
-          -0.455367,
-          2.040348,
-          -0.050484
-        ],
-        [
-          -0.320431,
-          1.95047,
-          -0.173436
-        ],
-        [
-          -0.020922,
-          2.035177,
-          -0.380902
-        ],
-        [
-          0.146063,
-          2.155552,
-          -0.495126
-        ],
-        [
-          0.214146,
-          2.199998,
-          -0.557263
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.665576,
-          1.758678,
-          1.709764
-        ],
-        [
-          0.66754,
-          1.740204,
-          1.710476
-        ],
-        [
-          0.670609,
-          1.770661,
-          1.779504
-        ],
-        [
-          0.660007,
-          1.873341,
-          1.926305
-        ],
-        [
-          0.692503,
-          1.993636,
-          2.033262
-        ],
-        [
-          0.704517,
-          2.120271,
-          2.134063
-        ],
-        [
-          0.682603,
-          2.237221,
-          2.234104
-        ],
-        [
-          0.514651,
-          2.229779,
-          2.441563
-        ]
-      ],
-      "radius_m": 0.0025,
-      "material": "twig"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.740238,
-          1.395863,
-          1.677119
-        ],
-        [
-          0.739848,
-          1.386743,
-          1.669066
-        ],
-        [
-          0.721883,
-          1.363153,
-          1.667511
-        ],
-        [
-          0.70893,
-          1.344226,
-          1.663755
-        ],
-        [
-          0.690232,
-          1.32018,
-          1.714679
-        ],
-        [
-          0.879176,
-          1.453719,
-          2.006232
-        ],
-        [
-          1.065688,
-          1.595138,
-          2.298889
-        ],
-        [
-          1.118215,
-          1.650732,
-          2.413498
+          -1.681154,
+          1.010921,
+          1.134772
         ]
       ],
       "radius_m": 0.0025,
@@ -14804,44 +13202,774 @@
           1.633647
         ],
         [
-          0.658805,
-          1.430968,
-          1.683715
+          0.680094,
+          1.48721,
+          1.723588
         ],
         [
-          0.601206,
-          1.409514,
-          1.767777
+          0.591262,
+          1.404475,
+          1.780492
         ],
         [
-          0.536171,
-          1.371306,
-          1.870314
+          0.575789,
+          1.426508,
+          1.890332
         ],
         [
-          0.479305,
-          1.314613,
-          1.962331
+          0.553279,
+          1.3983,
+          2.060166
         ],
         [
-          0.452777,
-          1.277973,
-          2.091554
+          0.534685,
+          1.340583,
+          2.215175
         ],
         [
-          0.449233,
-          1.227153,
-          2.239408
+          0.517421,
+          1.268838,
+          2.292709
         ],
         [
-          0.442383,
-          1.141124,
-          2.354989
+          0.525909,
+          1.174308,
+          2.417126
         ],
         [
-          0.483242,
-          1.088453,
-          2.477778
+          0.404002,
+          0.986224,
+          2.4634
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.201407,
+          0.605835,
+          0.70622
+        ],
+        [
+          1.230128,
+          0.556401,
+          0.724743
+        ],
+        [
+          1.249618,
+          0.592667,
+          0.739191
+        ],
+        [
+          1.290312,
+          0.599023,
+          0.74796
+        ],
+        [
+          1.239292,
+          0.685605,
+          0.663712
+        ],
+        [
+          1.303974,
+          0.885867,
+          0.715819
+        ],
+        [
+          1.376292,
+          1.193526,
+          0.8662
+        ],
+        [
+          1.384872,
+          1.326616,
+          0.881544
+        ],
+        [
+          1.491595,
+          1.396169,
+          1.029109
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.324469,
+          1.209422,
+          2.237869
+        ],
+        [
+          0.407187,
+          1.215695,
+          2.347266
+        ],
+        [
+          0.447964,
+          1.297282,
+          2.430194
+        ],
+        [
+          0.53819,
+          1.249234,
+          2.515496
+        ],
+        [
+          0.567133,
+          1.380807,
+          2.597411
+        ],
+        [
+          0.621587,
+          1.456716,
+          2.720383
+        ],
+        [
+          0.665914,
+          1.555257,
+          2.769916
+        ],
+        [
+          0.727246,
+          1.574626,
+          2.900719
+        ],
+        [
+          0.844869,
+          1.527879,
+          3.048876
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.657113,
+          0.778803,
+          1.040809
+        ],
+        [
+          0.658572,
+          0.784035,
+          1.100549
+        ],
+        [
+          0.650184,
+          0.746094,
+          1.070325
+        ],
+        [
+          0.656856,
+          0.736119,
+          1.090861
+        ],
+        [
+          0.676276,
+          0.758657,
+          0.978289
+        ],
+        [
+          0.692652,
+          0.76399,
+          0.819867
+        ],
+        [
+          0.653467,
+          0.638275,
+          0.49089
+        ],
+        [
+          0.925108,
+          0.885667,
+          0.342627
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.922996,
+          2.370028,
+          0.328708
+        ],
+        [
+          0.917095,
+          2.3426,
+          0.173975
+        ],
+        [
+          0.920153,
+          2.356057,
+          0.067666
+        ],
+        [
+          0.922151,
+          2.284681,
+          -0.014522
+        ],
+        [
+          0.964258,
+          2.306888,
+          -0.114436
+        ],
+        [
+          0.994134,
+          2.229574,
+          -0.229733
+        ],
+        [
+          1.122155,
+          2.320683,
+          -0.35238
+        ],
+        [
+          1.202709,
+          2.218638,
+          -0.459539
+        ],
+        [
+          1.229035,
+          2.073863,
+          -0.531754
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.347361,
+          2.436498,
+          1.006241
+        ],
+        [
+          -0.395167,
+          2.481101,
+          0.888161
+        ],
+        [
+          -0.474053,
+          2.570816,
+          0.852482
+        ],
+        [
+          -0.528525,
+          2.59736,
+          0.801854
+        ],
+        [
+          -0.622794,
+          2.632147,
+          0.706739
+        ],
+        [
+          -0.724382,
+          2.637651,
+          0.607548
+        ],
+        [
+          -0.849943,
+          2.671063,
+          0.551282
+        ],
+        [
+          -1.006421,
+          2.805857,
+          0.543774
+        ],
+        [
+          -1.037623,
+          2.979882,
+          0.596815
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          1.401012,
+          1.141295,
+          0.981423
+        ],
+        [
+          1.463537,
+          1.233958,
+          0.889642
+        ],
+        [
+          1.500594,
+          1.314825,
+          0.867781
+        ],
+        [
+          1.554154,
+          1.423524,
+          0.801774
+        ],
+        [
+          1.6037,
+          1.484659,
+          0.756874
+        ],
+        [
+          1.709473,
+          1.484448,
+          0.626214
+        ],
+        [
+          1.740597,
+          1.659735,
+          0.578449
+        ],
+        [
+          1.839909,
+          1.68563,
+          0.469925
+        ],
+        [
+          1.910522,
+          1.732513,
+          0.388088
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.683535,
+          1.201541,
+          1.247105
+        ],
+        [
+          0.689513,
+          1.211294,
+          1.229509
+        ],
+        [
+          0.690046,
+          1.202496,
+          1.209176
+        ],
+        [
+          0.727902,
+          1.377704,
+          1.161485
+        ],
+        [
+          0.781772,
+          1.510874,
+          1.083937
+        ],
+        [
+          0.682299,
+          1.662347,
+          1.116656
+        ],
+        [
+          0.653247,
+          1.84233,
+          1.114644
+        ],
+        [
+          0.87614,
+          1.965861,
+          0.931512
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.845963,
+          1.784798,
+          1.527171
+        ],
+        [
+          0.934748,
+          1.879454,
+          1.447271
+        ],
+        [
+          1.003053,
+          1.974945,
+          1.424165
+        ],
+        [
+          1.055122,
+          2.046402,
+          1.430694
+        ],
+        [
+          1.12417,
+          2.141143,
+          1.442654
+        ],
+        [
+          1.255279,
+          2.181864,
+          1.363073
+        ],
+        [
+          1.351032,
+          2.266633,
+          1.376945
+        ],
+        [
+          1.446607,
+          2.399419,
+          1.391301
+        ],
+        [
+          1.558371,
+          2.447063,
+          1.377311
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.651029,
+          0.884409,
+          -1.370459
+        ],
+        [
+          -0.741769,
+          0.974803,
+          -1.37513
+        ],
+        [
+          -0.794951,
+          1.103952,
+          -1.36821
+        ],
+        [
+          -0.845593,
+          1.132591,
+          -1.343962
+        ],
+        [
+          -0.900144,
+          1.250888,
+          -1.313117
+        ],
+        [
+          -1.023701,
+          1.333219,
+          -1.241311
+        ],
+        [
+          -1.070455,
+          1.441602,
+          -1.176488
+        ],
+        [
+          -1.117024,
+          1.582838,
+          -1.098927
+        ],
+        [
+          -1.099199,
+          1.690761,
+          -1.089546
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.213121,
+          1.976088,
+          -0.515879
+        ],
+        [
+          0.111133,
+          2.061122,
+          -0.589935
+        ],
+        [
+          0.063917,
+          2.165101,
+          -0.644508
+        ],
+        [
+          0.045602,
+          2.227547,
+          -0.687298
+        ],
+        [
+          0.036178,
+          2.33787,
+          -0.745984
+        ],
+        [
+          -0.048645,
+          2.393939,
+          -0.856372
+        ],
+        [
+          -0.06813,
+          2.477502,
+          -0.940072
+        ],
+        [
+          -0.095787,
+          2.610282,
+          -1.027116
+        ],
+        [
+          -0.129732,
+          2.662664,
+          -1.130911
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.673857,
+          1.782254,
+          1.729882
+        ],
+        [
+          0.655514,
+          1.761897,
+          1.744303
+        ],
+        [
+          0.668495,
+          1.839928,
+          1.855469
+        ],
+        [
+          0.650536,
+          1.964385,
+          1.99854
+        ],
+        [
+          0.736992,
+          2.067384,
+          2.044992
+        ],
+        [
+          0.771734,
+          2.217374,
+          2.116144
+        ],
+        [
+          0.57858,
+          2.255301,
+          2.315259
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.008495,
+          2.607962,
+          -0.202628
+        ],
+        [
+          -0.120634,
+          2.595459,
+          -0.321254
+        ],
+        [
+          -0.190542,
+          2.573129,
+          -0.391052
+        ],
+        [
+          -0.237834,
+          2.525503,
+          -0.453965
+        ],
+        [
+          -0.282076,
+          2.535208,
+          -0.566198
+        ],
+        [
+          -0.322453,
+          2.487941,
+          -0.685453
+        ],
+        [
+          -0.320751,
+          2.524125,
+          -0.843741
+        ],
+        [
+          -0.330788,
+          2.43685,
+          -0.960726
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          -0.427718,
+          2.09205,
+          0.006946
+        ],
+        [
+          -0.410054,
+          2.082534,
+          -0.027888
+        ],
+        [
+          -0.422527,
+          2.094953,
+          -0.039242
+        ],
+        [
+          -0.326788,
+          2.028855,
+          -0.125114
+        ],
+        [
+          -0.174418,
+          2.140036,
+          -0.217211
+        ],
+        [
+          0.058056,
+          2.140371,
+          -0.392004
+        ],
+        [
+          0.146765,
+          2.291155,
+          -0.402902
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.715245,
+          0.954458,
+          1.392689
+        ],
+        [
+          0.707426,
+          0.968642,
+          1.409251
+        ],
+        [
+          0.693645,
+          0.950066,
+          1.415504
+        ],
+        [
+          0.668239,
+          0.938988,
+          1.425066
+        ],
+        [
+          0.68923,
+          0.913443,
+          1.419239
+        ],
+        [
+          0.598634,
+          0.775353,
+          1.375227
+        ],
+        [
+          0.312963,
+          0.608466,
+          1.296612
+        ],
+        [
+          0.096277,
+          0.480704,
+          1.363608
+        ]
+      ],
+      "radius_m": 0.0025,
+      "material": "twig"
+    },
+    {
+      "kind": "hook",
+      "points": [
+        [
+          0.746159,
+          1.401035,
+          1.645908
+        ],
+        [
+          0.752585,
+          1.39794,
+          1.699508
+        ],
+        [
+          0.741361,
+          1.382179,
+          1.716051
+        ],
+        [
+          0.7698,
+          1.381409,
+          1.722709
+        ],
+        [
+          0.892575,
+          1.490911,
+          1.851554
+        ],
+        [
+          0.942526,
+          1.519851,
+          2.064417
+        ],
+        [
+          1.086626,
+          1.744166,
+          2.193709
         ]
       ],
       "radius_m": 0.0025,

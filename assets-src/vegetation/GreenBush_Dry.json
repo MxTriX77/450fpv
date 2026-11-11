@@ -4,6 +4,7 @@
     "prefab_sha256": "07ee022238a6ad1005f5404d88ebaf430d80ba5192c6f4295c7852a70dcf5956",
     "mesh_file": "Assets/Art/Environment/_ExternalContent/Quixel/Forest-quixel/GreenBush/GreenBush_Var01.FBX",
     "mesh_sha256": "c0aa0bb79e8c16e0c2ef9b4e3b7602c8f9b4eff72f79fbd65b0f576a62af9cfd",
+    "mesh_meta_sha256": "21f3c8362a4601c1c99eb893330d01e2b3f3f65fa06f193c993c92414adff393",
     "mesh_name": ""
   },
   "slots": [
@@ -11,8 +12,10 @@
       "material": "Bush_GreenBush_mat_Dry",
       "role": "foliage",
       "material_sha256": "f41efe0ad3b68f0ad295aa1c7c2977a3fd6339cfe313a16c8312470fd9cc2a85",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
       "base_map": "Assets/Art/Environment/_ExternalContent/Quixel/Forest-quixel/GreenBush/Materials/GreenBush_Albedo_Opacity.tif",
       "base_map_sha256": "9678792b074c45122d5a8cb3025e31e840732a1ec1aa59ff0e550168b5aad83e",
+      "base_map_meta_sha256": "5e17baa2c5daf9c6f3379568d229da9eaaad02843d95a905e7baa19399f63945",
       "sprays": "hooks"
     }
   ],

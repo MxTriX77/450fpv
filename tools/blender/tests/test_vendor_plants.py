@@ -89,14 +89,69 @@ def test_porosity_of_a_full_and_an_empty_box():
     assert beta == 1.0
 
 
+def _texture_meta(path, alpha_usage=1):
+    """The import settings lib.vendor.texture reads beside a texture: Unity's alphaUsage (0 none, 1 from input)."""
+    with open(str(path) + ".meta", "w", encoding="utf-8") as f:
+        f.write(f"fileFormatVersion: 2\nTextureImporter:\n  alphaUsage: {alpha_usage}\n  grayScaleToAlpha: 0\n")
+
+
 def test_alpha_reads_rows_from_the_top_of_an_image(tmp_path):
     from PIL import Image
     image = Image.new("RGBA", (4, 4), (0, 0, 0, 0))
     image.putpixel((0, 0), (255, 255, 255, 255))  # the top-left texel: u near 0, v near 1
     path = tmp_path / "a.png"
     image.save(path)
+    _texture_meta(path)
     alpha = vendor.Alpha(str(path), 0.5)
     assert alpha.opaque(0.1, 0.9) and not alpha.opaque(0.1, 0.1)
+
+
+def _rgbx_tiff(path, bits):
+    """An uncompressed 4 x 4 TIFF of 4 samples whose 4th is 'unspecified' (ExtraSamples 0), as Megascans write their
+    Albedo_Opacity maps: the 4th sample full at the top-left texel, zero elsewhere; 8 or 16 bits per sample."""
+    import struct
+    full, fmt = (255, "B") if bits == 8 else (65535, "H")
+    data = b"".join(struct.pack("<4" + fmt, 9, 9, 9, full if i == 0 else 0) for i in range(16))
+    tags = [(256, 3, 1, 4), (257, 3, 1, 4), (258, 3, 4, 8), (259, 3, 1, 1), (262, 3, 1, 2), (273, 4, 1, 0),
+            (277, 3, 1, 4), (278, 3, 1, 4), (279, 4, 1, len(data)), (284, 3, 1, 1), (338, 3, 1, 0)]
+    ifd = 8 + 8  # the header, then the four BitsPerSample shorts the 258 entry points to
+    offset = ifd + 2 + 12 * len(tags) + 4
+    body = struct.pack("<2sHI", b"II", 42, ifd) + struct.pack("<4H", bits, bits, bits, bits)
+    body += struct.pack("<H", len(tags)) + b"".join(
+        struct.pack("<HHI", tag, kind, count) + (struct.pack("<I", offset if tag == 273 else value) if kind == 4
+                                                 or tag == 258 else struct.pack("<HH", value, 0))
+        for tag, kind, count, value in tags) + struct.pack("<I", 0)
+    path.write_bytes(body + data)
+
+
+@pytest.mark.parametrize("bits", [8, 16])
+def test_a_tiff_whose_fourth_sample_is_unspecified_reads_it_as_alpha(tmp_path, bits):
+    # Pillow opens such a file as RGB and drops the 4th sample; Unity imports it as alpha (alphaUsage 1), and the
+    # friend's leaf shader clips on it, so the samples must too (w4a review E5).
+    from PIL import Image
+    path = tmp_path / f"bush_{bits}.tif"
+    _rgbx_tiff(path, bits)
+    assert Image.open(path).mode == "RGB"
+    _texture_meta(path)
+    image, bottom_up = vendor.texture(str(path))
+    assert image.mode == "RGBA" and not bottom_up
+    assert image.getpixel((0, 0))[3] == 255 and image.getpixel((1, 0))[3] == 0
+    alpha = vendor.Alpha(str(path), 0.5)
+    assert alpha.opaque(0.1, 0.9) and not alpha.opaque(0.6, 0.9) and not alpha.opaque(0.1, 0.1)
+
+
+def test_a_clipping_material_on_a_texture_without_alpha_is_refused(tmp_path):
+    from PIL import Image
+    rgb = tmp_path / "rgb.png"
+    Image.new("RGB", (4, 4)).save(rgb)
+    _texture_meta(rgb)
+    rgba = tmp_path / "rgba.png"
+    Image.new("RGBA", (4, 4)).save(rgba)
+    _texture_meta(rgba, alpha_usage=0)  # the file has alpha, the import takes none
+    for path in (rgb, rgba):
+        with pytest.raises(vendor.VendorError, match="gives no alpha"):
+            vendor.Alpha(str(path), 0.5)
+        assert vendor.Alpha(str(path), None).opaque(0.5, 0.5)  # a material that does not clip draws whole
 
 
 def test_a_unity_yaml_mesh_reads_its_positions_uvs_and_submeshes(tmp_path):

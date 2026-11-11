@@ -4,6 +4,7 @@
     "prefab_sha256": "79b40b002844dc7d4e28148fe4d0ad7c3fb6278b49a62cef61fa44a2e96a785e",
     "mesh_file": "Assets/Farm_land/Models/island_tree_reduced.fbx",
     "mesh_sha256": "6e6d13c9dfe5d7904765ae5ac9439dc967222d40e561013039087d6d45dcc70a",
+    "mesh_meta_sha256": "4f7feca05695acaaf0bfa96f5e79cf388730862d8bc644aeab73fa08969bb969",
     "mesh_name": "island_tree_dry_LOD0"
   },
   "slots": [
@@ -16,16 +17,20 @@
       "material": "IslandTree_Twigs",
       "role": "foliage",
       "material_sha256": "c34bef43e162563b11d2c62a81464025212cec84c722dff59449579b67cc929d",
+      "shader_sha256": "995c7fa4c1a6d7916982f94adc2b4b79f7623f9313ca00ef874674d486a5721d",
       "base_map": "Assets/Farm_land/Materials/island_tree_01_4k/textures/island_tree_01_branches_diff_4k.png",
       "base_map_sha256": "b503cc489c17e280f5523a8092d0c02baf40e002787ff4b817ee672de250ca8d",
+      "base_map_meta_sha256": "0632cf0bcc6eec7682f6837a0307832fe91bd4a208164da2d79e18fcd9e7657f",
       "sprays": "hooks"
     },
     {
       "material": "IslandTree_DryLeaves",
       "role": "foliage",
       "material_sha256": "56a519022e6de0bd030d0c66ae2b4070c317b1ea51a05e82e4018c7e04f149ce",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
       "base_map": "Assets/Farm_land/Models/island_tree_dry_leaves.png",
       "base_map_sha256": "563942a2352de76a9f9a266562654ebae80a5ce14d88c2d82c01bd04b9f211f6",
+      "base_map_meta_sha256": "0f0d7f31ab09d8ae3ea09e90d363dfad5ec8933b54987f59072ad348ab0ba648",
       "sprays": "none"
     }
   ],

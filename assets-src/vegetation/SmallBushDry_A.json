@@ -4,6 +4,7 @@
     "prefab_sha256": "08560afec3aa051d035652089590d3568ee93912af0d1060dae4fcc83e8c95cd",
     "mesh_file": "Assets/TerrainSampleAssets/Models/BushDry_A.asset",
     "mesh_sha256": "2ae8a4fd66f89944992de5b10af530150805c743e56ee365fa92aef20ba5c356",
+    "mesh_meta_sha256": "a6ee27c7afebe8c0c1b4ddaab27fb08b7761b2011265984898ccbeb98684ee70",
     "mesh_name": ""
   },
   "slots": [
@@ -11,8 +12,10 @@
       "material": "Bush_SampleBushDry",
       "role": "foliage",
       "material_sha256": "08f1104b86256ff275ec13db068d1cbeb0db5e80f39f7790dbcf54e5a4593178",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
       "base_map": "Assets/TerrainSampleAssets/Textures/Details/BushDry_BaseColor.tif",
       "base_map_sha256": "79a9c6e2507e51128b4a7f1634c2376ef92a199137109872097acb76a93fa2ff",
+      "base_map_meta_sha256": "82abb4818d0694add4c11956b1b1a66aa7ba02363516c629c2f54c1d9c8107fc",
       "sprays": "hooks"
     }
   ],

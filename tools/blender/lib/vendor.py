@@ -305,23 +305,49 @@ def _yaml_mesh(path, file_id):
 UNITY_FORMATS = {10: ("bcn", 1), 12: ("bcn", 3), 4: ("raw", "RGBA"), 3: ("raw", "RGB"), 5: ("raw", "ARGB")}
 
 
+def texture(path):
+    """(image, bottom_up): a project texture as a PIL image with the alpha Unity imports. A Unity Texture2D asset
+    (.asset) is decoded as stored, its first row at v = 0. An image file is read top row first, and its alpha as its
+    .meta's import says: alphaUsage 1 (from input) takes the file's alpha, which for a TIFF of 4 samples whose 4th is
+    marked 'unspecified' (ExtraSamples 0, Megascans' Albedo_Opacity maps) is that 4th sample, read here as Unity
+    reads it where Pillow would drop it as padding; alphaUsage 0 imports none; another import is refused."""
+    from PIL import Image  # the pinned python's Pillow; only the review and the samples need it
+    if path.endswith(".asset"):
+        image = _unity_texture(path)
+        image.load()
+        return image, True
+    with open(path + ".meta", encoding="utf-8") as f:
+        usage = _field(f.read(), "alphaUsage")
+    image = Image.open(path)
+    if usage == "0":
+        image = image.convert("RGB")
+    elif usage != "1":
+        raise VendorError(f"{path}: its import's alphaUsage {usage} is not read here (0 none, 1 from input)")
+    elif (image.format == "TIFF" and image.mode == "RGB" and image.tag_v2.get(277) == 4
+          and tuple(image.tag_v2.get(338, ())) == (0,)):
+        image.tile = [t._replace(args=(t.args[0].replace("RGBX", "RGBA", 1),) + tuple(t.args[1:])) for t in image.tile]
+        image._mode = "RGBA"
+    image.load()
+    return image, False
+
+
 class Alpha:
     """A texture's alpha as a function of (u, v), wrapping (Unity's Repeat), nearest texel: `opaque(u, v)` is
-    alpha >= the material's cutoff. Image files are read top row first (v = 1); a Unity Texture2D asset stores its
-    first row at v = 0."""
+    alpha >= the material's cutoff, or everywhere when it has none (it draws whole). The texture as Unity imports it
+    (`texture`); a material that clips on a texture giving no alpha is refused, never taken as opaque."""
 
     def __init__(self, path, cutoff, scale=(1.0, 1.0), offset=(0.0, 0.0)):
-        from PIL import Image  # the pinned python's Pillow; only the review and the samples need it
-        if path.endswith(".asset"):
-            image, self.bottom_up = _unity_texture(path), True
-        else:
-            image, self.bottom_up = Image.open(path), False
-        image.load()
-        self.width, self.height = image.size
-        alpha = image.getchannel("A") if "A" in image.getbands() else None
-        self.data = alpha.tobytes() if alpha is not None else None
-        self.threshold = int(math.ceil(cutoff * 255 - 1e-9))
+        self.data = None
         self.scale, self.offset = scale, offset
+        if cutoff is None:
+            return
+        image, self.bottom_up = texture(path)
+        if "A" not in image.getbands():
+            raise VendorError(f"{path}: its material clips at {cutoff}, but the texture gives no alpha as Unity "
+                              "imports it")
+        self.width, self.height = image.size
+        self.data = image.getchannel("A").tobytes()
+        self.threshold = int(math.ceil(cutoff * 255 - 1e-9))
 
     def opaque(self, u, v):
         if self.data is None:

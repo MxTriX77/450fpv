@@ -3,7 +3,7 @@
   "id": "VF04",
   "variant": "Pine006_01",
   "generator": "vendor_plant",
-  "params_sha256": "8c0b44bbee43e6213647f73d026276a95632da04441558fe5b6586549ba2f977",
+  "params_sha256": "bb661cc8595396f84ad4cde1fb44aef71df4a1333d162da6075414a4fa93954a",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {

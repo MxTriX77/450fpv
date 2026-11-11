@@ -4,6 +4,7 @@
     "prefab_sha256": "2706c3d9bf4e20afc4ecdbe9e0f3e3eb1f83d0825594fa41a1f48bb8ba17a3f4",
     "mesh_file": "Assets/Art/Environment/_ExternalContent/Quixel/Megascans/Plants/Bush_b/Bush_b1_4x4x4.FBX",
     "mesh_sha256": "a68862bca3379a8a019bdc911ceb6dd9540458d81dcb385f5b5ea59d0a68ff8d",
+    "mesh_meta_sha256": "d2e44518b8db51ef1617f9eedd747d864bee695f09cd89e556056c67d6e8e7f2",
     "mesh_name": ""
   },
   "slots": [
@@ -16,8 +17,10 @@
       "material": "Bush_Bush_Dead_Br_01",
       "role": "foliage",
       "material_sha256": "02f87b2018766fc789d6c792af95008f41e37564c6eea6c167573d9c53077f06",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
       "base_map": "Assets/Art/Environment/_ExternalContent/Quixel/Megascans/Plants/Bush_b/Materials/Bush_Dead_Br_01_Albedo_Opacity.tif",
       "base_map_sha256": "60bbab71e1da1a5ccaee28e033d4178dee200b7de277f4c831ca59a5bc618ffd",
+      "base_map_meta_sha256": "a0b1cfbfc21e5effdb4668836d5fe7fc0fcf449b1bb130a1283df0bd54d73ef2",
       "sprays": "hooks"
     }
   ],

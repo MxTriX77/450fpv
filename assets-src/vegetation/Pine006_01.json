@@ -4,6 +4,7 @@
     "prefab_sha256": "97c1e1cde759b4edfdf3cb0f4a29f3dead500368e72ebeb14ca9d73d5aa7f7a9",
     "mesh_file": "Assets/Art/Environment/Vegetation/Trees/Pines/Pine_006/pine_006_01.FBX",
     "mesh_sha256": "f8e0fcebd3ce39cdbfd1b0653ba38fd63e635de3ed0a070f28a589ed2ebd0527",
+    "mesh_meta_sha256": "d4c8785f5159332d727333f03e2e4b32feaaa2f7b95b4d14c07c929004a440ce",
     "mesh_name": ""
   },
   "slots": [
@@ -16,8 +17,10 @@
       "material": "Pine006_Branches",
       "role": "foliage",
       "material_sha256": "e9d8f99a668c5d9b151f0660485f0db794b6d84d27909f95a0dd9750aa137aaf",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
       "base_map": "Assets/Art/Environment/Vegetation/Trees/Pines/Pine_004_new/Materials/branches_albedo.srgb.dds.asset",
       "base_map_sha256": "84ab60e71889a1b0220a4c3e075a7898e2d2420edd900786b7025c4ae4988486",
+      "base_map_meta_sha256": "9d31df41b528b0601ef2867f1c6216840ccd80a411b2dbf8be4094c452e2808d",
       "sprays": "branches"
     }
   ],

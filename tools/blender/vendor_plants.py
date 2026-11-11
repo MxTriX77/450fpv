@@ -11,7 +11,8 @@ foliage as a compliant twig shell, the branch sprays as snag records or capsules
 the foliage measures. The metadata is lib.meta's schema 1, validated, its capsules audited against the wood they
 follow (lib.audit.run, AST-05's 5 cm, and the spec's 3 cm on members of 5 cm or more), and written to
 unity/Assets/_Project/Art/Models/<class>/<ID>/<variant>.assetmeta.json with a .meta whose guid derives from its
-path, so the sim's MapWorld finds it by the map row's class, asset and variant, and Unity imports it unchanged.
+path, so the sim's MapWorld finds it by the variant's asset id and Unity imports it unchanged (W2's placement rows
+name a kind and a variant; the variant -> asset lookup is assets-src/vendor_plants.json, where every variant is unique).
 
 --sheets also writes each variant's review sheet (AST-12): the mesh, its textures as PNG and the metadata go to a
 bundle under review-sheets/<ID>/_bundle/ (git-ignored, so the copied geometry stays local), and the pinned Blender
@@ -43,7 +44,8 @@ RENDERERS = 3                 # Blender processes rendering review sheets at onc
 ROLES = ("wood", "foliage")
 SPRAYS = ("none", "hooks", "branches")
 SLOT_KEYS = {"wood": ("material", "role", "physics"),
-             "foliage": ("material", "role", "material_sha256", "base_map", "base_map_sha256", "sprays")}
+             "foliage": ("material", "role", "material_sha256", "shader_sha256", "base_map", "base_map_sha256",
+                         "base_map_meta_sha256", "sprays")}
 SPEC_MEMBER_RADIUS_M = 0.025  # spec scenario: trunks and limbs wider than 5 cm (assumed there)
 SPEC_TOLERANCE_M = 0.03       # ... covered by capsules within 3 cm of the mesh (assumed there)
 CUBE_MAX = audit.SHELL_NEIGHBOURHOOD_MAX
@@ -67,13 +69,19 @@ PARAMS = {
                          "effect": "the mesh file, which must be the file of the renderer's mesh guid"},
     "source.mesh_sha256": {"type": "str", "range": "64 hex digits", "default": "",
                            "effect": "the mesh file's bytes, checked before it is read"},
+    "source.mesh_meta_sha256": {"type": "str", "range": "64 hex digits", "default": "",
+                                "effect": "the mesh file's .meta (its import scale, its fileID names, its guid), checked "
+                                          "before it is read; every LOD's renderer must name this pinned mesh file"},
     "source.mesh_name": {"type": "str", "range": "'' or the FBX mesh's name", "default": "",
                          "effect": "the mesh when the FBX's .meta names its meshes by hash ('' when it lists them)"},
     "slots": {"type": "list", "range": "one record per LOD0 material: wood {material, role, physics} or foliage "
-                                       "{material, role, material_sha256, base_map, base_map_sha256, sprays}",
+                                       "{material, role, material_sha256, shader_sha256, base_map, base_map_sha256, "
+                                       "base_map_meta_sha256, sprays}",
               "default": [],
               "effect": "what each submesh is: wood (tubes, capsules of that physics) or foliage (alpha-clipped "
-                        "cards sampled at their base map's cutoff; sprays: none (leaf clusters), hooks or branches)"},
+                        "cards sampled at their base map's cutoff; sprays: none (leaf clusters), hooks or branches); "
+                        "a foliage slot pins its material, its shader's source ('' for a shader outside the store), "
+                        "its base map and the base map's .meta (its guid and alpha import)"},
     "wood.step_m": {"type": "float", "range": (0.02, 0.5), "default": 0.1,
                     "effect": "geodesic spacing of the rings cut through the tubes (assumed: a ring per 10 cm "
                               "follows a 1 cm bend)"},
@@ -125,15 +133,23 @@ def check(params):
             problems.append(f"slots[{i}]: a {role} slot holds exactly {', '.join(SLOT_KEYS[role])}")
         elif role == "foliage" and slot["sprays"] not in SPRAYS:
             problems.append(f"slots[{i}]: sprays must be one of {', '.join(SPRAYS)}")
+        elif role == "foliage":
+            for key in ("material_sha256", "shader_sha256", "base_map_sha256", "base_map_meta_sha256"):
+                if not (_digest(slot[key]) or (key == "shader_sha256" and slot[key] == "")):
+                    problems.append(f"slots[{i}]: {key} must be 64 hex digits"
+                                    + (" or '' (a shader outside the store)" if key == "shader_sha256" else ""))
     depths = params["foliage"]["depths_m"]
     if not (depths and all(isinstance(d, (int, float)) and 0 < d <= 1 for d in depths)
             and all(a < b for a, b in zip(depths, depths[1:]))):
         problems.append("foliage.depths_m must be rising numbers in (0, 1]")
-    for key in ("prefab_sha256", "mesh_sha256"):
-        value = params["source"][key]
-        if len(value) != 64 or any(c not in "0123456789abcdef" for c in value):
+    for key in ("prefab_sha256", "mesh_sha256", "mesh_meta_sha256"):
+        if not _digest(params["source"][key]):
             problems.append(f"source.{key} must be 64 hex digits")
     return problems
+
+
+def _digest(value):
+    return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
 
 
 # --- the catalog ----------------------------------------------------------------------------------------------
@@ -179,6 +195,7 @@ def build(root, asset_id, entry, variant, params):
     source = params["source"]
     prefab = vendor.pinned(store_path(root, source["prefab"]), source["prefab_sha256"])
     mesh_file = vendor.pinned(store_path(root, source["mesh_file"]), source["mesh_sha256"])
+    vendor.pinned(mesh_file + ".meta", source["mesh_meta_sha256"])
     group = vendor.prefab_lods(prefab)
     renderers = group["lods"][0]["renderers"]
     if len(renderers) != 1:
@@ -246,12 +263,12 @@ def build(root, asset_id, entry, variant, params):
             continue
         material_path = materials[names.index(slot["material"])]
         vendor.pinned(material_path, slot["material_sha256"])
-        maps = vendor.material_maps(material_path, _shader_source(root))
+        maps = vendor.material_maps(material_path, _shader_source(root, slot["shader_sha256"]))
         base_map = vendor.pinned(store_path(root, slot["base_map"]), slot["base_map_sha256"])
+        vendor.pinned(base_map + ".meta", slot["base_map_meta_sha256"])
         if maps["base_map"] != vendor.guid_of(base_map):
             raise ValueError(f"{variant}: {slot['material']}'s base map is not {slot['base_map']}")
-        alpha = vendor.Alpha(base_map, maps["cutoff"] if maps["cutoff"] is not None else 0.0, maps["scale"],
-                             maps["offset"])
+        alpha = vendor.Alpha(base_map, maps["cutoff"], maps["scale"], maps["offset"])
         index = names.index(slot["material"])
         mine = [i for i, t in enumerate(tris) if names[t[3]] == slot["material"]]
         found, ranges = plant.opaque_samples(points, [tris[i][:3] for i in mine], [uvs[i] for i in mine],
@@ -321,7 +338,7 @@ def build(root, asset_id, entry, variant, params):
                   for c, r in pieces]
     lod0 = _mesh(points, tris, names)
     lo, hi = lod0.bounds()
-    lods, cull, frame_problems = _lods(root, prefab, group, params["lod"]["fov_deg"])
+    lods, cull, frame_problems = _lods(root, prefab, group, params["lod"]["fov_deg"], mesh_file)
     if frame_problems:
         raise ValueError("; ".join(frame_problems))
     lines.append(f"frame: every LOD renderer's box matches the LOD group's centre and size within "
@@ -373,8 +390,9 @@ def _material_path(root, prefab, guid):
     return cache[guid]
 
 
-def _shader_source(root):
-    """guid -> the text of the store's shader of that guid, or None for one outside the store (URP's)."""
+def _shader_source(root, digest=None):
+    """guid -> the text of the store's shader of that guid, or None for one outside the store (URP's). With a
+    `digest`, the shader read must be pinned by it ('' pins a shader outside the store)."""
     cache = _shader_source.__dict__.setdefault("cache", {})
     if not cache:
         for folder, _, files in os.walk(os.path.join(root, STORE, "Assets")):
@@ -385,7 +403,11 @@ def _shader_source(root):
 
     def source(guid):
         if guid not in cache:
+            if digest:
+                raise vendor.VendorError(f"the shader {guid} is outside the store; the params pin {digest}")
             return None
+        if digest is not None:
+            vendor.pinned(cache[guid], digest)
         with open(cache[guid], encoding="utf-8", errors="replace") as f:
             return f.read()
 
@@ -552,18 +574,21 @@ def plant_cross(b, a, c):
     return [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]
 
 
-def _lods(root, prefab, group, fov_deg):
+def _lods(root, prefab, group, fov_deg, pinned_mesh):
     """The prefab's LODs as metadata entries (each LOD's renderer names and triangles), the cull distance, and the
-    problems where the boxes of all its renderers miss its LOD group's centre and size (lib.vendor.check_group: the
-    frame, units and transforms as Unity draws them). A level shows from the distance its previous level's
-    screen-relative height is reached, d = size / (2 h tan(fov/2))."""
+    problems where a renderer's mesh is not the pinned mesh file, or where the boxes of all its renderers miss its LOD
+    group's centre and size (lib.vendor.check_group: the frame, units and transforms as Unity draws them). A level
+    shows from the distance its previous level's screen-relative height is reached, d = size / (2 h tan(fov/2))."""
     k = 2 * math.tan(math.radians(fov_deg) / 2)
-    out, switch, boxes = [], 0.0, []
+    out, switch, boxes, problems = [], 0.0, [], []
     for i, lod in enumerate(group["lods"]):
         names = "+".join(r["name"] for r in lod["renderers"])
         tris = 0
         for r in lod["renderers"]:
             path = _mesh_path(root, prefab, r["mesh_guid"])
+            if os.path.normcase(os.path.abspath(path)) != os.path.normcase(os.path.abspath(pinned_mesh)):
+                problems.append(f"LOD{i} '{r['name']}' reads {path}, which the params do not pin")
+                continue
             try:
                 v, t, _ = vendor.read_mesh(path, r["mesh_file_id"])
             except vendor.VendorError:  # a hash-named FBX: the renderer bears its mesh's name (the friend's export)
@@ -572,7 +597,7 @@ def _lods(root, prefab, group, fov_deg):
             boxes.append(vendor.renderer_bounds(v, r["matrix"]))
         out.append({"mesh": names, "tris": tris, "switch_distance_m": switch, "thin_wire": False})
         switch = group["size"] / (k * lod["screen_relative_height"])
-    return out, switch, vendor.check_group(group, boxes, os.path.basename(prefab))
+    return out, switch, problems or vendor.check_group(group, boxes, os.path.basename(prefab))
 
 
 def _mesh_path(root, prefab, guid):
@@ -635,8 +660,8 @@ def write_bundle(root, asset_id, variant, data, bundle):
             if image_path:
                 out = os.path.join(folder, "textures", os.path.basename(image_path) + ".png")
                 if not os.path.isfile(out):
-                    image = vendor._unity_texture(image_path) if image_path.endswith(".asset") else Image.open(image_path)
-                    if image_path.endswith(".asset"):
+                    image, bottom_up = vendor.texture(image_path)  # the alpha Unity imports, as the samples read it
+                    if bottom_up:
                         image = image.transpose(Image.FLIP_TOP_BOTTOM)
                     image.convert("RGBA").save(out)
                 texture = out

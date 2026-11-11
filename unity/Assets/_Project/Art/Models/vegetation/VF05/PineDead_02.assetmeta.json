@@ -3,7 +3,7 @@
   "id": "VF05",
   "variant": "PineDead_02",
   "generator": "vendor_plant",
-  "params_sha256": "af23d25402f55ad35a4ce2b5204b1710a22d435ce5a48db4afd9cef7e2555c02",
+  "params_sha256": "e5a80c21752cf5bb68770dec2c505557048d67637346af0e8bfcf78315106362",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
