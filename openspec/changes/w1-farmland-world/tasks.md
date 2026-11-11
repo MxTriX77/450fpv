@@ -1,6 +1,6 @@
 # Tasks: w1-farmland-world
 
-Order: 1.1, then 2.1, then 3.1. Branch `unity/physics/physics-integration-2--w1-world`, cut from the build line after W0 landed.
+Order: 1.1, then 2.1, then 2.2, then 3.1. Branch `unity/physics/physics-integration-2--w1-world`, cut from the build line after W0 landed.
 
 ## 1. The world in our project
 
@@ -9,6 +9,8 @@ Order: 1.1, then 2.1, then 3.1. Branch `unity/physics/physics-integration-2--w1-
 ## 2. The player on the farmland
 
 - [x] 2.1 [game-developer] The menu opens the farmland in noclip. Place one start point in the village on free level ground (D-092), with the launch stand when legs are off. Flight stays on the test range until W3. Checks: EditMode, the smoke test, load time to the first frame (PLT-06).
+
+- [ ] 2.2 [tech-artist] The player quits and flies again cleanly after the feed has drawn the farmland. Today the D3D12 review player crashes on quit (0xC0000005 in D3D12Core.dll) in 30 of 36 runs, or hangs at startup or in the next flight. The feed off, `-force-d3d11` and the test range's feed all exit cleanly; design.md §6 has the bisection. Find the root cause and fix it in our feed or renderer, not by switching the graphics API or the feed off. Checks: the smoke test exits 0 in 20 runs in a row on the review build, EditMode, `precommit.py --tree HEAD`.
 
 ## 3. Review
 
