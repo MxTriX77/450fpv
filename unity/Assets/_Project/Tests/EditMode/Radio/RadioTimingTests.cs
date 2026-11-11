@@ -26,7 +26,9 @@ namespace Fpv450.Tests.Radio
         // The recording played in real time into the input thread (RadioReader), the flight on its thread, and this
         // thread a renderer at fps: each frame reads the live display and the interpolated pose, then works to its cap.
         // The control (frameBound) is the design the contract forbids: reports taken in by the frame, as Update would.
-        static StickSample[] FlyThreaded(int fps, bool frameBound, out string notes)
+        // droppedUs: how far each step's host time moved by the run's logged drops (a host stall past the 20 ms cap,
+        // p7h-step-budget 2.1), to compare its sticks at the times its steps read them.
+        static StickSample[] FlyThreaded(int fps, bool frameBound, out string notes, out long[] droppedUs)
         {
             RecordedRadio radio = Tx12Stream.Make(0, 1400000, LostAtUs);
             radio.LeadUs = 10000; // handed over 10 ms early so the stamps, not the threads, decide (RecordedRadio)
@@ -78,7 +80,7 @@ namespace Fpv450.Tests.Radio
                 while (true)
                 {
                     long frameStart = clock.NowUs();
-                    if (frameStart >= FlightStartUs + (Steps + 50) * FlightCore.StepUs) break;
+                    if (frameStart >= scheduler.StartUs + (Steps + 50) * FlightCore.StepUs) break; // the time base its drops moved
                     if (frameBound)
                         while (queue.TryDequeue(out StickSample s))
                             inbox.TryWrite(s);
@@ -99,8 +101,10 @@ namespace Fpv450.Tests.Radio
             }
             Assert.That(scheduler.Fault, Is.Null);
             Assert.That(sticks.Count, Is.GreaterThanOrEqualTo(Steps), "steps flown");
+            droppedUs = new long[Steps];
+            Array.Copy(sticks.DroppedUs, droppedUs, Steps);
             notes = fps + " fps" + (frameBound ? ", frame-bound control" : "") + ": " + frames + " frames, " + sticks.Count + " steps, "
-                + scheduler.HitchCount + " hitches, " + inbox.Dropped + " dropped"
+                + scheduler.HitchCount + " hitches (" + droppedUs[Steps - 1] + " us dropped by step " + Steps + "), " + inbox.Dropped + " dropped"
                 + (reader != null ? ", " + reader.Reports + " reports and " + reader.Losses + " loss on the input thread" : "");
             var result = new StickSample[Steps];
             Array.Copy(sticks.Sticks, result, Steps);
@@ -118,24 +122,28 @@ namespace Fpv450.Tests.Radio
         [Test]
         public void RenderRateDoesNotTouchTheSticks()
         {
-            StickSample[] expected = Flights.InForce(Flights.Expected(Tx12Stream.Make(0, 1400000, LostAtUs)), FlightStartUs, Steps);
+            StickSample[] samples = Flights.Expected(Tx12Stream.Make(0, 1400000, LostAtUs));
+            StickSample[] expected = Flights.InForce(samples, FlightStartUs, Steps);
             int failsafeStep = (int)((LostAtUs - FlightStartUs + FlightCore.StepUs - 1) / FlightCore.StepUs);
             Assert.That(expected[failsafeStep].Failsafe && !expected[failsafeStep].Arm && expected[failsafeStep - 1].Arm, "the expectation itself");
 
+            // Each run against the expectation at its own steps' host times: a drop only moves them later, so the failsafe
+            // is in force from failsafeStep at the latest.
             foreach (int fps in new[] { 30, 60, 240 })
             {
-                StickSample[] got = FlyThreaded(fps, false, out string notes);
+                StickSample[] got = FlyThreaded(fps, false, out string notes, out long[] dropped);
                 TestContext.WriteLine(notes);
-                Assert.That(FirstDifference(expected, got), Is.EqualTo(-1), fps + " fps: the first step whose stick in force differs");
+                Assert.That(FirstDifference(Flights.InForce(samples, FlightStartUs, Steps, dropped), got), Is.EqualTo(-1), fps + " fps: the first step whose stick in force differs");
                 Assert.That(got[failsafeStep].Failsafe && got[failsafeStep].HostUs == LostAtUs, fps + " fps: the failsafe's step");
             }
 
             // The control shows the test can fail: reports taken in once a frame miss the steps they belong to at 30 fps.
-            StickSample[] bound = FlyThreaded(30, true, out string control);
-            int first = FirstDifference(expected, bound);
+            StickSample[] bound = FlyThreaded(30, true, out string control, out long[] boundDropped);
+            StickSample[] boundExpected = Flights.InForce(samples, FlightStartUs, Steps, boundDropped);
+            int first = FirstDifference(boundExpected, bound);
             int stale = 0;
             for (int k = 0; k < Steps; k++)
-                if (!expected[k].Equals(bound[k]))
+                if (!boundExpected[k].Equals(bound[k]))
                     stale++;
             TestContext.WriteLine(control + "; " + stale + " of " + Steps + " steps had a stale stick, the first at step " + first);
             Assert.That(first, Is.GreaterThanOrEqualTo(0), "the frame-bound control must differ");

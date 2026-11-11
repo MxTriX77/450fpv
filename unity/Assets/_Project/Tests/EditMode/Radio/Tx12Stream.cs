@@ -86,24 +86,34 @@ namespace Fpv450.Tests.Radio
         public long NowUs() => HostClock.Instance.NowUs() - _zero;
     }
 
-    /// <summary>The stick in force at every step, as the flight thread hands it to the log.</summary>
+    /// <summary>The stick in force at every step, as the flight thread hands it to the log, and how far the logged drops
+    /// so far (p7h-step-budget 2.1, FlightScheduler.MaxOwedUs) moved that step's host time.</summary>
     sealed class SticksInForce : IFlightRecorder
     {
         public readonly StickSample[] Sticks;
+        public readonly long[] DroppedUs;
         public int Count;
         public bool Armed; // the state after the last step
+        long _droppedUs;
 
-        public SticksInForce(int capacity) => Sticks = new StickSample[capacity];
+        public SticksInForce(int capacity)
+        {
+            Sticks = new StickSample[capacity];
+            DroppedUs = new long[capacity];
+        }
 
         public void RecordStep(in FlightState state, in StickSample stick, in StepTrace trace, StepEvents events)
         {
-            if (Count < Sticks.Length) Sticks[Count++] = stick;
+            if (Count < Sticks.Length)
+            {
+                DroppedUs[Count] = _droppedUs;
+                Sticks[Count++] = stick;
+            }
             Armed = state.Armed;
         }
 
-        public void RecordHitch(in Hitch hitch)
-        {
-        }
+        // A drop comes before the step it moves (FlightScheduler.RunDue).
+        public void RecordHitch(in Hitch hitch) => _droppedUs += hitch.DroppedUs;
     }
 
     static class Flights
@@ -147,15 +157,16 @@ namespace Fpv450.Tests.Radio
             return list.ToArray();
         }
 
-        /// <summary>The stick in force at each of steps steps from startUs, by the timing contract's rule alone.</summary>
-        public static StickSample[] InForce(StickSample[] samples, long startUs, int steps)
+        /// <summary>The stick in force at each of steps steps from startUs, by the timing contract's rule alone; each step's
+        /// host time moved by droppedUs[k] when given (a real-time run's logged drops, SticksInForce.DroppedUs).</summary>
+        public static StickSample[] InForce(StickSample[] samples, long startUs, int steps, long[] droppedUs = null)
         {
             var result = new StickSample[steps];
             StickSample inForce = StickSample.Neutral;
             int next = 0;
             for (int k = 0; k < steps; k++)
             {
-                long stepUs = startUs + k * FlightCore.StepUs;
+                long stepUs = startUs + k * FlightCore.StepUs + (droppedUs != null ? droppedUs[k] : 0);
                 while (next < samples.Length && samples[next].HostUs <= stepUs) inForce = samples[next++];
                 result[k] = inForce;
             }
