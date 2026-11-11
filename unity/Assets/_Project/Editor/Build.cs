@@ -15,7 +15,8 @@ namespace Fpv450
     public static class Build
     {
         /// <summary>
-        /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu) and the test range, full screen at the
+        /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu), the test range and the farmland
+        /// (Explore's noclip, w1-farmland-world 2.1; it needs the vendor store linked, tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
         /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.

@@ -26,6 +26,7 @@ namespace Fpv450.App
     /// Calibrate screen, and the flight over the test range (FlightScene). It lives across scenes: Boot holds the menu,
     /// TestRange the world. Train → the setup → Fly saves the setup and loads the range, and the flight starts once the
     /// radio is in, so arming the switch is the only step left. The summary's Fly again and Setup stay in the range.
+    /// Explore opens the farmland (FarmLand) in noclip only (FarmlandExplore), until W3 flies it.
     /// </summary>
     /// <remarks>
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
@@ -133,11 +134,25 @@ namespace Fpv450.App
             Load(explore: false);
         }
 
+        // Explore opens the farmland in noclip (w1-farmland-world 2.1); the flights stay on the test range until W3.
         void Load(bool explore)
         {
             _explore = explore;
             _view = View.Loading;
-            SceneManager.LoadSceneAsync(RangeScene, LoadSceneMode.Single);
+            _exploreAsked = Time.realtimeSinceStartup;
+            _exploreFirstFrame = -1f;
+            SceneManager.LoadSceneAsync(explore ? FarmlandExplore.Scene : RangeScene, LoadSceneMode.Single);
+        }
+
+        float _exploreAsked, _exploreFirstFrame = -1f; // realtime s: Explore's press, and its first noclip frame after it
+        Transform _exploreStand;
+
+        // PLT-06: the seconds from the menu's Explore to the farmland's first noclip frame on screen.
+        IEnumerator FirstExploreFrame()
+        {
+            yield return new WaitForEndOfFrame();
+            _exploreFirstFrame = Time.realtimeSinceStartup - _exploreAsked;
+            Debug.Log("[App] explore: the farmland's first noclip frame " + _exploreFirstFrame.ToString("0.00") + " s after the menu's Explore (PLT-06: 20 s)");
         }
 
         void Menu()
@@ -164,17 +179,19 @@ namespace Fpv450.App
         // After NoclipFeed's own hook (it subscribed before the first scene), so the range's rig is whole when switched off.
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (scene.name == RangeScene)
+            if (scene.name == FarmlandExplore.Scene && _explore)
+            {
+                _exploreStand = FarmlandExplore.Open(scene);
+                _view = View.Explore;
+                Debug.Log("[App] explore: the farmland in noclip with the feed (V, O), from the village's start '" + FlightWorlds.FarmlandStart.Name +
+                          "' with the launch stand" + (_exploreStand != null ? " at " + _exploreStand.position.ToString("0.00") : " MISSING") + "; Esc for the menu");
+                StartCoroutine(FirstExploreFrame());
+            }
+            else if (scene.name == RangeScene)
             {
                 // Its Escape quits and its -smoketest quits after a frame: the app has its own.
                 var boot = FindFirstObjectByType<TestRangeBoot>();
                 if (boot != null) boot.enabled = false;
-                if (_explore)
-                {
-                    _view = View.Explore;
-                    Debug.Log("[App] explore: the test range's noclip and feed (V, O; F1-F4; 1-9); Esc for the menu");
-                    return;
-                }
                 _flight = FlightScene.Attach(scene);
                 if (_flight.Host.Inputs != null)
                 {
@@ -273,7 +290,7 @@ namespace Fpv450.App
                 case View.Loading:
                     AppStyle.Begin();
                     AppStyle.DrawGround();
-                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading the test range…" : "Loading the test range…  arm once the drone is in", AppStyle.Label);
+                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading the farmland…  noclip only for now" : "Loading the test range…  arm once the drone is in", AppStyle.Label);
                     break;
             }
         }
@@ -530,11 +547,24 @@ namespace Fpv450.App
 
             if (AppData.Review)
             {
+                // w1-farmland-world 2.1: Explore opens the farmland in noclip with the feed, the stand at the village's start
+                // on the terrain, its first frame within PLT-06's 20 s of the press.
                 Load(explore: true);
-                yield return Until(() => _view == View.Explore, 60);
-                Check(_view == View.Explore && Camera.main != null, "Explore loads the test range's noclip");
+                yield return Until(() => _view == View.Explore && _exploreFirstFrame >= 0, 60);
+                Camera eye = Camera.main;
+                FpvCamera feed = eye != null ? eye.GetComponent<FpvCamera>() : null;
+                NoclipCamera noclip = eye != null ? eye.GetComponent<NoclipCamera>() : null;
+                StartPoint start = FlightWorlds.FarmlandStart;
+                bool onGround = _exploreStand != null && FarmlandExplore.Ground(_exploreStand.gameObject.scene, (float)start.X, (float)start.Z, out float terrain) &&
+                                Mathf.Abs(_exploreStand.position.x - (float)start.X) < 1e-3f && Mathf.Abs(_exploreStand.position.z - (float)start.Z) < 1e-3f &&
+                                Mathf.Abs(_exploreStand.position.y - terrain) < 1e-3f;
+                Check(_view == View.Explore && SceneManager.GetActiveScene().name == FarmlandExplore.Scene && noclip != null && noclip.enabled && feed != null && feed.Running && onGround &&
+                      _exploreFirstFrame <= 20f,
+                      "Explore opens the farmland in noclip, the feed " + (feed != null && feed.Running ? "on" : "OFF") + ", the stand " +
+                      (_exploreStand != null ? "at " + _exploreStand.position.ToString("0.000") + (onGround ? " on the terrain" : " OFF the start or the ground") : "MISSING") +
+                      ", its first frame " + _exploreFirstFrame.ToString("0.00") + " s after the press (PLT-06: 20 s)");
                 yield return new WaitForSecondsRealtime(2);
-                yield return Shot("explore");
+                yield return Shot("explore_farmland_stand");
                 Menu();
                 yield return Until(() => _view == View.Menu, 30);
                 Check(_view == View.Menu, "Esc's route back to the menu");
