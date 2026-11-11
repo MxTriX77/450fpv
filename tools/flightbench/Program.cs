@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Fpv450.FlightBench
 {
@@ -15,6 +16,8 @@ namespace Fpv450.FlightBench
     // (p7g-legs 1.4). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
     // drone and prints the setpoint against the achieved rate and what limits it; `--rate-log <log>...` reads flight logs so.
+    // `--replay-step <log> [--from S] [--to S]` replays a flight log bit for bit and times its steps and their world queries
+    // in that window of flight seconds against PLT-04 (w3-farmland-ground 2.1).
     internal static class Program
     {
         private static int Main(string[] args)
@@ -28,7 +31,7 @@ namespace Fpv450.FlightBench
             }
             if (args.Length == 1 && args[0] == "--bench")
             {
-                Console.WriteLine("flightbench: 13 bench cases registered; " + Power.Describe());
+                Console.WriteLine("flightbench: 14 bench cases registered; " + Power.Describe());
                 bool ok = FreeBodyCase.Bench();
                 ok &= MassRebuildCase.Bench();
                 ok &= PoweredFlightCase.Bench();
@@ -42,6 +45,7 @@ namespace Fpv450.FlightBench
                 ok &= AirframeCase.Bench();
                 ok &= HousesStepCase.Bench();
                 ok &= HousesWindowCase.Bench();
+                ok &= FarmlandLineCase.Bench();
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
@@ -56,6 +60,13 @@ namespace Fpv450.FlightBench
             {
                 Console.WriteLine("flightbench: " + HousesStepCase.Name + " alone; " + Power.Describe());
                 bool ok = HousesStepCase.Bench();
+                if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
+                return ok ? 0 : 1;
+            }
+            if (args.Length == 2 && args[0] == "--bench" && args[1] == FarmlandLineCase.Name)
+            {
+                Console.WriteLine("flightbench: " + FarmlandLineCase.Name + " alone; " + Power.Describe());
+                bool ok = FarmlandLineCase.Bench();
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
@@ -131,13 +142,24 @@ namespace Fpv450.FlightBench
             }
             if (args.Length >= 2 && args[0] == "--rate-log")
                 return RateTrackingCase.RunLogs(args[1..]) ? 0 : 1;
+            if (args.Length >= 2 && args[0] == "--replay-step")
+            {
+                double from = 0, to = double.MaxValue;
+                bool good = true;
+                for (int i = 2; i + 1 < args.Length && good; i += 2)
+                    if (args[i] == "--from") good = double.TryParse(args[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out from);
+                    else if (args[i] == "--to") good = double.TryParse(args[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out to);
+                    else good = false;
+                if (good && args.Length % 2 == 0)
+                    return ReplayStepCase.Run(args[1], from, to) ? 0 : 1;
+            }
             if (args.Length >= 1 && args[0] == "--probe")
             {
                 var piece = ContactProbeCase.Break.None;
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step] | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>...");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step] | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
             return 2;
         }
     }
