@@ -178,7 +178,8 @@ namespace Fpv450.Sim.Flight
         /// error. A: the depth past the latched plane, m; B: the part's speed, m/s.</summary>
         Tunnel = 6,
 
-        /// <summary>A late step (Index: HitchCause). A: the steps run to catch up, or the waits for the log; B: how late, µs.</summary>
+        /// <summary>A late step (Index: HitchCause). A: the steps run to catch up, or the waits for the log; B: how late, µs.
+        /// A pause and a drop give theirs in HitchCause.</summary>
         Hitch = 7,
 
         /// <summary>A step made more events than StepEvents holds: a bug in a producer. A: how many were lost.</summary>
@@ -441,6 +442,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>The app paused the flight (p6-input-app): no step ran for B µs, and every later step's host time is
         /// that much later, so a stick's age adds every pause before it. A: 0.</summary>
         Pause = 3,
+
+        /// <summary>The lag cap (p7h-step-budget 2.1): the step was about to start A µs late, past
+        /// FlightScheduler.MaxOwedUs, so the scheduler dropped B µs of its backlog: every later step's host time is B µs
+        /// later, as after a pause, and the step starts MaxOwedUs late. No step is skipped.</summary>
+        Drop = 4,
     }
 
     /// <summary>

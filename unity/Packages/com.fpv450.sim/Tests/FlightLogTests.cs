@@ -138,11 +138,14 @@ namespace Fpv450.Sim.Tests
             FlightSummary summary = FlightSummary.Read(log);
             Assert.That(summary.Complete, Is.True);
             Assert.That(summary.Gaps, Is.EqualTo(0));
-            // The stall's Late hitch; the virtual clock runs unpaced, so a slow flush worker (Unity's Mono) may also
-            // fill the ring, and each wait for it is a LogFull hitch with nothing dropped.
-            Assert.That(summary.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Late).Count,
-                Is.EqualTo(1), "the stall's hitch");
-            Assert.That(summary.Count(EventKind.Hitch), Is.EqualTo(1 + summary.End.LogWaits), "every other hitch is a wait for the ring");
+            // The 30 ms stall, past the 20 ms cap (p7h-step-budget 2.1): its Drop of 10 ms, then the Late pass of the 21 steps
+            // left due; the virtual clock runs unpaced, so a slow flush worker (Unity's Mono) may also fill the ring, and each
+            // wait for it is a LogFull hitch with nothing dropped. The replay above matched through the drop.
+            Assert.That(summary.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Late)
+                .ConvertAll(e => (e.Step, e.Event.A, e.Event.B)), Is.EqualTo(new[] { (701L, 21.0, 20000.0) }), "the stall's catch-up, capped");
+            Assert.That(summary.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop)
+                .ConvertAll(e => (e.Step, e.Event.A, e.Event.B)), Is.EqualTo(new[] { (701L, 30000.0, 10000.0) }), "the stall's drop");
+            Assert.That(summary.Count(EventKind.Hitch), Is.EqualTo(2 + summary.End.LogWaits), "every other hitch is a wait for the ring");
             Assert.That(summary.End.Steps, Is.EqualTo(120000));
             Assert.That(summary.Last.State.Armed, Is.True, "the flight armed and flew");
             Assert.That(summary.Last.State.RotorSpeed.RearRight, Is.GreaterThan(100), "the motors turn");
@@ -170,8 +173,9 @@ namespace Fpv450.Sim.Tests
         // PLT-04, PHB-01 (task 1.7): the flight thread's timing changes only the logged hitches. The repository's drone with
         // its contacts, the Windy wind and the builder's chain (GoldenFlights' powered setup) is flown 3 s on the jittered
         // stick stream by three workers on a virtual clock: one exactly on each step's time, one forced early (it wakes
-        // 10–400 µs apart, mostly before its step is due), one forced late (2–4000 µs apart, and once 40 ms, so passes
-        // catch up 2–40 steps). Every step record and every event but the hitches is the same, byte for byte.
+        // 10–400 µs apart, mostly before its step is due), one forced late (2–4000 µs apart, and once the 20 ms cap, so
+        // passes catch up 2–20 steps; p7h-step-budget 2.1). Every step record and every event but the hitches is the same,
+        // byte for byte: within the cap, timing changes nothing.
         enum Worker { OnTime, Early, Late }
 
         const long WorkerSteps = 3000;
@@ -204,7 +208,7 @@ namespace Fpv450.Sim.Tests
                 long draw = (long)(lcg >> 33);
                 if (worker == Worker.OnTime) wake = scheduler.StepHostUs(core.State.Step);
                 else if (worker == Worker.Early) wake += 10 + draw % 391;
-                else wake += core.State.Step == 1500 ? 40000 : 2 + draw % 3999;
+                else wake += core.State.Step == 1500 ? FlightScheduler.MaxOwedUs : 2 + draw % 3999;
             }
             recorder.Close(inbox.Dropped);
             Assert.That(recorder.Fault, Is.Null);
@@ -385,6 +389,135 @@ namespace Fpv450.Sim.Tests
             Assert.That(times.MaxUs, Is.GreaterThan(0), "timed on the host's clock");
         }
 
+        // p7h-step-budget 2.1, "A late flight never builds growing lag": a host clock on which steps 1000–1499 cost 3 ms each
+        // and every other step 200 µs, and which, like the input thread, puts each report (every 500 µs) in the inbox once
+        // its time has come. The driver is the flight thread's loop (FlightScheduler.Run): a pass at the clock's now, then
+        // a sleep to the next step's host time.
+        sealed class SlowClock : IHostClock
+        {
+            public const long ReportUs = 500;
+            public FlightCore Core;
+            public StickInbox Inbox;
+            long _steps, _now = StartUs, _report = StartUs - 2000;
+            int _reports;
+
+            public static long Cost(long k) => k >= 1000 && k < 1500 ? 3000 : 200;
+
+            public long NowUs()
+            {
+                for (; _steps < Core.State.Step; _steps++) _now += Cost(_steps);
+                for (; _report <= _now; _reports++, _report += ReportUs) Inbox.TryWrite(Report(_reports, _report));
+                return _now;
+            }
+
+            public void SleepUntil(long us)
+            {
+                if (NowUs() < us) _now = us;
+            }
+        }
+
+        const int SlowSteps = 3000;
+
+        // Each step's start on the slow clock and the stamp of the stick it read, beside the log; the scheduler and its poses.
+        sealed class StepWatch : IFlightRecorder
+        {
+            public IFlightRecorder Inner;
+            public SlowClock Clock;
+            public FlightScheduler Scheduler;
+            public PoseBuffer Poses;
+            public readonly long[] StartUs = new long[SlowSteps], StickUs = new long[SlowSteps];
+
+            public void RecordStep(in FlightState state, in StickSample stick, in StepTrace trace, StepEvents events)
+            {
+                long k = state.Step - 1;
+                StartUs[k] = Clock.NowUs() - SlowClock.Cost(k); // nothing but the step ran since it started
+                StickUs[k] = stick.HostUs;
+                Inner.RecordStep(state, stick, trace, events);
+            }
+
+            public void RecordHitch(in Hitch hitch) => Inner.RecordHitch(hitch);
+        }
+
+        // The slow flight (the ring holds it whole, so no LogFull wait depends on the flush worker) and the bytes its thread
+        // allocated after the first step. That step's pass is followed by a collection, which empties the thread's allocation
+        // chunk: CoreCLR's tiered compilation briefly stops the threads to finish a batch, and that counts a chunk's unused
+        // rest into the thread's allocated bytes, though no step allocated it (design 6: 5,264 B at step 10 in whole-suite
+        // runs, none with DOTNET_TieredCompilation=0).
+        static byte[] FlySlow(out StepWatch watch, out long allocated)
+        {
+            DroneSpec spec = BootstrapDrone.Spec();
+            FlightSetup setup = Setup(spec);
+            var core = new FlightCore(setup);
+            var log = new MemoryStream();
+            var recorder = new FlightRecorder(log, Header(setup, core, spec), 1 << 24, ownsStream: false);
+            var inbox = new StickInbox();
+            var clock = new SlowClock { Core = core, Inbox = inbox };
+            watch = new StepWatch { Inner = recorder, Clock = clock, Poses = new PoseBuffer() };
+            var scheduler = watch.Scheduler = new FlightScheduler(core, inbox, watch.Poses, clock, watch);
+            scheduler.Begin(StartUs);
+            allocated = 0;
+            while (core.State.Step < SlowSteps)
+            {
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                bool first = core.State.Step == 0;
+                scheduler.RunDue(clock.NowUs());
+                if (first) GC.Collect();
+                else allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                clock.SleepUntil(scheduler.StepHostUs(core.State.Step));
+            }
+            recorder.Close(inbox.Dropped, scheduler.Times.Summary());
+            Assert.That(recorder.Fault, Is.Null);
+            return log.ToArray();
+        }
+
+        // "A slow stretch costs one bounded hiccup": 500 steps of 3 ms. Each step's host time, rebuilt from the log alone
+        // (step 0's, k ms, and the B of every drop up to it, LogHeader.StartHostUs), is never more than the cap before the
+        // step started, and the stick it read is the one in force then. The stretch adds 2 ms of lag a step (3 ms run, 1 ms
+        // of flight): the first 10 steps build it to the cap, then each of the 490 that start past it drops its 2 ms, 980 ms
+        // in all, and the 20 ms kept are run down by the cheap steps after it. 0 B after the first step, drops included.
+        [Test]
+        public void ASlowStretchCostsOneBoundedHiccup()
+        {
+            byte[] log = FlySlow(out StepWatch watch, out long allocated);
+            FlightSummary s = FlightSummary.Read(new MemoryStream(log));
+            Assert.That(s.Complete, s.CutReason);
+            List<LoggedEvent> drops = s.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop);
+
+            long droppedUs = 0, maxOwedUs = long.MinValue;
+            int d = 0;
+            for (long k = 0; k < SlowSteps; k++)
+            {
+                for (; d < drops.Count && drops[d].Step <= k + 1; d++) droppedUs += (long)drops[d].Event.B; // stamped with the step's state
+                long hostUs = StartUs + k * FlightCore.StepUs + droppedUs;
+                long owedUs = watch.StartUs[k] - hostUs;
+                maxOwedUs = Math.Max(maxOwedUs, owedUs);
+                Assert.That(owedUs, Is.InRange(0, FlightScheduler.MaxOwedUs), "step " + k + " started that late");
+                Assert.That(watch.StickUs[k], Is.InRange(hostUs - SlowClock.ReportUs + 1, hostUs), "step " + k + " read the stick in force at its host time");
+                Assert.That(watch.StartUs[k] - watch.StickUs[k], Is.LessThan(FlightScheduler.MaxOwedUs + SlowClock.ReportUs), "step " + k + ": its stick's age");
+            }
+            TestContext.WriteLine("500 steps of 3 ms: " + drops.Count + " drops, " + droppedUs + " us dropped, at most " + maxOwedUs + " us owed; "
+                                  + s.End.Hitches + " hitches; " + s.End.Times);
+            Assert.That(maxOwedUs, Is.EqualTo(FlightScheduler.MaxOwedUs), "the lag reaches the cap and stops there");
+            Assert.That(drops.ConvertAll(e => (e.Event.A, e.Event.B)), Is.All.EqualTo((22000.0, 2000.0)), "each drop: how late, and how much it dropped");
+            Assert.That((drops.Count, drops[0].Step, drops[drops.Count - 1].Step, droppedUs), Is.EqualTo((490, 1012L, 1501L, 980000L)));
+            Assert.That(s.Steps, Is.EqualTo(SlowSteps), "every step run, each 1 ms");
+            Assert.That((watch.Scheduler.StartUs, watch.Poses.Read().StartUs), Is.EqualTo((StartUs + droppedUs, StartUs + droppedUs)),
+                "the time base, and the pose buffer's with it, moved by every drop");
+            Assert.That(allocated, Is.Zero, "0 B a step after the first, drops included");
+        }
+
+        // "The replay ignores the drop": the slow flight's log, its 490 drops moving the sticks' host times, replays bit for bit.
+        [Test]
+        public void TheReplayIgnoresTheDrop()
+        {
+            byte[] log = FlySlow(out _, out _);
+            FlightSummary s = FlightSummary.Read(new MemoryStream(log));
+            Assert.That(s.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop).Count, Is.EqualTo(490));
+            ReplayResult r = FlightReplay.Run(new MemoryStream(log), OpenWorld, BootstrapDrone.Spec().ContentHash);
+            Assert.That(r.Outcome, Is.EqualTo(ReplayOutcome.Match), r.Message);
+            Assert.That(r.Steps, Is.EqualTo(SlowSteps));
+        }
+
         // The brief's "old logs still read": a format-69 log (the same records, its end block the six counts alone) reads whole
         // and replays bit for bit; its summary says it holds no step times. Another format is refused.
         [Test]
@@ -463,7 +596,7 @@ namespace Fpv450.Sim.Tests
                 var mine = new byte[LogFormat.StepSize];
                 LogFormat.EncodeStep(mine, s.Last.State, s.Last.Stick, s.Last.Trace);
                 Assert.That(mine, Is.EqualTo(lastWhole), "the last whole record reads bit for bit");
-                Assert.That(s.Count(EventKind.Hitch), Is.EqualTo(1), "the stall's hitch at 0.7 s is before the cut");
+                Assert.That(s.Count(EventKind.Hitch), Is.EqualTo(2), "the stall's drop and late pass at 0.7 s are before the cut");
 
                 var text = new StringWriter();
                 s.Print(text);

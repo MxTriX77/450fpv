@@ -7,9 +7,9 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     // flight-dynamics: "Render rate does not touch the flight" (PHB-01). The same seed and the same timestamped stick
-    // samples, flown under a stub renderer at 30, 60 and 240 fps, with a 250 ms renderer stall, and with a 250 ms stall
-    // of the whole process, give the same state and the same stick in force at every step; only the process stall logs
-    // a hitch. Until task 1.2's log exists, the record is StateDump's per-step hash of the state and the stick.
+    // samples, flown under a stub renderer at 30, 60 and 240 fps, with a 250 ms renderer stall, and with a stall of the
+    // whole process as long as the lag cap (20 ms, p7h-step-budget 2.1; a longer one drops its excess, FlightLogTests),
+    // give the same state and the same stick in force at every step; only the process stall logs a hitch. Until task 1.2's log exists, the record is StateDump's per-step hash of the state and the stick.
     public sealed class RenderRateTests
     {
         const long StartUs = 5000000;
@@ -17,6 +17,7 @@ namespace Fpv450.Sim.Tests
         const long TickUs = 100;               // the harness's time resolution
         const long StallAtUs = StartUs + 700000;
         const long StallUs = 250000;
+        const long ProcessStallUs = FlightScheduler.MaxOwedUs; // the most a stall may cost and still be run whole (p7h-step-budget 2.1)
 
         enum Stall { None, Renderer, Process }
 
@@ -76,7 +77,7 @@ namespace Fpv450.Sim.Tests
             for (long t = StartUs; t <= StartUs + DurationUs; t += TickUs)
             {
                 clock.Now = t;
-                bool stalled = t >= StallAtUs && t < StallAtUs + StallUs;
+                bool stalled = t >= StallAtUs && t < StallAtUs + (stall == Stall.Process ? ProcessStallUs : StallUs);
                 if (!(stall == Stall.Process && stalled))
                 {
                     while (next < sticks.Length && sticks[next].HostUs <= t) inbox.TryWrite(sticks[next++]);
@@ -109,7 +110,7 @@ namespace Fpv450.Sim.Tests
                 ("30 fps", Fly(30, Stall.None, out _)),
                 ("240 fps", Fly(240, Stall.None, out _)),
                 ("60 fps, 250 ms renderer stall", Fly(60, Stall.Renderer, out _)),
-                ("60 fps, 250 ms process stall", Fly(60, Stall.Process, out _)),
+                ("60 fps, 20 ms process stall (the cap)", Fly(60, Stall.Process, out _)),
             };
             foreach (var (name, dump) in runs)
             {
@@ -117,8 +118,9 @@ namespace Fpv450.Sim.Tests
                 if (name.Contains("process"))
                 {
                     Assert.That(dump.Hitches.Count, Is.EqualTo(1), name);
-                    Assert.That(dump.Hitches[0].Steps, Is.GreaterThanOrEqualTo(StallUs / FlightCore.StepUs), name);
-                    Assert.That(dump.Hitches[0].LateUs, Is.GreaterThanOrEqualTo(StallUs - FlightCore.StepUs), name);
+                    Assert.That(dump.Hitches[0].Steps, Is.GreaterThanOrEqualTo(ProcessStallUs / FlightCore.StepUs), name);
+                    Assert.That(dump.Hitches[0].LateUs, Is.GreaterThanOrEqualTo(ProcessStallUs - FlightCore.StepUs), name);
+                    Assert.That(dump.Hitches[0].DroppedUs, Is.Zero, name + ": within the cap, nothing dropped");
                 }
                 else
                 {
@@ -128,7 +130,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // The same flight on the real flight thread and the real clock, read by a renderer on this thread, matches a
-        // plain loop applying the consumption rule independently, step for step.
+        // plain loop applying the consumption rule independently, step for step (at the host times its drops moved).
         [Test]
         public void TheFlightThreadMatchesAPlainLoop()
         {
@@ -164,10 +166,12 @@ namespace Fpv450.Sim.Tests
 
             var core = new FlightCore(FreeBody());
             StickSample inForce = StickSample.Neutral;
-            int next = 0;
+            int next = 0, hitch = 0;
+            long droppedUs = 0; // a host stall past the cap (p7h-step-budget 2.1) moves the later steps by its logged drop
             for (int k = 0; k < n; k++)
             {
-                long stepUs = start + k * FlightCore.StepUs;
+                for (; hitch < dump.Hitches.Count && dump.Hitches[hitch].Step <= k; hitch++) droppedUs += dump.Hitches[hitch].DroppedUs;
+                long stepUs = start + k * FlightCore.StepUs + droppedUs;
                 while (next < sticks.Length && sticks[next].HostUs <= stepUs) inForce = sticks[next++];
                 core.Advance(inForce);
                 Assert.That(StateDump.Hash(core.State, inForce), Is.EqualTo(dump[k]), "step " + (k + 1));

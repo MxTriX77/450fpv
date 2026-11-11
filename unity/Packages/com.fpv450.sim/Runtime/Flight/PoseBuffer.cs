@@ -47,6 +47,10 @@ namespace Fpv450.Sim.Flight
             Publish(initial, signals);
         }
 
+        /// <summary>Flight thread: the scheduler moved step 0's host time (a drop, FlightScheduler.MaxOwedUs); the next
+        /// pair carries it.</summary>
+        public void MoveStart(long startUs) => _startUs = startUs;
+
         /// <summary>Flight thread, after every step.</summary>
         public void Publish(in PoseFrame current, in FeedSignals signals)
         {

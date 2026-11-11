@@ -12,11 +12,11 @@ The flight scheduler SHALL time every step's advance with its host clock and kee
 - **THEN** it allocates 0 B after the first step
 
 ### Requirement: A late flight never builds growing lag
-When the scheduler finds itself behind real time by more than a bound B, it SHALL move its time base forward so that it owes at most B, instead of running the whole backlog. Every step SHALL still be a real 1 ms step. The jump SHALL be logged as a hitch with its own cause, how far behind the scheduler was, and how much time it dropped. The pose buffer SHALL follow the new time base. B SHALL be derived from the control chain's latency budget (INP-04) and recorded with its derivation.
+When the scheduler finds itself behind real time by more than a bound B, it SHALL move its time base forward so that it owes at most B, instead of running the whole backlog: a lag up to B is caught up whole, and the excess past B is dropped. Every step SHALL still be a real 1 ms step. The jump SHALL be logged as a hitch with its own cause, how far behind the scheduler was, and how much time it dropped. The pose buffer SHALL follow the new time base. B SHALL be derived from the control chain's latency budget (INP-04) and recorded with its derivation.
 
 #### Scenario: A slow stretch costs one bounded hiccup
 - **WHEN** a test clock makes 500 consecutive steps cost 3 ms each
-- **THEN** the scheduler never owes more than B, the sticks each step consumes are never older than B, and the log holds the drop hitches with their amounts
+- **THEN** the scheduler never owes more than B, no step starts more than B after its host time and each reads the stick in force at that time, and the log holds the drop hitches with their amounts
 
 #### Scenario: The replay ignores the drop
 - **WHEN** a flight with drop hitches is replayed headless

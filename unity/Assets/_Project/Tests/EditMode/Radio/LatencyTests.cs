@@ -53,9 +53,21 @@ namespace Fpv450.Tests.Radio
             TestContext.WriteLine("  Betaflight's chain at " + cutoffHz + " Hz with the boost, then the ESC: the smoothing " + Ms(smoothing) + " ms, the ESC "
                 + Ms(esc) + " ms");
             var waits = new HashSet<long>();
-            int raced = 0;
+            int raced = 0, stalled = 0;
             for (int i = 0; i < t.Timed; i++)
             {
+                Assert.That(t.MotorUs[i], Is.EqualTo(t.FirstStepUs[i] + t.FrameWaitUs[i] + t.SmoothingUs[i] + t.EscUs[i]));
+                if (t.DroppedInUs[i] > 0)
+                {
+                    // A host stall past the lag cap while the change was timed (p7h-step-budget 2.1): the time dropped is
+                    // latency the pilot would feel, in the parts it fell in, and nothing more.
+                    stalled++;
+                    TestContext.WriteLine("  change " + i + ": " + Ms(t.DroppedInUs[i]) + " ms dropped by the lag cap while it was timed; to the first step "
+                        + Ms(t.FirstStepUs[i]) + ", to the motor command " + Ms(t.MotorUs[i]) + " ms");
+                    Assert.That(t.FirstStepUs[i], Is.InRange(0, 2 * FlightCore.StepUs - 1 + t.DroppedInUs[i]), "change " + i + ": arrival to the first step, with the drop");
+                    Assert.That(t.MotorUs[i], Is.LessThanOrEqualTo(5 * FlightCore.StepUs - 1 + smoothing + esc + 20 + t.DroppedInUs[i]), "change " + i + ": the motor command, with the drop");
+                    continue;
+                }
                 Assert.That(t.FirstStepUs[i], Is.InRange(0, 2 * FlightCore.StepUs - 1), "change " + i + ": arrival to the first step");
                 if (t.FirstStepUs[i] >= FlightCore.StepUs) raced++;
                 else waits.Add(t.FrameWaitUs[i]); // a change that waited a second step meets the frame a step later
@@ -63,9 +75,8 @@ namespace Fpv450.Tests.Radio
                 Assert.That(t.FrameWaitUs[i], Is.InRange(0, 3 * FlightCore.StepUs), "change " + i + ": the frame's wait");
                 Assert.That(t.SmoothingUs[i], Is.EqualTo(smoothing).Within(10), "change " + i + ": the RC smoothing against Betaflight's formulas");
                 Assert.That(t.EscUs[i], Is.EqualTo(esc).Within(10), "change " + i + ": the ESC against its lag");
-                Assert.That(t.MotorUs[i], Is.EqualTo(t.FirstStepUs[i] + t.FrameWaitUs[i] + t.SmoothingUs[i] + t.EscUs[i]));
             }
-            TestContext.WriteLine("  " + raced + " changes waited a second step; the frame waits seen: " + string.Join(", ", Sorted(waits)) + " us");
+            TestContext.WriteLine("  " + raced + " changes waited a second step, " + stalled + " met a drop; the frame waits seen: " + string.Join(", ", Sorted(waits)) + " us");
             Assert.That(waits.Count, Is.EqualTo(2), "2 ms reports on a 4 ms frame: two phases");
 
             // The log: the figures in its header and its summary.
@@ -88,16 +99,21 @@ namespace Fpv450.Tests.Radio
             StringAssert.Contains("to the motor command (the ESCs' duty halfway through the change) p50 " + Ms(t.Figures.Motor.P50Us) + ", p99 "
                 + Ms(t.Figures.Motor.P99Us), text.ToString());
 
-            // The first figure from the records alone: each throttle change's step, its stick's stamp and the header's
-            // step-0 time. The first change (0 to Low) is the pattern's start and the last ends the last hold.
+            // The first figure from the records alone: each throttle change's step, its stick's stamp, the header's
+            // step-0 time and the drops stamped up to that step (p7h-step-budget 2.1, a host stall past the 20 ms cap).
+            // The first change (0 to Low) is the pattern's start and the last ends the last hold.
+            List<LoggedEvent> drops = summary.Events.FindAll(e => e.Event.Kind == EventKind.Hitch && e.Event.Index == (byte)HitchCause.Drop);
             var ages = new List<long>();
             double throttle = 0;
+            long droppedUs = 0;
+            int d = 0;
             using (var r = new FlightLogReader(new MemoryStream(bytes)))
                 while (r.Next())
                     if (r.Kind == LogFormat.StepBlock)
                     {
                         r.ReadStep(out LoggedStep s);
-                        if (s.Stick.Throttle != throttle) ages.Add(h.StartHostUs + (s.State.Step - 1) * FlightCore.StepUs - s.Stick.HostUs);
+                        for (; d < drops.Count && drops[d].Step <= s.State.Step; d++) droppedUs += (long)drops[d].Event.B;
+                        if (s.Stick.Throttle != throttle) ages.Add(h.StartHostUs + (s.State.Step - 1) * FlightCore.StepUs + droppedUs - s.Stick.HostUs);
                         throttle = s.Stick.Throttle;
                     }
             Assert.That(ages.Count, Is.EqualTo(Changes + 2));

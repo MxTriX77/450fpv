@@ -390,7 +390,8 @@ namespace Fpv450.App
             }
             // R pressed through the Input System, as the pilot's key (D-078, D-087): the flight restarts in the frame that
             // reads the press, in whatever state it was, as a new flight from the same setup and start: step 0 on a whole
-            // line, the link intact, the failsafe cleared, its props whole and its legs intact, the feed's picture back.
+            // line, the link intact, the failsafe cleared, its props whole and its legs intact, the feed's picture back. Its pair
+            // is this flight's by FlightScene's test: a drop in its first frames (p7h-step-budget 2.1) moves its start later.
             IEnumerator PressR(string where)
             {
                 FlightSession session = _flight.Host.Session;
@@ -415,7 +416,7 @@ namespace Fpv450.App
                 FpvCamera feed = _flight.Eye != null ? _flight.Eye.GetComponent<FpvCamera>() : null;
                 FeedLoss.State shown = feed != null && feed.Running ? feed.Events.Loss.Current : FeedLoss.State.Black;
                 FlightChoices c = session.Choices;
-                Check(atOnce && session.State == SessionState.Flying && pair.StartUs == session.StartUs && pair.Signals.LinkState == Fpv450.Sim.Flight.LinkState.Intact &&
+                Check(atOnce && session.State == SessionState.Flying && pair.StartUs >= session.StartUs && pair.Signals.LinkState == Fpv450.Sim.Flight.LinkState.Intact &&
                       core.Failsafe != null && !core.Failsafe.Active && core.Tether != null && !core.Tether.Broken && whole &&
                       pair.Current.LegState == 0 && pair.Current.CornerState == 0 && shown == FeedLoss.State.Picture &&
                       c.StartPoint == before.StartPoint && c.Legs == before.Legs && c.Payload == before.Payload && c.Wind == before.Wind && c.Rain == before.Rain &&

@@ -394,11 +394,12 @@ namespace Fpv450.Replay
             var wall = Stopwatch.StartNew();
             var recorder = new FlightRecorder(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 1 << 16), header);
             Exception fault;
+            StepTimeSummary times = default;
             if (realtime)
-                fault = RealTime(core, inbox, poses, recorder, steps, pilot);
+                fault = RealTime(core, inbox, poses, recorder, steps, pilot, out times);
             else
                 fault = Virtual(core, inbox, poses, recorder, steps, pilot);
-            recorder.Close(inbox.Dropped);
+            recorder.Close(inbox.Dropped, times);
             return new Recorded
             {
                 Counts = recorder.Counts,
@@ -595,7 +596,8 @@ namespace Fpv450.Replay
             return false;
         }
 
-        static Exception RealTime(FlightCore core, StickInbox inbox, PoseBuffer poses, FlightRecorder recorder, long steps, Pilot pilot)
+        static Exception RealTime(FlightCore core, StickInbox inbox, PoseBuffer poses, FlightRecorder recorder, long steps, Pilot pilot,
+            out StepTimeSummary times)
         {
             using (Host.FineTimer())
             {
@@ -619,6 +621,7 @@ namespace Fpv450.Replay
                 scheduler.Stop();
                 Volatile.Write(ref stop, true);
                 input.Join();
+                times = scheduler.Times.Summary();
                 return scheduler.Fault;
             }
         }

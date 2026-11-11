@@ -68,6 +68,22 @@ namespace Fpv450.Sim.Tests
             Assert.That((after.HostUs, after.Roll, after.Failsafe), Is.EqualTo((3500L, 0.4, false)), "then the latest report taken meanwhile");
         }
 
+        // p7h-step-budget 2.1: a drop moves every later step's host time, and a hold with them, so it keeps its steps.
+        [Test]
+        public void ADropMovesTheHoldWithTheSteps()
+        {
+            var inbox = new StickInbox(8);
+            inbox.TryWrite(new StickSample { HostUs = 1500, Failsafe = true });
+            inbox.Drain(2000, out StickSample lost);
+            inbox.Hold(lost, 4000);
+            inbox.TryWrite(At(3500, 0.4));
+            inbox.MoveHold(2500); // the step due at 3999 is due at 6499 now
+            inbox.Consume(6499, out StickSample held);
+            inbox.Consume(6500, out StickSample after);
+            Assert.That((held.HostUs, held.Failsafe), Is.EqualTo((1500L, true)), "held for the same steps");
+            Assert.That((after.HostUs, after.Failsafe), Is.EqualTo((3500L, false)), "then the latest report");
+        }
+
         static PosePair Pair(long startUs)
         {
             var a = new PoseFrame { Step = 10, Position = new Double3(1, 2, 3), Attitude = Quat.Identity };
