@@ -735,3 +735,14 @@ The pilot, 2026-11-11.
 - **Phase L closes with what it has:** the step timer (L4) and the lag cap (L5) merge on the evidence in hand. The fix of the cause (L6) is already folded into W3.
 - **W next,** to a build the pilot flies around the farmland.
 - **B and A after the pilot's flight,** in an order the pilot sets then. This supersedes the plan's "B in parallel with W".
+
+## D-094 The farmland keeps its scene's frame · Accepted
+The orchestrator, 2026-11-11, on the physics engineer's sign-off of W2's map package (its design.md).
+- **The farmland spans [0, 1000]² m with its SW corner at the origin,** as the friend's scene places it. Moving it would break the generator's absolute placements.
+- A map package states its rectangle in `map_rect_m`, and the sim never assumes a centred map. Nothing in the sim did (checked: object and wake grids, logs, region caches, wind phases).
+- Replaces only D-019's centred-map line. D-019's units, axes and row order (north first) stand.
+
+## D-095 Terrain edits are data, applied at load · Accepted
+The orchestrator, 2026-11-11, after W1: the farmland's terrain data is linked from the shared local store (D-089), so editing it in place would change every checkout and could never be pushed.
+- **W5's trench holes and flattened footprints live in `maps/farmland/`** (the hole mask and the footprints), generated from the placements.
+- **The sim and the player apply the same data at load:** the sim to its heightfield, the player to a runtime copy of the drawn terrain. The store's terrain data stays as the friend's generator wrote it.
