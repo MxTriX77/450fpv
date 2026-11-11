@@ -77,3 +77,7 @@ desktop.ini
 # --- Claude local ---
 .claude/worktrees/
 .claude/settings.local.json
+
+# --- The local store (D-089): third-party packs that cannot be pushed, and the farmland world ---
+# No trailing slash: in a worktree it is a junction (tools/vendor/link.ps1).
+/vendor
