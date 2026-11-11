@@ -1,7 +1,7 @@
 # step-budget Specification
 
 ## Purpose
-TBD - created by archiving change p7h-step-budget. Update Purpose after archive.
+Defines how the player measures its own physics steps and how the flight scheduler bounds its lag behind real time, so a slow stretch costs one bounded hiccup instead of growing control lag (PLT-04, INP-04, LOG-01).
 
 ## Requirements
 
