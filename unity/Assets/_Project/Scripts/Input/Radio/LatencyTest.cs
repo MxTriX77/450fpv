@@ -56,6 +56,12 @@ namespace Fpv450.Input.Radio
         /// <summary>Each timed change's parts, µs, in order: arrival to the first step, the frame wait, the smoothing, the ESC.</summary>
         public long[] FirstStepUs, FrameWaitUs, SmoothingUs, EscUs, MotorUs;
 
+        /// <summary>
+        /// Each timed change's time the lag cap dropped while it was timed, µs (FlightScheduler.MaxOwedUs: a host stall past
+        /// it, from the step before its first to its hold's end). That much is in its parts: latency the pilot would feel.
+        /// </summary>
+        public long[] DroppedInUs;
+
         /// <summary>Changes timed (some may be lost to a stall), and those with an ESC at its current limit.</summary>
         public int Timed, Limited;
 
@@ -181,6 +187,7 @@ namespace Fpv450.Input.Radio
             SmoothingUs = new long[count];
             EscUs = new long[count];
             MotorUs = new long[count];
+            DroppedInUs = new long[count];
             int n = 0, k = 0;
             for (int i = 0; i < count; i++)
             {
@@ -192,9 +199,9 @@ namespace Fpv450.Input.Radio
                 if (kn == p.Count) break; // the flight ended inside this change's hold
 
                 int kf = (k1 + StepsPerFrame - 1) / StepsPerFrame * StepsPerFrame;
-                long frameUs = StartUs + kf * FlightCore.StepUs;
-                long command = Crossing(p.Command, k1, kn, CommandAtUs);
-                long esc = Crossing(p.Esc, k1, kn, FlightCore.StepUs);
+                long frameUs = HostUs(p, kf);
+                long command = Crossing(p, p.Command, k1, kn, CommandAtUs);
+                long esc = Crossing(p, p.Esc, k1, kn, FlightCore.StepUs);
                 if (command == long.MinValue || esc == long.MinValue) continue;
                 for (int j = k1; j < kn; j++)
                     if (p.Limited[j])
@@ -202,11 +209,12 @@ namespace Fpv450.Input.Radio
                         Limited++;
                         break;
                     }
-                FirstStepUs[n] = StartUs + k1 * FlightCore.StepUs - t;
-                FrameWaitUs[n] = frameUs - (StartUs + k1 * FlightCore.StepUs);
+                FirstStepUs[n] = HostUs(p, k1) - t;
+                FrameWaitUs[n] = frameUs - HostUs(p, k1);
                 SmoothingUs[n] = command - frameUs;
                 EscUs[n] = esc - command;
                 MotorUs[n] = esc - t;
+                DroppedInUs[n] = p.DroppedUs[kn - 1] - p.DroppedUs[Math.Max(k1 - 2, 0)]; // the drops at steps k1 − 1 to kn − 1
                 n++;
             }
             Timed = n;
@@ -215,15 +223,19 @@ namespace Fpv450.Input.Radio
             Array.Resize(ref SmoothingUs, n);
             Array.Resize(ref EscUs, n);
             Array.Resize(ref MotorUs, n);
+            Array.Resize(ref DroppedInUs, n);
             Figures = new InputLatency { Steps = n, FirstStep = LatencySpread.Of(FirstStepUs, n), Motor = LatencySpread.Of(MotorUs, n) };
             FrameWait = LatencySpread.Of(FrameWaitUs, n);
             Smoothing = LatencySpread.Of(SmoothingUs, n);
             Esc = LatencySpread.Of(EscUs, n);
         }
 
+        // Step k's host time: step 0's, k ms, and the drops before it (FlightScheduler.MaxOwedUs), which moved the time base.
+        long HostUs(Probe p, int k) => StartUs + k * FlightCore.StepUs + p.DroppedUs[k];
+
         // The host µs at which values first passes halfway from the step before k1 to the step before kn, linear between
         // two steps' samples; step k's sample stands at its host time plus atUs. MinValue when it never does.
-        long Crossing(double[] values, int k1, int kn, long atUs)
+        long Crossing(Probe p, double[] values, int k1, int kn, long atUs)
         {
             double from = values[k1 - 1], to = values[kn - 1], half = (from + to) / 2;
             if (to == from) return long.MinValue;
@@ -232,7 +244,7 @@ namespace Fpv450.Input.Radio
             {
                 if (rising ? values[k] < half : values[k] > half) continue;
                 double f = (half - values[k - 1]) / (values[k] - values[k - 1]);
-                return StartUs + (k - 1) * FlightCore.StepUs + atUs + (long)Math.Round(f * FlightCore.StepUs);
+                return HostUs(p, k - 1) + atUs + (long)Math.Round(f * FlightCore.StepUs);
             }
             return long.MinValue;
         }
@@ -286,19 +298,22 @@ namespace Fpv450.Input.Radio
             public void Dispose() => _device.Dispose();
         }
 
-        // On the flight thread: each step's stick stamp, the four corners' mean DShot command and ESC duty, and whether
-        // an ESC held its current limit; every step goes on to the log. Preallocated.
+        // On the flight thread: each step's stick stamp, the four corners' mean DShot command and ESC duty, whether an ESC
+        // held its current limit, and how far the drops so far moved its host time; every step and hitch goes on to the
+        // log. Preallocated.
         sealed class Probe : IFlightRecorder
         {
             public IFlightRecorder Inner;
-            public readonly long[] StickUs;
+            public readonly long[] StickUs, DroppedUs;
             public readonly double[] Command, Esc;
             public readonly bool[] Limited;
             public int Count;
+            long _droppedUs;
 
             public Probe(int capacity)
             {
                 StickUs = new long[capacity];
+                DroppedUs = new long[capacity];
                 Command = new double[capacity];
                 Esc = new double[capacity];
                 Limited = new bool[capacity];
@@ -309,13 +324,19 @@ namespace Fpv450.Input.Radio
                 Inner?.RecordStep(state, stick, trace, events);
                 if (Count == StickUs.Length) return;
                 StickUs[Count] = stick.HostUs;
+                DroppedUs[Count] = _droppedUs;
                 Command[Count] = (trace.RotorCommand[0] + trace.RotorCommand[1] + trace.RotorCommand[2] + trace.RotorCommand[3]) / 4;
                 Esc[Count] = (state.EscCommand[0] + state.EscCommand[1] + state.EscCommand[2] + state.EscCommand[3]) / 4;
                 Limited[Count] = state.EscLimited != 0;
                 Count++;
             }
 
-            public void RecordHitch(in Hitch hitch) => Inner?.RecordHitch(hitch);
+            // A drop comes before the step it moves (FlightScheduler.RunDue).
+            public void RecordHitch(in Hitch hitch)
+            {
+                _droppedUs += hitch.DroppedUs;
+                Inner?.RecordHitch(hitch);
+            }
         }
 
         // The app's 1 ms timer period (p6-flight-core 1.2's note), so the flight thread's 1 ms sleeps last about 1 ms.
