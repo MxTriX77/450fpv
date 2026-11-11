@@ -1,6 +1,6 @@
 # Tasks: w3-farmland-ground
 
-Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.3, 3.1, 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
+Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.3 and 2.4, then 3.1, 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
 
 ## 1. The heightfield
 
@@ -18,6 +18,14 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
   - Also: the clearance certificate lets a segment's ends move margin − radius before re-querying, looser than `InsertGap` needs, so a shape can come within the line's radius without a contact slot; fix it (model 82, goldens audited). And the drone's own contacts on the terrain within PLT-04: half the farmland line's slow steps come while the drone sits and climbs.
 
 - [ ] 2.3 [physics-engineer] Flight 37's straw stretches within PLT-04: the stems' cache walk, the hub rays through the straw boxes (`SoilUnder`, 60–100 µs) and the crash's own contacts (2.1's design names them). The three model-79 flights' worst stretches replay with p99 ≤ 300 µs and world queries < 60 µs on a quiet machine. Same checks as 1.1.
+
+- [ ] 2.4 [physics-engineer] Contact with the farmland's objects (from W4a's and W4b's reviews):
+  - a crash into a 2 cm wall skin peaks at 2,705 m/s² against 22,202 on a solid slab at 8.7 m/s: a wall stops a drone the same however thin its collision is;
+  - the per-step contact event buffer overflows (4,205 events lost scraping a window frame);
+  - `ContactModel.PairsPerShape` is 8, and 8 plant variants put 7–10 crown pieces within a prop's reach: decide whether compliant twig shells get more pairs, with W4a refitting if the rule changes;
+  - a flightbench row flies into a bush (GreenBush, 579 placed);
+  - snag checks index segments, not records (the debris rims are 1 cm stairsteps, 10,089 segments in the village).
+  Model 82 if contact answers change, goldens audited. Same checks as 1.1.
 
 ## 3. Flight on the farmland
 
