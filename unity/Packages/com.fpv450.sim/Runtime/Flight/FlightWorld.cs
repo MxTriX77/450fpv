@@ -38,6 +38,10 @@ namespace Fpv450.Sim.Flight
         public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results, QueryFilter filter) =>
             _query.StaticContacts(previous, current, margin, results, filter);
 
+        /// <summary>StaticContacts' contact for one placed or runtime shape (the fiber's near lists, w3-farmland-ground 2.1).</summary>
+        public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact) =>
+            _query.ShapeContact(obj, shape, previous, current, margin, out contact);
+
         /// <summary>The world's elements, snag record segments and conductors near a point (IWorldQuery), for the fiber's caches
         /// (p7d-tether 1.7).</summary>
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>

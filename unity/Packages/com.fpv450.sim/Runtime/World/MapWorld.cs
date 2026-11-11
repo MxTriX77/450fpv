@@ -36,6 +36,8 @@
 // - Wires for physics (p7d-tether 1.2): StaticContacts and Raycast skip every wire under QueryFilter.NoWires;
 //   WiresNear, the conductors' envelope index, their ports and ends are MapWorldWires.cs.
 // - Snag records for the fiber (p7d-tether 1.3): SnagsNear and its index are MapWorldSnags.cs.
+// - The fiber's query cost (w3-farmland-ground 2.1): StaticContacts leaves the ground out under QueryFilter.NoGround, and
+//   ShapeContact gives its contact for one shape alone.
 // - Ids: materials are the names given at load (physics_materials.json's rows in file
 //   order, 1 … n); surfaces are S01–S13 (SurfaceIds, 1 … 13).
 // - Identity (design 6): FNV-1a over the placement file, every referenced .assetmeta.json
@@ -207,12 +209,13 @@ namespace Fpv450.Sim.World
             // The ground answers only where its contact point lies outside every patch and band (W3: per contact point).
             Near near;
             double time;
-            if (_terrain != null)
+            bool ground = (filter & QueryFilter.NoGround) == 0; // NoGround: the fiber's queries (w3-farmland-ground 2.1)
+            if (ground && _terrain != null)
             {
                 if (_terrain.Sweep(previous, current, margin, speed, reach, out near, out time, out byte soil) && !InGap(near.Point.X, near.Point.Z))
                     ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, new ShapeGeometry { Surface = soil }));
             }
-            else if (!AboveGround(previous, current, margin) && ShapeMath.Sweep(_ground, previous, current, margin, speed, out near, out time)
+            else if (ground && _terrain == null && !AboveGround(previous, current, margin) && ShapeMath.Sweep(_ground, previous, current, margin, speed, out near, out time)
                 && !InGap(near.Point.X, near.Point.Z))
                 ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, _ground));
 
@@ -254,6 +257,42 @@ namespace Fpv450.Sim.World
                 }
             }
             return count;
+        }
+
+        /// <summary>
+        /// StaticContacts' contact for one placed or runtime shape: the same bounds check against the query's reach and the
+        /// same sweep (SweepPrim; a runtime prim's two lines), so the same bits. False for the ground, a wire and a pair that
+        /// does not exist (w3-farmland-ground 2.1).
+        /// </summary>
+        public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact)
+        {
+            contact = default;
+            Prim[] prims;
+            int k, placed = _names.Length, r = obj - placed;
+            if (obj >= 0 && obj < placed && shape >= 0 && _first[obj] + shape < _first[obj + 1])
+            {
+                prims = _prims;
+                k = _first[obj] + shape;
+            }
+            else if (r >= 0 && r < _runtimeObjects && shape >= 0 && _runtimeFirst[r] + shape < RuntimeEnd(r))
+            {
+                prims = _runtime;
+                k = _runtimeFirst[r] + shape;
+            }
+            else
+                return false;
+            ref readonly Prim p = ref prims[k];
+            if (p.Geometry.Kind == ShapeKind.Wire)
+                return false;
+            double pad = current.Radius + margin;
+            Bounds reach = Bounds.Of(previous.A, previous.B, pad).Union(Bounds.Of(current.A, current.B, pad));
+            if (!p.Box.Overlaps(reach))
+                return false;
+            double speed = DetMath.Max((current.A - previous.A).Length(), (current.B - previous.B).Length());
+            if (!ShapeMath.Sweep(new PrimClosest(prims, k), previous, current, margin, speed, out Near near, out double time))
+                return false;
+            contact = ContactOf(near, time, p.Object, p.Shape, p.Geometry);
+            return true;
         }
 
         /// <summary>

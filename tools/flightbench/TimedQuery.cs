@@ -46,6 +46,15 @@ namespace Fpv450.FlightBench
             Calls++;
         }
 
+        public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact)
+        {
+            long t = Stopwatch.GetTimestamp();
+            bool found = _world.ShapeContact(obj, shape, previous, current, margin, out contact);
+            Ticks += Stopwatch.GetTimestamp() - t;
+            Calls++;
+            return found;
+        }
+
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry)
         {
             long t = Stopwatch.GetTimestamp();

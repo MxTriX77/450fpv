@@ -12,8 +12,8 @@ namespace Fpv450.LagProbe
         TetherRotors, TetherLoads, TetherAssign, TetherSolve, TetherFinish, TetherCut, TetherRest, WindTrace, Rain, Count,
     }
 
-    // The world door's calls (FlightWorld), timed; Soil is SoilUnder's own ray.
-    internal enum Query { Ground, Static, Raycast, Micro, Snags, Wires, Geometry, Soil, Count }
+    // The world door's calls (FlightWorld), timed; Soil is SoilUnder's own ray; Shape is one shape's contact (ShapeContact).
+    internal enum Query { Ground, Static, Raycast, Micro, Snags, Wires, Geometry, Soil, Shape, Count }
 
     // The clock marks the timed copies call. Marks partition the flight thread's step into phases; the world's calls
     // made on that thread add their time to the phase they fall in. Calls on other threads (the wind's worker) are

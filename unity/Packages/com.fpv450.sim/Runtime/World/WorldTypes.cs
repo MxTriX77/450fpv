@@ -208,6 +208,9 @@ namespace Fpv450.Sim.World
         None = 0,
         /// <summary>No wire shapes: physics owns the conductors' live state and meets them through WiresNear.</summary>
         NoWires = 1,
+        /// <summary>No ground (StaticContacts only; Raycast ignores it): the fiber's queries, whose nodes take the ground from
+        /// SampleGround's batch, so a terrain's pieces cost them nothing (w3-farmland-ground 2.1).</summary>
+        NoGround = 2,
     }
 
     /// <summary>The fitting a conductor's end hangs from (IWorldQuery.WiresNear).</summary>

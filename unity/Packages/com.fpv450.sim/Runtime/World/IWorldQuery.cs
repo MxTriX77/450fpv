@@ -96,6 +96,11 @@
 // - Geometry has no ground pair on a terrain: it has no one plane. Its local plane is a contact's Point and Normal, or
 //   SampleGround's height and normal.
 //
+// The fiber's query cost (w3-farmland-ground 2.1, still QueryVersion 8: no answer changes). QueryFilter.NoGround leaves the
+// ground out of StaticContacts, so a query whose caller takes the ground elsewhere pays nothing for a terrain's pieces.
+// ShapeContact gives StaticContacts' own contact for one placed or runtime shape (the same bounds check and sweep), so a
+// caller that has listed the shapes near a still segment re-asks only those.
+//
 // Wires (review-physics W1, W2, W6). A wire is a capsule chain along its point list at
 // Radius (half its diameter). Its Distance is the true signed distance to the chain's
 // nearest segment, deep inside too; WireParam is the contact's length along the chain
@@ -161,6 +166,13 @@ namespace Fpv450.Sim.World
         /// </summary>
         int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
             QueryFilter filter = QueryFilter.None);
+
+        /// <summary>
+        /// The contact StaticContacts gives for one placed or runtime shape (object, shape) of the same capsule and margin, to
+        /// the bit; false where it gives none, and for the ground, a wire or a pair that does not exist. A caller that knows
+        /// which shapes can be near (the fiber's near lists, w3-farmland-ground 2.1) asks for them without the whole query.
+        /// </summary>
+        bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact);
 
         /// <summary>
         /// The first surface each ray enters within maxDistance (m, finite): the ground

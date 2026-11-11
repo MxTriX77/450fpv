@@ -46,6 +46,7 @@ QUERIES = [
     ("public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _query.SnagsNear(centre, radius, results);", "Snags", True),
     ("public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _query.WiresNear(centre, radius, results);", "Wires", True),
     ("public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _query.Geometry(obj, shape, out geometry);", "Geometry", True),
+    ("public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact) =>\n            _query.ShapeContact(obj, shape, previous, current, margin, out contact);", "Shape", True),
     ("_query.Raycast(ray.Slice(0, 1), SoilReach, hit.Slice(0, 1));", "Soil", None),
 ]
 

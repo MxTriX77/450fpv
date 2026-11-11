@@ -164,6 +164,48 @@ namespace Fpv450.Sim.Tests
             Assert.That(one[0].Object, Is.EqualTo(WorldIds.Ground), "the buffer keeps the first in canonical order");
         }
 
+        // w3-farmland-ground 2.1: NoGround leaves the floor out and nothing else; ShapeContact is StaticContacts' own contact for
+        // one runtime shape, none for one beyond the margin, the ground or a pair that does not exist.
+        [Test]
+        public void NoGroundAndShapeContact_AreStaticContactsWithoutTheFloor_ShapeByShape()
+        {
+            FloorWorld world = World();
+            ushort steel = world.MaterialId("steel");
+            world.AddObject("pair", new[]
+            {
+                Shape(ShapeKind.Sphere, new Double3(-0.3, 0.05, 0), steel, 0.05),
+                Shape(ShapeKind.Box, new Double3(0.3, 0.05, 0), steel, halfExtents: new Double3(0.05, 0.05, 0.05)),
+                Shape(ShapeKind.Sphere, new Double3(3, 0.05, 0), steel, 0.05),
+            });
+            var before = new Capsule(new Double3(-0.4, 0.3, 0.02), new Double3(0.4, 0.25, -0.01), 0.03);
+            var bar = new Capsule(new Double3(-0.3, 0.12, 0), new Double3(0.3, 0.12, 0), 0.03);
+            foreach ((Capsule previous, Capsule current) in new[] { (bar, bar), (before, bar) })
+            {
+                var all = new StaticContact[8];
+                var bare = new StaticContact[8];
+                int n = world.StaticContacts(previous, current, 0.1, all);
+                int m = world.StaticContacts(previous, current, 0.1, bare, QueryFilter.NoGround);
+                Assert.That(all[0].Object, Is.EqualTo(WorldIds.Ground), "premise: the floor within the margin");
+                Assert.That(m, Is.EqualTo(n - 1));
+                for (int i = 0; i < m; i++)
+                {
+                    Assert.That(Bits(bare[i]), Is.EqualTo(Bits(all[i + 1])), $"contact {i}");
+                    Assert.That(world.ShapeContact(bare[i].Object, bare[i].Shape, previous, current, 0.1, out StaticContact one), Is.True);
+                    Assert.That(Bits(one), Is.EqualTo(Bits(bare[i])), $"shape {bare[i].Shape} alone");
+                }
+                Assert.That(world.ShapeContact(0, 2, previous, current, 0.1, out _), Is.False, "beyond the margin");
+            }
+            Assert.That(world.ShapeContact(WorldIds.Ground, 0, bar, bar, 0.1, out _), Is.False, "the ground");
+            Assert.That(world.ShapeContact(0, 3, bar, bar, 0.1, out _), Is.False, "no such shape");
+            Assert.That(world.ShapeContact(1, 0, bar, bar, 0.1, out _), Is.False, "no such object");
+        }
+
+        /// <summary>A contact's every field as bits, for comparing two to the bit.</summary>
+        internal static string Bits(in StaticContact c) => string.Join(" ", BitConverter.DoubleToInt64Bits(c.Point.X), BitConverter.DoubleToInt64Bits(c.Point.Y),
+            BitConverter.DoubleToInt64Bits(c.Point.Z), BitConverter.DoubleToInt64Bits(c.Normal.X), BitConverter.DoubleToInt64Bits(c.Normal.Y),
+            BitConverter.DoubleToInt64Bits(c.Normal.Z), BitConverter.DoubleToInt64Bits(c.Distance), c.Object, c.Shape, c.Material, c.Surface,
+            BitConverter.DoubleToInt64Bits(c.WireParam), BitConverter.DoubleToInt64Bits(c.Time));
+
         // ---- No false first touch (QA's review B3, QueryVersion 3) -----------------------------------------------------
 
         [Test]

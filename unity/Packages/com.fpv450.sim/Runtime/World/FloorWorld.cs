@@ -86,7 +86,7 @@ namespace Fpv450.Sim.World
             }
         }
 
-        /// <summary>The stub holds no wires, so the filter changes nothing.</summary>
+        /// <summary>The stub holds no wires, so NoWires changes nothing; NoGround leaves the floor out.</summary>
         public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
             QueryFilter filter = QueryFilter.None)
         {
@@ -94,7 +94,9 @@ namespace Fpv450.Sim.World
             Bounds reach = Bounds.Of(previous.A, previous.B, pad).Union(Bounds.Of(current.A, current.B, pad));
             double speed = DetMath.Max((current.A - previous.A).Length(), (current.B - previous.B).Length());
             int count = 0;
-            if (ShapeMath.Sweep(_floor, previous, current, margin, speed, out Near near, out double time))
+            Near near;
+            double time;
+            if ((filter & QueryFilter.NoGround) == 0 && ShapeMath.Sweep(_floor, previous, current, margin, speed, out near, out time))
                 ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, _floor));
             for (int k = 0; k < _primCount; k++)
             {
@@ -103,6 +105,23 @@ namespace Fpv450.Sim.World
                     ShapeMath.Insert(results, ref count, ContactOf(near, time, p.Object, p.Shape, p.Geometry));
             }
             return count;
+        }
+
+        /// <summary>StaticContacts' contact for one runtime shape: the same bounds check and sweep, so the same bits.</summary>
+        public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact)
+        {
+            contact = default;
+            if (!(obj >= 0 && obj < _objectCount && shape >= 0
+                && _objectFirst[obj] + shape < (obj + 1 < _objectCount ? _objectFirst[obj + 1] : _primCount)))
+                return false;
+            ref readonly Prim p = ref _prims[_objectFirst[obj] + shape];
+            double pad = current.Radius + margin;
+            Bounds reach = Bounds.Of(previous.A, previous.B, pad).Union(Bounds.Of(current.A, current.B, pad));
+            double speed = DetMath.Max((current.A - previous.A).Length(), (current.B - previous.B).Length());
+            if (!p.Box.Overlaps(reach) || !ShapeMath.Sweep(p.Geometry, previous, current, margin, speed, out Near near, out double time))
+                return false;
+            contact = ContactOf(near, time, p.Object, p.Shape, p.Geometry);
+            return true;
         }
 
         private static StaticContact ContactOf(in Near near, double time, int obj, int shape, in ShapeGeometry s) => new StaticContact
