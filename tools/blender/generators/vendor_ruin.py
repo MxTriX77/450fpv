@@ -40,6 +40,7 @@ NORMAL_CLASSES = ("any", "up", "down", "vertical", "sloped")
 UP_MIN, VERTICAL_MAX = 0.9, 0.2  # |n.y| at least this is up or down, at most this is vertical, between is sloped
 RULE_KEYS = {"part", "physics", "slots", "normal", "box", "layer_m", "sheet_m", "landable", "edge_radius_m",
              "merge_tol_m"}
+CLEAR_M, STEP_M = 1e-4, 2.5e-4  # D-089: no pushed point within CLEAR_M of a vendor vertex; one there moves STEP_M
 
 PARAMS = {
     "source.model": {"type": "str", "range": "an FBX path under vendor/",
@@ -181,6 +182,12 @@ def build(params):
             tris += _triangles(house[name], rules, place, prefab["mirror_x"])[0]
         intact_out = slabs.decompose(tris, parts, settings)
         seed = [f.n for f in intact_out["families"]]
+        if prefab["mirror_x"]:  # the openings' ids from the unmirrored house, so a mirrored ruin's match the ruin's
+            unmirrored = _placement(mesh["vertices"], dict(prefab, mirror_x=False))
+            tris = [t for name in intact["objects"] for t in _triangles(house[name], rules, unmirrored, False)[0]]
+            named = _mirrored(_intact_openings(slabs.decompose(tris, parts, settings), parts, params))
+        else:
+            named = _intact_openings(intact_out, parts, params)
     else:
         seed = None
     out = slabs.decompose(ruin_tris, parts, settings, seed, air.Air(ruin_tris, settings["air_cell_m"]))
@@ -190,13 +197,16 @@ def build(params):
     collision = [_shape(b, parts) for b in kept]
     gaps, snag = [], []
     if intact_out is not None:
-        openings, edges = _openings(intact_out, out, parts, params)
-        holes, hole_edges = _skin_holes(intact_out, out, parts, params)
+        kept_corners = [_corners(b) for b in kept]
+        openings, edges = _openings(named, out, parts, params, kept_corners)
+        holes, hole_edges = _skin_holes(intact_out, out, parts, params, kept_corners)
         gaps, snag = openings + holes, edges + hole_edges
         snag += _broken_tops(intact_out, out, parts, params)
     if params["snag"]["open_edges"]:
-        snag += _open_edges(ruin_tris, lod0, parts)
+        snag += _open_rims(out, lod0, parts, params["slabs"]["raster_m"])
     wind = _wind(out, parts, params, gaps)
+    moved = _off_vertices(lod0.vertices, collision + wind,
+                          [p for g in gaps for p in g["polygon"]] + [p for e in snag for p in e["points"]])
     materials = []
     for slot in sorted(slot_area):
         physics = max(slot_area[slot].items(), key=lambda kv: (kv[1], kv[0]))[0]
@@ -210,7 +220,7 @@ def build(params):
     report.append(f"{len(collision)} boxes ({', '.join(f'{n} {m}' for m, n in sorted(counts.items()))}; "
                   f"{made - len(collision)} of {made} pruned within {params['prune']['tol_m']} m) over "
                   f"{len(out['families'])} plane families; {len(gaps)} gaps, {len(wind)} wind volumes, "
-                  f"{len(snag)} snag records")
+                  f"{len(snag)} snag records; {moved[0]} boxes and {moved[1]} points moved off a vertex (D-089)")
     return {
         "lods": [lod0], "switch_distances_m": [0.0], "cull_distance_m": params["lod"]["cull_m"],
         "materials": materials, "collision": collision, "gaps": gaps, "wind_volumes": wind, "snag": snag,
@@ -380,55 +390,202 @@ def _obstruction(result, fi, lo, hi, margin, r):
     return rows
 
 
-def _openings(intact, ruin, parts, params):
-    """The openings: every clear region of an intact wall band that the house encloses on all sides, as its largest
-    rectangle, numbered per part along the intact house in the source mesh's frame (so one opening keeps its id in
-    every ruin, the mirrored one too); per ruin, cut at the lower of its jambs' tops, and gone when that leaves less
-    than gaps.min_m. An opening whose bottom is the floor is a door."""
+def _openings(named, ruin, parts, params, kept_corners):
+    """The openings (task 1.3, QA's F2 and F4): every clear region the ruin's own wall band encloses on all sides,
+    clear of every kept box of any part within gaps.band_m of the band's faces, covered by rectangles of at least
+    gaps.min_m either way (two panes that a raster leak through a glazing bar joins are two gaps), each named after
+    the intact house's opening (`named`, _intact_openings in the ruin's frame) it overlaps most, so one opening keeps
+    its id in every ruin, the mirrored one too; and each intact opening the ruin no longer encloses (its head broken
+    off), cut at the lower of its jambs' tops in the ruin, its clear space below that cut, gone when that leaves less
+    than gaps.min_m either way. An opening whose bottom is the floor is a door. Each gap lies at its band's middle; a
+    snag ring outlines it at both faces."""
     g, r = params["gaps"], params["slabs"]["raster_m"]
-    min_px = g["min_m"] / r
-    ruin_index = {f.key: i for i, f in enumerate(ruin["families"])}
-    numbered = {}
-    gaps, snag = [], []
-    flip = -1 if params["prefab"]["mirror_x"] else 1  # the mirror runs x backwards
-
-    def along_source(item):
-        (key, lo, hi), band = item
-        return (key, flip * lo if abs(key[0]) > 0.5 else lo)
-
-    for (key, lo, hi), band in sorted(_bands(intact, parts, set(g["wall_parts"])).items(), key=along_source):
-        fam = intact["families"][band["family"]]
+    min_px = math.ceil(g["min_m"] / r)
+    names = set(g["wall_parts"])
+    flip = -1 if params["prefab"]["mirror_x"] else 1
+    found = []
+    for (key, lo, hi), band in sorted(_bands(ruin, parts, names).items(), key=lambda kv: _along_source(kv, flip)):
+        fam = ruin["families"][band["family"]]
         if fam.axis is None or fam.axis == 1:
             continue
-        rects = []
-        for comp in _enclosed(band["rows"], _obstruction(intact, band["family"], lo, hi, g["band_m"], r)):
-            rect = _largest_rectangle(comp, math.ceil(min_px))
-            if rect:
-                rects.append(rect)
-        ruin_obs = _obstruction(ruin, ruin_index[key], lo, hi, g["band_m"], r) if key in ruin_index else {}
+        blocked = _shadow(kept_corners, fam, lo - g["band_m"], hi + g["band_m"], r)
+        rects = [q for comp in _enclosed(band["rows"], blocked, seal=True) for q in _cover(comp, min_px, math.inf)]
         backwards = flip < 0 and abs(fam.u[0]) > 0.5
-        for i0, i1, j0, j1 in sorted(rects, key=lambda q: (-q[1], q[2]) if backwards else q):
-            kind = "door" if _on_floor(intact, parts, band["family"], lo, hi, j0, r) else "window"
-            numbered[(band["name"], kind)] = numbered.get((band["name"], kind), 0) + 1
-            gid = f"{band['name']}_{kind}{numbered[(band['name'], kind)]}"
-            top = min(_jamb_top(ruin_obs, i0 - g["jamb_px"], j0, j1, g["jamb_px"]),
-                      _jamb_top(ruin_obs, i1 + g["jamb_px"], j0, j1, g["jamb_px"]))
-            if top - j0 + 1 < min_px:
-                continue
-            corners = _rect_corners(fam, i0, i1, j0, top, (lo + hi) / 2, r)
-            gaps.append({"id": gid, "polygon": corners, "normal": list(fam.n),
-                         "narrowest_m": min((i1 - i0 + 1) * r, (top - j0 + 1) * r)})
-            for face_s, layer in ((lo, min(band["layers"])), (hi, max(band["layers"], key=lambda t: t[1]))):
-                ring = _rect_corners(fam, i0, i1, j0, top, face_s, r)
-                part = parts[layer[2]]
-                snag.append({"kind": "edge", "radius_m": part.edge_radius_m, "points": ring + [ring[0]],
-                             "material": part.physics})
+        for rect in sorted(rects, key=lambda q: (-q[1], q[2]) if backwards else q):
+            found.append({"key": key, "lo": lo, "hi": hi, "band": band, "fam": fam, "rect": rect})
+
+    def same_wall(a, b):
+        return a["key"] == b["key"] and a["lo"] <= b["hi"] + 0.02 and a["hi"] >= b["lo"] - 0.02
+
+    pairs = sorted((-_overlap(f["rect"], o["rect"]), a, b) for a, f in enumerate(found) for b, o in enumerate(named)
+                   if same_wall(f, o) and _overlap(f["rect"], o["rect"]))
+    name_of, taken = {}, set()
+    for _, a, b in pairs:  # the largest overlaps first
+        if a not in name_of and b not in taken:
+            name_of[a] = b
+            taken.add(b)
+    top = {}
+    for o in named:
+        top[(o["band"]["name"], o["kind"])] = max(top.get((o["band"]["name"], o["kind"]), 0), o["number"])
+    out = []
+    for a, f in enumerate(found):
+        if a in name_of:  # at the intact wall's middle and faces, as the opening is in every ruin
+            o = named[name_of[a]]
+            out.append((name_of[a], o["id"], f["fam"], o["band"], o["lo"], o["hi"], f["rect"]))
+        else:  # a region the intact house did not enclose
+            i0, i1, j0, j1 = f["rect"]
+            kind = "door" if _on_floor(ruin, parts, f["band"]["family"], f["lo"], f["hi"], j0, r) else "window"
+            top[(f["band"]["name"], kind)] = top.get((f["band"]["name"], kind), 0) + 1
+            gid = f"{f['band']['name']}_{kind}{top[(f['band']['name'], kind)]}"
+            out.append((len(named) + a, gid, f["fam"], f["band"], f["lo"], f["hi"], f["rect"]))
+    ruin_index = {fm.key: i for i, fm in enumerate(ruin["families"])}
+    shadows = {}
+    for b, o in enumerate(named):
+        if b in taken or any(same_wall(f, o) and _overlap(f["rect"], o["rect"]) for f in found):
+            continue
+        key, lo, hi = o["key"], o["lo"], o["hi"]
+        if (key, lo, hi) not in shadows:
+            shadows[(key, lo, hi)] = (
+                _obstruction(ruin, ruin_index[key], lo, hi, g["band_m"], r) if key in ruin_index else {},
+                _shadow(kept_corners, o["fam"], lo - g["band_m"], hi + g["band_m"], r))
+        jambs, blocked = shadows[(key, lo, hi)]
+        i0, i1, j0, j1 = o["rect"]
+        cut = min(_jamb_top(jambs, i0 - g["jamb_px"], j0, j1, g["jamb_px"]),
+                  _jamb_top(jambs, i1 + g["jamb_px"], j0, j1, g["jamb_px"]))
+        # the clear space below the cut: a rail the ruin keeps across the opening's foot is its bottom (QA's F4)
+        rect = _largest_rectangle({j: slabs.span(i0, i1) & ~blocked.get(j, 0) for j in range(j0, cut + 1)}, min_px)
+        if rect:
+            out.append((b, o["id"], o["fam"], o["band"], lo, hi, rect))
+    gaps, snag = [], []
+    for _, gid, fam, band, lo, hi, (i0, i1, j0, j1) in sorted(out, key=lambda t: t[0]):
+        corners = _rect_corners(fam, i0, i1, j0, j1, (lo + hi) / 2, r)
+        gaps.append({"id": gid, "polygon": corners, "normal": list(fam.n),
+                     "narrowest_m": min((i1 - i0 + 1) * r, (j1 - j0 + 1) * r)})
+        for face_s, layer in ((lo, min(band["layers"])), (hi, max(band["layers"], key=lambda t: t[1]))):
+            ring = _rect_corners(fam, i0, i1, j0, j1, face_s, r)
+            part = parts[layer[2]]
+            snag.append({"kind": "edge", "radius_m": part.edge_radius_m, "points": ring + [ring[0]],
+                         "material": part.physics})
     return gaps, snag
 
 
-def _enclosed(footprint, obstruction):
+def _along_source(item, flip):
+    """A band's sort key along the intact house in the source mesh's frame (the mirror runs x backwards)."""
+    (key, lo, hi), band = item
+    return (key, flip * lo if abs(key[0]) > 0.5 else lo)
+
+
+def _intact_openings(intact, parts, params):
+    """Every opening of the intact house, decomposed unmirrored (the source mesh's frame): each clear region a wall
+    band encloses on all sides, covered by rectangles of at least gaps.min_m either way, largest first. Numbered per
+    part and kind along the house: every region's largest rectangle first (1.2's ids), then the others (a pane
+    joined to its neighbour by a leak through the glazing bar). Each: {"id", "number", "kind", "key", "lo", "hi",
+    "band", "fam", "rect"}."""
+    g, r = params["gaps"], params["slabs"]["raster_m"]
+    min_px = math.ceil(g["min_m"] / r)
+    firsts, extras = [], []
+    for (key, lo, hi), band in sorted(_bands(intact, parts, set(g["wall_parts"])).items(),
+                                      key=lambda kv: _along_source(kv, 1)):
+        fam = intact["families"][band["family"]]
+        if fam.axis is None or fam.axis == 1:
+            continue
+        covers = [_cover(comp, min_px, math.inf)
+                  for comp in _enclosed(band["rows"], _obstruction(intact, band["family"], lo, hi, g["band_m"], r))]
+        firsts += [(key, lo, hi, band, fam, q) for q in sorted(c[0] for c in covers if c)]
+        extras += [(key, lo, hi, band, fam, q) for q in sorted(q for c in covers for q in c[1:])]
+    numbered, out = {}, []
+    for key, lo, hi, band, fam, rect in firsts + extras:
+        kind = "door" if _on_floor(intact, parts, band["family"], lo, hi, rect[2], r) else "window"
+        n = numbered[(band["name"], kind)] = numbered.get((band["name"], kind), 0) + 1
+        out.append({"id": f"{band['name']}_{kind}{n}", "number": n, "kind": kind, "key": key, "lo": lo, "hi": hi,
+                    "band": band, "fam": fam, "rect": rect})
+    return out
+
+
+def _mirrored(openings):
+    """The intact house's openings, numbered unmirrored, in a mirrored ruin's frame (x negated): an X-normal band's
+    faces negate and swap, a Z-normal band's pixels along u (x) run backwards; the family's basis is the same."""
+    out = []
+    for o in openings:
+        i0, i1, j0, j1 = o["rect"]
+        lo, hi, layers = o["lo"], o["hi"], o["band"]["layers"]
+        if abs(o["key"][0]) > 0.5:
+            lo, hi, layers = -hi, -lo, [(-b, -a, pi) for a, b, pi in layers]
+        else:
+            i0, i1 = -i1 - 1, -i0 - 1
+        out.append(dict(o, lo=lo, hi=hi, rect=(i0, i1, j0, j1), band=dict(o["band"], layers=layers)))
+    return out
+
+
+def _overlap(a, b):
+    """The pixels two rectangles (i0, i1, j0, j1) share."""
+    w = min(a[1], b[1]) - max(a[0], b[0]) + 1
+    h = min(a[3], b[3]) - max(a[2], b[2]) + 1
+    return w * h if w > 0 and h > 0 else 0
+
+
+def _shadow(corner_sets, fam, s0, s1, r):
+    """The pixels of family fam's raster that a box (rotated or not; `corner_sets`, each box's _corners) meets
+    between the planes n.x = s0 and n.x = s1: each box clipped to that slab, its outline projected on (u, v) and
+    rastered as the faces are (lib.slabs: a pixel the outline overlaps): {row: bits}."""
+    plane = slabs.Plane(1, 0.0)
+    for corners in corner_sets:
+        s = [_dot(p, fam.n) for p in corners]
+        if max(s) < s0 or min(s) > s1:
+            continue
+        pts = [p for p, sp in zip(corners, s) if s0 <= sp <= s1]
+        for a in range(8):
+            for b in range(a + 1, 8):
+                if bin(a ^ b).count("1") != 1:
+                    continue  # not an edge of the box
+                for cut in (s0, s1):
+                    if (s[a] - cut) * (s[b] - cut) < 0:
+                        t = (cut - s[a]) / (s[b] - s[a])
+                        pts.append(tuple(corners[a][k] + t * (corners[b][k] - corners[a][k]) for k in range(3)))
+        hull = _hull([(_dot(p, fam.u), _dot(p, fam.v)) for p in pts])
+        if len(hull) < 3:
+            continue
+        lift = [tuple(a * fam.u[k] + b * fam.v[k] for k in range(3)) for a, b in hull]
+        for k in range(1, len(lift) - 1):
+            slabs._raster(plane, fam, (lift[0], lift[k], lift[k + 1]), 0, r)
+    return plane.parts.get(0, {})
+
+
+def _corners(box):
+    """A box's eight corners in asset space, corner a's bit k the sign along the box's axis k."""
+    q, half = box["rotation"], [s / 2 for s in box["size"]]
+    out = []
+    for a in range(8):
+        d = _rotate(q, tuple(half[k] if a >> k & 1 else -half[k] for k in range(3)))
+        out.append(tuple(box["center"][k] + d[k] for k in range(3)))
+    return out
+
+
+def _hull(points):
+    """The convex hull of 2D points, counter-clockwise (Andrew's monotone chain)."""
+    pts = sorted(set(points))
+    if len(pts) < 3:
+        return pts
+
+    def turn(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and turn(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and turn(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    return lower[:-1] + upper[:-1]
+
+
+def _enclosed(footprint, obstruction, seal=False):
     """The connected clear regions inside the footprint's bounding rectangle that touch none of its sides: a list
-    of {row: bits}."""
+    of {row: bits}. With `seal`, a slit of one or two pixels (a seam between two boxes of a frame) does not join a
+    region to its neighbour or to the outside: the regions are found with the obstruction grown a pixel each way,
+    then each is grown back a pixel into the clear space."""
     if not footprint:
         return []
     j_lo, j_hi = min(footprint), max(footprint)
@@ -436,6 +593,27 @@ def _enclosed(footprint, obstruction):
     i_hi = max(slabs.runs(bits)[-1][1] for bits in footprint.values())
     full = slabs.span(i_lo, i_hi)
     clear = {j: full & ~obstruction.get(j, 0) for j in range(j_lo, j_hi + 1)}
+    if seal:
+        sealed = {j: clear[j] & ~_grow(obstruction, j) for j in clear}
+        out = []
+        for comp in _enclosed_in(sealed, j_lo, j_hi, i_lo, i_hi):
+            out.append({j: _grow(comp, j) & clear[j] for j in range(max(j_lo, min(comp) - 1),
+                                                                   min(j_hi, max(comp) + 1) + 1)})
+        return out
+    return _enclosed_in(clear, j_lo, j_hi, i_lo, i_hi)
+
+
+def _grow(rows, j):
+    """Row j of `rows` grown a pixel each way, diagonals too."""
+    bits = 0
+    for d in (-1, 0, 1):
+        b = rows.get(j + d, 0)
+        bits |= b | (b << 1) | (b >> 1)
+    return bits
+
+
+def _enclosed_in(clear, j_lo, j_hi, i_lo, i_hi):
+    """The connected regions of `clear` (rows j_lo..j_hi, pixels i_lo..i_hi) that touch none of its sides."""
     border = slabs.span(i_lo, i_lo) | slabs.span(i_hi, i_hi)
     comps = []
     seen = {j: 0 for j in clear}
@@ -559,11 +737,13 @@ def _rect_corners(fam, i0, i1, j0, j1, s, r):
     return out
 
 
-def _skin_holes(intact, ruin, parts, params):
+def _skin_holes(intact, ruin, parts, params, kept_corners):
     """What the ruin lost of each skin part (roof, ceiling) per family, its planes taken together (a sagging roof
-    face spans several): when the ruin keeps at least gaps.skin_keep_min of it, the lost area's rectangles of at
-    least gaps.min_m either way inscribed in it, largest first and at most gaps.holes_max, each a gap at the part's
-    mean offset, outlined by a snag edge. A skin the ruin lost whole is gone, not holed."""
+    face spans several): when the ruin keeps at least gaps.skin_keep_min of it, the lost area's clear space, its
+    rectangles of at least gaps.min_m either way inscribed in it, largest first and at most gaps.holes_max, each a
+    gap at the part's mean offset, outlined by a snag edge. The clear space (task 1.3, QA's F3) is the lost area less
+    the shadow of every kept box of any part within gaps.band_m of the skin's planes: a rafter the ruin keeps across
+    the hole closes it there. A skin the ruin lost whole is gone, not holed."""
     g, r = params["gaps"], params["slabs"]["raster_m"]
     names = set(g["skin_parts"])
     ruin_families = {f.key: f for f in ruin["families"]}
@@ -576,9 +756,11 @@ def _skin_holes(intact, ruin, parts, params):
             left = sum(bin(b & kept.get(j, 0)).count("1") for j, b in rows.items())
             if total == 0 or left < g["skin_keep_min"] * total:
                 continue
+            offsets = [plane.offset for plane in fam.planes if pi in plane.parts]
+            blocked = _shadow(kept_corners, fam, min(offsets) - g["band_m"], max(offsets) + g["band_m"], r)
             lost = {}
             for j, bits in rows.items():
-                m = bits & ~_dilate(kept, j)
+                m = bits & ~_dilate(kept, j) & ~blocked.get(j, 0)
                 if m:
                     lost[j] = m
             offset = moment / weight
@@ -655,48 +837,115 @@ def _broken_tops(intact, ruin, parts, params):
     return out
 
 
-def _open_edges(tris, lod0, parts):
-    """The mesh's open edges (an edge one polygon uses, its ends welded within a millimetre), chained into
-    polylines, each a snag edge of the part its polygon belongs to."""
+def _open_rims(result, lod0, parts, r):
+    """Debris: the rims a fiber catches on (a sheet's broken edge), read off the raster as the ruins' broken tops
+    are, so no point of the mesh is copied (task 1.3, QA's F1, D-089). An open edge of the mesh (one polygon uses it,
+    its ends welded within a millimetre) marks the pixels it crosses, and their neighbours, on the plane its polygon
+    was rastered on; each slab region's boundary through those pixels, on the face of that plane, is chained along
+    the pixels' corners into a stepped polyline, a snag edge of the region's part."""
     def key(p):
         return tuple(round(c * 1000) for c in p)
-    rule_of = {}
-    for tri, _, rule in tris:
-        for p in tri:
-            rule_of.setdefault(key(p), rule)
-    count, owner = {}, {}
+    count = {}
     for indices, _, _, _ in lod0.faces:
         pts = [lod0.vertices[i] for i in indices]
         for a, b in zip(pts, pts[1:] + pts[:1]):
             e = tuple(sorted((key(a), key(b))))
-            if e[0] == e[1]:
-                continue
-            count[e] = count.get(e, 0) + 1
-            owner[e] = (a, b)
-    edges = [owner[e] for e, n in sorted(count.items()) if n == 1]
-    nxt = {}
-    for a, b in edges:
-        nxt.setdefault(key(a), []).append(b)
-        nxt.setdefault(key(b), []).append(a)
-    used, out = set(), []
-    for a, b in edges:
-        if (key(a), key(b)) in used:
-            continue
-        line = [a, b]
-        used.add((key(a), key(b)))
-        used.add((key(b), key(a)))
-        while True:
-            options = [c for c in nxt.get(key(line[-1]), []) if (key(line[-1]), key(c)) not in used]
-            if not options:
-                break
-            c = options[0]
-            used.add((key(line[-1]), key(c)))
-            used.add((key(c), key(line[-1])))
-            line.append(c)
-        part = parts[rule_of.get(key(a), 0)]
-        out.append({"kind": "edge", "radius_m": part.edge_radius_m, "points": [list(p) for p in line],
-                    "material": part.physics})
+            if e[0] != e[1]:
+                count[e] = count.get(e, 0) + 1
+    open_edges = {e for e, n in count.items() if n == 1}
+    masks = {}  # (family, plane offset) -> {row: bits}
+    for fi, fam in enumerate(result["families"]):
+        for plane in fam.planes:
+            for tri, _, _, _, _ in plane.members:
+                for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
+                    if tuple(sorted((key(a), key(b)))) not in open_edges:
+                        continue
+                    rows = masks.setdefault((fi, plane.offset), {})
+                    (ua, va), (ub, vb) = [(_dot(p, fam.u) / r, _dot(p, fam.v) / r) for p in (a, b)]
+                    steps = max(1, math.ceil(4 * max(abs(ub - ua), abs(vb - va))))
+                    for k in range(steps + 1):
+                        i, j = math.floor(ua + (ub - ua) * k / steps), math.floor(va + (vb - va) * k / steps)
+                        for dj in (-1, 0, 1):
+                            rows[j + dj] = rows.get(j + dj, 0) | slabs.span(i - 1, i + 1)
+    out = []
+    for fi, fam in enumerate(result["families"]):
+        for (lo, hi, pi), rows in sorted(result["regions"][fi].items()):
+            for face in (lo, hi):
+                mask = masks.get((fi, face))
+                if mask is None:
+                    continue
+                part = parts[pi]
+                for line in _boundary(rows, mask):
+                    out.append({"kind": "edge", "radius_m": part.edge_radius_m, "material": part.physics,
+                                "points": [[i * r * fam.u[k] + j * r * fam.v[k] + face * fam.n[k] for k in range(3)]
+                                           for i, j in line]})
     return out
+
+
+def _boundary(rows, mask):
+    """The boundary of the pixel set `rows` where its pixel lies in `mask`, chained along the pixels' corners with the
+    set on the left, collinear corners dropped: a list of [(i, j), ...] polylines."""
+    nxt = {}
+    for j, bits in rows.items():
+        m = bits & mask.get(j, 0)
+        if not m:
+            continue
+        sides = ((m & ~rows.get(j - 1, 0), (0, 0), (1, 0)), (m & ~(bits >> 1), (1, 0), (1, 1)),
+                 (m & ~rows.get(j + 1, 0), (1, 1), (0, 1)), (m & ~(bits << 1), (0, 1), (0, 0)))
+        for edge_bits, a, b in sides:
+            for i0, i1 in slabs.runs(edge_bits):
+                for i in range(i0, i1 + 1):
+                    nxt.setdefault((i + a[0], j + a[1]), []).append((i + b[0], j + b[1]))
+    ends = {q for qs in nxt.values() for q in qs}
+    lines = []
+    for start in sorted(nxt, key=lambda p: (p in ends, p)):  # open chains from their heads first, then loops
+        while nxt.get(start):
+            line = [start]
+            while nxt.get(line[-1]):
+                q = sorted(nxt[line[-1]]).pop(0)
+                nxt[line[-1]].remove(q)
+                line.append(q)
+            lines.append([p for k, p in enumerate(line) if k in (0, len(line) - 1)
+                          or (p[0] - line[k - 1][0], p[1] - line[k - 1][1]) != (line[k + 1][0] - p[0],
+                                                                                 line[k + 1][1] - p[1])])
+    return lines
+
+
+def _off_vertices(vertices, boxes, points):
+    """D-089 (task 1.3, QA's F1): no pushed point reproduces a vertex of the vendor mesh. The raster puts a few box
+    corners, and snag and gap points, on one by chance (a vertex on the 1 cm grid at a plane's offset): such a box
+    (collision or wind) grows STEP_M outward at that corner along each of its axes, such a point moves STEP_M off the
+    vertex along each axis, until none lies within CLEAR_M of one (per axis). Returns (boxes, points) moved."""
+    grid = {}
+    for v in vertices:
+        grid.setdefault(tuple(math.floor(c / CLEAR_M) for c in v), []).append(v)
+    around = [(a, b, c) for a in (-1, 0, 1) for b in (-1, 0, 1) for c in (-1, 0, 1)]
+
+    def near(p):
+        k = [math.floor(c / CLEAR_M) for c in p]
+        for d in around:
+            for v in grid.get((k[0] + d[0], k[1] + d[1], k[2] + d[2]), ()):
+                if max(abs(v[i] - p[i]) for i in range(3)) <= CLEAR_M:
+                    return v
+        return None
+
+    moved = [0, 0]
+    for box in boxes:
+        hit = next((a for a, c in enumerate(_corners(box)) if near(c)), None)
+        moved[0] += hit is not None
+        while hit is not None:
+            d = _rotate(box["rotation"], tuple(STEP_M / 2 if hit >> k & 1 else -STEP_M / 2 for k in range(3)))
+            box["center"] = [box["center"][k] + d[k] for k in range(3)]
+            box["size"] = [s + STEP_M for s in box["size"]]
+            hit = next((a for a, c in enumerate(_corners(box)) if near(c)), None)
+    for p in points:
+        v = near(p)
+        moved[1] += v is not None
+        while v is not None:
+            for k in range(3):
+                p[k] += STEP_M if p[k] >= v[k] else -STEP_M
+            v = near(p)
+    return moved
 
 
 def _tops(rows):
