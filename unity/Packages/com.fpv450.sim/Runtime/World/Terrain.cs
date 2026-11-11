@@ -1078,7 +1078,7 @@ namespace Fpv450.Sim.World
                     for (int j = 0; j + 1 < ls.Length; j++)
                         Edge(alongZ, cs[i], 0.5 * (cs[i - 1] + cs[i]), 0.5 * (cs[i] + cs[i + 1]), ls[j], ls[j + 1], found);
             }
-            found.Sort((a, b) => a.AlongZ != b.AlongZ ? (a.AlongZ ? -1 : 1) : a.C != b.C ? a.C.CompareTo(b.C) : a.W.L0.CompareTo(b.W.L0));
+            found.Sort(new WallOrder()); // an instance, not a lambda: no static delegate cache in the core (StaticInitTests)
             walls = new Wall[found.Count];
             var lineList = new List<Line>();
             var stepList = new List<TerrainStep>();
@@ -1107,6 +1107,13 @@ namespace Fpv450.Sim.World
             }
             lines = lineList.ToArray();
             steps = stepList.ToArray();
+        }
+
+        /// <summary>The walls in line order: the lines x = C first, by C, then z = C; along each line by L0.</summary>
+        private sealed class WallOrder : IComparer<(bool AlongZ, double C, Wall W, string Rings)>
+        {
+            public int Compare((bool AlongZ, double C, Wall W, string Rings) a, (bool AlongZ, double C, Wall W, string Rings) b) =>
+                a.AlongZ != b.AlongZ ? (a.AlongZ ? -1 : 1) : a.C != b.C ? a.C.CompareTo(b.C) : a.W.L0.CompareTo(b.W.L0);
         }
 
         /// <summary>The walls across the edge at `c` between the region centred at `before` and the one at `after`, from la to lb.</summary>

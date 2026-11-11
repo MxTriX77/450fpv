@@ -74,7 +74,7 @@ namespace Fpv450.Sim.World
             if (File.Exists(Path.Combine(folder, "map.json")))
             {
                 Terrain terrain = Terrain.Load(folder, out string manifest);
-                return new MapWorld(NoObjects(terrain), model => null, MaterialNames(Read(MaterialsFile)), terrain, manifest);
+                return new MapWorld(NoObjects(terrain), null, MaterialNames(Read(MaterialsFile)), terrain, manifest); // no row reads a model
             }
             return new MapWorld(Read("maps/" + mapId + "/placements.json"), model => Read(ModelsRoot + "/" + model),
                 MaterialNames(Read(MaterialsFile)));

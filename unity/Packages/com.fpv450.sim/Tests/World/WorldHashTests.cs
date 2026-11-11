@@ -34,9 +34,9 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
-        public void QueryVersion_IsSeven()
+        public void QueryVersion_IsEight()
         {
-            Assert.That(WorldHash.QueryVersion, Is.EqualTo(7));
+            Assert.That(WorldHash.QueryVersion, Is.EqualTo(8)); // w3-farmland-ground 1.1: a map package's terrain
         }
     }
 }
