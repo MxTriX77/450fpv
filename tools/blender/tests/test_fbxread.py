@@ -41,3 +41,18 @@ def test_reader_refuses_a_non_fbx_file(tmp_path):
     bogus.write_bytes(b"version https://git-lfs.github.com/spec/v1\noid sha256:00\nsize 1\n")
     with pytest.raises(ValueError, match="git-lfs pointer"):
         fbxread.parse(bogus)
+
+
+def test_meshes_reads_polygons_slots_and_uvs_as_unity_does(k01_fbx, k01_meta):
+    # w4b-farmland-ruins: the vendor meshes are read through meshes(); on our own K01 it agrees with the bounds reader
+    # and with the metadata's triangle count
+    read = fbxread.meshes(str(k01_fbx))
+    bounds = fbxread.unity_bounds(str(k01_fbx))
+    lod0 = read["K01_whole_LOD0"]
+    lo = [min(v[a] for v in lod0["vertices"]) for a in range(3)]
+    hi = [max(v[a] for v in lod0["vertices"]) for a in range(3)]
+    assert lo == pytest.approx(list(bounds["K01_whole_LOD0"][0]), abs=1e-9)
+    assert hi == pytest.approx(list(bounds["K01_whole_LOD0"][1]), abs=1e-9)
+    assert sum(len(p) - 2 for p in lod0["polygons"]) == k01_meta["lods"][0]["tris"]
+    assert len(lod0["slots"]) == len(lod0["polygons"]) and all(lod0["slots"])
+    assert all(uv is not None and len(uv) == len(p) for uv, p in zip(lod0["uvs"], lod0["polygons"]))

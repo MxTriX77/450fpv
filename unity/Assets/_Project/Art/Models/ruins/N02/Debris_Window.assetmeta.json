@@ -1,0 +1,2681 @@
+{
+  "schema": 1,
+  "id": "N02",
+  "variant": "Debris_Window",
+  "generator": "vendor_ruin",
+  "params_sha256": "c3e14096a311226ac5c6503bf2ab432254b8f5f3be8d27b579110d5303fe47f7",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.706339,
+      0.0,
+      -0.777289
+    ],
+    "max": [
+      0.706339,
+      0.464398,
+      0.777289
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Debris_Window",
+      "tris": 114,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 337.0,
+  "materials": [
+    {
+      "slot": "OldHouseMapWood02",
+      "visual": "House_Wood02",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        -0.43,
+        0.295221,
+        -0.04
+      ],
+      "size": [
+        0.02,
+        0.062665,
+        1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.43,
+        0.295221,
+        -0.04
+      ],
+      "size": [
+        0.02,
+        0.062665,
+        1.0
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.355,
+        0.295221,
+        -0.05
+      ],
+      "size": [
+        0.01,
+        0.062665,
+        0.86
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.295221,
+        0.375
+      ],
+      "size": [
+        0.7,
+        0.062665,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.355,
+        0.295221,
+        -0.05
+      ],
+      "size": [
+        0.01,
+        0.062665,
+        0.86
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.295221,
+        0.08
+      ],
+      "size": [
+        0.7,
+        0.062665,
+        0.06
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.295221,
+        -0.47
+      ],
+      "size": [
+        0.7,
+        0.062665,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.273888,
+        0.41
+      ],
+      "size": [
+        0.84,
+        0.02,
+        0.06
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        0.273888,
+        -0.05
+      ],
+      "size": [
+        0.06,
+        0.02,
+        0.86
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.39,
+        0.273888,
+        -0.05
+      ],
+      "size": [
+        0.06,
+        0.02,
+        0.86
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.273888,
+        -0.51
+      ],
+      "size": [
+        0.84,
+        0.02,
+        0.06
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.316553,
+        0.41
+      ],
+      "size": [
+        0.84,
+        0.02,
+        0.06
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.39,
+        0.316553,
+        -0.05
+      ],
+      "size": [
+        0.06,
+        0.02,
+        0.86
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.39,
+        0.316553,
+        -0.05
+      ],
+      "size": [
+        0.06,
+        0.02,
+        0.86
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.316553,
+        -0.51
+      ],
+      "size": [
+        0.84,
+        0.02,
+        0.06
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.010069,
+        -0.565
+      ],
+      "size": [
+        1.14,
+        0.02,
+        0.07
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.090275,
+        0.49
+      ],
+      "size": [
+        1.04,
+        0.02,
+        0.1
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.47,
+        0.090275,
+        -0.05
+      ],
+      "size": [
+        0.1,
+        0.02,
+        0.98
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.47,
+        0.090275,
+        -0.05
+      ],
+      "size": [
+        0.1,
+        0.02,
+        0.98
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.415842,
+        0.545
+      ],
+      "size": [
+        1.24,
+        0.02,
+        0.19
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.525,
+        0.415842,
+        -0.04
+      ],
+      "size": [
+        0.19,
+        0.02,
+        0.98
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.525,
+        0.415842,
+        -0.04
+      ],
+      "size": [
+        0.19,
+        0.02,
+        0.98
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.415842,
+        -0.63
+      ],
+      "size": [
+        1.24,
+        0.02,
+        0.2
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.52,
+        0.415842,
+        -0.75
+      ],
+      "size": [
+        0.15,
+        0.02,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.52,
+        0.415842,
+        -0.75
+      ],
+      "size": [
+        0.15,
+        0.02,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.525,
+        0.415842,
+        -0.775
+      ],
+      "size": [
+        0.11,
+        0.02,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.525,
+        0.415842,
+        -0.775
+      ],
+      "size": [
+        0.11,
+        0.02,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.454316,
+        0.74
+      ],
+      "size": [
+        1.42,
+        0.02,
+        0.08
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.055,
+        -0.563115
+      ],
+      "size": [
+        1.14,
+        0.03,
+        0.058859
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.555,
+        0.095,
+        -0.563115
+      ],
+      "size": [
+        0.03,
+        0.05,
+        0.058859
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.095,
+        -0.563115
+      ],
+      "size": [
+        0.8,
+        0.05,
+        0.058859
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.555,
+        0.095,
+        -0.563115
+      ],
+      "size": [
+        0.03,
+        0.05,
+        0.058859
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.125,
+        -0.563115
+      ],
+      "size": [
+        1.14,
+        0.01,
+        0.058859
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.185,
+        0.455727
+      ],
+      "size": [
+        0.86,
+        0.13,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.365,
+        0.455727
+      ],
+      "size": [
+        0.88,
+        0.05,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.125,
+        0.524241
+      ],
+      "size": [
+        1.04,
+        0.01,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.525,
+        0.355,
+        -0.767174
+      ],
+      "size": [
+        0.09,
+        0.07,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.525,
+        0.355,
+        -0.767174
+      ],
+      "size": [
+        0.09,
+        0.07,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.355,
+        -0.712115
+      ],
+      "size": [
+        0.88,
+        0.07,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.47,
+        0.095,
+        -0.582544
+      ],
+      "size": [
+        0.14,
+        0.05,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.47,
+        0.095,
+        -0.582544
+      ],
+      "size": [
+        0.14,
+        0.05,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.195,
+        -0.543685
+      ],
+      "size": [
+        1.14,
+        0.13,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.365,
+        -0.543685
+      ],
+      "size": [
+        0.88,
+        0.05,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.0,
+        0.375,
+        0.76713
+      ],
+      "size": [
+        1.42,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.503874,
+        0.125,
+        -0.01
+      ],
+      "size": [
+        0.02,
+        0.01,
+        1.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.435137,
+        0.185,
+        -0.045
+      ],
+      "size": [
+        0.02,
+        0.13,
+        0.95
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.435137,
+        0.365,
+        -0.045
+      ],
+      "size": [
+        0.02,
+        0.05,
+        0.95
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.436095,
+        0.185,
+        -0.045
+      ],
+      "size": [
+        0.02,
+        0.13,
+        0.95
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.436095,
+        0.365,
+        -0.045
+      ],
+      "size": [
+        0.02,
+        0.05,
+        0.95
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.504994,
+        0.125,
+        -0.01
+      ],
+      "size": [
+        0.02,
+        0.01,
+        1.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.696339,
+        0.375,
+        0.72
+      ],
+      "size": [
+        0.02,
+        0.11,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.605702,
+        0.355,
+        -0.045
+      ],
+      "size": [
+        0.02,
+        0.07,
+        1.37
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.555118,
+        0.165,
+        -0.5775
+      ],
+      "size": [
+        0.02,
+        0.03,
+        0.015
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.556239,
+        0.165,
+        -0.5775
+      ],
+      "size": [
+        0.02,
+        0.03,
+        0.015
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.605704,
+        0.355,
+        -0.045
+      ],
+      "size": [
+        0.02,
+        0.07,
+        1.37
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.696339,
+        0.375,
+        0.72
+      ],
+      "size": [
+        0.02,
+        0.11,
+        0.04
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1e-06,
+        0.424416,
+        0.656621
+      ],
+      "size": [
+        1.29,
+        0.04,
+        0.02
+      ],
+      "rotation": [
+        0.507982,
+        0.0,
+        0.0,
+        0.861368
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1e-06,
+        0.441353,
+        0.68725
+      ],
+      "size": [
+        1.37,
+        0.03,
+        0.02
+      ],
+      "rotation": [
+        0.507982,
+        0.0,
+        0.0,
+        0.861368
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.581753,
+        0.37645,
+        -0.743435
+      ],
+      "size": [
+        0.08,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        0.000713,
+        0.395326,
+        -0.000307,
+        0.91854
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.465492,
+        0.375269,
+        -0.743556
+      ],
+      "size": [
+        0.08,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        0.000713,
+        0.395326,
+        -0.000307,
+        0.91854
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.465487,
+        0.37527,
+        -0.74356
+      ],
+      "size": [
+        0.08,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        -0.000307,
+        0.91854,
+        0.000714,
+        0.395328
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.581757,
+        0.376452,
+        -0.743434
+      ],
+      "size": [
+        0.08,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        -0.000307,
+        0.91854,
+        0.000714,
+        0.395328
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.661934,
+        0.387285,
+        0.685386
+      ],
+      "size": [
+        0.11,
+        0.135,
+        0.02
+      ],
+      "rotation": [
+        -0.000292,
+        0.943684,
+        0.000834,
+        0.330848
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.611178,
+        0.374785,
+        0.64478
+      ],
+      "size": [
+        0.02,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        -0.000292,
+        0.943684,
+        0.000834,
+        0.330848
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.661937,
+        0.387285,
+        0.685383
+      ],
+      "size": [
+        0.11,
+        0.135,
+        0.02
+      ],
+      "rotation": [
+        0.000833,
+        0.330845,
+        -0.000292,
+        0.943685
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.611181,
+        0.374785,
+        0.644778
+      ],
+      "size": [
+        0.02,
+        0.11,
+        0.02
+      ],
+      "rotation": [
+        0.000833,
+        0.330845,
+        -0.000292,
+        0.943685
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.42,
+          0.080275,
+          -0.52
+        ],
+        [
+          -0.42,
+          0.080275,
+          -0.54
+        ],
+        [
+          -0.52,
+          0.080275,
+          -0.54
+        ],
+        [
+          -0.52,
+          0.080275,
+          -0.52
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.52,
+          0.080275,
+          -0.52
+        ],
+        [
+          0.52,
+          0.080275,
+          -0.54
+        ],
+        [
+          0.42,
+          0.080275,
+          -0.54
+        ],
+        [
+          0.42,
+          0.080275,
+          -0.52
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.35,
+          0.263888,
+          0.12
+        ],
+        [
+          -0.35,
+          0.263888,
+          0.11
+        ],
+        [
+          -0.34,
+          0.263888,
+          0.11
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.34,
+          0.263888,
+          0.05
+        ],
+        [
+          -0.35,
+          0.263888,
+          0.05
+        ],
+        [
+          -0.35,
+          0.263888,
+          0.04
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.34,
+          0.263888,
+          0.11
+        ],
+        [
+          0.35,
+          0.263888,
+          0.11
+        ],
+        [
+          0.35,
+          0.263888,
+          0.12
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.35,
+          0.263888,
+          0.04
+        ],
+        [
+          0.35,
+          0.263888,
+          0.05
+        ],
+        [
+          0.34,
+          0.263888,
+          0.05
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.44,
+          0.263888,
+          0.46
+        ],
+        [
+          0.44,
+          0.263888,
+          0.46
+        ],
+        [
+          0.44,
+          0.263888,
+          -0.54
+        ],
+        [
+          -0.44,
+          0.263888,
+          -0.54
+        ],
+        [
+          -0.44,
+          0.263888,
+          0.46
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.35,
+          0.326553,
+          0.12
+        ],
+        [
+          -0.35,
+          0.326553,
+          0.11
+        ],
+        [
+          -0.34,
+          0.326553,
+          0.11
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.34,
+          0.326553,
+          0.05
+        ],
+        [
+          -0.35,
+          0.326553,
+          0.05
+        ],
+        [
+          -0.35,
+          0.326553,
+          0.04
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.34,
+          0.326553,
+          0.11
+        ],
+        [
+          0.35,
+          0.326553,
+          0.11
+        ],
+        [
+          0.35,
+          0.326553,
+          0.12
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.35,
+          0.326553,
+          0.04
+        ],
+        [
+          0.35,
+          0.326553,
+          0.05
+        ],
+        [
+          0.34,
+          0.326553,
+          0.05
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.44,
+          0.326553,
+          0.46
+        ],
+        [
+          0.44,
+          0.326553,
+          0.46
+        ],
+        [
+          0.44,
+          0.326553,
+          -0.54
+        ],
+        [
+          -0.44,
+          0.326553,
+          -0.54
+        ],
+        [
+          -0.44,
+          0.326553,
+          0.46
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.57,
+          0.34,
+          -0.777174
+        ],
+        [
+          -0.57,
+          0.32,
+          -0.777174
+        ],
+        [
+          -0.48,
+          0.32,
+          -0.777174
+        ],
+        [
+          -0.48,
+          0.34,
+          -0.777174
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.48,
+          0.34,
+          -0.777174
+        ],
+        [
+          0.48,
+          0.32,
+          -0.777174
+        ],
+        [
+          0.57,
+          0.32,
+          -0.777174
+        ],
+        [
+          0.57,
+          0.34,
+          -0.777174
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.44,
+          0.34,
+          -0.722115
+        ],
+        [
+          -0.44,
+          0.32,
+          -0.722115
+        ],
+        [
+          0.44,
+          0.32,
+          -0.722115
+        ],
+        [
+          0.44,
+          0.34,
+          -0.722115
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.4,
+          0.11,
+          -0.592544
+        ],
+        [
+          -0.4,
+          0.12,
+          -0.592544
+        ],
+        [
+          -0.54,
+          0.12,
+          -0.592544
+        ],
+        [
+          -0.54,
+          0.11,
+          -0.592544
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.54,
+          0.11,
+          -0.592544
+        ],
+        [
+          0.54,
+          0.12,
+          -0.592544
+        ],
+        [
+          0.4,
+          0.12,
+          -0.592544
+        ],
+        [
+          0.4,
+          0.11,
+          -0.592544
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.54,
+          0.11,
+          -0.592544
+        ],
+        [
+          -0.54,
+          0.12,
+          -0.592544
+        ],
+        [
+          -0.4,
+          0.12,
+          -0.592544
+        ],
+        [
+          -0.4,
+          0.11,
+          -0.592544
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.4,
+          0.11,
+          -0.592544
+        ],
+        [
+          0.4,
+          0.12,
+          -0.592544
+        ],
+        [
+          0.54,
+          0.12,
+          -0.592544
+        ],
+        [
+          0.54,
+          0.11,
+          -0.592544
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.57,
+          0.11,
+          -0.592544
+        ],
+        [
+          0.57,
+          0.13,
+          -0.592544
+        ],
+        [
+          -0.57,
+          0.13,
+          -0.592544
+        ],
+        [
+          -0.57,
+          0.11,
+          -0.592544
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.46,
+          0.25,
+          -0.533685
+        ],
+        [
+          -0.46,
+          0.27,
+          -0.533685
+        ],
+        [
+          -0.57,
+          0.27,
+          -0.533685
+        ],
+        [
+          -0.57,
+          0.25,
+          -0.533685
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.57,
+          0.25,
+          -0.533685
+        ],
+        [
+          0.57,
+          0.27,
+          -0.533685
+        ],
+        [
+          0.46,
+          0.27,
+          -0.533685
+        ],
+        [
+          0.46,
+          0.25,
+          -0.533685
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.43,
+          0.12,
+          0.534241
+        ],
+        [
+          0.43,
+          0.12,
+          0.534241
+        ],
+        [
+          0.43,
+          0.13,
+          0.534241
+        ],
+        [
+          -0.43,
+          0.13,
+          0.534241
+        ],
+        [
+          -0.43,
+          0.12,
+          0.534241
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.52,
+          0.12,
+          0.534241
+        ],
+        [
+          -0.43,
+          0.12,
+          0.534241
+        ],
+        [
+          -0.43,
+          0.13,
+          0.534241
+        ],
+        [
+          -0.52,
+          0.13,
+          0.534241
+        ],
+        [
+          -0.52,
+          0.12,
+          0.534241
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.43,
+          0.12,
+          0.534241
+        ],
+        [
+          0.52,
+          0.12,
+          0.534241
+        ],
+        [
+          0.52,
+          0.13,
+          0.534241
+        ],
+        [
+          0.43,
+          0.13,
+          0.534241
+        ],
+        [
+          0.43,
+          0.12,
+          0.534241
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.71,
+          0.34,
+          0.77713
+        ],
+        [
+          -0.71,
+          0.32,
+          0.77713
+        ],
+        [
+          0.71,
+          0.32,
+          0.77713
+        ],
+        [
+          0.71,
+          0.34,
+          0.77713
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.706339,
+          0.34,
+          0.74
+        ],
+        [
+          -0.706339,
+          0.32,
+          0.74
+        ],
+        [
+          -0.706339,
+          0.32,
+          0.7
+        ],
+        [
+          -0.706339,
+          0.34,
+          0.7
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.615702,
+          0.34,
+          0.64
+        ],
+        [
+          -0.615702,
+          0.32,
+          0.64
+        ],
+        [
+          -0.615702,
+          0.32,
+          -0.73
+        ],
+        [
+          -0.615702,
+          0.34,
+          -0.73
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.565118,
+          0.15,
+          -0.57
+        ],
+        [
+          -0.565118,
+          0.15,
+          -0.59
+        ],
+        [
+          -0.565118,
+          0.16,
+          -0.59
+        ],
+        [
+          -0.565118,
+          0.16,
+          -0.58
+        ],
+        [
+          -0.565118,
+          0.18,
+          -0.58
+        ],
+        [
+          -0.565118,
+          0.18,
+          -0.57
+        ],
+        [
+          -0.565118,
+          0.15,
+          -0.57
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.513874,
+          0.12,
+          0.5
+        ],
+        [
+          -0.513874,
+          0.12,
+          0.43
+        ],
+        [
+          -0.513874,
+          0.13,
+          0.43
+        ],
+        [
+          -0.513874,
+          0.13,
+          0.5
+        ],
+        [
+          -0.513874,
+          0.12,
+          0.5
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.513874,
+          0.12,
+          0.43
+        ],
+        [
+          -0.513874,
+          0.12,
+          -0.52
+        ],
+        [
+          -0.513874,
+          0.13,
+          -0.52
+        ],
+        [
+          -0.513874,
+          0.13,
+          0.43
+        ],
+        [
+          -0.513874,
+          0.12,
+          0.43
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.514994,
+          0.12,
+          0.43
+        ],
+        [
+          0.514994,
+          0.12,
+          -0.52
+        ],
+        [
+          0.514994,
+          0.13,
+          -0.52
+        ],
+        [
+          0.514994,
+          0.13,
+          0.43
+        ],
+        [
+          0.514994,
+          0.12,
+          0.43
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.514994,
+          0.12,
+          0.5
+        ],
+        [
+          0.514994,
+          0.12,
+          0.43
+        ],
+        [
+          0.514994,
+          0.13,
+          0.43
+        ],
+        [
+          0.514994,
+          0.13,
+          0.5
+        ],
+        [
+          0.514994,
+          0.12,
+          0.5
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.566239,
+          0.15,
+          -0.57
+        ],
+        [
+          0.566239,
+          0.15,
+          -0.59
+        ],
+        [
+          0.566239,
+          0.16,
+          -0.59
+        ],
+        [
+          0.566239,
+          0.16,
+          -0.58
+        ],
+        [
+          0.566239,
+          0.18,
+          -0.58
+        ],
+        [
+          0.566239,
+          0.18,
+          -0.57
+        ],
+        [
+          0.566239,
+          0.15,
+          -0.57
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.615704,
+          0.34,
+          0.64
+        ],
+        [
+          0.615704,
+          0.32,
+          0.64
+        ],
+        [
+          0.615704,
+          0.32,
+          -0.73
+        ],
+        [
+          0.615704,
+          0.34,
+          -0.73
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.706339,
+          0.34,
+          0.74
+        ],
+        [
+          0.706339,
+          0.32,
+          0.74
+        ],
+        [
+          0.706339,
+          0.32,
+          0.7
+        ],
+        [
+          0.706339,
+          0.34,
+          0.7
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.616553,
+          0.341466,
+          -0.721297
+        ],
+        [
+          -0.616575,
+          0.321466,
+          -0.721318
+        ],
+        [
+          -0.56158,
+          0.321466,
+          -0.779418
+        ],
+        [
+          -0.561558,
+          0.341466,
+          -0.779396
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.430693,
+          0.340285,
+          -0.721417
+        ],
+        [
+          0.43067,
+          0.320285,
+          -0.721439
+        ],
+        [
+          0.485665,
+          0.320285,
+          -0.779538
+        ],
+        [
+          0.485688,
+          0.340285,
+          -0.779517
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.430688,
+          0.340285,
+          -0.721421
+        ],
+        [
+          -0.430665,
+          0.320285,
+          -0.721443
+        ],
+        [
+          -0.48566,
+          0.320285,
+          -0.779543
+        ],
+        [
+          -0.485682,
+          0.340285,
+          -0.779521
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.616556,
+          0.341468,
+          -0.721296
+        ],
+        [
+          0.616578,
+          0.321468,
+          -0.721317
+        ],
+        [
+          0.561584,
+          0.321468,
+          -0.779417
+        ],
+        [
+          0.561561,
+          0.341468,
+          -0.779396
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.71119,
+          0.339803,
+          0.711853
+        ],
+        [
+          0.711212,
+          0.319803,
+          0.711826
+        ],
+        [
+          0.609672,
+          0.319803,
+          0.630649
+        ],
+        [
+          0.60965,
+          0.339803,
+          0.630677
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          -0.711193,
+          0.339803,
+          0.711851
+        ],
+        [
+          -0.711215,
+          0.319803,
+          0.711823
+        ],
+        [
+          -0.609675,
+          0.319803,
+          0.630648
+        ],
+        [
+          -0.609653,
+          0.339803,
+          0.630675
+        ]
+      ]
+    }
+  ],
+  "vendor": {
+    "model": "world_final/Farming_land/Assets/Farm_land/Models/village_ruins.fbx",
+    "model_sha256": "b87059ac7e9a640b2d9ebb4b179741f50f34c03462d1314daea863fc10a8cb1a",
+    "object": "Debris_Window",
+    "mirror_x": false,
+    "rotation_euler_deg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "recentre": true
+  }
+}

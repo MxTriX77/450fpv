@@ -1,0 +1,17 @@
+{
+  "source": { "model": "world_final/Farming_land/Assets/Farm_land/Models/village_ruins.fbx",
+              "model_sha256": "b87059ac7e9a640b2d9ebb4b179741f50f34c03462d1314daea863fc10a8cb1a",
+              "object": "Debris_WallPanel" },
+  "prefab": { "mirror_x": false, "rotation_euler_deg": [0.0, 0.0, 0.0], "recentre": true },
+  "intact": { "model": "", "model_sha256": "", "objects": [] },
+  "parts": [
+    {"part": "wall_panel", "physics": "timber", "sheet_m": 0.02, "edge_radius_m": 0.002}
+  ],
+  "slabs": { "raster_m": 0.01, "angle_tol_deg": 6.0, "axis_angle_deg": 3.0, "axis_dev_m": 0.015, "plane_tol_m": 0.03, "max_thickness_m": 0.35, "merge_tol_m": 0.015,
+             "min_box_m": 0.02, "cover_tol_m": 0.015, "air_cell_m": 0.02 },
+  "prune": { "tol_m": 0.02 },
+  "gaps": { "wall_parts": [], "skin_parts": [], "min_m": 0.25, "band_m": 0.12, "jamb_px": 3, "holes_max": 12, "skin_keep_min": 0.05 },
+  "wind": { "parts": [], "cell_m": 0.25, "cavity_box": [] },
+  "snag": { "broken_drop_m": 0.05, "open_edges": true },
+  "lod": { "cull_m": 390.0 }
+}
