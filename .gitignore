@@ -13,6 +13,24 @@ reference/
 # --- The local store (D-089): third-party packs that can't be pushed, and the farmland world ---
 # No trailing slash: in a worktree it is a junction (tools/vendor/link.ps1), which git may see as a link.
 /vendor
+# The farmland's local-only parts, linked into unity/Assets by tools/vendor/link.ps1 (keep in step with its list;
+# it refuses to link a path that isn't ignored here). Folders are junctions, files hard links.
+/unity/Assets/Art
+/unity/Assets/Art.meta
+/unity/Assets/TerrainSampleAssets
+/unity/Assets/TerrainSampleAssets.meta
+/unity/Assets/ALP_Assets
+/unity/Assets/ALP_Assets.meta
+/unity/Assets/Farm_land/Materials
+/unity/Assets/Farm_land/Materials.meta
+/unity/Assets/Farm_land/Terrain/Generated
+/unity/Assets/Farm_land/Terrain/Generated.meta
+/unity/Assets/Farm_land/Terrain/*.asset
+/unity/Assets/Farm_land/Terrain/*.asset.meta
+/unity/Assets/Farm_land/Models/*.fbx
+/unity/Assets/Farm_land/Models/*.fbx.meta
+/unity/Assets/Farm_land/Models/*.png
+/unity/Assets/Farm_land/Models/*.png.meta
 
 # --- Unity (project lives in unity/) ---
 unity/[Ll]ibrary/
