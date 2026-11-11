@@ -33,9 +33,11 @@
       0.3,
       0.35,
       0.4,
-      0.5
+      0.5,
+      0.6,
+      0.7
     ],
-    "max_radius_m": 1.0
+    "max_radius_m": 1.5
   },
   "sprays": {
     "min_length_m": 1.0,

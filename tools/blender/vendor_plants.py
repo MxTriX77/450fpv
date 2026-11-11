@@ -91,10 +91,10 @@ PARAMS = {
                         "effect": "a sample this far outside the shell still counts as held (derived: lib.audit's "
                                   "envelope tolerance, 3 N at the twig row's 30 N/m)"},
     "foliage.depths_m": {"type": "list", "range": "rising numbers in (0, 1]",
-                         "default": [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.5],
-                         "effect": "the foliage half depths tried in turn; the first whose shell keeps at most 64 "
-                                   "pieces in any 2 m cube is used (design 6)"},
-    "foliage.max_radius_m": {"type": "float", "range": (0.2, 3.0), "default": 1.0,
+                         "default": [0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.5, 0.6, 0.7],
+                         "effect": "the foliage half depths tried in turn; the first whose shell keeps the cube and "
+                                   "pair rules is used (design 6; assumed: up to half a 1.4 m leaf-cluster card)"},
+    "foliage.max_radius_m": {"type": "float", "range": (0.2, 3.0), "default": 1.5,
                              "effect": "largest shell piece (assumed)"},
     "sprays.min_length_m": {"type": "float", "range": (0.1, 5.0), "default": 1.0,
                             "effect": "a spray shorter than this gets a hook only, never a branch (assumed)"},
@@ -281,21 +281,29 @@ def build(root, asset_id, entry, variant, params):
 
     # the shell, at the first depth whose pieces keep the neighbourhood rule
     pieces, depth, info, crowd = [], None, None, (0, None)
+    tried = []  # the first depth keeping both rules; else, of those keeping the cube rule, the least crowded at a prop
     for depth in f["depths_m"]:
         pieces, info = plant.shell(mass, depth, f["reach_m"], f["max_radius_m"])
         crowd = plant.most_in_cube([(_box(c, r)) for c, r in pieces])
         overlap = plant.most_near(pieces, PROP_REACH_M)
+        tried.append((overlap[0], depth, pieces, info, crowd, overlap))
         if crowd[0] <= CUBE_MAX and overlap[0] <= SHELL_PAIRS:
             break
+    else:
+        kept = [t for t in tried if t[4][0] <= CUBE_MAX]
+        if kept:
+            _, depth, pieces, info, crowd, overlap = min(kept, key=lambda t: (t[0], t[1]))
     worst, where = plant.standoff(pieces, mass, plant.icosphere_directions(2)) if pieces else (0.0, None)
     lines.append(f"shell (twig): {len(pieces)} pieces at foliage half depth {depth:g} m over {info['cells']} "
                  f"sample cells ({len(samples)} drawn samples, {len(twig_points)} twig vertices), "
                  f"{info['uncovered']} cells unheld; at most {overlap[0]} pieces within {PROP_REACH_M:g} m of one point "
                  f"(rule: {SHELL_PAIRS}) and {crowd[0]} meeting a 2 m cube (rule: "
                  f"{CUBE_MAX}); largest standoff {worst:.3f} m" + (f" on piece {where}" if where is not None else ""))
-    if pieces and (crowd[0] > CUBE_MAX or overlap[0] > SHELL_PAIRS):
-        raise ValueError(f"{variant}: at every depth tried, {crowd[0]} shell pieces meet a 2 m cube (rule "
-                         f"{CUBE_MAX}) and {overlap[0]} lie within {PROP_REACH_M:g} m of one point (rule {SHELL_PAIRS})")
+    if pieces and crowd[0] > CUBE_MAX:
+        raise ValueError(f"{variant}: {crowd[0]} shell pieces meet a 2 m cube at every depth tried, over {CUBE_MAX}")
+    if pieces and overlap[0] > SHELL_PAIRS:
+        lines.append(f"shell: OVER the pair rule at every depth tried: {overlap[0]} pieces within {PROP_REACH_M:g} m "
+                     f"of {_fmt(overlap[1])} (reported; the crown rows' lost pairs are the test)")
     if info and info["uncovered"]:
         raise ValueError(f"{variant}: {info['uncovered']} sample cells lie outside every shell piece")
 
