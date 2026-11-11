@@ -186,6 +186,11 @@ def reference_path(path):
     return path.lower().startswith("reference/")
 
 
+def vendor_path(path):
+    """The local store (D-089): third-party packs whose licence forbids pushing them."""
+    return path.lower().startswith("vendor/")
+
+
 def footage_name(path):
     return FOOTAGE_NAME.match(posixpath.basename(path)) is not None
 
@@ -342,7 +347,7 @@ def distinctive_stem(name):
     return stem if len(stem) >= 8 and re.search(shape, stem) else None
 
 
-def reference_stems():
+def reference_stems(top, common):
     """Distinctive stems of the files under reference/, in this worktree and the main checkout.
 
     Agents commit from linked worktrees, whose own reference/ is absent: the footage sits in
@@ -350,8 +355,6 @@ def reference_stems():
     Folders directly under reference/ whose name starts with "_" (_frames, _compare, ...) hold
     the reference tools' own letter-named outputs, not the pilot's files, and are skipped.
     """
-    out = git("rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir")
-    top, common = out.decode("utf-8").splitlines()
     stems = set()
     for folder in {os.path.join(top, "reference"), os.path.join(os.path.dirname(common), "reference")}:
         for root, dirs, names in os.walk(folder):
@@ -384,9 +387,11 @@ def notes_scope(path):
 PATH_RULES = (
     ("footage-ext", footage_ext),
     ("reference-path", reference_path),
+    ("vendor-path", vendor_path),
     ("footage-name", footage_name),
     ("media-location", media_location),
 )
+# Plus ignored-path (scan_entries): a path git's ignore rules match, checked in one batch.
 # (rule id, scope, whole-file hint, line check)
 LINE_RULES = (
     ("messenger", everywhere, messenger_hint, messenger),
@@ -439,6 +444,23 @@ def git(*args, stdin=None):
     return subprocess.run(["git", *args], input=stdin, capture_output=True, check=True).stdout
 
 
+def ignored(paths, top):
+    """The paths git's ignore rules match, tracked or not: the ones `git add` refuses without -f.
+
+    The store's parts linked into unity/Assets (D-089) are kept out by .gitignore alone, so a
+    staged path it ignores was forced in, and a committed one got past. One `git check-ignore`
+    call for all the paths, run from top, the top of the work tree, which they are relative to.
+    """
+    if not paths:
+        return set()
+    run = subprocess.run(["git", "check-ignore", "--no-index", "--stdin", "-z"], cwd=top,
+                         input="".join(path + "\0" for path in paths).encode("utf-8"),
+                         capture_output=True)
+    if run.returncode not in (0, 1):  # 1: no path is ignored
+        raise subprocess.CalledProcessError(run.returncode, run.args, run.stdout, run.stderr)
+    return set(run.stdout.decode("utf-8", "replace").split("\0")[:-1])
+
+
 def staged():
     """(path, mode, blob id) for every added, copied, modified, renamed or retyped staged file."""
     out = git("diff", "--cached", "--raw", "-z", "--no-abbrev", "--no-renames", "--no-color",
@@ -475,12 +497,15 @@ def blobs(oids):
     return result
 
 
-def scan_entries(entries, rules):
+def scan_entries(entries, rules, top):
     """Findings for (path, mode, blob id) entries: the path rules, then the line rules."""
     findings = []
     to_read = []
+    ignored_paths = ignored([path for path, _, _ in entries], top)
     for path, mode, oid in entries:
         hit = scan_path(path)
+        if path in ignored_paths:
+            hit.append("ignored-path")
         findings.extend(f"  {rule:<19} {masked(path)}" for rule in hit)
         is_gitlink = mode == "160000"
         if not hit and not is_gitlink and extension(path) not in MEDIA_EXT:
@@ -511,15 +536,17 @@ def main(argv=None):
     mode.add_argument("--commit-msg", metavar="FILE", help="scan a commit message (commit-msg hook)")
     mode.add_argument("--tree", metavar="REV", help="scan every file of a commit or tree")
     args = parser.parse_args(argv)
-    rules = line_rules(ReferenceStems(reference_stems()))
+    out = git("rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir")
+    top, common = out.decode("utf-8").splitlines()
+    rules = line_rules(ReferenceStems(reference_stems(top, common)))
     if args.commit_msg:
         hook, findings = "commit-msg", scan_message(args.commit_msg, rules)
     elif args.tree:
         entries = tree_entries(args.tree)
-        hook, findings = "tree scan", scan_entries(entries, rules)
+        hook, findings = "tree scan", scan_entries(entries, rules, top)
         print(f"{len(entries)} files scanned, {len(findings)} findings")
     else:
-        hook, findings = "pre-commit", scan_entries(staged(), rules)
+        hook, findings = "pre-commit", scan_entries(staged(), rules, top)
     if not findings:
         return 0
     print(f"{hook}: blocked by the repo hygiene scan (SEC-06). Matched text is not printed.",
