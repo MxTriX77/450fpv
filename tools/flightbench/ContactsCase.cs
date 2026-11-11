@@ -474,25 +474,28 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
             FarmlandCrowns(spec, materials, hash);
         }
 
-        /// <summary>The farmland's tree families (w4a-farmland-vegetation 1.1), one variant each.</summary>
-        static readonly (string Asset, string Variant)[] FarmlandTrees =
+        /// <summary>The farmland's tree families (w4a-farmland-vegetation 1.1), one variant each, with the material its crown is
+        /// felt by first: the twig shell over the drawn foliage, or the dead pine's bare deadwood (it draws no foliage).</summary>
+        static readonly (string Asset, string Variant, string Felt)[] FarmlandTrees =
         {
-            ("VF01", "IslandTree"), ("VF02", "Pine002_M"), ("VF03", "Pine004_1"), ("VF04", "Pine006_01"), ("VF05", "PineDead_02"),
+            ("VF01", "IslandTree", "twig"), ("VF02", "Pine002_M", "twig"), ("VF03", "Pine004_1", "twig"), ("VF04", "Pine006_01", "twig"),
+            ("VF05", "PineDead_02", "deadwood"),
         };
 
         /// <summary>
         /// w4a-farmland-vegetation's crown rows: each farmland tree family's metadata alone on a meadow plane at the origin (a world
         /// of one placement, as the map export will place it), the legs-on drone 35 m south of it with the airframe's effects on, held
         /// at the middle height of the crown's wind box and flown north at 10 m/s into the crown, as the test range's crown row flies
-        /// V01_L. A row passes when the drone's first touch is that tree (the crown is felt: its twig shell, or a dead pine's bare
-        /// wood) with no tunnel and no contact pair lost (ContactsLost: more than PairsPerShape at once); it prints the crown's
-        /// work: its twig contacts and the impulse they took, and the prop strikes with what struck them.
+        /// V01_L. A row passes when the drone's first touch is that tree in its crown's material (the crown is felt: its twig shell,
+        /// with twig contacts after it, or a dead pine's bare deadwood; a first touch of the trunk is not the crown, w4a review E4b)
+        /// with no tunnel and no contact pair lost (ContactsLost: more than PairsPerShape at once); it prints the crown's work: its
+        /// twig contacts and the impulse they took, and the prop strikes with what struck them.
         /// </summary>
         static void FarmlandCrowns(DroneSpec spec, MaterialRow[] materials, ulong hash)
         {
             string root = RangeScenarios.Root;
             string[] names = MapWorld.MaterialNames(System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.MaterialsFile)));
-            foreach ((string asset, string variant) in FarmlandTrees)
+            foreach ((string asset, string variant, string felt) in FarmlandTrees)
             {
                 string model = "vegetation/" + asset + "/" + variant + ".assetmeta.json";
                 string text = System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.ModelsRoot, model));
@@ -517,8 +520,8 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                     if (e.Kind == EventKind.ContactBroken && e.Material == twig) impulse += e.B;
                     if (e.Kind == EventKind.PropStrike) { strikes++; struck.Add(e.Material > 0 ? names[e.Material - 1] : "ground"); }
                 }
-                Row($"the farmland crown ({variant}, 10 m/s at {height:F2} m), felt, no tunnel, no pair lost",
-                    p.Touch && p.FirstObject == variant && p.Tunnels == 0 && p.Lost == 0,
+                Row($"the farmland crown ({variant}, 10 m/s at {height:F2} m), felt first by its {felt}, no tunnel, no pair lost",
+                    p.Touch && p.FirstObject == variant && p.FirstMaterial == felt && (felt != "twig" || twigContacts > 0) && p.Tunnels == 0 && p.Lost == 0,
                     $"{twigContacts} twig contacts taking {impulse:F2} N·s, {strikes} prop strikes ({(strikes > 0 ? string.Join(", ", struck) : "none")}); " + Strike(p));
             }
         }
