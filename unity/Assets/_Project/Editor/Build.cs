@@ -18,7 +18,8 @@ namespace Fpv450
         /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu), the test range and the farmland
         /// (Explore's noclip, w1-farmland-world 2.1; it needs the vendor store linked, tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
-        /// at their repository paths. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
+        /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
+        /// unlinked checkout. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
         /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
         /// </summary>
         public static void Windows()
@@ -27,6 +28,19 @@ namespace Fpv450
             if (!scenes.Contains(TestRangeScene.ScenePath))
             {
                 Debug.LogError($"[Build] Windows: the build settings lack {TestRangeScene.ScenePath}; run Fpv450.EditorSetup.ProjectSetup.Apply");
+                EditorApplication.Exit(1);
+                return;
+            }
+            // w1-farmland-world 2.4: a scene with missing references would ship broken, as the farmland does in a checkout
+            // without the vendor store's links.
+            foreach (string scene in scenes)
+            {
+                var missing = SceneReferences.Missing(scene);
+                Debug.Log($"[Build] Windows: {scene}: {missing.Count} missing references");
+                if (missing.Count == 0) continue;
+                Debug.LogError($"[Build] Windows: {scene} has {missing.Count} missing references, so the player would show it broken. " +
+                               "The farmland's come from the vendor store: run pwsh tools/vendor/link.ps1 in this checkout, then build again " +
+                               "(w1-farmland-world design 3). The first:\n  " + string.Join("\n  ", missing.Take(20)));
                 EditorApplication.Exit(1);
                 return;
             }
