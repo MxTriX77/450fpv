@@ -4,7 +4,7 @@ Order: 1.1, then 2.1, then 3.1. Branch `unity/physics/physics-integration-2--w1-
 
 ## 1. The world in our project
 
-- [ ] 1.1 [world-builder] Bring the farmland's scene, terrain tiles, vegetation and village into `unity/`. Extend `link.ps1` for the packs (local-only), push the friend's own text, keep our pipeline asset and renderer, add only the packages it needs. Write `design.md`: what is pushed and what stays local, how a fresh worktree gets the world, and what the friend's generator needs. Checks: EditMode, `precommit.py --tree HEAD`, `fetch.py --verify`, a fresh worktree opens the scene with no missing references.
+- [x] 1.1 [world-builder] Bring the farmland's scene, terrain tiles, vegetation and village into `unity/`. Extend `link.ps1` for the packs (local-only), push the friend's own text, keep our pipeline asset and renderer, add only the packages it needs. Write `design.md`: what is pushed and what stays local, how a fresh worktree gets the world, and what the friend's generator needs. Checks: EditMode, `precommit.py --tree HEAD`, `fetch.py --verify`, a fresh worktree opens the scene with no missing references.
 
 ## 2. The player on the farmland
 
