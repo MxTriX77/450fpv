@@ -91,5 +91,6 @@ So **B = one field = 20 ms (derived).** Any cap up to a field costs the pilot at
 
 ## 7. Limits
 - **The slow stretch is still slow.** At 3 ms a step, the feed shows about 17 fields a second (derived). L6 is the fix.
-- **Tests that compare real-time runs' stick sequences assume no drop** (`RadioTimingTests`, threaded). A host stall over 20 ms there now changes what is read, and logs it.
+- **Tests that compare real-time runs' stick sequences** (`RadioTimingTests`, threaded): a host stall over 20 ms there now changes what is read, and logs it. Since 2.2 they compare at each step's moved host time, from the drops their recorder received.
+- **The latency test (INP-04)** times each stick change on its steps' moved host times (2.2). A host stall over 20 ms inside a change adds the time dropped to that change's figures, as latency the pilot would feel; `LatencyTest.DroppedInUs` gives it per change, and `LatencyTests` holds such a change to the usual bounds plus it.
 - **QA's `lagprobe` estimates the cost per step from consecutive `Late` hitches.** Across a drop, the second pass's lateness must add the drop's B.

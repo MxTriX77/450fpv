@@ -9,7 +9,7 @@ Order: 1.1, then 2.1 once 1.1 has landed and L1's report (`docs/reports/lag/mode
 ## 2. The lag cap (plan unit L5)
 
 - [x] 2.1 [physics-engineer] Derive B from the control chain's latency budget (INP-04) and write the derivation in `design.md`. Add the drop to `RunDue`, a new `HitchCause`, and the pose buffer's time base. Tests: the two scenarios of "A late flight never builds growing lag". Same checks as 1.1.
-- [ ] 2.2 [game-developer] Make the app's checks hold under the cap: the smoke test's R check (`AppFlow.cs`) accepts a moved time base (`pair.StartUs >= session.StartUs`, as `FlightScene` does). `LatencyTest` applies its probe's logged drops to its step times. The threaded `RadioTimingTests` apply the logged drops before comparing stick sequences. `RDoesNotWaitForTheFlightThreadsCatchUp` still tests a long catch-up, and its message is current. Same checks as 1.1.
+- [x] 2.2 [game-developer] Make the app's checks hold under the cap: the smoke test's R check (`AppFlow.cs`) accepts a moved time base (`pair.StartUs >= session.StartUs`, as `FlightScene` does). `LatencyTest` applies its probe's logged drops to its step times. The threaded `RadioTimingTests` apply the logged drops before comparing stick sequences. `RDoesNotWaitForTheFlightThreadsCatchUp` still tests a long catch-up, and its message is current. Same checks as 1.1.
 
 ## 3. Review
 
