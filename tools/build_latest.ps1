@@ -1,7 +1,7 @@
 # Build the newest playable 450fpv in its own worktree, with the full compile log.
 # What it builds comes from tools/build_latest.json on origin/unity/main, so a stale checkout still builds the newest state.
 # It removes its worktree afterwards, so only the codebase and unity\Builds\Latest stay on disk; -KeepWorktree keeps it for a faster next build.
-# A tree with tools/vendor/link.ps1 gets the vendor store linked after its checkout (the farmland, D-089), and loses the links
+# A tree whose tools/vendor/link.ps1 has -Unlink (W1 on) gets the vendor store linked after its checkout (the farmland, D-089), and loses the links
 # before the next checkout and before the worktree is removed, so nothing is ever deleted through a junction into the store.
 # -PlanFile builds from that plan file instead of origin/unity/main's, and -Out puts the build there instead of unity\Builds\Latest:
 # to try a branch without touching the pilot's build.
@@ -20,10 +20,14 @@ $started = Get-Date
 function Step($text) { Write-Host ""; Write-Host "== $text" -ForegroundColor Cyan }
 function Fail($text) { Write-Host ""; Write-Host "BUILD FAILED: $text" -ForegroundColor Red; exit 1 }
 function Invoke-Git { & git -C $script:Here @args; if ($LASTEXITCODE -ne 0) { Fail "git $($args -join ' ') exited $LASTEXITCODE" } }
-# The vendor store's links in the worktree, by the tree's own tools/vendor/link.ps1; a tree without it has none to make.
+# The vendor store's links in the worktree, by the tree's own tools/vendor/link.ps1. Only a script that can unlink (the
+# farmland's, w1-farmland-world) is run: W0's has no parameters, so it would take -Unlink as an extra argument and link.
+# A tree without one builds as before, with no links.
 function Invoke-Link([switch]$Unlink) {
     $linker = Join-Path $Worktree "tools\vendor\link.ps1"
-    if (-not (Test-Path $linker)) { Write-Host "no tools\vendor\link.ps1 in this tree: no store links"; return }
+    if (-not (Test-Path $linker) -or -not (Get-Command $linker).Parameters.ContainsKey("Unlink")) {
+        Write-Host "no tools\vendor\link.ps1 with -Unlink in this tree: no store links"; return
+    }
     & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File $linker @(if ($Unlink) { "-Unlink" }) | Out-Host
     if ($LASTEXITCODE -ne 0) { Fail "tools/vendor/link.ps1 $(if ($Unlink) { '-Unlink ' })exited $LASTEXITCODE in $Worktree" }
 }
