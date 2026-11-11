@@ -138,6 +138,50 @@ def test_anything_under_reference_is_blocked(repo):
     assert_blocked(result, repo, "reference-path", hidden=["letter-notes"])
 
 
+def test_anything_under_vendor_is_blocked(repo):
+    """The local store (D-089) holds packs whose licence forbids pushing them, binary or text."""
+    result = commit(repo, {"vendor/pack/Prefabs/house.prefab": "%YAML 1.1\n",
+                           "vendor/pack/Models/house.fbx": b"Kaydara FBX Binary\0"}, force=True)
+    assert_blocked(result, repo, "vendor-path")
+
+
+def test_store_file_linked_into_unity_assets_is_blocked(tmp_path):
+    """tools/vendor/link.ps1 links the store's local-only parts into unity/Assets (a folder as a
+    junction, a file as a hard link), where .gitignore is the one guard: `git add -f` must not
+    get one past the scan (D-089). The real .gitignore, at the real linked paths."""
+    repo, store = init(tmp_path / "repo"), tmp_path / "store"
+    shutil.copyfile(ROOT / ".gitignore", repo / ".gitignore")
+    write(store, {"Art/Profile.asset": "%YAML 1.1\n", "Tile.asset": b"\0terrain"})
+    (repo / "unity/Assets/Farm_land/Terrain").mkdir(parents=True)
+    if sys.platform == "win32":
+        import _winapi
+        _winapi.CreateJunction(str(store / "Art"), str(repo / "unity/Assets/Art"))
+    else:  # git adds no path beyond a symbolic link, so a copy stands in for the junction
+        shutil.copytree(store / "Art", repo / "unity/Assets/Art")
+    os.link(store / "Tile.asset", repo / "unity/Assets/Farm_land/Terrain/Tile.asset")
+    linked = ["unity/Assets/Art/Profile.asset", "unity/Assets/Farm_land/Terrain/Tile.asset"]
+    assert all(git(repo, "add", "--", path).returncode != 0 for path in linked)  # ignored
+    assert git(repo, "add", "-f", "--", *linked).returncode == 0
+    result = git(repo, "commit", "-q", "-m", "test: x")
+    assert_blocked(result, repo, "ignored-path")
+    for path in linked:
+        assert f"{'ignored-path':<19} {precommit.masked(path)}" in result.stderr
+
+
+def test_tree_scan_flags_a_committed_ignored_path(repo):
+    """A path the ignore rules match is caught in a commit's tree too, run from any folder."""
+    with open(repo / ".gitignore", "a", encoding="utf-8") as rules:
+        rules.write("/unity/Assets/Art\n")
+    write(repo, {"docs/notes.md": "# Notes\n", "unity/Assets/Art/Profile.asset": "%YAML 1.1\n"})
+    assert git(repo, "add", "-f", "--", "docs/notes.md", "unity/Assets/Art/Profile.asset").returncode == 0
+    tree = git(repo, "write-tree").stdout.strip()
+    scan = subprocess.run([sys.executable, str(PRECOMMIT), "--tree", tree], cwd=repo / "docs",
+                          env=ENV, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    assert scan.returncode == 1
+    assert scan.stdout.strip() == "2 files scanned, 1 findings"
+    assert f"{'ignored-path':<19} unity/Assets/Art/*.asset" in scan.stderr
+
+
 # --- spec: No footage names inside text -----------------------------------------------------
 
 @pytest.mark.parametrize("name", [CAMERA, PHONE, EXPORT, CLIP], ids=["camera", "phone", "export", "clip"])
@@ -558,6 +602,14 @@ def test_bare_extensions_and_words_are_not_footage_text(line):
 ])
 def test_reference_path(path, caught):
     assert precommit.reference_path(path) == caught
+
+
+@pytest.mark.parametrize("path, caught", [
+    ("vendor/a.fbx", True), ("Vendor/x/b.prefab", True), ("vendor/world/Assets/c.cs", True),
+    ("tools/vendor/link.ps1", False), ("unity/Packages/p/vendor/a.cs", False), ("vendor.md", False),
+])
+def test_vendor_path(path, caught):
+    assert precommit.vendor_path(path) == caught
 
 
 @pytest.mark.parametrize("path, caught", [
