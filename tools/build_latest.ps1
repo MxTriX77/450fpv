@@ -3,15 +3,15 @@
 # It removes its worktree afterwards, so only the codebase and unity\Builds\Latest stay on disk; -KeepWorktree keeps it for a faster next build.
 # A tree with tools/vendor/link.ps1 gets the vendor store linked after its checkout (the farmland, D-089), and loses the links
 # before the next checkout and before the worktree is removed, so nothing is ever deleted through a junction into the store.
-# -Plan builds from that plan file instead of origin/unity/main's, and -Out puts the build there instead of unity\Builds\Latest:
+# -PlanFile builds from that plan file instead of origin/unity/main's, and -Out puts the build there instead of unity\Builds\Latest:
 # to try a branch without touching the pilot's build.
-# Usage: pwsh -File tools/build_latest.ps1 [-Repo C:\.dev\450fpv] [-NoSmoke] [-DryRun] [-KeepWorktree] [-Plan <json>] [-Out <folder>]
+# Usage: pwsh -File tools/build_latest.ps1 [-Repo C:\.dev\450fpv] [-NoSmoke] [-DryRun] [-KeepWorktree] [-PlanFile <json>] [-Out <folder>]
 param(
     [string]$Repo = "C:\.dev\450fpv",
     [switch]$NoSmoke,
     [switch]$DryRun,
     [switch]$KeepWorktree,
-    [string]$Plan,
+    [string]$PlanFile,
     [string]$Out
 )
 $ErrorActionPreference = "Stop"
@@ -38,8 +38,8 @@ $Unity = if ($env:UNITY) { $env:UNITY } else { "C:\Program Files\Unity\Hub\Edito
 Step "Fetch"
 $script:Here = $Repo
 Invoke-Git fetch --prune origin
-$planText = if ($Plan) { Get-Content -Raw $Plan } else { (& git -C $Repo show origin/unity/main:tools/build_latest.json 2>$null) -join "`n" }
-if ($Plan) { Write-Host "note: the plan is $Plan, not origin/unity/main's" -ForegroundColor Yellow }
+$planText = if ($PlanFile) { Get-Content -Raw $PlanFile } else { (& git -C $Repo show origin/unity/main:tools/build_latest.json 2>$null) -join "`n" }
+if ($PlanFile) { Write-Host "note: the plan is $PlanFile, not origin/unity/main's" -ForegroundColor Yellow }
 elseif (-not $planText) { $planText = Get-Content -Raw (Join-Path $Repo "tools\build_latest.json"); Write-Host "note: latest.json is not on origin/unity/main yet; using the local copy" -ForegroundColor Yellow }
 $plan = $planText | ConvertFrom-Json
 if (-not $plan) { Fail "could not read tools/build_latest.json" }
