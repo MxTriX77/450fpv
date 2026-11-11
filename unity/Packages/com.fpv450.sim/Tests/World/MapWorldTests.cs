@@ -1106,6 +1106,72 @@ namespace Fpv450.Sim.Tests
             Assert.That(end1, Is.EqualTo(0.25).Within(Exact));
             Assert.That(shaft.Covered, Is.False);
         }
+
+        // ---- The fiber's query cost (w3-farmland-ground 2.1) ------------------------------------------------------------
+
+        /// <summary>
+        /// StaticContacts against every shape asked alone (ShapeContact over every object's every shape, in canonical order):
+        /// the same contacts to the bit, on still segments up to 150 m long (a fiber's far segments, which walk the
+        /// grid's corridor) and on sweeps moving up to 5 m, across the yard, S04's straw and the posadka's north verge (the
+        /// model-79 flights' lines); NoGround leaves out the plane's contact and nothing else; ShapeContact gives none for the
+        /// ground or a wire.
+        /// </summary>
+        [Test]
+        public void StaticContacts_AreEveryShapesOwn_OnLongReaches_AndNoGroundLeavesOnlyThePlane()
+        {
+            MapWorld world = World;
+            var random = new Random(21);
+            var spots = new[] { new Double3(-170, 0, -45), RangeScenarios.Straw, new Double3(-137, 0, 13) };
+            var all = new StaticContact[2048];
+            var bare = new StaticContact[2048];
+            var brute = new List<StaticContact>();
+            int corridors = 0, contacts = 0, planes = 0;
+            for (int i = 0; i < 300; i++)
+            {
+                Double3 spot = spots[i % 3];
+                double Uniform(double lo, double hi) => lo + (hi - lo) * random.NextDouble();
+                var a = new Double3(spot.X + Uniform(-20, 20), Uniform(0, 2), spot.Z + Uniform(-20, 20));
+                double length = Math.Exp(Uniform(Math.Log(0.5), Math.Log(150))), heading = Uniform(0, 2 * Math.PI);
+                var b = a + new Double3(length * Math.Sin(heading), Uniform(-0.5, 0.5), length * Math.Cos(heading));
+                var current = new Capsule(a, b, i % 4 == 0 ? 0.02 : 0.000125);
+                Capsule previous = current;
+                if (i % 2 == 1)
+                {
+                    var move = new Double3(Uniform(-5, 5), Uniform(-1, 1), Uniform(-5, 5));
+                    previous = new Capsule(a + move, b + move * 0.5, current.Radius);
+                }
+                double margin = (i % 3) switch { 0 => 0.5, 1 => 0.75, _ => 0.1 };
+                int n = world.StaticContacts(previous, current, margin, all, QueryFilter.NoWires);
+                int m = world.StaticContacts(previous, current, margin, bare, QueryFilter.NoWires | QueryFilter.NoGround);
+                Assert.That(n, Is.LessThanOrEqualTo(all.Length), "premise: the buffer holds every contact");
+                int ground = n > 0 && all[0].Object == WorldIds.Ground ? 1 : 0;
+                Assert.That(m, Is.EqualTo(n - ground), $"query {i}: NoGround leaves the plane out");
+                for (int k = 0; k < m; k++)
+                    Assert.That(FloorWorldTests.Bits(bare[k]), Is.EqualTo(FloorWorldTests.Bits(all[k + ground])), $"query {i}, contact {k}");
+                brute.Clear();
+                for (int obj = 0; world.ObjectName(obj) != null; obj++) // the placed objects, then any runtime one
+                    for (int shape = 0; world.Geometry(obj, shape, out ShapeGeometry g); shape++)
+                        if (world.ShapeContact(obj, shape, previous, current, margin, out StaticContact c))
+                        {
+                            Assert.That(g.Kind, Is.Not.EqualTo(ShapeKind.Wire), "no wire's contact alone");
+                            brute.Add(c);
+                        }
+                Assert.That(brute.Count, Is.EqualTo(m), $"query {i}: every shape asked alone");
+                for (int k = 0; k < m; k++)
+                    Assert.That(FloorWorldTests.Bits(brute[k]), Is.EqualTo(FloorWorldTests.Bits(bare[k])), $"query {i}, shape {bare[k].Object}/{bare[k].Shape}");
+                double pad = current.Radius + margin;
+                double cellsX = (Math.Max(Math.Max(a.X, b.X), Math.Max(previous.A.X, previous.B.X)) - Math.Min(Math.Min(a.X, b.X), Math.Min(previous.A.X, previous.B.X)) + 2 * pad) / MapWorld.CellSize;
+                double cellsZ = (Math.Max(Math.Max(a.Z, b.Z), Math.Max(previous.A.Z, previous.B.Z)) - Math.Min(Math.Min(a.Z, b.Z), Math.Min(previous.A.Z, previous.B.Z)) + 2 * pad) / MapWorld.CellSize;
+                corridors += (cellsX + 1) * (cellsZ + 1) > 16 ? 1 : 0;
+                contacts += m;
+                planes += ground;
+            }
+            Assert.That(world.ShapeContact(WorldIds.Ground, 0, new Capsule(new Double3(0, 0.1, 0), new Double3(1, 0.1, 0), 0.01),
+                new Capsule(new Double3(0, 0.1, 0), new Double3(1, 0.1, 0), 0.01), 0.5, out _), Is.False, "the ground");
+            TestContext.Out.WriteLine($"  300 queries, {corridors} over a corridor's reach; {contacts} shapes' contacts, {planes} with the plane");
+            Assert.That(corridors, Is.GreaterThan(100), "premise: many reaches walk the corridor");
+            Assert.That(contacts, Is.GreaterThan(1000), "premise: the reaches meet the yard's, the straw's and the verge's shapes");
+        }
     }
 
     /// <summary>A plain JSON reader for the tests (objects, arrays, strings, numbers by double.Parse, true/false/null), so

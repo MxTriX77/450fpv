@@ -1334,7 +1334,8 @@ namespace Fpv450.Sim.World
             return xa <= xb;
         }
 
-        private static void Clip(Double3 a, Double3 b, double za, double zb, ref double xa, ref double xb)
+        /// <summary>Segment a–b's x range within za ≤ z ≤ zb, merged into [xa, xb] (HullX; MapWorld's corridor, 2.1).</summary>
+        internal static void Clip(Double3 a, Double3 b, double za, double zb, ref double xa, ref double xb)
         {
             double lo = DetMath.Min(a.Z, b.Z), hi = DetMath.Max(a.Z, b.Z);
             if (hi < za || lo > zb)

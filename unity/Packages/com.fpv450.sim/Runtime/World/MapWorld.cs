@@ -38,6 +38,8 @@
 // - Snag records for the fiber (p7d-tether 1.3): SnagsNear and its index are MapWorldSnags.cs.
 // - The fiber's query cost (w3-farmland-ground 2.1): StaticContacts leaves the ground out under QueryFilter.NoGround, and
 //   ShapeContact gives its contact for one shape alone.
+// - A long reach's corridor (w3-farmland-ground 2.1): a reach of more than Corridor cells walks only the cells its sweep's hull
+//   reaches within the pad, row by row, as the terrain's does; the same contacts.
 // - Ids: materials are the names given at load (physics_materials.json's rows in file
 //   order, 1 … n); surfaces are S01–S13 (SurfaceIds, 1 … 13).
 // - Identity (design 6): FNV-1a over the placement file, every referenced .assetmeta.json
@@ -231,15 +233,28 @@ namespace Fpv450.Sim.World
             else
             {
                 CellRange(reach, out int x0, out int x1, out int z0, out int z1);
+                // A long reach walks only its corridor (w3-farmland-ground 2.1): row by row, the cells the sweep's four core
+                // ends' hull in x–z reaches within the pad (and CorridorSlack). Every core pose of the sweep lies in that hull,
+                // so a shape that can be within the margin meets the corridor; one only in the bounds' corners never could, and
+                // the contacts go in in canonical order whatever visits them. An item is visited once, in the first corridor
+                // cell (row by row) its own cells share, as the plain walk visits it in the first cell its cells share with the
+                // bounds.
+                bool corridor = (x1 - x0 + 1) * (z1 - z0 + 1) > Corridor;
+                Span<int> rows = corridor ? stackalloc int[2 * (z1 - z0 + 1)] : Span<int>.Empty;
+                if (corridor)
+                    CorridorRows(previous, current, pad, reach, x0, x1, z0, z1, rows);
                 for (int cz = z0; cz <= z1; cz++)
                 {
-                    for (int cx = x0; cx <= x1; cx++)
+                    int a = corridor ? rows[2 * (cz - z0)] : x0, b = corridor ? rows[2 * (cz - z0) + 1] : x1;
+                    for (int cx = a; cx <= b; cx++)
                     {
                         int cell = cz * _nx + cx;
                         for (int k = _cellStart[cell]; k < _cellStart[cell + 1]; k++)
                         {
                             ref readonly CellItem e = ref _cellItems[k];
-                            if ((e.CellX > x0 ? e.CellX : x0) == cx && (e.CellZ > z0 ? e.CellZ : z0) == cz && e.Box.Overlaps(reach))
+                            bool first = corridor ? FirstInCorridor(e, rows, z0, z1, cx, cz)
+                                : (e.CellX > x0 ? e.CellX : x0) == cx && (e.CellZ > z0 ? e.CellZ : z0) == cz;
+                            if (first && e.Box.Overlaps(reach))
                                 SweepItem(e.Item, stack, previous, current, margin, speed, reach, noWires, results, ref count);
                         }
                     }
@@ -711,6 +726,58 @@ namespace Fpv450.Sim.World
             x1 = CellX(b.Max.X);
             z0 = CellZ(b.Min.Z);
             z1 = CellZ(b.Max.Z);
+        }
+
+        /// <summary>A reach of more cells than this walks only its corridor (StaticContacts), as the terrain's does.</summary>
+        private const int Corridor = 16;
+
+        /// <summary>The corridor's slack beyond the pad, m (numerical: far above a cell edge's rounding a kilometre out).</summary>
+        private const double CorridorSlack = 1e-6;
+
+        /// <summary>
+        /// Row cz's corridor cells [rows[2(cz − z0)], rows[2(cz − z0) + 1]] within [x0, x1] (none where the first is the
+        /// greater): those the hull of the sweep's four core ends in x–z reaches within the pad, its row's z band grown by the
+        /// pad too. An edge row holds everything beyond the grid on its side as well, so its band reaches to the bounds' side.
+        /// </summary>
+        private void CorridorRows(in Capsule previous, in Capsule current, double pad, in Bounds reach, int x0, int x1, int z0, int z1, Span<int> rows)
+        {
+            double grow = pad + CorridorSlack;
+            for (int cz = z0; cz <= z1; cz++)
+            {
+                double za = (cz == 0 ? reach.Min.Z : _gridZ + cz * CellSize) - grow;
+                double zb = (cz == _nz - 1 ? reach.Max.Z : _gridZ + (cz + 1) * CellSize) + grow;
+                double xa = double.PositiveInfinity, xb = double.NegativeInfinity;
+                TerrainSweep.Clip(previous.A, previous.B, za, zb, ref xa, ref xb);
+                TerrainSweep.Clip(previous.A, current.A, za, zb, ref xa, ref xb);
+                TerrainSweep.Clip(previous.A, current.B, za, zb, ref xa, ref xb);
+                TerrainSweep.Clip(previous.B, current.A, za, zb, ref xa, ref xb);
+                TerrainSweep.Clip(previous.B, current.B, za, zb, ref xa, ref xb);
+                TerrainSweep.Clip(current.A, current.B, za, zb, ref xa, ref xb);
+                int r = 2 * (cz - z0);
+                if (!(xa <= xb))
+                {
+                    rows[r] = x1 + 1;
+                    rows[r + 1] = x0;
+                    continue;
+                }
+                int a = CellX(xa - grow), b = CellX(xb + grow);
+                rows[r] = a > x0 ? a : x0;
+                rows[r + 1] = b < x1 ? b : x1;
+            }
+        }
+
+        /// <summary>Whether (cx, cz) is the first corridor cell, row by row, that item e's own cells share.</summary>
+        private bool FirstInCorridor(in CellItem e, Span<int> rows, int z0, int z1, int cx, int cz)
+        {
+            int ex1 = CellX(e.Box.Max.X), ez1 = CellZ(e.Box.Max.Z);
+            for (int r = e.CellZ > z0 ? e.CellZ : z0, end = ez1 < z1 ? ez1 : z1; r <= end; r++)
+            {
+                int a = rows[2 * (r - z0)], b = rows[2 * (r - z0) + 1];
+                if (e.CellX > a) a = e.CellX;
+                if (ex1 < b) b = ex1;
+                if (a <= b) return a == cx && r == cz;
+            }
+            return false;
         }
     }
 
