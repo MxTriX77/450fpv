@@ -503,12 +503,18 @@ def _length(line):
 
 
 def _wind(samples, twig_points, wpoints, wtris, nodes, column):
-    """The crown or bush box with its measured porosity, and the trunk column under it (design 7)."""
+    """The crown or bush box with its measured porosity, and the trunk column under it (design 7). A tree's crown
+    starts at its lowest drawn foliage: thin wood under it (Pine002_M's root twigs) is the trunk zone's, which the
+    column stands for; the trunk is the tube system with the most rings under the crown."""
     mass = samples + twig_points
     if not mass:
         return [], ["wind: no foliage, no volume"]
-    lo = [min(p[a] for p in mass) for a in range(3)]
-    hi = [max(p[a] for p in mass) for a in range(3)]
+    crown = mass
+    if column and samples:
+        floor = min(p[1] for p in samples)
+        crown = [p for p in mass if p[1] >= floor]
+    lo = [min(p[a] for p in crown) for a in range(3)]
+    hi = [max(p[a] for p in crown) for a in range(3)]
     lo[1] = max(lo[1], 0.0)
     beta, shares = plant.porosity(mass, wtris, wpoints, lo, hi)
     out = [{"shape": "box", "center": [(lo[a] + hi[a]) / 2 for a in range(3)],
@@ -516,8 +522,11 @@ def _wind(samples, twig_points, wpoints, wtris, nodes, column):
     text = (f"wind: crown box {_fmt(lo)}..{_fmt(hi)}, optical porosity {beta:.3f} (opaque share by bearing "
             f"{', '.join(f'{s:.3f}' for s in shares)})")
     if column and lo[1] > 0.3 and nodes:
-        trunk = [n for n in nodes if n["parent"] is not None and n["system"] == nodes[0]["system"]
-                 and n["centre"][1] < lo[1]]
+        under = {}
+        for n in nodes:
+            if n["parent"] is not None and n["centre"][1] < lo[1]:
+                under.setdefault(n["system"], []).append(n)
+        trunk = max(under.values(), key=len) if under else []
         if trunk:
             r = sorted(n["radius"] for n in trunk)[len(trunk) // 2]
             x = sum(n["centre"][0] for n in trunk) / len(trunk)
