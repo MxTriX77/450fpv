@@ -13,4 +13,4 @@ Order: 1.1, then 2.1 once 1.1 has landed and L1's report (`docs/reports/lag/mode
 
 ## 3. Review
 
-- [ ] 3.1 [qa-engineer] Review 1.1 and 2.1 against the spec, run the checks, confirm 0 B and bit-exact replays.
+- [x] 3.1 [qa-engineer] Review 1.1 and 2.1 against the spec, run the checks, confirm 0 B and bit-exact replays.
