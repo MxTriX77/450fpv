@@ -17,4 +17,4 @@ Order: 1.1, then 2.1, then 2.2, then 2.3 and 2.4, then 3.1. Branch `unity/physic
 
 ## 3. Review
 
-- [ ] 3.1 [qa-engineer] Review against the spec; shots of the farmland in noclip beside the friend's project at the same cameras; the checks.
+- [x] 3.1 [qa-engineer] Review against the spec; shots of the farmland in noclip beside the friend's project at the same cameras; the checks.
