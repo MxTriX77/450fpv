@@ -247,14 +247,18 @@ def boxes(name, volumes, mat):
     return lines(name, records, mat, 0.02)
 
 
-def points(name, samples, mat):
-    data = bpy.data.meshes.new(name)
-    bm = bmesh.new()
+def points(name, samples, mat, size=0.025):
+    """The samples as small cubes, one mesh built at once (a bmesh cube per sample takes minutes for 40 000)."""
+    h = size / 2
+    corners = [(x, y, z) for x in (-h, h) for y in (-h, h) for z in (-h, h)]
+    quads = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    verts, faces = [], []
     for p in samples:
-        m = bmesh.ops.create_cube(bm, size=0.025)
-        bmesh.ops.translate(bm, verts=m["verts"], vec=b(p))
-    bm.to_mesh(data)
-    bm.free()
+        q, base = b(p), len(verts)
+        verts.extend((q.x + cx, q.y + cy, q.z + cz) for cx, cy, cz in corners)
+        faces.extend(tuple(base + i for i in quad) for quad in quads)
+    data = bpy.data.meshes.new(name)
+    data.from_pydata(verts, [], faces)
     return link(name, data, mat)
 
 
