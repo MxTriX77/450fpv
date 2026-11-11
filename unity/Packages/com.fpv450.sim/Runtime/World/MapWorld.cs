@@ -13,6 +13,8 @@
 //   hole band (Z04's shaft, E01's run and niches), where the shapes there are the only
 //   ground. SampleGround reports Hole at such a point; StaticContacts and Raycast keep
 //   the plane's contact or hit only where its point lies outside them.
+// - The terrain (w3-farmland-ground 1.1): a map package's heightfield (Terrain.cs) is the ground in the plane's place,
+//   with no objects yet (W4); the grid lies on its map's rectangle (map_rect_m). Patches and hole bands would still cut it.
 // - The index: a uniform 2 m grid over the file's extent (design 4), and a tree inside each
 //   object of more than TreeShapes shapes (D-054's broad phase inside each object: H01's
 //   houses, E01, V01's crowns). The grid lists, in canonical order, each such object by its
@@ -98,7 +100,8 @@ namespace Fpv450.Sim.World
         }
 
         private readonly string[] _materials; // id − 1
-        private readonly ShapeGeometry _ground;
+        private readonly ShapeGeometry _ground; // the plane; unused on a terrain
+        private readonly Terrain _terrain;      // a map package's heightfield, the ground in the plane's place; null for the plane
         private readonly Prim[] _prims;        // the placed objects' shapes, object by object
         private readonly int[] _first;         // each placed object's first shape in _prims; one more entry, the end
         private readonly string[] _names;      // each placed object's variant
@@ -139,15 +142,21 @@ namespace Fpv450.Sim.World
         /// <summary>The map's start points (WLD-08, D-022), in the file's order.</summary>
         public StartPoint[] StartPoints { get; }
 
+        /// <summary>A terrain's steps (its step lines' walls, by run; Terrain), empty on a plane.</summary>
+        public TerrainStep[] TerrainSteps => _terrain == null ? Array.Empty<TerrainStep>() : (TerrainStep[])_terrain.Steps.Clone();
+
         // ---- SampleGround ------------------------------------------------------------------------------------------
 
         public void SampleGround(ReadOnlySpan<XZ> points, Span<GroundSample> results)
         {
             for (int i = 0; i < points.Length; i++)
             {
-                results[i] = InGap(points[i].X, points[i].Z)
-                    ? new GroundSample { Height = double.NegativeInfinity, Normal = new Double3(0, 1, 0), Surface = WorldIds.NoSurface, Flags = GroundFlags.Hole }
-                    : new GroundSample { Height = _ground.Center.Y, Normal = _ground.AxisY, Surface = _ground.Surface, Flags = GroundFlags.None };
+                if (InGap(points[i].X, points[i].Z))
+                    results[i] = new GroundSample { Height = double.NegativeInfinity, Normal = new Double3(0, 1, 0), Surface = WorldIds.NoSurface, Flags = GroundFlags.Hole };
+                else if (_terrain != null)
+                    _terrain.Sample(points[i].X, points[i].Z, out results[i]);
+                else
+                    results[i] = new GroundSample { Height = _ground.Center.Y, Normal = _ground.AxisY, Surface = _ground.Surface, Flags = GroundFlags.None };
             }
         }
 
@@ -198,7 +207,12 @@ namespace Fpv450.Sim.World
             // The ground answers only where its contact point lies outside every patch and band (W3: per contact point).
             Near near;
             double time;
-            if (!AboveGround(previous, current, margin) && ShapeMath.Sweep(_ground, previous, current, margin, speed, out near, out time)
+            if (_terrain != null)
+            {
+                if (_terrain.Sweep(previous, current, margin, speed, reach, out near, out time, out byte soil) && !InGap(near.Point.X, near.Point.Z))
+                    ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, new ShapeGeometry { Surface = soil }));
+            }
+            else if (!AboveGround(previous, current, margin) && ShapeMath.Sweep(_ground, previous, current, margin, speed, out near, out time)
                 && !InGap(near.Point.X, near.Point.Z))
                 ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, _ground));
 
@@ -341,7 +355,11 @@ namespace Fpv450.Sim.World
             double t = double.PositiveInfinity;
             Double3 n = default;
             // The ground from above only, and never over a patch or a band: the ray goes on to the shapes there.
-            ShapeMath.RayPrim(_ground, o, d, ref t, ref n);
+            byte soil = _ground.Surface;
+            if (_terrain == null)
+                ShapeMath.RayPrim(_ground, o, d, ref t, ref n);
+            else if (!_terrain.Ray(o, d, best, out t, out n, out soil))
+                t = double.PositiveInfinity;
             if (t <= best)
             {
                 Double3 at = o + d * t;
@@ -350,7 +368,7 @@ namespace Fpv450.Sim.World
                     found = true;
                     best = t;
                     normal = n;
-                    hit.Surface = _ground.Surface;
+                    hit.Surface = soil;
                 }
             }
 
@@ -475,7 +493,7 @@ namespace Fpv450.Sim.World
 
         public bool Geometry(int obj, int shape, out ShapeGeometry geometry)
         {
-            if (obj == WorldIds.Ground && shape == 0)
+            if (obj == WorldIds.Ground && shape == 0 && _terrain == null)
             {
                 geometry = _ground;
                 return true;

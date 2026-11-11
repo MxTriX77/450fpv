@@ -23,6 +23,8 @@
 // separating plane bounds every kind's sweep (Bound), so a sweep that cannot touch ends instead of creeping,
 // the plane's first touch is exact, and a sweep the advancement cannot settle counts no first touch.
 // QA's re-check B4 (QueryVersion 4): unless its current pose touches; then it bisects to that touch (Touch).
+// w3-farmland-ground 1.1 (QueryVersion 8): SegmentTriangle and PointTriangle (Ericson 5.1.5, new) for a terrain's facets and
+// step faces; the plane bound along a given normal (Bound) is shared with them.
 // Frame: none of this depends on handedness (IWorldQuery, Frame).
 
 using System;
@@ -201,7 +203,7 @@ namespace Fpv450.Sim.World
     internal static class ShapeMath
     {
         /// <summary>A sweep touches a shape once it comes this close (conservative advancement stops there), m.</summary>
-        private const double TouchDistance = 1e-6;
+        internal const double TouchDistance = 1e-6;
         /// <summary>Conservative advancement steps by distance / speed this many times, then by the separating plane's bound.</summary>
         private const int MaxAdvance = 64;
         /// <summary>It gives up after this many steps in all: a touching current pose is then bisected to (Touch), else no first touch (IWorldQuery).</summary>
@@ -209,7 +211,7 @@ namespace Fpv450.Sim.World
         /// <summary>Touch's halvings at most: t in (0, 1] has no more bits.</summary>
         private const int MaxHalvings = 64;
         /// <summary>Clearance's margin over TouchDistance for its own rounding (coordinates of a few hundred metres), m.</summary>
-        private const double ClearSlack = 1e-9;
+        internal const double ClearSlack = 1e-9;
         /// <summary>The largest double below 1: a Time below 1 never reads as the current pose.</summary>
         private const double BelowOne = 0.99999999999999989;
 
@@ -393,8 +395,8 @@ namespace Fpv450.Sim.World
             }
         }
 
-        /// <summary>The bound along a plane of unit normal n that holds the shape below `support` (Bound).</summary>
-        private static double Bound(Double3 n, double support, in Capsule previous, in Capsule current, double t, out bool apart)
+        /// <summary>The bound along a plane of unit normal n that holds the shape below `support` (Bound; the terrain's pieces too).</summary>
+        public static double Bound(Double3 n, double support, in Capsule previous, in Capsule current, double t, out bool apart)
         {
             double r = current.Radius;
             Double3 a = previous.A + (current.A - previous.A) * t, b = previous.B + (current.B - previous.B) * t;
@@ -653,6 +655,89 @@ namespace Fpv450.Sim.World
                 && DetMath.Abs(Double3.Dot(z, z) - 1) <= tolerance && DetMath.Abs(Double3.Dot(x, y)) <= tolerance
                 && DetMath.Abs(Double3.Dot(y, z)) <= tolerance && DetMath.Abs(Double3.Dot(z, x)) <= tolerance
                 && Double3.Dot(Double3.Cross(x, y), z) > 0;
+        }
+
+        /// <summary>
+        /// The closest points of the segment p–q and the closed triangle a b c (Ericson, Real-Time Collision Detection, 5.1.9
+        /// and 5.1.5; w3-farmland-ground 1.1, the terrain's facets and step walls): exactly 0 apart where the segment crosses
+        /// the triangle's plane inside it, else the nearest of each end's closest point on the triangle and the segment's
+        /// closest points to each edge (the first on a tie). Returns the squared distance. The triangle must not be degenerate.
+        /// </summary>
+        public static double SegmentTriangle(Double3 p, Double3 q, Double3 a, Double3 b, Double3 c, out Double3 onSegment,
+            out Double3 onTriangle)
+        {
+            Double3 n = Double3.Cross(b - a, c - a);
+            double dp = Double3.Dot(p - a, n), dq = Double3.Dot(q - a, n);
+            if ((dp <= 0 && dq >= 0 || dp >= 0 && dq <= 0) && dp != dq)
+            {
+                Double3 x = p + (q - p) * (dp / (dp - dq));
+                if (Double3.Dot(Double3.Cross(b - a, x - a), n) >= 0 && Double3.Dot(Double3.Cross(c - b, x - b), n) >= 0
+                    && Double3.Dot(Double3.Cross(a - c, x - c), n) >= 0)
+                {
+                    onSegment = onTriangle = x;
+                    return 0;
+                }
+            }
+            onSegment = p;
+            onTriangle = PointTriangle(p, a, b, c);
+            Double3 v = p - onTriangle;
+            double best = Double3.Dot(v, v);
+            if (p.X == q.X && p.Y == q.Y && p.Z == q.Z)
+                return best;
+            Double3 t = PointTriangle(q, a, b, c);
+            v = q - t;
+            double d = Double3.Dot(v, v);
+            if (d < best)
+            {
+                best = d;
+                onSegment = q;
+                onTriangle = t;
+            }
+            EdgeNearer(p, q, a, b, ref best, ref onSegment, ref onTriangle);
+            EdgeNearer(p, q, b, c, ref best, ref onSegment, ref onTriangle);
+            EdgeNearer(p, q, c, a, ref best, ref onSegment, ref onTriangle);
+            return best;
+        }
+
+        private static void EdgeNearer(Double3 p, Double3 q, Double3 a, Double3 b, ref double best, ref Double3 onSegment, ref Double3 onTriangle)
+        {
+            SegmentSegment(p, q, a, b, out double s, out double t);
+            Double3 x = p + (q - p) * s, y = a + (b - a) * t, v = x - y;
+            double d = Double3.Dot(v, v);
+            if (d < best)
+            {
+                best = d;
+                onSegment = x;
+                onTriangle = y;
+            }
+        }
+
+        /// <summary>The closest point of the closed triangle a b c to p (Ericson, Real-Time Collision Detection, 5.1.5).</summary>
+        public static Double3 PointTriangle(Double3 p, Double3 a, Double3 b, Double3 c)
+        {
+            Double3 ab = b - a, ac = c - a, ap = p - a;
+            double d1 = Double3.Dot(ab, ap), d2 = Double3.Dot(ac, ap);
+            if (d1 <= 0 && d2 <= 0)
+                return a;
+            Double3 bp = p - b;
+            double d3 = Double3.Dot(ab, bp), d4 = Double3.Dot(ac, bp);
+            if (d3 >= 0 && d4 <= d3)
+                return b;
+            double vc = d1 * d4 - d3 * d2;
+            if (vc <= 0 && d1 >= 0 && d3 <= 0)
+                return a + ab * (d1 / (d1 - d3));
+            Double3 cp = p - c;
+            double d5 = Double3.Dot(ab, cp), d6 = Double3.Dot(ac, cp);
+            if (d6 >= 0 && d5 <= d6)
+                return c;
+            double vb = d5 * d2 - d1 * d6;
+            if (vb <= 0 && d2 >= 0 && d6 <= 0)
+                return a + ac * (d2 / (d2 - d6));
+            double va = d3 * d6 - d5 * d4;
+            if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0)
+                return b + (c - b) * ((d4 - d3) / ((d4 - d3) + (d5 - d6)));
+            double denominator = 1 / (va + vb + vc);
+            return a + ab * (vb * denominator) + ac * (vc * denominator);
         }
 
         private static Double3 ToLocal(in ShapeGeometry s, Double3 v) =>

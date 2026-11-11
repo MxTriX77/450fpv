@@ -24,6 +24,8 @@
 //   row's pose for them (MapWorldMicro.cs). A hole band names its instance.
 // - Each variant's snag records, which its wires' edge radii read too, and their placements (MapWorldSnags.cs, with
 //   SnagsNear).
+// - A map package (w3-farmland-ground 1.1): its map.json's tiles become the terrain (Terrain.cs), the ground in the plane's
+//   place, and its objects a placement record of none on its map's rectangle until W4 gives them physics shapes.
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -61,12 +63,33 @@ namespace Fpv450.Sim.World
             public Snags Snags;
         }
 
-        /// <summary>The map maps/&lt;mapId&gt;/placements.json of the repository at `root`, with its metadata and the material table.</summary>
+        /// <summary>
+        /// The map maps/&lt;mapId&gt;/ of the repository at `root`, with the material table: a map package (its map.json, the
+        /// terrain; no placed objects yet, W4) or a placement file (placements.json) with its metadata.
+        /// </summary>
         public static MapWorld Load(string root, string mapId)
         {
             string Read(string relative) => File.ReadAllText(Path.Combine(root, relative));
+            string folder = Path.Combine(root, "maps", mapId);
+            if (File.Exists(Path.Combine(folder, "map.json")))
+            {
+                Terrain terrain = Terrain.Load(folder, out string manifest);
+                return new MapWorld(NoObjects(terrain), model => null, MaterialNames(Read(MaterialsFile)), terrain, manifest);
+            }
             return new MapWorld(Read("maps/" + mapId + "/placements.json"), model => Read(ModelsRoot + "/" + model),
                 MaterialNames(Read(MaterialsFile)));
+        }
+
+        /// <summary>
+        /// A map package's placement file while it has no physics objects (W4 places them): none, the object grid on the
+        /// map's rectangle (map_rect_m, the objects' ground, D-091), no ground record (the terrain is the ground).
+        /// </summary>
+        private static string NoObjects(Terrain terrain)
+        {
+            string N(double v) => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+            return "{\"format\":\"fpv450-placements\",\"format_version\":1,\"map\":\"" + terrain.MapId + "\",\"frame\":\"unity-lh-yup\","
+                + "\"extent_m\":[" + N(terrain.MapX0) + "," + N(terrain.MapZ0) + "," + N(terrain.MapX1) + "," + N(terrain.MapZ1) + "],"
+                + "\"ground\":{\"patches\":[],\"holes\":[]},\"instances\":[]}";
         }
 
         /// <summary>The names of physics_materials.json's rows in file order: material id i + 1 is name i.</summary>
@@ -84,7 +107,17 @@ namespace Fpv450.Sim.World
         /// name i (MaterialNames). Every material a shape or wire names must be among them.
         /// </summary>
         public MapWorld(string placementsJson, Func<string, string> readModel, string[] materials)
+            : this(placementsJson, readModel, materials, null, null)
         {
+        }
+
+        /// <summary>
+        /// The world of a placement file on a terrain (Terrain, from its package's manifest), or on the file's ground plane
+        /// when `terrain` is null. On a terrain the file has no ground plane, and the content hash continues over the manifest.
+        /// </summary>
+        private MapWorld(string placementsJson, Func<string, string> readModel, string[] materials, Terrain terrain, string manifest)
+        {
+            _terrain = terrain;
             if (materials == null || materials.Length >= ushort.MaxValue)
                 throw new ArgumentException("one to 65534 material names", nameof(materials));
             _materials = (string[])materials.Clone();
@@ -186,22 +219,25 @@ namespace Fpv450.Sim.World
             _first[rowMeta.Length] = at;
             PlaceWind(rowMeta, rowPosition, rowYawRad, rowGroup);
 
-            // The ground: the plane, the patches' footprints and the hole bands.
+            // The ground: the plane (none on a terrain), the patches' footprints and the hole bands.
             JsonNode ground = Need(root, "ground", JsonKind.Object, file);
-            JsonNode plane = Need(ground, "plane", JsonKind.Object, file + " ground");
-            byte surface = SurfaceId(Text(plane, "surface", file + " ground.plane"));
-            if (surface == WorldIds.NoSurface)
-                throw new FormatException(file + ": ground.plane.surface is not one of the thirteen surface ids");
-            _ground = new ShapeGeometry
+            if (terrain == null)
             {
-                Kind = ShapeKind.Plane,
-                Center = new Double3(0, Number(plane, "y_m", file + " ground.plane"), 0),
-                AxisX = new Double3(1, 0, 0),
-                AxisY = new Double3(0, 1, 0),
-                AxisZ = new Double3(0, 0, 1),
-                Material = WorldIds.NoMaterial,
-                Surface = surface,
-            };
+                JsonNode plane = Need(ground, "plane", JsonKind.Object, file + " ground");
+                byte surface = SurfaceId(Text(plane, "surface", file + " ground.plane"));
+                if (surface == WorldIds.NoSurface)
+                    throw new FormatException(file + ": ground.plane.surface is not one of the thirteen surface ids");
+                _ground = new ShapeGeometry
+                {
+                    Kind = ShapeKind.Plane,
+                    Center = new Double3(0, Number(plane, "y_m", file + " ground.plane"), 0),
+                    AxisX = new Double3(1, 0, 0),
+                    AxisY = new Double3(0, 1, 0),
+                    AxisZ = new Double3(0, 0, 1),
+                    Material = WorldIds.NoMaterial,
+                    Surface = surface,
+                };
+            }
             var gaps = new List<Gap>();
             var band = new List<XZ>();
             var cuts = new List<CutRecord>();
@@ -317,8 +353,11 @@ namespace Fpv450.Sim.World
             }
             StartPoints = starts.ToArray();
 
-            // The identity: the placement file, each metadata file by path, the material names.
+            // The identity: the placement file, the terrain's manifest (its files' SHA-256 checked at load), each metadata file
+            // by path, the material names.
             ulong hash = WorldHash.HashFile(WorldHash.Offset, Encoding.UTF8.GetBytes(placementsJson), true);
+            if (terrain != null)
+                hash = WorldHash.HashFile(hash, Encoding.UTF8.GetBytes(manifest), true);
             var paths = new List<string>(metas.Keys);
             paths.Sort(StringComparer.Ordinal);
             foreach (string path in paths)

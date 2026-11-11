@@ -35,8 +35,9 @@ namespace Fpv450.Sim.World
     {
         None = 0,
         /// <summary>
-        /// No plane ground at this point: over a ground patch's footprint or inside a hole band (IWorldQuery, The ground).
-        /// The shapes there (a patch's soil and straw, a hole's fillers and walls) are the ground, through StaticContacts.
+        /// No plane or terrain ground at this point: over a ground patch's footprint or inside a hole band (IWorldQuery, The
+        /// ground), over a terrain's hole cell, or off every tile of a terrain (IWorldQuery, The terrain). The shapes there (a
+        /// patch's soil and straw, a hole's fillers and walls) are the ground, through StaticContacts.
         /// </summary>
         Hole = 1,
     }
@@ -44,7 +45,7 @@ namespace Fpv450.Sim.World
     /// <summary>The ground under one (x, z) point.</summary>
     public struct GroundSample
     {
-        /// <summary>The plane ground's height (K§10.4's ground height), m; −∞ where Hole.</summary>
+        /// <summary>The ground's height (K§10.4's ground height: the plane's, or a terrain's highest tile), m; −∞ where Hole.</summary>
         public double Height;
         /// <summary>Unit normal of the ground at the point; +Y where Hole.</summary>
         public Double3 Normal;

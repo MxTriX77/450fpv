@@ -84,6 +84,18 @@
 // shapes inside carry the rest; with its lower end inside, the plane is absent for it.
 // Raycast likewise drops a ground hit inside a patch or band, and the ray goes on.
 //
+// The terrain (w3-farmland-ground 1.1, QueryVersion 8). A map package's heightfield (MapWorld over maps/<id>/map.json;
+// Terrain.cs) is the ground in the plane's place, still object WorldIds.Ground, shape 0:
+// - SampleGround: the highest tile's height, triangulated as tools/map/validate.py's Tile.height to the bit; its facet's
+//   normal; its nearest class sample. Hole over a tile's hole cell (unless a lower tile has ground there) and off every tile.
+// - The step lines where the highest tile changes across a tile edge (the farmland's ledge and far seams) are vertical
+//   faces of the ground: StaticContacts and Raycast meet them, out of the higher side; SampleGround reports the top.
+// - StaticContacts: the ground's one contact (the nearest of its facets and faces; inside it, the deepest point's depth
+//   under its facet's plane or behind a face), under the Time rule above. Raycast: the first facet entered from above or
+//   face entered from its lower side; a ray that starts inside the ground does not hit it.
+// - Geometry has no ground pair on a terrain: it has no one plane. Its local plane is a contact's Point and Normal, or
+//   SampleGround's height and normal.
+//
 // Wires (review-physics W1, W2, W6). A wire is a capsule chain along its point list at
 // Radius (half its diameter). Its Distance is the true signed distance to the chain's
 // nearest segment, deep inside too; WireParam is the contact's length along the chain
@@ -174,7 +186,7 @@ namespace Fpv450.Sim.World
         /// </summary>
         int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results);
 
-        /// <summary>The world-space geometry of (object, shape); false for a pair that does not exist.</summary>
+        /// <summary>The world-space geometry of (object, shape); false for a pair that does not exist, and for the ground on a terrain (above).</summary>
         bool Geometry(int obj, int shape, out ShapeGeometry geometry);
 
         /// <summary>

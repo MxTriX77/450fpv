@@ -9,6 +9,8 @@
 //   each, in ordinal order of their paths below MapWorld.ModelsRoot, then its material
 //   names as one text ("materials", then each name, LF-separated). A row, a pose or an
 //   asset's metadata that changes by one byte changes the hash.
+// - MapWorld of a map package (w3-farmland-ground 1.1): its placement record (none yet, built in memory), then its
+//   map.json, whose files' SHA-256 the loader checks, then its material names.
 // - FloorWorld: its constructor's arguments.
 // Runtime objects (the launch stand) are outside the hash; the flight log records them.
 //
@@ -51,8 +53,13 @@ namespace Fpv450.Sim.World
         /// for the version line, the test range's with the conductor and filter cases added.
         /// 7 (p7d-tether 1.3): SnagsNear joins the interface (the placed assets' snag record segments). No earlier case moved;
         /// both golden files re-recorded for the version line, the test range's with the snag cases added.
+        /// 8 (w3-farmland-ground 1.1): a map package's terrain (Terrain) is the ground in the plane's place: SampleGround,
+        /// StaticContacts and Raycast over its tiles, triangulated as tools/map/validate.py's Tile.height, its step lines as
+        /// walls, its holes and the world's edge as holes; Geometry has no ground pair on a terrain. A world on a plane is as
+        /// before: no case of the floor's or the test range's moved; both re-recorded for the version line, and
+        /// golden/farmland.txt is new.
         /// </summary>
-        public const int QueryVersion = 7;
+        public const int QueryVersion = 8;
 
         /// <summary>FNV-1a 64's offset basis: the hash of nothing.</summary>
         public const ulong Offset = 0xCBF29CE484222325UL;
