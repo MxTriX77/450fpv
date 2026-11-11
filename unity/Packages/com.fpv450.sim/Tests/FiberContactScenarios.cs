@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tether;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
@@ -744,6 +746,118 @@ namespace Fpv450.Sim.Tests
             }
             res.Distinct = met.Count;
             res.Wedges = chain.Wedges;
+            return res;
+        }
+
+        // ---- "The near lists change no bit" (w3-farmland-ground 2.1) ----
+
+        public struct NearDiff
+        {
+            /// <summary>The steps flown and the first whose record or events differ between the two flights (−1 for none).</summary>
+            public long Steps, FirstDiffer;
+            /// <summary>The near lists' flight's whole queries and one-shape checks, the reference's whole queries.</summary>
+            public long Queries, Checks, ReferenceQueries;
+            /// <summary>Node-steps held by a shape (a Layer or a Shape member) in the near lists' flight.</summary>
+            public long Held;
+        }
+
+        /// <summary>
+        /// Two flights of one plan in lockstep on the test range, the reference's near lists off (every segment the certificate
+        /// does not clear takes the whole query, as before 2.1), each step's record and events compared as the log writes them.
+        /// "straw": the line laid 30 m across S04's straw from the west, the drone dragging it low over the patch east and back;
+        /// "yard": the line laid by the launch at the houses' start (track), the drone flying into the yard and holding at the
+        /// house as flight 35 did (L1). Severe wind, the pilot's sessions'.
+        /// </summary>
+        public static NearDiff NearListsAgainstQueries(DroneSpec spec, string spot, double seconds)
+        {
+            FlightSetup Make(out Double3 foot)
+            {
+                FlightSetup setup = TetherScenarios.Setup(spec, WindLevel.Severe);
+                setup.World = new FlightWorld(RangeScenarios.World);
+                double stand = TetherScenarios.Stand(setup);
+                if (spot == "straw")
+                {
+                    foot = RangeScenarios.Straw;
+                    var layout = new List<Double3>();
+                    for (double d = 0; d < 29.5; d += 1) layout.Add(foot + new Double3(d - 30, 0, 0));
+                    setup.TetherLayout = layout.ToArray();
+                }
+                else
+                {
+                    StartPoint start = RangeScenarios.Start("track");
+                    foot = start.Position;
+                    DetMath.SinCos(start.HeadingDeg * Pi / 360, out double sin, out double cos);
+                    setup.StartAttitude = new Quat(0, sin, 0, cos);
+                }
+                setup.StartPosition = new Double3(foot.X, foot.Y + stand, foot.Z);
+                return setup;
+            }
+            FlightSetup a = Make(out Double3 at), b = Make(out _);
+            var near = new FlightCore(a);
+            var reference = new FlightCore(b);
+            reference.Tether.Contacts.NearLists = false;
+            var pilot = new SimPilot(near.Controller, a.StartPosition);
+            var house = new Double3(-169.5, 0, -53);
+            var ra = new byte[LogFormat.StepSize];
+            var rb = new byte[LogFormat.StepSize];
+            var ea = new byte[LogFormat.EventSize];
+            var eb = new byte[LogFormat.EventSize];
+            var res = new NearDiff { FirstDiffer = -1 };
+            int steps = (int)(seconds * 1000);
+            for (int k = 0; k < steps; k++)
+            {
+                double t = k * FlightCore.Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    double y = a.StartPosition.Y;
+                    if (spot == "straw")
+                    {
+                        pilot.HoldVelocity = t >= 2;
+                        pilot.TargetVelocity = new Double3(t < 6 ? 2.5 : -2.5, 0, 0);
+                        pilot.Target = new Double3(at.X, y + (t < 2 ? DetMath.Min(0.6, t) : 0.5), at.Z);
+                    }
+                    else
+                    {
+                        // Up 1.2 m, into the yard to the house's corner over 6 s, then held there at 0.8 m.
+                        double f = DetMath.Min(1, DetMath.Max(0, (t - 2) / 6));
+                        pilot.HoldVelocity = false;
+                        pilot.Target = new Double3(at.X + (house.X - at.X) * f, y + (t < 8 ? DetMath.Min(1.2, t) : 0.8), at.Z + (house.Z - at.Z) * f);
+                    }
+                    stick = pilot.Sticks(near, k * FlightCore.StepUs);
+                }
+                near.Advance(stick);
+                reference.Advance(stick);
+                res.Steps++;
+                LogFormat.EncodeStep(ra, near.State, stick, near.Trace);
+                LogFormat.EncodeStep(rb, reference.State, stick, reference.Trace);
+                bool same = ra.AsSpan().SequenceEqual(rb) && near.Events.Count == reference.Events.Count;
+                for (int e = 0; same && e < near.Events.Count; e++)
+                {
+                    LogFormat.EncodeEvent(ea, near.State.Step, near.Events[e]);
+                    LogFormat.EncodeEvent(eb, reference.State.Step, reference.Events[e]);
+                    same = ea.AsSpan().SequenceEqual(eb);
+                }
+                if (!same)
+                {
+                    res.FirstDiffer = near.State.Step;
+                    break;
+                }
+                CableChain line = near.Tether.Chain;
+                for (int i = 0; i < line.Count; i++)
+                {
+                    byte k0 = line[i].Contact0.MemberKind, k1 = line[i].Contact1.MemberKind;
+                    if (line[i].Contact0.Active && (k0 == (byte)FiberMember.Layer || k0 == (byte)FiberMember.Shape)
+                        || line[i].Contact1.Active && (k1 == (byte)FiberMember.Layer || k1 == (byte)FiberMember.Shape))
+                        res.Held++;
+                }
+            }
+            res.Queries = near.Tether.Contacts.QueriesTotal;
+            res.Checks = near.Tether.Contacts.ChecksTotal;
+            res.ReferenceQueries = reference.Tether.Contacts.QueriesTotal;
+            near.Wind.Dispose();
+            reference.Wind.Dispose();
             return res;
         }
     }

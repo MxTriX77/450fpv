@@ -114,6 +114,10 @@ namespace Fpv450.Sim.Tether
         /// distance from a segment is convex, so a segment whose two ends lie near the core lies near it everywhere).</summary>
         public bool Cleared;
         public Double3 ClearA, ClearB;
+        /// <summary>The caller's near list of the segment from this node (w3-farmland-ground 2.1): its slot in the caller's
+        /// pool plus one, 0 for none. It moves with the node and a split's new node takes its segment's, as Cleared does; the
+        /// caller judges a list by its segment's ends' distance from the list's own core.</summary>
+        public int Near;
     }
 
     /// <summary>
@@ -1610,6 +1614,7 @@ namespace Fpv450.Sim.Tether
             _nodes[j + 1].Cleared = a.Cleared;
             _nodes[j + 1].ClearA = a.ClearA;
             _nodes[j + 1].ClearB = a.ClearB;
+            _nodes[j + 1].Near = a.Near;
             a.Mass = MassOf(j);
             _nodes[j + 1].Mass = MassOf(j + 1);
             b.Mass = MassOf(j + 2);

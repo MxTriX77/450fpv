@@ -72,7 +72,24 @@ namespace Fpv450.Sim.Tests
             Assert.That(p.Reached, Is.GreaterThan(0), "premise: the line reaches the pole");
             Assert.That(p.Met, Is.GreaterThan(0).And.LessThanOrEqualTo(p.Reached), "met by the step the segment reaches it");
             Assert.That(p.Deepest, Is.LessThan(1e-3));
-            Assert.That(p.NearQueried, Is.EqualTo(p.NearSteps), "a segment within the margin of a shape is queried every step");
+            Assert.That(p.NearQueried, Is.EqualTo(p.NearSteps), "a segment within the margin of a shape is examined every step (its query or its near list)");
+        }
+
+        // "The near lists change no bit" (w3-farmland-ground 2.1, L6): a line dragged through S04's straw and one held on the
+        // yard's gate and house, each flown twice in lockstep, the second with the near lists off (every segment the certificate
+        // does not clear takes the whole query, as before 2.1): every step's record and events are the same bits, while the near
+        // lists' flight makes a fraction of the whole queries.
+        [TestCase("straw", 10.0)]
+        [TestCase("yard", 12.0)]
+        public void TheNearListsChangeNoBit(string spot, double seconds)
+        {
+            FiberContactScenarios.NearDiff d = FiberContactScenarios.NearListsAgainstQueries(Spec, spot, seconds);
+            Print($"{spot}: {d.Steps} steps in lockstep, the first differing {d.FirstDiffer}; node-steps held by a shape {d.Held}; whole queries "
+                + $"{d.Queries} with the near lists ({d.Checks} one-shape checks) against {d.ReferenceQueries} without");
+            Assert.That(d.Held, Is.GreaterThan(1000), "premise: the line rests on shapes");
+            Assert.That(d.FirstDiffer, Is.EqualTo(-1), "every record and event the same bits");
+            Assert.That(d.Steps, Is.EqualTo((long)(seconds * 1000)));
+            Assert.That(d.Queries, Is.LessThan(d.ReferenceQueries / 2), "the lists spare most whole queries");
         }
 
         // "The wedge of a fork": a line pulled down into the fork of two limbs until one node touches both: both contacts act in

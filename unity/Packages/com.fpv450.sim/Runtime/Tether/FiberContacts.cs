@@ -54,6 +54,11 @@ namespace Fpv450.Sim.Tether
     ///   law is ground (lain on, held by Coulomb's friction); any other shape a capstan of its face. A node meets a shape a
     ///   segment's query found by the shape's own nearest point to it (StaticContacts on the node), so past a face's end it
     ///   meets the arris or nothing, never the face's plane.
+    /// - The near lists (w3-farmland-ground 2.1, L6): a segment the certificate does not clear (one resting on a shape, or
+    ///   within the margin of one) is answered from the shapes a query at the margin plus NearSkin found near a core it lay on,
+    ///   the ground left out, while its ends stay within NearSkin of that core; only the listed shapes its bounds leave in doubt
+    ///   are re-asked, one by one (ShapeContact), and so are a node's shapes. Every answer is the query's, to the bit: where a
+    ///   list cannot prove it (the query's buffer could overflow, the list's own did), the query answers.
     /// - Elements, snag records and conductors: from caches (the drone's, contact.drone_cache_radius_m, and up to two at the
     ///   line's lowest touching nodes, contact.line_cache_radius_m) asked for on a refresh and swapped in exactly
     ///   contact.cache_swap_steps later (api-review §6), so a replay swaps at the same step with the same bits; each step every
@@ -86,6 +91,8 @@ namespace Fpv450.Sim.Tether
         public const double KeepGap = 2 * InsertGap;
         const double LeastPiece = 0.005;
         const double CellSize = 0.25;
+        // A box test's slack, m (numerical: far above the rounding of a closest approach's points a kilometre out, 1e-13 m).
+        const double BoxSlack = 1e-9;
         const int ShapeBuffer = 64, MaxHits = 2048, MaxSpent = 256, MaxReactions = 64;
         const double Cos45 = 0.7071067811865476;
 
@@ -134,10 +141,38 @@ namespace Fpv450.Sim.Tether
         // Numerical: the boxes' slack, m, far above the rounding of a body-axis point within a kilometre (1e-13 m).
         const double PartCull = 1e-6;
 
+        // The near lists (w3-farmland-ground 2.1): a segment the certificate does not clear is answered from the list of the
+        // shapes within the margin plus NearSkin of a core it lay on (one StaticContacts at that reach, the ground left out),
+        // while both its ends stay within NearSkin of that core, each listed shape re-asked alone (ShapeContact) only where
+        // its listed distance less the segment's move from the core could put it within KeepGap or across the margin. The
+        // skin (assumed, m): a resting segment keeps its list for good, a line dragged at 20 m/s past shapes rebuilds it
+        // about once in 12 steps. The slack (numerical, m): far above a closest approach's rounding a kilometre out (a
+        // cylinder's search reads a few nm long), so no bound below is ever decided by rounding. The capacity (assumed): four
+        // times the query's own buffer; a reach holding more takes the full query until its segment leaves that core.
+        const double NearSkin = 0.25, NearSlack = 1e-6;
+        const int NearCapacity = 256;
+        readonly Double3[] _nearA, _nearB;     // each slot's core
+        readonly int[] _nearCount;             // its shapes, −1 for more than NearCapacity
+        readonly long[] _nearSeen;             // the last Prepare whose chain named it (a slot no node names is free)
+        long _nearStamp;
+        readonly int[] _nearObj, _nearShape;   // its shapes in canonical order, NearCapacity a slot
+        readonly double[] _nearDist;           // their Distance from the core then
+        readonly bool[] _nearSkip;             // a homogenised shell (never a member, but counted in the buffer)
+        readonly StaticContact[] _nearFound = new StaticContact[NearCapacity];
+        // Per segment this step: its shapes that may lie within KeepGap of it (a node's guard: below the buffer, the node's
+        // own query could not have dropped one), −1 where the full query answered.
+        readonly int[] _segNear;
+
         readonly FiberCache[] _caches;
         readonly StaticContact[] _shapes = new StaticContact[ShapeBuffer];
         readonly Hit[] _hits = new Hit[MaxHits];
         int _hitCount;
+        // AddHit's table of the current segment's hits by member (open addressing, twice MaxHits; a slot is the segment's while
+        // its generation is _hitGeneration, which Prepare advances at each segment).
+        const int HitTable = 2 * MaxHits;
+        readonly long[] _hitGen = new long[HitTable];
+        readonly int[] _hitAt = new int[HitTable];
+        long _hitGeneration;
         // The hits by segment (Prepare adds a segment's hits together: [_segHits[j], _segHitsEnd[j])) and by node (each node's
         // hits in the list's order, _nodeHit[i] then _nextHit[h], −1 ending it): the same hits in the same order as a scan of
         // the whole list, without the scan (a line lying on the drone's parts has hundreds, and every segment and node read them).
@@ -146,6 +181,11 @@ namespace Fpv450.Sim.Tether
         readonly double[] _split;
         readonly int[] _splitsBefore;
         readonly Candidate[] _cand = new Candidate[16];
+        // The shapes asked alone at the current node of Assign (Evaluate), with their answers.
+        readonly StaticContact[] _asked = new StaticContact[16];
+        readonly int[] _askedObj = new int[16], _askedShape = new int[16];
+        readonly bool[] _askedFound = new bool[16];
+        int _askedCount;
         readonly ulong[] _spent = new ulong[MaxSpent];
         readonly byte[] _spentKind = new byte[MaxSpent];
         readonly bool[] _spentSeen = new bool[MaxSpent];
@@ -187,6 +227,17 @@ namespace Fpv450.Sim.Tether
             _segHits = new int[nodes];
             _segHitsEnd = new int[nodes];
             _nodeHit = new int[nodes];
+            _segNear = new int[nodes];
+            // Two slots a node: every node names at most one, and each segment rebuilds at most once a Prepare.
+            int slots = 2 * nodes;
+            _nearA = new Double3[slots];
+            _nearB = new Double3[slots];
+            _nearCount = new int[slots];
+            _nearSeen = new long[slots];
+            _nearObj = new int[slots * NearCapacity];
+            _nearShape = new int[slots * NearCapacity];
+            _nearDist = new double[slots * NearCapacity];
+            _nearSkip = new bool[slots * NearCapacity];
 
             // The world's materials: their rows' μ (wet in rain where a row has a wet set), arris and kind.
             bool wet = setup.Rain != RainLevel.Sunny;
@@ -317,12 +368,22 @@ namespace Fpv450.Sim.Tether
         /// <summary>The nodes with a pressing contact after the last step.</summary>
         public int Touching { get; private set; }
 
-        /// <summary>The segments queried against the world's shapes in the last step, and in the flight.</summary>
+        /// <summary>The whole StaticContacts queries of the last step and of the flight: a near list built, a segment or a node
+        /// the lists could not answer.</summary>
         public int Queries { get; private set; }
         public long QueriesTotal { get; private set; }
 
-        /// <summary>The segments the last step queried, each named by its two nodes' material coordinates then, the exit's as
-        /// +∞ (the exit's grows with the payout; forensics and the certificate's scenario).</summary>
+        /// <summary>The one-shape contacts (ShapeContact) the near lists asked for in the last step and in the flight.</summary>
+        public int Checks { get; private set; }
+        public long ChecksTotal { get; private set; }
+
+        /// <summary>The near lists answer what they can (on, the default). Off, every segment the certificate does not clear
+        /// takes the whole query, as before 2.1: the differential tests' reference, which must give the same bits.</summary>
+        public bool NearLists { get; set; } = true;
+
+        /// <summary>The segments the last step examined against the world's shapes (by a query or a near list), each named by
+        /// its two nodes' material coordinates then, the exit's as +∞ (the exit's grows with the payout; forensics and the
+        /// certificate's scenario).</summary>
         public int QueriedCount { get; private set; }
         public double QueriedMaterial(int k) => _queried[k];
         public double QueriedNext(int k) => _queriedNext[k];
@@ -376,13 +437,19 @@ namespace Fpv450.Sim.Tether
             _hitCount = 0;
             _partsPlaced = false;
             Queries = 0;
+            Checks = 0;
             QueriedCount = 0;
             int n = chain.Count;
+            // The slots this chain's nodes name are in use; every other is free for a list built this Prepare.
+            _nearStamp++;
+            for (int i = 0; i < n; i++)
+                if (chain[i].Near > 0) _nearSeen[chain[i].Near - 1] = _nearStamp;
             Quat q = s.Attitude;
             for (int j = 0; j + 1 < n; j++)
             {
                 _split[j] = -1;
                 _segHits[j] = _hitCount;
+                _hitGeneration++;
                 Double3 a = chain[j].Position, b = chain[j + 1].Position;
                 ShapeHits(chain, j, a, b, events);
                 for (int c = 0; c < _caches.Length; c++)
@@ -466,21 +533,129 @@ namespace Fpv450.Sim.Tether
             }
         }
 
-        // The world's shapes near segment j, if its certificate has run out: a query at the margin, the certificate issued when
-        // it finds nothing (the ground, which the batch carries, and the skipped shells aside).
+        // The world's shapes near segment j, if its certificate has run out: what a query at the margin finds, the certificate
+        // issued when it finds nothing (the ground, which the batch carries, and the skipped shells aside). Its near list
+        // answers when it can, to the bit; else the query itself.
         void ShapeHits(CableChain chain, int j, Double3 a, Double3 b, StepEvents events)
         {
             ref CableNode na = ref chain[j];
+            _segNear[j] = -1;
             double allow = _margin - _radius;
             if (na.Cleared && PointSegment(a, na.ClearA, na.ClearB) < allow * allow && PointSegment(b, na.ClearA, na.ClearB) < allow * allow)
                 return;
-            var cap = new Capsule(a, b, _radius);
-            int count = _world.StaticContacts(cap, cap, _margin, _shapes, QueryFilter.NoWires);
             if (QueriedCount < _queried.Length)
             {
                 _queried[QueriedCount] = na.Material;
                 _queriedNext[QueriedCount++] = j + 2 == chain.Count ? double.PositiveInfinity : chain[j + 1].Material;
             }
+            var cap = new Capsule(a, b, _radius);
+            if (!NearLists || !NearHits(ref na, j, cap)) QueryHits(ref na, j, cap, events);
+        }
+
+        // The near list's answer for segment j (cap), or false where only the query can give it. Every shape within the margin
+        // of the segment is on the list while both its ends lie within NearSkin of the list's core (the distance from a segment
+        // is convex, so the whole segment lies within its ends' larger distance d1 of the core; a shape's Distance from it is then
+        // at least its Distance from the core less d1, and at most that plus d2, the core's ends' larger distance from the
+        // segment, or d2 for a shape the core met). Each listed shape whose bound leaves it possibly within KeepGap is re-asked
+        // (ShapeContact: the query's own contact for it), so its hit is the query's to the bit, in the query's (canonical)
+        // order. The rest decide the certificate: one surely within the margin denies it, and only where none is sure are those
+        // whose bound straddles the margin re-asked. Where the query's buffer could overflow (its ground and every listed shape
+        // possibly within the margin reaching ShapeBuffer), the query answers, as it would have.
+        bool NearHits(ref CableNode na, int j, in Capsule cap)
+        {
+            Double3 a = cap.A, b = cap.B;
+            int slot = na.Near - 1;
+            double room = NearSkin - 2 * NearSlack;
+            if (slot >= 0 && !(DetMath.Max(PointSegment(a, _nearA[slot], _nearB[slot]), PointSegment(b, _nearA[slot], _nearB[slot])) <= room * room))
+                slot = -1;
+            if (slot < 0)
+            {
+                for (int k = 0; k < _nearSeen.Length && slot < 0; k++)
+                    if (_nearSeen[k] != _nearStamp) slot = k;
+                if (slot < 0) return false;
+                _nearSeen[slot] = _nearStamp;
+                na.Near = slot + 1;
+                int found = _world.StaticContacts(cap, cap, _margin + NearSkin, _nearFound, QueryFilter.NoWires | QueryFilter.NoGround);
+                Queries++;
+                QueriesTotal++;
+                _nearA[slot] = a;
+                _nearB[slot] = b;
+                _nearCount[slot] = found > NearCapacity ? -1 : found;
+                for (int i = 0, e = slot * NearCapacity; i < found && i < NearCapacity; i++, e++)
+                {
+                    ref StaticContact c = ref _nearFound[i];
+                    _nearObj[e] = c.Object;
+                    _nearShape[e] = c.Shape;
+                    _nearDist[e] = c.Distance;
+                    _nearSkip[e] = c.Surface == WorldIds.NoSurface && c.Material < _matSkip.Length && _matSkip[c.Material];
+                }
+            }
+            int count = _nearCount[slot];
+            if (count < 0) return false;
+            Double3 ca = _nearA[slot], cb = _nearB[slot];
+            double d1 = DetMath.Sqrt(DetMath.Max(PointSegment(a, ca, cb), PointSegment(b, ca, cb))) + NearSlack;
+            double d2 = DetMath.Sqrt(DetMath.Max(PointSegment(ca, a, b), PointSegment(cb, a, b))) + NearSlack;
+            int first = slot * NearCapacity, end = first + count;
+            int possible = 0, nearKeep = 0;
+            for (int e = first; e < end; e++)
+            {
+                double low = _nearDist[e] - d1;
+                if (low <= _margin) possible++;
+                if (low < KeepGap + NearSlack) nearKeep++;
+            }
+            if (possible >= ShapeBuffer)
+            {
+                // The query's buffer may overflow, and then the query re-asks at KeepGap: the same hits (each shape within
+                // KeepGap, its same contact, in the same order) while that one cannot overflow, and no certificate. So the list
+                // answers where a listed shape is surely within the margin (no certificate either way).
+                bool sure = false;
+                for (int e = first; e < end && !sure; e++)
+                    sure = !_nearSkip[e] && (_nearDist[e] > 0 ? _nearDist[e] : 0) + d2 < _margin;
+                if (!sure || nearKeep >= ShapeBuffer) return false;
+            }
+            _segNear[j] = nearKeep;
+
+            bool clear = true, straddle = false;
+            for (int e = first; e < end; e++)
+            {
+                if (_nearSkip[e]) continue;
+                double low = _nearDist[e] - d1;
+                if (low > _margin) continue;
+                if (low >= KeepGap)
+                {
+                    if ((_nearDist[e] > 0 ? _nearDist[e] : 0) + d2 < _margin) clear = false;
+                    else straddle = true;
+                    continue;
+                }
+                Checks++;
+                ChecksTotal++;
+                if (!_world.ShapeContact(_nearObj[e], _nearShape[e], cap, cap, _margin, out StaticContact c)) continue;
+                clear = false;
+                if (c.Distance < KeepGap) ShapeHit(j, a, b, c);
+            }
+            for (int e = first; e < end && clear && straddle; e++)
+            {
+                if (_nearSkip[e]) continue;
+                double low = _nearDist[e] - d1;
+                if (low > _margin || low < KeepGap) continue;
+                Checks++;
+                ChecksTotal++;
+                if (_world.ShapeContact(_nearObj[e], _nearShape[e], cap, cap, _margin, out _)) clear = false;
+            }
+            na.Cleared = clear;
+            if (clear)
+            {
+                na.ClearA = a;
+                na.ClearB = b;
+            }
+            return true;
+        }
+
+        // The query at the margin for segment j (cap): its contacts' hits, the certificate when it finds nothing.
+        void QueryHits(ref CableNode na, int j, in Capsule cap, StepEvents events)
+        {
+            Double3 a = cap.A, b = cap.B;
+            int count = _world.StaticContacts(cap, cap, _margin, _shapes, QueryFilter.NoWires);
             Queries++;
             QueriesTotal++;
             bool overflow = count > ShapeBuffer;
@@ -506,27 +681,7 @@ namespace Fpv450.Sim.Tether
                 if (c.Object == WorldIds.Ground) continue;
                 if (c.Surface == WorldIds.NoSurface && c.Material < _matSkip.Length && _matSkip[c.Material]) continue;
                 clear = false;
-                if (!(c.Distance < KeepGap)) continue;
-                bool layer = c.Surface != WorldIds.NoSurface || c.Material < _matLayer.Length && _matLayer[c.Material];
-                var m = new MemberSeg
-                {
-                    Kind = layer ? FiberMember.Layer : FiberMember.Shape,
-                    Member = ((ulong)(uint)c.Object << 32) | (uint)c.Shape,
-                    Object = c.Object, Shape = c.Shape, Part = -1, Material = c.Material, Surface = c.Surface, Plane = true,
-                };
-                if (c.Surface != WorldIds.NoSurface)
-                {
-                    m.Static = _surfStatic[c.Surface];
-                    m.Kinetic = _surfKinetic[c.Surface];
-                    m.Edge = _surfEdge[c.Surface];
-                }
-                else
-                {
-                    m.Static = c.Material < _matStatic.Length ? _matStatic[c.Material] : _polymerStatic;
-                    m.Kinetic = c.Material < _matKinetic.Length ? _matKinetic[c.Material] : _polymerKinetic;
-                    m.Edge = ShapeEdge(c.Object, c.Shape, c.Material);
-                }
-                AddHit(j, ClosestOnSegment(c.Point, a, b), c.Distance, c.Point, c.Normal, m);
+                if (c.Distance < KeepGap) ShapeHit(j, a, b, c);
             }
             na.Cleared = clear && !overflow;
             if (na.Cleared)
@@ -534,6 +689,31 @@ namespace Fpv450.Sim.Tether
                 na.ClearA = a;
                 na.ClearB = b;
             }
+        }
+
+        // A shape's contact within KeepGap of segment j (a–b): its member, a layer (lain on) or a capstan of its face, and its hit.
+        void ShapeHit(int j, Double3 a, Double3 b, in StaticContact c)
+        {
+            bool layer = c.Surface != WorldIds.NoSurface || c.Material < _matLayer.Length && _matLayer[c.Material];
+            var m = new MemberSeg
+            {
+                Kind = layer ? FiberMember.Layer : FiberMember.Shape,
+                Member = ((ulong)(uint)c.Object << 32) | (uint)c.Shape,
+                Object = c.Object, Shape = c.Shape, Part = -1, Material = c.Material, Surface = c.Surface, Plane = true,
+            };
+            if (c.Surface != WorldIds.NoSurface)
+            {
+                m.Static = _surfStatic[c.Surface];
+                m.Kinetic = _surfKinetic[c.Surface];
+                m.Edge = _surfEdge[c.Surface];
+            }
+            else
+            {
+                m.Static = c.Material < _matStatic.Length ? _matStatic[c.Material] : _polymerStatic;
+                m.Kinetic = c.Material < _matKinetic.Length ? _matKinetic[c.Material] : _polymerKinetic;
+                m.Edge = ShapeEdge(c.Object, c.Shape, c.Material);
+            }
+            AddHit(j, ClosestOnSegment(c.Point, a, b), c.Distance, c.Point, c.Normal, m);
         }
 
         // The arris a rigid shape bends the line over: a sphere's or a capsule's own radius (round everywhere), else its row's
@@ -556,10 +736,34 @@ namespace Fpv450.Sim.Tether
             double len = d.Length();
             int pieces = (int)(len / CellSize) + 1;
             cache.Stamp++;
+            // Two passes over pieces that cannot add a member (w3-farmland-ground 2.1; a long segment's thousand pieces walked the
+            // cube's edge cells over and over): a piece whose cells are the last visited piece's (a piece outside the cube is
+            // clamped onto its edge cells), and every piece after the pieces have met the cube and left it. The second is exact:
+            // a member kept lies within its reach of the segment's point u, within `sure` of the centre so inside the cube; the
+            // grid lists it in that point's cell (its bounds grown by more than its reach while the line's radius is under
+            // FiberCache.LineReach); the piece holding u visits that cell; and the pieces meeting the cube are one run (each
+            // coordinate is monotone along the segment). Nothing else a later piece finds is kept, so the hits and their order stay.
+            bool met = false, leave = _radius < FiberCache.LineReach;
+            int lx0 = -1, ly0 = -1, lz0 = -1, lx1 = -1, ly1 = -1, lz1 = -1;
+            Double3 low = new Double3(DetMath.Min(a.X, b.X), DetMath.Min(a.Y, b.Y), DetMath.Min(a.Z, b.Z));
+            Double3 high = new Double3(DetMath.Max(a.X, b.X), DetMath.Max(a.Y, b.Y), DetMath.Max(a.Z, b.Z));
             for (int p = 0; p < pieces; p++)
             {
                 Double3 pa = a + d * ((double)p / pieces), pb = a + d * ((double)(p + 1) / pieces);
+                if (leave)
+                {
+                    bool meets = cache.Meets(pa, pb);
+                    if (met && !meets) break;
+                    met |= meets;
+                }
                 cache.Cells(pa, pb, out int x0, out int y0, out int z0, out int x1, out int y1, out int z1);
+                if (x0 == lx0 && y0 == ly0 && z0 == lz0 && x1 == lx1 && y1 == ly1 && z1 == lz1) continue;
+                lx0 = x0;
+                ly0 = y0;
+                lz0 = z0;
+                lx1 = x1;
+                ly1 = y1;
+                lz1 = z1;
                 for (int x = x0; x <= x1; x++)
                     for (int y = y0; y <= y1; y++)
                         for (int z = z0; z <= z1; z++)
@@ -571,8 +775,15 @@ namespace Fpv450.Sim.Tether
                                 if (cache.Seen[k] == cache.Stamp) continue;
                                 cache.Seen[k] = cache.Stamp;
                                 ref MemberSeg m = ref cache.Members[k];
-                                double dist2 = SegmentSegment(a, b, m.C, m.D, out double u, out double t);
                                 double reach = m.Radius + _radius + KeepGap;
+                                // Farther than its reach (and BoxSlack) on one axis: farther from the segment too, so the closest
+                                // approach below would pass it over as well (w3-farmland-ground 2.1).
+                                double grown = reach + BoxSlack;
+                                if (DetMath.Min(m.C.X, m.D.X) - grown > high.X || DetMath.Max(m.C.X, m.D.X) + grown < low.X
+                                    || DetMath.Min(m.C.Y, m.D.Y) - grown > high.Y || DetMath.Max(m.C.Y, m.D.Y) + grown < low.Y
+                                    || DetMath.Min(m.C.Z, m.D.Z) - grown > high.Z || DetMath.Max(m.C.Z, m.D.Z) + grown < low.Z)
+                                    continue;
+                                double dist2 = SegmentSegment(a, b, m.C, m.D, out double u, out double t);
                                 if (!(dist2 < reach * reach)) continue;
                                 Double3 onLine = a + d * u, onMember = m.C + (m.D - m.C) * t;
                                 if (!((onLine - c0).Length() < sure)) continue;
@@ -643,10 +854,14 @@ namespace Fpv450.Sim.Tether
 
         void AddHit(int seg, double u, double gap, Double3 point, Double3 normal, in MemberSeg m)
         {
-            // One hit a member a segment (a member in two caches, or two segments of one element or record): the nearest.
-            for (int h = _hitCount - 1; h >= 0 && _hits[h].Seg == seg; h--)
+            // One hit a member a segment (a member in two caches, or two segments of one element or record): the nearest. The
+            // segment's hits are found by their member in a table of this segment's generation (w3-farmland-ground 2.1: a line
+            // lying in straw has hundreds a segment, and a scan back over them for each was quadratic); a segment holds at most
+            // one hit a member, so it finds the one the scan found.
+            int at = (int)((m.Member * 0x9E3779B97F4A7C15UL + (ulong)m.Kind) >> 52) & (HitTable - 1); // 12 bits: HitTable 4096
+            for (; _hitGen[at] == _hitGeneration; at = (at + 1) & (HitTable - 1))
             {
-                ref Hit o = ref _hits[h];
+                ref Hit o = ref _hits[_hitAt[at]];
                 if (o.M.Kind != m.Kind || o.M.Member != m.Member) continue;
                 if (gap < o.Gap)
                 {
@@ -659,6 +874,8 @@ namespace Fpv450.Sim.Tether
                 return;
             }
             if (_hitCount == MaxHits) return;
+            _hitGen[at] = _hitGeneration;
+            _hitAt[at] = _hitCount;
             _hits[_hitCount++] = new Hit { Seg = seg, U = u, Gap = gap, Point = point, Normal = normal, M = m, Radius = m.Plane ? 0 : m.Radius };
         }
 
@@ -751,13 +968,13 @@ namespace Fpv450.Sim.Tether
                         Point = point, Normal = nrm, Gap = Double3.Dot(nrm, x - point),
                     };
                 }
-                int near = -1; // the shapes at node i (NodeShapes), queried at the first shape's hit naming it
+                int near = -1; // the shapes at node i (NodeShapes), queried at the first shape's hit that needs them
+                _askedCount = 0; // the shapes asked alone at node i (Evaluate)
                 for (int h = _nodeHit[i]; h >= 0 && count < _cand.Length; h = _nextHit[h])
                 {
                     ref Hit hit = ref _hits[h];
-                    if (hit.M.Plane && near < 0) near = NodeShapes(x);
                     ref Candidate c = ref _cand[count]; // evaluated in place: kept as a new candidate, or copied onto its like
-                    if (!Evaluate(ref a, hit, near, ref c)) continue;
+                    if (!Evaluate(ref a, hit, ref near, ref c)) continue;
                     // A new member within InsertGap, one on a slot within KeepGap.
                     if (!(c.Gap < InsertGap) && !Holds(a.Contact0, c.M) && !Holds(a.Contact1, c.M)) continue;
                     // One candidate a member a node; members of one object within 45° of each other merge into the nearest.
@@ -884,23 +1101,57 @@ namespace Fpv450.Sim.Tether
         // at the node (its nearest point to the node, from near's NodeShapes), not the plane through the segment's nearest
         // point, which has no extent: kept for every node the segment's hit names, it held a node past the face's end on the
         // face's plane (E01's run, model 62: two trail points 0.30 m off a layer's side face, 0.28–0.56 m over the spoil).
-        // A core member's plane is from its nearest point to the node.
-        bool Evaluate(ref CableNode a, in Hit hit, int near, ref Candidate c)
+        // A core member's plane is from its nearest point to the node. Where the hit's segment counted fewer shapes possibly
+        // within KeepGap of it than the buffer holds (with the ground, the node's own query could not have dropped one: a
+        // node on a segment is no nearer a shape than the segment), the shape alone is asked (ShapeContact, the same contact);
+        // else the node's query, made once (near: its count, −1 until then).
+        bool Evaluate(ref CableNode a, in Hit hit, ref int near, ref Candidate c)
         {
             c.M = hit.M;
             Double3 x = a.Position;
             if (hit.M.Plane)
             {
-                for (int k = 0; k < near; k++)
+                int guard = _segNear[hit.Seg];
+                StaticContact s;
+                if (NearLists && guard >= 0 && guard < ShapeBuffer)
                 {
-                    ref StaticContact s = ref _shapes[k];
-                    if (s.Object != hit.M.Object || s.Shape != hit.M.Shape) continue;
-                    c.Normal = s.Normal;
-                    c.Point = s.Point + s.Normal * _radius;
-                    c.Gap = Double3.Dot(c.Normal, x - c.Point);
-                    return true;
+                    // A shape both segments by the node name is asked once (the same question, the same answer).
+                    int k = 0;
+                    while (k < _askedCount && (_askedObj[k] != hit.M.Object || _askedShape[k] != hit.M.Shape)) k++;
+                    if (k == _askedCount)
+                    {
+                        var cap = new Capsule(x, x, _radius);
+                        Checks++;
+                        ChecksTotal++;
+                        bool found = _world.ShapeContact(hit.M.Object, hit.M.Shape, cap, cap, KeepGap, out s);
+                        if (k < _asked.Length)
+                        {
+                            _askedObj[k] = hit.M.Object;
+                            _askedShape[k] = hit.M.Shape;
+                            _askedFound[k] = found;
+                            _asked[k] = s;
+                            _askedCount++;
+                        }
+                        if (!found) return false;
+                    }
+                    else
+                    {
+                        if (!_askedFound[k]) return false;
+                        s = _asked[k];
+                    }
                 }
-                return false;
+                else
+                {
+                    if (near < 0) near = NodeShapes(x);
+                    int k = 0;
+                    while (k < near && (_shapes[k].Object != hit.M.Object || _shapes[k].Shape != hit.M.Shape)) k++;
+                    if (k == near) return false;
+                    s = _shapes[k];
+                }
+                c.Normal = s.Normal;
+                c.Point = s.Point + s.Normal * _radius;
+                c.Gap = Double3.Dot(c.Normal, x - c.Point);
+                return true;
             }
             Double3 cd = hit.M.D - hit.M.C;
             double l2 = Double3.Dot(cd, cd), t = l2 > 0 ? Double3.Dot(x - hit.M.C, cd) / l2 : 0;
@@ -1330,6 +1581,9 @@ namespace Fpv450.Sim.Tether
         const double CellSize = 0.25;
         // Grid entries a member slot (numerical: a 0.25 m straw grown by the reach meets up to 8 cells; a long one more).
         const int EntriesPerMember = 16;
+        /// <summary>The line's radius a member's grid bounds are grown by besides its own and KeepGap, m (numerical: twice the dry
+        /// line's, above the wettest line's 0.2 mm).</summary>
+        internal const double LineReach = 0.000125 * 2;
 
         public readonly double Radius, Refresh;
         readonly MicroElement[] _elements;
@@ -1486,11 +1740,20 @@ namespace Fpv450.Sim.Tether
         void Bounds(int k, out int x0, out int y0, out int z0, out int x1, out int y1, out int z1)
         {
             ref MemberSeg m = ref Members[k];
-            double grow = m.Radius + FiberContacts.KeepGap + 0.000125 * 2;
+            double grow = m.Radius + FiberContacts.KeepGap + LineReach;
             Double3 lo = new Double3(DetMath.Min(m.C.X, m.D.X) - grow, DetMath.Min(m.C.Y, m.D.Y) - grow, DetMath.Min(m.C.Z, m.D.Z) - grow);
             Double3 hi = new Double3(DetMath.Max(m.C.X, m.D.X) + grow, DetMath.Max(m.C.Y, m.D.Y) + grow, DetMath.Max(m.C.Z, m.D.Z) + grow);
             Index(lo, out x0, out y0, out z0);
             Index(hi, out x1, out y1, out z1);
+        }
+
+        /// <summary>Whether a line piece a–b's bounds meet the grid's cube (unclamped).</summary>
+        internal bool Meets(Double3 a, Double3 b)
+        {
+            double side = _dim * CellSize;
+            return DetMath.Max(a.X, b.X) >= _origin.X && DetMath.Min(a.X, b.X) <= _origin.X + side
+                && DetMath.Max(a.Y, b.Y) >= _origin.Y && DetMath.Min(a.Y, b.Y) <= _origin.Y + side
+                && DetMath.Max(a.Z, b.Z) >= _origin.Z && DetMath.Min(a.Z, b.Z) <= _origin.Z + side;
         }
 
         /// <summary>The cells a line piece a–b's bounds meet (clamped to the cube).</summary>
