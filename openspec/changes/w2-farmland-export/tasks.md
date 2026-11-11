@@ -10,4 +10,4 @@ Order: 1.1, then 1.2, then 1.3, then 2.1. Branch `unity/physics/physics-integrat
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the spec; run the checks; confirm two exports are byte-identical.
+- [x] 2.1 [qa-engineer] Review against the spec; run the checks; confirm two exports are byte-identical.
