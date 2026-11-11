@@ -597,6 +597,27 @@ def _near_index(grid, p, reach):
                 yield from grid.cells.get((cx + dx, cy + dy, cz + dz), ())
 
 
+def most_near(pieces, reach):
+    """The largest number of pieces [(centre, radius)] whose surface lies within `reach` of one point, over the
+    pieces' centres and the points halfway between two that overlap (where a crowd of them meets), and that point:
+    what one drone part of that radius touches at once."""
+    if not pieces:
+        return 0, None
+    big = max(r for _, r in pieces) + reach
+    grid = _PointGrid([c for c, _ in pieces], 1.0)
+    points = [c for c, _ in pieces]
+    for i, (c, r) in enumerate(pieces):
+        for j in _near_index(grid, c, 2 * big):
+            if j > i and _dist(c, pieces[j][0]) < r + pieces[j][1]:
+                points.append(_lerp(c, pieces[j][0], r / (r + pieces[j][1])))
+    best, at = 0, None
+    for p in points:
+        n = sum(1 for j in _near_index(grid, p, big) if _dist(p, pieces[j][0]) <= pieces[j][1] + reach)
+        if n > best:
+            best, at = n, p
+    return best, at
+
+
 def most_in_cube(boxes, side=2.0, step=0.25):
     """The largest number of axis-aligned boxes [(lo, hi)] meeting one axis-aligned cube of `side`, over cubes whose
     corner lies on a `step` lattice, and that corner (the narrow phase's neighbourhood rule, lib.audit rule (d))."""

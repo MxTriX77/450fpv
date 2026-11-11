@@ -47,6 +47,9 @@ SLOT_KEYS = {"wood": ("material", "role", "physics"),
 SPEC_MEMBER_RADIUS_M = 0.025  # spec scenario: trunks and limbs wider than 5 cm (assumed there)
 SPEC_TOLERANCE_M = 0.03       # ... covered by capsules within 3 cm of the mesh (assumed there)
 CUBE_MAX = audit.SHELL_NEIGHBOURHOOD_MAX
+PROP_REACH_M = 0.127          # a 10-inch prop disc's radius: the drone part that meets most shapes at once (published)
+SHELL_PAIRS = 6               # shell pieces within a prop's reach of any point: ContactModel.PairsPerShape (8) holds
+                              # a part's pairs at once, a trunk and a branch take two (derived; more is ContactsLost)
 TWIG_EDGE_M = 0.0025          # the twig row's edge_radius_m: the thinnest twig the shell stands for
 EDGE_UNDER_M = 0.015          # V01's snag rule: a segment under 30 mm across is an edge
 TWIG = "twig"
@@ -281,16 +284,18 @@ def build(root, asset_id, entry, variant, params):
     for depth in f["depths_m"]:
         pieces, info = plant.shell(mass, depth, f["reach_m"], f["max_radius_m"])
         crowd = plant.most_in_cube([(_box(c, r)) for c, r in pieces])
-        if crowd[0] <= CUBE_MAX:
+        overlap = plant.most_near(pieces, PROP_REACH_M)
+        if crowd[0] <= CUBE_MAX and overlap[0] <= SHELL_PAIRS:
             break
     worst, where = plant.standoff(pieces, mass, plant.icosphere_directions(2)) if pieces else (0.0, None)
     lines.append(f"shell (twig): {len(pieces)} pieces at foliage half depth {depth:g} m over {info['cells']} "
                  f"sample cells ({len(samples)} drawn samples, {len(twig_points)} twig vertices), "
-                 f"{info['uncovered']} cells unheld; at most {crowd[0]} pieces meet a 2 m cube (rule: "
+                 f"{info['uncovered']} cells unheld; at most {overlap[0]} pieces within {PROP_REACH_M:g} m of one point "
+                 f"(rule: {SHELL_PAIRS}) and {crowd[0]} meeting a 2 m cube (rule: "
                  f"{CUBE_MAX}); largest standoff {worst:.3f} m" + (f" on piece {where}" if where is not None else ""))
-    if pieces and crowd[0] > CUBE_MAX:
-        raise ValueError(f"{variant}: {crowd[0]} shell pieces meet a 2 m cube at every depth tried, over "
-                         f"{CUBE_MAX}")
+    if pieces and (crowd[0] > CUBE_MAX or overlap[0] > SHELL_PAIRS):
+        raise ValueError(f"{variant}: at every depth tried, {crowd[0]} shell pieces meet a 2 m cube (rule "
+                         f"{CUBE_MAX}) and {overlap[0]} lie within {PROP_REACH_M:g} m of one point (rule {SHELL_PAIRS})")
     if info and info["uncovered"]:
         raise ValueError(f"{variant}: {info['uncovered']} sample cells lie outside every shell piece")
 
@@ -407,8 +412,9 @@ def _nearest_on(axis, p):
 def _sprays(sprays, axis, s, spacing):
     """(branches, hooks): each spray's centre line from the sample nearest the trunk axis; a spray of a 'branches'
     slot at least min_length long becomes a branch, capsules tapering from its base radius (length over
-    slenderness, at most max_radius) to the twig edge at its tip, its first point moved onto the trunk axis; every
-    other spray a hook along its line. A spray whose line runs within 0.25 m of a longer one's ends (a crossed card
+    slenderness, at most max_radius) to the twig edge at its tip, from the spray's own base by the trunk (not its
+    axis, where every branch of a whorl would meet: decision 6's pair rule); every other spray a hook along its
+    line. A spray whose line runs within 0.25 m of a longer one's ends (a crossed card
     of the same branch) adds nothing."""
     lines = []
     for spray in sprays:
@@ -428,7 +434,6 @@ def _sprays(sprays, axis, s, spacing):
     for length, mode, line, anchor in kept:
         if mode == "branches" and length >= s["min_length_m"] and axis:
             base = min(s["max_radius_m"], length / s["slenderness"] / 2)
-            line = [_nearest_on(axis, line[0])] + line
             branches.append(_taper(line, base, TWIG_EDGE_M, s["capsule_m"]))
         else:
             hooks.append(line)
