@@ -138,6 +138,13 @@ def test_anything_under_reference_is_blocked(repo):
     assert_blocked(result, repo, "reference-path", hidden=["letter-notes"])
 
 
+def test_anything_under_vendor_is_blocked(repo):
+    """The local store (D-089) holds packs whose licence forbids pushing them, binary or text."""
+    result = commit(repo, {"vendor/pack/Prefabs/house.prefab": "%YAML 1.1\n",
+                           "vendor/pack/Models/house.fbx": b"Kaydara FBX Binary\0"}, force=True)
+    assert_blocked(result, repo, "vendor-path")
+
+
 # --- spec: No footage names inside text -----------------------------------------------------
 
 @pytest.mark.parametrize("name", [CAMERA, PHONE, EXPORT, CLIP], ids=["camera", "phone", "export", "clip"])
@@ -558,6 +565,14 @@ def test_bare_extensions_and_words_are_not_footage_text(line):
 ])
 def test_reference_path(path, caught):
     assert precommit.reference_path(path) == caught
+
+
+@pytest.mark.parametrize("path, caught", [
+    ("vendor/a.fbx", True), ("Vendor/x/b.prefab", True), ("vendor/world/Assets/c.cs", True),
+    ("tools/vendor/link.ps1", False), ("unity/Packages/p/vendor/a.cs", False), ("vendor.md", False),
+])
+def test_vendor_path(path, caught):
+    assert precommit.vendor_path(path) == caught
 
 
 @pytest.mark.parametrize("path, caught", [
