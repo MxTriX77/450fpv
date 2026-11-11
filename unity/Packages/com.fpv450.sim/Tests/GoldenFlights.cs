@@ -1717,7 +1717,12 @@ namespace Fpv450.Sim.Tests
         // every worldbench query hash, MicroDetailNear's included, and every flight golden unchanged; no flight reads them yet.
         // With p7d-tether 1.4's bending_stiffness_n_m2 in L03_medium's four wire records it is 0xF07BA3CC79D02169: every
         // worldbench query hash and the range flight unchanged; the loader reads none of it yet.
-        public const ulong RangeContent = 0xF07BA3CC79D02169UL;
+        // With w5-farmland-objects 1.1's wider E01 bands (3.852 m and 3.602 m for the farmland's hole cells; 49 buried
+        // backing boxes, 2 margin columns fewer) it is 0x48DBD8F70402A13D: E01's solid is the same on a 5 cm grid at eleven
+        // heights, only which overlapping shapes fill it underground changed; the worldbench contacts and rays re-recorded,
+        // every input that differs starting inside that solid, under the block's bottom or touching the same point with
+        // another shape's index; the range flight unchanged (RangeHash).
+        public const ulong RangeContent = 0x48DBD8F70402A13DUL;
         public const int RangeSteps = 12000;
 
         /// <summary>Model 13's drone.json (D-043's layout, before D-050), a fixture: the kept audits of models 7–12 fly on it,

@@ -1,16 +1,16 @@
 # worldbench golden: the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand. FNV-1a 64 over every result field's bits.
 # Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record
 query_version 7
-content_hash f07ba3cc79d02169
+content_hash 48dbd8f70402a13d
 test-range.ground 834a10c206ae62fd
-test-range.contacts 9d65a4823bb8473d
-test-range.contacts_overflow 14dd7cfc11b2c9aa
-test-range.rays 8b074ebde0836397
+test-range.contacts bf1e2db7be27fa8b
+test-range.contacts_overflow 6f96d326b69ecbe4
+test-range.rays 49037844383ddbac
 test-range.micro e6ab1f8cf2f3016d
 test-range.micro_overflow 4bae9cef569252b7
 test-range.wires 1ca8cb31bddc1490
 test-range.wires_overflow 2444aaf3976a9e66
-test-range.contacts_nowires 097881764270723e
-test-range.rays_nowires eb51fd0e659d3c35
+test-range.contacts_nowires 0c5ac5e6b0e4d3c8
+test-range.rays_nowires 7ddd5563e7ed14d2
 test-range.snags 854561f4ddfa348d
 test-range.snags_overflow a9d1d7e9ef512e09
