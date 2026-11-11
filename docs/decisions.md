@@ -746,3 +746,10 @@ The orchestrator, 2026-11-11, on the physics engineer's sign-off of W2's map pac
 The orchestrator, 2026-11-11, after W1: the farmland's terrain data is linked from the shared local store (D-089), so editing it in place would change every checkout and could never be pushed.
 - **W5's trench holes and flattened footprints live in `maps/farmland/`** (the hole mask and the footprints), generated from the placements.
 - **The sim and the player apply the same data at load:** the sim to its heightfield, the player to a runtime copy of the drawn terrain. The store's terrain data stays as the friend's generator wrote it.
+
+## D-096 Scanned vendor wood misses AST-05, measured, until phase A · Accepted
+The orchestrator, 2026-11-11, on W4a's tree and bush physics (`w4a-farmland-vegetation`, design.md).
+- **The friend's scanned trunks are lobed, and their bases flare into roots, stumps and buried wood.** Capsule fits miss the drawn wood by more than AST-05's 5 cm in places, worst at the ground: the island tree up to 493 mm (capsule off the wood) and 511 mm (wood off any capsule), Pine002_L 526 mm, PineDead_02 169 mm. Richer capsule fits were measured and still failed.
+- **Accepted for W, so the pilot can fly the farmland:** the build prints the AST-05 audit for every variant and never refuses on it.
+- **Phase A fixes it,** with a primitive for flares or a finer fit. The same debt covers the coarse crown shells (felt 0.3–0.7 m before the drawn leaves) and the branches inferred under leaf cards.
+- AST-05 stands as written for everything else, including every asset we generate.
