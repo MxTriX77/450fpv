@@ -57,13 +57,41 @@ def test_the_ruins_keep_their_walls_openings_and_floor(repo_root):
     assert not any(c["part"] in ("roof", "ceiling") for c in walls["collision"]), "the roofless ruin keeps no roof"
 
 
+def test_a_broken_wall_is_its_two_skins_open_between_them(repo_root):
+    # the back wall of the collapsed-roof ruin at x -3.0, 1.5 m up (the sim test's crash point): the siding's face at
+    # z -4.552 and the plaster's at -4.352, the outside reaching the space between them through the broken tops
+    data, _ = load(repo_root, "N01", "Ruin_RoofCollapsed")
+
+    def parts_at(z):
+        out = []
+        for c in data["collision"]:
+            lo = [c["center"][k] - c["size"][k] / 2 for k in range(3)]
+            hi = [c["center"][k] + c["size"][k] / 2 for k in range(3)]
+            if c["rotation"] == [0.0, 0.0, 0.0, 1.0] and all(lo[k] <= p <= hi[k] for k, p in enumerate((-3.0, 1.51, z))):
+                out.append((c["part"], c["material"]))
+        return out
+
+    assert parts_at(-4.545) == [("wall_back", "timber")], "the siding"
+    assert parts_at(-4.36) == [("wall_back", "masonry")], "the plaster"
+    for z in (-4.52, -4.45, -4.38):
+        assert parts_at(z) == [], f"open between the skins at z {z}"
+
+
 def test_the_mirrored_ruin_is_the_ruin_mirrored(repo_root):
     a, _ = load(repo_root, "N01", "Ruin_Walls")
     b, _ = load(repo_root, "N01", "Ruin_Walls_mirrored")
     assert b["bounds"]["min"][0] == pytest.approx(-a["bounds"]["max"][0])
     assert b["bounds"]["max"][0] == pytest.approx(-a["bounds"]["min"][0])
     assert len(b["collision"]) == pytest.approx(len(a["collision"]), rel=0.05)
-    assert sorted(g["id"] for g in a["gaps"]) == sorted(g["id"] for g in b["gaps"])
+    ga, gb = {g["id"]: g for g in a["gaps"]}, {g["id"]: g for g in b["gaps"]}
+    for gid in set(ga) & set(gb):  # one id, one opening: numbered in the source mesh's frame
+        ca = [sum(p[k] for p in ga[gid]["polygon"]) / 4 for k in range(3)]
+        cb = [sum(p[k] for p in gb[gid]["polygon"]) / 4 for k in range(3)]
+        assert (cb[0], cb[1], cb[2]) == pytest.approx((-ca[0], ca[1], ca[2]), abs=0.03), gid
+    for gid in set(ga) ^ set(gb):  # a pane cut to within a few cm of the smallest gap may fall either side of it
+        g = ga.get(gid) or gb.get(gid)
+        assert g["narrowest_m"] < 0.25 + 0.05, f"{gid} is in one of the two only"
+    assert len(set(ga) & set(gb)) >= 0.8 * max(len(ga), len(gb))
 
 
 def test_unity_euler_turns_x_onto_y_about_z():
