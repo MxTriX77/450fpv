@@ -1,4 +1,4 @@
-# Design: w4b-farmland-ruins (tasks 1.1 and 1.2)
+# Design: w4b-farmland-ruins (tasks 1.1, 1.2 and 1.3)
 
 The farmland village's ruins and debris get their physics from the vendor meshes, by a generator with per-piece
 params. The meshes stay in the local store (D-089); what is pushed is the params, the generator and the metadata.
@@ -15,7 +15,7 @@ code or the pack), **derived** (computed from the others, the formula given), **
   `Debris_RoofSheet_A`, `Debris_RoofSheet_B`, `Debris_WallPanel`, `Debris_Window` (from `village_ruins.fbx`) and
   the pack's `Door01`–`Door04` (from `Doors.fbx`, laid on their side by a child rotation of (0, 0, 90)), each
   recentred so its origin is the ground under the middle of its bounds, then yawed at random and tilted up to 6°
-  plus the terrain's slope. **Published.**
+  plus the terrain's slope. **Published.** W2's rows tilt 14 of the 28 more than 6°, up to 24.9° (§2).
 - **The frame.** Each FBX is read as Unity imports it (`lib.fbxread.meshes`): X negated, file units to metres, the
   node's transform dropped, as the friend's prefab takes only the mesh. **Measured** check: the ruins' bounds,
   x −7.41…7.41 and z −5.06…6.85, match the friend's `HouseFootprint` (−7.4…7.4, −5.1…6.9), the porch towards +Z as
@@ -36,14 +36,17 @@ code or the pack), **derived** (computed from the others, the formula given), **
 - The metadata lives where the sim's loader looks for it: `unity/Assets/_Project/Art/Models/ruins/<ID>/<variant>.assetmeta.json`
   (a placement row's class/asset/variant). Asset space is the friend's prefab's local frame: a ruin at the model's
   origin, a debris piece recentred as the prefab does.
-- **A placement row has a yaw only.** The mirrored house is its own variant, `Ruin_Walls_mirrored`, with the mirror
-  baked in. W2's export (`maps/farmland/placements.json`) names that instance `Ruin_Walls` with scale x = −1: **a
-  placement with a negative scale uses `Ruin_Walls_mirrored`'s metadata**: whoever reads the row (W3's loader) takes
-  `Ruin_Walls` with scale x < 0 as that variant, and never mirrors `Ruin_Walls`' own metadata at run time (its gap
-  ids, snag edges and box order were built for the unmirrored mesh). The debris' tilt (≤ 6° plus the slope) has no
-  field in a row; with
-  yaw only, a 2.3 m door's end sits up to about 0.24 m off (2.3 × sin 6°). **Derived.** That is W2's and W3's call
-  (§10).
+- **A placement row carries the full rotation** (task 1.3, QA's F5). W2's export (`maps/farmland/placements.json`,
+  on the line's tip) writes each row's `rotation_xyzw`, Unity's quaternion, and its `scale`. The metadata is in the
+  prefab's local frame, so whoever reads the row (W3's loader) applies that quaternion whole. The debris' tilt is in
+  it: 14 of the 28 debris rows tilt more than 6° from upright, up to 24.9° (**measured** on W2's rows, the angle of
+  the rotated up axis). A loader that read the yaw only would put a 2.3 m door's end up to 0.97 m off
+  (2.3 × sin 24.9°, **derived**).
+- **The mirrored house** is its own variant, `Ruin_Walls_mirrored`, with the mirror baked in. W2's rows name that
+  instance `Ruin_Walls` with scale x = −1: **a placement with a negative scale uses `Ruin_Walls_mirrored`'s
+  metadata**: the loader takes `Ruin_Walls` with scale x < 0 as that variant, and never mirrors `Ruin_Walls`' own
+  metadata at run time (its snag edges and box order were built for the unmirrored mesh). The two variants' gap ids
+  name the same openings (§5).
 - `assets-src/vendor.json` lists them (not `catalog.json`, so `build.py` and the Unity importer never try to export
   or import a vendor mesh). The params are `assets-src/ruins/<variant>.json`.
 
@@ -129,28 +132,46 @@ above 3.95 m, Window, windowsCeiling, door_frames, the wall faces).
 
 ## 5. Gaps
 
-- **Wall openings.** The intact house (`House.fbx`, the glass left out) is decomposed with the same rules; in each wall
-  band (a wall part's slab with its layers, ± `band_m` 0.12 m for a frame standing proud) every clear region the house
-  encloses on all sides is an opening, as its largest inscribed rectangle: the window panes between sashes, the doors
-  (an opening whose bottom is within 0.10 m of a landable top: the threshold board stands proud). Openings are numbered
-  per part along the intact house in the source mesh's frame, so `wall_back_window3` is the same opening in every
-  ruin, the mirrored one too (task 1.2: the mirrored house numbered them along its own +x, backwards). In a ruin, an
-  opening is cut at the lower of its jambs' tops (probed `jamb_px` 3 pixels outside it in the ruin's collision, the
-  jamb's solid starting at most `jamb_px` rows above the opening's bottom: task 1.2, a two-skin wall's jamb sheet may
-  start a centimetre above the threshold's box, a seam the solid wall filled); it is gone when less than `gaps.min_m`
-  0.25 m is left. Each gap is the rectangle at the wall band's middle, normal ±X or ±Z, `narrowest_m` its smaller
-  side.
-- **Roof and ceiling holes.** What a ruin lost of a skin part (roof, ceiling), per family with its planes taken
-  together, when it keeps at least 5 % of it: up to 12 rectangles inscribed in the lost area, largest first, each at
-  least 0.25 m either way, at the part's mean offset. A skin lost whole (the roofless ruins) is gone, not holed.
-- Counts (task 1.2): Ruin_RoofCollapsed 82 (window panes, 3 doors and the collapse's roof and ceiling holes),
-  Ruin_Burnt 26, Ruin_Walls 21 and its mirror 20, Ruin_Stump 4. Debris: none (they lie on the ground). 1.1 found 80,
-  25, 4, 4 and 1: its probe dropped an opening whose jamb column was clear in the opening's bottom row, and a sill's
-  or a threshold's box often stops a centimetre or two below it (measured on `Ruin_Walls`: without the slack, 6 gaps;
-  the two more than 1.1 are the front doors its prune's slits had cut). So the broken walls' surviving windows and
-  the roofless ruins' front doors are gaps now. Every 1.1 gap is kept (two narrowest values moved by 1 cm). The
-  mirror lacks two 0.28 m porch panes of `Ruin_Walls` and has one it lacks: each is cut within 4 cm of `gaps.min_m`,
-  and the two meshes' raster ties fall either side of it.
+- **Wall openings: the ruin's own clear space** (task 1.3, QA's F2 and F4). In each of the ruin's wall bands (a wall
+  part's slab with its layers), the kept collision boxes of every part, rotated ones too, that reach within
+  ± `band_m` 0.12 m of the band's faces (a frame standing proud) are projected on the wall's raster (each box clipped
+  to that slab, its outline rastered as the faces are). Every clear region the band encloses on all sides is an
+  opening. A slit of one or two pixels (a seam between two boxes of a glazing bar) does not join a region to its
+  neighbour or to the outside: the regions are found with the obstruction grown a pixel, then grown back a pixel into
+  the clear space. Each region is covered by rectangles of at least `gaps.min_m` 0.25 m either way, largest first, so
+  two panes a leak joins are two gaps. 1.2 kept one rectangle per region of the intact house and cut it at the
+  ruin's jambs, and so missed 37 panes (QA's E6): the porch glazing, whose panes the raster joins, and the burnt
+  ruin's panes, whose jamb probe met a seam.
+- **Their ids: the intact house's openings.** The intact house (`House.fbx`, the glass left out) is decomposed with the
+  same rules, unmirrored; in each wall band every clear region it encloses is covered the same way (the window panes
+  between sashes, the doors: an opening whose bottom is within 0.10 m of a landable top). They are numbered per part
+  along the house in the source mesh's frame: each region's largest rectangle first (1.2's ids, unchanged), then the
+  others (`porch_wall_window11` on). A ruin's opening takes the id of the intact opening it overlaps most and lies at
+  that opening's band middle; its snag rings sit at that band's faces. The mirrored ruin mirrors the unmirrored
+  house's openings into its frame, so `porch_wall_window21` is the same pane in `Ruin_Walls` and in its mirror (1.2
+  numbered the mirror's own decomposition, whose X-normal planes group from the other end, and three ids differed).
+  An enclosed region no intact opening overlaps would take its part's next number; none does.
+- **An opening the ruin no longer encloses** (its head broken off) is the intact opening cut at the lower of its
+  jambs' tops (probed `jamb_px` 3 pixels outside it in the ruin's collision, the jamb's solid starting at most
+  `jamb_px` rows above the opening's bottom: task 1.2's seam between a threshold's box and a skin's), and within that
+  the largest rectangle clear of the ruin's kept boxes (task 1.3: a rail the ruin keeps across a pane's foot is the
+  gap's bottom, QA's F4); it is gone when less than `gaps.min_m` either way is left.
+- Each gap is its rectangle at the band's middle, normal ±X or ±Z, `narrowest_m` its smaller side.
+- **Roof and ceiling holes: the clear space** (task 1.3, QA's F3). What a ruin lost of a skin part (roof, ceiling),
+  per family with its planes taken together, when it keeps at least 5 % of it, less the shadow of every kept box of
+  any part within `band_m` of the skin's planes (a rafter or a purlin the ruin keeps across the hole closes it there;
+  1.2 took the lost skin area, and three holes ran up to 245 mm over roof-frame members still drawn): up to 12
+  rectangles inscribed in that clear area, largest first, each at least 0.25 m either way, at the part's mean offset.
+  A skin lost whole (the roofless ruins) is gone, not holed.
+- Counts (task 1.3; 1.2 in brackets): Ruin_RoofCollapsed 100 [82] (54 openings: window panes, the porch glazing and
+  6 doors; 46 roof and ceiling holes), Ruin_Burnt 41 [26], Ruin_Walls 24 [21] and its mirror 24 [20], Ruin_Stump 4.
+  Debris: none (they lie on the ground). The 40 new gaps are the porch glazing's panes and the burnt ruin's front,
+  back and upper panes, 0.26–0.43 m (QA's raster, at 2 cm, found 37 of them). Every 1.2 opening is kept; its
+  rectangle is now the ruin's clear space, most within a centimetre of 1.2's (a door's bottom 1 cm up, on its
+  threshold's box; `Ruin_Burnt`'s `wall_back_window12` taller, its transom gone). The roof holes: `roof_hole9`
+  narrowest 1.47 → 1.21 m; the hole a member nearly closed (1.2's `roof_hole18`) below 0.25 m and gone; the ids from
+  `roof_hole10` on moved by one. 1.1 found 80, 25, 4, 4 and 1 (task 1.2's account: its jamb probe and its prune's
+  slits).
 - `gaps.min_m` 0.25 m: below it no drone part passes (the drone spans 0.574 m; a pane of 0.3 m still passes a fiber
   and the wind). **Assumed.**
 
@@ -163,8 +184,20 @@ above 3.95 m, Window, windowsCeiling, door_frames, the wall faces).
   (K01–K07's convention).
 - **Snag.** Each opening's outline at both faces of its wall (the arris the fiber bends over), each skin hole's
   outline, and each wall's broken top (where it stands more than `snag.broken_drop_m` 0.05 m below the intact wall) as
-  a stepped polyline along both faces, with the material of the layer at that face. Debris: every open edge of the mesh
-  (a sheet's broken rim), chained.
+  a stepped polyline along both faces, with the material of the layer at that face. Debris (task 1.3, QA's F1): the
+  rims, read off the raster as the broken tops are. An open edge of the mesh (one polygon uses it: a sheet's broken
+  rim, a door leaf's missing end) marks the pixels it crosses, and their neighbours, on the plane its polygon was
+  rastered on; each slab region's boundary through those pixels, on that plane's face, is chained along the pixels'
+  corners into a stepped polyline. 1.2 wrote the open edges' vertices as they were, which copied the sheets' outlines
+  to the micrometre (D-089). The rims follow the open edges within 30 mm (median 7–12 mm, **measured** on the eight
+  pieces); 1 % of the window's open edges (its members' ends, on faces the raster drops as covered) lie 30–75 mm from a
+  rim.
+- **No pushed point is a vendor vertex** (D-089, task 1.3). The raster puts a few box corners, snag points and gap
+  corners on a vertex by chance, where a vertex lies on the 1 cm grid at a plane's offset (1.2: 8–35 per ruin within
+  0.1 mm; QA's E4 counted 2–10 to 2 µm). After the build every such box, collision or wind, grows 0.25 mm outward at
+  that corner along each of its axes, and every such point moves 0.25 mm off the vertex along each axis, until none
+  lies within 0.1 mm of a vertex on every axis (`CLEAR_M`, `STEP_M`): 9–28 boxes and 0–14 points per ruin, none in the
+  debris. A test holds every pushed point (snag, gap, box and wind corners, bounds) to it (§9).
 - **LOD.** The vendor mesh is drawn as the friend's prefab draws it; the metadata names it as LOD0 (`lods[0].mesh` =
   the vendor object). Cull: ruins 2340 m (H01's, **published** in its params; the friend's ruins carry no LOD group);
   debris the friend's LOD cull at 0.4 % of the screen height under Unity's default 60° vertical field of view:
@@ -194,20 +227,21 @@ above 3.95 m, Window, windowsCeiling, door_frames, the wall faces).
 
 ## 8. Results
 
-Task 1.2's metadata (1.1's in brackets where it changed):
+Task 1.3's metadata (1.2's and 1.1's in brackets where they differ). The boxes are 1.2's; 8–26 per ruin grew
+0.25 mm off a vertex (§6), so the shape counts below stand.
 
 | Asset | Variant | Boxes (materials) | Gaps | Wind | Snag | Size (m) | Tris |
 |---|---|---|---|---|---|---|---|
-| N01 | Ruin_RoofCollapsed | 7016 [7168] (720 asbestos_cement, 797 masonry, 5499 timber) | 82 [80] | 230 | 130 [126] | 14.82 × 7.91 × 11.91 | 6200 |
-| N01 | Ruin_Walls | 2690 [2523] (470 masonry, 2220 timber) | 21 [4] | 124 | 70 [36] | 13.92 × 3.95 × 11.50 | 3080 |
-| N01 | Ruin_Walls_mirrored | 2710 [2558] (467 masonry, 2243 timber) | 20 [4] | 124 | 68 [36] | 13.92 × 3.95 × 11.50 | 3080 |
-| N01 | Ruin_Burnt | 3665 [3405] (618 masonry, 3047 timber) | 26 [25] | 136 [135] | 72 [70] | 13.92 × 3.95 × 11.54 | 3762 |
-| N01 | Ruin_Stump | 2033 [2013] (406 masonry, 1627 timber) | 4 [1] | 100 | 20 [14] | 13.88 × 3.95 × 11.50 | 1772 |
-| N02 | Debris_RoofSheet_A | 194 [164] (asbestos_cement) | 0 | 0 | 1 | 2.97 × 0.83 × 3.39 | 24 |
-| N02 | Debris_RoofSheet_B | 140 [104] (asbestos_cement) | 0 | 0 | 1 | 2.23 × 0.43 × 2.55 | 18 |
-| N02 | Debris_WallPanel | 5 [3] (timber) | 0 | 0 | 1 | 1.80 × 0.06 × 1.80 | 16 |
-| N02 | Debris_Window | 66 [56] (timber) | 0 | 0 | 8 | 1.41 × 0.46 × 1.55 | 114 |
-| N02 | Door01–Door04 | 13, 13, 104, 14 [7, 3, 107, 3] (timber) | 0 | 0 | 1 each | 2.32 × 0.09 × 1.30 | 98–154 |
+| N01 | Ruin_RoofCollapsed | 7016 [7168] (720 asbestos_cement, 797 masonry, 5499 timber) | 100 [82, 80] | 230 | 166 [130, 126] | 14.82 × 7.91 × 11.91 | 6200 |
+| N01 | Ruin_Walls | 2690 [2523] (470 masonry, 2220 timber) | 24 [21, 4] | 124 | 76 [70, 36] | 13.92 × 3.95 × 11.50 | 3080 |
+| N01 | Ruin_Walls_mirrored | 2710 [2558] (467 masonry, 2243 timber) | 24 [20, 4] | 124 | 76 [68, 36] | 13.92 × 3.95 × 11.50 | 3080 |
+| N01 | Ruin_Burnt | 3665 [3405] (618 masonry, 3047 timber) | 41 [26, 25] | 136 [135] | 102 [72, 70] | 13.92 × 3.95 × 11.54 | 3762 |
+| N01 | Ruin_Stump | 2033 [2013] (406 masonry, 1627 timber) | 4 [4, 1] | 100 | 20 [20, 14] | 13.88 × 3.95 × 11.50 | 1772 |
+| N02 | Debris_RoofSheet_A | 194 [164] (asbestos_cement) | 0 | 0 | 5 [1] (1495 points) | 2.97 × 0.83 × 3.39 | 24 |
+| N02 | Debris_RoofSheet_B | 140 [104] (asbestos_cement) | 0 | 0 | 9 [1] (893) | 2.23 × 0.43 × 2.55 | 18 |
+| N02 | Debris_WallPanel | 5 [3] (timber) | 0 | 0 | 4 [1] (28) | 1.80 × 0.06 × 1.80 | 16 |
+| N02 | Debris_Window | 66 [56] (timber) | 0 | 0 | 42 [8] (175) | 1.41 × 0.46 × 1.55 | 114 |
+| N02 | Door01–Door04 | 13, 13, 104, 14 [7, 3, 107, 3] (timber) | 0 | 0 | 3, 2, 3, 4 [1 each] | 2.32 × 0.09 × 1.30 | 98–154 |
 
 - **Shapes in the village** (W2's placements: the five houses, `Ruin_Walls` twice, once with scale x = −1, and 28
   debris pieces: roof sheet A ×5, B ×2, wall panel ×1, window ×5, doors 01–04 ×4, 4, 3, 4): **20 171**, of which the
@@ -236,6 +270,30 @@ problem lines, so its figures read higher), before (1.1's committed metadata, re
 | **all** | **2953 → 241** | 5731 → 6931 | | 9685 → 7470 | |
 
 Every gap's `narrowest_m` matches its largest inscribed circle within 5 mm (82 + 21 + 20 + 26 + 4 gaps).
+
+**Task 1.3** (the same command, every piece re-audited; 1.2 → 1.3):
+
+| Piece | Box → mesh over 50 mm (worst) | Within 50 mm, over 20 mm in a zone | Mesh → collision, worst | Audit's problems | Time |
+|---|---|---|---|---|---|
+| Ruin_RoofCollapsed | 109 (97 mm) → **109** (97 mm) | 1744 → 1858 | 43 → 43 mm | 1949 → 2061 | 1450 s |
+| Ruin_Walls | 26 (65 mm) → **26** (65 mm) | 1233 → 1285 | 42 → 42 mm | 1303 → 1362 | 558 s |
+| Ruin_Walls_mirrored | 23 (65 mm) → **23** (65 mm) | 1268 → 1308 | 42 → 42 mm | 1336 → 1383 | 548 s |
+| Ruin_Burnt | 68 (82 mm) → **68** (82 mm) | 1464 → 1604 | 42 → 42 mm | 1619 → 1764 | 883 s |
+| Ruin_Stump | 15 (63 mm) → **15** (63 mm) | 1222 → 1223 | 34 → 34 mm | 1263 → 1263 | 328 s |
+| the 8 debris kinds | none → none | none → none | within 50 mm | 0 → 0 | ≤ 9 s each |
+| **all** | **241 → 241** | 6931 → 7278 | | 7470 → 7833 | |
+
+- **The boxes are 1.2's**, so the over-50 mm findings and the mesh's distance to the collision stand box for box; the
+  0.25 mm growth off a vertex (§6) moves none across a threshold.
+- **The zone grows by 347** because it is the 20 mm band round every gap, and there are 40 more gaps (the porch
+  glazing's panes and the burnt ruin's): the sheet backs beside them now count in the zone. `Ruin_Stump`, whose 4 gaps
+  stand (their rectangles within a centimetre of 1.2's), moves by one. These are §10's zone findings, not new boxes.
+- **Every gap's line reports no problem** (100 + 24 + 24 + 41 + 4); every piece `matches` its committed file.
+- **The gaps against QA's probes** (task 1.3, run by the author on the committed files): `gap_probe.py` finds no box
+  in any gap's clear prism (1.2: 31 gaps), visual faces at most 6.8 mm in (the frames' sub-pixel edges; 1.2: up to
+  245 mm), and every drone-sized gap's capsule clear of the visual; `wall_raster.py` on the 65 bands of its E6 finds
+  no enclosed clear region without a gap but the two partition doors it already cleared (seen 0.19 m off their
+  plane); `vertex_leak.py` finds no vertex reproduced in any of the 13 files.
 
 What is left (read box by box):
 - **Over 50 mm: 241 boxes, worst 97 mm.** 233 of them are faces approximated by a
@@ -273,6 +331,20 @@ Ruin_RoofCollapsed alone on a flat map at the origin; the repository's drone, se
   room's window frame, 4.15 m on (302 touches of the ruin past the doorway).
 - The tests also check (`tools/blender/tests/test_vendor_ruin.py`) that the committed `Ruin_RoofCollapsed` is two
   skins at the crash point: the siding's sheet at z −4.552…−4.532, the plaster's at −4.372…−4.352, nothing between.
+- **Task 1.3's tests** (`test_vendor_ruin.py`):
+  - *No pushed point is a vendor vertex* (D-089, QA's F1): every snag point, gap corner, corner of a collision box or
+    a wind volume and corner of the bounds of the 13 committed files lies more than 0.1 mm, on some axis, from every
+    vertex of its vendor mesh, read through the generator's reader and placement. It needs the store and skips
+    without it, as the rebuild test does. On 1.2's files it finds 332 such points.
+  - *Every gap is clear space in the collision* (REAL-05, QA's F3 and F4): each gap's polygon, 2 mm in from its edges,
+    swept 0.2 m either side of its plane (QA's clear prism), meets no collision box. 1.2's files fail it (the
+    partition doors' frames a few millimetres in, the roof holes' members, the burnt ruin's rail).
+  - *A drone-sized capsule passes every drone-sized gap* (AST-05's acceptance, QA's F6): for each of the 40 gaps at
+    least 0.574 m either way, a capsule of that diameter along the gap's normal through its centre, its centre swept
+    0.25 m either side of the plane, touches no collision box (the least distance by a golden-section search along
+    the segment, exact for a convex box). The sweep spans a 0.24 m wall and its 0.12 m frame band inside the sphere at
+    both ends; it does not fly on into the room (QA's ±0.5 m sweep met the attic floor 0.5 m under `roof_hole15`,
+    1.2's `roof_hole14`, 1 mm from the visual and 19 mm inside the collision's 50 mm tolerance).
 
 ## 9.1 Review sheets
 
@@ -287,8 +359,13 @@ overlays), since the vendor meshes are not in our Unity project.
 
 - **Burnt wood** has no physics row; `timber` stands in (§4). Physics may add a charred row (its friction, crush and
   edge radius), a table change every log carries.
-- **Placement rows carry a yaw only**: the mirrored house is a variant; the debris' tilt is lost unless the row
-  format gains a rotation (W2, W3).
+- **Placement rows carry the full rotation** (`rotation_xyzw`, §2): W3's loader applies it whole; the mirrored house is
+  a variant, taken for a `Ruin_Walls` row with scale x < 0.
+- **The debris' rims are stepped** (§6): 1 cm steps along a diagonal rim, 1495 points on the larger roof sheet
+  (1.2: 27, the mesh's own vertices). A simplified line would sit within a pixel of the mesh's corners, so the steps
+  stay; the fiber's query cost grows with them (W3).
+- **The 0.25 mm growth off a vertex** (§6) lies under every tolerance (AST-05's 20 mm, the audit's 1 µm rounding
+  aside) and never opens a slit: a box only grows.
 - **Box counts** are high where the faces are many and diagonal (the roof's hips, the floors' sag): 7016 for the
   collapsed-roof ruin, 20 171 for the village with its debris (W2's placements: the five houses and 28 debris
   pieces; 19 351 at 1.1, §8). The fiber's query cost grows with the shapes near a segment (L6, W3).
