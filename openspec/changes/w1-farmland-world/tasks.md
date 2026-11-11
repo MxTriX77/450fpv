@@ -8,7 +8,7 @@ Order: 1.1, then 2.1, then 3.1. Branch `unity/physics/physics-integration-2--w1-
 
 ## 2. The player on the farmland
 
-- [ ] 2.1 [game-developer] The menu opens the farmland in noclip. Place one start point in the village on free level ground (D-092), with the launch stand when legs are off. Flight stays on the test range until W3. Checks: EditMode, the smoke test, load time to the first frame (PLT-06).
+- [x] 2.1 [game-developer] The menu opens the farmland in noclip. Place one start point in the village on free level ground (D-092), with the launch stand when legs are off. Flight stays on the test range until W3. Checks: EditMode, the smoke test, load time to the first frame (PLT-06).
 
 ## 3. Review
 
