@@ -1,6 +1,6 @@
 # The final world: the integration plan
 
-Planned 2026-11-08 by the orchestrator. **Phase L started 2026-11-09** (§3 has where it stands); W, B and A are not started. The decisions behind it are D-088 to D-091 in [decisions.md](decisions.md). The weekly limit is tight, so **the pilot announces the start of each phase**. Don't start the next phase on your own.
+Planned 2026-11-08 by the orchestrator. **Phase L started 2026-11-09** (§3 has where it stands); Phase W started 2026-11-11; B and A wait for the pilot's flight (D-093). The decisions behind it are D-088 to D-091 in [decisions.md](decisions.md). The weekly limit is tight, so **the pilot announces the start of each phase**. Don't start the next phase on your own.
 
 Rules that still hold: the D-033 tiers; every subagent on Opus 5.5, one fresh subagent per unit, at most four in parallel (D-036); image work only in subagents; numbers from the ledger (§6); the orchestrator opens and merges every PR, merges with `-m`, subjects of at most 72 characters; build only when the pilot isn't flying; no dialogs or listening sockets in unattended runs; remove each worktree once its branch lands.
 
@@ -38,9 +38,10 @@ What the 2026-11-06 review found:
 ## 2. Order
 
 ```
-L  the lag's cause (logs first)  ──►  W  the world in  ──►  A  the acceptance gate  ──►  beta, the pilot's gate
-                                       B  the three open branches (in parallel with W, other files)
+L  the lag (closed with what it has)  ──►  W  the world in  ──►  the pilot flies the farmland  ──►  B and A, in an order the pilot sets  ──►  beta
 ```
+
+The pilot set this order on 2026-11-11 (D-093). It replaces the earlier "B in parallel with W".
 
 ## 3. Phase L: the lag's cause
 
@@ -63,7 +64,7 @@ Where it stands (2026-11-10):
 | Unit | Role · tier | Goal | Done when |
 |---|---|---|---|
 | W0 | Orchestrator · Quick | **The vendor store (D-089):** move the world out of `reference/` into a git-ignored local store in the main checkout. `tools/vendor/link.ps1` links it into any checkout or worktree (junctions). `.gitignore` and the hygiene scan block the vendor paths. `tools/assets/manifest.json` lists the packs, marked local-only, and `CREDITS.md` credits them. **Push our own text** (the friend's code and shaders, scenes, prefabs, materials, the map package); **keep every third-party binary local**, along with anything that copies its geometry. | A fresh worktree runs `link.ps1` and opens the world; `precommit.py --tree HEAD` is clean |
-| W1 | Game developer + world builder · Complex | **The world in our Unity project:** the scene, terrain tiles, vegetation and village become the player's flight world. Keep only the packages it needs (URP and the Input System are ours already). Keep our pipeline asset and renderer (the feed). Set at least 6 start points in varied terrain (WLD-08). The test range leaves the player and stays only for headless tests and benches, so the straw leaves the game. | The player loads the farmland from the menu (noclip first, flight once W3 lands); smoke PASS |
+| W1 | Game developer + world builder · Complex | **The world in our Unity project:** the scene, terrain tiles, vegetation and village become the player's flight world. Keep only the packages it needs (URP and the Input System are ours already). Keep our pipeline asset and renderer (the feed). One start point, in the village on free level ground (D-092). The test range leaves the player and stays only for headless tests and benches, so the straw leaves the game. | The player loads the farmland from the menu (noclip first, flight once W3 lands); smoke PASS |
 | W2 | World builder · Standard | **The map package export:** a new "Export map package" step writes `maps/farmland/`: the heights of the map, the surround and the far ring (D-091: heights everywhere, objects only on the map); the 8 layers mapped to classes in `surfaces.json`; grass density per cell; and every tree, bush, ruin, debris and object placement with its variant. | `python tools/map/validate.py maps/farmland` passes |
 | W3 | World builder, physics sign-off · Complex | **Hilly ground in the sim core** (the world core has no heightfield today): `SampleGround`, `Raycast`, `StaticContacts` and the fiber's ground contact over a heightfield triangulated exactly as Unity's terrain, with a hole mask for the trenches. Only + − × ÷ √, 0 B in steady state, `QueryVersion` 8, worldbench rows and goldens. Check the legs' and crash contact on slopes: model 82 if the contact model changes. The terrain draws close enough to the heightfield near the drone that what's drawn is what's touched (tech artist checks). **And L6 (the fiber's query cost):** a laid segment resting near shapes must not cost a full `StaticContacts` query every step. The cost grows with the shapes in the segment's bounding box, and far segments are 20–200 m long. Fix the cost path for the farmland's trees, bushes and village, not for one asset. | Goldens audited case by case; bench within PLT-04; the three model-79 flights' worst stretches (L1's report) replay within the step budget |
 | W4a | Asset artist · Standard | **Trees and bushes get physics:** trunk and main limbs as capsules, crowns as volumes with our crown physics (drag, snag, prop strikes), bushes as soft volumes. Generated from the vendor meshes. Metadata and params are pushed; copied geometry stays local. Grass gets no physics per blade: its density per cell drives the micro-detail on each class. | Review sheet at 1.5 / 10 / 50 / 200 m; flightbench crown rows pass |
@@ -74,7 +75,7 @@ Where it stands (2026-11-10):
 
 Parallel: W0 first. Then W1, W2 and W4a/W4b can run together (at most four). W3 after W2's format is fixed. W5 after W2 and W3. W6 after W1. W7 after W3.
 
-## 5. Phase B: the three open branches (in parallel with W)
+## 5. Phase B: the three open branches (after the pilot flies the farmland, D-093)
 
 As in [handover-2026-11-06.md](handover-2026-11-06.md) §2 and §6.2: arm-break (model 80), edge-load (model 81 only if physics changes), app-reds. Fresh agents. Merge onto the line in that order, goldens audited case by case.
 
@@ -95,4 +96,4 @@ As in [handover-2026-11-06.md](handover-2026-11-06.md) §2 and §6.2: arm-break 
 - Formats: 70 arm-break, 71 edge-load (reserved), 72 `p7h-step-budget` (used: the step times in the end block; L5 stays inside it). **Next free: 73** (W2's map identity in the header).
 - Event kinds: **next free 39.** L5's cap is a new `HitchCause`, not a new kind.
 - `QueryVersion`: 7 now, **8** for W3.
-- Decisions: D-088 to D-091 used. **Next free: D-092.**
+- Decisions: D-088 to D-093 used. **Next free: D-094.**

@@ -724,3 +724,14 @@ The pilot, 2026-11-08: the simulator must be ready for a Steam release; no more 
 - **No beta goes to the pilot until the scenario suite passes** on two overnight runs in a row: PLT-04's budgets in the player, 0 late steps, exact replays, finite steps, no tunnelling, forces within physical bounds, 0 B steady state, and the pilot's complaints as named tests ([final-world-plan.md](final-world-plan.md) §6).
 - **The lag first:** the model-79 logs are read before the world comes in, so the cause isn't carried onto the new map.
 - **The map's edge:** the sim knows the ground heights of the surround and far tiles too (no objects there), so a long fiber flight meets no invisible wall.
+
+## D-092 The farmland's start point is in the village · Accepted
+The pilot, 2026-11-11: "our spawn point will be somewhere in the village".
+- **One start point,** on free level ground in the village, clear of the ruins, debris, trees and our objects (D-090). With legs off, the launch stand (D-022) goes there.
+- Supersedes WLD-08's "at least 6, in varied terrain" for the farmland. More start points only if the pilot asks.
+
+## D-093 Phase order: W, then the pilot flies the farmland, then B and A · Accepted
+The pilot, 2026-11-11.
+- **Phase L closes with what it has:** the step timer (L4) and the lag cap (L5) merge on the evidence in hand. The fix of the cause (L6) is already folded into W3.
+- **W next,** to a build the pilot flies around the farmland.
+- **B and A after the pilot's flight,** in an order the pilot sets then. This supersedes the plan's "B in parallel with W".
