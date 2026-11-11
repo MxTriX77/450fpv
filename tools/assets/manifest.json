@@ -2549,6 +2549,23 @@
           "bytes": 4194348
         }
       ]
+    },
+    {
+      "source": "unity-asset-store",
+      "id": "country_house_free_village_ruins",
+      "title": "Country House FREE 1.1: the village ruins cut from it by Farming Land's build_village_ruins.py",
+      "licence": "Unity-EULA",
+      "author": "Objective Environment",
+      "page": "https://assetstore.unity.com/packages/slug/125731",
+      "local_only": true,
+      "destination": "vendor/world_final/Farming_land/Assets/Farm_land/Models",
+      "files": [
+        {
+          "name": "village_ruins.fbx",
+          "sha256": "b87059ac7e9a640b2d9ebb4b179741f50f34c03462d1314daea863fc10a8cb1a",
+          "bytes": 617452
+        }
+      ]
     }
   ]
 }
