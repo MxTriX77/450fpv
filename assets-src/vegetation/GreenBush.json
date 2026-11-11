@@ -19,8 +19,6 @@
   "wood": {
     "step_m": 0.1,
     "section_tol_m": 0.03,
-    "strand_reach_m": 0.04,
-    "strand_min_radius_m": 0.06,
     "max_len_m": 2.0,
     "min_radius_m": 0.005
   },

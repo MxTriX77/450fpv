@@ -45,9 +45,7 @@ def test_a_bent_tube_becomes_capsules_on_its_axis():
     nodes, vertex_node = plant.skeleton(points, welded, 0.1)
     members = plant.members(nodes)
     assert len(members) == 1 and members[0]["free_tip"]
-    segments = plant.fit_capsules(nodes, members[0], 2.0, 0.005, 0.02, 0.04, 0.05)
-    assert all(len(s) == 1 for s in segments)  # a round tube takes one capsule per segment
-    capsules = [c for s in segments for c in s]
+    capsules = plant.fit_capsules(nodes, members[0], 2.0, 0.005, 0.02)
     assert 3 <= len(capsules) <= 12
     for a, b, r in capsules:
         assert abs(r - 0.08) < 0.01
@@ -60,21 +58,15 @@ def test_a_thin_member_is_a_twig():
     vertices, tris = _tube([(0.0, y * 0.1, 0.0) for y in range(10)], 0.003, sides=6)
     points, welded = plant.weld(vertices, tris)
     nodes, _ = plant.skeleton(points, welded, 0.1)
-    assert plant.fit_capsules(nodes, plant.members(nodes)[0], 2.0, 0.005, 0.02, 0.04, 0.05) == []
+    assert plant.fit_capsules(nodes, plant.members(nodes)[0], 2.0, 0.005, 0.02) == []
 
 
-def test_a_flat_section_takes_strands_inscribed_in_it():
-    n = 40
-    ellipse = [(0.6 * math.cos(k / n * 2 * math.pi), 0.25 * math.sin(k / n * 2 * math.pi)) for k in range(n)]
-    ring = [(x, y, z) for x, z in ellipse for y in (0.0, 0.5, 1.0)]  # an ellipse 1.2 x 0.5 m round a vertical axis
-    edges = [((x0, 0.5, z0), (x1, 0.5, z1)) for (x0, z0), (x1, z1) in zip(ellipse, ellipse[1:] + ellipse[:1])]
-    strands, residual = plant.section(ring, edges, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0), 0.02, 0.04, 0.005, 0.05)
-    assert residual <= 0.04 and 1 < len(strands) <= plant.STRAND_MAX
-    for a, b, r in strands:  # along the axis, inside the ellipse, holding no ring point
-        assert abs(a[1]) < 1e-9 and abs(b[1] - 1.0) < 1e-9
-        assert all(math.hypot(x - a[0], z - a[2]) >= r - 1e-9 for x, z in ellipse)
-    for x, z in ellipse:  # every point within the reach outside the strands
-        assert min(math.hypot(x - a[0], z - a[2]) - r for a, _, r in strands) <= 0.04 + 1e-9
+def test_a_round_capsule_takes_the_mean_distance_and_reports_the_worst():
+    ring = [(0.6 * math.cos(k / 40 * 2 * math.pi), y, 0.25 * math.sin(k / 40 * 2 * math.pi))
+            for k in range(40) for y in (0.0, 0.5, 1.0)]  # an ellipse 1.2 x 0.5 m round a vertical axis
+    (a, b, r), residual = plant.round_capsule(ring, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0), 0.005)
+    dist = [math.hypot(x, z) for x, _, z in ring]
+    assert abs(r - sum(dist) / len(dist)) < 1e-9 and abs(residual - max(abs(d - r) for d in dist)) < 1e-9
 
 
 def test_the_shell_holds_every_sample_and_keeps_its_standoff():

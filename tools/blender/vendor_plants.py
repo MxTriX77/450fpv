@@ -75,15 +75,8 @@ PARAMS = {
                     "effect": "geodesic spacing of the rings cut through the tubes (assumed: a ring per 10 cm "
                               "follows a 1 cm bend)"},
     "wood.section_tol_m": {"type": "float", "range": (0.005, 0.05), "default": 0.03,
-                           "effect": "a segment is one round capsule when every ring point lies within this of it "
-                                     "(the spec's 3 cm)"},
-    "wood.strand_reach_m": {"type": "float", "range": (0.005, 0.05), "default": 0.04,
-                            "effect": "a section that is not round takes strands inscribed in it, every ring point "
-                                      "within this outside them (derived: AST-05's 5 cm less 1 cm)"},
-    "wood.strand_min_radius_m": {"type": "float", "range": (0.005, 0.3), "default": 0.06,
-                                 "effect": "the thinnest strand of a lumpy section: a lump narrower is left out by "
-                                           "its own height (assumed: the drone's arms and the fiber's coil do not "
-                                           "fit a groove under 12 cm)"},
+                           "effect": "a segment's rings lie within this of its round capsule, and within half the "
+                                     "radius on a thin member (the spec's 3 cm)"},
     "wood.max_len_m": {"type": "float", "range": (0.2, 5.0), "default": 2.0,
                        "effect": "longest capsule (published: V01's trunk capsules per 1-2 m)"},
     "wood.min_radius_m": {"type": "float", "range": (0.001, 0.05), "default": 0.005,
@@ -222,15 +215,13 @@ def build(root, asset_id, entry, variant, params):
             before = nodes[member["nodes"][-2]]["centre"]
             tip = max((wpoints[v] for v in vertices_of.get(member["nodes"][-1], [])),
                       key=lambda p: (math.dist(p, before), p), default=None)
-        fitted = plant.fit_capsules(nodes, member, w["max_len_m"], w["min_radius_m"], w["section_tol_m"],
-                                    w["strand_reach_m"], w["strand_min_radius_m"], tip)
+        fitted = plant.fit_capsules(nodes, member, w["max_len_m"], w["min_radius_m"], w["section_tol_m"], tip)
         for n in member["nodes"][1:]:
             member_of[n] = m
         if fitted:
-            for k, segment in enumerate(fitted):
-                for a, b, r in segment:
-                    capsules.append({"a": a, "b": b, "r": r, "member": m, "last": k == len(fitted) - 1,
-                                     "free_tip": member["free_tip"]})
+            for k, (a, b, r) in enumerate(fitted):
+                capsules.append({"a": a, "b": b, "r": r, "member": m, "last": k == len(fitted) - 1,
+                                 "free_tip": member["free_tip"]})
         else:
             twigs.append(member)
     capsuled = {c["member"] for c in capsules}
@@ -727,10 +718,10 @@ def main(argv=None):
 def audit_wood(bundle, data):
     """(problems, lines): the wood capsules against the faces of the members they follow (design 4), reported:
     lib.audit.run (AST-05) on a metadata of those capsules over a mesh of those faces, planted, both ways unsigned:
-    its count over 5 cm, the farthest capsule surface from the mesh, the farthest wood from every capsule (a lobe
-    no strand reaches, a root flare), and the spec's measure on the capsules of members 5 cm or more across (a
-    strand under a lobe counts as far as it lies under it). Nothing is refused here: the scanned wood's lobes are a
-    measured deviation the design records (risk 6). The sprays' branches follow no wood face and are not in it."""
+    its count over 5 cm, the farthest capsule surface from the mesh, the farthest wood from every capsule, and the
+    spec's measure on the capsules of members 5 cm or more across. Nothing is refused here: the lobes of scanned
+    wood and root flares, which a round capsule stands for by their mean, are a measured deviation the design
+    records (risk 6). The sprays' branches follow no wood face and are not in it."""
     faces = bundle.get("capsuled_faces")
     if not faces:
         return [], ["audit: no wood capsules"]

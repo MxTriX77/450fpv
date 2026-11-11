@@ -11,8 +11,8 @@ every `step` of that distance cut the triangles in rings. A ring is a node: its 
 its crossing segments, its radius their mean distance from it, its points the crossings. A ring's parent is the
 ring one level below that the band between them joins it to. The node tree splits into members at every fork; a
 member is cut into the longest segments (greedy, at most `max_len`) whose rings' points lie within `tol` of one
-round capsule, or, for a section that is not round (a fluted trunk, a merged fork), within `reach` outside parallel
-strands inscribed in it (`section`). A member thinner than `min_radius` gets no capsule: it is a twig,
+round capsule; a section that is not round even over one step (scanned wood's lobes, a merged fork, a root flare)
+takes the capsule of its mean over a few steps (`fit_capsules`). A member thinner than `min_radius` gets no capsule: it is a twig,
 under the shell.
 
 Foliage (design 5): every triangle of a card slot sampled on a barycentric lattice at most `spacing` apart, a sample
@@ -151,8 +151,7 @@ def skeleton(points, tris, step):
         distance = _geodesic(points, [tris[i] for i in system], sources)
         root = len(nodes)
         nodes.append({"centre": tuple(sum(points[v][a] for v in sources) / len(sources) for a in range(3)),
-                      "radius": 0.0, "parent": None, "system": k, "level": -1, "ring": [points[v] for v in sources],
-                      "edges": []})
+                      "radius": 0.0, "parent": None, "system": k, "level": -1, "ring": [points[v] for v in sources]})
         _level_rings(points, [tris[i] for i in system], distance, step, root, k, nodes, vertex_node)
     return nodes, vertex_node
 
@@ -226,15 +225,14 @@ def _level_rings(points, tris, distance, step, root, system, nodes, vertex_node)
         if length.get(r, 0.0) <= 0:
             continue
         c = tuple(centre_sum[r][i] / length[r] for i in range(3))
-        spread, edges = 0.0, []
+        spread = 0.0
         for a, b in segments[r[0]]:
             if ring_of[a] == r:
                 pa, pb = crossings[a], crossings[b]
                 spread += _dist(_lerp(pa, pb, 0.5), c) * _dist(pa, pb)
-                edges.append((pa, pb))
         node_of[r] = len(nodes)
         nodes.append({"centre": c, "radius": spread / length[r], "parent": None, "system": system, "level": r[0],
-                      "ring": [crossings[key] for key in rings[r]], "edges": edges})
+                      "ring": [crossings[key] for key in rings[r]]})
     # parents: rings of consecutive levels joined through the band between them
     band = _Union()
     vertex_band = {}
@@ -331,16 +329,15 @@ def members(nodes):
     return out
 
 
-def fit_capsules(nodes, member, max_len, min_radius, tol, reach, strand_min, tip=None):
-    """The segments along one member, each a list of capsules [(a, b, radius)] (one round capsule, or a section's
-    strands), or [] for a twig (mean ring radius under min_radius). The fork node the member starts at lends its
-    centre, not its ring; a member leaving a system's root starts at its first ring. `tip`, a free tip's farthest
-    vertex, extends the member so its last cap ends there: the
-    last ring stands up to a step short of it. Each segment runs from its start ring's centre to the farthest ring
-    centre (at most max_len away, and no farther than two failures past the last success) whose rings `section`
-    holds as its first step is held: within tol both ways by one round capsule, or, where the first step is not
-    round, by strands leaving no point farther outside than reach or the first step's own residual; a run of one
-    step is taken as it is."""
+def fit_capsules(nodes, member, max_len, min_radius, tol, tip=None):
+    """The capsules [(a, b, radius)] along one member, one per segment, or [] for a twig (mean ring radius under
+    min_radius). The fork node the member starts at lends its centre, not its ring; a member leaving a system's root
+    starts at its first ring. `tip`, a free tip's farthest vertex, extends the member so its last cap ends there:
+    the last ring stands up to a step short of it. Each segment's capsule runs from ring centre to ring centre at
+    its rings' mean distance from that axis (`round_capsule`). A round tube's segment is the longest (at most
+    max_len, no farther than two failures past the last success) whose rings lie within tol of its capsule, and
+    within THIN_SHARE of its radius on a thin member; where even one step is not that round (scanned wood's lobes,
+    a merged fork, a root flare) the segment spans LUMPY_SPAN steps and its capsule stands for the section's mean."""
     chain = member["nodes"]
     radii = [nodes[i]["radius"] for i in chain[1:]]
     if not radii or sum(radii) / len(radii) < min_radius:
@@ -348,40 +345,36 @@ def fit_capsules(nodes, member, max_len, min_radius, tol, reach, strand_min, tip
     if nodes[chain[0]]["parent"] is None:  # from a system's root: its first ring, not the root band's mean
         chain = chain[1:]                   # (spread roots or an attachment vertex), which the cap reaches past
         if len(chain) < 2:
-            return [[(nodes[chain[0]]["centre"], nodes[chain[0]]["centre"], max(radii[0], min_radius))]]
+            c = nodes[chain[0]]["centre"]
+            return [(c, c, max(radii[0], min_radius))]
     centres = [nodes[i]["centre"] for i in chain]
     rings = [[]] + [nodes[i]["ring"] for i in chain[1:]]
-    edges = [[]] + [nodes[i]["edges"] for i in chain[1:]]
     if tip is not None and len(centres) >= 2:
         d = _sub(tip, centres[-1])
         length = math.sqrt(_dot(d, d))
         if length > radii[-1]:
             centres.append(_lerp(centres[-1], tip, (length - radii[-1]) / length))
             rings.append([])
-            edges.append([])
 
     def fit(i, j):
-        middle = max(range(max(i, 1), j + 1), key=lambda k: (len(edges[k]), -k)) if j >= 1 else i
-        return section([p for ring in rings[i:j + 1] for p in ring], edges[middle], centres[i], centres[j], tol,
-                       reach, min_radius, strand_min)
+        return round_capsule([p for ring in rings[i:j + 1] for p in ring], centres[i], centres[j], min_radius)
 
     out, i = [], 0
     while i < len(centres) - 1:
-        first, residual = fit(i, i + 1)
-        round_tube = len(first) == 1 and residual <= tol  # strands only where a step is not round
-        if not round_tube:  # a lumpy section: strands over STRAND_SPAN steps, whatever they leave
-            j = min(i + STRAND_SPAN, len(centres) - 1)
-            out.append(fit(i, j)[0] if j > i + 1 else first)
+        capsule, residual = fit(i, i + 1)
+        bound = min(tol, THIN_SHARE * capsule[2])
+        if residual > bound:  # not round even over one step: the section's mean over LUMPY_SPAN steps
+            j = min(i + LUMPY_SPAN, len(centres) - 1)
+            out.append(fit(i, j)[0])
             i = j
             continue
-        bound = tol
-        best, misses = (i + 1, first), 0
+        best, misses = (i + 1, capsule), 0
         for j in range(i + 2, len(centres)):
             if _dist(centres[i], centres[j]) > max_len or misses >= 2:
                 break
-            capsules, residual = fit(i, j)
-            if residual <= bound and (len(capsules) == 1) == round_tube:
-                best, misses = (j, capsules), 0
+            capsule, residual = fit(i, j)
+            if residual <= min(tol, THIN_SHARE * capsule[2]):
+                best, misses = (j, capsule), 0
             else:
                 misses += 1
         out.append(best[1])
@@ -389,82 +382,26 @@ def fit_capsules(nodes, member, max_len, min_radius, tol, reach, strand_min, tip
     return out
 
 
-STRAND_GRID_M = 0.03   # strand centres tried on a 3 cm grid across a section (assumed: under the tolerance)
-THIN_SHARE = 0.5       # a thin member's round capsule holds its rings within half its radius (assumed), so a bent
-                       # 2 cm stem is cut where it bends rather than spanned by a chord its own width off it
-STRAND_MAX = 8         # strands at most per segment (assumed: the narrow phase's cost on a thick trunk)
-STRAND_SPAN = 3        # a lumpy section's segments span this many ring steps (assumed: 0.3 m at the 0.1 m step)
+THIN_SHARE = 0.5   # a thin member's capsule holds its rings within half its radius (assumed), so a bent 2 cm stem is
+                   # cut where it bends rather than spanned by a chord its own width off it
+LUMPY_SPAN = 3     # a section no round capsule follows spans this many ring steps (assumed: 0.3 m at the 0.1 m step)
 
 
-def section(ring_points, ring_edges, a, b, tol, reach, min_radius, strand_min):
-    """(capsules, residual): the capsules [(a', b', r)] along the segment a-b that stand for its rings' points, and
-    the farthest a point lies outside them. One capsule round the axis at the points' mean distance when every point
-    lies within tol of it, and within half its radius on a thin member (a round tube; the residual then counts both
-    ways); else strands parallel to the axis:
-    each the largest circle round a point of a 3 cm grid across the section, inside the ring `ring_edges` draws
-    (crossing number), that holds no ring point and is at least strand_min in radius; up to STRAND_MAX of them,
-    greedily the one bringing most points within reach outside the union. Inscribed, the strands stand inside the
-    wood: their surface is on it or under it, never off it; a bump of the section narrower than the smallest strand
-    is left out, by its own height at most (the residual)."""
+def round_capsule(ring_points, a, b, min_radius):
+    """((a, b, r), residual): the capsule round the segment a-b at its rings' points' mean distance from the axis,
+    and the farthest any of them lies from its surface, either way."""
     t = _sub(b, a)
     length = math.sqrt(_dot(t, t))
     if not ring_points or length == 0:
-        return [(a, b, min_radius)], 0.0
+        return (a, b, min_radius), 0.0
     t = tuple(x / length for x in t)
-    helper = (1.0, 0.0, 0.0) if abs(t[0]) < 0.9 else (0.0, 1.0, 0.0)
-    u = _cross(t, helper)
-    un = math.sqrt(_dot(u, u))
-    u = tuple(x / un for x in u)
-    v = _cross(t, u)
-    flat = lambda p: (_dot(_sub(p, a), u), _dot(_sub(p, a), v))
-    pts = [flat(p) for p in ring_points]
-    dist = [math.hypot(x, y) for x, y in pts]
+    dist = []
+    for p in ring_points:
+        d = _sub(p, a)
+        along = _dot(d, t)
+        dist.append(math.sqrt(max(_dot(d, d) - along * along, 0.0)))
     r = max(sum(dist) / len(dist), min_radius)
-    round_residual = max(abs(d - r) for d in dist)
-    if round_residual <= min(tol, THIN_SHARE * r) or not ring_edges:
-        return [(a, b, r)], round_residual
-    polygon = [(flat(p), flat(q)) for p, q in ring_edges]
-    lo = [min(x for x, _ in pts), min(y for _, y in pts)]
-    hi = [max(x for x, _ in pts), max(y for _, y in pts)]
-    nx = max(1, int((hi[0] - lo[0]) / STRAND_GRID_M))
-    ny = max(1, int((hi[1] - lo[1]) / STRAND_GRID_M))
-    candidates = []
-    for i in range(nx + 1):
-        for j in range(ny + 1):
-            x, y = lo[0] + (hi[0] - lo[0]) * i / nx, lo[1] + (hi[1] - lo[1]) * j / ny
-            if not _inside(x, y, polygon):
-                continue
-            cr = min(math.hypot(px - x, py - y) for px, py in pts)
-            if cr >= strand_min:
-                candidates.append((x, y, cr))
-    if not candidates:
-        return [(a, b, r)], round_residual
-    gaps = [[max(0.0, math.hypot(px - x, py - y) - cr) for px, py in pts] for x, y, cr in candidates]
-    left, chosen = set(range(len(pts))), []
-    while left and len(chosen) < STRAND_MAX:
-        k = max(range(len(candidates)),
-                key=lambda k: (sum(1 for q in left if gaps[k][q] <= reach), candidates[k][2], -k))
-        gain = {q for q in left if gaps[k][q] <= reach}
-        if not gain:
-            break
-        chosen.append(k)
-        left -= gain
-    residual = max(min(gaps[k][q] for k in chosen) for q in range(len(pts)))
-    out = []
-    for k in sorted(chosen):
-        x, y, cr = candidates[k]
-        off = tuple(x * u[m] + y * v[m] for m in range(3))
-        out.append((tuple(a[m] + off[m] for m in range(3)), tuple(b[m] + off[m] for m in range(3)), cr))
-    return out, residual
-
-
-def _inside(x, y, polygon):
-    """Whether (x, y) lies inside the closed rings of 2D segments `polygon` (crossing number)."""
-    inside = False
-    for (x0, y0), (x1, y1) in polygon:
-        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
-            inside = not inside
-    return inside
+    return (a, b, r), max(abs(x - r) for x in dist)
 
 
 def _cross(a, b):
