@@ -484,8 +484,9 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
         /// w4a-farmland-vegetation's crown rows: each farmland tree family's metadata alone on a meadow plane at the origin (a world
         /// of one placement, as the map export will place it), the legs-on drone 35 m south of it with the airframe's effects on, held
         /// at the middle height of the crown's wind box and flown north at 10 m/s into the crown, as the test range's crown row flies
-        /// V01_L. A row passes when the drone meets the crown's twig shell (the crown is felt) without a tunnel or a lost drone; it
-        /// prints the crown's work: its twig contacts and the impulse they took, and the prop strikes with what struck them.
+        /// V01_L. A row passes when the drone's first touch is that tree (the crown is felt: its twig shell, or a dead pine's bare
+        /// wood) with no tunnel and no contact pair lost (ContactsLost: more than PairsPerShape at once); it prints the crown's
+        /// work: its twig contacts and the impulse they took, and the prop strikes with what struck them.
         /// </summary>
         static void FarmlandCrowns(DroneSpec spec, MaterialRow[] materials, ulong hash)
         {
@@ -516,7 +517,8 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                     if (e.Kind == EventKind.ContactBroken && e.Material == twig) impulse += e.B;
                     if (e.Kind == EventKind.PropStrike) { strikes++; struck.Add(e.Material > 0 ? names[e.Material - 1] : "ground"); }
                 }
-                Row($"the farmland crown ({variant}, 10 m/s at {height:F2} m), felt, no tunnel", twigContacts > 0 && p.Tunnels == 0 && p.Lost == 0,
+                Row($"the farmland crown ({variant}, 10 m/s at {height:F2} m), felt, no tunnel, no pair lost",
+                    p.Touch && p.FirstObject == variant && p.Tunnels == 0 && p.Lost == 0,
                     $"{twigContacts} twig contacts taking {impulse:F2} N·s, {strikes} prop strikes ({(strikes > 0 ? string.Join(", ", struck) : "none")}); " + Strike(p));
             }
         }
