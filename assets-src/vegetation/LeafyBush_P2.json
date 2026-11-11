@@ -1,0 +1,59 @@
+{
+  "source": {
+    "prefab": "Assets/Farm_land/Prefabs/Bushes/LeafyBush_P2.prefab",
+    "prefab_sha256": "b30eb1b00aecea9398bbb36d365b3e3553efe4e12b763db37b8dd0c39254458c",
+    "mesh_file": "Assets/Art/Environment/_ExternalContent/Quixel/Megascans/Plants/Bush_qilgP2/Bush_qilgP2_6x6x4.FBX",
+    "mesh_sha256": "1b6416f143072317a90d4fe6571c516d66e520d4c3a6880f835fd32eed82ce8d",
+    "mesh_name": ""
+  },
+  "slots": [
+    {
+      "material": "Bush_Scots_Pine_a_bark",
+      "role": "wood",
+      "physics": "bark"
+    },
+    {
+      "material": "Bush_Plant_Perennials_qilgP2",
+      "role": "foliage",
+      "material_sha256": "2f7c5ea5fdab2bbb8f700ff87632a01f5d432d192901b9b1acaa779b9ccb042a",
+      "base_map": "Assets/Art/Environment/_ExternalContent/Quixel/Megascans/Plants/Bush_qilgP2/Materials/Plant_Perennials_qilgP2_Albedo_Opacity.tif",
+      "base_map_sha256": "a4230742682a2d8985a87f9114474b3349b1705172e68f645bd88f2aafae1c06",
+      "sprays": "hooks"
+    }
+  ],
+  "wood": {
+    "step_m": 0.1,
+    "section_tol_m": 0.03,
+    "strand_reach_m": 0.04,
+    "strand_min_radius_m": 0.06,
+    "max_len_m": 2.0,
+    "min_radius_m": 0.005
+  },
+  "foliage": {
+    "spacing_m": 0.04,
+    "reach_m": 0.1,
+    "depths_m": [
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.5
+    ],
+    "max_radius_m": 1.0
+  },
+  "sprays": {
+    "min_length_m": 1.0,
+    "slenderness": 70.0,
+    "max_radius_m": 0.03,
+    "capsule_m": 2.0
+  },
+  "wind": {
+    "column": false
+  },
+  "lod": {
+    "fov_deg": 60.0
+  }
+}

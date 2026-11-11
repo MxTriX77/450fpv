@@ -1,0 +1,59 @@
+{
+  "source": {
+    "prefab": "Assets/Farm_land/Prefabs/Trees/Pine006_01.prefab",
+    "prefab_sha256": "97c1e1cde759b4edfdf3cb0f4a29f3dead500368e72ebeb14ca9d73d5aa7f7a9",
+    "mesh_file": "Assets/Art/Environment/Vegetation/Trees/Pines/Pine_006/pine_006_01.FBX",
+    "mesh_sha256": "f8e0fcebd3ce39cdbfd1b0653ba38fd63e635de3ed0a070f28a589ed2ebd0527",
+    "mesh_name": ""
+  },
+  "slots": [
+    {
+      "material": "Pine006_Trunk",
+      "role": "wood",
+      "physics": "bark"
+    },
+    {
+      "material": "Pine006_Branches",
+      "role": "foliage",
+      "material_sha256": "e9d8f99a668c5d9b151f0660485f0db794b6d84d27909f95a0dd9750aa137aaf",
+      "base_map": "Assets/Art/Environment/Vegetation/Trees/Pines/Pine_004_new/Materials/branches_albedo.srgb.dds.asset",
+      "base_map_sha256": "84ab60e71889a1b0220a4c3e075a7898e2d2420edd900786b7025c4ae4988486",
+      "sprays": "branches"
+    }
+  ],
+  "wood": {
+    "step_m": 0.1,
+    "section_tol_m": 0.03,
+    "strand_reach_m": 0.04,
+    "strand_min_radius_m": 0.06,
+    "max_len_m": 2.0,
+    "min_radius_m": 0.005
+  },
+  "foliage": {
+    "spacing_m": 0.04,
+    "reach_m": 0.1,
+    "depths_m": [
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.5
+    ],
+    "max_radius_m": 1.0
+  },
+  "sprays": {
+    "min_length_m": 1.0,
+    "slenderness": 70.0,
+    "max_radius_m": 0.03,
+    "capsule_m": 2.0
+  },
+  "wind": {
+    "column": true
+  },
+  "lod": {
+    "fov_deg": 60.0
+  }
+}

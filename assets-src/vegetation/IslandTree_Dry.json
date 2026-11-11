@@ -1,0 +1,67 @@
+{
+  "source": {
+    "prefab": "Assets/Farm_land/Prefabs/Trees/IslandTree_Dry.prefab",
+    "prefab_sha256": "79b40b002844dc7d4e28148fe4d0ad7c3fb6278b49a62cef61fa44a2e96a785e",
+    "mesh_file": "Assets/Farm_land/Models/island_tree_reduced.fbx",
+    "mesh_sha256": "6e6d13c9dfe5d7904765ae5ac9439dc967222d40e561013039087d6d45dcc70a",
+    "mesh_name": "island_tree_dry_LOD0"
+  },
+  "slots": [
+    {
+      "material": "IslandTree_Bark",
+      "role": "wood",
+      "physics": "bark"
+    },
+    {
+      "material": "IslandTree_Twigs",
+      "role": "foliage",
+      "material_sha256": "c34bef43e162563b11d2c62a81464025212cec84c722dff59449579b67cc929d",
+      "base_map": "Assets/Farm_land/Materials/island_tree_01_4k/textures/island_tree_01_branches_diff_4k.png",
+      "base_map_sha256": "b503cc489c17e280f5523a8092d0c02baf40e002787ff4b817ee672de250ca8d",
+      "sprays": "hooks"
+    },
+    {
+      "material": "IslandTree_DryLeaves",
+      "role": "foliage",
+      "material_sha256": "56a519022e6de0bd030d0c66ae2b4070c317b1ea51a05e82e4018c7e04f149ce",
+      "base_map": "Assets/Farm_land/Models/island_tree_dry_leaves.png",
+      "base_map_sha256": "563942a2352de76a9f9a266562654ebae80a5ce14d88c2d82c01bd04b9f211f6",
+      "sprays": "none"
+    }
+  ],
+  "wood": {
+    "step_m": 0.1,
+    "section_tol_m": 0.03,
+    "strand_reach_m": 0.04,
+    "strand_min_radius_m": 0.06,
+    "max_len_m": 2.0,
+    "min_radius_m": 0.005
+  },
+  "foliage": {
+    "spacing_m": 0.04,
+    "reach_m": 0.1,
+    "depths_m": [
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.5
+    ],
+    "max_radius_m": 1.0
+  },
+  "sprays": {
+    "min_length_m": 1.0,
+    "slenderness": 70.0,
+    "max_radius_m": 0.03,
+    "capsule_m": 2.0
+  },
+  "wind": {
+    "column": true
+  },
+  "lod": {
+    "fov_deg": 60.0
+  }
+}
