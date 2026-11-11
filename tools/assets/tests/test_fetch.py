@@ -6,6 +6,8 @@ import io
 import json
 import zipfile
 
+import pytest
+
 import fetch
 from conftest import MAPS, SET_ID, THIRD_PARTY, content, make_root, run
 
@@ -69,6 +71,53 @@ def test_credits_mismatch_flagged_and_regenerated(root, capsys):
     assert credits.read_text(encoding="utf-8") == generated
     credits.unlink()
     assert run("--verify", "--root", root) == 1
+
+
+def add_local_pack(root, **changes):
+    """Appends a local-only entry (D-089) pinning one file in the fake root's vendor/ store, and rewrites CREDITS.md."""
+    name, data = "Models/house.fbx", content("house")
+    (root / "vendor" / "pack" / "Models").mkdir(parents=True)
+    (root / "vendor" / "pack" / name).write_bytes(data)
+    entry = {"source": "unity-asset-store", "id": "pack", "title": "A Pack", "licence": "Unity-EULA",
+             "author": "A. Publisher", "page": "https://assetstore.unity.com/packages/slug/1", "local_only": True,
+             "destination": "vendor/pack", "files": [{"name": name, "bytes": len(data),
+                                                      "sha256": hashlib.sha256(data).hexdigest()}]}
+    entry.update(changes)
+    data = manifest(root)
+    data["entries"].append(entry)
+    (root / "tools" / "assets" / "manifest.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return run("--credits", "--root", root)
+
+
+def test_local_only_pack_verifies_and_is_credited(root, capsys):
+    assert add_local_pack(root) == 0
+    assert run("--verify", "--root", root) == 0
+    credits = (root / "CREDITS.md").read_text(encoding="utf-8")
+    assert "| A Pack | Standard Unity Asset Store EULA | A. Publisher |" in credits
+    assert "`vendor/pack/` (1 files, 0.0 MB, *local only*)" in credits
+    assert "Fake Set (1k)" in credits and f"`{SET_DIR.as_posix()}/` (2 files, 0.0 MB) |" in credits
+
+
+def test_local_only_pack_is_checked_but_never_fetched(root, capsys):
+    assert add_local_pack(root) == 0
+    path = root / "vendor" / "pack" / "Models" / "house.fbx"
+    path.write_bytes(b"changed")
+    assert run("--verify", "--root", root) == 1
+    assert "vendor/pack/Models/house.fbx: SHA-256 differs" in capsys.readouterr().out
+    path.unlink()
+    assert run("--verify", "--root", root) == 1
+    assert run("--all", "--root", root) == 1  # the free set is complete, so nothing is downloaded
+    assert capsys.readouterr().out.count("missing from the local store; run tools/vendor/link.ps1") == 2
+
+
+@pytest.mark.parametrize("changes, refusal", [
+    ({"local_only": False}, "licence 'Unity-EULA' is not free"),
+    ({"destination": f"{THIRD_PARTY.as_posix()}/pack"}, "a local-only entry lives in the local store"),
+    ({"licence": "Proprietary"}, "unknown licence 'Proprietary'"),
+])
+def test_local_only_rules_refuse(root, capsys, changes, refusal):
+    assert add_local_pack(root, **changes) == 1
+    assert refusal in capsys.readouterr().out
 
 
 def test_fetch_restores_a_missing_file_and_refuses_a_changed_upstream(tmp_path, server, capsys):

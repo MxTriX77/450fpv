@@ -1,10 +1,15 @@
 """Pins every third-party file (CC0 or CC-BY only, D-003 / SEC-04) by SHA-256 and fetches it. Stdlib only.
 
+Local-only entries (`"local_only": true`, D-089) pin the packs of the git-ignored local store vendor/: files that are
+never pushed, so they may carry a licence that forbids redistribution. They are never fetched; --verify checks them
+like any other file, so a worktree links the store first (tools/vendor/link.ps1).
+
     python tools/assets/fetch.py <id>...                 fetch the missing files of these manifest entries
     python tools/assets/fetch.py --all                   fetch the missing files of every entry
     python tools/assets/fetch.py --verify                offline check: every file present and matching its pin,
                                                          no stray file under Art/ThirdParty/ (Unity .meta excepted),
-                                                         CREDITS.md current, every licence free; exit 1 on any problem
+                                                         CREDITS.md current, every pushed licence free; exit 1 on any
+                                                         problem
     python tools/assets/fetch.py --credits               rewrite CREDITS.md from the manifest
     python tools/assets/fetch.py --add polyhaven:<id> --res 1k|2k|4k [--displacement]
     python tools/assets/fetch.py --add ambientcg:<ID> --res 1k|2k|4k [--displacement]
@@ -41,7 +46,10 @@ AMBIENTCG_API = "https://ambientcg.com/api/v2/full_json"
 TEXTURECAN = "https://www.texturecan.com"
 ALLOWED_HOSTS = {"api.polyhaven.com", "dl.polyhaven.org", "ambientcg.com", "www.texturecan.com"}
 LICENCES = {"CC0": ("CC0 1.0", "https://creativecommons.org/publicdomain/zero/1.0/"),
-            "CC-BY": ("CC-BY 4.0", "https://creativecommons.org/licenses/by/4.0/")}
+            "CC-BY": ("CC-BY 4.0", "https://creativecommons.org/licenses/by/4.0/"),
+            "Unity-EULA": ("Standard Unity Asset Store EULA", "https://unity.com/legal/as-terms")}
+FREE_LICENCES = ("CC0", "CC-BY")  # the only ones a pushed entry may carry; the rest are local-only (D-089)
+LOCAL_STORE = "vendor"
 SOURCES = ("polyhaven", "ambientcg", "texturecan")
 MAPS = ("diffuse", "normal", "roughness", "ao", "opacity", "displacement")
 OPTIONAL_MAPS = ("ao", "opacity")  # taken when the set has them; displacement only on request
@@ -97,8 +105,15 @@ def load_manifest(root):
     with open(os.path.join(root, MANIFEST), encoding="utf-8") as f:
         manifest = json.load(f)
     for entry in manifest["entries"]:
-        if entry["licence"] not in LICENCES:
-            raise FetchError(f"{key(entry)}: licence {entry['licence']!r} is not free (only CC0 or CC-BY, D-003)")
+        if entry.get("local_only"):
+            if entry["licence"] not in LICENCES:
+                raise FetchError(f"{key(entry)}: unknown licence {entry['licence']!r}")
+            if not entry["destination"].startswith(LOCAL_STORE + "/"):
+                raise FetchError(f"{key(entry)}: a local-only entry lives in the local store, {LOCAL_STORE}/")
+            continue
+        if entry["licence"] not in FREE_LICENCES:
+            raise FetchError(f"{key(entry)}: licence {entry['licence']!r} is not free (only CC0 or CC-BY, D-003); "
+                             f"a pack that can't be pushed is local-only (D-089)")
         if entry["source"] not in SOURCES:
             raise FetchError(f"{key(entry)}: unknown source {entry['source']!r}")
         expected = f"{THIRD_PARTY}/{entry['source']}/{entry['id']}".replace(os.sep, "/")
@@ -127,6 +142,8 @@ def fetch_entry(root, entry):
     missing = [f for f in entry["files"] if not os.path.isfile(file_path(root, entry, f))]
     if not missing:
         return []
+    if entry.get("local_only"):
+        return [p for file in missing for p in check_file(root, entry, file)]
     problems = []
     if "archive" in entry:
         archive = os.path.join(root, entry["destination"].replace("/", os.sep), entry["archive"]["name"] + ".part")
@@ -156,6 +173,8 @@ def fetch_entry(root, entry):
 def check_file(root, entry, file):
     path = file_path(root, entry, file)
     if not os.path.isfile(path):
+        if entry.get("local_only"):
+            return [f"{relpath(root, path)}: missing from the local store; run tools/vendor/link.ps1 (never fetched)"]
         return [f"{relpath(root, path)}: missing; run fetch.py {key(entry)}"]
     if sha256(path) != file["sha256"]:
         return [f"{relpath(root, path)}: SHA-256 differs from its pin"]
@@ -190,7 +209,9 @@ def credits_text(manifest):
     lines = [
         "# Credits",
         "",
-        "Third-party files in this repository, all free: CC0 or CC-BY (D-003, SEC-04). Nothing here comes from the",
+        "Third-party files the project uses. Those in this repository are all free: CC0 or CC-BY (D-003, SEC-04).",
+        "Those marked *local only* are never pushed (D-089): they live in the git-ignored local store `vendor/`, linked",
+        "into each checkout by `tools/vendor/link.ps1`, and the player build includes them. Nothing here comes from the",
         "pilot's references.",
         "",
         "Generated by `python tools/assets/fetch.py --credits` from `tools/assets/manifest.json`, which pins every file",
@@ -203,9 +224,11 @@ def credits_text(manifest):
     for e in manifest["entries"]:
         page = urllib.parse.urlparse(e["page"])
         size_mb = sum(f["bytes"] for f in e["files"]) / 1e6
-        lines.append(f"| {e['title']} ({e['resolution']}) | {LICENCES[e['licence']][0]} | {e['author']} "
+        title = f"{e['title']} ({e['resolution']})" if "resolution" in e else e["title"]
+        local = ", *local only*" if e.get("local_only") else ""
+        lines.append(f"| {title} | {LICENCES[e['licence']][0]} | {e['author']} "
                      f"| [{page.hostname}{page.path}]({e['page']}) "
-                     f"| `{e['destination']}/` ({len(e['files'])} files, {size_mb:.1f} MB) |")
+                     f"| `{e['destination']}/` ({len(e['files'])} files, {size_mb:.1f} MB{local}) |")
     lines += ["", "Licences: " + ", ".join(f"[{name}]({url})" for name, url in LICENCES.values()) +
               ". CC0 needs no attribution; the authors are named as thanks."]
     return "\n".join(lines) + "\n"
