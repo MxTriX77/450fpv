@@ -1,12 +1,18 @@
 # Build the newest playable 450fpv in its own worktree, with the full compile log.
 # What it builds comes from tools/build_latest.json on origin/unity/main, so a stale checkout still builds the newest state.
 # It removes its worktree afterwards, so only the codebase and unity\Builds\Latest stay on disk; -KeepWorktree keeps it for a faster next build.
-# Usage: pwsh -File tools/build_latest.ps1 [-Repo C:\.dev\450fpv] [-NoSmoke] [-DryRun] [-KeepWorktree]
+# A tree with tools/vendor/link.ps1 gets the vendor store linked after its checkout (the farmland, D-089), and loses the links
+# before the next checkout and before the worktree is removed, so nothing is ever deleted through a junction into the store.
+# -Plan builds from that plan file instead of origin/unity/main's, and -Out puts the build there instead of unity\Builds\Latest:
+# to try a branch without touching the pilot's build.
+# Usage: pwsh -File tools/build_latest.ps1 [-Repo C:\.dev\450fpv] [-NoSmoke] [-DryRun] [-KeepWorktree] [-Plan <json>] [-Out <folder>]
 param(
     [string]$Repo = "C:\.dev\450fpv",
     [switch]$NoSmoke,
     [switch]$DryRun,
-    [switch]$KeepWorktree
+    [switch]$KeepWorktree,
+    [string]$Plan,
+    [string]$Out
 )
 $ErrorActionPreference = "Stop"
 $started = Get-Date
@@ -14,9 +20,16 @@ $started = Get-Date
 function Step($text) { Write-Host ""; Write-Host "== $text" -ForegroundColor Cyan }
 function Fail($text) { Write-Host ""; Write-Host "BUILD FAILED: $text" -ForegroundColor Red; exit 1 }
 function Invoke-Git { & git -C $script:Here @args; if ($LASTEXITCODE -ne 0) { Fail "git $($args -join ' ') exited $LASTEXITCODE" } }
+# The vendor store's links in the worktree, by the tree's own tools/vendor/link.ps1; a tree without it has none to make.
+function Invoke-Link([switch]$Unlink) {
+    $linker = Join-Path $Worktree "tools\vendor\link.ps1"
+    if (-not (Test-Path $linker)) { Write-Host "no tools\vendor\link.ps1 in this tree: no store links"; return }
+    & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File $linker @(if ($Unlink) { "-Unlink" }) | Out-Host
+    if ($LASTEXITCODE -ne 0) { Fail "tools/vendor/link.ps1 $(if ($Unlink) { '-Unlink ' })exited $LASTEXITCODE in $Worktree" }
+}
 
 $Worktree = Join-Path (Split-Path $Repo -Parent) "450fpv-latest"
-$OutRoot = Join-Path $Repo "unity\Builds\Latest"
+$OutRoot = if ($Out) { $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out) } else { Join-Path $Repo "unity\Builds\Latest" }
 $LogDir = Join-Path $Repo "unity\Logs"
 $stamp = $started.ToString("yyyyMMdd-HHmmss")
 $UnityLog = Join-Path $LogDir "build-latest-$stamp.log"
@@ -25,8 +38,9 @@ $Unity = if ($env:UNITY) { $env:UNITY } else { "C:\Program Files\Unity\Hub\Edito
 Step "Fetch"
 $script:Here = $Repo
 Invoke-Git fetch --prune origin
-$planText = (& git -C $Repo show origin/unity/main:tools/build_latest.json 2>$null) -join "`n"
-if (-not $planText) { $planText = Get-Content -Raw (Join-Path $Repo "tools\build_latest.json"); Write-Host "note: latest.json is not on origin/unity/main yet; using the local copy" -ForegroundColor Yellow }
+$planText = if ($Plan) { Get-Content -Raw $Plan } else { (& git -C $Repo show origin/unity/main:tools/build_latest.json 2>$null) -join "`n" }
+if ($Plan) { Write-Host "note: the plan is $Plan, not origin/unity/main's" -ForegroundColor Yellow }
+elseif (-not $planText) { $planText = Get-Content -Raw (Join-Path $Repo "tools\build_latest.json"); Write-Host "note: latest.json is not on origin/unity/main yet; using the local copy" -ForegroundColor Yellow }
 $plan = $planText | ConvertFrom-Json
 if (-not $plan) { Fail "could not read tools/build_latest.json" }
 Write-Host "base:   $($plan.base) @ $(& git -C $Repo rev-parse --short origin/$($plan.base))"
@@ -37,6 +51,8 @@ Write-Host "about:  $($plan.contents)"
 Step "Worktree $Worktree"
 if (-not (Test-Path $Worktree)) {
     Invoke-Git worktree add --detach $Worktree "origin/$($plan.base)"
+} else {
+    Invoke-Link -Unlink # a kept worktree: the last tree's links go before its checkout, so a tree without them builds without them
 }
 $script:Here = $Worktree
 if (Test-Path (Join-Path $Worktree "unity\Temp\UnityLockfile")) {
@@ -62,6 +78,8 @@ foreach ($ref in $plan.merge) {
 Invoke-Git log --oneline -1
 Step "LFS"
 Invoke-Git lfs pull
+Step "Vendor store links"
+Invoke-Link
 
 Step "Machine"
 $power = (Get-CimInstance -Namespace root/wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue | Select-Object -First 1).PowerOnline
@@ -114,6 +132,7 @@ $exe = Join-Path $OutRoot $plan.exe
 
 if (-not $KeepWorktree) {
     Step "Clean up"
+    Invoke-Link -Unlink
     $script:Here = $Repo
     Invoke-Git worktree remove --force --force $Worktree
     Remove-Item -Force $UnityLog
