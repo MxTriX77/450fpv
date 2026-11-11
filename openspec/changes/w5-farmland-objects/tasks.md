@@ -4,7 +4,7 @@ Order: 1.1 now; 1.2 and 1.3 once W3 (`w3-farmland-ground`) has merged onto the l
 
 ## 1. Our objects in the farmland
 
-- [ ] 1.1 [asset-artist] Widen `E01_curving`'s filler band to at least 3.6 m (a half-width of at least 1.781 m about the centre line, the niches included) for the farmland's 0.977 m hole cells (W2 design §4, rules 2 and 3). Rebuild it with its generator. Its metadata, review sheet and trench physics rows stay true. Every other placement of E01 (the test range, the gallery) still validates. Checks: `python -m pytest tools`, the asset's review sheet, flightbench and worldbench goldens with any re-record audited case by case, `fetch.py --verify`, `precommit.py --tree HEAD`.
+- [x] 1.1 [asset-artist] Widen `E01_curving`'s filler band to at least 3.6 m (a half-width of at least 1.781 m about the centre line, the niches included) for the farmland's 0.977 m hole cells (W2 design §4, rules 2 and 3). Rebuild it with its generator. Its metadata, review sheet and trench physics rows stay true. Every other placement of E01 (the test range, the gallery) still validates. Checks: `python -m pytest tools`, the asset's review sheet, flightbench and worldbench goldens with any re-record audited case by case, `fetch.py --verify`, `precommit.py --tree HEAD`.
 - [ ] 1.2 [world-builder] Place our objects (D-090) in `maps/farmland/`:
   - one `E01_curving` per field F1–F11, at a seeded random spot and yaw, fully inside the field with a margin;
   - `H01_I`, `H01_D`, `R01_A` and `R01_F` in the village on free ground, clear of the ruins, debris, trees and the start point's footprint (D-092);
