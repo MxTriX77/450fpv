@@ -19,11 +19,14 @@ metres.
   plane (ascending offset) pairs with the nearest front plane within `max_thickness_m` covering the same pixel; a
   pixel left unpaired is a sheet: a slab of its part's `sheet_m` behind the face. A slab between two parts with
   different materials is layered: a part with `layer_m` (a lining: plaster on a log wall) takes that much from its
-  face, the other part the rest.
+  face, the other part the rest. With the air round the mesh (lib.air), a pair whose space is no closed cavity of its
+  own (a broken wall's siding and plaster, the outside reaching between them over the break) is two sheets instead,
+  open between them.
 - Cover: families run in order of area. Before an axis-aligned family pairs, the pixels of its planes that lie on or
   inside a box already made by an axis-aligned family (within `cover_tol_m`) are dropped: a sill's top is the wall's
   box, not a second slab.
-- Boxes: each slab region becomes rectangles: runs per row, rows merged while every run end stays within
+- Boxes: each slab region becomes rectangles (by rows or by columns, whichever needs fewer): runs per row, rows
+  merged while every run end stays within
   `merge_tol_m` either way of the group's (a diagonal edge, a gable's or a hip's, steps; the rectangle takes the
   mid of each end's spread, so an end lies at most `merge_tol_m` off the face). Rectangles under `min_box_m` both ways
   are dropped (raster noise). An axis-aligned family's box has the identity rotation.
@@ -136,10 +139,12 @@ def _nearest(normals, n):
     return max(range(len(normals)), key=lambda k: (abs(_dot(normals[k], n)), -k))
 
 
-def decompose(triangles, parts, settings, seed_families=None):
+def decompose(triangles, parts, settings, seed_families=None, air=None):
     """Boxes for `triangles` [(tri, outward normal, part index)]: a dict with "boxes" [{"center", "size",
     "rotation", "part", "family", "lo", "hi"}], "families" (the Family objects, rastered) and "regions" (per family,
-    the slab regions {(lo, hi, part): {row: bits}} before rectangles, which the wind volumes and gaps read)."""
+    the slab regions {(lo, hi, part): {row: bits}} before rectangles, which the wind volumes and gaps read: every
+    pair solid, the open ones too, so a wall's band spans both its skins). With `air` (lib.air.Air), a pair whose
+    space is no closed cavity of its own is two skins, each a sheet of its part behind its face, open between them."""
     r = settings["raster_m"]
     fams = families(triangles, settings["angle_tol_deg"], seed_families, settings.get("axis_dev_m", 0.0),
                     settings.get("axis_angle_deg"))
@@ -153,11 +158,11 @@ def decompose(triangles, parts, settings, seed_families=None):
         _resolve_overlaps(fam, parts)
         if fam.axis is not None:
             _drop_covered(fam, axis_boxes, r, settings["cover_tol_m"])
-        slabs = _pair(fam, parts, settings["max_thickness_m"])
-        regions.append(slabs)
+        slabs, shape = _pair(fam, parts, settings["max_thickness_m"], air, r)
+        regions.append(shape)
         for (lo, hi, pi), rows in slabs.items():
             tol = parts[pi].merge_tol_m if parts[pi].merge_tol_m is not None else settings["merge_tol_m"]
-            for rect in rectangles(rows, tol / r, settings["min_box_m"] / r):
+            for rect in rectangles_either_way(rows, tol / r, settings["min_box_m"] / r):
                 box = _box(fam, fi, rect, lo, hi, pi, r)
                 boxes.append(box)
                 if fam.axis is not None:
@@ -253,10 +258,14 @@ def _drop_covered(fam, boxes, r, tol):
                             rows[j] &= mask
 
 
-def _pair(fam, parts, t_max):
-    """The slab regions {(lo, hi, part): rows} of a family: back-front pairs per pixel, layered by material, then
-    the unpaired pixels as sheets behind their face."""
-    slabs = {}
+def _pair(fam, parts, t_max, air=None, r=None):
+    """The slab regions {(lo, hi, part): rows} of a family, for the boxes and for the shape: back-front pairs per
+    pixel, layered by material, then the unpaired pixels as sheets behind their face. With `air`, a pair that leaves
+    at least an air cell between the two faces' sheets is, at the pixels where the space between them is no closed
+    cavity of its own (lib.air.Air.open_bits), a sheet behind each face for the boxes, and still the pair for the
+    shape; a narrower one stays whole (a door leaf's open end: what is left between its sheets is no space the air
+    resolves)."""
+    slabs, shape = {}, {}
     backs = [p for p in fam.planes if p.side < 0]
     fronts = [p for p in fam.planes if p.side > 0]
     for B in backs:
@@ -265,21 +274,32 @@ def _pair(fam, parts, t_max):
                 continue
             if F.offset - B.offset > t_max:
                 break
+            hollow = air is not None and F.offset - B.offset >= (max(parts[pi].sheet_m for pi in B.parts)
+                                                                 + max(parts[pi].sheet_m for pi in F.parts) + air.cell)
             for j in list(B.rem):
                 m = B.rem[j] & F.rem.get(j, 0)
                 if not m:
                     continue
                 B.rem[j] &= ~m
                 F.rem[j] &= ~m
+                opened = air.open_bits(fam, j, m, B.offset, F.offset, r) if hollow else 0
                 for pb, rows_b in B.parts.items():
                     mb = m & rows_b.get(j, 0)
                     if not mb:
                         continue
+                    if mb & opened:
+                        _add(slabs, (B.offset, B.offset + parts[pb].sheet_m, pb), j, mb & opened)
                     for pf, rows_f in F.parts.items():
                         mbf = mb & rows_f.get(j, 0)
                         if mbf:
                             for lo, hi, pi in _layers(B.offset, F.offset, pb, pf, parts):
-                                _add(slabs, (lo, hi, pi), j, mbf)
+                                _add(shape, (lo, hi, pi), j, mbf)
+                                if mbf & ~opened:
+                                    _add(slabs, (lo, hi, pi), j, mbf & ~opened)
+                for pf, rows_f in F.parts.items():
+                    mf = m & opened & rows_f.get(j, 0)
+                    if mf:
+                        _add(slabs, (F.offset - parts[pf].sheet_m, F.offset, pf), j, mf)
     for P in fam.planes:
         for pi, rows in P.parts.items():
             t = parts[pi].sheet_m
@@ -288,7 +308,8 @@ def _pair(fam, parts, t_max):
                 m = bits & P.rem.get(j, 0)
                 if m:
                     _add(slabs, (lo, hi, pi), j, m)
-    return slabs
+                    _add(shape, (lo, hi, pi), j, m)
+    return slabs, shape
 
 
 def _layers(lo, hi, pb, pf, parts):
@@ -355,6 +376,23 @@ def rectangles(rows, tol_px, min_px):
     return rects
 
 
+def rectangles_either_way(rows, tol_px, min_px):
+    """rectangles() of the region by rows and by columns, whichever needs fewer (by rows on a tie): a long run whose
+    one end steps along a diagonal (a wall's broken side) is one rectangle and a staircase of narrow ones by columns,
+    where by rows it is a stack of full-width strips."""
+    by_rows = rectangles(rows, tol_px, min_px)
+    columns = {}
+    for j, bits in rows.items():
+        bit = span(j, j)
+        for i0, i1 in runs(bits):
+            for i in range(i0, i1 + 1):
+                columns[i] = columns.get(i, 0) | bit
+    by_columns = rectangles(columns, tol_px, min_px)
+    if len(by_columns) < len(by_rows):
+        return sorted(((i0, i1, j0, j1) for j0, j1, i0, i1 in by_columns), key=lambda q: (q[2], q[0]))
+    return by_rows
+
+
 def _runs(bits):
     runs, i = [], 0
     while bits:
@@ -389,7 +427,7 @@ def _box(fam, fi, rect, lo, hi, pi, r):
         rotation = quaternion_from_basis(fam.u, fam.v, fam.n)
         aabb = None
     return {"center": center, "size": tuple(size), "rotation": rotation, "part": pi, "family": fi,
-            "lo": lo, "hi": hi, "aabb": aabb, "rect": rect}
+            "lo": lo, "hi": hi, "aabb": aabb, "rect": rect, "normal": fam.n}
 
 
 def quaternion_from_basis(x, y, z):
@@ -419,8 +457,11 @@ def prune(boxes, material_of, tol, step=0.1, cell=0.5):
     material is dropped, smallest first (the raster's slivers beside a wall, a bevel's sliver on a sill): its surface
     is sampled on a lattice of at most `step` spacing, and each sample must lie inside another kept box of the same
     material grown by `tol`. A lining (another material) is never dropped for its core. A box that covers a dropped
-    one is kept from then on, so a chain of slivers (a spike's staircase) cannot erode away step by step. Returns the
-    kept boxes in their original order."""
+    one is kept from then on, so a chain of slivers (a spike's staircase) cannot erode away step by step. A box that
+    knows its slab's normal ("normal", as decompose makes them) is dropped only when, besides, the line along that
+    normal through each point of its footprint (its middle plane, sampled the same way) meets another kept box of its
+    material within `tol` past its faces: a strip of a sheet between two others that merely touch it would leave a
+    slit through the sheet, which a fiber passes. Returns the kept boxes in their original order."""
     order = sorted(range(len(boxes)), key=lambda i: _volume(boxes[i]))
     frames = [_frame(b) for b in boxes]
     grid = {}
@@ -446,9 +487,58 @@ def prune(boxes, material_of, tol, step=0.1, cell=0.5):
                 break
             cover.add(k)
         else:
+            n = boxes[i].get("normal")
+            if n is not None:
+                reach = tol + _half_along(f, n)
+                for p in _footprint_samples(f, n, step):
+                    k = next((k for k in candidates if _segment_meets(p, n, reach, frames[k])), None)
+                    if k is None:
+                        break
+                    cover.add(k)
+                else:
+                    n = None
+                if n is not None:
+                    continue
             removed.add(i)
             kept_for |= cover
     return [b for i, b in enumerate(boxes) if i not in removed]
+
+
+def _half_along(f, n):
+    return sum(abs(_dot(f["axes"][a], n)) * f["half"][a] for a in range(3))
+
+
+def _footprint_samples(f, n, step):
+    """The box's middle plane across `n` (one of its axes), sampled on a lattice of at most `step`."""
+    a = max(range(3), key=lambda k: abs(_dot(f["axes"][k], n)))
+    others = [k for k in range(3) if k != a]
+    grids = []
+    for k in others:
+        h = f["half"][k]
+        count = max(3, math.ceil(2 * h / step) + 1)
+        grids.append([-h + 2 * h * t / (count - 1) for t in range(count)])
+    for x in grids[0]:
+        for y in grids[1]:
+            yield tuple(f["c"][c] + x * f["axes"][others[0]][c] + y * f["axes"][others[1]][c] for c in range(3))
+
+
+def _segment_meets(p, n, reach, f):
+    """Whether the segment p + t n, |t| <= reach, meets box f (grown by a micrometre)."""
+    d = _sub(p, f["c"])
+    t0, t1 = -reach, reach
+    for a in range(3):
+        da, na, h = _dot(d, f["axes"][a]), _dot(n, f["axes"][a]), f["half"][a] + 1e-6
+        if abs(na) < 1e-12:
+            if abs(da) > h:
+                return False
+            continue
+        lo, hi = (-h - da) / na, (h - da) / na
+        if lo > hi:
+            lo, hi = hi, lo
+        t0, t1 = max(t0, lo), min(t1, hi)
+        if t0 > t1:
+            return False
+    return True
 
 
 def _volume(box):

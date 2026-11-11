@@ -39,7 +39,7 @@
     {"part": "trim", "physics": "timber"}
   ],
   "slabs": { "raster_m": 0.01, "angle_tol_deg": 6.0, "axis_angle_deg": 6.0, "axis_dev_m": 0.015, "plane_tol_m": 0.03, "max_thickness_m": 0.35, "merge_tol_m": 0.015,
-             "min_box_m": 0.02, "cover_tol_m": 0.015 },
+             "min_box_m": 0.02, "cover_tol_m": 0.015, "air_cell_m": 0.02 },
   "prune": { "tol_m": 0.02 },
   "gaps": { "wall_parts": ["wall_stove_end", "wall_far_end", "wall_back", "wall_front", "porch_wall", "partition"],
             "skin_parts": ["roof", "ceiling"], "min_m": 0.25, "band_m": 0.12, "jamb_px": 3, "holes_max": 12, "skin_keep_min": 0.05 },

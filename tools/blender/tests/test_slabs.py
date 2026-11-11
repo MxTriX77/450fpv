@@ -3,7 +3,7 @@ import math
 
 import pytest
 
-from lib import slabs
+from lib import air, slabs
 
 SETTINGS = {"raster_m": 0.01, "angle_tol_deg": 6.0, "axis_angle_deg": 6.0, "axis_dev_m": 0.015,
             "plane_tol_m": 0.03, "max_thickness_m": 0.35, "merge_tol_m": 0.015, "min_box_m": 0.02,
@@ -112,6 +112,19 @@ def test_prune_cannot_erode_a_staircase_step_by_step():
         assert any(slabs._inside(p, slabs._frame(b), 0.02) for b in kept), f"step {k} left uncovered"
 
 
+def test_prune_keeps_a_strip_of_a_sheet_whose_neighbours_only_touch_it():
+    # three 2 cm strips of one 2 cm sheet, stacked edge to edge: the middle one's surface lies within 2 cm of the
+    # others, but dropping it would leave a 2 cm slit through the sheet
+    strips = [dict(box((0.5, 0.01 + 0.02 * k, 0.0), (1.0, 0.02, 0.02), "timber"), normal=(0.0, 0.0, 1.0))
+              for k in range(3)]
+    assert len(slabs.prune(strips, lambda b: b["m"], 0.02)) == 3
+    behind = dict(box((0.5, 0.03, 0.025), (1.0, 0.06, 0.02), "timber"), normal=(0.0, 0.0, 1.0))
+    kept = slabs.prune(strips + [behind], lambda b: b["m"], 0.02)
+    assert len(kept) < 4, "a box right behind a strip along the normal closes its slit: the strip may go"
+    for y in (0.001, 0.01, 0.019, 0.021, 0.03, 0.039, 0.041, 0.05, 0.059):
+        assert any(slabs._segment_meets((0.5, y, 0.0), (0.0, 0.0, 1.0), 0.03, slabs._frame(b)) for b in kept), y
+
+
 def test_a_seeded_run_keeps_the_seeds_families():
     parts = [slabs.Part("wall", "timber")]
     tris = wall_face(0.2, (1, 0, 0), 0) + wall_face(0.0, (-1, 0, 0), 0)
@@ -119,3 +132,48 @@ def test_a_seeded_run_keeps_the_seeds_families():
     seed = [f.n for f in first["families"]]
     again = slabs.decompose(tris[:4], parts, SETTINGS, seed)
     assert {f.key for f in again["families"]} <= {f.key for f in first["families"]}
+
+
+def caps(x0, x1, part):
+    """The faces that close the space between wall_face(x0) and wall_face(x1): the top, the two ends and the
+    window's four reveals, each facing out of the solid."""
+    out = quad((x0, 3, 0), (x1, 3, 0), (x1, 3, 4), (x0, 3, 4), (0, 1, 0), part)
+    out += quad((x0, 0, 0), (x1, 0, 0), (x1, 3, 0), (x0, 3, 0), (0, 0, -1), part)
+    out += quad((x0, 0, 4), (x1, 0, 4), (x1, 3, 4), (x0, 3, 4), (0, 0, 1), part)
+    out += quad((x0, 1, 1.5), (x1, 1, 1.5), (x1, 2, 1.5), (x0, 2, 1.5), (0, 0, 1), part)
+    out += quad((x0, 1, 2.5), (x1, 1, 2.5), (x1, 2, 2.5), (x0, 2, 2.5), (0, 0, -1), part)
+    out += quad((x0, 1, 1.5), (x1, 1, 1.5), (x1, 1, 2.5), (x0, 1, 2.5), (0, 1, 0), part)
+    out += quad((x0, 2, 1.5), (x1, 2, 1.5), (x1, 2, 2.5), (x0, 2, 2.5), (0, -1, 0), part)
+    return out
+
+
+def test_two_skins_the_outside_reaches_between_are_two_sheets_open_between_them():
+    parts = [slabs.Part("wall", "timber"), slabs.Part("wall", "masonry", layer_m=0.02)]
+    tris = wall_face(0.2, (1, 0, 0), 0) + wall_face(0.0, (-1, 0, 0), 1)
+    out = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))
+    boxes = out["boxes"]
+    assert not covers(boxes, (0.1, 1.5, 0.5)), "open between the skins"
+    for p in ((0.01, 1.5, 0.5), (0.19, 1.5, 0.5), (0.01, 2.9, 3.9), (0.19, 0.1, 0.1)):
+        assert covers(boxes, p)
+    assert sorted({(round(b["lo"], 9), round(b["hi"], 9), parts[b["part"]].physics) for b in boxes}) == [
+        (0.0, 0.02, "masonry"), (0.18, 0.2, "timber")]
+    volume = sum(b["size"][0] * b["size"][1] * b["size"][2] for b in boxes)
+    assert volume == pytest.approx(2 * 0.02 * (12 - 1), rel=1e-6)
+    shape = {k for region in out["regions"] for k in region}
+    assert sorted((round(lo, 9), round(hi, 9), pi) for lo, hi, pi in shape) == [(0.0, 0.02, 1), (0.02, 0.2, 0)],         "the wall's shape still spans both skins"
+
+
+def test_two_skins_closed_all_round_stay_one_solid_wall():
+    parts = [slabs.Part("wall", "timber"), slabs.Part("wall", "masonry", layer_m=0.02)]
+    tris = wall_face(0.2, (1, 0, 0), 0) + wall_face(0.0, (-1, 0, 0), 1) + caps(0.0, 0.2, 0)
+    boxes = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))["boxes"]
+    assert covers(boxes, (0.1, 1.5, 0.5)), "the ground and the caps close it: solid"
+    assert not covers(boxes, (0.1, 1.5, 2.0)), "the window stays clear"
+    assert any(b["size"][0] == pytest.approx(0.18) for b in boxes)
+
+
+def test_a_pair_too_narrow_for_air_between_its_sheets_stays_whole():
+    parts = [slabs.Part("leaf", "timber", sheet_m=0.02)]
+    tris = wall_face(0.05, (1, 0, 0), 0) + wall_face(0.0, (-1, 0, 0), 0)  # 5 cm: 1 cm left between 2 cm sheets
+    boxes = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))["boxes"]
+    assert covers(boxes, (0.025, 1.5, 0.5))

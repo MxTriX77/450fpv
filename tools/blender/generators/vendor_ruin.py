@@ -31,7 +31,7 @@ import hashlib
 import math
 import os
 
-from lib import fbxread, slabs
+from lib import air, audit, fbxread, slabs
 from lib.geometry import Mesh
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -81,6 +81,9 @@ PARAMS = {
                         "effect": "rectangles narrower than this are raster noise"},
     "slabs.cover_tol_m": {"type": "float", "range": (0.0, 0.05), "default": 0.015,
                           "effect": "a face this close to a box already made is that box's surface"},
+    "slabs.air_cell_m": {"type": "float", "range": (0.005, 0.05), "default": 0.02,
+                         "effect": "the cell of the air round the mesh (lib.air): a pair whose space is no closed "
+                                   "cavity of its own is two skins, open between them; a crack narrower is sealed"},
     "prune.tol_m": {"type": "float", "range": (0.0, 0.05), "default": 0.02,
                     "effect": "a box within this of the others of its material is dropped (lib.slabs.prune)"},
     "gaps.wall_parts": {"type": "list", "range": "part names", "default": [],
@@ -92,7 +95,8 @@ PARAMS = {
     "gaps.band_m": {"type": "float", "range": (0.0, 0.5), "default": 0.12,
                     "effect": "how far past a wall's faces a frame still closes its openings"},
     "gaps.jamb_px": {"type": "int", "range": (1, 20), "default": 3,
-                     "effect": "how many pixels outside an opening its jambs are probed"},
+                     "effect": "how many pixels outside an opening its jambs are probed, and how far above its "
+                               "bottom a jamb may start"},
     "gaps.holes_max": {"type": "int", "range": (1, 100), "default": 12,
                        "effect": "at most this many rectangles inscribed in one skin's lost area, largest first"},
     "gaps.skin_keep_min": {"type": "float", "range": (0.0, 1.0), "default": 0.05,
@@ -179,7 +183,7 @@ def build(params):
         seed = [f.n for f in intact_out["families"]]
     else:
         seed = None
-    out = slabs.decompose(ruin_tris, parts, settings, seed)
+    out = slabs.decompose(ruin_tris, parts, settings, seed, air.Air(ruin_tris, settings["air_cell_m"]))
     made = len(out["boxes"])
     kept = slabs.prune(out["boxes"], lambda b: parts[b["part"]].physics, params["prune"]["tol_m"])
 
@@ -260,7 +264,8 @@ def _triangles(mesh, rules, place, mirror_x):
     """The mesh's triangles in asset space with their outward normals and rule index, the LOD0 Mesh, and per slot the
     area per physics material. The reader negates X, which mirrors the file's counter-clockwise outward winding,
     so the outward normal is minus the polygon's Newell normal (and flips once more with mirror_x, which the normal's
-    own transform carries)."""
+    own transform carries). A concave polygon (the friend's cut leaves floors and walls notched) is ear-clipped as
+    the audit does (lib.audit's triangulation), never fanned: a fan spills past its notches, where no face is drawn."""
     point, direction = place
     vertices = mesh["vertices"]
     lod0 = Mesh()
@@ -278,9 +283,13 @@ def _triangles(mesh, rules, place, mirror_x):
         outward = direction(outward_src)
         lod0.face([index[i] for i in poly], outward, slot)
         pts = [point(p) for p in src]
+        if audit._is_convex(pts, outward):
+            fan = [(0, k, k + 1) for k in range(1, len(pts) - 1)]
+        else:
+            fan = audit._triangulate(pts, outward)
         area = 0.0
-        for k in range(1, len(pts) - 1):
-            tri = (pts[0], pts[k], pts[k + 1])
+        for a, b, c in fan:
+            tri = (pts[a], pts[b], pts[c])
             tris.append((tri, outward, rule))
             c = _cross(_sub(tri[1], tri[0]), _sub(tri[2], tri[0]))
             area += 0.5 * math.sqrt(_dot(c, c))
@@ -373,15 +382,21 @@ def _obstruction(result, fi, lo, hi, margin, r):
 
 def _openings(intact, ruin, parts, params):
     """The openings: every clear region of an intact wall band that the house encloses on all sides, as its largest
-    rectangle, numbered per part along the intact house (so one opening keeps its id in every ruin); per ruin, cut
-    at the lower of its jambs' tops, and gone when that leaves less than gaps.min_m. An opening whose bottom is the
-    floor is a door."""
+    rectangle, numbered per part along the intact house in the source mesh's frame (so one opening keeps its id in
+    every ruin, the mirrored one too); per ruin, cut at the lower of its jambs' tops, and gone when that leaves less
+    than gaps.min_m. An opening whose bottom is the floor is a door."""
     g, r = params["gaps"], params["slabs"]["raster_m"]
     min_px = g["min_m"] / r
     ruin_index = {f.key: i for i, f in enumerate(ruin["families"])}
     numbered = {}
     gaps, snag = [], []
-    for (key, lo, hi), band in sorted(_bands(intact, parts, set(g["wall_parts"])).items()):
+    flip = -1 if params["prefab"]["mirror_x"] else 1  # the mirror runs x backwards
+
+    def along_source(item):
+        (key, lo, hi), band = item
+        return (key, flip * lo if abs(key[0]) > 0.5 else lo)
+
+    for (key, lo, hi), band in sorted(_bands(intact, parts, set(g["wall_parts"])).items(), key=along_source):
         fam = intact["families"][band["family"]]
         if fam.axis is None or fam.axis == 1:
             continue
@@ -391,11 +406,13 @@ def _openings(intact, ruin, parts, params):
             if rect:
                 rects.append(rect)
         ruin_obs = _obstruction(ruin, ruin_index[key], lo, hi, g["band_m"], r) if key in ruin_index else {}
-        for i0, i1, j0, j1 in sorted(rects):
+        backwards = flip < 0 and abs(fam.u[0]) > 0.5
+        for i0, i1, j0, j1 in sorted(rects, key=lambda q: (-q[1], q[2]) if backwards else q):
             kind = "door" if _on_floor(intact, parts, band["family"], lo, hi, j0, r) else "window"
             numbered[(band["name"], kind)] = numbered.get((band["name"], kind), 0) + 1
             gid = f"{band['name']}_{kind}{numbered[(band['name'], kind)]}"
-            top = min(_jamb_top(ruin_obs, i0 - g["jamb_px"], j0, j1), _jamb_top(ruin_obs, i1 + g["jamb_px"], j0, j1))
+            top = min(_jamb_top(ruin_obs, i0 - g["jamb_px"], j0, j1, g["jamb_px"]),
+                      _jamb_top(ruin_obs, i1 + g["jamb_px"], j0, j1, g["jamb_px"]))
             if top - j0 + 1 < min_px:
                 continue
             corners = _rect_corners(fam, i0, i1, j0, top, (lo + hi) / 2, r)
@@ -504,12 +521,16 @@ def _cover(region, min_px, limit):
     return out
 
 
-def _jamb_top(obstruction, i, j0, j1):
-    """The highest row from j0 up to j1 + 1 that column i stays solid to without a break: j0 - 1 when it is clear
-    at j0."""
+def _jamb_top(obstruction, i, j0, j1, slack=0):
+    """The highest row up to j1 + 1 that column i stays solid to without a break, from its first solid row at most
+    `slack` rows above j0 (a jamb's sheet may start a centimetre above the threshold's: the seam between two skins'
+    boxes, which a solid wall filled): j0 - 1 when it is clear there."""
     bit = slabs.span(i, i)
-    top = j0 - 1
-    for j in range(j0, j1 + 2):
+    start = next((j for j in range(j0, j0 + slack + 1) if obstruction.get(j, 0) & bit), None)
+    if start is None:
+        return j0 - 1
+    top = start
+    for j in range(start, j1 + 2):
         if obstruction.get(j, 0) & bit:
             top = j
         else:
