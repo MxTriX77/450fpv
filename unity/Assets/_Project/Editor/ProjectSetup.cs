@@ -15,13 +15,14 @@ namespace Fpv450.EditorSetup
     /// <summary>
     /// Re-derives the project's settings (setup-unity-skeleton, design decision 1): the player
     /// settings, one URP asset with a Forward+ renderer per quality level, the quality levels,
-    /// and the Boot scene and the test range as the build's scenes. Idempotent: a second run changes nothing.
+    /// and the Boot scene, the test range and the farmland as the build's scenes. Idempotent: a second run changes nothing.
     /// Run with <c>-executeMethod Fpv450.EditorSetup.ProjectSetup.Apply</c>.
     /// </summary>
     public static class ProjectSetup
     {
         const string SettingsFolder = "Assets/_Project/Settings";
         const string BootScenePath = "Assets/_Project/Scenes/Boot.unity";
+        const string FarmlandScenePath = "Assets/Farm_land/Scenes/FarmLand.unity";
         static readonly string[] QualityLevels = { "Low", "Medium", "High" };
 
         public static void Apply()
@@ -41,8 +42,13 @@ namespace Fpv450.EditorSetup
 
             EnsureBootScene();
             EnsureDroneModels();
-            // The game: the Boot scene's menu, then the test range it flies over (p6-input-app 1.4b, D-047).
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true) };
+            // The game: the Boot scene's menu, then the test range it flies over (p6-input-app 1.4b, D-047), and the farmland
+            // Explore opens in noclip (w1-farmland-world 2.1, D-088).
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true),
+                new EditorBuildSettingsScene(FarmlandScenePath, true),
+            };
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectSetup] Applied");
         }

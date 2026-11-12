@@ -1,0 +1,338 @@
+{
+  "schema": 1,
+  "id": "N02",
+  "variant": "Debris_WallPanel",
+  "generator": "vendor_ruin",
+  "params_sha256": "1bd362ba7992325adfb65b2ca60c36691a4d426deb0ff66f9ec2f931a98974bf",
+  "units": "m",
+  "frame": "unity-lh-yup",
+  "bounds": {
+    "min": [
+      -0.901128,
+      0.0,
+      -0.901124
+    ],
+    "max": [
+      0.901128,
+      0.064233,
+      0.901124
+    ]
+  },
+  "lods": [
+    {
+      "mesh": "Debris_WallPanel",
+      "tris": 16,
+      "switch_distance_m": 0.0,
+      "thin_wire": false
+    }
+  ],
+  "micro": [],
+  "cull_distance_m": 390.0,
+  "materials": [
+    {
+      "slot": "OldHouseMapWood01",
+      "visual": "House_Wood01",
+      "physics": "timber"
+    }
+  ],
+  "collision": [
+    {
+      "shape": "box",
+      "center": [
+        0.18,
+        0.004109,
+        0.905
+      ],
+      "size": [
+        0.4,
+        0.02,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_panel"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.6725,
+        0.004109,
+        0.005
+      ],
+      "size": [
+        0.465,
+        0.02,
+        1.81
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_panel"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.2625,
+        0.004109,
+        0.0
+      ],
+      "size": [
+        1.285,
+        0.02,
+        1.8
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_panel"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.455,
+        0.004109,
+        -0.905
+      ],
+      "size": [
+        0.89,
+        0.02,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_panel"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.4075,
+        0.053043,
+        0.005
+      ],
+      "size": [
+        0.075,
+        0.02,
+        1.81
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_panel"
+    }
+  ],
+  "gaps": [],
+  "wind_volumes": [],
+  "ports": [],
+  "wires": [],
+  "holes": [],
+  "textures": [],
+  "snag": [
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.38,
+          0.014109,
+          -0.88
+        ],
+        [
+          0.38,
+          0.014109,
+          -0.9
+        ],
+        [
+          -0.01,
+          0.014109,
+          -0.9
+        ],
+        [
+          -0.01,
+          0.014109,
+          -0.91
+        ],
+        [
+          -0.9,
+          0.014109,
+          -0.91
+        ],
+        [
+          -0.9,
+          0.014109,
+          0.0
+        ],
+        [
+          -0.91,
+          0.014109,
+          0.0
+        ],
+        [
+          -0.91,
+          0.014109,
+          0.9
+        ],
+        [
+          -0.02,
+          0.014109,
+          0.9
+        ],
+        [
+          -0.02,
+          0.014109,
+          0.91
+        ],
+        [
+          0.38,
+          0.014109,
+          0.91
+        ],
+        [
+          0.38,
+          0.014109,
+          0.89
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.44,
+          0.014109,
+          0.89
+        ],
+        [
+          0.44,
+          0.014109,
+          0.91
+        ],
+        [
+          0.9,
+          0.014109,
+          0.91
+        ],
+        [
+          0.9,
+          0.014109,
+          0.01
+        ],
+        [
+          0.91,
+          0.014109,
+          0.01
+        ],
+        [
+          0.91,
+          0.014109,
+          -0.9
+        ],
+        [
+          0.44,
+          0.014109,
+          -0.9
+        ],
+        [
+          0.44,
+          0.014109,
+          -0.88
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.37,
+          0.063043,
+          0.89
+        ],
+        [
+          0.37,
+          0.063043,
+          0.91
+        ],
+        [
+          0.44,
+          0.063043,
+          0.91
+        ],
+        [
+          0.44,
+          0.063043,
+          0.89
+        ]
+      ]
+    },
+    {
+      "kind": "edge",
+      "radius_m": 0.002,
+      "material": "timber",
+      "points": [
+        [
+          0.45,
+          0.063043,
+          -0.88
+        ],
+        [
+          0.45,
+          0.063043,
+          -0.9
+        ],
+        [
+          0.37,
+          0.063043,
+          -0.9
+        ],
+        [
+          0.37,
+          0.063043,
+          -0.88
+        ]
+      ]
+    }
+  ],
+  "vendor": {
+    "model": "world_final/Farming_land/Assets/Farm_land/Models/village_ruins.fbx",
+    "model_sha256": "b87059ac7e9a640b2d9ebb4b179741f50f34c03462d1314daea863fc10a8cb1a",
+    "object": "Debris_WallPanel",
+    "mirror_x": false,
+    "rotation_euler_deg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "recentre": true
+  }
+}

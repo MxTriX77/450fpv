@@ -61,6 +61,79 @@ def unity_bounds(path):
     return bounds
 
 
+def meshes(path):
+    """Per model name, its geometry as Unity imports the file's mesh (w4b-farmland-ruins: the vendor meshes are read,
+    never exported): "vertices" in metres with X negated (frame.fbx_to_unity), "polygons" as vertex index lists in the
+    file's order, "slots" the material name of each polygon (a model's materials are its Material connections in file
+    order) and "uvs" per polygon its corners' first UV, or None. The node's own transform is not applied: Unity keeps
+    it on the GameObject, and a prefab that takes only the mesh drops it."""
+    nodes, _ = parse(path)
+    top = {name: (props, children) for name, props, children in nodes}
+    unit_scale = _property(top[b"GlobalSettings"][1], b"UnitScaleFactor", 1.0)
+    geometries, models, materials = {}, {}, {}
+    for name, props, children in top[b"Objects"][1]:
+        if name == b"Geometry":
+            geometries[props[0]] = children
+        elif name == b"Model":
+            models[props[0]] = props[1].split(b"\x00", 1)[0].decode("utf-8")
+        elif name == b"Material":
+            materials[props[0]] = props[1].split(b"\x00", 1)[0].decode("utf-8")
+    geometry_of, slots_of = {}, {}
+    for name, props, _ in top[b"Connections"][1]:
+        if name == b"C" and props[0] == b"OO" and props[2] in models:
+            if props[1] in geometries:
+                geometry_of[props[2]] = props[1]
+            elif props[1] in materials:
+                slots_of.setdefault(props[2], []).append(materials[props[1]])
+    out = {}
+    for model, geometry in geometry_of.items():
+        children = geometries[geometry]
+        raw = _child(children, b"Vertices")
+        vertices = [frame.fbx_to_unity(raw[i:i + 3], unit_scale) for i in range(0, len(raw), 3)]
+        polygons, current = [], []
+        for index in _child(children, b"PolygonVertexIndex"):
+            if index < 0:
+                current.append(-index - 1)
+                polygons.append(current)
+                current = []
+            else:
+                current.append(index)
+        names = slots_of.get(model, [])
+        layer = _layer(children, b"LayerElementMaterial")
+        if layer is None or _child(layer, b"MappingInformationType") == b"AllSame":
+            first = _child(layer, b"Materials")[0] if layer is not None else 0
+            per_polygon = [first] * len(polygons)
+        else:
+            per_polygon = list(_child(layer, b"Materials"))
+        slots = [names[i] if 0 <= i < len(names) else None for i in per_polygon]
+        uvs = [None] * len(polygons)
+        layer = _layer(children, b"LayerElementUV")
+        if layer is not None and _child(layer, b"MappingInformationType") == b"ByPolygonVertex":
+            values = _child(layer, b"UV")
+            direct = _child(layer, b"ReferenceInformationType") == b"Direct"
+            corner_index = None if direct else _child(layer, b"UVIndex")
+            corner = 0
+            for p, polygon in enumerate(polygons):
+                corners = []
+                for _ in polygon:
+                    k = corner if direct else corner_index[corner]
+                    corners.append((values[2 * k], values[2 * k + 1]))
+                    corner += 1
+                uvs[p] = corners
+        out[models[model]] = {"vertices": vertices, "polygons": polygons, "slots": slots, "uvs": uvs}
+    return out
+
+
+def _child(children, key):
+    """The first property of the first child named `key`."""
+    return next(props[0] for name, props, _ in children if name == key)
+
+
+def _layer(children, key):
+    """The children of the first layer element named `key`, or None."""
+    return next((grandchildren for name, _, grandchildren in children if name == key), None)
+
+
 def _property(children, key, default):
     """The value(s) of a Properties70 entry, or `default` when the file omits it (the FBX default applies)."""
     for name, _, grandchildren in children:
