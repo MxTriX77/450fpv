@@ -2080,6 +2080,18 @@ namespace Fpv450.Sim.Contact
             return size > limit ? n * fn + ft * ((sp.Kinetic * fn + sp.Adhesion + plough) / size) : f;
         }
 
+        // Whether a leg holds any stiffness along a slip (w3-farmland-ground 2.2): the anchor's slide to the kinetic limit,
+        // (size − kinetic)/k_tt, is taken only where k_tt is more than NilStiffness of the leg's axial spring's share. Below it the
+        // leg is a mechanism that way (its side give spent past the sway load, the slip square to the tube) and, as at k_tt 0,
+        // the stretch stays: dividing by it ran a 38° tumble's anchor 709 km in one step (k_tt 5e-7 N/m, 2.7e-9 of the axial
+        // share), the foot then the moment's lever (207,766 m/s²).
+        static bool Holds(double ktt, double axialShare) => ktt > NilStiffness * axialShare;
+
+        /// <summary>A leg's stiffness along a slip below this share of its axial spring's is none, numerically (assumed: six orders
+        /// under the axial; the legs' gives across their tubes are 2 to 3 orders under it, and a direction cosine of 1e-3 to the
+        /// tube, 1e-6 of the axial, is past any slip the law resolves).</summary>
+        public const double NilStiffness = 1e-6;
+
         // A leg point's force through its friction cone into the step's force and moment (Apply's bookkeeping): past the cone
         // it slides at μk·fn and its anchor slides along the force's way by the excess over the leg's stiffness that way;
         // no push, no anchor. Its force along the leg.
@@ -2110,7 +2122,7 @@ namespace Fpv450.Sim.Contact
                         ktt += (_sideF[c] - _side[c]) * tf * tf * p.Share; // along the skid the frame's give (model 54)
                     }
                     force = n * fn + t * kinetic;
-                    if (ktt > 0)
+                    if (Holds(ktt, _axial[c] * p.Share))
                     {
                         Double3 st = p.Stretch + t * ((size - kinetic) / ktt);
                         p.Stretch = st - n * Double3.Dot(n, st);
@@ -3139,7 +3151,7 @@ namespace Fpv450.Sim.Contact
                         }
                         ft = t * kinetic;
                         force = n * fn + ft;
-                        if (ktt > 0)
+                        if (Holds(ktt, sp.Along * q.Share))
                         {
                             Double3 st = q.Stretch + t * ((size - kinetic) / ktt);
                             q.Stretch = st - n * Double3.Dot(n, st);
