@@ -92,6 +92,21 @@ namespace Fpv450.Sim.Tests
             Assert.That(d.Queries, Is.LessThan(d.ReferenceQueries / 2), "the lists spare most whole queries");
         }
 
+        // "The certificate changes no bit" (w3-farmland-ground 2.2, model 82): the same two flights in lockstep, the second without
+        // the clearance certificate (every segment answered every step). A certified segment's ends may move the margin less
+        // KeepGap, so no shape comes within KeepGap of it unasked: every step's record and events are the same bits.
+        [TestCase("straw", 10.0)]
+        [TestCase("yard", 12.0)]
+        public void TheCertificateChangesNoBit(string spot, double seconds)
+        {
+            FiberContactScenarios.NearDiff d = FiberContactScenarios.NearListsAgainstQueries(Spec, spot, seconds, certificates: true);
+            Print($"{spot}: {d.Steps} steps in lockstep, the first differing {d.FirstDiffer}; whole queries {d.Queries} with the certificate "
+                + $"against {d.ReferenceQueries} without");
+            Assert.That(d.FirstDiffer, Is.EqualTo(-1), "every record and event the same bits");
+            Assert.That(d.Steps, Is.EqualTo((long)(seconds * 1000)));
+            Assert.That(d.Queries, Is.LessThan(d.ReferenceQueries), "the certificate spares queries");
+        }
+
         // "The wedge of a fork": a line pulled down into the fork of two limbs until one node touches both: both contacts act in
         // the same step, the tension rises only as the drone pulls, nothing is non-finite, and the line holds (1.8 judges a break
         // by tension or bend from the stress printed here).

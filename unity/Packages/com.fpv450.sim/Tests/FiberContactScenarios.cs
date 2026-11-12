@@ -770,9 +770,10 @@ namespace Fpv450.Sim.Tests
         /// does not clear takes the whole query, as before 2.1), each step's record and events compared as the log writes them.
         /// "straw": the line laid 30 m across S04's straw from the west, the drone dragging it low over the patch east and back;
         /// "yard": the line laid by the launch at the houses' start (track), the drone flying into the yard and holding at the
-        /// house as flight 35 did (L1). Severe wind, the pilot's sessions'.
+        /// house as flight 35 did (L1). Severe wind, the pilot's sessions'. With certificates the reference keeps its near lists and
+        /// flies without the clearance certificate instead (every segment answered every step: w3-farmland-ground 2.2).
         /// </summary>
-        public static NearDiff NearListsAgainstQueries(DroneSpec spec, string spot, double seconds)
+        public static NearDiff NearListsAgainstQueries(DroneSpec spec, string spot, double seconds, bool certificates = false)
         {
             FlightSetup Make(out Double3 foot)
             {
@@ -799,7 +800,8 @@ namespace Fpv450.Sim.Tests
             FlightSetup a = Make(out Double3 at), b = Make(out _);
             var near = new FlightCore(a);
             var reference = new FlightCore(b);
-            reference.Tether.Contacts.NearLists = false;
+            if (certificates) reference.Tether.Contacts.Certificates = false; // the certificate's own reference (2.2)
+            else reference.Tether.Contacts.NearLists = false;
             var pilot = new SimPilot(near.Controller, a.StartPosition);
             var house = new Double3(-169.5, 0, -53);
             var ra = new byte[LogFormat.StepSize];

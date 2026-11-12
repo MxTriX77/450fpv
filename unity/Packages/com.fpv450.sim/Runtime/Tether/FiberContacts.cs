@@ -48,8 +48,9 @@ namespace Fpv450.Sim.Tether
     ///   is absent and the soil shapes there are the ground (IWorldQuery's rule).
     /// - Shapes: each segment a capsule of the line's radius against StaticContacts (wires left to WiresNear), only while its
     ///   clearance certificate requires it: a query that finds nothing within contact.clearance_margin_m certifies the segment
-    ///   clear while both its ends stay within that margin less the line's radius of the certified core (the distance from a
-    ///   segment is convex, so a piece whose ends lie near the core lies near it everywhere). The homogenised twig, foliage
+    ///   clear while both its ends stay within that margin less KeepGap of the certified core (the distance from a segment is
+    ///   convex, so a piece whose ends lie near the core lies near it everywhere, and no shape comes within KeepGap of it
+    ///   uncounted; w3-farmland-ground 2.2, model 82: the margin less the line's radius before). The homogenised twig, foliage
     ///   and razor_wire shells are skipped: the line reads their elements and records. A soil shape or a layer with an area
     ///   law is ground (lain on, held by Coulomb's friction); any other shape a capstan of its face. A node meets a shape a
     ///   segment's query found by the shape's own nearest point to it (StaticContacts on the node), so past a face's end it
@@ -381,6 +382,11 @@ namespace Fpv450.Sim.Tether
         /// takes the whole query, as before 2.1: the differential tests' reference, which must give the same bits.</summary>
         public bool NearLists { get; set; } = true;
 
+        /// <summary>A certified segment skips its query while its ends stay in the certificate's allowance (on, the default).
+        /// Off, every segment is answered every step: the differential tests' reference for the certificate, which must give
+        /// the same bits (w3-farmland-ground 2.2).</summary>
+        public bool Certificates { get; set; } = true;
+
         /// <summary>The segments the last step examined against the world's shapes (by a query or a near list), each named by
         /// its two nodes' material coordinates then, the exit's as +∞ (the exit's grows with the payout; forensics and the
         /// certificate's scenario).</summary>
@@ -540,8 +546,13 @@ namespace Fpv450.Sim.Tether
         {
             ref CableNode na = ref chain[j];
             _segNear[j] = -1;
-            double allow = _margin - _radius;
-            if (na.Cleared && PointSegment(a, na.ClearA, na.ClearB) < allow * allow && PointSegment(b, na.ClearA, na.ClearB) < allow * allow)
+            // A certified segment's ends may move the margin less KeepGap (w3-farmland-ground 2.2): every point of it then lies
+            // within that of the certified core (the distance from a segment is convex), so every shape stays farther than
+            // KeepGap from it, the reach of any hit the query would give (a member already on a slot keeps it to there), and the
+            // certificate drops no answer of the query's. The margin less the line's radius let a shape come within the radius
+            // of it, inside InsertGap, with no query to give it a slot.
+            double allow = _margin - KeepGap;
+            if (Certificates && na.Cleared && PointSegment(a, na.ClearA, na.ClearB) < allow * allow && PointSegment(b, na.ClearA, na.ClearB) < allow * allow)
                 return;
             if (QueriedCount < _queried.Length)
             {
