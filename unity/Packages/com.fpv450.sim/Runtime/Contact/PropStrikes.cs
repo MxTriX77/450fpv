@@ -67,8 +67,10 @@ namespace Fpv450.Sim.Contact
     /// - Randomness: each blade's flexural, crush and fracture strengths × (1 + δ), δ from "prop.blade_strength" (nearly normal,
     ///   ContactSpec.StrengthSigma, clamped ±StrengthBound), drawn at the flight's start and logged. Nothing about a strike is
     ///   drawn.
+    /// - Standing stems (w9-village-physics 2.2): PropStems.cs, each turning disc's before its pairs; every corner's strikes'
+    ///   impulse along its rotor's axis is TipImpulse, which loads its arm (AirframeModes.Strike, G8).
     /// </summary>
-    public sealed class PropStrikes
+    public sealed partial class PropStrikes
     {
         const double Pi = 3.141592653589793, TwoPi = 6.283185307179586;
 
@@ -259,6 +261,7 @@ namespace Fpv450.Sim.Contact
             for (int i = 0; i < 4; i++)
                 for (int b = 0; b < _blades; b++)
                     _strength[i * _blades + b] = 1 + random.DrawNormal(ref stream, "prop.blade_strength." + CornerIds[i] + "." + b, _spec.StrengthSigma, _spec.StrengthBound);
+            InitStems();
         }
 
         /// <summary>A blade's strength factor, 1 + δ.</summary>
@@ -273,6 +276,7 @@ namespace Fpv450.Sim.Contact
         {
             Double3 axis = now.Attitude.Rotate(Up), impulse = default, angular = default;
             int changed = 0, passed = 0;
+            StemsBegin(now);
             for (int n = 0; n < _discs.Length; n++)
             {
                 int i = _discs[n];
@@ -284,15 +288,19 @@ namespace Fpv450.Sim.Contact
                     Immerse(c, double.PositiveInfinity);
                     continue;
                 }
+                Double3 before = impulse;
+                double start = from[c], sweep = now.RotorAngle[c] - start;
+                if (sweep < 0) sweep += TwoPi;
+                // The stems the disc turns in (PropStems), before its pairs.
+                if (Stems(i, d, c, ref now, body, axis, start, sweep, events, ref impulse, ref angular)) changed |= 1 << c;
                 if (pairs == 0)
                 {
                     if (_pending[c].Active && Finish(i, d, ref _pending[c], events)) changed |= 1 << c;
                     Immerse(c, double.PositiveInfinity);
+                    _tip[c] = Double3.Dot(impulse - before, axis);
                     continue;
                 }
                 Double3 hub = now.Position + now.Attitude.Rotate(d.A);
-                double start = from[c], sweep = now.RotorAngle[c] - start;
-                if (sweep < 0) sweep += TwoPi;
                 int skipObject = int.MinValue, skipShape = 0, skipBlade = -1;
                 if (_pending[c].Active)
                 {
@@ -347,7 +355,9 @@ namespace Fpv450.Sim.Contact
                         changed |= 1 << c;
                 }
                 Immerse(c, chord);
+                _tip[c] = Double3.Dot(impulse - before, axis); // every strike's push along the rotor's axis on its arm (G8)
             }
+            StemsEnd(now, events);
             if (impulse.X != 0 || impulse.Y != 0 || impulse.Z != 0 || angular.X != 0 || angular.Y != 0 || angular.Z != 0)
             {
                 now.Velocity = now.Velocity + impulse * body.InverseMass;

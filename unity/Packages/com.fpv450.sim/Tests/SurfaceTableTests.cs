@@ -85,7 +85,7 @@ namespace Fpv450.Sim.Tests
                     if (m == Moisture.Dry) Assert.That(set.Adhesion + set.InterfaceAdhesion, Is.EqualTo(0), at + ": dry soil holds no film");
                 }
             }
-            Assert.That(t.Cover.Length, Is.EqualTo(4), "straw, stem, twig, leaf");
+            Assert.That(t.Cover.Length, Is.EqualTo(7), "straw, stem, twig, leaf, and the stem field's green blades, dry and burnt culms (w9 2.2)");
             for (int k = 0; k < t.Cover.Length; k++)
             {
                 CoverRow c = t.Cover[k];
@@ -95,6 +95,8 @@ namespace Fpv450.Sim.Tests
                     Assert.That(set.CutEnergy, Is.GreaterThan(0), c.Kind.ToString());
                     if (c.Kind == CoverKind.Leaf) Assert.That(set.MassPerArea, Is.GreaterThan(0));
                     else Assert.That(set.ModulusMin > 0 && set.ModulusMin <= set.ModulusMax && set.HookReleaseMin > 0 && set.Density > 0, Is.True, c.Kind.ToString());
+                    if (c.Kind >= CoverKind.GrassBlade) Assert.That(set.Diameter, Is.GreaterThan(0), c.Kind + ": a stem field's kind has its diameter");
+                    else Assert.That(set.Diameter, Is.EqualTo(0), c.Kind + ": a drawn element carries its own");
                 }
                 Assert.That(c.Set(Moisture.Saturated), Is.EqualTo(c.Wet), "a cover kind reads wet in both rains");
             }
@@ -301,9 +303,10 @@ namespace Fpv450.Sim.Tests
                 Close(wet.WallShare, dry.WallShare, at + "wall");
                 Close(wet.RollFriction, dry.RollFriction, at + "roll");
                 Close(wet.DampingRatio, dry.DampingRatio, at + "ζ");
-                formulas += 9;
+                Close(wet.Diameter, dry.Diameter, at + "diameter");
+                formulas += 10;
             }
-            TestContext.Out.WriteLine(formulas + " formulas recomputed over the 13 surfaces and 4 cover kinds");
+            TestContext.Out.WriteLine(formulas + " formulas recomputed over the 13 surfaces and 7 cover kinds");
         }
 
         // ---- "The reference foot's sinks are kept" -----------------------------------------------------------------------

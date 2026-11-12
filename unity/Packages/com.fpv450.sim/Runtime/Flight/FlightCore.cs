@@ -531,7 +531,12 @@ namespace Fpv450.Sim.Flight
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
             // The blades' passes across what the discs cut: their work off the rotors, their impulses on the body, the damage
             // they leave (p7f-damage design 6), after the move as the strikes are sensed.
-            if (_strikes != null) _strikes.Apply(angles, ref s, body, _events);
+            if (_strikes != null)
+            {
+                _strikes.Apply(angles, ref s, body, _events);
+                // Each strike's push along its rotor's axis loads its arm at the tip in this step (w9-village-physics 2.2, G8).
+                if (_modes != null && ModesSpec.StrikeLoad) _modes.Strike(ref s.ModeRate, ref _modeAccel, _strikes.TipImpulse, Dt);
+            }
             _contacts?.Shafts?.Trace(s, ref _trace); // the shafts after the strikes that bend them (p7f-damage 1.6)
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
 
@@ -1161,6 +1166,7 @@ namespace Fpv450.Sim.Flight
             signals.MotorCurrentStepAPerS = _fieldStepMax;
             signals.PackVolts = _fieldVolts;
             signals.PackLow = _fieldVolts < FeedSignals.LowCellVolts * _propulsion.SeriesCells;
+            _strikes?.StemSignals(ref signals); // the props' cut stems (w9-village-physics 2.2)
         }
     }
 }

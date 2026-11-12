@@ -2324,7 +2324,17 @@ namespace Fpv450.Sim.Tests
         /// GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s.</summary>
         public static void Edgewise(FlightSetup setup, bool? edgewise, int layout, bool airmode)
         {
-            if (setup.Flapping != null && !(edgewise ?? (!airmode && layout >= LogFormat.StepSize))) setup.Flapping.EdgewiseThrust = false;
+            if (edgewise ?? (!airmode && layout >= LogFormat.StepSize)) return;
+            if (setup.Flapping != null) setup.Flapping.EdgewiseThrust = false;
+            WithoutTheStems(setup); // every golden flown without the edgewise thrust is a kept audit of a model before w9 2.2
+        }
+
+        /// <summary>A flight without w9-village-physics 2.2's physics: no stems on the props (ContactSpec.Stems) and no strike loading
+        /// an arm at its tip (AirframeModesSpec.StrikeLoad, G8), as every model before it flew. Each kept audit flies it (Edgewise).</summary>
+        public static void WithoutTheStems(FlightSetup setup)
+        {
+            if (setup.Contacts != null) setup.Contacts.Stems = false;
+            if (setup.Modes != null) setup.Modes.StrikeLoad = false;
         }
 
         /// <summary>The clean sensors (model 68's airframe and gyro, p7f-damage 1.6, the losses): the arms stiff in their plane and no gyro range.
