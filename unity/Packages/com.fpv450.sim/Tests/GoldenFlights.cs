@@ -715,14 +715,10 @@ namespace Fpv450.Sim.Tests
             if (s.Contacts.Legs != null) s.Contacts.Legs.StubStiffness = s.Contacts.Legs.StubStiffnessUp = 0;
         };
 
-        /// <summary>A flight's contacts without the anchors' reach (w9-village-physics 2.4, model 86's known-wrong): a sliding
-        /// anchor's stretch unbounded (ContactSpec.AnchorReach off), model 85's slide. An older model's kept audit flies with it.</summary>
-        public static readonly Action<FlightSetup> WithoutTheReach = s =>
-        {
-            if (s.Contacts == null) return;
-            s.Contacts = s.Contacts.Clone();
-            s.Contacts.AnchorReach = false;
-        };
+        /// <summary>A flight without the anchors' reach (w9-village-physics 2.4, model 86's known-wrong): a sliding anchor's
+        /// stretch unbounded (ContactModel.AnchorReach off, which the header does not record), model 85's slide. An older model's
+        /// kept audit flies with it; such a flight is never recorded for a replay.</summary>
+        public static readonly Action<FlightCore> WithoutTheReach = core => core.Contacts.AnchorReach = false;
 
         /// <summary>A flight's contacts without the skid's frame (p7g-legs, model 54's audit and known-wrong): one value both ways,
         /// every leg the cantilever along the skid as across it (ContactSpec's frame give, sway load and lever 0, LegDamageSpec's

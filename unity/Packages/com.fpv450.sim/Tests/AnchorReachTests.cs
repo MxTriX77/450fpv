@@ -66,7 +66,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void WithoutTheReach_TheWeedsLandingHasAMomentWithNoForceBehindIt()
         {
-            SlopeScenarios.Touchdown wrong = SlopeScenarios.Land(Drone(), 10, RainLevel.Sunny, 0, surface: "weeds", edit: GoldenFlights.WithoutTheReach);
+            SlopeScenarios.Touchdown wrong = SlopeScenarios.Land(Drone(), 10, RainLevel.Sunny, 0, surface: "weeds", prepare: GoldenFlights.WithoutTheReach);
             SlopeScenarios.Touchdown right = SlopeScenarios.Land(Drone(), 10, RainLevel.Sunny, 0, surface: "weeds");
             Print(Row("model 85's slide", wrong));
             Print(Row("the reach", right));

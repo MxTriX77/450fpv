@@ -859,7 +859,7 @@ namespace Fpv450.Sim.Log
         ///    ground has let the foot go and the hold starts again where the foot is (the stretch 0). Before it a slide past a
         ///    spent side give divided the trial's whole excess by the
         ///    stretch's own stiffness (a lever's statics and dampers it cannot relieve) and ran the stretch, and the moment's
-        ///    lever with it, to 19–87 m in a few steps (1,455 N·m on 41.5 N at 9.98° weeds). ContactSpec.AnchorReach off is 85's
+        ///    lever with it, to 19–87 m in a few steps (1,455 N·m on 41.5 N at 9.98° weeds). ContactModel.AnchorReach off (unlogged, the suite's) is 85's
         ///    slide, the known-wrong. A flight whose stretches stay within the reach steps as 85 did.
         /// </summary>
         public const int ModelVersion = 86;

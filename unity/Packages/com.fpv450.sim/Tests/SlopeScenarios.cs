@@ -265,29 +265,29 @@ namespace Fpv450.Sim.Tests
         /// (yaw 90°); flown 3 s past the touch.
         /// </summary>
         public static Touchdown Land(DroneSpec spec, double deg, RainLevel rain, double yawDeg, bool terrainAtZero = false, string surface = "meadow_sod",
-            Action<FlightSetup> edit = null)
+            Action<FlightCore> prepare = null)
         {
             FlightWorld world = Site(deg, out Double3 at, out Double3 n, surface, terrainAtZero);
-            return Land(spec, world, at, n, rain, yawDeg, edit);
+            return Land(spec, world, at, n, rain, yawDeg, prepare);
         }
 
         /// <summary>The same landing on the farmland at (x, z), its nose uphill (yaw 0, the fall line's way up) or yawDeg from it.</summary>
-        public static Touchdown LandOnFarmland(DroneSpec spec, double x, double z, double yawDeg, Action<FlightSetup> edit = null)
+        public static Touchdown LandOnFarmland(DroneSpec spec, double x, double z, double yawDeg, Action<FlightCore> prepare = null)
         {
             MapWorld w = Farmland();
             GroundSample g = Ground(w, x, z);
             double uphill = Math.Atan2(-g.Normal.X, -g.Normal.Z) * RadToDeg;
-            return Land(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, edit);
+            return Land(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, prepare);
         }
 
-        static Touchdown Land(DroneSpec spec, FlightWorld world, Double3 at, Double3 n, RainLevel rain, double yawDeg, Action<FlightSetup> edit)
+        static Touchdown Land(DroneSpec spec, FlightWorld world, Double3 at, Double3 n, RainLevel rain, double yawDeg, Action<FlightCore> prepare)
         {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain);
-            edit?.Invoke(setup);
             double yaw = yawDeg / RadToDeg;
             setup.StartAttitude = new Quat(0, Math.Sin(yaw / 2), 0, Math.Cos(yaw / 2));
             var core = new FlightCore(setup);
+            prepare?.Invoke(core);
             CrosswindScenario.Arm(core);
             var pilot = new SimPilot(core.Controller, at + new Double3(0, stand + 1, 0)) { Heading = new Double3(Math.Sin(yaw), 0, Math.Cos(yaw)) };
             int k = 0;
