@@ -8,7 +8,8 @@
   "tiles": [
     {"id": "map", "ring": "map", "position_m": [0, 0, 0], "size_m": [1000, 120, 1000],
      "heights": {"file": "heights/map.r16", "resolution": 1025, "min_sample": 3252, "max_sample": 11696},
-     "classes": {"file": "classes/map.raw", "resolution": 2048}},
+     "classes": {"file": "classes/map.raw", "resolution": 2048},
+     "holes": {"file": "holes/map.raw", "resolution": 1024}},
     {"id": "surround_SW", "ring": "surround", "position_m": [-1000, 0, -1000], "size_m": [1000, 120, 1000],
      "heights": {"file": "heights/surround_SW.r16", "resolution": 1025, "min_sample": 1841, "max_sample": 8194},
      "classes": {"file": "classes/surround_SW.raw", "resolution": 512}},
@@ -86,8 +87,9 @@
     {"layer": 12, "prefab": "GrassDry_A", "group": "TallDry", "width_scale": [1.8, 2.6], "height_scale": [2.2, 3], "mesh_y_m": [-0.0203, 0.5299], "instances": 39987},
     {"layer": 13, "prefab": "GrassBurnt_C", "group": "TallBurnt", "width_scale": [1.5, 2.2], "height_scale": [1.8, 2.6], "mesh_y_m": [-0.0266, 0.6789], "instances": 7136}
   ]},
-  "counts": {"tree": 294, "bush": 1352, "ruin": 5, "debris": 28, "ring_trees_left_out": 499},
+  "counts": {"tree": 294, "bush": 1352, "ruin": 5, "debris": 28, "trench": 11, "house": 2, "car": 2, "ring_trees_left_out": 499},
   "height_probes": {"seed": 450, "map": 500, "surround": 300, "far": 200},
+  "objects": {"placer": "tools/map/place_objects.py", "seed": 90, "footprints": "footprints.json"},
   "files": {
     "classes/far_E.raw": "3ed878076a4a59852e21c1fd2304dec1b4ac55c9dab51267ec1594709844130f",
     "classes/far_N.raw": "f43c020eb90a45b306ad94b5b7694ccc94a325ff11f9834d66a438f4af4193f9",
@@ -106,6 +108,7 @@
     "classes/surround_SE.raw": "70d9f4b3da75c984827ac2acb3cf2b02845485abecf4bd8488e03f8ee2a2ec90",
     "classes/surround_SW.raw": "308c172228b0105ac1d44a9a64185b8d492e083cb39accc5f548e87ca2b2482c",
     "classes/surround_W.raw": "ecef93acc831ae4633c901960eac6be3cc8ae1d79a0977093d99bc6bd368d4e0",
+    "footprints.json": "1806597b41024f91805ceedbd615c9f0418dbf6d5fd74b40c15b06e4dd9335db",
     "grass/map.raw": "6a3ca8d319ffaf503b2c3e73dad02a46f464eb460d4dc1f32b2106cd25d66f46",
     "height_probes.json": "436477f3153aab1c0f43f737c35c9dd9f5a6b67d5ca582f744329fc8fbf769d8",
     "heights/far_E.r16": "997abb7456cfa5d2feb37675dad8ce51772807ae068613c3a7c33adb89e925a2",
@@ -125,7 +128,8 @@
     "heights/surround_SE.r16": "3cd26782c76181c06f7a1f2dfbc0c4ed9d91aa4fcd9f3c940bd93061010c3b78",
     "heights/surround_SW.r16": "e219207b5b90b69852c5379c8fa2bec2f2a2d4966179fb615e6f4387008d8071",
     "heights/surround_W.r16": "ca48b5a2ea23460c749e1ea7ad1ab6b1ed10754894e1f47fea1a31a3df9ec350",
+    "holes/map.raw": "fcd9bccbd021e093ba2aa5733e270513c34d8e84a3098c5df9a91e5d1a17db2c",
     "outlines.json": "177e067af5f399930c01e7d31aea855fbf2b4069d0289f4a77f9203774cacd9e",
-    "placements.json": "d57b2a3ab2dff89d655b6f1063466cf2e002a8617ffa294f44724d1b7729b435"
+    "placements.json": "314fc043afa9ed0e307931c304c34850dfbaacfea3c95e3b3ae0bd67fdff9b51"
   }
 }

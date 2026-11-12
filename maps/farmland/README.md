@@ -1,11 +1,12 @@
 # maps/farmland: the farmland's map package
 
-The friend's 1 × 1 km farmland (D-088) as the sim reads it: the ground's heights over the map, the surround and the far ring (D-091), the ground class and grass per cell, every tree, bush, ruin and debris placement, and the field and village outlines. Format `fpv450-map-package`, version 1 (w2-farmland-export).
+The friend's 1 × 1 km farmland (D-088) as the sim reads it: the ground's heights over the map, the surround and the far ring (D-091), the ground class and grass per cell, every tree, bush, ruin and debris placement, and the field and village outlines. Then our own objects (D-090) with the terrain edits they need: a trench per field, two houses and two cars in the village, the hole mask and the levelled footprints. Format `fpv450-map-package`, version 1 (w2-farmland-export; our objects w5-farmland-objects, all additive).
 
-**Never edit it by hand.** The exporter `Fpv450.FarmlandExport` (`unity/Assets/_Project/Editor/Farmland/FarmlandExport.cs`) writes it from the scene the friend's seeded generator (`FarmLandBuilder`) built. It reads the scene, the terrain data and, by reflection, the generator's layout, and changes nothing. The same scene gives the same bytes. To rebuild it:
+**Never edit it by hand.** The exporter `Fpv450.FarmlandExport` (`unity/Assets/_Project/Editor/Farmland/FarmlandExport.cs`) writes it from the scene the friend's seeded generator (`FarmLandBuilder`) built. It reads the scene, the terrain data and, by reflection, the generator's layout, and changes nothing. The same scene gives the same bytes. Then the placer `tools/map/place_objects.py` adds our objects and their edits (see "Our objects" below). The export drops them, so run the placer after every export. To rebuild it:
 
 ```powershell
 & $env:UNITY -batchmode -nographics -quit -projectPath <project with the farmland scene> -executeMethod Fpv450.FarmlandExport.Run -exportOut <repo>/maps/farmland -logFile - | Out-Host
+python tools/map/place_objects.py maps/farmland
 python tools/map/validate.py maps/farmland
 ```
 
@@ -15,11 +16,13 @@ python tools/map/validate.py maps/farmland
 
 | File | Contents |
 |---|---|
-| `map.json` | The manifest: frame, tiles, the ground class table, the grass layers, counts, and every other file's SHA-256 |
+| `map.json` | The manifest: frame, tiles, the ground class table, the grass layers, counts, our objects' record, and every other file's SHA-256 |
 | `heights/<tile>.r16` | A tile's heightmap: uint16 little-endian samples, resolution × resolution |
 | `classes/<tile>.raw` | A tile's ground class per sample: uint8 surface ids, resolution × resolution |
 | `grass/map.raw` | The map's grass: uint8 instance counts, one resolution × resolution plane per layer, layer after layer |
-| `placements.json` | Every tree, bush, ruin and debris piece on the map |
+| `placements.json` | Every tree, bush, ruin and debris piece on the map, then our trenches, houses and cars |
+| `holes/map.raw` | The map tile's hole mask: uint8 per height cell, 255 a hole and 0 ground |
+| `footprints.json` | The map tile's height samples our objects level, as the samples to write |
 | `outlines.json` | The 11 fields and the village |
 | `height_probes.json` | 1,000 heights from Unity's `Terrain.SampleHeight`, which the validator checks the package against |
 
@@ -59,7 +62,12 @@ The far ring reaches 4 km past the map, to [−4000, 5000]². Its side tiles rea
   - The rendered terrain is drawn at a coarser level of detail away from the camera (pixel error 5 on the map, 8 on the surround, 20 on the far ring). That isn't checked here (WLD-11).
 - **Where tiles overlap,** the ground is the highest tile's surface (the far ring's sides under the surround block).
 - **Seams:** the map and the 8 surround tiles share their edge samples exactly (12 seams, validated).
-- **Holes:** none yet; the friend's terrain has none. The proposed place, to be signed off by the physics engineer and written by W5: an optional `"holes": {"file": "holes/<tile>.raw", "resolution": res − 1}` per tile, on Unity's hole grid (one per height cell, `TerrainData.GetHoles`), uint8 255 for a hole and 0 for ground, row 0 the northmost.
+- **Holes:** an optional `"holes": {"file": "holes/<tile>.raw", "resolution": res − 1}` per tile (W2 design §4, signed off).
+  - Unity's hole grid: one byte per height cell, uint8 255 for a hole and 0 for ground, row 0 the northmost.
+  - Cell (c, r) with Unity's indices is the square x ∈ [x0 + c · s, x0 + (c + 1) · s], z ∈ [z0 + r · s, z0 + (r + 1) · s], s = sx / (res − 1). A point belongs to the cell its triangulation uses.
+  - Over a hole cell the tile has no ground. Unity's own sense is inverted (`TerrainData.SetHoles`: `true` is ground), so the player flips it.
+  - Only the map tile carries one: our trenches' (below). The friend's terrain has none.
+- **The heights files stay the friend's.** Our footprints are separate data, written over them at load (D-095). The probes check the files as exported.
 
 ## Ground classes
 
@@ -103,6 +111,30 @@ The far ring reaches 4 km past the map, to [−4000, 5000]². Its side tiles rea
 - **The map only (D-091):** the surround's 499 trees are left out, and `map.json` counts them. The export checks that every terrain instance and village object has exactly one row, that every row lies on the map, and that nothing else draws on the map.
 - **Rounding:** positions to 0.1 mm, quaternions to 1e-7 and scales to 1e-5.
 
+## Our objects (`placements.json`, `holes/`, `footprints.json`)
+
+`tools/map/place_objects.py` (w5-farmland-objects 1.2; D-090, D-092, D-095) writes them from a seed, recorded in `map.json` as `"objects": {"placer", "seed", "footprints"}`. Each object draws on its own SplitMix64 stream, the seed mixed with its name, until its spot passes every rule.
+
+- **The rows:** ids 1679 onwards, after the export's, in its format: `trench` `E01_curving` × 11, then `house` `H01_I` and `H01_D`, and `car` `R01_A` and `R01_F`.
+  - Their variants are in our catalog (`assets-src/catalog.json`), not the vendor lists, so a loader finds their metadata there.
+  - The rotation is a pure yaw, the scale 1, and y the footprint's level.
+- **The footprint** of a row is the plan rectangle of its variant's bounds: E01's whole ground patch, a house or car with its spilled rubble and parts.
+- **One trench per field F1–F11,** at a seeded spot and yaw, its patch at least 11.5 m inside the field's outline (the edits' 8.5 m reach, then 3 m).
+- **The houses and cars in the village,** each footprint inside the village circle. A house turns its front (asset −Z) to the lane through the village's centre (z = 600) within 6°, as the friend's five ruins stand. A car takes any yaw.
+- **Free ground:**
+  - no edit reaches a ruin's or a debris piece's plan bounds, a tree's or bush's pivot, the start's stand (`FlightWorlds.FarmlandStart`, D-092) or another of ours;
+  - a tree's or bush's plan bounds stays 3 m off the footprint, and a house's footprint 3 m off every `dirt_track` sample (the friend's house clearances);
+  - the ground under a footprint spans at most 1 m (2.5 m under a house), so a levelled patch doesn't read as a terrace.
+- **The hole mask** (W2 design §4):
+  - Rule 2: every cell that meets a trench's drawn opening is a hole. The opening is a stadium about each of E01's hole records' centre lines: the run's lip at 0.525 m (`top_w_m` / 2 + `width_jitter_m` / 2 + `lip_crumble_m`), a niche at 0.4 m.
+  - Rule 3: every point of every hole cell lies inside E01's filler bands (3.85 m on the run, 3.60 m at the niches), where its shapes are the only ground.
+- **The footprints** (D-095), levelled as the friend's generator levels its house plots (`LevelVillageGround`):
+  - the level is the mean of the samples inside the footprint, rounded to a sample;
+  - every sample within 1.5 m of the footprint takes it, so every cell that meets the footprint is flat;
+  - farther out, a sample eases back to its own over a 7 m shoulder (a smoothstep), rounded to a sample;
+  - `footprints.json` lists, per object, its corners, `level_sample` and `level_m`, and the samples it writes as runs `[file row (0 the northmost), first column, [samples…]]` of the map tile. The sim and the player write them over the heights at load.
+- **Every hole cell's corners** stand at its trench's level, so the cut meets E01's own ground flush.
+
 ## Outlines (`outlines.json`)
 
 - **`fields`:** F1–F11 as the generator defines them (`FarmLandBuilder.Fields`).
@@ -127,5 +159,12 @@ The far ring reaches 4 km past the map, to [−4000, 5000]². Its side tiles rea
 - the placements: kinds, variants, ids, unit rotations, on the map and counted
 - the outlines: counter-clockwise, on the map, and the village holding the ruins and debris
 - the 1,000 probes within 1 mm
+- a tile's hole mask: its size and its values, 0 or 255
+- our objects (`place_objects.check`):
+  - the same seed gives the same rows;
+  - one trench inside each field with its margin, the village's four inside its circle, every one on free ground;
+  - the hole mask equals the one the trenches derive, and every hole cell, sampled every 0.1 m with its edges, lies inside a filler band;
+  - the footprints equal the ones the rows derive; every cell that meets a footprint is level, every hole cell's corners are at its trench's level, and no edit reaches the tile's edge;
+  - every object stands at its level within 1 cm
 
-Its tests are `tools/map/tests/test_validate.py`.
+Its tests are `tools/map/tests/test_validate.py` and `tools/map/tests/test_place_objects.py`.
