@@ -1,6 +1,6 @@
 # Tasks: w7-farmland-wind
 
-Order: 1.1, then 1.2; 1.3 after W3's 2.4 (merge `--w3-ground` in first); then 2.1. Branch `unity/physics/physics-integration-2--w7-wind`, cut from `--w3-ground` at 23e1b148 (W3 1.2's objects merged back). Merge `--w3-ground` in again before 2.1 if it has moved. It merges onto the line after W3.
+Order: 1.1, then 1.2, then 2.1. 1.1 merged into `--w3-ground` (595ca9fa), so W7 lands with W3; 1.2 merges back the same way. Branch `unity/physics/physics-integration-2--w7-wind`, cut from `--w3-ground` at 23e1b148.
 
 ## 1. The wind over the farmland
 
@@ -34,11 +34,7 @@ Order: 1.1, then 1.2; 1.3 after W3's 2.4 (merge `--w3-ground` in first); then 2.
   - Wind and world code only; the tether stays as it is (1.3).
   - Model 84, extended, with every moved golden audited case by case.
   - Checks: as 1.1, plus `dotnet test tools/inputtests`.
-- [ ] 1.3 [physics-engineer] The laid fiber rests. After W3's 2.4 has landed on `--w3-ground`, merge it in first; 2.4 owns the fiber's contacts and `FiberLine.Ground`.
-  - A rest test for laid nodes: a node that the ground holds in still air freezes into the trail, and wakes when its wind, its contacts or the line's tension say so.
-  - Cast a node's soil over a hole once a step, shared between the wind posting and the tether's ground pass.
-  - Rerun `flightbench --bench farmland-line-step` in Severe wind. Report the far nodes' speeds, how many freeze, and the step's p99 before and after.
-  - Model 84, extended, goldens audited. Checks: as 1.2.
+- 1.3 moved: the laid fiber's rest (the rest test, the shared soil cast, the Severe re-run) is W3's task 2.4 (`w3-farmland-ground`), because 2.4 owns the tether and W7 1.1 had already merged into `--w3-ground`.
 
 ## 2. Review
 
