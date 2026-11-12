@@ -257,7 +257,9 @@ namespace Fpv450.Feed.Tests
         }
 
         /// Every quality level's URP renderer carries the feed feature with the feed shader, and the shader has its
-        /// three blits in order.
+        /// three blits in order. The shader is compared as a Unity object (its instance id), not by C# reference: on a
+        /// first import the active pipeline's renderer (High) is loaded before Feed.shader is imported, and its feature
+        /// then holds another C# wrapper of the same shader (same instance id, GUID and file id).
         [Test]
         public void EveryRendererCarriesTheFeed()
         {
@@ -269,7 +271,7 @@ namespace Fpv450.Feed.Tests
                 var renderer = AssetDatabase.LoadAssetAtPath<UniversalRendererData>($"Assets/_Project/Settings/URP-{level}-Renderer.asset");
                 FeedFeature feature = renderer.rendererFeatures.Find(f => f is FeedFeature) as FeedFeature;
                 Assert.That(feature, Is.Not.Null, level);
-                Assert.That(feature.Shader, Is.SameAs(shader), level);
+                Assert.That(feature.Shader, Is.EqualTo(shader), level);
                 Assert.That(feature.isActive, Is.True, level);
             }
         }
