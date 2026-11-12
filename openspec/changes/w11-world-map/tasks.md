@@ -21,4 +21,4 @@ Branch `unity/physics/physics-integration-2--w11-map`, cut from `--w3-preview` a
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the spec scenarios: the identical logs with M toggled, the marker within a pixel, the panel's margins, nothing of the friend's world pushed, the panel's frame cost on a quiet machine, the smoke PASS.
+- [x] 2.1 [qa-engineer] Review against the spec scenarios: the identical logs with M toggled, the marker within a pixel, the panel's margins, nothing of the friend's world pushed, the panel's frame cost on a quiet machine, the smoke PASS.
