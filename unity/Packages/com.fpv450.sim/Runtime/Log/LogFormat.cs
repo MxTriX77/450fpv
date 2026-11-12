@@ -864,8 +864,22 @@ namespace Fpv450.Sim.Log
         ///    Also under 86 (w9-village-physics 2.7): a resting blade's load radius is held to its tip, and no blade breaks at a
         ///    station at or past its tip. The stems on the props (2.2, PropStems) fly on this line under 86 until model 87
         ///    names them together with 2.12's stalks.
+        /// 88: the wind over the farmland's belts and ruins (w7-farmland-wind 1.2, on 86; built on
+        ///    unity/physics/physics-integration-2--w7-wind as 84 extended, merged onto the line by
+        ///    unity/physics/physics-integration-2--w9-wind; assigned by D-072, 87 is the stems' line): the wake grid's version 2
+        ///    (WakeGrid.Version, logged per flight in the wind entry as WakeLayout.Version; a log of version 1 replays its own
+        ///    grid). The farmland has no shelterbelt: its trees stand in groves and short rows, its bushes in hedges, its ruins are
+        ///    thin-walled shells, and version 1 read them wrong. Its cell rule diluted a 0.24 m wall or missed it between samples,
+        ///    multiplied a wall's stacked courses and a trunk under its crown as if in series, and the grid kept the nearest wake
+        ///    alone, so a hedge 14 m behind a tree row ended the row's shelter. Now an obstacle's porosity is its frontal porosity
+        ///    across each lane from its volumes' geometry (WakeObstacles.Transmission: solids opaque however thin, porous parts by
+        ///    Beer–Lambert over their chord, parts at different heights side by side; a cell is an obstacle where a volume's
+        ///    footprint overlaps it), each cell carries the overlying wake of the nearest taller obstacle upwind (speeds multiply,
+        ///    excess variances add), and the porous boost scales with the obstacle's deficit (1 − β). The range golden moved
+        ///    (re-pinned; with version 1 it is model 76's pin), and every kept audit of an older model flies version 1. A flight
+        ///    with no wind volumes, or one flown on version 1, steps as 86 did.
         /// </summary>
-        public const int ModelVersion = 86;
+        public const int ModelVersion = 88;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
