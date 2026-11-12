@@ -1,6 +1,6 @@
 # Tasks: w5-farmland-objects
 
-Order: 1.1 now; 1.2 and 1.3 once W3 (`w3-farmland-ground`) has merged onto the line, since they need its terrain code; then 2.1. Branch `unity/physics/physics-integration-2--w5-objects`, cut from the build line after W4b merged; merge the line into it before 1.2.
+Order: 1.1, then 1.2 (Python and data only: placement, the mask, footprints, the validator); 1.3 once W3 (`w3-farmland-ground`) has merged onto the line, since it needs its terrain and object code; then 2.1. Branch `unity/physics/physics-integration-2--w5-objects`, cut from the build line after W4b merged; merge the line into it before 1.2.
 
 ## 1. Our objects in the farmland
 
