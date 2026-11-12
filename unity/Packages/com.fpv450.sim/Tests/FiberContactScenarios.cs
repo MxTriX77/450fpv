@@ -467,6 +467,9 @@ namespace Fpv450.Sim.Tests
             /// how many were checked, the worst distance above a surface (m), the deepest inside any shape (m) and whether any point
             /// supported by nothing (floating).</summary>
             public int Points, Floating;
+            /// <summary>Points held in the air in a straight span between two that lie (the line over the trench's lip,
+            /// frozen still there since w3-farmland-ground 2.4): within 2 mm of the chord between their lying neighbours.</summary>
+            public int Spanning;
             public double WorstAbove, DeepestInside;
             /// <summary>The supports met: the plane, a straw layer, a soil shape (a floor or a wall), another shape.</summary>
             public int OnPlane, OnStraw, OnSoil, OnOther;
@@ -540,14 +543,36 @@ namespace Fpv450.Sim.Tests
 
             var res = new Lying { Spot = spot, PaidOut = core.Tether.PaidOut, Wedges = core.Tether.Chain.Wedges };
             FiberLine f = core.Tether;
-            for (int i = 0; i < f.TrailCount; i++) Check(map, f.Trail[i], r, ref res);
             CableChain line = f.Chain;
+            var points = new List<Double3>();
+            for (int i = 0; i < f.TrailCount; i++) points.Add(f.Trail[i]);
             for (int i = 1; i < line.Count; i++)
             {
                 ref CableNode a = ref line[i];
                 bool held = a.Contact0.Active && a.Contact0.NormalForce > 0 || a.Contact1.Active && a.Contact1.NormalForce > 0;
                 if (!held) break; // the touchdown: the line beyond rises to the drone
-                Check(map, a.Position, r, ref res);
+                points.Add(a.Position);
+            }
+            var lies = new bool[points.Count];
+            for (int i = 0; i < points.Count; i++)
+            {
+                int floating = res.Floating;
+                Check(map, points[i], r, ref res);
+                lies[i] = res.Floating == floating;
+            }
+            // A point in the air lies in a span the line holds between two that lie, if it is on their chord.
+            for (int i = 1; i + 1 < points.Count; i++)
+            {
+                if (lies[i]) continue;
+                int lo = i - 1, hi = i + 1;
+                while (lo > 0 && !lies[lo]) lo--;
+                while (hi + 1 < points.Count && !lies[hi]) hi++;
+                if (!lies[lo] || !lies[hi]) continue;
+                Double3 p = points[lo], d = points[hi] - p, x = points[i] - p;
+                double t = Double3.Dot(x, d) / Double3.Dot(d, d);
+                if ((x - d * t).Length() > 0.002) continue;
+                res.Floating--;
+                res.Spanning++;
             }
             return res;
         }

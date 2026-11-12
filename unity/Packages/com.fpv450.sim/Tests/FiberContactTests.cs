@@ -153,9 +153,13 @@ namespace Fpv450.Sim.Tests
         {
             FiberContactScenarios.Lying l = FiberContactScenarios.LieOn(Spec, spot);
             Print($"{spot}: {l.Points} points (the trail and the chain to the touchdown), on the plane {l.OnPlane}, the straw {l.OnStraw}, soil {l.OnSoil}, "
-                + $"other {l.OnOther}; worst above a surface {l.WorstAbove * 1000:F3} mm, deepest inside a shape {l.DeepestInside * 1000:F3} mm, floating {l.Floating}; "
+                + $"other {l.OnOther}; worst above a surface {l.WorstAbove * 1000:F3} mm, deepest inside a shape {l.DeepestInside * 1000:F3} mm, floating {l.Floating}, "
+                + $"spanning {l.Spanning}; "
                 + $"paid out {l.PaidOut:F3} m; wedges {l.Wedges}");
             Assert.That(l.Points, Is.GreaterThan(1));
+            // Since w3-farmland-ground 2.4 a span the line holds still between two points that lie freezes with them (the line
+            // over the trench's lip to its floor): such a point is in the air on their chord, held there by the line, as the real
+            // line is (Spanning, printed). Any other point off every surface floats.
             Assert.That(l.Floating, Is.EqualTo(0), "none of it floats");
             Assert.That(l.WorstAbove, Is.LessThanOrEqualTo(0.002));
             Assert.That(l.DeepestInside, Is.LessThan(1e-4), "never inside a rigid shape");

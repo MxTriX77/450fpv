@@ -221,6 +221,13 @@ namespace Fpv450.FlightBench
                 + $"{l.Tether.Chain.Count} nodes, trail {l.Tether.TrailCount}, {l.Tether.Chain.Clips} clips, {l.Tether.Chain.SafeSteps} safe steps, "
                 + $"{l.Tether.Chain.Wedges} wedges, {l.Tether.Chain.NewtonSolves} Newton solves ({l.Tether.Chain.NewtonUnconverged} steps past their budget), "
                 + $"ends {l.State.Position.Y:F4} m up: {(lok ? "PASS" : "FAIL")}");
+            // w3-farmland-ground 2.4 (the laid line rests and freezes), its audit against model 79's pin, which 80–84 kept: with the
+            // known-wrong sliding trail (FlightSetup.TetherSlidingTrail) the tether golden is 79's, every record and event.
+            ulong line79 = GoldenFlights.FlyContact(Drone(), out FlightCore l79, tether: true, slidingTrail: true);
+            bool k79 = line79 == GoldenFlights.Model79TetherHash;
+            lok &= k79;
+            Console.WriteLine($"tether-flight with the sliding trail: 0x{line79:X16} ({(k79 ? "model 79's, bit for bit" : "NOT model 79's")}), "
+                + $"{l79.Tether.PaidOut:F3} m paid out, trail {l79.Tether.TrailCount}: {(k79 ? "PASS" : "FAIL")}");
             // Model 77 (1.8's finding 2: the segments' Newton solves), its audit against its merge (74 onto 73): with
             // the known-wrong linear step (FlightSetup.TetherLinearStep) the tether golden is the merge's, every record and event, and with airmode
             // on too model 74's (the audit with airmode below), so the chain is the whole of 77's move against the merge. Since model 78
