@@ -57,6 +57,8 @@ EDGE_UNDER_M = 0.015          # V01's snag rule: a segment under 30 mm across is
 TWIG = "twig"
 BURIED_M = 0.3                # wood wholly this far under the origin's ground is buried on any slope the map has
                               # (assumed: a 30 % slope across a 1 m trunk); it is left out of the fit and the audit
+CLEAR_M, STEP_M = 2e-4, 2.5e-4  # D-089: no pushed point within CLEAR_M of a vendor vertex (per axis; twice the test's
+                                # 0.1 mm, so the files' 1 um rounding cannot bring one back); one there moves STEP_M
 
 PARAMS = {
     "source.prefab": {"type": "str", "range": "a .prefab path under the store's root",
@@ -324,12 +326,21 @@ def build(root, asset_id, entry, variant, params):
     if info and info["uncovered"]:
         raise ValueError(f"{variant}: {info['uncovered']} sample cells lie outside every shell piece")
 
+    # D-089: no pushed point on a vendor vertex (the capsules' ends and middles, the pieces' centres, then the wind
+    # boxes, the snag points and the bounds)
+    clear = _Clear(points)
+    for c in capsules:
+        c["a"], c["b"] = clear.segment(c["a"], c["b"])
+    pieces = [(clear.point(c), r) for c, r in pieces]
+
     # wind volumes
-    wind, wind_lines = _wind(samples, twig_points, wpoints, wtris, nodes, params["wind"]["column"])
+    wind, wind_lines = _wind(samples, twig_points, wpoints, wtris, nodes, params["wind"]["column"], clear)
     lines += wind_lines
 
     # snag records
     snag = _snag(capsules, wood_material, twigs, nodes, hooks)
+    for record in snag:
+        record["points"] = [list(clear.point(p)) for p in record["points"]]
     lines.append(f"snag: {sum(1 for r in snag if r['kind'] == 'edge')} edges, "
                  f"{sum(1 for r in snag if r['kind'] == 'hook')} hooks")
 
@@ -337,7 +348,9 @@ def build(root, asset_id, entry, variant, params):
     collision += [{"shape": "sphere", "center": list(c), "radius": r, "material": TWIG, "landable": False}
                   for c, r in pieces]
     lod0 = _mesh(points, tris, names)
-    lo, hi = lod0.bounds()
+    lo, hi = clear.box(*lod0.bounds())
+    lines.append(f"D-089: {clear.moved} moves of {STEP_M * 1000:g} mm took pushed points off the vendor's LOD0 "
+                 f"vertices (none within {CLEAR_M * 1000:g} mm on every axis)")
     lods, cull, frame_problems = _lods(root, prefab, group, params["lod"]["fov_deg"], mesh_file)
     if frame_problems:
         raise ValueError("; ".join(frame_problems))
@@ -502,10 +515,11 @@ def _length(line):
     return sum(math.dist(a, b) for a, b in zip(line, line[1:]))
 
 
-def _wind(samples, twig_points, wpoints, wtris, nodes, column):
+def _wind(samples, twig_points, wpoints, wtris, nodes, column, clear):
     """The crown or bush box with its measured porosity, and the trunk column under it (design 7). A tree's crown
     starts at its lowest drawn foliage: thin wood under it (Pine002_M's root twigs) is the trunk zone's, which the
-    column stands for; the trunk is the tube system with the most rings under the crown."""
+    column stands for; the trunk is the tube system with the most rings under the crown. Each box is kept off the
+    vendor's vertices by `clear` (D-089)."""
     mass = samples + twig_points
     if not mass:
         return [], ["wind: no foliage, no volume"]
@@ -517,6 +531,7 @@ def _wind(samples, twig_points, wpoints, wtris, nodes, column):
     hi = [max(p[a] for p in crown) for a in range(3)]
     lo[1] = max(lo[1], 0.0)
     beta, shares = plant.porosity(mass, wtris, wpoints, lo, hi)
+    lo, hi = clear.box(lo, hi)
     out = [{"shape": "box", "center": [(lo[a] + hi[a]) / 2 for a in range(3)],
             "size": [hi[a] - lo[a] for a in range(3)], "rotation": [0.0, 0.0, 0.0, 1.0], "porosity": beta}]
     text = (f"wind: crown box {_fmt(lo)}..{_fmt(hi)}, optical porosity {beta:.3f} (opaque share by bearing "
@@ -531,10 +546,76 @@ def _wind(samples, twig_points, wpoints, wtris, nodes, column):
             r = sorted(n["radius"] for n in trunk)[len(trunk) // 2]
             x = sum(n["centre"][0] for n in trunk) / len(trunk)
             z = sum(n["centre"][2] for n in trunk) / len(trunk)
-            out.append({"shape": "box", "center": [x, lo[1] / 2, z], "size": [2 * r, lo[1], 2 * r],
-                        "rotation": [0.0, 0.0, 0.0, 1.0], "porosity": 0.0})
+            c_lo, c_hi = clear.box([x - r, 0.0, z - r], [x + r, lo[1], z + r])
+            out.append({"shape": "box", "center": [(c_lo[a] + c_hi[a]) / 2 for a in range(3)],
+                        "size": [c_hi[a] - c_lo[a] for a in range(3)], "rotation": [0.0, 0.0, 0.0, 1.0],
+                        "porosity": 0.0})
             text += f"; trunk column 0..{lo[1]:.2f} m, {2 * r:.3f} m across, porosity 0"
     return out, [text]
+
+
+class _Clear:
+    """D-089 (task 1.3, QA's re-review should-fix 1), after W4b's _off_vertices: no pushed point reproduces a vertex of
+    the vendor's LOD0 mesh. A point within CLEAR_M of one (on every axis) moves STEP_M off it along each axis, a
+    capsule whose middle is on one moves whole, and a box grows STEP_M outward at a corner on one (at its top corner
+    when its centre is), until none is; `moved` counts the moves."""
+
+    def __init__(self, vertices):
+        self.grid, self.moved = {}, 0
+        for v in vertices:
+            self.grid.setdefault(tuple(math.floor(c / CLEAR_M) for c in v), []).append(v)
+
+    def near(self, p):
+        """A vertex within CLEAR_M of p on every axis, or None."""
+        k = [math.floor(c / CLEAR_M) for c in p]
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    for v in self.grid.get((k[0] + dx, k[1] + dy, k[2] + dz), ()):
+                        if max(abs(v[a] - p[a]) for a in range(3)) <= CLEAR_M:
+                            return v
+        return None
+
+    def _away(self, p, v):
+        self.moved += 1
+        return tuple(STEP_M if p[a] >= v[a] else -STEP_M for a in range(3))
+
+    def point(self, p):
+        p = tuple(p)
+        v = self.near(p)
+        while v is not None:
+            d = self._away(p, v)
+            p = tuple(p[a] + d[a] for a in range(3))
+            v = self.near(p)
+        return p
+
+    def segment(self, a, b):
+        """A capsule's two ends, and its middle (its pushed centre)."""
+        while True:
+            a, b = self.point(a), self.point(b)
+            m = tuple((a[k] + b[k]) / 2 for k in range(3))
+            v = self.near(m)
+            if v is None:
+                return a, b
+            d = self._away(m, v)
+            a, b = tuple(a[k] + d[k] for k in range(3)), tuple(b[k] + d[k] for k in range(3))
+
+    def box(self, lo, hi):
+        """An axis-aligned box lo..hi (lists), its eight corners and its centre off every vertex."""
+        lo, hi = list(lo), list(hi)
+        while True:
+            corners = [[hi[a] if k >> a & 1 else lo[a] for a in range(3)] for k in range(8)]
+            hit = next((k for k, c in enumerate(corners) if self.near(c) is not None), None)
+            if hit is None and self.near([(lo[a] + hi[a]) / 2 for a in range(3)]) is not None:
+                hit = 7
+            if hit is None:
+                return lo, hi
+            self.moved += 1
+            for a in range(3):
+                if hit >> a & 1:
+                    hi[a] += STEP_M
+                else:
+                    lo[a] -= STEP_M
 
 
 def _snag(capsules, wood_material, twigs, nodes, hooks):

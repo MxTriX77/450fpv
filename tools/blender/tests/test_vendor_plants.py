@@ -1,7 +1,9 @@
 """The vendor plants' physics (w4a-farmland-vegetation 1.1): lib.vendor's readers on small synthetic inputs, lib.plant's
 skeleton, shell and porosity on shapes whose answers are known, and the committed metadata of every variant of
 assets-src/vendor_plants.json (schema 1, its params' hash, its .meta). A rebuild from the local store, which only a
-checkout with vendor/ linked can run, must give the committed text byte for byte."""
+checkout with vendor/ linked can run, must give the committed text byte for byte, and no pushed point may lie on a
+vertex of the vendor's mesh (D-089)."""
+import itertools
 import json
 import math
 import os
@@ -67,6 +69,17 @@ def test_a_round_capsule_takes_the_mean_distance_and_reports_the_worst():
     (a, b, r), residual = plant.round_capsule(ring, (0.0, 0.0, 0.0), (0.0, 1.0, 0.0), 0.005)
     dist = [math.hypot(x, z) for x, _, z in ring]
     assert abs(r - sum(dist) / len(dist)) < 1e-9 and abs(residual - max(abs(d - r) for d in dist)) < 1e-9
+
+
+def test_a_spray_line_starts_at_its_first_bins_mean_not_on_a_card_corner():
+    # D-089 (1.3): the lattice samples a card's corners, and the sample nearest the trunk is often one
+    corners = [(0.0, 1.0, 0.0), (1.0, 1.0, 0.0), (1.0, 1.2, 0.0), (0.0, 1.2, 0.0)]
+    samples, _ = plant.opaque_samples(corners, [(0, 1, 2), (0, 2, 3)],
+                                      [((0, 0), (1, 0), (1, 1)), ((0, 0), (1, 1), (0, 1))], lambda u, v: True, 0.04)
+    assert corners[0] in samples
+    line = plant.spine(samples, (-1.0, 0.9, 0.0), 0.12)
+    assert min(max(abs(a - b) for a, b in zip(line[0], c)) for c in corners) > 1e-4
+    assert line[0][0] < 0.12 and line[-1][0] > 0.85
 
 
 def test_the_shell_holds_every_sample_and_keeps_its_standoff():
@@ -198,9 +211,13 @@ def test_every_variant_has_valid_committed_metadata(repo_root, material_ids):
         assert plant.most_in_cube(boxes)[0] <= 64, variant
 
 
-def test_a_rebuild_from_the_store_gives_the_committed_text(repo_root):
+def _store(repo_root):
     if not (repo_root / "vendor" / "world_final").is_dir():
         pytest.skip("the local store is not linked (pwsh tools/vendor/link.ps1)")
+
+
+def test_a_rebuild_from_the_store_gives_the_committed_text(repo_root):
+    _store(repo_root)
     import vendor_plants
     cat = vendor_plants.load_catalog(str(repo_root))
     (asset_id, entry, variant), = vendor_plants.selected(cat, "SmallBushDry_A")
@@ -208,3 +225,62 @@ def test_a_rebuild_from_the_store_gives_the_committed_text(repo_root):
     data, _, _ = vendor_plants.build(str(repo_root), asset_id, entry, variant, params)
     committed = (repo_root / vendor_plants.MODELS / entry["class"] / asset_id / f"{variant}.assetmeta.json")
     assert meta.dumps(data) == committed.read_text(encoding="utf-8")
+
+
+def _rotated(q, v):
+    x, y, z, w = q
+    t = (2 * (y * v[2] - z * v[1]), 2 * (z * v[0] - x * v[2]), 2 * (x * v[1] - y * v[0]))
+    return (v[0] + w * t[0] + y * t[2] - z * t[1], v[1] + w * t[1] + z * t[0] - x * t[2],
+            v[2] + w * t[2] + x * t[1] - y * t[0])
+
+
+def _pushed_points(data):
+    """Every coordinate triple the metadata pushes: the capsules' centres and segment ends, the spheres' centres, the
+    wind boxes' centres and corners, every snag point and the bounds' corners."""
+    for key in ("gaps", "holes", "ports", "wires", "micro", "textures"):
+        assert not data[key], f"{data['variant']}: {key} holds points this test does not read"
+    lo, hi = data["bounds"]["min"], data["bounds"]["max"]
+    out = [("bounds", (x, y, z)) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]
+    for s in data["collision"]:
+        assert s["shape"] in ("capsule", "sphere"), s["shape"]
+        out.append((s["shape"] + " centre", s["center"]))
+        if s["shape"] == "capsule":
+            d, half = _rotated(s["rotation"], (0.0, 1.0, 0.0)), s["height"] / 2 - s["radius"]
+            out += [("capsule end", [c + k * half * e for c, e in zip(s["center"], d)]) for k in (-1, 1)]
+    for w in data["wind_volumes"]:
+        out.append(("wind centre", w["center"]))
+        for sign in itertools.product((-1, 1), repeat=3):
+            d = _rotated(w["rotation"], [s * x / 2 for s, x in zip(sign, w["size"])])
+            out.append(("wind corner", [c + e for c, e in zip(w["center"], d)]))
+    out += [("snag", p) for s in data["snag"] for p in s["points"]]
+    return out
+
+
+def test_no_pushed_point_is_a_vendor_vertex(repo_root):
+    """D-089 (1.3, QA's re-review should-fix 1; W4b's test for the ruins): every point the committed metadata pushes
+    lies more than 0.1 mm, on some axis, from every vertex of its variant's LOD0 mesh, read as vendor_plants.build
+    reads it (the pinned prefab's LOD0 renderer, its mesh and matrix). Needs the local store."""
+    _store(repo_root)
+    import vendor_plants
+    tol, root, meshes, found = 1e-4, str(repo_root), {}, []
+    for asset_id, entry, variant in _variants(repo_root):
+        source = json.loads((repo_root / "assets-src" / entry["class"] / f"{variant}.json").read_text(
+            encoding="utf-8"))["source"]
+        prefab = vendor.pinned(vendor_plants.store_path(root, source["prefab"]), source["prefab_sha256"])
+        renderer = vendor.prefab_lods(prefab)["lods"][0]["renderers"][0]
+        key = (source["mesh_file"], renderer["mesh_file_id"], source["mesh_name"])
+        if key not in meshes:
+            mesh_file = vendor.pinned(vendor_plants.store_path(root, source["mesh_file"]), source["mesh_sha256"])
+            meshes[key] = vendor.read_mesh(mesh_file, renderer["mesh_file_id"], source["mesh_name"] or None)[0]
+        cells = {}
+        for p in meshes[key]:
+            v = vendor.apply(renderer["matrix"], p)
+            cells.setdefault(tuple(math.floor(c / tol) for c in v), []).append(v)
+        data = json.loads((repo_root / vendor_plants.MODELS / entry["class"] / asset_id
+                           / f"{variant}.assetmeta.json").read_text(encoding="utf-8"))
+        for field, p in _pushed_points(data):
+            k = [math.floor(c / tol) for c in p]
+            if any(max(abs(a - b) for a, b in zip(v, p)) <= tol for d in itertools.product((-1, 0, 1), repeat=3)
+                   for v in cells.get((k[0] + d[0], k[1] + d[1], k[2] + d[2]), ())):
+                found.append(f"{variant} {field} {[round(c, 6) for c in p]}")
+    assert found == [], f"{len(found)} pushed points on a vendor vertex: {found[:10]}"

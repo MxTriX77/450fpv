@@ -703,8 +703,9 @@ def _raster(tri, u0, v0, nu, nv, cells):
 # --- sprays -----------------------------------------------------------------------------------------------------
 
 def spine(samples, anchor, step):
-    """A spray's centre line from the sample nearest `anchor` (the trunk) to the farthest one: the samples binned by
-    their distance from that base every `step`, each bin's mean a point; at least two points."""
+    """A spray's centre line from by the sample nearest `anchor` (the trunk) to the farthest one: the samples binned
+    by their distance from that base every `step`, each bin's mean a point, the first bin's too (D-089: the base is a
+    drawn sample, which the lattice often puts on a card's corner, a vendor vertex); at least two points."""
     if len(samples) < 2:
         return None
     base = min(samples, key=lambda p: (_dist(p, anchor), p))
@@ -714,10 +715,8 @@ def spine(samples, anchor, step):
     bins = {}
     for p in samples:
         bins.setdefault(min(int(_dist(p, base) / step), int(far / step)), []).append(p)
-    line = [base]
+    line = []
     for k in sorted(bins):
-        if k == 0:
-            continue
         group = bins[k]
         line.append(tuple(sum(p[a] for p in group) / len(group) for a in range(3)))
     return line if len(line) >= 2 else None
