@@ -182,6 +182,9 @@ namespace Fpv450.App
         /// </summary>
         public const float NearPixelError = 0.05f, NearM = 30f;
 
+        /// <summary>False: every tile keeps the scene's own pixel error, the rule's A/B (AppFlow's -terrainab, 3.2).</summary>
+        public bool NearOn = true;
+
         Terrain[] _terrains = new Terrain[0];
         float[] _sceneErrors = new float[0];
 
@@ -201,7 +204,7 @@ namespace Fpv450.App
                 Vector3 o = t.transform.position, size = t.terrainData.size;
                 float dx = Mathf.Max(0f, Mathf.Max(o.x - lens.x, lens.x - (o.x + size.x)));
                 float dz = Mathf.Max(0f, Mathf.Max(o.z - lens.z, lens.z - (o.z + size.z)));
-                float error = dx * dx + dz * dz <= NearM * NearM ? NearPixelError : _sceneErrors[i];
+                float error = NearOn && dx * dx + dz * dz <= NearM * NearM ? NearPixelError : _sceneErrors[i];
                 if (t.heightmapPixelError != error) t.heightmapPixelError = error;
             }
         }

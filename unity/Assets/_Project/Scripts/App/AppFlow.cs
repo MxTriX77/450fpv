@@ -40,7 +40,9 @@ namespace Fpv450.App
     /// <c>-smokewind &lt;Calm|Windy|Severe&gt;</c> flies the smoke test's flights in that wind (Calm by default), a look at
     /// the wind field in the player: its checks are Calm's. <c>-smokelegs</c> flies LegShots' damaged-leg flights in place of
     /// the smoke test's flights, each shot in both views, then R's restart (p7g-legs 1.5). <c>-smokehills</c> flies the
-    /// two-minute flight over the farmland's hills in their place (HillsFlight, w3-farmland-ground 3.1).
+    /// two-minute flight over the farmland's hills in their place (HillsFlight, w3-farmland-ground 3.1); with
+    /// <c>-terrainab</c> its cruise also times the near terrain rule against the scene's own errors, on and off by turns
+    /// (TerrainCost, 3.2; with <c>-vsync 0</c> in a development build).
     /// </remarks>
     public sealed class AppFlow : MonoBehaviour
     {
@@ -580,6 +582,8 @@ namespace Fpv450.App
                 host.Keys = () => keys;
                 float begin = Time.realtimeSinceStartup, measure = begin + 20, called = begin;
                 int cruiseShots = 0;
+                // -terrainab (3.2): the cruise alternates the near rule on and off, each side's frames timed (TerrainCost).
+                TerrainCost cost = Array.IndexOf(Environment.GetCommandLineArgs(), "-terrainab") >= 0 ? new TerrainCost(begin) : null;
                 while (pilot.Now != HillsPilot.Phase.Done && session.State == SessionState.Flying && !Crashed(session) && Time.realtimeSinceStartup < begin + 300)
                 {
                     yield return null;
@@ -587,13 +591,28 @@ namespace Fpv450.App
                     float now = Time.realtimeSinceStartup;
                     keys = pilot.Next(_flight.Pose, now - called);
                     called = now;
+                    if (cost != null)
+                    {
+                        // A measure's comparison runs on the workers for seconds after its frame: no frame counts meanwhile.
+                        if (views.Exists(t => !t.IsCompleted)) cost.Stall(now);
+                        bool cruise = pilot.Now == HillsPilot.Phase.Cruise;
+                        if (cruise) cost.Frame(now, Time.unscaledDeltaTime);
+                        _flight.NearOn = !cruise || cost.On(now);
+                    }
                     if (pilot.Now == HillsPilot.Phase.Cruise && Time.realtimeSinceStartup >= measure)
                     {
                         measure += 20;
                         PoseFrame p = _flight.Pose;
                         Parity("cruising at t = " + p.TimeS.ToString("0") + " s, (" + p.Position.X.ToString("0") + ", " + p.Position.Z.ToString("0") + ")");
                         if (cruiseShots++ < 3) yield return Shot("hills_cruise_" + cruiseShots);
+                        cost?.Stall(Time.realtimeSinceStartup);
                     }
+                }
+                if (cost != null)
+                {
+                    _flight.NearOn = true;
+                    Check(cost.Frames(0) > 0 && cost.Frames(1) > 0, cost.Report());
+                    cost.Dispose();
                 }
                 keys = KeyboardKeys.None;
                 host.Keys = () => KeyboardKeys.None;
