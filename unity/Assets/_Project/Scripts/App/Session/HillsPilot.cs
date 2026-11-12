@@ -28,11 +28,17 @@ namespace Fpv450.App.Session
         public const double Band = 1.5, MaxTiltDeg = 25, Reach = 25;
 
         /// <summary>
-        /// The waypoints from the village's start (566.5, 569; 38 m): south-west over the fields' rise to the hill at
-        /// (330, 250), 39 m, then north-west down its side to the valley at (120, 620), 16 m (validate.py's heights, every
-        /// 50 m): about 820 m with 23 m of fall, about two minutes at Speed.
+        /// The waypoints from the village's start (566.5, 569; 38 m): south over the fields to the hill's top at (374, 281),
+        /// 39.3 m, between its two tree clumps, then north and west down its side to the valley at (110, 576), 15.1 m. Since
+        /// 1.2's objects are solid it threads the open fields: within 12 m of its line (each waypoint left at Reach) nothing
+        /// stands higher than 3.5 m over the ground, and nothing at all within 12 m of the climb or of the landing run
+        /// (FarmlandFlightTests). So every crown, trunk and ruin is at least 12 m off, and the bushes it crosses at least
+        /// 1.5 m under the cruise. About 770 m over ground of 15–39 m, a little over two minutes at Speed.
         /// </summary>
-        public static readonly (double X, double Z)[] Route = { (330, 250), (120, 620) };
+        public static readonly (double X, double Z)[] Route =
+        {
+            (503, 524), (456, 282), (374, 281), (352, 378), (248, 400), (226, 514), (110, 576),
+        };
 
         public enum Phase { Climb, Cruise, Descend, Landed, Done }
 

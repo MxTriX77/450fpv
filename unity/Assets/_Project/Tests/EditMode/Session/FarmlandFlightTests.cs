@@ -99,11 +99,131 @@ namespace Fpv450.Tests.Session
             }
         }
 
+        // HillsPilot's route clears the farmland's objects (solid since 1.2). Its line over the ground runs from the village's
+        // start toward each waypoint until within Reach of it, where the pilot turns to the next; from the line's end it brakes
+        // and lands on the way to the last waypoint (the landing run). Within RouteClearance of the line no placed shape stands
+        // higher than RouteBand over the ground under it: every crown, trunk and ruin is at least RouteClearance off, and the
+        // bushes it crosses are at least Height − RouteBand under the cruise. Within RouteClearance of the start (the climb)
+        // and of the landing run there is no shape at all. Each shape is taken at its world bounds and the line every Step, so
+        // a margin is at most Step / 2 under its figure.
+        [Test]
+        public void TheHillsRouteClearsTheFarmlandsObjects()
+        {
+            const double Step = 0.25;
+            var world = (MapWorld)_farmland.Open().Query;
+            StartPoint village = _farmland.StartPoints[0];
+            var at = new List<XZ> { new XZ(village.X, village.Z) };
+            void Walk(XZ from, double toX, double toZ, double length)
+            {
+                double dx = toX - from.X, dz = toZ - from.Z, d = Math.Sqrt(dx * dx + dz * dz);
+                int n = (int)Math.Ceiling(length / Step);
+                for (int i = 1; i <= n; i++) at.Add(new XZ(from.X + dx / d * length * i / n, from.Z + dz / d * length * i / n));
+            }
+            foreach ((double wx, double wz) in HillsPilot.Route)
+            {
+                XZ from = at[at.Count - 1];
+                double d = Math.Sqrt((wx - from.X) * (wx - from.X) + (wz - from.Z) * (wz - from.Z));
+                if (d > HillsPilot.Reach) Walk(from, wx, wz, d - HillsPilot.Reach);
+            }
+            int line = at.Count; // the line's samples; the landing run's follow
+            (double lastX, double lastZ) = HillsPilot.Route[HillsPilot.Route.Length - 1];
+            Walk(at[line - 1], lastX, lastZ, HillsPilot.Reach);
+            var ground = new GroundSample[at.Count];
+            world.SampleGround(at.ToArray(), ground);
+            double low = double.PositiveInfinity, high = double.NegativeInfinity, length = 0;
+            for (int i = 0; i < line; i++)
+            {
+                low = Math.Min(low, ground[i].Height);
+                high = Math.Max(high, ground[i].Height);
+                if (i > 0) length += Math.Sqrt((at[i].X - at[i - 1].X) * (at[i].X - at[i - 1].X) + (at[i].Z - at[i - 1].Z) * (at[i].Z - at[i - 1].Z));
+            }
+
+            // Each object's shapes' bounds; an object whose bounds are farther than twice the margin from every sample is passed.
+            double crossed = double.PositiveInfinity, ends = double.PositiveInfinity; // the nearest standing shape, the nearest to the climb or the landing
+            string crossedBy = "none", endsBy = "none";
+            var bounds = new List<(Double3 Lo, Double3 Hi)>();
+            for (int obj = 0; obj < world.PlacedObjects; obj++)
+            {
+                bounds.Clear();
+                var all = (Lo: new Double3(double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity), Hi: new Double3(double.NegativeInfinity, double.NegativeInfinity, double.NegativeInfinity));
+                for (int s = 0; world.Geometry(obj, s, out ShapeGeometry g); s++)
+                {
+                    WorldBounds(g, out Double3 lo, out Double3 hi);
+                    bounds.Add((lo, hi));
+                    all = (new Double3(Math.Min(all.Lo.X, lo.X), Math.Min(all.Lo.Y, lo.Y), Math.Min(all.Lo.Z, lo.Z)), new Double3(Math.Max(all.Hi.X, hi.X), Math.Max(all.Hi.Y, hi.Y), Math.Max(all.Hi.Z, hi.Z)));
+                }
+                double near = double.PositiveInfinity;
+                foreach (XZ p in at) near = Math.Min(near, Across(all.Lo, all.Hi, p));
+                if (near > 2 * RouteClearance) continue;
+                for (int s = 0; s < bounds.Count; s++)
+                    for (int i = 0; i < at.Count; i++)
+                    {
+                        (Double3 lo, Double3 hi) = bounds[s];
+                        double d = Across(lo, hi, at[i]);
+                        bool standing = i < line && hi.Y > ground[i].Height + RouteBand && d < crossed, end = (i == 0 || i >= line - 1) && d < ends;
+                        if (!standing && !end) continue;
+                        string name = world.ObjectName(obj) + " " + obj + "/" + s + " (its top " + (hi.Y - ground[i].Height).ToString("0.0") + " m over the ground there)";
+                        if (standing)
+                        {
+                            crossed = d;
+                            crossedBy = name;
+                        }
+                        if (end)
+                        {
+                            ends = d;
+                            endsBy = name;
+                        }
+                    }
+            }
+            TestContext.WriteLine("HillsPilot's line: " + length.ToString("0") + " m over ground of " + low.ToString("0.0") + "–" + high.ToString("0.0") + " m; the nearest shape over "
+                + RouteBand + " m: " + crossed.ToString("0.00") + " m across, " + crossedBy + "; the nearest of any height to the climb or the landing run: " + ends.ToString("0.00") + " m, " + endsBy);
+            Assert.That(crossed, Is.GreaterThanOrEqualTo(RouteClearance), "no crown, trunk or ruin near the line: " + crossedBy);
+            Assert.That(ends, Is.GreaterThanOrEqualTo(RouteClearance), "nothing by the climb or the landing: " + endsBy);
+            Assert.That(high - low, Is.GreaterThan(15), "over the hills");
+        }
+
+        /// <summary>HillsPilot's route's margin across its line, m, and the height over the ground below which a shape may stand
+        /// within it, m (1.5 m under the cruise's 5).</summary>
+        const double RouteClearance = 12, RouteBand = 3.5;
+
+        // How far a point is across the ground from bounds, m: 0 inside their x–z rectangle.
+        static double Across(Double3 lo, Double3 hi, XZ p)
+        {
+            double ex = Math.Max(0, Math.Max(lo.X - p.X, p.X - hi.X)), ez = Math.Max(0, Math.Max(lo.Z - p.Z, p.Z - hi.Z));
+            return Math.Sqrt(ex * ex + ez * ez);
+        }
+
+        // A shape's world bounds, as the world bounds it (a cylinder's are its capsule's).
+        static void WorldBounds(in ShapeGeometry s, out Double3 lo, out Double3 hi)
+        {
+            Double3 e;
+            switch (s.Kind)
+            {
+                case ShapeKind.Box:
+                {
+                    Double3 h = s.HalfExtents;
+                    e = new Double3(Math.Abs(s.AxisX.X) * h.X + Math.Abs(s.AxisY.X) * h.Y + Math.Abs(s.AxisZ.X) * h.Z,
+                        Math.Abs(s.AxisX.Y) * h.X + Math.Abs(s.AxisY.Y) * h.Y + Math.Abs(s.AxisZ.Y) * h.Z,
+                        Math.Abs(s.AxisX.Z) * h.X + Math.Abs(s.AxisY.Z) * h.Y + Math.Abs(s.AxisZ.Z) * h.Z);
+                    break;
+                }
+                case ShapeKind.Sphere:
+                    e = new Double3(s.Radius, s.Radius, s.Radius);
+                    break;
+                default:
+                    e = new Double3(Math.Abs(s.AxisY.X) * s.HalfLength + s.Radius, Math.Abs(s.AxisY.Y) * s.HalfLength + s.Radius, Math.Abs(s.AxisY.Z) * s.HalfLength + s.Radius);
+                    break;
+            }
+            lo = s.Center - e;
+            hi = s.Center + e;
+        }
+
         // The scenario: two minutes over the hills from the village's start, on the keyboard as the smoke test flies it (its
         // frames every 16 ms), legs on, 1 kg, Windy, the line paying out. It climbs, flies HillsPilot's route over the hills,
         // lands and is disarmed, with no crash; its log replays bit for bit, and has no tunnel and no body part past the
-        // ground at any step (GroundCheck).
-        [Test]
+        // ground at any step (GroundCheck), and the drone meets no placed object (PlacedObjectsMet). With 1.2's objects it
+        // costs 71 s in .NET Release and 251 s in Unity's EditMode (Mono), past the runner's default of 180 s.
+        [Test, Timeout(600000)]
         public void AFlightOverTheHillsReplays()
         {
             var clock = new ManualClock { Now = 1000000 };
@@ -175,11 +295,55 @@ namespace Fpv450.Tests.Session
                 TestContext.WriteLine(g.ToString());
                 Assert.That(g.Tunnels, Is.EqualTo(0), "no tunnel event");
                 Assert.That(g.BodyDepth, Is.LessThanOrEqualTo(0), "no body part past the ground");
+
+                (int touches, string first, double closest, string by) = PlacedObjectsMet(session.LogPath, _farmland.Open().Query);
+                TestContext.WriteLine("the placed objects: " + touches + " contacts, strikes or impacts (the first: " + first + "); the closest a shape came to the drone's centre: "
+                    + closest.ToString("0.00") + " m, " + by);
+                Assert.That(touches, Is.EqualTo(0), "no placed object met: " + first);
+                // The route leaves a bush 1.5 m under the cruise's aim; less half a metre for the height's error.
+                Assert.That(closest, Is.GreaterThan(HillsPilot.Height - RouteBand - 0.5), "every placed shape at least a metre off the drone's centre");
             }
             finally
             {
                 session.Dispose();
             }
+        }
+
+        // A flight's meetings with the placed objects, from its log: the drone's contacts, strikes, impacts and crashes on one
+        // (not the ground's, not the line's), and the closest any placed shape came to the drone's centre over its steps (the
+        // world's StaticContacts for a point, within Near).
+        static (int Touches, string First, double Closest, string By) PlacedObjectsMet(string logPath, IWorldQuery world)
+        {
+            const double Near = 6;
+            var found = new StaticContact[4096];
+            int touches = 0;
+            string first = "none", by = "none within " + Near + " m";
+            double closest = double.PositiveInfinity;
+            using (FlightLogReader reader = FlightLogReader.Open(logPath))
+                while (reader.Next())
+                {
+                    if (reader.Kind == LogFormat.EventBlock)
+                    {
+                        reader.ReadEvent(out LoggedEvent e);
+                        EventKind k = e.Event.Kind;
+                        if (e.Event.Object >= 0 && (k == EventKind.ContactMade || k == EventKind.PropStrike || k == EventKind.BladeStrike || k == EventKind.Impact || k == EventKind.Crash)
+                            && touches++ == 0)
+                            first = k + " on " + world.ObjectName(e.Event.Object) + " at t = " + (e.Step * FlightCore.Dt).ToString("0.000") + " s";
+                        continue;
+                    }
+                    if (reader.Kind != LogFormat.StepBlock) continue;
+                    reader.ReadStep(out LoggedStep step);
+                    var at = new Capsule(step.State.Position, step.State.Position, 0);
+                    int n = world.StaticContacts(at, at, Near, found, QueryFilter.NoGround);
+                    if (n > found.Length) Assert.Fail(n + " shapes within " + Near + " m, more than the buffer holds");
+                    for (int i = 0; i < n; i++)
+                        if (found[i].Distance < closest)
+                        {
+                            closest = found[i].Distance;
+                            by = world.ObjectName(found[i].Object) + " " + found[i].Object + "/" + found[i].Shape + " at t = " + (step.State.Step * FlightCore.Dt).ToString("0.000") + " s";
+                        }
+                }
+            return (touches, first, closest, by);
         }
 
         SessionInputs Inputs(ManualClock clock)
