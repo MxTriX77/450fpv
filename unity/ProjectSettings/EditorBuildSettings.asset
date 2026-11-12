@@ -11,5 +11,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/TestRange.unity
     guid: 654638545cc72124aadc279b2f9e7467
+  - enabled: 1
+    path: Assets/Farm_land/Scenes/FarmLand.unity
+    guid: b0503f0d82f0c40518941291f471e239
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

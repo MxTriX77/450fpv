@@ -55,8 +55,14 @@ namespace Fpv450
             ("Gravel", "dirt_track", 13, "assumed: the 6 m gravel tracks, 35-80 % dry mud; no gravel class, the nearest is the wheel-compacted track (it also rings the ruins as rubble)"),
             ("AerialMud_0", "tilled", 6, "assumed: an abandoned field's furrows, rows along world X"),
             ("AerialMud_90", "tilled", 6, "assumed: an abandoned field's furrows, rows along world Z"),
-            ("DryMud", "dry_crust", 2, "assumed: dry, crusted bare mud on the fields, the tracks and the sun-burnt meadow"),
+            ("DryMud", "dry_crust", 2, "assumed: dry, crusted bare mud on the fields, the house yards and the sun-burnt meadow; with gravel, the rule below"),
         };
+
+        // The physics sign-off's one rule (w2-farmland-export design.md §5): where gravel is painted, the dry mud is the
+        // track's (or a yard's) mud film on a compacted body, so on any sample with Gravel weight > 0, DryMud's weight
+        // counts toward dirt_track instead of dry_crust.
+        static readonly (string layer, string whenLayer, string surface, int id, string note) GravelRule =
+            ("DryMud", "Gravel", "dirt_track", 13, "physics sign-off: on any sample with Gravel weight > 0, DryMud is the track's or a yard's mud film on a compacted body, so its weight counts toward dirt_track, not dry_crust");
 
         sealed class Tile
         {
@@ -130,6 +136,8 @@ namespace Fpv450
             json.Append("  \"tiles\": [\n").Append(string.Join(",\n", tileJson)).Append("\n  ],\n");
             json.Append("  \"ground_classes\": {\"surface_table\": \"assets-src/surfaces.json\", \"layers\": [\n");
             json.Append(string.Join(",\n", LayerClasses.Select(c => $"    {{\"layer\": {Str(c.layer)}, \"surface\": {Str(c.surface)}, \"id\": {c.id}, \"note\": {Str(c.note)}}}")));
+            json.Append("\n  ], \"rules\": [\n");
+            json.Append($"    {{\"layer\": {Str(GravelRule.layer)}, \"when\": {{\"layer\": {Str(GravelRule.whenLayer)}, \"weight_above\": 0}}, \"surface\": {Str(GravelRule.surface)}, \"id\": {GravelRule.id}, \"note\": {Str(GravelRule.note)}}}");
             json.Append("\n  ]},\n");
             json.Append(grassJson).Append(",\n");
             json.Append($"  \"counts\": {{{string.Join(", ", counts.Select(c => $"{Str(c.Key)}: {c.Value}"))}}},\n");
@@ -191,13 +199,16 @@ namespace Fpv450
             return (res, min, max);
         }
 
-        // The class of each alphamap sample: the surface whose layers weigh most there (ties to the lower id).
+        // The class of each alphamap sample: the surface whose layers weigh most there (ties to the lower id), after
+        // GravelRule moves DryMud's weight to dirt_track wherever Gravel weighs anything.
         static int WriteClasses(Tile tile, string output, IDictionary<string, string> files)
         {
             TerrainData data = tile.Data;
             int res = data.alphamapResolution;
             if (data.alphamapWidth != res || data.alphamapHeight != res)
                 throw new InvalidOperationException($"{tile.Id}: alphamap {data.alphamapWidth} x {data.alphamapHeight}, not square");
+            int ruleLayer = Array.FindIndex(data.terrainLayers, layer => layer.name == GravelRule.layer);
+            int whenLayer = Array.FindIndex(data.terrainLayers, layer => layer.name == GravelRule.whenLayer);
             int[] layerClass = data.terrainLayers.Select(layer =>
             {
                 int found = Array.FindIndex(LayerClasses, c => c.layer == layer.name);
@@ -215,8 +226,9 @@ namespace Fpv450
                 for (int x = 0; x < res; x++)
                 {
                     Array.Clear(weight, 0, weight.Length);
+                    bool gravel = whenLayer >= 0 && alpha[z, x, whenLayer] > 0;
                     for (int layer = 0; layer < layerClass.Length; layer++)
-                        weight[layerClass[layer]] += alpha[z, x, layer];
+                        weight[gravel && layer == ruleLayer ? GravelRule.id : layerClass[layer]] += alpha[z, x, layer];
                     int best = 0;
                     for (int id = 1; id < weight.Length; id++)
                     {

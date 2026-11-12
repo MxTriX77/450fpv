@@ -471,6 +471,59 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
             }
             ContactScenarios.PoleStrike crown = RangeScenarios.Into(spec, materials, hash, RangeScenarios.Find("crown"), true);
             Row("the crown (V01_L, 10 m/s at 10 m), no tunnel through its twigs", crown.Tunnels == 0 && crown.Lost == 0, Strike(crown));
+            FarmlandCrowns(spec, materials, hash);
+        }
+
+        /// <summary>The farmland's tree families (w4a-farmland-vegetation 1.1), one variant each, with the material its crown is
+        /// felt by first: the twig shell over the drawn foliage, or the dead pine's bare deadwood (it draws no foliage).</summary>
+        static readonly (string Asset, string Variant, string Felt)[] FarmlandTrees =
+        {
+            ("VF01", "IslandTree", "twig"), ("VF02", "Pine002_M", "twig"), ("VF03", "Pine004_1", "twig"), ("VF04", "Pine006_01", "twig"),
+            ("VF05", "PineDead_02", "deadwood"),
+        };
+
+        /// <summary>
+        /// w4a-farmland-vegetation's crown rows: each farmland tree family's metadata alone on a meadow plane at the origin (a world
+        /// of one placement, as the map export will place it), the legs-on drone 35 m south of it with the airframe's effects on, held
+        /// at the middle height of the crown's wind box and flown north at 10 m/s into the crown, as the test range's crown row flies
+        /// V01_L. A row passes when the drone's first touch is that tree in its crown's material (the crown is felt: its twig shell,
+        /// with twig contacts after it, or a dead pine's bare deadwood; a first touch of the trunk is not the crown, w4a review E4b)
+        /// with no tunnel and no contact pair lost (ContactsLost: more than PairsPerShape at once); it prints the crown's work: its
+        /// twig contacts and the impulse they took, and the prop strikes with what struck them.
+        /// </summary>
+        static void FarmlandCrowns(DroneSpec spec, MaterialRow[] materials, ulong hash)
+        {
+            string root = RangeScenarios.Root;
+            string[] names = MapWorld.MaterialNames(System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.MaterialsFile)));
+            foreach ((string asset, string variant, string felt) in FarmlandTrees)
+            {
+                string model = "vegetation/" + asset + "/" + variant + ".assetmeta.json";
+                string text = System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.ModelsRoot, model));
+                double height;
+                using (var doc = System.Text.Json.JsonDocument.Parse(text))
+                    height = doc.RootElement.GetProperty("wind_volumes")[0].GetProperty("center")[1].GetDouble();
+                string placements = "{\"format\": \"fpv450-placements\", \"format_version\": 1, \"map\": \"w4a-crown\", \"frame\": \"unity-lh-yup\", "
+                    + "\"extent_m\": [-64, -64, 64, 64], \"ground\": {\"plane\": {\"y_m\": 0, \"surface\": \"meadow_sod\"}, \"patches\": [], \"holes\": []}, "
+                    + "\"instances\": [{\"id\": 0, \"asset\": \"" + asset + "\", \"variant\": \"" + variant
+                    + "\", \"class\": \"vegetation\", \"position_m\": [0, 0, 0], \"yaw_deg\": 0}]}";
+                var world = new MapWorld(placements, m => System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.ModelsRoot, m)), names);
+                var site = new ContactScenarios.Site(new FlightWorld(world), new Double3(0, 0, -35), 0) { Airframe = true };
+                var events = new System.Collections.Generic.List<FlightEvent>();
+                ContactScenarios.PoleStrike p = ContactScenarios.Into(spec, materials, hash, site, height, 10, _ => 0, null, 6000, 0, events);
+                ushort twig = world.MaterialId("twig");
+                int twigContacts = 0, strikes = 0;
+                double impulse = 0;
+                var struck = new System.Collections.Generic.SortedSet<string>(StringComparer.Ordinal);
+                foreach (FlightEvent e in events)
+                {
+                    if (e.Kind == EventKind.ContactMade && e.Material == twig) twigContacts++;
+                    if (e.Kind == EventKind.ContactBroken && e.Material == twig) impulse += e.B;
+                    if (e.Kind == EventKind.PropStrike) { strikes++; struck.Add(e.Material > 0 ? names[e.Material - 1] : "ground"); }
+                }
+                Row($"the farmland crown ({variant}, 10 m/s at {height:F2} m), felt first by its {felt}, no tunnel, no pair lost",
+                    p.Touch && p.FirstObject == variant && p.FirstMaterial == felt && (felt != "twig" || twigContacts > 0) && p.Tunnels == 0 && p.Lost == 0,
+                    $"{twigContacts} twig contacts taking {impulse:F2} N·s, {strikes} prop strikes ({(strikes > 0 ? string.Join(", ", struck) : "none")}); " + Strike(p));
+            }
         }
 
         /// <summary>The step with its contacts busiest: legs on resting on the floor (eight supports and their friction), and

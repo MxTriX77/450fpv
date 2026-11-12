@@ -1,0 +1,50 @@
+{
+  "source": {
+    "model": "world_final/Farming_land/Assets/Farm_land/Models/village_ruins.fbx",
+    "model_sha256": "b87059ac7e9a640b2d9ebb4b179741f50f34c03462d1314daea863fc10a8cb1a",
+    "object": "Ruin_RoofCollapsed"
+  },
+  "prefab": { "mirror_x": false, "rotation_euler_deg": [0.0, 0.0, 0.0], "recentre": false },
+  "intact": {
+    "model": "world_final/Farming_land/Assets/ALP_Assets/country house01/Models/House.fbx",
+    "model_sha256": "6508398152b475e1c7b175e17c1886e63d3bdd332f21631f59629c5a3910c279",
+    "objects": ["Room01", "Room02", "Room05", "Room08", "Room09", "Window", "Windows", "door_frames", "floor", "hallway",
+                "heating_stove", "mainHouse01", "plitus2", "polySurface1", "polySurface2", "polySurface3", "polySurface4",
+                "polySurface5", "q10:Mesh", "q9:Mesh1", "windowsCeiling"]
+  },
+  "parts": [
+    {"part": "stove", "physics": "masonry", "box": [[-4.54, 0.3, -0.84], [-1.99, 3.95, 0.32]], "edge_radius_m": 0.003},
+    {"part": "chimney", "physics": "masonry", "normal": "vertical", "box": [[-4.6, 3.95, -0.45], [-3.7, 9.0, 0.5]], "edge_radius_m": 0.003},
+    {"part": "chimney", "physics": "masonry", "normal": "up", "box": [[-4.6, 3.95, -0.45], [-3.7, 9.0, 0.5]], "edge_radius_m": 0.003},
+    {"part": "window_frame", "physics": "timber", "slots": ["WindowsMat01"]},
+    {"part": "window_frame", "physics": "timber", "slots": ["OldHouseMapWood02"], "box": [[-6.04, 1.56, -4.7], [-4.6, 3.14, -4.21]]},
+    {"part": "window_frame", "physics": "timber", "slots": ["OldHouseMapWood02"], "box": [[-2.27, 1.22, 3.5], [2.27, 2.88, 6.27]]},
+    {"part": "door_frame", "physics": "timber", "slots": ["OldHouseMapWood02"], "box": [[-6.23, 0.4, -1.16], [2.29, 2.92, 3.39]]},
+    {"part": "floor", "physics": "timber", "normal": "up", "box": [[-8.0, -0.5, -6.0], [8.0, 0.6, 8.0]], "landable": true, "sheet_m": 0.02},
+    {"part": "ceiling", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "down", "box": [[-8.0, 3.8, -6.0], [8.0, 4.0, 8.0]], "sheet_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "roof", "physics": "asbestos_cement", "slots": ["OldHouseMapIndoorWall01"], "normal": "sloped", "box": [[-8.0, 3.5, -6.0], [8.0, 9.0, 8.0]], "sheet_m": 0.02, "edge_radius_m": 0.003, "merge_tol_m": 0.03},
+    {"part": "roof_frame", "physics": "timber", "box": [[-8.0, 3.95, -6.0], [8.0, 9.0, 8.0]], "sheet_m": 0.02, "merge_tol_m": 0.03},
+    {"part": "wall_stove_end", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "vertical", "box": [[-7.1, -0.5, -4.8], [-6.6, 4.0, 3.45]], "layer_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "wall_stove_end", "physics": "timber", "normal": "vertical", "box": [[-7.1, -0.5, -4.8], [-6.6, 4.0, 3.45]]},
+    {"part": "wall_far_end", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "vertical", "box": [[6.6, -0.5, -4.8], [7.1, 4.0, 3.45]], "layer_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "wall_far_end", "physics": "timber", "normal": "vertical", "box": [[6.6, -0.5, -4.8], [7.1, 4.0, 3.45]]},
+    {"part": "wall_back", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "vertical", "box": [[-7.1, -0.5, -4.8], [7.1, 4.0, -4.25]], "layer_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "wall_back", "physics": "timber", "normal": "vertical", "box": [[-7.1, -0.5, -4.8], [7.1, 4.0, -4.25]]},
+    {"part": "wall_front", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "vertical", "box": [[-7.1, -0.5, 2.95], [7.1, 4.0, 3.45]], "layer_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "wall_front", "physics": "timber", "normal": "vertical", "box": [[-7.1, -0.5, 2.95], [7.1, 4.0, 3.45]]},
+    {"part": "porch_wall", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "vertical", "box": [[-2.4, -0.5, 3.45], [2.4, 4.1, 6.4]], "layer_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "porch_wall", "physics": "timber", "normal": "vertical", "box": [[-2.4, -0.5, 3.45], [2.4, 4.1, 6.4]]},
+    {"part": "partition", "physics": "masonry", "slots": ["OldHouseMapIndoorWall01"], "normal": "vertical", "layer_m": 0.02, "edge_radius_m": 0.003},
+    {"part": "partition", "physics": "timber", "normal": "vertical"},
+    {"part": "trim", "physics": "timber"}
+  ],
+  "slabs": { "raster_m": 0.01, "angle_tol_deg": 6.0, "axis_angle_deg": 6.0, "axis_dev_m": 0.015, "plane_tol_m": 0.03, "max_thickness_m": 0.35, "merge_tol_m": 0.015,
+             "min_box_m": 0.02, "cover_tol_m": 0.015, "air_cell_m": 0.02 },
+  "prune": { "tol_m": 0.02 },
+  "gaps": { "wall_parts": ["wall_stove_end", "wall_far_end", "wall_back", "wall_front", "porch_wall", "partition"],
+            "skin_parts": ["roof", "ceiling"], "min_m": 0.25, "band_m": 0.12, "jamb_px": 3, "holes_max": 12, "skin_keep_min": 0.05 },
+  "wind": { "parts": ["wall_stove_end", "wall_far_end", "wall_back", "wall_front", "porch_wall", "partition", "roof", "chimney"],
+            "cell_m": 0.25, "cavity_box": [[-6.72, 0.37, -4.35], [6.72, 3.9, 3.08]] },
+  "snag": { "broken_drop_m": 0.05, "open_edges": false },
+  "lod": { "cull_m": 2340.0 }
+}

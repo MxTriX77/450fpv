@@ -25,13 +25,14 @@ namespace Fpv450.UI
 
             MenuChoice choice = MenuChoice.None;
             float h = AppStyle.S(64);
-            if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Train")) choice = MenuChoice.Train;
+            // Where each goes (w1-farmland-world 2.1): the flights stay on the test range until the farmland's hills fly (W3).
+            if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Train", "flies the test range")) choice = MenuChoice.Train;
             y += h;
             if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Calibrate")) choice = MenuChoice.Calibrate;
             y += h;
             if (review)
             {
-                if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Explore")) choice = MenuChoice.Explore;
+                if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Explore", "the farmland, noclip only for now")) choice = MenuChoice.Explore;
                 y += h;
             }
             if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Exit")) choice = MenuChoice.Exit;
@@ -43,11 +44,14 @@ namespace Fpv450.UI
             return choice;
         }
 
-        static bool Item(Rect r, string text)
+        static bool Item(Rect r, string text, string hint = null)
         {
             bool hover = r.Contains(Event.current.mousePosition);
             if (hover) AppStyle.Fill(new Rect(r.x, r.y + AppStyle.S(14), AppStyle.S(4), r.height - AppStyle.S(28)), AppStyle.Accent);
-            return GUI.Button(r, text, AppStyle.MenuItem);
+            bool pressed = GUI.Button(r, text, AppStyle.MenuItem);
+            // The hint in a quiet column after the longest item, on the item's line.
+            if (hint != null) GUI.Label(new Rect(r.x + AppStyle.S(210), r.y, Screen.width - r.x - AppStyle.S(210), r.height), hint, AppStyle.Label);
+            return pressed;
         }
     }
 }

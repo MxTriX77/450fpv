@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "about": "The farmland's vendor trees and bushes (w4a-farmland-vegetation, D-088, D-089): an asset id per source family, each variant named as the prefab the farmland's terrain places, so the map export's variant ids are these. Params: assets-src/<class>/<variant>.json; built by python tools/blender/vendor_plants.py; nothing of their meshes is pushed.",
+  "store": "vendor/world_final/Farming_land",
+  "assets": {
+    "VF01": {
+      "class": "vegetation",
+      "kind": "tree",
+      "family": "Poly Haven island_tree_01 (CC0), reduced to cards by the friend's build_island_tree.py",
+      "variants": [
+        "IslandTree",
+        "IslandTree_Dry"
+      ]
+    },
+    "VF02": {
+      "class": "vegetation",
+      "kind": "tree",
+      "family": "Book of the Dead Pine_002 (Unity Asset Store)",
+      "variants": [
+        "Pine002_S2",
+        "Pine002_M",
+        "Pine002_M_Dry",
+        "Pine002_L"
+      ]
+    },
+    "VF03": {
+      "class": "vegetation",
+      "kind": "tree",
+      "family": "Book of the Dead pine_004 (Unity Asset Store)",
+      "variants": [
+        "Pine004_1",
+        "Pine004_1_Dry",
+        "Pine004_3"
+      ]
+    },
+    "VF04": {
+      "class": "vegetation",
+      "kind": "tree",
+      "family": "Book of the Dead pine_006 (Unity Asset Store)",
+      "variants": [
+        "Pine006_01",
+        "Pine006_01_Dry",
+        "Pine006_02"
+      ]
+    },
+    "VF05": {
+      "class": "vegetation",
+      "kind": "tree",
+      "family": "Book of the Dead PineDead_02 (Unity Asset Store)",
+      "variants": [
+        "PineDead_02"
+      ]
+    },
+    "VF06": {
+      "class": "vegetation",
+      "kind": "bush",
+      "family": "Book of the Dead's Megascans Bush_b, the dead bush (Unity Asset Store)",
+      "variants": [
+        "DeadBush_4",
+        "DeadBush_6"
+      ]
+    },
+    "VF07": {
+      "class": "vegetation",
+      "kind": "bush",
+      "family": "Book of the Dead's Quixel GreenBush (Unity Asset Store)",
+      "variants": [
+        "GreenBush",
+        "GreenBush_Dry"
+      ]
+    },
+    "VF08": {
+      "class": "vegetation",
+      "kind": "bush",
+      "family": "Book of the Dead's Megascans Bush_qilgP2, the leafy bush (Unity Asset Store)",
+      "variants": [
+        "LeafyBush_P2",
+        "LeafyBush_P2_Dry"
+      ]
+    },
+    "VF09": {
+      "class": "vegetation",
+      "kind": "bush",
+      "family": "Book of the Dead's Quixel RedBush (Unity Asset Store)",
+      "variants": [
+        "RedBush_Dry"
+      ]
+    },
+    "VF10": {
+      "class": "vegetation",
+      "kind": "bush",
+      "family": "Unity Terrain Sample BushDry_A and _B (Unity Asset Store)",
+      "variants": [
+        "SmallBushDry_A",
+        "SmallBushDry_B"
+      ]
+    }
+  }
+}
