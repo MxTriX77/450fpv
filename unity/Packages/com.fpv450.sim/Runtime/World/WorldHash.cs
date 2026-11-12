@@ -10,7 +10,8 @@
 //   names as one text ("materials", then each name, LF-separated). A row, a pose or an
 //   asset's metadata that changes by one byte changes the hash.
 // - MapWorld of a map package (w3-farmland-ground 1.1): its placement record (none yet, built in memory), then its
-//   map.json, whose files' SHA-256 the loader checks, then its material names.
+//   map.json, whose files' SHA-256 the loader checks, then its material names; with a stem field (w9-village-physics 2.1),
+//   then assets-src/vendor_plant_numbers.json.
 // - FloorWorld: its constructor's arguments.
 // Runtime objects (the launch stand) are outside the hash; the flight log records them.
 //
@@ -58,8 +59,11 @@ namespace Fpv450.Sim.World
         /// walls, its holes and the world's edge as holes; Geometry has no ground pair on a terrain. A world on a plane is as
         /// before: no case of the floor's or the test range's moved; both re-recorded for the version line, and
         /// golden/farmland.txt is new.
+        /// 9 (w9-village-physics 2.1): StemsNear joins the interface, a map package's stem field (MapWorldStems.cs), and the
+        /// farmland's content hash continues over assets-src/vendor_plant_numbers.json. No earlier case moved; every golden
+        /// file with a version line re-recorded for it, golden/farmland.txt with its new content hash and the stem cases.
         /// </summary>
-        public const int QueryVersion = 8;
+        public const int QueryVersion = 9;
 
         /// <summary>FNV-1a 64's offset basis: the hash of nothing.</summary>
         public const ulong Offset = 0xCBF29CE484222325UL;
