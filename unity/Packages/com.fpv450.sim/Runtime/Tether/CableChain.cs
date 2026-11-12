@@ -64,6 +64,9 @@ namespace Fpv450.Sim.Tether
         public Double3 Hold;
         /// <summary>The chain's: the normal force at the step's end, N (above 0 pressing).</summary>
         public double NormalForce;
+        /// <summary>The chain's: the hold moved over the member in the last step (Coulomb's slip, a glide or a free slip, or
+        /// the hold let go): the node slid on it rather than sticking (w3-farmland-ground 2.4: the trail's rest test).</summary>
+        public bool Slid;
 
         // This step's normal model: 0 none, 1 pressing (the spring from the surface), 2 speculative (from the gap at
         // the step's start, the node being predicted to reach the surface within the step).
@@ -108,6 +111,10 @@ namespace Fpv450.Sim.Tether
         /// <summary>The caller's: how long the node has rested, s (the trail's freeze, design 3). It moves with the node; a
         /// node a split makes starts at 0.</summary>
         public double RestTime;
+        /// <summary>The caller's: how long the node has stayed near StillAt, where its stillness began, on a support or not, s
+        /// (w3-farmland-ground 2.4: a span the line holds still between two supports freezes with them).</summary>
+        public double StillTime;
+        public Double3 StillAt;
         /// <summary>The caller's clearance certificate of the segment from this node to the next (design 12): Cleared, and the
         /// core A–B of the segment a query found clear. It moves with the node, and a split's new node takes its segment's:
         /// both pieces lie on the certified core (the caller judges a segment by its ends' distance from that core, and the
@@ -130,6 +137,9 @@ namespace Fpv450.Sim.Tether
         /// (a crest, the ledge's lip; w3-farmland-ground 2.5). It is never merged away, and it counts against CrestCapacity, not
         /// the spacing law's room. A split's new node is not one unless SplitCrest puts it there.</summary>
         public bool Crest;
+        /// <summary>The caller's: a point of the laid trail lifted back into the chain this step (w3-farmland-ground 2.4). It lies
+        /// where it rested, on its support, though its slots come only with the next step's contacts.</summary>
+        public bool Lifted;
     }
 
     /// <summary>
@@ -1188,6 +1198,7 @@ namespace Fpv450.Sim.Tether
 
         static void SettleContact(Double3 x, Double3 along, double wrap, double low, ref CableContact c)
         {
+            c.Slid = false;
             if (c.Mode == 0)
             {
                 c.NormalForce = 0;
@@ -1202,6 +1213,7 @@ namespace Fpv450.Sim.Tether
             {
                 // Nothing pressed: the hold comes to the node (its spring was out of the solve), so it stores nothing.
                 c.Hold = c.Hold + t;
+                c.Slid = true;
                 return;
             }
             // A capstan's hold along the line is the member's point (line slides through it by the capstan); across the line
@@ -1212,9 +1224,16 @@ namespace Fpv450.Sim.Tether
                 Double3 on = axis * Double3.Dot(axis, t);
                 t = t - on;
                 double pull = c.HoldStiffness * on.Length();
-                if (c.Free) c.Hold = c.Hold + on; // slipping by: the hold follows the node along the line
+                if (c.Free)
+                {
+                    c.Hold = c.Hold + on; // slipping by: the hold follows the node along the line
+                    c.Slid = true;
+                }
                 else if (c.Glide && pull > 0 && pull > low * (DetMath.Exp(c.StaticFriction * wrap) - 1))
+                {
                     c.Hold = c.Hold + on * (1 - low * (DetMath.Exp(c.KineticFriction * wrap) - 1) / pull);
+                    c.Slid = true;
+                }
             }
             double held = c.HoldStiffness * t.Length(), limit = c.StaticFriction * c.NormalForce;
             if (held > limit && held > 0)
@@ -1222,6 +1241,7 @@ namespace Fpv450.Sim.Tether
                 // Coulomb: the hold slides toward the node until it pulls with μk·N (its spring only loses energy).
                 double keep = c.KineticFriction * c.NormalForce / held;
                 c.Hold = c.Hold + t * (1 - keep);
+                c.Slid = true;
             }
         }
 

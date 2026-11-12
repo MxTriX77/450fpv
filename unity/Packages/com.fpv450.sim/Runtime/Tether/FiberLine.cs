@@ -121,10 +121,12 @@ namespace Fpv450.Sim.Tether
     /// - A node near the ground rests on its plane (SampleGround, one batch a step; over a hole the soil a ray finds) with the
     ///   coating's friction; with 1.7's contacts (FiberContacts, unless FlightSetup.TetherWithoutContacts) it meets the plane
     ///   with its surface's own friction, over a hole the shapes there, and every shape, element, snag record, conductor and
-    ///   part of the drone near it; resting on any of them trail.freeze_seconds slower than trail.freeze_speed_m_s (so held),
-    ///   more than near_length_m of line from the exit, it freezes into the trail with the tension it held; the trail's last
-    ///   point lifts back into the chain when the pull at it passes that and the friction of trail.hold_length_m of line, or
-    ///   the rotors' air passes what holds it.
+    ///   part of the drone near it; at rest on any of them trail.freeze_seconds (its holds stuck there, or slower than
+    ///   trail.freeze_speed_m_s), or held still that long in a span between such nodes, more than near_length_m of line from the
+    ///   exit, it freezes into the trail with the tension and the air it bore; the trail's last point lifts back into the chain
+    ///   when the chain's pull would move it (across or off its laid run past the friction of the line it lumps, or along it
+    ///   past what the run and its corners hold: w3-farmland-ground 2.4), or the air at it passes what it bore by the ground's
+    ///   friction. A laid node the ground holds across the chord between its neighbours (a turn) is held as a crest is.
     /// - On a terrain the line lies over the ground (w3-farmland-ground 2.5, Crests): a segment whose chord passes more than
     ///   KeepGap under the ground takes a node there, on the ground at its deepest point (a crest, a step's lip), and a node the
     ///   ground holds over the chord between its neighbours is never merged away; CrestNodes such nodes besides span.max_nodes.
@@ -179,8 +181,9 @@ namespace Fpv450.Sim.Tether
 
         // The trail.
         readonly Double3[] _trail;
-        readonly double[] _trailMaterial, _trailHeld;
+        readonly double[] _trailMaterial, _trailHeld, _trailAir;
         readonly double _freezeTime, _freezeSpeed, _hold;
+        readonly bool _slidingTrail; // FlightSetup.TetherSlidingTrail: the trail before w3-farmland-ground 2.4
         int _trailCount;
 
         // The coil.
@@ -194,6 +197,9 @@ namespace Fpv450.Sim.Tether
         readonly GroundSample[] _ground;
         readonly XZ[] _windAt;               // AddWind's: the ground under each node posted to the wind's batch
         readonly GroundSample[] _windGround;
+        readonly Double3[] _soilAt;          // AddWind's: each node over a hole and the soil it cast there, for Ground (one cast a step)
+        readonly double[] _soilHeight;
+        int _soilCount, _soilCursor;
         readonly double[] _groundHeight;
         readonly Double3[] _groundNormal;
         readonly Double3[] _groundAt; // a point of each node's ground plane: under it, or on a step's face it lies behind
@@ -246,6 +252,7 @@ namespace Fpv450.Sim.Tether
             World = setup.World;
             _terrain = !World.Geometry(WorldIds.Ground, 0, out _);
             TwoWay = setup.TetherTwoWay;
+            _slidingTrail = setup.TetherSlidingTrail;
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
                 : setup.Rain == RainLevel.SevereRain ? table.Number("fiber.wet_film_severe_m") : 0;
@@ -299,6 +306,7 @@ namespace Fpv450.Sim.Tether
             _trail = new Double3[capacity];
             _trailMaterial = new double[capacity];
             _trailHeld = new double[capacity];
+            _trailAir = new double[capacity];
 
             // On a terrain the chain has room for the crests' nodes besides the spacing law's (w3-farmland-ground 2.5).
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
@@ -310,6 +318,8 @@ namespace Fpv450.Sim.Tether
             _ground = new GroundSample[nodes + 4];
             _windAt = new XZ[nodes];
             _windGround = new GroundSample[nodes];
+            _soilAt = new Double3[nodes];
+            _soilHeight = new double[nodes];
             _groundHeight = new double[nodes];
             _groundNormal = new Double3[nodes];
             _groundAt = new Double3[nodes];
@@ -641,6 +651,7 @@ namespace Fpv450.Sim.Tether
         public void AddWind()
         {
             _windFirst = -1;
+            _soilCount = 0;
             if (_windBatch == null || !_attached) return;
             int n = _chain.Count - 1;
             for (int i = 0; i < n; i++) _windAt[i] = new XZ(_chain[i].Position.X, _chain[i].Position.Z);
@@ -648,7 +659,14 @@ namespace Fpv450.Sim.Tether
             for (int i = 0; i < n; i++)
             {
                 GroundSample g = _windGround[i];
-                double h = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(_chain[i].Position, _soilRay, _soilHit, out _);
+                double h = g.Height;
+                if ((g.Flags & GroundFlags.Hole) != 0)
+                {
+                    // Over a hole the soil a ray finds, cast once: Ground takes it for the same node (w3-farmland-ground 2.4).
+                    h = World.SoilUnder(_chain[i].Position, _soilRay, _soilHit, out _);
+                    _soilAt[_soilCount] = _chain[i].Position;
+                    _soilHeight[_soilCount++] = h;
+                }
                 int at = _windBatch.Add(_chain[i].Position, h);
                 if (at < 0) break;
                 if (i == 0) _windFirst = at;
@@ -710,7 +728,9 @@ namespace Fpv450.Sim.Tether
                 }
             int batch = _rotors != null ? n + 4 : n;
             World.SampleGround(new ReadOnlySpan<XZ>(_at, 0, batch), new Span<GroundSample>(_ground, 0, batch));
+            _soilCursor = 0;
             for (int i = 0; i < n; i++) Ground(i);
+            _soilCount = 0;
             if (_rotors != null)
             {
                 Double3 up = q.Rotate(new Double3(0, 1, 0));
@@ -903,7 +923,8 @@ namespace Fpv450.Sim.Tether
             for (int i = 1; hold && i + 1 < n; i++)
             {
                 ref CableNode a = ref _chain[i];
-                bool held = OnGround(a.Contact0, a.Position) || OnGround(a.Contact1, a.Position);
+                bool held = OnGround(a.Contact0, a.Position) || OnGround(a.Contact1, a.Position) || a.Lifted; // a point lifted off the trail lies where it rested
+                a.Lifted = false;
                 double over = Over(_chain[i - 1].Position, a.Position, _chain[i + 1].Position);
                 if (a.Crest)
                 {
@@ -924,14 +945,19 @@ namespace Fpv450.Sim.Tether
         bool OnGround(in CableContact c, Double3 x) =>
             c.Active && (_contacts == null || c.MemberKind == (byte)FiberMember.Ground) && Double3.Dot(c.Normal, x - c.Point) <= CrestGap;
 
-        // How far x lies over the chord p–q where it passes x in x–z, m (−∞ where it passes x outside p–q's span).
-        static double Over(Double3 p, Double3 x, Double3 q)
+        // How far the ground holds x off the chord p–q, m: over it where the chord passes x in x–z (a crest), or across it in
+        // x–z (the laid line's turn, held there by its friction: w3-farmland-ground 2.4), the larger; −∞ where the chord passes
+        // x outside p–q's span. A node under its chord (in a hollow) is held off it by nothing but its own sag. The sliding
+        // trail (FlightSetup.TetherSlidingTrail) held crests alone, so a laid turn was merged into its chord.
+        double Over(Double3 p, Double3 x, Double3 q)
         {
             double dx = q.X - p.X, dz = q.Z - p.Z, dd = dx * dx + dz * dz;
             if (!(dd > 0)) return double.NegativeInfinity;
             double u = ((x.X - p.X) * dx + (x.Z - p.Z) * dz) / dd;
             if (!(u > 0 && u < 1)) return double.NegativeInfinity;
-            return x.Y - (p.Y + (q.Y - p.Y) * u);
+            double ax = x.X - (p.X + dx * u), az = x.Z - (p.Z + dz * u), across = DetMath.Sqrt(ax * ax + az * az);
+            double over = x.Y - (p.Y + (q.Y - p.Y) * u);
+            return over > across || _slidingTrail ? over : across;
         }
 
         // Segment j against the ground, once its ground certificate has run out.
@@ -1107,7 +1133,7 @@ namespace Fpv450.Sim.Tether
         {
             ref CableNode a = ref _chain[i];
             GroundSample g = _ground[i];
-            double h = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(a.Position, _soilRay, _soilHit, out _);
+            double h = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : Soil(a.Position);
             Double3 normal = (g.Flags & GroundFlags.Hole) == 0 ? g.Normal : new Double3(0, 1, 0);
             Double3 at = new Double3(a.Position.X, h, a.Position.Z);
             // Behind a step's face (w3-farmland-ground 2.2): SampleGround reports a step's top, so a node past a face below it
@@ -1139,6 +1165,15 @@ namespace Fpv450.Sim.Tether
                 a.Contact0.HoldStiffness = GroundHold;
             }
             a.Contact0.Remeshable = true;
+        }
+
+        // The soil under a node over a hole: AddWind's cast for this node (the same point bit for bit, in the chain's order; a
+        // node the contacts put in since is not among them), else a ray now. Either is SoilUnder's answer at the point.
+        double Soil(Double3 x)
+        {
+            if (_soilCursor < _soilCount && _soilAt[_soilCursor].X == x.X && _soilAt[_soilCursor].Y == x.Y && _soilAt[_soilCursor].Z == x.Z)
+                return _soilHeight[_soilCursor++];
+            return World.SoilUnder(x, _soilRay, _soilHit, out _);
         }
 
         double Tributary(int i)
@@ -1373,6 +1408,7 @@ namespace Fpv450.Sim.Tether
                 _trail[_trailCount] = _chain[i].Position;
                 _trailMaterial[_trailCount] = _chain[i].Material;
                 _trailHeld[_trailCount] = 0;
+                _trailAir[_trailCount] = 0;
                 _trailCount++;
             }
             if (!(k > 0 && k < n - 1))
@@ -1411,28 +1447,48 @@ namespace Fpv450.Sim.Tether
         void FreezeAndLift(StepEvents events)
         {
             int n = _chain.Count;
+            // At rest: on a support (the ground or an object's top), its holds stuck there through the step or the node slower
+            // than trail.freeze_speed_m_s (w3-farmland-ground 2.4). A node the ground's stick spring holds rings about its hold
+            // at up to the spring's frequency times its travel (3 cm/s for a 26 m lump, measured; the spring is the
+            // regularisation of static friction, and its implicit step barely damps it), so the speed alone never saw it rest;
+            // a node creeping by Coulomb under a light touch is at rest by its speed. A node draped over an object's twigs lies
+            // on them (Touches). The sliding trail (FlightSetup.TetherSlidingTrail) held a node only while it pressed and only by
+            // its speed.
             for (int i = 1; i < n - 1; i++)
             {
                 ref CableNode a = ref _chain[i];
-                bool held = a.Contact0.Active && a.Contact0.NormalForce > 0 || a.Contact1.Active && a.Contact1.NormalForce > 0;
-                bool resting = held && a.Velocity.Length() < _freezeSpeed;
+                bool resting = _slidingTrail
+                    ? (Presses(a.Contact0) || Presses(a.Contact1)) && a.Velocity.Length() < _freezeSpeed
+                    : (Touches(a.Contact0, a.Position) || Touches(a.Contact1, a.Position))
+                        && (Sticks(a.Contact0) && Sticks(a.Contact1) || a.Velocity.Length() < _freezeSpeed);
                 a.RestTime = resting ? a.RestTime + _dt : 0;
+                if (a.StillTime > 0 && (a.Position - a.StillAt).Length() <= FiberContacts.InsertGap) a.StillTime += _dt;
+                else
+                {
+                    a.StillAt = a.Position;
+                    a.StillTime = _dt;
+                }
             }
-            // Freeze: node 1 at rest long enough on the ground, so held there by its friction against whatever tension it bears
-            // (it does not move), the air not lifting it, and farther than near_length_m of line from the exit: the line at the
-            // drone's feet stays live, so a liftoff peels it off the ground (its compliance) while the trail behind lifts, rather
-            // than meeting a frozen point. The point keeps the tension it held.
+            // Freeze: node 1 at rest long enough, so held there by its support against whatever tension and air it bears (it
+            // does not move), and farther than near_length_m of line from the exit: the line at the drone's feet stays live, so a
+            // liftoff peels it off the ground (its compliance) while the trail behind lifts, rather than meeting a frozen point.
+            // The point keeps the tension and the air it held. A node that long within InsertGap of one place between supports
+            // (the line spanning a gap between twigs or a hollow, its weight carried by its tension, swinging there in the wind)
+            // freezes with the supported node at rest beyond it (Spanned). The sliding trail froze only a node on a support, and also asked for air its ground's friction holds
+            // (μs·w), which a node resting on a bush's top in wind never met.
             double exitMaterial = _chain[n - 1].Material;
             while (_chain.Count >= 3)
             {
                 ref CableNode a = ref _chain[1];
-                if (!(a.RestTime >= _freezeTime) || !(_airPerMetre[1] <= _groundStatic * _weight) || !(exitMaterial - a.Material > _nearLength)) break;
+                if (!(a.RestTime >= _freezeTime || !_slidingTrail && Spanned()) || _slidingTrail && !(_airPerMetre[1] <= _groundStatic * _weight)
+                    || !(exitMaterial - a.Material > _nearLength)) break;
                 if (_trailCount == _trail.Length)
                 {
                     // Overflow: the oldest pair merged (the anchor kept), a world bug.
                     Array.Copy(_trail, 2, _trail, 1, _trailCount - 2);
                     Array.Copy(_trailMaterial, 2, _trailMaterial, 1, _trailCount - 2);
                     Array.Copy(_trailHeld, 2, _trailHeld, 1, _trailCount - 2);
+                    Array.Copy(_trailAir, 2, _trailAir, 1, _trailCount - 2);
                     _trailCount--;
                     FlightEvent bug = FlightEvent.Of(EventKind.WorldBug);
                     bug.Index = 1;
@@ -1442,26 +1498,114 @@ namespace Fpv450.Sim.Tether
                 _trail[_trailCount] = a.Position;
                 _trailMaterial[_trailCount] = a.Material;
                 _trailHeld[_trailCount] = _chain.Tension(1);
+                _trailAir[_trailCount] = _airPerMetre[1];
                 _trailCount++;
                 _chain.RemoveFirst();
                 ShiftAir(-1);
                 AnchorTrailEnd();
             }
-            // Lift: the trail's last point back into the chain while the pull at it passes the tension it held at rest and the
-            // friction of trail.hold_length_m of line, or the air passes what holds it.
-            while (_trailCount >= 2 && !_chain.SpacingFull
-                && (_chain.Tension(0) > _trailHeld[_trailCount - 1] + _hold || _airPerMetre[0] > _groundStatic * _weight))
+            // Lift: the trail's last point back into the chain while the chain pulls it off where it lies (Pulled), or the air
+            // at it passes what it held at rest by the ground's friction. The sliding trail lifted it once the pull's size passed
+            // the tension it held and the friction of trail.hold_length_m of line, whichever way it pulled, or the air passed the
+            // ground's friction alone.
+            while (_trailCount >= 2 && !_chain.SpacingFull && (_slidingTrail
+                ? _chain.Tension(0) > _trailHeld[_trailCount - 1] + _hold || _airPerMetre[0] > _groundStatic * _weight
+                : Pulled() || _airPerMetre[0] > _trailAir[_trailCount - 1] + _groundStatic * _weight))
             {
                 ref CableNode a = ref _chain[0];
                 a.AnchorStiffness = 0;
                 a.AnchorDamping = 0;
                 a.RestTime = 0;
+                a.StillTime = 0;
+                a.Lifted = !_slidingTrail;
                 _trailCount--;
                 _chain.InsertFirst(_trail[_trailCount - 1], _trailMaterial[_trailCount - 1]);
                 ShiftAir(1);
                 AnchorTrailEnd();
             }
         }
+
+        // The trail's last point is pulled off where it lies (w3-farmland-ground 2.4). The chain pulls it with P along its
+        // first segment; the laid run behind it (the trail's last segment, straight by construction) holds it with the tension
+        // it froze with, T_h, back along the run.
+        // - The part of P along the run's way out, past T_h, is a pull on the laid line: it stretches the run (micro-slip, no
+        //   point moves) and reaches back along the trail, less the run's static friction μs·w a metre, until the anchor holds
+        //   it; a trail point it reaches turns it by its corner, T·|u_in − u_out| more across, which the point holds while that
+        //   stays within its static friction μs·w·(its lumped line) less what its own held tension already takes there. A
+        //   corner it would move lifts the end (the chain then has the line, a point at a time).
+        // - The rest of P (across the run, up off the ground, or back over it) bends or folds the line at the point, which the
+        //   static friction of the line the point lumps (half the run, half the chain's first segment) holds.
+        // Trail points on one place (a wrap round a twig froze them so) are one point: the run is the last of some length, the
+        // point lumps the line to it. A chain's first segment of no length (or a trail all on one place) leaves no direction: the
+        // pull's size against T_h and the friction of the line the point lumps.
+        bool Pulled()
+        {
+            int t = _trailCount, r = t - 2;
+            double holds = _groundStatic * _weight;
+            Double3 run = _trail[t - 1] - _trail[r];
+            while (!(run.Length() > 0) && r > 0) run = _trail[t - 1] - _trail[--r];
+            Double3 first = _chain[1].Position - _chain[0].Position;
+            double lr = run.Length(), lf = first.Length(), tension = _chain.Tension(0);
+            double lumped = 0.5 * (_trailMaterial[t - 1] - _trailMaterial[r] + _chain[1].Material - _chain[0].Material);
+            if (!(lr > 0) || !(lf > 0)) return tension > _trailHeld[t - 1] + holds * lumped;
+            Double3 ut = run * (1 / lr), pull = first * (tension / lf);
+            double along = Double3.Dot(pull, ut), outward = along > 0 ? along : 0;
+            if ((pull - ut * outward).Length() > holds * lumped) return true;
+            double excess = outward - _trailHeld[t - 1];
+            Double3 uOut = ut;
+            for (int k = r; k > 0 && excess > 0; k--)
+            {
+                excess -= holds * (_trailMaterial[k == r ? t - 1 : k + 1] - _trailMaterial[k]);
+                if (!(excess > 0)) break;
+                Double3 back = _trail[k] - _trail[k - 1];
+                double lb = back.Length();
+                if (!(lb > 0)) continue;
+                Double3 uIn = back * (1 / lb);
+                double turn = (uOut - uIn).Length();
+                double margin = holds * 0.5 * (_trailMaterial[k + 1] - _trailMaterial[k - 1]) - _trailHeld[k] * turn;
+                if (excess * turn > margin) return true;
+                uOut = uIn;
+            }
+            return false;
+        }
+
+        // Node 1 still trail.freeze_seconds (within InsertGap of one place) in a span the line holds between the trail's end and
+        // a node at rest on a support: every node from it to that one still as long, and each not on a support no more than
+        // InsertGap over the chord between its neighbours (a span its tension holds sags under its chord; a node above it is
+        // held by something else, as the rotors' fountain holds one under a hovering drone, and falls when that goes).
+        bool Spanned()
+        {
+            int n = _chain.Count;
+            for (int i = 1; i < n - 1; i++)
+            {
+                ref CableNode a = ref _chain[i];
+                if (!(a.StillTime >= _freezeTime)) return false;
+                if (a.RestTime >= _freezeTime)
+                {
+                    if (i > 1) return true;
+                    continue;
+                }
+                Double3 p = _chain[i - 1].Position, q = _chain[i + 1].Position, x = a.Position;
+                double dx = q.X - p.X, dz = q.Z - p.Z, dd = dx * dx + dz * dz;
+                double u = dd > 0 ? ((x.X - p.X) * dx + (x.Z - p.Z) * dz) / dd : 0.5;
+                if (u < 0) u = 0;
+                else if (u > 1) u = 1;
+                if (x.Y - (p.Y + (q.Y - p.Y) * u) > FiberContacts.InsertGap) return false;
+            }
+            return false;
+        }
+
+        static bool Presses(in CableContact c) => c.Active && c.NormalForce > 0;
+
+        // A slot whose member the node presses, or, for an object's member (not the ground's plane or a layer, which a node at
+        // rest presses with its weight), lies within InsertGap of: a node draped over twigs, its weight carried by the line there,
+        // touches them on and off.
+        static bool Touches(in CableContact c, Double3 x) =>
+            c.Active && (c.NormalForce > 0 || c.MemberKind != (byte)FiberMember.None && c.MemberKind != (byte)FiberMember.Ground
+                && c.MemberKind != (byte)FiberMember.Layer && Double3.Dot(c.Normal, x - c.Point) <= FiberContacts.InsertGap);
+
+        // A pressing slot whose hold stuck through the step (no slip over its member, no line sliding through it).
+        static bool Sticks(in CableContact c) => !Presses(c) || !c.Slid && !c.Sliding;
 
         // The per-node air test follows the nodes as the trail takes or gives one (the new node 0, a trail point, at rest: 0).
         void ShiftAir(int by)

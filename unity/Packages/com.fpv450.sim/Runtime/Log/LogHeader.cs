@@ -117,6 +117,7 @@ namespace Fpv450.Sim.Log
             "TetherFountainThroughBody",
             "TetherZeroForceHold", "GyroRange",
             "TetherLinearStep",
+            "TetherSlidingTrail",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -368,6 +369,7 @@ namespace Fpv450.Sim.Log
         public bool TetherFountainThroughBody;
         public bool TetherZeroForceHold;
         public bool TetherLinearStep;
+        public bool TetherSlidingTrail;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -461,6 +463,7 @@ namespace Fpv450.Sim.Log
                 TetherFountainThroughBody = setup.TetherFountainThroughBody,
                 TetherZeroForceHold = setup.TetherZeroForceHold,
                 TetherLinearStep = setup.TetherLinearStep,
+                TetherSlidingTrail = setup.TetherSlidingTrail,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -577,6 +580,7 @@ namespace Fpv450.Sim.Log
                 TetherFountainThroughBody = TetherFountainThroughBody,
                 TetherZeroForceHold = TetherZeroForceHold,
                 TetherLinearStep = TetherLinearStep,
+                TetherSlidingTrail = TetherSlidingTrail,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -1144,6 +1148,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherFountainThroughBody);
                 e.Write(TetherZeroForceHold);
                 e.Write(TetherLinearStep);
+                e.Write(TetherSlidingTrail);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1601,6 +1606,7 @@ namespace Fpv450.Sim.Log
                         TetherFountainThroughBody = r.ReadBoolean();
                         TetherZeroForceHold = r.ReadBoolean();
                         TetherLinearStep = r.ReadBoolean();
+                        TetherSlidingTrail = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {
