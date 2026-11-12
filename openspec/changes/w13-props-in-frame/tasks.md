@@ -4,7 +4,7 @@ Branch `unity/physics/physics-integration-2--props-in-frame`, cut from `--w3-pre
 
 ## 1. The props
 
-- [ ] 1.1 [tech-artist] The props in the frame.
+- [x] 1.1 [tech-artist] The props in the frame.
   - First find out why a blade sits in the upper left of every frame today: where the camera is against the front discs, which blade, and what share of a turn it spends inside the picture. Say whether that share fits the reference note's counts for the sim's airframe group, or whether the camera's place or the model's props need a second look (report it; don't move the camera here).
   - The pose gains each rotor's angle (`FlightState.RotorAngle` into `PoseFrame`, render-side; nothing in the physics, the log or the goldens moves).
   - The view turns each prop to the sim's angle at each field's exposure, in the first-person and the chase view; a rotor at rest shows its blade still.
@@ -12,6 +12,7 @@ Branch `unity/physics/physics-integration-2--props-in-frame`, cut from `--w3-pre
   - A capture of 24 consecutive fields in a hover, at noon and under overcast, on House and on Village, compared side by side with the reference note's letters in the local-only compare folder. Look at it.
   - Tests: the drawn angle against the sim's over consecutive fields; a rotor at rest; a fixed-input flight logs identically with the model drawn and hidden.
   - Checks: the new tests and the feed's (`Fpv450.Feed.Tests`), `dotnet test tools/simtests` (the pose's new field), `dotnet run -c Release --project tools/flightbench -- --golden`, the review build with its smoke PASS, `python tools/hygiene/precommit.py --tree HEAD`.
+  - *As built:* `PoseFrame.RotorAngle` (render-side; the short way across 2π in `Lerp`). The model's still props (its `drone_prop` slot, merged into each LOD's mesh) are drawn by `Shaders/PropHidden` (nothing), and `App/PropView` draws each rotor with `Shaders/PropDisc` over a bound at its hub: the sim's blade (drone.json's `props.blade`) at the sim's angle, each pixel covered for its share of the exposure, each FPV row at its own read (the CMOS read, RollingShutter) from the history's 1 ms steps; the chase view at the pose's instant. Why the blade sat in the upper left, the numbers and their labels: `design.md`. The captures (`Editor/Stills/PropFields`, 24 fields a case) show thin dark bars from both side edges in every field, the B/G group's look, where the sim's airframe group (C–H) shows almost none: the camera's place against the front discs needs a second look (design.md §1). The smear is 6.7° at noon and under overcast alike: the feed's exposure does not follow the light until the AE loop (p4-feed 1.7).
 
 ## 2. Review
 
