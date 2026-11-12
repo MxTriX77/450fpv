@@ -8,13 +8,17 @@ using Fpv450.Sim.World;
 
 namespace Fpv450.WorldBench
 {
-    // The farmland's cases (w3-farmland-ground 1.1): maps/farmland's terrain behind MapWorld (no physics objects yet, W4).
+    // The farmland's cases (w3-farmland-ground 1.1, 1.2): maps/farmland's terrain and its 1,679 trees, bushes, ruins and debris
+    // behind MapWorld.
     // - Golden: the 1,000 height probes against validate.py's bits (tools/map/golden/farmland-probes.txt), the 12 derived
     //   steps, then 10 000 each of ground samples, swept capsules and rays near the ground over its spots (the village's
     //   steep plots, a field, the map's seam, the ledge, a far seam, the far ring, the world's edge; input i in spot i mod 7),
-    //   batched against one by one where a call takes a batch.
-    // - Bench: a physics step's queries along paths low over the farmland, in physics' pattern and K§10.5's, at physics'
-    //   margin; then 100 000 samples, capsules and rays; and a laid fiber segment's query by its length (for task 2.1).
+    //   batched against one by one where a call takes a batch. Then the objects (1.2): every placed shape and wind volume, and
+    //   10 000 each of swept capsules, rays and snag spheres among them (the village's ruins and debris, the F6|F7 belt, a
+    //   grove, a bush cluster; input i at spot i mod 4, near a shape of an object standing there).
+    // - Bench: a physics step's queries along paths low over the farmland and through its objects, in physics' pattern and
+    //   K§10.5's, at physics' margin; then 100 000 samples, capsules and rays; a laid fiber segment's query by its length,
+    //   the ground left out as the fiber leaves it (2.1); and SnagsNear at the fiber caches' radii (shown: off the step).
     //   Judged as D-054 sets it for the test range: physics' pattern inside PLT-04's 300 µs step at p99 with 0 B, PLT-04's
     //   60 µs line for the world queries printed beside it (D-061's target) with the max; K§10.5's batch with its fiber shown.
     internal static partial class Program
@@ -55,6 +59,41 @@ namespace Fpv450.WorldBench
                 double g = GroundAt(world, double.IsNaN(FromX) ? x : FromX, double.IsNaN(FromZ) ? z : FromZ);
                 return new Double3(x, (double.IsInfinity(g) ? 20 : g) + s.In(Low, High), z);
             }
+        }
+
+        /// <summary>The object spots (1.2): a box in x–z, its objects those whose first shape stands in it.</summary>
+        private static readonly (string Name, double X0, double Z0, double X1, double Z1)[] ObjectSpots =
+        {
+            ("the village's ruins and debris", 465, 573, 550, 630),
+            ("the F6|F7 belt", 295, 750, 400, 770),
+            ("the grove", 415, 422, 445, 448),
+            ("a bush cluster", 100, 250, 150, 300),
+        };
+
+        /// <summary>Each object spot's objects, in object order.</summary>
+        private static int[][] SpotObjects(MapWorld world)
+        {
+            var spots = new int[ObjectSpots.Length][];
+            for (int k = 0; k < spots.Length; k++)
+            {
+                var list = new List<int>();
+                for (int o = 0; o < world.PlacedObjects; o++)
+                    if (world.Geometry(o, 0, out ShapeGeometry g) && g.Center.X >= ObjectSpots[k].X0 && g.Center.X <= ObjectSpots[k].X1
+                        && g.Center.Z >= ObjectSpots[k].Z0 && g.Center.Z <= ObjectSpots[k].Z1)
+                        list.Add(o);
+                spots[k] = list.ToArray();
+            }
+            return spots;
+        }
+
+        /// <summary>A point near a random shape of a random object of the spot: its centre and up to `reach` off it.</summary>
+        private static Double3 NearShape(MapWorld world, int[] objects, ref Stream s, double reach)
+        {
+            int o = objects[(int)(s.Next() * objects.Length)], shapes = 0;
+            while (world.Geometry(o, shapes, out _))
+                shapes++;
+            world.Geometry(o, (int)(s.Next() * shapes), out ShapeGeometry g);
+            return g.Center + s.Move(reach);
         }
 
         private static Patch[] FarmlandPatches() => new[]
@@ -149,7 +188,7 @@ namespace Fpv450.WorldBench
 
             var contacts = new StaticContact[8];
             var contactHash = new Hasher();
-            int touched = 0, early = 0, walls = 0;
+            int touched = 0, early = 0, walls = 0, objects = 0;
             for (int i = 0; i < previous.Length; i++)
             {
                 int n = world.StaticContacts(previous[i], current[i], PhysicsMargin, contacts);
@@ -158,12 +197,13 @@ namespace Fpv450.WorldBench
                 {
                     contactHash.Add(contacts[k]);
                     early += contacts[k].Time < 1 ? 1 : 0;
-                    walls += contacts[k].Normal.Y == 0 ? 1 : 0;
+                    walls += contacts[k].Object == WorldIds.Ground && contacts[k].Normal.Y == 0 ? 1 : 0;
+                    objects += contacts[k].Object >= 0 ? 1 : 0;
                 }
                 touched += n > 0 ? 1 : 0;
             }
             cases.Add(("farmland.contacts", Hex(contactHash.Value), true));
-            Console.WriteLine($"  farmland.contacts: {touched} of {previous.Length} capsules touch the ground, {early} with Time < 1, {walls} on a step's face");
+            Console.WriteLine($"  farmland.contacts: {touched} of {previous.Length} capsules touch the ground or an object ({objects} object contacts), {early} with Time < 1, {walls} on a step's face");
 
             var hits = new RayHit[rays.Length];
             var hit = new RayHit[1];
@@ -175,12 +215,127 @@ namespace Fpv450.WorldBench
                 rayBatched.Add(hits[i]);
                 world.Raycast(rays.AsSpan(i, 1), 5, hit);
                 rayOne.Add(hit[0]);
-                ground += hits[i].Distance < double.PositiveInfinity ? 1 : 0;
-                faces += hits[i].Distance < double.PositiveInfinity && hits[i].Normal.Y == 0 ? 1 : 0;
+                ground += hits[i].Distance < double.PositiveInfinity && hits[i].Object == WorldIds.Ground ? 1 : 0;
+                faces += hits[i].Distance < double.PositiveInfinity && hits[i].Object == WorldIds.Ground && hits[i].Normal.Y == 0 ? 1 : 0;
             }
             cases.Add(("farmland.rays", Hex(rayBatched.Value), rayBatched.Value == rayOne.Value));
-            Console.WriteLine($"  farmland.rays: {ground} of {rays.Length} rays hit the ground, {faces} a step's face");
+            Console.WriteLine($"  farmland.rays: {ground} of {rays.Length} rays hit the ground, {faces} a step's face, {rays.Length - ground - Miss(hits)} an object first");
+            cases.AddRange(FarmlandObjectCases(world));
             return cases;
+        }
+
+        /// <summary>The objects' cases (1.2): every placed shape and wind volume; capsules, rays and snag spheres among them.</summary>
+        private static List<(string Name, string Value, bool Agree)> FarmlandObjectCases(MapWorld world)
+        {
+            var cases = new List<(string, string, bool)>();
+            var shapeHash = new Hasher();
+            int shapes = 0;
+            for (int o = 0; o < world.PlacedObjects; o++)
+            {
+                foreach (char c in world.ObjectName(o))
+                    shapeHash.Add((long)c);
+                for (int k = 0; world.Geometry(o, k, out ShapeGeometry g); k++, shapes++)
+                {
+                    shapeHash.Add((long)g.Kind); shapeHash.Add(g.Center); shapeHash.Add(g.AxisX); shapeHash.Add(g.AxisY); shapeHash.Add(g.AxisZ);
+                    shapeHash.Add(g.HalfExtents); shapeHash.Add(g.Radius); shapeHash.Add(g.HalfLength); shapeHash.Add(g.Material); shapeHash.Add(g.Surface);
+                }
+            }
+            cases.Add(("farmland.objects", Hex(shapeHash.Value), true));
+            Console.WriteLine($"  farmland.objects: {world.PlacedObjects} placed, {shapes} shapes");
+
+            var windHash = new Hasher();
+            ReadOnlySpan<WindVolume> volumes = world.WindVolumes;
+            for (int k = 0; k < volumes.Length; k++)
+            {
+                WindVolume w = volumes[k];
+                windHash.Add(world.WindVolumeObject(k)); windHash.Add((long)w.Kind); windHash.Add(w.X); windHash.Add(w.Z); windHash.Add(w.BaseM);
+                windHash.Add(w.TopM); windHash.Add(w.HalfX); windHash.Add(w.HalfZ); windHash.Add(w.Radius); windHash.Add(w.Yaw); windHash.Add(w.Porosity);
+            }
+            cases.Add(("farmland.wind", Hex(windHash.Value), true));
+            Console.WriteLine($"  farmland.wind: {volumes.Length} wind volumes");
+
+            int[][] spots = SpotObjects(world);
+            var s = new Stream(1200);
+            var previous = new Capsule[GoldenCount];
+            var current = new Capsule[GoldenCount];
+            var rays = new Ray[GoldenCount];
+            var centres = new Double3[GoldenCount];
+            var radii = new double[GoldenCount];
+            for (int i = 0; i < GoldenCount; i++)
+            {
+                int[] objects = spots[i % spots.Length];
+                double r = s.In(0.003, 0.06);
+                Double3 a = NearShape(world, objects, ref s, 0.6), b = i % 4 == 0 ? a : a + s.Move(0.15), move = s.Move(0.3);
+                previous[i] = new Capsule(a, b, r);
+                current[i] = new Capsule(a + move, b + move + s.Move(0.02), r);
+                Double3 d = s.Move(1);
+                rays[i] = new Ray(NearShape(world, objects, ref s, 1.5), d.Length() < 1e-3 ? new Double3(0, -1, 0) : d);
+                centres[i] = NearShape(world, objects, ref s, 1.0);
+                radii[i] = s.In(0.05, 2);
+            }
+
+            var contacts = new StaticContact[64];
+            var contactHash = new Hasher();
+            int touched = 0, early = 0, objectContacts = 0, overflow = 0;
+            for (int i = 0; i < previous.Length; i++)
+            {
+                int n = world.StaticContacts(previous[i], current[i], PhysicsMargin, contacts);
+                contactHash.Add(n);
+                bool any = false;
+                for (int k = 0; k < Math.Min(n, contacts.Length); k++)
+                {
+                    contactHash.Add(contacts[k]);
+                    early += contacts[k].Time < 1 ? 1 : 0;
+                    objectContacts += contacts[k].Object >= 0 ? 1 : 0;
+                    any |= contacts[k].Object >= 0;
+                }
+                touched += any ? 1 : 0;
+                overflow += n > contacts.Length ? 1 : 0;
+            }
+            cases.Add(("farmland.object_contacts", Hex(contactHash.Value), true));
+            Console.WriteLine($"  farmland.object_contacts: {touched} of {previous.Length} capsules meet an object, {objectContacts} object contacts, {early} contacts with Time < 1, {overflow} over 64");
+
+            var hits = new RayHit[rays.Length];
+            var hit = new RayHit[1];
+            world.Raycast(rays, 5, hits);
+            Hasher rayBatched = new Hasher(), rayOne = new Hasher();
+            int objectHits = 0, groundHits = 0;
+            for (int i = 0; i < rays.Length; i++)
+            {
+                rayBatched.Add(hits[i]);
+                world.Raycast(rays.AsSpan(i, 1), 5, hit);
+                rayOne.Add(hit[0]);
+                objectHits += hits[i].Distance < double.PositiveInfinity && hits[i].Object >= 0 ? 1 : 0;
+                groundHits += hits[i].Distance < double.PositiveInfinity && hits[i].Object == WorldIds.Ground ? 1 : 0;
+            }
+            cases.Add(("farmland.object_rays", Hex(rayBatched.Value), rayBatched.Value == rayOne.Value));
+            Console.WriteLine($"  farmland.object_rays: {objectHits} of {rays.Length} rays hit an object, {groundHits} the ground");
+
+            var snags = new SnagSegment[256];
+            var snagHash = new Hasher();
+            long segments = 0;
+            int most = 0, full = 0;
+            for (int i = 0; i < centres.Length; i++)
+            {
+                int n = world.SnagsNear(centres[i], radii[i], snags);
+                snagHash.Add(n);
+                for (int k = 0; k < Math.Min(n, snags.Length); k++)
+                    snagHash.Add(snags[k]);
+                segments += n;
+                most = Math.Max(most, n);
+                full += n > snags.Length ? 1 : 0;
+            }
+            cases.Add(("farmland.snags", Hex(snagHash.Value), true));
+            Console.WriteLine($"  farmland.snags: {centres.Length} spheres of 0.05-2 m, {segments} segments, at most {most} in one, {full} over 256");
+            return cases;
+        }
+
+        private static int Miss(RayHit[] hits)
+        {
+            int n = 0;
+            foreach (RayHit h in hits)
+                n += h.Distance < double.PositiveInfinity ? 0 : 1;
+            return n;
         }
 
         private static double FromBits(string hex) => BitConverter.Int64BitsToDouble(long.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
@@ -198,10 +353,12 @@ namespace Fpv450.WorldBench
 
         private static int FarmlandBench()
         {
-            Console.WriteLine("  the farmland (w3-farmland-ground 1.1), its terrain alone:");
+            Console.WriteLine("  the farmland (w3-farmland-ground 1.1, 1.2), its terrain and its trees, bushes, ruins and debris:");
             var load = Stopwatch.StartNew();
             MapWorld world = Farmland();
-            Console.WriteLine($"  farmland.load: {load.ElapsedMilliseconds} ms (17 tiles read and checked against their SHA-256, the steps derived)");
+            long loaded = GC.GetTotalMemory(true);
+            Console.WriteLine($"  farmland.load: {load.ElapsedMilliseconds} ms (17 tiles read and checked against their SHA-256, the steps derived; "
+                + $"{world.PlacedObjects} objects placed); the heap after it {loaded / 1048576.0:F0} MiB");
             const int steps = 20000;
             double us = 1e6 / Stopwatch.Frequency;
 
@@ -245,6 +402,10 @@ namespace Fpv450.WorldBench
                 ("along the ledge's face 0.3 m out over the far ring at mid-face, 10 m/s",
                     Precomputed(steps, s => Over(2000.0001, 0.01 * Math.Max(0, s), 0.75) + new Double3(0.3 - 0.0001, 0, 0))),
                 ("over the far ring at 1-3 m (its 11.8 m facets)", Precomputed(steps, s => Over(-3000 + 100 * Tri(s, 2 * 487), 3000 + 100 * Tri(s, 2 * 593), 1 + 2 * Tri(s, 2 * 709)))),
+                // The objects (1.2): through the village's ruins and debris, the F6|F7 belt's crowns and a bush cluster.
+                ("through the village's ruins and debris, 0.3-2.5 m up, 10-20 m/s", Precomputed(steps, s => Over(468 + 80 * Tri(s, 2 * 4111), 576 + 52 * Tri(s, 2 * 3313), 0.3 + 2.2 * Tri(s, 2 * 709)))),
+                ("through the F6|F7 belt's crowns and bushes, 1-9 m up, 10-20 m/s", Precomputed(steps, s => Over(298 + 98 * Tri(s, 2 * 4877), 753 + 14 * Tri(s, 2 * 1013), 1 + 8 * Tri(s, 2 * 1531)))),
+                ("through a bush cluster, 0.2-1.5 m up, 10-20 m/s", Precomputed(steps, s => Over(102 + 46 * Tri(s, 2 * 2311), 252 + 46 * Tri(s, 2 * 2707), 0.2 + 1.3 * Tri(s, 2 * 613)))),
             };
             var times = new long[steps];
             int failures = 0;
@@ -329,7 +490,8 @@ namespace Fpv450.WorldBench
             failures += (t1 - t0) * ms < 10 && a1 == a0 ? 0 : 1;
 
             // A laid fiber segment resting on the ground (both ends 0.1 mm into it, the line's 0.125 mm radius, the clearance
-            // margin 0.5 m): one still query's time by its length, the cost task 2.1 decides how often to pay. Shown.
+            // margin 0.5 m): one still query's time by its length, the ground left out as the fiber's own queries leave it
+            // (QueryFilter.NoGround, 2.1), so the time is the objects' near it. Shown.
             foreach (double length in new[] { 0.5, 2, 10, 50, 200 })
             {
                 const int laid = 200;
@@ -340,16 +502,53 @@ namespace Fpv450.WorldBench
                     cap[i] = new Capsule(Over(x, z, 0.000125 - 0.0001), Over(ex, ez, 0.000125 - 0.0001), 0.000125);
                 }
                 for (int i = 0; i < laid; i++)
-                    world.StaticContacts(cap[i], cap[i], 0.5, contacts);
+                    world.StaticContacts(cap[i], cap[i], 0.5, contacts, QueryFilter.NoGround);
                 var each = new long[laid];
+                long near = 0;
                 for (int i = 0; i < laid; i++)
                 {
                     long start = Stopwatch.GetTimestamp();
-                    world.StaticContacts(cap[i], cap[i], 0.5, contacts);
+                    int found = world.StaticContacts(cap[i], cap[i], 0.5, contacts, QueryFilter.NoGround);
                     each[i] = Stopwatch.GetTimestamp() - start;
+                    near += found;
                 }
                 Array.Sort(each);
-                Console.WriteLine($"  farmland.fiber: a laid segment of {length} m on the ground, margin 0.5 m: median {each[laid / 2] * us:F2} us, max {each[laid - 1] * us:F1} us a query (shown, for task 2.1)");
+                Console.WriteLine($"  farmland.fiber: a laid segment of {length} m on the ground, margin 0.5 m, NoGround: median {each[laid / 2] * us:F2} us, "
+                    + $"max {each[laid - 1] * us:F1} us a query, {(double)near / laid:F2} objects' shapes within the margin (shown)");
+            }
+
+            // SnagsNear at the fiber caches' radii (tether.json: the drone's 2 m, a line node's 1 m), centred on the objects'
+            // shapes in the village, the belt and a bush cluster. It runs at the caches' refresh, off the step: shown.
+            int[][] spots = SpotObjects(world);
+            var snags = new SnagSegment[1 << 14];
+            foreach (double radius in new[] { 2.0, 1.0 })
+            {
+                foreach (int spot in new[] { 0, 1, 3 })
+                {
+                    const int asked = 2000;
+                    var stream2 = new Stream(31 + (ulong)spot);
+                    var centres = new Double3[asked];
+                    for (int i = 0; i < asked; i++)
+                        centres[i] = NearShape(world, spots[spot], ref stream2, 1.0);
+                    for (int i = 0; i < asked; i++)
+                        world.SnagsNear(centres[i], radius, snags);
+                    var each = new long[asked];
+                    long found = 0, before = GC.GetAllocatedBytesForCurrentThread();
+                    int most = 0;
+                    for (int i = 0; i < asked; i++)
+                    {
+                        long start = Stopwatch.GetTimestamp();
+                        int got = world.SnagsNear(centres[i], radius, snags);
+                        each[i] = Stopwatch.GetTimestamp() - start;
+                        found += got;
+                        most = Math.Max(most, got);
+                    }
+                    long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                    Array.Sort(each);
+                    failures += bytes == 0 ? 0 : 1;
+                    Console.WriteLine($"  farmland.snags r {radius} m, {ObjectSpots[spot].Name}: median {each[asked / 2] * us:F1} us, p99 {each[asked * 99 / 100] * us:F1} us, "
+                        + $"max {each[asked - 1] * us:F1} us; {(double)found / asked:F0} segments a query, at most {most}; {bytes} B (shown: the caches' refresh, off the step)");
+                }
             }
 
             Console.WriteLine(failures == 0 ? "worldbench: farmland bench done, every budget met (judged on AC only)" : $"worldbench: farmland {failures} over budget or allocating");
