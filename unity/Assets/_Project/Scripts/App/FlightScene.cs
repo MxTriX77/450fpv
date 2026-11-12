@@ -18,8 +18,10 @@ using Num = System.Numerics;
 namespace Fpv450.App
 {
     /// <summary>
-    /// The flight over the test range (design 6, APP-04, D-047), put on the loaded TestRange scene by AppFlow. It switches
-    /// the range's noclip rig off and takes over its look, then flies a FlightSessionHost:
+    /// The flight over the farmland (design 6, APP-04; w3-farmland-ground 3.1), put on the loaded FarmLand scene by AppFlow.
+    /// It switches the scene's own camera off and draws the scene's look through its own (the friend's light, D-088; on the
+    /// test range, its noclip rig off and its LookSetup taken over), keeps the terrain near the drone at full resolution
+    /// (NearTerrain), then flies a FlightSessionHost:
     /// - the drone at the interpolated PoseFrame (PosePair.Interpolate on the host clock): p5-drone's D01 prefab for the
     ///   setup's legs (DroneModels) with D01_bottle on it at the payload's size, and D02, the launch stand, where the
     ///   flight's runtime object stands when the legs are off
@@ -144,6 +146,11 @@ namespace Fpv450.App
         {
             var boot = FindFirstObjectByType<TestRangeBoot>();
             if (boot != null) boot.gameObject.SetActive(false);
+            // A scene with its own main camera (the farmland's, the friend's FreeFlyCamera on it, w3-farmland-ground 3.1):
+            // the flight's camera draws the scene's look as that camera does (its post-processing volume and its far plane),
+            // and that camera goes, so the flight's is the only one drawing.
+            Camera own = Camera.main;
+            if (own != null && own.gameObject.scene != scene) own = null;
             var go = new GameObject("Flight");
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, scene);
             var flight = go.AddComponent<FlightScene>();
@@ -151,7 +158,49 @@ namespace Fpv450.App
             if (flight._look != null) flight._look.enabled = false;
             flight.Host = go.AddComponent<FlightSessionHost>();
             flight.Rig();
+            if (own != null)
+            {
+                UniversalAdditionalCameraData theirs = own.GetUniversalAdditionalCameraData();
+                flight._camera.GetUniversalAdditionalCameraData().renderPostProcessing = theirs.renderPostProcessing;
+                flight._camera.farClipPlane = own.farClipPlane;
+                own.gameObject.SetActive(false);
+                Debug.Log("[Flight] the scene's camera '" + own.name + "' off; the flight's draws its look: post-processing " +
+                          (theirs.renderPostProcessing ? "on" : "off") + ", far plane " + own.farClipPlane + " m");
+            }
+            flight._terrains = Terrain.activeTerrains;
+            flight._sceneErrors = Array.ConvertAll(flight._terrains, t => t.heightmapPixelError);
             return flight;
+        }
+
+        /// <summary>
+        /// The drawn terrain near the drone (w3-farmland-ground 3.1, WLD-11, VIS-01): a terrain tile within NearM of the lens
+        /// is drawn at Unity's finest pixel error, so its patches round the drone are its full heightmap, the sim's
+        /// heightfield, and what is drawn is what is touched; every other tile keeps the scene's own.
+        /// </summary>
+        public const float NearPixelError = 1f, NearM = 30f;
+
+        Terrain[] _terrains = new Terrain[0];
+        float[] _sceneErrors = new float[0];
+
+        /// <summary>The scene's own pixel error of one of its terrains (the friend's settings), before the flight's.</summary>
+        public float SceneError(Terrain t)
+        {
+            int i = Array.IndexOf(_terrains, t);
+            return i >= 0 ? _sceneErrors[i] : t.heightmapPixelError;
+        }
+
+        void NearTerrain(Vector3 lens)
+        {
+            for (int i = 0; i < _terrains.Length; i++)
+            {
+                Terrain t = _terrains[i];
+                if (t == null || t.terrainData == null) continue;
+                Vector3 o = t.transform.position, size = t.terrainData.size;
+                float dx = Mathf.Max(0f, Mathf.Max(o.x - lens.x, lens.x - (o.x + size.x)));
+                float dz = Mathf.Max(0f, Mathf.Max(o.z - lens.z, lens.z - (o.z + size.z)));
+                float error = dx * dx + dz * dz <= NearM * NearM ? NearPixelError : _sceneErrors[i];
+                if (t.heightmapPixelError != error) t.heightmapPixelError = error;
+            }
         }
 
         void Rig()
@@ -219,6 +268,7 @@ namespace Fpv450.App
                 Unlatch();
                 Preview(Host.Inputs);
                 PlaceCamera(_camera.transform, _body, CameraMount, Chase);
+                NearTerrain(_body.position);
                 return;
             }
             if (session.Flights == 0) return;
@@ -239,6 +289,7 @@ namespace Fpv450.App
             }
             PlaceCamera(_camera.transform, _body, CameraMount, Chase);
             Latch(session, thisFlight);
+            NearTerrain(_body.position);
             if (_look != null) _look.UpdateFog(_camera);
             Cursor.visible = session.State != SessionState.Flying || Covered;
             Summarise(session);
@@ -430,7 +481,13 @@ namespace Fpv450.App
         void Look(FlightChoices c)
         {
             _signals.Stub.TimeOfDayHours = (float)c.TimeOfDay;
-            if (_look == null) return;
+            if (_look == null)
+            {
+                // The farmland keeps the friend's light (D-088, w3-farmland-ground design 3.1): its sun, sky, fog and volume
+                // as the scene has them. The setup's time of day and rain go to the log and the physics, not to the look.
+                Debug.Log($"[Flight] look: the scene's own light; the setup's {SetupScreen.Clock(c.TimeOfDay)} and {c.Rain} leave it as it is");
+                return;
+            }
             LookPreset sky = Preset(c.Rain == Rain.Sunny ? "day" : "overcast");
             _look.hour = (float)c.TimeOfDay;
             if (sky != null)
@@ -458,7 +515,9 @@ namespace Fpv450.App
             if (_stand != null) Destroy(_stand);
             StartPoint at = Array.Find(inputs.StartPoints, s => s.Name == c.StartPoint);
             if (at.Name == null) at = inputs.StartPoints[0];
-            _body.SetPositionAndRotation(new Vector3((float)at.X, PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
+            // Over the drawn terrain there (the farmland's hills), or the plane at 0 (the test range's ground).
+            float ground = FarmlandExplore.Ground(gameObject.scene, (float)at.X, (float)at.Z, out float h) ? h : 0f;
+            _body.SetPositionAndRotation(new Vector3((float)at.X, ground + PreviewHeightM, (float)at.Z), Quaternion.Euler(0f, (float)(at.Yaw * 180 / Math.PI), 0f));
             _signals.Osd.Reset(); // the OSD as before the first flight, disarmed, not the last flight's end
             _signals.Update(default, false, 0, 0, 0);
             Look(c);

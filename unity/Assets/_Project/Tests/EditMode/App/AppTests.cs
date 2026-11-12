@@ -28,8 +28,9 @@ namespace Fpv450.Tests.App
         const ulong MergedMaterialsHash = 0x2932AC6166D91022UL;
 
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
-        // drone, the test range's map, and surfaces.json and tether.json byte for byte the repository's, so a pilot's log
-        // carries the hashes tools/replay checks against the repository's files by default.
+        // drone, the farmland's map package (w3-farmland-ground 3.1; the test range left the player), and surfaces.json and
+        // tether.json byte for byte the repository's, so a pilot's log carries the hashes tools/replay checks against the
+        // repository's files by default.
         [Test]
         public void ThePlayerCarriesEveryFileTheFlightReads()
         {
@@ -45,9 +46,11 @@ namespace Fpv450.Tests.App
                 }
                 TestContext.WriteLine(files.Count + " files: " + string.Join(", ", files));
                 Assert.That(DroneSpec.Parse(File.ReadAllText(Path.Combine(copies, AppData.DroneFile))), Is.Not.Null);
-                FlightWorldChoice range = FlightWorlds.TestRange(copies);
-                Assert.That(range.Id, Is.EqualTo("test-range"));
-                Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "the same map as the repository's");
+                FlightWorldChoice farmland = FlightWorlds.Farmland(copies);
+                Assert.That(farmland.Id, Is.EqualTo(FlightWorlds.FarmlandMap));
+                Assert.That(farmland.Open().ContentHash, Is.EqualTo(FlightWorlds.Farmland(AppData.Root).Open().ContentHash), "the same map as the repository's");
+                Assert.That(files.Exists(f => f.StartsWith("maps/" + FlightWorlds.TestRangeMap + "/", System.StringComparison.Ordinal)), Is.False,
+                    "the test range left the player");
                 foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath, PhysicsMaterials.RelativePath })
                 {
                     Assert.That(files, Does.Contain(table), "the player carries " + table);
