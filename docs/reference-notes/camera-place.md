@@ -11,7 +11,11 @@ Labels: **measured** (read off the letters), **published** (a source read), **de
 - **Before, at (0, 0.015, 0.115):** 34 % of a turn at the side edges, 17–96 % of the half-height above the centre (derived, the same as `w13-props-in-frame` design §1).
 - **The rods are not part of letter T** (§3). They are two thin pale parts, at most about 2 mm thick, parallel to the camera's axis within 1°, one at each side below the lens. Their front tips are bent and sit ahead of the lens. They are most likely wire antennas or wire guards (assumed). The rods fix ratios, not a scale: each sits **0.19 × its side offset below the lens**, and its tip lies **1.57 (left) / 1.74 (right) × its side offset ahead of the lens** (measured, derived).
 - **One place does not fit every letter.** C, D, E, F, H and L fit the recommended place. P's blade (a line in the top quarter of the picture at the right in every frame) fits **(0, −0.020, 0.150)**, with a residual under 2 % of the height. P's lens therefore sits about 55 mm further back on its build, or that build's props reach further. The sim takes the C–H place: it is most of the group and the proposal's "a blade almost never" (§5.3).
-- **The published frame does not say** where the camera sits (§4). The maker's pages give the envelope only. The assembly drawing could not be read here.
+- **The published frame's own camera cage does not reach the fitted place** (§4). The maker's assembly drawing (read) puts the camera between the plates, in its own side plates:
+  - its lens about 0.50 of the fore-aft half-spacing ahead of the centre, so about 80–90 mm **behind** the front motors' axis;
+  - its centre about 16 mm above the arms' mid-plane.
+  
+  The fit needs the lens 45 mm **ahead** of that axis and 20 mm below the arms. So the group's builds carry the camera on **an added nose bracket** about 0.12 m forward of the frame's cage, not in the frame's own nose (derived). The drawing also puts the long spacing, 338, fore-aft (§4).
 
 ## 1. The rods (measured)
 
@@ -84,10 +88,39 @@ A larger a scales every one of those offsets and the diameter bound alike. The p
 
 ## 4. The published frame (read)
 
-- **iFlight CX10 ECO frame kit** (https://shop.iflight.com/CX10-ECO-Frame-kit-Pro2081) and the **CX10 ECO 6S** build page (https://shop.iflight.com/Chimera-CX10-ECO-6S-Pro2067), both read: wheelbase 452 mm; frame 338 × 299 × 34 mm; 6 mm arms; 3/2/3 mm plates; a 30.5 mm stack; a vertical antenna mount in the box; a TPU set (GPS, buzzer and action-camera mounts) not included in the ECO build. **Neither gives the FPV camera's mount, its size or its place.** 338 × 299 has a diagonal of 451 mm, the wheelbase, so it is the motor spacing and not the plates' length (derived). It says nothing about how far the plates or a camera reach forward.
-- **The frame's assembly drawing** (the "Frame Assembly Guide V1.0" on the kit page) was fetched. It is an exploded drawing exported as a PDF with no text layer, and no PDF renderer is available on this machine, so **it was not read**. The product photos on the maker's image server refused the request. Reading that drawing is the one published check still open (§6).
-- **Search** (iFlight, reseller pages, reviews) found no drawing or review that gives the CX10's camera place, and no page for the class build's camera mount. The class's camera is the 19 × 19 mm Caddx Ratel 2 (published, drone.md's research table).
-- So the place in §5 rests on the footage alone. It is consistent with what the class's builds are known to do: heavy fiber builds hang the camera on a nose bracket under the frame, ahead of the stack, because the canister and payload take the space between and below the plates (assumed, not from a source read here).
+**The maker's pages** (both read):
+- Sources: https://shop.iflight.com/CX10-ECO-Frame-kit-Pro2081 and https://shop.iflight.com/Chimera-CX10-ECO-6S-Pro2067.
+- They give the frame's numbers: wheelbase 452 mm; 338 × 299 × 34 mm; 6 mm arms; 3/2/3 mm plates; a 30.5 mm stack; a vertical antenna mount; a TPU set (GPS, buzzer and action-camera mounts) not included in the ECO build.
+- They give no FPV camera place. 338 × 299 has a diagonal of 451 mm, the wheelbase, so it is the motor spacing (derived).
+
+**The frame's assembly drawing (read).** This is the kit page's "Frame Assembly Guide V1.0", one A4 page. Its file is titled for the ECO, but the sheet's heading says "CX10 EVO". It was rendered to an image with Windows' own PDF renderer and read in a local scratch folder. It is an exploded axonometric view with a parts list, and it carries no dimensions. What it shows:
+- **A long, narrow body** between a bottom plate, a counter plate on top of the arms, and a top plate, closed by two printed side panels. The arms are clamped between the bottom and counter plates.
+- **The camera mount:** "camera side plates" (×2) with "camera vibration dampers silicone" (×2) at the **front end of the side panels**, between the counter and top plates. The camera hangs on a screw through each side plate.
+- **Lens cutouts:** both the top plate's and the counter plate's front ends carry a semicircular cutout for the lens.
+- **No nose extension, bracket or cage** reaches past the plates.
+- **At the rear end:** the XT60 mount and the antenna mounts (a T-type mount on top, a printed antenna mount at the back).
+
+**Measured on the drawing** (derived: an orthographic reconstruction):
+- **Method.**
+  - The three visible motor mounts' centre holes, all on the arms' top face, give the arm plane's two axes and the view's elevation: sin t = 0.495, 30°. The standoffs are drawn vertical.
+  - The fourth motor is completed as a parallelogram.
+  - Exploded parts lie off the arm plane by an unknown lift. On the centreline that lift and the fore-aft place are the two unknowns, so each point solves exactly.
+  - The error is about ±5 %. The two sides' scales disagree by that much: 5.68 against 5.96 px/mm.
+- **Which spacing is fore-aft.** The body's long axis runs along the motor side whose drawn true length is 1.08 × the other's, against 338 / 299 = 1.13 published. So the **338 mm spacing is fore-aft** and the body is long fore-aft (derived; moderate confidence, given the 5 % disagreement). Reported only: DRN-02's square X stays.
+- **The plates' front edge.** The counter plate's front corners, either side of the lens cutout and 39 mm apart, sit **82 mm ahead of the centre**. The top plate's front corners sit **80 mm ahead**. That is **0.48 × the 169 mm fore-aft half-spacing**, or **87–89 mm behind the front motors' axis**.
+- **The camera cage.** The side plate's pivot hole sits 71–81 mm ahead of the centre, depending on how far apart the side plates are (0–15 mm from the centreline, assumed). So the camera's pivot is about 0.42–0.48 of the half-spacing ahead of the centre. A 19 mm camera's lens at the plates' cutouts puts the lens at about **85 ± 10 mm, 0.50 ± 0.06 of the half-spacing**, so **75–95 mm behind the front motors' axis**.
+- **Its height** (derived from the published stack, the drawing's order of parts): bottom plate 3 mm, arms 6, counter plate 3, 20 mm standoffs (the list's M3 × 20, ×7), top plate 2. That sums to the published 34 mm. The camera sits in the 20 mm between the counter and top plates, its centre **16 mm above the arms' mid-plane** (y +0.016 in `drone.json`'s frame, where the current lens's +0.015 already sits).
+
+**The photos.** The kit's product photos could not be read:
+- the maker's image server answered 403;
+- the drone sheet's two reseller pages: one shows a single 300 px thumbnail, whose image server answered 403; the other, and a third reseller, answered 429 (rate-limited) and 403 on every try.
+
+The ratios above therefore rest on the drawing alone.
+
+**What it means for the fit.** The frame's own cage puts the lens at about 0.50 × the half-spacing ahead of the centre and 16 mm above the arms. The footage of the pilot's group needs it 45 mm ahead of the front motors' axis (1.27 × the half-spacing on the model's square X) and 20 mm below the arms (§5).
+- The cage is 0.12 m short and 36 mm too high. A lens there would show a blade for 34 % of a turn or more at the side edges (§5.2: 34 % at z 0.115, y +0.015, rising further back), which is the B/G look.
+- So the group's builds do not use the frame's own camera cage as drawn. They carry the camera **on an added bracket out at the nose, below the plates** (derived from the fit). Moving the frame's nose plates forward would not do: the plates sit between the arms, and the fit needs the lens below them.
+- The class's camera is the 19 mm Caddx Ratel 2 (published, drone.md's research table). No source read here shows the class build's bracket itself.
 
 ## 5. The fit
 
@@ -138,7 +171,7 @@ The least z with no blade is **0.198–0.203 m for any y from −0.030 to +0.030
 ## 6. What has to move in the model (for 1.2 and 1.3)
 
 - **`drone.json` `camera.lens_m`** moves from (0, 0.015, 0.115) assumed to **(0, −0.020, 0.205), labelled derived**, its note citing this note's §5.3.
-- **The camera mount (D01's generator).** The 19 mm camera, its centre about 10 mm behind the lens at (0, −0.020, 0.195), hangs **under the bottom plate's front** on a nose bracket:
+- **The camera mount (D01's generator).** The 19 mm camera, its centre about 10 mm behind the lens at (0, −0.020, 0.195), hangs **under the bottom plate's front** on an **added** nose bracket, not in the frame's own cage between the plates (that cage stops about 0.12 m short and sits 36 mm higher, §4):
   - the bracket reaches from the plate (its underside at y −0.003) about 0.10 m forward of the plates' front edge (z 0.10), its top about 7 mm under the plate;
   - its shape, material and mass are assumed (a printed or carbon bracket, about 10–15 g).
   - The camera and bracket must clear the canister's front (`coil`, drone.md: its front face's top 0.023 m under the bottom plate) and the props: the front discs reach to x ±0.041 at z 0.205, 55 mm above the lens.
@@ -149,7 +182,7 @@ The least z with no blade is **0.198–0.203 m for any y from −0.030 to +0.030
   - the mass build's CoM moves forward by roughly 0.5 mm and the pitch inertia rises slightly (derived, order of magnitude: 5.9 g × 0.09 m plus 15 g × 0.15 m over 5.08 kg).
   - The camera point's signals (the modes' turn at the camera, the air velocity for the lens drops) now act at the new place: 90 mm further forward of the CoM.
 - **Nothing else moves:** the hubs, props, wheelbase, lens intrinsics and the 0° uptilt stay (the spec's non-goals). The rods also confirm the 0° tilt in C, D, E and P (§1).
-- **Unread, for whoever revisits:** the CX10 ECO's assembly drawing (§4) could confirm or bound the bracket. If it shows a camera cage between the plates, the C–H blades say the class's builds still carry the camera forward of it.
+- **The frame's own camera side plates** (§4) stay empty in the model, or are left out: the camera is not in them. If the asset artist draws the frame's front from the drawing, its plates end about 0.48 × the fore-aft half-spacing ahead of the centre, with lens cutouts. On the model's square X that is z ≈ 0.077, where the model now assumes 0.100.
 
 ## 7. Pilot question
 
