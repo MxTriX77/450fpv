@@ -9,8 +9,10 @@ namespace Fpv450.App.Session
     /// <summary>
     /// A scripted pilot on the development keyboard over the farmland's hills (w3-farmland-ground 3.1, the scenario "a
     /// flight on the hills replays", which the pilot is not there to fly). From rest at the village's start, armed by its
-    /// caller, it climbs to Height over the ground, flies Route at Speed with the ground looked up ahead of it, then sinks at
-    /// SinkRate, lands, and pulls the throttle down once the legs have settled; its caller disarms. Each frame it reads the
+    /// caller, it climbs to Height over the ground, flies Route at Speed with the ground looked up ahead of it, then lowers
+    /// its height's aim at SinkRate through the ground, lands, and pulls the throttle down once the legs have settled; its
+    /// caller disarms. Every phase steers to a height, so a throttle stick off its count costs a height, never the landing.
+    /// Each frame it reads the
     /// published pose and returns the keys held until the next frame, as a pilot's hands would (KeyboardSticks: acro, so a
     /// key held turns the drone at the half stick's rate and none holds its attitude): pitch and roll within Band of their
     /// aims, the heading by yaw, and the throttle stick steered to the curve's command for the height's and the climb's
@@ -20,7 +22,7 @@ namespace Fpv450.App.Session
     {
         /// <summary>The cruise's height over the ground (m), its speed (m/s), the landing's sink (m/s), and the hover's throttle
         /// command at 1 kg of payload (assumed: the smoke test's house flight's 0.46).</summary>
-        public const double Height = 5, Speed = 7, SinkRate = 0.6, Hover = 0.46;
+        public const double Height = 5, Speed = 6.5, SinkRate = 0.6, Hover = 0.46;
 
         /// <summary>The attitude's band about its aim (°), the most it tilts (°), and how near a waypoint counts as reached (m).</summary>
         public const double Band = 1.5, MaxTiltDeg = 25, Reach = 25;
@@ -39,6 +41,7 @@ namespace Fpv450.App.Session
         double _throttle; // the keyboard's throttle stick as the keys move it (KeyboardSticks.ThrottlePerSecond)
         KeyboardKeys _held; // the keys returned last, which the flight held over the dt that ended this frame
         double _settled; // s the legs have stood still on the ground
+        double _sinking; // s since the descent began
         int _next;
 
         public Phase Now { get; private set; }
@@ -101,10 +104,16 @@ namespace Fpv450.App.Session
                     break;
                 }
                 case Phase.Descend:
-                    command = hover + 0.08 * ((agl > 1.5 ? -SinkRate : -0.3) - v.Y);
+                {
+                    // The height's aim sinks from Height at SinkRate, on through the ground to 2 m under it, so the legs press
+                    // down whatever the stick's count is off by.
+                    _sinking += dt;
+                    double aim = ground + Math.Max(Height - SinkRate * _sinking, -2);
+                    command = hover + 0.05 * (aim - x.Y) - 0.06 * v.Y;
                     _settled = agl < 0.5 && Math.Abs(v.Y) < 0.1 ? _settled + dt : 0;
                     if (_settled > 0.5) Now = Phase.Landed;
                     break;
+                }
                 default: // Landed: the throttle down
                     command = 0;
                     break;
