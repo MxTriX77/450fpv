@@ -387,8 +387,12 @@ namespace Fpv450.Sim.Tests
                 Assert.That(tilt[3, d], Is.EqualTo(tilt[0, d]), "and lands as the intact at 0.3 m/s");
                 differs |= critical[1, d] != critical[0, d] || tilt[1, d] != tilt[0, d];
             }
+            // Since model 86 (the anchors' reach) no build tips under 4 m/s of drift: the missing leg's tips at 2–4 m/s rode a
+            // hanging support's anchor left 2–5.8 m behind it (the moment's lever, w9-village-physics 2.4). It is felt in the
+            // landing at 0.3 m/s instead: toward its side it tips at a lower drift, or where neither tips it leans farther.
             foreach (int d in new[] { towardX, towardZ })
-                Assert.That(critical[2, d], Is.LessThan(critical[0, d]), "the missing leg tips at a lower drift toward its side");
+                Assert.That(critical[2, d] < critical[0, d] || critical[2, d] == critical[0, d] && tilt[2, d] > tilt[0, d], Is.True,
+                    "the missing leg tips at a lower drift toward its side, or leans farther at 0.3 m/s");
             Assert.That(differs, "the next landing feels the bent leg");
             double outward = set.X * Math.Sign(at.X) + set.Z * Math.Sign(at.Z);
             TestContext.Out.WriteLine($"the set moves the foot {(outward > 0 ? "outward" : "inward")}; toward its side the bent build tips at "

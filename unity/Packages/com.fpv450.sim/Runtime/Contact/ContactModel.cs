@@ -2108,6 +2108,36 @@ namespace Fpv450.Sim.Contact
         // share), the foot then the moment's lever (207,766 m/s²).
         static bool Holds(double ktt, double axialShare) => ktt > NilStiffness * axialShare;
 
+        // The anchor's stretch within what the leg can reach (w9-village-physics 2.4): the stretch is the foot's move from its
+        // rest, the body's point, to where the ground holds it, and the leg reaches it only by turning its lever (p7g-legs 1.4,
+        // the link of γL about its characteristic pivot): turned square, its foot is γL across, the most any turn of it moves
+        // the foot across the leg. So the reach is γL (LegLeverLength), and along the skid's frame the frame's own lever
+        // (LegFrameLeverLength), by the square of the stretch's way's cosine to the frame as the slide's stiffness is. A stretch
+        // past it is a foot the leg no longer reaches: the ground has let it go, the leg springs back, and the hold starts
+        // again where the foot is (the stretch 0). True when it let one go.
+        /// <summary>
+        /// A leg's held foot within its reach (w9-village-physics 2.4, model 86; Reached): on for every flight. Off only for the
+        /// suite's known-wrong, model 85's slide, whose stretch past a spent side give ran to tens of metres and the moment's
+        /// lever with it. Not in ContactSpec, so the header does not record it (the change takes no log format): a flight flown
+        /// with it off is a bench's or an older model's kept audit, never recorded for a replay.
+        /// </summary>
+        public bool AnchorReach { get; set; } = true;
+
+        bool Reached(int c, ref Double3 stretch)
+        {
+            double l0 = _spec.LegLeverLength, s2 = Double3.Dot(stretch, stretch);
+            if (!AnchorReach || !(l0 > 0) || !(s2 > 0)) return false;
+            double reach = l0;
+            if (_frame[c])
+            {
+                double sf = Double3.Dot(stretch, _frameAxis[c]);
+                reach += (_spec.LegFrameLeverLength - l0) * (sf * sf / s2);
+            }
+            if (!(s2 > reach * reach)) return false;
+            stretch = default;
+            return true;
+        }
+
         /// <summary>A leg's stiffness along a slip below this share of its axial spring's is none, numerically (assumed: six orders
         /// under the axial; the legs' gives across their tubes are 2 to 3 orders under it, and a direction cosine of 1e-3 to the
         /// tube, 1e-6 of the axial, is past any slip the law resolves).</summary>
@@ -2147,6 +2177,7 @@ namespace Fpv450.Sim.Contact
                     {
                         Double3 st = p.Stretch + t * ((size - kinetic) / ktt);
                         p.Stretch = st - n * Double3.Dot(n, st);
+                        if (p.Object == WorldIds.Ground) Reached(c, ref p.Stretch); // the ground's hold only (2.4: an object's shell is 2.3's and 2.7's)
                     }
                     p.Sliding = true;
                 }
@@ -3043,6 +3074,7 @@ namespace Fpv450.Sim.Contact
                 }
                 Double3 held = World(s, k.AnchorBody), dt = held - k.Anchor;
                 dt = dt - n * Double3.Dot(n, dt);
+                if (Reached(c, ref dt)) k.Anchor = held - dt;
                 Double3 v = PointVelocity(s, held);
                 Double3 d = n * x - dt;
                 double a = Double3.Dot(up, d) - along, va = Double3.Dot(up, v);
@@ -3176,6 +3208,7 @@ namespace Fpv450.Sim.Contact
                         {
                             Double3 st = q.Stretch + t * ((size - kinetic) / ktt);
                             q.Stretch = st - n * Double3.Dot(n, st);
+                            Reached(c, ref q.Stretch);
                             k.Anchor = World(s, k.AnchorBody) - q.Stretch;
                         }
                         k.Sliding = true;

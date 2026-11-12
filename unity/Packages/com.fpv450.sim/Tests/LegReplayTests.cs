@@ -139,9 +139,11 @@ namespace Fpv450.Sim.Tests
             Assert.That(refused.Steps, Is.EqualTo(0));
             StringAssert.Contains("drone.json differs", refused.Message);
 
-            // The drifting touch: bent and on, by a set a pilot sees (past 1°).
+            // The drifting touch: bent and on, by a set a pilot sees (past 1°). Since model 86 (the anchors' reach) at 12° and
+            // (1.0, −0.7) m/s: 10° and (0.6, −0.5) bent leg_fr 1.92° only by a support's anchor that slid 0.21 m in one step
+            // (past the leg's 0.176 m reach), and now sets leg_rr 0.30°.
             MaterialRow[] rows = ContactScenarios.RepositoryMaterials(out ulong rowsHash);
-            var touch = new LegScenarios.Touch { RollDeg = 10, Velocity = new Double3(0.6, -0.5, 0), Seed = 20 };
+            var touch = new LegScenarios.Touch { RollDeg = 12, Velocity = new Double3(1.0, -0.7, 0), Seed = 20 };
             byte[] drift = Record(LegScenarios.Setup(spec, rows, rowsHash, touch), "floor", spec, 3000, out FlightCore landed);
             int bentOn = 0;
             for (int c = 0; c < 4; c++)

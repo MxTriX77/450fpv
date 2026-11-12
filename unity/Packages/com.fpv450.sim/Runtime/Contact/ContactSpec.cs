@@ -197,6 +197,7 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool HangingGive = true;
 
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;

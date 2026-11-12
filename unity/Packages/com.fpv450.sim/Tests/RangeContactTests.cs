@@ -619,8 +619,8 @@ namespace Fpv450.Sim.Tests
             RangeScenarios.Approach a = RangeScenarios.Find("crown");
             // Since model 64 on model 63's drone (the old coil, Model63Drone), as every kept audit.
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Model63Drone.Spec(), m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
-                a.Height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate,
-                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); }); // since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's)
+                a.Height, a.Speed, core => { GoldenFlights.WithoutTheReach(core); return RangeScenarios.Placed(a.Variant, a.Occurrence); }, null, a.ClimbSteps, a.ClimbRate,
+                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); }); // since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's), since 86 without the anchors' reach
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             Assert.That(p.Tunnels, Is.EqualTo(1));
             Assert.That(p.TunnelThrough[0], Is.EqualTo("skid_left through V01_L bark"));
