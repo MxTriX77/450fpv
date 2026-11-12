@@ -16,7 +16,7 @@ name a kind and a variant; the variant -> asset lookup is assets-src/vendor_plan
 
 --sheets also writes each variant's review sheet (AST-12): the mesh, its textures as PNG and the metadata go to a
 bundle under review-sheets/<ID>/_bundle/ (git-ignored, so the copied geometry stays local), and the pinned Blender
-renders review-sheets/<ID>/<variant>.png from it (tools/blender/vendor_review.py). Exit code 1 on any problem; a
+renders review-sheets/<ID>/<variant>.png from it (tools/blender/vendor_plant_review.py). Exit code 1 on any problem; a
 refused variant writes nothing."""
 import argparse
 import hashlib
@@ -804,14 +804,14 @@ def render_sheets(root, asset_id, bundles):
     blender = os.environ.get("BLENDER") or BLENDER_DEFAULT
     out = os.path.join(root, SHEETS, asset_id)
     done = subprocess.run([blender, "--background", "--factory-startup", "--python",
-                           os.path.join(HERE, "vendor_review.py"), "--", out] + bundles,
+                           os.path.join(HERE, "vendor_plant_review.py"), "--", out] + bundles,
                           capture_output=True, text=True, encoding="utf-8", errors="replace")
     for line in done.stdout.splitlines():
         if line.startswith("[review]"):
             print(line)
     if done.returncode != 0:
         print(done.stdout[-4000:], done.stderr[-4000:])
-        raise SystemExit(f"vendor_review.py failed for {asset_id} (exit {done.returncode})")
+        raise SystemExit(f"vendor_plant_review.py failed for {asset_id} (exit {done.returncode})")
 
 
 def main(argv=None):

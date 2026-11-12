@@ -2,7 +2,7 @@
 the local bundle tools/blender/vendor_plants.py writes (review-sheets/<ID>/_bundle/, git-ignored: the store's mesh
 never leaves the machine).
 
-    blender --background --factory-startup --python tools/blender/vendor_review.py -- <out folder> <bundle.json>...
+    blender --background --factory-startup --python tools/blender/vendor_plant_review.py -- <out folder> <bundle.json>...
 
 Per variant and light (day, overcast) one PNG, <out folder>/<variant>_<light>.png, of rows of TILE px tiles, as Unity's review capture lays its
 sheet out (ReviewCapture.cs: a 60 degree vertical field of view, the camera to the south-west, 20 degrees down for
