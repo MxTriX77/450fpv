@@ -169,7 +169,7 @@ namespace Fpv450.Sim.Log
             "BladeRest", "BladeRestSpeed",
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
-            "BladeRoot", "Stems",
+            "BladeRoot", "Stems", "AnchorReach",
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
             "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
             "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
@@ -182,7 +182,7 @@ namespace Fpv450.Sim.Log
             "BoltDiameter", "GripLength", "ScrewDiameter", "SocketDiameter", "YieldStress", "Elongation", "EdgeFactor", "ClampTorque", "NutFactor",
             "Friction", "TJointTorque", "Interlayer",
             "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps", "StubStiffness", "StubStiffnessUp",
-            "FrameTopShare", "FrameJointShare", "FrameSelfStiffness",
+            "FrameTopShare", "FrameJointShare", "FrameSelfStiffness", "StiffnessSigma", "StiffnessBound",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -282,7 +282,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27;
+            TagStems = 27, TagGround = 28;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1274,6 +1274,19 @@ namespace Fpv450.Sim.Log
                 e.Write(Modes != null);
                 if (Modes != null) e.Write(Modes.StrikeLoad);
             });
+            // The ground's and the legs' switches since w9-village-physics 2.9, an entry of its own as the stems' (no format
+            // change): the anchors' reach (2.4) and the legs' stiffness spread (leg.stiffness). A log without it flew the reach
+            // from model 86 and no spread.
+            Entry(w, TagGround, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts == null) return;
+                e.Write(Contacts.AnchorReach);
+                e.Write(Contacts.Legs != null);
+                if (Contacts.Legs == null) return;
+                e.Write(Contacts.Legs.StiffnessSigma);
+                e.Write(Contacts.Legs.StiffnessBound);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1329,7 +1342,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false, sawStems = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1412,6 +1425,23 @@ namespace Fpv450.Sim.Log
                         {
                             bool load = r.ReadBoolean();
                             if (Modes != null) Modes.StrikeLoad = load;
+                        }
+                        break;
+                    case TagGround:
+                        sawGround = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool reach = r.ReadBoolean();
+                            if (Contacts != null) Contacts.AnchorReach = reach;
+                            if (r.ReadBoolean())
+                            {
+                                double sigma = r.ReadDouble(), bound = r.ReadDouble();
+                                if (Contacts?.Legs != null)
+                                {
+                                    Contacts.Legs.StiffnessSigma = sigma;
+                                    Contacts.Legs.StiffnessBound = bound;
+                                }
+                            }
                         }
                         break;
                     case TagDroneInternals:
@@ -1742,6 +1772,12 @@ namespace Fpv450.Sim.Log
                 // Before w9-village-physics 2.2 no flight met stems or loaded an arm at its tip from a strike.
                 if (Contacts != null) Contacts.Stems = false;
                 if (Modes != null) Modes.StrikeLoad = false;
+            }
+            if (!sawGround && Contacts != null)
+            {
+                // Before w9-village-physics 2.9: the reach flew from model 86 (unlogged), and no leg drew its stiffness.
+                Contacts.AnchorReach = ModelVersion >= 86;
+                if (Contacts.Legs != null) Contacts.Legs.StiffnessSigma = Contacts.Legs.StiffnessBound = 0;
             }
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
