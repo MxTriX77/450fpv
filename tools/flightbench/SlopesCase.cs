@@ -2,6 +2,7 @@ using System;
 using Fpv450.Sim;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Tests;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
@@ -12,7 +13,8 @@ namespace Fpv450.FlightBench
     // map package's plane tile of meadow_sod; 0° the stub floor of meadow_sod, a plane) and at the farmland's steps. `--slopes`
     // prints every row and judges the ones with a reference: a level terrain against the plane, a crash into a slope against the
     // same dive onto the plane turned, the resting drone's slip against atan μs and its roll against the rigid-body tip, the steps
-    // against their faces. `--slopes <part>` prints one part: rest, land, crash, strike, ledge or line.
+    // against their faces; the line over the ledge and over a ridge (2.5). `--slopes <part>` prints one part: rest, land, crash,
+    // strike, ledge or line.
     internal static class SlopesCase
     {
         static readonly double[] Angles = { 0, 10, 20, 30, 38 };
@@ -114,8 +116,15 @@ namespace Fpv450.FlightBench
             {
                 Console.WriteLine("  the line laid on the far ring and dragged up over the ledge's lip as the drone flies west over the top");
                 SlopeScenarios.LineLedge l = SlopeScenarios.LineOverLedge(spec);
-                Row("the line over the ledge", !l.Broken && l.FastestNode < 20,
-                    $"the fastest node {l.FastestNode:F2} m/s, the deepest behind the face {l.Behind * 1e3:F1} mm, {l.Paid:F1} m paid out, " + (l.Broken ? "broken: " + l.Break : "whole"));
+                Row("the line over the ledge", !l.Broken && l.FastestNode < 20 && l.OnLip > 1000 && l.Deepest <= FiberLine.CrestDepth,
+                    $"the fastest node {l.FastestNode:F2} m/s, the deepest behind the face {l.Behind * 1e3:F1} mm, {l.Paid:F1} m paid out, " + (l.Broken ? "broken: " + l.Break : "whole")
+                    + $"; the deepest segment {l.Deepest:F4} m in the ground (the law's chords {l.LawDeepest:F4} m), a crest's node on the lip {l.OnLip} steps, {l.Crests} crests' nodes put in");
+                Console.WriteLine("  a line laid over a 3 m ridge (16.7° a side), the drone flying away from it (w3-farmland-ground 2.5)");
+                SlopeScenarios.LineRidge r = SlopeScenarios.LineOverRidge(spec);
+                Row("the line over the ridge", !r.Broken && r.Deepest <= FiberLine.CrestDepth && r.OnCrest && r.CrestZ < 1 && r.Wedges == 0 && r.Allocated == 0,
+                    $"the spacing law's chords {r.Launched:F3} m under the crest at the launch; the deepest segment {r.LaunchedDeepest:F4} m in the ground then, "
+                    + $"{r.Deepest:F4} m over the flight; a crest's node {r.CrestZ:F3} m off the crest line, {r.CrestHeight * 1e3:F2} mm over the ground; "
+                    + $"{r.Inserted} crests' nodes put in, {r.Refused} refused; {r.Paid:F1} m paid out, " + (r.Broken ? "broken" : "whole") + $", {r.Wedges} wedges, {r.Allocated} B");
             }
             Console.WriteLine(_ok ? "flightbench: slopes PASS" : "flightbench: slopes FAIL");
             return _ok;
