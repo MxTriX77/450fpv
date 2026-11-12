@@ -19,6 +19,8 @@ namespace Fpv450.FlightBench
     // drone and prints the setpoint against the achieved rate and what limits it; `--rate-log <log>...` reads flight logs so.
     // `--turns [calm | windy | severe]` flies turning routes low over the farmland's bushes and judges the laid line's rest
     // (w3-farmland-ground 2.4); `--bench farmland-line-step [calm | windy | severe]` flies the line case in that wind.
+    // `--tether [seeds]` flies the fiber's acceptance harness, the pilot's four causes on 20 seeds a row by default, and judges
+    // design 16's targets and the known-wrong models (p7d-tether 1.11).
     // `--replay-step <log> [--from S] [--to S]` replays a flight log bit for bit and times its steps and their world queries
     // in that window of flight seconds against PLT-04 (w3-farmland-ground 2.1).
     internal static class Program
@@ -161,6 +163,15 @@ namespace Fpv450.FlightBench
                 Console.WriteLine("flightbench: how the drone tracks its controller's setpoint (reference-notes/rate-tracking.md)");
                 return RateTrackingCase.Run() ? 0 : 1;
             }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--tether")
+            {
+                int seeds = 20;
+                if (args.Length == 1 || int.TryParse(args[1], out seeds) && seeds >= 1)
+                {
+                    Console.WriteLine("flightbench: the fiber's acceptance harness, the pilot's four causes (p7d-tether 1.11)");
+                    return TetherCase.Run(seeds) ? 0 : 1;
+                }
+            }
             if (args.Length == 1 && args[0] == "--pitch-back")
             {
                 Console.WriteLine("flightbench: the climb after a pitch-back at a fixed throttle (D-087)");
@@ -185,7 +196,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
             return 2;
         }
     }

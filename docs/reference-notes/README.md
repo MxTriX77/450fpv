@@ -12,6 +12,7 @@ These notes were copied verbatim from the Godot repo (`MxTriX77/450fpv`, `main`)
 | [ground-micro-motion.md](ground-micro-motion.md) | new for D-064: the camera's micro-motion near the ground by phase, axis and band (C, D, E, F, H, A), clip S's low cruise, the recorder's 2-2-1 field steps, and the targets for the physics |
 | [stem-properties.md](stem-properties.md) | new for w9-village-physics 2.11: published stem and leaf properties per kind (green grass, dry culms, weed stalks, straw, tree leaves), the critical speed for impact-cutting a free stem, stand densities, stem drag, and what the props' stem physics should use |
 | [vegetation-on-the-props.md](vegetation-on-the-props.md) | new for w9-village-physics 2.2 and 2.5: every stretch of grass, straw and weeds near the lens (D, H, A, F), the shake there, the prop blades in frame by airframe group, the pale rods as airframe parts, the targets, and what no clip shows (no cut bits, no landing in grass) |
+| [fiber-exit.md](fiber-exit.md) | new for p7d-tether design 17: published friction of acrylate-coated fiber and coatings (on steel, on fiber), why the capstan law fails at a sharp exit edge and the point-contact law to use instead, real payout exits (drone nozzles, missile and torpedo eyelets, flares and fairleads), published peel and payout tension, the exit against the rear props, and the recommended lip friction |
 
 ## Things that changed since they were written
 - **The drone's name** is now **"Svinoriz 10 Opto"** (the pilot, 2026-10-17). These notes say "Svinorez".
