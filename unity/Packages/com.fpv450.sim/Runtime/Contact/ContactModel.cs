@@ -3582,6 +3582,8 @@ namespace Fpv450.Sim.Contact
             bool groundless = shape.Role == ContactRole.Support || shape.Role == ContactRole.Skid;
             bool blade = shape.Role == ContactRole.Blade;
             bool capsule = !Same(shape.A, shape.B);
+            // The side a part comes into a rigid shape from (BodySide): the drone's, or a blade's own rotor's hub.
+            Double3 side = blade ? World(now, _hub[shape.Corner]) : now.Position;
             for (int k = 0; k < _count[i]; k++)
             {
                 _pairs[first + k].Seen = false;
@@ -3599,16 +3601,21 @@ namespace Fpv450.Sim.Contact
                 if (k == _count[i])
                 {
                     if (same) continue;
+                    Double3 at = c.Point, normal = c.Normal;
+                    bool slot = blade && Slot(c, side, shape.Radius, ref at, ref normal);
+                    if (slot && c.Distance >= -shape.Radius) continue; // past the box's far face: no touch of the blade in its slot
                     if (k == PairsPerShape)
                     {
                         lost++;
                         continue;
                     }
                     _count[i]++;
+                    if (!blade && !(c.Time > 0 && c.Time < 1) && c.Distance < -shape.Radius) BodySide(c, side, shape.Radius, ref at, ref normal);
                     _pairs[first + k] = new Pair
                     {
-                        Object = c.Object, Shape = c.Shape, Material = c.Material, Surface = c.Surface, P = c.Point, N = c.Normal, Entry = c.Normal,
-                        Latched = c.Time < 1, Seen = true, Time = c.Time,
+                        Object = c.Object, Shape = c.Shape, Material = c.Material, Surface = c.Surface, P = at, N = normal, Entry = normal,
+                        Latched = c.Time < 1 || !Same(normal, c.Normal), Seen = true, Time = c.Time,
+                        Slack = slot ? double.PositiveInfinity : 0, // a blade in its slot: no motion pressed its spring (PlaceBlades)
                     };
                     continue;
                 }
@@ -3677,6 +3684,81 @@ namespace Fpv450.Sim.Contact
                 kept++;
             }
             _count[i] = kept;
+        }
+
+        // A part found inside a rigid box with no first touch this step (a blade come back to rest, a piece a leg's set or break
+        // moved, a pair the step before did not keep) has no entry to latch: the query's nearest face, which on a box thinner than
+        // the part's depth is the far one once its core is past the middle, and that face pushes the part on through (a 2 cm wall
+        // skin, w3-farmland-ground 2.7). The drone is never inside a rigid shape, so a part's way in is from the body's side: the face
+        // the line from its origin to the part's core enters the box by, as a slab's would be (a blade's is its hub's, Slot). Compliant rows,
+        // soil and the ground keep the query's face (they yield, or are one side); a round shape's far side is its tunnel rule's
+        // (Entry, PastCentre).
+        void BodySide(in StaticContact c, Double3 side, double radius, ref Double3 point, ref Double3 normal)
+        {
+            if (!RigidBox(c, out ShapeGeometry g) || !Enters(g, side, Core(c, radius), out Double3 n)) return;
+            point = OnFace(g, n, point);
+            normal = n;
+        }
+
+        // x moved along a box's face normal n onto that face's plane.
+        static Double3 OnFace(in ShapeGeometry g, Double3 n, Double3 x)
+        {
+            double s = DetMath.Abs(Double3.Dot(n, g.AxisX)) * g.HalfExtents.X + DetMath.Abs(Double3.Dot(n, g.AxisY)) * g.HalfExtents.Y
+                + DetMath.Abs(Double3.Dot(n, g.AxisZ)) * g.HalfExtents.Z;
+            return x - n * (Double3.Dot(n, x - g.Center) - s);
+        }
+
+        // A resting blade on a rigid box its hub's line to the blade's core enters by another face than the contact's: the blade's
+        // own root passes through the box, so the blade came there by its rotor's passes (the strikes' carve, which leaves the world
+        // whole) and lies in the slot it cut (w3-farmland-ground 2.7). Its face is the one the root's line enters by (as BodySide's);
+        // past the far face it touches nothing. A blade pressed in by the body's motion, or resting on a box beside its root, meets
+        // the contact's own face.
+        bool Slot(in StaticContact c, Double3 hub, double radius, ref Double3 point, ref Double3 normal)
+        {
+            if (!RigidBox(c, out ShapeGeometry g) || !Enters(g, hub, Core(c, radius), out Double3 n) || Double3.Dot(n, c.Normal) > 0.5) return false;
+            point = OnFace(g, n, point);
+            normal = n;
+            return true;
+        }
+
+        // The part's core point nearest the contact's.
+        static Double3 Core(in StaticContact c, double radius) => c.Point + c.Normal * (c.Distance + radius);
+
+        // A contact on a rigid placed or runtime box: not the ground, soil or a compliant row.
+        bool RigidBox(in StaticContact c, out ShapeGeometry g)
+        {
+            g = default;
+            if (c.Object == WorldIds.Ground || c.Surface != WorldIds.NoSurface) return false;
+            if (c.Material < _byMaterial.Length && _byMaterial[c.Material].Known && !_byMaterial[c.Material].Rigid) return false;
+            return _world.Geometry(c.Object, c.Shape, out g) && g.Kind == ShapeKind.Box;
+        }
+
+        // The segment from a (outside box g) to b enters the box: the outward normal of the face it enters by (the slabs' method).
+        static bool Enters(in ShapeGeometry g, Double3 a, Double3 b, out Double3 normal)
+        {
+            normal = default;
+            double lo = 0, hi = 1;
+            Double3 from = a - g.Center, d = b - a;
+            for (int k = 0; k < 3; k++)
+            {
+                Double3 axis = k == 0 ? g.AxisX : k == 1 ? g.AxisY : g.AxisZ;
+                double h = k == 0 ? g.HalfExtents.X : k == 1 ? g.HalfExtents.Y : g.HalfExtents.Z;
+                double p = Double3.Dot(from, axis), v = Double3.Dot(d, axis);
+                if (v == 0)
+                {
+                    if (p < -h || p > h) return false;
+                    continue;
+                }
+                double near = ((v > 0 ? -h : h) - p) / v, far = ((v > 0 ? h : -h) - p) / v;
+                if (near > lo)
+                {
+                    lo = near;
+                    normal = v > 0 ? -axis : axis;
+                }
+                if (far < hi) hi = far;
+                if (lo > hi) return false;
+            }
+            return lo > 0;
         }
 
         // A capsule's contact is the same support as a touching sphere of the same part (P3) when its point lies within two

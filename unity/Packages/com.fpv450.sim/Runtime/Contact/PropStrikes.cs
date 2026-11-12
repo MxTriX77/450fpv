@@ -304,7 +304,7 @@ namespace Fpv450.Sim.Contact
                     {
                         // A softer face that holds the radial line past the rim (the soil, a trunk's face): a segment of the disc.
                         BladeCut.Along(g, chain, hub, axis, m.Direction, d.HalfThickness, _radius, out _, out double rout, out _, out _);
-                        if (!(rout < _radius)) chord = m.Radius;
+                        if (!(rout < _radius) || BladeCut.Wide(g, chain, hub, axis, m.Direction, d.HalfThickness, m.Radius, rout, _radius)) chord = m.Radius;
                     }
                     if (!(now.RotorSpeed[c] > 0)) continue;
                     double psi = Azimuth(now.Attitude, m.Direction, c);
@@ -439,7 +439,9 @@ namespace Fpv450.Sim.Contact
             }
 
             BladeCut.Along(g, chain, hub, axis, dir, d.HalfThickness, R, out _, out double rout, out _, out _);
-            bool inside = rout < rtip, hard = row.Hardness > _b.Hardness;
+            // A box's thin skin across the disc (a wall's, a board's) is a face the tip meets as a slab's, though the line leaves it
+            // inside the tip (BladeCut.Wide, w3-farmland-ground 2.7); a carve sweeps its strip between rm and rout.
+            bool inside = rout < rtip && !BladeCut.Wide(g, chain, hub, axis, dir, d.HalfThickness, rm, rout, rtip), hard = row.Hardness > _b.Hardness;
             rec.Exit = rout;
             double mu = row.KineticFriction, crush = _b.CrushStrength * f;
             double work, rotorWork = double.NaN, pushN = 0, axial = 0, cot = double.NaN, rc = rm, alpha, newTip = tip, rotorShare = 1;
@@ -460,6 +462,15 @@ namespace Fpv450.Sim.Contact
                     double ta = sa / ca, r2 = rtip * rtip, m2 = rm * rm;
                     area = r2 * (alpha - sa * ca);
                     second = r2 * r2 * alpha / 2 - m2 * m2 * (ta + ta * ta * ta / 3) / 2;
+                    if (rout < rtip)
+                    {
+                        // A thin skin: less the segment past its far face, which the blade reaches only through it (air there).
+                        double beta = DetMath.Acos(rout / rtip);
+                        DetMath.SinCos(beta, out double sb0, out double cb0);
+                        double tb = sb0 / cb0, o2 = rout * rout;
+                        area -= r2 * (beta - sb0 * cb0);
+                        second -= r2 * r2 * beta / 2 - o2 * o2 * (tb + tb * tb * tb / 3) / 2;
+                    }
                     rc = 0.5 * (rm + rtip);
                     path = rc * 2 * alpha;
                 }
