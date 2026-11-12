@@ -191,6 +191,9 @@ namespace Fpv450.Sim.Tether
         readonly GroundSample[] _ground;
         readonly double[] _groundHeight;
         readonly Double3[] _groundNormal;
+        readonly Double3[] _groundAt; // a point of each node's ground plane: under it, or on a step's face it lies behind
+        readonly bool _terrain;       // the ground is a terrain, whose steps SampleGround reports by their tops
+        readonly StaticContact[] _face = new StaticContact[8];
         readonly Ray[] _soilRay = new Ray[1];
         readonly RayHit[] _soilHit = new RayHit[1];
         readonly Double3[] _hubs = new Double3[4], _hubAir = new Double3[4];
@@ -227,6 +230,7 @@ namespace Fpv450.Sim.Tether
             _table = table;
             _dt = dt;
             World = setup.World;
+            _terrain = !World.Geometry(WorldIds.Ground, 0, out _);
             TwoWay = setup.TetherTwoWay;
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
@@ -289,6 +293,7 @@ namespace Fpv450.Sim.Tether
             _ground = new GroundSample[nodes + 4];
             _groundHeight = new double[nodes];
             _groundNormal = new Double3[nodes];
+            _groundAt = new Double3[nodes];
             _airPerMetre = new double[nodes];
             _loadPoint = new Double3[nodes];
             _loadVelocity = new Double3[nodes];
@@ -696,7 +701,7 @@ namespace Fpv450.Sim.Tether
             end.Drag = default;
             end.Force = default;
             end.Air = default;
-            _contacts?.Assign(_chain, _ground, _groundHeight, _groundNormal, s);
+            _contacts?.Assign(_chain, _ground, _groundHeight, _groundNormal, _groundAt, s);
 
             // The chain's step, its spacing from the exit.
             _chain.SetSpacing(_spacing, _nearLength, _growth, end.Material);
@@ -794,6 +799,25 @@ namespace Fpv450.Sim.Tether
             trace.Corrections = (byte)(added > 255 ? 255 : added);
         }
 
+        /// <summary>The ground's piece nearest a node of radius r at x (a step's face it lies behind: w3-farmland-ground 2.2): a point
+        /// of its plane and its normal, from StaticContacts' contact with the ground; unchanged where it finds none.</summary>
+        public static void NearestGround(IWorldQuery world, Double3 x, double r, Span<StaticContact> buffer, ref Double3 point, ref Double3 normal)
+        {
+            var core = new Capsule(x, x, r);
+            int found = world.StaticContacts(core, core, 0, buffer, QueryFilter.NoWires);
+            for (int k = 0; k < found && k < buffer.Length; k++)
+            {
+                if (buffer[k].Object != WorldIds.Ground) continue;
+                point = buffer[k].Point;
+                normal = buffer[k].Normal;
+                return;
+            }
+        }
+
+        /// <summary>How far under its sample's plane a node lies behind a step's face, m (numerical: InsertGap, the line's travel
+        /// in a step at 50 m/s, far past the ground spring's give of 0.1 mm a newton; an honest facet holds a node within it).</summary>
+        public const double WallDepth = FiberContacts.InsertGap;
+
         // Node i's ground: its plane within the reach (the coating's friction; a hold kept while it stays on), else none.
         void Ground(int i)
         {
@@ -801,8 +825,15 @@ namespace Fpv450.Sim.Tether
             GroundSample g = _ground[i];
             double h = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(a.Position, _soilRay, _soilHit, out _);
             Double3 normal = (g.Flags & GroundFlags.Hole) == 0 ? g.Normal : new Double3(0, 1, 0);
+            Double3 at = new Double3(a.Position.X, h, a.Position.Z);
+            // Behind a step's face (w3-farmland-ground 2.2): SampleGround reports a step's top, so a node past a face below it
+            // reads the step's height, and the top's plane would throw it there (1.4–1.6 m at the farmland's ledge). A node more
+            // than WallDepth under its sample's plane is behind a face; its plane is the ground's nearest piece to it, the face.
+            if (_terrain && (g.Flags & GroundFlags.Hole) == 0 && Double3.Dot(normal, a.Position - at) < -WallDepth)
+                NearestGround(World.Query, a.Position, _radius, _face, ref at, ref normal);
             _groundHeight[i] = h;
             _groundNormal[i] = normal;
+            _groundAt[i] = at;
             if (_contacts != null) return; // FiberContacts.Assign sets the slots, the plane among the members
             // The exit is on the drone and the trail's end on its point: neither takes the ground.
             if (i == _chain.Count - 1 || i == 0 && a.AnchorStiffness > 0 || !(a.Position.Y - h < _reach))
@@ -811,7 +842,7 @@ namespace Fpv450.Sim.Tether
                 return;
             }
             double length = Tributary(i);
-            Double3 point = new Double3(a.Position.X, h, a.Position.Z) + normal * _radius;
+            Double3 point = at + normal * _radius;
             if (!a.Contact0.Active)
                 a.Contact0 = CableContact.On(point, normal, default, GroundStiffnessPerMetre * length,
                     2 * DetMath.Sqrt(GroundStiffnessPerMetre * _mass) * length, GroundHold, _groundStatic, _groundKinetic, false);

@@ -934,7 +934,7 @@ namespace Fpv450.Sim.Tether
         /// members of one object within 45° merged into the nearest, the two nearest set on its slots: a member already on a slot
         /// is updated there (its hold and lock kept), a new one set afresh (Fresh, its first touch its Origin).
         /// </summary>
-        public void Assign(CableChain chain, GroundSample[] ground, double[] groundHeight, Double3[] groundNormal, in FlightState s)
+        public void Assign(CableChain chain, GroundSample[] ground, double[] groundHeight, Double3[] groundNormal, Double3[] groundAt, in FlightState s)
         {
             int n = chain.Count;
             Quat q = s.Attitude;
@@ -957,7 +957,7 @@ namespace Fpv450.Sim.Tether
                 if ((ground[i].Flags & GroundFlags.Hole) == 0 && x.Y - groundHeight[i] < _reach)
                 {
                     Double3 nrm = groundNormal[i];
-                    Double3 point = new Double3(x.X, groundHeight[i], x.Z) + nrm * _radius;
+                    Double3 point = groundAt[i] + nrm * _radius; // under the node, or on a step's face behind it (FiberLine)
                     _cand[count++] = new Candidate
                     {
                         M = new MemberSeg

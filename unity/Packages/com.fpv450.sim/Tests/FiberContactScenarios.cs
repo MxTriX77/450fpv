@@ -287,6 +287,7 @@ namespace Fpv450.Sim.Tests
             var at = new XZ[32];
             var heights = new double[32];
             var normals = new Double3[32];
+            var under = new Double3[32];
             Double3 left = x[0], right = x[nodes - 1], down = new Double3(0, -0.5, 0);
             const int pull = 2400, hold = 1000;
             for (int k = 0; k < pull + hold; k++)
@@ -313,11 +314,12 @@ namespace Fpv450.Sim.Tests
                 {
                     heights[i] = ground[i].Height;
                     normals[i] = ground[i].Normal;
+                    under[i] = new Double3(chain[i].Position.X, ground[i].Height, chain[i].Position.Z);
                     chain[i].Drag = new Sym3(1e-5, 1e-5, 1e-5, 0, 0, 0); // still air's drag, a stand-in (labelled): it only settles the line
                     chain[i].Air = default;
                     chain[i].Force = default;
                 }
-                contacts.Assign(chain, ground, heights, normals, state);
+                contacts.Assign(chain, ground, heights, normals, under, state);
                 chain.Step(Dt);
                 contacts.Finish(chain, state, events);
                 n = chain.Count;
@@ -695,6 +697,7 @@ namespace Fpv450.Sim.Tests
             var at = new XZ[32];
             var heights = new double[32];
             var normals = new Double3[32];
+            var under = new Double3[32];
             Double3 left = x[0], right = x[nodes - 1], along = new Double3(0, 0, 1);
             var res = new Elements { NamedRight = true };
             var met = new HashSet<ulong>();
@@ -720,11 +723,12 @@ namespace Fpv450.Sim.Tests
                 {
                     heights[i] = ground[i].Height;
                     normals[i] = ground[i].Normal;
+                    under[i] = new Double3(chain[i].Position.X, ground[i].Height, chain[i].Position.Z);
                     chain[i].Drag = new Sym3(1e-5, 1e-5, 1e-5, 0, 0, 0);
                     chain[i].Air = default;
                     chain[i].Force = default;
                 }
-                contacts.Assign(chain, ground, heights, normals, state);
+                contacts.Assign(chain, ground, heights, normals, under, state);
                 chain.Step(Dt);
                 contacts.Finish(chain, state, events);
                 for (int i = 0; i < events.Count; i++)

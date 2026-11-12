@@ -26,7 +26,7 @@ MARKS = [
     ("Tether/FiberLine.cs", "            for (int i = 0; i < n; i++) _at[i] = new XZ(_chain[i].Position.X, _chain[i].Position.Z);", "TetherGround"),
     ("Tether/FiberLine.cs", "            if (_rotors != null)\n            {\n                Double3 up = q.Rotate(new Double3(0, 1, 0));", "TetherRotors"),
     ("Tether/FiberLine.cs", "            _windCursor = _windBatch != null ? _windFirst : -1;", "TetherLoads"),
-    ("Tether/FiberLine.cs", "            _contacts?.Assign(_chain, _ground, _groundHeight, _groundNormal, s);", "TetherAssign"),
+    ("Tether/FiberLine.cs", "            _contacts?.Assign(_chain, _ground, _groundHeight, _groundNormal, _groundAt, s);", "TetherAssign"),
     ("Tether/FiberLine.cs", "            _chain.SetSpacing(_spacing, _nearLength, _growth, end.Material);", "TetherSolve"),
     ("Tether/FiberLine.cs", "            _contacts?.Finish(_chain, s, events);", "TetherFinish"),
     ("Tether/FiberLine.cs", "            if (_cuts != null && !Broken)\n            {\n                Cut(s, from, wedgeNode, events);", "TetherCut"),
