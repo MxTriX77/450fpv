@@ -4,7 +4,9 @@ Tech-artist, `w6-farmland-look` 1.2, branch `unity/physics/physics-integration-2
 
 ## Verdict
 
-- **PLT-02 is not met on this machine as it is set**, through the feed or in noclip.
+- **The quiet PLT-07 run (2026-11-12 11:14) meets PLT-02, PLT-05 and PLT-06** at full power: through the feed 111.5 fps average and 76.5 fps 1 % low; in noclip 131.7 fps and 94.5 fps 1 % low. Its section is below. Nothing was tuned for it: it ran the same review build as the shared-machine runs.
+- The rest of this verdict is from the shared machine at 20 W, before that run:
+- **PLT-02 was not met on this machine as it was set**, through the feed or in noclip.
 - **PLT-05 and PLT-06 are met** with a wide margin: VRAM 1.06 GB of 4.5, RAM 1.2 GB of 8, Explore's first frame 1.4 s after the press, of 20.
 - **The GPU ran at 20 W of its 65 W.** `nvidia-smi` reads an enforced power limit of 20 W, with Windows' power mode at Best power efficiency on AC. Under the bench the GPU sat at 1035–2700 MHz (1305 MHz median, its maximum 3105), 100 % busy. 1.1's numbers were taken the same way.
 - **The 17–19 ms "wait to present" that W3's player measured is GPU time.** The frame is GPU-bound: the player's own 3D engine on the RTX 4050 is 99 % busy, and no other process uses it. `FrameTimingManager`'s GPU time with the feed on covers only the output camera, so the FPV camera's render shows up as the main thread waiting for the GPU. It is not DWM, the swap chain, a sync in the feed's passes or the sim. The bench now records the wait (below).
@@ -72,7 +74,8 @@ W3's player timed each farmland frame through the feed at 22–24 ms. `FrameTimi
 
 ## What is left, for the orchestrator and the pilot
 
-1. **The PLT-07 run (owed).** It needs a quiet machine on AC with **Windows' power mode at Best performance**: a Windows setting the pilot changes, not an agent. Then run `pwsh tools/bench_farmland.ps1` on a review build. It prints the mode and the GPU's power limit in force. With 3.25× the GPU's power the targets may be met as they stand. That is a guess, not measured.
+1. **The PLT-07 run: done**, see "The quiet PLT-07 run" below. The rest of this item is as it stood before it.
+   **The PLT-07 run (was owed).** It needs a quiet machine on AC with **Windows' power mode at Best performance**: a Windows setting the pilot changes, not an agent. Then run `pwsh tools/bench_farmland.ps1` on a review build. It prints the mode and the GPU's power limit in force. With 3.25× the GPU's power the targets may be met as they stand. That is a guess, not measured.
 2. **If it still misses,** the levers measured here, with what each costs:
 
 | Lever | Buys (measured here) | Costs |
@@ -83,3 +86,24 @@ W3's player timed each farmland frame through the feed at 22–24 ms. `FrameTimi
 | **the feed's render at 1280 samples across** | the feed at 91.6 fps, 1 % low 63.2 fps | changes the ported feed (D-026): 83 % of the fine horizontal structure through the feed |
 | the feed's render at 960 across | 111.4 fps, 1 % low 67.7 fps: PLT-02 met even at 20 W | 73 % of the fine structure |
 | noclip's grass to 150 m | −1.6 ms on noclip's views | the friend's grass ends 50 m sooner at 1080p (luma unchanged) |
+
+## The quiet PLT-07 run (2026-11-12 11:14)
+
+The orchestrator ran it with the agents stopped and no Unity, .NET or Blender run on the machine (the runner lists only three PowerShell shells and Unity Hub's service). It used the same review build as above (`unity/Builds/Windows-Review`, built 08:06 from ad2fbc7c's code), with `pwsh -File tools/bench_farmland.ps1`.
+
+- **Power:** AC; plan Balanced; Windows' power mode Best performance (ded574b5), set by the laptop vendor's own Performance mode, which overrides Windows' slider. The GPU's enforced power limit was 45 W at the start; the GPU drew 64.8 W under the bench (Dynamic Boost).
+- **Clocks:** the GPU's graphics clock 2415 MHz median (585–2685), memory 8201 MHz, 100 % busy, 70 °C at most. The CPU 3051 MHz effective median (2498–4279).
+- **The player:** 1920×1080 windowed, vsync 0, quality High, on a 965 m path. Explore drew its first frame 1.8 s after the press.
+- **Memory:** peak dedicated VRAM 1017 MB; RAM 1190 MB working set, 2440 MB private.
+
+| Run | Frames | Average | 1 % low | Worst frame | CPU main / render | Wait to present | GPU (FrameTimingManager) | Draw calls (max) | Triangles (max) | Render |
+|---|---|---|---|---|---|---|---|---|---|---|
+| feed | 7173 in 64.4 s | 111.5 fps (8.97 ms) | 76.5 fps (13.07 ms) | 15.39 ms | 2.91 / 0.29 ms | 6.05 ms | 0.68 ms (output camera only) | 1227 (2009) | 7.73 M (13.1 M) | 2754×1549 |
+| noclip | 8476 in 64.3 s | 131.7 fps (7.59 ms) | 94.5 fps (10.58 ms) | 11.83 ms | 2.51 / 1.19 ms | 5.07 ms | 7.49 ms | 1426 (2358) | 19.8 M (30.1 M) | 1920×1080 |
+
+- **PLT-02:** met through the feed (1 % low ≥ 60 and average ≥ 100 fps) and in noclip (1 % low ≥ 60 fps). **PLT-05 and PLT-06:** met.
+- **The frame is still GPU-bound** (100 % busy). With the GPU's clock about 1.85× the 20 W runs', the feed's frame went from 15.9 to 9.0 ms.
+- **The repeat run stalled.** A second run straight after drew one frame and then sat with the GPU idle: the player's window had most likely lost focus while the pilot used the machine, so the player paused. It was stopped and left no result. QA's 2.1 repeats the run.
+- **Not covered:** W3's flight player, with its near-terrain rule (D-099, pixel error 0.05 within 30 m), grass to 200 m and SSAO on the output camera. Its own `-terrainab` and this runner must be re-run once W6 and W3 meet on the line.
+- The raw report and logs are local, in the orchestrator's scratchpad (`bench-perfarmbench-20261112-111411.*`).
+
