@@ -773,3 +773,19 @@ The orchestrator, 2026-11-12, on W3's task 3.2 (`w3-farmland-ground`, design.md 
 - **Pixel error 1 was rejected:** it is invisible in the feed, but it leaves the drawn ground 1.8–16.2 mm off in flight, so the laid fiber (0.125 mm radius) would be drawn under it.
 - **No full-resolution patch:** it gives the same 0 mm, but the friend's terrain would have to be hidden under it, against the untouched store.
 - **The cost** is the FPV camera's GPU time: about 1.1–1.4 ms a frame at the 20 W power cap, and 0.5–0.7 M more triangles. W6's quiet PLT-07 run gives the verdict (`-terrainab`).
+
+## D-100 Play replaces Train, with two maps: House and Village · Accepted
+The pilot, 2026-11-12, after flying the farmland preview (model 85; their words in [handover-2026-11-12.md](handover-2026-11-12.md) §2).
+- **The menu's Train becomes Play.** Play opens a carousel of the maps, and then the setup and the flight as now.
+- **House** is the test range (map id `test-range`), which comes back into the player. **Village** is the farmland (D-088).
+- **Each map card has a still** seen through the analog feed, with the OSD.
+  - House's frame shows the car, the fence and the house.
+  - Village's is exactly Explore's spawn frame.
+  - The stills are generated, by a capture method plus a pose per map, never by hand.
+  - A still of the friend's world follows D-089: it isn't pushed unless it is shown to be redistributable.
+
+## D-101 M shows the world's map without pausing · Accepted
+The pilot, 2026-11-12, in the same feedback.
+- **M toggles a map of the whole world** in flight and in Explore. The sim keeps running while it shows.
+- **It shows the drone's position, live.** The panel is centred and a little smaller than the game window, so it never covers all of it.
+- **The image of each map is generated** from above, and it follows D-089 like D-100's stills.
