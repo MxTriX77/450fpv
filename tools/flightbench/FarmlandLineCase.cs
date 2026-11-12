@@ -26,6 +26,7 @@ namespace Fpv450.FlightBench
     //   outcome a blip of the exit's tension decided).
     // - The pilot's sessions' loadout (L1: 2 kg, legs on, Severe wind, Sunny) in the field's own Severe wind (the farmland has
     //   no wind obstacles until W7), the coil full, the scripted pilot (SimPilot) holding the route's speed and its height.
+    //   `--bench farmland-line-step calm` (or windy) flies it in that wind instead (w3-farmland-ground 2.4).
     // Its world is MapWorld.Load(root, "farmland"): once 1.2 loads the farmland's trees, bushes and ruins, the same flight's
     // line lies through them and this case times that (task 2.1's re-run after 1.2). Unpaced: the wind has no worker here.
     internal static class FarmlandLineCase
@@ -41,7 +42,7 @@ namespace Fpv450.FlightBench
             new XZ(130, 400), new XZ(300, 300), new XZ(600, 300), new XZ(700, 250), new XZ(720, 120),
         };
 
-        public static bool Bench()
+        public static bool Bench(WindLevel wind)
         {
             MapWorld map = MapWorld.Load(RangeScenarios.Root, "farmland");
             double length = 0;
@@ -50,10 +51,10 @@ namespace Fpv450.FlightBench
             int steps = (int)(seconds * 1000);
 
             // The warm-up: the flight's first 10 s, so the timed flights' first steps run compiled code (the tiered JIT).
-            Fly(map, 10000, false, out _, out _, out _, out _, out _);
+            Fly(map, wind, 10000, false, out _, out _, out _, out _, out _);
 
-            long[] times = Fly(map, steps, false, out long allocated, out string flown, out bool whole, out _, out int buried);
-            long[] queries = Fly(map, steps, true, out _, out _, out _, out double calls, out _);
+            long[] times = Fly(map, wind, steps, false, out long allocated, out string flown, out bool whole, out _, out int buried);
+            long[] queries = Fly(map, wind, steps, true, out _, out _, out _, out double calls, out _);
             double us = 1e6 / Stopwatch.Frequency;
             int first = (int)(Climb * 1000), routeEnd = (int)((Climb + (length + Brake) / Speed) * 1000);
             string P(long[] x, int from, int to)
@@ -74,7 +75,7 @@ namespace Fpv450.FlightBench
             double q99 = q[q.Length * 99 / 100] * us;
             bool ok = p99 <= 300 && allocated == 0 && whole && buried == 0;
             Console.WriteLine($"{Name}: the farmland ({map.PlacedObjects} placed objects), from the village's track along {length:F0} m of route at {Height:F0} m over "
-                + $"the ground and {Speed:F0} m/s, then a {Hover:F0} s hover; 2.0 kg, legs on, Severe wind; {flown}. "
+                + $"the ground and {Speed:F0} m/s, then a {Hover:F0} s hover; 2.0 kg, legs on, {wind} wind; {flown}. "
                 + $"{steps} steps unpaced: all after the first p99 {p99:F1} µs; the climb {P(times, 1, first)}; the route {P(times, first, routeEnd)}; "
                 + $"the hover {P(times, routeEnd, steps)}; world queries a step (the second flight) on the ground and in the climb {P(queries, 1, first)}, "
                 + $"in all p50 {q[q.Length / 2] * us:F1} µs, p99 {q99:F1} µs, "
@@ -87,9 +88,9 @@ namespace Fpv450.FlightBench
         // One flight of `steps`: each step's time (or, timed, its world queries' time), what the steps after the first
         // allocated, what the line and the drone did, whether the line is whole and 1.5 km out with the drone up, the world
         // calls a step, and the segments lying deeper than FiberLine.CrestDepth in the ground at the end.
-        static long[] Fly(MapWorld map, int steps, bool timed, out long allocated, out string flown, out bool whole, out double calls, out int buried)
+        static long[] Fly(MapWorld map, WindLevel wind, int steps, bool timed, out long allocated, out string flown, out bool whole, out double calls, out int buried)
         {
-            FlightSetup setup = Setup(map, out Double3 foot, out double stand, out Double3 nose);
+            FlightSetup setup = Setup(map, wind, out Double3 foot, out double stand, out Double3 nose);
             TimedQuery clock = timed ? new TimedQuery(map) : null;
             if (timed) setup.World = new FlightWorld(clock, map); // the map's hills for the wind, as the untimed flight's (w7-farmland-wind 1.1)
             var core = new FlightCore(setup);
@@ -99,6 +100,7 @@ namespace Fpv450.FlightBench
             var ground = new GroundSample[1];
             allocated = 0;
             double worst = 0;
+            var bugs = new int[16];
             for (int k = 0; k < steps; k++)
             {
                 StickSample stick = Sticks(pilot, core, map, ground, foot, stand, k * 0.001, core.State.Step * FlightCore.StepUs);
@@ -108,6 +110,8 @@ namespace Fpv450.FlightBench
                 if (k >= 1) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
                 times[k] = timed ? clock.Ticks - q : dt;
                 if (crashed < 0 && core.State.Crashed) crashed = core.State.Step;
+                for (int e = 0; e < core.Events.Count; e++)
+                    if (core.Events[e].Kind == EventKind.WorldBug && core.Events[e].Index < bugs.Length) bugs[core.Events[e].Index]++;
                 if (k % 1000 == 999 && !core.Tether.Broken) worst = Math.Max(worst, Deepest(map, core.Tether.Chain, out _)); // outside the step's time
             }
             calls = timed ? (double)clock.Calls / steps : 0;
@@ -118,6 +122,7 @@ namespace Fpv450.FlightBench
                 + (crashed >= 0 ? $", the drone crashed at step {crashed}" : "")
                 + $"; its whole shape queries {line.Contacts.QueriesTotal}, its one-shape checks {line.Contacts.ChecksTotal}"
                 + $"; its crests' nodes {line.Chain.Crests} at the end, {line.CrestsInserted} put in, {line.CrestsRefused} refused, {line.GroundTests} ground tests"
+                + $"; {line.Cuts.Sections} sections in the table; world bugs: {Bugs(bugs)}"
                 + Buried(map, line.Chain, worst, out buried);
             core.Wind.Dispose();
             return times;
@@ -176,7 +181,7 @@ namespace Fpv450.FlightBench
             return deepest;
         }
 
-        static FlightSetup Setup(MapWorld map, out Double3 foot, out double stand, out Double3 nose)
+        static FlightSetup Setup(MapWorld map, WindLevel wind, out Double3 foot, out double stand, out Double3 nose)
         {
             DroneSpec spec = PoweredFlightCase.Drone();
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong hash);
@@ -203,7 +208,7 @@ namespace Fpv450.FlightBench
                 Mass = spec.BuildMass(loadout),
                 Propulsion = spec.BuildPropulsion(),
                 Aero = spec.BuildAero(),
-                Wind = WindSetup.Of(WindLevel.Severe),
+                Wind = WindSetup.Of(wind),
                 Rain = RainLevel.Sunny,
                 CameraPosition = spec.CameraPosition,
                 Contacts = contacts,
@@ -281,6 +286,15 @@ namespace Fpv450.FlightBench
         }
 
         static readonly XZ[] Here = new XZ[1];
+
+        // The world bugs of a flight by cause (w3-farmland-ground 2.4: the fiber's buffers).
+        internal static string Bugs(int[] bugs)
+        {
+            string text = "";
+            for (int i = 0; i < bugs.Length; i++)
+                if (bugs[i] > 0) text += $"{(text.Length > 0 ? ", " : "")}{bugs[i]} {(WorldBugCause)i}";
+            return text.Length > 0 ? text : "none";
+        }
 
         static double Axis(double v) => Math.Round(Math.Clamp(v, -1, 1) * 500) / 500;
 

@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using Fpv450.Sim.Wind;
 
 namespace Fpv450.FlightBench
 {
@@ -16,6 +17,8 @@ namespace Fpv450.FlightBench
     // (p7g-legs 1.4). `--probe` runs the world-query contact probe (p6-world-query-gallery 1.2); `--probe
     // --break <piece>` runs it with a known-wrong piece, which must fail. `--rate-tracking` flies stick steps on the session's
     // drone and prints the setpoint against the achieved rate and what limits it; `--rate-log <log>...` reads flight logs so.
+    // `--turns [calm | windy | severe]` flies turning routes low over the farmland's bushes and judges the laid line's rest
+    // (w3-farmland-ground 2.4); `--bench farmland-line-step [calm | windy | severe]` flies the line case in that wind.
     // `--replay-step <log> [--from S] [--to S]` replays a flight log bit for bit and times its steps and their world queries
     // in that window of flight seconds against PLT-04 (w3-farmland-ground 2.1).
     internal static class Program
@@ -45,7 +48,7 @@ namespace Fpv450.FlightBench
                 ok &= AirframeCase.Bench();
                 ok &= HousesStepCase.Bench();
                 ok &= HousesWindowCase.Bench();
-                ok &= FarmlandLineCase.Bench();
+                ok &= FarmlandLineCase.Bench(WindLevel.Severe);
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
@@ -63,10 +66,16 @@ namespace Fpv450.FlightBench
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
-            if (args.Length == 2 && args[0] == "--bench" && args[1] == FarmlandLineCase.Name)
+            if (args.Length >= 2 && args.Length <= 3 && args[0] == "--bench" && args[1] == FarmlandLineCase.Name)
             {
+                WindLevel level = WindLevel.Severe;
+                if (args.Length == 3 && !Enum.TryParse(args[2], true, out level))
+                {
+                    Console.Error.WriteLine("usage: flightbench --bench " + FarmlandLineCase.Name + " [calm | windy | severe]");
+                    return 2;
+                }
                 Console.WriteLine("flightbench: " + FarmlandLineCase.Name + " alone; " + Power.Describe());
-                bool ok = FarmlandLineCase.Bench();
+                bool ok = FarmlandLineCase.Bench(level);
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
@@ -74,6 +83,18 @@ namespace Fpv450.FlightBench
             {
                 Console.WriteLine("flightbench: " + BuildCase.Name + " alone; " + Power.Describe());
                 bool ok = BuildCase.Bench();
+                if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
+                return ok ? 0 : 1;
+            }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--turns")
+            {
+                WindLevel level = WindLevel.Windy;
+                if (args.Length == 2 && !Enum.TryParse(args[1], true, out level))
+                {
+                    Console.Error.WriteLine("usage: flightbench --turns [calm | windy | severe]");
+                    return 2;
+                }
+                bool ok = TurnsCase.Run(level);
                 if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so these numbers are not evidence (PLT-07)");
                 return ok ? 0 : 1;
             }
@@ -164,7 +185,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
             return 2;
         }
     }
