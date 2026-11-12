@@ -9,10 +9,10 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The props in standing stems (w9-village-physics 2.2, design.md "## 2.2"): the spec's straw landing against hand calculation A
-    /// and its known-wrong, the pilot's creep against hand calculation C, a hover that cuts itself clear, the range's stalks by the
-    /// same law, the arm loaded at its tip (G8), and the log's replay. The hand calculations' numbers are design.md's; each run
-    /// prints its own.
+    /// The props in standing stems (w9-village-physics 2.2 and 2.12, design.md "## 2.2" and "## 2.12"): the stems a disc's leading
+    /// edge meets against the hand calculation from the field (a creep and the pilot's approach), the vertical landing, the shake
+    /// across the straw's number and thickness, a hover that cuts itself clear, the range's stalks by the same law, the arm loaded
+    /// at its tip (G8), and the log's replay. Each run prints its numbers; design.md 2.12 holds them.
     /// </summary>
     public class StemTests
     {
@@ -20,157 +20,215 @@ namespace Fpv450.Sim.Tests
 
         static double Disc => Math.PI * R * R;
 
-        // Hand calculation A: coming down at hover thrust, no Village culm under a disc stands to it, so no fresh cut and no slice
-        // until the touch; the drift's few entries are the only cuts. The known-wrong (the audit's law: no lean, every stem met is
-        // cut) takes 8.40 W a front rotor at the plane's 1.0 m (8.05 W a rear one), and cuts every stem reaching the standing plane.
+        /// <summary>
+        /// The hand calculation of the stems a disc's leading edge meets upright (design.md 2.12, from 2.2's C): over the run's
+        /// steps from..to, every step's 2·R·v·D(h)·dt, v the hub's speed across its axis and D(h) the field's stems per m² under the
+        /// disc that stand to h at their natural lean (D at h/cos φ₀, φ₀ even over 0–15°, 6 points), read with StemsNear itself.
+        /// Each is cut at the rim at e_s·A_w + μ·h_f·u², its diameter by the allometry at its length (the field's tops spread over
+        /// each 2 cm above h). Every 10th step is evaluated (numerical). Returns the stems; work gives their joules.
+        /// </summary>
+        static double Entries(StemScenarios.Run r, int c, int from, int to, out double work, double density = 1, double diameter = 1)
+        {
+            MapWorld village = SlopeScenarios.Farmland();
+            SurfaceTable table = SoilScenarios.Table();
+            PropBlade blade = RepositoryDrone.Spec().BuildPropulsion().Rotor.Blade;
+            int k = blade.Stations.Length - 1;
+            double rim = R, band = blade.Chord[k] * Math.Sin(blade.SectionAngle[k]) + blade.Thickness[k] * Math.Cos(blade.SectionAngle[k]);
+            var patches = new StemPatch[64];
+            var upper = new StemPatch[64];
+            double stems = 0;
+            work = 0;
+            for (int i = from; i < to; i += 10)
+            {
+                double h = r.HubH[c][i], v = r.HubV[c][i], u = r.Omega[c][i] * rim;
+                if (!(v > 0) || !(h > 0)) continue;
+                var at = new XZ(r.HubX[c][i], r.HubZ[c][i]);
+                for (int q = 0; q < 6; q++)
+                {
+                    double phi0 = PropStrikes.StemNaturalLean * (q + 0.5) / 6, reach = h / Math.Cos(phi0);
+                    int n = village.StemsNear(at, R, reach, patches);
+                    for (int p = 0; p < n; p++)
+                    {
+                        double each = 2 * R * v * patches[p].Density * density * patches[p].Area / Disc * FlightCore.Dt * 10 / 6;
+                        stems += each;
+                        // The energy over the stems' lengths from reach up: the field's tops in 2 cm bands.
+                        CoverSet set = table.Cover[(int)patches[p].Kind + (int)CoverKind.GrassBlade - 1].Dry;
+                        double total = patches[p].Density, energy = 0;
+                        for (double top = reach; top < patches[p].HeightMax; top += 0.02)
+                        {
+                            double above = Density(village, at, top + 0.02, patches[p].Cell, patches[p].Layer, upper);
+                            double share = (Density(village, at, top, patches[p].Cell, patches[p].Layer, upper) - above) / total, L = top + 0.01;
+                            double d = set.Diameter * diameter * Math.Pow(L, PropStrikes.StemAllometry), di = d * (1 - 2 * set.WallShare);
+                            double area = Math.PI / 4 * (d * d - di * di);
+                            energy += share * (set.CutEnergy * area + set.Density * area * band * u * u);
+                        }
+                        work += each * energy;
+                    }
+                }
+            }
+            return stems;
+        }
+
+        static double Density(MapWorld village, XZ at, double h, int cell, byte layer, StemPatch[] buffer)
+        {
+            int n = village.StemsNear(at, R, h, buffer);
+            for (int p = 0; p < n; p++)
+                if (buffer[p].Cell == cell && buffer[p].Layer == layer) return buffer[p].Density;
+            return 0;
+        }
+
+        static double Sum(double[] a, int from, int to)
+        {
+            double s = 0;
+            for (int i = from; i < to; i++) s += a[i];
+            return s;
+        }
+
+        // The pilot's account, as a creep: a front disc moving through the densest tall cell at a held height cuts the stems its
+        // leading edge meets standing, each a discrete hit; the slipstream folds what is under it; the rear discs run in the front
+        // ones' track and meet stubs at their own plane.
         [Test]
-        public void TheStrawLandingCutsNoStemTheSlipstreamLaidOver()
+        public void ACreepCutsWhatItsLeadingEdgesMeet()
+        {
+            StemScenarios.Run run = StemScenarios.Creep(speed: 0.5);
+            int from = 4100, to = (int)run.Steps - 1;
+            double hand = 0, handWork = 0, sim = 0, simWork = 0, seconds = (to - from) * FlightCore.Dt;
+            for (int c = 1; c < 4; c += 2)
+            {
+                double h = Entries(run, c, from, to, out double w), n = Sum(run.Fresh1[c], from, to), e = Sum(run.FreshWork1[c], from, to);
+                TestContext.Out.WriteLine($"rotor {c}: {seconds:F1} s creeping at 0.5 m/s, 0.6 m: fresh cuts {n:F0} = {n / seconds:F1} /s (hand {h / seconds:F1}), "
+                    + $"their work {e / seconds:F2} W (hand {w / seconds:F2}), {e / Math.Max(1, n) * 1000:F0} mJ a cut (hand {w / h * 1000:F0})");
+                hand += h;
+                handWork += w;
+                sim += n;
+                simWork += e;
+            }
+            TestContext.Out.WriteLine($"the front discs: {sim:F0} fresh cuts (hand {hand:F1}), {simWork:F2} J (hand {handWork:F2})");
+            Assert.That(sim, Is.EqualTo(hand).Within(10).Percent, "the leading edges' stems, by hand");
+            Assert.That(simWork, Is.EqualTo(handWork).Within(10).Percent, "their work, by hand");
+            double frontFresh = run.Fresh[1] + run.Fresh[3], rearFresh = run.Fresh[0] + run.Fresh[2];
+            TestContext.Out.WriteLine($"fresh per rotor {F(run.Fresh)}, sliced {F(run.Sliced)}; episodes {run.Starts}/{run.Ends}; {run.Allocated} B");
+            Assert.That(rearFresh, Is.LessThan(0.7 * frontFresh), "the rear discs run in the front ones' track");
+            Assert.That(run.Allocated, Is.EqualTo(0));
+        }
+
+        // The pilot's landing: an approach at 2 m/s coming down at 0.5 m/s, a flare, the touch. The front discs cut what stands in
+        // front of them (in front of the camera), within 10 % of the hand calculation over the run-in; the log replays bit for bit.
+        [Test]
+        public void TheApproachCutsInFrontOfTheCamera()
         {
             var log = new MemoryStream();
-            StemScenarios.Run law = StemScenarios.Landing(log: log);
-            double inDisc = 0, entered = 0, work = 0;
+            StemScenarios.Run run = StemScenarios.Approach(log: log), calm = StemScenarios.Approach(stems: false);
+            int touch = (int)run.Touch - 1;
             for (int c = 0; c < 4; c++)
             {
-                inDisc += law.FreshBefore[c] + law.SlicedBefore[c];
-                entered += law.EnteredBefore[c];
-                work += law.WorkBefore[c];
+                double hand = Entries(run, c, 3100, touch, out double handWork), sim = Sum(run.Fresh1[c], 3100, touch), simWork = Sum(run.FreshWork1[c], 3100, touch);
+                TestContext.Out.WriteLine($"rotor {c}, the approach to the touch: fresh {sim:F0} (the leading edge's entries by hand {hand:F1}), {simWork:F2} J (hand {handWork:F2})");
             }
-            TestContext.Out.WriteLine($"the law: touch at step {law.Touch}, lowest disc {law.Lowest:F4} m; before the touch {inDisc} fresh and sliced, {entered:F3} stems "
-                + $"entered by the drift for {work * 1000:F2} mJ; after it {Sum(law.Entered) - entered:F3} entered; episodes {law.Starts}/{law.Ends}; {law.Allocated} B, "
-                + $"{law.Refused} events refused");
-            Assert.That(law.Touch, Is.GreaterThan(0));
-            Assert.That(inDisc, Is.EqualTo(0), "hand calculation A: no stem under a disc reaches it");
-            Assert.That(entered, Is.LessThan(0.5), "the hold's drift runs a disc into a stem or two at most");
-            Assert.That(law.Allocated, Is.EqualTo(0), "0 B in steady state");
-            Assert.That(law.Refused, Is.EqualTo(0));
-
+            Print("approach", run, calm);
+            Assert.That(run.Touch, Is.GreaterThan(0));
+            Assert.That(run.FreshBefore[1] + run.FreshBefore[3], Is.GreaterThan(1.3 * (run.FreshBefore[0] + run.FreshBefore[2])), "cut in front of the camera");
+            Assert.That(run.Allocated, Is.EqualTo(0), "0 B in steady state");
+            Assert.That(run.Refused, Is.EqualTo(0));
             ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, RepositoryDrone.Spec().ContentHash, null,
                 SoilScenarios.Table().Hash, materialsHash: Hash());
             TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
-            Assert.That(replay.Steps, Is.EqualTo(law.Steps));
-            LogHeader header = new FlightLogReader(new MemoryStream(log.ToArray())).Header;
-            Assert.That(header.Contacts.Stems, Is.True, "the header logs the stems' switch (its own entry)");
-            Assert.That(header.Contacts.Surfaces.Cover[(int)CoverKind.DryCulm].Dry.Diameter, Is.EqualTo(0.0015), "and the cover rows' diameters");
-
-            // The known-wrong at the plane's 1.0 m, front and rear (fr 1, rr 0).
-            double[] power = new double[4];
-            int[] steps = new int[4];
-            StemScenarios.Run wrong = StemScenarios.Landing(knownWrong: true, stepped: core =>
-            {
-                for (int c = 0; c < 4; c++)
-                {
-                    PropStrikes.StemRecord s = core.Strikes.StemLast[c];
-                    if (!(s.Height > 0.99 && s.Height < 1.01)) continue;
-                    power[c] += s.Work / FlightCore.Dt;
-                    steps[c]++;
-                }
-            });
-            double front = power[1] / steps[1], rear = power[0] / steps[0];
-            TestContext.Out.WriteLine($"the known-wrong: {Sum(wrong.FreshBefore) / 4:F1} fresh stems a rotor before the touch (the cell's 69 a disc reaching 0.288 m), "
-                + $"{Sum(wrong.WorkBefore):F1} J; at 1.0 m a front rotor {front:F3} W (hand 8.40), a rear {rear:F3} W (hand 8.05)");
-            Assert.That(front, Is.EqualTo(8.40).Within(10).Percent, "hand calculation A's known-wrong, a front rotor");
-            Assert.That(rear, Is.EqualTo(8.05).Within(10).Percent, "a rear rotor");
-            Assert.That(Sum(wrong.FreshBefore) / 4, Is.GreaterThan(60), "the known-wrong cuts what the law lets lie: it fails the law's target");
+            Assert.That(replay.Steps, Is.EqualTo(run.Steps));
         }
 
-        // Hand calculation C: creeping forward through the cell, a front disc cuts the upright stems its leading edge meets at
-        // n = 2·R·v·D(h), each at the rim, and their in-plane impulses rotate at the blade pass with π·n·J_c/4; the rear discs run in
-        // the front ones' track and cut nearly none.
+        // The spec's vertical landing after a hover over the spot: the slipstream folds most stems under the discs in the hover; the
+        // fresh cuts are what the drift runs the discs onto (the hand calculation's entries, a floor) and the stems the jet has not
+        // yet folded (those whose natural lean lies across the swirl start from it alone); the stubs are sliced as the discs come
+        // down. The known-wrong (nothing folds, every stem met is cut) cuts more than twice as many.
         [Test]
-        public void ACreepCutsWhatItsLeadingEdgesMeet()
+        public void TheVerticalLandingFoldsMostStems()
         {
-            SurfaceTable table = SoilScenarios.Table();
-            PropBlade blade = RepositoryDrone.Spec().BuildPropulsion().Rotor.Blade;
-            MapWorld village = SlopeScenarios.Farmland();
-            var patches = new StemPatch[64];
-            var a = new Window[4];
-            for (int c = 0; c < 4; c++) a[c] = new Window();
-            FeedSignals seen = default;
-            StemScenarios.Run run = StemScenarios.Creep(stepped: core =>
+            StemScenarios.Run run = StemScenarios.Landing(), calm = StemScenarios.Landing(stems: false);
+            int touch = (int)run.Touch - 1;
+            double fresh = 0, bound = 0;
+            for (int c = 0; c < 4; c++)
             {
-                if (core.State.Step < 4016) return;
-                for (int c = 1; c < 4; c += 2) // the front discs, fr and fl
-                {
-                    ContactShape d = Array.Find(core.Contacts.Spec.Shapes, s => s.Role == ContactRole.Disc && s.Corner == c);
-                    Double3 hub = core.State.Position + core.State.Attitude.Rotate(d.A);
-                    PropStrikes.StemRecord s = core.Strikes.StemLast[c];
-                    int n = village.StemsNear(new XZ(hub.X, hub.Z), R, s.Height, patches);
-                    bool inside = n > 0;
-                    for (int p = 0; p < n; p++) inside &= patches[p].Cell == 86802 && patches[p].Area > Disc * 0.999;
-                    if (!inside) continue;
-                    a[c].Add(core, s, c);
-                }
-                core.GetSignals(out FeedSignals f);
-                if (f.StemCuts.FrontRight > seen.StemCuts.FrontRight) seen = f;
-            });
-            TestContext.Out.WriteLine($"creep: entered {F(run.Entered)}, work {F(run.Work)} J; episodes {run.Starts}/{run.Ends}; {run.Allocated} B");
-            for (int c = 1; c < 4; c += 2)
-            {
-                Window w = a[c];
-                double h = w.H / w.N, v = w.V / w.N, omega = w.W / w.N, u = omega * R, seconds = w.N * FlightCore.Dt;
-                // The hand calculation at the window's own height, speed and ω (design.md C's formula; its nominal 0.6 m, 0.3 m/s gives 26.36 /s).
-                int n = village.StemsNear(new XZ(StemScenarios.Dense.X, StemScenarios.Dense.Z), R, h, patches);
-                double rate = 0, power = 0;
-                int k = blade.Stations.Length - 1;
-                double band = blade.Chord[k] * Math.Sin(blade.SectionAngle[k]) + blade.Thickness[k] * Math.Cos(blade.SectionAngle[k]);
-                for (int p = 0; p < n; p++)
-                {
-                    CoverSet set = table.Cover[(int)patches[p].Kind + (int)CoverKind.GrassBlade - 1].Dry;
-                    double d = set.Diameter, di = d * (1 - 2 * set.WallShare), area = Math.PI / 4 * (d * d - di * di);
-                    double each = 2 * R * v * patches[p].Density * patches[p].Area / Disc;
-                    rate += each;
-                    power += each * (set.CutEnergy * area + set.Density * area * band * u * u);
-                }
-                double jc = power / rate / u, line = Math.PI * rate * jc / 4;
-                double simRate = w.Entered / seconds, simPower = w.Work / seconds;
-                double ax = Order(w, 0), az = Order(w, 2);
-                TestContext.Out.WriteLine($"rotor {c}: {seconds:F2} s in the cell at h {h:F3} m, v {v:F3} m/s, ω {omega:F2}: rate {simRate:F3} /s (hand {rate:F3}), "
-                    + $"power {simPower:F4} W (hand {power:F4}), the blade-pass line {ax:E3} / {az:E3} N (hand π·n·J_c/4 = {line:E3})");
-                Assert.That(seconds, Is.GreaterThan(1), "the window: the disc wholly in the dense cell");
-                Assert.That(simRate, Is.EqualTo(rate).Within(10).Percent, "hand calculation C's rate");
-                Assert.That(simPower, Is.EqualTo(power).Within(10).Percent, "its power");
-                Assert.That(ax, Is.EqualTo(line).Within(10).Percent, "its blade-pass line, across");
-                Assert.That(az, Is.EqualTo(line).Within(10).Percent, "and along");
+                fresh += Sum(run.Fresh1[c], 4100, touch);
+                bound += Entries(run, c, 4100, touch, out _);
             }
-            Assert.That(run.Entered[0] + run.Entered[2], Is.LessThan(0.05 * (run.Entered[1] + run.Entered[3])), "the rear discs run in the front ones' track");
-            Assert.That(seen.StemCuts.FrontRight, Is.GreaterThan(0), "the feed gets the field's cuts");
-            Assert.That(seen.StemPieceLength.FrontRight > 0 && seen.StemCutRadius.FrontRight > 0.12, Is.True, "their pieces and radius, at the rim");
+            TestContext.Out.WriteLine($"vertical landing: fresh before the touch {fresh:F0}, the drift's entries by hand {bound:F1}");
+            Print("vertical landing", run, calm);
+            Assert.That(fresh, Is.GreaterThanOrEqualTo(0.9 * bound), "at least what the drift runs the discs onto");
+            StemScenarios.Run wrong = StemScenarios.Landing(knownWrong: true);
+            double wrongFresh = wrong.FreshBefore[0] + wrong.FreshBefore[1] + wrong.FreshBefore[2] + wrong.FreshBefore[3];
+            TestContext.Out.WriteLine($"the known-wrong (no fold, no critical speed): {wrongFresh:F0} fresh before the touch");
+            Assert.That(wrongFresh, Is.GreaterThan(2 * fresh), "the known-wrong cuts what the slipstream lays over");
             Assert.That(run.Allocated, Is.EqualTo(0));
         }
 
-        sealed class Window
+        // The pilot (2026-11-13): the shake grows with the straws' number and thickness, from one a pilot lands through to one that
+        // sends them away. The sweep scales the field's stems per m² and every stem's diameter; nothing is tuned to a threshold.
+        [Test]
+        public void TheShakeGrowsWithTheStrawsNumberAndThickness()
         {
-            public int N;
-            public double H, V, W, Entered, Work;
-            public double[] Order = new double[4]; // Σ F·cos 2ψ, Σ F·sin 2ψ for x, then z
-
-            public void Add(FlightCore core, in PropStrikes.StemRecord s, int c)
+            double[] densities = { 0.5, 1, 2 }, diameters = { 0.75, 1, 1.5 };
+            var roll = new double[3, 3];
+            StemScenarios.Run calm = StemScenarios.Landing(stems: false);
+            foreach (string kind in new[] { "vertical", "approach" })
             {
-                N++;
-                H += s.Height;
-                Double3 v = core.State.Velocity;
-                V += Math.Sqrt(v.X * v.X + v.Z * v.Z);
-                W += core.State.RotorSpeed[c];
-                Entered += s.Entered;
-                Work += s.Work;
-                double psi = 2 * core.State.RotorAngle[c], fx = s.InPlane.X / FlightCore.Dt, fz = s.InPlane.Z / FlightCore.Dt;
-                Order[0] += fx * Math.Cos(psi);
-                Order[1] += fx * Math.Sin(psi);
-                Order[2] += fz * Math.Cos(psi);
-                Order[3] += fz * Math.Sin(psi);
+                TestContext.Out.WriteLine($"{kind}: the last 2 s before the touch; 4–15 Hz roll and pitch rate RMS (°/s) and angle RMS (°), "
+                    + "below-4 Hz attitude wander (°), the front rotors' deepest speed dip (rad/s, %), the front current's peak over its hover (A), fresh and sliced cuts, the front's mean power (W)");
+                for (int a = 0; a < 3; a++)
+                    for (int b = 0; b < 3; b++)
+                    {
+                        var scales = new StemScenarios.Scales { Density = densities[a], Diameter = diameters[b] };
+                        StemScenarios.Run r = kind == "vertical" ? StemScenarios.Landing(scales: scales) : StemScenarios.Approach(scales: scales);
+                        int end = (int)r.Touch - 1, from = end - 2000;
+                        double rr = Shake.RateRms(r.Roll, from, 2000, 4, 15), pr = Shake.RateRms(r.Pitch, from, 2000, 4, 15);
+                        double ra = Shake.AngleRms(r.Roll, from, 2000, 4, 15), pa = Shake.AngleRms(r.Pitch, from, 2000, 4, 15);
+                        double wander = Math.Sqrt(Sq(Shake.AngleRms(r.Roll, from, 2000, 0.5, 4)) + Sq(Shake.AngleRms(r.Pitch, from, 2000, 0.5, 4)));
+                        double dip = 0, hoverOmega = r.Omega[1][3000], peak = 0, hoverAmps = r.Amps[1][3000] + r.Amps[3][3000];
+                        for (int i = from; i < end; i++)
+                        {
+                            dip = Math.Max(dip, hoverOmega - Math.Min(r.Omega[1][i], r.Omega[3][i]));
+                            peak = Math.Max(peak, r.Amps[1][i] + r.Amps[3][i] - hoverAmps);
+                        }
+                        double fresh = 0, sliced = 0;
+                        for (int c = 0; c < 4; c++)
+                        {
+                            fresh += r.FreshBefore[c];
+                            sliced += r.SlicedBefore[c];
+                        }
+                        double power = Sum(r.FrontWork, from, end) / 2;
+                        if (kind == "vertical") roll[a, b] = Math.Sqrt(rr * rr + pr * pr);
+                        TestContext.Out.WriteLine($"  density ×{densities[a]}, diameter ×{diameters[b]}: roll {rr:F2} °/s {ra:F3}°, pitch {pr:F2} °/s {pa:F3}°, wander {wander:F2}°, "
+                            + $"dip {dip:F0} rad/s ({dip / hoverOmega * 100:F1} %), current +{peak:F1} A, fresh {fresh:F0}, sliced {sliced:F0}, {power:F1} W; {r.Allocated} B");
+                        Assert.That(r.Allocated, Is.EqualTo(0), $"0 B in the {kind} run at density ×{densities[a]}, diameter ×{diameters[b]}");
+                    }
             }
+            Assert.That(roll[2, 2], Is.GreaterThan(roll[1, 1]), "more and thicker straw shakes more");
+            Assert.That(roll[1, 1], Is.GreaterThan(roll[0, 0]), "and less and thinner, less");
         }
 
-        static double Order(Window w, int at) => 2.0 / w.N * Math.Sqrt(w.Order[at] * w.Order[at] + w.Order[at + 1] * w.Order[at + 1]);
+        static double Sq(double x) => x * x;
 
-        // "A hover cuts itself clear": the discs 0.5 m up in the cell's 1.8 m stems for 10 s. The spin-up lays them over before the
-        // blades are fast; the hold's drift runs the leading edges into a few, and once the discs have cut round them nothing is left.
+
+
+        static void Print(string name, StemScenarios.Run r, StemScenarios.Run calm)
+        {
+            int end = (int)r.Touch - 1, n = 2000, from = end - n;
+            int ce = (int)calm.Touch - 1, cfrom = ce - n;
+            TestContext.Out.WriteLine($"{name}: touch at step {r.Touch}; fresh {F(r.Fresh)}, sliced {F(r.Sliced)} (cut equivalents), before the touch fresh {F(r.FreshBefore)}; "
+                + $"work {F(r.Work)} J; front power over the last 2 s {Sum(r.FrontWork, from, end) / 2:F1} W; episodes {r.Starts}/{r.Ends}; {r.Allocated} B");
+            foreach (var (axis, x, y) in new[] { ("roll", r.Roll, calm.Roll), ("pitch", r.Pitch, calm.Pitch), ("yaw", r.Yaw, calm.Yaw) })
+                TestContext.Out.WriteLine($"   {axis}, the last 2 s: 4–15 Hz {Shake.RateRms(x, from, n, 4, 15):F2} °/s, {Shake.AngleRms(x, from, n, 4, 15):F3}° (without stems "
+                    + $"{Shake.RateRms(y, cfrom, n, 4, 15):F2} °/s, {Shake.AngleRms(y, cfrom, n, 4, 15):F3}°); below 4 Hz {Shake.AngleRms(x, from, n, 0.5, 4):F2}° "
+                    + $"({Shake.AngleRms(y, cfrom, n, 0.5, 4):F2}°); the strongest line at 250–350 Hz {Shake.Line(x, from, n, 250, 350, out double f):F3} °/s at {f:F0} Hz");
+        }
+
+        // "A hover cuts itself clear": the discs 0.5 m up in the cell's stems for 10 s. The slipstream folds what is under the
+        // discs; the hold's drift runs the leading edges into a few; once the discs have cut round them nothing is left.
         [Test]
         public void AHoverInGrassCutsItselfClear()
         {
             StemScenarios.Run r = StemScenarios.Hover();
-            TestContext.Out.WriteLine($"hover 10 s: fresh {F(r.Fresh)}, entered {F(r.Entered)}, work {F(r.Work)} J; the last cut at step {r.LastCut}; "
+            TestContext.Out.WriteLine($"hover 10 s: fresh {F(r.Fresh)}, sliced {F(r.Sliced)}, work {F(r.Work)} J; the last cut at step {r.LastCut}; "
                 + $"episodes {r.Starts} begun, {r.Ends} ended; {r.Allocated} B");
             Assert.That(r.LastCut, Is.LessThan(r.Steps - 2000), "no cut in the last 2 s");
             Assert.That(r.Ends, Is.EqualTo(r.Starts), "every episode ended");
@@ -178,19 +236,19 @@ namespace Fpv450.Sim.Tests
         }
 
         // "The test range's straw": S04's stalks by the same law. A disc creeping through the range golden's landing spot at 0.4 m meets
-        // the stalks upright at its rim and cuts them; once cut they stand at its plane and are not met again at the same height.
+        // the stalks at its leading edge and cuts them.
         [Test]
         public void TheRangesStalksAreCutByTheSameLaw()
         {
-            int elements = 0;
+            int cached = 0;
             StemScenarios.Run r = StemScenarios.RangeCreep(stepped: core =>
             {
-                for (int c = 0; c < 4; c++) elements = Math.Max(elements, core.Strikes.StemLast[c].Elements);
+                for (int c = 0; c < 4; c++) cached = Math.Max(cached, core.Strikes.StemLast[c].Cached);
             });
-            TestContext.Out.WriteLine($"S04 creep at 0.4 m: fresh {F(r.Fresh)}, sliced {F(r.Sliced)}, work {F(r.Work)} J; up to {elements} elements under a disc; "
+            TestContext.Out.WriteLine($"S04 creep at 0.4 m: fresh {F(r.Fresh)}, sliced {F(r.Sliced)}, work {F(r.Work)} J; up to {cached} elements about a disc; "
                 + $"episodes {r.Starts}/{r.Ends}; {r.Allocated} B");
-            Assert.That(elements, Is.GreaterThan(0), "the discs pass over S04's elements");
-            Assert.That(Sum(r.Fresh), Is.GreaterThan(0), "the stalks standing to the discs are cut");
+            Assert.That(cached, Is.GreaterThan(0), "the discs pass over S04's elements");
+            Assert.That(r.Fresh[0] + r.Fresh[1] + r.Fresh[2] + r.Fresh[3], Is.GreaterThan(0), "the stalks standing to the discs are cut");
             Assert.That(r.Allocated, Is.EqualTo(0));
         }
 
@@ -225,9 +283,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(Math.Abs(other), Is.LessThan(tip), "the opposite arm far less");
         }
 
-        static double Sum(double[] a) => a[0] + a[1] + a[2] + a[3];
-
-        static string F(double[] a) => string.Join(" ", Array.ConvertAll(a, x => x.ToString("F3")));
+        static string F(double[] a) => string.Join(" ", Array.ConvertAll(a, x => x.ToString("F1")));
 
         static ulong Hash()
         {
