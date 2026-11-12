@@ -398,7 +398,10 @@ namespace Fpv450.Sim.Contact
                     ContactModel.RestLoad l = _contacts.RestLoadOf(c * _blades + b);
                     if (!l.Loaded) continue;
                     BladeState blade = _propulsion.Rotor(c).Blade(b);
-                    double f = _strength[c * _blades + b], rc = l.Radius, ff = DetMath.Abs(l.Flat), fe = DetMath.Abs(l.Edge);
+                    // The load acts on the blade's material, so at its tip at most: a pair deep in a face (a blade inside a crown's
+                    // twig shell) has its point on the face's plane, up to the shell's depth past the tip (w9-village-physics 2.7).
+                    double f = _strength[c * _blades + b], rc = DetMath.Min(l.Radius, blade.TipRadius * _radius), ff = DetMath.Abs(l.Flat),
+                        fe = DetMath.Abs(l.Edge);
                     int broke = Breaks(blade, f, rc, rc, fe, ff, out double moment, out double margin);
                     var rec = new RestRecord { Corner = c, Blade = b, Flat = l.Flat, Edge = l.Edge, Radius = rc, Moment = moment, Margin = margin, Station = broke };
                     double before = Mass(blade);
@@ -1283,7 +1286,8 @@ namespace Fpv450.Sim.Contact
             for (int k = _stations - 1; k >= 0; k--)
             {
                 double x = _b.Stations[k] * _radius;
-                if (!(x < rm) || !(blade.Inside(_b.Stations[k], _span) > 0)) continue;
+                // A station at the blade's tip (a break leaves the tip at its station) holds nothing beyond it: no break there.
+                if (!(x < rm) || !(_b.Stations[k] < blade.TipRadius)) continue;
                 double chi = blade.ChordShare[k], arm = rc - x;
                 double me = _edge[k] * f * chi * chi, mf = _flat[k] * f * chi;
                 double share = DetMath.Max(me > 0 ? fe * arm / me : 0, mf > 0 ? ff * arm / mf : 0);
