@@ -789,3 +789,10 @@ The pilot, 2026-11-12, in the same feedback.
 - **M toggles a map of the whole world** in flight and in Explore. The sim keeps running while it shows.
 - **It shows the drone's position, live.** The panel is centred and a little smaller than the game window, so it never covers all of it.
 - **The image of each map is generated** from above, and it follows D-089 like D-100's stills.
+
+## D-102 One stem field feeds the props, the legs and the fiber; furrows wait · Accepted
+The orchestrator, 2026-11-12, on the audit of `w9-village-physics` (its `audit.md`, §7 item 9), after the pilot asked for straw, grass and leaves on the props and for every ground nuance of the test range on Village.
+- **One stem field** per cell of Village feeds the props, the legs and the laid fiber. It is derived from the export's grass counts and each grass prefab's stems per instance, never hand-painted.
+- **The test range's straw joins the same law.** House flies in the player again (D-100), so the props cut S04's straws as they cut Village's stems. The range golden moves there and is audited.
+- **Furrows are not in `w9-village-physics`.** Neither map has them in the physics, and Village only paints them (a texture and a normal map), so there is nothing drawn for their collision to follow (REAL-05). They need a world-and-look unit (W12) that draws the relief near the drone and stores it in the package. PHY-04's rocking across furrows stays unmet until then; `tilled` already gives the loose loam's bearing and friction.
+- **The wind's cover per cell** is a uniform 0.3 m today. It follows the stem field in a W7 follow-up, not in W9.
