@@ -17,7 +17,25 @@ QA's recall of everything asked, said or decided about the drone's physics, with
 
 ## 0. The runs
 
-(filled from the runs)
+On `1130a5c0` (this branch's base), 2026-11-13, a shared machine under other agents' load: **no timing in this ledger counts** (PLT-04 is owed on a quiet machine, §4 #12). `git lfs checkout` first; all projects built in Release.
+
+| Command | Result |
+|---|---|
+| `dotnet test tools/simtests -c Release` | **842 passed, 0 failed**, 17 explicit tests not run (the probes and printed grids), 17.5 min. The four post-crash tunnels red at model 44 now pass (`InTheWindNoTunnelThroughARigidShape` wire 5.47–5.52 m, crown 10 m, `InTheWindACompliantShapeIsNoTunnel`) |
+| `dotnet test tools/inputtests -c Release` | **545 passed**, 0 failed |
+| `flightbench --golden` | **PASS**: 61 lines, every golden and kept audit bit for bit, exit 0 |
+| `flightbench --contacts` | **PASS**: 80 PASS lines, exit 0 |
+| `flightbench --slopes` | **PASS**, exit 0. But its rows show G2 (across 9.98° the 0.5 m/s cut landing ends tilted 51.5°; at rest disarmed across 20° it rolls to 54° though the rigid body tips at 24°) and a skid 172.5–194.4 mm past the ground in the 10 m/s slope crashes, which the bench does not judge |
+| `flightbench --landing` | **PASS**: 29 lines, exit 0 |
+| `flightbench --legs` | **PASS**: 6 verdicts, exit 0. Over the grid 7.8 % of landings go over, 30.8 % end off their legs, 61.6 % damage a leg; on S04's soil and the dirt track 5 of 8 throttle-cut or disarmed landings go over |
+| `flightbench --pitch-back` | **PASS** |
+| `flightbench --rate-tracking` | prints, asserts nothing (exit 0) |
+| `flightbench --scenarios` | **FAIL** (exit 1), 2 checks: (1) PHY-10's known-wrong "no ring" **passes** (past the kick on 107 of 240 against the model's 131; weaker on 178 of 240), so the punch-out shake is not shown to be the wash's; (2) rain at rest in still air: 2.278 mN down against the labelled ρ_w·R·V's 2.241 mN (1.7 % off) |
+| `flightbench --probe` | **FAIL** (exit 1), 2 checks: (1) sliding with legs on, a corner's support moment changes 1.707 N·m in one step against the limit 0.51 N·m (a fifth of a skid end's 2.55 N·m): the same family as W9's G1 lever; (2) on the stand the coil hangs 0.1141 m above the base against `drone.json`'s 0.135 m (the probe's own 21 mm arm cylinder against the note's 6 mm plate: a stale probe or a stale note) |
+| `flightbench --shake`, `--damage`, `--turns calm` | see the end of this section |
+| `python tools/hygiene/precommit.py --tree HEAD` | 3571 files, **0 findings** |
+
+Not run tonight: Unity EditMode and PlayMode (no Unity, D-104's night rule), `--bench` (timing owed), `--factory` (20 000 seeds), `--wind-harness`.
 
 ## 1. The pilot's words on physics
 
@@ -113,7 +131,7 @@ From `docs/requirements.md` (PHB, PHY, LOG, TST, PLT-04, DRN-02/03/07, and WLD-1
 | PHB-02 | rigid body from `drone.json`, quaternion, semi-implicit Euler | `RigidBody`, `MassModel` | `RigidBodyTests`, `MassBuildTests` | **proven** |
 | PHB-03 | Betaflight 4.5 FC, honest mixer, ESC and motor lags, battery sag, axial-inflow derate; "a loaded drone lifts off near 50–65 %" | `Control/FlightController`, `Propulsion`, `RotorFlapping` | `FlightControllerTests`, `FilterChainTests`, `PropulsionTests`, `EdgewiseThrustTests`. Its 50–65 % liftoff line is stale against D-066 / D-069 (37–53 % hover, the pilot's 30–45 %) | **partly** (the requirement text is stale) |
 | PHB-04 | body drag, rotor H-force, coil drag at the coil | `Aero` | `AeroTests` | **proven** |
-| PHB-05 | legs as spring-dampers, the Time < 1 latch, crash detection, `tunnel` events as bugs | `ContactModel` | `ContactTests` (18), `RangeContactTests` (37), `RuinContactTests`; tunnel counts in §0 | see §0 |
+| PHB-05 | legs as spring-dampers, the Time < 1 latch, crash detection, `tunnel` events as bugs | `ContactModel` | `ContactTests` (18), `RangeContactTests` (37), `RuinContactTests`, `ContactTests.ATunnelIsLoggedAsABug`, the `InTheWindNoTunnel…` cases (all green tonight); `fb --probe`'s support-moment jump fails (§0), and a skid 17–19 cm past the ground in a crash is unjudged | **partly** |
 | PHB-06 | wind stand-in | superseded by PHY-13 | — | superseded |
 | PHB-07 | G7 MVP-1: launch, calibrate, fly from ground and stand, replay | the player | the pilot flew models 26–85; the orchestrator's soak replays player logs bit for bit (not re-run here) | **built, unproven here** |
 | PHY-01 | Winkler soil, mat, stick anchor, ploughing, prints, wet adhesion and suction | `Soil`, `Layer`, `ContactModel` | `SoilTests` (14), `LayerTests`, `WetGroundTests` (7), `SurfaceTableTests` | **proven** (wet straw and grass on Village: no mat, G3) |
@@ -230,7 +248,7 @@ Each open task is classed: **done elsewhere** (the work landed under another tas
 | The pine's arms (needle cards) still flutter in the drawn wind; the physics' shells don't move | `FarmlandTreeWood` (look); a drawn branch where the sim has none | some |
 | `GapsNear` was never ported: a wall's opening is the clear space between boxes, no gap record | `World/IWorldQuery` (named, not implemented) | some |
 | Crown twig shells felt 0.3–0.7 m before the drawn leaves; twig spheres up to 141 mm off the drawn crown; scanned trunks off their capsules by up to 526 mm | D-096 (Phase A) | **yes** (crowns are hit where nothing is drawn) |
-| Four post-crash tunnels red at model 44 (wire 5.475 and 5.52 m Severe, crown 10 m Windy, `InTheWindACompliantShapeIsNoTunnel`) | handover 11-04 §2; tonight's count is in §0 | see §0 |
+| Four post-crash tunnels red at model 44 (wire 5.475 and 5.52 m Severe, crown 10 m Windy, `InTheWindACompliantShapeIsNoTunnel`) | handover 11-04 §2: **closed**, all four pass tonight (§0); tick it in the notes | no |
 | The arm on sourced data (shear-strain break, ζ, the gyro's 258 Hz anti-alias filter), model 80 | `--arm-break` `f1071c90`, `d84b7995`, unmerged and unchecked | some |
 | The edge load in a reverse (static peel, lip friction), model 81 if physics changes | `--edge-load` `3cea05af`, tests only, unchecked | **yes** (P37) |
 | The ESC's sensorless start against a held rotor | handover 11-06 §6.4 (D-086's roof rack) | some |
