@@ -861,6 +861,9 @@ namespace Fpv450.Sim.Log
         ///    stretch's own stiffness (a lever's statics and dampers it cannot relieve) and ran the stretch, and the moment's
         ///    lever with it, to 19–87 m in a few steps (1,455 N·m on 41.5 N at 9.98° weeds). ContactModel.AnchorReach off (unlogged, the suite's) is 85's
         ///    slide, the known-wrong. A flight whose stretches stay within the reach steps as 85 did.
+        ///    Also under 86 (w9-village-physics 2.7): a resting blade's load radius is held to its tip, and no blade breaks at a
+        ///    station at or past its tip. The stems on the props (2.2, PropStems) fly on this line under 86 until model 87
+        ///    names them together with 2.12's stalks.
         /// </summary>
         public const int ModelVersion = 86;
 
