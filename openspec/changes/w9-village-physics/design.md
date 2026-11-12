@@ -282,9 +282,13 @@ Per rotor, per step, after the shapes' passes (`PropStems`, called from `PropStr
 - **On the arm (G8):** each corner's strikes' impulse along its rotor's axis loads that arm's mode at its tip in the step it happens (`AirframeModes.Strike`: the modal impulse of a tip impulse with the rigid body's relief, as `Advance` takes the thrust), so the camera sees the arm ring from the hit. For every strike, not only stems.
 
 **6. A stem already cut stands lower.**
-- On the field each rotor keeps the height it has cut down to, H. Coming down from H to h, the stems whose bent tops lie between are fresh, and the stubs at H are sliced by H − h. Fresh stems are due until the blades sweep them: a share B·ω·Δt/2π of the disc each step.
-- A shared grid of 5 cm cells (numerical; 4,096 slots, open addressing, the home slot overwritten when full) holds the plane each patch of ground was cut to. A disc entering ground another disc already cut (a rear disc in the front one's track, a flight back over its own cut) meets only what stands above it, and its H mixes towards that ground's in the share of the disc it sweeps.
-- An element's top is its bent top or its cell's cut plane, whichever is lower.
+- **On the field (as built):** each rotor keeps, per kind, the height H it has cut down to and the stubs it left standing there, S (stems, the mean count). The field is read once a step, at the disc's own height:
+  - the stems now reaching the disc beyond S are fresh (come within its reach as it came down, or risen as the slipstream eased), and S becomes them;
+  - coming down from H to h, the S stubs are sliced by H − h;
+  - fresh stems are due until the blades sweep them, a share B·ω·Δt/2π of the disc each step.
+- **Every disc's trail over the field** (an entry each 1 cm of hub travel, the last 64 kept, numerical: 0.64 m, twice the 0.32 m a rear disc runs behind a front one) holds where its stems were cut and to what plane. The ground at a disc's leading edge was cut before if it lay strictly inside an earlier disc of any rotor. Then only what stands above that plane is met: a rear disc in the front one's track, a disc back over its own. Its H and S mix towards that ground's in the share of the disc it sweeps.
+  - The design's first version gave the field a shared 5 cm grid. A grid's cell straddling the rim cannot say whether the ground at the rim was inside the disc, so a creep's own last steps gated its leading edge half the time. The trail's test is exact.
+- **The elements** keep their cut plane in a 5 cm grid (numerical; 4,096 slots, open addressing, the home slot overwritten when full): an element's top is its bent top or its cell's plane, whichever is lower.
 
 **7. Breaks.** Each cut's force e_s·A_w/d along the blade's motion goes through `Breaks` at its radius, as a twig's does. No 1.5 mm culm comes near: 5–8 N against hundreds.
 
@@ -302,7 +306,8 @@ Per rotor, per step, after the shapes' passes (`PropStems`, called from `PropStr
 | The lean's slowing of the cut | ω·r·cos φ | derived (fits [11]'s 65° → 80 m/s) |
 | Swept band h_f | c·sin θ + t·cos θ: 2.2 mm at the tip, 5.0 mm at 0.72 R | derived (drone.json's blade, carried) |
 | Tops above h, within a patch | even up to its tallest | assumed |
-| Cut grid | 5 cm, 4,096 slots | numerical |
+| The discs' trails over the field | an entry each 1 cm, the last 64 a rotor | numerical |
+| The elements' cut grid | 5 cm, 4,096 slots | numerical |
 | Element cache | refreshed after 0.1 m | numerical |
 | A stem episode's end | 0.1 s without a whole stem cut | numerical |
 
@@ -316,7 +321,7 @@ Per rotor, per step, after the shapes' passes (`PropStems`, called from `PropStr
 
 - `straw`'s cut energy moves from 15 kJ/m² (assumed) to **22 kJ/m²** (published: Tavakoli et al. 2008's 21.85–25.74 for wheat straw, audit §5.1). Nothing read it before; its modulus, wall and density stay (the fiber reads them).
 - The `stem` row (S04's weed stalks) is unchanged.
-- The header logs the cover rows, which gain `Diameter`: `LogFormat.Version` 73. This build reads formats 73, 72 and 69 (a 72 or 69 header's rows without it).
+- **The log (as built): no format change.** The header's cover rows keep their layout. The new rows only add to their count, a byte already written. `Diameter`, `ContactSpec.Stems` and `AirframeModesSpec.StrikeLoad` go in a header entry of their own (tag 27, `TagStems`) after every other, and a reader skips an entry it does not know. So `LogFormat.Version` stays 72 and `LogFormat.cs` is untouched. A log without the entry (format 72 or 69, every earlier build's) reads as flown without stems and strike load.
 
 **Per kind, at the hover's q** (derived from the rows; T 11.24 / 11.98 N):
 
@@ -336,7 +341,7 @@ The drone stands with its discs 0.288 m up, so no Village culm under a hovering 
 
 **Coming down at hover thrust:** at every height from 1.77 m down to the standing 0.288 m, each kind's bent stems stand under 0.16 m. **No fresh cut and no slice under any disc.**
 
-**At the touch:** the scripted landing cuts the throttle. The stems stand to the discs' 0.288 m again only once q has fallen to 18.5 (green), 22.4 (burnt) or 37.0 Pa (dry), 8–16 % of the hover's (derived). With q following the thrust down at 0.04 s, that is ω ≤ 0.28–0.40 of the hover's, about 260–370 rad/s. The blade's tip then moves at 33–47 m/s, under the slowest kind's 53.5 m/s, and the stems rise only over 0.1 s after that. **None is cut.**
+**At the touch:** the scripted landing cuts the throttle. The stems stand to the discs' 0.288 m again only once q has fallen to 18.5 (green), 22.4 (burnt) or 37.0 Pa (dry), 8–16 % of the hover's (derived). Even if the stems stood again at once, that needs ω ≤ 0.28–0.40 of the hover's, about 260–370 rad/s (q ∝ T ∝ ω²). The blade's tip then moves at 33–47 m/s, under the slowest kind's 53.5 m/s, and the stems rise only over 0.1 s after that. **None is cut.**
 
 **Moving:** the only cuts left are stems the discs run into as the pilot's hold drifts, 2·R·s·D(h) for a horizontal path s inside the grass at height h. They are counted from the run's own path.
 
@@ -400,11 +405,107 @@ So the landing itself cuts nothing. What can be cut is at the rotors' spin-up on
 - **`BladeStrikes`:** per blade per step, `StrikeKind.Stem` (4, new; `Material` its cover kind + 1), the energy, the impulse's size, the kind's diameter, the edges' work and the radius. `Count` holds the whole stems the blade's running count has passed in the step: the field's fractional mean counts are counted, never drawn.
 - **Event 39, `StemEpisode`:** per rotor, at its first whole stem cut (`Index` its corner) and 0.1 s after its last (`Index` | 0x80). A is the energy so far, J, B the stems, C their mean diameter, m, and Point the hub. Two events an episode, against LOG-01's budget, never one a cut.
 - **`FeedSignals`:** per rotor over the field window, the stems cut, their pieces' mean length (m) and radius (m), and the rotor's angle at the last cut. For 2.5. No `Live` bit: the feed's enum is the tech-artist's.
-- **The switches** (each logged in the header):
+- **The switches** (in the header's `TagStems` entry):
   - `ContactSpec.Stems` (the stems on the props) and `AirframeModesSpec.StrikeLoad` (G8) are on for every flight.
   - Off only for the kept audits of earlier models, flown as before, and for the known-wrong's comparisons.
 
 **Model:** the next free number at the merge (the orchestrator's). The note's line: *the props meet the stems: the slipstream lays them over, a leaning or slow blade pushes them aside, the rest are cut and paid for; a strike loads its arm (2.2).*
+
+### As built: the runs against the hand calculations
+
+**Code.**
+- `Runtime/Contact/PropStems.cs` holds the law, a part of `PropStrikes`, called for each turning disc before its pairs.
+- Small edits:
+  - `PropStrikes.cs`: the call, `TipImpulse`, `partial`;
+  - `ContactSpec.Stems`, one field;
+  - `FlightWorld.StemsNear`;
+  - `BladeStrikes`: `StrikeKind.Stem`, `AddStems`;
+  - `EventKind.StemEpisode` (39);
+  - `FeedSignals.StemCuts…`;
+  - `AirframeModesSpec.StrikeLoad` and `AirframeModes.Strike` (G8);
+  - `FlightCore`: the G8 call after the strikes, the feed;
+  - `LogHeader`: `TagStems`; `FlightLogReader`: event 39's text.
+- `ContactModel.cs` and `LogFormat.cs` are untouched.
+- `StemsNear` was used as it is: `QueryVersion` stays 9.
+
+**Tests** (`StemTests`, the flights in `StemScenarios`), measured:
+
+| Check | Run | Hand | |
+|---|---|---|---|
+| A: the straw landing, fresh and sliced under the discs before the touch | 0 | 0 | exact |
+| A: stems the hold's drift ran into before the touch | 0.002 (0.04 mJ) | the drift's | |
+| A: after the touch (the body settling as the props spin down) | 8.1 entries | | |
+| A, the known-wrong: a front rotor's stem power at the plane's 1.0 m | 8.168 W | 8.40 W | −2.8 % |
+| A, the known-wrong: a rear rotor's | 7.813 W | 8.05 W | −2.9 % |
+| A, the known-wrong: fresh stems a rotor before the touch | 65.5 | 69 by the standing plane | fails the law's 0, as it must |
+| C: the creep, fr in the cell (2.23 s at h 0.567 m, v 0.324 m/s, ω 929.86) | 33.35 /s, 0.6837 W, line 4.540 / 4.546 mN | 32.66 /s, 0.6703 W, 4.458 mN | +2.1 %, +2.0 %, +1.8 / +2.0 % |
+| C: fl (h 0.544 m) | 36.83 /s, 0.7510 W, 4.990 / 4.993 mN | 36.07 /s, 0.7374 W, 4.906 mN | +2.1 %, +1.8 %, +1.7 / +1.8 % |
+| C: the rear discs' entries against the front's | 7.2 against 203 | none | the front's track |
+| A hover 0.5 m up in the cell, 10 s | 5.0–5.7 stems a rotor from the drift, the last at 7.6 s; 19 episodes begun and ended | clear | |
+| The range's stalks, a creep through the golden's spot 0.4 m up | fresh 1 and 4 (rr, fr), sliced 4.5 and 3.2 as the height bobbed, 5.47 and 3.92 J; up to 3 elements under a disc | cut by the same law | |
+| G8: a 3 mN·s strike at fr's tip | its hub 17.8 mm/s, rl's 2.4 mm/s, the camera 1.67 m/s²; equal to `Advance`'s thrust impulse less one step's damping, every mode to 1e-9 % | | |
+| The landing's log | replays bit for bit (10,750 steps, 38 events); 0 B after the first second; no event refused | | |
+
+The creep's hand calculation is C's formula at the run's own height, speed and ω (the pilot holds 0.54–0.57 m and 0.324 m/s, not the nominal 0.6 and 0.3). At the nominal it gives design C's 26.36 /s and 0.540 W.
+
+**What the pilot would feel (measured, the body rate's RMS):**
+- The creep, its front discs in the cell, 2 s: 4–15 Hz roll 0.0001 against 0.0000 °/s without the stems, pitch 0.0060 against 0.0065; 250–350 Hz pitch 0.0019 against 0.0006 °/s.
+- The vertical landing, the last 3 s before the touch: the same bands with and without the stems, 0.00054 °/s of pitch.
+- So **Village's 1.5 mm culms do not shake the drone.** Cutting one costs 7–35 mJ against the rotor's 25 J, and the slipstream lays the rest over. The stems that load the props are stiff ones: S04's stalks took 4–5 J a rotor in a 4 s creep. The pilot's shake on landing in grass with straw must come from straw-like stems, from the legs in the stems (2.10), and from flying in at speed.
+
+**The goldens:**
+- `flightbench --golden`: 61 PASS, none moved.
+  - The main goldens' flights never cut a stem. The range golden's stalks lean and escape (hand calculation D), its straws lie under the discs, and its spin-up stands on the mat with the hubs above every stalk the law lets stand.
+  - No golden carries an axial strike, so G8 moves none.
+- Every kept audit flies `GoldenFlights.WithoutTheStems` (in `Edgewise`: every golden without the edgewise thrust is an audit of an older model), so each stays bit for bit even where a future golden would cut.
+
+**Cost** (indicative: this laptop on AC, the CPU 68 % loaded by other agents; the two cores stepped in turn in one process so the load falls on both alike):
+- The creep's `core.Advance`: median 33.4 µs with the stems, 27.7 without; p99 78.4 against 61.6 µs.
+- The world's part: `SampleGround` × 4 1.0 µs and `StemsNear` × 4 3.7 µs (medians).
+- PLT-04's quiet run is QA's.
+
+### The checks, as run (on 9f1dcbe6 and 083e0b87)
+
+```
+dotnet test tools/simtests -c Release --filter "FullyQualifiedName~StemTests"
+  Passed: 5 (the numbers in the table above, printed by each test)
+dotnet test tools/simtests -c Release
+  Passed!  - Failed: 0, Passed: 842, Skipped: 0, Total: 842, Duration: 14 m 16 s
+dotnet run -c Release --project tools/flightbench -- --golden
+  flightbench: 6 golden cases registered … 61 PASS, 0 FAIL (range-flight 0xAF745CC52447E017 matches, as before 2.2)
+python tools/hygiene/precommit.py --tree HEAD
+  3570 files scanned, 0 findings
+```
+
+### For the next tasks
+
+- **2.3 (leaves in crowns):**
+  - `PropStems.Part` is the cut's law: the edge's e_s·A, the swept band's fling, the pitched face's axial share, `Breaks`, the rotor's books, the log's `BladeStrikes` and the episode. A leaf can go through it as a stem whose wall is the lamina (its work to shear per length × the cut's length in place of e_s·A).
+  - A crown's twigs still go through `Twigs`. Their shells still hold a resting blade (2.7's note).
+  - `TipImpulse` already carries the twigs' axial share to the arm (G8).
+- **2.5 (cut bits on camera):**
+  - `FeedSignals.StemCuts`, `StemPieceLength`, `StemCutRadius` and `StemBladeAngle`, per rotor over the latest whole field, the same in a replay.
+  - The pieces leave the front discs mostly at the leading edge, in the direction of flight (the entries), and below the discs (the pitched face pushes them down: the axial share is 2–4 times the in-plane).
+  - The feed's `FeedSignal` enum has no index for them: they carry no `Live` bit, as `Sticks` doesn't.
+  - A vertical landing in Village's grass gives the feed nothing to draw. A forward approach does: about 20 stems a front rotor in the forward landing, measured.
+- **2.10 (stems on the legs and the fiber):**
+  - The stem field per kind with diameters is in `surfaces.json` (`grass_blade`, `dry_culm`, `burnt_culm`, each with `diameter_m`); `FlightWorld.StemsNear` is the door.
+  - The slipstream's lean (`PropStems`: q = T/A, φ/cos²φ = κL³) lays the stems under a hovering drone over. The legs at touchdown meet stems the props' slipstream has pressed, not upright ones, unless the drone came in moving.
+  - The props' trails record where stems were cut and to what plane: a leg landing in the props' cut track meets stubs.
+
+### For `unity/Assets/_Project` (not changed here)
+
+- **Event 39 in the post-flight summary.** `Scripts/App/Session/PostFlight.cs` picks its events by kind (crashes, the line, failsafes, blade damage, legs). A stem episode is not shown until it is given a line, for example "STEMS: rotor fr cut 12 dry culms, 0.4 J". The sim's own reader already prints one (`FlightLogReader`).
+- **`FlightFeedSignals` and `IFeedSignals`:** the four new `Corners` fields, for 2.5. The feed's `FeedSignal` enum needs a new index (17 is the next one the physics does not use) only if the feed wants a `Live` bit for them.
+- **`AppData`** carries `surfaces.json` into the player as a file, so its new rows travel with it. Nothing there counts the cover rows.
+
+### Open questions for the pilot (qualitative)
+
+1. When you land in tall grass, does the grass under the quad lie flat in the prop wash before the props reach it, or does it stand into the props?
+2. When straws are cut in front of your camera on landing, are you still moving forward as the props reach the grass, or coming straight down?
+3. Is the "straw" in that grass stiff, cereal-like stalks, or the grass's own dry stems?
+
+The physics computes the rest. The answers decide whether Village's tall dry layers are straw-like stalks (a world-data question for the kinds of 2.1 and the diameters of 2.11) and which approach the spec's landing scenario should fly.
 
 ## 2.3 Leaves in crowns
 

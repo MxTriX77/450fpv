@@ -41,7 +41,18 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - A world query for the physics (by point and radius, or per cell), allocation-free, DetMath only. `QueryVersion` 9.
   - `validate.py` checks the field against the export's counts.
   - Checks: `python tools/map/validate.py maps/farmland`, `worldbench --golden` and `--bench`, `dotnet test tools/simtests`, `precommit.py --tree HEAD`. Worldbench's existing farmland cases must not move.
-- [ ] 2.2 [physics-engineer] **Stems on the props** (audit §5, G4 and G8), after 2.1. Write design.md first.
+- [x] 2.2 [physics-engineer] **Stems on the props** (audit §5, G4 and G8), after 2.1. Write design.md first.
+  - **As built** (design.md 2.2, its "As built"):
+    - `PropStems.cs`: the slipstream (q = T/A) lays the stems over, and a blade cuts only where ω·r·cos φ reaches the stem's critical speed (k_edge 3). The cuts are mean counts for the field and the stalks met per pass for S04's elements. Each disc keeps the height and stubs it cut to and a trail of where; the stalks' cut planes are in a grid.
+    - The new cover rows (`grass_blade`, `dry_culm`, `burnt_culm`, with `diameter_m`); straw's 22 kJ/m² published.
+    - G8: `AirframeModes.Strike` from `PropStrikes.TipImpulse`.
+    - Event 39; `StrikeKind.Stem`; `FeedSignals.StemCuts…`; a header entry `TagStems`. No `LogFormat.Version` change, no `QueryVersion` change, `ContactModel.cs` and `LogFormat.cs` untouched.
+  - **Measured:**
+    - The spec's vertical straw landing cuts no stem under the discs: Village's 1.5 mm culms lie at 0.12–0.16 m in the 222–236 Pa slipstream, under the standing discs' 0.288 m. The known-wrong takes 8.17 / 7.81 W at 1.0 m against the hand calculation's 8.40 / 8.05.
+    - The pilot's forward creep cuts at the front discs' leading edges within 2.1 % of hand calculation C (rate, power and the blade-pass line); the rear discs run in their track.
+    - A hover cuts itself clear; S04's stalks are cut by the same law.
+    - Bit-exact replay; 0 B; +5.7 µs median a step, indicative.
+    - No golden moved (61 PASS).
   - Per-kind rows in `surfaces.json` from the published values (audit §5.1), and the research the table still owes: green blades, dry culms, weed stalks, the critical cutting speed of an unsupported stem.
   - The downwash bending the stems before the disc reaches them, and the critical speed against v = ω·r, so most stems escape as the pilot describes. Without both, the hand calculation stalls a rotor in 35 ms.
   - The cuts per pass as a mean count with no draw (as `PropStrikes.Twigs`); each cut's work and impulse, with the flung piece's direction from the face it meets; a stem already cut stands lower.
