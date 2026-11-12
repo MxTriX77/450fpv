@@ -738,7 +738,7 @@ Phase 7 adds mechanisms and never rewrites this.
 - **the forward-flight thrust derate comes from axial inflow** through the tilted disc, never a flat 0.80–0.95 factor: at 25 m/s through a disc tilted 22.7° the inflow (≈ 9.6 m/s) is about the hover induced velocity, so the heavy fast corner may be infeasible, which PHY-17a's cruise must survive (gap review L11)
 - *Accept:*
   - hover throttle and thrust margin match K§5.3 at nominal mass
-  - **a loaded drone lifts off near 50–65 % motor power** (a real heavy quad: about 62 %)
+  - **a loaded drone lifts off at 30–45 % throttle** (the pilot, D-066; it is the check on the published power and mass, never a tuning target alone)
   - **the real builder PIDs give a stable, well-damped loop** on the sim plant: a check that the plant is realistic
 
 **PHB-04 Aero basics.** Body drag with along and across areas on the relative wind, rotor H-force, and coil drag at the coil, where `drone.json` puts it (above the CoM on the legs-on build of D-043, below on the legs-off).
