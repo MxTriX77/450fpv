@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.World;
 using MapStart = Fpv450.Sim.World.StartPoint;
@@ -25,10 +26,14 @@ namespace Fpv450.App.Session
         }
     }
 
-    /// <summary>The worlds the app flies (D-047: the test range is the one map; D-077: from its houses' start only).</summary>
+    /// <summary>
+    /// The worlds a flight flies: the farmland, the player's (D-088, w3-farmland-ground 3.1: from its village's start only,
+    /// D-092), and the test range (D-047, D-077: from its houses' start), which left the player and stays for the headless
+    /// tests and the benches.
+    /// </summary>
     public static class FlightWorlds
     {
-        public const string TestRangeMap = "test-range";
+        public const string TestRangeMap = "test-range", FarmlandMap = "farmland";
 
         /// <summary>
         /// The one start the app flies from (D-077, the pilot: "we only load the one with many houses"): the map's
@@ -40,10 +45,40 @@ namespace Fpv450.App.Session
         /// <summary>
         /// The farmland's one start point (D-092, w1-farmland-world design 6): in the village, on the hilltop meadow at the
         /// track's verge by the crossroads, the ground level and nothing within 21 m; heading 300°, at the nearest ruin. In
-        /// the scene's frame, its foot on the terrain. The explorer stands the launch stand there (FarmlandExplore) until
-        /// W3 flies the farmland from it.
+        /// the scene's frame, its foot on the terrain. The flight starts there, and the explorer stands the launch stand
+        /// there (FarmlandExplore).
         /// </summary>
         public static readonly StartPoint FarmlandStart = new StartPoint { Name = "village", X = 566.5, Z = 569.0, Yaw = 300 * Math.PI / 180 };
+
+        /// <summary>The farmland's starts for the setup, without loading its map (its package has none: FarmlandStart).</summary>
+        public static StartPoint[] FarmlandStarts => new[] { FarmlandStart };
+
+        /// <summary>
+        /// The farmland on its queries, MapWorld.Load(root, "farmland") (w3-farmland-ground 1.1: its terrain's 17 tiles, no
+        /// objects until 1.2), loaded once (about 0.3 s, 28 MB) and shared by its flights, as the test range's; its one start
+        /// is FarmlandStart. The log names it by its map id, so replay and the summary reopen it.
+        /// </summary>
+        public static FlightWorldChoice Farmland(string root)
+        {
+            MapWorld map = MapWorld.Load(root, FarmlandMap);
+            return new FlightWorldChoice { Id = map.MapId, Open = () => new FlightWorld(map), StartPoints = FarmlandStarts };
+        }
+
+        /// <summary>
+        /// The files under the root that MapWorld reads for the farmland, by their paths from the root: the package's map.json,
+        /// each tile's heights, classes and hole mask as it lists them (Terrain.Load checks each against the file's SHA-256),
+        /// and the material table (a player's copies).
+        /// </summary>
+        public static List<string> FarmlandFiles(string root)
+        {
+            string folder = "maps/" + FarmlandMap + "/";
+            var files = new List<string> { folder + "map.json" };
+            string manifest = File.ReadAllText(Path.Combine(root, folder + "map.json"));
+            foreach (Match m in Regex.Matches(manifest, "\"(?:heights|classes|holes)\"\\s*:\\s*\\{\\s*\"file\"\\s*:\\s*\"([^\"]+)\""))
+                if (!files.Contains(folder + m.Groups[1].Value)) files.Add(folder + m.Groups[1].Value);
+            files.Add(MapWorld.MaterialsFile);
+            return files;
+        }
 
         /// <summary>The test range's placement file, from the root that mirrors the repository (the editor's repository, the
         /// player's StreamingAssets).</summary>
