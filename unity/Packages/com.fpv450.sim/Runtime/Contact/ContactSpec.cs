@@ -225,6 +225,11 @@ namespace Fpv450.Sim.Contact
         /// the rotor's lost momentum over a vanishing lever).</summary>
         public bool BladeRoot = true;
 
+        /// <summary>The props meet the stems (w9-village-physics 2.2, PropStems): a map's stem field and its drawn straws and stems,
+        /// laid over by the slipstream, pushed aside by a leaning or slow blade, the rest cut and paid for. On for every flight; off
+        /// only for the kept audits of earlier models and a known-wrong's comparison.</summary>
+        public bool Stems = true;
+
         /// <summary>Archard's wear coefficient k of the blade sliding on a harder face, V = k·F_n·s/H_b: 3e-3 (assumed, p7f-damage
         /// design 5: inside Lancaster 1969's published 1e-3–1e-2 for polymers abraded by harder asperities, its middle on a log
         /// scale; set by 1.3, which 1.1a left unset).</summary>

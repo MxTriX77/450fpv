@@ -381,6 +381,15 @@ namespace Fpv450.Sim.Flight
         /// A: its load (the larger stress's share of its strength); B: the bend's root stress, Pa; C: the twist's, Pa.
         /// </summary>
         ArmBroken = 38,
+
+        /// <summary>
+        /// A rotor's stem episode (w9-village-physics 2.2, PropStems): its props began cutting stems, at the step its count of whole
+        /// stems first passes one (Index its corner), or stopped, 0.1 s after the last (Index its corner | 0x80). Part the rotor's
+        /// disc shape's part, Object the ground (−1), Material the cover kind it cut most of + 1 (Contact.CoverKind), Point the hub.
+        /// A: the episode's energy so far, J; B: its stems so far (the mean count); C: their mean diameter, m. Two events an
+        /// episode, never one a cut (LOG-01); each step's cuts are in BladeStrikes (StrikeKind.Stem).
+        /// </summary>
+        StemEpisode = 39,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>
