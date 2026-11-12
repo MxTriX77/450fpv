@@ -38,6 +38,9 @@
 // - Snag records for the fiber (p7d-tether 1.3): SnagsNear and its index are MapWorldSnags.cs.
 // - The fiber's query cost (w3-farmland-ground 2.1): StaticContacts leaves the ground out under QueryFilter.NoGround, and
 //   ShapeContact gives its contact for one shape alone.
+// - The fiber over the ground (w3-farmland-ground 2.5): StaticContacts and Raycast answer the ground alone under
+//   QueryFilter.GroundOnly (its plane or terrain, a step's faces included): the unfiltered query's ground contact, and
+//   a ray's own entry into the ground.
 // - A long reach's corridor (w3-farmland-ground 2.1): a reach of more than Corridor cells walks only the cells its sweep's hull
 //   reaches within the pad, row by row, as the terrain's does; the same contacts.
 // - Ids: materials are the names given at load (physics_materials.json's rows in file
@@ -220,6 +223,8 @@ namespace Fpv450.Sim.World
             else if (ground && _terrain == null && !AboveGround(previous, current, margin) && ShapeMath.Sweep(_ground, previous, current, margin, speed, out near, out time)
                 && !InGap(near.Point.X, near.Point.Z))
                 ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, _ground));
+            if ((filter & QueryFilter.GroundOnly) != 0)
+                return count; // the ground alone (w3-farmland-ground 2.5)
 
             Span<int> stack = stackalloc int[MaxDepth + 2];
             RegionCache cached = Region(reach, out int entry);
@@ -393,12 +398,12 @@ namespace Fpv450.Sim.World
 
         public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None)
         {
-            bool noWires = (filter & QueryFilter.NoWires) != 0;
+            bool noWires = (filter & QueryFilter.NoWires) != 0, groundOnly = (filter & QueryFilter.GroundOnly) != 0;
             for (int i = 0; i < rays.Length; i++)
-                hits[i] = Cast(rays[i], maxDistance, noWires);
+                hits[i] = Cast(rays[i], maxDistance, noWires, groundOnly);
         }
 
-        private RayHit Cast(in Ray ray, double maxDistance, bool noWires)
+        private RayHit Cast(in Ray ray, double maxDistance, bool noWires, bool groundOnly)
         {
             var hit = new RayHit { Distance = double.PositiveInfinity, Object = WorldIds.Ground };
             Double3 o = ray.Origin, d = ShapeMath.Unit(ray.Direction);
@@ -425,6 +430,8 @@ namespace Fpv450.Sim.World
                     hit.Surface = soil;
                 }
             }
+            if (groundOnly)
+                return Hit(hit, found, o, d, best, normal);
 
             Span<int> stack = stackalloc int[MaxDepth + 2];
             RegionCache cached = Region(reach, out int entry);
@@ -466,7 +473,11 @@ namespace Fpv450.Sim.World
                     Take(p, t, n, ref found, ref best, ref normal, ref hit);
                 }
             }
+            return Hit(hit, found, o, d, best, normal);
+        }
 
+        private static RayHit Hit(RayHit hit, bool found, Double3 o, Double3 d, double best, Double3 normal)
+        {
             if (found)
             {
                 hit.Distance = best;

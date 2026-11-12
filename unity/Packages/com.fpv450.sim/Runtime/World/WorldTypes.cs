@@ -211,6 +211,9 @@ namespace Fpv450.Sim.World
         /// <summary>No ground (StaticContacts only; Raycast ignores it): the fiber's queries, whose nodes take the ground from
         /// SampleGround's batch, so a terrain's pieces cost them nothing (w3-farmland-ground 2.1).</summary>
         NoGround = 2,
+        /// <summary>The ground alone (StaticContacts and Raycast): its plane or its terrain, a step's faces included, and no
+        /// placed or runtime shape: the fiber's test of a segment against the ground it lies on (w3-farmland-ground 2.5).</summary>
+        GroundOnly = 4,
     }
 
     /// <summary>The fitting a conductor's end hangs from (IWorldQuery.WiresNear).</summary>

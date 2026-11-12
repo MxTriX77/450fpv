@@ -86,7 +86,7 @@ namespace Fpv450.Sim.World
             }
         }
 
-        /// <summary>The stub holds no wires, so NoWires changes nothing; NoGround leaves the floor out.</summary>
+        /// <summary>The stub holds no wires, so NoWires changes nothing; NoGround leaves the floor out, GroundOnly the shapes.</summary>
         public int StaticContacts(in Capsule previous, in Capsule current, double margin, Span<StaticContact> results,
             QueryFilter filter = QueryFilter.None)
         {
@@ -98,7 +98,7 @@ namespace Fpv450.Sim.World
             double time;
             if ((filter & QueryFilter.NoGround) == 0 && ShapeMath.Sweep(_floor, previous, current, margin, speed, out near, out time))
                 ShapeMath.Insert(results, ref count, ContactOf(near, time, WorldIds.Ground, 0, _floor));
-            for (int k = 0; k < _primCount; k++)
+            for (int k = 0; k < ((filter & QueryFilter.GroundOnly) != 0 ? 0 : _primCount); k++)
             {
                 ref readonly Prim p = ref _prims[k];
                 if (p.Box.Overlaps(reach) && ShapeMath.Sweep(p.Geometry, previous, current, margin, speed, out near, out time))
@@ -137,14 +137,14 @@ namespace Fpv450.Sim.World
             Time = time,
         };
 
-        /// <summary>The stub holds no wires, so the filter changes nothing.</summary>
+        /// <summary>The stub holds no wires, so NoWires changes nothing; GroundOnly leaves the shapes out.</summary>
         public void Raycast(ReadOnlySpan<Ray> rays, double maxDistance, Span<RayHit> hits, QueryFilter filter = QueryFilter.None)
         {
             for (int i = 0; i < rays.Length; i++)
-                hits[i] = Cast(rays[i], maxDistance);
+                hits[i] = Cast(rays[i], maxDistance, (filter & QueryFilter.GroundOnly) != 0);
         }
 
-        private RayHit Cast(in Ray ray, double maxDistance)
+        private RayHit Cast(in Ray ray, double maxDistance, bool groundOnly)
         {
             var hit = new RayHit { Distance = double.PositiveInfinity, Object = WorldIds.Ground };
             Double3 o = ray.Origin, d = ShapeMath.Unit(ray.Direction);
@@ -162,7 +162,7 @@ namespace Fpv450.Sim.World
                 normal = n;
                 hit.Surface = FloorSurface;
             }
-            for (int k = 0; k < _primCount; k++)
+            for (int k = 0; k < (groundOnly ? 0 : _primCount); k++)
             {
                 ref readonly Prim p = ref _prims[k];
                 if (!p.Box.Overlaps(reach))

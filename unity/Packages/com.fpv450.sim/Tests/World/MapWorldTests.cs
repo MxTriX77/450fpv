@@ -1172,6 +1172,49 @@ namespace Fpv450.Sim.Tests
             Assert.That(corridors, Is.GreaterThan(100), "premise: many reaches walk the corridor");
             Assert.That(contacts, Is.GreaterThan(1000), "premise: the reaches meet the yard's, the straw's and the verge's shapes");
         }
+
+        // QueryFilter.GroundOnly (w3-farmland-ground 2.5, the fiber's ground test): StaticContacts gives the ground's contact alone,
+        // the unfiltered query's to the bit, and a ray the ground's own entry: the unfiltered ray's where that one meets the ground,
+        // and past the shapes where it meets a shape first.
+        [Test]
+        public void GroundOnly_IsTheGroundsOwnContactAndEntry()
+        {
+            MapWorld world = World;
+            var random = new Random(25);
+            var spots = new[] { new Double3(-170, 0, -45), RangeScenarios.Straw, new Double3(-137, 0, 13) };
+            var all = new StaticContact[2048];
+            var ground = new StaticContact[2048];
+            var hits = new RayHit[2];
+            int planes = 0, shaded = 0;
+            for (int i = 0; i < 300; i++)
+            {
+                Double3 spot = spots[i % 3];
+                double Uniform(double lo, double hi) => lo + (hi - lo) * random.NextDouble();
+                var a = new Double3(spot.X + Uniform(-20, 20), Uniform(-0.2, 2), spot.Z + Uniform(-20, 20));
+                var b = a + new Double3(Uniform(-20, 20), Uniform(-1, 1), Uniform(-20, 20));
+                var core = new Capsule(a, b, 0.000125);
+                int n = world.StaticContacts(core, core, 0.5, all);
+                int m = world.StaticContacts(core, core, 0.5, ground, QueryFilter.GroundOnly);
+                bool plane = n > 0 && all[0].Object == WorldIds.Ground;
+                Assert.That(m, Is.EqualTo(plane ? 1 : 0), $"query {i}: the ground alone");
+                if (plane) Assert.That(FloorWorldTests.Bits(ground[0]), Is.EqualTo(FloorWorldTests.Bits(all[0])), $"query {i}");
+                planes += m;
+                var rays = new[] { new Ray(a + new Double3(0, 3, 0), new Double3(Uniform(-1, 1), -1, Uniform(-1, 1))) };
+                world.Raycast(rays, 60, new Span<RayHit>(hits, 0, 1));
+                world.Raycast(rays, 60, new Span<RayHit>(hits, 1, 1), QueryFilter.GroundOnly);
+                Assert.That(hits[1].Object, Is.EqualTo(WorldIds.Ground), $"ray {i}");
+                if (hits[0].Object == WorldIds.Ground)
+                    Assert.That(hits[1].Distance, Is.EqualTo(hits[0].Distance), $"ray {i}: the same entry");
+                else
+                {
+                    Assert.That(hits[1].Distance, Is.GreaterThanOrEqualTo(hits[0].Distance), $"ray {i}: past the shape it met");
+                    shaded++;
+                }
+            }
+            TestContext.Out.WriteLine($"  300 queries, {planes} with the ground; {shaded} rays meeting a shape before the ground");
+            Assert.That(planes, Is.GreaterThan(50), "premise: reaches near the ground");
+            Assert.That(shaded, Is.GreaterThan(10), "premise: rays meeting the yard's, the straw's and the verge's shapes");
+        }
     }
 
     /// <summary>A plain JSON reader for the tests (objects, arrays, strings, numbers by double.Parse, true/false/null), so
