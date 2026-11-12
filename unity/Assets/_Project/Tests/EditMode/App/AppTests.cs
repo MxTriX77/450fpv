@@ -254,6 +254,40 @@ namespace Fpv450.Tests.App
             StringAssert.Contains(FlightOsd.SymThr + " 47", grid, "the throttle from the sticks the flight flew (D-080)");
         }
 
+        // The pilot's "it has lost its throttle because in noclip": the throttle element (D-080) in every OSD the app shows,
+        // the flight's (FlightOsd, on any world) and noclip's (Explore and the test range: the stand-in, NoclipFeedSignals),
+        // at the same cells (row 7, columns 24–27) and in the same text.
+        [Test]
+        public void EveryOsdModeShowsTheThrottle()
+        {
+            var camera = new GameObject("noclip");
+            try
+            {
+                var noclip = new NoclipFeedSignals(camera.transform);
+                var flight = new FlightFeedSignals();
+                flight.Update(default, false, 0, 0, 0);
+                foreach ((string mode, IFieldOsd osd) in new (string, IFieldOsd)[] { ("flight", flight), ("noclip", noclip) })
+                {
+                    osd.BuildOsd(1);
+                    Assert.That(Cells((IFeedSignals)osd, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(0)), mode + ": the stick down");
+                }
+                noclip.Stub.Osd.ThrottlePercent = 47; // Explore's radio (ExploreThrottle)
+                noclip.BuildOsd(2);
+                Assert.That(Cells(noclip, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(47)), "noclip: the stick's percent");
+            }
+            finally
+            {
+                Object.DestroyImmediate(camera);
+            }
+        }
+
+        static string Cells(IFeedSignals s, int row, int col, int count)
+        {
+            var cells = new char[count];
+            for (int i = 0; i < count; i++) cells[i] = s.OsdCell(row, col + i);
+            return new string(cells);
+        }
+
         static string Grid(FlightFeedSignals feed)
         {
             string grid = "";
