@@ -796,3 +796,10 @@ The orchestrator, 2026-11-12, on the audit of `w9-village-physics` (its `audit.m
 - **The test range's straw joins the same law.** House flies in the player again (D-100), so the props cut S04's straws as they cut Village's stems. The range golden moves there and is audited.
 - **Furrows are not in `w9-village-physics`.** Neither map has them in the physics, and Village only paints them (a texture and a normal map), so there is nothing drawn for their collision to follow (REAL-05). They need a world-and-look unit (W12) that draws the relief near the drone and stores it in the package. PHY-04's rocking across furrows stays unmet until then; `tilled` already gives the loose loam's bearing and friction.
 - **The wind's cover per cell** is a uniform 0.3 m today. It follows the stem field in a W7 follow-up, not in W9.
+
+## D-103 The first-person camera's place is fitted to the footage, and the turning props ship with it · Accepted
+The orchestrator, 2026-11-12, on the tech artist's finding in `w13-props-in-frame` (its design.md §1 and §6).
+- **The drawn props now turn with the sim's rotors.** From the lens's assumed place they cross the picture at both side edges in every field of a hover. The footage of the drone's own airframe group shows a blade almost never, and two pale airframe rods at mid-height instead (`reference-notes/vegetation-on-the-props.md` §3).
+- **So the camera's place is derived, no longer assumed** (`w14-camera-place`). It is fitted to where those parts sit in the group's clips and checked against the published frame's camera mount. The hubs stay where the pilot's tip-to-tip numbers pin them (DRN-02). The lens's intrinsics and the 0° uptilt stay too (FEED-02).
+- **The turning props reach the pilot's build together with the moved camera,** not before. Blades in every frame would be a new miss, not a fix.
+- **The blade's smear follows the exposure the feed already uses.** It is the same in bright and dull light until the feed's auto-exposure measures the scene (`p4-feed` 1.7). Nothing is tuned to fake the wider wedge of dull light.

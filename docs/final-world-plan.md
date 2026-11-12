@@ -81,6 +81,8 @@ Parallel: W0 first. Then W1, W2 and W4a/W4b can run together (at most four). W3 
 - **W10, Play** (`w10-play-maps`, D-100): the carousel of House and Village with their stills. In the pilot's build.
 - **W11, the M map** (`w11-world-map`, D-101). In the pilot's build; its frame cost on a quiet machine is owed.
 - **W12, furrows** (not started, D-102): a world-and-look unit that draws the fields' furrow relief near the drone and stores it in the package, so the physics can follow it.
+- **W13, the props turn in the frame** (`w13-props-in-frame`, Standard): the drawn props follow the sim's rotors over each video field's exposure. Built; its review is next. It ships with W14 (D-103).
+- **W14, the camera's place** (`w14-camera-place`, Standard, D-103): the lens moves to where the footage and the published frame put it, with the airframe parts the footage shows at mid-height. Proposed.
 
 ## 5. Phase B: the three open branches (after the pilot flies the farmland, D-093)
 
