@@ -2111,9 +2111,10 @@ namespace Fpv450.Sim.Contact
         // The anchor's stretch within what the leg can reach (w9-village-physics 2.4): the stretch is the foot's move from its
         // rest, the body's point, to where the ground holds it, and the leg reaches it only by turning its lever (p7g-legs 1.4,
         // the link of γL about its characteristic pivot): turned square, its foot is γL across, the most any turn of it moves
-        // the foot across the leg. So the stretch is held within γL (LegLeverLength), and along the skid's frame within the
-        // frame's own lever (LegFrameLeverLength), by the square of its way's cosine to the frame as the slide's stiffness is.
-        // A held foot past it is a foot the leg no longer reaches: the ground's hold slides to it. True when it held one.
+        // the foot across the leg. So the reach is γL (LegLeverLength), and along the skid's frame the frame's own lever
+        // (LegFrameLeverLength), by the square of the stretch's way's cosine to the frame as the slide's stiffness is. A stretch
+        // past it is a foot the leg no longer reaches: the ground has let it go, the leg springs back, and the hold starts
+        // again where the foot is (the stretch 0). True when it let one go.
         bool Reached(int c, ref Double3 stretch)
         {
             double l0 = _spec.LegLeverLength, s2 = Double3.Dot(stretch, stretch);
@@ -2125,7 +2126,7 @@ namespace Fpv450.Sim.Contact
                 reach += (_spec.LegFrameLeverLength - l0) * (sf * sf / s2);
             }
             if (!(s2 > reach * reach)) return false;
-            stretch = stretch * (reach / DetMath.Sqrt(s2));
+            stretch = default;
             return true;
         }
 
