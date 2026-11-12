@@ -58,10 +58,11 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
 - [ ] 2.6 [physics-engineer] **G2: the legs on a side slope** (audit §1.7), after 2.4.
   - Rerun the cross-slope landings and trace the clamp moments. Judge against p7g-legs' failure law and its sources whether 10 × 8 mm PVC-U legs part about 0.3 s after a 0.5 m/s cut landing across 10°, and write the reading in design.md.
   - Checks: `flightbench --legs`, `--slopes land`. Goldens move only if the law changes (then p7g's, audited).
-- [ ] 2.7 [physics-engineer] **G5: the crown twig's repeated zero-mass break** (audit §1.15). In parallel with 2.4.
+- [x] 2.7 [physics-engineer] **G5: the crown twig's repeated zero-mass break** (audit §1.15). In parallel with 2.4.
   - Reproduce with a hover inside the bush crown at (525.79, 612.74), 1.24 m up: 200,000 `BladeDamaged` events in 25 s. Fix `PropStrikes.Twig` (a break at the blade's own tip is no break) and bound the events.
   - A new test: a hover in a crown logs no `BladeDamaged` with 0 kg lost.
   - Checks: `ObjectContactTests`, W3 2.7's crown flight re-measured, `dotnet test tools/simtests`, `flightbench --golden`, `--contacts`. No golden is expected to move.
+  - As built: the breaks were `RestDamage`'s, the props standing still in the shells with a load radius of 4.5–5.5 R (the pairs' points on the shell's plane); the radius is held to the tip and `Breaks` skips a station at or past the tip. 150,239 zero-mass breaks in 25 s → 1 real one; no golden moved; W3's crown flight unchanged to the bit (design.md 2.7).
 - [x] 2.8 [asset-artist] **The plants' numbers for the props** (audit §3, items 1 and 4). In parallel with 2.4.
   - **As built** (e4f17a6f, d04f5735, 63b184b2): `tools/blender/vendor_plant_numbers.py` → `assets-src/vendor_plant_numbers.json`, method and limits in design.md 2.8. A stem is a drawn blade crossing a horizontal plane (opaque runs joined across a card's triangles), and one instance holds 110–2,050 of them by prefab. Leaf area density is 0.21–2.09 m²/m³ of twig shell over the 16 leaved variants. The re-run is byte-identical, and the hand count on GrassDry_C and Grass_A is within about 15 %.
   - **Stems per instance:** for each of the 14 grass layers' prefabs, how many blades or culms one drawn instance holds, counted from its mesh locally.

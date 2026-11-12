@@ -250,6 +250,98 @@ namespace Fpv450.Sim.Tests
             Assert.That(replay.Steps, Is.EqualTo(cut.Steps));
         }
 
+        struct HoverRun
+        {
+            public int Breaks, ZeroMass, Repeats, Cuts, MostInStep, Opening, Lost;
+            public double Work;
+            public long Allocated, Steps;
+        }
+
+        // w9-village-physics 2.7 (audit §1.15, G5): the audit's 35° spot on the farmland, (525.79, 612.74), lies inside a
+        // GreenBush_Dry crown. The drone starts there 1.24 m over the ground and the pilot holds that point for seconds, with
+        // surfaces.json's ground and twigs: the breaks (BladeDamaged, mode Break), those that took no mass, those that repeat a
+        // station a blade already broke at, the twigs cut and their work, the most BladeDamaged in one step, and the events the
+        // step's buffer refused: in the first step (every pair in the crown made at once) and after it.
+        static HoverRun CrownHover(int seconds, System.IO.Stream log = null)
+        {
+            MapWorld w = SlopeScenarios.Farmland();
+            DroneSpec spec = RepositoryDrone.Spec();
+            var spot = new XZ(525.79, 612.74);
+            var gs = new GroundSample[1];
+            w.SampleGround(new[] { spot }, gs);
+            var at = new Double3(spot.X, gs[0].Height + 1.24, spot.Z);
+            var world = new FlightWorld(w);
+            FlightSetup setup = SoilScenarios.Setup(spec, world, at);
+            var core = new FlightCore(setup);
+            FlightRecorder recorder = null;
+            if (log != null)
+            {
+                LogHeader header = LogHeader.For(setup, core);
+                header.WorldId = "farmland";
+                header.SetDrone(spec, spec.Nominal);
+                recorder = new FlightRecorder(log, header, FlightRecorder.DefaultCapacity, ownsStream: false);
+            }
+            ushort twig = w.MaterialId("twig");
+            var r = new HoverRun();
+            var broken = new HashSet<(int, int, double)>();
+            var pilot = new SimPilot(core.Controller, at);
+            for (int k = 0; k < 16 + 1000 * seconds; k++)
+            {
+                StickSample stick = k < 16 ? new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 } : pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
+                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                core.Advance(stick);
+                if (k >= 1016) r.Allocated += System.GC.GetAllocatedBytesForCurrentThread() - before;
+                recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
+                if (k == 0) r.Opening = core.Events.Lost;
+                else r.Lost += core.Events.Lost;
+                int damaged = 0;
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    FlightEvent e = core.Events[i];
+                    if (e.Kind == EventKind.BladeStrike && e.Material == twig && (StrikeMode)(e.Index >> 4) != StrikeMode.Glance)
+                    {
+                        r.Cuts++;
+                        r.Work += e.A;
+                    }
+                    if (e.Kind != EventKind.BladeDamaged) continue;
+                    damaged++;
+                    if ((StrikeMode)(e.Index >> 4) != StrikeMode.Break) continue;
+                    r.Breaks++;
+                    if (!(e.B > 0)) r.ZeroMass++;
+                    if (!broken.Add((e.Part, e.Index & 15, e.C))) r.Repeats++;
+                }
+                r.MostInStep = System.Math.Max(r.MostInStep, damaged);
+            }
+            r.Steps = core.State.Step;
+            recorder?.Close();
+            return r;
+        }
+
+        // A hover inside a bush crown (G5): at model 85 every blade of all four props logged a Break at 0.9888 R taking 0 kg on
+        // every step, 200,000 events in 25 s: its props stand still in the shells, and each resting blade's load radius was its
+        // pairs' points on the shells' planes, 4.5–5.5 R, so the station at its tip "broke" again (2.7). A break takes mass and
+        // happens at most once at any station of a blade.
+        [Test]
+        public void AHoverInACrownBreaksNoBladeTwice()
+        {
+            var log = new System.IO.MemoryStream();
+            HoverRun r = CrownHover(25, log);
+            TestContext.Out.WriteLine($"25 s in GreenBush_Dry's crown: {r.Cuts} twigs cut for {r.Work:F1} J; {r.Breaks} breaks, {r.ZeroMass} with 0 kg lost, "
+                + $"{r.Repeats} at a station already broken; at most {r.MostInStep} BladeDamaged in a step; events refused {r.Opening} in the first step, "
+                + $"{r.Lost} after; {r.Allocated} B after the first second");
+            Assert.That(r.ZeroMass, Is.EqualTo(0), "no break takes 0 kg");
+            Assert.That(r.Repeats, Is.EqualTo(0), "a blade breaks at most once at any station");
+            Assert.That(r.Lost, Is.EqualTo(0), "the step's buffer refuses no event after the first step");
+            Assert.That(r.Allocated, Is.EqualTo(0), "0 B in steady state");
+            MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
+            var world = new FlightWorld(SlopeScenarios.Farmland());
+            ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "farmland" ? world : null, RepositoryDrone.Spec().ContentHash,
+                null, SoilScenarios.Table().Hash, materialsHash: hash);
+            TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            Assert.That(replay.Steps, Is.EqualTo(r.Steps));
+        }
+
         // Model 85 (the known-wrong): without surfaces.json a blade's passes glanced through the floor (no face to them) while a
         // blade at rest bore on it as rigid: A4's crash into R01_A had a rotor's disc 50 mm into the floor before its bell stopped it,
         // and its blades came back to rest up to 85 mm inside (2.6). The tipped landing on the stub's floor: 16 touches of the floor
