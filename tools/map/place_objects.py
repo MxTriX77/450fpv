@@ -19,7 +19,7 @@ The placements (D-090, D-092), each object on its own SplitMix64 stream (the see
   to the lane (LANE_Z) within HOUSE_YAW_JITTER_DEG; a car takes any yaw.
 - Every object keeps clear (clear()): no edit reaches a ruin's or a debris piece's plan bounds, a tree's or bush's pivot,
   the start's stand, or another of ours; a tree's or bush's bounds stays CROWN_CLEAR_M off the footprint; a house stands
-  TRACK_CLEAR_M off every dirt_track sample.
+  TRACK_CLEAR_M off every dirt_track sample; the ground under the footprint spans at most MAX_RELIEF_M of its kind.
 
 The edits:
 - The hole mask (W2 §4, rule 2): every cell that meets a trench's opening is a hole. The opening is drawn, not
