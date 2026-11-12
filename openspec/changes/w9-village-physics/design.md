@@ -507,6 +507,95 @@ python tools/hygiene/precommit.py --tree HEAD
 
 The physics computes the rest. The answers decide whether Village's tall dry layers are straw-like stalks (a world-data question for the kinds of 2.1 and the diameters of 2.11) and which approach the spec's landing scenario should fly.
 
+(Superseded by 2.12: these are physics, and physics is never asked of the pilot, D-104. Their answers of 2026-11-13 are in `docs/pilot-questions.md`.)
+
+## 2.12 The landing in high grass with straw
+
+**The pilot's words outrank the law** (D-104). 2026-11-12: "in real life if i land on a high grass with straw - straws are noticeable cut in front of my quads camera and my quad is shaking". 2026-11-13 (`docs/pilot-questions.md`, on `unity/main`): "You shake … If I can see the drone is shaking too much (which means there's A LOT of straws and the straws are thicker than I thought - Better throttle up and find a bette replace to land. If shake is agreeable - I just keep landing)"; tall grass in the wash "Usually it lies flat because of prop wash power, but not always"; "Straws are quite stiff, but not extremely".
+
+So the targets: straw is cut in front of the camera (the front discs) on a landing; the quad shakes, by an amount that grows with the straws' number and thickness, from a shake a pilot lands through to one that sends them away; grass usually, not always, lies flat in the wash; the straw is cereal-like, between a thin culm and a woody stem.
+
+Labels as in 2.2: **measured**, **published**, **carried**, **derived**, **assumed**, **numerical**.
+
+### What was wrong: both the inputs and the law
+
+**1. The inputs: a 1.5 mm culm can't stand 1.2–1.8 m.** Its self-buckling height (Greenhill, a column under its own weight: L_c = 1.986·(EI/μg)^(1/3), derived) is 0.89 m dry and 0.56 m green with 2.2's rows. Village's tall layers draw stems to 1.22–1.77 m. A stem drawn standing must be able to stand.
+
+**2. The law over-presses, and in the wrong way.**
+- *A vertical jet loads an upright stem along its axis, not across it.* 2.2 took q·C_d·d across the whole stem, a horizontal wind's load. By the cross-flow principle (the normal velocity component carries the normal force) a stem leaning φ in a vertical jet takes q·C_d·d·sin²φ (derived): nothing upright, the full load lying over. So an upright stem stands until a lean or its own weight starts it, then folds through a fold point. That is the pilot's "usually it lies flat, but not always".
+- *A folded stalk does not lie flat.* 2.2's rigid link puts a leaning stem's top at L·cos φ, down to the ground. A long stalk folded by the jet is an arch: its base stays upright where the jet has little grip, the outer part lies over. The arch's crest stands at 0.43–0.61 of the bending length l_b = (EI/(q·C_d·d))^(1/3), whatever the stalk's length (derived: the elastica of a stalk clamped upright, loaded w·sin²θ normal to it, its end resting on the ground, solved by shooting for L/l_b = 3–6, `tools/flightbench/handcalc/stem_elastica.py`).
+- *The stems don't lie down in 40 ms together.* Each stalk follows its own first bending mode, τ = L²/(1.875²·√(EI/μ)) (derived): 0.02 s for a 0.3 m dry stem, 0.2 s for a 1.77 m one, 0.45 s for a tall green culm. A disc moving onto stems, or coming down faster than they fold, meets them standing.
+- *The rotor-downwash-on-canopy check.* The published measurements I could open: rotor outwash in ground effect peaks at r/R 1.7–1.8 whatever the rotor's height (Tanner et al. 2015, NASA/AHS, abstract read); under the disc the jet still points down and only turns radial at the ground (the wall jet, George et al.'s model restated there). So under the disc a stem meets a vertical jet, and the wall jet's horizontal flow grips only its base, outside the disc. The agricultural studies of multirotor downwash in rice and wheat canopies (Li et al. 2019; Shi et al. 2021, *Biosystems Eng.* 203: 60–69) could not be opened (the reader refused them); their abstracts, as the search gives them, say the flow attenuates most at the canopy's bottom and stronger downwash bends the plants more. Neither gives a number used here.
+- *A mean count can't shake.* 2.2 spread a cell's stems evenly over the disc and cut fractional means: the two blades' in-plane pushes cancel and nothing fluctuates. A few thick stalks a turn are discrete hits, each at its own radius and azimuth, and their irregular arrival is the shake. Without it the sim can give a lurch and a 290 Hz line, never a shake.
+
+### The stalks, per stem from its own drawn length
+
+- **The allometry (published):** over 76 herbaceous species, height grows as D^1.53 (Niklas 1995, *Ann. Bot.* 75: 133–142, abstract read via OpenAlex; its critical buckling height as D^1.19, safety factors falling as D^−0.34). So a stem's diameter is d = d₁·L^(1/1.53), L its drawn length in metres, d₁ the kind's diameter at 1 m (the cover row's `diameter_m`, its meaning changed: the diameter of a 1 m stem).
+- **The anchors:**
+  - *Dry and burnt (straw):* wheat's second basal internode, 3.87–4.54 mm across with a 0.475–0.586 mm wall and 17.8–25.5 mg dry a cm, over seven cultivars (Yao et al. 2012, *Aust. J. Crop Sci.* 6(5): 899–903, Table 1, full text read). At a mean 4.2 mm for a 0.9 m plant (assumed: the semi-dwarf wheats' 0.8–1.0 m; the paper gives no height), d₁ = **4.49 mm** (derived). Its wall share 0.52 / 4.2 = **0.124** (derived) confirms 0.125; its mass a cm over the wall's area gives a dry wall of **320–450 kg/m³** (derived), so the dry row's density moves from 500 (assumed) to **400** (derived, a standing dead stem's 10–15 % moisture on that).
+  - *Green:* InfoFlora's 1–2 mm culms on 30–120 cm grasses (stem-properties.md [1], published), 1.5 mm at 0.75 m taken as their middle (assumed), d₁ = **1.81 mm** (derived).
+- **Self-buckling, the check (derived):**
+  - Dry, at the row's 2 GPa: SF = L_c/L 3.9 at 0.3 m, 2.0 at 1 m, 1.44 at the tallest drawn 1.77 m. Burnt 4.5–1.65.
+  - Green at 2.11's assumed 1 GPa: SF 0.54 at the tallest drawn 1.34 m. It can't stand. So the green row's modulus becomes the least that lets the drawn culm stand, **6.4 GPa** (derived; inside wheat straw's published 4.8–6.6 GPa tensile modulus, stem-properties.md [6]). Its safety factor is then 1.0 at 1.34 m and 2.3 at 0.3 m.
+  - "Quite stiff, but not extremely" (the pilot): a 1.5 m dry stalk is 5.9 mm across with EI 0.079 N·m² and stands with a margin of 1.6, between a 1.5 mm culm (EI 3.4e-4, lies down under its own weight) and an 8 mm woody stalk (EI 0.44).
+- **Per stem, not per layer,** because a drawn tuft's stems span their layer's lengths: a tall dry layer's 0.3 m blades are 2 mm leaves and short stems, its 1.7 m culms 6.5 mm stalks. The field already gives each layer's length distribution (below), so the law needs no new query.
+
+| Kind, L | d (mm) | EI (N·m²) | μ (g/m) | SF | v_c (m/s) | fold A at 230 Pa | l_b (m) | folded crest (m) | τ (s) | a cut at the tip (mJ) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| dry 0.5 m | 2.85 | 4.5e-3 | 1.12 | 2.9 | 64 | 2.6 | 0.18 | 0.09 | 0.04 | 76 |
+| dry 1.0 m | 4.49 | 2.7e-2 | 2.77 | 2.0 | 48 | 5.4 | 0.28 | 0.14 | 0.09 | 187 |
+| dry 1.5 m | 5.85 | 7.9e-2 | 4.71 | 1.6 | 40 | 8.3 | 0.37 | 0.19 | 0.16 | 318 |
+| dry 1.77 m | 6.52 | 0.12 | 5.84 | 1.4 | 37 | 9.9 | 0.41 | 0.21 | 0.20 | 395 |
+| green 1.0 m (6.4 GPa) | 1.81 | 2.3e-3 | 1.13 | 1.3 | 34 | 26 | 0.17 | 0.08 | 0.20 | 45 |
+
+(derived, `tools/flightbench/handcalc/stem_stalks.py`; dry at 400 kg/m³ and 2 GPa, e_s 15 kJ/m²; a cut at the tip is e_s·A_w + μ·h_f·u² at u = 117.5 m/s, h_f 2.18 mm, as 2.2.)
+
+### The law (replacing 2.2's steps 1, 2 and 6 for the field; the cut's work, impulses, log and feed are 2.2's)
+
+**1. The field's stems, one by one, from the world.** The field gives per (cell, layer) the stems per m² reaching a height. The law places each stem:
+- The ground is cut into **0.1 m squares** (numerical). A square's stems of layer l are those of the cell under its centre (one `StemsNear` at the centre, radius 1 mm, height h_ref): K = ⌊D_l(h_ref)·0.01 m² + u⌋.
+- **h_ref = 0.2 m** (numerical): the lowest a disc's plane comes over the ground while the drone stands (0.288 m, less 0.06 m for a rim tilted 30°, less a margin). Shorter stems never reach a disc.
+- Stem k of K stands at the square's (u₁, u₂), leans naturally φ₀ = u₃·15° (assumed, 5–25°: the drawn blades' spread and the detail's half tilt to the ground; it sets how readily a stem starts to fold) towards the azimuth 2π·u₄, and its drawn length is T with ρ_l(T) = (k + u₅)/K, ρ_l the layer's share of stems at h_ref still reaching T, read from the field (`StemsNear` at one point at heights 5 cm apart, once per layer and flight; the share is the same in every cell, as the field is count × the layer's reach).
+- Every u is the stem's own hash of (square, layer, k, which) (`FlightRandom.Mix64`): world-derived, the same in every flight, never a draw, as an element's modulus is drawn from its Id (2.2). A cell's edge is moved to its squares' centres: up to 5 cm, numerical.
+- S04's elements (the range) go through the same steps 2–4 with their drawn shape.
+
+**2. The slipstream folds them, each at its own pace.** A stem under a disc (its base within R of the hub's axis, assumed: the wake's column, its contraction and skew left out) takes q = T/A of that rotor (the most of the discs over it). As a rigid link on its base spring 4EI/L (2.2), its moment balance is
+- m(φ) = (φ − φ₀) − A·sin²φ − G·sin φ, with A = q·C_d·d·L³/(8EI) the jet's lean and G = μ·g·L³/(8EI) its own weight's (derived; G alone gives the self-buckling height within 1 %);
+- the lean follows **φ' = −m(φ)/τ**, τ the stem's first-mode time above (assumed: a stem in a stand is overdamped by its neighbours; the mode's time sets the pace, range ×0.5–2). There is no lag on q.
+- Under the fold load the lean runs away to lying over (φ → 90°); with less load it stands again on its own. Stiff short stems stand, long or thin ones fold, and a stem the disc moves onto, or comes down on faster than τ, still stands when the blade arrives.
+
+**3. Its top.** Standing, L·cos φ over its base. Folded, the arch's crest: max(L·cos φ, min(L·cos φ₀, c_crest·l_b)), l_b = (EI/(q·C_d·d))^(1/3), **c_crest 0.5** (derived: 0.43–0.61 over L/l_b 3–6). With no jet a folded stem rises again.
+
+**4. The cut.** The blade at radius r meets the stem when its top is over the disc's plane there, at the blade's speed across the stem's axis u⊥ = ω·r·√(1 − (t̂·â)²), t̂ the blade's motion and â the stem's axis (derived; 2.2's ω·r·cos φ is the case of a stem leaning along the blade's motion, still Tuck et al.'s "over 80 m/s at 65°"). A folded stem meets the blade as its arch: across where it lies radially, sliding where it lies along the blade's path. Cut where u⊥ ≥ v_c (2.2's law, per stem at its own d), pushed aside below.
+- Each stem keeps its own state (shared by every disc, keyed by its hash): its lean, and its length, the cut shortening it to where it crossed the plane. A cut stem is a shorter, stiffer stub: it stands, and a disc coming down slices it (2.2's slice, min(1, Δ/d) of a cut).
+- Each cut is a discrete hit at its own radius and azimuth, by the blade crossing it in the step (2.2's elements' rule), with 2.2's work and impulses (`Part`).
+
+**5. Removed from 2.2:** the field's mean counts, the per-rotor q lag (0.04 / 0.1 s), the discs' trails and the elements' 5 cm cut grid. The per-stem state replaces them.
+
+### The numbers
+
+| Number | Value | Label |
+|---|---|---|
+| Height–diameter exponent | d ∝ L^(1/1.53) | published (Niklas 1995) |
+| Dry and burnt d at 1 m | 4.49 mm | derived from Yao et al. 2012 (published) and a 0.9 m wheat (assumed) |
+| Green d at 1 m | 1.81 mm | derived from InfoFlora (published), 0.75 m middle (assumed) |
+| Dry density | 400 kg/m³ (320–450 dry) | derived from Yao et al. 2012 |
+| Dry wall share | 0.125 (0.124) | derived from Yao et al. 2012, carried |
+| Green modulus | 6.4 GPa | derived: the least that lets the 1.34 m culm stand |
+| Dry and burnt modulus | 2 GPa (0.47–6.6) | assumed, carried |
+| Natural lean φ₀ | 0–15° by the stem's hash | assumed (5–25°) |
+| Lean pace τ | the first mode's L²/(1.875²·√(EI/μ)) | derived; overdamping assumed |
+| Folded crest | 0.5 l_b | derived (elastica, 0.43–0.61) |
+| Squares, h_ref, ρ_l's heights | 0.1 m, 0.2 m, 5 cm | numerical |
+| The stems' states | 16,384 slots, the oldest overwritten | numerical |
+
+### Which way the pieces push, by hand (before the runs)
+
+- **A vertical landing after a hover over the spot** cuts little: the stems under the discs folded in the hover (A 2.6–9.9 for dry 0.5–1.77 m against a fold near 1), their crests stand at 0.09–0.21 m, under the standing discs' 0.288 m. The cut comes from stems the disc drifts onto and from stems rising as the thrust eases at the touch, when the blades slow.
+- **An approach** cuts what the front discs' leading edges meet upright: n = 2·R·v·D(h) stems a second a front disc (2.2's C), each a hit of 40–400 mJ (dry, 0.5–1.77 m) against 2.2's 7–35 mJ.
+- **Thicker straw** raises the crest with d (l_b ∝ d): at 1.5× the diameters the dry crests reach 0.28–0.31 m, and a vertical landing cuts.
+- The runs and their hand calculations follow in "As built".
+
 ## 2.3 Leaves in crowns
 
 To be written by task 2.3.
