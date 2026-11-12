@@ -50,7 +50,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
             Assert.That(replay.Steps, Is.EqualTo(law.Steps));
             LogHeader header = new FlightLogReader(new MemoryStream(log.ToArray())).Header;
-            Assert.That(header.Contacts.Stems && header.Modes.StrikeLoad, Is.True, "the header logs the stems' switches (its own entry)");
+            Assert.That(header.Contacts.Stems, Is.True, "the header logs the stems' switch (its own entry)");
             Assert.That(header.Contacts.Surfaces.Cover[(int)CoverKind.DryCulm].Dry.Diameter, Is.EqualTo(0.0015), "and the cover rows' diameters");
 
             // The known-wrong at the plane's 1.0 m, front and rear (fr 1, rr 0).

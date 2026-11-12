@@ -48,12 +48,13 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>A flight from at (the body origin) on Village with surfaces.json, armed in its first 16 steps; the known-wrong
-        /// lays no stem over and cuts every stem met (the audit's law); log records it when given.</summary>
-        public static FlightCore Start(Double3 at, bool knownWrong, Stream log, out FlightRecorder recorder)
+        /// lays no stem over and cuts every stem met (the audit's law); log records it when given; stems false flies without them.</summary>
+        public static FlightCore Start(Double3 at, bool knownWrong, Stream log, out FlightRecorder recorder, bool stems = true)
         {
             DroneSpec spec = RepositoryDrone.Spec();
             var world = new FlightWorld(Village);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at);
+            setup.Contacts.Stems = stems;
             var core = new FlightCore(setup);
             if (knownWrong)
             {
@@ -117,12 +118,13 @@ namespace Fpv450.Sim.Tests
         /// target comes down at descent m/s (and forward at forward m/s, heading +z), the sticks held when the skids are 0.1 m up, the
         /// throttle cut at the first touch, flown 2 s past it (SoilScenarios.Land's pilot).
         /// </summary>
-        public static Run Landing(double descent = 0.5, double forward = 0, bool knownWrong = false, Stream log = null, Action<FlightCore> stepped = null)
+        public static Run Landing(double descent = 0.5, double forward = 0, bool knownWrong = false, Stream log = null, Action<FlightCore> stepped = null,
+            bool stems = true)
         {
             double stand = SoilScenarios.Standing(RepositoryDrone.Spec()), ground = Ground(new XZ(Dense.X, Dense.Z - forward * 2.6));
             var foot = new Double3(Dense.X, ground, Dense.Z - forward * 2.6);
             double y0 = ground + 1.9 - HubOverOrigin;
-            FlightCore core = Start(new Double3(foot.X, y0, foot.Z), knownWrong, log, out FlightRecorder recorder);
+            FlightCore core = Start(new Double3(foot.X, y0, foot.Z), knownWrong, log, out FlightRecorder recorder, stems);
             var r = new Run();
             var pilot = new SimPilot(core.Controller, new Double3(foot.X, y0, foot.Z));
             for (int k = 0; k < 16; k++)
@@ -167,11 +169,11 @@ namespace Fpv450.Sim.Tests
         /// The pilot's approach as a creep: 4 s of hover with the hubs height m over the ground 1.3 m south of the densest tall cell's
         /// centre, then forward (+z, the nose) at speed m/s for seconds, the hubs' height over the ground held throughout.
         /// </summary>
-        public static Run Creep(double height = 0.6, double speed = 0.3, double seconds = 6, Stream log = null, Action<FlightCore> stepped = null)
+        public static Run Creep(double height = 0.6, double speed = 0.3, double seconds = 6, Stream log = null, Action<FlightCore> stepped = null, bool stems = true)
         {
             var start = new XZ(Dense.X, Dense.Z - 1.3);
             double y = Ground(start) + height - HubOverOrigin;
-            FlightCore core = Start(new Double3(start.X, y, start.Z), false, log, out FlightRecorder recorder);
+            FlightCore core = Start(new Double3(start.X, y, start.Z), false, log, out FlightRecorder recorder, stems);
             var r = new Run();
             var pilot = new SimPilot(core.Controller, new Double3(start.X, y, start.Z));
             for (int k = 0; k < 16; k++)
