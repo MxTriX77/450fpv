@@ -5,7 +5,8 @@ Branch `unity/physics/physics-integration-2--w9-village`, cut from `--w3-ground`
 **Order:**
 - first, in parallel: 2.4 (G1), 2.7 (G5) and 2.8 (the plants' numbers);
 - 2.6 (G2) after 2.4, and 2.1 (the stem field) after 2.8;
-- 2.2 (stems on the props) after 2.1; then 2.3 (leaves, also after 2.7), 2.5 (cut bits) and 2.10 (stems on the legs and the fiber);
+- 2.11 (the published stem and leaf properties) any time before 2.2: it needs no code and no other task;
+- 2.2 (stems on the props) after 2.1 and 2.11; then 2.3 (leaves, also after 2.7), 2.5 (cut bits) and 2.10 (stems on the legs and the fiber);
 - 2.9 (Village's ground rows and the liftoff harness) after 2.4 and 2.6;
 - 3.1 last.
 
@@ -75,6 +76,12 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - The legs in standing stems: the touchdown jitter and the hooks (p7a-ground 1.14), from the stem field.
   - The laid fiber over Village's stems as over S04's on the range (flight 37's slips and contacts on stems and straw).
   - Checks: a landing in the densest tall cell prints the stems' forces on each leg; a line laid across a grass field logs its contacts and slips on stems; bit-exact replay, 0 B, the step within PLT-04 on a quiet machine.
+- [ ] 2.11 [reference-analyst] **The published stem and leaf properties** that 2.2 and 2.3 need (audit §5.1, "not found readable here"). Research only, no code.
+  - Per kind (green grass blades and culms, dry standing grass culms, weed stalks, cereal straw, tree and bush leaves): size, mass per length, bending stiffness, shear strength or cutting energy, each with its moisture state and source.
+  - The critical speed for cutting an unsupported stem on impact, and how it moves with the stem's stiffness and mass and the blade's edge; the energy of an impact cut against a quasi-static one.
+  - Stand densities (stems per m²) to check the stem field's counts against.
+  - Written to `docs/reference-notes/stem-properties.md`: a table per kind with the value, its range, the conditions and the source actually read, then what 2.2 should use and what stays assumed.
+  - Checks: every row names a source that was read (the page or abstract, never a guess); `precommit.py --tree HEAD`.
 
 ## 3. Review
 
