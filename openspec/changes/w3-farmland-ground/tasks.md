@@ -33,8 +33,18 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
 
 ## 3. Flight on the farmland
 
-- [ ] 3.1 [game-developer] The player flies the farmland from the village start point; the test range leaves the player (headless tests and benches keep it); the drawn terrain near the drone follows the heightfield (the tech artist checks). Checks: EditMode, the smoke test, PlayMode if any, a 2-minute flight's log replays bit for bit.
+- [x] 3.1 [game-developer] The player flies the farmland from the village start point; the test range leaves the player (headless tests and benches keep it); the drawn terrain near the drone follows the heightfield (the tech artist checks). Checks: EditMode, the smoke test, PlayMode if any, a 2-minute flight's log replays bit for bit.
   - Runs on the sub-branch `--w3-flight` (from `--w3-ground` after the line merged), in parallel with 1.2 and 2.5; the orchestrator merges it back. The start point is W1's `FlightWorlds.FarmlandStart`. The farmland keeps the friend's light (D-088): the setup's time of day and weather apply to it only if they can without changing that look; record the choice. Wind applies (physics). W6's `FarmlandFeedDetail` comes with W6's merge.
+  - As built (design.md §3.1):
+    - Train flies `FlightWorlds.Farmland` (`MapWorld.Load(root, "farmland")`) on the FarmLand scene from the village's start. The player's scenes are Boot and FarmLand, and its StreamingAssets hold the package's map.json and tiles; the test range left both.
+    - The friend's light stays at every setup: time of day and rain change no look. Rain wets the ground and wind blows, in the physics.
+    - Tiles within 30 m of the drone draw at pixel error 1. Measured from the drawn depth:
+      - on the ground within 2 m, the sim's to 0.005 mm;
+      - in flight within 2, 10 and 30 m, up to 3.0, 5.5 and 9.1 mm, each under a pixel;
+      - the friend's errors gave up to 6.0, 32.9 and 39.2 mm.
+    - `HillsPilot` flies two minutes over the hills (headless test; `-smokehills` in the player). The player's log replays bit for bit in .NET with `tools/replay`, with 0 tunnels and no body part past the ground (`GroundCheck`).
+    - The smoke test's house flight became a flight into the ground.
+  - **Owed:** the tech artist's review of the drawn terrain near the drone, and its frame cost with vsync off. Three tests already fail at this base (two `SessionTests` crashes into R01_A, `LegShotsTests`); they belong to their owners.
 
 ## 4. Review
 
