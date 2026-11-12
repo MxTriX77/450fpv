@@ -1,8 +1,8 @@
 """The vendor plants' physics (w4a-farmland-vegetation 1.1): lib.vendor's readers on small synthetic inputs, lib.plant's
 skeleton, shell and porosity on shapes whose answers are known, and the committed metadata of every variant of
-assets-src/vendor_plants.json (schema 1, its params' hash, its .meta). A rebuild from the local store, which only a
-checkout with vendor/ linked can run, must give the committed text byte for byte, and no pushed point may lie on a
-vertex of the vendor's mesh (D-089)."""
+assets-src/vendor_plants.json (schema 1, its params' hash, its .meta). With vendor/ linked, a rebuild of one variant
+per family from the local store must give the committed text byte for byte, and no pushed point may lie on a vertex
+of the vendor's mesh (D-089)."""
 import itertools
 import json
 import math
@@ -216,11 +216,24 @@ def _store(repo_root):
         pytest.skip("the local store is not linked (pwsh tools/vendor/link.ps1)")
 
 
-def test_a_rebuild_from_the_store_gives_the_committed_text(repo_root):
+# one variant per family, its quickest to build (1.3); every family of the catalog is here (the test below asserts it)
+REBUILT = {"VF01": "IslandTree_Dry", "VF02": "Pine002_S2", "VF03": "Pine004_3", "VF04": "Pine006_01",
+           "VF05": "PineDead_02", "VF06": "DeadBush_4", "VF07": "GreenBush", "VF08": "LeafyBush_P2",
+           "VF09": "RedBush_Dry", "VF10": "SmallBushDry_A"}
+
+
+def test_every_family_has_a_rebuilt_variant(repo_root):
+    families = {asset_id: entry["variants"] for asset_id, entry, _ in _variants(repo_root)}
+    assert sorted(REBUILT) == sorted(families)
+    assert all(REBUILT[a] in families[a] for a in REBUILT)
+
+
+@pytest.mark.parametrize("asset_id", sorted(REBUILT))
+def test_a_rebuild_from_the_store_gives_the_committed_text(repo_root, asset_id):
     _store(repo_root)
     import vendor_plants
     cat = vendor_plants.load_catalog(str(repo_root))
-    (asset_id, entry, variant), = vendor_plants.selected(cat, "SmallBushDry_A")
+    (_, entry, variant), = vendor_plants.selected(cat, REBUILT[asset_id])
     params = json.loads((repo_root / "assets-src" / entry["class"] / f"{variant}.json").read_text(encoding="utf-8"))
     data, _, _ = vendor_plants.build(str(repo_root), asset_id, entry, variant, params)
     committed = (repo_root / vendor_plants.MODELS / entry["class"] / asset_id / f"{variant}.assetmeta.json")
