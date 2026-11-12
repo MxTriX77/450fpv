@@ -19,7 +19,16 @@ Order: 1.1, then 1.2; 1.3 after W3's 2.4 (merge `--w3-ground` in first); then 2.
   - Determinism (IEEE basic operations, `DetMath`), 0 B in steady state, bit-exact replays, and the wind's cost within PLT-04.
   - Write design.md.
   - Checks: `dotnet test tools/simtests`, worldbench and flightbench `--golden`, flightbench `--slopes`, `python tools/hygiene/precommit.py --tree HEAD`.
-- [ ] 1.2 [physics-engineer] The belts and the village.
+- [x] 1.2 [physics-engineer] The belts and the village.
+  - As built (design.md, decisions 4–6; model 84 extended, WakeGrid version 2):
+    - **What the check found:** the farmland has no shelterbelt (no "posadka" group): its trees stand in groves and short rows, its bushes in field-edge hedges, its ruins are thin-walled shells. The wake grid kept only the nearest obstacle, so F7's hedge cut the F6|F7 trees' wake at 6 m (0.54 to 1.00); and its cell porosity rule diluted thin walls, missed them between samples and multiplied stacked courses and trunks under crowns.
+    - **The lane's frontal porosity** (`WakeObstacles.Transmission`): solids opaque however thin, porous parts by Beer–Lambert over their chord, parts at different heights side by side; a cell is an obstacle where a footprint overlaps it.
+    - **The overlying wake:** each cell also keeps the nearest taller obstacle upwind; the speeds multiply and the excess variances add. The two slots halve the shelter dropped (bound > 0.1 in 11–16 % of the farmland's wake cells against 24–29 %).
+    - **The porous boost** scales with (1 − β), anchored at the fit's 0.45.
+    - **Version 1** is kept bit for bit behind `WakeLayout.Version` (logged); the kept audits fly it.
+    - **Rows** (`worldbench`, `golden/farmland-shelter.txt`) against Brandle, Zhou and Hodges 2002 (read): F7's hedge, 25 % dense, 0.63 / 0.78 / 0.84 / 0.87 / 0.92 at 5 / 10 / 15 / 20 / 30 H against 0.50 / 0.65 / 0.80 / 0.85 / 1.00, within a class step; F6|F7's short tree pairs; behind the east pair 0.72–0.74 at 2–5 H where the nearest wake alone reads 0.95; Ruin_RoofCollapsed's reverse flow to 2.0 H against Fackrell's 2.10 H; Ruin_Stump inside its cavity at −0.24 to −0.30 where the nearest wake alone reads +0.66 to +0.75.
+    - **Goldens:** worldbench `wakes` re-recorded at version 2 (the fixture belt's β 0.473 → 0.466, still Perera's), `farmland-shelter` new, the rest unchanged; the range golden flight re-pinned (version 1 gives model 76's pin, version 2 at most 1.7 mm and 0.02° from it); the cut's and the map's wind pins re-pinned with version 1 kept; the house check moved to H01_I; every kept audit holds; `--slopes` the base's.
+    - **Costs** (shared machine): the farmland's grid builds in 0.62 s over the cores (0.36–0.42), rebuilds in 1.15–1.39 s on the worker (0.54–0.96, inside the 3 s takeover), samples in 0.79–0.85 µs (0.49–0.59), 64 MB a grid (32).
   - Check the wakes and canopy flow behind the farmland's tree belts and in the village against published shelterbelt data. Fix what is missing from the physics, not a tuned value.
   - Rows behind a belt and in the village, as goldens.
   - Wind and world code only; the tether stays as it is (1.3).

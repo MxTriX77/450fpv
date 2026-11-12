@@ -19,11 +19,19 @@ The wind field SHALL speed up over the farmland's crests and shelter or separate
 - **THEN** each row's speed-up or shelter matches the published model's value for that terrain, and the rows are goldens
 
 ### Requirement: Belts and the village shelter the wind
-The wind behind the farmland's tree belts and among the village's ruins SHALL follow the existing wakes and canopy flow, checked against published shelterbelt data (PHY-13).
+The wind behind the farmland's tree belts and hedges and among the village's ruins SHALL follow the wakes and canopy flow, checked against published shelterbelt data (PHY-13). Each obstacle's porosity SHALL be its frontal porosity from its own volumes' geometry (a solid part opaque however thin, parts at different heights side by side), and a lower obstacle SHALL never hide the wake of a taller one upwind of it.
 
 #### Scenario: Behind a belt
 - **WHEN** a row samples the wind at several belt heights downwind of a farmland belt
 - **THEN** the reduction against the open field matches the published data within its spread
+
+#### Scenario: A hedge in a tree row's lee
+- **WHEN** a row samples the wind above a hedge that stands in a taller tree row's wake
+- **THEN** the tree row's shelter goes on over the hedge, and the nearest wake alone (the known-wrong) loses it
+
+#### Scenario: Among the ruins
+- **WHEN** a row samples the wind behind a ruin and inside a nearer ruin's cavity
+- **THEN** a ruin's walls block their lanes however thin, its cavity reattaches near Fackrell's length for its size, and a ruin standing in another's cavity keeps that reverse flow
 
 ### Requirement: A laid fiber rests where the wind lets it
 In Severe wind over the farmland, a laid fiber's nodes SHALL move only as their own wind and ground contact make them, and resting nodes freeze into the trail (PHY-18, PLT-04).

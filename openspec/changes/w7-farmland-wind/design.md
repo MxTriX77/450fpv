@@ -1,4 +1,4 @@
-# Design: w7-farmland-wind, task 1.1 (the wind's height over the local ground, and the hills)
+# Design: w7-farmland-wind, tasks 1.1 (the wind's height over the local ground, and the hills) and 1.2 (the belts and the village)
 
 **Owner of this part:** physics-engineer · **For:** 1.2 (physics-engineer), 2.1 (qa-engineer) · **Requirements:** PHY-13, PHY-13a, PHY-15, PHY-18, PLT-04 · **Decisions:** D-072, D-088 · **Model:** 84 (83 is W3's merge-back) · **QueryVersion:** 8, unchanged (no world code changed)
 
@@ -185,3 +185,171 @@ The plane gives 0. The spot lies in the lee of the hills upwind, and the two agr
 - **1.2, the belts and the village:** the hills now scale the wake grid's and the canopy's mean. Their rows can take the crest's and the lee's numbers above as the open terrain's.
 - **The windward face of the ledge** (a forward-facing step) and the village's banks, if a gate's flight shows a need: published data exist for both (the step literature, Kim, Patel and Lee 1997 for steep hills).
 - **QA (2.1):** a quiet run of the farmland line's step.
+
+# Task 1.2: the belts and the village
+
+**Owner of this part:** physics-engineer · **For:** 1.3 (physics-engineer), 2.1 (qa-engineer) · **Requirements:** PHY-13, PHY-13a, PLT-04 · **Decisions:** D-072 · **Model:** 84, extended · **WakeGrid.Version:** 2 (was 1) · **QueryVersion:** 8, unchanged
+
+Labels as in 1.1. "Before" is the branch's base, 52ce0ac0, built in a temporary worktree with the same scratch probes.
+
+## Context: what the farmland has (measured, `maps/farmland/placements.json`, `MapWind.Of`)
+- **No shelterbelt.** None of the 1,679 rows has a group, so `MapWind` finds no "posadka" belt and no canopy strip: all 2,589 wind volumes are wake obstacles. The 294 trees stand in groves of 4–9 (20–30 m across) and short rows; the 1,352 bushes make hedges along the field edges.
+- **The F6|F7 boundary** is a hedge along each field's edge (F6's at z ≈ 712, F7's at z ≈ 773, bushes 2–3 m tall) and, between them at z ≈ 758, a row of four 12 m trees in two pairs 55 m apart.
+- **The village's five ruins** are vendor shells described by 100–230 thin opaque boxes each (wall courses 0.24 m thick, stacked 0.25–0.5 m high).
+
+## What the check found (measured: scratch probes on the base, and `worldbench`)
+1. **A low obstacle hid a tall one's wake.** The wake grid kept only the nearest obstacle on a cell's path. Behind F6|F7's east pair, wind from the south, F7's hedge stands 14 m behind the trees: at 6 m the trees' shelter (u/u0 0.54) ended at the hedge, and the field above it read 0.92–1.00 from there on.
+2. **The obstacle grid's porosity rule mis-read thin and stacked parts.** Version 1 gave each 2 m cell β = Π 1 − f·(1 − β^(2 m / D)), f the volume's covered fraction on 4 × 4 samples, multiplied over overlapping volumes. So:
+   - a 0.24 m solid wall covered f 0 or 0.25 of its cells: diluted to 0.75, or missed between the samples (the ruins' wall cells had gaps);
+   - stacked courses of one wall multiplied as if they stood in series (Ruin_RoofCollapsed's 229 boxes read 0.000);
+   - a trunk under its crown multiplied the crown's porosity over the whole height (lanes through a trunk cell 0.33–0.41 against 0.6–0.7 beside it);
+   - a thin fence (Z06's planks, 0.1 m, porosity 0.35) read about 0.8.
+3. **The turbulence boost ignored the porosity.** A lane grazing a crown's edge (β 0.97–0.99) boosted σ as much as the belt the boost was fitted on. With exact lanes and the overlying wake such grazes are common.
+
+## Decisions
+
+### 4. An obstacle's porosity is its frontal porosity across the lane (`WakeObstacles.Transmission`)
+- **The rule** (derived: K§10.3's "optical porosity of a horizontal path" made exact): for the run of obstacle cells the march crosses, the volumes overlapping them, seen along the wind through a 2 m lane centred on the march, averaged over 8 lines across it and over the height from the run's lowest base to its highest top:
+  - on each line at each height the volumes crossed there multiply;
+  - a solid volume passes nothing, however thin;
+  - a porous one passes β^(chord / D), D = footprint perimeter / π: Beer–Lambert over its chord, with D the mean width its β was measured over (`tools/blender/lib/plant.py`: β = 1 − opaque area / (D × height), averaged over 4 bearings);
+  - parts at different heights stand side by side: the average over the height is exact, between the parts' own bases and tops.
+- **A cell is an obstacle** where a volume's footprint overlaps it (exact: separating axes for a box, the distance to the square for a cylinder), so no thin part falls between samples. An obstacle whose lane misses every volume is no obstacle there.
+- **Published support:** Cornelis, Gabriels and Lauwaerts (USDA-ARS wind erosion symposium proceedings, read): model windbreaks of stems without a canopy reduced the wind by under 10 %, and a dense lower part sheltered most near the barrier. Optical porosity is the open share of the side view (Zhou, Brandle, Mize and Takle 2004, *Agroforestry Systems* 61, read).
+- **Numerical:** 8 lines, 0.25 m apart (a 0.24 m wall along the wind is met by about 1 line in 8, its share of the lane).
+- **Checks:**
+  - `WakeGridTests.AThinWallBlocksItsLaneAndAPartUnderACrownStandsBesideIt`: a 0.24 m wall between the old samples is opaque across and passes 7/8 along; a trunk and crown average by height.
+  - `TheObstacleGridFollowsK10_3`: a maple's lane is the chord formula to 1e-12, the house's 0.
+  - `MapWindTests`: a lane across the posadka's section reads its α to 1e-7 (its axis is 0.012° off east).
+- **Not modelled:** a porosity that changes with height enters the wake as one β over the obstacle's height. A house with solid walls under a stripped roof (the test range's H01_D: walls 0–2.4 m, the roof's battens, β 0.25) has no standing bubble in the single-β model, though its walls would shed one. Version 1 made it solid to 5 m by multiplying its 60 wall-head boxes.
+
+### 5. The overlying wake
+- **The rule:** past a cell's nearest obstacle the march goes on, on its own path, to the nearest obstacle taller than it whose wake reaches the cell (x ≤ 30 H, 300 m) and whose lane is not clear. A lower obstacle never hides a taller one's wake.
+- **The composition** (derived: each obstacle's wake is relative to the flow that reaches it, as porosities multiply along a path, K§10.3):
+  - the speeds multiply; in the overlying obstacle's reverse flow, which the nearer one cannot turn, that reverse flow;
+  - the turbulence's excess variances add (independent eddies), the eddies at the height of the obstacle carrying the larger excess.
+- **The truncation** (measured, a scratch probe over every open cell's own path): a cell keeps two wakes. A third reaching obstacle, or a farther one no taller than the nearest, is dropped. The dropped shelter's upper bound (Perera's peak 9.75·0.51·(1 − β)/max(X, 5) at φ 1, the bleed 1 − β below 5 H):
+
+  | Wind from | Cells that drop one | Dropped bound > 0.10 | > 0.20 | Version 1 (the nearest alone): > 0.10 | > 0.20 |
+  |---|---|---|---|---|---|
+  | south | 25.9 % | 11.4 % | 3.7 % | 23.8 % | 9.6 % |
+  | 30° | 36.2 % | 15.6 % | 5.5 % | 29.3 % | 12.8 % |
+  | west | 26.6 % | 12.2 % | 4.3 % | 24.5 % | 11.0 % |
+
+  The second slot halves what is dropped. Each further slot costs a cell array (32 MB on the farmland).
+- **Check:** `WakeGridTests.ATallerObstaclesWakeGoesOnOverALowerOneBehindIt`. Behind a hedge 15 m downwind of a 10 m row, the speeds are the hedge's times the row's alone, bit for bit, and the excess variances add to 1e-12. The hedge's wake alone (the known-wrong) reads 0.99 at 6 m; the composite reads under 0.8.
+
+### 6. The porous boost scales with the obstacle's deficit
+- **The rule:** the porous amplitude A = 1.15·(1 − β)/(1 − 0.45), 0.45 the porosity of the fixture's belt it was fitted on. Derived: the wake's excess turbulence is made by its momentum deficit, (1 − β) as Perera's; denser windbreaks make more turbulence (Brandle, Zhou and Hodges 2002, read). The bluff body's 2.0 is unchanged.
+- **Check:** the fixture's belt keeps the literature's 2×: mean T over 5–15 H 2.012 (2.043 before; β 0.466 against 0.473, `worldbench --wakes`).
+
+### The wake grid's version is logged and switchable
+- `WakeLayout.Version` (2, or 1) rides in the log's wind entry, so a log of version 1 replays its own grid.
+- Version 1's rules are kept behind it, bit for bit, for the kept audits: every golden flown over an older model's record or in airmode flies version 1 (`GoldenFlights.Wakes`).
+
+## The rows (`worldbench --golden`, `golden/farmland-shelter.txt`)
+u/u0 is the wake grid's speed over the open field's at the same height (the hills scale both alike), at a cell's centre, over lanes every metre.
+
+**The reference** (published, read): Brandle, Zhou and Hodges (2002), *How Windbreaks Work*, University of Nebraska–Lincoln Extension EC02-1763, Figure 2, the percent of the open wind behind windbreaks by density:
+
+| Density | 5 H | 10 H | 15 H | 20 H | 30 H |
+|---|---|---|---|---|---|
+| 25–35 % (deciduous) | 50 | 65 | 80 | 85 | 100 |
+| 40–60 % (conifer) | 30 | 50 | 60 | 75 | 95 |
+| 60–80 % (multi-row) | 25 | 35 | 65 | 85 | 95 |
+| 100 % (solid fence) | 25 | 70 | 90 | 95 | 100 |
+
+- Their text: H is the tallest row's height; under 20 % density a windbreak gives little protection; it shelters fully only when at least 10 H long; gaps funnel the wind.
+- **The spread:** Zhou et al. (2004, read) re-analysed the field studies. Optical porosity explains under 52 % of the variance of the least relative speed and of the mean reduction over 25 H, so one curve per class has a wide spread. Neighbouring classes differ by 0.15–0.20 at 5–10 H.
+- Below about 0.5 H the relative speed hardly depends on height (Heisler and DeWalle 1988's field data, as Zhou et al. 2004 give them, read).
+
+**The hedge:** F7's south hedge, 11 bushes 72 m long (31 H), H 2.30 m, wind from the south; the lanes along its middle half. Its frontal porosity is 0.746, so 25 % dense (version 1's cell rule 0.735: for bushes the two rules agree).
+
+| u/u0 at 0.25 and 0.5 H | 2 H | 5 H | 10 H | 15 H | 20 H | 30 H |
+|---|---|---|---|---|---|---|
+| Model, mean (the lanes' least–most) | 0.60 (0.36–0.94) | 0.63 (0.38–0.95) | 0.78 (0.64–0.97) | 0.84 (0.74–0.97) | 0.87 (0.79–0.97) | 0.92 (0.85–0.99) |
+| Brandle et al., 25–35 % | | 0.50 | 0.65 | 0.80 | 0.85 | 1.00 |
+
+- The model reads the same at 0.25 and 0.5 H, as the field data do.
+- It lies within one class step of the curve: +0.13 at 5 and 10 H, +0.02–0.04 at 15–20 H, on the weak side. At 30 H it keeps 8 % of shelter that the curve has lost (Perera's far wake falls as 1/x).
+
+**The trees:** F6|F7's row, the wind from the south, the lanes behind each pair. The pairs are 2.0–2.5 H long, far short of the 10 H a belt needs, so their wake closes sooner than a belt's curve.
+
+| u/u0 at 0.5 H | 2 H | 5 H | 10 H | 15 H | 20 H |
+|---|---|---|---|---|---|
+| West pair (19 % dense, 2.5 H long) | 0.59 | 0.63 | 0.86 | 0.96 | 1.00 |
+| East pair (25 %, 2.0 H long), the hedge 14 m behind it | 0.72 | 0.74 | 0.90 | 0.94 | 1.00 |
+| Known-wrong: the nearest wake alone, east pair | 0.95 | 0.95 | 0.90 | 0.94 | 1.00 |
+| Brandle et al., 25–35 %, a long belt | | 0.50 | 0.65 | 0.80 | 0.85 |
+
+At 1 H (12.8 m) behind the east pair the field reads 0.87 at 2 H and 0.85 at 5 H; the nearest wake alone reads 1.00 and 0.99.
+
+**The village** (each ruin alone, across its middle third):
+
+| Ruin | Frontal porosity, wind from the north (version 1) | From the west (version 1) | H from the north / west, m |
+|---|---|---|---|
+| Ruin_RoofCollapsed | 0.066 (0.000) | 0.108 (0.000) | 7.9 / 7.2 |
+| Ruin_Burnt | 0.257 (0.262) | 0.070 (0.131) | 3.3 / 3.1 |
+| Ruin_Walls, mirrored | 0.348 (0.242) | 0.078 (0.197) | 2.7 / 2.6 |
+| Ruin_Stump | 0.045 (0.388) | 0.288 (0.362) | 1.2 / 1.6 |
+| Ruin_Walls | 0.300 (0.267) | 0.114 (0.139) | 2.6 / 2.8 |
+
+- Version 1's values moved either way with how the vendor split the walls. Ruin_Stump's low solid walls read 0.388 (porous, no bubble) and now 0.045.
+- Recirculation is full at β ≤ 0.1 and gone at 0.3 (Perera 1981, recalled; the model's band).
+
+**Behind the ruins**, wind from the north, u/u0 at 0.25 H across the middle third:
+
+| X/H | 0.25 | 0.5 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 | 4.0 |
+|---|---|---|---|---|---|---|---|---|
+| Ruin_RoofCollapsed (β 0.066, H 7.9 m) | −0.02 | −0.10 | −0.21 | −0.25 | −0.23 | 0.51 | 0.48 | 0.94 |
+| Ruin_Walls (β 0.300, H 2.6 m) | 0.15 | 0.15 | 0.58 | 0.58 | 0.40 | 0.34 | 0.34 | 0.30 |
+
+- Ruin_RoofCollapsed's reverse flow reaches 2.0 H against Fackrell (1984)'s 2.10 H for its W, L and H (recalled), at most −0.25 (cube wakes −0.3 to −0.4, Martinuzzi and Tropea 1993, recalled).
+- Ruin_Walls' broken walls (to 3.9 m, mostly lower) leave it 30 % open: no bubble. At 0.5 H its lee reads 0.32 at 5 H and 0.68 at 10 H, a long solid fence's 0.25 and 0.70 (Brandle et al.).
+
+**Among the ruins:** Ruin_Stump stands 31 m south of Ruin_RoofCollapsed, inside its cavity. On x 537, wind from the north:
+
+| z | 600 | 594 | 590 | 582 |
+|---|---|---|---|---|
+| u/u0 at 1 m | −0.24 | −0.30 | −0.24 | 0.01 |
+| Known-wrong: the nearest wake alone (the stump's) | 0.75 | 0.75 | 0.66 | 0.33 |
+
+## Golden files, audited case by case
+- **`worldbench --golden`:** floor, test range, farmland and farmland-wind pass unchanged. `wakes` (11 cases) is re-recorded with WakeGrid.Version 2, its header's rule. Its rows (`worldbench --wakes`, before → after):
+  - the fixture belt's lane β 0.473 → 0.466; u/u0 at 0.5 H 0.480 → 0.473 at 5 H and 0.738 → 0.735 at 10 H, still Perera's at its β;
+  - the mean T over 5–15 H 2.043 → 2.012;
+  - the gap's jet within 0.007; the house's rows identical (solid both ways).
+- `farmland-shelter` is new: 5 cases, recorded at WakeGrid.Version 2 (its header: re-record only with a version bump).
+- **The range golden flight** (`GoldenFlights.RangeHash`) moved and is re-pinned. It stands 2 m behind the posadka's west section, in its near wake. Version 2 reads the section's porosity along its length (1e-4 before, 0 now) and widens its group by the cells it only grazes.
+  - With version 1 it is model 76's pin, every record and event (`GoldenFlightTests.WithVersion1WakesTheRangeGoldenIsModel76s`).
+  - With version 2 it leaves that path at step 176: at most 1.7 mm and 0.02° apart, 4 impacts against 3, at rest 0.2452 m up on 8 pairs, 0.9 mm from 76's rest.
+- **The kept audits** of older models fly version 1 and keep their pins, every one (32 range lines in `GoldenFlightTests`). The two edgewise audits (models 75 and 78, flown on the current record without airmode) take version 1 with the edgewise flow off, in `GoldenFlightTests` and in flightbench.
+- **`flightbench --golden`:** 61 PASS lines: 1.1's 60 with the range re-pinned, and the new one, the range on version 1 as model 76's pin.
+- **`flightbench --slopes`:** PASS, every row the base's to the printed digit (the two outputs diffed, timings aside).
+- **`MapWindTests`:**
+  - the cut's wind in E01's run is re-pinned; with version 1 it is the old pin (`TheCutsWindIsTheSameBitsOnEveryRuntime` checks both).
+  - The house check moves to H01_I, the intact house: β 0.004, Perera's far wake (bias −0.001), reattaching at 1.10 X_R, the boost 1.11 of its own. H01_D now reads β 0.25 (its stripped roof) and stands in the posadka's lee, whose wake the overlying slot now carries over its own.
+
+## Determinism, allocation, costs
+- **Determinism:** DetMath and WakeGridMath only (WakeGridMath's Exp and Ln for the chords' Beer–Lambert). A build over the cores equals a rebuild on one thread (`worldbench --wakes`: the worker's grid at 10° equals a direct build, 4dafd556623d5f5f). Release and Debug give the same bits (`worldbench --golden` in both). Each thread of a build has its own lane memory; the worker's rebuild uses its grid's.
+- **0 B:** the samples and the worker's rebuild allocate nothing (`worldbench --wakes`: the flight thread 0 B, 0 GCs, 0 stalls).
+- **Costs** (measured on AC, a shared machine at 19 % load: indications only; the farmland's grid, 500 × 500 cells, the wind from 30°; a scratch probe on both builds):
+
+  | | Before (version 1) | After (version 2) |
+  |---|---|---|
+  | Build over the cores, before a flight | 363–422 ms | 623 ms |
+  | Rebuild on one thread, the worker's as the wind turns past 5° | 0.54–0.96 s | 1.15–1.39 s (the takeover comes 3 s after the request) |
+  | One sample (2 M on a lattice over the map, 0.5–40 m) | 0.49–0.59 µs | 0.79–0.85 µs |
+  | A grid's cells | 32 MB | 64 MB, and the volumes' lists |
+
+  At 1.1's 42 points a step (the drone's 8, the farmland line's 34) the samples cost up to about 13 µs more a step, most of it on the batch's worker. PLT-04's quiet-machine run is QA's (2.1).
+
+## For the next units (suggested, not this task's)
+- **A layered obstacle:** one β per lane loses a house's bubble under a porous roof (the test range's H01_D). A second slot by height (the solid lower part as its own obstacle) would carry it.
+- **The side probes' false gap:** a march point just short of an obstacle's ragged face finds the obstacle's own cells on both sides and takes a gap jet (seen on one lane behind Ruin_RoofCollapsed). Asking the two sides to be different groups would stop it; pre-existing, now met more often because exact cells are more ragged.
+- **Recovery by porosity:** Perera's single form recovers alike at every porosity; Brandle et al.'s classes recover faster behind dense barriers (a solid fence's 0.70 at 10 H against Perera's 0.50). A porosity-dependent recovery wants a primary dataset read in full (Raine and Stevenson 1977; Heisler and DeWalle 1988).
+- **The wake's approach roughness** is the stubble's 0.03 m (`WakeGrid.ApproachZ0`); the field's is 0.10 m.
+- **The obstacles and z0:** the landscape's class-4 z0 already holds the scattered obstacles' bulk drag, and the explicit wakes add theirs on top (pre-existing; the overlying slot adds a little).
+- **The farmland's groves** have no canopy layer (MapWind reads only the "posadka" group): a drone through a grove at crown height meets the obstacles' bleed, not a canopy's flow.
+- **More slots:** a third wake per cell would drop the truncation's 11–16 % further, at 32 MB a slot on the farmland.
+- **QA (2.1):** the samples' cost on a quiet machine; the Unity EditMode run of the two cross-runtime pins (PinnedMapWind, PinnedCutWind) at version 2.
