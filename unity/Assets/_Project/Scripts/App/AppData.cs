@@ -19,8 +19,8 @@ namespace Fpv450.App
 
         /// <summary>The files a player carries, by their paths under the root: drone.json, the physics materials, surfaces.json
         /// and tether.json (byte for byte the repository's, so tools/replay replays a pilot's flight with its own files), and
-        /// what MapWorld reads for the farmland (its package's map.json and the tiles' files). The test range is not among
-        /// them: it left the player (w3-farmland-ground 3.1).</summary>
+        /// every file MapWorld reads for the farmland, recorded as it loads (FlightWorlds.FarmlandFiles). The test range is not
+        /// among them: it left the player (w3-farmland-ground 3.1).</summary>
         public static List<string> PlayerFiles(string root)
         {
             var files = new List<string> { DroneFile, PhysicsMaterials.RelativePath, SurfaceTable.RelativePath, TetherTable.RelativePath };

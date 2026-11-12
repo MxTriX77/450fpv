@@ -28,7 +28,8 @@ namespace Fpv450.Tests.App
         const ulong MergedMaterialsHash = 0x2932AC6166D91022UL;
 
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
-        // drone, the farmland's map package (w3-farmland-ground 3.1; the test range left the player), and surfaces.json and
+        // drone, the farmland's map package with its objects (w3-farmland-ground 3.1 and 1.2: placements.json, the vendor lists
+        // and each variant's metadata; the test range left the player), and surfaces.json and
         // tether.json byte for byte the repository's, so a pilot's log carries the hashes tools/replay checks against the
         // repository's files by default.
         [Test]
