@@ -77,20 +77,27 @@ namespace Fpv450.Sim.World
         /// <summary>
         /// The map maps/&lt;mapId&gt;/ of the repository at `root`, with the material table: a map package (its map.json, the
         /// terrain, and its placements.json when map.json lists one, the vendor pieces' rows) or a placement file
-        /// (placements.json) with its metadata.
+        /// (placements.json) with its metadata. `reads`, when given, is told each file the load reads, by its path from the
+        /// root, before it reads it: what a player must carry (FlightWorlds.FarmlandFiles).
         /// </summary>
-        public static MapWorld Load(string root, string mapId)
+        public static MapWorld Load(string root, string mapId, Action<string> reads = null)
         {
-            string Read(string relative) => File.ReadAllText(Path.Combine(root, relative));
-            string folder = Path.Combine(root, "maps", mapId);
-            if (File.Exists(Path.Combine(folder, "map.json")))
+            string At(string relative)
             {
-                Terrain terrain = Terrain.Load(folder, out string manifest);
+                reads?.Invoke(relative);
+                return Path.Combine(root, relative);
+            }
+            string Read(string relative) => File.ReadAllText(At(relative));
+            string folder = "maps/" + mapId + "/";
+            if (File.Exists(Path.Combine(root, folder + "map.json")))
+            {
+                string manifest = Read(folder + "map.json"); // Terrain.Load's reads, each told
+                var terrain = new Terrain(manifest, relative => File.ReadAllBytes(At(folder + relative)));
                 JsonNode files = DetJson.Parse(manifest).Member("files");
                 if (files.Member("placements.json") == null) // a package of tiles alone (the tests' synthetic ones): no objects
                     return new MapWorld("{\"format\":\"fpv450-map-placements\",\"format_version\":1,\"map\":\"" + terrain.MapId
                         + "\",\"frame\":\"unity-lh-yup\",\"placements\":[]}", null, MaterialNames(Read(MaterialsFile)), terrain, manifest, null);
-                byte[] placements = Terrain.Checked("placements.json", files, relative => File.ReadAllBytes(Path.Combine(folder, relative)), "map.json");
+                byte[] placements = Terrain.Checked("placements.json", files, relative => File.ReadAllBytes(At(folder + relative)), "map.json");
                 return new MapWorld(Encoding.UTF8.GetString(placements), model => Read(ModelsRoot + "/" + model), MaterialNames(Read(MaterialsFile)),
                     terrain, manifest, VendorAssets(Read(VendorPlants), Read(VendorRuins)));
             }

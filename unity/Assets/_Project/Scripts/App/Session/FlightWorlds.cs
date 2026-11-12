@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.World;
 using MapStart = Fpv450.Sim.World.StartPoint;
@@ -65,18 +64,18 @@ namespace Fpv450.App.Session
         }
 
         /// <summary>
-        /// The files under the root that MapWorld reads for the farmland, by their paths from the root: the package's map.json,
-        /// each tile's heights, classes and hole mask as it lists them (Terrain.Load checks each against the file's SHA-256),
-        /// and the material table (a player's copies).
+        /// The files under the root that MapWorld reads for the farmland, by their paths from the root, recorded as it loads
+        /// (MapWorld.Load's reads, so the list follows the loader): the package's map.json, its tiles' files and its
+        /// placements.json, the material table, the vendor lists, and each placed variant's metadata and sidecars (a player's
+        /// copies). The flight's other uses of the map (the hills, the wind's wakes and cuts) read the loaded world, no file.
         /// </summary>
         public static List<string> FarmlandFiles(string root)
         {
-            string folder = "maps/" + FarmlandMap + "/";
-            var files = new List<string> { folder + "map.json" };
-            string manifest = File.ReadAllText(Path.Combine(root, folder + "map.json"));
-            foreach (Match m in Regex.Matches(manifest, "\"(?:heights|classes|holes)\"\\s*:\\s*\\{\\s*\"file\"\\s*:\\s*\"([^\"]+)\""))
-                if (!files.Contains(folder + m.Groups[1].Value)) files.Add(folder + m.Groups[1].Value);
-            files.Add(MapWorld.MaterialsFile);
+            var files = new List<string>();
+            MapWorld.Load(root, FarmlandMap, file =>
+            {
+                if (!files.Contains(file)) files.Add(file);
+            });
             return files;
         }
 
