@@ -619,3 +619,75 @@ Numbers are labelled as above. "The player" is this branch's development review 
 - **p7g-legs:** LegShots' cases (`-smokelegs`) now fly the farmland's soil. `LegShotsTests` already fails on the test range at this base, so a re-sweep belongs with that fix.
 - **`tools/replay`** names the farmland "from the map …/placements.json" though it loaded map.json. Only `ScriptedFlight.OpenWorld`'s message is wrong.
 - **QA:** the two `SessionTests` crashes into R01_A and `LegShotsTests` already fail at the line's head, before this task.
+
+# Task 3.2: the drawn terrain near the drone
+
+**Owner of this part:** tech artist · **For:** 4.1 (qa-engineer), W6 (the quiet PLT-07 run) · **Requirements:** WLD-11, VIS-01, PLT-02, PLT-07 · **Model:** 82, **QueryVersion:** 8 (no sim code changed)
+
+Numbers are labelled as above. The runs are this branch's development review build on AC, Balanced plan, "best power efficiency" mode, CPU 3201/3201 MHz (`tools/hygiene/bench.py`'s reading before and after), a 1920 × 1080 window, the machine shared with three other sessions (CPU at about 40 %).
+
+## 1. The measure (`TerrainParity`), reviewed
+- **What it gets right** (read in the code, and its floor measured):
+  - Its camera copies the FPV camera's pose, field of view and render size (2888 × 1625), so Unity's terrain picks each patch's level of detail as it does for the FPV camera: the pixel error counts that camera's pixels.
+  - Each pixel's point comes back through the GPU's own projection, the world's in double, and is compared with `SampleGround` at its own x, z. The row order is picked by fit.
+  - **Its floor** (measured, the full heightmap drawn): 0.002–0.04 mm within 10 m and 0.04–0.08 mm within 30 m: float positions 500 m from the origin. It can tell 1 mm.
+  - The flight's setting sets every tile, while the rule sets those within 30 m. For the bands' pixels these are the same tiles: a tile holds a pixel within 30 m of the lens only if it lies within 30 m of the lens.
+- **What it claimed but did not measure:** "each under a pixel" compared each band's worst error with a pixel at the band's outer edge. An error nearer the lens is a larger part of its pixel, and an error straight under a lens looking down moves nothing on the picture.
+  - **Added: the shift on the picture** (`View.MaxPx`): per pixel, the angle between the lens's rays to the drawn point and to the sim's point under it, in the render's pixels. A pixel here is the field of view over the rows (0.861 mrad), 1.2 times smaller than the centre's (1.036 mrad), so the count errs high.
+  - **The scale:** a PAL field line is 3.76 of the render's rows at the picture's centre (1080 rows over 287, derived).
+- **The premise was wrong:** "Unity's terrain can't go below pixel error 1" holds for the Inspector's slider only. Set from a script, Unity keeps 0.3 and 0.05 (it reads them back) and draws by them (measured below).
+
+## 2. Decision: pixel error 0.05 within 30 m, no patch
+- **The rule** (`FlightScene.NearTerrain`, its shape unchanged): every tile within 30 m of the drone draws at pixel error 0.05; every other tile keeps the friend's 5, 8 and 20.
+- **Why 0.05** (derived): Unity simplifies a patch only where the error left is under that many of the camera's pixels. The least error a simplification leaves on these tiles is half a height unit: 120 m / 32766 / 2 = 1.83 mm. At the FPV render's 965 px/rad that is 0.05 px at 35 m. So no patch within 35 m of the lens is simplified: past the 30 m radius at any flight height up to 18 m. Higher, the ground 30 m out may draw half a unit off, 0.05 px from 35 m away, where the drone touches nothing.
+- **Measured** (the hills flight in the player, `-smokehills`; 7 places and noclip's start; the larger of the two views; the largest |drawn − sim| within 2 / 10 / 30 m of the lens, then the largest shift on the picture):
+
+| Where (the first run, 4 settings) | The friend's errors | Pixel error 1 (3.1's) | 0.3 | **0.05 (the rule)** |
+|---|---|---|---|---|
+| At rest on the start | 0.007 / 0.010 / 9.743 mm, 0.38 px | 0.007 / 0.010 / 0.053 mm, 0.01 px | as 1 | **0.007 / 0.010 / 0.053 mm, 0.01 px** |
+| Cruising, t = 22 s | 1.838 / 1.844 / 3.634, 0.18 | 1.838 / 1.844 / 3.634, 0.18 | 0.010 / 0.019 / 3.634, 0.18 | **0.010 / 0.019 / 0.059, 0.00** |
+| Cruising, t = 42 s | 3.658 / 4.564 / 5.508, 0.41 | 1.834 / 2.748 / 3.692, 0.26 | 0.005 / 0.022 / 1.872, 0.10 | **0.005 / 0.022 / 0.057, 0.00** |
+| Cruising, t = 62 s | 5.492 / 7.301 / 41.086, 2.26 | 0.005 / 7.301 / 16.197, 0.69 | 0.005 / 0.039 / 3.647, 0.18 | **0.005 / 0.039 / 0.075, 0.00** |
+| Cruising, t = 82 s | 0.007 / 31.084 / 31.084, 2.68 | 0.007 / 0.019 / 8.950, 0.35 | 0.007 / 0.019 / 0.064, 0.00 | **0.007 / 0.019 / 0.064, 0.00** |
+| Cruising, t = 102 s | 1.838 / 3.664 / 3.664, 0.34 | 1.826 / 2.748 / 3.664, 0.25 | 0.008 / 1.838 / 2.004, 0.17 | **0.008 / 0.023 / 0.062, 0.00** |
+| Landed in the valley | 0.003 / 1.841 / 2.809, 0.54 | 0.003 / 0.018 / 1.861, 0.16 | as 1 | **0.003 / 0.018 / 0.048, 0.00** |
+
+  - **The rule's four later runs** (builds of the final rule; the friend's errors beside it): with the rule, at most 0.067–0.070 mm within 30 m at all 7 places, the shift 0.01 px at most; the friend's errors left up to 38.1 mm and 2.24 px there. The one exception is a landing that broke the legs (the checks below): 0.165 mm, the lens down by the ground.
+  - **WLD-11 is met as written:** within 30 m of the drone the drawn terrain is the full heightmap, the sim's to 0.075 mm (the measure's floor), in flight as on the ground.
+- **Why not pixel error 1:** it is invisible in the feed (0.69 px at most, 0.18 of a field line), but it is not what is touched. The laid line is 0.25 mm thick (radius 0.125 mm), and pixel error 1 leaves the drawn ground 1.8–16.2 mm off within 30 m in flight: where it is high, the line on the sim's ground is drawn under it. At 0.05 the drawn ground is within 0.075 mm, under the line's radius.
+- **Why not the patch:** it gives the same 0 mm with a mesh in the terrain's material, and the friend's terrain must then be hidden under it: a hole cut in its data (the store's, untouched) or a clipped copy of its shader, each with shadows and the splat look to match. One constant gives the same answer.
+- **Noclip keeps the friend's errors** (Explore does not run the rule). From noclip's start (3 m behind the stand, 1.6 m up) the ground round the stand is the sim's at the friend's errors (measured): within 10 m 0.019 mm through the feed and 0.024 mm without it (V), the shift 0.004 px. The smoke test now guards it at 1 mm.
+- **The chase view** (V in the flight) is the same camera 2.3 m from the drone, under the same rule: nearer the lens is finer.
+
+## 3. The cost (`-terrainab`, A/B)
+- **The method** (`TerrainCost`; `-smoketest -smokehills -terrainab -vsync 0` in a development build): the hills flight's cruise switches the rule on and off every second, and each frame goes to its second's side. The first 0.25 s of each second are left out (the timings lag a few frames), and so is a quarter-second after each measure or shot. Interleaved, the shared machine's load falls on both sides alike. FrameTimingManager gives the GPU's and the CPU's times; the profiler's counters give triangles and draw calls.
+- **Measured** (means; the rule's side / the friend's errors):
+
+| Run | Frames | GPU, ms | Main thread, ms | Triangles, M | Draw calls | Waiting to present, ms | Frame, ms |
+|---|---|---|---|---|---|---|---|
+| Pixel error 1 (3.1's rule; the first run) | 1,785 / 1,932 | 3.716 / 3.669 | 4.941 / 4.899 | 26.83 / 26.41 | 1,221 / 1,197 | (not recorded) | 22.67 / 22.01 |
+| **0.05**, run 1 | 1,686 / 1,869 | 3.764 / 3.762 | 5.236 / 5.008 | 27.58 / 26.92 | 1,247 / 1,218 | 18.64 / 17.49 | 23.94 / 22.52 |
+| **0.05**, run 2 | 1,748 / 1,893 | 3.695 / 3.698 | 4.712 / 4.551 | 27.01 / 26.46 | 1,222 / 1,199 | 18.73 / 17.60 | 23.51 / 22.17 |
+| **0.05**, run 3 (no frame while a measure's comparison runs) | 658 / 790 | 3.659 / 3.657 | 4.634 / 4.464 | 26.94 / 26.46 | 1,231 / 1,204 | 18.30 / 17.21 | 23.05 / 21.66 |
+
+- **What it shows** (0.05 against the friend's errors, the three runs):
+  - **The GPU does not notice it:** +0.00 ms of 3.7 (medians and p99 within 0.08 ms either way). The rule draws 0.5–0.7 M more triangles in a frame of 27 M, and 24–29 more draw calls.
+  - **The main thread** takes 0.16–0.23 ms more: Unity's terrain walks and culls more patches.
+  - **The frame** takes 1.3–1.4 ms more (6 %) in all three runs, 1.1 ms of it in the wait to present, outside this frame's GPU work and the main thread's. Run 3 rules out the measures' comparisons, which all fall on the rule's seconds. The cause is not found here.
+- **An indication only** (a shared machine in its "best power efficiency" mode): the verdict is W6's quiet PLT-07 run, with the same flag.
+- **Found on the way, not this task's:** a frame takes 22–24 ms (42–44 fps) while the GPU works 3.8 ms and the main thread 5 ms. The rest, 17–19 ms a frame, is the main thread waiting to present (FrameTimingManager's `cpuMainThreadPresentWaitTime`). PLT-02 asks 100 fps on average in the FPV view: W6 should look at the presentation first (the window, the power mode, the other sessions).
+
+## 4. What changed
+- `FlightScene.NearPixelError` 1 → 0.05, and `NearOn`, the A/B's switch.
+- `TerrainParity.View.MaxPx`, the shift on the picture.
+- The smoke test:
+  - with the flight's rule it fails if any view's 30 m band passes 1 mm (it was a pixel at the band's edge), or the 2 m band on the ground passes 0.01 mm;
+  - Explore measures the ground round the stand from noclip's start, through the feed and without it, and fails past 1 mm within 10 m;
+  - `-terrainab` times the rule (`TerrainCost`).
+
+## Checks (pasted in the handoff)
+- **The review build** (`Fpv450.Build.Windows -review -developmentBuild`): succeeded, 0 errors.
+- **The smoke test** on it: the default run passes (81 checks, the noclip guard included); `-smokehills` passes (34 checks, the 14 near the drone at 1 mm included), its log replaying bit for bit with no step into the ground.
+- **`-smokehills -terrainab -vsync 0`:** runs 1 and 2 pass. Run 3 failed two checks, neither this task's: HillsPilot's landing broke three legs (the front left "at 0.06 m/s") and two props, so `GroundCheck` read the broken legs as rigid on the body (118 mm past the ground), and the landed view's 2 m band read 0.023 mm with the lens down by the ground (the guard is 0.01 mm). The next plain run landed clean.
+- **EditMode,** filtered to App, Session, Feed and Farm: 183 of 186 pass. The 3 that fail are 3.1's three (two `SessionTests` crashes into R01_A, `LegShotsTests`), failing before this task.
+- **`precommit.py --tree HEAD`:** 3512 files scanned, 0 findings.

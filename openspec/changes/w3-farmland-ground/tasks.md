@@ -46,13 +46,19 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
     - The smoke test's house flight became a flight into the ground.
   - **Owed:** the tech artist's review of the drawn terrain near the drone, and its frame cost with vsync off. Three tests already fail at this base (two `SessionTests` crashes into R01_A, `LegShotsTests`); they belong to their owners.
 
-- [ ] 3.2 [tech-artist] The drawn terrain near the drone (WLD-11, VIS-01: full resolution inside the physics radius, within 1 mm of `TerrainHeight`).
+- [x] 3.2 [tech-artist] The drawn terrain near the drone (WLD-11, VIS-01: full resolution inside the physics radius, within 1 mm of `TerrainHeight`).
   - Review 3.1's `TerrainParity` method.
   - Decide with evidence:
     - accept pixel error 1 within 30 m (under a pixel, up to 9.1 mm in flight), with a decision entry and WLD-11's wording to match; or
     - draw a full-resolution patch near the drone from the same triangulation (0 mm, its cost measured).
   - Measure the chosen rule's frame cost against the friend's errors, A/B with vsync off. On a shared machine that is an indication only; the verdict comes in W6's quiet PLT-07 run.
   - On `--w3-flight`. Checks: `TerrainParity`, EditMode filtered, a review build and the smoke test, `precommit.py --tree HEAD`.
+  - As built (design.md §3.2):
+    - **Neither option as written:** Unity's pixel error goes below 1 when set from a script (only the Inspector stops at 1). Tiles within 30 m of the drone now draw at 0.05, which leaves no patch simplified within 35 m of the lens. That is the full heightmap: within 30 m the sim's to 0.075 mm, the measure's floor, in flight as on the ground. Pixel error 1 left 1.8–16.2 mm, and the friend's errors up to 41.1 mm. No patch, and WLD-11 is met as written.
+    - **`TerrainParity`** measures what it says, to a floor of 0.002–0.08 mm. Its "under a pixel" was a band's worst error against a pixel at the band's edge. It now also gives each pixel's shift on the picture: 0.01 px at most under the rule, 0.69 px under pixel error 1, 2.68 px under the friend's errors (a field line is 3.76 px).
+    - **Noclip** keeps the friend's errors: from its start the ground round the stand is the sim's to 0.024 mm. The smoke test guards that and the rule's 30 m at 1 mm.
+    - **The cost** (`-terrainab`, three interleaved runs, a shared machine in best power efficiency mode): the GPU +0.00 ms of 3.7, 0.5–0.7 M more triangles in 27 M, the main thread +0.16–0.23 ms, the frame +1.3–1.4 ms. Most of that is in the wait to present, a cause not found here: W6's quiet run decides.
+  - **Found, not this task's:** the frames take 22–24 ms while the GPU works 3.8 ms, 17–19 ms of each waiting to present (W6). One landing of the hills flight broke three legs, the front left at 0.06 m/s, and `GroundCheck` then reads them as rigid on the body (3.3, the physics engineer).
 - [ ] 3.3 [game-developer] The scripted flights at W3's final model, after 2.3, 2.4 and 2.6:
   - re-sweep `LegShots.Cases` and `ACrashIntoTheRangesCarNamesIt` as A4 did at model 79;
   - re-sweep `-smokelegs`, which now flies on the farmland's soil;
