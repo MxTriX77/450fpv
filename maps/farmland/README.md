@@ -66,17 +66,20 @@ The far ring reaches 4 km past the map, to [−4000, 5000]². Its side tiles rea
 - **One surface id per alphamap sample:** the row of `assets-src/surfaces.json`'s `surfaces` plus 1 (`MapWorld.SurfaceIds`). 0 never appears.
 - **Sample (c, r)** lies at x = x0 + c · sx / (res − 1) and z = z0 + sz − r · sz / (res − 1). That's where URP's terrain shader centres its control map's texels: `splatUV = (uv · (res − 1) + 0.5) / res`.
 - **Resolutions:** 2048 on the map (0.49 m), 512 on the surround (1.96 m) and 256 on the far ring (11.8 m).
-- **The class of a sample** is the surface whose layers weigh most there, ties going to the lower id. Each of the 8 terrain layers maps to one surface in `map.json` (`ground_classes`), all **assumed**:
+- **The class of a sample** is the surface whose layers weigh most there, ties going to the lower id. Each of the 8 terrain layers maps to one surface in `map.json` (`ground_classes.layers`), all **assumed**:
 
 | Layer | Surface | Why |
 |---|---|---|
 | `GrassGround`, `GrassA` | `meadow_sod` (1) | The meadow: root-bound sod |
 | `GrassDry` | `weeds` (8) | Dry grass: the fields' weed patches and the meadow's dried-out third; firmer than the green sod |
-| `GrassPath`, `Gravel` | `dirt_track` (13) | The 4 m grassy tracks and the 6 m gravel tracks, wheel-compacted. There is no gravel class. `Gravel` also rings the ruins as rubble |
+| `GrassPath`, `Gravel` | `dirt_track` (13) | The 4 m grassy tracks and the 6 m gravel tracks, wheel-compacted. There is no gravel class |
 | `AerialMud_0`, `AerialMud_90` | `tilled` (6) | The abandoned fields' furrows. Their direction is each field's `furrow_axis` in `outlines.json` |
-| `DryMud` | `dry_crust` (2) | Bare dry mud on the fields, the tracks and the sun-burnt meadow |
+| `DryMud` | `dry_crust` (2), but `dirt_track` (13) where `Gravel` is painted | Bare dry mud on the fields, the house yards and the sun-burnt meadow. With gravel, it is the track's or a yard's mud film on a compacted body |
 
-- **Measured shares on the map:** meadow_sod 33.4 %, weeds 34.2 %, tilled 28.6 %, dry_crust 2.3 % and dirt_track 1.4 %. The muddiest gravel tracks read as dry_crust.
+- **One rule** (the physics sign-off, `ground_classes.rules`): on any sample with `Gravel` weight > 0, `DryMud`'s weight counts toward `dirt_track`, not `dry_crust`. Then the heaviest surface wins, as above.
+- **Measured shares on the map:** meadow_sod 33.4 %, weeds 34.2 %, tilled 28.6 %, dirt_track 2.1 % and dry_crust 1.6 %.
+- **The main tracks** read `dirt_track` all along their centre lines.
+- **Round the ruins,** the trampled earth (`DryMud`) carries the generator's rubble gravel in places. There it reads `dirt_track`, elsewhere `dry_crust`. Within 10 m of a ruin's pivot (measured): dirt_track 55 %, dry_crust 37 %, meadow_sod 4 %, weeds 3 %.
 
 ## Grass
 

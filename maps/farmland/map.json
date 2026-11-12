@@ -66,7 +66,9 @@
     {"layer": "Gravel", "surface": "dirt_track", "id": 13, "note": "assumed: the 6 m gravel tracks, 35-80 % dry mud; no gravel class, the nearest is the wheel-compacted track (it also rings the ruins as rubble)"},
     {"layer": "AerialMud_0", "surface": "tilled", "id": 6, "note": "assumed: an abandoned field's furrows, rows along world X"},
     {"layer": "AerialMud_90", "surface": "tilled", "id": 6, "note": "assumed: an abandoned field's furrows, rows along world Z"},
-    {"layer": "DryMud", "surface": "dry_crust", "id": 2, "note": "assumed: dry, crusted bare mud on the fields, the tracks and the sun-burnt meadow"}
+    {"layer": "DryMud", "surface": "dry_crust", "id": 2, "note": "assumed: dry, crusted bare mud on the fields, the house yards and the sun-burnt meadow; with gravel, the rule below"}
+  ], "rules": [
+    {"layer": "DryMud", "when": {"layer": "Gravel", "weight_above": 0}, "surface": "dirt_track", "id": 13, "note": "physics sign-off: on any sample with Gravel weight > 0, DryMud is the track's or a yard's mud film on a compacted body, so its weight counts toward dirt_track, not dry_crust"}
   ]},
   "grass": {"tile": "map", "file": "grass/map.raw", "resolution": 1024, "layers": [
     {"layer": 0, "prefab": "Grass_A", "group": "Green", "width_scale": [2.6, 3.4], "height_scale": [1.8, 2.6], "mesh_y_m": [-0.0423, 0.2579], "instances": 1378027},
@@ -95,7 +97,7 @@
     "classes/far_SE.raw": "048f1e0b2a4c6695c07bc3f2b330963b0c7c86ab83a4b7c4e90cd23d0e5057be",
     "classes/far_SW.raw": "9cbb36a3926fdda314bc8bf7d12cb32abe36a5df3a99d364e1ed5bbaf09c6cb4",
     "classes/far_W.raw": "6bb5de9fd3b20e25a96b87a91c27681ada10d1f0ef0f77bc88010b835321293c",
-    "classes/map.raw": "94dca950fcdb6c9ea9a1720ffd5dcf722a68cd9e0b72c05cd17e5ef2f1dc34d4",
+    "classes/map.raw": "1afbfbd8652b2c6cb14f7ff7028a8bb63b2f7a2609ea97e80eedef230f4b0e18",
     "classes/surround_E.raw": "477d0f36eb33902bb5474c8ab0200953bfd8cb36b358c5f3b728de7cf0543d6c",
     "classes/surround_N.raw": "81c10d45d7f7f4b068282034bfb0ff46196af80b99f3954bcc36736483cb3add",
     "classes/surround_NE.raw": "8efc31f863cce146af92f18a757fc05db45d4061463f566a3311974a427da0f8",

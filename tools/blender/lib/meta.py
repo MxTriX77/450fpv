@@ -44,7 +44,13 @@ READABLE_KEYS = ("lod", "name", "kind", "tris")
 # The LOD switches' cross-fade (D-081: S04's straws dissolve into its far layer, never pop): "lod_fade_share", when the
 # generator returns one, in [0, 1): each mesh LOD dissolves into the next from (1 - share) of the next one's switch
 # distance to the switch itself, and the importer cross-fades the LOD group over those bands. Optional and additive.
-OPTIONAL_KEYS = ("stand_in", "mass_kg", "readable", "lod_fade_share", "micro_elements")
+OPTIONAL_KEYS = ("stand_in", "mass_kg", "readable", "lod_fade_share", "micro_elements", "vendor")
+# A vendor piece's record (w4b-farmland-ruins): metadata for a mesh of the local store that the pipeline reads but
+# never exports (D-089), written by tools/blender/vendor_build.py: the file under vendor/, its SHA-256, the object,
+# and how the friend's prefab places it (mirror_x, the child's Unity Euler rotation, recentre). Its collision shapes
+# may each name their "part" (a wall, the roof, a window frame), so a crash names what it hit. Optional and
+# additive, as above: every other asset's file is unchanged.
+VENDOR_KEYS = ("model", "model_sha256", "object", "mirror_x", "rotation_euler_deg", "recentre")
 STAND_IN_SOURCE_KEYS = ("commit", "model", "model_sha256", "catalog_key")
 # The drawn elements physics reads (p7a-ground design 8, AST-10: S04's top-layer straws, standing stems and twigs; a
 # crown's twigs and leaves), the very strands and cards a micro mesh or LOD0 draws. They are many, so they live in a
@@ -428,6 +434,8 @@ def validate(meta, material_ids, elements=None):
             problems += [f"materials[{i}]: physics {p}" for p in _material_problems(m["physics"], material_ids)]
     for i, c in enumerate(meta["collision"]):
         problems += [f"collision[{i}]: {p}" for p in _shape_problems(c)]
+        if "part" in c and not (isinstance(c["part"], str) and c["part"]):
+            problems.append(f"collision[{i}]: part, when present, must be a non-empty name")
         if not isinstance(c.get("material"), str) or not isinstance(c.get("landable"), bool):
             problems.append(f"collision[{i}]: needs a material id and a boolean landable")
         else:
@@ -507,6 +515,8 @@ def validate(meta, material_ids, elements=None):
             problems += [f"snag[{i}]: {p}" for p in _material_problems(s["material"], material_ids)]
     if "stand_in" in meta:
         problems += _stand_in_problems(meta["stand_in"])
+    if "vendor" in meta:
+        problems += _vendor_problems(meta["vendor"])
     if "lod_fade_share" in meta and not (_is_num(meta["lod_fade_share"]) and 0 <= meta["lod_fade_share"] < 1):
         problems.append(f"lod_fade_share must be a number in [0, 1), got {meta['lod_fade_share']!r}")
     if "mass_kg" in meta and not (_is_num(meta["mass_kg"]) and meta["mass_kg"] > 0):
@@ -605,6 +615,16 @@ def _stand_in_problems(record):
           and set(record) == {"source", "snag_hazard"} and isinstance(record["snag_hazard"], bool))
     return [] if ok else [f"stand_in needs a source of {', '.join(STAND_IN_SOURCE_KEYS)} (a 40-digit commit, a "
                           f"64-digit object id) and a boolean snag_hazard, nothing else: {record}"]
+
+
+def _vendor_problems(record):
+    """The vendor record: exactly VENDOR_KEYS, a path, a 64-digit SHA-256, an object, two booleans and three angles."""
+    ok = (isinstance(record, dict) and set(record) == set(VENDOR_KEYS)
+          and isinstance(record["model"], str) and record["model"] and _is_hex(record["model_sha256"], 64)
+          and isinstance(record["object"], str) and record["object"]
+          and isinstance(record["mirror_x"], bool) and isinstance(record["recentre"], bool)
+          and _is_vec(record["rotation_euler_deg"]))
+    return [] if ok else [f"vendor needs exactly {', '.join(VENDOR_KEYS)}: {record}"]
 
 
 def _texture_problems(textures, slots):

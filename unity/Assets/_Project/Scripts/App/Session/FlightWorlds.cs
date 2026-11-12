@@ -37,6 +37,14 @@ namespace Fpv450.App.Session
         /// </summary>
         public const string HousesStart = "track";
 
+        /// <summary>
+        /// The farmland's one start point (D-092, w1-farmland-world design 6): in the village, on the hilltop meadow at the
+        /// track's verge by the crossroads, the ground level and nothing within 21 m; heading 300°, at the nearest ruin. In
+        /// the scene's frame, its foot on the terrain. The explorer stands the launch stand there (FarmlandExplore) until
+        /// W3 flies the farmland from it.
+        /// </summary>
+        public static readonly StartPoint FarmlandStart = new StartPoint { Name = "village", X = 566.5, Z = 569.0, Yaw = 300 * Math.PI / 180 };
+
         /// <summary>The test range's placement file, from the root that mirrors the repository (the editor's repository, the
         /// player's StreamingAssets).</summary>
         public static string PlacementsPath(string root) => Path.Combine(root, "maps", TestRangeMap, "placements.json");
