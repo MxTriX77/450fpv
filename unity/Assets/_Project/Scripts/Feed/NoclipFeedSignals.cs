@@ -18,7 +18,12 @@ namespace Fpv450.Feed
         Quaternion last;
         bool sampled;
 
-        public NoclipFeedSignals(Transform camera) => this.camera = camera;
+        public NoclipFeedSignals(Transform camera)
+        {
+            this.camera = camera;
+            // D-080: the throttle element, as the flight's OSD shows it; the stick down until the app reads the radio's.
+            Stub.Osd.ThrottlePercent = 0;
+        }
 
         /// Measures the rate over the last rendered frame, <paramref name="dt"/> seconds: the rotation since the last
         /// sample, in the camera's own axes (x right, y up, z forward, Unity's left-handed sense), over the time. The

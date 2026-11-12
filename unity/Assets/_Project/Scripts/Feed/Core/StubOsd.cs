@@ -20,7 +20,8 @@ namespace Fpv450.Feed
     /// </summary>
     /// <remarks>
     /// <para>Row and column assignment, as the Godot layout measured it: row 0 the mode word at columns 0–2 and the
-    /// altitude ending at column 26; row 7 the reticle at columns 13–15; row 10 the arming indicator at 0–7; row 11
+    /// altitude ending at column 26; row 7 the reticle at columns 13–15 (and, when shown, the flight OSD's throttle at
+    /// 24–27, D-080, which Godot's layout lacks); row 10 the arming indicator at 0–7; row 11
     /// the unit label and the MM:SS timer; row 12 a battery mark, the per-cell voltage, the airframe name at column 7
     /// and a number ending at column 27; row 13 a battery mark, the pack voltage, a number ending at column 26 and its
     /// amps unit at 27.</para>
@@ -41,6 +42,9 @@ namespace Fpv450.Feed
         public float DistanceM;
         /// Stub: the flight timer, s.
         public double ElapsedSeconds;
+        /// The throttle element (D-080) as the flight's OSD (<c>FlightOsd</c>) lays it out, percent, or -1 for none: the
+        /// Godot layout has none, so the captures keep Godot's grid; every noclip view shows it (<c>NoclipFeedSignals</c>).
+        public int ThrottlePercent = -1;
 
         /// The grid this layout fills, [row, column]; blank until the first <see cref="Build"/>.
         public readonly char[,] Grid = new char[FeedOsd.Rows, FeedOsd.Cols];
@@ -51,6 +55,8 @@ namespace Fpv450.Feed
         public const string Armed = "! SAFE !";
         /// The three-character flight-mode word (FeedOsd.cs:64).
         const string Mode = "AIR";
+        /// Betaflight's throttle glyph, SYM_THR (<c>FlightOsd.SymThr</c>).
+        const char SymThr = '';
         static readonly string Airframe = Name.ToUpperInvariant();
 
         /// Warning elements blink 12 fields on and 9 off (FeedOsd.cs:55).
@@ -79,6 +85,10 @@ namespace Fpv450.Feed
 
             // Centre: the reticle, a bar with a lozenge at the middle, drawn across three cells.
             Put(RowReticle, ColReticle, "{|}");
+            // The throttle, when shown, where the flight's OSD puts it: its glyph and "%3d" on the reticle's row, ending
+            // at the right-hand numbers' column.
+            if (ThrottlePercent >= 0)
+                PutRight(RowReticle, ColUpperEnd, SymThr + ThrottlePercent.ToString(Invariant).PadLeft(3));
 
             // The bottom-left stack.
             float packVolts = s.PackVolts;

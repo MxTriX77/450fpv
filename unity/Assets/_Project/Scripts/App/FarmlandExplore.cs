@@ -35,6 +35,7 @@ namespace Fpv450.App
                 if (b.GetType().Name == "FreeFlyCamera") b.enabled = false;
             NoclipCamera noclip = camera.gameObject.AddComponent<NoclipCamera>();
             camera.gameObject.AddComponent<NoclipFeed>();
+            camera.gameObject.AddComponent<ExploreThrottle>(); // the OSD's throttle element reads the radio's stick (D-080)
             camera.gameObject.AddComponent<FarmlandFeedDetail>(); // w6-farmland-look 1.2: less of what the PAL feed can't show
             Transform stand = PlaceStand(scene, FlightWorlds.FarmlandStart);
             if (stand == null) return null;
