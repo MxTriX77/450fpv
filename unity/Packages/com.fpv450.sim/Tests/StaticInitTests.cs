@@ -25,6 +25,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Contact.PhysicsMaterials", "AreaRows", "ReadLayerFields, physics_materials.json's reader (load)" },
             { "Fpv450.Sim.Contact.PhysicsMaterials", "BendingRows", "ReadLayerFields, physics_materials.json's reader (load)" },
             { "Fpv450.Sim.Contact.PropStrikes", "CornerIds", "the PropStrikes constructor's blade-strength draws (setup), which also initialise the type before Apply reads Up" },
+            { "Fpv450.Sim.Contact.PropStrikes", "CrownRows", "the PropStrikes constructor's crown rows by material id (setup)" },
             { "Fpv450.Sim.Contact.SurfaceTable", "CoverFields", "ReadCoverSet, under SurfaceTable.Parse (load)" },
             { "Fpv450.Sim.Contact.SurfaceTable", "CoverKinds", "SurfaceTable.Parse and ReadCover (load)" },
             { "Fpv450.Sim.Contact.SurfaceTable", "Levels", "ReadSoil, under SurfaceTable.Parse (load)" },
