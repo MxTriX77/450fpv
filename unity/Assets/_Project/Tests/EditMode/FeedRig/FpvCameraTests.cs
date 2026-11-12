@@ -287,7 +287,7 @@ namespace Fpv450.Feed.Tests
                 int output = FpvCamera.OutputRendererOf(pipeline);
                 Assert.That(output, Is.GreaterThanOrEqualTo(0), level);
                 var feature = (FeedFeature)pipeline.rendererDataList[output].rendererFeatures[0];
-                Assert.That(feature.Shader, Is.SameAs(shader), level);
+                Assert.That(feature.Shader, Is.EqualTo(shader), level); // as a Unity object, not a C# reference: a first import's wrapper differs
                 Assert.That(feature.isActive, Is.True, level);
                 bool sceneSsao = pipeline.rendererDataList[0].rendererFeatures.Exists(f => f is ScreenSpaceAmbientOcclusion);
                 Assert.That(output, sceneSsao ? Is.Not.EqualTo(0) : Is.EqualTo(0), level);
