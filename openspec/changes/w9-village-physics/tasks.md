@@ -62,7 +62,8 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - Reproduce with a hover inside the bush crown at (525.79, 612.74), 1.24 m up: 200,000 `BladeDamaged` events in 25 s. Fix `PropStrikes.Twig` (a break at the blade's own tip is no break) and bound the events.
   - A new test: a hover in a crown logs no `BladeDamaged` with 0 kg lost.
   - Checks: `ObjectContactTests`, W3 2.7's crown flight re-measured, `dotnet test tools/simtests`, `flightbench --golden`, `--contacts`. No golden is expected to move.
-- [ ] 2.8 [asset-artist] **The plants' numbers for the props** (audit §3, items 1 and 4). In parallel with 2.4.
+- [x] 2.8 [asset-artist] **The plants' numbers for the props** (audit §3, items 1 and 4). In parallel with 2.4.
+  - **As built** (e4f17a6f, d04f5735, 63b184b2): `tools/blender/vendor_plant_numbers.py` → `assets-src/vendor_plant_numbers.json`, method and limits in design.md 2.8. A stem is a drawn blade crossing a horizontal plane (opaque runs joined across a card's triangles), and one instance holds 110–2,050 of them by prefab. Leaf area density is 0.21–2.09 m²/m³ of twig shell over the 16 leaved variants. The re-run is byte-identical, and the hand count on GrassDry_C and Grass_A is within about 15 %.
   - **Stems per instance:** for each of the 14 grass layers' prefabs, how many blades or culms one drawn instance holds, counted from its mesh locally.
   - **Leaf area density:** for each vendor tree and bush variant, m² of drawn leaf per m³ of crown, from its foliage cards.
   - Only the derived numbers are pushed (a params file and the script that measures them); no vendor geometry leaves the store (D-089).
