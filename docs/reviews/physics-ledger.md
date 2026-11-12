@@ -101,7 +101,60 @@ Quoted only from the repository's files. Sources: **V** `VISION.md` §2 (point n
 
 ## 2. Every physics requirement
 
-(to fill)
+From `docs/requirements.md` (PHB, PHY, LOG, TST, PLT-04, DRN-02/03/07, and WLD-16's physics half). "P" numbers point at §1.
+
+| Req | What it asks, in short | Where it is built | Proven by (tonight) | Status |
+|---|---|---|---|---|
+| PHB-01 | engine-free core, 1 kHz on its own thread, seeded streams, bit-exact replay; render rate changes nothing | `FlightScheduler`, `FlightCore`, `FlightRandom` | `StepPurityTests` (3, incl. the known-wrong scan), `RenderRateTests`, `StaticInitTests`, `GoldenFlightTests` | **proven** |
+| PHB-02 | rigid body from `drone.json`, quaternion, semi-implicit Euler | `RigidBody`, `MassModel` | `RigidBodyTests`, `MassBuildTests` | **proven** |
+| PHB-03 | Betaflight 4.5 FC, honest mixer, ESC and motor lags, battery sag, axial-inflow derate; "a loaded drone lifts off near 50–65 %" | `Control/FlightController`, `Propulsion`, `RotorFlapping` | `FlightControllerTests`, `FilterChainTests`, `PropulsionTests`, `EdgewiseThrustTests`. Its 50–65 % liftoff line is stale against D-066 / D-069 (37–53 % hover, the pilot's 30–45 %) | **partly** (the requirement text is stale) |
+| PHB-04 | body drag, rotor H-force, coil drag at the coil | `Aero` | `AeroTests` | **proven** |
+| PHB-05 | legs as spring-dampers, the Time < 1 latch, crash detection, `tunnel` events as bugs | `ContactModel` | `ContactTests` (18), `RangeContactTests` (37), `RuinContactTests`; tunnel counts in §0 | see §0 |
+| PHB-06 | wind stand-in | superseded by PHY-13 | — | superseded |
+| PHB-07 | G7 MVP-1: launch, calibrate, fly from ground and stand, replay | the player | the pilot flew models 26–85; the orchestrator's soak replays player logs bit for bit (not re-run here) | **built, unproven here** |
+| PHY-01 | Winkler soil, mat, stick anchor, ploughing, prints, wet adhesion and suction | `Soil`, `Layer`, `ContactModel` | `SoilTests` (14), `LayerTests`, `WetGroundTests` (7), `SurfaceTableTests` | **proven** (wet straw and grass on Village: no mat, G3) |
+| PHY-02 | landing bounce from compliance and residual thrust; hold leaves, cut stays | as PHY-01 | contact golden's held bounce; p7a 1.18 "Hold or cut on each ground" unbuilt | **partly** (P7) |
+| PHY-03 | hooks and stiction at liftoff, one held foot tips the horizon, rates against the pilot's account | anchors, cohesive pull; no leg hooks | nothing; W9 audit G7 measured no lone held corner | **contradicted** (P1) |
+| PHY-04 | pitfalls, crater rims, slopes, rubble, furrows (rocking across), leaf-litter slide, char stubble; `terrain_deep`, `bottomless` | slopes only (`ContactModel` on the heightfield) | `SlopeTests`; G1's runaway lever on slopes; no `PitfallEntered`, no `WorldBug terrain_deep` / `bottomless`, furrows deferred (D-102) | **contradicted** (slopes) and **missing** (the rest) |
+| PHY-05 | stems and twigs as cantilevers on legs and body; prop strikes with cut energy | props on stems (`PropStems`), twigs in crowns (`PropStrikes.Twigs`); no stems on legs or body | `StemTests` (5), `ObjectContactTests` | **partly** (P12, P13) |
+| PHY-06 | launch stand: steel posts, an arm catches or slides, the free stand tips or drags | `LaunchStand` (static) | `fb --contacts` stand rows; no free body (p7a 1.16) | **partly** |
+| PHY-07 | motor asymmetry drawn per flight, band computed, steadier when off, never buzzes | `MotorAsymmetry` | `AsymmetryTests` (6) | **proven** |
+| PHY-08 | per-rotor ground effect, ceiling, recirculation never still | `GroundEffect`, `RotorSurfaces` | `GroundEffectTests` (6) | **proven** (grass is never the ground for it, W9 audit 1.18) |
+| PHY-09 | vortex ring by thrust over weight, hysteresis, logged | `VortexRing` | `VortexRingTests` (5) | **proven** |
+| PHY-10 | throttle-punch shake 0.3–0.7 s, depends on descent, abruptness, payload; not every time | `VortexRing`, `AirframeModes`, `FeedSignals` | `ShakeTests` (4), `fb --shake` | **proven** |
+| PHY-11 | battery charge and sag; margin gone at the cut-off; low-voltage to the OSD | `Propulsion` pack | `BatteryTests` (3) | **proven** |
+| PHY-12 | inertia ratios from the layout; yaw saturates first | `MassModel` | `MassBuildTests`, `DroneSpecTests` | **proven** |
+| PHY-13 | log-law, turbulence to 2–4 Hz, obstacle wakes, gap jets, shelter, cavity | `Wind/*`, `HillFlow` | `WindFieldTests`, `MapWindTests`, `CavityTests`, `HillFlowTests`, `CanopyFieldTests`. On Village: hills yes, belts and ruins no (W7 1.2 off the line); the cover is a uniform 0.3 m | **partly** |
+| PHY-13a | vorticity, per-rotor gust gradients: yaw swerves, nose-up plus yaw | `RotorInterference`, `RotorFlapping`, `RotorWake` | `fb --scenarios`; targets open (p7c 1.5) | **partly** (P31) |
+| PHY-14 | Severe / Windy / Calm meet K§8.6's targets; tools fail known-wrongs | `tools/wind/`, `fb --wind-harness` | Severe 9 of 21, Windy 10, Calm 9 of 9 at model 18 (D-058); not re-graded since; p7c 1.5 and 2.1 open | **partly** |
+| PHY-15 | per-flight direction and strength, meander, shifts | `wind.*` streams | `WindFieldTests` | **proven** (P33's off-axis gusts queued) |
+| PHY-16 | horizon–heading trade-off emerges | wind + rate kinematics | `WindHarnessTests.TheSplitReadsClipPsRollShare` | **partly** |
+| PHY-17 | rain: wet fiber, wet soil and cover, rain rate, air at the camera | `Rain`, `FiberLine` wet film, `SurfaceTable` | `RainTests` (5), `TetherTests.RainMakesItHeavierAndDraggier`, `WetGroundTests` | **proven** |
+| PHY-17a | clip P's 22.7° flies 17–22 m/s | `drone.json` aero | `fb --scenarios` cruise row | **proven** |
+| PHY-18 | one-way spool, ≤ 32 nodes, ground and vegetation contact, wedge stays finite | `Tether/CableChain`, `FiberLine`, `FiberContacts` | `TetherTests` (12), `CableChainTests` (18), `FiberContactTests` (13). Vegetation on Village: none (G3) | **partly** |
+| PHY-19 | cut risk from tension, bend, abrasion against a per-flight strength; the pilot's four causes; reverse sometimes cuts, orbits never (20 seeds) | `FiberSection` draws, `Tether/*` | `FiberCutTests` (15); no 20-seed reverse/orbit harness (p7d 1.11); the edge tear not met (P37) | **partly**, edge **contradicted** |
+| PHY-20 | link margin from tension, bend, vibration as dips | `Tether/` link | `FiberCutTests.ASnagDipsTheLink`, `AFreeLineCostsOnlyItsLengthAndItsLip`, `TheBendLossFollowsTheLaw` | **partly** (vibration) |
+| PHY-21 | a break loses the link, staged loss, failsafe disarm, logged | `Failsafe`, `FeedSignals` | `FiberCutTests.FromTheBreakToTheDisarm`, `ABreakLeavesAFlyableDrone` | **proven** |
+| PHY-22 | thin wire wraps and holds, thick deflects; compliance from span tension | static capsules | none (p7d 1.9–1.12) | **missing** |
+| PHY-23 | jagged edges and rebar collide; gaps are the real clear space; turbulence funnels through openings | ruins' and houses' shapes; `GapsNear` never ported | `RuinContactTests.ThroughItsDoorNothingTouchesTheDoorway`; no gap-jet test | **partly** |
+| PHY-24 | randomness only as bounded named draws; ground and cover never drawn; master switch logged | `FlightRandom`, 28 streams | `SeedStreamTests`, `AsymmetryTests.TheDrawsAreNamedBoundedLoggedAndReplayed`, each change's draw tests. Missing: the leg stiffness draw (D-086). `soil.stones` draws a stone per soil pass (argued in p7f's design as the soil's fraction) | **partly** |
+| PHY-25 | every K§11.8 signal at 50 Hz to the feed; impacts and losses trigger events | `FeedSignals`, `FieldCamera` | `FieldCameraTests`, `ShakeTests`; p7e 1.5, 1.7, 1.8 open | **partly** |
+| PHY-26 | prop and motor damage from strikes, persistent, logged, replayed | `BladeStrikes`, `DamagedRotor`, `MotorBell`, `MotorShaft`, `MotorHealth`, `ArmFlex` | `StrikeTests` (26), `DamageTests`, `BellTests`, `ShaftTests`, `HeatTests`, `LossTests`, `fb --damage`; the full harness (p7f 1.7) and the arm on sourced data (model 80, unmerged) are open | **partly** |
+| LOG-01 | header, full 1 kHz state, events, ≤ 50 MB a minute | `FlightRecorder`, `LogHeader`, `StepTrace` | `FlightLogTests` (26); no test asserts the size per minute | **partly** |
+| LOG-02 | headless bit-for-bit replay; refuses a mismatched world; names the first diverging step | `FlightReplay`, `tools/replay` | `FlightLogTests`, every `…ReplaysBitForBit` test, `GoldenFlightTests` | **proven** |
+| LOG-03 | a crash report that ends in a verdict: physics bug or pilot error | `PostFlight` lists events; no verdict | none | **partly** |
+| LOG-04 | goldens pass on a second x64 machine; Mono equals .NET | — | Mono vs .NET by the orchestrator's soak (not re-run here); a second machine never | **partly** |
+| LOG-05 | logs hold sim data only, under the profile | `FlightSession` | the summary shows the log's full path with the Windows user folder (orchestrator's debt) | **partly** |
+| TST-01 | dotnet, EditMode, PlayMode, Python, benches, smoke with zero errors | — | dotnet in §0; EditMode and PlayMode not run tonight (no Unity) | **partly** |
+| TST-02 | golden re-records audited case by case | `fb --golden` kept audits | `fb --golden` prints each kept audit (§0) | **proven** |
+| TST-03 | statistical targets fail known-wrong models; lengths by false-failure rate | per harness | `AsymmetryTests.IdenticalRotorsFailTheBand`, `VortexRingTests.DescentSpeedAloneFailsIt`, `fb --shake`, `--legs`, `--wind-harness` known-wrongs | **partly** (the liftoff, fiber and damage harnesses that would carry it are unbuilt) |
+| TST-05 | determinism: concurrency, batched vs single, Debug vs Release, Unity vs .NET, a second machine | — | tonight Release only; the second machine never | **partly** |
+| TST-06 | tests assert literal numbers; QA mutates code to prove each check fails | — | not done tonight; `StemTests.TheStrawLandingCutsNoStemTheSlipstreamLaidOver` is a test that pins behaviour the pilot contradicts (P12) | **partly** |
+| PLT-04 | 1 kHz real time, p99 ≤ 300 µs, queries < 60 µs, 0 B, late steps logged | `FlightScheduler`, `StepTimes` | 0 B asserted in the suite; timings owed on a quiet machine (no timing counts tonight) | **built, unproven** (timing owed) |
+| DRN-02 | tip to tip 0.574 m nose-first, 0.706 m diagonal, ±5 mm | `drone.json` | `DroneSpecTests` | **proven** |
+| DRN-03 | one component spec; the mass and inertia read it; coil mass falls with payout | `drone.json`, `MassModel` | `DroneSpecTests` (57), `MassBuildTests`, `TetherTests.TheDroneGetsLighter` | **proven** (one stale note: P39) |
+| DRN-07 | the stand: four steel posts, collision and mass so physics tips and drags it | `D02_launch_stand.json`, `LaunchStand` | posts collide; tipping and dragging unbuilt (p7a 1.16) | **partly** |
+| WLD-16 (physics) | per foot merge within 45° over holes; `terrain_deep`, `bottomless` as bugs | buried-face rule only | none for the two world bugs | **partly** |
 
 ## 3. Open tasks and debts
 
