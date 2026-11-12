@@ -268,7 +268,9 @@ namespace Fpv450.Sim.Flight
                     throw new ArgumentException("the aero spec's coil is not a cylinder of the mass model", nameof(setup));
                 _aero = new Aero(setup.Aero);
             }
-            _wind = new WindField(setup.Wind, Random);
+            // A pilot's level over a terrain carries its hills (HillFlow, w7-farmland-wind 1.1), derived from the world.
+            bool level = setup.Wind.Level == WindLevel.Calm || setup.Wind.Level == WindLevel.Windy || setup.Wind.Level == WindLevel.Severe;
+            _wind = new WindField(setup.Wind, Random, level ? World.Hills : null);
             _camera = setup.CameraPosition;
 
             // The rain (a Sunny flight builds none and opens no stream): its draws, then its film as the mass model's
@@ -647,11 +649,26 @@ namespace Fpv450.Sim.Flight
                     ? World.SoilUnder(s.Position, _soilRay, _soilHit, out _) // model 20: the wind over a hole
                     : _windGround[0].Height;
             }
+            _windOrigin = ground;
             _wind.Begin(s.Step, s.Position, ground);
             if (_windBatch != null) return; // the record's two from the batch, at the step's end (TraceWind)
-            _trace.Wind = _wind.At(s.Position);
+            _trace.Wind = _wind.At(s.Position, ground);
             _trace.CameraAir = AirAtCamera(s);
         }
+
+        // The ground under one of the drone's points for the field's profile there (w7-farmland-wind 1.1: every point its own,
+        // SampleGround's height, a terrain's hills included); over a hole NaN, the step's ground and cut frame (WindField.At:
+        // model 20's soil under the origin, whose patches' boxes and gaps, ±0.13 m on S04, lie under the cover's still layer);
+        // 0 for a field without a profile, which never reads it.
+        double WindGround(in Double3 point)
+        {
+            if (!_wind.HasProfile) return 0;
+            _windAt[0] = new Sim.World.XZ(point.X, point.Z);
+            World.SampleGround(_windAt, _windGround);
+            return (_windGround[0].Flags & Sim.World.GroundFlags.Hole) != 0 ? double.NaN : _windGround[0].Height;
+        }
+
+        double _windOrigin; // the ground under the step's origin (BeginWind)
 
         // The batch worker (WindBatch) with the line, else null; the step's points' indices in it (−1: not posted).
         Wind.WindBatch _windBatch;
@@ -686,17 +703,17 @@ namespace Fpv450.Sim.Flight
             if (_fc != null)
                 for (int i = 0; i < 4; i++)
                 {
-                    int at = _windBatch.Add(s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
+                    int at = Post(s.Position + s.Attitude.Rotate(_propulsion.Hub(i)));
                     if (i == 0) _windHub = at;
                 }
             _windCp = _windCoil = -1;
             if (_aero != null)
             {
-                _windCp = _windBatch.Add(s.Position + s.Attitude.Rotate(_aero.Spec.BodyCenterOfPressure));
-                if (_aero.Spec.CoilPart >= 0) _windCoil = _windBatch.Add(s.Position + s.Attitude.Rotate(_mass.Part(_aero.Spec.CoilPart).Position));
+                _windCp = Post(s.Position + s.Attitude.Rotate(_aero.Spec.BodyCenterOfPressure));
+                if (_aero.Spec.CoilPart >= 0) _windCoil = Post(s.Position + s.Attitude.Rotate(_mass.Part(_aero.Spec.CoilPart).Position));
             }
-            _windBody = _windBatch.Add(s.Position);
-            _windCamera = _windBatch.Add(s.Position + s.Attitude.Rotate(_camera));
+            _windBody = _windBatch.Add(s.Position, _windOrigin);
+            _windCamera = Post(s.Position + s.Attitude.Rotate(_camera));
             _windPosition = s.Position;
             _windAttitude = s.Attitude;
             _windVelocity = s.Velocity;
@@ -705,21 +722,28 @@ namespace Fpv450.Sim.Flight
             _windBatch.Post();
         }
 
+        // A point posted over its own ground: its index in the batch (−1: full).
+        int Post(in Double3 point) => _windBatch.Add(point, WindGround(point));
+
         // The record's wind at the body and air at the camera from the step's start (BeginWind's, from the batch).
         void TraceWind()
         {
-            _trace.Wind = _windBatch.At(_windBody, _windPosition);
-            _trace.CameraAir = _windAttitude.InverseRotate(_windBatch.At(_windCamera, _windPosition + _windAttitude.Rotate(_camera)) - _windVelocity)
+            _trace.Wind = _windBatch.At(_windBody, _windPosition, _windOrigin);
+            _trace.CameraAir = _windAttitude.InverseRotate(WindAt(_windCamera, _windPosition + _windAttitude.Rotate(_camera)) - _windVelocity)
                 - Double3.Cross(_windRate, _camera);
         }
 
-        // The wind at a point of the step's start, posted at `at` (−1: not posted).
-        Double3 WindAt(int at, in Double3 point) => _windBatch != null && at >= 0 ? _windBatch.At(at, point) : _wind.At(point);
+        // The wind at a point of the step's start, posted at `at` (−1: not posted), over its own ground.
+        Double3 WindAt(int at, in Double3 point) =>
+            _windBatch != null && at >= 0 && _windBatch.TryAt(at, point, out Double3 wind) ? wind : _wind.At(point, WindGround(point));
 
         // The air's velocity at the camera, in its axes (the body's, 0° uptilt): the wind there less the camera's motion,
         // v + ω × r.
-        Double3 AirAtCamera(in FlightState s) =>
-            s.Attitude.InverseRotate(_wind.At(s.Position + s.Attitude.Rotate(_camera)) - s.Velocity) - Double3.Cross(s.BodyRate, _camera);
+        Double3 AirAtCamera(in FlightState s)
+        {
+            Double3 camera = s.Position + s.Attitude.Rotate(_camera);
+            return s.Attitude.InverseRotate(_wind.At(camera, WindGround(camera)) - s.Velocity) - Double3.Cross(s.BodyRate, _camera);
+        }
 
         // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums;
         // in rain, the drops' momentum flux on the same silhouettes (RainField), and the water they bring.

@@ -192,6 +192,8 @@ namespace Fpv450.Sim.Tether
         // Per-step buffers: the ground under each node and each hub (one batch), the rotors' state.
         readonly XZ[] _at;
         readonly GroundSample[] _ground;
+        readonly XZ[] _windAt;               // AddWind's: the ground under each node posted to the wind's batch
+        readonly GroundSample[] _windGround;
         readonly double[] _groundHeight;
         readonly Double3[] _groundNormal;
         readonly Double3[] _groundAt; // a point of each node's ground plane: under it, or on a step's face it lies behind
@@ -306,6 +308,8 @@ namespace Fpv450.Sim.Tether
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
             _ground = new GroundSample[nodes + 4];
+            _windAt = new XZ[nodes];
+            _windGround = new GroundSample[nodes];
             _groundHeight = new double[nodes];
             _groundNormal = new Double3[nodes];
             _groundAt = new Double3[nodes];
@@ -630,16 +634,22 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>
         /// After the step's wind frame is begun, while the core builds its batch: every node's position but the exit's added,
-        /// in order; Loads takes their winds for the nodes still there bit for bit (a node the contacts put in is evaluated
-        /// in Loads).
+        /// in order, each over its own ground (w7-farmland-wind 1.1: SampleGround's height, over a hole the soil's, as Ground
+        /// reads it for the node); Loads takes their winds for the nodes still there bit for bit (a node the contacts put in
+        /// is evaluated in Loads).
         /// </summary>
         public void AddWind()
         {
             _windFirst = -1;
             if (_windBatch == null || !_attached) return;
-            for (int i = 0; i + 1 < _chain.Count; i++)
+            int n = _chain.Count - 1;
+            for (int i = 0; i < n; i++) _windAt[i] = new XZ(_chain[i].Position.X, _chain[i].Position.Z);
+            World.SampleGround(new ReadOnlySpan<XZ>(_windAt, 0, n), new Span<GroundSample>(_windGround, 0, n));
+            for (int i = 0; i < n; i++)
             {
-                int at = _windBatch.Add(_chain[i].Position);
+                GroundSample g = _windGround[i];
+                double h = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(_chain[i].Position, _soilRay, _soilHit, out _);
+                int at = _windBatch.Add(_chain[i].Position, h);
                 if (at < 0) break;
                 if (i == 0) _windFirst = at;
             }
@@ -708,9 +718,10 @@ namespace Fpv450.Sim.Tether
                 {
                     _thrust[i] = thrust[i];
                     Double3 v = s.Velocity + q.Rotate(Double3.Cross(s.BodyRate, hubsBody[i]));
-                    _hubAir[i] = wind.At(_hubs[i]) - v;
                     GroundSample g = _ground[n + i];
                     _hubGround[i] = (g.Flags & GroundFlags.Hole) == 0 ? g.Height : World.SoilUnder(_hubs[i], _soilRay, _soilHit, out _);
+                    // The drone's hub over its own terrain; over a hole the step's ground and frame, as the core's (WindField.At).
+                    _hubAir[i] = wind.At(_hubs[i], (g.Flags & GroundFlags.Hole) == 0 ? g.Height : double.NaN) - v;
                 }
                 if (_rotors.BodyBlocks) _rotors.PlaceBody(s.Position, q);
                 _rotors.Begin(_hubs, up, _thrust, _hubAir, _hubGround);
@@ -1147,7 +1158,7 @@ namespace Fpv450.Sim.Tether
             int n = _chain.Count;
             Double3 x = a.Position;
             if (_windCursor >= 0 && _windBatch.TryAt(_windCursor, x, out Double3 air)) _windCursor++;
-            else air = wind.At(x);
+            else air = wind.At(x, _groundHeight[i]);
             if (_rotors != null) air = air + _rotors.At(x, _groundHeight[i], out _);
             Double3 t = (i + 1 < n ? _chain[i + 1].Position : x) - (i > 0 ? _chain[i - 1].Position : x);
             double tl = t.Length();

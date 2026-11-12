@@ -56,7 +56,7 @@ namespace Fpv450.FlightBench
             }
             IWorldQuery map = h.WorldId == "floor" ? FlightWorld.Floor().Query : MapWorld.Load(RangeScenarios.Root, h.WorldId);
             TimedQuery clock = timed ? new TimedQuery(map) : null;
-            var world = new FlightWorld(timed ? clock : map);
+            var world = new FlightWorld(timed ? clock : map, map as MapWorld); // the map's hills for the wind either way (w7-farmland-wind 1.1)
             if (world.ContentHash != h.WorldHash)
             {
                 Console.WriteLine($"  refused: the world '{h.WorldId}' differs from the log's");

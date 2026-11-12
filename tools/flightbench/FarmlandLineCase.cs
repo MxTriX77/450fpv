@@ -91,7 +91,7 @@ namespace Fpv450.FlightBench
         {
             FlightSetup setup = Setup(map, out Double3 foot, out double stand, out Double3 nose);
             TimedQuery clock = timed ? new TimedQuery(map) : null;
-            if (timed) setup.World = new FlightWorld(clock);
+            if (timed) setup.World = new FlightWorld(clock, map); // the map's hills for the wind, as the untimed flight's (w7-farmland-wind 1.1)
             var core = new FlightCore(setup);
             long crashed = -1;
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand, 0)) { Period = 1, Heading = nose };

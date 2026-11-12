@@ -104,6 +104,8 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Tether.TetherTable", "Fields", "TetherTable.Parse and its derived-value checks (load)" },
             { "Fpv450.Sim.Wind.WakeGridCache", "Lock", "WakeGridCache.Worker, from the WindField constructor (setup): the last flight's wake grid, kept for the next" },
             { "Fpv450.Sim.Wind.WakeGridCache", "_last", "WakeGridCache.Worker, from the WindField constructor (setup): the last flight's wake grid, kept for the next" },
+            { "Fpv450.Sim.Wind.HillFlow", "CacheLock", "HillFlow.Of, from FlightWorld.Hills in the FlightCore constructor (setup): the last world's hills, kept for the next flight" },
+            { "Fpv450.Sim.Wind.HillFlow", "_last", "HillFlow.Of, from FlightWorld.Hills in the FlightCore constructor (setup): the last world's hills, kept for the next flight" },
             { "Fpv450.Sim.Wind.MapWind+<>c", "<>9", "the lambda cache of MapWind.Strips, read by WindSetup (setup)" },
             { "Fpv450.Sim.Wind.MapWind+<>c", "<>9__7_0", "MapWind.Strips' conversion, read by WindSetup (setup)" },
             { "Fpv450.Sim.World.MapWorld", "MicroKindNames", "ParseElements, the micro-detail sidecars' reader (map load)" },

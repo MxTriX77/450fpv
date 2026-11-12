@@ -814,8 +814,16 @@ namespace Fpv450.Sim.Log
         ///    over its crests (FiberLine.Crests): a segment whose chord passes more than InsertGap under the ground takes a node at its
         ///    deepest point, on the ground there, and a node the ground holds over the chord between its neighbours is never merged
         ///    away; the chain holds FiberLine.CrestNodes such nodes besides the spacing law's. A flight on a plane steps as before.
+        /// 84: the wind over the farmland's hills (w7-farmland-wind 1.1, on 82; unity/physics/physics-integration-2--w7-wind; 83 is
+        ///    W3's merge-back, assigned by D-072): every wind query takes its profile over the ground under its own point
+        ///    (WindField.At(point, ground)): each rotor, the body, the coil and the camera SampleGround's height under it (over a hole
+        ///    the step's ground and cut frame, model 20's soil under the origin), each fiber node and loose piece its own; and a
+        ///    pilot's level over a terrain carries its hills (HillFlow: Jackson and Hunt's linear theory in Hunt et al.'s layers,
+        ///    spectral, from the world's heights; a step taller than the cover's still layer separates its lee, Cavity's bubble
+        ///    behind a step). On a plane a flight steps as in 82 while its body's origin, its fiber's nodes and its loose pieces lie
+        ///    over the plane itself, not a hole: the flight goldens are 82's to the bit.
         /// </summary>
-        public const int ModelVersion = 82;
+        public const int ModelVersion = 84;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
