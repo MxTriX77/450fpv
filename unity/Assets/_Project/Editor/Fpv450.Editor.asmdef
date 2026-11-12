@@ -3,6 +3,7 @@
     "rootNamespace": "Fpv450",
     "references": [
         "Fpv450.App",
+        "Fpv450.App.Session",
         "Fpv450.Feed",
         "Fpv450.Feed.Editor",
         "Fpv450.Input",

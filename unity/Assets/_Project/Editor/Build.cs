@@ -20,8 +20,10 @@ namespace Fpv450
         /// tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
-        /// unlinked checkout. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
-        /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
+        /// unlinked checkout. Each map's top-down image is rendered first (TopDownMaps, w11-world-map 1.1), so the build
+        /// needs graphics (never <c>-nographics</c>), and everything under <see cref="GeneratedFolder"/> goes into the
+        /// player's <c>StreamingAssets/generated/</c>. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the
+        /// flight's review keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
         /// </summary>
         public static void Windows()
         {
@@ -42,6 +44,11 @@ namespace Fpv450
                 Debug.LogError($"[Build] Windows: {scene} has {missing.Count} missing references, so the player would show it broken. " +
                                "The farmland's come from the vendor store: run pwsh tools/vendor/link.ps1 in this checkout, then build again " +
                                "(w1-farmland-world design 3). The first:\n  " + string.Join("\n  ", missing.Take(20)));
+                EditorApplication.Exit(1);
+                return;
+            }
+            if (!TopDownMaps.RenderAll())
+            {
                 EditorApplication.Exit(1);
                 return;
             }
