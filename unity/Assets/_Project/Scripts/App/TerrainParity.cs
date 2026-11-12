@@ -22,12 +22,18 @@ namespace Fpv450.App
         /// <summary>The distance bands from the lens, m: what the drone touches, then what the pilot sees close.</summary>
         public static readonly double[] Bands = { 2, 10, 30 };
 
-        /// <summary>One view's figures per band: pixels on the terrain, the largest |drawn − sim| and the mean drawn − sim, m.</summary>
+        /// <summary>One view's figures per band: pixels on the terrain, the largest |drawn − sim| and the mean drawn − sim, m;
+        /// and the largest shift on the picture, in the render's pixels (MaxPx).</summary>
         public sealed class View
         {
             public string Name;
             public int[] Pixels = new int[Bands.Length];
             public double[] Max = new double[Bands.Length], Mean = new double[Bands.Length];
+
+            /// <summary>The largest shift on the picture between the drawn point and the sim's point under it, in the render's
+            /// pixels (w3-farmland-ground 3.2): the angle between the lens's two rays over PixelRad, each pixel at its own
+            /// distance. A height error looked at straight down shifts nothing; at a pixel's distance it is what the eye sees.</summary>
+            public double[] MaxPx = new double[Bands.Length];
             public bool Flipped; // the rows' order that matched (the GPU's convention), for the record
 
             /// <summary>One pixel's angle of the render, rad (its vertical field of view over its rows).</summary>
@@ -43,7 +49,8 @@ namespace Fpv450.App
                 for (int i = 0; i < Bands.Length; i++)
                     b.Append(i == 0 ? ": " : "; ").Append("≤ ").Append(Bands[i]).Append(" m ").Append(Pixels[i]).Append(" px, max ")
                         .Append(Pixels[i] > 0 ? (Max[i] * 1e3).ToString("0.000") + " mm (" + (Max[i] / PixelAt(i)).ToString("0.00") + " px at " + Bands[i] + " m)" : "-").Append(", mean ")
-                        .Append(Pixels[i] > 0 ? (Mean[i] * 1e3).ToString("0.000") + " mm" : "-");
+                        .Append(Pixels[i] > 0 ? (Mean[i] * 1e3).ToString("0.000") + " mm" : "-")
+                        .Append(", shift ").Append(Pixels[i] > 0 ? MaxPx[i].ToString("0.000") + " px" : "-");
                 return b.ToString();
             }
         }
@@ -154,10 +161,15 @@ namespace Fpv450.App
                         at[0] = new XZ(x, z);
                         world.SampleGround(at, ground);
                         double diff = y - ground[0].Height;
+                        // The shift: the angle between the rays to the drawn point and to the sim's under it, |a × b| / (|a| |b|),
+                        // b = a − (0, diff, 0), so |a × b| = |diff| · horizontal.
+                        double ax = offset.x, ay = offset.y, az = offset.z, by = ay - diff;
+                        double shift = Math.Abs(diff) * horizontal / (Math.Sqrt(ax * ax + ay * ay + az * az) * Math.Sqrt(ax * ax + by * by + az * az)) / pixelRad;
                         for (int b = band; b < Bands.Length; b++)
                         {
                             v.Pixels[b]++;
                             v.Max[b] = Math.Max(v.Max[b], Math.Abs(diff));
+                            v.MaxPx[b] = Math.Max(v.MaxPx[b], shift);
                             sums[b] += diff;
                         }
                     }
