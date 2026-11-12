@@ -5,6 +5,7 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 - **Never asked:** quantities (heights, rates, frequencies, speeds, sizes, how often something happens). The team computes them from physics, research and the reference footage.
 - **Asked, only at gates and briefly:** qualitative experience ("does X happen at all", "what causes it in practice", "what makes it worse") and preferences (feel, rates).
 - **Never asked twice:** anything already answered (below) or derivable from the references.
+- **Never asked either** (the pilot, 2026-11-13: "Again physics, why are you asking me this"): how the world behaves physically, even when it is not a number. Whether grass lies flat in the prop wash, what a blade cuts, how a surface gives: the team calculates it.
 
 ## Already answered: never ask again
 
@@ -53,6 +54,10 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 | **Feed noise** | very much similar to the Godot feed (D-026) | 2026-10-17 |
 | **Subagents** | one subagent per logical task (D-029) | 2026-10-17 |
 | Engine, assets, repo | Unity; free only (CC0 + team-built); the existing repo, every Unity branch under `unity/` (trunk `unity/main`) | 2026-10-17 |
+| **Landing into straw** | "You shake. But again - you must calculate so the behavior matches physics." How much decides what the pilot does: "If I can see the drone is shaking too much (which means there's A LOT of straws and the straws are thicker than I thought - Better throttle up and find a bette replace to land. If shake is agreeable - I just keep landing)" | 2026-11-13 |
+| **Tall grass in the prop wash** | "Usually it lies flat because of prop wash power, but not always" | 2026-11-13 |
+| **The straw** | "Straws are quite stiff, but not extremely" | 2026-11-13 |
+| **The physics, above all** | "We must recall all of what was discussed before so the physics of drone is top notch this time" (D-104) | 2026-11-13 |
 
 ## Dropped as computable: the team calculates these (D-024)
 - **Landing-bounce height:** from leg compliance and residual thrust.
@@ -60,6 +65,7 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 - **Frame stutter before a loss:** the references show the mix; N9 is not simulated.
 - **Motor-mismatch yank frequency and axis:** from researched component tolerances.
 - **How often the throttle-punch shake happens:** from physics.
+- **Whether tall grass lies flat in the prop wash, and whether straws are cut on the way down or only moving forward** (asked 2026-11-13, and it should not have been): from the slipstream, the stems' stiffness and the blade's speed (`w9-village-physics` 2.2 and 2.12).
 
 ## Open
 Ask new questions only under the rule above, at the matching gate.
