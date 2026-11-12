@@ -197,6 +197,15 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool HangingGive = true;
 
+        /// <summary>
+        /// A leg's held foot within its reach (w9-village-physics 2.4, model 86): an anchor's stretch, the foot's move from the
+        /// body's point to where the ground holds it, is never more than the leg's lever turned square reaches (LegLeverLength
+        /// across the tube, LegFrameLeverLength along the skid's frame); past it the hold slides to the foot. On for every
+        /// flight; off only for the known-wrong (model 85's slide, whose stretch past a spent side give ran to tens of metres,
+        /// the moment's lever with it).
+        /// </summary>
+        public bool AnchorReach = true;
+
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
         public LegDamageSpec Legs;

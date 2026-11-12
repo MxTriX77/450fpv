@@ -61,5 +61,17 @@ namespace Fpv450.Sim.Tests
                 }
             Assert.That(over, Is.Empty, "a contact moment past the force's size times the reach:\n" + string.Join("\n", over));
         }
+
+        // The known-wrong: model 85's rule fails the same bound on the audit's row (1,455 N·m on 41.5 N at 9.98° weeds, along).
+        [Test]
+        public void WithoutTheReach_TheWeedsLandingHasAMomentWithNoForceBehindIt()
+        {
+            SlopeScenarios.Touchdown wrong = SlopeScenarios.Land(Drone(), 10, RainLevel.Sunny, 0, surface: "weeds", edit: GoldenFlights.WithoutTheReach);
+            SlopeScenarios.Touchdown right = SlopeScenarios.Land(Drone(), 10, RainLevel.Sunny, 0, surface: "weeds");
+            Print(Row("model 85's slide", wrong));
+            Print(Row("the reach", right));
+            Assert.That(wrong.Lever, Is.GreaterThan(10 * Reach), "the known-wrong fails the bound");
+            Assert.That(right.Lever, Is.LessThanOrEqualTo(Reach));
+        }
     }
 }
