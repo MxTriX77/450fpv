@@ -1,6 +1,6 @@
 # Tasks: w3-farmland-ground
 
-Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.5, 2.4 and 2.3; 3.1 alongside on `--w3-flight`; then 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
+Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.5, with 2.6 alongside on `--w3-blade`; 3.1 and 3.2 alongside on `--w3-flight`; then 2.4 (the laid fiber), with 2.7 (object contact) after 2.6; then 2.3; then 3.3; then 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
 
 ## 1. The heightfield
 
@@ -23,17 +23,20 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
 
 - [ ] 2.3 [physics-engineer] Flight 37's straw stretches within PLT-04: the stems' cache walk, the hub rays through the straw boxes (`SoilUnder`, 60–100 µs) and the crash's own contacts (2.1's design names them). The three model-79 flights' worst stretches replay with p99 ≤ 300 µs and world queries < 60 µs on a quiet machine. Same checks as 1.1.
 
-- [ ] 2.4 [physics-engineer] Contact with the farmland's objects (from W4a's and W4b's reviews):
+- [ ] 2.4 [physics-engineer] The laid fiber on the farmland (from the merge-back's runs after 1.2; tether and world code, not `ContactModel`, which 2.6 owns):
+  - **The laid line lies still.** A paid-out line has no tension to slide on, but today it stays one 34–37-node chain from the anchor to the drone. At every turn the whole line, about 490 m, slides inward about 50 m in 10 s and wraps the bushes inside the turn. 5 of 13 hills routes broke on bushes: 4.32 N at a 1.44 cm bend round LeafyBush_P2 1412, 0.163 N at 1.13 cm round 523, and 28.2 N in a free span. The line must rest under its own weight and ground friction, and freeze into the trail where it lies, so the drone's spool pays out. This includes W7's planned rest test: a node the ground holds in still air freezes, and wakes when its wind, its contacts or the line's tension say so. W7 1.1 (merged) already gives laid nodes the still air of the cover. Cast a node's soil over a hole once a step, shared by the wind posting and the ground pass.
+  - **The fiber over a tree belt:** `farmland-line-step` breaks the line at 645–690 m over the F6|F7 belt (21.1 N and 1.72 GPa by tension, or by abrasion), the drone crashes 3 s later (not traced), and the step's p99 is 3.4–10.3 ms with 11 M one-shape checks. Decide whether the snag is physical, and keep the step within budget either way.
+  - **The fiber's world buffers:** the section table is full at 4,096 after about 90 s of a long flight; segments meet 65–69 shapes against a buffer of 64, hundreds of times a flight; a 2 m snag cache meets up to 4,664 segments near DeadBush_6 and GreenBush_Dry against `snag_capacity` 4,096; snag checks index segments, not records (the debris rims are 1 cm stairsteps, 10,089 segments in the village).
+  - Rerun `farmland-line-step` in Severe and Calm wind, and fly the 13 hills routes again (the game developer's scratch set, as a test). Report the far nodes' speeds, how many freeze, the breaks, and the step's p99 before and after.
+  Model: extend the current number; the orchestrator assigns a new one at the merge. Goldens audited. Same checks as 1.1, plus `dotnet test tools/inputtests` and the hills flight (`FarmlandFlightTests`).
+
+- [ ] 2.7 [physics-engineer] Contact with the farmland's objects (from W4a's and W4b's reviews and the hills runs), after 2.6, in `ContactModel`:
   - a crash into a 2 cm wall skin peaks at 2,705 m/s² against 22,202 on a solid slab at 8.7 m/s: a wall stops a drone the same however thin its collision is;
   - the per-step contact event buffer overflows (4,205 events lost scraping a window frame);
   - `ContactModel.PairsPerShape` is 8, and 8 plant variants put 7–10 crown pieces within a prop's reach: decide whether compliant twig shells get more pairs, with W4a refitting if the rule changes;
-  - a flightbench row flies into a bush (GreenBush, 579 placed);
-  - snag checks index segments, not records (the debris rims are 1 cm stairsteps, 10,089 segments in the village).
-  - **First, the laid line lies still** (the merge-back's hills routes, after 1.2): a paid-out line has no tension to slide on, but today it stays one 34–37-node chain from the anchor to the drone. At every turn the whole line, about 490 m, slides inward about 50 m in 10 s and wraps the bushes inside the turn. 5 of 13 hills routes broke on bushes: 4.32 N at a 1.44 cm bend round LeafyBush_P2 1412, 0.163 N at 1.13 cm round 523, and 28.2 N in a free span. The line must rest under its own weight and ground friction and freeze into the trail where it lies, leaving the drone's spool to pay out. W7 1.1 (merged) already gives laid nodes the still air of the cover. W7's 1.3 (the rest test, the shared soil cast) comes after this task, so agree the split in design.md.
-  - **The fiber over a tree belt** (1.2's re-run of `farmland-line-step`): the line breaks at 645–690 m over the F6|F7 belt (21.1 N and 1.72 GPa by tension, or by abrasion), the drone crashes 3 s later (not traced), and the step's p99 is 3.4–10.3 ms with 11 M one-shape checks. Decide whether the snag is physical, and keep the step within budget either way.
-  - **The fiber's world buffers:** the section table is full at 4,096 after about 90 s of a long flight; segments meet 65–69 shapes against a buffer of 64 (hundreds of times a flight); a 2 m snag cache meets up to 4,664 segments near DeadBush_6 and GreenBush_Dry against `snag_capacity` 4,096.
-  - **A drone in a crown:** pushing into an IslandTree crown at 6.85 m/s, it hung 241 s at 5 m over the ground, with no fall and no crash; 88,699 blade strikes took 0.00 J each and no blade was damaged. Twig strikes must cost the blades what they cost in fact.
-  Model: extend the current number; the orchestrator assigns a new one at the merge. Goldens audited. Same checks as 1.1, plus `dotnet test tools/inputtests` and the hills flight (`FarmlandFlightTests`).
+  - **a drone in a crown:** pushing into an IslandTree crown at 6.85 m/s, it hung 241 s at 5 m over the ground with no fall and no crash, and 88,699 blade strikes took 0.00 J each with no blade damaged. Twig strikes must cost the blades what they cost in fact;
+  - a flightbench row flies into a bush (GreenBush, 579 placed).
+  Model: extend the current number; the orchestrator renumbers at the merge. Goldens audited. Same checks as 2.4.
 
 - [x] 2.5 [physics-engineer] A laid fiber follows the hills: today a long laid segment runs straight between its nodes and cuts through rises (5 of 31 segments on the 1.5 km line dip up to 3.24 m under the ground). Insert a node where a segment dips under the ground, and let the line wrap the ledge's lip (a ground-walls-only query, as 2.2's design suggests). The line's tension, contacts and replays stay physical; model 82's goldens audited if answers change. Same checks as 1.1, plus `flightbench --bench farmland-line-step` with no segment under the ground.
   - As built (design.md §2.5, model 82 extended):
@@ -74,7 +77,7 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
     - **Noclip** keeps the friend's errors: from its start the ground round the stand is the sim's to 0.024 mm. The smoke test guards that and the rule's 30 m at 1 mm.
     - **The cost** (`-terrainab`, three interleaved runs, a shared machine in best power efficiency mode): the GPU +0.00 ms of 3.7, 0.5–0.7 M more triangles in 27 M, the main thread +0.16–0.23 ms, the frame +1.3–1.4 ms. Most of that is in the wait to present, a cause not found here: W6's quiet run decides.
   - **Found, not this task's:** the frames take 22–24 ms while the GPU works 3.8 ms, 17–19 ms of each waiting to present (W6). One landing of the hills flight broke three legs, the front left at 0.06 m/s, and `GroundCheck` then reads them as rigid on the body (3.3, the physics engineer).
-- [ ] 3.3 [game-developer] The scripted flights at W3's final model, after 2.3, 2.4 and 2.6:
+- [ ] 3.3 [game-developer] The scripted flights at W3's final model, after 2.3, 2.4, 2.6 and 2.7:
   - re-sweep `LegShots.Cases` and `ACrashIntoTheRangesCarNamesIt` as A4 did at model 79;
   - re-sweep `-smokelegs`, which now flies on the farmland's soil;
   - re-check the smoke test's crash flight and its cuts check, now that 1.2's objects are in.
