@@ -827,8 +827,11 @@ namespace Fpv450.Sim.Log
         ///    spectral, from the world's heights; a step taller than the cover's still layer separates its lee, Cavity's bubble
         ///    behind a step). On a plane a flight steps as in 82 while its body's origin, its fiber's nodes and its loose pieces lie
         ///    over the plane itself, not a hole: the flight goldens are 82's to the bit.
+        /// 85: the pilot's farmland preview (unity/physics/physics-integration-2--w3-preview, D-072): 84 with w3-farmland-ground
+        ///    2.6 (a crash creates no energy, in 82's note above) merged in, and nothing else. A farmland log from the preview names
+        ///    this core. 83 was reserved for W3's merge-back and never used: W7 1.1's 84 merged first.
         /// </summary>
-        public const int ModelVersion = 84;
+        public const int ModelVersion = 85;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
