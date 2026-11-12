@@ -17,6 +17,7 @@ Order: 1.1, then 1.2, then 2.1. Branch `unity/physics/physics-integration-2--w6-
   - Keep 1.1's look: re-check the 10 cameras after tuning.
   - The report goes in `docs/reports/`: average, 1 % low, worst frame, CPU and GPU ms, draw calls, triangles, VRAM, with the power mode and clocks printed. On AC only, on a quiet machine.
   - Checks: as 1.1, plus the benchmark runner.
+  - Not ticked (design.md §7, `docs/reports/2026-11-12-farmland-frame-rate.md`): the runner is built (`FarmlandBench`, `tools/bench_farmland.ps1`); the feed's output camera has its own renderer, SSAO runs at half resolution, and the grass is drawn to 100 m while the feed runs. The feed view is 35 % faster (42 → 64 fps on the path), the look kept (within 0.64 luma of the friend's) and the feed's passes byte-identical, but PLT-02 is missed on a shared machine whose GPU was held at 20 W of 65 W (power mode Best power efficiency). PLT-05 and PLT-06 are met. The quiet PLT-07 run at Best performance is owed.
 
 ## 2. Review
 
