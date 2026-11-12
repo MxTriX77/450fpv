@@ -1,6 +1,6 @@
 # Tasks: w3-farmland-ground
 
-Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.3 and 2.4, then 3.1, 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
+Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.5, 2.4 and 2.3; 3.1 alongside on `--w3-flight`; then 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
 
 ## 1. The heightfield
 
@@ -29,9 +29,12 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
   - snag checks index segments, not records (the debris rims are 1 cm stairsteps, 10,089 segments in the village).
   Model 82 if contact answers change, goldens audited. Same checks as 1.1.
 
+- [ ] 2.5 [physics-engineer] A laid fiber follows the hills: today a long laid segment runs straight between its nodes and cuts through rises (5 of 31 segments on the 1.5 km line dip up to 3.24 m under the ground). Insert a node where a segment dips under the ground, and let the line wrap the ledge's lip (a ground-walls-only query, as 2.2's design suggests). The line's tension, contacts and replays stay physical; model 82's goldens audited if answers change. Same checks as 1.1, plus `flightbench --bench farmland-line-step` with no segment under the ground.
+
 ## 3. Flight on the farmland
 
 - [ ] 3.1 [game-developer] The player flies the farmland from the village start point; the test range leaves the player (headless tests and benches keep it); the drawn terrain near the drone follows the heightfield (the tech artist checks). Checks: EditMode, the smoke test, PlayMode if any, a 2-minute flight's log replays bit for bit.
+  - Runs on the sub-branch `--w3-flight` (from `--w3-ground` after the line merged), in parallel with 1.2 and 2.5; the orchestrator merges it back. The start point is W1's `FlightWorlds.FarmlandStart`. The farmland keeps the friend's light (D-088): the setup's time of day and weather apply to it only if they can without changing that look; record the choice. Wind applies (physics). W6's `FarmlandFeedDetail` comes with W6's merge.
 
 ## 4. Review
 
