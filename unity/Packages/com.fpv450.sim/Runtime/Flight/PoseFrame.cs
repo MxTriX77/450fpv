@@ -27,6 +27,11 @@ namespace Fpv450.Sim.Flight
         /// <summary>Rotor speed per corner, rad/s (0 until 1.4).</summary>
         public Corners RotorSpeed;
 
+        /// <summary>Each rotor's angle, rad in [0, 2π): FlightState.RotorAngle, blade 0 along the body's (cos θ, 0, s·sin θ),
+        /// s −1 for a clockwise rotor and +1 otherwise (PropStrikes). Render-side only (w13-props-in-frame): the view turns
+        /// the drawn props by it.</summary>
+        public Corners RotorAngle;
+
         public bool Armed;
 
         /// <summary>Leg compression per corner, m, positive when compressed (0 until 1.6; p5-drone draws the flex).</summary>
@@ -93,6 +98,7 @@ namespace Fpv450.Sim.Flight
                 Velocity = a.Velocity + (b.Velocity - a.Velocity) * t,
                 BodyRate = a.BodyRate + (b.BodyRate - a.BodyRate) * t,
                 RotorSpeed = Corners.Lerp(a.RotorSpeed, b.RotorSpeed, t),
+                RotorAngle = Angles(a.RotorAngle, b.RotorAngle, t),
                 Armed = b.Armed,
                 LegCompression = Corners.Lerp(a.LegCompression, b.LegCompression, t),
                 FiberPaidOut = a.FiberPaidOut + (b.FiberPaidOut - a.FiberPaidOut) * t,
@@ -119,6 +125,26 @@ namespace Fpv450.Sim.Flight
                 pb.Attitude = new Quat(la.X + (lb.X - la.X) * t, la.Y + (lb.Y - la.Y) * t, la.Z + (lb.Z - la.Z) * t, la.W + (lb.W - la.W) * t).Normalized();
                 result.Loose[i] = pb;
             }
+        }
+
+        const double Pi = 3.141592653589793, TwoPi = 2 * Pi;
+
+        /// <summary>Each rotor's angle a fraction t of the way from a to b along the shorter arc, kept in [0, 2π): a rotor
+        /// turns under π rad a step (π rad/ms is 30 000 rpm).</summary>
+        public static Corners Angles(in Corners a, in Corners b, double t)
+        {
+            var result = new Corners();
+            for (int c = 0; c < 4; c++)
+            {
+                double d = b[c] - a[c];
+                if (d > Pi) d -= TwoPi;
+                else if (d < -Pi) d += TwoPi;
+                double v = a[c] + d * t;
+                if (v >= TwoPi) v -= TwoPi;
+                else if (v < 0) v += TwoPi;
+                result[c] = v;
+            }
+            return result;
         }
     }
 
