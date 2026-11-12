@@ -150,6 +150,8 @@ if (-not $NoSmoke -and $plan.smoke_args.Count -gt 0) {
     $smokeExit = $LASTEXITCODE
     Select-String -LiteralPath $smokeLog -Pattern "Smoke|PASS|FAIL|Exception|error" | ForEach-Object { Write-Host "  $($_.Line)" }
     if ($smokeExit -ne 0) { Fail "the smoke test failed (exit $smokeExit); its log: $smokeLog" }
+    # An exception can stop the smoke run with exit 0 (the farmland preview, 2026-11-12): only its PASS line counts.
+    if (-not (Select-String -LiteralPath $smokeLog -Pattern '\[Smoke\] PASS' -Quiet)) { Fail "the smoke test never reached [Smoke] PASS; its log: $smokeLog" }
 }
 
 Step "Done in $([math]::Round(((Get-Date) - $started).TotalMinutes, 1)) min"
