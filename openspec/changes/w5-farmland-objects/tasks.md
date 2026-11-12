@@ -5,12 +5,17 @@ Order: 1.1, then 1.2 (Python and data only: placement, the mask, footprints, the
 ## 1. Our objects in the farmland
 
 - [x] 1.1 [asset-artist] Widen `E01_curving`'s filler band to at least 3.6 m (a half-width of at least 1.781 m about the centre line, the niches included) for the farmland's 0.977 m hole cells (W2 design §4, rules 2 and 3). Rebuild it with its generator. Its metadata, review sheet and trench physics rows stay true. Every other placement of E01 (the test range, the gallery) still validates. Checks: `python -m pytest tools`, the asset's review sheet, flightbench and worldbench goldens with any re-record audited case by case, `fetch.py --verify`, `precommit.py --tree HEAD`.
-- [ ] 1.2 [world-builder] Place our objects (D-090) in `maps/farmland/`:
+- [x] 1.2 [world-builder] Place our objects (D-090) in `maps/farmland/`:
   - one `E01_curving` per field F1–F11, at a seeded random spot and yaw, fully inside the field with a margin;
   - `H01_I`, `H01_D`, `R01_A` and `R01_F` in the village on free ground, clear of the ruins, debris, trees and the start point's footprint (D-092);
   - the hole mask (`holes/<tile>.raw`), derived from the trenches as W2 design §4 says;
   - the flattened footprints, as data (D-095).
   `validate.py` recomputes the mask, requires equality, and samples every hole cell every 0.1 m against the filler bands (no naked hole). A review shot of each spot. Checks: `validate.py`, `pytest tools/map`, worldbench goldens, `precommit.py --tree HEAD`.
+  - **As built** (design §2):
+    - `tools/map/place_objects.py`, seed 90, wrote 15 rows (ids 1679–1693), `holes/map.raw` (699 hole cells, 0 naked of 84,579 samples) and `footprints.json` (15 level footprints, 20,548 samples), plus `map.json`'s counts, holes and objects record. The export's rows are byte-identical.
+    - `validate.py` re-places from the seed and requires the same rows, the same mask and the same footprints. It also checks the margins, the clearances, rule 3, level cells, flush cuts and the bases.
+    - Package format 1 is kept; nothing takes log format 73.
+    - Merging W3 needs `catalog.json` as a third variant list in its loader (1.3), not only golden re-records.
 - [ ] 1.3 [world-builder] Apply at load (D-095). The sim's heightfield takes the hole mask and the flattened footprints. The player applies the same to a runtime copy of the drawn terrain: holes through Unity's inverted sense, checked by a one-cell probe; heights through the same footprints. The store's terrain stays untouched. The tech artist confirms the drawn hole edge is the cell edge. Checks: `dotnet test tools/simtests`, worldbench goldens and bench, EditMode, a review build and the smoke test.
 
 ## 2. Review

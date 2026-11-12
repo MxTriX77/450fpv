@@ -147,3 +147,127 @@ The widened band moves no visible face.
   - A cell that meets the drawn lip between 0.4 and 0.525 m, but not the 0.4 m opening, would keep its terrain over up to 0.125 m of the cut's edge: W2 §4's sod roof, only narrower.
   - The band holds either reading.
 - **The niches' records** carry `top_width_m` 0.8 about a centre line that ends at the niche's back. Their cells are holes too (W2 §4, rule 2), and the band holds them, ends included.
+
+## 2. Placement, the hole mask and the footprints (task 1.2)
+
+**Owner of this section:** world-builder · **For:** world-builder (1.3, applying at load), physics-engineer (the W3 merge), tech-artist (the drawn edge), qa-engineer (2.1) · **Decisions:** D-090, D-092, D-094, D-095 · **Source:** W2 design §4, rules 2 and 3; §1 above.
+
+### 2.1 What the placer writes
+`python tools/map/place_objects.py maps/farmland` runs after the export, which drops our rows. It is idempotent: a second run gives the same bytes (measured). It writes four files, each listed in `map.json` with its SHA-256:
+- **`placements.json`:** our 15 rows as ids 1679–1693, after the export's 1,679, and our five variants in the sorted variant list.
+  - The export's own bytes are kept: the placer renders the file exactly as the export writes it.
+  - It refuses to write if a fresh export doesn't round-trip, and a test checks the committed file.
+- **`holes/map.raw`:** the map tile's mask, 1024 × 1024 bytes in LFS, 255 a hole, row 0 the northmost (W2 §4's encoding, signed off). `map.json`'s map tile gains `"holes": {"file": "holes/map.raw", "resolution": 1024}`.
+- **`footprints.json`** (`fpv450-map-footprints` v1, new): per object its corners, `level_sample` and `level_m`, and the samples it writes, as runs `[file row, first column, [samples…]]` of the map tile. 20,548 samples in all, 121 KB.
+- **`map.json`:** counts `trench` 11, `house` 2, `car` 2, and `"objects": {"placer", "seed": 90, "footprints"}`.
+
+**The package's format stays version 1.** Every addition is optional and additive: the `holes` field W2 already specified, a new file with its own format name, and three new kinds. Nothing here touches a log or the sim, so the log's format 73 (reserved for W3's map identity in the header) is not taken.
+
+### 2.2 The placements
+- **The streams:** SplitMix64 (as the height probes draw), one per object, seeded with 90 (assumed) and the object's name mixed in (`E01_curving/F3`, `H01_D/village`).
+  - Each draws a spot and a yaw until the spot passes every rule (at most 20,000 draws).
+  - Changing one object's rules moves no other.
+- **The footprint** is the plan rectangle of the variant's bounds:
+  - E01's whole ground patch: 35.25 × 13.75 m, the block from y = 0 down;
+  - a house or car with its spilled rubble and parts: H01_D's 16.2 × 20.2 m, R01_A's 6.6 × 4.5 m.
+- **The trenches:** a spot in the field's box and a yaw in [0, 360), until the patch lies inside the field at least 11.5 m from its outline. That margin is assumed: the edits' 8.5 m reach, then the friend's 3 m house-to-track clearance.
+- **The village objects,** H01_I, H01_D, R01_A, R01_F in that order: a spot in the village circle (75 m about (512, 600)) until the footprint lies inside it.
+  - A house turns its front (asset −Z, as in the test range) to the lane through the village's centre, z = 600, within ±6°. So its yaw is about 0 north of the lane and 180 south of it.
+  - The ±6° is published: the friend's five ruins turn 176–186° and −5–4°, facing their lane.
+  - A car takes any yaw.
+- **Free ground** (`clear()`):
+  - No edit reaches the ground an exported object rests on: a ruin's or debris piece's plan bounds, or a tree's or bush's pivot. Each lies at least the 8.5 m reach plus a cell's diagonal (1.381 m) from the footprint, so no tree or ruin floats or sinks when the edits apply.
+  - A tree's or bush's plan bounds (its crown) stays 3 m off the footprint (published: `HouseTreeClearance`).
+  - The start is left untouched: the footprint lies at least the reach, a cell's diagonal and the stand's 0.297 m footprint from it (derived from `drone.json`). The start is D-092's `FlightWorlds.FarmlandStart` at (566.5, 569.0); a test reads the C#.
+  - Our footprints lie at least 17 m apart, two reaches, so no sample is edited twice.
+  - A house's footprint stays 3 m off every `dirt_track` sample (published: `HouseTrackClearance`; here the class map traces the tracks).
+- **Relief:** the ground's samples under a footprint span at most 1 m for a trench or a car, and 2.5 m for a house (both assumed).
+  - Under 1 m, the cut and fill stay near ±0.5 m, about E01's 0.45 m field parapet, so the levelled patch reads as spoil rather than a terrace.
+  - Measured over 60 free spots per field: the median patch spans 0.9–2.3 m, and only 2–70 % of spots are under 1 m. Unconstrained, the first draws cut up to 1.7 m into a field.
+  - H01_D's footprint spans at least 1.95 m anywhere free in the village (measured); the friend's own plots are levelled on that hill.
+
+**As placed.** Map coordinates in metres. "Level" is the row's y; "clear" is the least plan distance from the footprint to any exported object's bounds; "start" is from the start's foot to the footprint.
+
+| Id | Variant | Where | Pivot (x, z) | Yaw ° | Level | Relief | Most moved | Hole cells | Clear | Field edge | Start |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1679 | E01_curving | F1 | (96.88, 197.01) | 123.2 | 22.630 | 0.96 | 0.70 | 66 | 26.2 | 15.4 | 591.0 |
+| 1680 | E01_curving | F2 | (188.07, 70.45) | 93.7 | 31.698 | 0.84 | 0.56 | 60 | 9.0 | 12.4 | 616.6 |
+| 1681 | E01_curving | F3 | (274.43, 92.67) | 86.0 | 36.451 | 0.68 | 0.49 | 67 | 15.4 | 13.8 | 549.4 |
+| 1682 | E01_curving | F4 | (446.99, 345.06) | 11.0 | 36.740 | 0.69 | 0.42 | 62 | 16.3 | 84.1 | 239.2 |
+| 1683 | E01_curving | F5 | (486.16, 99.90) | 276.9 | 35.602 | 0.79 | 0.50 | 61 | 52.5 | 48.1 | 446.4 |
+| 1684 | E01_curving | F6 | (253.37, 664.47) | 313.4 | 21.179 | 0.67 | 0.46 | 67 | 33.7 | 19.0 | 309.8 |
+| 1685 | E01_curving | F7 | (351.19, 854.80) | 23.3 | 23.197 | 0.68 | 0.46 | 63 | 52.7 | 62.7 | 329.6 |
+| 1686 | E01_curving | F8 | (650.40, 827.82) | 175.1 | 28.984 | 0.68 | 0.46 | 61 | 9.9 | 88.0 | 254.7 |
+| 1687 | E01_curving | F9 | (838.78, 844.71) | 182.6 | 24.281 | 0.59 | 0.48 | 64 | 8.2 | 14.2 | 362.5 |
+| 1688 | E01_curving | F10 | (684.00, 412.11) | 303.2 | 31.295 | 0.63 | 0.42 | 66 | 12.1 | 43.8 | 180.4 |
+| 1689 | E01_curving | F11 | (697.37, 79.22) | 267.9 | 25.142 | 0.94 | 0.61 | 62 | 17.8 | 38.3 | 476.7 |
+| 1690 | H01_I | village, south edge | (473.25, 546.29) | 177.9 | 32.316 | 0.68 | 0.60 | 0 | 19.6 | | 90.3 |
+| 1691 | H01_D | village, north-west | (486.70, 653.18) | 3.0 | 26.413 | 2.16 | 1.41 | 0 | 5.1 | | 102.0 |
+| 1692 | R01_A | village, south-east | (544.14, 545.12) | 272.9 | 37.850 | 0.99 | 0.82 | 0 | 11.3 | | 28.8 |
+| 1693 | R01_F | village, west edge | (441.72, 613.72) | 238.4 | 25.937 | 0.38 | 0.41 | 0 | 10.1 | | 128.9 |
+
+Every number is measured, from the placer's printout and a scratch script over the package. An E01's pivot is its run's first centre-line point, not the patch's centre.
+
+### 2.3 The hole mask
+- **Rule 2, as §1.8 asks:** a hole cell is a closed cell square that meets a stadium about one of E01's hole records' centre lines. The lines are placed by the row's yaw and position as stored (rounded).
+  - The run's opening is drawn, not `top_width_m`: 0.525 m (derived from E01's params: `top_w_m` / 2 + `width_jitter_m` / 2 + `lip_crumble_m`). The params file matches the metadata's `params_sha256`.
+  - A niche's opening is its width's half, 0.4 m.
+  - **699 hole cells,** 60–67 per trench (measured; §1.6 found 65–69 on the test grid).
+- **Rule 3, no naked hole:** every hole cell sampled every 0.1 m, edges included, lies within a band's half-width of its record's centre line.
+  - That is 121 points a cell, 84,579 in all, and **0 naked** (measured).
+  - With the old bands (2.35 m, 2.1 m at the niches) the same cells give 8,353 naked samples, so the check tells them apart (measured, `test_the_old_bands_leave_naked_holes`).
+- **None of Unity's 1,000 height probes lies in a hole cell** (measured).
+
+### 2.4 The footprints
+- **Levelled as the friend levels its house plots** (`LevelVillageGround`, published):
+  - the level is the mean of the samples inside the footprint, rounded half up to a sample in integers;
+  - a sample within 1.5 m of the footprint (`HouseGroundMargin`) takes the level;
+  - farther out it eases back to its own over 7 m (`HouseGroundShoulder`) with Unity's SmoothStep, rounded to a sample.
+- **Every cell that meets a footprint is level.** The 1.5 m margin exceeds a cell's diagonal, 1.381 m, so all four corners of any such cell take the level (derived; the validator checks every cell).
+- **The cut is flush:** every hole cell's corners stand at its trench's level. So the terrain meets E01's ground (its patch top, y = 0) along the cut's edge (checked).
+- **Each row stands at its level** within 0.05 mm: `level_m` is rounded to 0.1 mm, and the spec asks 1 cm.
+- **The most any sample moves** is 0.42–0.70 m under a trench, 0.41–0.82 m under a car and 1.41 m under H01_D (measured).
+- **No edit reaches a tile's edge,** so the seams with the surround stay equal sample for sample (checked).
+- **The heights files are untouched.** 13 of Unity's 500 map probes lie on cells the footprints edit (measured). `validate.py` still checks the probes against the files as exported.
+
+### 2.5 What `validate.py` checks
+`place_objects.check` runs whenever `map.json` records `"objects"`:
+- **The same seed gives the same rows:** it places again with the recorded seed and requires equality.
+- **One trench inside each field** with its 11.5 m margin, **the village's four** inside the circle, and **every one on free ground** (`clear()` against the export's rows, the start and the other 14).
+- **The mask equals the one the trenches derive,** and rule 3 holds: 0 naked samples.
+- **`footprints.json` equals the footprints the rows derive:**
+  - every cell that meets a footprint is level;
+  - every hole cell's corners are at its trench's level;
+  - no edit reaches the tile's edge;
+  - every row stands at its level within 1 cm.
+- **Any tile's mask** is N × N bytes of 0 or 255, its resolution N = res − 1.
+- **Rows of ours with no objects record** are refused.
+
+It takes about 10 s on the farmland (measured). Its tests:
+- `test_place_objects.py`, 17 tests. Each break is caught: a moved row, a missing row, another seed, a flipped hole cell, an edited sample, the old bands.
+- `test_validate.py` adds the mask's breaks.
+
+### 2.6 For 1.3 and the W3 merge
+- **W3's loader refuses our rows today.** On `unity/physics/physics-integration-2--w3-objects` (4a9dc631), `MapWorld` finds a package row's metadata only through the vendor lists (`VendorPlants`, `VendorRuins`). It throws "variant … is in no vendor list" for `E01_curving`, and its `FarmlandObjectTests` count 1,679 rows.
+  - So merging W3 into this branch needs more than golden re-records.
+  - 1.3 adds `assets-src/catalog.json` as a third list. Its `assets` have the same `{class, variants}` shape, and no variant appears in both (checked). The counts become 1,694.
+- **W3's `Terrain` already reads the map tile's `holes`** (W2's encoding). After the merge the sim cuts the 699 cells at once, so E01's shapes must load in the same step, or those cells are a fall through the world.
+- **The footprints are new to W3.** 1.3 writes `footprints.json`'s samples over the map tile's heights before building the heightfield.
+  - The 13 probes on edited cells then differ from Unity's.
+  - W3's probe golden must read the files as exported, or leave those 13 out.
+- **The content hash moves** (`map.json` and `placements.json` change), so every farmland golden re-records, each audited.
+- **The drawn terrain under E01's patch** lies exactly at the patch top's level (y = 0), and the patch's tussock relief is 4 cm (`RELIEF_M`). The tech artist should check for z-fighting between the runtime terrain copy and the patch top in 1.3's drawn check.
+
+### 2.7 Review shots
+One top-down plot per spot (scratch, not committed; PIL over the package). Each shows:
+- the edited terrain in 0.25 m height bands with a hillshade, the level pad flat;
+- the hole cells in black and E01's centre lines in red;
+- the footprint in white and the edits' reach in yellow;
+- the neighbours' plan boxes and pivots, the field outline or village circle, and the start.
+
+Looked at, all 15:
+- Every trench's hole cells follow its run and niches, inside its levelled patch, with the shoulder easing into the field's slope.
+- No tree, bush or ruin pivot lies in a reach.
+- The houses sit at the village's south and north-west edges, facing the lane.
+- The cars stand on the meadow at the village's south-east and west edges.
+- The drawn check comes in 1.3.
