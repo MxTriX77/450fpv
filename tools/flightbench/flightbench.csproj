@@ -33,6 +33,8 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LandingStability.cs" Link="LandingStability.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LandingScenarios.cs" Link="LandingScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LegScenarios.cs" Link="LegScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SlopeScenarios.cs" Link="SlopeScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/TetherScenarios.cs" Link="TetherScenarios.cs" />
   </ItemGroup>
 
   <!-- K§8.5's simulated pilot and the test flight, which the wind-harness mode flies (p7c-wind 1.2). -->

@@ -96,6 +96,11 @@ namespace Fpv450.FlightBench
                 Console.WriteLine("flightbench: the ground-contact scenarios on the stub (p6-flight-core 1.6) and the test range (1.6b)");
                 return ContactsCase.Run() ? 0 : 1;
             }
+            if (args.Length >= 1 && args.Length <= 2 && args[0] == "--slopes")
+            {
+                Console.WriteLine("flightbench: the legs, a crash and a prop strike on slopes of 0–38° and at the farmland's ledge (w3-farmland-ground 2.2)");
+                return SlopesCase.Run(args.Length == 2 ? args[1] : null) ? 0 : 1;
+            }
             if (args.Length == 1 && args[0] == "--landing")
             {
                 Console.WriteLine("flightbench: landing stability against rigid-body mechanics (p6-flight-core 1.6c, D-067)");
@@ -159,7 +164,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step] | --scenarios | --shake [first seed] | --contacts | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
             return 2;
         }
     }
