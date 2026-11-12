@@ -392,6 +392,7 @@ Numbers are labelled as above. "Before" is this branch at d45f2054 (model 79), b
 - **So the physics adds none on its own.** Rows the pilot cannot see, at a pitch and phase the drawn texture does not share, would break WLD-11 (what is drawn is what is touched) and REAL-05's own rule that collision follows the visual. Their numbers would be assumed, with effects of tens of degrees.
 - **Where they belong:** a world unit that puts the relief into the package (height, pitch and phase per field, from the references and the fields' overgrowth) and into the drawn terrain near the drone, with the world-query core answering it. The contact model needs no change to meet it: it meets any facet's normal (the slope rows), and a support meets any piece (1). Suggested.
 - **`tilled`'s soil row already carries the ploughed loam** (bearing, unload ratio, friction), so a landing on a field sinks into loose soil now.
+- **So PHY-04's furrows (rocking across them, not along) stay owed,** to that unit; its slopes are met here.
 
 ### 7. The clearance certificate: the margin less KeepGap (`FiberContacts.ShapeHits`)
 - **Before:** a certified segment's ends could move the margin less the line's radius (0.4998 m) before it re-queried. So a shape could come within the line's radius of it, inside InsertGap (2.1's flag).
