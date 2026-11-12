@@ -238,7 +238,7 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
         public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
-        public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
+        public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes", "Version" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
@@ -807,12 +807,13 @@ namespace Fpv450.Sim.Log
                     Text(e, v.Name);
                     e.Write(v.Value);
                 }
-                // The wakes' obstacles (p7c-wind 1.5) with the wake grid's version, and the gust front (1.4), each after a flag.
+                // The wakes' obstacles (p7c-wind 1.5) with the wake grid's version they fly (WakeLayout.Version), and the gust front
+                // (1.4), each after a flag.
                 WakeLayout b = Wind.Wakes;
                 e.Write(b != null);
                 if (b != null)
                 {
-                    e.Write(WakeGrid.Version);
+                    e.Write(b.Version);
                     e.Write(b.OriginX);
                     e.Write(b.OriginZ);
                     e.Write(b.NX);
@@ -1392,9 +1393,9 @@ namespace Fpv450.Sim.Log
                         if (r.ReadBoolean())
                         {
                             int wakeVersion = r.ReadInt32();
-                            if (wakeVersion != WakeGrid.Version)
-                                throw new FlightLogException("the log's wake grid is version " + wakeVersion + "; this build's is " + WakeGrid.Version);
-                            Wind.Wakes = new WakeLayout { OriginX = r.ReadDouble(), OriginZ = r.ReadDouble(), NX = r.ReadInt32(), NZ = r.ReadInt32() };
+                            if (wakeVersion < 1 || wakeVersion > WakeGrid.Version)
+                                throw new FlightLogException("the log's wake grid is version " + wakeVersion + "; this build's are 1 to " + WakeGrid.Version);
+                            Wind.Wakes = new WakeLayout { OriginX = r.ReadDouble(), OriginZ = r.ReadDouble(), NX = r.ReadInt32(), NZ = r.ReadInt32(), Version = wakeVersion };
                             Wind.Wakes.Volumes = new WindVolume[r.ReadInt32()];
                             for (int i = 0; i < Wind.Wakes.Volumes.Length; i++)
                                 Wind.Wakes.Volumes[i] = new WindVolume

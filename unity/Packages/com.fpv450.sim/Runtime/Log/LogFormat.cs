@@ -822,6 +822,13 @@ namespace Fpv450.Sim.Log
         ///    spectral, from the world's heights; a step taller than the cover's still layer separates its lee, Cavity's bubble
         ///    behind a step). On a plane a flight steps as in 82 while its body's origin, its fiber's nodes and its loose pieces lie
         ///    over the plane itself, not a hole: the flight goldens are 82's to the bit.
+        ///    Extended by w7-farmland-wind 1.2, the wake grid's version 2 (WakeGrid.Version, logged per flight in the wind entry as
+        ///    WakeLayout.Version; a log of version 1 replays its own grid): an obstacle's porosity is its frontal porosity across each
+        ///    lane from its volumes' geometry (WakeObstacles.Transmission: solids opaque however thin, porous parts by Beer–Lambert
+        ///    over their chord, parts at different heights side by side; a cell is an obstacle where a volume's footprint overlaps
+        ///    it), each cell carries the overlying wake of the nearest taller obstacle upwind (speeds multiply, excess variances
+        ///    add), and the porous boost scales with the obstacle's deficit (1 − β). The range golden moved (re-pinned; with version
+        ///    1 it is model 76's pin), and every kept audit of an older model flies version 1.
         /// </summary>
         public const int ModelVersion = 84;
 

@@ -12,8 +12,10 @@ namespace Fpv450.Sim.Tests
 {
     // p7c-wind, the map's wind (WindSetup.ForMap, MapWind): the test range's own obstacles in the field. Its placed wind
     // volumes give the wake grid's obstacles, and its belt (the "posadka" rows) is read once, as wooded strips with one
-    // porous obstacle each for their lee, so the belt is never counted twice. The numbers behind H01_D are graded against
-    // Fackrell's reattachment and Perera's far wake, evaluated here from the house's own volumes; inside the belt against
+    // porous obstacle each for their lee, so the belt is never counted twice. The numbers behind H01_I are graded against
+    // Fackrell's reattachment and Perera's far wake, evaluated here from the house's own volumes (since w7-farmland-wind 1.2:
+    // H01_D's stripped roof leaves its frontal porosity about 0.25, a porous house in the single-porosity wake model, and it
+    // stands in the posadka's lee, whose wake now goes on over its own); inside the belt against
     // the canopy's σ/u* and its exponential profile; and every check also fails the known-wrong field without the map's
     // obstacles (WindSetup.Of, what the player flew before).
     public sealed class MapWindTests
@@ -160,15 +162,13 @@ namespace Fpv450.Sim.Tests
             Assert.That(wind.Wakes.Volumes.Length, Is.EqualTo(map.WindVolumes.Length - belt + 2), "the belt's plants never in the wake grid");
             Assert.That(Array.IndexOf(wind.Wakes.Volumes, wind.Belts[0].Obstacle), Is.GreaterThanOrEqualTo(0));
 
-            // Through K§10.3's rule a path across a section reads α.
+            // A lane across a section, the wind from the north, reads α (the box's porosity over its chord across the width).
             WakeObstacles o = wind.Wakes.Obstacles();
-            double path = 1;
-            for (double z = -12; z <= 12; z += 1)
-            {
-                int k = o.CellAt(-80, z);
-                if (o.IsObstacle(k)) path *= Math.Sqrt(o.Porosity(k));
-            }
-            Assert.That(path, Is.EqualTo(wind.Belts[0].AerodynamicPorosity).Within(0.05), "the belt's bleed across it");
+            int edge = o.CellAt(-80, -12);
+            while (!o.IsObstacle(edge)) edge += o.NX;
+            o.Centre(edge, out double ex, out double ez);
+            double lane = o.Transmission(o.NewLane(), ex, ez, 0, 1, 1, 0, double.NegativeInfinity, o.Base(edge), o.Top(edge));
+            Assert.That(lane, Is.EqualTo(wind.Belts[0].AerodynamicPorosity).Within(1e-7), "the belt's bleed across it (its axis 0.012° off east: a chord W/cos)");
 
             // ForMap and the header: the layout and the strips go into the log and back. The setup's cost (reported): the
             // obstacles from the map, then the field's first two grids, on the caller's thread before the flight.
@@ -194,7 +194,7 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
-        public void BehindH01DTheWakeIsFackrellsAndPererasAtSevere()
+        public void BehindH01ITheWakeIsFackrellsAndPererasAtSevere()
         {
             MapWorld map = Map;
             ulong seed = Seed(WindLevel.Severe, 0, 40, 31); // from the north: its lee is the open field south of the plots
@@ -202,7 +202,7 @@ namespace Fpv450.Sim.Tests
             var open = new WindField(WindSetup.Of(WindLevel.Severe), new FlightRandom(seed));
             double from = field.Wakes.Active.FromDeg;
             double dx = -Math.Sin(from * DegToRad), dz = -Math.Cos(from * DegToRad);
-            Footprint(map, "H01_D", dx, dz, out double front, out double lee, out double c0, out double c1, out double H);
+            Footprint(map, "H01_I", dx, dz, out double front, out double lee, out double c0, out double c1, out double H);
             double W = c1 - c0, L = lee - front, cm = (c0 + c1) / 2;
             double xr = 1.8 * (W / H) / (Math.Pow(L / H, 0.3) * (1 + 0.24 * W / H)); // Fackrell (1984)
             Double3 At(double X, double c, double Z)
@@ -288,7 +288,7 @@ namespace Fpv450.Sim.Tests
                     peak = Math.Max(peak, t[i]);
                 }
                 TestContext.Out.WriteLine($"{(wrong ? "known-wrong, no map obstacles" : "the map's wind")}, seed {seed}, U {field.MeanSpeed:F2} m/s from {from:F1}°: "
-                    + $"H01_D H {H:F2} m (grid {gridH:F2}), W {W:F2} m, L {L:F2} m, β {beta:F4}; Fackrell's X_R {xr:F2} H");
+                    + $"H01_I H {H:F2} m (grid {gridH:F2}), W {W:F2} m, L {L:F2} m, β {beta:F4}; Fackrell's X_R {xr:F2} H");
                 TestContext.Out.WriteLine($"  far wake 5–15 H: u/U {meanFar:F3} against Perera's {meanExpected:F3} (bias {bias:+0.000;-0.000}, rms {rms:F3}, {u.Length} points × 300 times)");
                 TestContext.Out.WriteLine($"  cavity at 0.25 H, the mean flow: deepest {deepest:F3}, forward again at {reattach:F2} X_R");
                 TestContext.Out.WriteLine($"  turbulence 2–8 H at 0.5 H: (T − 1) over the boost's {ratio:F3}, peak T {peak:F2}");
@@ -521,12 +521,21 @@ namespace Fpv450.Sim.Tests
         // Unity EditMode run (the same test), so the field over the map is the same bits on both runtimes. Model 21 on
         // p7c-wind--map-wakes: 0x9E8D9108B60D91B8. Model 22 (merged onto D-060's field): re-pinned; with z0 0.03 m, σ_u/U
         // 0.135 and the 1 m cut (a temporary switch, reverted) it is model 21's bit for bit, so D-060's field is the change.
-        const ulong PinnedMapWind = 0x0EF8A67AC398C411UL;
+        // Model 84 extended (w7-farmland-wind 1.2, the wake grid's version 2): re-pinned; with version 1 it is the pin before.
+        const ulong PinnedMapWind = 0x5406364FFBB28D46UL, PinnedMapWindVersion1 = 0x0EF8A67AC398C411UL;
 
         [Test]
         public void TheMapsWindIsTheSameBitsOnEveryRuntime()
         {
-            using var wind = new WindField(WindSetup.ForMap(Map, WindLevel.Severe), new FlightRandom(21));
+            foreach (int version in new[] { 1, WakeGrid.Version })
+                Assert.That(WindOverMap(version), Is.EqualTo(version == 1 ? PinnedMapWindVersion1 : PinnedMapWind), "the wake grid's version " + version);
+        }
+
+        static ulong WindOverMap(int version)
+        {
+            WindSetup setup = WindSetup.ForMap(Map, WindLevel.Severe);
+            setup.Wakes.Version = version;
+            using var wind = new WindField(setup, new FlightRandom(21));
             Double3[] points =
             {
                 new Double3(-80, 5, 0), new Double3(-80, 14, 0.5), new Double3(60, 3, 20), new Double3(60, 3, -25),
@@ -546,8 +555,8 @@ namespace Fpv450.Sim.Tests
                     }
                 }
             }
-            TestContext.Out.WriteLine($"the map's wind, Severe seed 21, 4000 steps at 7 points: 0x{hash:X16}");
-            Assert.That(hash, Is.EqualTo(PinnedMapWind));
+            TestContext.Out.WriteLine($"the map's wind, Severe seed 21, 4000 steps at 7 points, the wake grid's version {version}: 0x{hash:X16}");
+            return hash;
         }
 
         // ---- The wind inside a cut (p7c-wind 1.10, design 10, D-071): E01's run on the test range ----
@@ -972,13 +981,23 @@ namespace Fpv450.Sim.Tests
         }
 
         // The cavity's wind in E01's run at seven points over 4 s of Severe, every bit of it, pinned on .NET 10 for the Unity
-        // EditMode run on Mono (the same test), as PinnedMapWind: the body's origin 0.75 m over the floor of the leg's middle.
-        const ulong PinnedCutWind = 0xC73E7B7D2F312D6EUL;
+        // EditMode run on Mono (the same test), as PinnedMapWind: the body's origin 0.75 m over the floor of the leg's middle. Since
+        // w7-farmland-wind 1.2 (model 84 extended) the field around the run carries the wake grid's version 2; with version 1 it is
+        // the pin before (the audit: the wake grid is the whole move).
+        const ulong PinnedCutWind = 0x3A0EDD30EF795FB3UL, PinnedCutWindVersion1 = 0xC73E7B7D2F312D6EUL;
 
         [Test]
         public void TheCutsWindIsTheSameBitsOnEveryRuntime()
         {
-            using var wind = new WindField(WindSetup.ForMap(Map, WindLevel.Severe), new FlightRandom(21));
+            foreach (int version in new[] { 1, WakeGrid.Version })
+                Assert.That(CutWind(version), Is.EqualTo(version == 1 ? PinnedCutWindVersion1 : PinnedCutWind), "the wake grid's version " + version);
+        }
+
+        static ulong CutWind(int version)
+        {
+            WindSetup setup = WindSetup.ForMap(Map, WindLevel.Severe);
+            setup.Wakes.Version = version;
+            using var wind = new WindField(setup, new FlightRandom(21));
             Double3 o = Leg + new Double3(0, -0.75, 0);
             Double3[] points =
             {
@@ -1001,8 +1020,8 @@ namespace Fpv450.Sim.Tests
                     }
                 }
             }
-            TestContext.Out.WriteLine($"the cavity's wind in E01's run, Severe seed 21, 4000 steps at 7 points: 0x{hash:X16}");
-            Assert.That(hash, Is.EqualTo(PinnedCutWind));
+            TestContext.Out.WriteLine($"the cavity's wind in E01's run, Severe seed 21, 4000 steps at 7 points, the wake grid's version {version}: 0x{hash:X16}");
+            return hash;
         }
     }
 }
