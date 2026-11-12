@@ -1,6 +1,6 @@
 # Tasks: w3-farmland-ground
 
-Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.5, 2.4 and 2.3; 3.1 alongside on `--w3-flight`; then 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
+Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongside 1.2; then 2.5, with 2.6 alongside on `--w3-blade`, then 2.4 and 2.3; 3.1 alongside on `--w3-flight`; then 4.1. 2.1's farmland case is re-run with the objects after 1.2. Timing verdicts need a quiet machine.
 
 ## 1. The heightfield
 
@@ -30,6 +30,8 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
   Model 82 if contact answers change, goldens audited. Same checks as 1.1.
 
 - [ ] 2.5 [physics-engineer] A laid fiber follows the hills: today a long laid segment runs straight between its nodes and cuts through rises (5 of 31 segments on the 1.5 km line dip up to 3.24 m under the ground). Insert a node where a segment dips under the ground, and let the line wrap the ledge's lip (a ground-walls-only query, as 2.2's design suggests). The line's tension, contacts and replays stay physical; model 82's goldens audited if answers change. Same checks as 1.1, plus `flightbench --bench farmland-line-step` with no segment under the ground.
+
+- [ ] 2.6 [physics-engineer] A crash creates no energy. `SessionTests.ACrashIntoR01ANamesThePartTheObjectAndTheMaterial` (A4, red since model 70) shows one 1 ms contact step at crash + 814 ms that gives 38.6 kN and +494 J (27 → 521 J). It happens on prop_fl's blade 0 in the step where the prop is lost and its motor binds. The drone then spins at 112 rad/s and climbs 2.4 m. Find the root cause (the suspect is the blade path's `v`, which includes `_restRate[c]·r`, in that step) and fix it. Over every contact step of a crash, mechanical energy plus rotor kinetic energy never rises by more than the motors' input. The test passes unchanged. On sub-branch `--w3-blade`, before 2.4; model 82, with goldens audited case by case. Same checks as 1.1, plus `dotnet test tools/inputtests`.
 
 ## 3. Flight on the farmland
 
