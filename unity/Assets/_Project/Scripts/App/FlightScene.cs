@@ -660,7 +660,7 @@ namespace Fpv450.App
             switch (session.State)
             {
                 case SessionState.Flying:
-                    if (!_armedOnce) FlightScreens.Hint(ArmHint(session.Input) + "  ·  V: 1st / 3rd person  ·  Esc pauses");
+                    if (!_armedOnce) FlightScreens.Hint(ArmHint(session.Input) + "  ·  V: 1st / 3rd person  ·  M: map  ·  Esc pauses");
                     break;
                 case SessionState.Paused:
                     switch (FlightScreens.Pause())

@@ -859,6 +859,8 @@ namespace Fpv450.App
                 Check(session.State == SessionState.Flying && OnHouse(), "House's flight " + session.Flights + " started on " + session.Input + ": " + Where());
                 double rest = _flight.Pose.Position.Y, top = rest;
                 yield return Shot("rest_house");
+                // w11-world-map (QA's review): M on House, its own top-down image and transform, the drone at the houses' start.
+                yield return PressM(_flight.WorldMap, _flight.Eye != null ? _flight.Eye.parent : null, "in flight over House");
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
                 yield return new WaitForSecondsRealtime(0.4f);
                 Check(_flight.Pose.Armed, "armed on House");
