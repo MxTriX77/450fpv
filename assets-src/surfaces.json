@@ -31,12 +31,13 @@
     "stone_diameter_m": "the rock fragments' representative size, their class's geometric middle (FAO 2006, Table 27: fine gravel 2–6 mm, medium 6–20, coarse 20–60)",
     "hardness_pa": "a rigid set's face: its indentation hardness (Pa), physics_materials.json's field: harder than props.blade's, a hard target",
     "crush_strength_pa": "a rigid set's face: the pressure it resists a blade carving it (Pa), physics_materials.json's field; a hard target's is not read",
-    "cover.<kind>": "straw, stem and twig hold elastic_modulus_pa, wall_share, density_kg_m3, hook_release_n, cut_energy_j_per_m2 and damping_ratio, and straw and twig roll_friction; a leaf holds its masses, petiole_diameter_m and cut_energy_j_per_m2",
+    "cover.<kind>": "straw, stem and twig hold elastic_modulus_pa, wall_share, density_kg_m3, hook_release_n, cut_energy_j_per_m2 and damping_ratio, and straw and twig roll_friction; the stem field's kinds (grass_blade, dry_culm, burnt_culm: a map's grass layers, w9-village-physics 2.1) hold the stem's fields and diameter_m; a leaf holds its masses, petiole_diameter_m and cut_energy_j_per_m2",
     "elastic_modulus_pa": "[min, max]: the tissue's Young's modulus (Pa)",
     "wall_share": "the hollow wall's thickness over the diameter; 0.5 is a solid section",
     "density_kg_m3": "a cover kind's: the wall tissue's density, the mass a blade brings to its speed is this × the section × one chord; a rigid set's: its face's density (kg/m³), physics_materials.json's field",
     "hook_release_n": "[min, max]: the pull at which a hooked element lets go (it slips off, pulls out or breaks)",
     "cut_energy_j_per_m2": "e_s: the energy per section area to cut through it (a leaf's at its petiole)",
+    "diameter_m": "the stem field's kinds: a stem's outer diameter (m), which a drawn element carries itself",
     "roll_friction": "μ across a loose element's axis as it rolls under a part",
     "damping_ratio": "ζ of an element's bending",
     "dry_mass_per_area_kg_m2": "a leaf's dry mass per area (LMA)",
@@ -825,7 +826,7 @@
         "wall_share": {"value": 0.12, "label": "assumed", "note": "a wheat straw's wall is a few tenths of a millimetre on a 3–4 mm stem, about an eighth of the diameter"},
         "density_kg_m3": {"value": 500.0, "label": "assumed", "note": "the dry wall tissue: a 3.5 mm straw with a 0.4 mm wall (3.9e-6 m² of wall) weighs about 2 g a metre (derived), the order of a dry wheat straw's mass for its length"},
         "hook_release_n": {"value": [1.0, 5.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's straw)"},
-        "cut_energy_j_per_m2": {"value": 15000.0, "label": "assumed", "note": "the published order of straw and forage shearing, 10–60 kJ/m² of section (Persson 1987; Tavakoli et al. 2009 for wheat straw), dry straw toward its low end"},
+        "cut_energy_j_per_m2": {"value": 22000.0, "label": "published", "note": "wheat straw's specific shearing energy, 21.85–25.74 kJ/m² at 10.2 % w.b. (Tavakoli, Mohtasebi & Jafari 2008, CIGR Ejournal X, abstract; barley straw 18.79–19.85); docs/reference-notes/stem-properties.md §4"},
         "roll_friction": {"value": 0.05, "label": "assumed", "note": "carried (K§7.3): a loose straw or twig rolls under a part across its axis"},
         "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a straw or stem bending as a cantilever"}
       },
@@ -834,7 +835,7 @@
         "wall_share": {"value": 0.12, "label": "derived", "note": "the dry set's"},
         "density_kg_m3": {"value": 650.0, "label": "derived", "note": "the dry set's × wetting.straw_density_wet"},
         "hook_release_n": {"value": [1.5, 7.5], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
-        "cut_energy_j_per_m2": {"value": 22500.0, "label": "derived", "note": "the dry set's × wetting.straw_cut_energy_wet"},
+        "cut_energy_j_per_m2": {"value": 33000.0, "label": "derived", "note": "the dry set's × wetting.straw_cut_energy_wet"},
         "roll_friction": {"value": 0.05, "label": "derived", "note": "the dry set's"},
         "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"}
       }
@@ -891,6 +892,66 @@
         "mass_per_area_kg_m2": {"value": 0.4, "label": "derived", "note": "the dry set's + wetting.leaf_water_film_kg_m2"},
         "petiole_diameter_m": {"value": 0.001, "label": "derived", "note": "the dry set's"},
         "cut_energy_j_per_m2": {"value": 30000.0, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "grass_blade": {
+      "dry": {
+        "elastic_modulus_pa": {"value": [1.0e9, 1.0e9], "label": "assumed", "note": "1 GPa (0.33–6.6): inside the published straw (0.33–6.6 GPa, Tavakoli et al. 2009 and O'Dogherty et al. 1995) and alfalfa (0.79–3.99 GPa, Nazari Galedar et al. 2008) bounds; no green culm's was readable (stem-properties.md §4, §5)"},
+        "wall_share": {"value": 0.125, "label": "derived", "note": "radius : wall 1 : 0.25 or less, so wall / d = 0.25 × 0.5 (InfoFlora [1]; stem-properties.md §4)"},
+        "density_kg_m3": {"value": 1000.0, "label": "assumed", "note": "living, water-filled tissue, 900–1050 (stem-properties.md §4)"},
+        "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass), as the stem row's"},
+        "cut_energy_j_per_m2": {"value": 10000.0, "label": "assumed", "note": "10 kJ/m² (5–25): under straw's 18.8–25.7, above leaf laminae's 0.18–2.7 (stem-properties.md §4)"},
+        "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending, as the stem row's"},
+        "diameter_m": {"value": 0.0015, "label": "published", "note": "a green grass culm, 1–2 mm (Dactylis glomerata, Arrhenatherum elatius; InfoFlora's species pages, stem-properties.md [1], §4)"}
+      },
+      "wet": {
+        "elastic_modulus_pa": {"value": [1.0e9, 1.0e9], "label": "derived", "note": "the dry set's"},
+        "wall_share": {"value": 0.125, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 1000.0, "label": "derived", "note": "the dry set's"},
+        "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
+        "cut_energy_j_per_m2": {"value": 10000.0, "label": "derived", "note": "the dry set's"},
+        "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "diameter_m": {"value": 0.0015, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "dry_culm": {
+      "dry": {
+        "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "assumed", "note": "2 GPa (0.5–6.6): drier is stiffer, the published direction (Nazari Galedar et al. 2008, Tavakoli et al. 2009; stem-properties.md §4)"},
+        "wall_share": {"value": 0.125, "label": "assumed", "note": "a dead culm keeps its green section (stem-properties.md §4)"},
+        "density_kg_m3": {"value": 500.0, "label": "assumed", "note": "the straw row's dry wall tissue, 300–600 (stem-properties.md §4)"},
+        "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass), as the stem row's"},
+        "cut_energy_j_per_m2": {"value": 15000.0, "label": "assumed", "note": "15 kJ/m² (8–25): drier shears with less energy (Nazari Galedar et al. 2008) and weathered stems are 0.3–0.7 as strong (Šarauskis et al. 2013; stem-properties.md §4)"},
+        "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending, as the stem row's"},
+        "diameter_m": {"value": 0.0015, "label": "assumed", "note": "a dead culm keeps its green section (stem-properties.md §4)"}
+      },
+      "wet": {
+        "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "derived", "note": "the dry set's"},
+        "wall_share": {"value": 0.125, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 500.0, "label": "derived", "note": "the dry set's"},
+        "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
+        "cut_energy_j_per_m2": {"value": 15000.0, "label": "derived", "note": "the dry set's"},
+        "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "diameter_m": {"value": 0.0015, "label": "derived", "note": "the dry set's"}
+      }
+    },
+    "burnt_culm": {
+      "dry": {
+        "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "assumed", "note": "the dry culm's (stem-properties.md §4, no source)"},
+        "wall_share": {"value": 0.0625, "label": "assumed", "note": "the dry culm's wall halved: charred (stem-properties.md §4, no source)"},
+        "density_kg_m3": {"value": 300.0, "label": "assumed", "note": "charred tissue (stem-properties.md §4, no source)"},
+        "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass), as the stem row's"},
+        "cut_energy_j_per_m2": {"value": 7500.0, "label": "assumed", "note": "the dry culm's × 0.5 (stem-properties.md §4, no source)"},
+        "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending, as the stem row's"},
+        "diameter_m": {"value": 0.0015, "label": "assumed", "note": "the dry culm's (stem-properties.md §4: no source on charred stems, §5)"}
+      },
+      "wet": {
+        "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "derived", "note": "the dry set's"},
+        "wall_share": {"value": 0.0625, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 300.0, "label": "derived", "note": "the dry set's"},
+        "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
+        "cut_energy_j_per_m2": {"value": 7500.0, "label": "derived", "note": "the dry set's"},
+        "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"},
+        "diameter_m": {"value": 0.0015, "label": "derived", "note": "the dry set's"}
       }
     }
   }
