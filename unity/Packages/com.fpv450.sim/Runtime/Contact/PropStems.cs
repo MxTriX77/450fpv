@@ -102,7 +102,7 @@ namespace Fpv450.Sim.Contact
         Corners _tip;
         bool _stemsOn;
         readonly Tissue[] _tissue = new Tissue[7];                  // by CoverKind
-        readonly double[] _leanTable = new double[TableSize + 1];   // φ at s = x/(1 + x), x = φ/cos²φ
+        readonly double[] _leanTable = new double[TableSize + 1], _leanCos = new double[TableSize + 1]; // φ and cos φ at s = x/(1 + x), x = φ/cos²φ
         readonly double[] _root1 = new double[TableSize + 1], _root2 = new double[TableSize + 1]; // φ·cos φ = c, both branches
         double _rootMax, _rootPhi;
         readonly StemPatch[] _patches = new StemPatch[StemPatchesMax];
@@ -161,6 +161,7 @@ namespace Fpv450.Sim.Contact
                 if (j == TableSize)
                 {
                     _leanTable[j] = Pi / 2;
+                    _leanCos[j] = 0;
                     continue;
                 }
                 double x = s / (1 - s), lo = 0, hi = Pi / 2;
@@ -172,6 +173,7 @@ namespace Fpv450.Sim.Contact
                     else hi = m;
                 }
                 _leanTable[j] = 0.5 * (lo + hi);
+                DetMath.SinCos(_leanTable[j], out _, out _leanCos[j]);
             }
             double a = 0, b = Pi / 2; // cos φ = φ·sin φ at the most φ·cos φ
             for (int n = 0; n < 60; n++)
@@ -219,14 +221,14 @@ namespace Fpv450.Sim.Contact
             };
         }
 
-        // The lean of a stem whose κ·L³ is x: φ/cos²φ = x, read from the table.
-        double Lean(double x)
+        // The lean of a stem whose κ·L³ is x, φ/cos²φ = x, as its cosine, read from the table.
+        double LeanCos(double x)
         {
-            if (!(x > 0)) return 0;
+            if (!(x > 0)) return 1;
             double s = x / (1 + x) * TableSize;
             int j = (int)s;
-            if (j >= TableSize) return _leanTable[TableSize];
-            return _leanTable[j] + (_leanTable[j + 1] - _leanTable[j]) * (s - j);
+            if (j >= TableSize) return _leanCos[TableSize];
+            return _leanCos[j] + (_leanCos[j + 1] - _leanCos[j]) * (s - j);
         }
 
         // The two roots of φ·cos φ = c (0 ≤ c ≤ the most), read from the tables.
@@ -421,6 +423,31 @@ namespace Fpv450.Sim.Contact
             Span<double> nE = stackalloc double[FieldKinds], lE = stackalloc double[FieldKinds];
             nH.Clear(); rH.Clear(); lH.Clear(); nE.Clear(); lE.Clear();
             bool deeper = cut > h && cut < double.PositiveInfinity;
+            // Per kind, the lengths [L1, L2] whose leaning tops stand to the disc (the two roots of φ·cos φ = κh³; all from h up
+            // without the slipstream), and κ.
+            Span<double> l1 = stackalloc double[FieldKinds], l2 = stackalloc double[FieldKinds], kap = stackalloc double[FieldKinds];
+            for (int f = 0; f < FieldKinds; f++)
+            {
+                Tissue t = _tissue[f + (int)CoverKind.GrassBlade];
+                double kappa = q * t.Kappa0, x = kappa * h * h * h;
+                kap[f] = kappa;
+                if (!t.Known || !(kappa > 0))
+                {
+                    l1[f] = h;
+                    l2[f] = double.PositiveInfinity;
+                    continue;
+                }
+                if (!(x < _rootMax))
+                {
+                    l1[f] = l2[f] = 0; // none stands to the disc
+                    continue;
+                }
+                Roots(x, out double phi1, out double phi2);
+                DetMath.SinCos(phi1, out _, out double c1);
+                DetMath.SinCos(phi2, out _, out double c2);
+                l1[f] = h / c1;
+                l2[f] = c2 > 0 ? DetMath.Cbrt(phi2 / (kappa * c2 * c2)) : double.PositiveInfinity;
+            }
             for (int p = 0; p < n; p++)
             {
                 StemPatch patch = _patches[p];
@@ -428,13 +455,17 @@ namespace Fpv450.Sim.Contact
                 if (k < (int)CoverKind.GrassBlade || k > (int)CoverKind.BurntCulm || !_tissue[k].Known) continue;
                 Tissue t = _tissue[k];
                 int f = k - (int)CoverKind.GrassBlade;
-                double kappa = q * t.Kappa0;
-                // The stems reaching the disc as they lean, where the blade is fast enough across them.
-                double count = Reaching(patch, kappa, h, h, out double phi, out double mid), share = Annulus(t.Vc, omega, phi, rtip, rroot, out double rms);
-                nH[f] += count * share;
-                rH[f] += count * share * rms;
-                DetMath.SinCos(phi, out _, out double cphi);
-                lH[f] += count * share * DetMath.Max(0, mid - h / cphi); // the piece above the cut
+                // The stems reaching the disc as they lean, where the blade is fast enough across them: their tops above h spread
+                // evenly up to the patch's tallest (assumed), so the lengths standing to it are the share (L2 − L1)/(top − h).
+                double above = patch.HeightMax - h, lo = DetMath.Max(l1[f], h), hi = DetMath.Min(l2[f], patch.HeightMax);
+                if (above > 0 && hi > lo)
+                {
+                    double count = patch.Density * patch.Area * (hi - lo) / above, mid = 0.5 * (lo + hi);
+                    double cphi = LeanCos(kap[f] * mid * mid * mid), share = Annulus(t.Vc, omega, cphi, rtip, rroot, out double rms);
+                    nH[f] += count * share;
+                    rH[f] += count * share * rms;
+                    lH[f] += count * share * DetMath.Max(0, mid - h / cphi); // the piece above the cut
+                }
                 // What the leading edge runs into: upright, its tops up to the tallest or to the ground's cut plane there.
                 if (speed > 0 && omega * rtip >= (StemCritical ? t.Vc : 0))
                 {
@@ -523,43 +554,10 @@ namespace Fpv450.Sim.Contact
             return changed;
         }
 
-        // The stems of a patch in the disc whose tops, leaning by κ, reach x (≥ h): their tops above h spread evenly up to the
-        // patch's tallest (assumed), so the lengths [L1, L2] that stand to x are the share (L2 − L1)/(top − h) of those reaching h.
-        // phi: their lean at the middle length.
-        double Reaching(in StemPatch p, double kappa, double h, double x, out double phi, out double mid)
+        // The share of the disc where a blade at ω cuts a stem leaning φ (its cosine cphi), ω·r·cos φ ≥ v_c, outside the root,
+        // and its cuts' rms radius (the stems even over the disc).
+        double Annulus(double vc, double omega, double cphi, double rtip, double rroot, out double rms)
         {
-            phi = 0;
-            mid = h;
-            double span = p.HeightMax - h;
-            if (!(span > 0)) return 0;
-            double lo, hi;
-            if (!(kappa > 0))
-            {
-                lo = x;
-                hi = p.HeightMax;
-            }
-            else
-            {
-                double c = kappa * x * x * x;
-                if (!(c < _rootMax)) return 0;
-                Roots(c, out double phi1, out double phi2);
-                DetMath.SinCos(phi1, out _, out double c1);
-                DetMath.SinCos(phi2, out _, out double c2);
-                lo = x / c1;
-                hi = c2 * c2 > 0 ? DetMath.Min(DetMath.Cbrt(phi2 / (kappa * c2 * c2)), p.HeightMax) : p.HeightMax;
-            }
-            lo = DetMath.Max(lo, h);
-            if (!(hi > lo)) return 0;
-            mid = 0.5 * (lo + hi);
-            phi = Lean(kappa * mid * mid * mid);
-            return p.Density * p.Area * (hi - lo) / span;
-        }
-
-        // The share of the disc where a blade at ω cuts a stem leaning φ, ω·r·cos φ ≥ v_c, outside the root, and its cuts' rms
-        // radius (the stems even over the disc).
-        double Annulus(double vc, double omega, double phi, double rtip, double rroot, out double rms)
-        {
-            DetMath.SinCos(phi, out _, out double cphi);
             double across = omega * cphi, rc = StemCritical ? (across > 0 ? vc / across : double.PositiveInfinity) : 0;
             rc = DetMath.Max(rc, rroot);
             rms = 0;
@@ -680,8 +678,7 @@ namespace Fpv450.Sim.Contact
                 if (!inside || !(omega > 0)) continue;
                 rec.Elements++;
                 // Its top: leaning in the slipstream (upright as it enters), or the plane its ground was cut to.
-                double phi = entering ? 0 : Lean(q * k.T.Kappa0 * k.Length * k.Length * k.Length);
-                DetMath.SinCos(phi, out _, out double cphi);
+                double cphi = entering ? 1 : LeanCos(q * k.T.Kappa0 * k.Length * k.Length * k.Length);
                 double own = k.Base.Y + DetMath.Min(k.Rise, k.Length * cphi), cutTo = GridCut(k.Base.X, k.Base.Z), top = DetMath.Min(own, cutTo);
                 double plane = hub.Y - (axis.X * rel.X + axis.Z * rel.Z) / axis.Y;
                 if (!(top > plane) || !(k.Base.Y < plane)) continue;
