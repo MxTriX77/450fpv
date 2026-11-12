@@ -472,6 +472,54 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
             ContactScenarios.PoleStrike crown = RangeScenarios.Into(spec, materials, hash, RangeScenarios.Find("crown"), true);
             Row("the crown (V01_L, 10 m/s at 10 m), no tunnel through its twigs", crown.Tunnels == 0 && crown.Lost == 0, Strike(crown));
             FarmlandCrowns(spec, materials, hash);
+            FarmlandBush(spec, materials, hash);
+        }
+
+        /// <summary>
+        /// w3-farmland-ground 2.7: the farmland's most placed plant, GreenBush (VF07, 579 placed; six twig spheres, no limbs), alone
+        /// on a meadow plane at the origin, the legs-on drone 35 m south of it with the airframe's effects on and surfaces.json's
+        /// ground (a pilot's flight has both: its twigs are cut, PropStrikes.Twigs), held at the middle height of the bush's wind
+        /// box and flown north at 10 m/s into it. A row passes when the drone's first touch is the bush's twig shell, with no
+        /// tunnel and no contact pair lost; it prints what the bush did: its twig contacts and their impulse, the twigs the blades
+        /// cut and the work they took, the blades it broke, and where the drone ended.
+        /// </summary>
+        static void FarmlandBush(DroneSpec spec, MaterialRow[] materials, ulong hash)
+        {
+            const string asset = "VF07", variant = "GreenBush";
+            string root = RangeScenarios.Root;
+            string[] names = MapWorld.MaterialNames(System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.MaterialsFile)));
+            string model = "vegetation/" + asset + "/" + variant + ".assetmeta.json";
+            string text = System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.ModelsRoot, model));
+            double height;
+            using (var doc = System.Text.Json.JsonDocument.Parse(text))
+                height = doc.RootElement.GetProperty("wind_volumes")[0].GetProperty("center")[1].GetDouble();
+            string placements = "{\"format\": \"fpv450-placements\", \"format_version\": 1, \"map\": \"w3-bush\", \"frame\": \"unity-lh-yup\", "
+                + "\"extent_m\": [-64, -64, 64, 64], \"ground\": {\"plane\": {\"y_m\": 0, \"surface\": \"meadow_sod\"}, \"patches\": [], \"holes\": []}, "
+                + "\"instances\": [{\"id\": 0, \"asset\": \"" + asset + "\", \"variant\": \"" + variant
+                + "\", \"class\": \"vegetation\", \"position_m\": [0, 0, 0], \"yaw_deg\": 0}]}";
+            var world = new MapWorld(placements, m => System.IO.File.ReadAllText(System.IO.Path.Combine(root, MapWorld.ModelsRoot, m)), names);
+            var site = new ContactScenarios.Site(new FlightWorld(world), new Double3(0, 0, -35), 0) { Airframe = true };
+            var events = new System.Collections.Generic.List<FlightEvent>();
+            Loadout legs = spec.Nominal;
+            legs.Legs = true;
+            FlightCore last = null;
+            ContactScenarios.PoleStrike p = ContactScenarios.Into(spec, materials, hash, site, height, 10, core => { last = core; return 0; }, null, 6000, 0, events,
+                setup => setup.Contacts = spec.BuildContacts(legs, materials, hash, SoilScenarios.Table()));
+            ushort twig = world.MaterialId("twig");
+            int twigContacts = 0, cuts = 0, broken = 0;
+            double impulse = 0, work = 0;
+            foreach (FlightEvent e in events)
+            {
+                if (e.Kind == EventKind.ContactMade && e.Material == twig) twigContacts++;
+                if (e.Kind == EventKind.ContactBroken && e.Material == twig) impulse += e.B;
+                if (e.Kind == EventKind.BladeStrike && e.Material == twig) { cuts++; work += e.A; }
+                if (e.Kind == EventKind.BladeDamaged && e.Material == twig) broken++;
+            }
+            FlightState end = last.State;
+            Row($"the farmland bush ({variant}, 10 m/s at {height:F2} m, with surfaces.json), felt first by its twig shell, no tunnel, no pair lost",
+                p.Touch && p.FirstObject == variant && p.FirstMaterial == "twig" && p.Tunnels == 0 && p.Lost == 0,
+                $"{twigContacts} twig contacts taking {impulse:F2} N·s; the blades cut {cuts} twigs for {work:F1} J and broke {broken} times; "
+                + $"the drone ends at z {end.Position.Z:F2} m (the bush's centre 0), {end.Position.Y:F2} m up, at {end.Velocity.Length():F2} m/s; " + Strike(p));
         }
 
         /// <summary>The farmland's tree families (w4a-farmland-vegetation 1.1), one variant each, with the material its crown is
