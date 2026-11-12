@@ -21,7 +21,8 @@ namespace Fpv450
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
         /// unlinked checkout. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
-        /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
+        /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too. It renders Play's stills
+        /// first (MapStills, so it needs graphics) and fails without them.
         /// </summary>
         public static void Windows()
         {
@@ -43,6 +44,13 @@ namespace Fpv450
                 Debug.LogError($"[Build] Windows: {scene} has {missing.Count} missing references, so the player would show it broken. " +
                                "The farmland's come from the vendor store: run pwsh tools/vendor/link.ps1 in this checkout, then build again " +
                                "(w1-farmland-world design 3). The first:\n  " + string.Join("\n  ", missing.Take(20)));
+                EditorApplication.Exit(1);
+                return;
+            }
+            // w10-play-maps 1.2: Play's stills, rendered through the feed into GeneratedFolder, which CopyData carries.
+            if (!MapStills.RenderAll())
+            {
+                Debug.LogError("[Build] Windows: the maps' stills failed to render (MapStills); the build needs graphics, never -nographics");
                 EditorApplication.Exit(1);
                 return;
             }

@@ -115,13 +115,18 @@ namespace Fpv450.Feed
             signals.Sample(dt);
             if (!rig.Running)
                 return;
-            // The stub OSD's altitude, distance and timer, from the free camera as the Godot stand-in took them
-            // (FeedSignals.cs:43-58); the OSD content model replaces them (task 1.5).
             StubOsd osd = signals.Stub.Osd;
-            Vector3 p = transform.position;
+            Place(osd, transform.position);
+            osd.ElapsedSeconds += dt;
+        }
+
+        /// The stub OSD's altitude and distance from the free camera at <paramref name="p"/>, as the Godot stand-in took
+        /// them (FeedSignals.cs:43-58); the OSD content model replaces them (task 1.5). The maps' stills read the same
+        /// (w10-play-maps 1.2).
+        public static void Place(StubOsd osd, Vector3 p)
+        {
             osd.AltitudeM = p.y;
             osd.DistanceM = new Vector2(p.x, p.z).magnitude;
-            osd.ElapsedSeconds += dt;
         }
 
         /// The cost scenario (analog-feed spec, "The cost on AC"): the GPU time of the feed's three passes per frame.
