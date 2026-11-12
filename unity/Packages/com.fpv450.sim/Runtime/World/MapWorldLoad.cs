@@ -28,8 +28,8 @@
 //   place; the object grid lies on its map's rectangle (map_rect_m).
 // - A map package's objects (w3-farmland-ground 1.2): its placements.json ("fpv450-map-placements" v1, checked against
 //   map.json's SHA-256) names each row's kind and variant, its position, Unity's quaternion and its scale per axis. Its
-//   metadata is ModelsRoot/<class>/<asset>/<variant>.assetmeta.json, the class and asset from the vendor lists (VendorFiles:
-//   W4a's plants, W4b's ruins and debris). A row's pose is Unity's TRS: world = position + R·(scale ⊙ local), R the
+//   metadata is ModelsRoot/<class>/<asset>/<variant>.assetmeta.json, the class and asset from the vendor lists (VendorPlants,
+//   W4a's; VendorRuins, W4b's). A row's pose is Unity's TRS: world = position + R·(scale ⊙ local), R the
 //   quaternion normalised, its every product + − × only (Quat.Rotate). A row mirrored in x (scale x < 0) takes its variant's
 //   _mirrored twin, whose metadata carries the mirror (W4b design §2). A scaled row (the trees and bushes: (w, h, w)):
 //   Scaled; its snag records' radii by w (MapWorldSnags.cs) and its wind volumes per axis (MapWorldWind.cs); it may have no
@@ -72,7 +72,7 @@ namespace Fpv450.Sim.World
         }
 
         /// <summary>The vendor pieces' asset ids by variant (w3-farmland-ground 1.2): the plants' (W4a) and the ruins' (W4b).</summary>
-        public static readonly string[] VendorFiles = { "assets-src/vendor_plants.json", "assets-src/vendor.json" };
+        public const string VendorPlants = "assets-src/vendor_plants.json", VendorRuins = "assets-src/vendor.json";
 
         /// <summary>
         /// The map maps/&lt;mapId&gt;/ of the repository at `root`, with the material table: a map package (its map.json, the
@@ -92,7 +92,7 @@ namespace Fpv450.Sim.World
                         + "\",\"frame\":\"unity-lh-yup\",\"placements\":[]}", null, MaterialNames(Read(MaterialsFile)), terrain, manifest, null);
                 byte[] placements = Terrain.Checked("placements.json", files, relative => File.ReadAllBytes(Path.Combine(folder, relative)), "map.json");
                 return new MapWorld(Encoding.UTF8.GetString(placements), model => Read(ModelsRoot + "/" + model), MaterialNames(Read(MaterialsFile)),
-                    terrain, manifest, VendorAssets(Read(VendorFiles[0]), Read(VendorFiles[1])));
+                    terrain, manifest, VendorAssets(Read(VendorPlants), Read(VendorRuins)));
             }
             return new MapWorld(Read("maps/" + mapId + "/placements.json"), model => Read(ModelsRoot + "/" + model),
                 MaterialNames(Read(MaterialsFile)));
@@ -107,7 +107,7 @@ namespace Fpv450.Sim.World
             var assets = new Dictionary<string, string>(StringComparer.Ordinal);
             for (int f = 0; f < vendorJson.Length; f++)
             {
-                string file = f < VendorFiles.Length ? VendorFiles[f] : "vendor list " + f;
+                string file = f == 0 ? VendorPlants : f == 1 ? VendorRuins : "vendor list " + f;
                 JsonNode list = Need(DetJson.Parse(vendorJson[f]), "assets", JsonKind.Object, file);
                 foreach (string asset in list.Keys)
                 {
@@ -234,7 +234,7 @@ namespace Fpv450.Sim.World
                     if (!(scale.X > 0 && scale.Y > 0 && scale.Z > 0))
                         throw new FormatException(where + ": scale must be above 0 on each axis, but for x on a variant with a _mirrored twin");
                     if (!vendor.TryGetValue(variant, out string asset))
-                        throw new FormatException(where + ": variant " + variant + " is in no vendor list (" + string.Join(", ", VendorFiles) + ")");
+                        throw new FormatException(where + ": variant " + variant + " is in no vendor list (" + VendorPlants + ", " + VendorRuins + ")");
                     rowClass[i] = asset.Substring(0, asset.IndexOf('/'));
                     path = asset + "/" + variant + ".assetmeta.json";
                     rowScale[i] = scale;
