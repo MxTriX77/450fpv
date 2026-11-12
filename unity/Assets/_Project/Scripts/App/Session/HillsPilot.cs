@@ -37,6 +37,7 @@ namespace Fpv450.App.Session
         readonly RatePreview _curve;
         readonly Func<double, double, double> _ground;
         double _throttle; // the keyboard's throttle stick as the keys move it (KeyboardSticks.ThrottlePerSecond)
+        KeyboardKeys _held; // the keys returned last, which the flight held over the dt that ended this frame
         double _settled; // s the legs have stood still on the ground
         int _next;
 
@@ -55,10 +56,15 @@ namespace Fpv450.App.Session
             _ground = ground ?? throw new ArgumentNullException(nameof(ground));
         }
 
-        /// <summary>The keys to hold for the next dt s, from this frame's pose.</summary>
+        /// <summary>The keys to hold from now to the next frame, from this frame's pose; dt is the time since the last frame,
+        /// over which the flight held the keys returned then (the player's scene reads them a frame late: a stall between
+        /// two frames moves the throttle by the keys held across it, so the stick's own count follows the keys held, not
+        /// the keys chosen).</summary>
         public KeyboardKeys Next(in PoseFrame pose, double dt)
         {
-            if (Now == Phase.Done) return KeyboardKeys.None;
+            _throttle = Clamp(_throttle + KeyboardSticks.ThrottlePerSecond * dt
+                * (((_held & KeyboardKeys.ThrottleUp) != 0 ? 1 : 0) - ((_held & KeyboardKeys.ThrottleDown) != 0 ? 1 : 0)), 0, 1);
+            if (Now == Phase.Done) return _held = KeyboardKeys.None;
             Double3 x = pose.Position, v = pose.Velocity;
             Double3 f = pose.Attitude.Rotate(new Double3(0, 0, 1)), r = pose.Attitude.Rotate(new Double3(1, 0, 0));
             double up = pose.Attitude.Rotate(new Double3(0, 1, 0)).Y;
@@ -123,9 +129,7 @@ namespace Fpv450.App.Session
                 if (_throttle < want - 0.01) keys |= KeyboardKeys.ThrottleUp;
                 else if (_throttle > want + 0.01) keys |= KeyboardKeys.ThrottleDown;
             }
-            _throttle = Clamp(_throttle + KeyboardSticks.ThrottlePerSecond * dt
-                * (((keys & KeyboardKeys.ThrottleUp) != 0 ? 1 : 0) - ((keys & KeyboardKeys.ThrottleDown) != 0 ? 1 : 0)), 0, 1);
-            return keys;
+            return _held = keys;
         }
 
         /// <summary>The throttle stick (0–1) whose command (0–1 of rcCommand) is command on a preview's curve: its inverse,
