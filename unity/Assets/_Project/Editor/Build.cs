@@ -155,7 +155,22 @@ namespace Fpv450
                 File.Copy(from, to, true);
                 Debug.Log($"[Build] the player's data: {file} ({new FileInfo(to).Length} bytes)");
             }
+            if (Directory.Exists(GeneratedFolder))
+                foreach (string from in Directory.GetFiles(GeneratedFolder, "*", SearchOption.AllDirectories))
+                {
+                    string file = Path.GetRelativePath(GeneratedFolder, from), to = Path.Combine(streaming, "generated", file);
+                    Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                    File.Copy(from, to, true);
+                    Debug.Log($"[Build] the player's generated files: generated/{file.Replace('\\', '/')} ({new FileInfo(to).Length} bytes)");
+                }
             return true;
         }
+
+        /// <summary>
+        /// What the build renders for the player (<c>unity/Generated/&lt;kind&gt;/</c>: <c>topdown/</c>, the maps' top-down
+        /// images, w11-world-map; <c>stills/</c>, the maps' stills, w10-play-maps), git-ignored and never pushed (D-089). The
+        /// build carries it into the player's <c>StreamingAssets/generated/&lt;kind&gt;/</c>.
+        /// </summary>
+        public static string GeneratedFolder => Path.Combine(Path.GetDirectoryName(Application.dataPath)!, "Generated");
     }
 }

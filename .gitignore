@@ -42,6 +42,8 @@ unity/[Ll]ogs/
 unity/[Uu]ser[Ss]ettings/
 unity/[Mm]emoryCaptures/
 unity/[Rr]ecordings/
+# rendered by the build for the player (unity/Generated/<kind>/: the maps' top-down images and stills), never pushed (D-089)
+unity/[Gg]enerated/
 # left behind by a failed player build (com.unity.test-framework.performance)
 unity/Assets/Resources/PerformanceTestRun*
 unity/*.csproj
