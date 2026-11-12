@@ -1340,7 +1340,21 @@ namespace Fpv450.Sim.Tests
         /// from 78's: 76's move against 75 (11.9 mm, 0.61°, at rest 2.0 mm apart). Against 76 from step 1 (the line laid from the
         /// bent nozzle), within 0.6 mm and 0.04°, at rest 0.6 mm apart (76 paid out 0.235 m from the straight nozzle). Every golden
         /// without the line keeps its pin (76's).
-        public const ulong TetherHash = 0x0CF4962A5D6DB24AUL;
+        /// Model 84, extended by w3-farmland-ground 2.4 (the laid line rests and freezes: a node at rest by its stuck holds, a span
+        /// held still between supports freezing with them, the trail's end lifted only by a pull its laid run's friction cannot
+        /// hold, a laid turn held against the spacing law): re-recorded. Audited case by case: with the known-wrong sliding trail
+        /// (FlightSetup.TetherSlidingTrail) it is model 79's pin, 0x0CF4962A5D6DB24A (Model79TetherHash), every record and event,
+        /// which models 80–84 kept (flightbench --golden, GoldenFlightTests.WithTheSlidingTrailTheTetherGoldenIsModel79s), so the
+        /// trail is the whole move. The records are the same to step 5781; at step 5782, in the descent, a node the floor holds
+        /// behind the drone (its holds stuck, the node ringing on them faster than the sliding trail's 5 mm/s) freezes into the
+        /// trail, which then holds one point more than 79's until step 10000. At rest 0.07 mm (x) and 0.38 mm (z) from 79's,
+        /// 0.2497 m up; the line whole, 0.224 m paid out, 15 nodes and trail 7 as 79's. Every golden without the line keeps its
+        /// pin, and every kept audit of an older line flies the sliding trail (FlyContact), so each keeps its own.
+        public const ulong TetherHash = 0xF74FECF3FEF4F329UL;
+
+        /// <summary>The tether golden at model 79, which models 80–84 kept until w3-farmland-ground 2.4: the flight with the
+        /// sliding trail (FlightSetup.TetherSlidingTrail) gives it, every record and event.</summary>
+        public const ulong Model79TetherHash = 0x0CF4962A5D6DB24AUL;
 
         /// <summary>The tether golden at model 64 (the body over the fountain and D01's canister), which the flight with the
         /// known-wrong 0-force hold keeps (FlightSetup.TetherZeroForceHold: GoldenFlightTests.WithoutTheCoulombHoldEachGoldenIsModel64s).</summary>
@@ -2064,7 +2078,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2097,6 +2111,14 @@ namespace Fpv450.Sim.Tests
                 // so every kept audit of one flies it: each flies Betaflight's airmode on (models before 69) or over an older record's
                 // layout (69's own audit and older); linearStep says so outright.
                 setup.TetherLinearStep = linearStep ?? (airmode || layout != LogFormat.StepSize);
+                // w3-farmland-ground 2.4: every line before it slid on its trail (FlightSetup.TetherSlidingTrail), so every kept
+                // audit flies it, each a flight other than the tether golden's own (an older model's drone, record, controller,
+                // line or air, a known-wrong, or a part left out); slidingTrail says so outright.
+                bool golden = skipAt == LogFormat.StepSize && skipBytes == 0 && asymmetry && ring && ground && flapping && modes
+                    && wind == null && interference && wake && motors && layout == LogFormat.StepSize && soil && rain == RainLevel.Sunny
+                    && table == null && yawI && edit == null && recirculation && fiberContacts && cuts && body && coulomb && heat != false
+                    && !airmode && linearStep != true && edgewise != false && spec.Coil.Housing >= 0 && !OnModel70sNozzle(spec);
+                setup.TetherSlidingTrail = slidingTrail ?? !golden;
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

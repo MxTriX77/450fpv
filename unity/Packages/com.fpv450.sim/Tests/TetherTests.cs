@@ -98,7 +98,10 @@ namespace Fpv450.Sim.Tests
                 + $"{r.PaidBeforePull * 1000:F3} mm of it before the pull");
             Assert.That(r.Frozen, Is.GreaterThan(3), "the laid line froze into the trail");
             Assert.That(r.Fewest, Is.EqualTo(1), "every point lifted back to the snag");
-            Assert.That(r.RoseWhileLifting, Is.False, "last frozen first, in order");
+            // The trail lifts last frozen first by construction (FiberLine.FreezeAndLift). Since w3-farmland-ground 2.4 a point the
+            // pull lifts but then leaves at rest for trail.freeze_seconds (a zigzag's corner lifted by the pull across it, held by
+            // its friction until the slack before it is taken up) rests again and refreezes, so the count may rise while lifting
+            // (printed); before, a lifted node rested only below 5 mm/s, which its stick spring's ringing rarely let it reach.
             Assert.That(r.MostNodes, Is.LessThanOrEqualTo(32));
             // Since model 64 the canister's nozzle points aft and down, along the pull to the trail, so the lip's capstan is smaller
             // and the payout begins as the last point before the snag lifts (2 points left; on the old coil's level exit, 1). Since model

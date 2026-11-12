@@ -827,8 +827,20 @@ namespace Fpv450.Sim.Log
         ///    spectral, from the world's heights; a step taller than the cover's still layer separates its lee, Cavity's bubble
         ///    behind a step). On a plane a flight steps as in 82 while its body's origin, its fiber's nodes and its loose pieces lie
         ///    over the plane itself, not a hole: the flight goldens are 82's to the bit.
+        ///    Extended by w3-farmland-ground 2.4 (on unity/physics/physics-integration-2--w3-ground; the orchestrator renumbers it at
+        ///    the merge, D-072): the laid line rests and freezes. A node is at rest on a support it presses or lies within InsertGap
+        ///    of while its holds stick there (no Coulomb slip, no line sliding through) or it moves slower than
+        ///    trail.freeze_speed_m_s, and node 1 at rest trail.freeze_seconds freezes whatever air it bears, keeping that air and its
+        ///    tension; the trail's last point lifts back only when the chain's pull at it across, up or back over its laid run passes
+        ///    the static friction of the line it lumps, or along the run passes its held tension by more than the run's friction
+        ///    takes before a trail point it reaches would move, or the air at it passes what it held at rest by the ground's
+        ///    friction; a point lifted back lies where it rested, and a laid node the ground holds across its chord (the line's turn)
+        ///    is held against the spacing law as a crest is. Over a hole a node's soil is cast once a step (the wind's posting and
+        ///    the ground pass share it). The header's tether entry gains FlightSetup.TetherSlidingTrail (the known-wrong trail before
+        ///    2.4) after TetherLinearStep; a flight with it steps as 84 did, and every golden but the tether's is 84's to the bit.
         /// 85: the pilot's farmland preview (unity/physics/physics-integration-2--w3-preview, D-072): 84 with w3-farmland-ground
-        ///    2.6 (a crash creates no energy, in 82's note above) merged in, and nothing else. A farmland log from the preview names
+        ///    2.6 (a crash creates no energy, in 82's note above) and 2.4 (the laid line rests, in 84's note above) merged in, and
+        ///    nothing else. A farmland log from the preview names
         ///    this core. 83 was reserved for W3's merge-back and never used: W7 1.1's 84 merged first.
         /// </summary>
         public const int ModelVersion = 85;

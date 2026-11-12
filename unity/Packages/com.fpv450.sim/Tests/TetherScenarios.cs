@@ -374,7 +374,7 @@ namespace Fpv450.Sim.Tests
         public struct Wet
         {
             public double MassPerMetre, Diameter;
-            /// <summary>The airborne line's mean height over the floor at the end, from the touchdown to 2 m behind the exit, m;
+            /// <summary>The airborne line's mean height over the floor at the end, over its 2–40 m of line behind the exit, m;
             /// its nodes' mean sink over the last 5 s (more than 5 m of line behind the exit and 0.3 m up), m/s; and the law's
             /// terminal speed for this line (its weight against White's drag at its diameter), m/s.</summary>
             public double MeanHeight, Sink, Terminal;
@@ -401,13 +401,23 @@ namespace Fpv450.Sim.Tests
             });
             FiberLine f = c.Tether;
             CableChain line = f.Chain;
+            // Over a window of the airborne line all three flights share, 2–40 m of line behind the exit (each node's height
+            // linear in the material between nodes): since w3-farmland-ground 2.4 the laid line rests in the trail, so where the
+            // chain begins (the last node frozen, coarse there) no longer reaches back over the laid line to the anchor, and
+            // weighting from the chain's first node compared each flight's lumping of its touchdown instead of its line.
             double sum = 0, length = 0, exit = line[line.Count - 1].Material;
-            for (int j = 0; j + 1 < line.Count; j++)
+            const double Near = 2, Far = 40, Slice = 0.5;
+            for (double back = Near + Slice / 2; back < Far; back += Slice)
             {
-                if (exit - line[j + 1].Material < 2) break;
-                double l = line[j + 1].Material - line[j].Material;
-                sum += 0.5 * (line[j].Position.Y + line[j + 1].Position.Y) * l;
-                length += l;
+                double m = exit - back;
+                for (int j = 0; j + 1 < line.Count; j++)
+                {
+                    if (!(line[j].Material <= m && m <= line[j + 1].Material)) continue;
+                    double u = (m - line[j].Material) / (line[j + 1].Material - line[j].Material);
+                    sum += (line[j].Position.Y + (line[j + 1].Position.Y - line[j].Position.Y) * u) * Slice;
+                    length += Slice;
+                    break;
+                }
             }
             double lo = 0.1, hi = 10, weight = f.MassPerMetre * -FlightCore.Gravity.Y;
             for (int it = 0; it < 100; it++)

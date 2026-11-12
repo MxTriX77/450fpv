@@ -1005,6 +1005,17 @@ namespace Fpv450.Sim.Tests
                 + $"{old.Tether.Chain.Corrections}, {old.Tether.Chain.SafeSteps}, {old.Tether.Chain.Clips}");
         }
 
+        // w3-farmland-ground 2.4 (the laid line rests and freezes), its audit: with the known-wrong sliding trail
+        // (FlightSetup.TetherSlidingTrail) the tether golden is model 79's pin (Model79TetherHash), which models 80–84 kept, every
+        // record and event; every golden without the line keeps its pin. So the trail is the whole of 2.4's move.
+        [Test]
+        public void WithTheSlidingTrailTheTetherGoldenIsModel79s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 79", (sliding, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, slidingTrail: sliding), c),
+                GoldenFlights.Model79TetherHash, GoldenFlights.TetherHash, "the sliding trail");
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the

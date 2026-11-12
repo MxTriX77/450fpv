@@ -129,6 +129,13 @@ namespace Fpv450.Sim.Flight
         /// linearisation alone (CableChain.LinearStep: each segment's tangent at the step's start), whose residue the cuts read as
         /// tension (1.8's finding 2); the audit against model 74 and a bench's known-wrong, never a pilot's flight.</summary>
         public bool TetherLinearStep;
+        /// <summary>The known-wrong sliding trail (the laid trail before w3-farmland-ground 2.4): a laid node rests only while it
+        /// presses its support slower than trail.freeze_speed_m_s (a node the ground's stick spring holds rings about its hold
+        /// faster, so the laid line never froze), freezes only in air its ground's friction holds, and the trail's last point
+        /// lifts once the pull's size passes the tension it held and the friction of trail.hold_length_m of line, whichever way
+        /// it pulls; a laid node the ground holds round a turn of the line is merged into its chord (only a crest is held). The
+        /// audit against model 84 before 2.4 and every older line, never a pilot's flight.</summary>
+        public bool TetherSlidingTrail;
 
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee

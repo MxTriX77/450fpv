@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills), 2.5 (a laid fiber follows the hills), 3.1 (flight on the farmland) and 3.2 (the drawn terrain near the drone)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills), 2.4 (the laid fiber), 2.5 (a laid fiber follows the hills), 3.1 (flight on the farmland) and 3.2 (the drawn terrain near the drone)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -1003,3 +1003,121 @@ Numbers are labelled as above. The runs are this branch's development review bui
 - **`-smokehills -terrainab -vsync 0`:** runs 1 and 2 pass. Run 3 failed two checks, neither this task's: HillsPilot's landing broke three legs (the front left "at 0.06 m/s") and two props, so `GroundCheck` read the broken legs as rigid on the body (118 mm past the ground), and the landed view's 2 m band read 0.023 mm with the lens down by the ground (the guard is 0.01 mm). The next plain run landed clean.
 - **EditMode,** filtered to App, Session, Feed and Farm: 183 of 186 pass. The 3 that fail are 3.1's three (two `SessionTests` crashes into R01_A, `LegShotsTests`), failing before this task.
 - **`precommit.py --tree HEAD`:** 3512 files scanned, 0 findings.
+
+# Task 2.4: the laid fiber
+
+**Owner of this part:** physics-engineer · **For:** 2.7, 3.3, 4.1 (qa-engineer), W7 1.3 · **Requirements:** PHY-18, PHY-19, PLT-04, LOG-02 · **Model:** 84, extended (LogFormat's note; the orchestrator renumbers it at the merge, D-072) · **QueryVersion:** 8, unchanged (no world code changed)
+
+Numbers are labelled as above. "Before" is this branch's head 2fc457cf, built from the same tools (the new benches compile against it); "after" is this task's code. The machine is shared: timings are indications only.
+
+## The test: turning routes over the bushes (`flightbench --turns [calm | windy | severe]`)
+- The game developer's 13 hills routes were not kept. Four routes stand in for them (`TurnsCase`): 498–640 m each at 5 m over the ground and 6.5 m/s (HillsPilot's cruise), the nose along each leg, four or five corners of 73–125°, then a 20 s hover over the end. The hills flight's loadout: 1 kg, legs on, Sunny; Windy by default.
+- Each keeps 19.8–28.6 m from every tree, ruin and piece of debris (from the placements' positions) and passes within 15 m of 43–66 bushes. "hills" turns round LeafyBush_P2 1412, 23 m inside its second corner, where a hills route broke at 90.65 s.
+- Printed for each: the break and what it met, the drone, the line paid out, the chain at the end (its nodes and the line it spans from the trail's end to the exit), the trail's points, how far each 5 m mark of laid line moved after it first lay (marks laid at least 10 s before the end), the chain's laid nodes' speeds, the step's time, the section table and the world bugs.
+- **Its verdict:** every line whole, every drone up, 0 B, and after the hover the line at rest in the trail but for at most 60 m (the hanging span at 5 m is about 30 m). How far a sharp turn drags the line's last corner is printed, not judged: the spool's peel sets it (below).
+
+## The cause (traced, before)
+**The laid line never froze.** The trail takes node 1 (the chain's oldest) once it has rested `trail.freeze_seconds`, and the nodes after it only behind it, so one node that never rests keeps the whole laid line in the chain. Four things kept it there, all numerical:
+1. **The stick spring rings.** A node the ground holds sits on a hold spring of 1 N/m (`GroundHold`, the regularisation of static friction), undamped across the line; the implicit step barely damps it. Measured on east at 81.0–81.3 s: node 1, a 26 m lump with no tension on either side and no wind, orbits its hold 2 mm out at 3 cm/s for good, its hold never slipping. The rest test (slower than 5 mm/s) never saw it rest.
+2. **The trail's end lifted on every ripple.** It lifted once the pull passed the tension it froze with plus the friction of 1 m of line (0.37 mN). The spool's irregularity moves the exit's tension ±25 % per 0.1 m of payout. Logged lifts on hills (a scratch probe): nine in ten were along the run (cos ≥ 0.99), 0.4–15 mN past the held tension.
+3. **The spacing law merged the laid line.** With the chain full, `MakeRoom` merges the far pair that overshoots its target least, and a laid node 300 m from the exit has a target of 150 m: it goes first. A merge at a turn swaps the corner for its chord: on hills the 120 m mark jumped 12 m inward at 45.3 s, and a lifted trail point was merged the step after its lift (its slots come only with the next step's contacts), the 160 m mark 6.9 m. The chord then lies across whatever stands inside the turn.
+4. **A node resting on a bush never qualified.** Draped over twigs, its weight carried by the line, it touches them on and off (N = 0 most steps); a node on a bush's top in wind fails the freeze's air test (μs·w, the ground's friction), though its support holds it; and a span the line holds between two twigs, or over a hollow, touches nothing at all.
+So the whole laid line stayed a 32–39-node chain whose far segments slid at every disturbance: **before, the routes' laid marks moved median 3.3–8.2 m, p90 12–29 m, at most 25–38 m; the trail held 4–13 points.**
+
+**The bushes' breaks.** Both before-breaks (east 81.64 s, 4.38 N round LeafyBush_P2, R_eff 1.38 cm; north 55.18 s, 0.91 N round DeadBush_4) were abrasion on bushes the slid line lay across. East's, traced step by step: at 81.639 s a contact node put into a 7 cm segment inside the bush (`FiberContacts.Prepare`'s insertion) started inside a member, the member's penalty spring threw it out at 9.5 m/s with 9–13 N on its slots, and the section wore through in 5 ms. The tension in the free line was 0.03 N throughout. With the line at rest no such kick came in the after-runs (below); the insertion itself is unchanged (a follow-up, below).
+
+**What is physical and stays.** The tension at the touchdown is the spool's: in steady flight the line in the hanging span flows along its own path, so (T − μṡ²) obeys the static catenary and the laid line holds H = e^(μθ)·P + μṡ² − w·h (derived): 0.03–0.05 N in these flights at 5 m (G₀ 0.034 J/m drawn; `spool.peel_energy_j_m` is the published 2–10 g of canister packs). A laid curve holds only while H/R ≤ μs·w (3.7·10⁻⁴ N/m on meadow_sod), so a corner sharper than R = H/(μs·w), 55–270 m over the peel band, is pulled in toward the drone, line flowing from it until the run's kinetic friction takes the tension (H/(μk·w), about 65–330 m of line). A 97° corner held to that radius sits about R·(1/sin(41.5°) − 1) ≈ 0.5·R inside (derived). That is the pilot's "smooth orbits, not crazy turns": a sharp turn low over a field drags the line's last corner in, and what stands inside it. With the peel at a tenth (scratch table, 0.002 J/m), the same routes' marks moved median 2–3 cm, p90 0.09–0.32 m (measured; the routes below).
+
+## Decisions
+### 1. At rest: stuck, slow, or held still in a span (`FiberLine.FreezeAndLift`)
+- **On a support** (a slot it presses, or an object's member within `InsertGap`: draped twigs touch on and off; the ground's plane and a layer only pressed) the node rests while its holds stuck through the step (`CableContact.Slid`, the chain's new flag: no Coulomb slip, glide or free slip, no let-go; and no line sliding through a capstan), or while it moves slower than `trail.freeze_speed_m_s` (a node creeping by Coulomb under a light touch).
+- **In a span** (`Spanned`): node 1 freezes with the supported node at rest beyond it when it and every node between have stayed within `InsertGap` of one place for `trail.freeze_seconds` (`CableNode.StillTime`, `StillAt`): the line between two twigs or over a hollow, swinging there in the wind, its weight carried by its tension. The hanging span to the drone ends at the exit, never at a node at rest, so it never qualifies.
+- **The air** no longer bars a freeze: a node at rest that long is held by its support against all it bears, wind included; the point keeps the air it bore (`_trailAir`) as it keeps its tension.
+
+### 2. The trail's end lifts only when the pull would move it (`FiberLine.Pulled`)
+The chain pulls the trail's last point with P along its first segment; the laid run behind it (the trail's last segment, straight by construction) holds it with the tension it froze with.
+- **Along the run's way out:** past the held tension, P stretches the run (micro-slip of a fraction of a millimetre, no point moving) and reaches back, less μs·w a metre of run, until the anchor holds it. A trail point it reaches turns it by its corner, T·|u_in − u_out| across, which that point holds while it stays within its static friction μs·w·(its lumped line) less what its own held tension already takes there. A corner it would move lifts the end.
+- **Across, up or back over the run:** P bends or folds the line at the point, which the static friction of the line it lumps (half the run, half the chain's first segment) holds.
+- **The air:** past what the point bore at rest by μs·w (the ground's friction).
+- Points frozen on one place (a wrap round a twig) count as one point. Lifting stays last-frozen-first.
+
+### 3. A laid turn is held against the spacing law (`FiberLine.Over`, `CableNode.Lifted`)
+- 2.5 held a node the ground keeps over the chord between its neighbours (a crest). A node it keeps across that chord in x–z (the laid line's turn, held by friction) is now held the same way, by the same hysteresis (`CrestGap` to become one, `CrestKeep` to stay) and in the same room (`FiberLine.CrestNodes`, 16, besides the law's 32): never merged into its chord. A node under its chord (a hollow) is not.
+- A point lifted back off the trail lies where it rested and is judged so in the step of its lift (`Lifted`), before its slots come.
+
+### 4. Over a hole, the soil is cast once a step
+`AddWind` keeps each posted node's soil over a hole; `Ground` takes it for the same node, bit for bit in the chain's order (a node the contacts put in since casts its own). The answers are the same: one ray a node where there were two.
+
+### 5. The known-wrong sliding trail (`FlightSetup.TetherSlidingTrail`, logged)
+The trail before 2.4: rest only while pressing and slower than 5 mm/s, freeze only in air the ground's friction holds, lift once the pull's size passes the held tension and 1 m of friction, crests alone held. The header's tether entry gains it after `TetherLinearStep`. Every kept audit of an older line flies it (`GoldenFlights.FlyContact`: any flight other than the tether golden's own), so each keeps its pin; with it the tether golden is model 79's.
+
+## The routes (`flightbench --turns`, Windy; before → after)
+Both runs in best power efficiency mode on AC; the step's times are indications.
+
+| Route | Line | Chain at the end | Trail points | Laid marks moved, median / p90 / most | Step after the climb p99 |
+|---|---|---|---|---|---|
+| hills | whole → whole | 33 nodes over 150 m → 23 over 12.1 m | 12 → 43 | 4.95 / 12.48 / 25.04 → 1.31 / 7.48 / 14.35 m | 293.9 → 334.8 µs |
+| west | whole → whole | 39 over 472 m → 23 over 12.1 m | 4 → 55 | 3.28 / 20.71 / 37.81 → 0.89 / 6.20 / 19.34 m | 487.8 → 291.0 µs |
+| east | broken 81.64 s, abrasion on LeafyBush_P2 (4.38 N, R_eff 1.38 cm), crashed 83.27 s → whole | 34 → 21 over 9.4 m | 13 → 39 | 5.97 / 18.28 / 28.18 → 2.21 / 10.17 / 23.73 m | 598.0 → 288.2 µs |
+| north | broken 55.18 s, abrasion on DeadBush_4 (0.91 N, R_eff 0.77 cm), crashed 56.75 s → whole | 32 → 24 over 11.4 m | 9 → 56 | 8.20 / 29.44 / 36.20 → 0.42 / 11.05 / 23.21 m | 685.8 → 362.5 µs |
+
+- **The far nodes' speeds** (the chain's laid nodes more than 30 m of line from the exit): before median 0.014–0.045 m/s, p99 1.7–3.4 m/s, max 3.5–23.1 m/s, 4–33 % under 5 mm/s; after median 0.047–0.089, p99 2.0–2.4, max 2.8–7.3 m/s, 2–11 %. After, a node at rest leaves the chain for the trail, so these are the live corner's nodes alone (a tenth to a half the samples): the freeze is the measure, not this.
+- **The marks still moved after** are the last corners' pull at each sharp turn (the physical part above), within H/(μk·w) of line of the touchdown; a frozen mark moves only when the trail's end is pulled back off it. With the peel at a tenth (G₀ 0.002 J/m, a scratch table), the same flights' marks moved median 2–3 cm, p90 0.09–0.32 m, most 1.6–4.0 m (measured), every route PASS.
+- The section table held 72–90 sections a flight; no world bug in any route.
+
+**Calm and Severe** (`--turns calm`, `--turns severe`; before → after; a shared machine, timings indications):
+
+| Route | Calm: line | Calm: chain at the end, trail | Calm: marks median / p90 / most | Severe: line | Severe: chain at the end, trail | Severe: marks median / p90 / most |
+|---|---|---|---|---|---|---|
+| hills | whole → whole | 148 m, 7 → 5.1 m, 41 | 4.86 / 18.04 / 26.07 → 1.61 / 7.87 / 16.87 m | whole → whole | 377 m, 2 → 42 m, 46 | 6.71 / 17.85 / 23.34 → 0.90 / 10.15 / 13.00 m |
+| west | broken 78.25 s, abrasion on LeafyBush_P2_Dry → whole | 223 m, 5 → 5.2 m, 46 | 11.18 / 18.72 / 28.18 → 1.17 / 9.65 / 19.23 m | broken 123.12 s, abrasion on a LeafyBush_P2_Dry snag → whole | 381 m, 11 → 11.5 m, 62 | 4.10 / 27.22 / 36.71 → 0.62 / 10.01 / 27.99 m |
+| east | whole → whole | 285 m, 10 → 5.6 m, 43 | 9.07 / 19.96 / 36.46 → 2.23 / 13.60 / 30.95 m | broken 40.34 s by a prop → whole | (broken) → 10.3 m, 54 | → 0.91 / 8.54 / 26.67 m |
+| north | broken 63.62 s, abrasion on DeadBush_4 → whole | 206 m, 9 → 5.9 m, 62 | 13.25 / 25.72 / 35.11 → 0.58 / 15.27 / 29.16 m | broken 21.18 s by a prop → the same | | |
+
+- Every route's line is whole after but Severe's north, which a prop cuts at 21.18 s both ways, in the climb's first 13 s at 5 m with 98 m out: the Severe wind blows the line from the anchor into the discs before any of it has lain still, so the trail plays no part (found, not this task's: the line's rotor air and the cut's check, for the tether's review).
+- Step p99 after the climb: Calm 128–546 → 147–184 µs; Severe 226–477 → 130–220 µs. No world bug in any; the section table held 26–86 sections.
+
+
+## The farmland line (`flightbench --bench farmland-line-step [severe | calm]`)
+Run back to back, before then after, nothing else running (AC, Balanced plan; the power mode changed between some runs, so the timings are indications); the laid nodes' speeds from a scratch probe of the same flight (the chain's nodes more than 30 m of line from the exit and within 0.1 m of the ground, every 10th step).
+
+| | Severe before | Severe after | Calm before | Calm after |
+|---|---|---|---|---|
+| The line | whole, 1950.5 m out | broken at 193.65 s in the hover (abrasion on LeafyBush_P2, 0.45 N, R_eff 7.3 mm); 1945.1 m out | whole, 1504.3 m out | whole, 1510.0 m out |
+| The chain at the end, the trail | 43 nodes over 1866 m (the whole line), 7 points | (after the break, the near piece) 45 points | 33 nodes over 229 m, 25 points | 27 nodes over 91 m (the hanging span from 30 m), 48 points |
+| Laid nodes' speeds (samples; median, p99, max; under 5 mm/s) | 155,659; 0.047, 1.78, 9.26 m/s; 8 % | 21,341; 0.203, 1.94, 8.45 m/s; 1 % | 238,559; 0.008, 0.55, 2.52 m/s; 44 % | 23,297; 0.088, 1.21, 3.65 m/s; 2 % |
+| One-shape checks; whole queries | 2.49 M; 133,032 | 1.08 M; 63,792 | 5.72 M; 125,452 | 1.65 M; 35,165 |
+| Step p99, all after the first (the route, the hover) | 248.4 µs (203.4, 362.3) | 217.5 µs (154.9, 275.8) | 5,820.2 µs (6,424.7, 179.0) | 191.7 µs (200.6, 127.1) |
+| World queries p99 | 97.0 µs | 120.2 µs | 2,777.0 µs | 54.9 µs |
+| Sections in the table; world bugs | –; – | 799; none | –; – | 2188; none |
+| 0 B | yes | yes | yes | yes |
+
+- **The laid line now lies in the trail** (7 → 45 and 25 → 48 points); the speeds after are the live corner's alone, so the samples drop ten-fold.
+- **Calm, the belt's cost:** before, the line lay live through the village and the F6|F7 belt and its one-shape checks drove the route's p99 to 6.4 ms (5.7 M checks, the world queries' p99 2.8 ms); resting in the trail it costs nothing, and the step's p99 is 192 µs with the world queries' under the 60 µs line. In the earlier build of this task (before the span rule) the same flight broke at 66.08 s by abrasion on Ruin_Burnt's wall, worn through at 39.8–43.6 s while the harness's 90° corner at 12–21 m/s dragged the line laid over the wall 250 m back: physical given the corner (below), and gone with the line at rest.
+- **Severe, the hover's break (traced):** at the route's end the drone hovers 30 m up and Severe wind holds about 200 m of line in the air; it pulls 0.4–0.7 N over the twig of a LeafyBush_P2 220 m back where the line touches down (snag and shape slots, 0.3–0.38 N pressed). The section there wears through in the wind's working and breaks at the twig's 7.3 mm (bend 0.63 GPa plus 36 MPa against its abraded 0.60 GPa). Physical, as the model stands: a long airborne span in Severe wind snagged on a bush (the pilot's "wind shakes the fiber, and trees plus wobble stretch it", Q8). Before, the same moment found the line elsewhere (it slid all flight); the outcome is the chaos of where the line lies, not the trail's rule.
+- **"The drone crashes 3 s later"** (traced in both winds): it is Betaflight's receiver failsafe (`Control/Failsafe`, PHY-21). The uplink is the fiber, so 0.4 s after the break stage 1 cuts the throttle, and the drone falls (Severe: from 30 m over the ground, upright, 8.4 m/s down a second later; it crashes at 196.67 s). The line pulls it with 0.01–0.07 N throughout: the line plays no part.
+- **Is the belt's snag physical?** The task's 645–690 m tear (21.1 N by tension or abrasion) no longer appears at this head in either wind; the snags left are abrasion at bush twigs and a ruin's arris under the line's real loads, and none comes from the laid line sliding. Both winds keep the step within PLT-04 at p99 here (indications; QA's quiet run decides).
+
+## Golden files, audited case by case
+- **`flightbench --golden`:** every case passes; one re-recorded, the tether golden (`GoldenFlights.TetherHash`, now 0xF74FECF3FEF4F329; its audit in `GoldenFlights`). With the sliding trail it is model 79's pin 0x0CF4962A5D6DB24A, every record and event (new kept audit, `tether-flight with the sliding trail`; `GoldenFlightTests.WithTheSlidingTrailTheTetherGoldenIsModel79s`). The records are the same to step 5781; at 5782, in the descent, a node the floor holds behind the drone freezes (stuck, ringing faster than 5 mm/s), and the trail holds a point more until step 10000; at rest 0.07 mm (x) and 0.38 mm (z) from 79's, 0.2497 m up, 0.224 m paid out, 15 nodes, trail 7 as 79's. Every other golden and kept audit is unchanged (61 PASS lines).
+- **The suite's expectations changed, audited:**
+  - `TetherTests.APulledTrailLifts`: a point the pull lifts but leaves at rest refreezes, so the count may rise while lifting; the order stays last-frozen-first by construction, every point still lifts to the snag, the payout still waits for it. The "never rose" assertion is now printed.
+  - `TetherTests.RainMakesItHeavierAndDraggier`: the airborne line's mean height was weighted from the chain's first node, which now is wherever the last node froze (on Rain 85 m, on Severe 66 m behind the exit), so it compared each flight's lumping of its touchdown. It is now taken over 2–40 m of line behind the exit, which all three flights hold in the air: at equal line behind the exit Severe lies lower than Rain (6.37 against 6.66 m at 21.3 m, measured).
+- **`worldbench --golden`, `flightbench --slopes`:** `worldbench --golden` ALL PASS (floor 5, test range 14, wakes 11, farmland 12, farmland-wind 7): no world code changed. `flightbench --slopes` PASS, every row to the printed digit but the two line rows, both inside `CrestDepth`: the ridge's deepest segment over the flight 0.169 → 0.076 m (its crests' nodes put in 9 → 3, the node nearest the crest line 0.069 → 0.133 m off it, 0.09 mm over the ground both), the ledge's crest node on the lip 3417 → 3416 steps (the law's chords 0.5170 → 0.5171 m). The laid line behind each now rests in the trail.
+
+## Determinism, allocation, replay
+- **IEEE basic operations and DetMath only** in the new code (+ − × ÷ and √ through `Double3.Length` and `DetMath.Sqrt`); no transcendental is new.
+- **0 B:** every route, before and after, allocates nothing after its first step, and so does the farmland line in Severe and Calm.
+- **Replays bit for bit:** the suite's replays pass on the new trail (`SlopeTests`' line over the ridge, W7's Severe flight over the farmland's highest hill with its line, `FlightLogTests`), and the player's hills flight (`AFlightOverTheHillsReplays`, inputtests: the session's log replayed in .NET) passes. The header logs `TetherSlidingTrail`, so a replay flies the trail its log was flown with.
+
+## The fiber's world buffers
+Counted in every run (`--turns` and `farmland-line-step` now print the section table's use and the world bugs by cause).
+- **The section table** (`FiberCuts.Capacity`): before, the farmland line filled its 4096 in about 90 s (1.2's finding): the live laid line's nodes read new sections as they slid and merged. After, the routes read 26–186 sections a flight and the farmland line 799 (Severe) and 2188 (Calm): line resting in the trail reads none. The table is now 32768 (derived: the Calm line's 1.46 sections a metre of line paid out makes a 10 km coil about 14,600, under the table's 3/4 load of 24,576), 1.8 MB preallocated, the same answers while it is not full.
+- **The shapes' buffer (64) and the snag cache (`contact.snag_capacity`, 4096):** no `FiberShapesFull` or `FiberSnagsFull` in any after-run (the routes in three winds and at the low peel, the farmland line in two). Their overflows came from the live laid line's segments lying through the village and the bushes; both are unchanged.
+- **Snag records indexed by segment:** unchanged. The cache and its grid hold segments, and the village's debris rims are 1 cm stairsteps (10,089 segments, 1.2): suggested for the world, the rims as their true edges.
+
+## For the next units (suggested, not this task's)
+- **The fiber's contact nodes (a follow-up in `FiberContacts`, the tether's own code):** a contact node put into a segment that already passes inside a member starts inside it, and the member's penalty spring throws it out (east, before: 9.5 m/s, 13 N, worn through in 5 ms). Place it on the member's surface with the material its path needs, as 2.5's crest node is.
+- **The peel band against the pilot (qualitative, at a gate):** "at a sharp turn low over a field, does the line already laid get dragged in toward you?" The 2–10 g band is FOG-M canister packs'; if FPV canisters pay out lighter, or a fiber in grass holds far better than a skid's μ on its weight (the farmland's cover has no stems in the physics), the corners rest. A measured FPV canister payout tension would settle the first (research, not a pilot's number).
+- **The near piece after a break** never freezes (its far end is free, so the trail stops at the break); hundreds of metres lying through a village stay live and costly.
+- **The scripted pilot of `farmland-line-step`** keeps the start's heading and takes each corner at full speed (to 21 m/s past one, measured): its corners load the line beyond what a pilot's turn would. Rounded corners would make the case a line case again.
