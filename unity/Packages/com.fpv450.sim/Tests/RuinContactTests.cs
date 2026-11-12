@@ -135,6 +135,9 @@ namespace Fpv450.Sim.Tests
             var events = new List<FlightEvent>();
             ContactScenarios.PoleStrike r = Fly(new Double3(x, floor.Point.Y, z), 1.6 - floor.Point.Y, 3, events);
             Assert.That(r.Tunnels, Is.EqualTo(0), "no tunnel: " + string.Join(", ", r.TunnelThrough));
+            // w3-farmland-ground 2.7: lodged in the next room's window frame a part holds up to 14 of its boxes at once; at 8 pairs a
+            // shape (ContactModel.PairsPerShape until model 85) 4,205 to 8,369 steps lost some.
+            Assert.That(r.Lost, Is.EqualTo(0), "no contact pair lost");
             // Every touch of the ruin but the floor it took off from lies past the doorway: none at it, none before it
             // (a crash short of the door would touch there). Past it the flight meets the next room or leaves through
             // the front wall's broken window.

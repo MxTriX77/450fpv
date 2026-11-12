@@ -164,8 +164,10 @@ namespace Fpv450.Sim.Contact
             public double Pull, Clinging;
         }
 
-        /// <summary>The (object, shape) pairs one shape holds at once; more is a ContactsLost event.</summary>
-        public const int PairsPerShape = 8;
+        /// <summary>The (object, shape) pairs one shape holds at once; more is a ContactsLost event. Measured (w3-farmland-ground
+        /// 2.7): a part lodged in a ruin's window frame holds up to 14 of its boxes at once, and a prop's disc 7–10 crown pieces
+        /// where a crown's shell is densest (w4a-farmland-vegetation); 24 holds both with room (Buffer, the query's, is 32).</summary>
+        public const int PairsPerShape = 24;
 
         /// <summary>The rim's segments under one chord of the disc's second gate (1.7): 3 of 12 make four chords.</summary>
         public const int ChordSegments = 3;
