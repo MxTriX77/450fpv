@@ -8,6 +8,7 @@ Branch `unity/physics/physics-integration-2--w9-village`, cut from `--w3-ground`
 - 2.11 (the published stem and leaf properties) any time before 2.2: it needs no code and no other task;
 - 2.2 (stems on the props) after 2.1 and 2.11; then 2.3 (leaves, also after 2.7), 2.5 (cut bits) and 2.10 (stems on the legs and the fiber);
 - 2.9 (Village's ground rows and the liftoff harness) after 2.4 and 2.6;
+- 3.0 (the map-wide sweep) any time: it needs no other task and reruns as fixes land;
 - 3.1 last.
 
 Tasks that run in parallel work on sub-branches of this branch, which the orchestrator merges back.
@@ -94,4 +95,17 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
 
 ## 3. Review
 
+- [ ] 3.0 [qa-engineer] **A map-wide landing sweep with invariants** (the pilot asked for more tests, 2026-11-12). The spec's "every ground interaction works on Village" is tested at hand-picked spots only. This finds the spots nobody picked.
+  - **The sweep:** a seeded mode of `flightbench` (`--sweep <map> <points> <seed>`). At each drawn start point, a hover-and-land, a cut landing at 0.5 m/s, a drop from 1 m and a slide at 2 m/s, each at a drawn heading. The points cover every ground class and slope band in proportion to its area, with at least 20 a class. The same seed gives the same rows, bit for bit.
+  - **The invariants,** checked every step, each a row's verdict:
+    - nothing NaN or unbounded, and the body never under the ground;
+    - the contacts' moment at most the sum of their forces' sizes × 0.5 m (the spec's rule for G1);
+    - the mechanical energy never rises in a step by more than the rotors', gravity's and the wind's work;
+    - no part logs the same event twice in a step (G5's kind);
+    - the drone at rest within 10 s of a landing;
+    - the log replays bit for bit, and steady state allocates 0 B.
+    - Add what the existing scenario tests already assert, where it holds at any spot.
+  - **The findings:** one file per run, each failing row with its map point, heading, manoeuvre, seed, first failing step and the command that replays it. Nothing is fixed here: each finding becomes a task.
+  - **Run it** on Village and on House at this branch's head, 400 points a map to start, and say how long it takes. Write the findings to `docs/reviews/w9-village-physics-sweep.md`. Rerun it when 2.4 and 2.6 land.
+  - Checks: the sweep's own test (a known-wrong rule is caught, as 2.4's test does), the new tests in `dotnet test tools/simtests`, `precommit.py --tree HEAD`.
 - [ ] 3.1 [qa-engineer] Review against the spec scenarios: scripted landings on Village on a slope, on soft soil, and in tall grass and straw, plus a crown flight; G1's no-runaway test over every slope row; the liftoff harness's rates against the pilot's account; bit-exact replays and 0 B; the step budget on a quiet machine; every moved golden audited.
