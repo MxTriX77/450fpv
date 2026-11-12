@@ -46,6 +46,19 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
     - The smoke test's house flight became a flight into the ground.
   - **Owed:** the tech artist's review of the drawn terrain near the drone, and its frame cost with vsync off. Three tests already fail at this base (two `SessionTests` crashes into R01_A, `LegShotsTests`); they belong to their owners.
 
+- [ ] 3.2 [tech-artist] The drawn terrain near the drone (WLD-11, VIS-01: full resolution inside the physics radius, within 1 mm of `TerrainHeight`).
+  - Review 3.1's `TerrainParity` method.
+  - Decide with evidence:
+    - accept pixel error 1 within 30 m (under a pixel, up to 9.1 mm in flight), with a decision entry and WLD-11's wording to match; or
+    - draw a full-resolution patch near the drone from the same triangulation (0 mm, its cost measured).
+  - Measure the chosen rule's frame cost against the friend's errors, A/B with vsync off. On a shared machine that is an indication only; the verdict comes in W6's quiet PLT-07 run.
+  - On `--w3-flight`. Checks: `TerrainParity`, EditMode filtered, a review build and the smoke test, `precommit.py --tree HEAD`.
+- [ ] 3.3 [game-developer] The scripted flights at W3's final model, after 2.3, 2.4 and 2.6:
+  - re-sweep `LegShots.Cases` and `ACrashIntoTheRangesCarNamesIt` as A4 did at model 79;
+  - re-sweep `-smokelegs`, which now flies on the farmland's soil;
+  - re-check the smoke test's crash flight and its cuts check, now that 1.2's objects are in.
+  Checks: EditMode, the smoke test (default, `-smokelegs`, `-smokehills`).
+
 ## 4. Review
 
 - [ ] 4.1 [qa-engineer] Review against the spec; the checks; 0 B and bit-exact replays; a low flight over the hills, the village and a tree belt.
