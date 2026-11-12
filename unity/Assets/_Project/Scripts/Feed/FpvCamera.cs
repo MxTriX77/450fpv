@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 namespace Fpv450.Feed
@@ -152,6 +153,11 @@ namespace Fpv450.Feed
             data.renderPostProcessing = false;
             data.antialiasing = AntialiasingMode.None;
             data.renderShadows = false;
+            // It draws nothing but the feed, so it takes the pipeline's renderer that holds the feed alone, where there is
+            // one: the scene renderer's features (High's SSAO) would run on its empty frame (w6-farmland-look 1.2).
+            int renderer = GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset pipeline ? OutputRendererOf(pipeline) : -1;
+            if (renderer >= 0)
+                data.SetRenderer(renderer);
             Feed = go.AddComponent<FeedOutput>();
             Feed.Settings = settings;
             Feed.Scene = scene;
@@ -255,6 +261,16 @@ namespace Fpv450.Feed
         {
             Link = new FeedLink();
             return new FeedEvents(settings.seed) { DropoutTimer = settings.dropoutTimer, TearWedge = settings.tearWedge };
+        }
+
+        /// The index of the pipeline's renderer whose only feature is the feed, or -1 when it has none.
+        public static int OutputRendererOf(UniversalRenderPipelineAsset pipeline)
+        {
+            System.ReadOnlySpan<ScriptableRendererData> list = pipeline.rendererDataList;
+            for (int i = 0; i < list.Length; i++)
+                if (list[i] != null && list[i].rendererFeatures.Count == 1 && list[i].rendererFeatures[0] is FeedFeature)
+                    return i;
+            return -1;
         }
 
         /// The ROM's atlas (FeedFont.BuildAtlas), baked once: R the glyph, G its outline, linear, point-sampled.
