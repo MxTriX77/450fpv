@@ -11,6 +11,7 @@ These notes were copied verbatim from the Godot repo (`MxTriX77/450fpv`, `main`)
 | [pilot-requirements.md](pilot-requirements.md) | PR-1 to PR-11, in the pilot's words, then interpreted |
 | [ground-micro-motion.md](ground-micro-motion.md) | new for D-064: the camera's micro-motion near the ground by phase, axis and band (C, D, E, F, H, A), clip S's low cruise, the recorder's 2-2-1 field steps, and the targets for the physics |
 | [vegetation-on-the-props.md](vegetation-on-the-props.md) | new for w9-village-physics 2.2 and 2.5: every stretch of grass, straw and weeds near the lens (D, H, A, F), the shake there, the prop blades in frame by airframe group, the pale rods as airframe parts, the targets, and what no clip shows (no cut bits, no landing in grass) |
+| [camera-place.md](camera-place.md) | new for w14-camera-place 1.1: where the FPV lens sits, derived from the blades the group's letters show (C–H none, D's top-edge slivers, P's top-right line) through the feed's projection; the two pale rods measured (parallel to the lens's axis, 0.19 × their side offset below it, at most about 2 mm thick, not part of T); the recommended `camera.lens_m` (0, −0.020, 0.205) m and what moves in the model |
 
 ## Things that changed since they were written
 - **The drone's name** is now **"Svinoriz 10 Opto"** (the pilot, 2026-10-17). These notes say "Svinorez".
