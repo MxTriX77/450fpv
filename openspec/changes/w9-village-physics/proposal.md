@@ -21,7 +21,9 @@ And one interaction the pilot asks for has never existed: grass and straw stems,
 - **Stems on the props:** blades striking and cutting grass, straw and crown leaves. Each cut is an impulse from published stem properties (diameter, density, cutting energy or shear strength), taken from the rotor's own torque and thrust. The drone's shaking is that impulse train through the airframe, never noise on the pose (PHY-24).
 - **Cut bits on camera:** the sim's cut events are logged, and the feed draws the cut pieces in front of the camera from them.
 - **Leaves in crowns** extend W3 2.7's twigs (`PropStrikes.Twigs`), whose constants move into `physics_materials.json`.
-- **Every gap the audit finds** is fixed in the physics or the data, in the order the audit gives, or shown to be physical.
+- **Every gap the audit finds** is fixed in the physics or the data, in the order the audit gives, or shown to be physical. The audit (`audit.md`) found two bugs on both maps: the legs' soil anchors can produce a contact moment with almost no force behind it, which tumbles some cut landings on 10–20° slopes, and a rotor inside a crown logs a zero-mass blade break every step. It also found that the pilot's "a leg sticks" is measured nowhere, so the liftoff harness is built.
+- **Stems on the legs and the fiber** from the same stem field, as the test range's straw already acts on the fiber.
+- **The test range's straw joins the same law,** since House flies in the player again (D-100).
 
 ## Non-goals
 - No new surface classes or materials beyond what the audit shows missing.
