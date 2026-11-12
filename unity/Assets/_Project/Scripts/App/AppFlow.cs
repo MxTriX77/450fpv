@@ -33,7 +33,8 @@ namespace Fpv450.App
     /// <remarks>
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
     /// (a preset, saved for the next start: QualityPreset). <c>-smoketest</c>
-    /// walks the app (Smoke) and quits, exit code 1 on any failed check or any error logged (on D3D12 it reads its own log
+    /// walks the app (Smoke) and quits, exit code 1 on any failed check, any error logged or any exception thrown in the walk
+    /// (on D3D12 it reads its own log
     /// file for the pipeline library's line, so not with <c>-logFile -</c>); <c>-smokeshots &lt;folder&gt;</c>
     /// saves its screens there, and <c>-smokeseq &lt;n&gt;</c> beside them n consecutive frames at the punch-outs and the
     /// hover, FPV and chase (Sequence). <c>-camerafeel 0</c> flies the camera as before p7e-camera-feel (FlightScene.CameraFeel).
@@ -303,6 +304,49 @@ namespace Fpv450.App
 
         // ---- The smoke test ----
 
+        int _smokeFailed; // the smoke test's failed checks
+
+        /// <summary>
+        /// <c>-smoketest</c>: SmokeWalk, each IEnumerator it yields run here in its place as Unity would run it, so that an
+        /// exception anywhere in the walk ends the run with a <c>[Smoke] FAIL</c> line naming it and exit code 1 (a coroutine
+        /// that throws only stops, and the player stayed open). The pilot's setup, which the walk's flights save over, is put
+        /// back however the walk ends.
+        /// </summary>
+        IEnumerator Smoke()
+        {
+            string setupFile = SetupStore.PathIn(Application.persistentDataPath);
+            byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
+            var walk = new Stack<IEnumerator>();
+            walk.Push(SmokeWalk());
+            Exception thrown = null;
+            while (walk.Count > 0)
+            {
+                object step;
+                try
+                {
+                    if (!walk.Peek().MoveNext())
+                    {
+                        walk.Pop();
+                        continue;
+                    }
+                    step = walk.Peek().Current;
+                }
+                catch (Exception e)
+                {
+                    thrown = e;
+                    break;
+                }
+                if (step is IEnumerator nested && !(step is CustomYieldInstruction)) walk.Push(nested);
+                else yield return step;
+            }
+            if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
+            else File.Delete(setupFile);
+            if (thrown != null) Debug.LogError("[Smoke] FAIL: the walk threw " + thrown);
+            bool pass = thrown == null && _smokeFailed == 0 && _errors == 0;
+            Debug.Log("[Smoke] " + (pass ? "PASS" : "FAIL") + ": " + _smokeFailed + " checks failed, " + _errors + " errors logged");
+            Application.Quit(pass ? 0 : 1);
+        }
+
         /// <summary>
         /// The player's smoke test, through the screens' own calls: the menu and the setup drawn; Explore in a review build;
         /// then two flights over the farmland from the village's start, the one the setup offers (D-092, w3-farmland-ground
@@ -321,9 +365,9 @@ namespace Fpv450.App
         /// (p4-feed 1.5, D-057) reads DISARMED while waiting and at rest, and AIR in the air with the current, the charge
         /// used and the pack, shot in the FPV view. Then the keyboard's flight into the ground (into a house on the test range,
         /// which the farmland's sim does not have until its objects, w3-farmland-ground 1.2): the crash ends nothing, and R
-        /// restarts it. <c>-smokehills</c> flies HillsFlight in place of the flights.
+        /// restarts it. <c>-smokehills</c> flies HillsFlight in place of the flights. Smoke runs it and gives the verdict.
         /// </summary>
-        IEnumerator Smoke()
+        IEnumerator SmokeWalk()
         {
             string[] args = Environment.GetCommandLineArgs();
             // A radio left plugged in would fly the scripted flights: the smoke test reads none.
@@ -349,16 +393,14 @@ namespace Fpv450.App
                 wind = WindLevel.Calm;
             }
             Debug.Log("[Smoke] the flights' wind: " + wind);
-            // The smoke test's flights save their setup; the pilot's own is put back at the end.
-            string setupFile = SetupStore.PathIn(Application.persistentDataPath);
-            byte[] pilotSetup = File.Exists(setupFile) ? File.ReadAllBytes(setupFile) : null;
-            int failed = 0, shot = 0;
+            // The smoke test's flights save their setup; Smoke puts the pilot's own back at the end.
+            int shot = 0;
             string Osd() => "'" + _flight.Osd.Row(0).TrimEnd() + "' / '" + _flight.Osd.Row(11).TrimEnd() + "' / '" + _flight.Osd.Row(12).TrimEnd() +
                             "' / '" + _flight.Osd.Row(13).TrimEnd() + "'";
             void Check(bool ok, string what)
             {
                 Debug.Log("[Smoke] " + (ok ? "ok   " : "FAIL ") + what);
-                if (!ok) failed++;
+                if (!ok) _smokeFailed++;
             }
             IEnumerator Shot(string name)
             {
@@ -758,10 +800,6 @@ namespace Fpv450.App
             if (hills || Array.IndexOf(args, "-smokelegs") >= 0)
             {
                 yield return hills ? HillsFlight(ground) : LegFlights(ground);
-                if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
-                else File.Delete(setupFile);
-                Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
-                Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
                 yield break;
             }
             for (int n = 0; n < 2; n++)
@@ -1088,8 +1126,6 @@ namespace Fpv450.App
             FlightChoices saved = SetupStore.Load(Application.persistentDataPath, out string error);
             Check(error == null && saved.StartPoint == lastStart && saved.Legs == lastLegs && saved.TimeOfDay == lastHour,
                   "the last setup is saved for the next start");
-            if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
-            else File.Delete(setupFile);
             Menu();
             yield return Until(() => _view == View.Menu, 30);
             Check(_view == View.Menu, "Menu returns to the menu");
@@ -1099,8 +1135,6 @@ namespace Fpv450.App
                 yield return Until(() => _sequenceWrites.TrueForAll(t => t.IsCompleted), 60);
                 Check(_sequenceWrites.TrueForAll(t => t.IsCompleted && !t.IsFaulted), "the sequences' " + _sequenceWrites.Count + " frames are written in " + _sequences);
             }
-            Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
-            Application.Quit(failed == 0 && _errors == 0 ? 0 : 1);
         }
 
         // The smoke test's: whether the player's log file has the line. A log to stdout (-logFile -) is no file, so the
