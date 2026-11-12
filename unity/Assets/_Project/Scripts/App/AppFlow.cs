@@ -87,6 +87,17 @@ namespace Fpv450.App
             Debug.Log("[App] menu: Train, Calibrate, " + (AppData.Review ? "Explore, " : "") + "Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
                       + "); data under " + AppData.Root + "; profile folder " + Application.persistentDataPath);
             if (Array.IndexOf(Environment.GetCommandLineArgs(), "-smoketest") >= 0) StartCoroutine(Smoke());
+            else if (AppData.Review && Array.IndexOf(Environment.GetCommandLineArgs(), "-farmbench") >= 0) StartCoroutine(Bench());
+        }
+
+        // w6-farmland-look 1.2: the farmland's benchmark (FarmlandBench), from Explore pressed as the menu does.
+        IEnumerator Bench()
+        {
+            yield return null; // the menu's first frame
+            Load(explore: true);
+            float end = Time.realtimeSinceStartup + 60f;
+            while (!(_view == View.Explore && _exploreFirstFrame >= 0f) && Time.realtimeSinceStartup < end) yield return null;
+            yield return FarmlandBench.Main(_view == View.Explore ? _exploreFirstFrame : -1f);
         }
 
         void OnDestroy()
