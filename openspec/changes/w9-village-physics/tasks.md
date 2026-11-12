@@ -77,12 +77,14 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - The legs in standing stems: the touchdown jitter and the hooks (p7a-ground 1.14), from the stem field.
   - The laid fiber over Village's stems as over S04's on the range (flight 37's slips and contacts on stems and straw).
   - Checks: a landing in the densest tall cell prints the stems' forces on each leg; a line laid across a grass field logs its contacts and slips on stems; bit-exact replay, 0 B, the step within PLT-04 on a quiet machine.
-- [ ] 2.11 [reference-analyst] **The published stem and leaf properties** that 2.2 and 2.3 need (audit §5.1, "not found readable here"). Research only, no code.
+- [x] 2.11 [reference-analyst] **The published stem and leaf properties** that 2.2 and 2.3 need (audit §5.1, "not found readable here"). Research only, no code.
   - Per kind (green grass blades and culms, dry standing grass culms, weed stalks, cereal straw, tree and bush leaves): size, mass per length, bending stiffness, shear strength or cutting energy, each with its moisture state and source.
   - The critical speed for cutting an unsupported stem on impact, and how it moves with the stem's stiffness and mass and the blade's edge; the energy of an impact cut against a quasi-static one.
   - Stand densities (stems per m²) to check the stem field's counts against.
   - Written to `docs/reference-notes/stem-properties.md`: a table per kind with the value, its range, the conditions and the source actually read, then what 2.2 should use and what stays assumed.
   - Checks: every row names a source that was read (the page or abstract, never a guess); `precommit.py --tree HEAD`.
+  - **As built:** `stem-properties.md` holds 21 sources (full text, abstract or restated, each marked), a derived critical-speed law checked against grass, thick stalks and support distance, and section 4's row per cover kind.
+  - The original impact-cutting papers (O'Dogherty & Gale, McRandal & McNulty, Persson) stayed unreadable; a green culm's modulus and cut energy, burnt stems and the prop's edge factor stay assumed.
 
 ## 3. Review
 
