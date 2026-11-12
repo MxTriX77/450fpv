@@ -4,7 +4,14 @@ Order: 1.1, then 1.2, then 2.1. Branch `unity/physics/physics-integration-2--w7-
 
 ## 1. The wind over the farmland
 
-- [ ] 1.1 [physics-engineer] The height over the local ground, and the hills.
+- [x] 1.1 [physics-engineer] The height over the local ground, and the hills.
+  - As built (design.md, decisions 1–3; model 84):
+    - **Own ground:** every wind query takes its own ground (`WindField.At(point, ground)`). The drone's points take SampleGround's height, over a hole the step's ground and frame; each fiber node and loose piece takes its own, posted with the node to the batch. A cut's frame holds a point in its opening (`CutFrame.Holds`).
+    - **The hills:** Jackson and Hunt's linear theory in Hunt et al.'s layers, spectral and direction-free, built once from the world (`HillFlow`). Taylor and Lee's check: 1.77 h/L1 over a ridge (2.0 ± 15 %), 1.38 over a hill (1.6 ± 15 %).
+    - **Past the range:** a step's lee is Cavity's bubble behind a step, 7.2 D.
+    - **Rows** (`worldbench`, `golden/farmland-wind.txt`): the crest's ΔS is 0.329 at 2 m against JH 2-D's 0.327; the lee within 0.017 of JH 2-D; reverse flow below the ledge −0.17 U, forward again by 1.25 X_R; a laid node gets 0 against model 82's 7.42 m/s.
+    - **Goldens:** the flight goldens and the four world files unchanged; `--slopes`' two line rows moved inside CrestDepth (audited).
+    - **Determinism:** DetMath only, 0 B, a farmland flight replays bit for bit.
   - Every wind query (rotors, body, fiber nodes) takes its height from the ground under that point, through `SampleGround` or the fiber's own ground, never from the drone's ground.
   - Choose a published model for the speed-up over low hills and for the lee, with its source and validity range in design.md, and separated flow where the slope is past that range (the ledge).
   - Rows on the farmland: a crest, a lee slope, below the ledge, an open field. Each prints the model's value against the published reference.
