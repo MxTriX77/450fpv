@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
@@ -505,6 +506,11 @@ namespace Fpv450.Sim.Log
                 case EventKind.ArmBroken:
                     return "ARM BROKEN: arm " + CornerName(e.Index) + " broke at its clamp under its rotor's turning load, " + G(e.A) + " of its strength (bend "
                         + G(e.B * 1e-6) + " MPa, twist " + G(e.C * 1e-6) + " MPa); its prop is lost";
+                case EventKind.StemEpisode:
+                    return ((e.Index & 0x80) == 0 ? "STEMS: rotor " : "STEMS DONE: rotor ") + CornerName((byte)(e.Index & 0x7F))
+                        + ((e.Index & 0x80) == 0 ? " began cutting " : " stopped cutting ")
+                        + (e.Material > 0 && e.Material <= SurfaceTable.CoverKinds.Length ? SurfaceTable.CoverKinds[e.Material - 1] : "stems") + ", "
+                        + G(e.B) + " stems for " + G(e.A) + " J so far, " + G(e.C * 1000) + " mm across, hub at " + V(e.Point, "0.000") + " m";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

@@ -129,7 +129,7 @@ namespace Fpv450.Sim.Log
         {
             "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "MountDamping",
             "Camera", "TipMass", "PayloadPart", "CoilPart", "CoilHousingPart", "ArmInPlane", "ArmShearModulus", "ArmFlexuralStrength",
-            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia",
+            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia", "StrikeLoad",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -169,7 +169,7 @@ namespace Fpv450.Sim.Log
             "BladeRest", "BladeRestSpeed",
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
-            "BladeRoot",
+            "BladeRoot", "Stems",
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
             "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
             "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
@@ -207,7 +207,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] CoverSetFieldsLogged =
         {
             "ModulusMin", "ModulusMax", "WallShare", "Density", "DryMassPerArea", "DryMatterContent", "MassPerArea", "PetioleDiameter",
-            "HookReleaseMin", "HookReleaseMax", "CutEnergy", "RollFriction", "DampingRatio",
+            "HookReleaseMin", "HookReleaseMax", "CutEnergy", "RollFriction", "DampingRatio", "Diameter",
         };
         public static readonly string[] WettingFieldsLogged =
         {
@@ -281,7 +281,8 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26;
+            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
+            TagStems = 27;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1253,6 +1254,26 @@ namespace Fpv450.Sim.Log
                 Spread(e, l.FirstStep);
                 Spread(e, l.Motor);
             });
+            // The stems on the props (w9-village-physics 2.2), an entry of its own so the earlier entries keep their layouts: the
+            // contacts' switch and each cover row's stem diameter, dry and wet, then the modes' strike load (G8). A log without it
+            // (format 72 and 69, and every earlier build's) flew neither.
+            Entry(w, TagStems, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts != null)
+                {
+                    e.Write(Contacts.Stems);
+                    CoverRow[] cover = Contacts.Surfaces?.Cover ?? new CoverRow[0];
+                    e.Write((byte)cover.Length);
+                    foreach (CoverRow k in cover)
+                    {
+                        e.Write(k.Dry.Diameter);
+                        e.Write(k.Wet.Diameter);
+                    }
+                }
+                e.Write(Modes != null);
+                if (Modes != null) e.Write(Modes.StrikeLoad);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1308,7 +1329,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1369,6 +1390,29 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagPropulsion:
                         Propulsion = r.ReadBoolean() ? ReadPropulsion(r) : null;
+                        break;
+                    case TagStems:
+                        sawStems = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool stems = r.ReadBoolean();
+                            if (Contacts != null) Contacts.Stems = stems;
+                            int coverRows = r.ReadByte();
+                            for (int i = 0; i < coverRows; i++)
+                            {
+                                double dry = r.ReadDouble(), wet = r.ReadDouble();
+                                if (Contacts?.Surfaces == null || i >= Contacts.Surfaces.Cover.Length) continue;
+                                CoverRow k = Contacts.Surfaces.Cover[i];
+                                k.Dry.Diameter = dry;
+                                k.Wet.Diameter = wet;
+                                Contacts.Surfaces.Cover[i] = k;
+                            }
+                        }
+                        if (r.ReadBoolean())
+                        {
+                            bool load = r.ReadBoolean();
+                            if (Modes != null) Modes.StrikeLoad = load;
+                        }
                         break;
                     case TagDroneInternals:
                         tablesHash = r.ReadUInt64();
@@ -1693,6 +1737,12 @@ namespace Fpv450.Sim.Log
                 r.BaseStream.Position = end;
             }
             if (!sawLayouts) throw new FlightLogException("the header has no record layouts");
+            if (!sawStems)
+            {
+                // Before w9-village-physics 2.2 no flight met stems or loaded an arm at its tip from a strike.
+                if (Contacts != null) Contacts.Stems = false;
+                if (Modes != null) Modes.StrikeLoad = false;
+            }
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
                     + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));
