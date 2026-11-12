@@ -1,6 +1,6 @@
 # Tasks: w7-farmland-wind
 
-Order: 1.1, then 1.2, then 2.1. 1.1 merged into `--w3-ground` (595ca9fa), so W7 lands with W3; 1.2 merges back the same way. Branch `unity/physics/physics-integration-2--w7-wind`, cut from `--w3-ground` at 23e1b148.
+Order: 1.1, then 1.2, then 2.1. 1.1 merged into `--w3-ground` (595ca9fa), so W7 landed with W3. 1.2 was built on `unity/physics/physics-integration-2--w7-wind` (cut from `--w3-ground` at 23e1b148) and merged onto the physics line by `unity/physics/physics-integration-2--w9-wind` as model 88.
 
 ## 1. The wind over the farmland
 
@@ -20,7 +20,8 @@ Order: 1.1, then 1.2, then 2.1. 1.1 merged into `--w3-ground` (595ca9fa), so W7 
   - Write design.md.
   - Checks: `dotnet test tools/simtests`, worldbench and flightbench `--golden`, flightbench `--slopes`, `python tools/hygiene/precommit.py --tree HEAD`.
 - [x] 1.2 [physics-engineer] The belts and the village.
-  - As built (design.md, decisions 4–6; model 84 extended, WakeGrid version 2):
+  - **On the line** (design.md, "On the line: model 88"): merged onto the physics line at 2955136e (model 86) by `unity/physics/physics-integration-2--w9-wind` as **model 88** (D-072; 87 is the stems'). One conflict, `LogFormat.cs`'s notes, resolved by giving 1.2 model 88's own note. Goldens: only the two farmland version stamps move (`farmland_wind.version` 1.86 → 1.88, `farmland_shelter.version` 2.84 → 2.88); every shelter row hashes as on its branch. Behind F7's hedge at 5 / 10 H the line read 0.71 / 0.85 and now 0.63 / 0.78 (Brandle's 0.50 / 0.65); behind Ruin_RoofCollapsed the line had no reverse flow and now has one to 2.0 H. A Village flight in Windy replays bit for bit on version 2 and on version 1.
+  - As built (design.md, decisions 4–6; built as model 84 extended, on the line as model 88; WakeGrid version 2):
     - **What the check found:** the farmland has no shelterbelt (no "posadka" group): its trees stand in groves and short rows, its bushes in field-edge hedges, its ruins are thin-walled shells. The wake grid kept only the nearest obstacle, so F7's hedge cut the F6|F7 trees' wake at 6 m (0.54 to 1.00); and its cell porosity rule diluted thin walls, missed them between samples and multiplied stacked courses and trunks under crowns.
     - **The lane's frontal porosity** (`WakeObstacles.Transmission`): solids opaque however thin, porous parts by Beer–Lambert over their chord, parts at different heights side by side; a cell is an obstacle where a footprint overlaps it.
     - **The overlying wake:** each cell also keeps the nearest taller obstacle upwind; the speeds multiply and the excess variances add. The two slots halve the shelter dropped (bound > 0.1 in 11–16 % of the farmland's wake cells against 24–29 %).

@@ -353,3 +353,56 @@ At 1 H (12.8 m) behind the east pair the field reads 0.87 at 2 H and 0.85 at 5 H
 - **The farmland's groves** have no canopy layer (MapWind reads only the "posadka" group): a drone through a grove at crown height meets the obstacles' bleed, not a canopy's flow.
 - **More slots:** a third wake per cell would drop the truncation's 11–16 % further, at 32 MB a slot on the farmland.
 - **QA (2.1):** the samples' cost on a quiet machine; the Unity EditMode run of the two cross-runtime pins (PinnedMapWind, PinnedCutWind) at version 2.
+
+## On the line: model 88 (`unity/physics/physics-integration-2--w9-wind`)
+1.2 was built as model 84 extended on `--w7-wind` (four commits on 52ce0ac0) and never merged. It is merged onto the physics line at 2955136e (model 86, QueryVersion 9) as **model 88**, assigned by D-072 (87 is the stems' line, landing first). Labels as above; "before" is the line at 2955136e.
+
+**The merge.** One conflict, `LogFormat.cs`'s notes: the line's 84-extended, 85 and 86 notes are kept as they stand, 1.2's "84 extended" paragraph becomes model 88's own note (what moved and why), and `ModelVersion` is 88. Everything else merged by itself. What the line gained since 52ce0ac0 touches none of the wind's code (`Runtime/Wind` and `WakeGrid*` unchanged on the line): the stem field (`IWorldQuery.StemsNear`, QueryVersion 9, the farmland's content hash 0x5D305D09F5D09021), the stems on the props, the anchors' reach, the crown fix, and the laid line's rest (w3 2.4) with its sliding-trail audit. Two merged spots composed by hand, both comments only: `GoldenFlights.Wakes`' summary had landed on `Edgewise`, and the "84 extended" names in the tests' comments now say 88. `GoldenFlights.Edgewise` on the line also drops the stems for every kept audit; the edgewise audits that fly the range pass `wakes2: !old` as well, so each flies the line's pin's physics.
+
+**Golden files, audited case by case** (`worldbench --golden`, Release and Debug):
+- `farmland-wind`: only `farmland_wind.version` moves, 1.86 → 1.88 (HillFlow 1, model 88); its six hashes are the line's.
+- `farmland-shelter`: only `farmland_shelter.version` moves, 2.84 → 2.88 (WakeGrid 2, model 88); its four hashes are the ones 1.2 recorded on its own branch, so the line's stems, QueryVersion 9 and content hash change no wind volume.
+- `floor`, `test-range`, `farmland` (with the line's stem cases), `wakes` (recorded at version 2 by 1.2): pass unchanged.
+- **Flight goldens:** the range golden is 1.2's re-pin, 0x9731F9263E4E25B1, and with version 1 model 76's pin 0xAF745CC52447E017, which the line held through 86; every other flight golden is the line's (`flightbench --golden`: 62 PASS lines, the line's 61 and 1.2's version-1 audit of the range).
+
+**The rows, before (the line, version 1) and after (model 88, version 2)** (`worldbench --golden`; "before" from a scratch copy of `FarmlandShelter.cs` with the layout's version set to 1, the line's grid bit for bit; u/u0 at 0.5 H):
+
+| Behind F7's hedge (25 % dense) | 2 H | 5 H | 10 H | 15 H | 20 H | 30 H |
+|---|---|---|---|---|---|---|
+| Before | 0.70 | 0.71 | 0.85 | 0.91 | 0.93 | 0.95 |
+| After | 0.60 | 0.63 | 0.78 | 0.84 | 0.87 | 0.92 |
+| Brandle et al., 25–35 % | | 0.50 | 0.65 | 0.80 | 0.85 | 1.00 |
+
+| Behind F6\|F7's east tree pair, F7's hedge 14 m behind | 2 H | 5 H | 10 H | 15 H | 20 H |
+|---|---|---|---|---|---|
+| Before | 0.95 | 0.95 | 0.90 | 0.94 | 1.00 |
+| After | 0.72 | 0.74 | 0.90 | 0.94 | 1.00 |
+
+| Behind Ruin_RoofCollapsed, wind from the north, u/u0 at 0.25 H | 0.25 H | 0.5 H | 1.0 H | 1.5 H | 2.0 H | 2.5 H | 3.0 H | 4.0 H |
+|---|---|---|---|---|---|---|---|---|
+| Before (version 1: its wall cells have gaps, finding 2) | 1.00 | 1.02 | 1.05 | 0.96 | 0.75 | 0.76 | 0.99 | 0.73 |
+| After (β 0.066) | −0.02 | −0.10 | −0.21 | −0.25 | −0.23 | 0.51 | 0.48 | 0.94 |
+
+Reverse flow before: none; after: to 2.0 H against Fackrell's 2.10 H. Behind Ruin_Walls (β 0.300 after, 0.267 before) at 0.25 H: before 0.71 / 0.86 / 0.84 / 0.61 at 0.5 / 1 / 2 / 4 H, after 0.15 / 0.58 / 0.40 / 0.30. Among the ruins (x 537, 1 m up, wind from the north): z 600 1.05 → −0.24, z 594 0.75 → −0.30, z 590 0.71 → −0.24, z 582 0.87 → 0.01.
+
+**The "Behind a belt" scenario:** the farmland has no shelterbelt, so its belt is F7's hedge (31 H long). At 0.25 and 0.5 H it reads 0.63 / 0.78 / 0.84 / 0.87 / 0.92 at 5 / 10 / 15 / 20 / 30 H against Brandle et al.'s 25–35 % class 0.50 / 0.65 / 0.80 / 0.85 / 1.00: +0.13, +0.13, +0.04, +0.02, −0.08, inside one class step (0.15–0.20, Zhou et al. 2004's spread). Before it read 0.71 / 0.85 / 0.91 / 0.93 / 0.95: +0.21 and +0.20 at 5 and 10 H, past a class step.
+
+**Determinism and replay** (measured):
+- Release and Debug give the same bits (`worldbench --golden` in both: every case's line identical).
+- A Village flight in Windy replays bit for bit with the headless tool: the scripted flight (120 s) from a foot between the ruins, (525, 34.006, 595), heading 0, in Ruin_RoofCollapsed's lee for the drawn wind from 46.3°, on wake grid version 2: 120,000 steps and 718 events, bit for bit, and 6,948 loose-piece records (`replay <log>`, exit 0). The same flight on version 1 (the log's wind entry says 1): 120,000 steps and 721 events, bit for bit, 18,309 loose-piece records, so a version-1 log replays its own grid. `tools/replay --record` refuses a map without a legs-on start point and the farmland has none, so the flight was recorded with a scratch copy of the tool that takes `--foot` alone (the core and the pilot unchanged); the replay is the repository's tool. The flight is not clean: a leg buckles at step 1, because the scripted start stands the drone level over a sloping foot. That is the scripted start's, not the wind's.
+- 0 B: `worldbench --wakes`: the worker's rebuild with the flight thread 0 B allocated, 0 GCs, 0 stalls, PASS; `WakeGridTests.StepAndSampleAllocateNothing` and `MapWindTests.TheSameSeedGivesTheSameWindWithoutAllocating` pass; `MapWindTests.InE01sRunTheSameSeedGivesTheSameWindWithoutAllocating`: 0 B on the step; `HillFlowTests.AFlightOverTheFarmlandsHills_Replays`: 0 B after the first step, 6,000 steps and 1,160 events bit for bit.
+- The wind's cost per step is owed on a quiet machine (QA, 2.1): this machine was shared, so no timing here counts. 1.2's own shared-machine figures stand above.
+
+**Checks run:**
+- `dotnet test tools/simtests -c Release`: "Passed! - Failed: 0, Passed: 847, Skipped: 0, Total: 847, Duration: 17 m 45 s".
+- `MapWindTests`, `WakeGridTests` and the two audits again with their output (`--filter`, detailed): 27 passed. The test range's village house: `BehindH01ITheWakeIsFackrellsAndPererasAtSevere`, H01_I β 0.0040, far wake 5–15 H u/U 0.612 against Perera's 0.613 (bias −0.001), the cavity's deepest −0.194 at 0.25 H, forward again at 1.10 X_R, the boost 1.107; the known-wrong without the map's obstacles 1.000 (bias +0.387). The cross-runtime pins (`TheMapsWindIsTheSameBitsOnEveryRuntime`, `TheCutsWindIsTheSameBitsOnEveryRuntime`, version 2 and version 1) pass; `WithVersion1WakesTheRangeGoldenIsModel76s` passes.
+- `dotnet run -c Release --project tools/worldbench -- --golden` and the same with `-c Debug`: "worldbench: ALL PASS" both, 58 PASS lines each, identical.
+- `dotnet run -c Release --project tools/flightbench -- --golden`: 62 PASS lines, exit 0 (the line at 2955136e: 61, exit 0); "range-flight with the wake grid's version 1: 0xAF745CC52447E017 (model 76's, bit for bit): PASS".
+- `dotnet run -c Release --project tools/flightbench -- --scenarios`: "scenarios: FAIL", exit 1, on the line's two checks: the "no ring" known-wrong ("PASSES: the target cannot tell it from the model (FAIL)") and the rain at rest ("2.278 mN against 2.241 mN: FAIL"). The merge changes neither: the whole output is the line's, byte for byte (diffed against the same run at 2955136e).
+- `tools/replay`: the Village flight in Windy and its version-1 twin, each "match ... bit for bit", exit 0.
+- `python tools/hygiene/precommit.py --tree HEAD`: on the commit (in the handback).
+
+**What is still owed for the wind** (seen, changed neither):
+- **The levels' targets** (the ledger's gap 3): Severe meets 9 of 21 targets and the pitch response is about 2.4–3 times low. The next task, not this one.
+- **The cover per cell:** the profile's still layer and displacement come from one assumed cover, `WindPreset.CoverHeight` 0.3 m (d = 0.67·h = 0.2 m) everywhere. The stem field now on the line (`IWorldQuery.StemsNear`: per grass cell and layer, stems per m² and the drawn tops' height range) could give each cell its own cover height, and from the stems' frontal area its d and z0. Not done here.
+- The suggestions above for 1.2 still stand (the layered obstacle, the side probes' false gap, recovery by porosity, the groves' canopy, a third slot).
