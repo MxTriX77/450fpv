@@ -12,21 +12,23 @@ using Fpv450.Sim.Contact;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Log;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 using Fpv450.UI;
-using Fpv450.World;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.SceneManagement;
+using StartPoint = Fpv450.App.Session.StartPoint;
 
 namespace Fpv450.App
 {
     /// <summary>
     /// The app (design 6, APP-02…05): the menu (Train, Calibrate, Exit; Explore in a review build), the setup, the
-    /// Calibrate screen, and the flight over the test range (FlightScene). It lives across scenes: Boot holds the menu,
-    /// TestRange the world. Train → the setup → Fly saves the setup and loads the range, and the flight starts once the
-    /// radio is in, so arming the switch is the only step left. The summary's Fly again and Setup stay in the range.
-    /// Explore opens the farmland (FarmLand) in noclip only (FarmlandExplore), until W3 flies it.
+    /// Calibrate screen, and the flight over the farmland (FlightScene; w3-farmland-ground 3.1). It lives across scenes: Boot
+    /// holds the menu, FarmLand the world. Train → the setup → Fly saves the setup and loads the farmland, and the flight
+    /// starts at the village's start once the radio is in, so arming the switch is the only step left. The summary's Fly
+    /// again and Setup stay on the farmland. Explore opens the farmland in noclip (FarmlandExplore). The test range left the
+    /// player; the headless tests and the benches keep it.
     /// </summary>
     /// <remarks>
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
@@ -37,11 +39,14 @@ namespace Fpv450.App
     /// hover, FPV and chase (Sequence). <c>-camerafeel 0</c> flies the camera as before p7e-camera-feel (FlightScene.CameraFeel).
     /// <c>-smokewind &lt;Calm|Windy|Severe&gt;</c> flies the smoke test's flights in that wind (Calm by default), a look at
     /// the wind field in the player: its checks are Calm's. <c>-smokelegs</c> flies LegShots' damaged-leg flights in place of
-    /// the smoke test's flights, each shot in both views, then R's restart (p7g-legs 1.5).
+    /// the smoke test's flights, each shot in both views, then R's restart (p7g-legs 1.5). <c>-smokehills</c> flies the
+    /// two-minute flight over the farmland's hills in their place (HillsFlight, w3-farmland-ground 3.1); with
+    /// <c>-terrainab</c> its cruise also times the near terrain rule against the scene's own errors, on and off by turns
+    /// (TerrainCost, 3.2; with <c>-vsync 0</c> in a development build).
     /// </remarks>
     public sealed class AppFlow : MonoBehaviour
     {
-        public const string BootScene = "Boot", RangeScene = "TestRange";
+        public const string BootScene = "Boot";
 
         enum View { Menu, Setup, Calibrate, Loading, Flight, Explore }
 
@@ -77,14 +82,7 @@ namespace Fpv450.App
         {
             SceneManager.sceneLoaded += OnSceneLoaded;
             Application.logMessageReceivedThreaded += OnLog;
-            try
-            {
-                _setup.Starts = FlightWorlds.TestRange(AppData.Root).StartPoints;
-            }
-            catch (Exception e)
-            {
-                Debug.LogError("[App] the test range's start points could not be read: " + e.Message);
-            }
+            _setup.Starts = FlightWorlds.FarmlandStarts;
             ReadProfile();
             Debug.Log("[App] menu: Train, Calibrate, " + (AppData.Review ? "Explore, " : "") + "Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
                       + "); data under " + AppData.Root + "; profile folder " + Application.persistentDataPath);
@@ -135,14 +133,14 @@ namespace Fpv450.App
             Load(explore: false);
         }
 
-        // Explore opens the farmland in noclip (w1-farmland-world 2.1); the flights stay on the test range until W3.
+        // The farmland, for a flight (w3-farmland-ground 3.1) or in noclip (Explore, w1-farmland-world 2.1).
         void Load(bool explore)
         {
             _explore = explore;
             _view = View.Loading;
             _exploreAsked = Time.realtimeSinceStartup;
             _exploreFirstFrame = -1f;
-            SceneManager.LoadSceneAsync(explore ? FarmlandExplore.Scene : RangeScene, LoadSceneMode.Single);
+            SceneManager.LoadSceneAsync(FarmlandExplore.Scene, LoadSceneMode.Single);
         }
 
         float _exploreAsked, _exploreFirstFrame = -1f; // realtime s: Explore's press, and its first noclip frame after it
@@ -177,7 +175,6 @@ namespace Fpv450.App
             _view = View.Calibrate;
         }
 
-        // After NoclipFeed's own hook (it subscribed before the first scene), so the range's rig is whole when switched off.
         void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
             if (scene.name == FarmlandExplore.Scene && _explore)
@@ -188,11 +185,8 @@ namespace Fpv450.App
                           "' with the launch stand" + (_exploreStand != null ? " at " + _exploreStand.position.ToString("0.00") : " MISSING") + "; Esc for the menu");
                 StartCoroutine(FirstExploreFrame());
             }
-            else if (scene.name == RangeScene)
+            else if (scene.name == FarmlandExplore.Scene)
             {
-                // Its Escape quits and its -smoketest quits after a frame: the app has its own.
-                var boot = FindFirstObjectByType<TestRangeBoot>();
-                if (boot != null) boot.enabled = false;
                 _flight = FlightScene.Attach(scene);
                 if (_flight.Host.Inputs != null)
                 {
@@ -291,7 +285,7 @@ namespace Fpv450.App
                 case View.Loading:
                     AppStyle.Begin();
                     AppStyle.DrawGround();
-                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading the farmland…  noclip only for now" : "Loading the test range…  arm once the drone is in", AppStyle.Label);
+                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading the farmland…  noclip" : "Loading the farmland…  arm once the drone is in", AppStyle.Label);
                     break;
             }
         }
@@ -300,7 +294,8 @@ namespace Fpv450.App
 
         /// <summary>
         /// The player's smoke test, through the screens' own calls: the menu and the setup drawn; Explore in a review build;
-        /// then two flights from the houses' start, the one the setup offers (D-077): on the legs, then from the launch
+        /// then two flights over the farmland from the village's start, the one the setup offers (D-092, w3-farmland-ground
+        /// 3.1; on the test range until then, from its houses' start): on the legs, then from the launch
         /// stand (legs off) in Rain, the second set from the first's summary through Setup. Each flight carries
         /// surfaces.json's ground (the rain's at its wet set), the map's cuts and the fiber line, which draws in the air
         /// and is laid again by a restart, and the props' blade tables and strikes, whole at each start (D-079). With the development
@@ -313,7 +308,9 @@ namespace Fpv450.App
         /// V is pressed through the Input System (D-055) for each view's shot: at rest, in the air and after the crash, or
         /// while waiting for the radio; the keyboard's flights, flown with those presses, must replay bit for bit. The OSD
         /// (p4-feed 1.5, D-057) reads DISARMED while waiting and at rest, and AIR in the air with the current, the charge
-        /// used and the pack, shot in the FPV view.
+        /// used and the pack, shot in the FPV view. Then the keyboard's flight into the ground (into a house on the test range,
+        /// which the farmland's sim does not have until its objects, w3-farmland-ground 1.2): the crash ends nothing, and R
+        /// restarts it. <c>-smokehills</c> flies HillsFlight in place of the flights.
         /// </summary>
         IEnumerator Smoke()
         {
@@ -327,7 +324,7 @@ namespace Fpv450.App
             // Its flights log to a folder of its own (QA's note): beside the shots, or in the app's temporary folder.
             _smokeLogs = shots != null ? Path.Combine(shots, "flights") : Path.Combine(Application.temporaryCachePath, "smoketest-flights");
             Debug.Log("[Smoke] flight logs in " + _smokeLogs);
-            // -smokeseq <n>: n consecutive frames at the punch and the hover, FPV and chase, and in the house flight's yaw
+            // -smokeseq <n>: n consecutive frames at the punch and the hover, FPV and chase, and in the crash flight's yaw
             // and pitch (p7e-camera-feel 1.7's before and after, with -camerafeel 0 for the before), beside the shots.
             int seq = Array.IndexOf(args, "-smokeseq");
             if (shots != null && seq >= 0 && seq + 1 < args.Length && int.TryParse(args[seq + 1], out _sequenceFrames) && _sequenceFrames > 0)
@@ -452,7 +449,7 @@ namespace Fpv450.App
                 return t != null ? t.GetComponent<MeshRenderer>() : null;
             }
             // A flight flown with V presses replays bit for bit on the world it names (D-055: the log never sees V).
-            IEnumerator Replays(string log, string where)
+            IEnumerator Replays(string log, string where, float seconds = 60)
             {
                 SessionInputs inputs = _flight.Host.Inputs;
                 Task<ReplayResult> replay = Task.Run(() =>
@@ -461,10 +458,10 @@ namespace Fpv450.App
                         return FlightReplay.Run(f, id => id == inputs.WorldId ? inputs.World() : null, inputs.Drone.ContentHash,
                             surfacesHash: inputs.Surfaces?.Hash ?? 0, tetherHash: inputs.Tether?.ContentHash ?? 0, materialsHash: inputs.MaterialsHash);
                 });
-                yield return Until(() => replay.IsCompleted, 60);
+                yield return Until(() => replay.IsCompleted, seconds);
                 ReplayResult r = replay.IsCompleted && !replay.IsFaulted ? replay.Result : null;
                 Check(r != null && r.Outcome == ReplayOutcome.Match, "the flight " + where + ", flown with V presses, replays bit for bit: " +
-                      (r != null ? r.Message : replay.IsFaulted ? replay.Exception.GetBaseException().Message : "not done in 60 s"));
+                      (r != null ? r.Message : replay.IsFaulted ? replay.Exception.GetBaseException().Message : "not done in " + seconds + " s"));
             }
             // -smokelegs (p7g-legs 1.5): LegShots' flights in place of the flights below, each shot in the FPV and chase views
             // once its leg shows its state, and its summary; then R's restart from the last, standing on four intact legs.
@@ -535,6 +532,139 @@ namespace Fpv450.App
                 }
                 _legCase = null;
             }
+            // -smokehills (w3-farmland-ground 3.1, the spec's "a flight on the hills replays", the pilot not being there to fly
+            // it): two minutes over the farmland's hills from the village's start, legs on, 1 kg, Windy, the line paying out,
+            // flown by HillsPilot on the development keyboard with the sim's ground. The drawn terrain is measured against the
+            // sim's near the drone (TerrainParity) at rest, every 20 s of the cruise and after the landing, at the scene's pixel
+            // error and at the flight's near the drone (FlightScene.NearTerrain). The flight is ended from the pause, its
+            // summary read, its log replayed bit for bit and read for the ground (GroundCheck: no tunnel, how deep any shape
+            // went); it stays in the smoke test's folder for tools/replay, headless.
+            IEnumerator HillsFlight(StartPoint start)
+            {
+                FlightChoices c = _setup.Choices;
+                c.StartPoint = start.Name;
+                c.Legs = true;
+                c.Payload = 1.0;
+                c.Wind = WindLevel.Windy;
+                c.Rain = Rain.Sunny;
+                c.TimeOfDay = 12.0;
+                Fly();
+                yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null &&
+                                         _flight.Host.Session.State == SessionState.Flying && _flight.ShownFlight == _flight.Host.Session.Flights, 60);
+                FlightSessionHost host = _flight != null ? _flight.Host : null;
+                FlightSession session = host != null ? host.Session : null;
+                Check(session != null && session.State == SessionState.Flying, "the hills flight starts at '" + start.Name + "'");
+                if (session == null || !host.Inputs.KeyboardAllowed) yield break;
+                yield return new WaitForSecondsRealtime(1);
+                IWorldQuery world = session.Setup.World.Query;
+                var views = new List<Task<List<TerrainParity.View>>>();
+                void Parity(string where)
+                {
+                    Camera lens = _flight.Eye != null ? _flight.Eye.GetComponent<Camera>() : null;
+                    if (lens != null)
+                        views.Add(TerrainParity.Measure(lens, world, where, ("the scene's", t => _flight.SceneError(t)),
+                            (FlightScene.NearPixelError.ToString("0.##") + " near the drone", t => FlightScene.NearPixelError)));
+                }
+                Parity("at rest");
+                yield return Shot("hills_rest");
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                yield return new WaitForSecondsRealtime(0.4f);
+                Check(_flight.Pose.Armed, "armed for the hills");
+                var point = new XZ[1];
+                var under = new GroundSample[1];
+                var pilot = new HillsPilot(host.Inputs.Settings, (x, z) =>
+                {
+                    point[0] = new XZ(x, z);
+                    world.SampleGround(point, under);
+                    return under[0].Height;
+                });
+                KeyboardKeys keys = KeyboardKeys.None;
+                host.Keys = () => keys;
+                float begin = Time.realtimeSinceStartup, measure = begin + 20, called = begin;
+                int cruiseShots = 0;
+                // -terrainab (3.2): the cruise alternates the near rule on and off, each side's frames timed (TerrainCost).
+                TerrainCost cost = Array.IndexOf(Environment.GetCommandLineArgs(), "-terrainab") >= 0 ? new TerrainCost(begin) : null;
+                while (pilot.Now != HillsPilot.Phase.Done && session.State == SessionState.Flying && !Crashed(session) && Time.realtimeSinceStartup < begin + 300)
+                {
+                    yield return null;
+                    // The time the last keys were held: every frame since the last call, a shot's frames included.
+                    float now = Time.realtimeSinceStartup;
+                    keys = pilot.Next(_flight.Pose, now - called);
+                    called = now;
+                    if (cost != null)
+                    {
+                        // A measure's comparison runs on the workers for seconds after its frame: no frame counts meanwhile.
+                        if (views.Exists(t => !t.IsCompleted)) cost.Stall(now);
+                        bool cruise = pilot.Now == HillsPilot.Phase.Cruise;
+                        if (cruise) cost.Frame(now, Time.unscaledDeltaTime);
+                        _flight.NearOn = !cruise || cost.On(now);
+                    }
+                    if (pilot.Now == HillsPilot.Phase.Cruise && Time.realtimeSinceStartup >= measure)
+                    {
+                        measure += 20;
+                        PoseFrame p = _flight.Pose;
+                        Parity("cruising at t = " + p.TimeS.ToString("0") + " s, (" + p.Position.X.ToString("0") + ", " + p.Position.Z.ToString("0") + ")");
+                        if (cruiseShots++ < 3) yield return Shot("hills_cruise_" + cruiseShots);
+                        cost?.Stall(Time.realtimeSinceStartup);
+                    }
+                }
+                if (cost != null)
+                {
+                    _flight.NearOn = true;
+                    Check(cost.Frames(0) > 0 && cost.Frames(1) > 0, cost.Report());
+                    cost.Dispose();
+                }
+                keys = KeyboardKeys.None;
+                host.Keys = () => KeyboardKeys.None;
+                PoseFrame last = _flight.Pose;
+                Check(pilot.Now == HillsPilot.Phase.Done && session.State == SessionState.Flying && !Crashed(session) && last.TimeS >= 120,
+                      "HillsPilot flew the route and landed: " + pilot.Now + " at t = " + last.TimeS.ToString("0.0") + " s, (" + last.Position.X.ToString("0.0") + ", " +
+                      last.Position.Y.ToString("0.0") + ", " + last.Position.Z.ToString("0.0") + "), over ground from " + pilot.LowestGround.ToString("0.0") + " to " +
+                      pilot.HighestGround.ToString("0.0") + " m, " + (Crashed(session) ? "CRASHED" : "no crash"));
+                yield return new WaitForSecondsRealtime(1);
+                Parity("landed");
+                yield return Shot("hills_landed");
+                yield return PressV("landed on the hills");
+                yield return Shot("hills_landed_chase");
+                yield return PressV("landed on the hills");
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                host.Pause();
+                session.EndFlight();
+                yield return Until(() => _flight.Summary != null, 30);
+                PostFlight summary = _flight.Summary;
+                Check(summary != null && summary.End.Kind == FlightEndKind.Pilot && !summary.HasCrash && summary.Log.Seconds >= 120,
+                      "the hills flight's summary: " + (summary != null ? summary.Log.Seconds.ToString("0.0") + " s, " + string.Join(" | ", summary.Lines()) : "none"));
+                yield return Shot("hills_summary");
+                string log = session.LogPath;
+                Debug.Log("[Smoke] the hills flight's log: " + log);
+                yield return Replays(log, "over the hills", 600);
+                Task<GroundCheck.Result> check = Task.Run(() => GroundCheck.Read(log, world));
+                yield return Until(() => check.IsCompleted, 120);
+                GroundCheck.Result g = check.IsCompleted && !check.IsFaulted ? check.Result : default;
+                Check(check.IsCompleted && !check.IsFaulted && g.Steps > 0 && g.Tunnels == 0 && g.BodyDepth <= 0,
+                      "the hills flight's log against the ground: " + (check.IsFaulted ? check.Exception.GetBaseException().Message : g.ToString()));
+                yield return Until(() => views.TrueForAll(t => t.IsCompleted), 120);
+                foreach (Task<List<TerrainParity.View>> t in views)
+                {
+                    if (!t.IsCompleted || t.IsFaulted)
+                    {
+                        Check(false, "the drawn terrain's measure: " + (t.IsFaulted ? t.Exception.GetBaseException().Message : "not done"));
+                        continue;
+                    }
+                    foreach (TerrainParity.View v in t.Result)
+                        Debug.Log("[Smoke] the drawn terrain against the sim's: " + v + (v.Flipped ? " (rows flipped)" : ""));
+                    // The flight's own setting (the last two views): the full heightmap within 30 m of the lens, WLD-11's 1 mm
+                    // (3.2), and on the ground under the drone 0.01 mm within 2 m.
+                    bool grounded = t.Result[0].Name.StartsWith("at rest", StringComparison.Ordinal) || t.Result[0].Name.StartsWith("landed", StringComparison.Ordinal);
+                    for (int k = 2; k < t.Result.Count; k++)
+                    {
+                        TerrainParity.View v = t.Result[k];
+                        Check(v.Pixels[2] > 0 && v.Max[2] <= 1e-3 && (!grounded || v.Pixels[0] > 0 && v.Max[0] <= 1e-5),
+                              "the drawn terrain near the drone " + v.Name + ": within 10 m " + (v.Max[1] * 1e3).ToString("0.000") + " mm, within 30 m " +
+                              (v.Max[2] * 1e3).ToString("0.000") + " mm (WLD-11: 1 mm)" + (grounded ? ", within 2 m " + (v.Max[0] * 1e3).ToString("0.000") + " mm" : ""));
+                    }
+                }
+            }
 
             yield return Until(() => Time.frameCount > 3, 5);
             yield return new WaitForSecondsRealtime(0.5f);
@@ -552,8 +682,8 @@ namespace Fpv450.App
             yield return Shot("menu");
             Train();
             yield return null;
-            Check(_view == View.Setup && _setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.HousesStart,
-                  "Train opens the setup, from the houses' start only (D-077): " + _setup.Starts.Length + " start point(s)");
+            Check(_view == View.Setup && _setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.FarmlandStart.Name,
+                  "Train opens the setup, from the village's start only (D-092): " + _setup.Starts.Length + " start point(s)");
             yield return Shot("setup");
 
             if (AppData.Review)
@@ -576,6 +706,35 @@ namespace Fpv450.App
                       ", its first frame " + _exploreFirstFrame.ToString("0.00") + " s after the press (PLT-06: 20 s)");
                 yield return new WaitForSecondsRealtime(2);
                 yield return Shot("explore_farmland_stand");
+                // w3-farmland-ground 3.2: the drawn terrain against the sim's from noclip's start, the stand 3 m ahead, through
+                // the feed and without it (V), at the scene's errors and at the flight's near the drone: what noclip shows
+                // of the ground the drone stands on. Noclip keeps the scene's errors; within 10 m they must hold WLD-11's 1 mm.
+                if (eye != null && feed != null)
+                {
+                    IWorldQuery world = FlightWorlds.Farmland(AppData.Root).Open().Query;
+                    var views = new List<Task<List<TerrainParity.View>>>();
+                    for (int v = 0; v < 2; v++)
+                    {
+                        feed.enabled = v == 0;
+                        yield return null;
+                        yield return null;
+                        views.Add(TerrainParity.Measure(eye, world, "noclip's start, the feed " + (v == 0 ? "on" : "off"), ("the scene's", t => t.heightmapPixelError),
+                            (FlightScene.NearPixelError.ToString("0.##") + " near the drone", t => FlightScene.NearPixelError)));
+                    }
+                    feed.enabled = true;
+                    yield return Until(() => views.TrueForAll(t => t.IsCompleted), 60);
+                    foreach (Task<List<TerrainParity.View>> t in views)
+                    {
+                        if (!t.IsCompleted || t.IsFaulted) Check(false, "the drawn terrain's measure in noclip: " + (t.IsFaulted ? t.Exception.GetBaseException().Message : "not done"));
+                        else
+                        {
+                            foreach (TerrainParity.View v in t.Result) Debug.Log("[Smoke] the drawn terrain against the sim's: " + v + (v.Flipped ? " (rows flipped)" : ""));
+                            for (int k = 0; k < 2; k++)
+                                Check(t.Result[k].Pixels[1] > 0 && t.Result[k].Max[1] <= 1e-3, "the drawn terrain round the stand in " + t.Result[k].Name + ": within 10 m " +
+                                      (t.Result[k].Max[1] * 1e3).ToString("0.000") + " mm (WLD-11: 1 mm)");
+                        }
+                    }
+                }
                 Menu();
                 yield return Until(() => _view == View.Menu, 30);
                 Check(_view == View.Menu, "Esc's route back to the menu");
@@ -583,10 +742,11 @@ namespace Fpv450.App
             }
 
             StartPoint ground = _setup.Starts.Length > 0 ? _setup.Starts[0] : default;
-            Check(ground.Name != null, "the range lists its houses' start");
-            if (Array.IndexOf(args, "-smokelegs") >= 0)
+            Check(ground.Name != null, "the farmland lists its village's start");
+            bool hills = Array.IndexOf(args, "-smokehills") >= 0;
+            if (hills || Array.IndexOf(args, "-smokelegs") >= 0)
             {
-                yield return LegFlights(ground);
+                yield return hills ? HillsFlight(ground) : LegFlights(ground);
                 if (pilotSetup != null) File.WriteAllBytes(setupFile, pilotSetup);
                 else File.Delete(setupFile);
                 Debug.Log("[Smoke] " + (failed == 0 && _errors == 0 ? "PASS" : "FAIL") + ": " + failed + " checks failed, " + _errors + " errors logged");
@@ -612,16 +772,17 @@ namespace Fpv450.App
                 Fly();
                 string where = "'" + start.Name + "' (legs " + (c.Legs ? "on" : "off, the stand") + ")";
                 yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null, 60);
-                Check(_flight != null && _flight.Host.Session != null, "Fly loads the flight over the test range at " + where);
+                Check(_flight != null && _flight.Host.Session != null, "Fly loads the flight over the farmland at " + where);
                 if (_flight == null || _flight.Host.Session == null) break;
                 FlightSessionHost host = _flight.Host;
                 if (barred)
                 {
                     yield return new WaitForSecondsRealtime(1);
                     Vector3 eye = Camera.main != null ? Camera.main.transform.position : Vector3.positiveInfinity;
-                    // The lens over the start: its mount turned to the start's heading.
-                    Vector3 lens = new Vector3((float)start.X, 0f, (float)start.Z) + Quaternion.Euler(0f, (float)(start.Yaw * 180 / Math.PI), 0f) * _flight.CameraMount;
-                    Check(host.WaitingForRadio && Math.Abs(eye.x - lens.x) < 0.01 && Math.Abs(eye.z - lens.z) < 0.01 && eye.y < 0.5,
+                    // The lens over the start: its mount turned to the start's heading, over the terrain there.
+                    FarmlandExplore.Ground(SceneManager.GetActiveScene(), (float)start.X, (float)start.Z, out float terrain);
+                    Vector3 lens = new Vector3((float)start.X, terrain, (float)start.Z) + Quaternion.Euler(0f, (float)(start.Yaw * 180 / Math.PI), 0f) * _flight.CameraMount;
+                    Check(host.WaitingForRadio && Math.Abs(eye.x - lens.x) < 0.01 && Math.Abs(eye.z - lens.z) < 0.01 && eye.y - terrain < 0.5,
                           "after a flight, the wait for the radio views the chosen start " + where + " from " + eye.ToString("0.00"));
                     yield return Shot("waiting_after_flight_" + tag);
                     host.Inputs.KeyboardAllowed = true;
@@ -680,7 +841,9 @@ namespace Fpv450.App
                 Check(_flight.Osd.Row(0).StartsWith(FlightOsd.DisarmedMode, StringComparison.Ordinal), "the OSD reads DISARMED at rest: " + Osd());
                 // The physics integration 2: surfaces.json's ground, the map's cuts and the fiber line from the table's launch.
                 FlightSetup built = session.Setup;
-                Check(built.Contacts.Surfaces != null && built.Wind.Cuts != null && built.Wind.Cuts.Length > 0 && built.Tether != null && session.Core.Tether != null &&
+                // The map's cuts are its objects' (MapWind.Cuts: none on the farmland until its objects, w3-farmland-ground 1.2).
+                int mapCuts = built.World.Query is MapWorld map ? MapWind.Cuts(map)?.Length ?? 0 : -1;
+                Check(built.Contacts.Surfaces != null && (built.Wind.Cuts?.Length ?? 0) == mapCuts && built.Tether != null && session.Core.Tether != null &&
                       built.TetherCoilPart == host.Inputs.Drone.Coil.Part && !built.TetherTwoWay && built.TetherLayout == null,
                       "the flight carries surfaces.json's ground, the map's " + (built.Wind.Cuts != null ? built.Wind.Cuts.Length : 0) + " cuts and the line from the launch, " +
                       _flight.Pose.FiberNodeCount + " nodes, the trail " + _flight.Pose.FiberTrailCount + " points");
@@ -795,14 +958,15 @@ namespace Fpv450.App
                 }
             }
 
-            // The keyboard's flight into the house beside the ground start (QA's finding 3 in a player): the summary names
-            // the placed object it hit, from the map. A pilot's build has no keyboard and skips it.
+            // The keyboard's flight into the ground by the village's start (QA's finding 3 in a player, on the test range
+            // a house; the farmland's sim has no objects until w3-farmland-ground 1.2): the summary names what it hit. A
+            // pilot's build has no keyboard and skips it.
             // D-063: the crash ends nothing. The drone stays under physics with nothing over the picture: the throttle
-            // down, it falls from the wall and lies where it lands, stepping on, until the pause's End flight, whose
-            // summary lists the crash. D-087: when the crash broke the line, R is pressed there instead, after the break with
-            // the failsafe at its stage, and must restart in the frame that reads it (PressR); the house flight's summary,
-            // read from its log, lists the crash, the break and the failsafe's stages. The restarted flight is then ended and
-            // R pressed from its summary.
+            // down, it lies where it lands, stepping on, until the pause's End flight, whose summary lists the crash, and R
+            // from that summary restarts in the frame that reads it. D-087: when the crash broke the line, R is pressed there
+            // instead, after the break with the failsafe at its stage, and must restart in the frame that reads it (PressR);
+            // the crash flight's summary, read from its log, lists the crash, the break and the failsafe's stages. The
+            // restarted flight is then ended and R pressed from its summary.
             string lastStart = ground.Name;
             bool lastLegs = false; // the stand's flight
             double lastHour = 17.5;
@@ -819,17 +983,25 @@ namespace Fpv450.App
                 yield return new WaitForSecondsRealtime(1);
                 yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
                 yield return new WaitForSecondsRealtime(0.4f);
-                Check(_flight.Pose.Armed, "armed for the flight into the house");
-                yield return IntoTheHouse();
+                Check(_flight.Pose.Armed, "armed for the flight into the ground");
+                yield return IntoTheGround();
                 FlightSession session = host.Session;
                 PoseFrame atCrash = _flight.Pose;
                 double rest = _flight.RestPose.Position.Y, hit = atCrash.Position.Y - rest;
                 long crashStep = session.Poses.LatestStep;
                 Check(Crashed(session) && session.State == SessionState.Flying && _flight.Summary == null,
-                      "the flight into the house crashes at " + hit.ToString("0.0") + " m and flies on, no summary: " + session.State);
+                      "the flight into the ground crashes at " + hit.ToString("0.0") + " m and flies on, no summary: " + session.State);
                 yield return Shot("crash_fpv");
                 yield return Hold(KeyboardKeys.ThrottleDown, 1.5f);
                 yield return Hold(KeyboardKeys.None, 1.0f);
+                // A line the tumble broke late is still in Betaflight's failsafe here (1.5 s from the last good frame): the
+                // pose and the OSD are read once its stage has settled and a frame has drawn it, so they agree with it.
+                if (session.Poses.Read().Signals.LinkState == Fpv450.Sim.Flight.LinkState.Broken)
+                {
+                    yield return Until(() => session.Core.Failsafe == null || session.Core.Failsafe.Stage == Fpv450.Sim.Control.FailsafeStage.Disarmed, 5);
+                    yield return null;
+                    yield return null;
+                }
                 PoseFrame lying = _flight.Pose;
                 long stepped = session.Poses.LatestStep - crashStep;
                 // Under physics: it moved off the crash pose, wherever it lands (the ground below the wall, or the eave and
@@ -852,15 +1024,15 @@ namespace Fpv450.App
                 yield return PressV("after the crash");
                 yield return Shot("crash_chase");
                 yield return PressV("after the crash");
-                string houseLog = session.LogPath;
+                string crashLog = session.LogPath;
                 PostFlight summary;
                 if (broke)
                 {
                     // D-087: R after the break, the failsafe at its stage, restarts in the frame that reads the press; the
-                    // house flight's summary is then read from its log.
+                    // crash flight's summary is then read from its log.
                     yield return PressR("after the break, the failsafe " + (failsafe != null ? failsafe.Stage.ToString() : "none"));
                     SessionInputs inputs = host.Inputs;
-                    Task<PostFlight> read = Task.Run(() => PostFlight.Read(houseLog, inputs.OpenWorld));
+                    Task<PostFlight> read = Task.Run(() => PostFlight.Read(crashLog, inputs.OpenWorld));
                     yield return Until(() => read.IsCompleted, 30);
                     summary = read.IsCompleted && !read.IsFaulted ? read.Result : null;
                 }
@@ -873,8 +1045,8 @@ namespace Fpv450.App
                 }
                 FlightIncident crash = summary != null ? summary.Incidents.Find(i => i.Kind == FlightIncidentKind.Crash) : default;
                 Check(summary != null && summary.End.Kind == FlightEndKind.Pilot && summary.HasCrash && crash.Kind == FlightIncidentKind.Crash &&
-                      summary.CrashObject == HouseBesideTrack && summary.Lines().Contains(summary.Describe(crash)),
-                      (broke ? "R" : "End flight") + ", and the summary lists the crash into the house: " + (summary != null ? string.Join(" | ", summary.Lines()) : "none"));
+                      summary.CrashObject == CrashGround && summary.Lines().Contains(summary.Describe(crash)),
+                      (broke ? "R" : "End flight") + ", and the summary lists the crash into the ground: " + (summary != null ? string.Join(" | ", summary.Lines()) : "none"));
                 if (broke)
                 {
                     // D-087: the summary lists the break, where and how, and each failsafe stage the log has.
@@ -885,7 +1057,7 @@ namespace Fpv450.App
                     Check(fiber.Count > 0 && fiber.Count == stages + 1 && fiber[0].Kind == FlightIncidentKind.FiberBreak && summary.BreakPlace.Length > 0 &&
                           fiber.TrueForAll(i => summary.Lines().Contains(summary.Describe(i))),
                           "the summary lists the fiber's break and the failsafe's " + stages + " stages: " + string.Join(" | ", fiber.ConvertAll(i => summary.Describe(i))));
-                    yield return Replays(houseLog, "into the house");
+                    yield return Replays(crashLog, "into the ground");
                     // The restarted flight's End flight, and R from its summary: the next starts in the frame that reads it.
                     FlightSession again = host.Session;
                     host.Pause();
@@ -897,7 +1069,8 @@ namespace Fpv450.App
                 else
                 {
                     yield return Shot("summary_crash");
-                    yield return Replays(houseLog, "into the house");
+                    yield return Replays(crashLog, "into the ground");
+                    yield return PressR("from the summary");
                 }
             }
 
@@ -947,19 +1120,22 @@ namespace Fpv450.App
             };
         }
 
-        /// <summary>The house beside the ground start `track`, 6 m ahead and 14 m to the right, behind a 1.8 m fence; its
-        /// north wall lies between headings 143° and 176° from the start.</summary>
-        const string HouseBesideTrack = "Z01_house_adobe";
+        /// <summary>What the crash flight hits: the summary's name for the terrain (PostFlight).</summary>
+        const string CrashGround = "the ground";
 
-        // The smoke test's keyboard pilot into the house, on the flight's own pose. The throttle (W, S, which move it at
+        /// <summary>The crash flight's dive: the nose this far down, in degrees.</summary>
+        const double DiveDeg = 60;
+
+        // The smoke test's keyboard pilot into the ground, on the flight's own pose. The throttle (W, S, which move it at
         // KeyboardSticks.ThrottlePerSecond) is steered to the stick whose command, on the flight's own curve, is a level
         // set by the height's and the climb's errors about the hover (a command of 0.46 at 1 kg, assumed: 0.48 of the
         // stick on the 50 / 10 curve it was tried on, at 7 and 16 ms frames), holding 3 m over the start; D turns to 158°
-        // once 2 m up, then the pitch key tilts it forward for 0.35 s, and it flies on until it hits.
+        // once 2 m up (the test range's house lay that way), then the pitch key tilts it forward until the nose is DiveDeg
+        // down, and on the hover's command alone it dives into the ground.
         // The flight's crash latch, as the physics last published it (the core is stepping on its thread).
         static bool Crashed(FlightSession session) => session.Poses.Read().Signals.Crashed;
 
-        IEnumerator IntoTheHouse()
+        IEnumerator IntoTheGround()
         {
             const double Height = 3, Heading = 158, Hover = 0.46;
             FlightSessionHost host = _flight.Host;
@@ -984,14 +1160,14 @@ namespace Fpv450.App
                 Quat q = p.Attitude;
                 double heading = Math.Atan2(2 * (q.X * q.Z + q.W * q.Y), 1 - 2 * (q.X * q.X + q.Y * q.Y)) * 180 / Math.PI;
                 double turn = ((Heading - heading) % 360 + 540) % 360 - 180;
-                double want = StickFor(curve, Math.Max(0.3, Math.Min(0.7, Hover + (pitchFrom >= 0 ? 0.03 : 0) + 0.05 * (Height - h) - 0.06 * p.Velocity.Y)));
+                double want = HillsPilot.StickFor(curve, pitchFrom >= 0 ? Hover : Math.Max(0.3, Math.Min(0.7, Hover + 0.05 * (Height - h) - 0.06 * p.Velocity.Y)));
                 KeyboardKeys k = throttle < want - 0.01 ? KeyboardKeys.ThrottleUp : throttle > want + 0.01 ? KeyboardKeys.ThrottleDown : KeyboardKeys.None;
                 if (pitchFrom < 0 && h > 2)
                 {
                     if (hoverUntil < 0)
                     {
                         hoverUntil = now + 2.5f;
-                        end += 2.5f; // the hover is not the flight's time to the house
+                        end += 2.5f; // the hover is not the flight's time to the ground
                         StartCoroutine(HoverSequences());
                     }
                     if (now < hoverUntil) { }
@@ -1007,24 +1183,14 @@ namespace Fpv450.App
                         StartCoroutine(Sequence("punch_forward_fpv", 0.1f));
                     }
                 }
-                if (pitchFrom >= 0 && now - pitchFrom < 0.35f) k |= KeyboardKeys.PitchForward;
+                double nose = Math.Asin(Math.Max(-1, Math.Min(1, -q.Rotate(new Double3(0, 0, 1)).Y))) * 180 / Math.PI; // down, °
+                if (pitchFrom >= 0 && nose < DiveDeg) k |= KeyboardKeys.PitchForward;
                 keys = k;
             }
             host.Keys = () => KeyboardKeys.None;
         }
 
-        // The throttle stick (0–1) whose command (0–1 of rcCommand) is command on a preview's curve: its inverse, linear
-        // between the samples. command is above the curve's 0 at the stick's foot.
-        static double StickFor(RatePreview curve, double command)
-        {
-            double[] t = curve.Throttle;
-            for (int i = 1; i < t.Length; i++)
-                if (t[i] >= command)
-                    return RatePreview.Stick(i - 1) + (RatePreview.Stick(i) - RatePreview.Stick(i - 1)) * (command - t[i - 1]) / (t[i] - t[i - 1]);
-            return 1;
-        }
-
-        // The house flight's hover (-smokeseq): a sequence in the FPV view, then one in the chase view and back. V's own
+        // The crash flight's hover (-smokeseq): a sequence in the FPV view, then one in the chase view and back. V's own
         // toggle, which the flight never sees.
         IEnumerator HoverSequences()
         {

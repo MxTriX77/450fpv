@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills) and 2.5 (a laid fiber follows the hills)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills), 2.5 (a laid fiber follows the hills), 3.1 (flight on the farmland) and 3.2 (the drawn terrain near the drone)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -811,3 +811,195 @@ The test range's SnagsNear budget (100 µs at p99, r = 1 m) is met at every spot
 - **3.1:** `MapWorld.Load(root, "farmland")` now takes 1.7 s and 130 MiB; its wind volumes are there for W7.
 - **W4b (suggested):** a Douglas–Peucker pass at 1 cm over the debris rims' pixel corners in the generator, if 2.4's snag model reads an edge's direction (W4b's review).
 - **QA (4.1):** a quiet run of the bench rows and `farmland-line-step`.
+
+# Task 3.1: flight on the farmland
+
+**Owner of this part:** game-developer · **For:** the tech artist (the drawn terrain near the drone), 4.1 (qa-engineer) · **Requirements:** APP-02, APP-03, APP-04, PRD-04, WLD-11, VIS-01, LOG-02 · **Decisions:** D-063, D-087, D-088, D-092 · **Model:** 82, **QueryVersion:** 8 (no sim code changed)
+
+Numbers are labelled as above. "The player" is this branch's development review build (`Fpv450.Build.Windows -review -developmentBuild`, the one whose smoke test flies the keyboard), on AC, Balanced plan, vsync 1, a 1920 × 1080 window, the machine shared with other sessions.
+
+## Decisions
+
+### 1. Train flies the farmland
+- **The flow:** Train → the setup → Fly loads `FarmLand` (the friend's scene file, untouched) and puts the flight on it (`FlightScene.Attach`). The summary's Fly again and Setup stay on the farmland; Explore still opens it in noclip (W1's §6, unchanged).
+- **The world:** `FlightWorlds.Farmland(root)`, which is `MapWorld.Load(root, "farmland")`: 1.1's terrain, no objects until 1.2. It is loaded once per scene load (0.3 s, 28 MB, 1.1's figures) and shared by that scene's flights, as the test range was. The log names it `farmland`, so the summary and `tools/replay` reopen it from the repository.
+- **The start:** W1's `FlightWorlds.FarmlandStart`, the setup's only start (D-092). An older setup naming `track` falls back to it (`SessionSetup`'s rule).
+  - Legs on, the drone stands on its skids on `SampleGround` there (37.894 m, measured).
+  - Legs off, `LaunchStand.Build` stands on the same foot. The flight draws D02 at the physics' pose, as on the test range: (566.500, 37.894, 569.000) at 300.0° (measured, the smoke test). That is the pose the explorer draws.
+- **The scene's camera** (the friend's `Review Camera`, its `FreeFlyCamera` on it) is switched off once the flight's camera exists. The flight's camera takes its post-processing (on: the scene's Global Volume) and its far plane (6000 m), so the flight draws the friend's look as Explore does. A scene without a camera of its own (the test range) is unchanged.
+- **The wait for the radio** previews the start over the drawn terrain there, not at the plane's 0.
+
+### 2. The test range leaves the player
+- **The build's scenes** are Boot and FarmLand (`ProjectSetup.Apply`, `EditorBuildSettings.asset`). `Fpv450.Build.Windows` requires FarmLand instead of the test range.
+- **StreamingAssets** carry the farmland's `map.json` and the 34 files its tiles list (`FlightWorlds.FarmlandFiles`: heights, classes, and holes when listed; 26.8 MB, derived from the file sizes), beside drone.json and the three tables. The test range's placements and metadata are no longer copied. `AppTests.ThePlayerCarriesEveryFileTheFlightReads` loads the farmland from the copies alone, at the repository's hash, and finds no test range file.
+- **Who keeps the test range:** its own player (`Fpv450.Build.TestRange`), `SessionTests`, `LegShotsTests`, flightbench, worldbench and `tools/replay --map test-range`. A pilot's older log on the test range still replays from the repository. `TestRangeBoot`'s and `LookSetup`'s handling in `FlightScene.Attach` stays; it is harmless where they are absent.
+
+### 3. The light: the friend's, at every setup (D-088)
+- **Chosen:** the farmland keeps the scene's own light, sky, fog and volume at every time of day and rain. The setup still offers all five settings (PRD-04).
+  - **Time of day** goes to the log and to the feed's stub signal, which nothing draws from. The look does not change.
+  - **Rain** wets the ground in the physics, as on the test range: the contacts take surfaces.json's moisture sets (the stand's Rain flight loads the straw's wet modulus, the smoke test). The sky does not change.
+  - **Wind** blows in the physics: `WindSetup.ForMap` over the farmland, its field at the level chosen. The map has no wakes, canopy or cuts until its objects (1.2).
+- **Why not the look:** the friend's scene has one fixed sun, its sky and its Global Volume. Moving the sun for the hour, or swapping in the test range's overcast preset for rain, would change the look D-088 adopted as it is. The test range's `LookSetup` is not in the scene and is not added. The look's time of day and weather belong to the look's own unit (W6 or later).
+- **The flight logs it:** "look: the scene's own light; the setup's 12:00 and Sunny leave it as it is".
+
+### 4. The drawn terrain near the drone (WLD-11, VIS-01)
+- **The rule** (`FlightScene.NearTerrain`): every terrain tile within 30 m of the drone draws at Unity's finest pixel error, 1. Every other tile keeps the friend's: 5 on the map, 8 on the surround, 20 on the far ring.
+- **Why 1:** it is Unity's floor. Its error is counted in the camera's pixels, so it shrinks toward the lens. Nearest the drone the patches are the full heightmap, which is the sim's heightfield (W2: the same within 0.0112 mm at its 1,000 probes).
+- **The measure** (`TerrainParity`, from the depth Unity draws):
+  - A camera with the FPV camera's lens pose, field of view and render size draws the terrains alone, their trees and grass off, into a depth target.
+  - It looks along the lens and straight down, at the friend's pixel errors and at the flight's.
+  - Each pixel goes back to the world through the GPU's own projection matrix. Its height is compared with the sim's `SampleGround` there, binned by its horizontal distance from the lens: 2, 10 and 30 m.
+  - **It checks itself:** at rest the 2 m band agrees to 0.004 mm over 1.9–4.7 M pixels. The wrong row order would put each depth on another pixel's ray, metres off.
+- **Measured along the hills flight** (the smoke test's `-smokehills`, the first of the final build's two runs; 7 places, the larger of the two views; the largest |drawn − sim| in mm):
+
+| Where | The friend's errors: ≤ 2 m / ≤ 10 m / ≤ 30 m | The flight's (1 within 30 m): ≤ 2 m / ≤ 10 m / ≤ 30 m |
+|---|---|---|
+| At rest on the start | 0.005 / 0.009 / 10.427 | 0.005 / 0.009 / 0.039 |
+| Cruising, t = 22 s, (495, 478) | 1.832 / 1.839 / 3.654 | 0.005 / 1.834 / 3.593 |
+| Cruising, t = 42 s, (401, 349) | 3.667 / 5.462 / 6.412 | 1.835 / 3.664 / 3.682 |
+| Cruising, t = 62 s, (315, 286) | 5.355 / 32.931 / 39.185 | 0.007 / 0.026 / 9.036 |
+| Cruising, t = 82 s, (235, 402) | 0.005 / 3.664 / 3.679 | 0.005 / 3.664 / 3.679 |
+| Cruising, t = 102 s, (165, 517) | 2.748 / 3.663 / 4.578 | 1.832 / 3.178 / 3.656 |
+| Landed in the valley | 0.003 / 1.831 / 2.757 | 0.003 / 1.831 / 1.848 |
+
+- **What it shows** (the four runs that flew the route, the last above):
+  - **Where the drone touches the ground** (at rest and landed, the lens 0.2 m over it), the drawn terrain within 2 m is the sim's to 0.005 mm under both settings: the full heightmap.
+  - **In flight, 5 m over the ground,** the friend's errors left the drawn terrain up to 6.0 mm off within 2 m, 32.9 mm within 10 m and 39.2 mm within 30 m.
+  - **The flight's rule** holds it within 3.0 mm within 2 m, 5.5 mm within 10 m and 9.1 mm within 30 m. Most of that is one height unit or half of one: 3.66 mm, a unit of the 120 m tiles (120 / 32766, derived), and 1.83 mm. It is Unity's level of detail dropping one sample's unit, less than a pixel at its distance from the lens: the 10 m and 30 m bands' worst are 0.64 and 0.35 of a pixel at their edges.
+  - **Against WLD-11's 1 mm:** met where the drone touches. In the air at 5–30 m it is not met (up to 9.1 mm), and no Unity setting goes finer. The tech artist's review decides whether that counts as "near the drone".
+  - **The smoke test guards it:** with the flight's rule it fails if a view's 10 m or 30 m band passes one pixel at the band's edge, or if on the ground its 2 m band passes 0.01 mm. One pixel is 8.6 mm at 10 m and 25.8 mm at 30 m (the render's 80.21° over 1,625 rows, derived). Pixel error 1 is Unity's promise of about a pixel at most. The friend's errors passed the guard (32.9 mm within 10 m is 3.8 px).
+- **The cost is not measured.** Pixel error 1 on the map tile draws more terrain triangles while the drone is over the map's 1 km². The frame rate needs vsync off on AC: the tech artist's run (PLT-07).
+
+### 5. The smoke test on the farmland: what changed
+- **The same checks, on the farmland:**
+  - Train's setup lists the village's start (D-092; it was the houses', D-077).
+  - Fly loads the farmland.
+  - The wait for the radio views the start over the terrain there (it was under 0.5 m of the plane's 0).
+  - The flight's wind carries the map's own cuts (`MapWind.Cuts`). On the test range the check was "more than none"; the farmland has none, because it has no objects in the sim until 1.2.
+- **The house flight became a flight into the ground.** It turns to 158° once 2 m up, as before, then pitches until the nose is 60° down and dives on the hover's command.
+  - The summary must name "the ground" (it was `Z01_house_adobe`).
+  - When the line holds, R is now pressed from the summary too, so R's restart is checked on either path.
+  - In the final runs the crash broke the line (at the spool's exit lip, or in the free span). R then ran after the break (the failsafe disarmed) and again from the summary, each restarting in the frame that read the press.
+  - After the crash a broken line's failsafe settles first: the pose and the OSD are read once its stage has reached the disarm (1.5 s after the last good frame) and a frame has drawn it. One run read them a frame before a late break's disarm and failed on the OSD's AIR.
+- **Unchanged:** the menu, the PSO tripwire, Explore and its stand, the OSD at rest and in the air, V and its views, the pause, the disarm and re-arm in the air, the stand's flight in Rain, its Restart without the radio, the line drawn and laid again, the blade tables, the summaries, the replays and the saved setup.
+- **`-smokehills`** (new) flies the hills flight below in place of the flights.
+- **`-smokelegs`** still flies LegShots' cases, now on the farmland's soil. Those cases were found on the test range's soil and are not re-swept here (see the next units).
+
+### 6. The flight on the hills (the scenario, flown by a script)
+- **`HillsPilot`** (engine-free, `App/Session`) flies the development keyboard as a pilot's hands would. Its keys are logged as any stick input, so the replay never depends on it.
+  - **Acro:** a key held turns the drone at the half stick's rate (about 50 °/s on roll and pitch, derived from the player's default rates). No key holds the attitude.
+  - **Control:** it keeps pitch and roll within 1.5° of their aims, and steers the throttle stick to the curve's command for the height's and the climb's errors.
+  - **The flight:** it climbs to 5 m over the sim's ground and cruises at 6.5 m/s, looking the ground up 1 s and 2.5 s ahead. Then its height's aim sinks at 0.6 m/s on through the ground to 2 m under it, so the legs press down. It lands and pulls the throttle down, and its caller disarms.
+  - **Every phase steers to a height.** The pilot counts its throttle stick from the keys it held over the real time since its last call, as KeyboardSticks counts it. A stick that drifts off its count then costs a height, never the landing.
+  - **Why (found in the player):** two runs of the first version failed in the player and none headless. It integrated the keys it chose, not the keys held, over a frame's time, not over the frames since its last call (a shot's frames). Its descent then steered to a sink rate alone, and a count 0.05 off held the drone in the air: it drifted, and once the fiber broke. Both are fixed: the count, and the sinking aim above.
+  - **The route:** from the village's start (38 m) south-west over the fields' rise to the hill at (330, 250), 39 m, then north-west down its side to the valley at (120, 620), 16 m. That is about 820 m with 23 m of fall (validate.py's heights every 50 m, derived), a little over two minutes at 6.5 m/s.
+- **Headless** (`FarmlandFlightTests.AFlightOverTheHillsReplays`, in `dotnet test tools/inputtests` and the EditMode suite): Windy, legs on, 1 kg, the line paying out, the keys every 16 ms.
+  - **Measured:** 124.7 s, 800 m over ground of 16.9–39.8 m. It landed and was disarmed, with no crash and 503.2 m of line out.
+  - **Its log replays bit for bit:** 124,657 steps and 3,344 events.
+  - **Its cost:** 38 s in .NET Release, 125 s in Unity's EditMode (Mono).
+- **In the player** (`-smokehills`: real time on the flight thread, the same pilot each frame):
+  - **Measured, the final build's two runs:** 127.6 s and 125.4 s; 803 m and 799 m over ground of 15.7–40.0 m. Each landed in the valley ((119.0, 16.7, 603.2) and (122.6, 17.0, 606.2)) with no crash, on 7.1 % and 7.0 % of the battery.
+  - **Their logs replay bit for bit** in the player (127,587 steps and 2,072 events; 125,402 and 298). The first replays headless with `tools/replay` in .NET as well: the same, in 23.3 s.
+  - **The steps on the host clock** (the first): p50 519 µs, p99 887 µs, 552 of 127,587 over 1 ms. That is the development player on Mono on a shared machine, not PLT-04's .NET figures.
+  - **The log is 452 MB:** the format's 3.5 MB/s (derived), not this task's.
+
+### 7. No step into the ground (`GroundCheck`)
+- **Read from the log alone:**
+  - its Tunnel events (the contact model's own test, a physics bug);
+  - at every step within 2 m of the ground, each contact shape of the drone at the step's pose, measured against the sim's ground under each core end as a support's sample is: r − n_y·(y − h) past the facet's plane (2.2's Sunk).
+  - The shapes are the header's, rigid on the body. A support's and a skid's figure is therefore an upper bound by its leg's compression.
+- **Measured:**
+
+| Flight | Tunnel events | Body parts, deepest past the ground | Supports and skids (rigid) |
+|---|---|---|---|
+| Headless | 0 | −11.84 mm (`leg_rr`, the landing; never touched) | 3.44 mm (`support_rr_end`, the landing, t = 122.6 s) |
+| The player, run 1 | 0 | −11.23 mm (`leg_rl`, the landing; never touched) | 4.51 mm (`support_fr_end`, the landing, t = 124.3 s) |
+| The player, run 2 | 0 | −10.73 mm (`leg_rl`, the landing; never touched) | 4.89 mm (`support_rl_end`, the landing, t = 122.2 s) |
+
+- **The tolerance:** no tunnel, and no body part past the ground at any step. The supports' 3.4–4.9 mm is their 5 mm spheres bearing into the soil at the landing, their legs' compression included. That is the contact law's sinking, within the support's own radius.
+
+## Checks (pasted in the handoff)
+- **EditMode,** filtered to App, Session, Feed and Farm: 182 of 185 pass, the new ones included. The 3 that fail run code this branch does not touch:
+  - `SessionTests.ACrashIntoR01ANamesThePartTheObjectAndTheMaterial` and `ACrashIntoTheRangesCarNamesIt` fail the same way at 9847c69e (measured, `dotnet test tools/inputtests`).
+  - `LegShotsTests.EachFlightShowsItsLeg` flies the test range through files this branch leaves unchanged.
+- **`dotnet test tools/inputtests`:** 541 of 543, failing the same two.
+- **The rest:** the review build, the smoke test (the default and `-smokehills`), the headless replay, `precommit.py --tree HEAD` and `openspec validate`.
+
+## For the next units (suggested, not this task's)
+- **The tech artist:** the review of the drawn terrain near the drone (4), and the frame cost of pixel error 1 on the map tile, vsync off, on AC.
+- **1.2's merge:** the farmland's objects bring its wakes, canopy and cuts into the flight's wind, and the smoke test's cuts check then counts them. The crash flight could go back to an object (a ruin by the start).
+- **p7g-legs:** LegShots' cases (`-smokelegs`) now fly the farmland's soil. `LegShotsTests` already fails on the test range at this base, so a re-sweep belongs with that fix.
+- **`tools/replay`** names the farmland "from the map …/placements.json" though it loaded map.json. Only `ScriptedFlight.OpenWorld`'s message is wrong.
+- **QA:** the two `SessionTests` crashes into R01_A and `LegShotsTests` already fail at the line's head, before this task.
+
+# Task 3.2: the drawn terrain near the drone
+
+**Owner of this part:** tech artist · **For:** 4.1 (qa-engineer), W6 (the quiet PLT-07 run) · **Requirements:** WLD-11, VIS-01, PLT-02, PLT-07 · **Model:** 82, **QueryVersion:** 8 (no sim code changed)
+
+Numbers are labelled as above. The runs are this branch's development review build on AC, Balanced plan, "best power efficiency" mode, CPU 3201/3201 MHz (`tools/hygiene/bench.py`'s reading before and after), a 1920 × 1080 window, the machine shared with three other sessions (CPU at about 40 %).
+
+## 1. The measure (`TerrainParity`), reviewed
+- **What it gets right** (read in the code, and its floor measured):
+  - Its camera copies the FPV camera's pose, field of view and render size (2888 × 1625), so Unity's terrain picks each patch's level of detail as it does for the FPV camera: the pixel error counts that camera's pixels.
+  - Each pixel's point comes back through the GPU's own projection, the world's in double, and is compared with `SampleGround` at its own x, z. The row order is picked by fit.
+  - **Its floor** (measured, the full heightmap drawn): 0.002–0.04 mm within 10 m and 0.04–0.08 mm within 30 m: float positions 500 m from the origin. It can tell 1 mm.
+  - The flight's setting sets every tile, while the rule sets those within 30 m. For the bands' pixels these are the same tiles: a tile holds a pixel within 30 m of the lens only if it lies within 30 m of the lens.
+- **What it claimed but did not measure:** "each under a pixel" compared each band's worst error with a pixel at the band's outer edge. An error nearer the lens is a larger part of its pixel, and an error straight under a lens looking down moves nothing on the picture.
+  - **Added: the shift on the picture** (`View.MaxPx`): per pixel, the angle between the lens's rays to the drawn point and to the sim's point under it, in the render's pixels. A pixel here is the field of view over the rows (0.861 mrad), 1.2 times smaller than the centre's (1.036 mrad), so the count errs high.
+  - **The scale:** a PAL field line is 3.76 of the render's rows at the picture's centre (1080 rows over 287, derived).
+- **The premise was wrong:** "Unity's terrain can't go below pixel error 1" holds for the Inspector's slider only. Set from a script, Unity keeps 0.3 and 0.05 (it reads them back) and draws by them (measured below).
+
+## 2. Decision: pixel error 0.05 within 30 m, no patch
+- **The rule** (`FlightScene.NearTerrain`, its shape unchanged): every tile within 30 m of the drone draws at pixel error 0.05; every other tile keeps the friend's 5, 8 and 20.
+- **Why 0.05** (derived): Unity simplifies a patch only where the error left is under that many of the camera's pixels. The least error a simplification leaves on these tiles is half a height unit: 120 m / 32766 / 2 = 1.83 mm. At the FPV render's 965 px/rad that is 0.05 px at 35 m. So no patch within 35 m of the lens is simplified: past the 30 m radius at any flight height up to 18 m. Higher, the ground 30 m out may draw half a unit off, 0.05 px from 35 m away, where the drone touches nothing.
+- **Measured** (the hills flight in the player, `-smokehills`; 7 places and noclip's start; the larger of the two views; the largest |drawn − sim| within 2 / 10 / 30 m of the lens, then the largest shift on the picture):
+
+| Where (the first run, 4 settings) | The friend's errors | Pixel error 1 (3.1's) | 0.3 | **0.05 (the rule)** |
+|---|---|---|---|---|
+| At rest on the start | 0.007 / 0.010 / 9.743 mm, 0.38 px | 0.007 / 0.010 / 0.053 mm, 0.01 px | as 1 | **0.007 / 0.010 / 0.053 mm, 0.01 px** |
+| Cruising, t = 22 s | 1.838 / 1.844 / 3.634, 0.18 | 1.838 / 1.844 / 3.634, 0.18 | 0.010 / 0.019 / 3.634, 0.18 | **0.010 / 0.019 / 0.059, 0.00** |
+| Cruising, t = 42 s | 3.658 / 4.564 / 5.508, 0.41 | 1.834 / 2.748 / 3.692, 0.26 | 0.005 / 0.022 / 1.872, 0.10 | **0.005 / 0.022 / 0.057, 0.00** |
+| Cruising, t = 62 s | 5.492 / 7.301 / 41.086, 2.26 | 0.005 / 7.301 / 16.197, 0.69 | 0.005 / 0.039 / 3.647, 0.18 | **0.005 / 0.039 / 0.075, 0.00** |
+| Cruising, t = 82 s | 0.007 / 31.084 / 31.084, 2.68 | 0.007 / 0.019 / 8.950, 0.35 | 0.007 / 0.019 / 0.064, 0.00 | **0.007 / 0.019 / 0.064, 0.00** |
+| Cruising, t = 102 s | 1.838 / 3.664 / 3.664, 0.34 | 1.826 / 2.748 / 3.664, 0.25 | 0.008 / 1.838 / 2.004, 0.17 | **0.008 / 0.023 / 0.062, 0.00** |
+| Landed in the valley | 0.003 / 1.841 / 2.809, 0.54 | 0.003 / 0.018 / 1.861, 0.16 | as 1 | **0.003 / 0.018 / 0.048, 0.00** |
+
+  - **The rule's four later runs** (builds of the final rule; the friend's errors beside it): with the rule, at most 0.067–0.070 mm within 30 m at all 7 places, the shift 0.01 px at most; the friend's errors left up to 38.1 mm and 2.24 px there. The one exception is a landing that broke the legs (the checks below): 0.165 mm, the lens down by the ground.
+  - **WLD-11 is met as written:** within 30 m of the drone the drawn terrain is the full heightmap, the sim's to 0.075 mm (the measure's floor), in flight as on the ground.
+- **Why not pixel error 1:** it is invisible in the feed (0.69 px at most, 0.18 of a field line), but it is not what is touched. The laid line is 0.25 mm thick (radius 0.125 mm), and pixel error 1 leaves the drawn ground 1.8–16.2 mm off within 30 m in flight: where it is high, the line on the sim's ground is drawn under it. At 0.05 the drawn ground is within 0.075 mm, under the line's radius.
+- **Why not the patch:** it gives the same 0 mm with a mesh in the terrain's material, and the friend's terrain must then be hidden under it: a hole cut in its data (the store's, untouched) or a clipped copy of its shader, each with shadows and the splat look to match. One constant gives the same answer.
+- **Noclip keeps the friend's errors** (Explore does not run the rule). From noclip's start (3 m behind the stand, 1.6 m up) the ground round the stand is the sim's at the friend's errors (measured): within 10 m 0.019 mm through the feed and 0.024 mm without it (V), the shift 0.004 px. The smoke test now guards it at 1 mm.
+- **The chase view** (V in the flight) is the same camera 2.3 m from the drone, under the same rule: nearer the lens is finer.
+
+## 3. The cost (`-terrainab`, A/B)
+- **The method** (`TerrainCost`; `-smoketest -smokehills -terrainab -vsync 0` in a development build): the hills flight's cruise switches the rule on and off every second, and each frame goes to its second's side. The first 0.25 s of each second are left out (the timings lag a few frames), and so is a quarter-second after each measure or shot. Interleaved, the shared machine's load falls on both sides alike. FrameTimingManager gives the GPU's and the CPU's times; the profiler's counters give triangles and draw calls.
+- **Measured** (means; the rule's side / the friend's errors):
+
+| Run | Frames | GPU, ms | Main thread, ms | Triangles, M | Draw calls | Waiting to present, ms | Frame, ms |
+|---|---|---|---|---|---|---|---|
+| Pixel error 1 (3.1's rule; the first run) | 1,785 / 1,932 | 3.716 / 3.669 | 4.941 / 4.899 | 26.83 / 26.41 | 1,221 / 1,197 | (not recorded) | 22.67 / 22.01 |
+| **0.05**, run 1 | 1,686 / 1,869 | 3.764 / 3.762 | 5.236 / 5.008 | 27.58 / 26.92 | 1,247 / 1,218 | 18.64 / 17.49 | 23.94 / 22.52 |
+| **0.05**, run 2 | 1,748 / 1,893 | 3.695 / 3.698 | 4.712 / 4.551 | 27.01 / 26.46 | 1,222 / 1,199 | 18.73 / 17.60 | 23.51 / 22.17 |
+| **0.05**, run 3 (no frame while a measure's comparison runs) | 658 / 790 | 3.659 / 3.657 | 4.634 / 4.464 | 26.94 / 26.46 | 1,231 / 1,204 | 18.30 / 17.21 | 23.05 / 21.66 |
+
+- **What it shows** (0.05 against the friend's errors, the three runs):
+  - **The GPU does not notice it:** +0.00 ms of 3.7 (medians and p99 within 0.08 ms either way). The rule draws 0.5–0.7 M more triangles in a frame of 27 M, and 24–29 more draw calls.
+  - **The main thread** takes 0.16–0.23 ms more: Unity's terrain walks and culls more patches.
+  - **The frame** takes 1.3–1.4 ms more (6 %) in all three runs, 1.1 ms of it in the wait to present, outside this frame's GPU work and the main thread's. Run 3 rules out the measures' comparisons, which all fall on the rule's seconds. The cause is not found here.
+- **An indication only** (a shared machine in its "best power efficiency" mode): the verdict is W6's quiet PLT-07 run, with the same flag.
+- **Found on the way, not this task's:** a frame takes 22–24 ms (42–44 fps) while the GPU works 3.8 ms and the main thread 5 ms. The rest, 17–19 ms a frame, is the main thread waiting to present (FrameTimingManager's `cpuMainThreadPresentWaitTime`). PLT-02 asks 100 fps on average in the FPV view: W6 should look at the presentation first (the window, the power mode, the other sessions).
+
+## 4. What changed
+- `FlightScene.NearPixelError` 1 → 0.05, and `NearOn`, the A/B's switch.
+- `TerrainParity.View.MaxPx`, the shift on the picture.
+- The smoke test:
+  - with the flight's rule it fails if any view's 30 m band passes 1 mm (it was a pixel at the band's edge), or the 2 m band on the ground passes 0.01 mm;
+  - Explore measures the ground round the stand from noclip's start, through the feed and without it, and fails past 1 mm within 10 m;
+  - `-terrainab` times the rule (`TerrainCost`).
+
+## Checks (pasted in the handoff)
+- **The review build** (`Fpv450.Build.Windows -review -developmentBuild`): succeeded, 0 errors.
+- **The smoke test** on it: the default run passes (81 checks, the noclip guard included); `-smokehills` passes (34 checks, the 14 near the drone at 1 mm included), its log replaying bit for bit with no step into the ground.
+- **`-smokehills -terrainab -vsync 0`:** runs 1 and 2 pass. Run 3 failed two checks, neither this task's: HillsPilot's landing broke three legs (the front left "at 0.06 m/s") and two props, so `GroundCheck` read the broken legs as rigid on the body (118 mm past the ground), and the landed view's 2 m band read 0.023 mm with the lens down by the ground (the guard is 0.01 mm). The next plain run landed clean.
+- **EditMode,** filtered to App, Session, Feed and Farm: 183 of 186 pass. The 3 that fail are 3.1's three (two `SessionTests` crashes into R01_A, `LegShotsTests`), failing before this task.
+- **`precommit.py --tree HEAD`:** 3512 files scanned, 0 findings.

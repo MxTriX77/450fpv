@@ -22,7 +22,7 @@ namespace Fpv450.EditorSetup
     {
         const string SettingsFolder = "Assets/_Project/Settings";
         const string BootScenePath = "Assets/_Project/Scenes/Boot.unity";
-        const string FarmlandScenePath = "Assets/Farm_land/Scenes/FarmLand.unity";
+        public const string FarmlandScenePath = "Assets/Farm_land/Scenes/FarmLand.unity";
         static readonly string[] QualityLevels = { "Low", "Medium", "High" };
 
         public static void Apply()
@@ -42,12 +42,12 @@ namespace Fpv450.EditorSetup
 
             EnsureBootScene();
             EnsureDroneModels();
-            // The game: the Boot scene's menu, then the test range it flies over (p6-input-app 1.4b, D-047), and the farmland
-            // Explore opens in noclip (w1-farmland-world 2.1, D-088).
+            // The game: the Boot scene's menu, then the farmland it flies over and Explore opens in noclip (w1-farmland-world
+            // 2.1, D-088; w3-farmland-ground 3.1). The test range left the player: its own build (Fpv450.Build.TestRange), the
+            // headless tests and the benches keep it.
             EditorBuildSettings.scenes = new[]
             {
-                new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true),
-                new EditorBuildSettingsScene(FarmlandScenePath, true),
+                new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(FarmlandScenePath, true),
             };
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectSetup] Applied");
