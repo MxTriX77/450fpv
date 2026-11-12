@@ -56,7 +56,7 @@ namespace Fpv450.Feed
         /// The three-character flight-mode word (FeedOsd.cs:64).
         const string Mode = "AIR";
         /// Betaflight's throttle glyph, SYM_THR (<c>FlightOsd.SymThr</c>).
-        const char SymThr = '';
+        const char SymThr = '\uE004';
         static readonly string Airframe = Name.ToUpperInvariant();
 
         /// Warning elements blink 12 fields on and 9 off (FeedOsd.cs:55).
