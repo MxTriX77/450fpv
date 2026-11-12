@@ -12,6 +12,11 @@
 //   order (record, then segment), so results come in canonical order unsorted.
 // - The test: a segment is returned when the squared distance from the centre to it, its points placed in world space
 //   first (the micro elements' Pose), is at most (radius + radius_m)². + − × ÷ only; the result carries those points.
+// - A scaled or tilted placement (w3-farmland-ground 1.2: a tree's (w, h, w), a piece of debris on a slope): its points
+//   placed by the row's whole pose (Pose.PlaceAny), its records' radius_m and edge_radius_m by w (Pose.Factor, as its
+//   capsules' radii); barb_pitch_m as the record gives it. The query's box in its frame is the sphere's bound there (along
+//   local axis i, (radius + radius_m · w) / scale_i less the segment box's own radius_m: NearSide), and its world bounds
+//   grow where w exceeds its least scale, so it returns exactly the segments the world-space test does.
 // Load time allocates and throws FormatException naming the file; queries are allocation-free and reentrant.
 
 using System;
@@ -40,6 +45,7 @@ namespace Fpv450.Sim.World
             // Per segment, record by record.
             public int[] SegmentRecord, SegmentPoint; // its record; its first point in Points
             public Bounds[] SegmentBox;               // grown by its record's radius
+            public double MostRadius;                 // the largest record radius
             public Bounds Box = Bounds.Empty;
             public int Nx, Ny, Nz;
             public int[] CellStart, CellItems;        // per cell ((z·Ny + y)·Nx + x): its segments, ascending
@@ -101,8 +107,21 @@ namespace Fpv450.Sim.World
             int obj = _snagObjects[k];
             Snags s = _snagOf[k];
             Pose pose = _rowPose[obj];
-            Double3 local = pose.Local(centre);
-            Bounds near = Bounds.Of(local, local, radius + FramePad);
+            Bounds near;
+            if (pose.Upright)
+            {
+                Double3 local = pose.Local(centre);
+                near = Bounds.Of(local, local, radius + FramePad);
+            }
+            else
+            {
+                // The sphere in the placement's frame: within (radius + its radius · Factor) / scale_i of the centre along local
+                // axis i, so the box of a segment it returns, grown by its local radius, meets this one (NearSide).
+                Double3 local = pose.LocalAny(centre), inv = pose.Inverse;
+                double f = pose.Factor, most = s.MostRadius;
+                var e = new Double3(NearSide(radius, most, f, inv.X), NearSide(radius, most, f, inv.Y), NearSide(radius, most, f, inv.Z));
+                near = new Bounds(local - e, local + e);
+            }
             if (!s.Box.Overlaps(near))
                 return count;
             Span<ulong> marked = marks.Slice(0, s.Words);
@@ -133,8 +152,9 @@ namespace Fpv450.Sim.World
                     if (!s.SegmentBox[i].Overlaps(near))
                         continue;
                     int record = s.SegmentRecord[i], p = s.SegmentPoint[i];
-                    Double3 a = pose.Place(s.Points[p]), b = pose.Place(s.Points[p + 1]);
-                    double r = radius + s.Radius[record];
+                    Double3 a = pose.Upright ? pose.Place(s.Points[p]) : pose.PlaceAny(s.Points[p]);
+                    Double3 b = pose.Upright ? pose.Place(s.Points[p + 1]) : pose.PlaceAny(s.Points[p + 1]);
+                    double own = s.Radius[record] * pose.Factor, r = radius + own;
                     if (!(SegmentDistanceSquared(centre, a, b) <= r * r))
                         continue;
                     if (count < results.Length)
@@ -145,8 +165,8 @@ namespace Fpv450.Sim.World
                             Record = record,
                             Segment = p - s.First[record],
                             Kind = s.Kind[record],
-                            Radius = s.Radius[record],
-                            EdgeRadius = s.Edge[record] > 0 ? s.Edge[record] : s.Radius[record],
+                            Radius = own,
+                            EdgeRadius = (s.Edge[record] > 0 ? s.Edge[record] : s.Radius[record]) * pose.Factor,
                             BarbPitch = s.Pitch[record],
                             Material = s.Material[record],
                             A = a,
@@ -157,6 +177,16 @@ namespace Fpv450.Sim.World
                 }
             }
             return count;
+        }
+
+        /// <summary>
+        /// Half a query box's side along a local axis of a scaled placement: radius / scale_i, and where a record radius grows
+        /// more than the axis (factor / scale_i above 1) the largest record's excess, (factor / scale_i − 1) · most.
+        /// </summary>
+        private static double NearSide(double radius, double most, double factor, double inverse)
+        {
+            double grow = factor * inverse - 1;
+            return radius * inverse + (grow > 0 ? most * grow : 0) + FramePad;
         }
 
         // ---- Load --------------------------------------------------------------------------------------------------
@@ -189,6 +219,7 @@ namespace Fpv450.Sim.World
                 foreach (JsonNode point in list.Items)
                     points.Add(Vector(point, where + " points"));
                 s.Radius[r] = Positive(record, "radius_m", where);
+                s.MostRadius = DetMath.Max(s.MostRadius, s.Radius[r]);
                 if (record.Member("edge_radius_m") != null)
                 {
                     s.Edge[r] = Positive(record, "edge_radius_m", where);
@@ -241,12 +272,16 @@ namespace Fpv450.Sim.World
                 Snags s = rowMeta[i].Snags;
                 if (s.SegmentRecord.Length == 0)
                     continue;
+                // Its local bounds' corners placed; on a scaled row grown where a record radius grows more than the least axis.
+                Pose pose = _rowPose[i];
+                double pad = pose.Upright ? FramePad : FramePad + s.MostRadius * DetMath.Max(0, pose.Factor - pose.Least);
                 Bounds world = Bounds.Empty;
                 for (int c = 0; c < 8; c++)
                 {
-                    Double3 corner = _rowPose[i].Place(new Double3((c & 1) == 0 ? s.Box.Min.X : s.Box.Max.X,
-                        (c & 2) == 0 ? s.Box.Min.Y : s.Box.Max.Y, (c & 4) == 0 ? s.Box.Min.Z : s.Box.Max.Z));
-                    world = world.Union(Bounds.Of(corner, corner, FramePad));
+                    var local = new Double3((c & 1) == 0 ? s.Box.Min.X : s.Box.Max.X, (c & 2) == 0 ? s.Box.Min.Y : s.Box.Max.Y,
+                        (c & 4) == 0 ? s.Box.Min.Z : s.Box.Max.Z);
+                    Double3 corner = pose.Upright ? pose.Place(local) : pose.PlaceAny(local);
+                    world = world.Union(Bounds.Of(corner, corner, pad));
                 }
                 objects.Add(i);
                 of.Add(s);

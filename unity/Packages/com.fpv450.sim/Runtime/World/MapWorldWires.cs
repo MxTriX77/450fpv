@@ -188,7 +188,7 @@ namespace Fpv450.Sim.World
         /// The conductors: each placed wire's record and envelope, its ends paired with the placed ports and their
         /// neighbours, and the envelope index. After the prims and the grid's extent. Returns the world bugs (ends with no port).
         /// </summary>
-        private string[] PlaceWires(Meta[] rowMeta, Double3[] rowPosition, Quat[] rowYaw, string[] rowClass, string file)
+        private string[] PlaceWires(Meta[] rowMeta, Double3[] rowPosition, Quat[] rowRotation, string[] rowClass, string file)
         {
             // The placed ports, object by object, each in its metadata's order.
             var portObject = new List<int>();
@@ -203,8 +203,8 @@ namespace Fpv450.Sim.World
                 {
                     portObject.Add(i);
                     portIndex.Add(p);
-                    portPosition.Add(rowPosition[i] + rowYaw[i].Rotate(lines.PortPosition[p]));
-                    portDirection.Add(rowYaw[i].Rotate(lines.PortDirection[p]));
+                    portPosition.Add(rowPosition[i] + rowRotation[i].Rotate(lines.PortPosition[p]));
+                    portDirection.Add(rowRotation[i].Rotate(lines.PortDirection[p]));
                     portKind.Add(rowClass[i] == "houses" ? FittingKind.HouseAnchor : FittingKind.PoleHook);
                 }
             }

@@ -84,11 +84,35 @@ namespace Fpv450.Sim.World
             public int Words => (Elements.Length + 63) >> 6;
         }
 
-        /// <summary>A row's pose: world = Position + R·local, R·x̂ = (Xx, 0, Xz), R·ŷ = ŷ, R·ẑ = (Zx, 0, Zz).</summary>
+        /// <summary>
+        /// A row's pose. Upright (turned about the vertical only, its scale 1): world = Position + R·local, R·x̂ = (Xx, 0, Xz),
+        /// R·ŷ = ŷ, R·ẑ = (Zx, 0, Zz) (Place, Local). Any pose (w3-farmland-ground 1.2: a tilted piece of debris, a scaled tree):
+        /// world = Position + R·(scale ⊙ local) (PlaceAny), local = (Rᵀ·(world − Position)) ⊘ scale (LocalAny).
+        /// </summary>
         private struct Pose
         {
             public Double3 Position;
             public double Xx, Xz, Zx, Zz;
+            public bool Upright;
+            public Double3 MX, MY, MZ; // R's columns times the scale
+            public Double3 IX, IY, IZ; // R's columns over the scale
+            public Double3 Inverse;    // 1 / scale
+            public double Factor;      // a record radius's scale: the scale's x (1 upright)
+            public double Least;       // the scale's smallest axis
+
+            public static Pose Of(Double3 position, Quat rotation, Double3 scale)
+            {
+                Double3 x = rotation.Rotate(new Double3(1, 0, 0)), y = rotation.Rotate(new Double3(0, 1, 0)), z = rotation.Rotate(new Double3(0, 0, 1));
+                return new Pose
+                {
+                    Position = position, Xx = x.X, Xz = x.Z, Zx = z.X, Zz = z.Z,
+                    Upright = rotation.X == 0 && rotation.Z == 0 && scale.X == 1 && scale.Y == 1 && scale.Z == 1,
+                    MX = x * scale.X, MY = y * scale.Y, MZ = z * scale.Z, IX = x * (1 / scale.X), IY = y * (1 / scale.Y), IZ = z * (1 / scale.Z),
+                    Inverse = new Double3(1 / scale.X, 1 / scale.Y, 1 / scale.Z),
+                    Factor = scale.X,
+                    Least = DetMath.Min(scale.X, DetMath.Min(scale.Y, scale.Z)),
+                };
+            }
 
             public readonly Double3 Place(Double3 v) =>
                 new Double3(Position.X + (v.X * Xx + v.Z * Zx), Position.Y + v.Y, Position.Z + (v.X * Xz + v.Z * Zz));
@@ -97,6 +121,17 @@ namespace Fpv450.Sim.World
             {
                 double dx = w.X - Position.X, dz = w.Z - Position.Z;
                 return new Double3(dx * Xx + dz * Xz, w.Y - Position.Y, dx * Zx + dz * Zz);
+            }
+
+            public readonly Double3 PlaceAny(Double3 v) => new Double3(
+                Position.X + (v.X * MX.X + v.Y * MY.X + v.Z * MZ.X),
+                Position.Y + (v.X * MX.Y + v.Y * MY.Y + v.Z * MZ.Y),
+                Position.Z + (v.X * MX.Z + v.Y * MY.Z + v.Z * MZ.Z));
+
+            public readonly Double3 LocalAny(Double3 w)
+            {
+                double dx = w.X - Position.X, dy = w.Y - Position.Y, dz = w.Z - Position.Z;
+                return new Double3(dx * IX.X + dy * IX.Y + dz * IX.Z, dx * IY.X + dy * IY.Y + dz * IY.Z, dx * IZ.X + dy * IZ.Y + dz * IZ.Z);
             }
         }
 
@@ -442,7 +477,7 @@ namespace Fpv450.Sim.World
         /// Each row's pose and variant's micro data; the instances with elements, their world bounds and their elements
         /// rooted in another instance's hole band. After the gaps' cells are listed.
         /// </summary>
-        private void PlaceMicro(Meta[] rowMeta, Double3[] rowPosition, Quat[] rowYaw)
+        private void PlaceMicro(Meta[] rowMeta, Double3[] rowPosition, Quat[] rowRotation, Double3[] rowScale)
         {
             _rowMicro = new Micro[rowMeta.Length];
             _rowPose = new Pose[rowMeta.Length];
@@ -451,10 +486,13 @@ namespace Fpv450.Sim.World
             var dropped = new List<ulong[]>();
             for (int i = 0; i < rowMeta.Length; i++)
             {
-                Double3 x = rowYaw[i].Rotate(new Double3(1, 0, 0)), z = rowYaw[i].Rotate(new Double3(0, 0, 1));
-                _rowPose[i] = new Pose { Position = rowPosition[i], Xx = x.X, Xz = x.Z, Zx = z.X, Zz = z.Z };
+                _rowPose[i] = Pose.Of(rowPosition[i], rowRotation[i], rowScale[i]);
                 Micro m = _rowMicro[i] = rowMeta[i].Micro;
-                if (m == null || m.Elements.Length == 0)
+                if (m == null)
+                    continue;
+                if (!_rowPose[i].Upright) // the elements and features are read in an upright pose (the loader refuses a scaled one)
+                    throw new FormatException("placements.json row " + i + ": micro elements and features need a row turned about the vertical only");
+                if (m.Elements.Length == 0)
                     continue;
                 Bounds world = Bounds.Empty;
                 for (int c = 0; c < 8; c++)

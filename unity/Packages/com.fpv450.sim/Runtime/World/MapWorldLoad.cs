@@ -25,7 +25,15 @@
 // - Each variant's snag records, which its wires' edge radii read too, and their placements (MapWorldSnags.cs, with
 //   SnagsNear).
 // - A map package (w3-farmland-ground 1.1): its map.json's tiles become the terrain (Terrain.cs), the ground in the plane's
-//   place, and its objects a placement record of none on its map's rectangle until W4 gives them physics shapes.
+//   place; the object grid lies on its map's rectangle (map_rect_m).
+// - A map package's objects (w3-farmland-ground 1.2): its placements.json ("fpv450-map-placements" v1, checked against
+//   map.json's SHA-256) names each row's kind and variant, its position, Unity's quaternion and its scale per axis. Its
+//   metadata is ModelsRoot/<class>/<asset>/<variant>.assetmeta.json, the class and asset from the vendor lists (VendorFiles:
+//   W4a's plants, W4b's ruins and debris). A row's pose is Unity's TRS: world = position + R·(scale ⊙ local), R the
+//   quaternion normalised, its every product + − × only (Quat.Rotate). A row mirrored in x (scale x < 0) takes its variant's
+//   _mirrored twin, whose metadata carries the mirror (W4b design §2). A scaled row (the trees and bushes: (w, h, w)):
+//   Scaled; its snag records' radii by w (MapWorldSnags.cs) and its wind volumes per axis (MapWorldWind.cs); it may have no
+//   wires, ports, micro elements or features.
 // Load time only: it allocates and throws FormatException naming the file and the field.
 
 using System;
@@ -63,9 +71,13 @@ namespace Fpv450.Sim.World
             public Snags Snags;
         }
 
+        /// <summary>The vendor pieces' asset ids by variant (w3-farmland-ground 1.2): the plants' (W4a) and the ruins' (W4b).</summary>
+        public static readonly string[] VendorFiles = { "assets-src/vendor_plants.json", "assets-src/vendor.json" };
+
         /// <summary>
         /// The map maps/&lt;mapId&gt;/ of the repository at `root`, with the material table: a map package (its map.json, the
-        /// terrain; no placed objects yet, W4) or a placement file (placements.json) with its metadata.
+        /// terrain, and its placements.json when map.json lists one, the vendor pieces' rows) or a placement file
+        /// (placements.json) with its metadata.
         /// </summary>
         public static MapWorld Load(string root, string mapId)
         {
@@ -74,22 +86,44 @@ namespace Fpv450.Sim.World
             if (File.Exists(Path.Combine(folder, "map.json")))
             {
                 Terrain terrain = Terrain.Load(folder, out string manifest);
-                return new MapWorld(NoObjects(terrain), null, MaterialNames(Read(MaterialsFile)), terrain, manifest); // no row reads a model
+                JsonNode files = DetJson.Parse(manifest).Member("files");
+                if (files.Member("placements.json") == null) // a package of tiles alone (the tests' synthetic ones): no objects
+                    return new MapWorld("{\"format\":\"fpv450-map-placements\",\"format_version\":1,\"map\":\"" + terrain.MapId
+                        + "\",\"frame\":\"unity-lh-yup\",\"placements\":[]}", null, MaterialNames(Read(MaterialsFile)), terrain, manifest, null);
+                byte[] placements = Terrain.Checked("placements.json", files, relative => File.ReadAllBytes(Path.Combine(folder, relative)), "map.json");
+                return new MapWorld(Encoding.UTF8.GetString(placements), model => Read(ModelsRoot + "/" + model), MaterialNames(Read(MaterialsFile)),
+                    terrain, manifest, VendorAssets(Read(VendorFiles[0]), Read(VendorFiles[1])));
             }
             return new MapWorld(Read("maps/" + mapId + "/placements.json"), model => Read(ModelsRoot + "/" + model),
                 MaterialNames(Read(MaterialsFile)));
         }
 
         /// <summary>
-        /// A map package's placement file while it has no physics objects (W4 places them): none, the object grid on the
-        /// map's rectangle (map_rect_m, the objects' ground, D-091), no ground record (the terrain is the ground).
+        /// Each vendor variant's "&lt;class&gt;/&lt;asset&gt;" from the vendor lists' "assets" (each {"class", "variants"}): a map
+        /// package's rows name a variant only (W2's export). A variant listed twice is refused.
         /// </summary>
-        private static string NoObjects(Terrain terrain)
+        public static Dictionary<string, string> VendorAssets(params string[] vendorJson)
         {
-            string N(double v) => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
-            return "{\"format\":\"fpv450-placements\",\"format_version\":1,\"map\":\"" + terrain.MapId + "\",\"frame\":\"unity-lh-yup\","
-                + "\"extent_m\":[" + N(terrain.MapX0) + "," + N(terrain.MapZ0) + "," + N(terrain.MapX1) + "," + N(terrain.MapZ1) + "],"
-                + "\"ground\":{\"patches\":[],\"holes\":[]},\"instances\":[]}";
+            var assets = new Dictionary<string, string>(StringComparer.Ordinal);
+            for (int f = 0; f < vendorJson.Length; f++)
+            {
+                string file = f < VendorFiles.Length ? VendorFiles[f] : "vendor list " + f;
+                JsonNode list = Need(DetJson.Parse(vendorJson[f]), "assets", JsonKind.Object, file);
+                foreach (string asset in list.Keys)
+                {
+                    JsonNode a = list.Member(asset);
+                    string klass = Text(a, "class", file + " " + asset);
+                    foreach (JsonNode v in Need(a, "variants", JsonKind.Array, file + " " + asset).Items)
+                    {
+                        if (v.Kind != JsonKind.String)
+                            throw new FormatException(file + " " + asset + ": a variant is a string");
+                        if (assets.ContainsKey(v.Text))
+                            throw new FormatException(file + " " + asset + ": variant " + v.Text + " is listed twice");
+                        assets.Add(v.Text, klass + "/" + asset);
+                    }
+                }
+            }
+            return assets;
         }
 
         /// <summary>The names of physics_materials.json's rows in file order: material id i + 1 is name i.</summary>
@@ -107,15 +141,17 @@ namespace Fpv450.Sim.World
         /// name i (MaterialNames). Every material a shape or wire names must be among them.
         /// </summary>
         public MapWorld(string placementsJson, Func<string, string> readModel, string[] materials)
-            : this(placementsJson, readModel, materials, null, null)
+            : this(placementsJson, readModel, materials, null, null, null)
         {
         }
 
         /// <summary>
-        /// The world of a placement file on a terrain (Terrain, from its package's manifest), or on the file's ground plane
-        /// when `terrain` is null. On a terrain the file has no ground plane, and the content hash continues over the manifest.
+        /// The world of a placement file on its ground plane (`terrain` null), or of a map package's placements.json on its
+        /// terrain (Terrain, from the package's manifest; `vendor` each row's variant's "&lt;class&gt;/&lt;asset&gt;", VendorAssets).
+        /// On a terrain the file has no ground record, and the content hash continues over the manifest.
         /// </summary>
-        private MapWorld(string placementsJson, Func<string, string> readModel, string[] materials, Terrain terrain, string manifest)
+        private MapWorld(string placementsJson, Func<string, string> readModel, string[] materials, Terrain terrain, string manifest,
+            Dictionary<string, string> vendor)
         {
             _terrain = terrain;
             if (materials == null || materials.Length >= ushort.MaxValue)
@@ -131,30 +167,47 @@ namespace Fpv450.Sim.World
 
             const string file = "placements.json";
             JsonNode root = DetJson.Parse(placementsJson);
-            if (Text(root, "format", file) != "fpv450-placements" || Number(root, "format_version", file) != 1)
-                throw new FormatException(file + ": not an fpv450-placements file of format_version 1");
+            bool package = terrain != null; // a map package's rows (its README, Placements), else the test range's file
+            string format = package ? "fpv450-map-placements" : "fpv450-placements";
+            if (Text(root, "format", file) != format || Number(root, "format_version", file) != 1)
+                throw new FormatException(file + ": not an " + format + " file of format_version 1");
             if (Text(root, "frame", file) != "unity-lh-yup")
                 throw new FormatException(file + ": frame must be unity-lh-yup");
             MapId = Text(root, "map", file);
+            if (package && MapId != terrain.MapId)
+                throw new FormatException(file + ": map is not map.json's " + terrain.MapId);
 
-            // The grid over the extent [xmin, zmin, xmax, zmax].
-            JsonNode extent = Need(root, "extent_m", JsonKind.Array, file);
-            if (extent.Items.Count != 4)
-                throw new FormatException(file + ": extent_m is [xmin, zmin, xmax, zmax]");
-            _gridX = Number(extent.Items[0], file + " extent_m");
-            _gridZ = Number(extent.Items[1], file + " extent_m");
-            double sizeX = Number(extent.Items[2], file + " extent_m") - _gridX, sizeZ = Number(extent.Items[3], file + " extent_m") - _gridZ;
+            // The grid over the extent [xmin, zmin, xmax, zmax]: a package's map_rect_m (the objects' ground, D-091).
+            double sizeX, sizeZ;
+            if (package)
+            {
+                _gridX = terrain.MapX0;
+                _gridZ = terrain.MapZ0;
+                sizeX = terrain.MapX1 - _gridX;
+                sizeZ = terrain.MapZ1 - _gridZ;
+            }
+            else
+            {
+                JsonNode extent = Need(root, "extent_m", JsonKind.Array, file);
+                if (extent.Items.Count != 4)
+                    throw new FormatException(file + ": extent_m is [xmin, zmin, xmax, zmax]");
+                _gridX = Number(extent.Items[0], file + " extent_m");
+                _gridZ = Number(extent.Items[1], file + " extent_m");
+                sizeX = Number(extent.Items[2], file + " extent_m") - _gridX;
+                sizeZ = Number(extent.Items[3], file + " extent_m") - _gridZ;
+            }
             if (!(sizeX > 0 && sizeZ > 0 && sizeX <= 16384 && sizeZ <= 16384))
                 throw new FormatException(file + ": extent_m must span 0 to 16 384 m each way");
             _nx = (int)(sizeX / CellSize) + (sizeX / CellSize > (int)(sizeX / CellSize) ? 1 : 0);
             _nz = (int)(sizeZ / CellSize) + (sizeZ / CellSize > (int)(sizeZ / CellSize) ? 1 : 0);
 
             // The instances, each variant's metadata read once.
-            JsonNode instances = Need(root, "instances", JsonKind.Array, file);
+            JsonNode instances = Need(root, package ? "placements" : "instances", JsonKind.Array, file);
             var metas = new Dictionary<string, Meta>(StringComparer.Ordinal);
             var rowMeta = new Meta[instances.Items.Count];
             var rowPosition = new Double3[rowMeta.Length];
-            var rowYaw = new Quat[rowMeta.Length];
+            var rowRotation = new Quat[rowMeta.Length];
+            var rowScale = new Double3[rowMeta.Length];
             var rowYawRad = new double[rowMeta.Length];
             var rowGroup = new string[rowMeta.Length];
             var rowClass = new string[rowMeta.Length];
@@ -163,24 +216,51 @@ namespace Fpv450.Sim.World
             for (int i = 0; i < rowMeta.Length; i++)
             {
                 JsonNode row = instances.Items[i];
-                string where = file + " instance " + i;
+                string where = file + (package ? " placement " : " instance ") + i;
                 if (Number(row, "id", where) != i)
                     throw new FormatException(where + ": id must be its index");
-                string variant = Text(row, "variant", where);
-                rowClass[i] = Text(row, "class", where);
-                string path = rowClass[i] + "/" + Text(row, "asset", where) + "/" + variant + ".assetmeta.json";
+                string variant = Text(row, "variant", where), path;
+                rowPosition[i] = Vector(row, "position_m", where);
+                if (package)
+                {
+                    // Unity's TRS: world = position + R·(scale ⊙ local). A row mirrored in x (scale x < 0) is its variant's
+                    // _mirrored twin, the mirror built into its metadata (W4b design §2), so it takes the scale's size only.
+                    Double3 scale = Vector(row, "scale", where);
+                    if (scale.X < 0)
+                    {
+                        variant += "_mirrored";
+                        scale = new Double3(-scale.X, scale.Y, scale.Z);
+                    }
+                    if (!(scale.X > 0 && scale.Y > 0 && scale.Z > 0))
+                        throw new FormatException(where + ": scale must be above 0 on each axis, but for x on a variant with a _mirrored twin");
+                    if (!vendor.TryGetValue(variant, out string asset))
+                        throw new FormatException(where + ": variant " + variant + " is in no vendor list (" + string.Join(", ", VendorFiles) + ")");
+                    rowClass[i] = asset.Substring(0, asset.IndexOf('/'));
+                    path = asset + "/" + variant + ".assetmeta.json";
+                    rowScale[i] = scale;
+                    Quat q = rowRotation[i] = Rotation(Need(row, "rotation_xyzw", JsonKind.Array, where), where + " rotation_xyzw");
+                    // A turn about the vertical only has its yaw (the wind's, D-019's sense); a tilted row has none.
+                    rowYawRad[i] = q.X == 0 && q.Z == 0 ? 2 * DetMath.Atan2(q.Y, q.W) : double.NaN;
+                }
+                else
+                {
+                    rowClass[i] = Text(row, "class", where);
+                    path = rowClass[i] + "/" + Text(row, "asset", where) + "/" + variant + ".assetmeta.json";
+                    rowYawRad[i] = Number(row, "yaw_deg", where) * (2 * HalfDegree);
+                    DetMath.SinCos(Number(row, "yaw_deg", where) * HalfDegree, out double sin, out double cos);
+                    rowRotation[i] = new Quat(0, sin, 0, cos);
+                    rowScale[i] = new Double3(1, 1, 1);
+                    JsonNode group = row.Member("group");
+                    rowGroup[i] = group != null && group.Kind == JsonKind.String ? group.Text : null;
+                }
                 if (!metas.TryGetValue(path, out Meta meta))
                 {
                     meta = ParseMeta(path, readModel(path), materialIds, readModel);
                     metas.Add(path, meta);
                 }
                 rowMeta[i] = meta;
-                rowPosition[i] = Vector(row, "position_m", where);
-                rowYawRad[i] = Number(row, "yaw_deg", where) * (2 * HalfDegree);
-                DetMath.SinCos(Number(row, "yaw_deg", where) * HalfDegree, out double sin, out double cos);
-                rowYaw[i] = new Quat(0, sin, 0, cos);
-                JsonNode group = row.Member("group");
-                rowGroup[i] = group != null && group.Kind == JsonKind.String ? group.Text : null;
+                if (!Unit(rowScale[i]) && (meta.WirePoints.Length > 0 || meta.Lines.PortPosition.Length > 0))
+                    throw new FormatException(where + ": a scaled row's variant has no wires or ports");
                 _names[i] = variant;
                 shapeCount += meta.Shapes.Length + meta.WirePoints.Length;
                 foreach (Double3[] points in meta.WirePoints)
@@ -199,28 +279,24 @@ namespace Fpv450.Sim.World
                 _first[i] = at;
                 Meta meta = rowMeta[i];
                 Double3 position = rowPosition[i];
-                Quat yaw = rowYaw[i];
+                Quat rotation = rowRotation[i];
                 for (int s = 0; s < meta.Shapes.Length; s++, at++)
                 {
-                    ShapeGeometry g = meta.Shapes[s];
-                    Quat q = yaw * meta.Rotations[s];
-                    g.Center = position + yaw.Rotate(g.Center);
-                    g.AxisX = q.Rotate(new Double3(1, 0, 0));
-                    g.AxisY = q.Rotate(new Double3(0, 1, 0));
-                    g.AxisZ = q.Rotate(new Double3(0, 0, 1));
+                    ShapeGeometry g = Unit(rowScale[i]) ? Turned(meta.Shapes[s], meta.Rotations[s], position, rotation)
+                        : Scaled(meta.Shapes[s], meta.Rotations[s], position, rotation, rowScale[i], file + " placement " + i + " shape " + s);
                     _prims[at] = new Prim { Geometry = g, Box = Bounds.OfShape(g), Object = i, Shape = s };
                 }
                 for (int w = 0; w < meta.WirePoints.Length; w++, at++)
                 {
-                    _prims[at] = PlaceWire(meta, w, position, yaw, wireAt, i, meta.Shapes.Length + w, file + " instance " + i);
+                    _prims[at] = PlaceWire(meta, w, position, rotation, wireAt, i, meta.Shapes.Length + w, file + " instance " + i);
                     wireAt += meta.WirePoints[w].Length;
                 }
             }
             _first[rowMeta.Length] = at;
-            PlaceWind(rowMeta, rowPosition, rowYawRad, rowGroup);
+            PlaceWind(rowMeta, rowPosition, rowYawRad, rowScale, rowGroup, file);
 
-            // The ground: the plane (none on a terrain), the patches' footprints and the hole bands.
-            JsonNode ground = Need(root, "ground", JsonKind.Object, file);
+            // The ground: the plane (none on a terrain), the patches' footprints and the hole bands (a package has no record).
+            JsonNode ground = package ? null : Need(root, "ground", JsonKind.Object, file);
             if (terrain == null)
             {
                 JsonNode plane = Need(ground, "plane", JsonKind.Object, file + " ground");
@@ -241,7 +317,7 @@ namespace Fpv450.Sim.World
             var gaps = new List<Gap>();
             var band = new List<XZ>();
             var cuts = new List<CutRecord>();
-            foreach (JsonNode patch in Need(ground, "patches", JsonKind.Array, file + " ground").Items)
+            foreach (JsonNode patch in package ? new List<JsonNode>() : Need(ground, "patches", JsonKind.Array, file + " ground").Items)
             {
                 JsonNode r = Need(patch, "footprint_m", JsonKind.Array, file + " ground.patches");
                 if (r.Items.Count != 4)
@@ -252,7 +328,7 @@ namespace Fpv450.Sim.World
                     X1 = Number(r.Items[2], file + " footprint_m"), Z1 = Number(r.Items[3], file + " footprint_m"),
                 });
             }
-            foreach (JsonNode hole in Need(ground, "holes", JsonKind.Array, file + " ground").Items)
+            foreach (JsonNode hole in package ? new List<JsonNode>() : Need(ground, "holes", JsonKind.Array, file + " ground").Items)
             {
                 string where = file + " ground.holes";
                 double radius = 0.5 * Number(hole, "band_width_m", where);
@@ -272,7 +348,7 @@ namespace Fpv450.Sim.World
                     g.Z1 = DetMath.Max(g.Z1, v.Z + radius);
                 }
                 gaps.Add(g);
-                cuts.Add(PlaceCut(hole, centre, radius, rowMeta, rowPosition, rowYaw, where));
+                cuts.Add(PlaceCut(hole, centre, radius, rowMeta, rowPosition, rowRotation, rowScale, where));
             }
             _gaps = gaps.ToArray();
             _band = band.ToArray();
@@ -332,8 +408,8 @@ namespace Fpv450.Sim.World
             if (_region == null)
                 _region = new RegionCache(); // the loading thread's, so its first query allocates nothing
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
-            PlaceMicro(rowMeta, rowPosition, rowYaw);
-            WorldBugs = PlaceWires(rowMeta, rowPosition, rowYaw, rowClass, file);
+            PlaceMicro(rowMeta, rowPosition, rowRotation, rowScale);
+            WorldBugs = PlaceWires(rowMeta, rowPosition, rowRotation, rowClass, file);
             PlaceSnags(rowMeta, file);
 
             // The start points.
@@ -366,12 +442,12 @@ namespace Fpv450.Sim.World
             ContentHash = hash;
         }
 
-        /// <summary>A wire of `meta` placed at the row's pose: its points into the wire arrays from `wireAt`, and its shape.</summary>
-        private Prim PlaceWire(Meta meta, int w, Double3 position, Quat yaw, int wireAt, int obj, int shape, string where)
+        /// <summary>A wire of `meta` placed at the row's pose (its scale 1): its points into the wire arrays from `wireAt`, and its shape.</summary>
+        private Prim PlaceWire(Meta meta, int w, Double3 position, Quat rotation, int wireAt, int obj, int shape, string where)
         {
             Double3[] local = meta.WirePoints[w];
             double radius = meta.WireRadius[w];
-            Double3 first = position + yaw.Rotate(local[0]), last = position + yaw.Rotate(local[local.Length - 1]);
+            Double3 first = position + rotation.Rotate(local[0]), last = position + rotation.Rotate(local[local.Length - 1]);
             Double3 chord = last - first;
             double span = chord.Length();
             if (!(span > 0))
@@ -381,7 +457,7 @@ namespace Fpv450.Sim.World
             double along = 0;
             for (int k = 0; k < local.Length; k++)
             {
-                Double3 p = position + yaw.Rotate(local[k]);
+                Double3 p = position + rotation.Rotate(local[k]);
                 if (k > 0)
                     along += (p - _wirePoints[wireAt + k - 1]).Length();
                 _wirePoints[wireAt + k] = p;
@@ -407,6 +483,52 @@ namespace Fpv450.Sim.World
                 Sag = meta.WireSag[w],
             };
             return new Prim { Geometry = g, Box = box, Object = obj, Shape = shape, WireFirst = wireAt, WireCount = local.Length };
+        }
+
+        private static bool Unit(Double3 scale) => scale.X == 1 && scale.Y == 1 && scale.Z == 1;
+
+        private static Double3 Mul(Double3 v, Double3 s) => new Double3(v.X * s.X, v.Y * s.Y, v.Z * s.Z);
+
+        /// <summary>A local shape (its rotation `local`) placed at a row's position and rotation, its scale 1.</summary>
+        private static ShapeGeometry Turned(ShapeGeometry g, Quat local, Double3 position, Quat rotation)
+        {
+            Quat q = rotation * local;
+            g.Center = position + rotation.Rotate(g.Center);
+            g.AxisX = q.Rotate(new Double3(1, 0, 0));
+            g.AxisY = q.Rotate(new Double3(0, 1, 0));
+            g.AxisZ = q.Rotate(new Double3(0, 0, 1));
+            return g;
+        }
+
+        /// <summary>
+        /// A local shape placed at a row's position, rotation and scale (w3-farmland-ground 1.2: the trees and bushes, scale
+        /// (w, h, w)). Its centre and a capsule's or a cylinder's core ends are scaled per axis, so its axis is the scaled one
+        /// and its X axis the scaled local X made square to it; a round shape's radius is scaled by w (its scale's x, which
+        /// must be its z), so it lies within radius · |h − w| of the scaled shape; a box takes a uniform scale only.
+        /// </summary>
+        private static ShapeGeometry Scaled(ShapeGeometry g, Quat local, Double3 position, Quat rotation, Double3 scale, string where)
+        {
+            if (g.Kind == ShapeKind.Box ? !(scale.X == scale.Y && scale.Y == scale.Z) : scale.X != scale.Z)
+                throw new FormatException(where + (g.Kind == ShapeKind.Box ? ": a box takes a uniform scale only" : ": a round shape takes a scale whose x is its z"));
+            Quat q = rotation * local;
+            g.Center = position + rotation.Rotate(Mul(g.Center, scale));
+            g.AxisX = q.Rotate(new Double3(1, 0, 0));
+            g.AxisY = q.Rotate(new Double3(0, 1, 0));
+            g.AxisZ = q.Rotate(new Double3(0, 0, 1));
+            g.HalfExtents = g.HalfExtents * scale.X;
+            g.Radius = g.Radius * scale.X;
+            if ((g.Kind == ShapeKind.Capsule || g.Kind == ShapeKind.Cylinder) && g.HalfLength > 0)
+            {
+                Double3 half = Mul(local.Rotate(new Double3(0, g.HalfLength, 0)), scale), x = Mul(local.Rotate(new Double3(1, 0, 0)), scale);
+                g.HalfLength = half.Length();
+                Double3 y = half * (1 / g.HalfLength);
+                x = x - y * Double3.Dot(x, y);
+                x = x * (1 / x.Length());
+                g.AxisY = rotation.Rotate(y);
+                g.AxisX = rotation.Rotate(x);
+                g.AxisZ = Double3.Cross(g.AxisX, g.AxisY);
+            }
+            return g;
         }
 
         /// <summary>
