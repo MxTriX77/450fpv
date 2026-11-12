@@ -60,11 +60,13 @@ def write_package(root, edit=None):
         "classes/map.raw": bytes([1, 6, 6, 13]),
         "classes/surround_E.raw": bytes([1, 1, 2, 1]),
         "grass/map.raw": bytes([2, 0, 1, 3]),
+        "holes/map.raw": bytes([0, 255, 0, 0]),
     }
     tiles = [
         {"id": "map", "ring": "map", "position_m": [0, 0, 0], "size_m": [side, top, side],
          "heights": {"file": "heights/map.r16", "resolution": res, "min_sample": 1000, "max_sample": 3500},
-         "classes": {"file": "classes/map.raw", "resolution": 2}},
+         "classes": {"file": "classes/map.raw", "resolution": 2},
+         "holes": {"file": "holes/map.raw", "resolution": 2}},
         {"id": "surround_E", "ring": "surround", "position_m": [side, 0, 0], "size_m": [side, top, side],
          "heights": {"file": "heights/surround_E.r16", "resolution": res, "min_sample": 3000, "max_sample": 3700},
          "classes": {"file": "classes/surround_E.raw", "resolution": 2}},
@@ -159,6 +161,13 @@ def test_a_valid_package_passes(tmp_path):
     (lambda p: jsonpart(p, "outlines.json", lambda d: d["village"].update(radius_m=0.5)), "a debris outside the village circle"),
     (lambda p: jsonpart(p, "height_probes.json", lambda d: d["probes"][1].update(y=d["probes"][1]["y"] + 0.0015)), "mm from Unity's"),
     (lambda p: jsonpart(p, "height_probes.json", lambda d: d["probes"][0].update(x=50.0)), "lies on no tile"),
+    (lambda p: p.update({"holes/map.raw": bytes([0, 7, 0, 0])}), "a hole mask holds 0 (ground) or 255 (a hole) only"),
+    (lambda p: p.update({"holes/map.raw": bytes([0, 255, 0])}), "3 hole bytes for 2 x 2 cells"),
+    (lambda p: p["map.json"]["tiles"][0]["holes"].update(resolution=3), "a hole mask's resolution is the heightmap's less one"),
+    (lambda p: (jsonpart(p, "placements.json", lambda d: (d["variants"].append({"id": "E01_curving", "kind": "trench"}),
+                d["placements"].append({"id": 4, "kind": "trench", "variant": "E01_curving", "position_m": [2, 3, 2],
+                                        "rotation_xyzw": [0, 0, 0, 1], "scale": [1, 1, 1]}))),
+                p["map.json"]["counts"].update(trench=1)), "rows of ours, but map.json has no objects record"),
 ])
 def test_each_rule_catches_its_break(tmp_path, edit, message):
     errors = errors_of(tmp_path, edit)

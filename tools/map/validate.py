@@ -9,6 +9,11 @@ Prints a summary and exits 0 when the package passes; prints every error and exi
   seams between abutting tiles equal sample for sample, the ground classes known to assets-src/surfaces.json
 - the grass: one plane per listed layer on the map's detail grid
 - the placements: ids in order, known kinds and variants, every one on the map, unit rotations, counts as listed
+- a tile's hole mask: one byte per height cell, 0 or 255 (W2 design §4)
+- our objects, when map.json records them (w5-farmland-objects, tools/map/place_objects.py's check): the same seed gives
+  the same rows; each lies inside its field with its margin or in the village, on free ground; the hole mask is the one
+  the trenches derive, and every hole cell, sampled every 0.1 m, lies inside a filler band; the footprints are the ones
+  the rows derive, level under every object, flush at every hole cell, and every object stands at its level
 - the outlines: the fields' polygons counter-clockwise and on the map, the village circle on the map and holding
   every ruin and debris piece
 - the heights: every probe's Unity height (Terrain.SampleHeight) equals the package's triangulated height within 1 mm
@@ -33,7 +38,7 @@ FORMAT_VERSION = 1
 FRAME = "unity-lh-yup"
 MAX_SAMPLE = 32766  # Unity's heightmap: a height is sample / 32766 of the tile's height
 PROBE_TOLERANCE_M = 0.001  # the spec's 1 mm (assumed)
-KINDS = ("tree", "bush", "ruin", "debris")
+KINDS = ("tree", "bush", "ruin", "debris", "trench", "house", "car")  # the export's four, then ours (D-090)
 RINGS = ("map", "surround", "far")
 UNLISTED_OK = {"map.json", "README.md"}
 LFS_POINTER = b"version https://git-lfs"
@@ -180,6 +185,18 @@ def _check_tiles(manifest, contents, errors):
             errors.append(f"tile {tid}: a sample above {MAX_SAMPLE}")
         if min(samples) != row["heights"]["min_sample"] or max(samples) != row["heights"]["max_sample"]:
             errors.append(f"tile {tid}: min_sample and max_sample differ from the file")
+        holes = row.get("holes")
+        if holes is not None:
+            n = res - 1
+            mask = contents.get(holes.get("file"))
+            if holes.get("resolution") != n:
+                errors.append(f"tile {tid}: a hole mask's resolution is the heightmap's less one, {n}")
+            elif mask is None:
+                errors.append(f"tile {tid}: no holes file {holes.get('file')}")
+            elif len(mask) != n * n:
+                errors.append(f"tile {tid}: {len(mask)} hole bytes for {n} x {n} cells")
+            elif set(mask) - {0, 255}:
+                errors.append(f"tile {tid}: a hole mask holds 0 (ground) or 255 (a hole) only")
         tiles.append(Tile(row, samples))
     if [t.ring for t in tiles].count("map") != 1:
         errors.append("exactly one tile must be the map")
@@ -287,8 +304,8 @@ def _check_placements(placements, manifest, rect, errors):
         if any(s == 0 for s in row["scale"]):
             errors.append(f"{what}: a zero scale")
     for kind in KINDS:
-        if counts[kind] != manifest.get("counts", {}).get(kind):
-            errors.append(f"placements: {counts[kind]} {kind} rows, map.json counts {manifest.get('counts', {}).get(kind)}")
+        if counts[kind] != manifest.get("counts", {}).get(kind, 0):
+            errors.append(f"placements: {counts[kind]} {kind} rows, map.json counts {manifest.get('counts', {}).get(kind, 0)}")
     return rows
 
 
@@ -319,6 +336,32 @@ def _check_outlines(outlines, rect, rows, errors):
             if math.hypot(x - cx, z - cz) > r:
                 errors.append(f"placement {row['id']}: a {row['kind']} outside the village circle")
     return len(names)
+
+
+def _check_objects(root, manifest, contents, rows, errors):
+    """Our objects (w5-farmland-objects 1.2): place_objects.check over the package as the files hold it. Returns the hole
+    cells and the footprints, or None when map.json records no objects."""
+    objects = manifest.get("objects")
+    if objects is None:
+        if any(row.get("kind") in KINDS[4:] for row in rows):
+            errors.append("placements: rows of ours, but map.json has no objects record")
+        return None
+    import place_objects  # here, not at the top: it imports this module
+    if objects.get("placer") != place_objects.PLACER or objects.get("footprints") != place_objects.FOOTPRINTS_FILE:
+        errors.append(f"map.json objects: placer {place_objects.PLACER} and footprints {place_objects.FOOTPRINTS_FILE}")
+        return None
+    maps = [t for t in manifest.get("tiles", []) if t.get("ring") == "map"]
+    if not maps or maps[0].get("holes", {}).get("file") != place_objects.HOLES_FILE:
+        errors.append(f"map.json: the map tile's holes must be {place_objects.HOLES_FILE}")
+        return None
+    document = _load_json(contents, place_objects.FOOTPRINTS_FILE, errors)
+    mask = contents.get(place_objects.HOLES_FILE)
+    if document is None or mask is None:
+        return None
+    _check_header(document, place_objects.FOOTPRINTS_FILE, manifest.get("map"), errors, "fpv450-map-footprints")
+    _georef_keys(document, place_objects.FOOTPRINTS_FILE, errors)
+    errors.extend(place_objects.check(place_objects.Package(root), rows, mask, document, objects.get("seed")))
+    return mask.count(255), len(document.get("footprints", []))
 
 
 def _check_probes(probes, tiles, errors):
@@ -370,9 +413,12 @@ def validate(root):
     rows = _check_placements(documents["placements.json"], manifest, rect, errors)
     fields = _check_outlines(documents["outlines.json"], rect, rows, errors)
     probes, worst = _check_probes(documents["height_probes.json"], tiles, errors)
-    counts = ", ".join(f"{manifest['counts'].get(k)} {k}" for k in KINDS)
+    objects = _check_objects(root, manifest, contents, rows, errors) if not errors else None
+    counts = ", ".join(f"{manifest['counts'].get(k, 0)} {k}" for k in KINDS)
     summary = (f"{root.as_posix()}: {len(tiles)} tiles ({seams} seams), {counts}, {grass} grass instances, {fields} fields, "
                f"{probes} height probes within {worst * 1000:.4f} mm of Unity")
+    if objects:
+        summary += f"; our objects: {objects[0]} hole cells, none naked, {objects[1]} level footprints"
     return errors, summary
 
 
