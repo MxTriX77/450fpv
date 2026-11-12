@@ -561,7 +561,7 @@ namespace Fpv450.App
                     Camera lens = _flight.Eye != null ? _flight.Eye.GetComponent<Camera>() : null;
                     if (lens != null)
                         views.Add(TerrainParity.Measure(lens, world, where, ("the scene's", t => _flight.SceneError(t)),
-                            (FlightScene.NearPixelError.ToString("0.#") + " near the drone", t => FlightScene.NearPixelError)));
+                            (FlightScene.NearPixelError.ToString("0.##") + " near the drone", t => FlightScene.NearPixelError)));
                 }
                 Parity("at rest");
                 yield return Shot("hills_rest");
@@ -634,16 +634,15 @@ namespace Fpv450.App
                     }
                     foreach (TerrainParity.View v in t.Result)
                         Debug.Log("[Smoke] the drawn terrain against the sim's: " + v + (v.Flipped ? " (rows flipped)" : ""));
-                    // The flight's own setting (the last two views): within 10 and 30 m of the lens under a pixel at the band's
-                    // edge (Unity's pixel error 1), and on the ground the full heightmap under the drone (0.01 mm within 2 m).
+                    // The flight's own setting (the last two views): the full heightmap within 30 m of the lens, WLD-11's 1 mm
+                    // (3.2), and on the ground under the drone 0.01 mm within 2 m.
                     bool grounded = t.Result[0].Name.StartsWith("at rest", StringComparison.Ordinal) || t.Result[0].Name.StartsWith("landed", StringComparison.Ordinal);
                     for (int k = 2; k < t.Result.Count; k++)
                     {
                         TerrainParity.View v = t.Result[k];
-                        Check(v.Pixels[2] > 0 && v.Max[1] <= v.PixelAt(1) && v.Max[2] <= v.PixelAt(2) && (!grounded || v.Pixels[0] > 0 && v.Max[0] <= 1e-5),
-                              "the drawn terrain near the drone " + v.Name + ": within 10 m " + (v.Max[1] * 1e3).ToString("0.000") + " mm (a pixel there " +
-                              (v.PixelAt(1) * 1e3).ToString("0.0") + "), within 30 m " + (v.Max[2] * 1e3).ToString("0.000") + " mm (" + (v.PixelAt(2) * 1e3).ToString("0.0") + ")" +
-                              (grounded ? ", within 2 m " + (v.Max[0] * 1e3).ToString("0.000") + " mm" : ""));
+                        Check(v.Pixels[2] > 0 && v.Max[2] <= 1e-3 && (!grounded || v.Pixels[0] > 0 && v.Max[0] <= 1e-5),
+                              "the drawn terrain near the drone " + v.Name + ": within 10 m " + (v.Max[1] * 1e3).ToString("0.000") + " mm, within 30 m " +
+                              (v.Max[2] * 1e3).ToString("0.000") + " mm (WLD-11: 1 mm)" + (grounded ? ", within 2 m " + (v.Max[0] * 1e3).ToString("0.000") + " mm" : ""));
                     }
                 }
             }
@@ -688,6 +687,35 @@ namespace Fpv450.App
                       ", its first frame " + _exploreFirstFrame.ToString("0.00") + " s after the press (PLT-06: 20 s)");
                 yield return new WaitForSecondsRealtime(2);
                 yield return Shot("explore_farmland_stand");
+                // w3-farmland-ground 3.2: the drawn terrain against the sim's from noclip's start, the stand 3 m ahead, through
+                // the feed and without it (V), at the scene's errors and at the flight's near the drone: what noclip shows
+                // of the ground the drone stands on. Noclip keeps the scene's errors; within 10 m they must hold WLD-11's 1 mm.
+                if (eye != null && feed != null)
+                {
+                    IWorldQuery world = FlightWorlds.Farmland(AppData.Root).Open().Query;
+                    var views = new List<Task<List<TerrainParity.View>>>();
+                    for (int v = 0; v < 2; v++)
+                    {
+                        feed.enabled = v == 0;
+                        yield return null;
+                        yield return null;
+                        views.Add(TerrainParity.Measure(eye, world, "noclip's start, the feed " + (v == 0 ? "on" : "off"), ("the scene's", t => t.heightmapPixelError),
+                            (FlightScene.NearPixelError.ToString("0.##") + " near the drone", t => FlightScene.NearPixelError)));
+                    }
+                    feed.enabled = true;
+                    yield return Until(() => views.TrueForAll(t => t.IsCompleted), 60);
+                    foreach (Task<List<TerrainParity.View>> t in views)
+                    {
+                        if (!t.IsCompleted || t.IsFaulted) Check(false, "the drawn terrain's measure in noclip: " + (t.IsFaulted ? t.Exception.GetBaseException().Message : "not done"));
+                        else
+                        {
+                            foreach (TerrainParity.View v in t.Result) Debug.Log("[Smoke] the drawn terrain against the sim's: " + v + (v.Flipped ? " (rows flipped)" : ""));
+                            for (int k = 0; k < 2; k++)
+                                Check(t.Result[k].Pixels[1] > 0 && t.Result[k].Max[1] <= 1e-3, "the drawn terrain round the stand in " + t.Result[k].Name + ": within 10 m " +
+                                      (t.Result[k].Max[1] * 1e3).ToString("0.000") + " mm (WLD-11: 1 mm)");
+                        }
+                    }
+                }
                 Menu();
                 yield return Until(() => _view == View.Menu, 30);
                 Check(_view == View.Menu, "Esc's route back to the menu");

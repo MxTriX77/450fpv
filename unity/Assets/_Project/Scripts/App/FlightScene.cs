@@ -173,11 +173,14 @@ namespace Fpv450.App
         }
 
         /// <summary>
-        /// The drawn terrain near the drone (w3-farmland-ground 3.1, WLD-11, VIS-01): a terrain tile within NearM of the lens
-        /// is drawn at Unity's finest pixel error, so its patches round the drone are its full heightmap, the sim's
-        /// heightfield, and what is drawn is what is touched; every other tile keeps the scene's own.
+        /// The drawn terrain near the drone (w3-farmland-ground 3.1 and 3.2, WLD-11, VIS-01): a terrain tile within NearM of
+        /// the lens is drawn at pixel error 0.05 (set from a script, Unity takes values under the Inspector's 1), so its
+        /// patches round the drone are its full heightmap, the sim's heightfield, and what is drawn is what is touched; every
+        /// other tile keeps the scene's own. Why 0.05: Unity simplifies a patch only where the error that leaves is under that
+        /// many of the camera's pixels, and the least a simplification leaves on these tiles, half a height unit (120 m /
+        /// 32766 / 2 = 1.83 mm), is 0.05 of the FPV render's pixel (965 px/rad) at 35 m, past NearM.
         /// </summary>
-        public const float NearPixelError = 1f, NearM = 30f;
+        public const float NearPixelError = 0.05f, NearM = 30f;
 
         Terrain[] _terrains = new Terrain[0];
         float[] _sceneErrors = new float[0];
