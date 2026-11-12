@@ -334,7 +334,8 @@ def build(root, asset_id, entry, variant, params):
     pieces = [(clear.point(c), r) for c, r in pieces]
 
     # wind volumes
-    wind, wind_lines = _wind(samples, twig_points, wpoints, wtris, nodes, params["wind"]["column"], clear)
+    wind, wind_lines = _wind(samples, twig_points, wpoints, wtris, nodes, params["wind"]["column"],
+                             params["wood"]["section_tol_m"], clear)
     lines += wind_lines
 
     # snag records
@@ -515,11 +516,13 @@ def _length(line):
     return sum(math.dist(a, b) for a, b in zip(line, line[1:]))
 
 
-def _wind(samples, twig_points, wpoints, wtris, nodes, column, clear):
+def _wind(samples, twig_points, wpoints, wtris, nodes, column, tol, clear):
     """The crown or bush box with its measured porosity, and the trunk column under it (design 7). A tree's crown
     starts at its lowest drawn foliage: thin wood under it (Pine002_M's root twigs) is the trunk zone's, which the
-    column stands for; the trunk is the tube system with the most rings under the crown. Each box is kept off the
-    vendor's vertices by `clear` (D-089)."""
+    column stands for; the trunk is the tube system with the most rings under the crown, its stem the rings from its
+    highest one there down to its root, and the column stands on the stem's rings within `tol` of their median radius
+    (the root band and the flare are wider and off the axis): their centres' mean, their median diameter. Each box is
+    kept off the vendor's vertices by `clear` (D-089)."""
     mass = samples + twig_points
     if not mass:
         return [], ["wind: no foliage, no volume"]
@@ -538,11 +541,17 @@ def _wind(samples, twig_points, wpoints, wtris, nodes, column, clear):
             f"{', '.join(f'{s:.3f}' for s in shares)})")
     if column and lo[1] > 0.3 and nodes:
         under = {}
-        for n in nodes:
+        for i, n in enumerate(nodes):
             if n["parent"] is not None and n["centre"][1] < lo[1]:
-                under.setdefault(n["system"], []).append(n)
-        trunk = max(under.values(), key=len) if under else []
-        if trunk:
+                under.setdefault(n["system"], []).append(i)
+        if under:
+            top = max(max(under.values(), key=len), key=lambda i: (nodes[i]["centre"][1], nodes[i]["radius"], -i))
+            stem = []
+            while nodes[top]["parent"] is not None:
+                stem.append(nodes[top])
+                top = nodes[top]["parent"]
+            median = sorted(n["radius"] for n in stem)[len(stem) // 2]
+            trunk = [n for n in stem if abs(n["radius"] - median) <= tol]
             r = sorted(n["radius"] for n in trunk)[len(trunk) // 2]
             x = sum(n["centre"][0] for n in trunk) / len(trunk)
             z = sum(n["centre"][2] for n in trunk) / len(trunk)
@@ -550,7 +559,9 @@ def _wind(samples, twig_points, wpoints, wtris, nodes, column, clear):
             out.append({"shape": "box", "center": [(c_lo[a] + c_hi[a]) / 2 for a in range(3)],
                         "size": [c_hi[a] - c_lo[a] for a in range(3)], "rotation": [0.0, 0.0, 0.0, 1.0],
                         "porosity": 0.0})
-            text += f"; trunk column 0..{lo[1]:.2f} m, {2 * r:.3f} m across, porosity 0"
+            text += (f"; trunk column 0..{lo[1]:.2f} m on {len(trunk)} of the stem's {len(stem)} rings (within "
+                     f"{tol * 100:g} cm of its median radius), axis at x {x:.3f} z {z:.3f}, {2 * r:.3f} m across, "
+                     f"porosity 0")
     return out, [text]
 
 
