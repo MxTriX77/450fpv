@@ -8,6 +8,7 @@ Branch `unity/physics/physics-integration-2--w9-village`, cut from `--w3-ground`
 - 2.11 (the published stem and leaf properties) any time before 2.2: it needs no code and no other task;
 - 2.2 (stems on the props) after 2.1 and 2.11; then 2.3 (leaves, also after 2.7), 2.5 (cut bits) and 2.10 (stems on the legs and the fiber);
 - 2.9 (Village's ground rows and the liftoff harness) after 2.4 and 2.6;
+- 2.12 (the landing in high grass with straw) after 2.2, before 2.5 and 2.10: they build on its stalks;
 - 3.0 (the map-wide sweep) any time: it needs no other task and reruns as fixes land;
 - 3.1 last.
 
@@ -103,6 +104,16 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - Checks: every row names a source that was read (the page or abstract, never a guess); `precommit.py --tree HEAD`.
   - **As built:** `stem-properties.md` holds 21 sources (full text, abstract or restated, each marked), a derived critical-speed law checked against grass, thick stalks and support distance, and section 4's row per cover kind.
   - The original impact-cutting papers (O'Dogherty & Gale, McRandal & McNulty, Persson) stayed unreadable; a green culm's modulus and cut energy, burnt stems and the prop's edge factor stay assumed.
+
+- [ ] 2.12 [physics-engineer] **The landing in high grass with straw, as the pilot describes it.** Their words (2026-11-12): "in real life if i land on a high grass with straw - straws are noticeable cut in front of my quads camera and my quad is shaking. shaking how - again, you calculate properly".
+  - **What 2.2 gives today:** every Village kind is a 1.5 mm culm, so the slipstream lays them at 0.12–0.16 m, a vertical landing cuts nothing, a creep cuts about 33 stems a second for 0.7 W, and the shake is nil. That contradicts the account, and the pilot's words win.
+  - **Find what is wrong,** by calculation and published sources, in this order:
+    - **The tall layers' stalks.** A dry stem standing 1.2–1.8 m can't be 1.5 mm across (check its self-buckling height). Take each layer's diameter, wall and stiffness from its own drawn height: published allometry and measurements of tall dry grass, weed and cereal stalks. Per layer, not per kind.
+    - **The lean law's load.** A vertical jet on an upright stem has little cross-flow; near the ground the flow turns into a wall jet. Check how far stems of each stiffness really lie over under a 10-inch disc at 230 Pa against published rotor-downwash-on-canopy measurements, and correct the law if it over-presses.
+    - **The landing itself.** A real landing comes in moving and flares; "in front of my camera" is the front discs.
+  - **Then the corrected inputs and law,** each number labelled, and the runs: a vertical landing and a landing approach into the densest tall cell and into a cell of high grass with straw. Report the stems cut a second at the front discs, the rotors' speed dips and currents, and the shake: roll and pitch rate in 4–15 Hz and at the blade pass, and the camera's vibration. Compare with the footage note's targets (letter H into straw: 30–120 °/s turns and a residue 3–10 times the calm one; brushing a stalk: 1.7–2.5 times in 4–15 Hz). Say plainly whether the quad shakes, and how.
+  - Propose the spec's amended straw-landing scenario (the orchestrator applies it). A hand calculation first, the run within 10 % of it.
+  - Checks: the new scenarios' tests, `dotnet test tools/simtests -c Release`, `flightbench --golden` (every moved golden audited), bit-exact replay, 0 B, `precommit.py --tree HEAD`.
 
 ## 3. Review
 
