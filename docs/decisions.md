@@ -759,3 +759,17 @@ The orchestrator, 2026-11-12, on W3's task 2.1 (`w3-farmland-ground`, design.md)
 - **`IWorldQuery.ShapeContact`** returns `StaticContacts`' own contact for one shape, to the bit. A laid fiber segment keeps a list of the shapes near it and re-asks only those, instead of running a whole query every step.
 - **`QueryFilter.NoGround`** leaves the ground out of `StaticContacts`. The fiber takes the ground from `SampleGround`, so its queries no longer pay for the terrain.
 - No answer changes: physics model 79 and `QueryVersion` 8 stand, and every replay is bit for bit. Every implementer of the interface carries both.
+
+## D-098 The world-query API gains a ground-only filter · Accepted
+The orchestrator, 2026-11-12, on W3's task 2.5 (`w3-farmland-ground`, design.md §2.5), a laid fiber that follows the hills. Like D-097, this entry is the superseding decision that the interface's own comment asks for, for this one addition.
+- **`QueryFilter.GroundOnly`** makes `StaticContacts` and `Raycast` answer the ground alone, step faces included. The fiber's crest test casts each segment's chord against the ground with it, without paying for the objects.
+- Its ground contact equals the unfiltered query's ground contact to the bit, and existing calls are unchanged, so `QueryVersion` 8 stands. Every implementer of the interface carries it.
+
+## D-099 The terrain near the drone draws at pixel error 0.05 · Accepted
+The orchestrator, 2026-11-12, on W3's task 3.2 (`w3-farmland-ground`, design.md "# Task 3.2"), the tech artist's review of the drawn terrain near the drone (WLD-11, VIS-01).
+- **In flight, terrain tiles within 30 m of the drone draw at pixel error 0.05,** set from a script. Unity accepts values below the Inspector's minimum of 1 and draws by them. Every other tile, and noclip, keep the friend's errors.
+- **Why 0.05:** the smallest error a simplification can leave on these tiles is half a height unit, 1.83 mm. At the FPV render's 965 px/rad that is 0.05 px at 35 m. So no patch within 35 m of the lens is simplified: the full heightmap is drawn in the physics radius.
+- **Measured** from the rendered depth (`TerrainParity`): the drawn terrain within 30 m is the sim's to at most 0.075 mm, the measure's own floor. WLD-11's 1 mm is met as written, with no rewording.
+- **Pixel error 1 was rejected:** it is invisible in the feed, but it leaves the drawn ground 1.8–16.2 mm off in flight, so the laid fiber (0.125 mm radius) would be drawn under it.
+- **No full-resolution patch:** it gives the same 0 mm, but the friend's terrain would have to be hidden under it, against the untouched store.
+- **The cost** is the FPV camera's GPU time: about 1.1–1.4 ms a frame at the 20 W power cap, and 0.5–0.7 M more triangles. W6's quiet PLT-07 run gives the verdict (`-terrainab`).
