@@ -1,0 +1,23 @@
+{
+  "about": "The top-down image of each map (w11-world-map 1.1, D-101), rendered by Fpv450.TopDownMaps at build time into unity/Generated/topdown/<id>.png and <id>.json (git-ignored, D-089). Per map: its id (maps/<id>), the scene drawn, its extent in the sim's frame (Unity's, D-019: x east, z north, metres) and the image's size in pixels. Pixels are square, so the extent's sides keep the image's aspect.",
+  "maps": [
+    {
+      "id": "farmland",
+      "scene": "Assets/Farm_land/Scenes/FarmLand.unity",
+      "x_m": [-250, 1250],
+      "z_m": [-250, 1250],
+      "width_px": 2048,
+      "height_px": 2048,
+      "why": "Village: the 1 x 1 km map ([0, 1000] m) and the surround's first 250 m on every side, where the surround still carries the map's ground on (its 250 m blend) before the generic hills; the map keeps two thirds of the image, at 0.73 m a pixel."
+    },
+    {
+      "id": "test-range",
+      "scene": "Assets/_Project/Scenes/TestRange.unity",
+      "x_m": [-256, 256],
+      "z_m": [-256, 256],
+      "width_px": 2048,
+      "height_px": 2048,
+      "why": "House: the range's map, its placement file's extent_m, at 0.25 m a pixel."
+    }
+  ]
+}

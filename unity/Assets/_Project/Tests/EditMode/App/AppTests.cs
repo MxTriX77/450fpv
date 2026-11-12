@@ -424,7 +424,8 @@ namespace Fpv450.Tests.App
             Assert.That(FlightScene.RestartKey, Is.EqualTo(Key.R));
             Assert.That(FlightScene.NoiseKey, Is.EqualTo(Key.C));
             Assert.That(FlightScene.SticksKey, Is.EqualTo(Key.X));
-            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey, FlightScene.SticksKey };
+            Assert.That(MapPanel.ToggleKey, Is.EqualTo(Key.M), "the map's (w11-world-map 1.2)");
+            Key[] keys = { FlightScene.RestartKey, FlightScene.NoiseKey, FlightScene.SticksKey, MapPanel.ToggleKey };
             Assert.That(keys, Is.Unique);
             Keyboard keyboard = InputSystem.AddDevice<Keyboard>("D-078 test keyboard");
             keyboard.MakeCurrent();
@@ -498,6 +499,34 @@ namespace Fpv450.Tests.App
             }
         }
 
+        // w11-world-map 1.2 (D-101): M shows and hides the map and nothing pauses. Two exact keyboard flights (as V's test:
+        // the session's steps on the test's clock, a frame a ms, the same seed) fly the same keys, the second with M held
+        // 50 ms in every 200, each press toggling a map panel on the scene; the logs are the same byte for byte.
+        [Test]
+        public void MTogglesOnlyTheMap()
+        {
+            FlightScene scene = new GameObject("Flight").AddComponent<FlightScene>();
+            MapPanel map = MapPanel.Add(scene.gameObject, () => "floor", scene.transform);
+            Keyboard keyboard = InputSystem.AddDevice<Keyboard>("w11 map test keyboard");
+            keyboard.MakeCurrent();
+            string dir = Path.Combine(Path.GetTempPath(), "fpv450-map-" + System.Guid.NewGuid().ToString("N"));
+            try
+            {
+                DroneSpec spec = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile)));
+                byte[] plain = Fly(spec, keyboard, scene, Path.Combine(dir, "plain"), 0, out _, out _);
+                byte[] withM = Fly(spec, keyboard, scene, Path.Combine(dir, "m"), 200, out int presses, out _, map);
+                TestContext.WriteLine("M pressed " + presses + " times; the logs: " + plain.Length + " and " + withM.Length + " bytes");
+                Assert.That(presses, Is.GreaterThan(5));
+                Assert.That(withM, Is.EqualTo(plain), "the flight's log, byte for byte, with M or without");
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(keyboard);
+                Object.DestroyImmediate(scene.gameObject);
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
         // An exact keyboard flight on the floor (Threaded false: Tick runs the steps due on the test's clock), its keys held
         // on the test keyboard and read a 1 ms frame at a time as the app reads them: the scene's keys, then the flight's
         // (FlightSessionHost ticks the session with KeyboardFallback.ReadKeys). Enter arms, W climbs, D yaws, the up arrow
@@ -506,7 +535,8 @@ namespace Fpv450.Tests.App
         // manual update in edit mode gives keys' states but not wasPressedThisFrame (the Input System restores the player's
         // update count after an editor update), so the press is the V key's state turning on; the players' smoke test
         // presses V through FlightScene's own read. Returns the log's bytes.
-        static byte[] Fly(DroneSpec spec, Keyboard keyboard, FlightScene scene, string folder, int vEveryMs, out int presses, out string log)
+        // With map, M is the key held and each press toggles the map in place of the view (w11-world-map 1.2).
+        static byte[] Fly(DroneSpec spec, Keyboard keyboard, FlightScene scene, string folder, int vEveryMs, out int presses, out string log, MapPanel map = null)
         {
             MaterialRow[] materials = PhysicsMaterials.Parse(File.ReadAllText(AppData.File(PhysicsMaterials.RelativePath)), out ulong hash);
             var clock = new TestClock { Now = 1000000 };
@@ -538,23 +568,25 @@ namespace Fpv450.Tests.App
                     if (ms >= 100 && ms < 1300) held.Add(Key.W);
                     if (ms >= 1300 && ms < 1400) held.Add(Key.D);
                     if (ms >= 1400 && ms < 1500) held.Add(Key.UpArrow);
-                    if (vEveryMs > 0 && ms % vEveryMs < 50) held.Add(Key.V);
+                    if (vEveryMs > 0 && ms % vEveryMs < 50) held.Add(map != null ? MapPanel.ToggleKey : Key.V);
                     if (vEveryMs > 0 && ms % vEveryMs == 0) edges++;
                     InputSystem.QueueStateEvent(keyboard, new KeyboardState(held.ToArray()));
                     InputSystem.Update();
                     clock.Now += FlightCore.StepUs;
                     reader.Pump(0);
-                    bool chase = scene.Chase, v = keyboard[FlightScene.ViewKey].isPressed;
-                    scene.Pressed(v && !lastV, false);
+                    bool chase = scene.Chase, shown = map != null && map.Shown, v = keyboard[map != null ? MapPanel.ToggleKey : FlightScene.ViewKey].isPressed;
+                    if (map != null && v && !lastV) map.Toggle();
+                    else scene.Pressed(v && !lastV, false);
                     lastV = v;
-                    if (scene.Chase != chase) presses++;
+                    if (scene.Chase != chase || map != null && map.Shown != shown) presses++;
                     session.Tick(KeyboardFallback.ReadKeys());
                 }
                 Assert.That(session.Input, Is.EqualTo(InputSource.Keyboard));
                 Assert.That((session.Core.State.Armed, session.State), Is.EqualTo((false, SessionState.Flying)), "disarmed by Enter, still flying");
                 session.EndFlight();
                 Assert.That(session.End.Kind, Is.EqualTo(FlightEndKind.Pilot), "End flight");
-                Assert.That(presses, Is.EqualTo(edges), "each V press flips the view, and only V's");
+                Assert.That(presses, Is.EqualTo(edges), map != null ? "each M press toggles the map" : "each V press flips the view, and only V's");
+                if (map != null) Assert.That(scene.Chase, Is.False, "M leaves the view");
                 log = session.LogPath;
             }
             finally

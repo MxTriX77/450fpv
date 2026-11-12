@@ -20,8 +20,10 @@ namespace Fpv450
         /// tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
-        /// unlinked checkout. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
-        /// keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
+        /// unlinked checkout. Each map's top-down image is rendered first (TopDownMaps, w11-world-map 1.1), so the build
+        /// needs graphics (never <c>-nographics</c>), and everything under <see cref="GeneratedFolder"/> goes into the
+        /// player's <c>StreamingAssets/generated/</c>. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the
+        /// flight's review keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
         /// </summary>
         public static void Windows()
         {
@@ -42,6 +44,11 @@ namespace Fpv450
                 Debug.LogError($"[Build] Windows: {scene} has {missing.Count} missing references, so the player would show it broken. " +
                                "The farmland's come from the vendor store: run pwsh tools/vendor/link.ps1 in this checkout, then build again " +
                                "(w1-farmland-world design 3). The first:\n  " + string.Join("\n  ", missing.Take(20)));
+                EditorApplication.Exit(1);
+                return;
+            }
+            if (!TopDownMaps.RenderAll())
+            {
                 EditorApplication.Exit(1);
                 return;
             }
@@ -154,7 +161,22 @@ namespace Fpv450
                 File.Copy(from, to, true);
                 Debug.Log($"[Build] the player's data: {file} ({new FileInfo(to).Length} bytes)");
             }
+            if (Directory.Exists(GeneratedFolder))
+                foreach (string from in Directory.GetFiles(GeneratedFolder, "*", SearchOption.AllDirectories))
+                {
+                    string file = Path.GetRelativePath(GeneratedFolder, from), to = Path.Combine(streaming, "generated", file);
+                    Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+                    File.Copy(from, to, true);
+                    Debug.Log($"[Build] the player's generated files: generated/{file.Replace('\\', '/')} ({new FileInfo(to).Length} bytes)");
+                }
             return true;
         }
+
+        /// <summary>
+        /// What the build renders for the player (<c>unity/Generated/&lt;kind&gt;/</c>: <c>topdown/</c>, the maps' top-down
+        /// images, w11-world-map; <c>stills/</c>, the maps' stills, w10-play-maps), git-ignored and never pushed (D-089). The
+        /// build carries it into the player's <c>StreamingAssets/generated/&lt;kind&gt;/</c>.
+        /// </summary>
+        public static string GeneratedFolder => Path.Combine(Path.GetDirectoryName(Application.dataPath)!, "Generated");
     }
 }
