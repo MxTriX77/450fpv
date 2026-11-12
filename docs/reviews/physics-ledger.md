@@ -158,7 +158,94 @@ From `docs/requirements.md` (PHB, PHY, LOG, TST, PLT-04, DRN-02/03/07, and WLD-1
 
 ## 3. Open tasks and debts
 
-(to fill)
+**Blocks?** says whether the pilot meets it in a flight on Village or House: **yes** (felt in an ordinary flight), **some** (in a particular manoeuvre or setup), **no** (process, look or a test only).
+
+### 3.1 Unticked OpenSpec tasks of the physics changes
+
+Each open task is classed: **done elsewhere** (the work landed under another task; tick it with a pointer), **superseded** (a decision made it moot), **deferred** (waiting on a decision or a map that isn't flown), or **open** (still to do).
+
+| Change · task | What | Class | Where it went, or why | Blocks? |
+|---|---|---|---|---|
+| p7a 1.2 | broad phase inside each object | superseded | D-061: a tree inside objects over 256 shapes; S04 stays in the grid | no |
+| p7a 1.3 | the range's ground: ruts, furrows, pitfalls, craters | deferred | D-102: furrows wait for a world-and-look unit (W12); House only | some |
+| p7a 1.4 | `MoveObject` for runtime objects | open | needed by the free stand (1.16); nothing else | some |
+| p7a 1.6 | S04's hidden pits | deferred | House only; with 1.3 | some |
+| p7a 1.7, 1.8 | V01 and V13 crowns as elements; limb cantilevers | superseded on Village | D-088: Village's crowns are vendor twig shells (W4a) and W9 2.3's leaves; still open for House's own trees | some |
+| p7a 1.8b | the Godot stand-in crowns | superseded | D-088 | no |
+| p7a 1.11 | pitfalls, `terrain_deep`, `bottomless`, the 45° merge | partly done | the buried-face rule landed (model 38); `PitfallEntered` and both world bugs do not exist | some |
+| p7a 1.12 | compliant layers | partly done | part 1 (area laws, stroke) landed (model 33); the `bark` and `deadwood` limb cantilevers are open ("A limb bends from its root") | some |
+| p7a 1.14 | vegetation on the body and legs | moved | W9 2.10 (open) | **yes** |
+| p7a 1.15 | prop strikes on vegetation | done elsewhere | W9 2.2 (stems), W3 2.7 (twigs); leaves are W9 2.3 | — |
+| p7a 1.16 | the launch stand as a free body | open | legs-off flights lift off fixed posts | some (legs off) |
+| p7a 1.17 | the leg spread and the liftoff harness | moved | W9 2.9 (open); the `leg.stiffness` stream is still missing | **yes** |
+| p7a 1.18 | landings on real ground: hold or cut, wobble, the restitution known-wrong | open | nothing else covers PHY-02 per ground | **yes** |
+| p7a 1.19 | budget, log, Severe-rain replay, Mono goldens | partly done | p7h's step budget; the ground's rows owed | no |
+| p7a 2.1, 2.2 | QA; the pilot's MVP | open | 2.2 effectively given by the pilot's flights (D-079, D-082) | no |
+| p7b 1.3b | ground effect over the range's queries | superseded | the heightfield (W3) and `RotorSurfaces` now carry it; re-measure in W9 3.1 | no |
+| p7c 1.5 | the levels against K§8.6's targets | open | landed with it open (D-058): Severe 9 of 21; pitch about 2.4–3× low | **yes** (in wind) |
+| p7c 2.1 | QA | open | owed since the line's merge | no |
+| p7d 1.9, 1.10 | soft wires; breaking, dropping, winding | open | wires are static capsules (PHY-22) | some (House's wires) |
+| p7d 1.11 | the fiber's acceptance harness | open | the edge-load branch's scaffolding (`3cea05af`) is unmerged and unchecked | **yes** (the fiber's cuts) |
+| p7d 1.12 | the wires' harness | open | after 1.9 | no |
+| p7d 1.13 | the line's budget and log | partly done | W3 2.1 (the query cost), `farmland-line-step` | no |
+| p7d 1.14 | the fiber's look | done elsewhere | drawn in the player since model 44 (handover 11-04) | — |
+| p7d 1.15 | the wires' live look | deferred | after 1.9 | no |
+| p7d 2.1, 2.2 | QA; the pilot's MVP | open | 2.2 given by D-087's feedback | no |
+| p7e 1.5, 1.7, 1.8 | the rolling-shutter read; the Unity verify; QA | open | feed-side; needs the GPU | some |
+| p7f 1.4 | the vegetation seam | superseded | W9 2.2's `StrikeKind.Stem` and W3 2.7's twigs | — |
+| p7f 1.7 | the damage harness on 40 seeds a cell | partly done | `fb --damage` flies the first cells, 8 seeds | no |
+| p7f 1.8 | persistence, log, budget | partly done | damage replays bit for bit (`StrikeTests`, `HeatTests`); the budget rows and LOG-01's size owed | no |
+| p7f 1.9 | the summary lists the damage | partly done | p7g 1.5 lists legs and motors; `PostFlight` reads blade and motor state | no |
+| p7f 1.10 | draw the damage | open | look | no |
+| p7f 2.1, 2.2 | QA; the pilot's MVP | open | 2.2 given by D-079, D-082, D-083 | no |
+| p7g 2.1 | QA | open | plus two debts: the anchor's slide stiffness past the sway load; a skid driven 17–19 cm past the ground in a 10 m/s crash | some |
+| W3 2.3 | flight 37's straw stretches within PLT-04 | open | owed with a quiet-machine run | some (House's straw) |
+| W3 3.3, 4.1 | the scripted flights at W3's model; QA | open | quiet PLT-04 runs owed | no |
+| W7 1.2 | wind behind belts and the village | open (built off the line) | on `--w7-wind` at `873854e5`, never merged back; needs a model number | **yes** (in wind) |
+| W7 1.3, 2.1 | the laid fiber rests in wind; QA | open | after 1.2 | some |
+| W9 2.3 | leaves in crowns | open | crown hovers: the props stand still in the twig shells | some |
+| W9 2.4 | G1, the anchors' runaway lever | open (in work) | model 86 | **yes** |
+| W9 2.5 | cut bits on camera | open | after 2.12 | **yes** |
+| W9 2.6 | G2, legs on a side slope | open | after 2.4 | **yes** |
+| W9 2.9 | Village's ground rows and the liftoff harness | open | G7 | **yes** |
+| W9 2.10 | stems on the legs and the fiber | open | G3 | **yes** |
+| W9 2.12 | the landing in high grass with straw | open (in work) | contradicts the pilot today (P12) | **yes** |
+| W9 3.0, 3.1 | the map-wide sweep; QA | open | — | no |
+
+### 3.2 Debts outside the task lists
+
+| Debt | Where it lives | Blocks? |
+|---|---|---|
+| A contact node inserted inside a member is thrown out | `Tether/FiberContacts` (orchestrator's notes, W3 2.4) | some |
+| The near piece after a break never freezes | `Tether/` (W3 2.4 notes) | some |
+| Laid turns can still merge on plane worlds | `Tether/` laid trail (W3 2.4 notes) | no (Village is a heightfield) |
+| The north prop's cut in the climb (the rotor-air review) | `Tether/`, `RotorAir` | some |
+| `farmland-line-step`'s harness takes corners at up to 21 m/s | `tools/flightbench/FarmlandLineCase.cs` | no |
+| A crown hover: the props stand still, held by the twig shells (25–39 N a blade) | `PropStrikes` twig shells (W9 2.7 notes) | some |
+| The first step in a crown overflows the 64-event buffer: 24 events refused, one a blade break | `Flight/StepTrace` (W9 2.7 notes); a lost event is a hole in LOG-03's forensics | some |
+| The pine's arms (needle cards) still flutter in the drawn wind; the physics' shells don't move | `FarmlandTreeWood` (look); a drawn branch where the sim has none | some |
+| `GapsNear` was never ported: a wall's opening is the clear space between boxes, no gap record | `World/IWorldQuery` (named, not implemented) | some |
+| Crown twig shells felt 0.3–0.7 m before the drawn leaves; twig spheres up to 141 mm off the drawn crown; scanned trunks off their capsules by up to 526 mm | D-096 (Phase A) | **yes** (crowns are hit where nothing is drawn) |
+| Four post-crash tunnels red at model 44 (wire 5.475 and 5.52 m Severe, crown 10 m Windy, `InTheWindACompliantShapeIsNoTunnel`) | handover 11-04 §2; tonight's count is in §0 | see §0 |
+| The arm on sourced data (shear-strain break, ζ, the gyro's 258 Hz anti-alias filter), model 80 | `--arm-break` `f1071c90`, `d84b7995`, unmerged and unchecked | some |
+| The edge load in a reverse (static peel, lip friction), model 81 if physics changes | `--edge-load` `3cea05af`, tests only, unchecked | **yes** (P37) |
+| The ESC's sensorless start against a held rotor | handover 11-06 §6.4 (D-086's roof rack) | some |
+| Body lift, the pitch gap in Severe, the micro-motion spectrum's shape, a stick-noise floor | handover 11-04 §6.9, D-068 | some |
+| Wind gusts from off the forecast's direction | handover 11-06 §6.4 (D-086) | some |
+| The canister's mass at PETG or PC (about 20 % over the ABS in the note) | handover 11-06 §4 | no |
+| `CableChain`'s hold chatter on the wreck; the part slots' speculative wall and Coulomb's residual | handover 11-06 §6.4 | some |
+| The `FlightScheduler` stop-between-steps review; the per-thread `RegionCache` sign-off | final-world-plan A4 | no |
+| Flight 36's 2,868 fiber-shape-full events want a physics review | final-world-plan A4 | some |
+| The post-flight summary lacks lines for the payout event (14) and the stem episode (39) | `PostFlight.cs` | no |
+| The summary shows the log's full path with the Windows user folder | `PostFlight` (LOG-05) | no |
+| Tests leak `%TEMP%\fpv450-session-*` folders with flight logs | `SessionTests.cs:49`, `FarmlandFlightTests` | no |
+| `pytest tools/map` fails `test_probe_golden`: the header holds map.json's old SHA | `tools/map/golden/farmland-probes.txt` | no |
+| `drone.json`'s `spool_mass_kg` note names model 64's exit (−0.170); every value the sim reads is the bent nozzle's (0, −0.1843, −0.1994) | `assets-src/drone/drone.json` line 583 | no (a stale note) |
+| `PHB-03`'s "lifts off near 50–65 %" contradicts D-066's 30–45 % | `docs/requirements.md` | no (text) |
+
+### 3.3 The pilot's open physics questions (`pilot-questions.md`)
+
+The yaw kick in the first 50 ms; the roll overshoot (about 29 %); the punch-out tilt; clip P's strip height; the laid fiber at a sharp low turn; legs that part on a 10° side slope (G2); where cut straw shows in the goggles. None blocks a fix: each is asked at a gate (D-024).
 
 ## 4. The ranked gap list
 
