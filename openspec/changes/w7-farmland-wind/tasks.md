@@ -1,6 +1,6 @@
 # Tasks: w7-farmland-wind
 
-Order: 1.1, then 1.2, then 2.1. Branch `unity/physics/physics-integration-2--w7-wind`, cut from `--w3-ground` at 23e1b148 (W3 1.2's objects merged back). Merge `--w3-ground` in again before 2.1 if it has moved. It merges onto the line after W3.
+Order: 1.1, then 1.2; 1.3 after W3's 2.4 (merge `--w3-ground` in first); then 2.1. Branch `unity/physics/physics-integration-2--w7-wind`, cut from `--w3-ground` at 23e1b148 (W3 1.2's objects merged back). Merge `--w3-ground` in again before 2.1 if it has moved. It merges onto the line after W3.
 
 ## 1. The wind over the farmland
 
@@ -19,12 +19,17 @@ Order: 1.1, then 1.2, then 2.1. Branch `unity/physics/physics-integration-2--w7-
   - Determinism (IEEE basic operations, `DetMath`), 0 B in steady state, bit-exact replays, and the wind's cost within PLT-04.
   - Write design.md.
   - Checks: `dotnet test tools/simtests`, worldbench and flightbench `--golden`, flightbench `--slopes`, `python tools/hygiene/precommit.py --tree HEAD`.
-- [ ] 1.2 [physics-engineer] The belts, the village and the laid fiber.
+- [ ] 1.2 [physics-engineer] The belts and the village.
   - Check the wakes and canopy flow behind the farmland's tree belts and in the village against published shelterbelt data. Fix what is missing from the physics, not a tuned value.
   - Rows behind a belt and in the village, as goldens.
-  - Rerun `flightbench --bench farmland-line-step` in Severe wind. Report the far nodes' speeds, how many freeze, and the step's p99 before and after.
-  - Model number (D-072), with every moved golden audited case by case.
+  - Wind and world code only; the tether stays as it is (1.3).
+  - Model 84, extended, with every moved golden audited case by case.
   - Checks: as 1.1, plus `dotnet test tools/inputtests`.
+- [ ] 1.3 [physics-engineer] The laid fiber rests. After W3's 2.4 has landed on `--w3-ground`, merge it in first; 2.4 owns the fiber's contacts and `FiberLine.Ground`.
+  - A rest test for laid nodes: a node that the ground holds in still air freezes into the trail, and wakes when its wind, its contacts or the line's tension say so.
+  - Cast a node's soil over a hole once a step, shared between the wind posting and the tether's ground pass.
+  - Rerun `flightbench --bench farmland-line-step` in Severe wind. Report the far nodes' speeds, how many freeze, and the step's p99 before and after.
+  - Model 84, extended, goldens audited. Checks: as 1.2.
 
 ## 2. Review
 
