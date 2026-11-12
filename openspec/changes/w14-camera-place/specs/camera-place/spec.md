@@ -12,7 +12,7 @@ From the camera's place, the blades and the airframe parts in the first-person p
 
 #### Scenario: Blades over 24 fields of a hover
 - **WHEN** 24 consecutive fields of a hover are captured through the feed
-- **THEN** the share of fields with a blade in the picture, and where it enters, are printed beside the reference note's counts for the group's letters and beside the share the note's fit predicts, and the captured share is within the fit's stated error of the predicted one
+- **THEN** no field shows a blade outside the top corners (the top 7 % of the height, beyond 0.97 of the half-width, the reference note's error band), and the fields that show one there are counted beside the note's counts for the group's letters
 
 #### Scenario: The rods
 - **WHEN** a field of a hover is captured
