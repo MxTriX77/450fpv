@@ -3596,7 +3596,10 @@ namespace Fpv450.Sim.Contact
             {
                 StaticContact c = _buf[j];
                 if (groundless && c.Object == WorldIds.Ground) continue; // the supports' ground is SampleGround's
-                if (blade && YieldsToBlade(c.Surface)) continue; // a soil carved by the blade is the strikes' (p7f-damage 1.3b)
+                // A soil carved by the blade is the strikes' (p7f-damage 1.3b); and without surfaces.json every surface, the ground's and
+                // the soil shapes', whose passes glance through it (no face to them): a blade at rest bears on it no more than a turning
+                // one, so a rotor stopped with its disc in the floor never comes back to rest inside a rigid one (w3-farmland-ground 2.7).
+                if (blade && (YieldsToBlade(c.Surface) || _soil == null && c.Surface != WorldIds.NoSurface)) continue;
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
                 bool same = Buried(j, found) || (capsule ? SameSupport(i, c) : Seam(j, found, groundless));
