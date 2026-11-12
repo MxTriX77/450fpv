@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 2.1 (the fiber's query cost) and 2.2 (the flight on hills)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 2.1 (the fiber's query cost), 2.2 (the flight on hills) and 2.5 (a laid fiber follows the hills)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -499,3 +499,190 @@ Numbers are labelled as above. "Before" is this branch at d45f2054 (model 79), b
 - **The fiber:** a node where a laid segment dips under a rise (5, 8: up to 3.24 m on the farmland line), and the step walls in its segments' queries for the lip's capstan (4).
 - **The world:** the fields' furrows as relief in the package and the drawn terrain, from the references (6).
 - **QA (4.1):** a quiet run of `farmland-line-step` and of 2.1's replays; this task's timings are a shared machine's.
+
+# Task 2.5: a laid fiber follows the hills
+
+**Owner of this part:** physics-engineer · **For:** 2.3, 2.4, 3.1, 4.1 (qa-engineer) · **Requirements:** PHY-18, PLT-04, WLD-11, WLD-16 · **Model:** 82, extended (below) · **QueryVersion:** 8, unchanged answers (the API gains a filter)
+
+Numbers are labelled as above. "Before" is this branch's head (9847c69e) with 2.5's pass switched off by a temporary flag (not committed). It flies the head's flight to the bit: 59,933 whole queries and the same chain at 200 s. "After" is this task's code.
+
+## The cause (2.2's §8, measured again on the head)
+- **The chords between laid nodes.** A node takes the ground from SampleGround, and a segment's queries leave the ground out (2.1). So a straight segment between two laid nodes passes under any rise between them.
+- **The far line is coarse on purpose:** the spacing law, and on a full chain `MakeRoom`, merge the far pair that overshoots its target least. A node lying on a crest goes as easily as any (its merge lowers the energy), and its neighbours' chord then runs through the hill.
+- **On the farmland line** the chain is full (32) from about 40 s, its far segments 50–380 m long.
+  - At the head, 6 of 31 segments lie more than 1 cm under the ground at the end, the deepest 4.35 m.
+  - 2.2 measured 5 and 3.24 m. That was before the merge brought W2's re-exported classes, which changed the flight.
+- **What it gets wrong:** over a rise, the chord sets three things the ground should: the line's turn, its pressure and friction there, and what it meets standing on the crest (stems, a bush, a ruin's rubble, with 1.2). The renderer draws the chain, so the line also vanishes into the hill.
+
+## Decisions
+
+### 1. `QueryFilter.GroundOnly` (the API, signed off here)
+- **What it does:** `StaticContacts` and `Raycast` answer the ground alone: its plane or its terrain, a step's faces included, and no placed or runtime shape.
+  - `MapWorld` and `FloorWorld` honour it. The test worlds forward to their floor.
+- **The same answers:** the ground's contact is the unfiltered query's to the bit. A ray's entry is the unfiltered one's where that ray meets the ground first.
+  - Tested: `MapWorldTests.GroundOnly_IsTheGroundsOwnContactAndEntry`, 300 seeded reaches and rays on the test range.
+- **Why a filter and not 2.2's "walls alone":** the ground is one shape, its faces included, and the test (2) needs the facets as much as the faces. Without the filter, a ray along a laid segment also walks the object grid's whole box (a 400 m diagonal: 40,000 cells).
+- No existing call changes its answers, so `QueryVersion` stays 8 (as 2.1's `NoGround`).
+
+### 2. The test of a segment against the ground (`FiberLine.GroundTest`)
+- **The test:** the chord, raised by `CrestGap`, is cast as a ground-only ray from an end above the ground (a ray from inside the ground finds nothing). If the ray enters the ground, the chord passes more than `CrestGap` under it, vertically, somewhere.
+- **`CrestGap` is `KeepGap`, 0.1 m** (assumed, from the members' rule): the reach to which a member on a slot keeps its node. A chord over a crest so stays within it of the ground, and of what stands there.
+- **The certificate:** a test that finds nothing lets the segment's ends move `CrestSlack` from the tested core before the next test. `CrestSlack` is `KeepGap` (numerical: it sets the tests' cost).
+  - A point's depth in the ground (its distance from the surface) moves no more than the point.
+  - Every point of a segment whose ends moved δ moved at most δ.
+  - A chord no more than `CrestGap` under the ground vertically is no deeper than that.
+  - So between tests no segment lies deeper than **`CrestDepth` = 0.2 m** (`FiberLine.CrestDepth`). That is the tolerance this task states.
+- **An airborne segment** (both ends higher than `contact.clearance_margin_m` over their ground) first asks `StaticContacts` of the ground alone, at that margin.
+  - Finding nothing, it holds until an end moves the margin: it cannot reach the ground before.
+  - That costs one pass over its footprint's cells (1.25 µs a call, measured on the farmland line), not a ray along it every 0.1 m of the hanging span's travel.
+- **Not tested:** the exit's segment (the spool's, within near_spacing_m of the drone), and a segment shorter than 2·`CrestGap` (no point of it lies farther than that from an end).
+- **The certificate rides on the node** (`CableNode.GroundClear`, its core and its slack). A split's new node takes its segment's, as `Cleared` and `Near` do (2.1).
+
+### 3. The crest's node (`FiberLine.GroundTest`, `CableChain.SplitCrest`)
+- **Where:** a second ray, from the other end, gives the stretch the raised chord lies in the ground.
+  - At `CrestSamples` (9, numerical) points across it, the depth in the ground comes from the ground's own contact with the point (StaticContacts of a point, ground alone).
+  - The deepest point that leaves a piece of more than `CrestGap` either side takes the node.
+- **On the ground:** the node goes to that point's nearest point on the surface, plus the line's radius along its normal.
+  - Under a crest, that is the ground above it.
+  - Beside a step's face, it is the face, so the line climbs a face to the lip by nodes and never jumps it.
+  - A first version put the node vertically above the point. At the ledge that lifted a taut segment 0.5 m onto the top in one step, and the line whipped (a node at 12.8 m/s against 3.5 m/s before).
+- **A stretch beside a face only** takes no node: a chord past the step's corner, under the top's level, with no point deeper than `CrestGap`.
+  - It is tested again after the slack its sampled depth leaves: `CrestDepth` less the deeper of two bounds.
+  - Outside the stretch the bound is `CrestGap`. Inside it, the deepest point plus half the points' spacing.
+- **The line's material:** the segment's material is shared by the two pieces' **taut paths over the ground**, the upper hull of 32 ground samples under each piece's chord (numerical).
+  - Each piece then holds at least the line its later crests can lift it to, and the strain is the same on both sides.
+  - Sharing by the chord's fraction (a member's node's rule) or by the pieces' straight lengths left a piece still under a crest short. On the ridge (the rows) the second lift stretched it 0.5 %, 10.8 N at step 3, and the line broke at the crest (measured with each).
+- **Momentum is kept:** `Split` at that share puts the node's velocity at the share (the masses follow the material), and only its position moves.
+- **The lift's energy** (the line's weight raised onto the crest, and any stretch) enters before the step, as a member's node's does. It is the lumping's correction, not a force: the line lay on the crest all along.
+
+### 4. Holding a crest (`FiberLine.Crests`, `CableNode.Crest`)
+- **A crest's node is never merged away** (`CableChain.Removable`).
+  - Without this, the law merged a new node the next step and the test put it back: 1,000 insertions a second on the first build.
+  - That build also released a node not yet pressing the ground. A node now holds while it lies within `CrestGap` of its slot's plane.
+- **A node is a crest's** while it lies on the ground (within `CrestGap` of its slot's plane) and more than `CrestKeep` over the chord between its neighbours. `CrestKeep` is `InsertGap`, half `CrestGap`: the hysteresis.
+  - A laid node already on a crest becomes one past `CrestGap`, so `MakeRoom` takes a node elsewhere rather than cutting the hill.
+  - Node 0, anchored at the trail's end, is never one.
+- **The room:** a chain on a terrain holds `FiberLine.CrestNodes` = 16 (assumed) crests' nodes besides `span.max_nodes`.
+  - The spacing law's splits, a member's contact node (`SplitAt`) and a trail point lifted back count against the law's own 32, crests left out (`CableChain.SpacingCapacity`, `SpacingFull`).
+  - So the line at the drone keeps its resolution.
+- **With the room spent,** a crest more than `CrestYield` (2, numerical) times as deep as the shallowest held takes that one's room, so the deepest crests keep it. A refused crest is counted (`CrestsRefused`) and tested again once its ends move.
+- **When it runs:** after each step, after the remeshing, so no step starts on (and no pose shows) a chord through the ground. At the launch the tests run until they put no node in.
+
+### 5. The ledge's lip
+- **The same rule wraps it.** A chord from the far ring up onto the top cuts the step's corner, and the test finds it. The node goes to the face or the top nearest the corner, and the line then runs over the lip on a node there.
+- **No capstan.** The ground is soil, lain on and held by Coulomb's friction at the node, as a trench's soil layers are (`FiberMember.Ground` keeps its rule). A capstan of the lip would let line slide through the node, which the ground's other nodes never do.
+- **The bend at the lip** is unchanged: the soil's `lip_edge_radius_m` (0.02 m) gives 0.23 GPa, under the 0.69 GPa proof stress (2.2's §4).
+
+### 6. What a plane's flight keeps
+- **The pass runs only on a terrain** (`Geometry(Ground, 0)` false), and a chain on a plane has no crests' room. Its `Capacity` is the table's 32, as before, and every "full" test reads the same.
+- **The arrays sized by the nodes** (`FiberContacts`' lists and near slots, `FiberLine`'s batch) hold 48 always. A larger array changes no answer: the first free near slot is the same one.
+- **The pose and the bends:** `FiberNodes.Capacity` (the pose the renderer reads) is 48, and `FiberCuts.MaxBends` is 104 (two members a node of 48, and the lip). A pose kept only the first 32 nodes from the far end, which would have dropped the exit's.
+
+### 7. The farmland line's stop (`flightbench --bench farmland-line-step`)
+- **The route ended with a step from 12 m/s to a hold**: the scripted pilot's velocity hold was switched off at the last point.
+  - On every core the line's lead then wrapped the exit's lip by 165–172° (the lip angle each 0.1 s from 145.6 s). That is 1.8–2.3 GPa of bend stress at 0.07–0.10 N.
+  - The head survived it. 2.5's line broke there at 145.94 s, on a 0.34 N blip of the exit's tension, with no crest event within 0.15 s.
+  - With 8 crests' nodes of room instead of 16, the same core survived. So the outcome was chance, not 2.5's physics.
+- **The route now slows over its last 30 m** at 2.4 m/s² to the hover, as a pilot stops. Both cores fly it whole.
+- **The case also reports the line's depth in the ground:**
+  - the segments deeper than `CrestDepth` at the end, which must be none for its PASS
+  - the deepest at the end, and at the flight's whole seconds
+  - 2.2's vertical measure, for comparison
+  - the crests' nodes, refusals and tests
+
+## The rows (`flightbench --slopes`, `SlopeTests`)
+
+**A line laid over a ridge** (`SlopeScenarios.LineOverRidge`, `ALineLaidOverARidge_LiesOverItsCrest_AndReplays`):
+- **The ridge:** a package tile of meadow_sod with a 3 m crest, 16.7° a side.
+- **The line:** laid over it along the ground every metre, its anchor at the ridge's far foot, the drone 48 m from the crest. The drone climbs, flies away at 2 m/s and hovers, for 10 s.
+
+| Measure | Result |
+|---|---|
+| The spacing law's chords at the launch | 2.685 m under the crest (the line before 2.5) |
+| The deepest segment in the ground at the launch, with its crests' nodes | 0.058 m |
+| The deepest at any 10th step's end over the flight | 0.075 m |
+| The node nearest the crest line | 0.083 m off it, 0.09 mm over the ground, a crest's |
+| Crests' nodes | 6 put in, 0 refused |
+| The line | 8.0 m paid out, whole, 0 TetherWedges, 0 B after the first step |
+| Its log | replays bit for bit, 10,000 steps (`FlightReplay`) |
+
+**The line over the ledge** (2.2's row; `ALineDraggedOverTheLedge_WrapsItsLip`): laid on the far ring and dragged up the 1.5 m face and over the lip.
+
+| Measure | Result |
+|---|---|
+| The chords between the spacing law's nodes (its crests' left out) | up to 0.520 m in the ground: the step's corner they would cut |
+| The deepest segment of the line | 0.105 m |
+| A crest's node within `CrestDepth` of the lip's edge | 3,319 steps |
+| Crests' nodes put in | 2 |
+| The fastest node | 3.50 m/s (2.2: 3.5) |
+| The line | 24.3 m paid out, whole |
+
+- **The first builds broke both lines.** They put a node vertically above the deepest point and shared the material by the chord's fraction. They broke the ledge's line by tension (a node at 44.7 m/s) and the ridge's at its crest. That is how 3's placement and share were chosen.
+- **The rest of `--slopes` is 2.2's to the printed digit:** the holds, the landings, the crashes, the strikes and the steps. The legs meet no crest code.
+
+## The farmland line (`flightbench --bench farmland-line-step`)
+
+**The runs** (measured; both with the new stop; AC, Balanced plan, best power efficiency mode, 3201 MHz; the CPU load as each began, by `Win32_Processor.LoadPercentage`). Other sessions shared the machine throughout, and each run's own maxima reach 4–24 ms of preemption.
+
+| | Before (2.5 off) | After, A/B pair | After, the committed build |
+|---|---|---|---|
+| Load at start | 62 % | 68 % | 62 % |
+| The line | 1,983.9 m out, 32 nodes, whole | 1,980.1 m, 43 nodes (11 crests'), whole | the same flight to the counts |
+| Segments deeper than 0.2 m at the end | 5 of 31 | 0 of 42 | 0 of 42 |
+| The deepest at the end, and at whole seconds | 4.100 m, 4.776 m | 0.096 m, 0.110 m | 0.096 m, 0.110 m |
+| Vertically more than 1 cm under it (2.2's measure) | 6, the deepest 4.115 m | 13, the deepest 0.092 m | the same |
+| Crests' nodes put in / refused; ground tests | – | 387 / 0; 72,396 | 387 / 0; 72,396 |
+| Whole shape queries | 59,597 | 65,695 | 65,695 |
+| Step p99, all after the first | 371.0 µs | 392.5 µs | 351.3 µs |
+| The route p50 / p99 | 157.5 / 367.2 µs | 154.4 / 387.1 µs | 159.1 / 346.6 µs |
+| The hover p50 / p99 | 199.2 / 395.9 µs | 199.0 / 412.9 µs | 194.1 / 375.2 µs |
+| World queries in all p50 / p99 | 20.2 / 57.1 µs | 21.7 / 84.1 µs | 21.1 / 68.3 µs |
+| Allocated after the first step | 0 B | 0 B | 0 B |
+
+- **The line lies over the ground:** no segment deeper than `CrestDepth` (0.2 m) at the end or at any whole second, the deepest 0.110 m, and 0 refused crests. The tolerance is 3D depth; vertically the deepest is 0.092 m.
+- **Its cost (loaded, so only the pairs' differences mean anything):**
+  - The step's p50 is unchanged.
+  - Its p99 rises 21 µs between the A/B pair, the run before at 62 % load and the run after at 68 %.
+  - The world queries' p99 rises 11–27 µs, over D-061's 60 µs line: the ground tests' rays, about 0.15 µs a metre along the line (13–15 µs on the line's 100–370 m far segments), and their re-tests while the laid line slides.
+- **PLT-04 is not met on this machine by either core** (p99 351–413 µs). 2.2 measured the same case's step at 266–287 µs at 51–54 % load. Today's loads ran 62–68 %, and the case's stop is new. A quiet run is QA's (4.1), as 2.1's and 2.2's are.
+- **Where the time goes** (measured with temporary phase timers on an earlier build of 2.5, not committed; µs a step over the whole flight, after against before):
+
+  | Phase | After | Before |
+  |---|---|---|
+  | `FiberContacts.Prepare` | 50.6 | 46.5 |
+  | the loads | 15.8 | 13.5 |
+  | the chain's step | 17.4 | 14.8 |
+  | the cuts | 5.1 | 4.1 |
+  | 2.5's pass | 6.9 | – |
+
+  - The crests' nodes cost about 2 µs each a step, as any node does. The far line carries 10–15 of them over the farmland's hills.
+  - That build's rays, 81,359 of them, cost 13 µs each: 5 µs a step. `CrestSlack` at `KeepGap` halved that (72,396 tests now, most of them the airborne ones at 1.25 µs).
+- **What drives it:** the far line never freezes into the trail, because in Severe wind its laid nodes slide at 0.04–4.7 m/s.
+  - The wind field's profile stands on the ground under the drone, so a node on a hill 20 m higher sees the wind 20 m up (W7's wind over hills).
+  - With the near-ground wind right the far line would rest, freeze with its crests' nodes into the trail, and neither cost nor be tested.
+
+## No other answer changed (the evidence)
+- **`flightbench --golden`:** all 6 cases and every kept audit pass unchanged (60 PASS lines). Every golden flight is on a plane, where 2.5 does nothing.
+- **`worldbench --golden`:** floor 5, test range 14 and wakes 11 pass unchanged.
+  - The farmland's content hash, probes, ground, contacts and rays fail. The same 5 cases fail with the same hashes on the head (9847c69e, run in a temporary worktree).
+  - The merge (4866ce95) brought W2's re-exported package (classes and map.json) without re-recording `golden/farmland.txt`. That is the world's to re-record (1.2), not 2.5's: the filter changes no existing call's answer.
+- **The pilot's three model-79 flights replay bit for bit on this core:** 18,147, 66,941 and 234,901 step records (flights 37, 38 and 35).
+  - Run as `flightbench --replay-step` from a build whose model was set to 79, temporary and not committed.
+  - They fly the test range, a plane, where the crests' pass never runs.
+- **`dotnet test tools/simtests -c Release`:** 808 of 809 pass. The one failure is `FarmlandTests.Queries_AllocateNothingAfterTheFirst`, its 24 B in Release since 1.1 (tasks 1.2 lists it).
+- **Nothing was re-recorded.**
+
+## The model
+- **82 is kept and extended** (`LogFormat.ModelVersion`'s note):
+  - 82 is this change's own number, not merged to `unity/main`, and its definition already covers "any flight on a terrain".
+  - A flight on a plane steps as 82 did.
+  - A flight on a terrain differs from 2.2's 82. No such log is kept: the tests record and replay their own.
+- **For the orchestrator (D-072):** the `--w3-flight` and `--w3-blade` branches are at 82 without 2.5. A farmland log recorded there replays bit for bit only on their core. Assign a new number if one is kept.
+
+## For the next units (suggested, not this task's)
+- **W7, the wind over hills:** the profile's ground at each node rather than under the drone. The far laid line would then rest and freeze, which is this task's cost driver and the far line's slide (0.04–4.7 m/s in the farmland line's Severe wind).
+- **The world, `Terrain.Ray`:** a ray costs about 0.15 µs a metre on the farmland (two divisions a cell's fractions, four a facet). An incremental walk would cut the ground tests' share of the world queries' p99.
+- **The world, `golden/farmland.txt`:** re-record after the merged package, audited (1.2 or QA).
+- **The tether, a review:** in the farmland line's last leg the lead leaves the nozzle at 128–136° in steady flight and wraps the lip 165–172° at a stop, 1.8–2.3 GPa at 0.1 N, on both cores. Whether a light line in Severe wind sits so far round the nozzle is for the tether's review against the pilot's account (the sharp reverse).
+- **`FiberContacts.Prepare`** costs 46 µs a step on the farmland line with no objects at all (the phase timers above): the caches' refresh and the per-segment walks. That is worth a look with 2.3.
+- **QA (4.1):** a quiet run of `farmland-line-step`, with 2.1's and 2.2's owed ones. The Unity EditMode suite should also see the pose's 48 fiber nodes (`FiberView` sizes its rings by `FiberNodes.Capacity`).

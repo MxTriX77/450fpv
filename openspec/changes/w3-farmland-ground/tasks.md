@@ -29,7 +29,16 @@ Order: 1.1, then 2.1; 1.2 once W4a and W4b have merged onto the line; 2.2 alongs
   - snag checks index segments, not records (the debris rims are 1 cm stairsteps, 10,089 segments in the village).
   Model 82 if contact answers change, goldens audited. Same checks as 1.1.
 
-- [ ] 2.5 [physics-engineer] A laid fiber follows the hills: today a long laid segment runs straight between its nodes and cuts through rises (5 of 31 segments on the 1.5 km line dip up to 3.24 m under the ground). Insert a node where a segment dips under the ground, and let the line wrap the ledge's lip (a ground-walls-only query, as 2.2's design suggests). The line's tension, contacts and replays stay physical; model 82's goldens audited if answers change. Same checks as 1.1, plus `flightbench --bench farmland-line-step` with no segment under the ground.
+- [x] 2.5 [physics-engineer] A laid fiber follows the hills: today a long laid segment runs straight between its nodes and cuts through rises (5 of 31 segments on the 1.5 km line dip up to 3.24 m under the ground). Insert a node where a segment dips under the ground, and let the line wrap the ledge's lip (a ground-walls-only query, as 2.2's design suggests). The line's tension, contacts and replays stay physical; model 82's goldens audited if answers change. Same checks as 1.1, plus `flightbench --bench farmland-line-step` with no segment under the ground.
+  - As built (design.md §2.5, model 82 extended):
+    - `QueryFilter.GroundOnly`: StaticContacts and Raycast answer the ground alone.
+    - On a terrain a segment is tested by its chord raised by KeepGap as a ground-only ray, held between tests by a certificate (`CrestDepth` 0.2 m).
+    - A crest's node goes onto the ground at the deepest point's nearest surface point, the material shared by the pieces' taut paths. It is never merged away, with 16 nodes of room besides the spacing law's 32.
+    - The ledge's lip is wrapped by the same rule.
+    - Planes step as before: every golden unchanged, the model-79 flights replay bit for bit.
+    - The farmland line: 0 of 42 segments deeper than 0.2 m (the deepest 0.096 m; before, 5 of 31, 4.10 m), whole, 0 B.
+    - The farmland line's route now stops at 2.4 m/s²: its one-step stop wrapped the lip 165–172° on every core.
+  - **Owed:** the step's p99 is +21 µs and the world queries' +11–27 µs (over the 60 µs line) on a loaded machine where neither core meets PLT-04. A quiet run is QA's (4.1). The far line's slide in Severe wind on hills (W7) drives the cost.
 
 ## 3. Flight on the farmland
 

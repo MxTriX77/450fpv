@@ -26,6 +26,17 @@ A laid fiber segment resting near shapes SHALL NOT cost a full static-contact qu
 - **WHEN** a seeded flight lays 1.5 km of fiber through a tree belt and the village, then hovers 60 s
 - **THEN** the p99 step time is at most 300 µs, and the flight allocates 0 B after its first step
 
+### Requirement: A laid fiber lies over the ground
+On a terrain, the fiber's chain SHALL NOT pass through the ground between its nodes: where a segment's chord passes more than InsertGap (0.05 m) under the ground, a node SHALL go onto the ground at its deepest point, and a node the ground holds over the chord between its neighbours SHALL NOT be merged away. Between the tests no segment SHALL lie deeper in the ground than the stated tolerance. A flight on a plane SHALL step as before, bit for bit.
+
+#### Scenario: A line laid over a crest
+- **WHEN** a line is laid over a 3 m ridge whose spacing-law chords pass more than a metre under its crest, and the drone flies away from it
+- **THEN** a node lies on the ground at the crest line, no segment lies deeper in the ground than the tolerance at any step's end, the line stays whole, and the flight replays bit for bit
+
+#### Scenario: A line wraps the ledge's lip
+- **WHEN** a line laid on the far ring is dragged up the ledge's 1.5 m face and over its lip
+- **THEN** a node lies on the lip while the line runs over it, and no segment cuts through the step's corner deeper than the tolerance
+
 ### Requirement: The player flies the farmland
 The player SHALL fly the farmland from its village start point (D-092), and the test range SHALL leave the player while it stays for headless tests and benches.
 
