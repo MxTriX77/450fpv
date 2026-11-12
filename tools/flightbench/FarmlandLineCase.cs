@@ -73,7 +73,8 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"{Name}: the farmland ({map.PlacedObjects} placed objects), from the village's track along {length:F0} m of route at {Height:F0} m over "
                 + $"the ground and {Speed:F0} m/s, then a {Hover:F0} s hover; 2.0 kg, legs on, Severe wind; {flown}. "
                 + $"{steps} steps unpaced: all after the first p99 {p99:F1} µs; the climb {P(times, 1, first)}; the route {P(times, first, routeEnd)}; "
-                + $"the hover {P(times, routeEnd, steps)}; world queries a step (the second flight) p50 {q[q.Length / 2] * us:F1} µs, p99 {q99:F1} µs, "
+                + $"the hover {P(times, routeEnd, steps)}; world queries a step (the second flight) on the ground and in the climb {P(queries, 1, first)}, "
+                + $"in all p50 {q[q.Length / 2] * us:F1} µs, p99 {q99:F1} µs, "
                 + $"max {q[q.Length - 1] * us:F1} µs, {calls:F1} calls a step ({(q99 < 60 ? "under" : "over")} the 60 µs line); "
                 + $"allocation after the first step {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B, the line whole and 1.5 km out, the drone up)");
             return ok;
@@ -109,9 +110,38 @@ namespace Fpv450.FlightBench
             flown = $"the line {line.PaidOut:F1} m paid out, {line.Chain.Count} nodes, {line.TrailCount} trail points"
                 + (line.Broken ? $", broken at step {line.BrokenAt} ({line.LastBreak.Mechanism})" : "")
                 + (crashed >= 0 ? $", the drone crashed at step {crashed}" : "")
-                + $"; its whole shape queries {line.Contacts.QueriesTotal}, its one-shape checks {line.Contacts.ChecksTotal}";
+                + $"; its whole shape queries {line.Contacts.QueriesTotal}, its one-shape checks {line.Contacts.ChecksTotal}"
+                + Buried(map, line.Chain);
             core.Wind.Dispose();
             return times;
+        }
+
+        // The chain's segments over the terrain at the end (w3-farmland-ground 2.2): a node takes the ground from SampleGround and
+        // a segment's query leaves it out (2.1), so a straight segment between two laid nodes may cut through a rise between them.
+        // The deepest any point of a segment (every 0.5 m) lies under the ground, and how many segments do so by more than 1 cm.
+        static string Buried(MapWorld map, CableChain chain)
+        {
+            var at = new XZ[1];
+            var g = new GroundSample[1];
+            double deepest = 0, longest = 0;
+            int buried = 0;
+            for (int j = 0; j + 1 < chain.Count; j++)
+            {
+                Double3 a = chain[j].Position, b = chain[j + 1].Position;
+                double length = (b - a).Length(), deep = 0;
+                longest = Math.Max(longest, length);
+                int n = Math.Max(2, (int)(length / 0.5));
+                for (int i = 1; i < n; i++)
+                {
+                    Double3 x = a + (b - a) * ((double)i / n);
+                    at[0] = new XZ(x.X, x.Z);
+                    map.SampleGround(at, g);
+                    deep = Math.Max(deep, g[0].Height - x.Y);
+                }
+                if (deep > 0.01) buried++;
+                deepest = Math.Max(deepest, deep);
+            }
+            return $"; at the end {buried} of its {chain.Count - 1} segments (the longest {longest:F0} m) cut more than 1 cm under the ground, the deepest {deepest:F2} m";
         }
 
         static FlightSetup Setup(MapWorld map, out Double3 foot, out double stand, out Double3 nose)
@@ -130,7 +160,10 @@ namespace Fpv450.FlightBench
             double dx = Route[1].X - Route[0].X, dz = Route[1].Z - Route[0].Z, d = Math.Sqrt(dx * dx + dz * dz);
             nose = new Double3(dx / d, 0, dz / d);
             double heading = Math.Atan2(dx, dz); // D-019: positive yaw turns north towards east
-            DetMath.SinCos(heading / 2, out double sin, out double cos);
+            // Set down on the track's facet (5.4° there), its skids on it and 10 µm in (w3-farmland-ground 2.2): set level, its
+            // supports stood up to 23 mm in the ground, two legs broke at the first step and two by 0.45 s, and the line flew
+            // without legs while their four pieces rolled on the terrain, the climb's world-query cost.
+            Double3 up = ground[0].Normal;
             return new FlightSetup
             {
                 Seed = Seed,
@@ -150,8 +183,8 @@ namespace Fpv450.FlightBench
                 Flapping = spec.BuildFlapping(),
                 Interference = spec.BuildInterference(),
                 Modes = spec.BuildModes(),
-                StartPosition = foot + new Double3(0, stand, 0),
-                StartAttitude = new Quat(0, sin, 0, cos),
+                StartPosition = foot + up * (stand - 1e-5),
+                StartAttitude = SlopeScenarios.Aligned(up, heading * 180 / Math.PI),
                 Tether = TetherTable.Parse(File.ReadAllText(Path.Combine(RangeScenarios.Root, TetherTable.RelativePath))),
                 TetherCoilPart = spec.Coil.Part,
                 TetherSpoolMass = spec.Coil.SpoolMass,
