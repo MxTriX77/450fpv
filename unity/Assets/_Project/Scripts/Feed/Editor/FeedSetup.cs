@@ -26,6 +26,7 @@ namespace Fpv450.Feed
             "Assets/_Project/Settings/URP-Low-Renderer.asset",
             "Assets/_Project/Settings/URP-Medium-Renderer.asset",
             "Assets/_Project/Settings/URP-High-Renderer.asset",
+            "Assets/_Project/Settings/URP-High-FeedOutput-Renderer.asset", // the output camera's: the feed alone
         };
 
         public static void Apply()

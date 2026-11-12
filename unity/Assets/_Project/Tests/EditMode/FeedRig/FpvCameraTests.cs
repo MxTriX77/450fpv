@@ -273,5 +273,27 @@ namespace Fpv450.Feed.Tests
                 Assert.That(feature.isActive, Is.True, level);
             }
         }
+
+        /// The output camera draws nothing but the feed (w6-farmland-look 1.2): every pipeline has a renderer whose only
+        /// feature is the feed, which the rig gives its output camera, and on High it is not the scene's renderer, so
+        /// High's SSAO runs on the scene camera alone.
+        [Test]
+        public void TheOutputCameraHasARendererForTheFeedAlone()
+        {
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(FeedSetup.ShaderPath);
+            foreach (string level in new[] { "Low", "Medium", "High" })
+            {
+                var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>($"Assets/_Project/Settings/URP-{level}.asset");
+                int output = FpvCamera.OutputRendererOf(pipeline);
+                Assert.That(output, Is.GreaterThanOrEqualTo(0), level);
+                var feature = (FeedFeature)pipeline.rendererDataList[output].rendererFeatures[0];
+                Assert.That(feature.Shader, Is.SameAs(shader), level);
+                Assert.That(feature.isActive, Is.True, level);
+                bool sceneSsao = pipeline.rendererDataList[0].rendererFeatures.Exists(f => f is ScreenSpaceAmbientOcclusion);
+                Assert.That(output, sceneSsao ? Is.Not.EqualTo(0) : Is.EqualTo(0), level);
+                if (level == "High")
+                    Assert.That(sceneSsao, Is.True, "High's scene renderer keeps the friend's SSAO (w6-farmland-look 1.1)");
+            }
+        }
     }
 }
