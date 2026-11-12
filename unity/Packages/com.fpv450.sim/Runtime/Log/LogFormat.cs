@@ -803,8 +803,16 @@ namespace Fpv450.Sim.Log
         ///    air and the chain the drone's pose and parts: they compose without new code. With EdgewiseThrust off a flight steps as
         ///    in 78; with FlightSetup.TetherLinearStep and model 70's drone.json, exit, lip and peel as in 76; every flight without the
         ///    line steps as in 76.
+        /// 82: the flight on hills (w3-farmland-ground 2.2, on 79; unity/physics/physics-integration-2--w3-ground; 80 and 81 are parallel
+        ///    lines'): on a terrain (Geometry(Ground, 0) false) a support takes its ground from its own sweep's contact (a facet, a step's
+        ///    face, the lip between them), a skid's sweep leaves the ground out, a prop's blades meet the ground as the plane of their
+        ///    disc's contact (ContactModel.GroundPlane), and a fiber node behind a step's face takes the face; a sample's overlap is
+        ///    r − n_y·(y − h), the same bits on a level plane; a certified fiber segment's ends move the margin less KeepGap, not less the
+        ///    line's radius; and a leg's anchor takes no slide along a slip it holds no stiffness along (ContactModel.NilStiffness). Every
+        ///    flight on a plane whose certified segments no shape came within KeepGap of, and whose legs never slid along a nil stiffness,
+        ///    steps as in 79.
         /// </summary>
-        public const int ModelVersion = 79;
+        public const int ModelVersion = 82;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
