@@ -165,6 +165,11 @@ namespace Fpv450.WorldBench
                 Add(e.Diameter); Add(e.Area); Add(e.Parent); Add(e.ParentShape);
             }
 
+            public void Add(in StemPatch p)
+            {
+                Add(p.Cell); Add((long)p.Layer); Add((long)p.Kind); Add(p.Area); Add(p.Density); Add(p.HeightMin); Add(p.HeightMax);
+            }
+
             public void Add(in Conductor c)
             {
                 Add(c.Object); Add(c.Shape); Add(c.Diameter); Add(c.MassPerMetre); Add(c.Sag); Add(c.AxialStiffness); Add(c.BreakingForce);
@@ -272,7 +277,7 @@ namespace Fpv450.WorldBench
                 + GoldenFile("test-range", "the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand", TestRangeCases(), record)
                 + GoldenFile("wakes", "the wake grid over its synthetic layout (p7c-wind 1.3)", WakeBench.Cases(), record,
                     "every cell's and sample's bits; WakeGrid.Version bumps with a re-record")
-                + GoldenFile("farmland", "the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2)", FarmlandCases(), record)
+                + GoldenFile("farmland", "the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2) and its stem field (w9-village-physics 2.1)", FarmlandCases(), record)
                 + GoldenFile("farmland-wind", "the farmland's wind rows (w7-farmland-wind 1.1)", FarmlandWindCases(), record,
                     "every printed number's bits, the hills' grid on a lattice and the Severe field at the rows' points", "a model bump (D-072)");
             if (record)

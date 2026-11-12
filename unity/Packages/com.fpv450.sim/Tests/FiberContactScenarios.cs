@@ -921,6 +921,7 @@ namespace Fpv450.Sim.Tests
         public string MaterialName(ushort material) => _floor.MaterialName(material);
         public ushort MaterialId(string name) => _floor.MaterialId(name);
         public string SurfaceName(byte surface) => _floor.SurfaceName(surface);
+        public int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results) => 0;
 
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results)
         {

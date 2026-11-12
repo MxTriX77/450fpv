@@ -77,7 +77,7 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void Load_DerivesTheTwelveStepLines_TheLedgeAndTheFarSeams()
         {
-            Assert.That(World.QueryVersion, Is.EqualTo(8));
+            Assert.That(World.QueryVersion, Is.EqualTo(9));
             Assert.That(World.PlacedObjects, Is.EqualTo(1679), "its trees, bushes, ruins and debris (1.2; FarmlandObjectTests)");
             TerrainStep[] steps = World.TerrainSteps;
             Assert.That(steps.Length, Is.EqualTo(12));

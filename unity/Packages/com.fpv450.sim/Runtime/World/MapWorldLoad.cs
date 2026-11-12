@@ -96,10 +96,11 @@ namespace Fpv450.Sim.World
                 JsonNode files = DetJson.Parse(manifest).Member("files");
                 if (files.Member("placements.json") == null) // a package of tiles alone (the tests' synthetic ones): no objects
                     return new MapWorld("{\"format\":\"fpv450-map-placements\",\"format_version\":1,\"map\":\"" + terrain.MapId
-                        + "\",\"frame\":\"unity-lh-yup\",\"placements\":[]}", null, MaterialNames(Read(MaterialsFile)), terrain, manifest, null);
+                        + "\",\"frame\":\"unity-lh-yup\",\"placements\":[]}", null, MaterialNames(Read(MaterialsFile)), terrain, manifest, null, null);
                 byte[] placements = Terrain.Checked("placements.json", files, relative => File.ReadAllBytes(At(folder + relative)), "map.json");
+                StemField stems = ReadStems(manifest, relative => File.ReadAllBytes(At(folder + relative)), () => Read(PlantNumbers));
                 return new MapWorld(Encoding.UTF8.GetString(placements), model => Read(ModelsRoot + "/" + model), MaterialNames(Read(MaterialsFile)),
-                    terrain, manifest, VendorAssets(Read(VendorPlants), Read(VendorRuins)));
+                    terrain, manifest, VendorAssets(Read(VendorPlants), Read(VendorRuins)), stems);
             }
             return new MapWorld(Read("maps/" + mapId + "/placements.json"), model => Read(ModelsRoot + "/" + model),
                 MaterialNames(Read(MaterialsFile)));
@@ -148,19 +149,21 @@ namespace Fpv450.Sim.World
         /// name i (MaterialNames). Every material a shape or wire names must be among them.
         /// </summary>
         public MapWorld(string placementsJson, Func<string, string> readModel, string[] materials)
-            : this(placementsJson, readModel, materials, null, null, null)
+            : this(placementsJson, readModel, materials, null, null, null, null)
         {
         }
 
         /// <summary>
         /// The world of a placement file on its ground plane (`terrain` null), or of a map package's placements.json on its
         /// terrain (Terrain, from the package's manifest; `vendor` each row's variant's "&lt;class&gt;/&lt;asset&gt;", VendorAssets).
-        /// On a terrain the file has no ground record, and the content hash continues over the manifest.
+        /// On a terrain the file has no ground record, and the content hash continues over the manifest; with a stem field
+        /// (ReadStems), over the plants' numbers last.
         /// </summary>
         private MapWorld(string placementsJson, Func<string, string> readModel, string[] materials, Terrain terrain, string manifest,
-            Dictionary<string, string> vendor)
+            Dictionary<string, string> vendor, StemField stems)
         {
             _terrain = terrain;
+            _stems = stems;
             if (materials == null || materials.Length >= ushort.MaxValue)
                 throw new ArgumentException("one to 65534 material names", nameof(materials));
             _materials = (string[])materials.Clone();
@@ -446,6 +449,8 @@ namespace Fpv450.Sim.World
             foreach (string path in paths)
                 hash = WorldHash.HashFile(hash, Encoding.UTF8.GetBytes(metas[path].Text), true);
             hash = WorldHash.HashFile(hash, Encoding.UTF8.GetBytes("materials\n" + string.Join("\n", _materials)), true);
+            if (stems != null) // the stem field's counts are under the manifest's SHA-256; its stems per instance are the plants' numbers
+                hash = WorldHash.HashFile(hash, Encoding.UTF8.GetBytes(stems.NumbersText), true);
             ContentHash = hash;
         }
 

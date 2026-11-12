@@ -870,6 +870,7 @@ namespace Fpv450.Sim.Tests
                 _floor.Raycast(rays, maxDistance, hits, filter);
             public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _floor.WiresNear(centre, radius, results);
             public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) => 0;
+            public int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results) => 0;
             public bool Geometry(int obj, int shape, out ShapeGeometry geometry) => _floor.Geometry(obj, shape, out geometry);
             public bool ShapeContact(int obj, int shape, in Capsule previous, in Capsule current, double margin, out StaticContact contact) =>
                 _floor.ShapeContact(obj, shape, previous, current, margin, out contact);

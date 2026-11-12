@@ -221,6 +221,7 @@ namespace Fpv450.WorldBench
             cases.Add(("farmland.rays", Hex(rayBatched.Value), rayBatched.Value == rayOne.Value));
             Console.WriteLine($"  farmland.rays: {ground} of {rays.Length} rays hit the ground, {faces} a step's face, {rays.Length - ground - Miss(hits)} an object first");
             cases.AddRange(FarmlandObjectCases(world));
+            cases.AddRange(FarmlandStemCases(world));
             return cases;
         }
 
@@ -551,6 +552,7 @@ namespace Fpv450.WorldBench
                 }
             }
 
+            failures += FarmlandStemBench(world);
             Console.WriteLine(failures == 0 ? "worldbench: farmland bench done, every budget met (judged on AC only)" : $"worldbench: farmland {failures} over budget or allocating");
             return failures == 0 ? 0 : 1;
         }

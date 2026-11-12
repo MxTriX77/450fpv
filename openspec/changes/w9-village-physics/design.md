@@ -111,7 +111,135 @@ The `layers` rows give each of the 14 layers its stems per instance, its drawn h
 
 ## 2.1 Village's stem field
 
-To be written by task 2.1.
+**Built:** `MapWorldStems.cs` derives the field at load from the package and the plants' numbers; `IWorldQuery.StemsNear` reads it (`QueryVersion` 9). `tools/map/validate.py` checks it, `StemFieldTests` and worldbench's three `farmland.stems.*` cases pin it. The editor check is `Fpv450.DetailInstanceCheck` (`unity/Assets/_Project/Editor/Farmland/`).
+
+### The editor check: are `ComputeDetailInstanceTransforms` the drawn instances?
+
+Run in batchmode on the friend's scene (read only, never saved), Unity 6000.3.26f1 on D3D12, at three 8 m windows: the densest tall cell (768.07, 917.48), Grass_A's densest cell (283.69, 969.24) and the densest cell overall (869.63, 151.86). Measured:
+- **The terrain's settings:** `detailObjectDensity` 1, `InstanceCountMode`, 1,024 cells in patches of 32. Every one of the 14 prototypes is an instanced mesh with `useDensityScaling` off, `alignToGround` 0.5 and `positionJitter` 100.
+- **The same instances, the same counts:** over 6 patches × 14 layers, the transforms equal the cells' counts in every patch and layer. Each cell holds exactly its count in all but 4 of the 86,016 cells checked; those 4 are two transforms on a cell's edge, each read into its neighbour.
+- **The density setting doesn't matter here.**
+  - At density 0.5 the transforms are the same as at 1.
+  - The terrain drawn at `detailObjectDensity` 0.5 covers as many pixels as at 1, within 0.1 %. Its pixels differ from the density-1 picture by 3.7–6.7 % of those covered, against 1.4–2.3 % between two renders at the same density. The gap is likely more sway between more renders (assumed).
+  - With `useDensityScaling` off, the friend's terrain draws every counted instance at any density.
+- **The same places, not the same blades:** drawn from straight above, the terrain's own picture and the transforms drawn with each prototype's mesh share every tuft's centre. Their pixels still differ by 27–61 % of the covered union:
+  - The yaw is in radians: in degrees, the difference is 63–84 %.
+  - The terrain differs from itself between two renders by 1.4–2.3 % of its covered pixels: the shader's wind sways the blades.
+  - Tilting each instance halfway to the ground's normal (`alignToGround` 0.5, my reading of it) closes part of the gap: 35 → 27 %, 61 → 55 %, 60 → 59 %.
+  - So the struct carries the instance and its place, but not the tilt or the sway the renderer adds. A stem-by-stem copy of the drawn blades can't be had from it.
+
+### Per cell, not per instance
+
+| | Per cell and layer (built) | Per drawn instance |
+|---|---|---|
+| Data | `grass/map.raw` as exported, 14.0 MiB, plus per layer a table of 45–178 doubles | 2.84 M × (x, y, z, scale xz, scale y, yaw) in float32 = 68 MB (derived), plus a cell index (4 MB) |
+| Package | nothing new: the file is already in it and under its SHA-256 | a new LFS file of about 68 MB; the exporter re-run in the friend's scene |
+| Load | 46 ms for the read and the SHA-256, measured on a loaded machine; the tables under 5 ms (derived: 14 layers × at most 178 steps × 64 scales) | about 220 ms for the read and the SHA-256 alone (46 ms × 68 / 14, derived), then parsing |
+| Player | +14.0 MiB in StreamingAssets (`MapWorld.Load`'s reads carry it) | +68 MB |
+| Query, 4 rotor discs | median 3.7 µs, p99 13.5 µs, 0 B (measured, indicative) | about the same: up to 15 instances a cell to test instead of 14 bytes |
+
+**Why per cell:**
+- **An instance places a tuft, not its stems.** A tuft spans its mesh's footprint times its width scale: Grass_A 0.31 m × 2.6–3.6 = 0.80–1.12 m, GrassDry_A 0.41 m × 1.2–1.7, GrassDry_C 0.58 m × 1.0–2.2, Grass_B 1.0 m × 1.2–1.7. The footprints are measured from the store's meshes, the products derived. Spread over about a cell, a tuft's pivot says little more about where its 110–2,050 blades stand than the cell does.
+- **The drawn pose isn't recoverable anyway** (the check above). Per instance would cost five times the memory and a re-export, and would still not give "what is drawn is what is touched" blade by blade.
+- **The count is what 2.2 and 2.10 need:** stems per m² by kind and height, and how many lie under a disc. Per cell gives that from data already in the package.
+
+### The rule
+
+- **Stems per m²** of layer l in cell c = count(c, l) × stems per instance(l) / the cell's area (0.9537 m²).
+  - The count comes from `grass/map.raw`.
+  - The stems per instance come from 2.8's prefab rows in `assets-src/vendor_plant_numbers.json`.
+  - A cell with no drawn grass has no stems.
+  - The map only: the surround's grass within 170 m of the edge isn't exported (README), so outside `map_rect_m` there are no stems.
+- **The kind is the group's state:**
+  - Green, GreenClump and TallGreen → `GreenBlade`.
+  - Dry, DryClump and TallDry → `DryCulm`.
+  - Burnt and TallBurnt → `BurntCulm`.
+  - This departs from the audit's suggestion (Tall* → dry culm): TallGreen draws Grass_A's green material and TallBurnt the burnt tint, so the group's name is the state.
+- **The height range** is the drawn tops: `mesh_y_m[1]` × the layer's height scale range. For example, TallDry GrassDry_C reaches 0.6789 × 1.8–2.6 = 1.222–1.765 m.
+- **How many reach a height h above the ground:**
+  - Per instance, R(h / top), where R is 2.8's count profile turned into its upper envelope: at each plane, the most any plane at or above it crosses. So R never rises with height, and at and below the densest plane it equals the stems per instance.
+  - R is linear between the 5 % planes, falls linearly from the 95 % plane to 0 at the top, and is 0 from the tallest top up.
+  - The top is the mesh's top × a height scale drawn uniformly over the layer's range. Reach(h) is R's mean over 64 scales at the range's midpoints, tabled every 1 cm and read linearly between entries.
+
+### The query (for the physics engineer's sign-off at 2.2)
+
+```csharp
+int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results);
+struct StemPatch { int Cell; byte Layer; StemKind Kind; double Area, Density, HeightMin, HeightMax; }
+```
+
+- **One circle in x–z and one height above the ground** serves both of the physics' asks:
+  - A rotor disc at its height above the ground at the hub: 2.2's stems under the disc that reach it.
+  - A leg's foot or a fiber node with its radius at height 0: 2.10's every stem there.
+  - The disc's tilt and the ground's slope within a disc are the physics' to fold into the one height. A 0.127 m disc tilted 30° spans ±0.06 m of height, against tops spread over 0.2–0.5 m within a layer.
+- **The result per (cell, layer):**
+  - `Density`: stems per m² reaching `height`.
+  - `Area`: the circle's area inside the cell, exact by four signed quadrant boxes, one Atan2 pair each.
+  - The stems under the disc are Σ Density × Area, continuous as the disc crosses a cell's edge.
+  - `Kind`, so 2.2 reads each kind's published stem from 2.11.
+  - `HeightMin` and `HeightMax`, so the physics knows how much stem stands above the cut. A stem already cut stands lower; that state is the physics', not the world's.
+  - `Cell` and `Layer`, so the physics can key that cut state.
+- **Its rules:**
+  - The order is canonical: row north to south, then column, then layer.
+  - It returns the true count on overflow.
+  - It returns 0 off the map, on the floor and on the test range.
+  - Only + − × ÷, √ and `DetMath.Atan2`; allocation-free and reentrant.
+- **Nothing more is built:** no stem positions, no per-stem draw and no wind cover. The cover per cell is W7's follow-up.
+
+### Format and identity
+
+- **No new file and no exporter change.** The field is derived at load from `map.json`'s `grass` block (file, resolution, each layer's prefab, group, `height_scale` and `mesh_y_m`), `grass/map.raw` (checked against the manifest's SHA-256) and `assets-src/vendor_plant_numbers.json` (the prefabs' `stems` and `profile`).
+- **The content hash** continues over `vendor_plant_numbers.json`'s text after the material names. The farmland's hash moves from `7249f5a8adb997d7` to `5d305d09f5d09021`; the map.json hash already covered the counts.
+- **`QueryVersion` 9.**
+  - worldbench's golden files were re-recorded for the version line only: every earlier case of the floor, the test range and the farmland is unchanged, bit for bit, in Release and Debug.
+  - `farmland.txt` gains `farmland.stems.cells`, `.random` (10,000 circles, the same bits on four threads) and `.field`.
+  - A model-85 farmland log now refuses to replay (it has another query version and content hash), as with any `QueryVersion` bump.
+- **`validate.py`** checks, per layer, that the plants' numbers name the same prefab and group in the same row, that the group has a kind, that the stems per instance are the profile's most, and that the drawn heights are `mesh_y_m[1]` × `height_scale` within 1 mm. It also checks that the field's stems over the map equal the plane's instances × its stems per instance. worldbench's `farmland.stems.field` repeats that last check through `StemsNear` itself, at every grass cell: all 14 layers agree.
+
+### The numbers
+
+| Number | Value | Label |
+|---|---|---|
+| Cell side, area | 0.9765625 m, 0.9537 m² | carried (README) |
+| Stems per instance | 110–2,050 by prefab | measured by 2.8, carried |
+| Count profile, planes at 5–95 % of the mesh top | 2.8's `profile` | measured by 2.8, carried |
+| Height scale spread | uniform over the layer's range | assumed: Unity spreads it by a Perlin noise (`noiseSpread` 0.1) |
+| Reach table | 1 cm steps, 64 scales | derived |
+| Stems on the map | green blades 403.8 M, dry culms 178.1 M, burnt culms 60.1 M; 642 M in all, a mean of 642 /m² | derived |
+| Densest cell | 5,496 /m² at (869.63, 151.86) | derived |
+| Kind per group | as above | assumed, from the group's name and material |
+| Rotor disc radius in the cases | 0.127 m (a 10-inch prop) | carried |
+
+**At the three golden cells** (derived; stems per m² reaching h, and the stems in the circle):
+- **The densest tall cell, (768.07, 917.48),** with 11 drawn layers and a disc of r 0.127 m (0.0507 m²):
+
+  | h (m) | 0 | 0.3 | 0.6 | 1.0 | 1.5 |
+  |---|---|---|---|---|---|
+  | Stems per m² | 2,345 | 1,299 | 345 | 43 | 2 |
+  | In the disc | 118.8 | 65.8 | 17.5 | 2.2 | 0.1 |
+
+  Above 1.0 m, only the tall layers and the tall burnt culms remain.
+- **A bare `tilled` cell, (229.98, 257.32):** no stems at any height.
+- **The east edge's cell, (999.51, 908.69),** with a circle of r 0.6 m at (999.9, 908.69):
+  - 0.685 m² of the circle lies on the map, the closed form's π r² minus the 0.446 m² segment past x = 1000. Those cells hold 2,695 stems at h = 0, 433 at 0.3 m and 15 at 0.6 m.
+  - The segment holds none.
+
+**Sanity:** the drawn grass is 236 /m² for one Grass_A instance and 944 /m² for the green edge cell, against K§7.2's assumed 400 for meadow (carried). 2.11's published stand densities will say how far "what is drawn" sits from real swards; 2.8 puts the drawing's count within about ±30 % of real tillers (assumed).
+
+### Costs (measured on this laptop on AC, Balanced plan, best power efficiency mode, with other agents running: indicative)
+
+- **The field's load:** 46 ms to read `grass/map.raw` and check its SHA-256. The whole farmland load was 2,620 ms under that load.
+- **Memory:** 14.0 MiB held.
+- **A step's four rotor discs at 0–1.8 m:** median 3.7 µs, p99 13.5 µs, 0 B, 3.2 (cell, layer) pairs a query.
+- **Four leg points at 0 m:** median 2.2 µs, p99 4.5 µs, 0 B.
+- **The worst case** (a disc on a cell corner in the densest field) is 4 cells × 14 layers, 56 bytes read and at most 4 area evaluations. Its maxima (881 µs and 209 µs) are this machine's scheduling under load, as the existing rows' maxima are.
+
+### What 2.2 needs to know
+
+- **Fold the hub's height above the ground into `height`.** Ask once per rotor per step with the disc's radius. The stems the disc meets are Σ Density × Area per kind, a mean count with no draw, as `PropStrikes.Twigs`.
+- **Cut state is yours.** Key it by (`Cell`, `Layer`); a cut stem stands at the cut height.
+- **Widths and stiffness come per kind from 2.11.** 2.8's drawn widths are only a check.
+- **The field ends at the map's edge,** and there is no wind cover from it yet.
 
 ## 2.2 Stems on the props
 
