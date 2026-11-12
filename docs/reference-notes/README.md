@@ -10,6 +10,7 @@ These notes were copied verbatim from the Godot repo (`MxTriX77/450fpv`, `main`)
 | [airframes.md](airframes.md) | public specs of the reference airframes; class mass and thrust |
 | [pilot-requirements.md](pilot-requirements.md) | PR-1 to PR-11, in the pilot's words, then interpreted |
 | [ground-micro-motion.md](ground-micro-motion.md) | new for D-064: the camera's micro-motion near the ground by phase, axis and band (C, D, E, F, H, A), clip S's low cruise, the recorder's 2-2-1 field steps, and the targets for the physics |
+| [stem-properties.md](stem-properties.md) | new for w9-village-physics 2.11: published stem and leaf properties per kind (green grass, dry culms, weed stalks, straw, tree leaves), the critical speed for impact-cutting a free stem, stand densities, stem drag, and what the props' stem physics should use |
 
 ## Things that changed since they were written
 - **The drone's name** is now **"Svinoriz 10 Opto"** (the pilot, 2026-10-17). These notes say "Svinorez".
