@@ -1,0 +1,72 @@
+{
+  "source": {
+    "prefab": "Assets/Farm_land/Prefabs/Trees/IslandTree.prefab",
+    "prefab_sha256": "bdc682d734c6272426b823d47e15b7155f5d5d3013d46f1e1dc9e08fca1376d1",
+    "mesh_file": "Assets/Farm_land/Models/island_tree_reduced.fbx",
+    "mesh_sha256": "6e6d13c9dfe5d7904765ae5ac9439dc967222d40e561013039087d6d45dcc70a",
+    "mesh_meta_sha256": "4f7feca05695acaaf0bfa96f5e79cf388730862d8bc644aeab73fa08969bb969",
+    "mesh_name": "island_tree_LOD0"
+  },
+  "slots": [
+    {
+      "material": "IslandTree_Bark",
+      "role": "wood",
+      "physics": "bark"
+    },
+    {
+      "material": "IslandTree_Twigs",
+      "role": "foliage",
+      "material_sha256": "c34bef43e162563b11d2c62a81464025212cec84c722dff59449579b67cc929d",
+      "shader_sha256": "995c7fa4c1a6d7916982f94adc2b4b79f7623f9313ca00ef874674d486a5721d",
+      "base_map": "Assets/Farm_land/Materials/island_tree_01_4k/textures/island_tree_01_branches_diff_4k.png",
+      "base_map_sha256": "b503cc489c17e280f5523a8092d0c02baf40e002787ff4b817ee672de250ca8d",
+      "base_map_meta_sha256": "0632cf0bcc6eec7682f6837a0307832fe91bd4a208164da2d79e18fcd9e7657f",
+      "sprays": "hooks"
+    },
+    {
+      "material": "IslandTree_Leaves",
+      "role": "foliage",
+      "material_sha256": "c920e1e5e47bcb921f1ab0e8c6df9a7dc9cc44ea02be3e1e163ec0e745b8b6a8",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
+      "base_map": "Assets/Farm_land/Models/island_tree_leaves.png",
+      "base_map_sha256": "6d125001623c7b0ae0c9da386b6a57d930eb5a9e0789a7c036a408ce91586332",
+      "base_map_meta_sha256": "6357c8b73d92a3b841074582b95171621341c06ba5779cd7f2ebb7f2d0eba9ee",
+      "sprays": "none"
+    }
+  ],
+  "wood": {
+    "step_m": 0.1,
+    "section_tol_m": 0.03,
+    "max_len_m": 2.0,
+    "min_radius_m": 0.005
+  },
+  "foliage": {
+    "spacing_m": 0.04,
+    "reach_m": 0.1,
+    "depths_m": [
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "max_radius_m": 1.5
+  },
+  "sprays": {
+    "min_length_m": 1.0,
+    "slenderness": 70.0,
+    "max_radius_m": 0.03,
+    "capsule_m": 2.0
+  },
+  "wind": {
+    "column": true
+  },
+  "lod": {
+    "fov_deg": 60.0
+  }
+}
