@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, tasks 1.1 (the heightfield) and 2.1 (the fiber's query cost)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 2.1 (the fiber's query cost) and 2.2 (the flight on hills)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -338,3 +338,163 @@ The one-shape checks that replace the whole queries cost 22–97 µs at 49–185
 - **Unchanged, flagged:** the clearance certificate lets a segment's ends move the margin less the line's radius from the certified core before the next query.
   - So a shape can come within the line's radius of a certified segment, inside `InsertGap`, without a slot.
   - `margin − InsertGap` would close it, but that changes answers (a new model). It is noted here, not changed.
+
+# Task 2.2: the flight on hills
+
+**Owner of this part:** physics-engineer · **For:** 2.3, 2.4, 3.1, 4.1 (qa-engineer) · **Requirements:** PHY-01, PHY-02, PHY-04, PLT-04, WLD-11, WLD-16 · **Model:** 82 · **QueryVersion:** 8, unchanged (no world code changed)
+
+Numbers are labelled as above. "Before" is this branch at d45f2054 (model 79), built in a worktree with the same scenario files; "after" is the head. The scenarios are `SlopeScenarios` (the suite asserts them in `SlopeTests`), printed by `flightbench --slopes`.
+
+## The rows' world
+- **A slope is a package the scenario writes:** one 64 m tile of `meadow_sod` at 1 m spacing, a plane rising north whose rows rise a whole number of 2 mm height units a metre, so every facet has the plane's normal. The facets are 0, 9.98, 20.00, 30.03 and 38.03° (measured from SampleGround's normals). The village's steepest plot is 37.6° (1.1).
+- **0° is the stub floor of `meadow_sod`** (FloorWorld, a plane), and a 0° tile of the package is its terrain twin: the same ground through the terrain's code.
+- **The steps are the farmland's own** (`maps/farmland/`): the east ledge at x = 2000, z = 500 (1.504 m), and the far_N | far_NE seam's highest step on x = 2000 for z in 2100–4900 (73.8 mm).
+
+## Decisions
+
+### 1. A support stands on the terrain's nearest piece (`ContactModel.TerrainGround`)
+- **On a terrain** (`Geometry(Ground, 0)` false) a support's ground pair comes from its own sweep's contact with the ground. That is the piece nearest it: a facet, a step's face or the lip between them. Its plane is measured at the core now, as a latch's (`Depth`). The sweep already ran (the support's own `StaticContacts`); its ground contact was dropped.
+- **Why not SampleGround alone:** it reports a step's top, so a support past a face below the top read the step's height as its overlap. At the far seam (73.8 mm) a skid's end sliding into the face put 385 N on its leg and lifted the drone onto the step (the steps' rows, before). At the ledge it would read 1.4–1.6 m.
+- **Where the sweep finds no ground** (farther than the margin), the sample stands. It never touches there, since a core inside the ground always has its contact.
+- **On a plane nothing changes:** the sample's pair and its transitions, in their order. The goldens are unmoved (below).
+- **A sample's overlap on a slope** is r − n_y·(y − h) (`Sunk`): the sphere's overlap of the facet's plane along its normal. K§7.1 step 2's (h − (y − r))·n_y left out r·(1 − n_y), 1.06 mm on a 5 mm support at 38° (derived). On a level plane n_y is 1, and the two are the same bits. The skids' middle nodes read it.
+- **A skid's sweep leaves the ground out on a terrain** (`QueryFilter.NoGround`). Its ground is its nodes' (the samples and the supports'), and `Update` dropped the ground's contact anyway. Only a buffer overflow could tell the difference, and it would now keep one more object contact.
+- **A skid's middle node still reads the sample.** A straight skid meets a plane face first at an end, where its supports are, so its middle cannot reach a face's column first. At a step's corner (two faces at 90°) it could: named here, not met in the rows.
+
+### 2. The blades meet a terrain's ground (`ContactModel.GroundPlane`)
+- **Before:** `Cuts` and `PropStrikes` read the ground's geometry, which a terrain does not have. A disc on the terrain logged its PropStrike and its blades did nothing: no pass, no carve, no damage. The tipped landing on the 0° tile had 0 passes against the plane's 144.
+- **Now a disc's pair on a terrain's ground is the plane of the contact that names it,** its point and normal: the gate's contact for the slab's cut, the pair's for its passes. The disc (0.127 m) spans the facets round one 0.977 m cell at most, and its contact names the piece it meets.
+- **Measured:** on the 0° tile the tipped landing's blades do what they do on the plane, to the printed digit (144 passes in the soil, 10.77 J, 14 damage events). On 20°: 379 passes, 19.51 J.
+
+### 3. No anchor slide along a leg's nil stiffness (`ContactModel.NilStiffness`), found by the 38° row
+- **The blow-up:** the pilot's landing on 38° (nose uphill, the throttle cut) tumbled, and 2.5 s after the touch one step put 3.4e5 N·m on the body with 5 N of contact force: 207,766 m/s², the body rate 7,562 rad/s.
+- **Its cause** (measured with a temporary print, not committed): past its cone the legs' law slides a point's anchor by (size − kinetic)/k_tt, k_tt the leg's stiffness along the slip. The rear right support had spent its side give past the sway load (`_side` 0) and slid square to its tube (u_t 5e-5). So k_tt was 5e-7 N/m, 2.7e-9 of its axial spring's share, and the anchor's stretch became 709 km. The foot, the contact point less the stretch, was the moment's lever.
+- **The rule:** the slide is taken only where k_tt is more than `NilStiffness` (1e-6, assumed) of the leg's axial spring's share. Below it the leg is a mechanism along the slip, and its stretch stays, as the law already did at k_tt 0.
+- **Two wider bounds were tried and dropped** (measured): the stretch held within the leg's lever (0.176 and 0.187 m), and a slide held within the stretch it relieves. Both moved p7g-legs' own scenarios, which slide their anchors past both in ordinary steps (`LegChangeTests.TheNextLandingFeelsADamagedLeg`: the missing leg no longer tipped; `LegReplayTests.ReplayThroughABrokenAndADetachedLeg`; `RangeContactTests.WithoutTheHangingGiveTheWindyCrownIsModel50s`), and the second also the range golden. The nil rule moves none of them.
+- **Suggested, a p7g-legs review:** past the sway load the side give is a mechanism, and the trial's force and the cone's slide use different stiffnesses, so a slide can run far past the stretch that loaded it. This rule only stops the division by nothing.
+
+### 4. The ledge's lip: no rounding
+- **The legs:** a support's contact over the lip is its distance to the edge, rounded by its own 5 mm radius, and the soil's law takes a lip's load as any face's. A 0.02 m rounding would change no leg's answer that matters at a 1.4 m step.
+- **The fiber:** its segments leave the ground out (2.1), so the line meets the lip only at its nodes, and a node behind the face now takes the face (5). At the soil's 0.02 m `lip_edge_radius_m` a bend's stress is E·r/R = 73 GPa × 62.5 µm / 0.02 m = 0.23 GPa (derived), under the proof stress's 0.69 GPa (tether.json). So the rounding could cut nothing either.
+- **Not added.** The line's capstan over the lip needs the step walls in the segments' queries: a `QueryFilter` for the ground's walls alone, the world's to add. Suggested for a later unit.
+
+### 5. The fiber's ground over the heightfield
+- **The nodes take the ground from SampleGround,** as before: the plane through (x, h, z) with the facet's normal, and the coating's friction on its surface. On a slope that is the facet's own plane, and the gap n·(x − p) − r is the node's true distance.
+- **A node behind a step's face takes the face** (`FiberLine.NearestGround`). A node more than `FiberLine.WallDepth` (InsertGap, 0.05 m) under its sample's plane is behind a face, and its plane is the ground's nearest piece, from StaticContacts. Before, the top's plane would have thrown it up the step (1.4 m at the ledge).
+  - **Tested** at the ledge (`SlopeTests`): a node 0.3 m under the top and 2 cm behind the face takes the face, its normal (1, 0, 0), 2 cm deep.
+  - Only a node that deep pays the query.
+- **Segments between laid nodes are straight.** On rolling ground a long one can cut under a rise. The farmland line's case now reports it (8).
+- **The line over the ledge** (a row): laid on the far ring and dragged up and over the lip as the drone flies west over the top, it stays whole, its fastest node 3.5 m/s, no node behind the face; the same before and after.
+
+### 6. Furrows: not in the physics, and why
+- **They have a physical role** (REAL-05). At K§7.2's 0.05 m ridges every 0.5 m, a skid pair along the rows (0.205 m track) can sit one skid on a crest and one in a trough, tilted 13.7° (derived). At K§9.2's ploughed 0.15–0.30 m ridges, 36–56°.
+- **But they are not geometry anywhere yet.** The fields' furrows are the AerialMud texture and its normal map on 0.977 m heights (W2). The package holds only the class and each field's `furrow_axis`: no height, pitch or phase.
+- **So the physics adds none on its own.** Rows the pilot cannot see, at a pitch and phase the drawn texture does not share, would break WLD-11 (what is drawn is what is touched) and REAL-05's own rule that collision follows the visual. Their numbers would be assumed, with effects of tens of degrees.
+- **Where they belong:** a world unit that puts the relief into the package (height, pitch and phase per field, from the references and the fields' overgrowth) and into the drawn terrain near the drone, with the world-query core answering it. The contact model needs no change to meet it: it meets any facet's normal (the slope rows), and a support meets any piece (1). Suggested.
+- **`tilled`'s soil row already carries the ploughed loam** (bearing, unload ratio, friction), so a landing on a field sinks into loose soil now.
+
+### 7. The clearance certificate: the margin less KeepGap (`FiberContacts.ShapeHits`)
+- **Before:** a certified segment's ends could move the margin less the line's radius (0.4998 m) before it re-queried. So a shape could come within the line's radius of it, inside InsertGap (2.1's flag).
+- **Now the margin less KeepGap** (0.4 m). Every point of the segment then lies within that of the certified core (the distance from a segment is convex), so every shape stays farther than KeepGap from it, the reach of any hit the query gives (a member on a slot keeps it to there). The certificate drops no answer of the query's.
+- **Checked:** `FiberContactTests.TheCertificateChangesNoBit` flies 2.1's two lockstep flights against a reference without the certificate (`FiberContacts.Certificates` off: every segment answered every step). Every record and event is the same bits over 10,000 and 12,000 steps. Whole queries: 628 against 716 (straw), 492 against 796 (yard).
+- **Its cost:** the farmland line's whole queries rose from 46,019 to 59,813 (the same start, measured), each a certificate's renewal on a map with no objects yet.
+
+### 8. The farmland line's start, and the drone's own cost on the terrain
+- **The cause of 2.1's "half the slow steps while the drone sits and climbs"** (measured with a temporary per-kind timer, not committed):
+  - `farmland-line-step` set the drone down level on the track's 5.4° facet, its supports up to 23 mm in the ground (derived).
+  - On the first step the rear legs broke, and the front ones by 0.45 s. Their four pieces rolled on the terrain until they slept at 4.5 s.
+  - The pieces' contacts were 144 of the 173 contact-margin queries a step, and 60–113 µs of world queries a step (loaded).
+  - The drone then flew the line without legs (29 such queries a step).
+- **The fix is the case's:** the drone is set down on the facet, its up the facet's normal, its skids 10 µm in. No leg breaks.
+- **After it, the drone's own terrain cost:** its skids leave the ground out (1). The rest is its 41 shapes' sweeps, about 9 µs a step once it is above the margin (measured, loaded).
+- **The line's case now also reports its chain over the terrain at the end** (measured): 5 of its 31 segments cut more than 1 cm under the ground, the deepest 3.24 m, the longest segment 398 m (before: 4.89 m, 433 m). These are the far, laid segments, straight between nodes the spacing law puts hundreds of metres apart. The line still lies on the ground at its nodes. Over a rise between them its tension's way, its friction and its drag there are the chord's, not the ground's. Suggested: a node where a laid segment dips under the ground (a split at its deepest point, as a member's), with the terrain's ray or sampled points for the test.
+
+**The line, interleaved runs on the shared machine** (`flightbench --bench farmland-line-step`, both cores with the fixed start, after-before-after-before; the CPU load as each began, measured by `Win32_Processor.LoadPercentage`; AC, Balanced plan, best power efficiency mode, 3201 MHz):
+
+| Run | Load | Step p99 (all after the first) | The climb's step p50 / p99 | World queries in the climb p50 / p99 | World queries in all p50 / p99 | Whole queries |
+|---|---|---|---|---|---|---|
+| After, 1 | 54 % | 266.2 µs | 106.1 / 200.2 µs | 18.9 / 61.2 µs | 19.7 / 42.5 µs | 59,813 |
+| Before, 1 | 59 % | 298.0 µs | 117.6 / 201.8 µs | 20.7 / 68.9 µs | 21.2 / 44.7 µs | 46,019 |
+| After, 2 | 51 % | 287.1 µs | 113.1 / 213.5 µs | 19.7 / 64.1 µs | 21.1 / 43.9 µs | 59,813 |
+| Before, 2 | 35 % | 370.4 µs | 118.6 / 246.8 µs | 21.6 / 68.6 µs | 20.9 / 47.4 µs | 46,019 |
+| After, the final build | the suite running beside it | 273.8 µs | 110.2 / 195.0 µs | 19.9 / 43.9 µs | 20.6 / 40.5 µs | 59,813 |
+
+- **Both pass PLT-04's 300 µs at p99 in its runs after,** with 0 B after the first step and the line whole at 1,971 m paid out. "Before" passes once (298.0) and misses once (370.4).
+- **The final build flies the same flight** (1,971.3 m paid out, 59,813 whole queries, the same 205,521 steps); the runs above it were on an earlier build of this branch with 3's lever bound in the nil rule's place, which this flight never met either.
+- **The climb's world queries** (the ground and the climb, sitting 0.5 s on 21 shapes within the margin) are p99 44–64 µs after against 69 before: the skids' sweeps without the ground. In all, p99 41–44 µs, under the 60 µs line.
+- **With the level start** (2.1's case, the legs broken) the same core's world queries reached p99 134–193 µs in a busier hour; that was the pieces' cost (8).
+
+- **Not judged here:** the machine was shared and loaded throughout, so the p99s carry other sessions' preemptions. A quiet run is QA's (4.1), with 2.1's owed one.
+
+## The rows (`flightbench --slopes`; before → after)
+
+**At rest, disarmed, 3 s on meadow_sod, its skids along the fall line:** the steepest slope it holds on, by bisection over the tile's whole units. A slip is still moving more than 1 cm in the last second: set down unloaded, it first settles up to 7 cm on its downhill legs' side give.
+
+| Moisture | Holds to, before → after | atan μk | atan μs |
+|---|---|---|---|
+| Dry | 24.89° → 24.89° | 24.23° | 28.81° |
+| Wet (Rain) | 25.27° → 25.36° | 19.80° | 23.75° |
+| Saturated (Severe rain) | 25.64° → 25.73° | 15.11° | 18.26° |
+
+- **Dry, it holds between atan μk and atan μs,** as compliant legs give. They share the slope's pull by their side stiffness, not their load, so the light uphill corners slide at μk first (measured: their soil anchors slide at 24° while the downhill ones hold) and the downhill ones hold the rest. A slide the set-down starts stops below atan μk.
+- **Wet and saturated, it holds past atan μs** by the wet interface's adhesion (surfaces.json's c_a, 2 and 1 kPa over the grooves' wetted footprints) and the grooves' end resistance.
+  - "Saturated meadow slips above about 18°" is the friction's bound alone. With the table's adhesion it holds to 25.7°.
+  - The pilot's account, legs that stick and most in rain, is the same adhesion.
+- **Across the slope** (skids level) it stands at 10° and rolls over its downhill skid at 20° (dry). The rigid body's tip is 23.99° (LandingStability); the downhill legs' side give and sink take it lower.
+- None tunnels.
+
+**The pilot's landing** (0.5 m/s, the throttle cut at the touch, dry): the peak acceleration, then the end.
+
+| Facet | Along, before | Along, after | Across, before | Across, after |
+|---|---|---|---|---|
+| 0° | 36 m/s², rests | 36, rests | 36, rests | 36, rests |
+| 9.98° | 391, rests | 22, rests | 85, rolls onto its side | 93, rolls onto its side |
+| 20.00° | 97, slides on at 1.9 m/s | 31, rests on the slope | 97, rolls, slides at 0.5 m/s | 112, rolls, slides at 0.4 m/s |
+| 30.03° | 300, tumbles, 6.1 m/s | 311, tumbles, 7.0 m/s | 211, slides at 5.2 m/s | 592, tumbles, 8.0 m/s |
+| 38.03° | 622, slides at 9.9 m/s | 367, tumbles, 8.9 m/s | 573, tumbles, 8.3 m/s | 85, slides at 8.4 m/s |
+
+- **The 0° terrain lands as the plane** to the printed digits (sink 3.2657 mm, peak 35.77 m/s²), before and after.
+- **On 9.98° and 20° along,** the uphill supports now meet the facet as their sweep finds it: the touch's peak falls from 391 to 22 and from 97 to 31 m/s², and on 20° it now rests where before it slid on.
+- **Past atan μs (30° and 38°)** it slides or tumbles either way; which one is the touch's detail.
+- **Across a slope the cut landing rolls the drone onto its side from 10°,** before as after. After the uphill skid's touch it falls onto the downhill skid, with the slope's tip 14° away (24° − 10°). On the floor the same 10° roll touchdown does not tip (LandingScenarios, measured). It is the pilot's cut on a side slope.
+- **No landing tunnels, and none passes twice the crash's acceleration** (the row's check). On this core before `NilStiffness`, the 38° landing's run-away anchor (3) gave 207,766 m/s².
+
+**A crash into the slope** at 10 m/s uphill, disarmed and level, against the same dive onto the plane turned by the slope (the drone pitched nose-down by it, diving at it):
+
+| Facet | The deepest past the ground, slope / plane | The crash |
+|---|---|---|
+| 20.00° | 172.52 / 173.47 mm | the canister, 3.66 m/s, 516 m/s² |
+| 30.03° | 188.32 / 189.91 mm | the canister, 4.94 m/s, 549 m/s² |
+| 38.03° | 193.42 / 194.36 mm | the canister, 5.96 m/s, 576 m/s² |
+
+- Within 2 mm of the plane's (gravity turns with the slope over the crash's 50 ms), unchanged by 2.2, no tunnel.
+- The deepest is the front skid's end support, 17–19 cm. That is its leg's travel (a support's overlap is its leg's give) at a 10 m/s skid-first impact, on the plane as on the slope: a p7g-legs question, not the terrain's (suggested).
+
+**A prop's strike** (the tipped landing): the 0° terrain 0 passes → 144 (the plane's 144, 10.77 J); 20°, 0 → 379.
+
+**The steps:**
+
+| Row | Before | After |
+|---|---|---|
+| Over the ledge's lip (1.504 m): tips over and falls it | 385 N on a leg, 832 m/s², a crash, no tunnel | 353 N, 900 m/s², a crash, no tunnel |
+| Into the far seam's face (73.8 mm), nose first at 1 m/s | 385 N on a leg, 155 m/s², rose 1.7 mm onto the step | 51 N, 138 m/s², 0.1 mm |
+
+- The fall from the ledge is a crash on both cores: 1.5 m onto the far ring, 5.4 m/s.
+- At the seam the skids' front supports now meet the face, their legs taking it across their tubes. Before, a support past the face read the step's 74 mm top as its overlap.
+
+## Golden files, audited case by case
+- **`flightbench --golden`:** all 6 cases and every kept audit pass unchanged (60 PASS lines). Every flight there is on a plane (the floor, the test range):
+  - its supports read their samples (n_y 1: the same bits)
+  - no skid leaves the ground out, and no blade meets a terrain
+  - no leg's anchor slides along a nil stiffness
+  - no certified segment met a shape within KeepGap (the tether golden flies the floor, which has none)
+- **`worldbench --golden`:** all 37 cases pass unchanged (no world code changed).
+- **The suite's pins** (`GoldenFlightTests`: powered, rain, contact, range, tether, tumble and every model's audit): unchanged. Nothing was re-recorded.
+- **The model-79 flights** (L1's 35, 37 and 38) replay bit for bit on this core: 234,901, 18,147 and 66,941 step records (`flightbench --replay-step`, from a build whose model refusal was set to 79, temporary and not committed). The certificate and the nil rule changed none of their answers.
+- **So model 82 is for the flights that differ:** any flight on a terrain, and a flight on a plane where a shape came within KeepGap of a certified segment, or a leg slid along a nil stiffness. `LogFormat.ModelVersion`'s note lists them.
+
+## For the next units (suggested, not this task's)
+- **p7g-legs:** the anchor's slide past the sway load (3), and a support's 17–19 cm travel in a 10 m/s skid-first crash, on the plane as on the slope.
+- **The fiber:** a node where a laid segment dips under a rise (5, 8: up to 3.24 m on the farmland line), and the step walls in its segments' queries for the lip's capstan (4).
+- **The world:** the fields' furrows as relief in the package and the drawn terrain, from the references (6).
+- **QA (4.1):** a quiet run of `farmland-line-step` and of 2.1's replays; this task's timings are a shared machine's.
