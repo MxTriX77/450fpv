@@ -102,6 +102,9 @@ namespace Fpv450.App
         /// <summary>The fiber's drawing (p7d-tether 1.14): the current flight's line, trail and coil.</summary>
         public FiberView Fiber => _fiber;
 
+        /// <summary>The world map (M, w11-world-map 1.2): the flight's map, the drawn drone on it.</summary>
+        public MapPanel Map { get; private set; }
+
         LookSetup _look;
         Transform _body;
         Camera _camera;
@@ -158,6 +161,7 @@ namespace Fpv450.App
             if (flight._look != null) flight._look.enabled = false;
             flight.Host = go.AddComponent<FlightSessionHost>();
             flight.Rig();
+            flight.Map = MapPanel.Add(go, () => flight.Host.Inputs?.WorldId, flight._body, () => flight.Covered); // M, w11-world-map 1.2
             if (own != null)
             {
                 UniversalAdditionalCameraData theirs = own.GetUniversalAdditionalCameraData();

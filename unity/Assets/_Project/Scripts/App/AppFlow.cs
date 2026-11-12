@@ -456,6 +456,45 @@ namespace Fpv450.App
                     Check(!_flight.Chase && eye != null && (eye.localPosition - _flight.CameraMount).magnitude < 1e-4f && Quaternion.Angle(eye.localRotation, Quaternion.identity) < 0.01f && feedOn,
                           "V again " + where + ": the FPV camera at the lens, the feed " + (feedOn ? "on" : "OFF"));
             }
+            // w11-world-map 1.2: M pressed through the Input System, as the pilot's key: the flight's keys stay none while it
+            // is held, the panel shows inside the window with a margin on every side, its marker where the map's transform
+            // puts the target (within one image pixel, its heading within 2°), and M again hides it.
+            IEnumerator PressM(MapPanel map, Transform target, string where)
+            {
+                Check(map != null && map.Map != null && map.Image != null && !map.Shown,
+                      "the map " + where + ": " + (map == null ? "NO PANEL" : (map.Map != null ? "'" + map.Map.Map + "'" : "NO TRANSFORM") + (map.Image != null ? ", its image " + map.Image.width + " px with " + map.Image.mipmapCount + " mips" : ", NO IMAGE")) + ", hidden");
+                if (map == null || target == null) yield break;
+                Keyboard k = Keyboard.current ?? InputSystem.AddDevice<Keyboard>("Smoke keyboard");
+                InputSystem.QueueStateEvent(k, new KeyboardState(MapPanel.ToggleKey));
+                yield return null;
+                Check(k[MapPanel.ToggleKey].isPressed && KeyboardFallback.ReadKeys() == KeyboardKeys.None, "M held " + where + ": the flight's keys are none");
+                InputSystem.QueueStateEvent(k, new KeyboardState());
+                int drawn = map.Drawn;
+                yield return Until(() => map.Drawn > drawn + 1, 5);
+                Rect r = map.PanelRect;
+                float left = r.xMin, right = Screen.width - r.xMax, top = r.yMin, bottom = Screen.height - r.yMax;
+                Check(map.Shown && map.Drawn > drawn && Mathf.Min(Mathf.Min(left, right), Mathf.Min(top, bottom)) >= 20f,
+                      "M " + where + ": the map shows, " + r.width + "×" + r.height + " px in the " + Screen.width + "×" + Screen.height + " window, margins " +
+                      left + " / " + right + " / " + top + " / " + bottom + " px");
+                if (map.Map != null)
+                {
+                    Vector3 p = target.position;
+                    Vector2 px = map.Map.Pixel(p.x, p.z);
+                    Rect img = map.ImageRect;
+                    Vector2 want = new Vector2(img.x + px.x / map.Map.WidthPx * img.width, img.y + px.y / map.Map.HeightPx * img.height);
+                    float imagePx = img.width / map.Map.WidthPx, off = (map.Marker - want).magnitude / imagePx;
+                    float yaw = Mathf.Atan2(target.forward.x, target.forward.z) * Mathf.Rad2Deg, turn = Mathf.Abs(Mathf.DeltaAngle(map.HeadingDeg, yaw));
+                    Check(!map.OffImage && off <= 1f && turn <= 2f,
+                          "the marker " + where + " at (" + p.x.ToString("0.0") + ", " + p.z.ToString("0.0") + ") m: image pixel " + px.ToString("0.0") + ", " +
+                          off.ToString("0.000") + " image px from the transform's, heading " + map.HeadingDeg.ToString("0.0") + "° against " + yaw.ToString("0.0") + "°");
+                }
+                yield return Shot("map_" + where.Replace(", ", "_").Replace(' ', '_'));
+                InputSystem.QueueStateEvent(k, new KeyboardState(MapPanel.ToggleKey));
+                yield return null;
+                InputSystem.QueueStateEvent(k, new KeyboardState());
+                yield return null;
+                Check(!map.Shown, "M again " + where + ": the map hides");
+            }
             // R pressed through the Input System, as the pilot's key (D-078, D-087): the flight restarts in the frame that
             // reads the press, in whatever state it was, as a new flight from the same setup and start: step 0 on a whole
             // line, the link intact, the failsafe cleared, its props whole and its legs intact, the feed's picture back. Its pair
@@ -759,6 +798,7 @@ namespace Fpv450.App
                       ", its first frame " + _exploreFirstFrame.ToString("0.00") + " s after the press (PLT-06: 20 s)");
                 yield return new WaitForSecondsRealtime(2);
                 yield return Shot("explore_farmland_stand");
+                yield return PressM(eye != null ? eye.GetComponent<MapPanel>() : null, eye != null ? eye.transform : null, "in Explore");
                 // w3-farmland-ground 3.2: the drawn terrain against the sim's from noclip's start, the stand 3 m ahead, through
                 // the feed and without it (V), at the scene's errors and at the flight's near the drone: what noclip shows
                 // of the ground the drone stands on. Noclip keeps the scene's errors; within 10 m they must hold WLD-11's 1 mm.
@@ -845,6 +885,7 @@ namespace Fpv450.App
                     yield return Shot("waiting_" + tag);
                     if (n == 0)
                     {
+                        yield return PressM(_flight.Map, _flight.Eye != null ? _flight.Eye.parent : null, "in flight, waiting for the radio");
                         yield return PressV("while waiting at '" + start.Name + "'");
                         yield return Shot("waiting_chase_" + tag);
                         yield return PressV("while waiting at '" + start.Name + "'");
@@ -924,6 +965,7 @@ namespace Fpv450.App
                           "D02 at the stand's foot and heading" + (drawn != null ? ", " + drawn.position.ToString("0.000") + " at " + drawn.eulerAngles.y.ToString("0.0") + "°, the drone " + (rest - drawn.position.y).ToString("0.000") + " m above its foot" : ""));
                 else Check(drawn == null, "no stand with the legs on");
                 yield return Shot("rest_" + tag);
+                if (n == 0) yield return PressM(_flight.Map, _flight.Eye != null ? _flight.Eye.parent : null, "in flight");
                 yield return PressV("at rest at " + where);
                 yield return Shot("chase_" + tag);
                 bool chaseClimb = _sequences != null && stand; // -smokeseq: the stand's punch-out in the chase view

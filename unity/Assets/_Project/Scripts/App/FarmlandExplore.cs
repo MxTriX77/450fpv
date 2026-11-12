@@ -2,6 +2,7 @@ using System;
 using Fpv450.App.Session;
 using Fpv450.Feed;
 using Fpv450.Input;
+using Fpv450.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -37,6 +38,7 @@ namespace Fpv450.App
             camera.gameObject.AddComponent<NoclipFeed>();
             camera.gameObject.AddComponent<ExploreThrottle>(); // the OSD's throttle element reads the radio's stick (D-080)
             camera.gameObject.AddComponent<FarmlandFeedDetail>(); // w6-farmland-look 1.2: less of what the PAL feed can't show
+            MapPanel.Add(camera.gameObject, () => FlightWorlds.FarmlandMap, camera.transform); // M, w11-world-map 1.2: noclip's camera on the map
             Transform stand = PlaceStand(scene, FlightWorlds.FarmlandStart);
             if (stand == null) return null;
             float yaw = (float)(FlightWorlds.FarmlandStart.Yaw * 180 / Math.PI);
