@@ -810,7 +810,10 @@ namespace Fpv450.Sim.Log
         ///    r − n_y·(y − h), the same bits on a level plane; a certified fiber segment's ends move the margin less KeepGap, not less the
         ///    line's radius; and a leg's anchor takes no slide along a slip it holds no stiffness along (ContactModel.NilStiffness). Every
         ///    flight on a plane whose certified segments no shape came within KeepGap of, and whose legs never slid along a nil stiffness,
-        ///    steps as in 79.
+        ///    steps as in 79. With 2.5 (the same change, unmerged; no model-82 log of a terrain was kept): on a terrain the fiber lies
+        ///    over its crests (FiberLine.Crests): a segment whose chord passes more than InsertGap under the ground takes a node at its
+        ///    deepest point, on the ground there, and a node the ground holds over the chord between its neighbours is never merged
+        ///    away; the chain holds FiberLine.CrestNodes such nodes besides the spacing law's. A flight on a plane steps as before.
         /// </summary>
         public const int ModelVersion = 82;
 

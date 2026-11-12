@@ -173,12 +173,12 @@ namespace Fpv450.Sim.Flight
 
 
     /// <summary>The fiber's active nodes in a pose, inline (a value type, so a published pose never shares them with the
-    /// flight thread): up to Capacity, the table's span.max_nodes.</summary>
+    /// flight thread): up to Capacity, the table's span.max_nodes and a terrain's crests (FiberLine.CrestNodes).</summary>
     public struct FiberNodes
     {
-        public const int Capacity = 32;
+        public const int Capacity = 48;
 
-        public Double3 N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N18, N19, N20, N21, N22, N23, N24, N25, N26, N27, N28, N29, N30, N31;
+        public Double3 N0, N1, N2, N3, N4, N5, N6, N7, N8, N9, N10, N11, N12, N13, N14, N15, N16, N17, N18, N19, N20, N21, N22, N23, N24, N25, N26, N27, N28, N29, N30, N31, N32, N33, N34, N35, N36, N37, N38, N39, N40, N41, N42, N43, N44, N45, N46, N47;
 
         public Double3 this[int i]
         {
@@ -218,6 +218,22 @@ namespace Fpv450.Sim.Flight
                     case 29: return N29;
                     case 30: return N30;
                     case 31: return N31;
+                    case 32: return N32;
+                    case 33: return N33;
+                    case 34: return N34;
+                    case 35: return N35;
+                    case 36: return N36;
+                    case 37: return N37;
+                    case 38: return N38;
+                    case 39: return N39;
+                    case 40: return N40;
+                    case 41: return N41;
+                    case 42: return N42;
+                    case 43: return N43;
+                    case 44: return N44;
+                    case 45: return N45;
+                    case 46: return N46;
+                    case 47: return N47;
                     default: throw new System.ArgumentOutOfRangeException(nameof(i));
                 }
             }
@@ -257,6 +273,22 @@ namespace Fpv450.Sim.Flight
                     case 29: N29 = value; break;
                     case 30: N30 = value; break;
                     case 31: N31 = value; break;
+                    case 32: N32 = value; break;
+                    case 33: N33 = value; break;
+                    case 34: N34 = value; break;
+                    case 35: N35 = value; break;
+                    case 36: N36 = value; break;
+                    case 37: N37 = value; break;
+                    case 38: N38 = value; break;
+                    case 39: N39 = value; break;
+                    case 40: N40 = value; break;
+                    case 41: N41 = value; break;
+                    case 42: N42 = value; break;
+                    case 43: N43 = value; break;
+                    case 44: N44 = value; break;
+                    case 45: N45 = value; break;
+                    case 46: N46 = value; break;
+                    case 47: N47 = value; break;
                     default: throw new System.ArgumentOutOfRangeException(nameof(i));
                 }
             }

@@ -125,6 +125,9 @@ namespace Fpv450.Sim.Tether
     ///   more than near_length_m of line from the exit, it freezes into the trail with the tension it held; the trail's last
     ///   point lifts back into the chain when the pull at it passes that and the friction of trail.hold_length_m of line, or
     ///   the rotors' air passes what holds it.
+    /// - On a terrain the line lies over the ground (w3-farmland-ground 2.5, Crests): a segment whose chord passes more than
+    ///   KeepGap under the ground takes a node there, on the ground at its deepest point (a crest, a step's lip), and a node the
+    ///   ground holds over the chord between its neighbours is never merged away; CrestNodes such nodes besides span.max_nodes.
     /// - The launch: the line laid on the ground from its anchor (launch.anchor_behind_start_m behind the start, or a given
     ///   layout) to where the nozzle's lead (spool.exit_direction) meets the ground, then up along it to the exit; beneath
     ///   the exit for a lead level or rising.
@@ -207,6 +210,15 @@ namespace Fpv450.Sim.Tether
         Double3 _force; // the line's force on the drone at the last step's end, world N
         double _lipAngle, _section;
 
+        // The line over the ground's crests (w3-farmland-ground 2.5; Crests): the clearance certificate's margin (the
+        // table's), and the tests' buffers.
+        readonly double _crestMargin;
+        readonly Ray[] _crestRay = new Ray[1];
+        readonly RayHit[] _crestHit = new RayHit[1];
+        readonly XZ[] _crestAt = new XZ[2];
+        readonly GroundSample[] _crestGround = new GroundSample[2];
+        readonly StaticContact[] _crestContact = new StaticContact[2];
+
         // The contacts of 1.7 (null: the line meets the plane alone, as model 50's, FlightSetup.TetherWithoutContacts).
         readonly FiberContacts _contacts;
 
@@ -276,6 +288,7 @@ namespace Fpv450.Sim.Tether
             _groundKinetic = table.Number("span.ground_kinetic_friction");
             _rebuildStep = table.Number("span.coil_rebuild_m");
             int nodes = (int)table.Number("span.max_nodes");
+            _crestMargin = table.Number("contact.clearance_margin_m");
 
             _freezeTime = table.Number("trail.freeze_seconds");
             _freezeSpeed = table.Number("trail.freeze_speed_m_s");
@@ -285,10 +298,12 @@ namespace Fpv450.Sim.Tether
             _trailMaterial = new double[capacity];
             _trailHeld = new double[capacity];
 
-            _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"))
+            // On a terrain the chain has room for the crests' nodes besides the spacing law's (w3-farmland-ground 2.5).
+            _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
             };
+            nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
             _ground = new GroundSample[nodes + 4];
             _groundHeight = new double[nodes];
@@ -348,6 +363,12 @@ namespace Fpv450.Sim.Tether
                     _discShape[d.Corner] = i;
                     _discPart[d.Corner] = d.Part;
                 }
+            // The laid line over its crests before the first step (2.5): the pass again while it puts a node in.
+            for (long put = -1; _terrain && put != CrestsInserted && _chain.Crests < _chain.CrestCapacity;)
+            {
+                put = CrestsInserted;
+                Crests(false);
+            }
         }
 
         /// <summary>The line's cut risk (1.8), or null without it (FlightSetup.TetherWithoutCuts).</summary>
@@ -508,7 +529,7 @@ namespace Fpv450.Sim.Tether
             double total = along[points - 1];
 
             // The material coordinates from the exit back: near_spacing_m within near_length_m, then growing.
-            var s = new double[_chain.Capacity];
+            var s = new double[_chain.SpacingCapacity];
             int n = 0;
             double at = total;
             s[n++] = total;
@@ -516,7 +537,7 @@ namespace Fpv450.Sim.Tether
             {
                 double away = total - at, h = away <= _nearLength ? _spacing : _spacing + (_growth - 1) * (away - _nearLength);
                 at -= h;
-                if (at <= 1e-9 || n == _chain.Capacity - 1) at = 0;
+                if (at <= 1e-9 || n == _chain.SpacingCapacity - 1) at = 0;
                 s[n++] = at;
             }
             var material = new double[n];
@@ -778,6 +799,10 @@ namespace Fpv450.Sim.Tether
 
             if (!Broken) FreezeAndLift(events); // the near piece of a break has a free end: no trail
 
+            // A node where the line lies over a terrain's crest the chord between two nodes would pass under (2.5), after the
+            // remeshing, so no step starts, and no pose shows, a chord through the ground.
+            if (_terrain) Crests(true);
+
             // The line's force on the drone for the next step: the exit's tension along the first segment, less the momentum
             // flux μ·ṡ² the leaving line carries (it leaves at its own velocity; the coil's mass change is no force).
             n = _chain.Count;
@@ -817,6 +842,254 @@ namespace Fpv450.Sim.Tether
         /// <summary>How far under its sample's plane a node lies behind a step's face, m (numerical: InsertGap, the line's travel
         /// in a step at 50 m/s, far past the ground spring's give of 0.1 mm a newton; an honest facet holds a node within it).</summary>
         public const double WallDepth = FiberContacts.InsertGap;
+
+        // ---- the line over a terrain's crests (w3-farmland-ground 2.5) ----
+
+        /// <summary>The crests' nodes a chain on a terrain holds besides the spacing law's span.max_nodes (assumed: the farmland
+        /// line's 2 km over its hills holds 10–15 at a time; the room bounds the line's cost, PLT-04, and the deepest crests keep
+        /// it when it is spent).</summary>
+        public const int CrestNodes = 16;
+
+        /// <summary>The deepest a segment lies in the ground between two tests of it, m: CrestGap and CrestSlack (below).</summary>
+        public const double CrestDepth = CrestGap + CrestSlack;
+
+        // The test of a segment against the ground: its chord raised by CrestGap entering the ground passes more than that under
+        // it, vertically, so a node goes onto the ground at its deepest point. CrestGap is KeepGap, the reach a member on a slot
+        // keeps its node to: a chord over a crest stays within it of the ground there, and of what stands on it. A test that finds
+        // none lets the ends move CrestSlack (numerical: KeepGap, the tests' cost) before the next: a point's depth under the
+        // ground (its distance from the surface) moves no more than the point, and a chord no more than CrestGap under the ground
+        // vertically lies no deeper than that, so between tests no chord lies deeper than CrestDepth. A node is a crest's while it
+        // lies on the ground (within CrestGap of its plane) and more than CrestKeep (InsertGap, half CrestGap: the hysteresis)
+        // over the chord between its neighbours; one more than CrestGap over it becomes one. With the room spent, a crest more
+        // than CrestYield times as deep as the shallowest held takes that one's room (numerical hysteresis). The deepest point:
+        // the deepest of CrestSamples points across the stretch the raised chord lies in the ground; a piece's taut path over
+        // the ground, the upper hull of CrestProfile samples under its chord (both numerical).
+        const double CrestGap = FiberContacts.KeepGap, CrestKeep = FiberContacts.InsertGap, CrestSlack = FiberContacts.KeepGap;
+        const double CrestYield = 2;
+        const int CrestSamples = 9, CrestProfile = 32;
+        readonly XZ[] _profileAt = new XZ[CrestProfile];
+        readonly GroundSample[] _profileGround = new GroundSample[CrestProfile];
+        readonly double[] _hullX = new double[CrestProfile + 2], _hullY = new double[CrestProfile + 2];
+
+        /// <summary>The crests' nodes put in this flight, those refused (the crests' room spent: the chord stays under that crest,
+        /// tested again once its ends move), and the segments tested against the ground.</summary>
+        public long CrestsInserted { get; private set; }
+        public long CrestsRefused { get; private set; }
+        public long GroundTests { get; private set; }
+
+        // After each step (the chain remeshed, so no step starts on a chord through the ground; hold): the nodes the ground holds
+        // over a crest; then a node into each segment the test finds under the ground, from the exit's end so a split leaves the
+        // indices below it. At the launch the tests alone, until they put none in (no slot holds a node yet). The exit's segment
+        // is the spool's, within near_spacing_m of the drone: never tested.
+        void Crests(bool hold)
+        {
+            int n = _chain.Count, crests = _chain.Crests;
+            if (_chain[0].Crest)
+            {
+                _chain[0].Crest = false; // the trail's end, anchored where it froze
+                crests--;
+            }
+            for (int i = 1; hold && i + 1 < n; i++)
+            {
+                ref CableNode a = ref _chain[i];
+                bool held = OnGround(a.Contact0, a.Position) || OnGround(a.Contact1, a.Position);
+                double over = Over(_chain[i - 1].Position, a.Position, _chain[i + 1].Position);
+                if (a.Crest)
+                {
+                    if (held && over >= CrestKeep) continue;
+                    a.Crest = false;
+                    crests--;
+                }
+                else if (held && over > CrestGap && crests < _chain.CrestCapacity)
+                {
+                    a.Crest = true;
+                    crests++;
+                }
+            }
+            for (int j = n - 3; j >= 0; j--) GroundTest(j);
+        }
+
+        // A slot on the ground (its plane under the node, or a step's face it lies behind) its node at x lies within CrestGap of.
+        bool OnGround(in CableContact c, Double3 x) =>
+            c.Active && (_contacts == null || c.MemberKind == (byte)FiberMember.Ground) && Double3.Dot(c.Normal, x - c.Point) <= CrestGap;
+
+        // How far x lies over the chord p–q where it passes x in x–z, m (−∞ where it passes x outside p–q's span).
+        static double Over(Double3 p, Double3 x, Double3 q)
+        {
+            double dx = q.X - p.X, dz = q.Z - p.Z, dd = dx * dx + dz * dz;
+            if (!(dd > 0)) return double.NegativeInfinity;
+            double u = ((x.X - p.X) * dx + (x.Z - p.Z) * dz) / dd;
+            if (!(u > 0 && u < 1)) return double.NegativeInfinity;
+            return x.Y - (p.Y + (q.Y - p.Y) * u);
+        }
+
+        // Segment j against the ground, once its ground certificate has run out.
+        void GroundTest(int j)
+        {
+            ref CableNode na = ref _chain[j];
+            Double3 a = na.Position, b = _chain[j + 1].Position, d = b - a;
+            double allow = na.GroundSlack;
+            if (na.GroundClear && FiberContacts.PointSegment(a, na.GroundA, na.GroundB) < allow * allow
+                && FiberContacts.PointSegment(b, na.GroundA, na.GroundB) < allow * allow)
+                return;
+            na.GroundClear = false;
+            double len = d.Length();
+            if (!(len > 2 * CrestGap)) return; // every point of it lies within CrestGap of an end
+            GroundTests++;
+            _crestAt[0] = new XZ(a.X, a.Z);
+            _crestAt[1] = new XZ(b.X, b.Z);
+            World.SampleGround(_crestAt, _crestGround);
+            double ha = (_crestGround[0].Flags & GroundFlags.Hole) == 0 ? a.Y - _crestGround[0].Height : double.PositiveInfinity;
+            double hb = (_crestGround[1].Flags & GroundFlags.Hole) == 0 ? b.Y - _crestGround[1].Height : double.PositiveInfinity;
+            // Both ends higher over their ground than the margin: a segment the ground lies farther than the margin from stays
+            // off it until an end moves the margin (exact, the ground's own distance: its faces too).
+            if (ha > _crestMargin && hb > _crestMargin)
+            {
+                var core = new Capsule(a, b, _radius);
+                if (World.Query.StaticContacts(core, core, _crestMargin, _crestContact, QueryFilter.GroundOnly) == 0)
+                {
+                    Clear(ref na, a, b, _crestMargin);
+                    return;
+                }
+            }
+            // The chord raised by CrestGap, cast from an end above the ground (a ray from inside it finds nothing): where it
+            // enters, and where it last leaves from the other end.
+            bool fromA = ha > -CrestGap, fromB = hb > -CrestGap;
+            if (!fromA && !fromB) return; // both ends behind a step's face: their own ground first
+            var up = new Double3(0, CrestGap, 0);
+            double t1 = Cast(fromA ? a + up : b + up, fromA ? d : -d, len), lo = 0, hi = 1;
+            if (!(t1 <= len))
+            {
+                Clear(ref na, a, b, CrestSlack);
+                return;
+            }
+            if (fromA)
+            {
+                lo = t1 / len;
+                double t2 = fromB ? Cast(b + up, -d, len - t1) : double.PositiveInfinity;
+                if (t2 <= len) hi = 1 - t2 / len;
+            }
+            else hi = 1 - t1 / len;
+            // How deep each of CrestSamples points across that stretch lies in the ground (its distance from the surface: the
+            // ground's own contact with the point; one outside it counts 0). The deepest, a piece of more than CrestGap either side,
+            // takes the crest's node at its nearest point on the surface: under a crest that is the ground above it, beside a step's
+            // face the face. A stretch no point of which lies deeper than CrestGap (a chord past a step's corner, under its top's
+            // level but beside its face) takes none: the chord lies no deeper than CrestGap outside it (the raised chord is out of
+            // the ground there) and no deeper than its deepest point and half the points' spacing in it (a point's depth moves no
+            // more than the point), and it is tested again once its ends move what CrestDepth leaves past the deeper of the two.
+            int best = -1;
+            double deepest = 0, inside = double.NegativeInfinity;
+            Double3 point = default, normal = default;
+            for (int k = 0; k < CrestSamples; k++)
+            {
+                double f = lo + (hi - lo) * k / (CrestSamples - 1);
+                Double3 x = a + d * f;
+                var at = new Capsule(x, x, 0);
+                if (World.Query.StaticContacts(at, at, 0, _crestContact, QueryFilter.GroundOnly) == 0) continue;
+                double depth = -_crestContact[0].Distance;
+                if (depth > deepest) deepest = depth;
+                if (!(depth > inside) || !(f * len > CrestGap) || !((1 - f) * len > CrestGap)) continue;
+                inside = depth;
+                best = k;
+                point = _crestContact[0].Point;
+                normal = _crestContact[0].Normal;
+            }
+            if (!(deepest > CrestGap))
+            {
+                double slack = CrestDepth - DetMath.Max(CrestGap, deepest + 0.5 * (hi - lo) * len / (CrestSamples - 1));
+                if (slack > 0) Clear(ref na, a, b, slack);
+                return;
+            }
+            if (best < 0 || !(inside > CrestKeep)) return;
+            Double3 on = point + normal * _radius;
+            double share = Taut(a, on);
+            share /= share + Taut(on, b);
+            if (_chain.SplitCrest(j, share, on) || Yield(inside) && _chain.SplitCrest(j, share, on)) CrestsInserted++;
+            else
+            {
+                CrestsRefused++;
+                Clear(ref na, a, b, CrestSlack);
+            }
+        }
+
+        // The crests' room spent: the shallowest crest held gives its room to one more than CrestYield times as deep (it stays a
+        // node of the line, the spacing law's to keep or merge).
+        bool Yield(double dip)
+        {
+            if (_chain.Crests < _chain.CrestCapacity) return false;
+            int n = _chain.Count, least = -1;
+            double shallowest = double.PositiveInfinity;
+            for (int i = 1; i + 1 < n; i++)
+            {
+                if (!_chain[i].Crest) continue;
+                double over = Over(_chain[i - 1].Position, _chain[i].Position, _chain[i + 1].Position);
+                if (over < shallowest)
+                {
+                    shallowest = over;
+                    least = i;
+                }
+            }
+            if (least < 0 || !(dip > CrestYield * shallowest)) return false;
+            _chain[least].Crest = false;
+            return true;
+        }
+
+
+        static void Clear(ref CableNode a, Double3 from, Double3 to, double slack)
+        {
+            a.GroundClear = true;
+            a.GroundA = from;
+            a.GroundB = to;
+            a.GroundSlack = slack;
+        }
+
+        // The length of the taut path from p to q over the ground, m: the upper hull of the ground's profile under the chord
+        // (CrestProfile samples, each the ground's height there with the line's radius) between them. The crest's node shares
+        // its segment's material by its pieces' taut paths, so no later crest's node, which lifts a piece no farther than its taut
+        // path, leaves a piece short of line: the line laid over the ground holds at least that much there.
+        double Taut(Double3 p, Double3 q)
+        {
+            Double3 d = q - p;
+            for (int k = 0; k < CrestProfile; k++)
+            {
+                double f = (k + 1) / (CrestProfile + 1.0);
+                _profileAt[k] = new XZ(p.X + d.X * f, p.Z + d.Z * f);
+            }
+            World.SampleGround(_profileAt, _profileGround);
+            double across = DetMath.Sqrt(d.X * d.X + d.Z * d.Z);
+            int top = 0;
+            for (int k = -1; k <= CrestProfile; k++)
+            {
+                double f = k < 0 ? 0 : k == CrestProfile ? 1 : (k + 1) / (CrestProfile + 1.0);
+                double y = k < 0 ? p.Y : k == CrestProfile ? q.Y : p.Y + d.Y * f;
+                if (k >= 0 && k < CrestProfile && (_profileGround[k].Flags & GroundFlags.Hole) == 0)
+                {
+                    double g = _profileGround[k].Height + _radius;
+                    if (g > y) y = g;
+                }
+                double x = f * across;
+                while (top >= 2 && (_hullX[top - 1] - _hullX[top - 2]) * (y - _hullY[top - 2]) - (_hullY[top - 1] - _hullY[top - 2]) * (x - _hullX[top - 2]) >= 0)
+                    top--;
+                _hullX[top] = x;
+                _hullY[top] = y;
+                top++;
+            }
+            double length = 0;
+            for (int k = 1; k < top; k++)
+            {
+                double dx = _hullX[k] - _hullX[k - 1], dy = _hullY[k] - _hullY[k - 1];
+                length += DetMath.Sqrt(dx * dx + dy * dy);
+            }
+            return length;
+        }
+
+        // Where the ray o + t·d first enters the ground within limit, m (+∞ for none).
+        double Cast(Double3 o, Double3 d, double limit)
+        {
+            _crestRay[0] = new Ray(o, d);
+            World.Query.Raycast(_crestRay, limit, _crestHit, QueryFilter.GroundOnly);
+            return _crestHit[0].Distance;
+        }
 
         // Node i's ground: its plane within the reach (the coating's friction; a hold kept while it stays on), else none.
         void Ground(int i)
@@ -1165,7 +1438,7 @@ namespace Fpv450.Sim.Tether
             }
             // Lift: the trail's last point back into the chain while the pull at it passes the tension it held at rest and the
             // friction of trail.hold_length_m of line, or the air passes what holds it.
-            while (_trailCount >= 2 && _chain.Count < _chain.Capacity
+            while (_trailCount >= 2 && !_chain.SpacingFull
                 && (_chain.Tension(0) > _trailHeld[_trailCount - 1] + _hold || _airPerMetre[0] > _groundStatic * _weight))
             {
                 ref CableNode a = ref _chain[0];

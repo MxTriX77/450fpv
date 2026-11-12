@@ -118,6 +118,18 @@ namespace Fpv450.Sim.Tether
         /// pool plus one, 0 for none. It moves with the node and a split's new node takes its segment's, as Cleared does; the
         /// caller judges a list by its segment's ends' distance from the list's own core.</summary>
         public int Near;
+        /// <summary>The caller's ground certificate of the segment from this node to the next (w3-farmland-ground 2.5): set, the
+        /// core A–B of the segment a test found lying no deeper than it allows under the ground, and how far either end may move
+        /// from that core before the next test, m. It moves with the node and a split's new node takes its segment's, as Cleared
+        /// does (the depth of a point under the ground moves no more than the point, so a segment whose two ends lie near the
+        /// core lies near the core's depth everywhere).</summary>
+        public bool GroundClear;
+        public Double3 GroundA, GroundB;
+        public double GroundSlack;
+        /// <summary>The caller's: a node the ground holds the line over where the chord between its neighbours would pass under it
+        /// (a crest, the ledge's lip; w3-farmland-ground 2.5). It is never merged away, and it counts against CrestCapacity, not
+        /// the spacing law's room. A split's new node is not one unless SplitCrest puts it there.</summary>
+        public bool Crest;
     }
 
     /// <summary>
@@ -218,7 +230,11 @@ namespace Fpv450.Sim.Tether
         public const int MaxNewton = 8; // numerical: a reverse's line whipped round the body's parts at 10 m/s takes 5–8
         public const double NewtonTolerance = 1e-3;
 
+        /// <summary>The nodes the chain holds at most: the spacing law's room and the crests' (w3-farmland-ground 2.5).</summary>
         public readonly int Capacity;
+        /// <summary>The spacing law's room: its splits, a member's contact node and a trail point lifted back stop at
+        /// SpacingCapacity nodes besides the crests; and the crests' own.</summary>
+        public readonly int SpacingCapacity, CrestCapacity;
         /// <summary>kg/m and N: the line's (the table's or the wire record's).</summary>
         public readonly double MassPerMetre, AxialStiffness;
         /// <summary>m/s², world axes.</summary>
@@ -318,10 +334,15 @@ namespace Fpv450.Sim.Tether
         // The lowest node whose blocks the last correction changed (Run's next pass assembles and sweeps from it).
         int _dirty;
 
-        public CableChain(int capacity, double massPerMetre, double axialStiffness)
+        /// <summary>A chain of at most capacity nodes by the spacing law and crests more over the ground's crests (0: none).</summary>
+        public CableChain(int capacity, double massPerMetre, double axialStiffness, int crests = 0)
         {
             if (capacity < 2) throw new ArgumentOutOfRangeException(nameof(capacity));
+            if (crests < 0) throw new ArgumentOutOfRangeException(nameof(crests));
             if (!(massPerMetre > 0) || !(axialStiffness > 0)) throw new ArgumentOutOfRangeException(nameof(massPerMetre));
+            SpacingCapacity = capacity;
+            CrestCapacity = crests;
+            capacity += crests;
             Capacity = capacity;
             MassPerMetre = massPerMetre;
             AxialStiffness = axialStiffness;
@@ -1496,13 +1517,32 @@ namespace Fpv450.Sim.Tether
         {
             ref CableNode a = ref _nodes[i];
             return !(a.AnchorStiffness > 0) && !(a.AnchorDamping > 0) && (!a.Contact0.Active || a.Contact0.Remeshable)
-                && (!a.Contact1.Active || a.Contact1.Remeshable);
+                && (!a.Contact1.Active || a.Contact1.Remeshable) && !a.Crest;
         }
+
+        /// <summary>The nodes marked Crest (none without CrestCapacity).</summary>
+        public int Crests
+        {
+            get
+            {
+                if (CrestCapacity == 0) return 0;
+                int crests = 0;
+                for (int i = 0; i < Count; i++)
+                    if (_nodes[i].Crest) crests++;
+                return crests;
+            }
+        }
+
+        /// <summary>The spacing law's room is spent: SpacingCapacity nodes besides the crests (the chain full without crests).</summary>
+        public bool SpacingFull => Count - Crests >= SpacingCapacity;
 
         bool Remesh()
         {
             bool changed = false;
             int j = 0;
+            // The law's room (w3-farmland-ground 2.5): a crest takes none of it, and neither its splits nor its merges make or
+            // take one.
+            int crests = Crests;
             while (j + 1 < Count)
             {
                 double sa = _nodes[j].Material, sb = _nodes[j + 1].Material, rest = sb - sa;
@@ -1514,12 +1554,12 @@ namespace Fpv450.Sim.Tether
                     double h = Target(sb);
                     // A full chain first merges the pair of segments that overshoots its target least (the far line coarser than
                     // its law rather than the line at the exit).
-                    if (rest > 2 * h && Count == Capacity && MakeRoom())
+                    if (rest > 2 * h && Count - crests >= SpacingCapacity && MakeRoom())
                     {
                         changed = true;
                         j = Count - 2; // the spool's segment, one node nearer the fixed end
                     }
-                    if (rest > 2 * h && Count < Capacity)
+                    if (rest > 2 * h && Count - crests < SpacingCapacity)
                     {
                         Split(j, h * (1 - 1.0 / 1048576) / rest);
                         changed = true;
@@ -1532,7 +1572,7 @@ namespace Fpv450.Sim.Tether
                 }
                 if (rest > Target(0.5 * (sa + sb)))
                 {
-                    if (Count == Capacity)
+                    if (Count - crests >= SpacingCapacity)
                     {
                         SplitsRefused++;
                         j++;
@@ -1615,6 +1655,10 @@ namespace Fpv450.Sim.Tether
             _nodes[j + 1].ClearA = a.ClearA;
             _nodes[j + 1].ClearB = a.ClearB;
             _nodes[j + 1].Near = a.Near;
+            _nodes[j + 1].GroundClear = a.GroundClear; // and on its ground certificate's core (CableNode.GroundClear)
+            _nodes[j + 1].GroundA = a.GroundA;
+            _nodes[j + 1].GroundB = a.GroundB;
+            _nodes[j + 1].GroundSlack = a.GroundSlack;
             a.Mass = MassOf(j);
             _nodes[j + 1].Mass = MassOf(j + 1);
             b.Mass = MassOf(j + 2);
@@ -1815,14 +1859,29 @@ namespace Fpv450.Sim.Tether
 
         /// <summary>A node put into segment j at the fraction f of it from node j (a contact node where the segment meets a
         /// member, design 6): position, velocity and material at f, so momentum is kept, the straight segment's springs
-        /// are unchanged and the kinetic energy only falls (Split). False when the chain is full or the piece would be shorter
-        /// than the chain's least rest length.</summary>
+        /// are unchanged and the kinetic energy only falls (Split). False when the spacing law's room is spent (SpacingFull) or
+        /// the piece would be shorter than the chain's least rest length.</summary>
         public bool SplitAt(int j, double f)
         {
-            if (Count == Capacity || j < 0 || j + 1 >= Count || !(f > 0 && f < 1)) return false;
+            if (SpacingFull || j < 0 || j + 1 >= Count || !(f > 0 && f < 1)) return false;
             double rest = _nodes[j + 1].Material - _nodes[j].Material;
             if (!(f * rest > MinRest) || !((1 - f) * rest > MinRest)) return false;
             Split(j, f);
+            return true;
+        }
+
+        /// <summary>A crest's node put into segment j at at, on the ground where the chord passes under it (w3-farmland-ground
+        /// 2.5): the share of the segment's material the caller gives the piece from node j (the line's length over the ground
+        /// there), its velocity at that share (Split's: momentum kept); marked Crest. False when the crests' room is spent, the
+        /// chain is full or a piece would be shorter than the least rest length.</summary>
+        public bool SplitCrest(int j, double share, Double3 at)
+        {
+            if (Count == Capacity || Crests >= CrestCapacity || j < 0 || j + 1 >= Count || !(share > 0 && share < 1)) return false;
+            double rest = _nodes[j + 1].Material - _nodes[j].Material;
+            if (!(share * rest > MinRest) || !((1 - share) * rest > MinRest)) return false;
+            Split(j, share);
+            _nodes[j + 1].Position = at;
+            _nodes[j + 1].Crest = true;
             return true;
         }
 

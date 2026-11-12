@@ -6,6 +6,7 @@ using System.Text;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
@@ -38,7 +39,25 @@ namespace Fpv450.Sim.Tests
         public static MapWorld Slope(double deg, string surface = "meadow_sod")
         {
             int units = Units(deg);
-            string key = units + "/" + surface;
+            return Package(units + "/" + surface, surface, (r, c) => (Resolution - 1 - r) * units); // row 0 north, the highest
+        }
+
+        /// <summary>Ridge's crest line (z, m), its height (m) and its half-width (m) (assumed: a rise of the farmland's rolling scale,
+        /// 16.7° a side, far enough from the drone's start that the spacing law's segments there are 10–20 m long).</summary>
+        public const double RidgeZ = -20, RidgeHeight = 3, RidgeHalf = 10;
+
+        /// <summary>A ridge of meadow_sod (w3-farmland-ground 2.5): the tile's ground level but for a rise across it, its crest along
+        /// x at z = RidgeZ, RidgeHeight high, falling straight to the level RidgeHalf either side (1500 − 150 height units a metre).</summary>
+        public static MapWorld Ridge() => Package("ridge", "meadow_sod", (r, c) =>
+        {
+            double off = Math.Abs((Resolution - 1) / 2 - r - RidgeZ); // row 0 north, at z = +32
+            return off < RidgeHalf ? (int)Math.Round((RidgeHeight - RidgeHeight / RidgeHalf * off) / UnitRise) : 0;
+        });
+
+        // A one-tile package of a surface whose height units at row r, column c are units(r, c): written to a fresh folder,
+        // loaded, the folder removed; one world a key.
+        static MapWorld Package(string key, string surface, Func<int, int, int> units)
+        {
             if (Worlds.TryGetValue(key, out MapWorld cached)) return cached;
             string dir = Path.Combine(Path.GetTempPath(), "fpv450-slope-" + Guid.NewGuid().ToString("N"));
             try
@@ -52,7 +71,7 @@ namespace Fpv450.Sim.Tests
                 for (int r = 0; r < Resolution; r++)
                     for (int c = 0; c < Resolution; c++)
                     {
-                        int s = (Resolution - 1 - r) * units, i = 2 * (r * Resolution + c); // row 0 north, the highest
+                        int s = units(r, c), i = 2 * (r * Resolution + c);
                         heights[i] = (byte)s;
                         heights[i + 1] = (byte)(s >> 8);
                     }
@@ -474,8 +493,13 @@ namespace Fpv450.Sim.Tests
         public struct LineLedge
         {
             /// <summary>The fastest any node of the line moved (m/s); the deepest any node lay behind the ledge's face, past it
-            /// below the top (m); the line paid out (m); whether it broke, and how.</summary>
-            public double FastestNode, Behind, Paid;
+            /// below the top (m); the line paid out (m); whether it broke, and how. Since 2.5: the deepest any segment lay in the
+            /// ground at a step's end (m, every 10th) and the deepest the chords between the spacing law's nodes (its crests' left
+            /// out: the line before 2.5) would have (LawDeepest, m), the steps a crest's node lay on the lip (within CrestDepth of its
+            /// edge), and the crests' nodes put in.</summary>
+            public double FastestNode, Behind, Paid, Deepest, LawDeepest;
+            public int OnLip;
+            public long Crests;
             public bool Broken;
             public string Break;
         }
@@ -507,12 +531,22 @@ namespace Fpv450.Sim.Tests
             }, core =>
             {
                 CableChain chain = core.Tether.Chain;
+                bool onLip = false;
                 for (int i = 0; i < chain.Count; i++)
                 {
                     r.FastestNode = Math.Max(r.FastestNode, chain[i].Velocity.Length());
                     Double3 x = chain[i].Position;
                     if (x.X < LedgeX && x.X > LedgeX - 0.5) r.Behind = Math.Max(r.Behind, Ground(q, x.X, x.Z).Height - x.Y);
+                    double dx = x.X - LedgeX, dy = x.Y - top;
+                    onLip |= chain[i].Crest && dx * dx + dy * dy <= FiberLine.CrestDepth * FiberLine.CrestDepth;
                 }
+                if (onLip) r.OnLip++;
+                if (core.State.Step % 10 == 0)
+                {
+                    r.Deepest = Math.Max(r.Deepest, Deepest(q, chain));
+                    r.LawDeepest = Math.Max(r.LawDeepest, Deepest(q, chain, law: true));
+                }
+                r.Crests = core.Tether.CrestsInserted;
                 r.Paid = core.Tether.PaidOut;
                 if (!r.Broken && core.Tether.Broken)
                 {
@@ -520,6 +554,132 @@ namespace Fpv450.Sim.Tests
                     r.Break = core.Tether.LastBreak.Mechanism + " at step " + core.Tether.BrokenAt;
                 }
             });
+            return r;
+        }
+
+        /// <summary>How deep the chain's deepest segment lies in the ground, m (its core's distance inside the surface, the
+        /// world's own: StaticContacts of the ground alone; −∞ where every segment is clear of it); with law, of the chords between
+        /// the nodes the spacing law keeps (its crests' nodes left out: the chain as it was before 2.5).</summary>
+        public static double Deepest(IWorldQuery world, CableChain chain, bool law = false)
+        {
+            var found = new StaticContact[2];
+            double deepest = double.NegativeInfinity;
+            for (int j = 0; j + 1 < chain.Count;)
+            {
+                int k = j + 1;
+                while (law && k + 1 < chain.Count && chain[k].Crest) k++;
+                var core = new Capsule(chain[j].Position, chain[k].Position, 0);
+                if (world.StaticContacts(core, core, 0, found, QueryFilter.GroundOnly) > 0) deepest = Math.Max(deepest, -found[0].Distance);
+                j = k;
+            }
+            return deepest;
+        }
+
+        /// <summary>How deep under the ground (vertically, m) the chords between the nodes the spacing law keeps (the crests'
+        /// nodes left out) pass at their deepest, sampled every 0.1 m: the chain as it was before 2.5.</summary>
+        public static double LawDip(IWorldQuery world, CableChain chain)
+        {
+            double deepest = 0;
+            for (int j = 0; j + 1 < chain.Count;)
+            {
+                int k = j + 1;
+                while (k + 1 < chain.Count && chain[k].Crest) k++;
+                Double3 a = chain[j].Position, b = chain[k].Position;
+                int n = Math.Max(2, (int)((b - a).Length() / 0.1));
+                for (int i = 1; i < n; i++)
+                {
+                    Double3 x = a + (b - a) * ((double)i / n);
+                    deepest = Math.Max(deepest, Ground(world, x.X, x.Z).Height - x.Y);
+                }
+                j = k;
+            }
+            return deepest;
+        }
+
+        public struct LineRidge
+        {
+            /// <summary>The launch's line: how deep its spacing law's own chords pass under the ridge (LawDip, m), and how deep its
+            /// deepest segment lies in the ground with its crests' nodes in (m). Over the flight: the deepest any segment lay in the
+            /// ground at a step's end (m, every 10th); at the end the node nearest the crest line (its |z| and its height over the
+            /// ground, m) and whether it is a crest's; the crests' nodes put in and refused; the line paid out (m), whether it
+            /// broke, the TetherWedges; what the steps after the first allocated (B); and the flight's log.</summary>
+            public double Launched, LaunchedDeepest, Deepest, CrestZ, CrestHeight, Paid;
+            public bool OnCrest, Broken;
+            public string Break;
+            public long Inserted, Refused, Wedges, Allocated;
+            public byte[] Log;
+        }
+
+        /// <summary>
+        /// A line over a ridge (w3-farmland-ground 2.5): the drone legs-on on the level at z = 28, its nose north, its line laid
+        /// behind it south over Ridge's crest to an anchor at the ridge's south foot, z = −30 (the layout every metre along x = 0,
+        /// on the ground), Calm, the cuts on; it climbs to 3 m over the start in 3 s, flies north at 2 m/s from 4 to 8 s and hovers
+        /// to 10 s. The spacing law's segments between the laid nodes would pass under the crest; the crests' nodes hold the line
+        /// over it. The flight is recorded (LogHeader.For, world id "ridge").
+        /// </summary>
+        public static LineRidge LineOverRidge(DroneSpec spec)
+        {
+            MapWorld map = Ridge();
+            const double startZ = 28, anchorZ = -30;
+            var layout = new Double3[(int)(startZ - anchorZ)];
+            for (int i = 0; i < layout.Length; i++) layout[i] = new Double3(0, 0, anchorZ + i);
+            FlightSetup setup = TetherScenarios.Setup(spec, layout: layout, cuts: true);
+            double stand = TetherScenarios.Stand(setup);
+            setup.World = new FlightWorld(map);
+            setup.StartPosition = new Double3(0, Ground(map, 0, startZ).Height + stand, startZ);
+            var core = new FlightCore(setup);
+            var r = new LineRidge { Launched = LawDip(map, core.Tether.Chain), LaunchedDeepest = Deepest(map, core.Tether.Chain) };
+            LogHeader h = LogHeader.For(setup, core);
+            h.Build = "simtests";
+            h.Isa = "test";
+            h.WorldId = "ridge";
+            h.SetDrone(spec, spec.Nominal);
+            var log = new MemoryStream();
+            var recorder = new FlightRecorder(log, h, FlightRecorder.DefaultCapacity, ownsStream: false);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            Double3 s0 = setup.StartPosition;
+            r.Deepest = double.NegativeInfinity;
+            for (int k = 0; k < 10000; k++)
+            {
+                StickSample stick;
+                double t = k * FlightCore.Dt;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    pilot.HoldVelocity = false;
+                    double z = t < 4 ? s0.Z : s0.Z + 2 * (Math.Min(t, 8) - 4);
+                    pilot.Target = new Double3(0, s0.Y + Math.Min(3, t), z);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                }
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                core.Advance(stick);
+                if (k >= 1) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+                if (k % 10 == 9 && !core.Tether.Broken) r.Deepest = Math.Max(r.Deepest, Deepest(map, core.Tether.Chain));
+            }
+            recorder.Close();
+            r.Log = log.ToArray();
+            CableChain chain = core.Tether.Chain;
+            double nearest = double.PositiveInfinity;
+            for (int i = 1; i + 1 < chain.Count; i++)
+            {
+                Double3 x = chain[i].Position;
+                if (!(Math.Abs(x.Z - RidgeZ) < nearest)) continue;
+                nearest = Math.Abs(x.Z - RidgeZ);
+                r.CrestZ = nearest;
+                r.CrestHeight = x.Y - Ground(map, x.X, x.Z).Height;
+                r.OnCrest = chain[i].Crest;
+            }
+            r.Inserted = core.Tether.CrestsInserted;
+            r.Refused = core.Tether.CrestsRefused;
+            r.Wedges = chain.Wedges;
+            r.Paid = core.Tether.PaidOut;
+            r.Broken = core.Tether.Broken;
+            if (r.Broken)
+            {
+                FiberBreak b = core.Tether.LastBreak;
+                r.Break = $"{b.Mechanism} at step {core.Tether.BrokenAt}, {b.Tension:F2} N, the line at s {b.Material:F2} m, ({b.Point.X:F2}, {b.Point.Y:F2}, {b.Point.Z:F2})";
+            }
             return r;
         }
     }

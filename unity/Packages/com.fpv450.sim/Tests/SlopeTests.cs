@@ -1,5 +1,6 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
@@ -123,6 +124,53 @@ namespace Fpv450.Sim.Tests
             Assert.That(normal.X, Is.EqualTo(1).Within(1e-9));
             Assert.That(at.X, Is.EqualTo(SlopeScenarios.LedgeX).Within(1e-6));
             Assert.That(Double3.Dot(normal, node - at), Is.EqualTo(-0.02).Within(1e-6), "2 cm behind it");
+        }
+
+        // "A laid line lies over a crest" (w3-farmland-ground 2.5, model 82): a line laid over a 3 m ridge, the spacing law's
+        // nodes 10–25 m apart there, whose chords between them pass more than a metre under the crest (the line before 2.5). The
+        // crests' nodes hold it over the crest from the launch on: no segment lies deeper than InsertGap + KeepGap in the ground
+        // at any step's end (FiberLine's guarantee between tests), a crest's node lies on the ground at the crest line, the line
+        // stays whole, the steps allocate nothing, and the flight replays bit for bit from its log.
+        [Test]
+        public void ALineLaidOverARidge_LiesOverItsCrest_AndReplays()
+        {
+            SlopeScenarios.LineRidge r = SlopeScenarios.LineOverRidge(Drone());
+            Print($"the launch's law chords {r.Launched:F3} m under the crest, its deepest segment {r.LaunchedDeepest:F4} m in the ground with the crests' nodes; "
+                + $"over the flight the deepest {r.Deepest:F4} m; the nearest node to the crest line {r.CrestZ:F3} m off it, {r.CrestHeight * 1e3:F2} mm over the ground, "
+                + $"a crest's: {r.OnCrest}; {r.Inserted} crests' nodes put in, {r.Refused} refused; {r.Paid:F1} m paid out, broken {r.Broken} {r.Break}, wedges {r.Wedges}, {r.Allocated} B");
+            Assert.That(r.Launched, Is.GreaterThan(1), "premise: the spacing law's chords pass under the crest");
+            Assert.That(r.LaunchedDeepest, Is.LessThanOrEqualTo(FiberLine.CrestDepth), "the launch's line lies over it");
+            Assert.That(r.Deepest, Is.LessThanOrEqualTo(FiberLine.CrestDepth), "and so does the flown one");
+            Assert.That(r.CrestZ, Is.LessThan(1), "a node at the crest line");
+            Assert.That(r.CrestHeight, Is.LessThan(FiberContacts.InsertGap), "on the ground");
+            Assert.That(r.OnCrest, Is.True, "a crest's node");
+            Assert.That(r.Refused, Is.EqualTo(0));
+            Assert.That(r.Broken, Is.False);
+            Assert.That(r.Wedges, Is.EqualTo(0));
+            Assert.That(r.Allocated, Is.EqualTo(0), "0 B in steady state");
+            ContactScenarios.RepositoryMaterials(out ulong materials);
+            ReplayResult same = FlightReplay.Run(new System.IO.MemoryStream(r.Log), id => id == "ridge" ? new FlightWorld(SlopeScenarios.Ridge()) : null,
+                Drone().ContentHash, tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);
+            Print(same.Message);
+            Assert.That(same.Outcome, Is.EqualTo(ReplayOutcome.Match), same.Message);
+            Assert.That(same.Steps, Is.EqualTo(10000));
+        }
+
+        // "The line wraps the ledge's lip" (2.5): laid on the far ring and dragged up the ledge's 1.5 m face and over its lip as the
+        // drone flies west over the top (2.2's row). The chords between the spacing law's nodes would cut the step's corner (the
+        // line before 2.5); a crest's node lies on the lip, within CrestDepth of its edge, no segment lies deeper than CrestDepth
+        // in the ground, and the line stays whole, its nodes as slow as before 2.5 (3.5 m/s).
+        [Test]
+        public void ALineDraggedOverTheLedge_WrapsItsLip()
+        {
+            SlopeScenarios.LineLedge l = SlopeScenarios.LineOverLedge(Drone());
+            Print($"the law's chords at most {l.LawDeepest:F4} m in the ground, the line {l.Deepest:F4} m; a crest's node on the lip {l.OnLip} steps; "
+                + $"{l.Crests} crests' nodes put in; the fastest node {l.FastestNode:F2} m/s, {l.Paid:F1} m paid out, " + (l.Broken ? "broken: " + l.Break : "whole"));
+            Assert.That(l.LawDeepest, Is.GreaterThan(2 * FiberLine.CrestDepth), "premise: the spacing law's chords cut the step's corner");
+            Assert.That(l.Deepest, Is.LessThanOrEqualTo(FiberLine.CrestDepth));
+            Assert.That(l.OnLip, Is.GreaterThan(1000), "a crest's node on the lip");
+            Assert.That(l.FastestNode, Is.LessThan(5));
+            Assert.That(l.Broken, Is.False);
         }
     }
 }

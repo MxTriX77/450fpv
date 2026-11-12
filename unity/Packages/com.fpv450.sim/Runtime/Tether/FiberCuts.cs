@@ -97,8 +97,9 @@ namespace Fpv450.Sim.Tether
         /// <summary>The section table's size: sections read at a contact or worn (assumed, design 13: 4096); a power of two.</summary>
         public const int Capacity = 4096;
 
-        /// <summary>The bends a step holds: two members a node of 32 and the lip (numerical).</summary>
-        public const int MaxBends = 72;
+        /// <summary>The bends a step holds: two members a node of 48 (the spacing law's 32 and a terrain's crests,
+        /// FiberLine.CrestNodes) and the lip (numerical).</summary>
+        public const int MaxBends = 104;
 
         // The logging rule at the lip and the peel (numerical, not physics): a section's read is logged when its stress first
         // passes this share of its strength.

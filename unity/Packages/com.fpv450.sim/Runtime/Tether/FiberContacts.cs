@@ -222,7 +222,7 @@ namespace Fpv450.Sim.Tether
             _aluminiumStatic = table.Number("contact.aluminium_static_friction");
             _aluminiumKinetic = table.Number("contact.aluminium_kinetic_friction");
 
-            int nodes = (int)table.Number("span.max_nodes");
+            int nodes = (int)table.Number("span.max_nodes") + FiberLine.CrestNodes; // a terrain's chain holds its crests' too
             _split = new double[nodes];
             _splitsBefore = new int[nodes + 1];
             _segHits = new int[nodes];
