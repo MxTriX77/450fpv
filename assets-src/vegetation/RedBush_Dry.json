@@ -1,0 +1,57 @@
+{
+  "source": {
+    "prefab": "Assets/Farm_land/Prefabs/Bushes/RedBush_Dry.prefab",
+    "prefab_sha256": "f26c274f9c7012ae8950a43207fdb8c7405b2a839f659056c1310b9595e461af",
+    "mesh_file": "Assets/Art/Environment/_ExternalContent/Quixel/Forest-quixel/RedBush/RedBush_Var1.FBX",
+    "mesh_sha256": "436c637d00df9b505c8c9ccb352177f2a02d600c8888e64a498afb817d8876e0",
+    "mesh_meta_sha256": "1e943cfd96c843e0b544926a7353b0490af21c74b51449ef4d64906f9d881430",
+    "mesh_name": ""
+  },
+  "slots": [
+    {
+      "material": "Bush_RedBush_Dry",
+      "role": "foliage",
+      "material_sha256": "fda68c6459903ad6902997d7304696707ac67810bfed768c7ea7d55ccbac6a2c",
+      "shader_sha256": "cbeddb6e58353c4ba9973a17b013b9cc0d3ee2ad4fe740e3bfca9e093fba2c65",
+      "base_map": "Assets/Art/Environment/_ExternalContent/Quixel/Forest-quixel/RedBush/Materials/RedBush_Albedo_Opacity.tif",
+      "base_map_sha256": "c3f3c8153fbaa1f4c778bf4c11cfa5ec948524d5bd9ff43daa491f35a7b44f12",
+      "base_map_meta_sha256": "a402a018be44aa79d05fb70cc92a1d640439e5f5f71c36c5b0acffb2e7a2c523",
+      "sprays": "hooks"
+    }
+  ],
+  "wood": {
+    "step_m": 0.1,
+    "section_tol_m": 0.03,
+    "max_len_m": 2.0,
+    "min_radius_m": 0.005
+  },
+  "foliage": {
+    "spacing_m": 0.04,
+    "reach_m": 0.1,
+    "depths_m": [
+      0.1,
+      0.15,
+      0.2,
+      0.25,
+      0.3,
+      0.35,
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "max_radius_m": 1.5
+  },
+  "sprays": {
+    "min_length_m": 1.0,
+    "slenderness": 70.0,
+    "max_radius_m": 0.03,
+    "capsule_m": 2.0
+  },
+  "wind": {
+    "column": false
+  },
+  "lod": {
+    "fov_deg": 60.0
+  }
+}
