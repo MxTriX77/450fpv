@@ -1043,8 +1043,9 @@ namespace Fpv450.Sim.Contact
                 trace.BladeLoad1[c] = b1.Force.Length();
                 trace.BladeBend0[c] = b0.Deflection;
                 trace.BladeBend1[c] = b1.Deflection;
-                // The moment at rest: the one found at the blades' slip rate, less its damping's share of that rate.
-                if ((_resting & (1 << c)) != 0)
+                // The moment at rest: the one found at the blades' slip rate, less its damping's share of that rate. A prop lost in this
+                // step (its shaft broke in MotorShaft.Finish, after these loads were summed) has no blades to load its shaft.
+                if ((_resting & (1 << c)) != 0 && (_rotors.Lost & (1 << c)) == 0)
                     _rotors.SetShaftLoad(c, _shaftTorque[c] + _shaftDamping[c] * _restRate[c], _shaftStiffness[c], _shaftDamping[c], _restAngle[c]);
                 else _rotors.SetShaftLoad(c, 0, 0, 0, 0);
             }
