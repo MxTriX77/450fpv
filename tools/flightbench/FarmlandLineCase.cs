@@ -20,7 +20,10 @@ namespace Fpv450.FlightBench
     //   (assumed: the package holds no start point yet, D-092 only puts it at the village).
     // - The route, at 30 m over the ground (assumed: over the tallest crowns, so the drone itself never meets a tree): through
     //   the village's centre and west edge, north across the F6|F7 tree belt and west along it, south past F6 and over the
-    //   F3|F5 and F4|F10 belts, then south-east into F11: 1.6 km at 12 m/s, the line laid behind the drone.
+    //   F3|F5 and F4|F10 belts, then south-east into F11: 1.6 km at 12 m/s, the line laid behind the drone, slowing over its
+    //   last Brake metres to the hover at 2.4 m/s² (w3-farmland-ground 2.5: a stop from 12 m/s in one step, the hold switched
+    //   from the speed to the point, wrapped the line's lead 165–172° over the exit's lip on every core, a near-cut whose
+    //   outcome a blip of the exit's tension decided).
     // - The pilot's sessions' loadout (L1: 2 kg, legs on, Severe wind, Sunny) in the field's own Severe wind (the farmland has
     //   no wind obstacles until W7), the coil full, the scripted pilot (SimPilot) holding the route's speed and its height.
     // Its world is MapWorld.Load(root, "farmland"): once 1.2 loads the farmland's trees, bushes and ruins, the same flight's
@@ -30,7 +33,7 @@ namespace Fpv450.FlightBench
         public const string Name = "farmland-line-step";
 
         const ulong Seed = 1;
-        const double Height = 30, Speed = 12, Climb = 12, Hover = 60;
+        const double Height = 30, Speed = 12, Climb = 12, Hover = 60, Brake = 30;
 
         static readonly XZ[] Route =
         {
@@ -43,16 +46,16 @@ namespace Fpv450.FlightBench
             MapWorld map = MapWorld.Load(RangeScenarios.Root, "farmland");
             double length = 0;
             for (int i = 1; i < Route.Length; i++) length += Distance(Route[i - 1], Route[i]);
-            double seconds = Climb + length / Speed + Hover;
+            double seconds = Climb + (length + Brake) / Speed + Hover; // the brake's 2·Brake at half the speed
             int steps = (int)(seconds * 1000);
 
             // The warm-up: the flight's first 10 s, so the timed flights' first steps run compiled code (the tiered JIT).
-            Fly(map, 10000, false, out _, out _, out _, out _);
+            Fly(map, 10000, false, out _, out _, out _, out _, out _);
 
-            long[] times = Fly(map, steps, false, out long allocated, out string flown, out bool whole, out _);
-            long[] queries = Fly(map, steps, true, out _, out _, out _, out double calls);
+            long[] times = Fly(map, steps, false, out long allocated, out string flown, out bool whole, out _, out int buried);
+            long[] queries = Fly(map, steps, true, out _, out _, out _, out double calls, out _);
             double us = 1e6 / Stopwatch.Frequency;
-            int first = (int)(Climb * 1000), routeEnd = (int)((Climb + length / Speed) * 1000);
+            int first = (int)(Climb * 1000), routeEnd = (int)((Climb + (length + Brake) / Speed) * 1000);
             string P(long[] x, int from, int to)
             {
                 var part = new long[to - from];
@@ -69,21 +72,22 @@ namespace Fpv450.FlightBench
             Array.Copy(queries, 1, q, 0, q.Length);
             Array.Sort(q);
             double q99 = q[q.Length * 99 / 100] * us;
-            bool ok = p99 <= 300 && allocated == 0 && whole;
+            bool ok = p99 <= 300 && allocated == 0 && whole && buried == 0;
             Console.WriteLine($"{Name}: the farmland ({map.PlacedObjects} placed objects), from the village's track along {length:F0} m of route at {Height:F0} m over "
                 + $"the ground and {Speed:F0} m/s, then a {Hover:F0} s hover; 2.0 kg, legs on, Severe wind; {flown}. "
                 + $"{steps} steps unpaced: all after the first p99 {p99:F1} µs; the climb {P(times, 1, first)}; the route {P(times, first, routeEnd)}; "
                 + $"the hover {P(times, routeEnd, steps)}; world queries a step (the second flight) on the ground and in the climb {P(queries, 1, first)}, "
                 + $"in all p50 {q[q.Length / 2] * us:F1} µs, p99 {q99:F1} µs, "
                 + $"max {q[q.Length - 1] * us:F1} µs, {calls:F1} calls a step ({(q99 < 60 ? "under" : "over")} the 60 µs line); "
-                + $"allocation after the first step {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B, the line whole and 1.5 km out, the drone up)");
+                + $"allocation after the first step {allocated} B: {(ok ? "PASS" : "FAIL")} (p99 ≤ 300 µs, 0 B, the line whole and 1.5 km out, the drone up, "
+                + $"no segment more than {FiberLine.CrestDepth:F2} m in the ground)");
             return ok;
         }
 
         // One flight of `steps`: each step's time (or, timed, its world queries' time), what the steps after the first
         // allocated, what the line and the drone did, whether the line is whole and 1.5 km out with the drone up, the world
-        // calls a step.
-        static long[] Fly(MapWorld map, int steps, bool timed, out long allocated, out string flown, out bool whole, out double calls)
+        // calls a step, and the segments lying deeper than FiberLine.CrestDepth in the ground at the end.
+        static long[] Fly(MapWorld map, int steps, bool timed, out long allocated, out string flown, out bool whole, out double calls, out int buried)
         {
             FlightSetup setup = Setup(map, out Double3 foot, out double stand, out Double3 nose);
             TimedQuery clock = timed ? new TimedQuery(map) : null;
@@ -94,6 +98,7 @@ namespace Fpv450.FlightBench
             var times = new long[steps];
             var ground = new GroundSample[1];
             allocated = 0;
+            double worst = 0;
             for (int k = 0; k < steps; k++)
             {
                 StickSample stick = Sticks(pilot, core, map, ground, foot, stand, k * 0.001, core.State.Step * FlightCore.StepUs);
@@ -103,6 +108,7 @@ namespace Fpv450.FlightBench
                 if (k >= 1) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
                 times[k] = timed ? clock.Ticks - q : dt;
                 if (crashed < 0 && core.State.Crashed) crashed = core.State.Step;
+                if (k % 1000 == 999 && !core.Tether.Broken) worst = Math.Max(worst, Deepest(map, core.Tether.Chain, out _)); // outside the step's time
             }
             calls = timed ? (double)clock.Calls / steps : 0;
             FiberLine line = core.Tether;
@@ -111,20 +117,27 @@ namespace Fpv450.FlightBench
                 + (line.Broken ? $", broken at step {line.BrokenAt} ({line.LastBreak.Mechanism})" : "")
                 + (crashed >= 0 ? $", the drone crashed at step {crashed}" : "")
                 + $"; its whole shape queries {line.Contacts.QueriesTotal}, its one-shape checks {line.Contacts.ChecksTotal}"
-                + Buried(map, line.Chain);
+                + $"; its crests' nodes {line.Chain.Crests} at the end, {line.CrestsInserted} put in, {line.CrestsRefused} refused, {line.GroundTests} ground tests"
+                + Buried(map, line.Chain, worst, out buried);
             core.Wind.Dispose();
             return times;
         }
 
-        // The chain's segments over the terrain at the end (w3-farmland-ground 2.2): a node takes the ground from SampleGround and
-        // a segment's query leaves it out (2.1), so a straight segment between two laid nodes may cut through a rise between them.
-        // The deepest any point of a segment (every 0.5 m) lies under the ground, and how many segments do so by more than 1 cm.
-        static string Buried(MapWorld map, CableChain chain)
+        // The chain's segments over the terrain (w3-farmland-ground 2.2, 2.5): a node takes the ground from SampleGround and a
+        // segment's query leaves it out (2.1), so a straight segment between two laid nodes would cut through a rise between them;
+        // since 2.5 a node goes onto each crest a test finds the chord passing more than KeepGap under, and no chord lies deeper
+        // than CrestDepth in the ground between tests while the crests' room lasts (FiberLine.Crests). At the end: how deep each
+        // segment lies in the ground (its distance from the surface, the world's own: StaticContacts of the ground alone), the
+        // segments deeper than CrestDepth (`buried`), and the deepest any point of a segment (every 0.5 m) lies under the ground
+        // vertically, with the segments more than 1 cm under it so (2.2's measure); `worst` the deepest at the flight's whole
+        // seconds.
+        static string Buried(MapWorld map, CableChain chain, double worst, out int buried)
         {
             var at = new XZ[1];
             var g = new GroundSample[1];
-            double deepest = 0, longest = 0;
-            int buried = 0;
+            double vertical = 0, longest = 0;
+            int under = 0;
+            double deepest = Deepest(map, chain, out buried);
             for (int j = 0; j + 1 < chain.Count; j++)
             {
                 Double3 a = chain[j].Position, b = chain[j + 1].Position;
@@ -138,10 +151,29 @@ namespace Fpv450.FlightBench
                     map.SampleGround(at, g);
                     deep = Math.Max(deep, g[0].Height - x.Y);
                 }
-                if (deep > 0.01) buried++;
-                deepest = Math.Max(deepest, deep);
+                if (deep > 0.01) under++;
+                vertical = Math.Max(vertical, deep);
             }
-            return $"; at the end {buried} of its {chain.Count - 1} segments (the longest {longest:F0} m) cut more than 1 cm under the ground, the deepest {deepest:F2} m";
+            return $"; at the end {buried} of its {chain.Count - 1} segments (the longest {longest:F0} m) lie more than {FiberLine.CrestDepth:F2} m in the ground, "
+                + $"the deepest {deepest:F3} m ({worst:F3} m at the flight's whole seconds); {under} lie more than 1 cm under it vertically, the deepest {vertical:F3} m";
+        }
+
+        // How deep the chain's deepest segment lies in the ground, m (its core's distance inside the surface; below 0 for one
+        // clear of it), and the segments deeper than CrestDepth.
+        static double Deepest(MapWorld map, CableChain chain, out int buried)
+        {
+            var found = new StaticContact[2];
+            double deepest = double.NegativeInfinity;
+            buried = 0;
+            for (int j = 0; j + 1 < chain.Count; j++)
+            {
+                var core = new Capsule(chain[j].Position, chain[j + 1].Position, 0);
+                if (map.StaticContacts(core, core, 0, found, QueryFilter.GroundOnly) == 0) continue;
+                double depth = -found[0].Distance;
+                if (depth > FiberLine.CrestDepth) buried++;
+                deepest = Math.Max(deepest, depth);
+            }
+            return deepest;
         }
 
         static FlightSetup Setup(MapWorld map, out Double3 foot, out double stand, out Double3 nose)
@@ -203,7 +235,21 @@ namespace Fpv450.FlightBench
             }
             else
             {
-                double s = (t - Climb) * Speed;
+                // Along the route at its speed, then over its last Brake metres at a steady deceleration to rest at its end.
+            double length = 0;
+            for (int i = 1; i < Route.Length; i++) length += Distance(Route[i - 1], Route[i]);
+            double cruise = (length - Brake) / Speed, tau = t - Climb - cruise, s, speed = Speed;
+            if (tau <= 0) s = (t - Climb) * Speed;
+            else if (tau < 2 * Brake / Speed)
+            {
+                speed = Speed - Speed * Speed / (2 * Brake) * tau;
+                s = length - Brake + Speed * tau - Speed * Speed / (4 * Brake) * tau * tau;
+            }
+            else
+            {
+                s = length;
+                speed = 0;
+            }
                 int leg = 1;
                 while (leg < Route.Length - 1 && s > Distance(Route[leg - 1], Route[leg]))
                 {
@@ -217,12 +263,12 @@ namespace Fpv450.FlightBench
                 map.SampleGround(Here, ground);
                 p.Target = new Double3(at.X, ground[0].Height + Height, at.Z);
                 ref readonly FlightState state = ref core.State;
-                if (f < 1)
+                if (f < 1 && speed > 0)
                 {
                     // The route's speed along the leg, with a pull back onto it (0.5 /s).
                     p.HoldVelocity = true;
-                    p.TargetVelocity = new Double3((b.X - a.X) / l * Speed + 0.5 * (at.X - state.Position.X), 0,
-                        (b.Z - a.Z) / l * Speed + 0.5 * (at.Z - state.Position.Z));
+                    p.TargetVelocity = new Double3((b.X - a.X) / l * speed + 0.5 * (at.X - state.Position.X), 0,
+                        (b.Z - a.Z) / l * speed + 0.5 * (at.Z - state.Position.Z));
                 }
                 else p.HoldVelocity = false;
             }
