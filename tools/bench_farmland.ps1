@@ -104,10 +104,10 @@ $lines = @(
     "- Explore to the first frame: $($r.load_s) s (PLT-06: 20 s)",
     "- peak dedicated VRAM $([math]::Round($vramMB)) MB (PLT-05: 4608), peak RAM $([math]::Round($wsMB)) MB working set, $([math]::Round($privMB)) MB private (PLT-05: 8192)",
     "",
-    "| Run | Frames | Average | 1 % low | Worst frame | CPU main / render | GPU (FrameTimingManager) | Draw calls (max) | Triangles (max) | Unity system MB | Render |",
-    "|---|---|---|---|---|---|---|---|---|---|---|")
+    "| Run | Frames | Average | 1 % low | Worst frame | CPU main / render | Wait to present | GPU (FrameTimingManager) | Draw calls (max) | Triangles (max) | Unity system MB | Render |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|")
 foreach ($x in $r.runs) {
-    $lines += "| $($x.name) | $($x.frames) in $($x.seconds) s | $($x.average_fps) fps ($($x.mean_ms) ms) | $($x.low1_fps) fps ($($x.p99_ms) ms) | $($x.worst_ms) ms | $($x.cpu_main_ms) / $($x.cpu_render_ms) ms | $($x.gpu_ftm_ms) ms$(if ($x.feed) { ' (output camera only)' }) | $($x.draw_calls) ($($x.draw_calls_max)) | $($x.triangles_m) M ($([math]::Round($x.triangles_max / 1e6, 2)) M) | $($x.unity_system_mb) | $($x.render) |"
+    $lines += "| $($x.name) | $($x.frames) in $($x.seconds) s | $($x.average_fps) fps ($($x.mean_ms) ms) | $($x.low1_fps) fps ($($x.p99_ms) ms) | $($x.worst_ms) ms | $($x.cpu_main_ms) / $($x.cpu_render_ms) ms | $($x.present_wait_ms) ms | $($x.gpu_ftm_ms) ms$(if ($x.feed) { ' (output camera only)' }) | $($x.draw_calls) ($($x.draw_calls_max)) | $($x.triangles_m) M ($([math]::Round($x.triangles_max / 1e6, 2)) M) | $($x.unity_system_mb) | $($x.render) |"
 }
 $lines += ""
 foreach ($x in $r.runs) {

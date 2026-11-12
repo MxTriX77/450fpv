@@ -26,6 +26,8 @@ namespace Fpv450.App
     /// <see cref="FrameTimingManager"/>'s, which needs the player's frame timing stats. With the feed on it covers only
     /// the feed's output camera, not the FPV camera's render into its own target (w6-farmland-look 1.1, measured), so a
     /// GPU-bound run's GPU time is its frame time: the CPU's main and render thread times say whether it is GPU-bound.
+    /// The FPV camera's GPU time shows instead as the main thread's wait to present, which is recorded beside them
+    /// (w6-farmland-look 1.2, design.md 7.8).
     /// </remarks>
     public static class FarmlandBench
     {
@@ -62,7 +64,7 @@ namespace Fpv450.App
             public bool Feed;
             public int Frames;
             public float Seconds, AverageFps, LowFps, P99Ms, WorstMs, MeanMs;
-            public float CpuMainMs, CpuRenderMs, GpuMs;
+            public float CpuMainMs, CpuRenderMs, GpuMs, PresentWaitMs;
             public int GpuSamples;
             public float DrawCalls, Batches, SetPass, TrianglesM;
             public long DrawCallsMax, TrianglesMax;
@@ -108,7 +110,7 @@ namespace Fpv450.App
             Track track = new Track(camera.gameObject.scene);
             var frames = new List<float>(16384);
             var timings = new FrameTiming[1];
-            double cpuMain = 0, cpuRender = 0, gpu = 0, drawCalls = 0, batches = 0, setPass = 0, triangles = 0;
+            double cpuMain = 0, cpuRender = 0, gpu = 0, presentWait = 0, drawCalls = 0, batches = 0, setPass = 0, triangles = 0;
             long drawCallsMax = 0, trianglesMax = 0, systemMax = 0;
             int timed = 0, counted = 0;
             using (var rDraw = ProfilerRecorder.StartNew(ProfilerCategory.Render, "Draw Calls Count"))
@@ -137,6 +139,7 @@ namespace Fpv450.App
                         cpuMain += timings[0].cpuMainThreadFrameTime;
                         cpuRender += timings[0].cpuRenderThreadFrameTime;
                         gpu += timings[0].gpuFrameTime;
+                        presentWait += timings[0].cpuMainThreadPresentWaitTime;
                         timed++;
                     }
                     if (rDraw.Valid && rDraw.LastValue > 0)
@@ -165,6 +168,7 @@ namespace Fpv450.App
             r.CpuMainMs = timed > 0 ? (float)(cpuMain / timed) : -1f;
             r.CpuRenderMs = timed > 0 ? (float)(cpuRender / timed) : -1f;
             r.GpuMs = timed > 0 ? (float)(gpu / timed) : -1f;
+            r.PresentWaitMs = timed > 0 ? (float)(presentWait / timed) : -1f;
             r.DrawCalls = counted > 0 ? (float)(drawCalls / counted) : -1f;
             r.Batches = counted > 0 ? (float)(batches / counted) : -1f;
             r.SetPass = counted > 0 ? (float)(setPass / counted) : -1f;
@@ -177,12 +181,12 @@ namespace Fpv450.App
             results.Add(r);
             Debug.Log(string.Format(CultureInfo.InvariantCulture,
                 "[Bench] {0} ({1}): {2} frames over {3:0.0} s, average {4:0.0} fps ({5:0.00} ms), 1 % low {6:0.0} fps (99th-percentile frame {7:0.00} ms), " +
-                "worst frame {8:0.00} ms; CPU main {9:0.00} ms, render thread {10:0.00} ms, GPU (FrameTimingManager{11}) {12:0.00} ms over {13} frames; " +
+                "worst frame {8:0.00} ms; CPU main {9:0.00} ms, render thread {10:0.00} ms, wait to present {24:0.00} ms, GPU (FrameTimingManager{11}) {12:0.00} ms over {13} frames; " +
                 "{14:0} draw calls (max {15}), {16:0} batches, {17:0} set-pass calls, {18:0.00} M triangles (max {19:0.00} M); " +
                 "Unity's system memory {20:0} MB; render {21}, screen {22}x{23}",
                 name, feed ? "the feed" : "noclip, the feed off", r.Frames, r.Seconds, r.AverageFps, r.MeanMs, r.LowFps, r.P99Ms, r.WorstMs,
                 r.CpuMainMs, r.CpuRenderMs, feed ? ", the output camera only" : "", r.GpuMs, timed, r.DrawCalls, r.DrawCallsMax, r.Batches, r.SetPass,
-                r.TrianglesM, r.TrianglesMax / 1e6, r.SystemUsedMB, r.Render, Screen.width, Screen.height));
+                r.TrianglesM, r.TrianglesMax / 1e6, r.SystemUsedMB, r.Render, Screen.width, Screen.height, r.PresentWaitMs));
 
             rig.enabled = false;
             if (noclip != null) noclip.enabled = noclipWas;
@@ -261,6 +265,7 @@ namespace Fpv450.App
                  .Append(", \"average_fps\": ").Append(F(r.AverageFps)).Append(", \"mean_ms\": ").Append(F(r.MeanMs))
                  .Append(", \"low1_fps\": ").Append(F(r.LowFps)).Append(", \"p99_ms\": ").Append(F(r.P99Ms)).Append(", \"worst_ms\": ").Append(F(r.WorstMs))
                  .Append(", \"cpu_main_ms\": ").Append(F(r.CpuMainMs)).Append(", \"cpu_render_ms\": ").Append(F(r.CpuRenderMs))
+                 .Append(", \"present_wait_ms\": ").Append(F(r.PresentWaitMs))
                  .Append(", \"gpu_ftm_ms\": ").Append(F(r.GpuMs)).Append(", \"gpu_samples\": ").Append(r.GpuSamples)
                  .Append(", \"draw_calls\": ").Append(F(r.DrawCalls)).Append(", \"draw_calls_max\": ").Append(r.DrawCallsMax)
                  .Append(", \"batches\": ").Append(F(r.Batches)).Append(", \"setpass\": ").Append(F(r.SetPass))
