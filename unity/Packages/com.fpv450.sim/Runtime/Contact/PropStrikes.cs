@@ -298,7 +298,7 @@ namespace Fpv450.Sim.Contact
                 for (int k = 0; k < pairs; k++)
                 {
                     _contacts.DiscPair(i, k, out int obj, out int shape, out ushort material, out byte surface);
-                    if (!Geometry(obj, shape, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)) continue;
+                    if (!Geometry(i, k, obj, shape, surface, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)) continue;
                     if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m)) continue;
                     if (_spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
                     {
@@ -905,7 +905,7 @@ namespace Fpv450.Sim.Contact
             }
             BladeState blade = _propulsion.Rotor(c).Blade(p.Blade);
             BladeCut.Meeting m = default;
-            bool still = at >= 0 && Geometry(p.Object, p.Shape, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)
+            bool still = at >= 0 && Geometry(i, at, p.Object, p.Shape, surface, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)
                 && BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m) && m.Radius < blade.TipRadius * _radius;
             if (!still) return Finish(i, d, ref p, events);
             double omega = now.RotorSpeed[c], J = _propulsion.Inertia(c), s = _spin[c], energy = 0.5 * J * omega * omega;
@@ -1202,9 +1202,17 @@ namespace Fpv450.Sim.Contact
 
         // ---- the world, the frames, the log ------------------------------------------------------------------------------------
 
-        bool Geometry(int obj, int shape, Double3 hub, in ContactShape d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)
+        // Disc i's pair k (obj, shape): the world's geometry, a terrain's ground the plane its contact touched (w3-farmland-ground
+        // 2.2: ContactModel.GroundPlane), a wire its chain's window at the disc.
+        bool Geometry(int i, int k, int obj, int shape, byte surface, Double3 hub, in ContactShape d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)
         {
             chain = default;
+            if (obj == WorldIds.Ground && _contacts.Terrain)
+            {
+                _contacts.DiscPairPlane(i, k, out Double3 point, out Double3 normal);
+                g = ContactModel.GroundPlane(point, normal, surface);
+                return true;
+            }
             if (!_world.Geometry(obj, shape, out g)) return false;
             if (g.Kind != ShapeKind.Wire) return true;
             chain = _world.WirePoints(obj, shape);

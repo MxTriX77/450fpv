@@ -262,6 +262,7 @@ namespace Fpv450.Sim.Contact
         readonly Pair[] _pairs;         // shape i's pairs at i·PairsPerShape
         readonly int[] _count;
         readonly Pair[] _ground;        // a support's ground (index: shape)
+        readonly bool _terrain;         // the ground is a terrain, not one plane (Geometry(Ground, 0) false: w3-farmland-ground 2.2)
         readonly Row[] _byMaterial;     // world material id → its row
         readonly Row _groundRow;
         double _massShare;              // m·share, kg, for the damping ratios (a loose piece's own, Reuse)
@@ -389,6 +390,7 @@ namespace Fpv450.Sim.Contact
             _dt = dt;
             _spec = (spec ?? throw new ArgumentNullException(nameof(spec))).Clone();
             _world = world ?? throw new ArgumentNullException(nameof(world));
+            _terrain = !_world.Geometry(WorldIds.Ground, 0, out _);
             _shapes = _spec.Shapes;
             int n = _shapes.Length;
             if (n > 255) throw new ArgumentException("the contact spec holds more than 255 shapes", nameof(spec));
@@ -3485,7 +3487,7 @@ namespace Fpv450.Sim.Contact
                 g.Object = WorldIds.Ground;
                 g.Surface = gs.Surface;
                 g.N = hole ? new Double3(0, 1, 0) : gs.Normal;
-                g.Depth = hole ? -1 : (gs.Height - (x.Y - _skids[c].Radius)) * gs.Normal.Y; // as a support's (K§7.1 step 2)
+                g.Depth = hole ? -1 : Sunk(gs, x.Y, _skids[c].Radius); // as a support's (K§7.1 step 2)
             }
             for (int k = 0; k < _supports.Length; k++)
             {
@@ -3500,10 +3502,10 @@ namespace Fpv450.Sim.Contact
                 g.Material = WorldIds.NoMaterial;
                 g.Surface = gs.Surface;
                 g.N = hole ? new Double3(0, 1, 0) : gs.Normal;
-                g.Depth = hole ? -1 : (gs.Height - (x.Y - _shapes[i].Radius)) * gs.Normal.Y; // K§7.1 step 2
+                g.Depth = hole ? -1 : Sunk(gs, x.Y, _shapes[i].Radius); // K§7.1 step 2
                 g.Point = new Double3(x.X, hole ? x.Y : gs.Height, x.Z);
                 g.P = g.Point;
-                Transition(ref g, i, now, events, false);
+                if (!_terrain) Transition(ref g, i, now, events, false); // on a terrain its own sweep finishes it (TerrainGround)
             }
 
             for (int o = 0; o < _order.Length; o++)
@@ -3521,10 +3523,39 @@ namespace Fpv450.Sim.Contact
                 var after = new Capsule(World(now, shape.A), World(now, shape.B), shape.Radius);
                 _wasA[i] = shape.A;
                 _wasB[i] = shape.B;
-                int found = _world.StaticContacts(before, after, _spec.Margin, _buf);
+                // A skid's ground is its nodes' (the samples and the supports'): on a terrain its sweep leaves the ground out, which
+                // Update would only drop; a support takes its ground from its own sweep (TerrainGround).
+                int found = _world.StaticContacts(before, after, _spec.Margin, _buf,
+                    _terrain && shape.Role == ContactRole.Skid ? QueryFilter.NoGround : QueryFilter.None);
                 if (found > Buffer) Lost(events, i, found - Buffer);
+                if (_terrain && shape.Role == ContactRole.Support) TerrainGround(i, found < Buffer ? found : Buffer, after, now, events);
                 Update(i, found < Buffer ? found : Buffer, after, now, events);
             }
+        }
+
+        // A support's overlap of the sample's facet along its normal: r − n·(c − P), P the facet's point under the core, so
+        // r − n_y·(y − h). K§7.1 step 2's (h − (y − r))·n_y leaves out r·(1 − n_y): 1.06 mm on a 5 mm support at 38°. On a level
+        // plane n_y is 1, and the two are the same bits.
+        static double Sunk(in GroundSample gs, double y, double r) => (gs.Height - (y - r)) * gs.Normal.Y + r * (1 - gs.Normal.Y);
+
+        // A support's ground on a terrain (w3-farmland-ground 2.2): its own sweep's contact with the ground, the piece nearest
+        // it (a facet, a step's face or the lip between them; on a facet's inside the sample's facet), its plane measured at the
+        // core now as a latch's (Depth). SampleGround reports a step's top, so a support past a face below it would read the
+        // step's height as its overlap (1.4–1.6 m at the farmland's ledge). Where the sweep finds no ground (farther than the
+        // margin) the sample stands, never touching: a core inside the ground always has its contact.
+        void TerrainGround(int i, int found, in Capsule part, in FlightState now, StepEvents events)
+        {
+            ref Pair g = ref _ground[i];
+            for (int j = 0; j < found; j++)
+            {
+                if (_buf[j].Object != WorldIds.Ground) continue;
+                g.Surface = _buf[j].Surface;
+                g.N = _buf[j].Normal;
+                g.P = _buf[j].Point;
+                Depth(ref g, part);
+                break;
+            }
+            Transition(ref g, i, now, events, false);
         }
 
         // One shape's pairs against this step's contacts (the latch, P1), then each pair's depth and its transitions.
@@ -3932,7 +3963,7 @@ namespace Fpv450.Sim.Contact
                 StaticContact c = _gate[j];
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, out BladeCut.Meeting m)) continue;
+                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m)) continue;
                 if (k == PairsPerShape)
                 {
                     lost++;
@@ -3948,7 +3979,7 @@ namespace Fpv450.Sim.Contact
             for (int k = 0; k < _count[i]; k++)
             {
                 ref Pair p = ref _pairs[first + k];
-                if (!p.Seen && Cuts(d, hubNow, axis, p.Object, p.Shape, out _)) p.Seen = true;
+                if (!p.Seen && Cuts(d, hubNow, axis, p.Object, p.Shape, p.P, p.N, p.Surface, out _)) p.Seen = true;
             }
             if (lost > 0) Lost(events, i, lost);
             int kept = 0;
@@ -3974,11 +4005,13 @@ namespace Fpv450.Sim.Contact
         }
 
         // Whether (obj, shape) cuts the disc's slab within its rim at the hub's pose now (BladeCut, the world's geometry now:
-        // a runtime object where it is).
-        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, out BladeCut.Meeting m)
+        // a runtime object where it is; a terrain's ground the plane of the contact that names it, GroundPlane).
+        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m)
         {
             m = default;
-            if (!_world.Geometry(obj, shape, out ShapeGeometry g)) return false;
+            ShapeGeometry g;
+            if (obj == WorldIds.Ground && _terrain) g = GroundPlane(point, normal, surface);
+            else if (!_world.Geometry(obj, shape, out g)) return false;
             ReadOnlySpan<Double3> chain = default;
             if (g.Kind == ShapeKind.Wire)
             {
@@ -3988,6 +4021,34 @@ namespace Fpv450.Sim.Contact
                 chain = chain.Slice(lo, hi - lo + 2);
             }
             return BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m);
+        }
+
+        /// <summary>A terrain's ground at a contact as a plane (w3-farmland-ground 2.2): the plane through the contact's point with
+        /// its normal, the piece it names (a facet, a step's face). A terrain has no one geometry (Geometry(Ground, 0) is false),
+        /// and a prop's disc (0.127 m) spans the facets round one 0.977 m cell at most: its blades meet the piece its contact
+        /// names.</summary>
+        public static ShapeGeometry GroundPlane(Double3 point, Double3 normal, byte surface)
+        {
+            // Any two axes square to the normal: a plane's geometry is its point and AxisY.
+            Double3 t = DetMath.Abs(normal.Y) < 0.9 ? new Double3(0, 1, 0) : new Double3(1, 0, 0);
+            Double3 x = Double3.Cross(t, normal);
+            x = x * (1 / x.Length());
+            return new ShapeGeometry
+            {
+                Kind = ShapeKind.Plane, Center = point, AxisX = x, AxisY = normal, AxisZ = Double3.Cross(normal, x),
+                Material = WorldIds.NoMaterial, Surface = surface,
+            };
+        }
+
+        /// <summary>The ground is a terrain, not one plane: a disc's pair on it takes its geometry from GroundPlane.</summary>
+        public bool Terrain => _terrain;
+
+        /// <summary>Disc pair k of shape: the point and normal it touched at (on a terrain's ground, the piece's plane).</summary>
+        public void DiscPairPlane(int shape, int k, out Double3 point, out Double3 normal)
+        {
+            ref Pair p = ref _pairs[shape * PairsPerShape + k];
+            point = p.P;
+            normal = p.N;
         }
 
         static Double3 World(in FlightState s, Double3 body) => s.Position + s.Attitude.Rotate(body);
