@@ -197,6 +197,7 @@ namespace Fpv450.Sim.Contact
             public Double3 P, N, Entry; // the plane, and the normal the part came in by
             public bool Latched, Flipped, Seen, Touching, Suppressed;
             public double Depth;        // at the pose Sense last saw, m
+            public double Slack;        // a blade's overlap its spring does not read: what it came back to rest in, as it shrinks since, m
             public Double3 Point;       // the contact point on the plane under the core there, world
             public Double3 Stretch;     // the friction's stick spring, world: the touching material's slip since it stuck
             public bool Anchored, Sliding;
@@ -338,12 +339,15 @@ namespace Fpv450.Sim.Contact
         // Props are parts at rest (p7f-damage 1.3b): the rotors and their blades (null until AttachRotors), each blade shape's
         // slot (corner × blades + blade; −1 for any other shape), segment and edge; the hubs (body) and spin signs; the
         // stations' bending sums for a contact's compliance; which rotors rest now and which a carve holds (PropStrikes);
-        // each resting rotor's angle at its blades' placement and its turn rate since the last; and the step's loads.
+        // each resting rotor's angle at its blades' placement and its turn rate since the last; the rotors whose turning blades'
+        // passes the strikes judged since they last rested, and the blade shapes those placed back this step; and the step's loads.
         Propulsion _rotors;
         PropBlade _blade;
         double _bladeR;
         int _bladesPer;
         int[] _bladeSlot, _bladeSeg, _bladeEdge;
+        bool[] _appeared;
+        int _passed;
         readonly Double3[] _hub = new Double3[4];
         readonly double[] _spinSign = new double[4], _restAngle = new double[4], _restRate = new double[4];
         double[] _flat0, _flat1, _flat2, _edge0, _edge1, _edge2, _axial0;
@@ -726,6 +730,7 @@ namespace Fpv450.Sim.Contact
             _bladeSlot = new int[n];
             _bladeSeg = new int[n];
             _bladeEdge = new int[n];
+            _appeared = new bool[n];
             var seen = new int[4];
             int segments = ContactSpec.BladeSegmentEnds.Length;
             for (int i = 0; i < n; i++)
@@ -815,6 +820,10 @@ namespace Fpv450.Sim.Contact
         /// their blades are no shapes until it ends.</summary>
         public void HoldBlades(int mask) => _carveHeld = mask;
 
+        /// <summary>The rotors whose blades' passes the strikes judged this step (PropStrikes, bit 1 &lt;&lt; corner): their blades
+        /// come back to rest unloaded in what they are inside (PlaceBlades).</summary>
+        public void Passes(int mask) => _passed |= mask;
+
         /// <summary>Whether shape i touches anything now: a support's ground, or one of its pairs not carried by another.</summary>
         public bool Touching(int i)
         {
@@ -830,8 +839,12 @@ namespace Fpv450.Sim.Contact
         // Each rotor's blades to its angle now: a resting one's from its blades' state (tip, chord share, pitch and flap sets),
         // each segment's trailing and leading edge a chord apart less a radius each, at the section's pitch; a rotor turning
         // faster, or held by a carve, takes them off (their touching pairs broken). A blade shape coming back appears where its
-        // blade is (no sweep from where it was a turn ago); a resting rotor's turn since the last placement is its blades'
-        // slip, for their friction and damping (Forces).
+        // blade is (no sweep from where it was a turn ago). After the strikes judged its rotor's passes (PropStrikes: a glance
+        // through a ground the strikes do not know, a bend over a face, a crush, a carve) what it comes back inside is theirs: no
+        // motion pressed its spring, so each pair it makes in this Sense keeps that overlap as its slack (Update, Forces). A rotor
+        // about BladeRestSpeed back before any pass presses as its sweep took it, any part's first touch; at the flight's start the
+        // blades stand where the setup sets the drone down, as every part does. A resting rotor's turn since the last placement is
+        // its blades' slip, for their friction and damping (Forces).
         void PlaceBlades(in FlightState was, in FlightState now, StepEvents events)
         {
             int resting = 0;
@@ -858,6 +871,7 @@ namespace Fpv450.Sim.Contact
                 }
                 _shapes[i].A = a;
                 _shapes[i].B = e;
+                _appeared[i] = _off[i] && (_passed & (1 << c)) != 0;
                 if (_off[i])
                 {
                     _off[i] = false;
@@ -866,6 +880,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
             _resting = resting;
+            _passed &= ~resting;
         }
 
         // A world surface that is a soil (surfaces.json's set, not rigid): it yields to a blade at its bearing pressure, softer than
@@ -1153,10 +1168,11 @@ namespace Fpv450.Sim.Contact
                         ks = 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
                     }
                     double cs = 2 * shape.DampingRatio * DetMath.Sqrt(ks * _massShare);
-                    // A layer by this part's footprint, solid past its stroke: then the part's own spring alone (1.12, P7).
+                    // A layer by this part's footprint, solid past its stroke: then the part's own spring alone (1.12, P7). The
+                    // spring reads the depth past a blade's slack (PlaceBlades; 0 for every other pair).
                     double kl = row.Stiffness, cl = row.Damping, stroke = double.PositiveInfinity;
                     if (!row.Rigid) Layered(p, row, i, false, s, out kl, out cl, out stroke);
-                    double kn = row.Rigid ? ks : Series(ks, kl), cn = row.Rigid ? cs : Series(cs, cl), depth = p.Depth;
+                    double kn = row.Rigid ? ks : Series(ks, kl), cn = row.Rigid ? cs : Series(cs, cl), depth = p.Depth - p.Slack;
                     if (!row.Rigid && kn * depth >= kl * stroke)
                     {
                         kn = ks;
@@ -3640,6 +3656,9 @@ namespace Fpv450.Sim.Contact
             {
                 ref Pair p = ref _pairs[first + k];
                 Depth(ref p, part);
+                // A blade's slack: its overlap where it came back after its rotor's passes, then only less as the blade leaves
+                // (never a spring pressed by no motion, PlaceBlades).
+                if (blade) p.Slack = _appeared[i] ? DetMath.Max(p.Depth, 0) : DetMath.Min(p.Slack, DetMath.Max(p.Depth, 0));
                 if (!p.Seen || p.Suppressed)
                 {
                     // Only a rigid shape or the ground can be passed by mistake: a compliant one (a crown's twig shell, a

@@ -1132,6 +1132,95 @@ namespace Fpv450.Tests.Session
             Assert.That(p.Lines(), Has.Member("log " + rig.Session.LogPath));
         }
 
+        // w3-farmland-ground 2.6: a crash creates no energy. The crash into R01_A above and its 1.5 s on the floor, audited step
+        // by step: over every contact step, the body's kinetic and potential energy and the rotors' kinetic energy never rise
+        // above what they were at the contact's start (the step before it, when nothing touched and no contact held an
+        // elastic energy) by more than the packs gave the motors since (the bus's V·I at each step's last sub-step, the
+        // motors' input at most). Elastic energy a contact stored comes back within its own contact, so it never shows; the
+        // air, the friction and the dampers only take. Before 2.6 (model 82) prop_fl's blade came back to rest 85 mm inside the
+        // floor at crash + 814 ms (its turning passes glance through a ground the strikes do not know) and its spring gave the
+        // body 494 J in one step: 443 J over this bound. The margin: a contact's first step meets a penetration its spring did
+        // not see, ½·k·(v·dt)², 0.45 J for a blade's 1e5 N/m at 3 m/s (derived).
+        [Test]
+        public void ACrashCreatesNoEnergy()
+        {
+            Rig rig = Make(i => i.Adjust = s =>
+            {
+                ShapeGeometry box = Box(new Double3(0, 1.6, 0), new Double3(2, 0.2, 2), s.World.Query.MaterialId("steel"));
+                var objects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("R01_A", new[] { box }) };
+                s.RuntimeObjects = objects.ToArray();
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            FlightCore core = rig.Session.Core;
+            var audit = new EnergyAudit(core);
+            rig.Radio.Throttle = 1;
+            for (int ms = 0; ms < 3000 && !core.State.Crashed; ms++) audit.Run(rig);
+            Assert.That(core.State.Crashed, "crashed into the box");
+            rig.Radio.Throttle = 0;
+            for (int ms = 0; ms < 1500; ms++) audit.Run(rig);
+            TestContext.WriteLine(audit.Describe());
+            Assert.That(audit.Contacts, Is.GreaterThan(100), "the crash and the floor are contact steps");
+            Assert.That(audit.Worst, Is.LessThanOrEqualTo(EnergyAudit.Margin), audit.Describe());
+        }
+
+        // The audit: each step's energy (J) against its contact's start and the packs' work since.
+        sealed class EnergyAudit
+        {
+            public const double Margin = 1; // J
+            readonly FlightCore _core;
+            double _start = double.NaN, _input; // NaN until a step with nothing touching
+            public double Worst = double.NegativeInfinity;
+            public long WorstStep, WorstFrom;
+            long _from;
+            public int Contacts;
+            public double WorstRise, WorstInput;
+
+            public EnergyAudit(FlightCore core) => _core = core;
+
+            public void Run(Rig rig)
+            {
+                long step = _core.State.Step;
+                rig.Run(1);
+                Assert.That(_core.State.Step, Is.EqualTo(step + 1), "one step a ms");
+                ref readonly StepTrace t = ref _core.Trace;
+                double e = Energy(_core);
+                if (t.ContactsTouching == 0)
+                {
+                    _start = e;
+                    _input = 0;
+                    _from = _core.State.Step;
+                    return;
+                }
+                if (double.IsNaN(_start)) return;
+                Contacts++;
+                _input += t.PackVolts0 * (t.PackAmps0 + t.PackAmps1) * FlightCore.Dt;
+                double excess = e - _start - _input;
+                if (excess <= Worst) return;
+                Worst = excess;
+                WorstStep = _core.State.Step;
+                WorstFrom = _from;
+                WorstRise = e - _start;
+                WorstInput = _input;
+            }
+
+            public string Describe() =>
+                "worst at step " + WorstStep + ": " + WorstRise.ToString("0.000") + " J over the contact from step " + WorstFrom + ", the packs gave "
+                + WorstInput.ToString("0.000") + " J: " + Worst.ToString("0.000") + " J more (margin " + Margin + " J), over " + Contacts + " contact steps";
+
+            // The body's translation (its CoM's), rotation and height, and the rotors' spin.
+            static double Energy(FlightCore core)
+            {
+                FlightState s = core.State;
+                ref readonly MassProperties b = ref core.Body;
+                Double3 c = b.CenterOfMass, v = s.Velocity + s.Attitude.Rotate(Double3.Cross(s.BodyRate, c));
+                double e = 0.5 * b.Mass * Double3.Dot(v, v) + 0.5 * Double3.Dot(s.BodyRate, b.Inertia * s.BodyRate)
+                           - b.Mass * Double3.Dot(FlightCore.Gravity, s.Position + s.Attitude.Rotate(c));
+                for (int i = 0; i < 4; i++) e += 0.5 * core.Propulsion.Inertia(i) * s.RotorSpeed[i] * s.RotorSpeed[i];
+                return e;
+            }
+        }
+
         // D-079, p7f-damage 1.3 in the player: the app's flight carries props.blade's tables (the rotors flown as blade
         // elements, the header's drone internals at tag 26), the merged physics_materials.json with what a blade meets, the
         // strikes and each blade's factory pitch (the asymmetry's "prop.blade_pitch"). A steel wall's face stands 2 mm inside
