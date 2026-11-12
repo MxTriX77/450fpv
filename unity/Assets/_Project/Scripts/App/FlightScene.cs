@@ -163,6 +163,7 @@ namespace Fpv450.App
                 UniversalAdditionalCameraData theirs = own.GetUniversalAdditionalCameraData();
                 flight._camera.GetUniversalAdditionalCameraData().renderPostProcessing = theirs.renderPostProcessing;
                 flight._camera.farClipPlane = own.farClipPlane;
+                flight._camera.gameObject.AddComponent<FarmlandFeedDetail>(); // w6-farmland-look 1.2: less of what the PAL feed can't show, as Explore
                 own.gameObject.SetActive(false);
                 Debug.Log("[Flight] the scene's camera '" + own.name + "' off; the flight's draws its look: post-processing " +
                           (theirs.renderPostProcessing ? "on" : "off") + ", far plane " + own.farClipPlane + " m");
