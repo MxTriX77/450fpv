@@ -839,11 +839,10 @@ namespace Fpv450.Sim.Log
         ///    the ground pass share it). The header's tether entry gains FlightSetup.TetherSlidingTrail (the known-wrong trail before
         ///    2.4) after TetherLinearStep; a flight with it steps as 84 did, and every golden but the tether's is 84's to the bit.
         /// 85: the pilot's farmland preview (unity/physics/physics-integration-2--w3-preview, D-072): 84 with w3-farmland-ground
-        ///    2.6 (a crash creates no energy, in 82's note above) and 2.4 (the laid line rests, in 84's note above) merged in, and
-        ///    nothing else. A farmland log from the preview names
-        ///    this core. 83 was reserved for W3's merge-back and never used: W7 1.1's 84 merged first.
-        ///    With w3-farmland-ground 2.7 (unity/physics/physics-integration-2--w3-contact, unmerged; the orchestrator renumbers at the
-        ///    merge) contact with the farmland's objects: a part's new pair on a rigid box that begins inside it with no first touch
+        ///    2.6 (a crash creates no energy, in 82's note above), 2.4 (the laid line rests, in 84's note above) and 2.7 (below)
+        ///    merged in. A farmland log from the preview names this core. 83 was reserved for W3's merge-back and never used: W7
+        ///    1.1's 84 merged first. With w3-farmland-ground 2.7 (unity/physics/physics-integration-2--w3-contact), contact with the
+        ///    farmland's objects: a part's new pair on a rigid box that begins inside it with no first touch
         ///    takes the face the line from the body's origin to its core enters by, not the query's nearest (a 2 cm skin's far face
         ///    pushed the part through); a resting blade on a box its hub's line enters by another face lies in the slot it cut (past
         ///    the far face no touch, inside the root's face, its overlap slack); a box whose cut holds the tip's circle beside the
@@ -851,7 +850,7 @@ namespace Fpv450.Sim.Log
         ///    (PropStrikes, BladeCut.Wide); a shape holds 24 pairs, not 8; a rotor turning in a crown's twig shell with surfaces.json
         ///    cuts the twigs its disc's motion brings in at their cost (PropStrikes.Twigs), never a glance; without surfaces.json a
         ///    blade at rest passes the ground and the soil shapes as its passes glance through them, never bearing on a floor its rotor
-        ///    sank into; and a prop lost in a step loads no shaft from its resting blades. Every other flight steps as in 85.
+        ///    sank into; and a prop lost in a step loads no shaft from its resting blades.
         /// </summary>
         public const int ModelVersion = 85;
 
