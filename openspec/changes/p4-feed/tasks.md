@@ -50,7 +50,7 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
   - **Verify:** the voltage scenario with a stub pack signal, and with `p6-flight-core`'s once it lands.
 
   **As built** (D-057, on the player's branch `unity/game/p6-input-app--player`; not ticked: its Unity runs are owed, below):
-  - *Where:* `Scripts/UI/Osd/FlightOsd.cs` (asmdef `Fpv450.UI.Osd`, engine-free, so `tools/inputcore` compiles it and `tools/inputtests` runs `Tests/EditMode/Osd/`). `FlightFeedSignals` feeds it from `FlightScene` and hands its grid to the feed; `StubOsd` stays the noclip view's and the captures' stand-in, unchanged. `FlightScene` resets it for each flight and each wait for the radio (a fresh pack); the cells are `drone.json`'s series, `Propulsion.SeriesCells`.
+  - *Where:* `Scripts/UI/Osd/FlightOsd.cs` (asmdef `Fpv450.UI.Osd`, engine-free, so `tools/inputcore` compiles it and `tools/inputtests` runs `Tests/EditMode/Osd/`). `FlightFeedSignals` feeds it from `FlightScene` and hands its grid to the feed; `StubOsd` stays the noclip view's and the captures' stand-in: the captures' grid is unchanged, and every noclip view adds the throttle to it (D-080, off by default, from the radio's stick in Explore). `FlightScene` resets it for each flight and each wait for the radio (a fresh pack); the cells are `drone.json`'s series, `Propulsion.SeriesCells`.
   - *The elements* (row, columns: content ← source), the footage's layout as `StubOsd` ports it:
     - 0, 0–7: **AIR** while armed, **DISARMED** while disarmed (D-057; Betaflight's "AIR ", its 4th cell blank) ← the pose's arm state
     - 0, to 26: the altitude, ">" and whole m ← the pose over the rest pose
