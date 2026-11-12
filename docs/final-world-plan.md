@@ -76,6 +76,12 @@ Where it stands (2026-11-10):
 
 Parallel: W0 first. Then W1, W2 and W4a/W4b can run together (at most four). W3 after W2's format is fixed. W5 after W2 and W3. W6 after W1. W7 after W3. W8 any time after W2; it doesn't hold up the pilot's flight.
 
+**Added after the pilot flew the farmland** ([handover-2026-11-12.md](handover-2026-11-12.md) §2 and §3):
+- **W9, Village physics** (`w9-village-physics`, Complex): the audit is done; the stem field, stems on the props, the legs and the fiber, leaves in crowns, and two contact bugs (D-102). In work.
+- **W10, Play** (`w10-play-maps`, D-100): the carousel of House and Village with their stills. In the pilot's build.
+- **W11, the M map** (`w11-world-map`, D-101). In the pilot's build; its frame cost on a quiet machine is owed.
+- **W12, furrows** (not started, D-102): a world-and-look unit that draws the fields' furrow relief near the drone and stores it in the package, so the physics can follow it.
+
 ## 5. Phase B: the three open branches (after the pilot flies the farmland, D-093)
 
 As in [handover-2026-11-06.md](handover-2026-11-06.md) §2 and §6.2: arm-break (model 80), edge-load (model 81 only if physics changes), app-reds. Fresh agents. Merge onto the line in that order, goldens audited case by case.
