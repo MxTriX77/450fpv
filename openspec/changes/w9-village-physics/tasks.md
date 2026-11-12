@@ -30,7 +30,12 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
 
 ## 2. The physics
 
-- [ ] 2.1 [world-builder] **Village's stem field** (audit §3), after 2.8.
+- [x] 2.1 [world-builder] **Village's stem field** (audit §3), after 2.8.
+  - **As built** (51613910, b387499d, e9507ff0; design.md 2.1):
+    - **The editor check:** `ComputeDetailInstanceTransforms` gives exactly the counted instances at their drawn places, at any density (`useDensityScaling` is off). It doesn't give the drawn blades: the renderer adds `alignToGround` 0.5's tilt and the shader's sway.
+    - **The field:** per cell and layer, derived at load from `grass/map.raw`, `map.json` and 2.8's numbers. It holds stems per m² reaching a height, the kind by group and the drawn tops. No package change; the content hash takes the plants' numbers.
+    - **The query:** `StemsNear(XZ centre, double radius, double height, Span<StemPatch>)`, `QueryVersion` 9. Only the version lines and the farmland's hash moved in the goldens.
+    - **Its cost:** 14.0 MiB held, 46 ms of load, four rotor discs a step at a median of 3.7 µs with 0 B (indicative).
   - Per cell and layer, from `grass/map.raw`, `map.json`'s layers and 2.8's stems per instance: stems per m², the height range, and the kind from the layer's group (green blades, dry culms, burnt culms). A cell with no drawn grass has no stems. Never hand-painted.
   - First check in the editor whether `TerrainData.ComputeDetailInstanceTransforms` gives exactly the drawn instances. Choose per cell or per instance with its cost (2.84 M instances), and say why.
   - A world query for the physics (by point and radius, or per cell), allocation-free, DetMath only. `QueryVersion` 9.
