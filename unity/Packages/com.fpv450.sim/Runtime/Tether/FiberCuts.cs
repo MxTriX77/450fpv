@@ -94,8 +94,11 @@ namespace Fpv450.Sim.Tether
     /// </summary>
     public sealed class FiberCuts
     {
-        /// <summary>The section table's size: sections read at a contact or worn (assumed, design 13: 4096); a power of two.</summary>
-        public const int Capacity = 4096;
+        /// <summary>The section table's size: sections read at a contact or worn; a power of two. 32768 (derived,
+        /// w3-farmland-ground 2.4): the farmland line in Calm read 1.46 sections a metre of line paid out (2188 over 1510 m, its
+        /// line through the village and the belts), so a 10 km coil reads about 14,600, under the table's 3/4 load of 24,576;
+        /// design 13's 4096 filled in 90 s while the laid line never froze and its nodes read new sections as they slid.</summary>
+        public const int Capacity = 32768;
 
         /// <summary>The bends a step holds: two members a node of 48 (the spacing law's 32 and a terrain's crests,
         /// FiberLine.CrestNodes) and the lip (numerical).</summary>
