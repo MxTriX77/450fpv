@@ -372,7 +372,11 @@ namespace Fpv450.Sim.Tests
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int k = 0; k < 100; k++)
                 Step();
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            // No constraint built in this method: in Release the JIT boxed Is.EqualTo(0)'s literal before the last read, the
+            // 24 B this test reported since 1.1 (a bare pair of reads with nothing between them measured it too).
+            if (allocated != 0)
+                Assert.Fail($"{allocated} B over 100 steps");
         }
     }
 }
