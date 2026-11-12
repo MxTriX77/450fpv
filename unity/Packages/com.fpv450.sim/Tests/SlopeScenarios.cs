@@ -249,6 +249,13 @@ namespace Fpv450.Sim.Tests
             public double Facet, TouchSpeed, PeakAccel, PeakSink, Slide, EndSpeed, MaxTilt, EndTilt;
             public bool Over;
             public int Crashes, Tunnels;
+
+            /// <summary>The contacts' largest lever after the touch (w9-village-physics 2.4): the step's contact moment about the
+            /// centre of mass over the size of its contact force (m; the vector sum's size, never more than the sum of the
+            /// contacts' sizes, so a lever under the reach here is one under it by the spec's sum), its step after the touch and
+            /// the moment then (N·m); the largest moment of a step with no contact force (N·m).</summary>
+            public double Lever, LeverMoment, Unbacked;
+            public long LeverStep;
         }
 
         /// <summary>
@@ -257,11 +264,27 @@ namespace Fpv450.Sim.Tests
         /// stand, and the throttle is cut at the first touch on the ground), the drone level, its nose uphill (yaw 0) or across
         /// (yaw 90°); flown 3 s past the touch.
         /// </summary>
-        public static Touchdown Land(DroneSpec spec, double deg, RainLevel rain, double yawDeg, bool terrainAtZero = false)
+        public static Touchdown Land(DroneSpec spec, double deg, RainLevel rain, double yawDeg, bool terrainAtZero = false, string surface = "meadow_sod",
+            Action<FlightSetup> edit = null)
         {
-            FlightWorld world = Site(deg, out Double3 at, out Double3 n, terrainAtZero: terrainAtZero);
+            FlightWorld world = Site(deg, out Double3 at, out Double3 n, surface, terrainAtZero);
+            return Land(spec, world, at, n, rain, yawDeg, edit);
+        }
+
+        /// <summary>The same landing on the farmland at (x, z), its nose uphill (yaw 0, the fall line's way up) or yawDeg from it.</summary>
+        public static Touchdown LandOnFarmland(DroneSpec spec, double x, double z, double yawDeg, Action<FlightSetup> edit = null)
+        {
+            MapWorld w = Farmland();
+            GroundSample g = Ground(w, x, z);
+            double uphill = Math.Atan2(-g.Normal.X, -g.Normal.Z) * RadToDeg;
+            return Land(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, edit);
+        }
+
+        static Touchdown Land(DroneSpec spec, FlightWorld world, Double3 at, Double3 n, RainLevel rain, double yawDeg, Action<FlightSetup> edit)
+        {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain);
+            edit?.Invoke(setup);
             double yaw = yawDeg / RadToDeg;
             setup.StartAttitude = new Quat(0, Math.Sin(yaw / 2), 0, Math.Cos(yaw / 2));
             var core = new FlightCore(setup);
@@ -309,6 +332,17 @@ namespace Fpv450.Sim.Tests
                 }
                 if (touch >= 0)
                 {
+                    double cf = core.Trace.ContactForce.Length(), cm = core.Trace.ContactMoment.Length();
+                    if (cf > 0)
+                    {
+                        if (cm / cf > r.Lever)
+                        {
+                            r.Lever = cm / cf;
+                            r.LeverMoment = cm;
+                            r.LeverStep = now.Step - touch;
+                        }
+                    }
+                    else r.Unbacked = Math.Max(r.Unbacked, cm);
                     double acc = (now.Velocity - lastV).Length() / FlightCore.Dt;
                     r.PeakAccel = Math.Max(r.PeakAccel, acc);
                     double tilt = TiltTo(now, n);
