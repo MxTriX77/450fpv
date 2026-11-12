@@ -7,6 +7,7 @@ Tech-artist, `w6-farmland-look` 1.2, branch `unity/physics/physics-integration-2
 - **PLT-02 is not met on this machine as it is set**, through the feed or in noclip.
 - **PLT-05 and PLT-06 are met** with a wide margin: VRAM 1.06 GB of 4.5, RAM 1.2 GB of 8, Explore's first frame 1.4 s after the press, of 20.
 - **The GPU ran at 20 W of its 65 W.** `nvidia-smi` reads an enforced power limit of 20 W, with Windows' power mode at Best power efficiency on AC. Under the bench the GPU sat at 1035–2700 MHz (1305 MHz median, its maximum 3105), 100 % busy. 1.1's numbers were taken the same way.
+- **The 17–19 ms "wait to present" that W3's player measured is GPU time.** The frame is GPU-bound: the player's own 3D engine on the RTX 4050 is 99 % busy, and no other process uses it. `FrameTimingManager`'s GPU time with the feed on covers only the output camera, so the FPV camera's render shows up as the main thread waiting for the GPU. It is not DWM, the swap chain, a sync in the feed's passes or the sim. The bench now records the wait (below).
 - **1.2 made the farmland's feed view 35 % faster** with no change to the feed's passes or render size, and kept noclip's look at the friend's 10 cameras (every view within 0.64 luma of the friend's).
 
 ## The numbers (shared machine, GPU at 20 W)
@@ -44,6 +45,30 @@ The committed runner's single pass on 1.2 (`pwsh tools/bench_farmland.ps1`, a bu
 | The grass to 100 m while the feed runs (the friend's 200 m in noclip) | −6.5 ms | | through the feed: luma 0.22 on average; the far band a shade smoother (fine structure −4 %, −12 % on elevated views) |
 
 **The feed's passes, constants and render size are unchanged (D-026).**
+
+## The wait to present (1.2, continued)
+
+W3's player timed each farmland frame through the feed at 22–24 ms. `FrameTimingManager` gave the GPU 3.7 ms and the main thread 4.5–5.2 ms, and the remaining 17–19 ms was "waiting to present". The details are in `design.md` §7.8. Same machine and conditions as above (AC, Best power efficiency, the GPU limited to 20 W, a 1920 × 1080 window, vsync off):
+
+| Run | Render | Frame | Main thread | Wait to present | GPU (FrameTimingManager) | Player's 3D engine busy |
+|---|---|---|---|---|---|---|
+| W3's player, the hills cruise | 2889 × 1625 | 23.4 ms | 5.0 ms | 18.4 ms | 3.7 ms | 99.2 % |
+| W6's path, the feed | 2754 × 1549 | 15.9 ms | 2.9 ms | 13.0 ms | 1.2 ms | 99.5 % |
+| W6's path, the feed's scene at a quarter of the pixels | 1377 × 775 | 7.3 ms | 2.9 ms | 4.4 ms | 1.0 ms | 99.2 % |
+| W6's path, borderless full screen | 2754 × 1549 | 16.1 ms | 3.0 ms | 13.0 ms | 1.3 ms | 99.5 % |
+| W6's path, noclip | 1920 × 1080 | 13.5 ms | 2.8 ms | 10.6 ms | 13.4 ms | 99.5 % |
+
+- **The cause.**
+  - The frame is GPU-bound, and the main thread waits in Present for the GPU. In noclip it waits too (10.6 ms).
+  - With the feed on, `FrameTimingManager` times only the output camera. Rendering the FPV scene at a quarter of the pixels cut the frame and the wait by the same 8.5 ms, while its GPU time stayed at about 1 ms.
+  - So the FPV camera's render is the hidden GPU time.
+- **Ruled out:**
+  - DWM: full screen splits the same as the window.
+  - The sim: W6's path flies no sim and splits the same.
+  - A sync or readback in the feed's passes, the swap chain, `targetFrameRate` or `maxQueuedFrames`: the GPU is never idle, and our code sets none of these.
+- **The machine's part.** NVIDIA's software power cap is active in 99–100 % of the busy samples. The GPU draws 19.98 W of its 20 W at about 1.3 GHz of 3.1 GHz, which makes the GPU-bound frame long.
+- **Our part.** The FPV camera's content at the feed's render size: the levers below.
+- **The fix.** Nothing of ours stalls, so the render is unchanged. The bench and `tools/bench_farmland.ps1` now print the main thread's wait to present beside the GPU time. That way a feed run's split adds up (main + wait = frame) and doesn't read as a CPU or present problem.
 
 ## What is left, for the orchestrator and the pilot
 

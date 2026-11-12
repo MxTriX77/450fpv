@@ -114,7 +114,7 @@ Every number here is from a **shared machine** (other agents' Unity, Blender and
 - **`FarmlandBench`** (`Scripts/App/FarmlandBench.cs`): a review build started with `-farmbench <file>` presses Explore as the menu does (`AppFlow`), then flies the camera along a fixed path, once per run of `-benchruns` (default `feed,noclip`): through the feed, then in noclip with the feed off. Each run holds the path's first pose for the 2 s warm-up, then measures the whole path: average, 1 % low (the 99th-percentile frame's rate, as the test range's bench), worst frame, the CPU's main and render thread and `FrameTimingManager`'s GPU time, draw calls, batches, set-pass calls and triangles (`ProfilerRecorder`, the release player's counters), and Unity's system memory. It writes JSON and quits.
 - **The path** (965 m at 15 m/s, 64 s measured): west through the village's lane between the five ruins at 4 m; up past the village's west edge and across the village at 30 m, looking down on the ruins; down to the tree belt on field F8's west edge and along it at 5 m, 12 m off it; west over the open field F7 at 15 m. Heights are over the terrain, sampled along the path once, so a frame allocates nothing. `FarmlandBenchTests` holds it over the map, through the village's circle, and at least 30 s long.
 - **`tools/bench_farmland.ps1`** runs it in a 1920 × 1080 window with vsync off and adds what only the OS sees: AC power, the power plan and Windows' power mode, the GPU's power limit in force, the GPU's clocks, power, load and temperature while it runs (`nvidia-smi`), the CPU's effective clock, the process's peak dedicated VRAM (`\GPU Process Memory`) and peak RAM, and the other heavy processes. The window prefs the player writes on quit (`HKCU\Software\450fpv`) are saved first and put back byte for byte. It prints a table and a PLT-02/05/06 verdict per run.
-- **The GPU time with the feed on:** `FrameTimingManager` covers only the output camera (1.6 ms, measured), not the FPV camera's render into its own target, and with the grass at 100 m it reports 0. The runs are GPU-bound (the CPU's main thread 2.6–3.4 ms, its render thread ≤ 1.3 ms, the GPU 100 % busy), so the GPU time is the frame time. **Frame timing stats** are now on in `ProjectSettings` (they were off), for the CPU times.
+- **The GPU time with the feed on:** `FrameTimingManager` covers only the output camera (1.6 ms, measured), not the FPV camera's render into its own target, and with the grass at 100 m it reports 0. The runs are GPU-bound (the CPU's main thread 2.6–3.4 ms, its render thread ≤ 1.3 ms, the GPU 100 % busy), so the GPU time is the frame time. The FPV camera's GPU time shows as the main thread's wait to present, which the bench records (§7.8). **Frame timing stats** are now on in `ProjectSettings` (they were off), for the CPU times.
 
 ### 7.2 Where the frame goes (measured)
 The friend's 10 views, 60 frames each after a settle, with the feed on (the farmland's worst case: the FPV camera renders 2754 × 1549, 2.06× a 1080p frame). Each lever alone against the nearest baseline in the same run; the baseline drifted 25.6 → 27.2 ms over a run, and repeats came 0.1–1.5 ms apart.
@@ -209,3 +209,44 @@ If the PLT-07 run at full power still misses, these are the levers, each measure
 | the feed's render at 1280 samples across (1836 × 1033; `-feedwidth 1280`) | the path through the feed at 91.6 fps (10.9 ms), 1 % low 63.2 fps, against 59.0 fps at the full read in the same hour | changes the feed (D-026, p4-feed 1.2): the fine horizontal structure through the feed is 83 % of the full read's at the farmland's 10 views (76–90 %), luma 0.21; p4-feed's still A/B against Godot lost 19–54 % at 1600–960 across |
 | the feed's render at 960 across (1377 × 775) | 111.4 fps (9.0 ms), 1 % low 67.7 fps: PLT-02 met even at 20 W | the same, more: 73 % of the fine structure (61–82 %), luma 0.39 |
 | noclip's grass to 150 m | noclip −1.6 ms on the views | luma 0.46 off the friend's (the same as now); the friend's grass ends 50 m sooner at 1080p |
+
+### 7.8 The wait to present (measured)
+W3's player (w3-farmland-ground 3.2) timed its farmland frames through the feed at 22–24 ms: the GPU 3.7 ms and the main thread 4.5–5.2 ms by `FrameTimingManager`, and 17–19 ms waiting to present. **The wait is the GPU's.** The frame is GPU-bound, the GPU is held at 20 W, and `FrameTimingManager`'s GPU time doesn't see the FPV camera's render. Nothing of ours stalls.
+
+The evidence, on the shared machine (AC, the mode Best power efficiency, the GPU's 20 W limit in force), in a 1920 × 1080 window with vsync off unless said. "3D busy" is Windows' `\GPU Engine` counter for the player's own process on the RTX 4050, the median of 1 s samples; no other process used that engine in any run.
+
+| Run | Render | Frame | Main thread | Wait to present | Render thread | GPU (FTM) | 3D busy | Graphics clock |
+|---|---|---|---|---|---|---|---|---|
+| W3's player, the hills cruise (`TerrainCost`: the near rule on / the scene's errors) | 2889 × 1625 | 23.36 / 21.86 ms | 4.98 / 4.66 | 18.37 / 17.20 | 0.67 / 0.66 | 3.70 / 3.63 | 99.2 % | 1365 MHz |
+| W6's path, the feed | 2754 × 1549 | 15.83 | 2.92 | 12.91 (frame − main) | 0.29 | 1.21 | 99.4 % | 1305 |
+| the same, the feed's scene read at 960 across | 1377 × 775 | 7.32 | 2.88 | 4.43 (frame − main) | 0.28 | 1.00 | 99.2 % | 1350 |
+| the same, borderless full screen | 2754 × 1549 | 16.08 | 3.03 | 13.04 (frame − main) | 0.31 | 1.26 | 99.5 % | 1275 |
+| W6's path, noclip (the same run as the feed's row) | 1920 × 1080 | 13.36 | 2.49 | 10.87 (frame − main) | 1.20 | 13.35 | 99.4 % | 1305 |
+| **the bench recording the wait:** the feed | 2754 × 1549 | 15.89 | 2.91 | **12.97** | 0.29 | 1.22 | 99.5 % | 1290 |
+| **the bench recording the wait:** noclip | 1920 × 1080 | 13.45 | 2.81 | **10.63** | 1.36 | 13.43 | (as the feed's) | |
+
+- **The GPU never waits for us.** The player's 3D engine was 99 % busy in every run (the 10th percentile 89–98 %). A stall would leave the GPU idle, and none does. That rules out DWM's composition, the swap chain, a fence or readback in the feed's passes, and the render thread waiting on the sim's pose.
+- **With the feed on, `FrameTimingManager`'s GPU time covers the output camera alone.**
+  - Reading the feed's scene at a quarter of the pixels (`-feedwidth 960`) took 8.51 ms off the frame and 8.48 ms off the wait. `FrameTimingManager`'s GPU time moved 0.21 ms and the main thread 0.04 ms.
+  - In noclip, where the camera draws straight to the screen, its GPU time is the frame.
+  - So the FPV camera's render into its own target (§7.2: the grass and the terrain at 2.06× a 1080p frame) shows only as the main thread's wait for the GPU.
+  - The render thread's time with the feed is the output camera's too (0.29 ms, against noclip's 1.2–1.4 ms).
+  - Why Unity's D3D12 timing starts at the output camera isn't known: Unity's documentation doesn't say. The player runs split graphics jobs (`kGfxThreadingModeSplitJobs`).
+- **A GPU-bound frame always waits there.** Noclip waits 10.6 ms of its 13.4 ms frame. The main thread plus the wait is the frame: 2.91 + 12.97 = 15.88 of 15.89 ms through the feed, and 13.44 of 13.45 ms in noclip. The wait looked like a cost of its own only with the feed, where `FrameTimingManager`'s GPU time missed most of the frame.
+- **Not DWM:** borderless full screen (Unity's FullScreenWindow) splits the same as the window, 16.08 / 3.03 / 13.04 ms against 15.83 / 2.92 / 12.91 ms.
+- **Not the sim:** W6's path runs no flight (the camera on a scripted path) and splits the same as W3's flight.
+- **Not our pacing:** nothing in our code sets `Application.targetFrameRate` or `QualitySettings.maxQueuedFrames` (searched), and the players log vsync 0. Nothing reads back each frame: the only `AsyncGPUReadback` is the smoke test's frame sequences.
+- **The machine's part:**
+  - NVIDIA's software power cap was an active clock reason in 99–100 % of the busy samples (200 ms each).
+  - The GPU drew 19.98 W of its 20 W limit (65 W its maximum), at 1275–1365 MHz median of its 3105 MHz, with the memory at 6001–7001 of 8001 MHz.
+- **W3's frame is longer than W6's** (23 ms against 16 ms) because of its own content:
+  - its grass reaches 200 m through the feed (26.9 M triangles against 7.7 M);
+  - its rolling shutter renders a larger scene (2889 × 1625);
+  - SSAO still runs on its output camera's empty frame (`FrameTimingManager` 3.7 ms against 1.2 ms): 1.2's output renderer (§7.3) isn't on W3's branch.
+
+**Ours and the mode's.** The GPU-bound frame is ours: the FPV camera's content at the feed's render size, with §7.2's and §7.7's levers. How long it takes at 20 W is the mode's. What 65 W buys isn't measured. If the GPU time scaled with the graphics clock alone, it would be about 2× faster; that is a guess, and the memory clock and the power curve make it less.
+
+**The change:**
+- No change to the render, since nothing of ours stalls.
+- `FarmlandBench` records the main thread's wait to present beside `FrameTimingManager`'s times: `present_wait_ms` in the JSON, the log line, and the runner's table. A run's split now reads in full: the main thread plus the wait is the frame, and with the GPU 100 % busy the wait is GPU time.
+- 1.1's look and the feed's passes are untouched: no shader, setting, asset or render path changed.
