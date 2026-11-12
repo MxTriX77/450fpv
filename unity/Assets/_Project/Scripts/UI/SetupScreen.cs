@@ -12,7 +12,8 @@ namespace Fpv450.UI
     /// <summary>
     /// The setup (APP-03, PRD-04): the payload, the legs (off: the launch stand), the time of day, the wind, the rain
     /// and the start point, and nothing else; then Fly. It edits Choices in place; the caller saves them on Fly. The start
-    /// is offered only when the world lists more than one: the test range's is its houses' alone (D-077), so no row.
+    /// is offered only when the world lists more than one: the test range's is its houses' alone (D-077), so no row. Its
+    /// heading is the map Play chose (D-100).
     /// </summary>
     public sealed class SetupScreen
     {
@@ -21,6 +22,9 @@ namespace Fpv450.UI
         static readonly string[] Winds = { "Calm", "Windy", "Severe" };
         static readonly WindLevel[] WindLevels = { WindLevel.Calm, WindLevel.Windy, WindLevel.Severe };
         static readonly string[] Rains = { "Sunny", "Rain", "Severe rain" };
+
+        /// <summary>The heading: the chosen map's name.</summary>
+        public string Heading = "Play";
 
         public FlightChoices Choices = new FlightChoices();
         public StartPoint[] Starts = { StartPoint.Origin };
@@ -39,7 +43,7 @@ namespace Fpv450.UI
             AppStyle.Fill(panel, AppStyle.Panel);
             float pad = AppStyle.S(48);
             GUILayout.BeginArea(new Rect(panel.x + pad, panel.y + pad * 0.8f, panel.width - 2 * pad, panel.height - 1.6f * pad));
-            GUILayout.Label("Train", AppStyle.Heading);
+            GUILayout.Label(Heading, AppStyle.Heading);
             GUILayout.Space(AppStyle.S(24));
 
             FlightChoices c = Choices;

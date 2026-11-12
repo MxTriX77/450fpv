@@ -23,12 +23,12 @@ using StartPoint = Fpv450.App.Session.StartPoint;
 namespace Fpv450.App
 {
     /// <summary>
-    /// The app (design 6, APP-02…05): the menu (Train, Calibrate, Exit; Explore in a review build), the setup, the
-    /// Calibrate screen, and the flight over the farmland (FlightScene; w3-farmland-ground 3.1). It lives across scenes: Boot
-    /// holds the menu, FarmLand the world. Train → the setup → Fly saves the setup and loads the farmland, and the flight
-    /// starts at the village's start once the radio is in, so arming the switch is the only step left. The summary's Fly
-    /// again and Setup stay on the farmland. Explore opens the farmland in noclip (FarmlandExplore). The test range left the
-    /// player; the headless tests and the benches keep it.
+    /// The app (design 6, APP-02…05): the menu (Play, Calibrate, Exit; Explore in a review build), Play's carousel of the
+    /// maps (PlayScreen, D-100: House, the test range, and Village, the farmland), the setup, the Calibrate screen, and the
+    /// flight over the chosen map (FlightScene). It lives across scenes: Boot holds the menu, the map's scene (TestRange or
+    /// FarmLand) the world. Play → a map → the setup → Fly saves the setup and loads the map, and the flight starts at its
+    /// start once the radio is in, so arming the switch is the only step left. The summary's Fly again and Setup, and R,
+    /// stay on that map. Explore opens the farmland in noclip (FarmlandExplore).
     /// </summary>
     /// <remarks>
     /// Options: <c>-windowed</c> (a 1920 × 1080 window), <c>-vsync &lt;n&gt;</c> (as the range's boot), <c>-quality &lt;name&gt;</c>
@@ -49,11 +49,13 @@ namespace Fpv450.App
     {
         public const string BootScene = "Boot";
 
-        enum View { Menu, Setup, Calibrate, Loading, Flight, Explore }
+        enum View { Menu, Play, Setup, Calibrate, Loading, Flight, Explore }
 
         static AppFlow _instance;
         View _view;
         bool _explore;
+        readonly PlayScreen _play = new PlayScreen();
+        PlayMap _map = PlayMaps.All[0]; // the map Play chose last; the carousel opens on it
         readonly SetupScreen _setup = new SetupScreen();
         CalibrateScreen _calibrate;
         FlightScene _flight;
@@ -85,7 +87,7 @@ namespace Fpv450.App
             Application.logMessageReceivedThreaded += OnLog;
             _setup.Starts = FlightWorlds.FarmlandStarts;
             ReadProfile();
-            Debug.Log("[App] menu: Train, Calibrate, " + (AppData.Review ? "Explore, " : "") + "Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
+            Debug.Log("[App] menu: Play, Calibrate, " + (AppData.Review ? "Explore, " : "") + "Exit (" + (AppData.Review ? "a review build" : "the pilot's build")
                       + "); data under " + AppData.Root + "; profile folder " + Application.persistentDataPath);
             if (Array.IndexOf(Environment.GetCommandLineArgs(), "-smoketest") >= 0) StartCoroutine(Smoke());
             else if (AppData.Review && Array.IndexOf(Environment.GetCommandLineArgs(), "-farmbench") >= 0) StartCoroutine(Bench());
@@ -114,9 +116,32 @@ namespace Fpv450.App
 
         // ---- The flow ----
 
-        void Train()
+        // Play's carousel (D-100), on the map chosen last.
+        void Play()
         {
+            _play.Open(_map);
+            _view = View.Play;
+        }
+
+        // A map chosen on Play: its setup, headed by its name, from its start points; the saved setup's start when the map
+        // has it, else the map's first.
+        void Choose(PlayMap map)
+        {
+            StartPoint[] starts;
+            try
+            {
+                starts = map.Starts(AppData.Root);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[App] " + map.Name + "'s start points could not be read: " + e.Message);
+                return;
+            }
+            _map = map;
+            _setup.Heading = map.Name;
+            _setup.Starts = starts;
             _setup.Choices = SetupStore.Load(Application.persistentDataPath, out string error);
+            if (!Array.Exists(starts, s => s.Name == _setup.Choices.StartPoint)) _setup.Choices.StartPoint = starts[0].Name;
             _setup.Notes.Clear();
             if (error != null) _setup.Notes.Add(error);
             _view = View.Setup;
@@ -145,14 +170,14 @@ namespace Fpv450.App
             Load(explore: false);
         }
 
-        // The farmland, for a flight (w3-farmland-ground 3.1) or in noclip (Explore, w1-farmland-world 2.1).
+        // The chosen map's scene for a flight (D-100), or the farmland in noclip (Explore, w1-farmland-world 2.1).
         void Load(bool explore)
         {
             _explore = explore;
             _view = View.Loading;
             _exploreAsked = Time.realtimeSinceStartup;
             _exploreFirstFrame = -1f;
-            SceneManager.LoadSceneAsync(FarmlandExplore.Scene, LoadSceneMode.Single);
+            SceneManager.LoadSceneAsync(explore ? FarmlandExplore.Scene : _map.Scene, LoadSceneMode.Single);
         }
 
         float _exploreAsked, _exploreFirstFrame = -1f; // realtime s: Explore's press, and its first noclip frame after it
@@ -197,7 +222,7 @@ namespace Fpv450.App
                           "' with the launch stand" + (_exploreStand != null ? " at " + _exploreStand.position.ToString("0.00") : " MISSING") + "; Esc for the menu");
                 StartCoroutine(FirstExploreFrame());
             }
-            else if (scene.name == FarmlandExplore.Scene)
+            else if (scene.name == _map.Scene)
             {
                 _flight = FlightScene.Attach(scene);
                 if (_flight.Host.Inputs != null)
@@ -238,9 +263,11 @@ namespace Fpv450.App
                 _flight.Covered = false;
                 _view = View.Flight;
             }
+            if (_view == View.Play && _play.Update()) Choose(_play.Selected);
             Keyboard k = Keyboard.current;
             if (k == null || !k.escapeKey.wasPressedThisFrame) return;
             if (_view == View.Explore) Menu();
+            else if (_view == View.Play) _view = View.Menu;
             else if (_view == View.Setup) Back();
             else if (_view == View.Flight && _flight != null) _flight.Escape();
         }
@@ -252,7 +279,7 @@ namespace Fpv450.App
                 _flight.Covered = false;
                 _view = View.Flight;
             }
-            else _view = View.Menu;
+            else _view = View.Play;
         }
 
         void ReadProfile()
@@ -281,10 +308,17 @@ namespace Fpv450.App
                 case View.Menu:
                     switch (MenuScreen.Draw(AppData.Review, RadioLine(), "build " + Application.version + (AppData.Review ? "  ·  review" : "")))
                     {
-                        case MenuChoice.Train: Train(); break;
+                        case MenuChoice.Play: Play(); break;
                         case MenuChoice.Calibrate: Calibrate(); break;
                         case MenuChoice.Explore: Load(explore: true); break;
                         case MenuChoice.Exit: Application.Quit(); break;
+                    }
+                    break;
+                case View.Play:
+                    switch (_play.Draw())
+                    {
+                        case CarouselChoice.Choose: Choose(_play.Selected); break;
+                        case CarouselChoice.Back: _view = View.Menu; break;
                     }
                     break;
                 case View.Setup:
@@ -297,7 +331,7 @@ namespace Fpv450.App
                 case View.Loading:
                     AppStyle.Begin();
                     AppStyle.DrawGround();
-                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading the farmland…  noclip" : "Loading the farmland…  arm once the drone is in", AppStyle.Label);
+                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading " + PlayMaps.Village.Name + "…  noclip" : "Loading " + _map.Name + "…  arm once the drone is in", AppStyle.Label);
                     break;
             }
         }
@@ -348,7 +382,8 @@ namespace Fpv450.App
         }
 
         /// <summary>
-        /// The player's smoke test, through the screens' own calls: the menu and the setup drawn; Explore in a review build;
+        /// The player's smoke test, through the screens' own calls: the menu, Play's carousel (moved and chosen by its keys,
+        /// D-100) and Village's setup drawn; Explore in a review build;
         /// then two flights over the farmland from the village's start, the one the setup offers (D-092, w3-farmland-ground
         /// 3.1; on the test range until then, from its houses' start): on the legs, then from the launch
         /// stand (legs off) in Rain, the second set from the first's summary through Setup. Each flight carries
@@ -365,7 +400,8 @@ namespace Fpv450.App
         /// (p4-feed 1.5, D-057) reads DISARMED while waiting and at rest, and AIR in the air with the current, the charge
         /// used and the pack, shot in the FPV view. Then the keyboard's flight into the ground (into a house on the test range,
         /// which the farmland's sim does not have until its objects, w3-farmland-ground 1.2): the crash ends nothing, and R
-        /// restarts it. <c>-smokehills</c> flies HillsFlight in place of the flights. Smoke runs it and gives the verdict.
+        /// restarts it. Then House from Play (HouseFlights, w10-play-maps 1.1). <c>-smokehills</c> flies HillsFlight in place
+        /// of the flights. Smoke runs it and gives the verdict.
         /// </summary>
         IEnumerator SmokeWalk()
         {
@@ -718,6 +754,102 @@ namespace Fpv450.App
                     }
                 }
             }
+            // Play (D-100), then the carousel's keys as the pilot presses them, through the Input System and read once a
+            // frame (PlayScreen.Update): ← or → until the map's card is the middle one, then Enter: its setup, under its name.
+            IEnumerator Pick(PlayMap map)
+            {
+                Play();
+                yield return null;
+                Check(_view == View.Play && _play.Selected == _map, "Play opens the carousel of " + string.Join(", ", Array.ConvertAll(PlayMaps.All, m => m.Name)) +
+                      " on " + _play.Selected.Name + ", the map chosen last");
+                yield return Shot("play_" + _play.Selected.Id);
+                Keyboard k = Keyboard.current ?? InputSystem.AddDevice<Keyboard>("Smoke keyboard");
+                int to = Array.IndexOf(PlayMaps.All, map);
+                for (int i = 0; i < PlayMaps.All.Length && _play.Selected != map; i++)
+                {
+                    InputSystem.QueueStateEvent(k, new KeyboardState(to < Array.IndexOf(PlayMaps.All, _play.Selected) ? Key.LeftArrow : Key.RightArrow));
+                    yield return null;
+                    InputSystem.QueueStateEvent(k, new KeyboardState());
+                    yield return null;
+                    yield return new WaitForSecondsRealtime(0.5f); // the slide
+                    yield return Shot("play_" + _play.Selected.Id);
+                }
+                InputSystem.QueueStateEvent(k, new KeyboardState(Key.Enter));
+                yield return null;
+                InputSystem.QueueStateEvent(k, new KeyboardState());
+                yield return null;
+                Check(_view == View.Setup && _map == map && _setup.Heading == map.Name, "the carousel's keys chose " + map.Name + ": its setup, under '" + _setup.Heading + "'");
+            }
+            // w10-play-maps 1.1 (D-100): House, the test range, from Play. Its setup offers the houses' start alone (D-077); Fly
+            // loads the test range, whose flight waits for the radio where the keyboard may not fly (a pilot's or a review
+            // build). Then the smoke's own keys fly it in every build, the radio unplugged, so the walk writes a House log in
+            // the player: armed, climbed and ended from the pause, the summary naming House and the log its world, the log
+            // replayed bit for bit (and left in the smoke's folder for tools/replay); the summary's Fly again and R each start
+            // the next flight on House, from its start.
+            IEnumerator HouseFlights()
+            {
+                PlayMap house = PlayMaps.House;
+                yield return Pick(house);
+                Check(_setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.HousesStart,
+                      "Play → House opens its setup, from the houses' start only (D-077): " + string.Join(", ", Array.ConvertAll(_setup.Starts, s => s.Name)));
+                yield return Shot("setup_house");
+                FlightChoices c = _setup.Choices;
+                c.Legs = true;
+                c.Payload = 1.0;
+                c.Wind = WindLevel.Calm;
+                c.Rain = Rain.Sunny;
+                c.TimeOfDay = 12.0;
+                Fly();
+                yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null, 60);
+                FlightSessionHost host = _flight != null ? _flight.Host : null;
+                Check(host != null && host.Session != null && SceneManager.GetActiveScene().name == house.Scene && _flight.Map == house && host.Inputs.WorldId == house.Id,
+                      "Fly loads the flight over House: the scene '" + SceneManager.GetActiveScene().name + "', the world '" + (host != null && host.Inputs != null ? host.Inputs.WorldId : "none") + "'");
+                if (host == null || host.Session == null) yield break;
+                FlightSession session = host.Session;
+                bool OnHouse() => SceneManager.GetActiveScene().name == house.Scene && host.Inputs.WorldId == house.Id && session.StartPoint.Name == FlightWorlds.HousesStart;
+                string Where() => "the scene '" + SceneManager.GetActiveScene().name + "', the world '" + host.Inputs.WorldId + "', from '" + session.StartPoint.Name + "'";
+                if (!host.Inputs.KeyboardAllowed)
+                {
+                    yield return new WaitForSecondsRealtime(2);
+                    Check(host.WaitingForRadio, "House's flight waits for the radio");
+                    yield return Shot("waiting_house");
+                    host.Inputs.KeyboardAllowed = true; // the smoke's own keys from here, the radio unplugged
+                }
+                yield return Until(() => session.State == SessionState.Flying && _flight.ShownFlight == session.Flights, 10);
+                yield return new WaitForSecondsRealtime(1);
+                Check(session.State == SessionState.Flying && OnHouse(), "House's flight " + session.Flights + " started on " + session.Input + ": " + Where());
+                double rest = _flight.Pose.Position.Y, top = rest;
+                yield return Shot("rest_house");
+                yield return Hold(KeyboardKeys.ArmToggle, 0.1f);
+                yield return new WaitForSecondsRealtime(0.4f);
+                Check(_flight.Pose.Armed, "armed on House");
+                Action climb = () => top = Math.Max(top, _flight.Pose.Position.Y);
+                yield return Hold(KeyboardKeys.ThrottleUp, 1.6f, climb);
+                yield return Hold(KeyboardKeys.None, 1.4f, climb);
+                Check(top - rest > 1.0, "climbed " + (top - rest).ToString("0.00") + " m on House");
+                yield return Shot("air_house");
+                host.Pause();
+                session.EndFlight(); // the pause's End flight
+                yield return Until(() => _flight.Summary != null, 30);
+                PostFlight summary = _flight.Summary;
+                Check(summary != null && summary.End.Kind == FlightEndKind.Pilot && summary.Log.Header.WorldId == house.Id && _flight.SummaryTitle.EndsWith(house.Name, StringComparison.Ordinal),
+                      "End flight, and the summary names House: '" + _flight.SummaryTitle + "', the log's world '" + (summary != null ? summary.Log.Header.WorldId : "none") + "'");
+                yield return Shot("summary_house");
+                Debug.Log("[Smoke] House's flight log: " + session.LogPath);
+                yield return Replays(session.LogPath, "over House");
+                int flights = session.Flights;
+                host.Fly(); // the summary's Fly again
+                yield return Until(() => session.Flights == flights + 1 && session.State == SessionState.Flying && _flight.ShownFlight == session.Flights, 10);
+                Check(session.Flights == flights + 1 && session.State == SessionState.Flying && OnHouse(), "Fly again stays on House: flight " + session.Flights + ", " + Where());
+                host.Pause();
+                session.EndFlight();
+                yield return Until(() => _flight.Summary != null, 30);
+                yield return PressR("from House's summary");
+                Check(OnHouse(), "R stays on House: flight " + session.Flights + ", " + Where());
+                Menu();
+                yield return Until(() => _view == View.Menu, 30);
+                Check(_view == View.Menu, "Menu returns to the menu from House");
+            }
 
             yield return Until(() => Time.frameCount > 3, 5);
             yield return new WaitForSecondsRealtime(0.5f);
@@ -733,10 +865,9 @@ namespace Fpv450.App
                     Debug.Log("[Smoke] the D3D12 pipeline library was dropped this run, not read empty: its log line is the next run's check");
             }
             yield return Shot("menu");
-            Train();
-            yield return null;
+            yield return Pick(PlayMaps.Village);
             Check(_view == View.Setup && _setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.FarmlandStart.Name,
-                  "Train opens the setup, from the village's start only (D-092): " + _setup.Starts.Length + " start point(s)");
+                  "Play → Village opens its setup, from the village's start only (D-092): " + _setup.Starts.Length + " start point(s)");
             yield return Shot("setup");
 
             if (AppData.Review)
@@ -791,7 +922,7 @@ namespace Fpv450.App
                 Menu();
                 yield return Until(() => _view == View.Menu, 30);
                 Check(_view == View.Menu, "Esc's route back to the menu");
-                Train();
+                yield return Pick(PlayMaps.Village);
             }
 
             StartPoint ground = _setup.Starts.Length > 0 ? _setup.Starts[0] : default;
@@ -1129,6 +1260,7 @@ namespace Fpv450.App
             Menu();
             yield return Until(() => _view == View.Menu, 30);
             Check(_view == View.Menu, "Menu returns to the menu");
+            yield return HouseFlights();
             if (_sequences != null)
             {
                 UnityEngine.Rendering.AsyncGPUReadback.WaitAllRequests();
