@@ -1,6 +1,7 @@
 // IWorldQuery: the world questions the physics asks (K§10.4, WLD-11), cut to
-// p6-world-query-gallery's calls. Fixed first by task 1.1 (D-041): the flight core's
-// contacts build against it, so a later change to it is a superseding decision.
+// p6-world-query-gallery's calls. Fixed first by task 1.1: the flight core's contacts
+// build against it, so a later change to it is a superseding decision (the latest,
+// D-097: ShapeContact and QueryFilter.NoGround).
 // Implementations: FloorWorld (the stub: an endless floor and runtime objects) and
 // MapWorld (task 1.4: a map's placement file and its assets' metadata; the test range,
 // the one map of D-047, is MapWorld.Load(repositoryRoot, "test-range")).
