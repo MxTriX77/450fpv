@@ -21,4 +21,4 @@ Branch `unity/physics/physics-integration-2--w10-play`, cut from `--w3-preview` 
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the spec scenarios: both maps fly from Play, the House log replays bit for bit, the stills match their poses and nothing of the friend's world is pushed, the smoke PASS.
+- [x] 2.1 [qa-engineer] Review against the spec scenarios: both maps fly from Play, the House log replays bit for bit, the stills match their poses and nothing of the friend's world is pushed, the smoke PASS.
