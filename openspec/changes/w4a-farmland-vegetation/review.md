@@ -1,5 +1,7 @@
 # QA review: w4a-farmland-vegetation (task 2.1)
 
+**Final check (after 1.3): merge.** The three should-fixes are closed: no pushed point lies within 0.1 mm of a vendor vertex, the trunk columns stand on their stems, and the rebuild test covers every family. The merged tree passes every check. See [Final check (after 1.3)](#final-check-after-13) at the end.
+
 **Verdict after the re-review (1.2): approve.** Both required fixes and the three should-fixes are closed, the branch merges cleanly onto the line, and nothing pushed can rebuild a vendor mesh. Three should-fixes remain, none blocking: the first is single vendor vertices copied into the snag lines. See [Re-review (after 1.2)](#re-review-after-12) at the end; the first pass follows as it was.
 
 **First pass (1.1): fix first.** One defect blocks the merge: **every bush is fitted to its cards' whole quads, not to the leaves and twigs Unity draws.**
@@ -489,3 +491,130 @@ git log 9f004519..0aa509ba     4 commits as Asset Artist <assets@450fpv.local>, 
 git diff --name-only 1081ba2f..HEAD | grep reference/ Library/ Temp/ Logs/ UserSettings/ review-sheets/ vendor/   → none
 git ls-files review-sheets vendor                          0 files
 ```
+
+## Final check (after 1.3)
+
+**Verdict: merge.** The three should-fixes are closed, the rest of 1.3 is sound, the rename is complete, and the merged tree passes every check.
+- **D-089:** no pushed point lies within 0.1 mm of a vendor vertex: 0 on all 22 files, against LOD0 and against every LOD1+ mesh. The new test fails on the 1.2 files with exactly my 1,252 (F1).
+- **The trunk columns** stand on their stems: Pine002_M's and _L's are 0.6 cm and 0.3 cm from the trunk capsule (4.8 and 6.1 cm before). Every crown box is unchanged (F2).
+- **The rebuild test** runs one variant per family, 10 cases, and every case rebuilds byte for byte from the store on the merged tree (F3).
+- **One note, not blocking**, the one W4b's review made of its own guard. The guard moves a point 0.25 mm off a vertex on each axis, and design §9 publishes that step. So 297 points in 9 variants stand 0.37–0.44 mm from a vertex, most at exactly √3 × 0.25 = 0.433 mm (F1). Each is a single vertex: no triangle, down from 1,252 exact copies. The spine fix removed the rest at the source.
+
+**Scope:**
+- `unity/physics/physics-integration-2--w4a-vegetation` at `a4568ca3`.
+- Task 1.3, as Asset Artist: `3a185897`, `8ad447d0`, `9e9f64b0`, `271b0275` and `ec4272db`.
+- By the Orchestrator: the rename `345f80c1` and the line's merge `a4568ca3` (line at `3230bb48`, W4b merged).
+- `a4568ca3`'s tree equals `git merge-tree 345f80c1 3230bb48`: a clean merge, no hand resolution.
+
+**How I checked:**
+- I ran every command below in this worktree, with scripts and logs in my session's scratchpad (`qa-w4a-final/`).
+- The experiments built in memory or read copies. One bench run had two 1.2 metadata files put back and was restored with `git checkout`. Every other write was byte-identical: the plant and ruin rebuilds, and the sheet runs. `git status` was clean after each.
+- I didn't open the friend's store project in Unity.
+
+### F1. Should fix 1, vendor vertices: closed
+- **The fix:**
+  - `plant.spine` starts a spray's line at its first bin's mean.
+  - `_Clear` keeps every capsule end and middle, sphere centre, wind box, snag point and the bounds more than 0.2 mm off any LOD0 vertex on some axis.
+  - `test_no_pushed_point_is_a_vendor_vertex` fails on any point within 0.1 mm on every axis.
+- **Three probes, all clean on HEAD:** my script, the same check against every LOD1+ mesh, and the new test, which fails on both earlier pushes:
+```
+python plant_vertex_leak.py <worktree>              (HEAD)   total hits: 2 um 0, 100 um 0      (22 of 22 variants 0)
+python plant_vertex_alllods.py <worktree>           (HEAD)   LOD1+ meshes: total hits: 2 um 0, 100 um 0
+python plant_vertex_alllods.py <worktree> c6002875           LOD1+ meshes: total hits: 2 um 369, 100 um 369
+python vertex_test_at.py <worktree> c6002875   (HEAD's test on 1.2's files)  FAILED: 1252 pushed points on a vendor vertex
+python vertex_test_at.py <worktree> 416b078f   (1.1's files)                 FAILED: 2351 pushed points on a vendor vertex
+python vertex_test_at.py <worktree> a4568ca3                                 PASSED
+python plant_vertex_nearest.py <worktree>  (1 mm search)  within 0.2 mm 0; within 0.5 mm 297 (IslandTree and _Dry 89 each,
+   Pine002_S2 30, Pine002_M and _M_Dry 21 each, Pine002_L 16, PineDead_02 29, Pine006_01 and _01_Dry 1 each); nearest 0.366 mm
+```
+- The 297 are the leftovers design §9 names, which the guard moved: snag records' first or last points (a first or last bin holding one corner sample, a twig line starting at its attachment vertex) and one capsule end on PineDead_02. 0 triangles have all three corners among them.
+
+### F2. Should fix 2, the trunk columns: closed
+From `columns_qa.py`, HEAD against `c6002875`:
+
+| Variant | Column across (m), 1.2 → 1.3 | Axis moved | Axis to the trunk capsules above the flare |
+|---|---|---|---|
+| Pine002_M, _M_Dry | 0.244 → 0.254 | 4.9 cm | 0.6 cm (r 0.130, 0.56–2.47 m); the flare's 4.4–6.6 cm |
+| Pine002_L | 0.369 → 0.371 | 6.1 cm | 0.3 cm (r 0.188, 1.06–2.18 m); 3.6 and 9.1 cm below |
+| Pine004_3 | 0.559 → 0.579 | 2.3 cm | 0.6–2.6 cm; 3.5 cm at the foot |
+| PineDead_02 | 0.342 → 0.342 | 2.9 cm | 1.9–2.4 cm; 7.8 cm at the flare |
+| IslandTree, _Dry | 1.299 → 1.299 | 3.6 cm | 3–33 cm: the stem leans (design §7) |
+
+- Every crown box is unchanged, in all 22 files. So are Pine002_S2's column and the bushes', pine_004_1's and pine_006's volumes. The design's numbers match.
+- On the sheets, I compared before-and-after crops of the wind tile. Pine002_M's and _L's columns stood beside the drawn trunk and now wrap it.
+
+### F3. Should fix 3, the rebuild test: closed
+```
+python -m pytest tools/blender/tests/test_vendor_plants.py -v            24 passed in 524.93s, exit 0
+  test_every_family_has_a_rebuilt_variant                                    PASSED
+  test_a_rebuild_from_the_store_gives_the_committed_text[VF01] … [VF10]      10 PASSED (VF01 278 s, VF03 150 s, the rest 4–22 s)
+  test_a_spray_line_starts_at_its_first_bins_mean_not_on_a_card_corner      PASSED
+  test_no_pushed_point_is_a_vendor_vertex                                   PASSED
+```
+These ran on the merged tree, so the line's changes to `lib/meta.py` and `lib/fbxread.py` move no byte of the plants.
+
+### F4. The rest of 1.3: sound
+- **The hook and branch counts are the spine change alone.** `spine_experiment.py` builds 5 variants in memory with HEAD's code and again with 1.2's `spine`:
+  - Each gives the same number of spray lines both ways.
+  - 1.2's spine reproduces `c6002875`'s counts, and 1.3's reproduces HEAD's.
+  - What changes: the crossed-card rule keeps fewer lines, and lines just over 1 m drop under the branch length.
+```
+Pine002_L    600 lines; kept 311 → 277; hooks 415 → 381          (= c6002875 → HEAD)
+Pine004_3    548 lines; kept 305 → 304; branches 161 → 146 (269 → 255 capsules); edges / hooks 19/312 → 20/311
+Pine006_01    97 lines; kept 74 → 74; branches 43 → 42; hooks 75 → 75
+GreenBush    339 lines; kept 86 → 82        DeadBush_6  795 lines; kept 688 → 683
+```
+- **Everything else is still or sub-millimetre:**
+  - Every shell sphere is unchanged, in all 22 files.
+  - Wood capsule centres move at most 0.433 mm (the guard), and the bounds don't move.
+  - `design_table_qa.py`: 22 rows, 0 mismatches.
+- **The crown rows** (`flightbench --contacts`):
+  - IslandTree, Pine002_M and PineDead_02 print 1.2's numbers to the last digit.
+  - Pine004_1 now takes 252 twig contacts and 30.79 N·s (271 and 30.51); Pine006_01 takes 142 and 75.75 N·s, 38 prop strikes (164, 68.92, 26).
+  - **The cause, by experiment:** with those two files put back to `c6002875`, both rows print 1.2's rows character for character. Every other row is unchanged but for a load time. Their only changed shapes are the branch capsules: shells, wood and bounds are identical. So the branches' new starts move the rows.
+  - **The known-wrong models, rerun on HEAD** (`strip.py`, restored with `git checkout`):
+    - Twig shells stripped from the five trees: the four foliage rows fail. IslandTree touches nothing, and the three pines are first touched on bark with 0 twig contacts. PineDead_02 passes on its deadwood.
+    - Deadwood stripped from PineDead_02: its row fails, first touched on its twig shell.
+    - Both runs exit 1, and no other row changes.
+- **Crash forensics, Pine006_01: pilot error.**
+  - The drone is flown at 10 m/s into the pine at 3.24 m.
+  - After 142 twig contacts and prop strikes on bark and twig, it loses lift and falls. The canister hits the ground at 6.10 m/s, at 0.15 m (peak 103 g, 44.61 N·s).
+  - `on '' ()` is the stub's floor, as the test range's L03 climb row has printed it since 1.2.
+  - 0 tunnels and 0 lost pairs. Pine004_1's crash (leg on bark at 2.80 m/s) is as before.
+- **The sheets.** I looked at all 44, re-rendered for 1.3: day sheets at half size, overcast sheets in montages, and full-size crops of the row-3 tiles of VF02, pine_004, pine_006, GreenBush, DeadBush_6 and the island tree.
+  - Every bundle's metadata equals the committed file (22 of 22).
+  - The spray lines run along the drawn cards, the branches start by the trunk, and the hooks follow the bushes' drawn twigs.
+  - The shells and crown boxes look as at 1.2. Nothing is missing or broken in any tile.
+
+### F5. The rename: complete
+- `git grep vendor_review HEAD` finds W4b's own `tools/blender/vendor_review.py` and `tools/vendor_asset.ps1`, and the first pass's scope line above, a record of 1.1. Nothing else.
+- `vendor_plants.py` calls `vendor_plant_review.py`, and design §8 names it.
+- Both scripts were run (Blender 5.2, EEVEE):
+```
+python tools/blender/vendor_plants.py SmallBushDry_A --sheets     exit 0, 34 s: "[review] SmallBushDry_A day … overcast";
+   metadata byte-identical; both sheets pixel-identical to 1.3's (0 of 7,077,888 and 0 of 4,718,592 pixels differ)
+pwsh tools/vendor_asset.ps1 Debris_RoofSheet_A                    exit 0, 19 s: "15 tiles", "sheet … (2048x2096)",
+   "vendor_asset: OK"; metadata byte-identical; the sheet draws the sheet and its collision overlay
+```
+
+### F6. The merged tree
+```
+python -m pytest tools -q                                          1798 passed in 2241.53s (0:37:21), exit 0 (nothing skipped)
+dotnet run -c Release --project tools/flightbench -- --contacts    contacts: PASS (78 rows, all PASS), exit 0, 1m17s
+dotnet test tools/simtests --filter "FullyQualifiedName~RuinContactTests"   Passed 3, Failed 0, exit 0
+python tools/assets/fetch.py --verify                              OK, exit 0
+python tools/hygiene/precommit.py --tree HEAD                      3478 files scanned, 0 findings, exit 0
+openspec validate w4a-farmland-vegetation --strict                 Change 'w4a-farmland-vegetation' is valid, exit 0
+git merge-tree --write-tree HEAD origin/unity/physics/physics-integration-2 (3230bb48)   1507b776 = HEAD's tree, exit 0
+                                                                   (the line is an ancestor: a fast-forward)
+git merge-tree --write-tree HEAD origin/unity/main (ba2a7f9c)      clean, 2775bf8e, exit 0
+                                                                   (the re-review's .gitignore and test_precommit.py conflict is gone)
+git log c6002875..a4568ca3 (branch side)   5 Asset Artist and 2 Orchestrator commits, subject only (59–69 chars), no body or trailer
+git diff --name-only c6002875..345f80c1, and 3230bb48..a4568ca3    nothing under reference/, Library/, Temp/, Logs/,
+                                                                   UserSettings/, review-sheets/ or vendor/; git ls-files of those: 0
+```
+
+**Spec scenarios and requirements:** as in the re-review.
+- *Collision follows the trunk*: accepted under D-096. The wood moved by at most 0.433 mm.
+- *A crown is felt*: passed, and the rows still fail both known-wrong models (F4).
+- AST-05: partly met. AST-09, AST-12 and PHY-05: this change's share met. REAL-05: partly met.
