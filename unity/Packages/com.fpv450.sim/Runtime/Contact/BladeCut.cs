@@ -92,6 +92,31 @@ namespace Fpv450.Sim.Contact
             return true;
         }
 
+        /// <summary>
+        /// Whether a box the blade line along dir leaves again at rOut, inside the tip's radius rTip, still reaches the tip's circle
+        /// beside that line (w3-farmland-ground 2.7): the ribbon at rTip at the two azimuths whose points lie (rIn + rOut)/2 along
+        /// dir, the middle of the line's cut. A wall's thin skin (a strip across the disc) holds them, so the blade's tip meets
+        /// its face first, as a slab's; a post wholly inside the rim holds neither, and its leading edge meets it. Round shapes and
+        /// wires keep the leading edge's rule (a rod, a pole, a conductor, a limb: centre d, radius a, d + a &lt; rTip, the points
+        /// lying √(rTip² − d²) &gt; a aside).
+        /// </summary>
+        public static bool Wide(in ShapeGeometry s, ReadOnlySpan<Double3> chain, Double3 hub, Double3 axis, Double3 dir, double h, double rIn,
+            double rOut, double rTip)
+        {
+            if (s.Kind != ShapeKind.Box) return false;
+            double along = 0.5 * (rIn + rOut);
+            if (!(along < rTip)) return true;
+            double aside = DetMath.Sqrt(rTip * rTip - along * along);
+            Double3 across = Double3.Cross(axis, dir);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Double3 at = hub + dir * along + across * (side * aside);
+                Closest(s, chain, at - axis * h, at + axis * h, out Near near);
+                if (near.Distance <= 0) return true;
+            }
+            return false;
+        }
+
         /// <summary>A wire's chain segments within reach of the hub (lo .. hi, segment i from point i to i + 1; empty when hi &lt;
         /// lo), so a pass reads only those.</summary>
         public static void WireWindow(ReadOnlySpan<Double3> chain, double radius, Double3 hub, double reach, out int lo, out int hi)

@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills), 2.4 (the laid fiber), 2.5 (a laid fiber follows the hills), 3.1 (flight on the farmland) and 3.2 (the drawn terrain near the drone)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills), 2.4 (the laid fiber), 2.5 (a laid fiber follows the hills), 2.6 (a crash creates no energy), 2.7 (contact with the farmland's objects), 3.1 (flight on the farmland) and 3.2 (the drawn terrain near the drone)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -1121,3 +1121,109 @@ Counted in every run (`--turns` and `farmland-line-step` now print the section t
 - **The peel band against the pilot (qualitative, at a gate):** "at a sharp turn low over a field, does the line already laid get dragged in toward you?" The 2–10 g band is FOG-M canister packs'; if FPV canisters pay out lighter, or a fiber in grass holds far better than a skid's μ on its weight (the farmland's cover has no stems in the physics), the corners rest. A measured FPV canister payout tension would settle the first (research, not a pilot's number).
 - **The near piece after a break** never freezes (its far end is free, so the trail stops at the break); hundreds of metres lying through a village stay live and costly.
 - **The scripted pilot of `farmland-line-step`** keeps the start's heading and takes each corner at full speed (to 21 m/s past one, measured): its corners load the line beyond what a pilot's turn would. Rounded corners would make the case a line case again.
+
+# Task 2.7: contact with the farmland's objects
+
+**Owner of this part:** physics-engineer · **For:** 3.3 (game-developer), 4.1 (qa-engineer) · **Requirements:** PHY-01, PHY-05, PHY-26, PLT-04, WLD-16, REAL-05 · **Model:** 85, extended (below; the orchestrator renumbers at the merge) · **QueryVersion:** 8, unchanged (no world code changed)
+
+Numbers are labelled as above. "Before" is this branch's base (1f39bc8c, model 85), run with the same scenario code; "after" is the head. The scenarios are `ObjectContactTests` (new), `RuinContactTests` and flightbench `--contacts`' bush row.
+
+## 1. A wall stops a drone the same however thin its collision is
+
+**What 2,705 against 22,202 was** (measured):
+- **The 22,202 m/s² was 1.1's slab at model 82, before 2.6.** Its stopped blades appeared inside the slab and their springs pushed kN each (2.6's bug). At model 85 the same flight into a 1 m timber slab at the ruin's place (x −3, from z −30, 8 m/s) peaks at **5,069 m/s²**; into a 2 cm skin there, **2,704** (the ruin's own wall: 2,705).
+- **A disarmed drone thrown at a wall** (8.7 m/s, level, at 1.5 m) peaks at 5,363.3 m/s² on every thickness, before and after. So the body's first blow was never the difference. What differed came after it, in three places:
+
+**A. A part found inside a thin skin past its middle took the far face** (`ContactModel.Update`, a new pair).
+- A pair begins with the query's contact. A first touch inside the step latches the face it came in by (K§7.5). A part found already inside, with no first touch, takes the query's nearest face: a blade come back to rest, a skid half a leg's break moved, a pair the step before did not keep.
+- In a 2 cm skin that is the far face once the core is 1 cm in. Its normal pushes the part on through. Thrown at a 2 cm skin, the base drone made 5 touches on the far face and left at 3.554 m/s against the slab's 3.541 (8 on a 1 cm skin; on a 5 cm skin 15 touches, 61.25 N·s against 59.41, 3.871 m/s). In the ruin's crash, `skid_fl` latched the far face 22 mm deep and pushed the drone into the wall.
+- **Rule (`BodySide`):** the drone is never inside a rigid shape, so a part's way in is from the body. For a new pair on a rigid box with no first touch and the core inside, the face is the one the line from the body's origin to the core enters the box by, as a slab's would be. Boxes only: a round shape's far side stays its tunnel rule's (`Entry`, `PastCentre`). Applied to round shapes too, the rule moved model 50's kept crown audit (`WithoutTheHangingGiveTheWindyCrownIsModel50s`: 2 tunnels against 1), so it is not.
+
+**B. A blade at rest in a skin it reached by its passes** (`ContactModel.Slot`).
+- After a jam the strikes' carve leaves the blade where it stopped, inside what it carved; the world is not changed (p7f-damage, assumed). In a slab that is inside the material. In a thin skin the blade's outer segments lie past the far face, in air.
+- The base let those segments touch the far face from behind as the drone rebounded, pulling it back into the wall (+1,650 N along +z in the 1 cm skin's rebound, measured).
+- **Rule:** a resting blade on a rigid box that its hub's line to the blade's core enters by another face than the contact's lies in the slot it cut (its own root passes through the box). Past the far face it touches nothing; inside, its face is the root's entry face, its overlap slack (2.6's rule: no motion pressed it). A blade pressed in by the body's motion, or resting on a box beside its root (a roof rack's rail), keeps the contact's face.
+- A first version took "the face turned away from the hub". It broke `RestTests`' rack (a blade resting over the rail's edge, its hub below the rail's top): the root's line is the condition, not the side.
+
+**C. The strikes took a thin skin for a rod inside the rim** (`PropStrikes.Pass`, `BladeCut.Wide`).
+- The rule was "a shape the blade's radial line leaves again inside the tip is met by the leading edge" (a rod, a pole). A 2 cm skin across the disc is left again 2 cm in.
+- But in the disc's plane a skin is a strip as wide as the disc: the tip's circle crosses it first, as it crosses a slab's face. **Rule:** a box whose cut still holds the tip's circle beside the line (at the two azimuths whose points lie halfway through the line's cut) is a face. A post inside the rim holds neither point (they lie √(r_tip² − d²) > a aside), so posts, rods, wires and limbs keep the leading edge. Round shapes and wires are not tested.
+- A carve of a face then sweeps the strip it holds: the segment past `rm` less the segment past `rout` (air behind the skin). The base swept a pole's disc across the 2 cm: 10.19 J where the slab's segment took 67.70 J (now 62.05).
+- At 8.7 m/s from 30 m the base's leading-edge crush broke the blade in the first pass (BladeLost) where the slab's carve jammed the rotor; now both jam.
+
+**After** (measured, `ObjectContactTests`):
+
+| Thrown, disarmed, 8.7 m/s | Peak, m/s² | Impulse along z, N·s | Leaves at, m/s | Touches past the face |
+|---|---|---|---|---|
+| 1 m slab | 5,363.3 | −59.406 | −3.541 | 0 |
+| 2 cm skin | 5,363.3 | −59.410 (before −59.483) | −3.542 (−3.554) | 0 (5) |
+| 1 cm skin | 5,363.3 | −59.406 (−59.57) | −3.541 (−3.567) | 0 (8) |
+| W4b's two 2 cm skins, 16 cm apart | 5,363.3 | −59.410 | −3.542 | 0 |
+
+| Flown, armed, 8 m/s, at the ruin's place | Before | After |
+|---|---|---|
+| 1 m slab | 5,069 m/s² | 5,069 |
+| 2 cm skin | 2,704 | 3,637 |
+| `Ruin_RoofCollapsed`'s wall (`RuinContactTests`) | 2,705, 67.40 N·s | 3,638, 72.98 N·s |
+
+- **The remaining difference is physical:** the stopped blades are pressed on into 1 m of timber, or 2 cm with air behind. Up to the blades' share the steps are the same (1,110 m/s² at the crash step on both). In the slab the outer blade segments, embedded, take 23.7 kN and the prop is lost at the peak; in the skin only the segment in the skin bears. Every pass's mode and radius are the slab's; its work at most the slab's (`APropsTipMeetsAThinSkinAsAFace`).
+- 1.1's 22,202 is not reachable at model 85 on any wall: it was 2.6's energy.
+
+## 2. Pairs a shape holds (items 2 and 3)
+- **The "events lost" were pairs** (`ContactsLost`), not the step's event buffer: in the door flight a part lodged in the next room's window frame holds up to **14** of its boxes at once (measured with the capacities raised), against `PairsPerShape` 8. The query's buffer (32) was never full (14 at most). The step's event buffer (64) never overflowed (0 `EventsLost`).
+- A prop's disc in a crown's densest spot meets 7–10 shell pieces (W4a, measured there), and the crown flight below 4.
+- **Decision:** `PairsPerShape` 24 for every shape, twig shells included. W4a's fit keeps its pieces; no refit. Memory: 109 shapes × 24 × 288 B = 0.75 MB (derived). A step's cost follows the pairs held, not the capacity.
+- The door flight: 0 lost (before 4,205 at W4b 1.2, 8,369 at this base), 0 `EventsLost`. `RuinContactTests` now asserts it.
+
+## 3. A drone in a crown: twigs cost the blades what they cost
+**The hang, reproduced** (measured): IslandTree object 9, the old route's bearing, 6.85 m/s at 5 m, the drone on its legs with the airframe's effects. With the base model it hangs 3.9–4.2 m over the ground for the whole run (60 s), with or without surfaces.json, its four rotors at 230–1,540 rad/s, 24,545 blade strikes at 0 J each in 60 s. The twig shells were a thin compliant row: a glance (p7f-damage design 7 left the plants' cutting to p7a's elements, 1.15, not built, and the vendor crowns have no elements).
+
+**Research** (sources below):
+- No controlled study of a UAV propeller striking twigs was found. Operators report a tip snapped off, a divot, a prop stopped by a small branch and the drone falling.
+- The cut: impact cutting of woody stems takes of the order of 0.1 J/mm² of section (Miscanthus, 9.5 mm stems, about 10 J/cm², published; willow similar, rising with moisture and independent of diameter). The repository's `surfaces.json` twig carries 80 kJ/m² (assumed there, "the order of woody stems in Persson 1987"): kept.
+- The crown's fine wood: crown fuel inventories split crown biomass by twig class (0–0.63 cm, 0.64–2.5 cm: e.g. 9.2 and 28.0 kg a tree for Aleppo pine, published), and crown-fire models count foliage and half the <6 mm twigs as the crown's available fuel. That sets the order of the twigs a disc meets; the shells' own twig count is not in the metadata.
+
+**The model** (`PropStrikes.Twigs`, `Twig`):
+- **The twigs:** a crown's `twig` shell stands for twigs of `CrownTwigDiameter` 7.5 mm (assumed: the middle of the shell's 5–10 mm, the row's rationale) at `CrownTwigLength` 2.0 m per m³ (assumed: about one 0.5 m axis of 5–10 mm per foliage spray, the sprays a card's half depth apart, 0.2–0.3 m³ each; of the order the fuel loads give). Their tissue is `surfaces.json`'s twig at the flight's moisture (cut energy, density). Without the table they glance, as before.
+- **What a pass meets:** isotropic twigs cross a plane at n_A = L_V/2 per m² (stereology, derived). A blade cuts each crossing it meets, and a cut twig no longer crosses there. So the rotor meets only what its disc's motion brings in: across the plane the immersed region's width times its move (the chord's into the shell, the segment's height along it, the disc's diameter with the hub inside), and along the axis half the crossings sliced again, a slice thinner than the twig costing its share (derived: e_s/d is of the order of green wood's crush). At most every crossing each pass. A disc held still cuts its way clear and then meets nothing.
+- **No draw:** the rotor meets its next twig when the crown it has swept holds one more on average (`_twigDue`), the blades in turn. The deepest shell's meeting stands for the union (they overlap, 7–10 at a point).
+- **Each twig** (p7a-ground design 9, p7f-damage design 7): at u = ω·r_c (the immersed region's mean radius), E = e_s·πd²/4 + m_f·u² with m_f the twig's mass within one chord. The cutting force E_cut/d bends the inner stations edgewise and breaks the first that fails. The rotor pays E (a stop when it has less), the body the twig's impulse and the reaction, as a pass's. Logged as a `BladeStrike` (Carve or Break) and the step's `BladeStrikes` slot as an `Element` (its diameter and cut energy).
+- **What a twig costs** (derived): at 900 rad/s and r_c 0.09 m, 3.5 J to cut and 6.9 J to fling, 10.4 J, about 40 % of the rotor's ½Jω² (27 J); a cutting force of 471 N edgewise. At 7 m/s with half the disc in the shell a rotor meets about 1.8 twigs a second.
+
+**After** (measured, `ADroneInACrownPaysForItsTwigsAndDoesNotHang`, 25 s): first touch at 10.89 s; 15 twigs cut for 135.4 J, no glance; the drone sinks onto the limbs, crashes and leaves the crown (65 m on at 25 s). The known-wrong (no table: the shells glance) hangs 4.17 m up with 8,502 glances. The flight's log replays bit for bit and its crown steps allocate 0 B.
+- **Not tuned:** at `CrownTwigLength` 1 and 4 m/m³ (temporary builds, not committed) the drone also leaves the crown, crashed or fallen, within 9–25 s of its first touch (2 and 6 twigs at the entry; at 4 it falls to the ground at 20 s).
+- **What it does not do yet:** the leaves (p7a's 1.15, 1.2 J a leaflet, many more crossings) and the shells' push on the body where the blades have cut (the shell still pushes as uncut). Both are p7a's elements' when a crown has them.
+
+## 4. A flightbench row into a bush
+`flightbench --contacts`, "the farmland bush": GreenBush (VF07, 579 placed: six twig spheres, no limbs) alone on a meadow plane, the drone 35 m south at the bush's wind-box height (0.93 m), 10 m/s, with surfaces.json and the airframe's effects. Measured: felt first by `skid_left` on its twig shell at 10.01 m/s; 109 twig contacts taking 48.63 N·s; the blades cut no twig (a 0.3 s pass meets about 0.6 per rotor, derived, and the mean's count had not reached one); no crash, no tunnel, no pair lost; the drone ends 98.6 m on, 1.61 m up, at 10.83 m/s. PASS.
+
+## 5. 2.6's two
+- **After `PropLost`** (`ContactModel.RestTrace`): the prop is lost in `MotorShaft.Finish`, after the step's resting blades' loads were summed. `SetShaftLoad` is now skipped for a rotor `Propulsion.Lost` names.
+- **Without surfaces.json** (`ContactModel.Update`): a turning blade's passes glance through the ground and the soil shapes (no face to them), while a blade at rest bore on them as rigid. That is how 2.6's rotor, its disc 50 mm into the floor, came back to rest inside it. Two ways to agree:
+  - **Tried first, the strikes meeting the floor as rigid** (harder than the blade): the stub's tipped landing then made 87 passes for 54.08 J and broke its props. It removed the known-wrong that 10 tests stand on (`StrikeTests`' "the rigid ground without surfaces.json only glances", `PropsThatTouchTheGroundBogDown`'s model-40 glance, `InASteadyCrosswindSoilIsStillThePlane`'s plane), so not taken.
+  - **Taken: a resting blade passes them too**, as the strikes do. Without the table the ground is a stub for the blades in both states; every flight that matters carries surfaces.json (the session loads it for each flight), where the ground is physical to both. The stub's tipped landing: 147 glances before and after; resting blades touched the floor 16 times before (and broke on it, the shortest 0 mm), none now (`WithoutSurfacesABladeAtRestPassesTheFloorAsItsPassesDo`).
+
+## Golden files, audited case by case
+- **`flightbench --golden`:** every case and kept audit passes unchanged (60 PASS lines), the contact flight without surfaces.json included (model 31's and 26's bits). No golden flight meets a rigid box from inside, a crown, more than 8 pairs on a shape, or a resting blade on a no-table floor.
+- **`worldbench --golden`:** ALL PASS (no world code changed; `farmland_wind.version` keeps 85's stamp).
+- **`flightbench --slopes`** and **`--contacts`:** PASS (the bush row new).
+- **The suite's pins and kept audits** (`GoldenFlightTests`, `RangeContactTests`' model-50 crown, `RestTests`' rack replay): unchanged. Nothing was re-recorded.
+- **Two rules were changed on the way because they moved kept audits** (measured, not committed): `BodySide` on round shapes moved model 50's crown audit (2 tunnels against 1), and the blade's "face turned from its hub" broke `RestTests`' rack (the blade bore nothing on 20 of 20 seeds). Both are narrowed as above, and both audits pass to the bit.
+- **Replays:** the crown flight's log (twigs cut, a crash, 612 loose-piece records) replays headless bit for bit, 25,016 steps and 906 events, and its steps from the first touch on allocate 0 B (`ADroneInACrownPaysForItsTwigsAndDoesNotHang`).
+
+## The model
+- **85 is extended** (`LogFormat.ModelVersion`'s note; the orchestrator renumbers at the merge, D-072).
+- A flight steps as in 85 unless: a part's new pair on a rigid box began inside it with no first touch; a resting blade met a box its hub's line enters by another face; a pass met a box its radial line leaves inside the tip while the box holds the tip's circle beside it; a shape held more than 8 pairs; a rotor turned in a crown's twig shell with surfaces.json; a blade at rest met the ground without surfaces.json; or a prop was lost while its blades rested.
+
+## Sources
+- Dynamic cutting properties of Miscanthus (giganteus) stems using an impact tester, AgriEngineering 6(3) 116, 2024 (doi 10.3390/agriengineering6030116).
+- Nowakowski and Tucki, the specific cutting energy of willow (Salix viminalis) stems, Applied Sciences 15(2) 696, 2025; Rode and Witkowski on willow disc cutting (unit energy rising with moisture, independent of diameter).
+- Mitsopoulos and Dimitrakopoulos, crown fuel biomass of Aleppo pine, International Journal of Wildland Fire WF06038, 2007.
+- Crown-fire convention: available crown fuel as foliage and half the 1 h twigs (Scott and Reinhardt 2001, RMRS-RP-29).
+- Operators' reports of branch strikes (mavicpilots.com, phantompilots.com threads): snapped tips, divots, a prop stopped by a small pine branch and the drone falling.
+
+## For the next units (suggested, not this task's)
+- **p7a 1.14 and 1.15:** the vendor crowns' elements (twigs and leaves as records) would replace the shells' mean count with the drawn twigs, and the leaves' strikes.
+- **3.3 and QA:** `RuinContactTests`' door flight changes its end: at the base, losing pairs in the window frame (8,369 steps), the drone came down on the floor and crashed by its canister at 1.12 m/s; at the head it stays lodged in the frame to the flight's end, uncrashed (not traced to one rule; the pairs held are the likely one). The test asserts nothing about the end (its subject is the doorway), and a lodged drone at 3 m/s is the frame's to hold.
+- **A blade jammed in a carve** grinds bark for many seconds at 2,000 `BladeStrike` events a second (the crown at 1 m/m³): the log's size there is QA's to watch.
+- **QA (4.1):** a quiet timing run; this task's costs were not measured beyond the tests' wall time.

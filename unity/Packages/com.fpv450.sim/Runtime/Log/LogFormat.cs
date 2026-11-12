@@ -842,6 +842,16 @@ namespace Fpv450.Sim.Log
         ///    2.6 (a crash creates no energy, in 82's note above) and 2.4 (the laid line rests, in 84's note above) merged in, and
         ///    nothing else. A farmland log from the preview names
         ///    this core. 83 was reserved for W3's merge-back and never used: W7 1.1's 84 merged first.
+        ///    With w3-farmland-ground 2.7 (unity/physics/physics-integration-2--w3-contact, unmerged; the orchestrator renumbers at the
+        ///    merge) contact with the farmland's objects: a part's new pair on a rigid box that begins inside it with no first touch
+        ///    takes the face the line from the body's origin to its core enters by, not the query's nearest (a 2 cm skin's far face
+        ///    pushed the part through); a resting blade on a box its hub's line enters by another face lies in the slot it cut (past
+        ///    the far face no touch, inside the root's face, its overlap slack); a box whose cut holds the tip's circle beside the
+        ///    blade's line is a face the tip meets, though the line leaves it inside the tip, and a carve sweeps its strip only
+        ///    (PropStrikes, BladeCut.Wide); a shape holds 24 pairs, not 8; a rotor turning in a crown's twig shell with surfaces.json
+        ///    cuts the twigs its disc's motion brings in at their cost (PropStrikes.Twigs), never a glance; without surfaces.json a
+        ///    blade at rest passes the ground and the soil shapes as its passes glance through them, never bearing on a floor its rotor
+        ///    sank into; and a prop lost in a step loads no shaft from its resting blades. Every other flight steps as in 85.
         /// </summary>
         public const int ModelVersion = 85;
 

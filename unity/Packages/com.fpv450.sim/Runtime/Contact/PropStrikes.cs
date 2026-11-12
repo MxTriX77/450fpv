@@ -90,7 +90,11 @@ namespace Fpv450.Sim.Contact
         readonly int[] _discs;
         readonly MaterialRow[] _rows;
         readonly bool[] _known;
+        readonly bool[] _crown; // world material id → a crown's twig shell (CrownRows)
         readonly MaterialRow[] _surfaces; // world surface id → what a blade meets there (Name null: none, a Glance)
+        readonly CoverSet _twig;            // surfaces.json's twig at the flight's moisture: a crown's twigs' tissue (CutEnergy 0 without it)
+        readonly double[] _twigDue = new double[4]; // each rotor's crown twigs swept and not yet met (Twigs): below 1
+        readonly int[] _twigBlade = new int[4];     // the blade each rotor meets its next twig with
         readonly double[] _sand;          // world surface id → its sand's wear per joule of a carve's work, m³/J
         readonly double[] _stones, _stoneSize; // world surface id → its stones' volume fraction (0: none, or none harder than the blade) and diameter, m
         readonly double _stoneDensity;
@@ -180,6 +184,7 @@ namespace Fpv450.Sim.Contact
                 if (q.MaterialName((ushort)id) != null) top = id;
             _rows = new MaterialRow[top + 1];
             _known = new bool[top + 1];
+            _crown = new bool[top + 1];
             for (int id = 1; id <= top; id++)
             {
                 string name = q.MaterialName((ushort)id);
@@ -187,6 +192,7 @@ namespace Fpv450.Sim.Contact
                 {
                     _rows[id] = r;
                     _known[id] = true;
+                    _crown[id] = Array.IndexOf(CrownRows, name) >= 0;
                 }
             }
 
@@ -221,6 +227,7 @@ namespace Fpv450.Sim.Contact
                 _stones[id] = set.StoneFraction;
                 _stoneSize[id] = set.StoneDiameter;
             }
+            _twig = contacts.Cover(CoverKind.Twig); // a crown's twigs' tissue (Twigs)
             bool stony = false;
             for (int id = 1; id < 256; id++) stony |= _spec.TipSlide && _stones[id] > 0;
             if (stony)
@@ -295,16 +302,31 @@ namespace Fpv450.Sim.Contact
                     if (Grind(i, d, c, ref now, body, hub, axis, events, ref impulse, ref angular)) changed |= 1 << c;
                 }
                 double chord = double.PositiveInfinity; // the nearest carved face across the disc: its part past the chord is in it
+                var crown = new BladeCut.Meeting { Radius = double.PositiveInfinity }; // the crown's twigs: the deepest shell's meeting
+                int crownObj = 0, crownShape = 0;
+                ushort crownMaterial = 0;
                 for (int k = 0; k < pairs; k++)
                 {
                     _contacts.DiscPair(i, k, out int obj, out int shape, out ushort material, out byte surface);
                     if (!Geometry(i, k, obj, shape, surface, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)) continue;
                     if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m)) continue;
+                    if (Crown(surface, material))
+                    {
+                        // A crown's twig shell: its twigs (Twigs, below), once for the shells' union, never a glance per shell.
+                        if (m.Radius < crown.Radius)
+                        {
+                            crown = m;
+                            crownObj = obj;
+                            crownShape = shape;
+                            crownMaterial = material;
+                        }
+                        continue;
+                    }
                     if (_spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
                     {
                         // A softer face that holds the radial line past the rim (the soil, a trunk's face): a segment of the disc.
                         BladeCut.Along(g, chain, hub, axis, m.Direction, d.HalfThickness, _radius, out _, out double rout, out _, out _);
-                        if (!(rout < _radius)) chord = m.Radius;
+                        if (!(rout < _radius) || BladeCut.Wide(g, chain, hub, axis, m.Direction, d.HalfThickness, m.Radius, rout, _radius)) chord = m.Radius;
                     }
                     if (!(now.RotorSpeed[c] > 0)) continue;
                     double psi = Azimuth(now.Attitude, m.Direction, c);
@@ -317,6 +339,12 @@ namespace Fpv450.Sim.Contact
                         if (Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, hub, axis, m, psi, events, ref impulse, ref angular))
                             changed |= 1 << c;
                     }
+                }
+                if (crown.Radius < double.PositiveInfinity && now.RotorSpeed[c] > 0)
+                {
+                    passed |= 1 << c;
+                    if (Twigs(i, d, c, ref now, body, hub, axis, crown, crownObj, crownShape, crownMaterial, events, ref impulse, ref angular))
+                        changed |= 1 << c;
                 }
                 Immerse(c, chord);
             }
@@ -439,7 +467,9 @@ namespace Fpv450.Sim.Contact
             }
 
             BladeCut.Along(g, chain, hub, axis, dir, d.HalfThickness, R, out _, out double rout, out _, out _);
-            bool inside = rout < rtip, hard = row.Hardness > _b.Hardness;
+            // A box's thin skin across the disc (a wall's, a board's) is a face the tip meets as a slab's, though the line leaves it
+            // inside the tip (BladeCut.Wide, w3-farmland-ground 2.7); a carve sweeps its strip between rm and rout.
+            bool inside = rout < rtip && !BladeCut.Wide(g, chain, hub, axis, dir, d.HalfThickness, rm, rout, rtip), hard = row.Hardness > _b.Hardness;
             rec.Exit = rout;
             double mu = row.KineticFriction, crush = _b.CrushStrength * f;
             double work, rotorWork = double.NaN, pushN = 0, axial = 0, cot = double.NaN, rc = rm, alpha, newTip = tip, rotorShare = 1;
@@ -460,6 +490,15 @@ namespace Fpv450.Sim.Contact
                     double ta = sa / ca, r2 = rtip * rtip, m2 = rm * rm;
                     area = r2 * (alpha - sa * ca);
                     second = r2 * r2 * alpha / 2 - m2 * m2 * (ta + ta * ta * ta / 3) / 2;
+                    if (rout < rtip)
+                    {
+                        // A thin skin: less the segment past its far face, which the blade reaches only through it (air there).
+                        double beta = DetMath.Acos(rout / rtip);
+                        DetMath.SinCos(beta, out double sb0, out double cb0);
+                        double tb = sb0 / cb0, o2 = rout * rout;
+                        area -= r2 * (beta - sb0 * cb0);
+                        second -= r2 * r2 * beta / 2 - o2 * o2 * (tb + tb * tb * tb / 3) / 2;
+                    }
                     rc = 0.5 * (rm + rtip);
                     path = rc * 2 * alpha;
                 }
@@ -1021,6 +1060,149 @@ namespace Fpv450.Sim.Contact
 
         // What a blade meets on a pair: a surface's set (the ground, a soil shape) or a material's row; false for none, a Glance
         // (the ground and the soil without surfaces.json, a thin compliant row without crush strength, a material the table lacks).
+        // ---- A crown's twigs (w3-farmland-ground 2.7) --------------------------------------------------------------------
+
+        /// <summary>The twigs a crown's twig shell stands for (physics_materials.json's twig row: "the crown contact shell over
+        /// the 5–10 mm twig cards"): their length per volume of the shell, m/m³ (assumed: about one 0.5 m axis of 5–10 mm per
+        /// foliage spray, the sprays a card's half depth apart, 0.2–0.3 m³ each; of the order of published crown fine-wood loads,
+        /// design.md 2.7), and their diameter, m (assumed: the middle of the shell's 5–10 mm).</summary>
+        public const double CrownTwigLength = 2.0, CrownTwigDiameter = 0.0075;
+
+        /// <summary>The rows whose shells stand for a crown's twigs (PhysicsMaterials' name lists' way).</summary>
+        public static readonly string[] CrownRows = { "twig" };
+
+        // A crown's twig shell, with the twigs' tissue to cut (surfaces.json): its twigs are met (Twigs); without the table a glance.
+        bool Crown(byte surface, ushort material) => surface == WorldIds.NoSurface && material < _crown.Length && _crown[material] && _twig.CutEnergy > 0;
+
+        /// <summary>
+        /// A rotor turning in a crown's twigs (w3-farmland-ground 2.7): the shells stand for twigs of CrownTwigDiameter at
+        /// CrownTwigLength per m³, crossing the disc's plane at n_A = L_V/2 a square metre (isotropic lines: stereology's
+        /// P_A = L_V/2). A blade cuts each crossing it meets, and the cut twig no longer crosses there, so a pass meets only what
+        /// the disc's motion through the crown brought in since the last: across the plane, the immersed region's width times
+        /// its move (the chord's into the shell, the segment's height along it; the disc's diameter with the hub inside), and
+        /// along the axis, half the crossings (those rooted ahead) sliced again, a slice thinner than the twig costing its share
+        /// (a twig's end crushed rather than cut, e_s/d of the order of green wood's crush, derived), at most every crossing
+        /// each pass. A disc held still in a crown cuts its way clear and then meets nothing; one driven through it meets twig
+        /// after twig. The count is the mean's, with no draw: the rotor meets its next twig when the crown it has swept holds one
+        /// more (_twigDue), the blades in turn. The deepest shell's meeting stands for their union (they overlap, 7–10 at a point).
+        /// Each twig, at the blade's speed u = ω·r_c at the immersed region's mean radius: its cut, E_cut = e_s·πd²/4, and its
+        /// mass within one chord brought to the blade's speed, m_f·u² (p7a-ground design 9); the cutting force E_cut/d along the
+        /// blade's motion bends its inner stations edgewise and breaks the first that fails (p7f-damage design 7), else the
+        /// twig is cut and the blade is whole. The rotor pays the work (a stop when it has less, the twig then cut by the
+        /// motor's next turns), the body the twig's impulse and the reaction, as a pass's. True when it changed a blade.
+        /// </summary>
+        bool Twigs(int i, in ContactShape d, int c, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, in BladeCut.Meeting m,
+            int obj, int shape, ushort material, StepEvents events, ref Double3 impulse, ref Double3 angular)
+        {
+            double R = _radius, rtip = 0, rm = m.Radius;
+            for (int b = 0; b < _blades; b++) rtip = DetMath.Max(rtip, _propulsion.Rotor(c).Blade(b).TipRadius * R);
+            if (!(rm < rtip)) return false;
+            double area, width, rc, along;
+            Double3 v = PointVelocity(now, hub), dir = m.Direction;
+            double va = Double3.Dot(v, axis);
+            Double3 across = v - axis * va;
+            if (rm > 0)
+            {
+                double alpha = DetMath.Acos(rm / rtip);
+                DetMath.SinCos(alpha, out double sa, out double ca);
+                area = rtip * rtip * (alpha - sa * ca);
+                width = 2 * rtip * sa;
+                rc = 0.5 * (rm + rtip);
+                along = width * DetMath.Max(0, Double3.Dot(across, dir)) + (rtip - rm) * DetMath.Abs(Double3.Dot(across, Double3.Cross(axis, dir)));
+            }
+            else
+            {
+                area = Pi * rtip * rtip;
+                width = 2 * rtip;
+                rc = 2 * rtip / 3;
+                along = width * across.Length();
+            }
+            double omega = now.RotorSpeed[c], passes = omega * _blades * FlightCore.Dt / TwoPi, nA = 0.5 * CrownTwigLength;
+            double swept = nA * (along * FlightCore.Dt + 0.5 * area * DetMath.Min(passes, DetMath.Abs(va) * FlightCore.Dt / CrownTwigDiameter));
+            _twigDue[c] += DetMath.Min(swept, nA * area * passes);
+            bool changed = false;
+            while (_twigDue[c] >= 1 && now.RotorSpeed[c] > 0)
+            {
+                _twigDue[c] -= 1;
+                int b = _twigBlade[c];
+                _twigBlade[c] = (b + 1) % _blades;
+                if (Twig(i, d, c, b, ref now, body, hub, axis, dir, rm, rc, obj, shape, material, events, ref impulse, ref angular)) changed = true;
+            }
+            return changed;
+        }
+
+        // One twig met by blade b at r_c (Twigs).
+        bool Twig(int i, in ContactShape d, int c, int b, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, Double3 dir, double rm,
+            double rc, int obj, int shape, ushort material, StepEvents events, ref Double3 impulse, ref Double3 angular)
+        {
+            BladeState blade = _propulsion.Rotor(c).Blade(b);
+            double R = _radius, tip = blade.TipRadius, rtip = tip * R;
+            if (!(rm < rtip)) return false; // this blade, cut back, no longer reaches the twigs
+            if (!(rc < rtip)) rc = 0.5 * (rm + rtip);
+            double omega = now.RotorSpeed[c], J = _propulsion.Inertia(c), s = _spin[c], f = _strength[c * _blades + b];
+            int k = Station(rc / R);
+            double section = Pi * CrownTwigDiameter * CrownTwigDiameter / 4, chord = _b.Chord[k] * blade.ChordShare[k];
+            double cut = _twig.CutEnergy * section, speed = omega * rc, fling = _twig.Density * section * chord * speed * speed;
+            double force = cut / CrownTwigDiameter, work = cut + fling;
+            int broke = Breaks(blade, f, rc, rc, force, 0, out double moment, out double margin);
+            double newTip = tip;
+            if (broke >= 0)
+            {
+                newTip = _b.Stations[broke];
+                work += _b.FractureEnergy * f * _area[broke] * blade.ChordShare[broke];
+            }
+            double energy = 0.5 * J * omega * omega;
+            bool jam = !(work < energy);
+            if (jam && broke >= 0)
+            {
+                broke = -1; // short of the fracture's work the section holds: the twig stops the rotor first
+                newTip = tip;
+            }
+            double after = jam ? 0 : DetMath.Sqrt(omega * omega - 2 * work / J), used = jam ? energy : work;
+            Double3 point = hub + dir * rc, motion = Double3.Cross(axis, dir) * -s;
+            double lost = J * (omega - after);
+            Double3 external = motion * -(lost / rc), reaction = new Double3(0, -s * lost, 0);
+            impulse = impulse + external;
+            angular = angular + reaction + Double3.Cross(now.Attitude.InverseRotate(point - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(external));
+            now.RotorSpeed[c] = after;
+            bool damaged = false;
+            if (broke >= 0)
+            {
+                double before = Mass(blade);
+                blade.Trim(newTip);
+                damaged = true;
+                Damaged(i, d, b, StrikeMode.Break, obj, shape, material, WorldIds.NoSurface, point, blade.TipRadius, before - Mass(blade), newTip, events);
+            }
+            var rec = new PassRecord
+            {
+                Corner = c, Blade = b, Mode = broke >= 0 ? StrikeMode.Break : StrikeMode.Carve, Radius = rc, Exit = CrownTwigDiameter, Work = work, Used = used,
+                SpeedBefore = omega, SpeedAfter = after, Inertia = J, TipBefore = tip, TipAfter = blade.TipRadius, SpeedIn = speed, Fling = fling,
+                PeakForce = force, PeakMoment = moment, Margin = margin, Station = broke, Jammed = jam, Impulse = external, Reaction = reaction, Point = point,
+                Normal = -dir, Motion = motion,
+            };
+            Strike(i, d, b, obj, shape, material, WorldIds.NoSurface, rec, events);
+            if (jam)
+            {
+                FlightEvent e = Of(EventKind.RotorJammed, d, obj, shape, material, WorldIds.NoSurface, point);
+                e.Index = (byte)c;
+                e.A = work;
+                e.B = energy;
+                e.C = energy / work;
+                events.Add(e);
+            }
+            int slot = BladeStrikes.Slot(c, b);
+            if (slot < BladeStrikes.Slots)
+            {
+                BladeStrike strike = now.BladeStrikes[slot];
+                strike.Add(StrikeKind.Element, material, used, external.Length(), CrownTwigDiameter, cut, rc);
+                now.BladeStrikes[slot] = strike;
+            }
+            Last = rec;
+            Record?.Add(rec);
+            Passes++;
+            return damaged;
+        }
+
         bool Face(int obj, ushort material, byte surface, out MaterialRow row)
         {
             bool soil = surface != WorldIds.NoSurface;
