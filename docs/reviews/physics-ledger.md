@@ -5,6 +5,15 @@ QA's recall of everything asked, said or decided about the drone's physics, with
 - **Branch:** `unity/physics/physics-integration-2--w9-ledger`, cut from the Village physics line at `1130a5c0` (W9 2.2, the stems on the props, merged).
 - **Evidence:** the runs in §0, made on that commit. Nothing is taken from a handoff's word.
 
+## The counts
+
+| | proven | built, unproven | partly | missing | contradicted | superseded |
+|---|---|---|---|---|---|---|
+| §1 the pilot's 48 statements | 13 | 5 | 21 | 2 | **7** | — |
+| §2 the 50 requirements | 17 | 2 | 27 | 1 | **2** | 1 |
+
+The seven contradictions: a leg never sticks alone at liftoff (P1); slope landings tumble (P9); straw landings cut and shake nothing, always lie flat, and the stalks are too thin (P12, P12a, P12c); two of the four fiber causes never cut, and no cut is at the hole's edge (P36, P37).
+
 ## Status words
 
 | Status | Means |
@@ -35,6 +44,7 @@ On `1130a5c0` (this branch's base), 2026-11-13, a shared machine under other age
 | `flightbench --shake` (seeds 1–40) | **FAIL** (exit 1): 13 PASS, the same known-wrong as `--scenarios`: without the ring the shake is still shown on 195 of 240 punches against 232, past the kick on 107 against 131. The durations, the modes and `CameraVibration` pass |
 | `flightbench --damage` | **PASS**: 37 lines, exit 0 (the first cells, 8 seeds) |
 | `flightbench --turns calm` | **PASS**: every line whole, every drone up, 0 B, the laid line at rest but for at most 60 m |
+| `dotnet test tools/simtests -c Release --filter FullyQualifiedName~FiberCutTests.ThePilotsCausesOverSeeds` (explicit) | passed (prints only), 2.5 min. Whole of 10: normal liftoff 10 (Calm, Windy, with and without the fountain), **sharp liftoff 10**, **backward after liftoff 10**; sharp reverse Calm 2 (cut 8, "Prop at Disc"), Windy 7; the two-way spool's known-wrong 8 ("Tension at Span"); tree snag 2 (Abrasion, Bend at Lip 1, Prop 6, Tension); tree snag without contacts 0 (Prop 10) |
 | `python tools/hygiene/precommit.py --tree HEAD` | 3571 files, **0 findings** |
 
 Not run tonight: Unity EditMode and PlayMode (no Unity, D-104's night rule), `--bench` (timing owed), `--factory` (20 000 seeds), `--wind-harness`.
@@ -106,8 +116,8 @@ Quoted only from the repository's files. Sources: **V** `VISION.md` §2 (point n
 | # | The pilot's words | Source | Req | Where it is built | Proven by (tonight) | Status |
 |---|---|---|---|---|---|---|
 | P35 | "you don't want to do crazy turns, but smooth orbits instead, and you can' go backwards sharply because the optic cable may (or may not …) cut off" | V 5 | PHY-19 | `Tether/` chain, `FiberSection` strength draws | `FiberCutTests` (15). PHY-19's accept (a reverse sometimes cuts over 20 seeds, orbits never) has no harness: p7d 1.11 open | **partly** |
-| P36 | What cuts it: "overly sharp reverse, snagging on tress, very sharp lift off, or sudden momentum backwards after lift off" | B 11 | PHY-19 | as P35 | snag: `FiberCutTests.AReverseRoundASnaggedBarbCuts`; liftoff: only `ANormalLiftoffDoesNotCut`; a sharp liftoff and a backward move after liftoff are asserted nowhere | **partly** |
-| P37 | "it tears upon the canister hole's edge … they must get used to the quad cutting itself too often" | D-087 | PHY-19 | nozzle lip (`tether.json` `lip_radius_m` 0.3 mm) | last measured on model 79 (handover 11-06 §4): reverses cut 26 of 50 at the **rear blades**, the edge peaks 0.69–1.49 GPa against 3–5 GPa strength; "tears at the hole's edge: not met". The edge-load branch (p7d 1.11 tests) never merged | **contradicted** |
+| P36 | What cuts it: "overly sharp reverse, snagging on tress, very sharp lift off, or sudden momentum backwards after lift off" | B 11 | PHY-19 | as P35 | snag: `FiberCutTests.AReverseRoundASnaggedBarbCuts`. Tonight's explicit `FiberCutTests.ThePilotsCausesOverSeeds` (10 seeds a row): a **sharp liftoff 10 of 10 whole**, a **backward move after liftoff 10 of 10 whole**; a sharp reverse cuts 8 of 10 in Calm and 3 of 10 in Windy, all by a **prop at a disc**; a tree snag cuts mostly by a prop (6), then tension, abrasion, the lip | **contradicted** (two of the four causes never cut) |
+| P37 | "it tears upon the canister hole's edge … they must get used to the quad cutting itself too often" | D-087 | PHY-19 | nozzle lip (`tether.json` `lip_radius_m` 0.3 mm) | last measured on model 79 (handover 11-06 §4): reverses cut 26 of 50 at the **rear blades**, the edge peaks 0.69–1.49 GPa against 3–5 GPa strength; "tears at the hole's edge: not met". Re-run tonight (`ThePilotsCausesOverSeeds`): every reverse cut is "Prop at Disc", none at the lip. The edge-load branch (p7d 1.11 tests) never merged | **contradicted** |
 | P38 | "They are designed to fly up to 80-100km/h … a sharp turn increases the chance to cut" | D-087 | PHY-19 | Newton chain (models 77–79) | handover 11-06: cruise to 100 km/h keeps the line; Windy 100 km/h tears 1 of 60. No test in the suite asserts the cruise band | **built, unproven** |
 | P39 | The spool's exit "about 25–30°"; "the fiber's ground end is patched into a ground station, so tension matters" | PQ, D-086 | PHY-18 | bent nozzle 27.5° (`tether.json` `exit_direction`) | `TetherTests.TheExitsPullAndItsMoment`. The exit is (0, −0.1843, −0.1994) in `tether.json`, `coil_nozzle` and the generator; only `drone.json`'s `spool_mass_kg` note still names model 64's −0.170 (a stale note) | **proven** |
 | P40 | "the wind would shake the optic fiber which led to even more noisiness and flashiness. also a lot of trees + wobbling - this stretches opto" | K 4.3 Q8 | PHY-20 | link margin in `Tether/` | `FiberCutTests.ASnagDipsTheLink`, `TheBendLossFollowsTheLaw` | **partly** (wind shaking the span → margin not asserted) |
@@ -265,6 +275,9 @@ Each open task is classed: **done elsewhere** (the work landed under another tas
 | Tests leak `%TEMP%\fpv450-session-*` folders with flight logs | `SessionTests.cs:49`, `FarmlandFlightTests` | no |
 | `pytest tools/map` fails `test_probe_golden`: the header holds map.json's old SHA | `tools/map/golden/farmland-probes.txt` | no |
 | `drone.json`'s `spool_mass_kg` note names model 64's exit (−0.170); every value the sim reads is the bent nozzle's (0, −0.1843, −0.1994) | `assets-src/drone/drone.json` line 583 | no (a stale note) |
+| `fb --scenarios` and `fb --shake` fail tonight: PHY-10's no-ring known-wrong passes; rain at rest 1.7 % off its formula (found by this ledger; since when is unknown) | `tools/flightbench/ScenariosCase.cs`, `ShakeCase.cs` | some |
+| `fb --probe` fails tonight: a corner's support moment jumps 1.707 N·m in a step (limit 0.51), G1's family; the coil's clearance on the stand 0.1141 m against the note's 0.135 m (found by this ledger) | `tools/flightbench/ContactProbeCase.cs`, `ContactModel` | some |
+| The fiber causes' grid (`ThePilotsCausesOverSeeds`, `TheTurnsAndReversesOverSeeds`) is `[Explicit]`, so no run of the suite judges the pilot's four causes | `FiberCutTests.cs` | **yes** (P36) |
 | `PHB-03`'s "lifts off near 50–65 %" contradicts D-066's 30–45 % | `docs/requirements.md` | no (text) |
 
 ### 3.3 The pilot's open physics questions (`pilot-questions.md`)
