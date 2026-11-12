@@ -15,9 +15,9 @@ namespace Fpv450
     public static class Build
     {
         /// <summary>
-        /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu) and the farmland (the flight,
-        /// w3-farmland-ground 3.1, and Explore's noclip, w1-farmland-world 2.1; it needs the vendor store linked,
-        /// tools/vendor/link.ps1), full screen at the
+        /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu) and Play's two maps (D-100), the test
+        /// range (House) and the farmland (Village, and Explore's noclip, w1-farmland-world 2.1; it needs the vendor store
+        /// linked, tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
         /// unlinked checkout. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the flight's review
@@ -26,9 +26,10 @@ namespace Fpv450
         public static void Windows()
         {
             string[] scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray();
-            if (!scenes.Contains(EditorSetup.ProjectSetup.FarmlandScenePath))
+            foreach (string map in new[] { TestRangeScene.ScenePath, EditorSetup.ProjectSetup.FarmlandScenePath })
             {
-                Debug.LogError($"[Build] Windows: the build settings lack {EditorSetup.ProjectSetup.FarmlandScenePath}; run Fpv450.EditorSetup.ProjectSetup.Apply");
+                if (scenes.Contains(map)) continue;
+                Debug.LogError($"[Build] Windows: the build settings lack {map}; run Fpv450.EditorSetup.ProjectSetup.Apply");
                 EditorApplication.Exit(1);
                 return;
             }
