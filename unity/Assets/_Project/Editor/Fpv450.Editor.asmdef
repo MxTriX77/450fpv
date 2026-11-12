@@ -6,6 +6,7 @@
         "Fpv450.App.Session",
         "Fpv450.Feed",
         "Fpv450.Feed.Editor",
+        "Fpv450.Feed.Core",
         "Fpv450.Input",
         "Fpv450.World",
         "Unity.RenderPipelines.Core.Runtime",

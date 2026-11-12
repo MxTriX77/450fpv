@@ -18,7 +18,8 @@ using Num = System.Numerics;
 namespace Fpv450.App
 {
     /// <summary>
-    /// The flight over the farmland (design 6, APP-04; w3-farmland-ground 3.1), put on the loaded FarmLand scene by AppFlow.
+    /// The flight over Play's map (design 6, APP-04, D-100), put on its loaded scene by AppFlow: Village's FarmLand
+    /// (w3-farmland-ground 3.1) or House's TestRange.
     /// It switches the scene's own camera off and draws the scene's look through its own (the friend's light, D-088; on the
     /// test range, its noclip rig off and its LookSetup taken over), keeps the terrain near the drone at full resolution
     /// (NearTerrain), then flies a FlightSessionHost:
@@ -96,6 +97,12 @@ namespace Fpv450.App
         /// <summary>The ended flight's summary once read; null while reading or flying.</summary>
         public PostFlight Summary { get; private set; }
 
+        /// <summary>The map Play chose, whose scene this is (D-100); the summary's title names it.</summary>
+        public PlayMap Map { get; private set; }
+
+        /// <summary>The summary's title as drawn: how the flight ended, on which map.</summary>
+        public string SummaryTitle => _title;
+
         /// <summary>The OSD's content (p4-feed 1.5), as the feed draws it.</summary>
         public FlightOsd Osd => _signals.Osd;
 
@@ -103,7 +110,7 @@ namespace Fpv450.App
         public FiberView Fiber => _fiber;
 
         /// <summary>The world map (M, w11-world-map 1.2): the flight's map, the drawn drone on it.</summary>
-        public MapPanel Map { get; private set; }
+        public MapPanel WorldMap { get; private set; }
 
         LookSetup _look;
         Transform _body;
@@ -157,11 +164,12 @@ namespace Fpv450.App
             var go = new GameObject("Flight");
             UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(go, scene);
             var flight = go.AddComponent<FlightScene>();
+            flight.Map = PlayMaps.ForScene(scene.name);
             flight._look = FindFirstObjectByType<LookSetup>();
             if (flight._look != null) flight._look.enabled = false;
             flight.Host = go.AddComponent<FlightSessionHost>();
             flight.Rig();
-            flight.Map = MapPanel.Add(go, () => flight.Host.Inputs?.WorldId, flight._body, () => flight.Covered); // M, w11-world-map 1.2
+            flight.WorldMap = MapPanel.Add(go, () => flight.Host.Inputs?.WorldId, flight._body, () => flight.Covered); // M, w11-world-map 1.2
             if (own != null)
             {
                 UniversalAdditionalCameraData theirs = own.GetUniversalAdditionalCameraData();
@@ -618,7 +626,7 @@ namespace Fpv450.App
             else
             {
                 Summary = _reading.Result;
-                _title = Title(Summary.End.Kind);
+                _title = Title(Summary.End.Kind) + (Map != null ? "  ·  " + Map.Name : "");
                 _lines = Summary.Lines();
                 Debug.Log("[Flight] summary of flight " + session.Flights + ": " + string.Join(" | ", _lines));
             }

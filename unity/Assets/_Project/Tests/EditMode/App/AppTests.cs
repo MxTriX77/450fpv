@@ -29,7 +29,7 @@ namespace Fpv450.Tests.App
 
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
         // drone, the farmland's map package with its objects (w3-farmland-ground 3.1 and 1.2: placements.json, the vendor lists
-        // and each variant's metadata; the test range left the player), and surfaces.json and
+        // and each variant's metadata), the test range's, back for House (w10-play-maps 1.1), and surfaces.json and
         // tether.json byte for byte the repository's, so a pilot's log carries the hashes tools/replay checks against the
         // repository's files by default.
         [Test]
@@ -50,8 +50,10 @@ namespace Fpv450.Tests.App
                 FlightWorldChoice farmland = FlightWorlds.Farmland(copies);
                 Assert.That(farmland.Id, Is.EqualTo(FlightWorlds.FarmlandMap));
                 Assert.That(farmland.Open().ContentHash, Is.EqualTo(FlightWorlds.Farmland(AppData.Root).Open().ContentHash), "the same map as the repository's");
-                Assert.That(files.Exists(f => f.StartsWith("maps/" + FlightWorlds.TestRangeMap + "/", System.StringComparison.Ordinal)), Is.False,
-                    "the test range left the player");
+                FlightWorldChoice range = FlightWorlds.TestRange(copies);
+                Assert.That(range.Id, Is.EqualTo(FlightWorlds.TestRangeMap));
+                Assert.That(range.Open().ContentHash, Is.EqualTo(FlightWorlds.TestRange(AppData.Root).Open().ContentHash), "House: the same test range as the repository's");
+                Assert.That(System.Array.ConvertAll(range.StartPoints, s => s.Name), Is.EqualTo(new[] { FlightWorlds.HousesStart }), "House flies from the houses' start");
                 foreach (string table in new[] { SurfaceTable.RelativePath, TetherTable.RelativePath, PhysicsMaterials.RelativePath })
                 {
                     Assert.That(files, Does.Contain(table), "the player carries " + table);

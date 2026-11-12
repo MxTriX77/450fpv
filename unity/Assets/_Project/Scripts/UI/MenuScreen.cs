@@ -2,14 +2,22 @@ using UnityEngine;
 
 namespace Fpv450.UI
 {
-    public enum MenuChoice { None, Train, Calibrate, Explore, Exit }
+    public enum MenuChoice { None, Play, Calibrate, Explore, Exit }
 
     /// <summary>
-    /// The main menu (APP-02, PRD-05): Train, Calibrate and Exit, and Explore in a review build. The name and the drone
+    /// The main menu (APP-02, PRD-05, D-100): Play, Calibrate and Exit, and Explore in a review build. The name and the drone
     /// at the left, the items under them, and a quiet line at the foot saying which radio is in.
     /// </summary>
     public static class MenuScreen
     {
+        /// <summary>The items in their order, each with its quiet hint (null: none): Play opens the carousel of House and
+        /// Village (w10-play-maps 1.1), Explore the farmland, Village, in noclip.</summary>
+        public static (MenuChoice Choice, string Name, string Hint)[] Items(bool review) => review
+            ? new (MenuChoice, string, string)[] { (MenuChoice.Play, "Play", PlayHint), (MenuChoice.Calibrate, "Calibrate", null), (MenuChoice.Explore, "Explore", "Village in noclip"), (MenuChoice.Exit, "Exit", null) }
+            : new (MenuChoice, string, string)[] { (MenuChoice.Play, "Play", PlayHint), (MenuChoice.Calibrate, "Calibrate", null), (MenuChoice.Exit, "Exit", null) };
+
+        const string PlayHint = "House or Village";
+
         public static MenuChoice Draw(bool review, string radio, string version)
         {
             AppStyle.Begin();
@@ -25,17 +33,11 @@ namespace Fpv450.UI
 
             MenuChoice choice = MenuChoice.None;
             float h = AppStyle.S(64);
-            // Where each goes (w1-farmland-world 2.1): the flights stay on the test range until the farmland's hills fly (W3).
-            if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Train", "flies the test range")) choice = MenuChoice.Train;
-            y += h;
-            if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Calibrate")) choice = MenuChoice.Calibrate;
-            y += h;
-            if (review)
+            foreach ((MenuChoice item, string name, string hint) in Items(review))
             {
-                if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Explore", "the farmland, noclip only for now")) choice = MenuChoice.Explore;
+                if (Item(new Rect(x - AppStyle.S(28), y, w, h), name, hint)) choice = item;
                 y += h;
             }
-            if (Item(new Rect(x - AppStyle.S(28), y, w, h), "Exit")) choice = MenuChoice.Exit;
 
             float foot = Screen.height - AppStyle.S(64);
             GUI.Label(new Rect(x, foot, Screen.width * 0.6f, AppStyle.S(30)), radio, AppStyle.Small);
