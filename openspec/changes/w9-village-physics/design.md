@@ -243,7 +243,168 @@ struct StemPatch { int Cell; byte Layer; StemKind Kind; double Area, Density, He
 
 ## 2.2 Stems on the props
 
-To be written by task 2.2.
+Labels as above: **measured** (run here), **published** (2.11's `stem-properties.md` [n] or a source named here), **carried** (already in the repository), **derived** (computed, the formula given), **assumed** (a named, tunable constant), **numerical** (a resolution or buffer, not physics).
+
+### What the calculation says first
+
+The rotor's slipstream decides most of it, and it is strong.
+- **The slipstream is a 19 m/s jet.** Momentum theory (published): the contracted wake moves at 2·v_i, so its dynamic pressure is q = ½ρ(2v_i)² = T/A. At the hover's T = 11.24–11.98 N a rotor (measured over the densest tall cell, 4.735 kg) and A = π·0.127² = 0.0507 m², q = 222–236 Pa (derived), the pressure of a 19 m/s wind.
+- **Fine culms lie down in it before any blade reaches them.** A 1.5 mm culm (2.11's green, dry and burnt rows) leans until its top stands at most 0.12–0.16 m over the ground (the lean law below, derived). The discs of a drone standing on its legs are 0.288 m up (measured: the standing origin 0.253 m plus the hubs' 0.035 m). So **a vertical landing into Village's grass cuts no stem under the discs**: the grass is pressed flat under them, as a helicopter's is.
+- **Stiff stems stand.** A 3.5 mm straw (the range's `straw` row) still stands 0.44 m and an 8 mm weed stalk 0.83 m (derived).
+- **A leaning stem slips off the blade.** The blade's speed across a stem leaning φ is ω·r·cos φ. Long S04 weed stalks under the disc lean 56–76° and meet the blade at 20–60 m/s, under their 48–90 m/s cutting speed: they are pushed aside, not cut (derived, hand calculation D).
+- **What is cut** is what meets the blade upright and fast: the stems a moving disc runs into at its leading edge (they reach the blade 3.4 ms after entering the slipstream, against the about 40 ms the slipstream needs to lay them over, derived), short stiff stubble, and stems standing when the rotors spin up among them.
+- **This is the pilot's account.** "Straws are noticeably cut in front of my quad's camera": the front discs' leading edges, moving forward as a landing does, cut what stands in front of them, and the pieces leave there. The spec's purely vertical landing into fine grass is the one case where nothing is cut. Most stems escape, as the audit required, and the props never stall in grass.
+
+### The law
+
+Per rotor, per step, after the shapes' passes (`PropStems`, called from `PropStrikes.Apply`; a resting rotor is the contacts', 2.10's):
+
+**1. The stems under the disc.**
+- *Village* (the stem field): `StemsNear(hub, R, h)`, h the hub's height over the ground under it (`SampleGround`; the disc's tilt folded into one height, as 2.1 suggests). Each patch gives the stems per m² reaching h, its area in the disc, its kind and its drawn tops. Above h, within a patch, the tops are spread evenly up to its tallest top (assumed: the field holds no finer profile once h is given; it is read once a step).
+- *The range* (S04's elements, `MicroDetailNear`): the straws and stems based in the disc, each with its own drawn diameter, length and shape, read into a per-rotor cache when the hub has moved 0.1 m (numerical) and placed exactly.
+- Each kind's tissue is its `surfaces.json` cover row at the flight's moisture: diameter, wall share, density, modulus, cut energy. An element's modulus is drawn in its row's range by its own Id's hash, the fiber's rule (world-derived, not a flight draw).
+
+**2. The slipstream lays them over.** The stem's load across it is w = q·C_d·d·cos²φ, q = T/A (derived above), C_d = 1.15 (published [16], [17]: 1.0–1.3), cos²φ the cross-flow's normal share as it leans (assumed: the reconfiguring plant of Gosselin [18]; a load that kept acting across it would lay stems over sooner). The stem bends as a rigid link on a base spring of 4EI/L, which gives the uniform-load cantilever's tip deflection wL⁴/8EI for small leans (derived):
+- φ / cos²φ = q·C_d·d·L³ / (8·EI) = κ·L³, and its top stands L·cos φ over its base.
+- So h_b = (φ·cos φ / κ)^(1/3): the most any length stands is (0.5611/κ)^(1/3), at φ = 0.860 rad (derived), and the lengths standing to a height h lie between two roots of φ·cos φ = κh³. Both are tabled once at load (256 entries, numerical) and read linearly.
+- **The lag:** the stems' load follows the rotor's q with a time constant, 0.04 s pressing them down (derived: a 0.5 m culm's top driven over by w/μ ≈ 500 m/s² gets there in about 44 ms) and 0.1 s rising again (assumed: inside the 0.02–0.35 s quarter periods of 0.2 m stubble and a 0.6 m culm, derived from the first cantilever mode). A rotor spinning down after the throttle's cut has slowed below the cutting speed before the stems stand again (hand calculation A).
+
+**3. The blade must be fast enough.** The critical speed of an unsupported stem, 2.11 §2.2's law (derived): v_c = k_edge·[F_c·√d / (2√(2π)·(EI·μ³)^¼)]^(2/3), F_c = e_s·A_w/d, with the prop's edge factor k_edge = 3 (assumed, 2–4: between a sharp mower blade [13], [11] and nylon line [14]; the blade's nose is 0.13–0.65 mm round, derived [15]).
+- A stem at radius r leaning φ is cut where ω·r·cos φ ≥ v_c (derived: the blade's speed across the stem; with Tuck et al.'s 35 m/s upright it gives 83 m/s at 65°, their "over 80 m/s" [11]). Below it the blade pushes the stem aside: nothing is taken (assumed; its bending energy is of the order of 1 mJ against 10–30 mJ for a cut).
+- On the field the stems lie evenly over the disc, so the share cut is (r_tip² − r_c²)/R², r_c = v_c/(ω·cos φ) at the reaching lengths' middle, never inside the blade's root (0.1 R, carried).
+
+**4. Each cut's work** (from the rotor):
+- **A fresh cut:** E = e_s·A_w + μ·h_f·u², at the blade's speed u = ω·r. The edge severs the wall's section (e_s quasi-static, 2.11 §2.3: an impact multiplier would count the fling twice), and the section's frontal height h_f = c·sin θ + t·cos θ of stem is swept and brought to the blade's speed (the carve's "mass it meets", p7f-damage design 5, carried: the twig's m_f·v² with the band a vertical stem crosses in place of a chord).
+- **A slice:** a stub cut before and met again as the disc comes down by Δ costs min(1, Δ/d) of a cut (`Twigs`' rule, carried: a slice thinner than the stem is crushed) and flings μ·Δ·u², at most once per blade pass.
+
+**5. The impulses.** Along the blade's motion the stem takes E/u, the rotor paying it all: ω' = √(ω² − 2ΣE/J), and the body gets the reaction about the axis and the impulse at the cut, as `Twig` gives them. Along the axis, the cut's share of the pitched face, E_cut·(c·cos θ/h_f)/u, pushes the blade up (the carve's `Section` split, carried: 2–4 times the in-plane push at the blade's 8–13°); the fling leaves in the plane.
+- **Where:** on the field the stems are spread over the disc's azimuth, so its two blades share them evenly and their in-plane impulses cancel; the rotor slows and is pushed up. The stems a moving disc runs into lie across its leading arc, ∝ cos(ψ − ψ_lead), and each blade cuts what has entered since the last one passed: blade b takes (π/2)·max(0, cos(ψ_b − ψ_lead)) of them (derived; it sums to the entries over a turn). The sum is a steady sideways push plus a rotating one at the blade pass, π·n·J_c/4 (derived, hand calculation C). An element is met by the blade whose sweep crosses its azimuth in the step, once per pass.
+- **On the arm (G8):** each corner's strikes' impulse along its rotor's axis loads that arm's mode at its tip in the step it happens (`AirframeModes.Strike`: the modal impulse of a tip impulse with the rigid body's relief, as `Advance` takes the thrust), so the camera sees the arm ring from the hit. For every strike, not only stems.
+
+**6. A stem already cut stands lower.**
+- On the field each rotor keeps the height it has cut down to, H. Coming down from H to h, the stems whose bent tops lie between are fresh, and the stubs at H are sliced by H − h. Fresh stems are due until the blades sweep them: a share B·ω·Δt/2π of the disc each step.
+- A shared grid of 5 cm cells (numerical; 4,096 slots, open addressing, the home slot overwritten when full) holds the plane each patch of ground was cut to. A disc entering ground another disc already cut (a rear disc in the front one's track, a flight back over its own cut) meets only what stands above it, and its H mixes towards that ground's in the share of the disc it sweeps.
+- An element's top is its bent top or its cell's cut plane, whichever is lower.
+
+**7. Breaks.** Each cut's force e_s·A_w/d along the blade's motion goes through `Breaks` at its radius, as a twig's does. No 1.5 mm culm comes near: 5–8 N against hundreds.
+
+### The numbers
+
+| Number | Value | Label |
+|---|---|---|
+| Slipstream pressure on the stems | q = T/A, 222–236 Pa in the hover | derived (momentum theory) |
+| Stem drag coefficient C_d | 1.15 (1.0–1.3) | published [16], [17] |
+| The load's share as the stem leans | cos²φ | assumed (reconfiguration [18]) |
+| The base spring | 4EI/L | derived |
+| Press and rise times of the lean | 0.04 s, 0.1 s | derived, assumed |
+| Critical speed law | 2.11 §2.2 | derived |
+| Prop edge factor k_edge | 3 (2–4) | assumed [11], [13], [14] |
+| The lean's slowing of the cut | ω·r·cos φ | derived (fits [11]'s 65° → 80 m/s) |
+| Swept band h_f | c·sin θ + t·cos θ: 2.2 mm at the tip, 5.0 mm at 0.72 R | derived (drone.json's blade, carried) |
+| Tops above h, within a patch | even up to its tallest | assumed |
+| Cut grid | 5 cm, 4,096 slots | numerical |
+| Element cache | refreshed after 0.1 m | numerical |
+| A stem episode's end | 0.1 s without a whole stem cut | numerical |
+
+**The new cover rows** (`surfaces.json`, 2.11 §4; every value as 2.11 labels it). Each new row holds the `stem` row's fields plus `diameter_m`, the field having no drawn diameter. The row's modulus is one value (the field draws nothing); the wet set is the dry one's, as for the `stem` row (live tissue).
+
+| Row | d (mm) | wall / d | ρ (kg/m³) | E (GPa) | e_s (kJ/m²) |
+|---|---|---|---|---|---|
+| `grass_blade` | 1.5, published [1] | 0.125, derived [1] | 1000, assumed | 1.0, assumed | 10, assumed |
+| `dry_culm` | 1.5, assumed | 0.125, assumed | 500, assumed | 2.0, assumed | 15, assumed |
+| `burnt_culm` | 1.5, assumed | 0.0625, assumed | 300, assumed | 2.0, assumed | 7.5, assumed |
+
+- `straw`'s cut energy moves from 15 kJ/m² (assumed) to **22 kJ/m²** (published: Tavakoli et al. 2008's 21.85–25.74 for wheat straw, audit §5.1). Nothing read it before; its modulus, wall and density stay (the fiber reads them).
+- The `stem` row (S04's weed stalks) is unchanged.
+- The header logs the cover rows, which gain `Diameter`: `LogFormat.Version` 73. This build reads formats 73, 72 and 69 (a 72 or 69 header's rows without it).
+
+**Per kind, at the hover's q** (derived from the rows; T 11.24 / 11.98 N):
+
+| Kind | A_w (mm²) | EI (N·m²) | μ (g/m) | e_s·A_w (mJ) | v_c (m/s) | Tallest standing top (m) |
+|---|---|---|---|---|---|---|
+| green blade | 0.773 | 1.70e-4 | 0.773 | 7.73 | 53.5 | 0.126 / 0.123 |
+| dry culm | 0.773 | 3.40e-4 | 0.387 | 11.6 | 88.3 | 0.159 / 0.155 |
+| burnt culm | 0.414 | 2.06e-4 | 0.124 | 3.11 | 70.3 | 0.134 / 0.131 |
+| straw 3.5 mm (row's 4.8–6.6 GPa) | 4.06 | 2.8e-2 | 2.03 | 89.4 | 54.3 | 0.44 |
+| weed stalk 8 mm (row's 1–4 GPa) | 32.2 | 0.44 | 25.7 | 965 | 35.8 | 0.83 |
+
+The drone stands with its discs 0.288 m up, so no Village culm under a hovering disc reaches it; S04's straw and stalks do.
+
+### Hand calculation A: the spec's straw landing (0.5 m/s down into (768.07, 917.48))
+
+**The cell** (measured, `StemsNear`): one field cell (86802) under all four hubs, its 11 layers. Stems in a disc reaching h: 17.5 at 0.6 m, 2.2 at 1.0 m, 69.0 at 0.288 m (14.4 green, 29.4 dry, 25.2 burnt).
+
+**Coming down at hover thrust:** at every height from 1.77 m down to the standing 0.288 m, each kind's bent stems stand under 0.16 m. **No fresh cut and no slice under any disc.**
+
+**At the touch:** the scripted landing cuts the throttle. The stems stand to the discs' 0.288 m again only once q has fallen to 18.5 (green), 22.4 (burnt) or 37.0 Pa (dry), 8–16 % of the hover's (derived). With q following the thrust down at 0.04 s, that is ω ≤ 0.28–0.40 of the hover's, about 260–370 rad/s. The blade's tip then moves at 33–47 m/s, under the slowest kind's 53.5 m/s, and the stems rise only over 0.1 s after that. **None is cut.**
+
+**Moving:** the only cuts left are stems the discs run into as the pilot's hold drifts, 2·R·s·D(h) for a horizontal path s inside the grass at height h. They are counted from the run's own path.
+
+**So the prediction:**
+- **Cuts:** no in-disc cut, no slice; a stem episode only if the drift runs a disc into stems.
+- **The spectrum:** no line at the blade pass from the stems. The run with the stems and the run without them differ by the drift's cuts alone.
+- **The 10 % check:** the run's stem work is at most the drift's cuts at their energies, within 10 %.
+
+**The known-wrong** (the audit's law: no lean, no critical speed, every stem reaching the plane cut). At the plane's 1.0 m, coming down at 0.5 m/s, at the front rotors' ω 925.26 rad/s (the rear's 896.78):
+- Every stem reaching the plane is in the cut, 0.99 of the disc outside the root.
+- Fresh tops come at 0.5 × (2.745 + 8.915 + 4.59) stems/m × 0.99 = **8.04 a second**, at 7.5–35 mJ each.
+- The stubs standing at the plane (0.41 + 1.13 + 0.67 = 2.20 in the disc) are sliced at min(0.2945 passes, 0.33 of a diameter) a step, flinging 0.5 mm of stem each, at u_rms = ω·√((R² + r_root²)/2) = 83.5 m/s.
+- So **8.40 W** a front rotor, **8.05 W** a rear one (derived; 2.0 / 5.3 / 0.9 W of it the green, dry and burnt stubs' slicing).
+- That grows as 1/(the stems' height)² down the cell. Every stem met would be cut: 69 a disc by the touch, and its stubs would take 260 W a rotor at 0.3 m. The run must give these within 10 %, and the law's run must not.
+
+### Hand calculation C: the pilot's landing approach, a creep through the cell
+
+The front discs creep forward at 0.3 m/s through the cell with the hubs 0.6 m up (the scripted creep: its height held, its heading +z).
+- **The stems they run into** stand upright, 17.53 in a disc's area reaching 0.6 m (3.90 green, 8.86 dry, 4.77 burnt).
+- **The rate:** n = 2·R·v·D(0.6) = **26.36 cuts a second** a front disc (5.86 / 13.33 / 7.18). Each is cut at the rim (u = ω·R = 117.5 m/s at ω 925.26, above every kind's v_c).
+- **The work:** each costs e_s·A_w + μ·h_f·u² with the tip's h_f = 2.18 mm, 31.0 / 23.2 / 6.8 mJ. So **0.540 W** a front disc and a mean 20.5 mJ a cut (derived).
+- **The impulses:** J_c = 20.5 mJ / 117.5 m/s = 1.744e-4 N·s a cut. The rotating force at the blade pass is π·n·J_c/4 = **3.61e-3 N** at 294.5 Hz, and a steady sideways one of the same size. The axial push is 7.1e-3 N, steady.
+- **The rear discs** run in the front ones' cut track at the same height: **no cut** (the grid).
+
+Pressing one stem every 38 ms through the front rotors is a light load. Village's 1.5 mm culms cost the props almost nothing: the shake the pilot feels comes from what stands stiff (straw, stalks), from the legs in the stems (2.10), and from flying into grass at speed (n grows with v).
+
+### Hand calculation D: the range golden's straw landing (S04, 0.5 m/s down, `GoldenFlights.FlyRange`)
+
+The S04 stalks based in the four discs at the landing (measured, `MicroDetailNear`; the moduli by their Ids' hash):
+- rotor 0 has one stalk, 4.99 mm, 1.13 m long;
+- rotor 1 has five, 2.15–4.21 mm, 0.57–1.03 m;
+- rotor 3 has one, 2.17 mm, 0.67 m;
+- rotor 2 has none.
+
+The straws under the discs lie in the mat, their tops at 0.17 m at most.
+
+At the hover's q:
+
+| Rotor | d (mm) | L (m) | Lean | Bent top (m) | ω·r·cos φ (m/s) | v_c (m/s) | |
+|---|---|---|---|---|---|---|---|
+| 0 | 4.99 | 1.126 | 56.1° | 0.604 | 39.4 | 48.3 | escapes |
+| 1 | 4.21 | 1.030 | 68.5° | 0.366 | 36.4 | 61.2 | escapes |
+| 1 | 2.15 | 0.812 | 75.9° | 0.176 | 24.8 | 89.7 | escapes |
+| 1 | 2.73 | 0.990 | 70.9° | 0.306 | 20.0 | 70.0 | escapes |
+| 1 | 2.31 | 0.566 | 56.2° | 0.292 | 59.8 | 76.7 | escapes |
+| 1 | 2.15 | 0.811 | 74.8° | 0.196 | 28.3 | 87.5 | escapes |
+| 3 | 2.17 | 0.672 | 69.4° | 0.195 | 35.7 | 85.8 | escapes |
+
+So the landing itself cuts nothing. What can be cut is at the rotors' spin-up on the straw, where the stalks stand upright under discs speeding up: they are cut wherever ω·r reaches v_c before the slipstream has laid them over. The run decides how many. **The range golden moves only by that and by G8.**
+
+### What the runs must show (the spec's checks)
+
+1. **The straw landing** (A): no stem cut while coming down or at the touch, beyond the drift's, within 10 %; the known-wrong's 8.40 / 8.05 W at 1.0 m within 10 %.
+2. **The creep** (C): a front rotor's cut rate, power and blade-pass line within 10 % of 26.36 /s, 0.540 W and 3.61e-3 N; the rear rotors' cuts near none.
+3. **A hover in grass** cuts itself clear and its episode ends.
+4. **The range golden:** the move audited case by case; its log replays bit for bit.
+5. **0 B** in steady state, and the step's cost (indicative here).
+
+### The log, the feed, the switches
+
+- **`BladeStrikes`:** per blade per step, `StrikeKind.Stem` (4, new; `Material` its cover kind + 1), the energy, the impulse's size, the kind's diameter, the edges' work and the radius. `Count` holds the whole stems the blade's running count has passed in the step: the field's fractional mean counts are counted, never drawn.
+- **Event 39, `StemEpisode`:** per rotor, at its first whole stem cut (`Index` its corner) and 0.1 s after its last (`Index` | 0x80). A is the energy so far, J, B the stems, C their mean diameter, m, and Point the hub. Two events an episode, against LOG-01's budget, never one a cut.
+- **`FeedSignals`:** per rotor over the field window, the stems cut, their pieces' mean length (m) and radius (m), and the rotor's angle at the last cut. For 2.5. No `Live` bit: the feed's enum is the tech-artist's.
+- **The switches** (each logged in the header):
+  - `ContactSpec.Stems` (the stems on the props) and `AirframeModesSpec.StrikeLoad` (G8) are on for every flight.
+  - Off only for the kept audits of earlier models, flown as before, and for the known-wrong's comparisons.
+
+**Model:** the next free number at the merge (the orchestrator's). The note's line: *the props meet the stems: the slipstream lays them over, a leaning or slow blade pushes them aside, the rest are cut and paid for; a strike loads its arm (2.2).*
 
 ## 2.3 Leaves in crowns
 
