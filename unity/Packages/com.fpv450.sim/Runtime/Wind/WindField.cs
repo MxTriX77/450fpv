@@ -248,8 +248,10 @@ namespace Fpv450.Sim.Wind
     ///   velocity is linear and its drift (the integral) exact.
     /// - **The mean profile:** the drawn strength U (wind.strength, uniform in the level's band) at the reference
     ///   height, scaled by the log law ln((z − d)/z0) / ln((z_ref − d)/z0), z the height over the ground under the
-    ///   body, z0 the landscape's and d the cover's, held above ProfileTop, 0 at and below d + z0 (inside the cover).
-    ///   Horizontal.
+    ///   point (w7-farmland-wind 1.1: each rotor's, the body's, each fiber node's own, At(point, ground)), z0 the
+    ///   landscape's and d the cover's, held above ProfileTop, 0 at and below d + z0 (inside the cover). Horizontal over
+    ///   a plane; over a terrain the hills (HillFlow, linear theory) speed it up and turn it with the ground, and a step's
+    ///   lee separates (InLee).
     /// - **The turbulence:** von Kármán's isotropic spectrum E(k) = C·σ²·(k/k_e)^4 / (1 + (k/k_e)²)^(17/6),
     ///   k_e = 1/(1.339·L), C·k_e·½B(5/2, 1/3) = 1.5 (so ∫E = 1.5·σ² and its 1-D spectra are MIL-HDBK-1797's), as
     ///   Modes random Fourier modes in log-spaced bands from k_min to 2π/ShortestWavelength: per mode a wavenumber
@@ -289,6 +291,7 @@ namespace Fpv450.Sim.Wind
     {
         const double Dt = 0.001; // FlightCore.Dt
         const double DegToRad = 0.017453292519943295;
+        const double Pi = 3.141592653589793;
         const double TwoPi = 6.283185307179586;
 
         /// <summary>½·B(5/2, 1/3) = ∫₀^∞ x⁴/(1 + x²)^(17/6) dx (derived: ½·Γ(5/2)·Γ(1/3)/Γ(17/6)).</summary>
@@ -333,6 +336,9 @@ namespace Fpv450.Sim.Wind
         // The wooded strips' canopy layers (p7c-wind 1.5), or null.
         readonly CanopyFlow[] _canopies;
 
+        // The terrain's hills and steps (w7-farmland-wind 1.1), or null over a plane.
+        readonly HillFlow _hills;
+
         // The cuts (p7c-wind 1.10), or null; in a cut's frame the fluctuation's shares at the drive's height: the open
         // modes', a strip's eddies' (with the strip), and the wake eddies' (with 1 over the obstacle's height).
         readonly CutFrame _cuts;
@@ -345,10 +351,17 @@ namespace Fpv450.Sim.Wind
         Double3 _mean, _drift, _origin;
 
         /// <summary>The wind of a flight with this setup, its per-flight draws made from random (at the flight's start).</summary>
-        public WindField(in WindSetup setup, FlightRandom random) : this(setup, random, PresetFor(setup.Level)) { }
+        public WindField(in WindSetup setup, FlightRandom random) : this(setup, random, PresetFor(setup.Level), null) { }
+
+        /// <summary>The same over a terrain's hills (HillFlow; null over a plane): a pilot's level carries them, Still and Steady
+        /// air never read the ground.</summary>
+        public WindField(in WindSetup setup, FlightRandom random, HillFlow hills) : this(setup, random, PresetFor(setup.Level), hills) { }
 
         /// <summary>The same with a preset of the caller's (a test's known-wrong field); the log records the level's own.</summary>
-        public WindField(in WindSetup setup, FlightRandom random, in WindPreset preset)
+        public WindField(in WindSetup setup, FlightRandom random, in WindPreset preset) : this(setup, random, preset, null) { }
+
+        /// <summary>The same with a preset of the caller's over a terrain's hills, built for the preset's profile.</summary>
+        public WindField(in WindSetup setup, FlightRandom random, in WindPreset preset, HillFlow hills)
         {
             Setup = setup;
             Preset = preset;
@@ -375,6 +388,9 @@ namespace Fpv450.Sim.Wind
             if (setup.StartSecond < 0 || setup.StartSecond > preset.Horizon)
                 throw new ArgumentException("the start second is 0 to the preset's horizon", nameof(setup));
             _level = true;
+            if (hills != null && !(hills.Roughness == preset.Roughness && hills.Displacement == preset.Displacement && hills.Top == preset.ProfileTop))
+                throw new ArgumentException("the hills were built for another profile", nameof(hills));
+            _hills = hills;
             SeedStream direction = random.Open("wind.direction");
             FromDeg = random.Draw(ref direction, "wind.from_deg", 0, 360);
             SeedStream strength = random.Open("wind.strength");
@@ -562,7 +578,7 @@ namespace Fpv450.Sim.Wind
                 return;
             }
             var at = new Double3(origin.X, _ground + h, origin.Z);
-            double profile = Profile(h), taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight), speed;
+            double lambda = Log(h), profile = lambda / _logRef, taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight), speed;
             _cutStrip = null;
             _cutOpen = taper;
             _cutCanopy = _cutWake = _cutWakeInv = 0;
@@ -592,7 +608,7 @@ namespace Fpv450.Sim.Wind
                 _cutWake = DetMath.Sqrt(b2) * SigmaH * (taper * DetMath.Sqrt(1 - w));
                 _cutWakeInv = 1 / b.ObstacleHeight;
             }
-            _cuts.Drive(_mean * speed, h, _d, _z0, true);
+            _cuts.Drive(Hill(_mean * speed, at.X, at.Z, lambda), h, _d, _z0, true);
         }
 
         /// <summary>The step's cut frame (design 10), or null without cuts: whether the origin lies in an opening, and the
@@ -605,10 +621,26 @@ namespace Fpv450.Sim.Wind
         /// <summary>The field's drift since the flight's start in the step's frame, world m.</summary>
         public Double3 Drift => _drift;
 
-        /// <summary>The wind's velocity at a world point in the step's frame, world m/s.</summary>
-        public Double3 At(in Double3 point)
+        /// <summary>
+        /// The wind's velocity at a world point in the step's frame, world m/s, over the step's own ground (Begin's): every
+        /// point in the step's cut frame when the origin is in one. For a point over that ground only (a plane's tests and
+        /// benches); a flight's points each take their own, At(point, ground).
+        /// </summary>
+        public Double3 At(in Double3 point) => Wind(point, _ground, true);
+
+        /// <summary>
+        /// The wind's velocity at a world point in the step's frame, world m/s, its profile over the ground under that point
+        /// (m: SampleGround's height, or the soil's over a hole, FlightWorld.SoilUnder; −∞ for none, sheltered). Each rotor, the
+        /// body, the coil, a fiber node and a loose piece takes its own, never the drone's for a point elsewhere
+        /// (w7-farmland-wind 1.1). A point in the step's cut opening (CutFrame.Holds: within its reach, its ground below the lip)
+        /// takes the cut's frame. NaN: a drone's point over a hole, whose soil it does not read: the step's ground and frame, as
+        /// At(point) (model 20's and design 10's rule for the drone, whose points lie within 0.4 m of its origin).
+        /// </summary>
+        public Double3 At(in Double3 point, double ground) => double.IsNaN(ground) ? Wind(point, _ground, true) : Wind(point, ground, false);
+
+        Double3 Wind(in Double3 point, double ground, bool framed)
         {
-            Double3 wind = _level ? Air(point) : _still ? default : _steady;
+            Double3 wind = _level ? Air(point, ground, framed) : _still ? default : _steady;
             if (_front != null) wind = wind + _front.At(_front.Uniform ? _origin : point, _t);
             return wind;
         }
@@ -629,6 +661,9 @@ namespace Fpv450.Sim.Wind
             return new Double3(x, y, z);
         }
 
+        /// <summary>The terrain's hills and steps the field carries, or null over a plane.</summary>
+        public HillFlow Hills => _hills;
+
         /// <summary>The first strip's canopy layer, or null without a canopy strip.</summary>
         public CanopyFlow Canopy => _canopies?[0];
 
@@ -636,14 +671,32 @@ namespace Fpv450.Sim.Wind
         public CanopyFlow[] Canopies => _canopies;
 
         // The open field's mean at a height over the ground, over the reference height's.
-        double Profile(double h) => DetMath.Log((DetMath.Min(h, _top) - _d) / _z0) / _logRef;
+        double Profile(double h) => Log(h) / _logRef;
 
-        Double3 Air(in Double3 point)
+        // The profile's log at a height over the ground, ln((min(h, top) − d)/z0): the hills' level too.
+        double Log(double h) => DetMath.Log((DetMath.Min(h, _top) - _d) / _z0);
+
+        // A point's air over its ground: in the step's cut opening (framed: every point, At(point)) the cut's, in a step's lee
+        // its separated flow, elsewhere the open field.
+        Double3 Air(in Double3 point, double ground, bool framed)
         {
-            if (_cuts != null && _cuts.Active && point.Y < _cuts.Lip) return InCut(point);
-            double h = point.Y - _ground;
+            if (_cuts != null && _cuts.Active && (framed || _cuts.Holds(point.X, point.Z, ground)))
+            {
+                if (point.Y < _cuts.Lip) return InCut(point);
+                ground = _cuts.Lip;
+            }
+            if (_hills != null && _hills.Steps > 0 && _hills.Lee(point.X, point.Z, _mean, out LeeFrame lee)) return InLee(point, ground, lee);
+            return Open(point, ground, true, out _);
+        }
+
+        // The open field at a point over its ground (the profile, the canopy's and the wakes' shares, the hills), and its
+        // mean; with fluctuations false the mean alone.
+        Double3 Open(in Double3 point, double ground, bool fluctuations, out Double3 mean)
+        {
+            mean = default;
+            double h = point.Y - ground;
             if (!(h - _d > _z0) || !(h < double.PositiveInfinity)) return default; // in the cover, or with no ground under it
-            double profile = Profile(h);
+            double lambda = Log(h), profile = lambda / _logRef;
             double taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight);
             if (_canopies != null)
             {
@@ -660,29 +713,79 @@ namespace Fpv450.Sim.Wind
                 if (w > 0)
                 {
                     double r = c.Decay(h);
-                    Double3 open = Turbulence(point) * (taper * (1 - w * (1 - r)));
-                    Double3 canopy = c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
                     if (_wakes == null)
                     {
                         double speed = profile + w * (c.Speed(h) / MeanSpeed - profile);
-                        return _mean * speed + open + canopy;
+                        mean = Hill(_mean * speed, point.X, point.Z, lambda);
+                        if (!fluctuations) return mean;
+                        Double3 open = Turbulence(point) * (taper * (1 - w * (1 - r)));
+                        Double3 canopy = c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
+                        return mean + open + canopy;
                     }
                     // With wakes (MapWind's rule): the canopy takes w of the mean and the wake grid the rest, and the wake
                     // eddies √(1 − w) of their excess, so the belt is counted once.
                     _wakes.Sample(point.X, point.Z, h, out WakeSample b);
-                    Double3 mixed = _mean * ((1 - w) * profile * b.Speed + w * (c.Speed(h) / MeanSpeed)) + open + canopy;
+                    mean = Hill(_mean * ((1 - w) * profile * b.Speed + w * (c.Speed(h) / MeanSpeed)), point.X, point.Z, lambda);
+                    if (!fluctuations) return mean;
+                    Double3 mixed = mean + Turbulence(point) * (taper * (1 - w * (1 - r))) + c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
                     double b2 = b.Turbulence * b.Turbulence - 1;
                     if (!(b2 > 0) || !(b.ObstacleHeight > 0)) return mixed;
                     return mixed + WakeEddies(point, 1 / b.ObstacleHeight) * (DetMath.Sqrt(b2) * SigmaH * (taper * DetMath.Sqrt(1 - w)));
                 }
             }
-            Double3 turbulence = Turbulence(point) * taper;
-            if (_wakes == null) return _mean * profile + turbulence;
+            if (_wakes == null)
+            {
+                mean = Hill(_mean * profile, point.X, point.Z, lambda);
+                return fluctuations ? mean + Turbulence(point) * taper : mean;
+            }
             _wakes.Sample(point.X, point.Z, h, out WakeSample s);
-            Double3 wind = _mean * (profile * s.Speed) + turbulence;
+            mean = Hill(_mean * (profile * s.Speed), point.X, point.Z, lambda);
+            if (!fluctuations) return mean;
+            Double3 wind = mean + Turbulence(point) * taper;
             double t2 = s.Turbulence * s.Turbulence - 1;
             if (!(t2 > 0) || !(s.ObstacleHeight > 0)) return wind;
             return wind + WakeEddies(point, 1 / s.ObstacleHeight) * (DetMath.Sqrt(t2) * SigmaH * taper);
+        }
+
+        // The hills' perturbation of an undisturbed horizontal mean u at plan (x, z) and the profile's log λ (HillFlow):
+        // u + S·u along the ground, G·u upward; u itself over a plane and off the hills' grid.
+        Double3 Hill(in Double3 u, double x, double z, double lambda)
+        {
+            if (_hills == null || !_hills.Sample(x, z, lambda, out HillSample s)) return u;
+            return new Double3(u.X + (s.S11 * u.X + s.S12 * u.Z), s.G1 * u.X + s.G2 * u.Z, u.Z + (s.S12 * u.X + s.S22 * u.Z));
+        }
+
+        /// <summary>
+        /// The separated lee of a terrain step (w7-farmland-wind 1.1, design 4; HillFlow.Lee): a backward-facing step of
+        /// depth D, the lip's height less the point's own ground, read as Cavity's closed bubble behind a step.
+        /// - **The bubble** to X_R = 7.2·D (Cavity.StepReattachment: Hotta et al. 1998's step, the literature's 7.0–7.5):
+        ///   below the lip, Roshko's cell over the bubble, u = A·cos(πη/D)·sin(πξ/X_R) across the step and
+        ///   w = A·(D/X_R)·cos(πξ/X_R)·sin(πη/D), A = c_v·U, U the field's own mean across the step at h_o = 1.5·D over the
+        ///   lip (Cavity's drive); the component along the step is the open field's over the floor (the independence
+        ///   principle: a swept separation takes the normal component); the fluctuation the floor's own (Cavity's closed
+        ///   regime: τ = 1). Above the lip, the field over the lip.
+        /// - **The recovery** over Cavity.RecoveryLengths bubble lengths (assumed, as Cavity's): the separated field's share
+        ///   falls linearly from 1 at X_R to 0, the open field over the floor taking the rest, its cell held at X_R's.
+        /// - Within the floor's cover (d + z0) the air is still, as on any ground; a step under it separates nothing.
+        /// </summary>
+        Double3 InLee(in Double3 point, double ground, in LeeFrame lee)
+        {
+            Double3 floor = Open(point, ground, true, out Double3 floorMean);
+            double depth = lee.Lip - ground;
+            if (!(depth - _d > _z0) || !(point.Y - ground - _d > _z0)) return floor;
+            double xr = Cavity.StepReattachment * depth, share = lee.Xi <= xr ? 1 : 1 - (lee.Xi - xr) / (Cavity.RecoveryLengths * xr);
+            if (!(share > 0)) return floor;
+            if (!(point.Y < lee.Lip)) return Open(point, lee.Lip, true, out _) * share + floor * (1 - share);
+            Open(new Double3(point.X, lee.Lip + Cavity.DriveHeightOverDepth * depth, point.Z), lee.Lip, false, out Double3 drive);
+            double u0 = drive.X * lee.NX + drive.Z * lee.NZ;
+            if (!(u0 > 0)) return floor;
+            double eta = lee.Lip - point.Y, a = Cavity.CellStrength * u0;
+            DetMath.SinCos(Pi * eta / depth, out double se, out double ce);
+            DetMath.SinCos(Pi * DetMath.Min(lee.Xi, xr) / xr, out double sx, out double cx);
+            double u = a * ce * sx, w = a * depth / xr * cx * se;
+            double along = floorMean.X * lee.NX + floorMean.Z * lee.NZ;
+            var bubble = new Double3(floorMean.X + (u - along) * lee.NX, w, floorMean.Z + (u - along) * lee.NZ);
+            return floor + (bubble - floorMean) * share;
         }
 
         // Below a cut's lip (design 10): the cavity's mean, and the field's fluctuation at the point with its shares at the

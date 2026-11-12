@@ -11,8 +11,37 @@ namespace Fpv450.Sim.Flight
     public sealed class FlightWorld
     {
         readonly IWorldQuery _query;
+        readonly MapWorld _terrain; // the map whose terrain's hills the wind carries (Hills), or null
+        Wind.HillFlow _hills;
+        bool _hillsBuilt;
 
-        public FlightWorld(IWorldQuery query) => _query = query ?? throw new ArgumentNullException(nameof(query));
+        public FlightWorld(IWorldQuery query) : this(query, query as MapWorld) { }
+
+        /// <summary>A world whose queries go through `query` (a bench's timer over a map) and whose wind's hills are
+        /// `terrain`'s (the same map; null for none).</summary>
+        public FlightWorld(IWorldQuery query, MapWorld terrain)
+        {
+            _query = query ?? throw new ArgumentNullException(nameof(query));
+            _terrain = terrain;
+        }
+
+        /// <summary>
+        /// The terrain's hills for the wind of a pilot's level (Wind.HillFlow, w7-farmland-wind 1.1): the map's, built at the
+        /// first ask and kept for every flight over the same world (HillFlow.Of); null on a plane and on a world that is no map.
+        /// Load time: the first call over a terrain builds it.
+        /// </summary>
+        public Wind.HillFlow Hills
+        {
+            get
+            {
+                if (!_hillsBuilt)
+                {
+                    _hills = Wind.HillFlow.Of(_terrain);
+                    _hillsBuilt = true;
+                }
+                return _hills;
+            }
+        }
 
         /// <summary>
         /// The world-query stub's floor at y = 0 (FloorWorld), for tests and benches: surface belt_bare, and the

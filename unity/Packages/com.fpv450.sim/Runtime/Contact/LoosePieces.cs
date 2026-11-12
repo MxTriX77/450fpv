@@ -1,6 +1,7 @@
 using System;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Contact
 {
@@ -46,6 +47,10 @@ namespace Fpv450.Sim.Contact
         readonly int[] _shapes = new int[48];
         readonly ContactShape[] _geometry = new ContactShape[48];
         readonly StepEvents _scratch = new StepEvents(64);
+        readonly XZ[] _windAt = new XZ[1];                // the ground under a tube's centre for the wind there
+        readonly GroundSample[] _windGround = new GroundSample[1];
+        readonly Ray[] _soilRay = new Ray[1];
+        readonly RayHit[] _soilHit = new RayHit[1];
         StepTrace _trace;
         int _count;
 
@@ -346,6 +351,15 @@ namespace Fpv450.Sim.Contact
             }
         }
 
+        // The ground under a point for the wind's profile there (w7-farmland-wind 1.1, as the core's): SampleGround's height,
+        // over a hole the soil's.
+        double Ground(in Double3 point)
+        {
+            _windAt[0] = new XZ(point.X, point.Z);
+            _world.SampleGround(_windAt, _windGround);
+            return (_windGround[0].Flags & GroundFlags.Hole) != 0 ? _world.SoilUnder(point, _soilRay, _soilHit, out _) : _windGround[0].Height;
+        }
+
         // The air's drag across each tube of the piece (the independence principle): −½ρ·C_d·D·ℓ·|u⊥|·u⊥ at its centre, u⊥ the
         // air's velocity across its axis there.
         void Drag(int slot, in FlightState s, in MassProperties body, WindField wind, ref Double3 force, ref Double3 moment)
@@ -355,8 +369,8 @@ namespace Fpv450.Sim.Contact
             {
                 ref readonly DronePart part = ref m.Part(q);
                 if (part.Kind != PartKind.Cylinder || !(part.Mass > 0)) continue;
-                Double3 r = part.Position;
-                Double3 vb = s.Attitude.InverseRotate(s.Velocity - wind.At(s.Position + s.Attitude.Rotate(r))) + Double3.Cross(s.BodyRate, r);
+                Double3 r = part.Position, at = s.Position + s.Attitude.Rotate(r);
+                Double3 vb = s.Attitude.InverseRotate(s.Velocity - wind.At(at, Ground(at))) + Double3.Cross(s.BodyRate, r);
                 Double3 across = vb - part.Axis * Double3.Dot(part.Axis, vb);
                 double size = across.Length();
                 if (!(size > 0)) continue;

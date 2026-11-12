@@ -28,6 +28,7 @@ namespace Fpv450.Sim.Wind
 
         readonly WindField _field;
         readonly Double3[] _points, _winds;
+        readonly double[] _grounds; // each point's own ground (WindField.At(point, ground))
         readonly int[] _done;   // the generation stamp a point was evaluated in
         readonly Thread _thread;
         readonly AutoResetEvent _wake = new AutoResetEvent(false);
@@ -55,6 +56,7 @@ namespace Fpv450.Sim.Wind
             if (capacity < 1 || capacity > Mask) throw new ArgumentOutOfRangeException(nameof(capacity));
             _field = field;
             _points = new Double3[capacity];
+            _grounds = new double[capacity];
             _winds = new Double3[capacity];
             _done = new int[capacity];
             // The flight thread's priority: the worker's points are on the step's path.
@@ -69,11 +71,13 @@ namespace Fpv450.Sim.Wind
             _count = 0;
         }
 
-        /// <summary>Adds a point to the batch being built: its index, or −1 when the batch is full (the point is the caller's).</summary>
-        public int Add(in Double3 point)
+        /// <summary>Adds a point over its own ground (m, as WindField.At takes it) to the batch being built: its index, or −1
+        /// when the batch is full (the point is the caller's).</summary>
+        public int Add(in Double3 point, double ground)
         {
             if (_count == _points.Length) return -1;
             _points[_count] = point;
+            _grounds[_count] = ground;
             return _count++;
         }
 
@@ -112,8 +116,9 @@ namespace Fpv450.Sim.Wind
             return true;
         }
 
-        /// <summary>The wind at `point`: posted point `index`'s if it is that point bit for bit, else the field's own.</summary>
-        public Double3 At(int index, in Double3 point) => TryAt(index, point, out Double3 wind) ? wind : _field.At(point);
+        /// <summary>The wind at `point` over `ground`: posted point `index`'s if it is that point bit for bit (its ground the
+        /// same function of it), else the field's own.</summary>
+        public Double3 At(int index, in Double3 point, double ground) => TryAt(index, point, out Double3 wind) ? wind : _field.At(point, ground);
 
         static bool Same(in Double3 a, in Double3 b) =>
             BitConverter.DoubleToInt64Bits(a.X) == BitConverter.DoubleToInt64Bits(b.X)
@@ -145,7 +150,7 @@ namespace Fpv450.Sim.Wind
                 if (Interlocked.CompareExchange(ref _claim, c + 1, c) != c) continue;
                 // The claim names this generation (it changes only at a Post, after Join), so _stamp is this generation's.
                 int stamp = Volatile.Read(ref _stamp);
-                _winds[i] = _field.At(_points[i]);
+                _winds[i] = _field.At(_points[i], _grounds[i]);
                 Volatile.Write(ref _done[i], stamp);
                 taken++;
             }

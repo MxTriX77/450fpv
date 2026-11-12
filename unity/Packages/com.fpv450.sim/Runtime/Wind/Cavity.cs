@@ -330,6 +330,20 @@ namespace Fpv450.Sim.Wind
             return true;
         }
 
+        /// <summary>
+        /// Whether the step's frame holds a point at world plan (x, z) over `ground` (its own, as Locate's): the point within
+        /// the frame's opening (W/2 + OpeningReach across its axis, along it within the opening's length) and its ground below
+        /// the lip, so the cut's flow is its (w7-farmland-wind 1.1). A point elsewhere, as a laid fiber's far node, takes the
+        /// field over its own ground.
+        /// </summary>
+        internal bool Holds(double x, double z, double ground)
+        {
+            if (!(ground < _lip)) return false;
+            double dx = x - _fx, dz = z - _fz;
+            double n = dz * _ftx - dx * _ftz, s = _s0 + dx * _ftx + dz * _ftz;
+            return DetMath.Abs(n) <= _half + OpeningReach && s >= 0 && s <= _length0;
+        }
+
         /// <summary>The step's drive: the field's mean at ho over the lip (world, horizontal, m/s), and the field's profile
         /// shape (d, z0, m) the closed form's floor reads; driven false for none (a slit inside the cover's still layer).</summary>
         internal void Drive(in Double3 mean, double ho, double d, double z0, bool driven)
