@@ -808,9 +808,13 @@ namespace Fpv450.Sim.Log
         ///    face, the lip between them), a skid's sweep leaves the ground out, a prop's blades meet the ground as the plane of their
         ///    disc's contact (ContactModel.GroundPlane), and a fiber node behind a step's face takes the face; a sample's overlap is
         ///    r − n_y·(y − h), the same bits on a level plane; a certified fiber segment's ends move the margin less KeepGap, not less the
-        ///    line's radius; and a leg's anchor takes no slide along a slip it holds no stiffness along (ContactModel.NilStiffness). Every
-        ///    flight on a plane whose certified segments no shape came within KeepGap of, and whose legs never slid along a nil stiffness,
-        ///    steps as in 79.
+        ///    line's radius; and a leg's anchor takes no slide along a slip it holds no stiffness along (ContactModel.NilStiffness). With
+        ///    w3-farmland-ground 2.6 (unity/physics/physics-integration-2--w3-blade) a crash creates no energy: a prop's blade that
+        ///    comes back to rest inside what it touches after the strikes judged its rotor's passes (a glance through a ground the
+        ///    strikes do not know, a bend over a face) meets it unloaded, its pairs' overlap there their slack, which only shrinks
+        ///    (A4's crash into R01_A: a blade 85 mm inside the floor gave the body 490 J in one step); a rotor back at rest before any
+        ///    pass presses as before. Every flight on a plane whose certified segments no shape came within KeepGap of, whose legs
+        ///    never slid along a nil stiffness, and whose blades never came back to rest inside anything after a pass, steps as in 79.
         /// </summary>
         public const int ModelVersion = 82;
 

@@ -265,7 +265,7 @@ namespace Fpv450.Sim.Contact
         public void Apply(in Corners from, ref FlightState now, in MassProperties body, StepEvents events)
         {
             Double3 axis = now.Attitude.Rotate(Up), impulse = default, angular = default;
-            int changed = 0;
+            int changed = 0, passed = 0;
             for (int n = 0; n < _discs.Length; n++)
             {
                 int i = _discs[n];
@@ -313,6 +313,7 @@ namespace Fpv450.Sim.Contact
                         if (obj == skipObject && shape == skipShape && b == skipBlade) continue;
                         double ahead = Wrap(psi - (start + TwoPi * b / _blades));
                         if (!(ahead > 0 && ahead <= sweep)) continue;
+                        passed |= 1 << c;
                         if (Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, hub, axis, m, psi, events, ref impulse, ref angular))
                             changed |= 1 << c;
                     }
@@ -329,6 +330,7 @@ namespace Fpv450.Sim.Contact
             for (int c = 0; c < 4; c++)
                 if (_pending[c].Active) held |= 1 << c;
             _contacts.HoldBlades(held);
+            _contacts.Passes(passed); // what their blades come back to rest inside is these passes' (ContactModel.PlaceBlades)
             for (int c = 0; c < 4; c++)
                 if ((changed & (1 << c)) != 0) _propulsion.Rebuild(c);
         }
