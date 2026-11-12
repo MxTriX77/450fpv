@@ -264,7 +264,7 @@ namespace Fpv450.Sim.World
         }
 
         /// <summary>A listed file's bytes, its SHA-256 checked against the manifest's (an LFS pointer fails it).</summary>
-        private static byte[] Checked(string relative, JsonNode files, Func<string, byte[]> readFile, string where)
+        internal static byte[] Checked(string relative, JsonNode files, Func<string, byte[]> readFile, string where)
         {
             JsonNode digest = files.Member(relative);
             if (digest == null || digest.Kind != JsonKind.String)

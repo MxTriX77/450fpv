@@ -78,7 +78,7 @@ namespace Fpv450.Sim.Tests
         public void Load_DerivesTheTwelveStepLines_TheLedgeAndTheFarSeams()
         {
             Assert.That(World.QueryVersion, Is.EqualTo(8));
-            Assert.That(World.PlacedObjects, Is.EqualTo(0), "no physics objects on the farmland yet (W4)");
+            Assert.That(World.PlacedObjects, Is.EqualTo(1679), "its trees, bushes, ruins and debris (1.2; FarmlandObjectTests)");
             TerrainStep[] steps = World.TerrainSteps;
             Assert.That(steps.Length, Is.EqualTo(12));
             int ledge = 0, seams = 0;
@@ -279,6 +279,7 @@ namespace Fpv450.Sim.Tests
             var g = new GroundSample[1];
             var hit = new RayHit[1];
             var contacts = new StaticContact[8];
+            var snags = new SnagSegment[64];
             ulong hash = 0xCBF29CE484222325UL;
             void Add(double v)
             {
@@ -304,6 +305,13 @@ namespace Fpv450.Sim.Tests
                 for (int k = 0; k < Math.Min(n, contacts.Length); k++)
                 {
                     Add(contacts[k].Distance); Add(contacts[k].Time); Add(contacts[k].Point.Y); Add(contacts[k].Normal.X); Add(contacts[k].Surface);
+                    Add(contacts[k].Object); Add(contacts[k].Shape);
+                }
+                n = world.SnagsNear(a + new Double3(0, s.NextDouble(), 0), 0.5 * s.NextDouble(), snags);
+                Add(n);
+                for (int k = 0; k < Math.Min(n, snags.Length); k++)
+                {
+                    Add(snags[k].Object); Add(snags[k].Segment); Add(snags[k].A.X); Add(snags[k].B.Y); Add(snags[k].Radius);
                 }
             }
             return hash;
@@ -354,6 +362,7 @@ namespace Fpv450.Sim.Tests
             var rays = new Ray[8];
             var hits = new RayHit[8];
             var contacts = new StaticContact[16];
+            var snags = new SnagSegment[256];
             var s = new Random(3);
             for (int i = 0; i < points.Length; i++)
                 points[i] = new XZ(500 + 20 * s.NextDouble(), 600 + 20 * s.NextDouble());
@@ -367,12 +376,17 @@ namespace Fpv450.Sim.Tests
                 world.Raycast(rays, 5, hits);
                 for (int i = 0; i < 46; i++)
                     world.StaticContacts(new Capsule(a, a + new Double3(0.1, 0, 0.01 * i), 0.005), new Capsule(a, a + new Double3(0.1, -0.01, 0.01 * i), 0.005), 0.1, contacts);
+                world.SnagsNear(a + new Double3(0, 1, 0), 2, snags);
             }
             Step();
             long before = GC.GetAllocatedBytesForCurrentThread();
             for (int k = 0; k < 100; k++)
                 Step();
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.EqualTo(0));
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            // No constraint built in this method: in Release the JIT boxed Is.EqualTo(0)'s literal before the last read, the
+            // 24 B this test reported since 1.1 (a bare pair of reads with nothing between them measured it too).
+            if (allocated != 0)
+                Assert.Fail($"{allocated} B over 100 steps among the village's ruins and debris (500-520, 600-620)");
         }
     }
 }

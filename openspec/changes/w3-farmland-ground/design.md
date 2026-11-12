@@ -1,4 +1,4 @@
-# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 2.1 (the fiber's query cost), 2.2 (the flight on hills) and 2.5 (a laid fiber follows the hills)
+# Design: w3-farmland-ground, tasks 1.1 (the heightfield), 1.2 (the farmland's objects), 2.1 (the fiber's query cost), 2.2 (the flight on hills) and 2.5 (a laid fiber follows the hills)
 
 **Owner of this note:** world-builder · **For:** 2.1 and 2.2 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-11, WLD-16, PHY-01, PLT-04 · **Decisions:** D-088, D-091, D-092, D-093 · **QueryVersion:** 8
 
@@ -686,3 +686,128 @@ Numbers are labelled as above. "Before" is this branch's head (9847c69e) with 2.
 - **The tether, a review:** in the farmland line's last leg the lead leaves the nozzle at 128–136° in steady flight and wraps the lip 165–172° at a stop, 1.8–2.3 GPa at 0.1 N, on both cores. Whether a light line in Severe wind sits so far round the nozzle is for the tether's review against the pilot's account (the sharp reverse).
 - **`FiberContacts.Prepare`** costs 46 µs a step on the farmland line with no objects at all (the phase timers above): the caches' refresh and the per-segment walks. That is worth a look with 2.3.
 - **QA (4.1):** a quiet run of `farmland-line-step`, with 2.1's and 2.2's owed ones. The Unity EditMode suite should also see the pose's 48 fiber nodes (`FiberView` sizes its rings by `FiberNodes.Capacity`).
+
+# Task 1.2: the farmland's objects
+
+**Owner of this part:** world-builder · **For:** 2.3, 2.4 (physics-engineer), 3.1 (game-developer), 4.1 (qa-engineer) · **Requirements:** WLD-02, WLD-05, WLD-11, WLD-16, PLT-04 · **Decisions:** D-088, D-089, D-091, D-097 · **QueryVersion:** 8, unchanged (no answer of the floor or the test range moved; the farmland's moved with its content, its hash)
+
+Numbers are labelled as above: **measured**, **derived**, **assumed**.
+
+## Context
+- **The rows** are W2's `maps/farmland/placements.json` (`fpv450-map-placements` v1, listed in `map.json` with its SHA-256): 1,679 rows of `kind`, `variant`, `position_m`, Unity's `rotation_xyzw` and a per-axis `scale`. 294 trees and 1,352 bushes, yaw only, scale (w, h, w) with w 0.465–1.599 and h/w 0.926–1.087; 5 ruins, yaw only, one at scale (−1, 1, 1); 28 debris pieces, tilted with the ground up to 24.9° (measured).
+- **The metadata** is W4a's (`vegetation/VF01`–`VF10`, 22 variants: capsules, twig-shell spheres, wind boxes, snag records) and W4b's (`ruins/N01`, `N02`, 13 variants: boxes, gaps, wind boxes, snag records), each in its prefab's frame.
+
+## Decisions
+
+### 1. The loader reads the package's own rows
+- `MapWorld.Load(root, id)` on a package reads `placements.json` too, checked against `map.json`'s SHA-256 (`Terrain.Checked`, as the tiles). 1.1's in-memory "no objects" record is gone.
+- **The variant's file:** a row names a variant only. `MapWorld.VendorAssets` maps it to `<class>/<asset>` from `assets-src/vendor_plants.json` (W4a) and `assets-src/vendor.json` (W4b). A variant listed twice is refused.
+- **The object grid** stays on `map_rect_m` (1000 m, 500 × 500 cells of 2 m), with no ground record (the terrain is the ground) and no start points.
+- **The content hash** runs over `placements.json`, `map.json`, every metadata file read (by path, as on the test range) and the material names: `0x7249f5a8adb997d7` (measured).
+
+### 2. A row's pose is Unity's TRS
+- **world = position + R·(scale ⊙ local)**, R the row's quaternion normalised. + − × ÷ √ only: `Quat.Rotate`'s products, and for a scaled capsule one normalisation of its axis and one of its X axis.
+- **An unscaled row** (the ruins, the debris, the test range) places each shape exactly as before (`Turned`): the test range's rows are the same operations on the same numbers, so its every answer keeps its bits (the goldens, below).
+- **A scaled row** (the trees and bushes, `Scaled`):
+  - a sphere's centre and a capsule's two core ends are scaled per axis and placed, so its axis is the scaled one; its X axis is the scaled local X made square to it (one Gram–Schmidt step) and its Z axis X × Y;
+  - the radius is scaled by w (the scale's x, which must be its z), as the brief sets it. So the shape lies within radius · |h − w| of the exactly scaled one (an ellipsoid's caps and cross-section): at most **141 mm** on a 1.5 m twig-shell sphere (Pine004_1_Dry at h/w 1.087) and **60 mm** on the wood (measured, `FarmlandObjectTests`);
+  - a box takes a uniform scale only (none is scaled on the farmland); a scaled row may carry no wires, ports, micro elements or features (none does). Each is refused at load, so no approximation goes unnamed.
+- **The mirrored house:** a row at scale x < 0 takes its variant's `_mirrored` twin (`Ruin_Walls_mirrored`), whose metadata carries the mirror (W4b design §2), at scale (|x|, y, z). `ObjectName` is the twin's.
+- **Wind volumes:** a scaled row's boxes are scaled per axis (centre and size), then placed with its yaw (`2·atan2(q_y, q_w)`, DetMath's, load time only). A tilted row may carry none (no debris does). 2,589 volumes: 1,875 the plants', 714 the ruins' (measured).
+- **Gaps:** the core reads a variant's gaps only for its level openings' centres, which the test range's cut records use. They are placed by the same TRS. The farmland has no hole records, so none is used. **There is no gap query in the core** (K§10.4's `GapsNear` was never ported: `IWorldQuery`'s header). The ruins' wall openings are clear space in their boxes, which `StaticContacts` and `Raycast` already see.
+
+### 3. Snag records: placed by the whole pose, indexed by segment
+- **The index** is the test range's: per variant, its segments (not its records) in a 1 m grid in its own frame, built once; per map, each placement's world bounds in the 2 m grid. A query takes the sphere into the placement's frame and tests only the segments listed in the cells its box meets, in canonical order. The village's 10,089 debris rim segments are indexed one by one, so a rim of 710 points costs its few segments near the sphere.
+- **A scaled or tilted placement** (`Pose.PlaceAny`, `LocalAny`): the points by the row's whole TRS, `radius_m` and `edge_radius_m` by w, as the capsules' radii (`barb_pitch_m` as recorded: no scaled row has one).
+  - **Exactly the world-space test.** Along local axis i, the sphere and a record's grown radius reach (r + ρ·w)/s_i from the centre, and the segment's box is grown by ρ in its own frame, so the query's box there is r/s_i + ρ_max·max(0, w/s_i − 1) (`NearSide`, derived), and the placement's world bounds grow by ρ_max·(w − min s_i). No segment within reach is skipped (tested, below).
+  - **Upright, unscaled placements** (the ruins, the test range) keep the old four-term pose, to the bit.
+- **Not simplified.** The debris rims stay the 1 cm stairsteps W4b wrote: the world answers with the metadata's own segments, and a Douglas–Peucker pass belongs in W4b's generator, where the metadata, its review sheets and the D-089 test see it. Indexing the segments is what the cost needs (Costs: a 2 m cache query in the village takes 17 µs at the median, 83 µs at p99).
+
+### 4. What the next units should know
+- **The fiber caches can overflow among the bushes** (measured, a 0.5 m lattice over every object's bounds, so lower bounds): the drone's 2 m cache meets up to **4,664 segments** (DeadBush_6 beside GreenBush_Dry at (515, 851); DeadBush_4 4,380; LeafyBush_P2_Dry 3,944) against `tether.json`'s `snag_capacity` of 4,096. A line node's 1 m cache meets at most 2,389. An overflow is a `FiberSnagsFull` world bug with the canonical prefix kept. The map compiler's cap (2,048 in any 2 m cube) never ran on W2's export. For 2.4 or W4a: thin the bushes' hooks, or size the cache.
+- **The radius by w** (2) puts a twig shell up to 141 mm from its exactly scaled ellipsoid, and wood up to 60 mm.
+- **Memory:** 258,904 shapes in world space (51,612 spheres, 187,121 capsules, 20,171 boxes) as 280-byte prims, about 72 MB (derived); the heap grows by **130 MiB** over the load, terrain included (measured, a process of its own; the bench's process held 186 MiB after it). The load takes **1.65–1.78 s** (measured), against 1.1's 0.24–0.38 s: parsing the 35 metadata files and building 675 objects' trees.
+
+## Evidence
+
+### The pose: every shape where Unity's TRS puts it (`FarmlandObjectTests`, Release and Debug)
+- **Parity.** Every row recomputed independently: the files read by `TestJson`, the asset from the vendor lists, R as the quaternion's rotation matrix (not `Quat.Rotate`). Every sphere centre, capsule core end and box centre within 1.6e-13 m, every box axis within 1.5e-15, every radius and size within 1e-9.
+- **The mirror.** `Ruin_Walls_mirrored`'s bounds placed at scale 1 equal `Ruin_Walls`' at Unity's (−1, 1, 1) to under 0.5 µm (printed 0.000 mm).
+- **SnagsNear** over 240 spheres of 0.05–3 m at the village, the F6|F7 belt, a grove and a bush cluster returns, in canonical order, exactly the segments the world-space test over every placed segment returns: 15,907 segments, 15,301 of scaled rows and 605 of tilted ones.
+- **StaticContacts** over 300 reaches (100 of them 0.5–20 m long) there gives, to the bit, every shape's own `ShapeContact` (1,473 contacts), and `NoGround` leaves only the terrain out.
+- **Raycast:** a ray down over each of the 294 trees' pivots meets its own tree before the ground, batched as one by one.
+- **Wind:** every plant's box at its scaled centre and size within 2.3e-13 m.
+
+### The drawn prefab against the loaded shapes (measured; scratch tools, nothing of the store pushed)
+- **The drawn vertices:** 73 rows (the village's 33, the F6|F7 belt's, a grove's, and one row of each of the 35 variants), 306,750 LOD0 vertices read from the local store by W4a's and W4b's own readers and placed by Unity's TRS (the row's own scale, the mirrored house as `Ruin_Walls` at x = −1).
+- **Ruins and debris** (unscaled; the debris tilted up to 24.9°, the mirrored house): each vertex's signed distance to its row's loaded shapes equals its distance, in the prefab's frame, to the metadata alone (the loader at the origin): the same to under 1 nm, for every vertex.
+- **Trees and bushes:** |d_world − w·d_local| stays under (|d_local| + 1.5 m)·|h − w| at every vertex: at most 134 mm (IslandTree_Dry, w 0.936, h 1.013), mostly 5–60 mm. That is the scale's non-uniformity and the radius by w, not a misplaced shape.
+- **Looked at** (`village-plan`, a scaled IslandTree from the side, a door at 24.9° and a roof sheet at 23.4°, rendered from the same data): the drawn vertices sit on the boxes' outlines in all five houses and the debris, the mirrored house lies as Unity draws it, and the tree's trunk and crown fill its capsules and shell.
+
+### Golden files, audited case by case
+- **floor, test range, wakes:** all 30 cases pass unchanged, in Release and Debug. So `QueryVersion` stays 8.
+- **farmland.txt was already stale before 1.2.** W2's re-export (`c068e854`, the gravel track rule: `classes/map.raw` and `map.json`) reached this line after 1.1 recorded it. This branch's base, built from `git archive` and run, fails `content_hash`, `farmland.probes`, `farmland.ground`, `farmland.contacts` and `farmland.rays` too.
+  - `farmland.probes` and `farmland.ground`: the base's values exactly (`4a1198988a929fae`, `a9e87023a54b9bff`); the 1,000 heights are validate.py's to the bit. Only some probes' surface moved, with the classes.
+  - `farmland.steps`: unchanged.
+  - `farmland.contacts` (per capsule, the base against 1.2): 9,847 of 10,000 identical; the other 153 only gained object contacts, their ground contact the same bits.
+  - `farmland.rays`: 9,761 identical; the other 239 now meet an object no farther than the ground before.
+  - `content_hash`: the classes, the placements and the 35 metadata files.
+- **New:** `farmland.objects` (every placed shape's geometry and every object's name), `farmland.wind`, and 10,000 each of `farmland.object_contacts`, `farmland.object_rays` (batched against one by one) and `farmland.snags` among the objects.
+- **flightbench --golden:** all 6 cases and every kept audit pass unchanged (60 PASS lines). Its flights fly the floor and the test range.
+
+### 0 B, and the 24 B since 1.1
+- **The 24 B was the test's.** `Queries_AllocateNothingAfterTheFirst` read the counter, ran nothing (0 iterations), and still reported 24 B; four reads in a row reported 0, 0, 0; the same 100 steps checked by `if (allocated != 0) Assert.Fail(...)` report 0. Release's JIT built `Is.EqualTo(0)`'s boxed literal ahead of the last read. The test now builds no constraint before it fails.
+- **Every query is allocation-free among the objects:** that test's 100 steps of 44 samples, 8 rays, 46 swept capsules and a SnagsNear in the village; the bench's rows (0 B each); the concurrency test (4 threads × 3 rounds, now with SnagsNear and the object contacts in the hash).
+
+## Costs
+**The run** (measured, `dotnet run -c Release --project tools/worldbench -- --bench`, 2026-11-12 05:55):
+- **The power:** "AC, Balanced plan, best power efficiency mode, CPU 3201/3201 MHz" (PLT-07's line).
+- **Loaded:** other sessions held the CPU at 39 % when it began and 44 % when it ended (`Win32_Processor.LoadPercentage`). The p99s and maxima carry their preemptions; a quiet run is QA's.
+- **The judgement** is 1.1's (D-054): physics' pattern inside PLT-04's 300 µs step at p99 with 0 B, PLT-04's 60 µs line printed as the target (D-061).
+
+**Physics' pattern** along 1.1's five paths and three new ones through the objects, 20,000 steps each, all 0 B:
+
+| Path | Median | p99 | Max | 60 µs target |
+|---|---|---|---|---|
+| Low over the village's plots, 0.3–1.5 m up (1.1's row: it now flies through two ruins' walls) | 10.3 µs | 358.4 µs | 1921.0 µs | missed, **over the step's 300 µs** |
+| Landed on the village's steepest plot | 27.8 µs | 59.3 µs | 506.9 µs | met |
+| Skimming a field at 0.3 m, 15 m/s (now past its bushes) | 18.6 µs | 75.5 µs | 710.1 µs | missed |
+| Along the ledge's face | 10.8 µs | 36.2 µs | 582.2 µs | met |
+| Over the far ring at 1–3 m | 7.7 µs | 20.6 µs | 169.9 µs | met |
+| **Through the village's ruins and debris**, 0.3–2.5 m up, 10–20 m/s | 10.2 µs | 152.1 µs | 1104.4 µs | missed |
+| **Through the F6\|F7 belt's crowns and bushes**, 1–9 m up | 9.7 µs | 147.4 µs | 661.2 µs | missed |
+| **Through a bush cluster**, 0.2–1.5 m up | 9.9 µs | 167.4 µs | 679.5 µs | missed |
+
+- **K§10.5's batch** (shown), median / p99: the village's plots 161.5 / 856.2 µs, the ruins 31.5 / 222.1, the belt 27.6 / 173.6, the bushes 24.0 / 195.4, the field 24.9 / 110.8, the ledge 25.3 / 56.2, the far ring 22.3 / 47.0.
+- **K§10.4's budgets:** capsules 69.3 ms per 100,000 in physics' pattern (budget 100), rays 33.9 ms (budget 100), samples 8.92 ms (budget 10); at random poses, shown: capsules 155.7 ms, rays 54.2 ms.
+- **The bench's last line:** "farmland 1 over budget or allocating", the village's plots row. The test range's is MicroDetailNear over S04's straw again (405 µs against 250 µs), as in 1.1's runs.
+
+**Why the objects' rows miss the target** (measured, a scratch profile of the plots row's parts and disc spheres alone: p99 132 µs, 118 µs without the ground):
+- In its slowest 1 % of steps the drone's parts lie inside the ruins' walls and floors: 10.8 boxes' bounds meet a part's reach (up to 60), and a part keeps 4.9 contacts.
+- So the time is the sweeps of W4b's dense boxes (7,016 in Ruin_RoofCollapsed, 2 cm skins), not the index: a part's query costs 0.5 µs at the median.
+- A drone stops at a wall (a crash latches it), so a path through the walls is the pattern's worst case, not a flight. The rows through the ruins' rooms, the belt and the bushes pass the step's 300 µs; the 60 µs line is not met there on this machine. 2.3 owns the step's cost.
+
+**The fiber's laid segment** (`farmland.fiber`, `QueryFilter.NoGround` as the fiber's own queries, shown), median / max a query and the objects' shapes within its 0.5 m margin: 0.5 m 0.20 / 4.6 µs (0.17 shapes); 2 m 0.20 / 4.2 µs (0.28); 10 m 0.50 / 18.3 µs (1.00); 50 m 3.70 / 102.8 µs (3.07); 200 m 36.2 / 218.8 µs (10.3). 1.1's rows paid the terrain: 3.4–179 µs medians.
+
+**SnagsNear at the fiber caches' radii** (shown: it runs at their refresh, off the step), median / p99 / max, segments a query on average and at most, all 0 B:
+
+| Spot | r = 2 m (the drone's cache) | r = 1 m (a line node's) |
+|---|---|---|
+| The village's ruins and debris | 16.9 / 83.3 / 243.3 µs; 269, 1,516 | 5.1 / 24.1 / 248.5 µs; 70, 486 |
+| The F6\|F7 belt | 20.2 / 85.6 / 1067.8 µs; 215, 743 | 5.3 / 25.6 / 289.1 µs; 47, 236 |
+| A bush cluster | 33.6 / 143.2 / 325.0 µs; 728, 2,930 | 13.7 / 84.3 / 518.5 µs; 215, 1,546 |
+
+The test range's SnagsNear budget (100 µs at p99, r = 1 m) is met at every spot.
+
+**The 1.5 km line through the objects** (`flightbench --bench farmland-line-step`, 2.1's and 2.2's case, its world now with the objects) **FAILS** (measured, 05:58–06:01, loaded: 68 % CPU when it began, 37 % when it ended):
+- **The line tears while the drone flies along the F6|F7 belt.** At step 61,981 (62 s, 690 m paid out) it broke by tension at node 2, near its laid end (segment 1, at (504, 25, 697): 21.1 N, 1.72 GPa against its 1.29 GPa), the drone 360 m away at (145, 51, 655). The drone crashed 3.2 s later at 21.8 m/s; its cause is not traced here.
+- **The line rests on the belt's crowns and bushes as it is laid:** its one-shape checks climb from 0 at 35 s to 5,290 at 40 s, 168,836 at 55 s and 304,470 at 60 s, as the drone turns west along the belt (a diagnostic print of the same seeded flight, not committed). In all, 289,876 whole queries (2.2: 59,813) and 1,787,326 one-shape checks.
+- **The step:** p99 10.3 ms after the first; the climb p50 112.9 / p99 301.2 µs; the route p50 221.5 µs, p99 11.5 ms, max 23.7 ms; the hover p50 280.9 / p99 658.8 µs. World queries: the climb p99 51.9 µs; in all p50 151.7 µs, p99 10.2 ms, 124.6 calls a step. 0 B after the first step.
+- So 2.1's scenario through a belt and the village is not met with the objects: the line tears where it lies on the trees, and the steps after the tear and the crash run over 30 times PLT-04's 300 µs at p99. That is the fiber's contact with the farmland's objects (2.4) and the step's cost (2.3); this task changes no contact model.
+
+## For the next units
+- **2.4:** the farmland line tearing on the F6|F7 belt (Costs), the drone's snag cache among the bushes (4), and W4a's pairs a prop's reach meets in a crown.
+- **2.3:** the step inside the ruins (Costs: 10.8 boxes and 4.9 contacts a part in its slowest 1 %) and the line case's 10 ms steps after its tear.
+- **3.1:** `MapWorld.Load(root, "farmland")` now takes 1.7 s and 130 MiB; its wind volumes are there for W7.
+- **W4b (suggested):** a Douglas–Peucker pass at 1 cm over the debris rims' pixel corners in the generator, if 2.4's snag model reads an edge's direction (W4b's review).
+- **QA (4.1):** a quiet run of the bench rows and `farmland-line-step`.

@@ -91,8 +91,12 @@ namespace Fpv450.Sim.World
             return records;
         }
 
-        /// <summary>Every row's wind volumes placed at its pose (position, yaw in radians), and the rows' groups.</summary>
-        private void PlaceWind(Meta[] rowMeta, Double3[] rowPosition, double[] rowYaw, string[] groups)
+        /// <summary>
+        /// Every row's wind volumes placed at its pose (position, yaw in radians, scale), and the rows' groups. A scaled row's
+        /// volume is the scaled one: its centre and size per axis, a cylinder's radius by the scale's x. Its x must be its z,
+        /// so the scale turns with any yaw. A tilted row (no yaw) has no wind volumes.
+        /// </summary>
+        private void PlaceWind(Meta[] rowMeta, Double3[] rowPosition, double[] rowYaw, Double3[] rowScale, string[] groups, string file)
         {
             _groups = groups;
             var volumes = new List<WindVolume>();
@@ -100,6 +104,8 @@ namespace Fpv450.Sim.World
             for (int i = 0; i < rowMeta.Length; i++)
                 foreach (WindRecord r in rowMeta[i].Wind)
                 {
+                    if (double.IsNaN(rowYaw[i]) || rowScale[i].X != rowScale[i].Z)
+                        throw new FormatException(file + " placement " + i + ": a tilted row has no wind volumes, and a scaled one's x is its z");
                     Quat q = r.Rotation;
                     Double3 centre = r.Center, size = r.Size;
                     WindVolumeKind kind = r.Kind;
@@ -121,8 +127,10 @@ namespace Fpv450.Sim.World
                         size = hi - lo;
                         kind = WindVolumeKind.Box;
                     }
-                    Double3 p = rowPosition[i];
-                    WindVolume w = WindVolume.Placed(kind, centre, size.X, size.Y, size.Z, kind == WindVolumeKind.Cylinder ? r.Radius : 0,
+                    Double3 p = rowPosition[i], scale = rowScale[i];
+                    centre = Mul(centre, scale);
+                    size = Mul(size, scale);
+                    WindVolume w = WindVolume.Placed(kind, centre, size.X, size.Y, size.Z, kind == WindVolumeKind.Cylinder ? r.Radius * scale.X : 0,
                         r.Porosity, p.X, p.Z, rowYaw[i], 1);
                     w.Yaw = rowYaw[i] + localYaw;
                     if (w.BaseM < 0) w.BaseM = 0; // set into the ground
@@ -179,8 +187,8 @@ namespace Fpv450.Sim.World
         }
 
         /// <summary>A hole record of the placement file (its centre line read, `radius` half its band) as a cut record.</summary>
-        private CutRecord PlaceCut(JsonNode hole, Double3[] line, double radius, Meta[] rowMeta, Double3[] rowPosition, Quat[] rowYaw,
-            string where)
+        private CutRecord PlaceCut(JsonNode hole, Double3[] line, double radius, Meta[] rowMeta, Double3[] rowPosition, Quat[] rowRotation,
+            Double3[] rowScale, string where)
         {
             double instance = Number(hole, "instance", where);
             int obj = (int)instance;
@@ -225,7 +233,7 @@ namespace Fpv450.Sim.World
                 int count = 0;
                 for (int k = 0; k < meta.LevelGapCentre.Length; k++)
                 {
-                    Double3 c = rowPosition[obj] + rowYaw[obj].Rotate(meta.LevelGapCentre[k]);
+                    Double3 c = rowPosition[obj] + rowRotation[obj].Rotate(Mul(meta.LevelGapCentre[k], rowScale[obj]));
                     if (PlanDistance(c, line) <= radius)
                     {
                         sum += meta.LevelGapNarrowest[k];

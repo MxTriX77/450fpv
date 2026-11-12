@@ -13,8 +13,9 @@
 //   hole band (Z04's shaft, E01's run and niches), where the shapes there are the only
 //   ground. SampleGround reports Hole at such a point; StaticContacts and Raycast keep
 //   the plane's contact or hit only where its point lies outside them.
-// - The terrain (w3-farmland-ground 1.1): a map package's heightfield (Terrain.cs) is the ground in the plane's place,
-//   with no objects yet (W4); the grid lies on its map's rectangle (map_rect_m). Patches and hole bands would still cut it.
+// - The terrain (w3-farmland-ground 1.1): a map package's heightfield (Terrain.cs) is the ground in the plane's place; the
+//   grid lies on its map's rectangle (map_rect_m). Patches and hole bands would still cut it. Its objects (1.2) are its
+//   placements.json's trees, bushes, ruins and debris, each at its row's full rotation and scale (MapWorldLoad.cs).
 // - The index: a uniform 2 m grid over the file's extent (design 4), and a tree inside each
 //   object of more than TreeShapes shapes (D-054's broad phase inside each object: H01's
 //   houses, E01, V01's crowns). The grid lists, in canonical order, each such object by its
