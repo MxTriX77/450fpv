@@ -29,7 +29,7 @@ The 9.98° weeds package, nose uphill, the pilot's cut landing. Corners rr and r
 - **Each is right for what it describes.** k_tt = (k_a·u_t² + k_q·(1 − u_t²))·share (+ the frame's share along the skid) is the derivative of the trial with respect to the anchor's stretch at the leg's rest: the anchor's own spring along the slip. The trial is the leg's whole force: the lever's statics (nonlinear in the lean, in tension once the foot is held past the link's circle), the dampers, the law's rest offsets.
 - **The return map is exact only where the excess is the spring's.** There the slide puts the stretch where the spring alone is at the cone's edge. Where the excess comes from the lever's statics or the dampers, no move of the anchor relieves it, and dividing it by the spring sends the anchor past zero and on. That is the overshoot above.
 - **What the stretch can be is bounded by geometry, not by either stiffness.** The stretch is the foot's move from the body's point to where the ground holds it. The leg reaches a held foot only by turning its lever: the pseudo-rigid-body link of γL about its characteristic pivot (`ContactSpec.LegLeverLength`, p7g-legs 1.4). Turned square, its foot is γL across, the most any turn of it moves the foot across the leg. A held foot farther than that is one the leg no longer reaches.
-- **The rule 2.4 takes (the reach, a release):** where a stretch would pass the reach r (γL across the tube, the frame's own lever along the skid), the ground has let the foot go. The leg springs back and the hold starts again where the foot is: the stretch is 0, and a soil foot's anchor is set at the body's point (`ContactModel.Reached`, `ContactSpec.AnchorReach`). The slide's rule itself is unchanged: within the reach the two stiffnesses keep their roles, and a flight whose stretches stay within it steps as model 85 did, to the bit.
+- **The rule 2.4 takes (the reach, a release):** where a stretch would pass the reach r (γL across the tube, the frame's own lever along the skid), the ground has let the foot go. The leg springs back and the hold starts again where the foot is: the stretch is 0, and a soil foot's anchor is set at the body's point (`ContactModel.Reached`, `ContactModel.AnchorReach`). The slide's rule itself is unchanged: within the reach the two stiffnesses keep their roles, and a flight whose stretches stay within it steps as model 85 did, to the bit.
 - **Three rules were measured** on this branch (each a whole run of the slope rows, the leg tests and the glide landings):
   1. **The stretch held at the reach** (scaled back to r). It meets the moment's bound on every row, but it holds the foot at the lever's square, where its statics are in tension, step after step. On the dirt track the pilot's glide landing then pitched 39.1° (model 85: 0.707°). The 9.98° weeds package hopped at 237 ms on 341 N and turned over at 1.4 s. **Dropped: a foot at the reach is not held.**
   2. **A slide held within what the stretch's own spring carries** (Δ ≤ −s·t − kinetic/k_tt: no slide past the spring's cone edge, none along the force). This is W3's second bound. It moved the 20° meadow landing along from resting to its side (53.4 / 51.6°), the ridge line's replay and a crosswind rest. **Dropped:** it holds an anchor whose spring is not the excess while the body slides, so the legs take side loads no ground gives.
@@ -49,10 +49,17 @@ Reach along the skid's frame: **r_f = P_f/k_f = 146.6 / 784 = 0.187 m** (derived
 - **Where it is applied:**
   1. A soil corner's trial (`SoilTrial`), on the stretch it forms from the anchor, so this step's force is the leg's at a held foot or at its rest.
   2. After the soil foot's slide (`SoilFinal`), so this step's moment acts at a foot the leg reaches.
-  3. After a leg point's slide (`Final`).
+  3. After a leg point's slide on the ground (`Final`, a pair whose object is the ground): the floor, a terrain's facets and faces.
+- **Not on an object's shapes** (measured, and why). A leg on a crown's twig shell slides its anchor the same way: 0.66–0.99 m in eight steps on IslandTree's shell in `ObjectContactTests.ADroneInACrownPaysForItsTwigsAndDoesNotHang`.
+  - Released there, that flight stays lodged in the crown at 4.1 m (6 twigs cut, no crash), where model 85's leaves it (15 twigs, crashed 65 m away). Its known-wrong, the shells glancing, then crashes instead of hanging. The test fails both ways.
+  - So the crown's departure in model 85 rides this same runaway. What should hold or free a drone in a crown is the twigs' and leaves' physics: 2.3 (leaves in crowns) and 2.7 (the crown twig).
+  - 2.4 keeps the release to the ground's hold, its own gap (G1). An object's shell steps as 85 did, and the runaway there is named for those tasks (below).
 - **What it leaves alone:** the anchors' accumulation inside the cone (`Trial`, `LeverTrial`, the soil corner's other points), the body shapes' friction (`Friction`, a consistent return with k_t = ratio·k_n), and the cone, the forces and the slide's k_tt.
 - **The soil's own give is left out of the reach** (derived, not added). The groove's tangential give at the cone's edge is kinetic/(ratio·k_n), about μ·z/(ratio·n) for a soil force ∝ zⁿ: of the order of the sink, millimetres against r's 176 mm.
-- **The known-wrong:** `ContactSpec.AnchorReach` off is model 85's slide (`GoldenFlights.WithoutTheReach`). It fails the new test (below).
+- **The known-wrong:** `ContactModel.AnchorReach` off is model 85's slide (`GoldenFlights.WithoutTheReach`, on the core after its construction). It fails the new test (below).
+  - It is on the model, not in `ContactSpec`, because every `ContactSpec` field is in the header (`ContactTests.TheHeaderCoversTheContactTypes`) and this change takes no log format.
+  - So a flight flown with it off does not replay. Only the suite's known-wrong and model 50's kept audit fly it; neither is recorded.
+  - If a later format bump (2.2's) wants it in the header, it moves to `ContactSpec` beside `HangingGive`.
 - **No new parameter.** r and r_f are the legs' existing derived levers. No number is assumed.
 - **The test's reach, 0.5 m** (derived, the spec's): the drone is 0.6 m across, so no contact point lies more than about 0.5 m from the centre of mass. The test bounds |M| by 0.5·|ΣF|, the vector sum's size, which is never more than the sum of the sizes: a step under it is under the spec's bound.
 - **What is logged:** nothing new. The step record's contact force and moment (`StepTrace.ContactForce`, `ContactMoment`, already logged) are what the test reads. A forensic reader judges a step by their ratio: a lever past 0.5 m is a physics bug. A release is not an event: it is geometry, as a foot's rise is.
@@ -110,9 +117,8 @@ Before is f8ca8fe0 (model 85), run in a scratch worktree with the same benches; 
 - **`flightbench --legs`:** no FAIL.
   - The grid moved by one or two seeds in a few cells: over 7.8 % → 7.3 %, down 30.8 % → 29.1 %, damaged 61.6 % → 61.8 %. Its largest set moved where a drifting cell's anchors slide (0.5 m/s, 10°, 0.6 m/s: 2.38° → 4.51°).
   - The tipped landings on the soil (2.5 m/s across the skids): over in 5 of 8 → 3 of 8 with the frame. The dirt track and S04 with the throttle cut were 164–178° tumbles in 85 and are now on their side (54.7–57.2°).
-- **`flightbench --contacts`:** no FAIL.
-  - The crown flights through twigs moved a little: the test range's crown impact 949 → 748 m/s², the farmland crowns' twig impulse within 0.1–26 N·s, the bush 48.63 → 46.45 N·s. Every one is still no tunnel, no pair lost, PASS.
-  - The glide landings (tilled, dirt track) and the soil rows are model 85's to the printed digit.
+- **`flightbench --contacts`:** model 85's output to the printed digit, every row (only the test range's load time differs). Its crowns and bush are objects' shells, which the release leaves alone. Its glide landings and soil rows keep their stretches within the reach.
+- **`ObjectContactTests`:** every test passes unchanged, the crown flight included (model 85's: 15 twigs cut, crashed 65.41 m away).
 - **No golden was re-recorded.** Each flight that moved is one where a stretch passed its leg's reach.
 
 ### Checks run
@@ -123,6 +129,7 @@ In the handback: the new test, `flightbench --slopes`, `--legs`, `--contacts`, `
   - The 20° across rows and Village's 19.67–29.35° spots end on a side, as before.
   - The lever's statics in tension (a foot held past its circle at a light load: P = k_a(l0 − l) < 0) remain; the release now ends them at the reach.
 - **2.9 (Village's ground rows):** the along rows at 9.4–10° now agree with their packages within 0.3° (rests), and 14.4° as before. Above 20° both slide and the comparison stops at the legs' failure, as the audit says.
+- **2.3 and 2.7 (crowns):** a leg's anchor on a twig shell still runs past the leg's reach (0.66–0.99 m on IslandTree). The crown flight's "does not hang" rests on it (above). Whoever gives a crown its hold should apply `Reached` to object pairs with it and re-judge that test.
 - **Suggested, a p7g-legs review** (not in this branch): a consistent return on the spring's share alone. The slide divides the trial's whole excess by the stretch's spring; the release bounds what that can do, but the overshoot itself is still there within the reach.
 
 ## 2.6 The legs on a side slope (G2)
