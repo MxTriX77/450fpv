@@ -1097,6 +1097,17 @@ namespace Fpv450.Sim.Tests
                 "design 18 on model 90's own wake: the fiber branch's pin before the merge");
         }
 
+        // p7d-tether design 19's audit (the wash below the rotors with distance): with the known-wrong 4 R cut-off of the wash
+        // (FlightSetup.TetherWakeReach4R) the tether golden is model 94's pin, every record and event; every golden without the line
+        // keeps its pin. So the merged far jet and its landing are the whole of the move.
+        [Test]
+        public void WithTheWakeCutOffTheTetherGoldenIsModel94s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 94", (cut, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, wakeReach4R: cut), c),
+                GoldenFlights.Model94TetherHash, GoldenFlights.TetherHash, "the 4 R cut-off of the wash");
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the

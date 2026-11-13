@@ -1405,7 +1405,13 @@ namespace Fpv450.Sim.Tests
         // and event (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s, WithTheLineBeforeDesign18TheTetherGoldenIsModel92s).
         // The merged flight against model 93's: from step 10, at most 29.8 mm and 1.13° apart, the ends 7.0 mm apart, 0.2494 m up,
         // 3 impacts, the line whole, 0.489 m paid out against 0.466.
-        public const ulong TetherHash = 0x99C789A0CB2EC6B2UL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL;
+        // p7d-tether design 19 (the wash below the rotors with distance: the merged far jet and its landing from any height; the
+        // model number is the orchestrator's at the merge): re-recorded, 0x43A71BFD49CA95B9. Audited case by case: with the 4 R
+        // cut-off (FlightSetup.TetherWakeReach4R) it is model 94's pin, 0x99C789A0CB2EC6B2 (Model94TetherHash), every record and
+        // event (GoldenFlightTests.WithTheWakeCutOffTheTetherGoldenIsModel94s); every kept audit of an older line flies the cut-off
+        // and keeps its own pin. The audit's print gives where the records part.
+        public const ulong Model94TetherHash = 0x99C789A0CB2EC6B2UL;
+        public const ulong TetherHash = 0x43A71BFD49CA95B9UL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL;
 
         /// <summary>The tether golden with p7b-airframe design 3g's level on model 92's line (the wake-level branch's pin before it
         /// merged model 93): the merged flight with the line before design 18 gives it, every record and event.</summary>
@@ -2182,7 +2188,8 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null,
+            bool? wakeReach4R = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2228,6 +2235,9 @@ namespace Fpv450.Sim.Tests
                 // says so outright.
                 setup.TetherBeforeDesign18 = beforeDesign18 ?? !(golden && slidingTrail != true && ownWake != false); // model 90's own wake is older than design 18
                 if (setup.TetherBeforeDesign18) setup.Tether = Model88Tether(setup.Tether);
+                // p7d-tether design 19: every line before it had the 4 R cut-off of the wash (FlightSetup.TetherWakeReach4R), so every
+                // kept audit flies it (the line before design 18 implies it), model 92's own-wake level's too; wakeReach4R says so outright.
+                setup.TetherWakeReach4R = wakeReach4R ?? !(golden && slidingTrail != true && ownWake != false && wakeLevel != false);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);
