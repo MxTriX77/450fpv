@@ -1086,12 +1086,14 @@ namespace Fpv450.Sim.Tests
                 {
                     // The part's, over its shapes: a capsule and the spheres at its ends are one part, and the force goes to whichever
                     // the model pairs (range #436 Drop: the payload capsule 20.4 mm in E01's floor, its aft sphere carrying 2.2 kN).
-                    // Never past its own radius: a penalty overlap stands for the surface's give under the part, and a part whose core
-                    // has passed the surface is through it at any force (a motor can 18.6 mm in radius took 26 mm at 2.2 kN).
+                    // Never past its own thickness: a penalty overlap stands for the soil's give under the part, and a part wholly under
+                    // the surface is through it at any force. Not its radius: a motor can (37 mm across) on its back at 3.2 m/s carried
+                    // 2.4 kN 39 mm into a 34° sod slope (farmland #476 Drop): some 2 MPa over its section, against the few tenths of a
+                    // MPa soft topsoil bears (assumed, published range), so it punches in.
                     double part = 0;
                     for (int j = 0; j < cmodel.ShapeCount; j++)
                         if (cmodel.Shape(j).Part == sh.Part && cmodel.Shape(j).Role == ContactRole.Body) part = Math.Max(part, _backed[j]);
-                    return Math.Min(part, sh.Radius);
+                    return Math.Min(part, 2 * sh.Radius);
                 }
                 if (sh.Corner < 0 || sh.Corner >= 4) return 0;
                 // Its soil's sink, or, where the soil has let it go, the groove it pressed while the corner's skid still lies over it:

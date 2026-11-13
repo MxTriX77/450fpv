@@ -143,10 +143,10 @@ namespace Fpv450.Sim.Tests
             Assert.That(through.Failed[(int)Check.Tunnel], Is.True, "#431 Slide: a hanging half 38 mm through the box");
         }
 
-        // Ground (3.0b): a frame part's depth is its own penalty spring's at the force its pairs carry, up to its radius (range #430
-        // Drop: motor_fr 22.8–26 mm in E01's floor at 2.1–2.2 kN, a 4.9 m/s drop on its side), so it passes. The known-wrong: the
-        // frame parts 50 times softer (their springs' Stiffness and StiffnessUp × 0.02), so a motor sinks past its own radius, and
-        // the same drop fails. A hanging half's compression in the trace is its own overlap, which excused it by itself, and its
+        // Ground (3.0b): a frame part's depth is its own penalty spring's at the force its pairs carry, up to its thickness (range
+        // #430 Drop: motor_fr 22.8–26 mm in E01's floor at 2.1–2.2 kN, a 4.9 m/s drop on its side), so it passes. The known-wrong:
+        // the frame parts 100 times softer (their springs' Stiffness and StiffnessUp × 0.01), so a part sinks wholly under the
+        // surface, and the same drop fails. A hanging half's compression in the trace is its own overlap, which excused it by itself, and its
         // give is in its placement already: range #61 Slide's half lies 96.8 mm in the ground with 2 N behind it, and fails.
         [Test]
         public void AFramePartAtItsForcePasses_ASoftOneOrAHangingHalfInTheGroundFails()
@@ -158,13 +158,13 @@ namespace Fpv450.Sim.Tests
                 for (int i = 0; i < shapes.Length; i++)
                     if (shapes[i].Role == ContactRole.Body)
                     {
-                        shapes[i].Stiffness *= 0.02;
-                        shapes[i].StiffnessUp *= 0.02;
+                        shapes[i].Stiffness *= 0.01;
+                        shapes[i].StiffnessUp *= 0.01;
                     }
             });
             Row half = FlyRange(61, Manoeuvre.Slide);
             Assert.That(frame.Failed[(int)Check.Ground], Is.False, "#430 Drop: the motor's depth is its spring's at 2 kN");
-            Assert.That(soft.Failed[(int)Check.Ground], Is.True, "#430 Drop on springs 50 times softer: a part past its radius");
+            Assert.That(soft.Failed[(int)Check.Ground], Is.True, "#430 Drop on springs 100 times softer: a part wholly under the surface");
             Assert.That(half.Failed[(int)Check.Ground], Is.True, "#61 Slide: a hanging half deep in the ground");
         }
 
