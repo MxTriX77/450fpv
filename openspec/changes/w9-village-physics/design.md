@@ -450,6 +450,96 @@ Two faults, both from point 3 of §2, on S04's tiles: the straw (a compliant lay
 6. **No give into a solid across a gap**: a rigid-row pair of the corner that the move closes bounds the move to its gap over the closing a unit move gives there.
 7. **Model 98's placement stays flyable**: `ContactSpec.HangingDepth` off, recorded in a header entry of its own (no format change; a log without it flew model 98's).
 
+### 6. As built
+
+All of it behind `ContactSpec.HangingDepth` (on; with `HangingGive` on), so model 98's flights fly bit for bit with it off (the known-wrong; the header's entry 31, a log without it reads off).
+- **`HangDepth`** (`Hang`'s give): the move along the chain's deepest point's normal is g − F_n/k_t − the row's share; the turn takes the compliance split's share, exact to one Newton step of the finite turn, on the levers as the half lies without its give (the turn acts on them as `Unturned` reads them back); the bore's move takes the rest.
+- **`HangBend`, `HolderGive`** (`LegTrials`): the cantilever 3EI/r³ at the points' levers by their shares; the bore across the holding leg's tube, f·268 N/m.
+- **A compliant row yields to a rigid one** (`LegTrials`' 2.6 crown rule widened to every non-rigid row under the depth law).
+- **Found by the sweep after the first build and added** (each traced on its row; the intermediate range sweep below):
+  - *A face that faces the move bounds it across a gap*: only a face more than 120° from n (`FacingAway`). With every face, a soil box's side 88° from the top it lay in, met by the turn's sideways share, held range #429 Slide's half 57 mm in the top.
+  - *A second face* (`SecondFace`, cos 30°, assumed): the corner's other pressed rigid pair with the most overlap left, its face 30–120° from n, is left by a move square to n. In a re-entrant corner of two box faces 89° apart, each 33 mm deep, the deepest pair alternated and the half stood 28 mm in the other (range #447 Slide).
+  - *The half follows its holder's set in the step it sets* (`FollowSets`, before `MoveShapes` applies the set). Leg rr's 0.077 rad set on range #413 Slide left the half 22.3 mm in the soil box for a step.
+  - *A half that starts to hang is caught where it lay* (`Catch`, in `Restructure`): its first give is what the jump to its holder's placement takes its deepest touching point into what it touches. Range #61 Land's half stood 25 mm in S04's box at the break step with its leg's give 0.5 mm.
+- Untouched: the force law (`Trial`) but for the two stiffnesses, the fold (its cap σ_y·S/a at the bores' distance), the tear, `Hung`, `Unload`, the soil's law for a leg's half-skid. 0 B in a step (arrays at construction), DetMath only (Sqrt, SinCos), nothing on the pose, no log format change, no model number.
+
+### 7. The runs against the hand calculation (`HangingHalfTests`)
+
+- **A half pressed on the floor** (held still, rolled and pitched 6°, leg fl off, its end alone on the floor 8.0 mm in as the build places it): by hand 3EI/r³ = 77.8 N/m at r 0.3225 m, in series with 6600 N/m, 76.9 N/m: 0.615 N, 0.093 mm in. The depth law gives 0.602 N (0.979) and 0.091 mm (0.979), at 0 B. The 2 % is the chain across the legs' axis at the tilt. Model 98's placement gives 2.262 N (3.68) and 0.354 mm (3.80).
+- **The audit's slides** (each with its log replayed bit for bit and 0 B, as the sweep judges them):
+
+  | Row | the depth law: Ground, deepest, largest step | model 98's placement |
+  |---|---|---|
+  | farmland #329 Slide | PASS, 1.7 mm, 0.8 mm | FAIL, 67.7 mm, a 45.9 mm step at 7807 |
+  | range #61 Slide | PASS, 2.0 mm, 0.4 mm | FAIL, 110.5 mm, a 110.5 mm step at 7036 |
+
+  These are each hanging corner's deepest shape in the ground, step by step, past each corner's first hanging step.
+- **Kept audits** fly model 98's placement where 2.6b moved the flights they were judged on: 3.0b's `SweepTests` rows #61 Slide (Ground's known-wrong), #180 Slide (Lever's couple) and #405 Drop (Rest's known-wrong), and p7g's drifting touch (`LegReplayTests`). In that touch leg rr's hanging half carries 0.2–0.8 N at its tip (model 98's 0.5–2 N), the rocking drone tips onto that corner by 1.3 s, and leg fr bows and breaks in the fall.
+
+### 8. The sweeps, before (model 98, 74fe18f2) and after (the final law, 6f853f47)
+
+`--sweep … 400 1 --threads 4`, the same points and flights. Each cell is failing rows (Replay 0 and Alloc 0 in every run):
+
+| Check | range | farmland |
+|---|---|---|
+| Ground | 29 → 11 (on a hanging corner 25 → 3, an intact one 4 → 7, a frame part 0 → 1) | 113 → 2 (hanging 113 → 1, a frame part 0 → 1) |
+| Lever | 1 → 1 (#431 Slide → #180 Slide) | 0 → 0 |
+| Peak | 1 → 2 (#419 Cut, + #438 Cut) | 0 → 0 |
+| Rest | 2 → 1 | 5 → 4 |
+| Lifts | 0 → 0 | 2 → 1 |
+| Energy, Tunnel, EventsOnce, Finite | 0 → 0 | 0 → 0 |
+| rows' SHA-256 (no alloc column) | `74aca38b…` → `5c9073b7…` | `9e74e461…` → `c3307b3d…` |
+
+The intermediate range sweep (the depth law alone, without the four items found by the sweep): Ground 24 (hanging 15).
+
+Rows ending past 45° / past 120°, before → after:
+
+| Range | Land | Cut | Drop | Slide |
+|---|---|---|---|---|
+| level, of 428 | 2/0 → 2/0 | 3/0 → 2/0 | 362/105 → 362/110 | 24/8 → 23/6 |
+| 20–30°, of 20 | 19/8 → 19/6 | 20/4 → 20/7 | 15/6 → 17/6 | 15/9 → 16/12 |
+
+| Farmland | 0–5° (339) | 5–10° (69) | 10–15° | 15–20° | 20–30° | 30°+ |
+|---|---|---|---|---|---|---|
+| Land | 0/0 → 0/0 | 3/0 → 3/0 | 14/1 → 14/1 | 13/0 → 13/0 | 18/4 → 18/4 | 19/5 → 20/2 |
+| Cut | 0/0 → 0/0 | 15/0 → 15/0 | 14/0 → 14/1 | 11/0 → 11/0 | 20/3 → 19/4 | 20/3 → 20/6 |
+| Drop | 336/127 → 334/130 | 67/35 → 65/42 | 18/10 → 18/9 | 19/4 → 18/3 | 18/4 → 18/8 | 18/5 → 16/4 |
+| Slide | 236/106 → 236/106 | 59/10 → 59/12 | 19/6 → 18/5 | 8/5 → 17/11 | 13/9 → 14/11 | 12/7 → 17/9 |
+
+The 15–20° slides that move (#432, #434, #436, #437, #438, #446, #448) ended on their side at 39–45° and now end on their back at 135–149°. On #437, model 98's half hung for 2 steps before its skid left the drone, and the drone lay on its side. Under the depth law it is caught where it lay, hangs for the rest of the flight (2,463 corner-steps), and the drone rolls on over it.
+
+**What is left, by row:**
+- range #414, #426 and #432 Slide, and farmland #11 Slide (hanging):
+  - #414: a pair latched to a soil box's side face 215 mm in, while the end lies 42 mm under the box's top and 28 mm under the sloped face beside it. Three faces; the law resolves two.
+  - #426: a box pair's latched plane switches face at the box's edge, and its overlap reads 65.9 → 7.0 mm in one step.
+  - #432: the end moves into a neighbouring box whose pair the step's forces did not have yet.
+  - #11: 98.2 mm at the break step. The jump to the holder's placement takes a point that had no touching pair into the soil, where the check allows the leg's give and sink, 59.8 mm.
+- range #419 Slide, #428, #429, #437 Cut, #441 Cut, #444, #446 (intact corners' skids 20–45 mm in E01's boxes): 2.6c's box faults; the depth law does not touch them.
+- range #430 Land and farmland #469 Drop: frame parts.
+- range #180 Slide's Lever: a pair on S04's straw latched to a tile's far side face 229 mm in. Its point lies 0.22 m off the part, so the force acts 0.547 m from the CoM (the latch, as #61's straw undersides).
+- range #438 Cut's Peak: 1,059 m/s² 1.3 s after the touch on E01's 22° end, as #419 Cut's (1,086).
+
+**QA's other faults:**
+- **E01's corner that switches box** (range #440, #441): #440 passes before and after. #441 Land passes now. #441 Cut's skid_rr (an intact corner) is 33.0 → 36.3 mm in as before: unmoved, 2.6c's.
+- **The lever's energy on 22°** (farmland #470): no row of the farmland fails Energy at model 98, before or after (the line moved the flights since model 95). #470 Cut's hanging half (27.2 mm) now passes. Not judged here.
+
+### 9. Benches and goldens (after; a shared machine, no timing counts)
+- `--golden`: 65 PASS, 0 FAIL. No pin moved, nothing re-recorded: the goldens break no leg, and the kept audits with `HangingGive` off fly model 50's and 53's law, which the depth law leaves alone.
+- `--legs`, before → after: over 6.3 → 6.9 %, down 28.6 → 29.7 %, damaged 61.8 → 61.8 %, every row PASS. The cells that move are the ones that end with 88–100 % broken, so the change acts after the break.
+- `--landing`: 29 PASS (29 before).
+- `--slopes`: PASS. The crash rows' leg part past its give 3.27 / 4.55 / 2.20 → 3.27 / 4.07 / 2.28 mm.
+- `--contacts`: PASS.
+- `--ground`: exit 1 before and after, the same 16 lone-corner targets not met (design 13's, 2.9's). Only the cross-slope landings that go over move, which the bench does not compare (Village at (313.04, 20.00) 53.1 → 56.0°; the 9.43° package 180.0 → 63.6°).
+- `tools/replay --record … --legs`, then `replay` (leg rr off, fr and fl broken, their halves hanging): match, 4000 steps and 156 events bit for bit, and 585 loose-piece records.
+
+### 10. Still not met, and assumed
+- **Not met:**
+  - the 4 hanging rows above (E01's latches and box edges: 2.6c's; #11's break step);
+  - `ObjectContactTests.AWallStopsADroneTheSameHoweverThinItsCollision`, red on this branch. The slab's and the 2 cm skin's flights differ by 5.6e-17 m/s from step 37, a box face's rounding. At step 40 the skin's `SameSupport` keeps skid_fl's pair on the wall (4.93 mm, beside support_fl_end's 7.35 mm) where the slab's drops it. The hanging halves then carry that difference, and the skin leaves at 3.692 m/s against the slab's 3.714 (the test's 0.01). The 1 cm skin matches the slab (3.714). A binary dedupe on a rounding-level difference; not changed here.
+  - `SweepTests.ATunnelOnSoilIsJudgedByTheSoilsDepth` is still red, as on the base: its #431 Slide no longer tunnels at 98, and with the depth law it passes Ground too.
+- **Assumed** (named): k_t 6600 N/m (model 26's penetration spring; a 10/8 mm ring's own is ~180 kN/m); the bore's P·Δ left out; `SecondFace` cos 30°; the soil met as rigid by a hanging half (1.6–3.5 mm dry by hand, about twice wet).
+- **The fold's cap stays at the bores' distance** (2.6's σ_y·S/a). With the cantilever now at its points' levers, a tip load at 0.3225 m folds the skid at a moment 1.57 × its yield. This is the plastic law's, for the next legs task. A moment cap was tried and moves no row of the drifting touch.
+
 ## 2.7 The crown twig's repeated break (G5)
 
 **Reproduced** (measured, `ObjectContactTests.AHoverInACrownBreaksNoBladeTwice`, model 85): the drone starts 1.24 m over the ground at (525.79, 612.74), inside GreenBush_Dry's crown, and the pilot holds that point for 25 s with surfaces.json. 150,239 `BladeDamaged` Break events, all with 0 kg lost, 150,231 at a station the blade had already broken at; 8 in every step. **No twig was cut** (0 `BladeStrike` on twig): the candidate, `PropStrikes.Twig`, never ran.
