@@ -294,6 +294,50 @@ flightbench --sweep farmland 400 1 --point 0, --sweep test-range 400 1 --point 5
 python tools/hygiene/precommit.py --tree HEAD → 3608 files scanned, 0 findings
 ```
 
+### 8. Addendum: the reds, each traced to its cause (night-legs-reds)
+
+On this branch with the line's model 93 merged in (502ffa0f). Traced with a scratch probe (not committed) that flies each test's own scenario through its read-only `observe` hook and prints the pairs, the resting blades' loads and the feet. On the merge, the stem liftoff's red row moved: model 93 made seed 2's glide pass, and Rain seed 1's vertical touch now fails. Both rows pass on the line alone (4c40ac55, run there).
+
+**1. `RangeContactTests.IntoACrown` and `--contacts`' Pine004_1: a resting blade's stiffness taken at the face's point, not the blade's.** (A physics fault.)
+- **V01_M.** prop_rr carves a bark limb and jams (step 11306). The motor turns it on to 31 rad/s, and at step 11315 it stops in the notch it cut: the blade comes back to rest 36.5 mm inside the limb, its slack. The drone runs on at 7.7 m/s, so the blade's overlap past its slack grows 4.4 mm a step.
+- `BladeStiffness` takes the contact's radius from the pair's point, which `Depth` sets on the face's latched plane, up to the pair's depth away from the blade. That point drifts past the tip, so the cantilever is read beyond the blade's own length: **290 N/m**, 30.7 N at 107 mm of "deflection". The load falls as the overlap grows, no section passes its strength, and the blade's core leaves through the limb's far side 143 mm past its face (`Tunnel`).
+- **Pine004_1** is the same: prop_fl stopped in a crash, 145–165 N at 40 mm, out through a 28 mm branch.
+- **By hand at the blade's own point:** the outer segment at r = 0.11 m is a cantilever of some 14 kN/m against an edgewise push. That is 100 N for every 7 mm of approach at 7.7 m/s, so at 1 ms a step the load reaches its root's edgewise strength within about ten steps. The root's strength is σ_f·t·c²/6 = 205 MPa · 5.40 mm · (18.45 mm)²/6 = 63 N·m before the section form; at a 0.096 m lever that is 530–650 N.
+- **Fix:** the blade's stiffness is read at its own material point, the core point nearest the face: `p.Point + p.N·(r − depth)`. Nothing else changes, and a shallow pair moves by micrometres.
+
+**2. The brief's swept pass: a turning blade can pass a thin shape within one step.** (A physics fault, though not these tunnels' cause.)
+- `PropStrikes` meets a shape only in the disc's slab at the step's end hub (2h = 8 mm). So a shape met along the axis faster than (d + 2h) a step is in no end's slab and is never struck. The thresholds are 13 m/s for a 5 mm conductor, 18 m/s for a 10 mm branch, and 36 m/s for a 28 mm one: falls and dives reach the first two.
+- **Fix:** `BladeCut.Crossing` samples the slab's own sweep over the step, at most h apart. The disc's gate makes the pair, and the passes are judged at the hub where the slab held the shape, only for the step's share in which it held it.
+- **Test:** `StrikeTests.ABranchCrossedWithinAStepIsMet`: a 10 mm bark branch crossed at 20 m/s.
+
+**3. `StemLiftoffTests.ALiftoffFromTheRangesStrawIsFlown`: a landing half on a step, physics.** (The test is corrected.)
+- **The geometry, by raycast:** the S04 patch's centre lies on a mat piece's diagonal edge. The rear-right end support stands about 6 cm past it, over the 0.125 m step to the soil box, and the rear-right joint support stands on the edge.
+- **The trace (Rain, seed 1, the vertical touch):**
+  - The drone rests on rr (18 N), fr and rl, with fl light. Armed at idle, rr's joint support creeps off the straw's edge (its load 18 → 1.5 N by 0.85 s), and the drone balances on the fr–rl diagonal.
+  - The rr corner then drops into the step. Its foot goes from −32 to −117 mm, against the soil box at −125 mm.
+  - That is about 27° about the other diagonal (0.125 m over the half-diagonal of 0.24 m), past the soft legs' 14.4° roll tip. fr kinks at 3.39 N·m, rr breaks at 5.7 N·m, and the drone is on its side at 61–71°.
+  - The P term spins rr and fr up against the roll (iterm held at 0, airmode not yet active, Betaflight's `pid_at_min_throttle`): the controller answers the fall, it does not cause it.
+- The physics never promised a liftoff from a spot with a corner over a 125 mm step. **The test now starts on one mat piece** (`SoilScenarios.PatchMat`: the nearest piece whose box holds a 0.3 m circle).
+
+**4. `RestTests.ArmingWithAPropOnTheRackMovesTheDrone`: the test's assumed thresholds.** (The test is corrected.)
+- **By hand from the trace:** rolled 58.4° onto its left skid, the drone's rear-left corner carries 5.7 N, shared by leg_rl (set and cracked at 1.41 N·m) and the blade on the rail.
+- On the corrected legs the leg keeps its stiffness and takes 4.8 N, so **the blade bears 0.8–0.92 N** (0.36 mm deflection). With the old crack's half-stiff leg (`cracked_stiffness_factor` 0.5, the same flights) the leg took 2.7–3.2 N and the blade 1.6–2.4 N.
+- So the blade bears on every seed, and arming at idle strikes, chips and moves the drone on every seed (19–20 of 20). The pilot's case holds; only the classification moved.
+- **The test:** "bears" is now more than the blade's own weight (the prop's 16 g over two blades: 0.078 N), where it was 1 N, assumed. "Over the known-wrong" is now by more than the blade's own resting deflection, where it was 3 mm, assumed: 1.8–3.5 mm against 0.36 mm. "Strikes on more seeds than bear" has no population left, since every seed bears; it becomes "at least those".
+- The known-wrong (the prop passing through) bears 0.00 N and fails the first assertion.
+
+**5. The sweep's two `BladeStrike` repeats (Village #283, #474): right by hand, the check's key.**
+- At #283's step 5289, prop_rl's blade 0 (Carve) strikes GreenBush#2 twice: once for a twig (`twig`, 4.72 J) and once for the step's leaves (`foliage`, 0.008 J). That is 2.3 §4's one leaf strike a rotor a step on the crown's shell, beside its twig cuts. #474 is the same on GreenBush_Dry#1.
+- **The check now keys on the material too.**
+
+**6. The Rest rows.**
+- S04 Drop #405 (0.5 m/s, 1.9 rad/s on its side) and Village #340's 1.4 m/s hop were the sweep's model-90 rows. On 2.6's after-rows #405 Drop already passes, and #340 Slide is at 0.005 m/s and 0.043 rad/s.
+- **#340 now (0.006 m/s, 0.055 rad/s, 56.8° on its side):** rotor rl, its blade crushed to 0.81–0.90 of its span, carves the dirt track at idle. It jams on a stone every 61 ms (`StoneStrike`, `RotorJammed`), and each jam kicks the body to 0.15 rad/s.
+- **By hand:** J·ω ≈ 2·10⁻⁵ kg·m² · 80 rad/s over the body's ~0.03 kg·m² is about 0.05 rad/s.
+- **Right by hand:** an armed drone on its side with a prop in the dirt chatters.
+
+**7. Seen, not chased:** the seven Village slide levers on light contacts and the three E01 soil-box skid tunnels (below, with the House sweep's counts).
+
 ## 2.7 The crown twig's repeated break (G5)
 
 **Reproduced** (measured, `ObjectContactTests.AHoverInACrownBreaksNoBladeTwice`, model 85): the drone starts 1.24 m over the ground at (525.79, 612.74), inside GreenBush_Dry's crown, and the pilot holds that point for 25 s with surfaces.json. 150,239 `BladeDamaged` Break events, all with 0 kg lost, 150,231 at a station the blade had already broken at; 8 in every step. **No twig was cut** (0 `BladeStrike` on twig): the candidate, `PropStrikes.Twig`, never ran.
