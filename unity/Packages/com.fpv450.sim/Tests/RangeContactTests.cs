@@ -613,6 +613,7 @@ namespace Fpv450.Sim.Tests
         // too (GoldenFlights.WithoutTheBells): the crown's twigs meet a turning motor's band before the legs part, so with them on the
         // flight leaves 50's path there. Since w9-village-physics 2.3 the crown's twigs as model 89's shells too
         // (GoldenFlights.WithoutTheCrowns): with the twigs' law the drone keeps its speed through V01_L's shells and logs no tunnel.
+        // Since p7b-airframe design 3h model 94's clipped descent branch too (Propulsion.ClippedDescentBranch).
         [Test]
         public void WithoutTheHangingGiveTheWindyCrownIsModel50s()
         {
@@ -620,7 +621,7 @@ namespace Fpv450.Sim.Tests
             RangeScenarios.Approach a = RangeScenarios.Find("crown");
             // Since model 64 on model 63's drone (the old coil, Model63Drone), as every kept audit.
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Model63Drone.Spec(), m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
-                a.Height, a.Speed, core => { GoldenFlights.WithoutTheReach(core); return RangeScenarios.Placed(a.Variant, a.Occurrence); }, null, a.ClimbSteps, a.ClimbRate,
+                a.Height, a.Speed, core => { GoldenFlights.WithoutTheReach(core); core.Propulsion.ClippedDescentBranch = true; return RangeScenarios.Placed(a.Variant, a.Occurrence); }, null, a.ClimbSteps, a.ClimbRate,
                 edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); }); // since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's), since 86 without the anchors' reach
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             Assert.That(p.Tunnels, Is.EqualTo(1));
