@@ -349,7 +349,10 @@ namespace Fpv450.Sim.Tests
         // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75PoweredHash), every record and event
         // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 21 (the first armed
         // step); the Windy flight and its stick steps gain the edgewise flow's lift: 143.8328 m up at 10 s against 135.4967, at most 13.7° apart.
-        public const ulong PoweredHash = 0x8106C2D393DFAA8DUL;
+        // p7b-airframe design 3f (the own wake by flight state, on model 90): re-recorded. Audited case by case: with model 90's own-wake
+        // law (Propulsion.HoverWakeLaw) model 90's pin, every record and event (GoldenFlightTests.WithModel90sOwnWakeEachGoldenIsModel90s).
+        // With 3f's it moves from step 25 (the first armed steps' climb), 0.5° and 0.08 m by 4 s, ends 143.3913 m up against 143.8328, 0.69 m apart.
+        public const ulong PoweredHash = 0xC26EFDA0A6C746DFUL, Model90PoweredHash = 0x8106C2D393DFAA8DUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -461,7 +464,9 @@ namespace Fpv450.Sim.Tests
         // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75RainPoweredHash), every record and event
         // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 21; 142.5168 m up at
         // 10 s against 136.8783, at most 15.4° apart.
-        public const ulong RainPoweredHash = 0x94CF8CDFA5E5E538UL;
+        // p7b-airframe design 3f: re-recorded, audited as the powered flight (model 90's own-wake law: model 90's pin); from step 22,
+        // ends 142.2366 m up against 142.5168, 0.56 m apart.
+        public const ulong RainPoweredHash = 0x1E65DE44C92861ECUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -1062,7 +1067,9 @@ namespace Fpv450.Sim.Tests
         // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75ContactHash), every record and event
         // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 9; at most 11.9 mm and
         // 0.61° apart, the same 3 impacts, at rest 0.2497 m up on 4 pairs, 2.2 mm from 75's rest.
-        public const ulong ContactHash = 0x461C89E4B98BAA7AUL;
+        // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 1.3 mm and 0.11°, 3 impacts as
+        // before, at rest 0.4 mm from 90's end.
+        public const ulong ContactHash = 0x4B87B519E3D8548BUL, Model90ContactHash = 0x461C89E4B98BAA7AUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1365,7 +1372,9 @@ namespace Fpv450.Sim.Tests
         /// trail, which then holds one point more than 79's until step 10000. At rest 0.07 mm (x) and 0.38 mm (z) from 79's,
         /// 0.2497 m up; the line whole, 0.224 m paid out, 15 nodes and trail 7 as 79's. Every golden without the line keeps its
         /// pin, and every kept audit of an older line flies the sliding trail (FlyContact), so each keeps its own.
-        public const ulong TetherHash = 0xF74FECF3FEF4F329UL;
+        // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 1.5 mm and 0.14°, the line whole,
+        // 0.224 m paid out as before.
+        public const ulong TetherHash = 0xAC3394DD75D81F71UL, Model90TetherHash = 0xF74FECF3FEF4F329UL;
 
         /// <summary>The tether golden at model 79, which models 80–84 kept until w3-farmland-ground 2.4: the flight with the
         /// sliding trail (FlightSetup.TetherSlidingTrail) gives it, every record and event.</summary>
@@ -1739,7 +1748,9 @@ namespace Fpv450.Sim.Tests
         // every kept audit of an older model flies version 1 (GoldenFlights.Wakes). With version 2 the flight moves from step 176; at
         // most 1.7 mm and 0.02° apart, 4 impacts against 3, at rest 0.2452 m up on 8 pairs, 0.9 mm from 76's rest.
         // Model 76: 0xAF745CC52447E017.
-        public const ulong RangeHash = 0x9731F9263E4E25B1UL;
+        // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 3.2 mm and 0.07°, 4 impacts as
+        // before, at rest 0.9 mm from 90's end.
+        public const ulong RangeHash = 0x10E64598977FA0CDUL, Model90RangeHash = 0x9731F9263E4E25B1UL;
 
         /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
         public const ulong Model76RangeHash = 0xAF745CC52447E017UL;
@@ -1997,7 +2008,8 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyPowered(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool contacts = true,
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
-            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null)
+            int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
+            bool? ownWake = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -2016,6 +2028,7 @@ namespace Fpv450.Sim.Tests
             Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
+            OwnWake(core, ownWake, layout, airmode, edgewise == false);
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
             ulong hash = 0xCBF29CE484222325UL;
@@ -2101,7 +2114,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? ownWake = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2148,6 +2161,7 @@ namespace Fpv450.Sim.Tests
             Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
+            OwnWake(core, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -2208,7 +2222,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
             SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? wakes2 = null)
+            bool? wakes2 = null, bool? ownWake = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2235,6 +2249,7 @@ namespace Fpv450.Sim.Tests
             Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
+            OwnWake(core, ownWake, layout, airmode, edgewise == false);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
             var record = new byte[LogFormat.StepSize];
             var e = new byte[LogFormat.EventSize];
@@ -2350,6 +2365,16 @@ namespace Fpv450.Sim.Tests
         public static void Wakes(FlightSetup setup, bool? wakes2, int layout, bool airmode)
         {
             if (setup.Wind.Wakes != null && !(wakes2 ?? (!airmode && layout >= LogFormat.StepSize))) setup.Wind.Wakes.Version = 1;
+        }
+
+        /// <summary>The own wake's law by flight state (p7b-airframe design 3f): ownWake, or by default on for the current pins and
+        /// off (Propulsion.HoverWakeLaw, model 90's law) for every kept audit of an older model: one flown with airmode on, over
+        /// an older record, or with an older model's switch (older: the edgewise flow off, the linear step, the sliding trail);
+        /// any other full-record audit says ownWake false. The audit of 3f against model 90 is
+        /// GoldenFlightTests.WithModel90sOwnWakeEachGoldenIsModel90s.</summary>
+        public static void OwnWake(FlightCore core, bool? ownWake, int layout, bool airmode, bool older)
+        {
+            if (!(ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize))) core.Propulsion.HoverWakeLaw = true;
         }
 
         /// <summary>The edgewise flow's thrust and torque (D-087, model 76; RotorFlappingSpec.EdgewiseThrust) in a golden flight: edgewise,

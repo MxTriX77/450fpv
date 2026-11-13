@@ -907,8 +907,15 @@ namespace Fpv450.Sim.Log
         ///    where 86 released the ground's only. The step's event buffer is sized from what a step can raise, so no event is
         ///    refused. The crown block is written in the header's crown entry (TagCrown); a log without it reads as its model
         ///    flew. A flight that touches no crown, no leaf and no object's hold past the reach steps as 90 did.
+        /// 92: the own wake's unsteadiness by flight state (p7b-airframe 1.10c, design 3f, on 91;
+        ///    unity/physics/physics-integration-2--w9-own-wake): a rotor's own-wake inflow wander no longer keeps the hover's
+        ///    level away from the hover. Its σ goes as (v_i/v_h)² of the hover's (the near wake's age off the disc, v_i/V_t, with
+        ///    Glauert's v_i·V_t = v_h²) and its corner as 0.2·V_t/R; in a descent it is held at Johnson's VzD, where the vortex
+        ///    ring's own unsteadiness starts, so nothing is counted twice; its bound is 3σ of the present state. The hover is
+        ///    unchanged; the cruise keeps ×0.236 of the hover's σ where 90 kept ×0.49. The powered, rain, contact, range and tether
+        ///    goldens moved and are re-pinned; Propulsion.HoverWakeLaw (unlogged, the suite's) flies 90's law for the kept audits.
         /// </summary>
-        public const int ModelVersion = 91;
+        public const int ModelVersion = 92;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
