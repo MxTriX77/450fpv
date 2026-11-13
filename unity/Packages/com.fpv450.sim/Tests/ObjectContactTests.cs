@@ -185,9 +185,9 @@ namespace Fpv450.Sim.Tests
             }
             void Advance(StickSample stick, bool timed)
             {
-                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (timed) r.Allocated += System.GC.GetAllocatedBytesForCurrentThread() - before;
+                if (timed) r.Allocated += AllocProbe.After(before);
                 recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
             }
             for (int k = 0; k < 16; k++) Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 }, false); // CrosswindScenario.Arm's
@@ -244,7 +244,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(wrong.Glances, Is.GreaterThan(1000), "the known-wrong's shells glance");
             Assert.That(!wrong.Crashed && wrong.Height > 3 && wrong.Away < 3, Is.True, "the known-wrong hangs in the crown");
             // The twigs' count is the flight's own state (no draw): the log replays headless bit for bit, and a step allocates nothing.
-            Assert.That(cut.Allocated, Is.EqualTo(0), "0 B in the crown's steps");
+            Assert.That(cut.Allocated, Is.EqualTo(0), "0 B in the crown's steps" + AllocProbe.Report());
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
             var world = new FlightWorld(SlopeScenarios.Farmland());
             ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "farmland" ? world : null, RepositoryDrone.Spec().ContentHash,
@@ -292,9 +292,9 @@ namespace Fpv450.Sim.Tests
             for (int k = 0; k < 16 + 1000 * seconds; k++)
             {
                 StickSample stick = k < 16 ? new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 } : pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
-                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 1016) r.Allocated += System.GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 1016) r.Allocated += AllocProbe.After(before);
                 recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
                 if (k == 0) r.Opening = core.Events.Lost;
                 else r.Lost += core.Events.Lost;
@@ -336,7 +336,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.ZeroMass, Is.EqualTo(0), "no break takes 0 kg");
             Assert.That(r.Repeats, Is.EqualTo(0), "a blade breaks at most once at any station");
             Assert.That(r.Lost, Is.EqualTo(0), "the step's buffer refuses no event after the first step");
-            Assert.That(r.Allocated, Is.EqualTo(0), "0 B in steady state");
+            Assert.That(r.Allocated, Is.EqualTo(0), "0 B in steady state" + AllocProbe.Report());
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
             var world = new FlightWorld(SlopeScenarios.Farmland());
             ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "farmland" ? world : null, RepositoryDrone.Spec().ContentHash,

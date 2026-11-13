@@ -379,14 +379,14 @@ namespace Fpv450.Sim.Tests
                 world.SnagsNear(a + new Double3(0, 1, 0), 2, snags);
             }
             Step();
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 0; k < 100; k++)
                 Step();
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long allocated = AllocProbe.After(before);
             // No constraint built in this method: in Release the JIT boxed Is.EqualTo(0)'s literal before the last read, the
             // 24 B this test reported since 1.1 (a bare pair of reads with nothing between them measured it too).
             if (allocated != 0)
-                Assert.Fail($"{allocated} B over 100 steps among the village's ruins and debris (500-520, 600-620)");
+                Assert.Fail($"{allocated} B over 100 steps among the village's ruins and debris (500-520, 600-620)" + AllocProbe.Report());
         }
     }
 }

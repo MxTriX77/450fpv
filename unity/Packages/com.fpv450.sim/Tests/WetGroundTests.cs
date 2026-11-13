@@ -55,7 +55,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(u.Work[c], Is.EqualTo(work).Within(1).Percent, name + ": the work to part is ½·σ_a·δ_a·S_m");
                 Assert.That(u.Holding[c], Is.False, name + ": let go");
             }
-            Assert.That(u.Allocated, Is.EqualTo(0), name + ": 0 B a step while the groove holds and lets go");
+            Assert.That(u.Allocated, Is.EqualTo(0), name + ": 0 B a step while the groove holds and lets go" + AllocProbe.Report());
         }
 
         [Test]

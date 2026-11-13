@@ -359,11 +359,11 @@ namespace Fpv450.Sim.Tests
         {
             BellScenarios.Rig rig = BellScenarios.Dented(Spec, 0.0004);
             for (int k = 0; k < 100; k++) rig.Step(BellScenarios.Sky, default);
-            long start = GC.GetAllocatedBytesForCurrentThread();
+            long start = AllocProbe.Before();
             for (int k = 0; k < 500; k++) rig.Step(BellScenarios.Sky, default);
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - start;
+            long allocated = AllocProbe.After(start);
             TestContext.Out.WriteLine($"  {allocated} B over 500 rubbing steps");
-            Assert.That(allocated, Is.Zero);
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

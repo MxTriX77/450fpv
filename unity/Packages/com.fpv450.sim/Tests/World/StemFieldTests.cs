@@ -207,12 +207,12 @@ namespace Fpv450.Sim.Tests
                     World.StemsNear(new XZ(766 + 0.3 * i, 916 + 0.2 * i), 0.127, 0.25 * i, found);
             }
             Step();
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 0; k < 1000; k++)
                 Step();
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long allocated = AllocProbe.After(before);
             if (allocated != 0)
-                Assert.Fail($"{allocated} B over 1000 steps of four discs");
+                Assert.Fail($"{allocated} B over 1000 steps of four discs" + AllocProbe.Report());
         }
 
         [Test]

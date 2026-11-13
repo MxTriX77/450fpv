@@ -477,11 +477,11 @@ namespace Fpv450.Sim.Tests
                 x.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
                 y.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
             }
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 500; k < 1500; k++) x.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long allocated = AllocProbe.After(before);
             for (int k = 500; k < 1500; k++) y.Advance(new Control.StickSample { HostUs = k * FlightCore.StepUs });
-            Assert.That(allocated, Is.EqualTo(0), "0 B a step on soil");
+            Assert.That(allocated, Is.EqualTo(0), "0 B a step on soil" + AllocProbe.Report());
             Assert.That(BitConverter.DoubleToInt64Bits(x.State.Position.Y), Is.EqualTo(BitConverter.DoubleToInt64Bits(y.State.Position.Y)));
             Assert.That(x.Contacts.SoilOf(0).Engaged, Is.True);
         }

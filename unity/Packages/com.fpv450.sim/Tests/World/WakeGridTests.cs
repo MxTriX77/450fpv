@@ -332,7 +332,7 @@ namespace Fpv450.Sim.Tests
             // Each step's Step and samples, measured step by step (the counter read after the step's last sample), so
             // the loop's own exit (the runtime's tiering) is not counted; a request, the stall and the fade are inside.
             long allocated = 0, firstAlloc = -1;
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (long step = 6000; step < 12000; step++)
             {
                 worker.Step(step, step < 6010 ? 12 : 24);
@@ -341,10 +341,10 @@ namespace Fpv450.Sim.Tests
                     worker.Sample(-80 + 0.013 * step + 0.2 * p, -30, 3 + p, out s);
                     sum += s.Speed;
                 }
-                long now = GC.GetAllocatedBytesForCurrentThread();
-                if (now != before && firstAlloc < 0) { firstAlloc = step; allocated = now - before; }
+                long now = AllocProbe.After(before);
+                if (now != 0 && firstAlloc < 0) { firstAlloc = step; allocated = now; }
             }
-            Assert.That(allocated, Is.EqualTo(0), "first at step " + firstAlloc);
+            Assert.That(allocated, Is.EqualTo(0), "first at step " + firstAlloc + AllocProbe.Report());
             Assert.That(worker.Builds, Is.EqualTo(2));
             Assert.That(sum, Is.Not.NaN);
         }

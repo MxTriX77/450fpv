@@ -122,10 +122,10 @@ namespace Fpv450.Sim.Tests
         /// <summary>A step flown, recorded and counted: the stems' records, the episodes, the bytes after the first second, the trace.</summary>
         public static void Step(FlightCore core, StickSample stick, Run r, FlightRecorder recorder, bool beforeTouch, Action<FlightCore> stepped)
         {
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             core.Advance(stick);
             long k = core.State.Step;
-            if (k > 1000) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+            if (k > 1000) r.Allocated += AllocProbe.After(before);
             recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
             r.Refused += core.Events.Lost;
             bool any = false;

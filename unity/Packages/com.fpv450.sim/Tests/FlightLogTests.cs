@@ -375,16 +375,16 @@ namespace Fpv450.Sim.Tests
             for (long k = 0; k < steps; k++)
             {
                 long due = scheduler.StepHostUs(k);
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 if (k % 4 == 0) inbox.TryWrite(Report((int)(k / 4), due));
                 scheduler.RunDue(due);
-                if (k >= 1) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 1) allocated += AllocProbe.After(before);
             }
             StepTimeSummary times = scheduler.Times.Summary();
             recorder.Close(inbox.Dropped, times);
             TestContext.WriteLine("60 s on this host: " + times);
             Assert.That(recorder.Fault, Is.Null);
-            Assert.That(allocated, Is.Zero, "0 B a step after the first, the timer on");
+            Assert.That(allocated, Is.Zero, "0 B a step after the first, the timer on" + AllocProbe.Report());
             Assert.That(times.Count, Is.EqualTo(steps));
             Assert.That(times.MaxUs, Is.GreaterThan(0), "timed on the host's clock");
         }
@@ -458,11 +458,11 @@ namespace Fpv450.Sim.Tests
             allocated = 0;
             while (core.State.Step < SlowSteps)
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 bool first = core.State.Step == 0;
                 scheduler.RunDue(clock.NowUs());
                 if (first) GC.Collect();
-                else allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                else allocated += AllocProbe.After(before);
                 clock.SleepUntil(scheduler.StepHostUs(core.State.Step));
             }
             recorder.Close(inbox.Dropped, scheduler.Times.Summary());
@@ -503,7 +503,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(s.Steps, Is.EqualTo(SlowSteps), "every step run, each 1 ms");
             Assert.That((watch.Scheduler.StartUs, watch.Poses.Read().StartUs), Is.EqualTo((StartUs + droppedUs, StartUs + droppedUs)),
                 "the time base, and the pose buffer's with it, moved by every drop");
-            Assert.That(allocated, Is.Zero, "0 B a step after the first, drops included");
+            Assert.That(allocated, Is.Zero, "0 B a step after the first, drops included" + AllocProbe.Report());
         }
 
         // "The replay ignores the drop": the slow flight's log, its 490 drops moving the sticks' host times, replays bit for bit.
