@@ -503,6 +503,17 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public double TearRotation(int leg) => _partCurvature[leg] * _spec.OuterDiameter;
 
+        /// <summary>A skid hanging from this leg's T-joint folded past its hinge's tear (TearRotation) at the bore (w9 2.6): the skid
+        /// tears there and the T-joint lets it go (SkidLoose, SkidFold), so the skid leaves (ContactModel.Restructure). The skid is
+        /// one piece in the build, so the holder's own half leaves with it (left out: a tear that keeps the holder's half).</summary>
+        public void TearSkid(int leg, StepEvents events, in FlightEvent cause, double load, double capacity, double speed)
+        {
+            if ((_flags[leg] & LegFlags.SkidLoose) != 0) return;
+            _flags[leg] |= LegFlags.SkidLoose;
+            _skidMode[leg] = LegMode.SkidFold;
+            Emit(events, EventKind.SkidLoose, leg, LegMode.SkidFold, cause, load, capacity, speed);
+        }
+
         // The fold past the kink (w9 2.6): the hinge holds the kink's moment (an upper bound: a real kink's moment falls as it
         // folds), and the foot's move Δ past `done` that brings the edge's demand to it, h(Δ) = held + min(λ·k·(done + Δ),
         // λ·relievable) + selfMove·(done + Δ) + P·min(done + Δ, δ) − M, increasing in Δ; NaN when even the move left to the

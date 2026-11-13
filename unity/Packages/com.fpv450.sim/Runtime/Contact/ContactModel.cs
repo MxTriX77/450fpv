@@ -1426,6 +1426,29 @@ namespace Fpv450.Sim.Contact
                     if (!hanging && _cling != null && _cling[c] > 0) Cling(c, s, com, ref f, ref m, ref load, ref compression, ref touching);
                     continue;
                 }
+                // A hanging half that lies deepest in a crown's twig shell while it also meets something solid (a branch's bark, the
+                // ground) is held by the solid (w9 2.6): the corner's one chain takes that point's row and overlap. On the twigs' row
+                // the chain was the twigs' near-nothing in series, every point of the half carried nothing, and the half passed the
+                // branch inside the shell (Pine002_M, 151 mm through its bark at 7.5 m/s).
+                if (hanging && RowOf(deepPair < 0 ? _ground[deepShape] : _pairs[deepShape * PairsPerShape + deepPair]).Crown != null)
+                {
+                    double held = 0;
+                    for (int i = 0; i < _shapes.Length; i++)
+                    {
+                        ContactRole role = _shapes[i].Role;
+                        if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                        for (int k = -1; k < _count[i]; k++)
+                        {
+                            ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                            if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                            if (!(p.Overlap > held) || RowOf(p).Crown != null) continue;
+                            held = p.Overlap;
+                            deepShape = i;
+                            deepPair = k;
+                        }
+                    }
+                    if (held > 0) deepest = held;
+                }
                 compression[c] = deepest;
                 ref Pair deep = ref deepPair < 0 ? ref _ground[deepShape] : ref _pairs[deepShape * PairsPerShape + deepPair];
                 Row row = RowOf(deep);
@@ -1926,6 +1949,17 @@ namespace Fpv450.Sim.Contact
                     events.Add(ev);
                 }
             }
+            // Folded past its hinge's tear at the bore (w9 2.6), the skid tears there and its holder lets it go: the half cannot
+            // fold on through what it meets (the sweep's and the crowns' tunnels through a hanging half at a crash's speed).
+            double tear = _legs.TearRotation(holder);
+            if (Double3.Dot(_fold[c], _fold[c]) > tear * tear && (_legs.Flags(holder) & LegFlags.SkidLoose) == 0)
+            {
+                FlightEvent cause = causeShape >= 0
+                    ? Of(EventKind.SkidLoose, causeShape, causePair < 0 ? _ground[causeShape] : _pairs[causeShape * PairsPerShape + causePair])
+                    : FlightEvent.Of(EventKind.SkidLoose);
+                _legs.TearSkid(holder, events, cause, _fold[c].Length(), tear, cause.C);
+                _restructure = true;
+            }
             // The elastic turn: the massless half gives |F|/k_cantilever, its deepest point moved that far out along its normal
             // by the least turn about the bore, φ = (r × n)·δ/|r × n|² (none untouched).
             _elastic[c] = default;
@@ -1953,14 +1987,28 @@ namespace Fpv450.Sim.Contact
                     Double3 push = deepN * deepest;
                     double a = Double3.Dot(up, push);
                     Double3 lat = push - up * a;
-                    double give = Double3.Dot(up * (ka * a) + lat * kl, deepN) / kc;
-                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0;
+                    // The chain gives by the force it carries (w9 2.6): where what it touches gives way first (a twig shell, a soil's
+                    // cap, the fold's cap), its points carry less than the springs' push on the overlap, and the chain gives that much
+                    // less. Read from the push alone, a half pressed into a yielding crown at a crash's speed gave by the whole
+                    // overlap, which its next step read back as overlap (Unturned): the give ran away (0.43 m in 50 ms through
+                    // Pine002_M) and the half's shapes passed a branch. And no give moves the deepest point past its overlap.
+                    Double3 spring = up * (ka * a) + lat * kl;
+                    double size = spring.Length(), share = size > carried ? carried / size : 1;
+                    double give = Double3.Dot(spring, deepN) / kc * share;
+                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0, turned = 0;
                     if (r2 > 0 && give > 0)
                     {
                         _elastic[c] = axis * (give / r2);
                         along = give * (rn * rn / r2);
+                        turned = give * (a2 / r2);
                     }
-                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0);
+                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0) * share;
+                    double moved = turned + along;
+                    if (moved > deepest)
+                    {
+                        _elastic[c] = _elastic[c] * (deepest / moved);
+                        along *= deepest / moved;
+                    }
                     _hangShift[c] = n * along;
                 }
             }
