@@ -895,8 +895,20 @@ namespace Fpv450.Sim.Log
         ///    a flight that does not ask steps as 89 did. ContactSpec.AnchorReach replaces ContactModel's unlogged switch and is
         ///    written in the header's ground entry (TagGround) with the spread's σ and bound; a log without the entry reads as
         ///    its model flew.
+        /// 91: the crowns' twigs and leaves, and the reach on every hold (w9-village-physics 2.3, on 90;
+        ///    unity/physics/physics-integration-2--w9-crowns): a crown's twig shell holds a part only as its twigs can. A part
+        ///    meets L_V·p/4 twigs a metre of travel (stereology on its silhouette's perimeter), each breaking at its own bending
+        ///    strength, so a pair's stiffness is the twigs' mean work over their mean deflection, it has no damper, its plane
+        ///    yields with the part past that deflection, only a part's deepest crown pair carries, and a leg's push on twigs is
+        ///    capped at its half-skid's hold. A 4.7 kg drone falls through twigs and rests only on a branch or the ground; a
+        ///    resting blade is no longer held, so the props turn in a crown and PropStrikes.Twigs cuts what they meet. The
+        ///    crown's leaves are flung by the blades (cut only above their critical speed) and stay cleared where a disc has
+        ///    passed. A leg's anchor lets go past the leg's reach on every hold (the ground, a soil shape, a rigid shape, a crown),
+        ///    where 86 released the ground's only. The step's event buffer is sized from what a step can raise, so no event is
+        ///    refused. The crown block is written in the header's crown entry (TagCrown); a log without it reads as its model
+        ///    flew. A flight that touches no crown, no leaf and no object's hold past the reach steps as 90 did.
         /// </summary>
-        public const int ModelVersion = 90;
+        public const int ModelVersion = 91;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

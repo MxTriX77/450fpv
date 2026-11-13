@@ -611,11 +611,12 @@ namespace Fpv450.Sim.Tests
         // with it on, a stopped rotor's blades are parts and the flight leaves 50's path before the legs part, and logs no
         // tunnel either way (InTheWindNoTunnelThroughARigidShape flies it with both on). Since model 58 (p7f-damage 1.5) the bells off
         // too (GoldenFlights.WithoutTheBells): the crown's twigs meet a turning motor's band before the legs part, so with them on the
-        // flight leaves 50's path there.
+        // flight leaves 50's path there. Since w9-village-physics 2.3 the crown's twigs as model 89's shells too
+        // (GoldenFlights.WithoutTheCrowns): with the twigs' law the drone keeps its speed through V01_L's shells and logs no tunnel.
         [Test]
         public void WithoutTheHangingGiveTheWindyCrownIsModel50s()
         {
-            MaterialRow[] m = Materials(out ulong h);
+            MaterialRow[] m = GoldenFlights.WithoutTheCrowns(Materials(out ulong h)); // since 2.3, V01_L's twigs as model 89's shells
             RangeScenarios.Approach a = RangeScenarios.Find("crown");
             // Since model 64 on model 63's drone (the old coil, Model63Drone), as every kept audit.
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Model63Drone.Spec(), m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
