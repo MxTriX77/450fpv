@@ -54,9 +54,11 @@ namespace Fpv450.Sim.Tests
             Replay,
             /// <summary>The steps after the first second allocate 0 B.</summary>
             Alloc,
+            /// <summary>The core throws nothing.</summary>
+            Throws,
         }
 
-        public const int Checks = 12;
+        public const int Checks = 13;
 
         // ---- The limits (each assumed, with why) --------------------------------------------------------------------------
 
@@ -495,6 +497,9 @@ namespace Fpv450.Sim.Tests
             bool liftJudged = false;
             SimPilot lifter = null;
             long end = hover + 20000;
+            Exception thrown = null;
+            try
+            {
             for (int k = 0; k < end; k++)
             {
                 ref readonly FlightState s = ref core.State;
@@ -613,6 +618,20 @@ namespace Fpv450.Sim.Tests
                     lift.LiftTime = (liftAt - liftStart) * FlightCore.Dt;
                 }
                 lastV = now.Velocity;
+            }
+            }
+            catch (Exception e)
+            {
+                thrown = e;
+            }
+            if (thrown != null)
+            {
+                // The core threw: the worst failure a step has. The row being flown takes it; nothing after it is judged.
+                var frame = new System.Diagnostics.StackTrace(thrown, true).GetFrame(0);
+                (liftStart >= 0 ? lift : row).Fail(Check.Throws, core.State.Step, $"{thrown.GetType().Name} in {frame?.GetMethod()?.DeclaringType?.Name}.{frame?.GetMethod()?.Name}: {thrown.Message}");
+                core.Wind?.Dispose();
+                recorder?.Close();
+                return rows;
             }
             if (touch < 0)
             {
