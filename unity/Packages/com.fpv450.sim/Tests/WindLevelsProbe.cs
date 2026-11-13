@@ -157,6 +157,210 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        /// <summary>
+        /// The closed loop's pitch answer to the air at the cruise (p7c-wind 1.5c, design 14's hand calculation): the
+        /// harness's whole airframe flown by the noiseless human pilot at clip P's trim (35 m, the course north, still air),
+        /// and at 20 s a uniform step of 0.5 m/s in one component of the air (a GustFront evaluated at the body's origin:
+        /// updraft, headwind, or from the left); the step's pitch less the same flight's without it (the same seed, so the
+        /// rotors' own wake cancels), and its transfer |H(f)| = |jω·∫Δθ(t)·e^(−jωt) dt| per m/s at the band's frequencies,
+        /// the last 5 s Hann-tapered. Explicit: it prints the table design 14 reads.
+        /// </summary>
+        [Test, Explicit]
+        public void TheGustTransfer()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const double step = 20, after = 20, size = 0.5;
+            double[] f = { 0.23, 0.3, 0.4, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0 };
+            double[] baseline = StepPitch(spec, default, step, after);
+            foreach (var (name, delta) in new[] { ("updraft", new Double3(0, size, 0)), ("headwind", new Double3(0, 0, -size)), ("from the left", new Double3(size, 0, 0)) })
+            {
+                double[] with = StepPitch(spec, delta, step, after);
+                int n = with.Length, taper = 5000;
+                double peak = 0, at = 0, line = 0;
+                var d = new double[n];
+                for (int k = 0; k < n; k++)
+                {
+                    d[k] = (with[k] - baseline[k]) / size;
+                    if (Math.Abs(d[k]) > Math.Abs(peak)) { peak = d[k]; at = k * 0.001; }
+                    if (k >= n - taper) d[k] *= 0.5 + 0.5 * Math.Cos(Math.PI * (k - (n - taper)) / taper);
+                }
+                for (int k = n - 1000; k < n; k++) line += (with[k] - baseline[k]) / size / 1000;
+                string row = $"{name}: step response peak {peak:+0.0000;-0.0000}° per m/s at +{at:F3} s, last 1 s {line:+0.0000;-0.0000}°; |H| °/(m/s):";
+                foreach (double hz in f)
+                {
+                    double w = 2 * Math.PI * hz, re = 0, im = 0;
+                    for (int k = 0; k < n; k++)
+                    {
+                        re += d[k] * Math.Cos(w * k * 0.001) * 0.001;
+                        im -= d[k] * Math.Sin(w * k * 0.001) * 0.001;
+                    }
+                    row += $" {hz:G3} Hz {w * Math.Sqrt(re * re + im * im):F4}";
+                }
+                TestContext.WriteLine(row);
+            }
+        }
+
+        /// <summary>
+        /// The field's air in the drone's bands (p7c-wind 1.5c, design 14): Severe over the open field, along the harness's
+        /// course (the drawn wind abeam from the left, at the cruise's ground speed, so the drone meets the frozen field at
+        /// about the cruise's 20 m/s through the air) at each height, 20 seeds × 120 s sampled at the camera's 29.917 Hz:
+        /// the RMS of the updraft w, of the headwind along the course and of the crosswind, and of the updraft's difference
+        /// between two points 0.32 m apart along the course (the front and rear hubs), in the bands 0.23–0.5, 0.5–1, 1–2 and
+        /// 2–4 Hz (Welch, Hann windows of 128 samples, half overlap, each less its line, as wind_stats.py's spectra), and
+        /// Kaimal et al. (1972)'s neutral w spectrum in the same bands at that height, from the field's own u* (the log law's
+        /// at the drawn strength) and its encounter speed. Explicit.
+        /// </summary>
+        [Test, Explicit]
+        public void TheFieldsVerticalBands()
+        {
+            double[] lo = { 0.23, 0.5, 1, 2 }, hi = { 0.5, 1, 2, 4 };
+            const double fps = HarnessPilot.CameraHz, seconds = 120, spacing = 0.32;
+            WindPreset preset = WindPreset.Of(WindLevel.Severe);
+            // The open field at each height, then the harness's wooded strip crossed at 0.5 and 0.75 H (its canopy's eddies;
+            // Kaimal's row there is the open field's at that height, for scale).
+            foreach (double height in new[] { 2.0, 5.0, 10.0, 20.0, 35.0, 50.0, -0.5, -0.75 })
+            {
+                bool strip = height < 0;
+                double z = strip ? -height * WindHarness.StripHeight : height;
+                var w = new double[4]; var head = new double[4]; var cross = new double[4]; var dw = new double[4]; var kaimal = new double[4];
+                double ustar = 0, sigmaW = 0, speed = 0;
+                const int seeds = 20;
+                for (ulong seed = 1; seed <= seeds; seed++)
+                {
+                    var drawn = new WindField(WindSetup.Of(WindLevel.Severe), new FlightRandom(seed));
+                    double from = drawn.FromDeg, course = (from + 90) % 360;
+                    drawn.Dispose();
+                    WindSetup setup = WindSetup.Of(WindLevel.Severe);
+                    if (strip) setup.Canopies = new[] { WindHarness.Strip(course) };
+                    var field = new WindField(setup, new FlightRandom(seed));
+                    DetMath.SinCos(course * DegToRad, out double sin, out double cos);
+                    var along = new Double3(sin, 0, cos);
+                    var right = new Double3(cos, 0, -sin);
+                    // In the strip: its crossing a canopy height inside either edge (the layer full), else 120 s of open field.
+                    WindHarness.BeltStretch(out double near, out _);
+                    double x0 = strip ? near + (WindHarness.ApproachHeights + 1) * WindHarness.StripHeight : 0;
+                    double span = strip ? (WindHarness.StripWidthHeights - 2) * WindHarness.StripHeight / WindHarness.GroundSpeed : seconds;
+                    int n = (int)(span * fps);
+                    double[] sw = new double[n], sh = new double[n], sc = new double[n], sd = new double[n];
+                    for (int i = 0; i < n; i++)
+                    {
+                        long step = (long)(i * 1000 / fps);
+                        Double3 p = along * (x0 + WindHarness.GroundSpeed * step * 0.001) + new Double3(0, z, 0);
+                        field.Begin(step, p, 0);
+                        Double3 a = field.At(p, 0), b = field.At(p - along * spacing, 0);
+                        sw[i] = a.Y;
+                        sh[i] = -Double3.Dot(a, along);
+                        sc[i] = Double3.Dot(a, right);
+                        sd[i] = a.Y - b.Y;
+                    }
+                    double[] bw = Bands(sw, fps, lo, hi), bh = Bands(sh, fps, lo, hi), bc = Bands(sc, fps, lo, hi), bd = Bands(sd, fps, lo, hi);
+                    // Kaimal's neutral w: nS_w/u*² = 2.1·f/(1 + 5.3·f^(5/3)), f = n·z/V at the drone's encounter speed V.
+                    double us = WindPreset.Karman * field.MeanSpeed / Math.Log((preset.ReferenceHeight - preset.Displacement) / preset.Roughness);
+                    double profile = Math.Log((z - preset.Displacement) / preset.Roughness) / Math.Log((preset.ReferenceHeight - preset.Displacement) / preset.Roughness);
+                    double v = (along * WindHarness.GroundSpeed - field.Mean * profile).Length(); // the mean at the run's end (the last Begin's)
+                    for (int k = 0; k < 4; k++)
+                    {
+                        w[k] += bw[k] * bw[k] / seeds; head[k] += bh[k] * bh[k] / seeds; cross[k] += bc[k] * bc[k] / seeds; dw[k] += bd[k] * bd[k] / seeds;
+                        double sum = 0;
+                        const int m = 200;
+                        for (int j = 0; j < m; j++)
+                        {
+                            double hz = lo[k] * Math.Exp(Math.Log(hi[k] / lo[k]) * (j + 0.5) / m), f = hz * (z - preset.Displacement) / v;
+                            sum += 2.1 * f / (1 + 5.3 * Math.Pow(f, 5.0 / 3)) * Math.Log(hi[k] / lo[k]) / m;
+                        }
+                        kaimal[k] += sum * us * us / seeds;
+                    }
+                    ustar += us / seeds;
+                    sigmaW += field.SigmaV / seeds;
+                    speed += v / seeds;
+                    field.Dispose();
+                }
+                string Row(double[] x) => string.Join(" / ", Array.ConvertAll(x, y => Math.Sqrt(y).ToString("F3")));
+                TestContext.WriteLine($"{(strip ? $"in the strip at {-height} H, {z:F1} m" : $"{z} m")} (u* {ustar:F3} m/s, the field's σ_w {sigmaW:F3}, Kaimal's 1.25·u* {1.25 * ustar:F3}; met at {speed:F1} m/s), "
+                    + $"RMS in 0.23–0.5 / 0.5–1 / 1–2 / 2–4 Hz, m/s: w {Row(w)}; Kaimal's w {Row(kaimal)}; headwind {Row(head)}; crosswind {Row(cross)}; "
+                    + $"w over {spacing} m {Row(dw)}");
+            }
+        }
+
+        // Band RMS of a series sampled at fps: Welch over Hann windows of 128 samples, half overlap, each less its line.
+        static double[] Bands(double[] x, double fps, double[] lo, double[] hi)
+        {
+            const int n = 128;
+            var psd = new double[n / 2 + 1];
+            double norm = 0;
+            var win = new double[n];
+            for (int i = 0; i < n; i++) norm += (win[i] = 0.5 - 0.5 * Math.Cos(2 * Math.PI * i / n)) * win[i];
+            int count = 0;
+            for (int s = 0; s + n <= x.Length; s += n / 2)
+            {
+                double mt = (n - 1) / 2.0, mx = 0, sxt = 0, stt = 0;
+                for (int i = 0; i < n; i++) mx += x[s + i] / n;
+                for (int i = 0; i < n; i++) { sxt += (i - mt) * (x[s + i] - mx); stt += (i - mt) * (i - mt); }
+                double slope = sxt / stt;
+                for (int k = 1; k < n / 2; k++)
+                {
+                    double re = 0, im = 0;
+                    for (int i = 0; i < n; i++)
+                    {
+                        double v = (x[s + i] - mx - slope * (i - mt)) * win[i];
+                        re += v * Math.Cos(2 * Math.PI * k * i / n);
+                        im -= v * Math.Sin(2 * Math.PI * k * i / n);
+                    }
+                    psd[k] += 2 * (re * re + im * im) / norm;
+                }
+                count++;
+            }
+            var bands = new double[lo.Length];
+            for (int b = 0; b < lo.Length; b++)
+            {
+                double sum = 0;
+                for (int k = 1; k < n / 2; k++)
+                    if (lo[b] <= k * fps / n && k * fps / n < hi[b]) sum += psd[k] / count / n;
+                bands[b] = Math.Sqrt(sum);
+            }
+            return bands;
+        }
+
+        // The noiseless human's pitch (the tracker's, degrees) at every step from `step` s for `after` s, at clip P's trim in
+        // still air with a uniform step of `delta` (world m/s) in the air at `step` s (none when zero).
+        static double[] StepPitch(DroneSpec spec, Double3 delta, double step, double after)
+        {
+            WindSetup wind = WindSetup.Of(WindLevel.Still);
+            if (delta.Length() > 0)
+                wind.Front = new GustFront { Start = new Double3(-step, 0, 0), Normal = new Double3(1, 0, 0), Speed = 1, Width = 0.002, Delta = delta, Uniform = true };
+            FlightSetup setup = CrosswindScenario.Setup(spec, wind, 1);
+            setup.Asymmetry = spec.BuildAsymmetry();
+            setup.VortexRing = spec.BuildVortexRing();
+            setup.GroundEffect = spec.BuildGroundEffect();
+            setup.RotorWake = spec.BuildRotorWake();
+            setup.Flapping = spec.BuildFlapping();
+            setup.Interference = spec.BuildInterference();
+            setup.Modes = spec.BuildModes();
+            setup.StartPosition = new Double3(0, 35, 0);
+            setup.StartVelocity = new Double3(0, 0, WindHarness.ReleaseSpeed);
+            DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
+            setup.StartAttitude = new Quat(sp, 0, 0, cp);
+            var core = new FlightCore(setup);
+            CrosswindScenario.Arm(core);
+            var p = new HarnessPilot(core.Controller) { Course = 0, Height = 35 };
+            p.Human();
+            long release = core.State.Step;
+            int from = (int)(step * 1000) - (int)release, steps = from + (int)(after * 1000), frame = 0;
+            var pitch = new double[(int)(after * 1000)];
+            for (int k = 0; k < steps; k++)
+            {
+                if (k * HarnessPilot.CameraHz >= frame * 1000.0) { p.See(HarnessPilot.Take(core.State, k, 0)); frame++; }
+                core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
+                if (k >= from)
+                {
+                    TrackerAngles.Of(core.State.Attitude, out _, out double th, out _);
+                    pitch[k - from] = th / DegToRad;
+                }
+            }
+            core.Wind.Dispose();
+            return pitch;
+        }
+
         // The airframes the attribution flies: the whole one, then each source of pitch taken out in turn.
         static readonly (string Name, bool Steady, Action<FlightSetup> Change)[] Variants =
         {
