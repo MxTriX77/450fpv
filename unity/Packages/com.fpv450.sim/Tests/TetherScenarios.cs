@@ -2,8 +2,10 @@ using System;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
 {
@@ -387,6 +389,148 @@ namespace Fpv450.Sim.Tests
             });
             r.Paid = c.Tether.PaidOut;
             r.Wedges = c.Tether.Chain.Wedges;
+            return r;
+        }
+
+        // ---- "A frozen line in the wash moves where its margin says" (p7d-tether design 20) ----
+
+        public struct WashedTrail
+        {
+            /// <summary>The trail's points when the drone arms, and the fewest it came down to after.</summary>
+            public int Frozen, Fewest;
+            /// <summary>The lowest trail index ever over its margin while frozen (-1: none), its depth from the trail's end then,
+            /// the largest D/max(H, D_f) a frozen point bore, and the longest a frozen point stayed over its margin, s.</summary>
+            public int DeepestOver, DepthOver;
+            public double MostMargin, LongestOver;
+            /// <summary>Every trail point below Fewest is where it froze, bit for bit.</summary>
+            public bool KeptExact;
+            /// <summary>The laid line's largest distance at the end from where it was laid (the chain's nodes, and the points
+            /// refrozen since, whose material the trail held at the arming, against the frozen polyline at the same material), m;
+            /// the most of it that lies 1 mm or more over the ground, m.</summary>
+            public double Moved, Lifted;
+            /// <summary>The window's thaws and the points they gave back (FiberLine.Thaws, Thawed).</summary>
+            public long Thaws, Thawed;
+            /// <summary>Bytes allocated in the steps from the arming; the wedges; the flight's log.</summary>
+            public long Allocated, Wedges;
+            public byte[] Log;
+        }
+
+        /// <summary>
+        /// A low pass back beside line laid before (the case design 20 closes): from the launch the drone climbs to 1.25 m (its
+        /// rotors 1.5 m up), flies 15 m along +z at 1.5 m/s laying its line, turns through a half circle of 1 m radius to x = 2 m,
+        /// flies back 13 m and hovers at (2, 2) to 27 s, its own outbound line 2 m to its side, deeper in the trail than the line
+        /// it laid on the way back. From the turn (11 s) every frozen point but the anchor is judged each step by FiberLine.Moves at
+        /// the rotors' air there, and the laid line then is the one the end is held against; the known-wrong is the airless trail.
+        /// </summary>
+        public static WashedTrail WashTrail(DroneSpec spec, bool airless)
+        {
+            FlightSetup setup = Setup(spec, layout: new[] { new Double3(0, 0, -15) });
+            setup.TetherAirlessTrail = airless;
+            double stand = Stand(setup);
+            var core = new FlightCore(setup);
+            LogHeader h = LogHeader.For(setup, core);
+            h.Build = "simtests";
+            h.Isa = "test";
+            h.WorldId = "floor";
+            h.SetDrone(spec, spec.Nominal);
+            var log = new System.IO.MemoryStream();
+            var recorder = new FlightRecorder(log, h, FlightRecorder.DefaultCapacity, ownsStream: false);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            FiberLine f = core.Tether;
+            var r = new WashedTrail { DeepestOver = -1, Fewest = int.MaxValue };
+            Double3[] laid = null;
+            double[] laidMaterial = null;
+            var over = new double[f.Trail.Length];
+            var at = new XZ[1];
+            var ground = new GroundSample[1];
+            const int Arm = 11000; // the turn: from here the frozen points are judged and the steps' bytes counted
+            for (int k = 0; k < 27000; k++)
+            {
+                double t = k * FlightCore.Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    pilot.HoldVelocity = false;
+                    double y = stand + DetMath.Min(1.25, 2 * t), x, z;
+                    if (t < 1) (x, z) = (0, 0);
+                    else if (t < 11) (x, z) = (0, 1.5 * (t - 1));
+                    else if (t < 13)
+                    {
+                        DetMath.SinCos(1.5707963267948966 * (t - 11), out double sin, out double cos);
+                        (x, z) = (1 - cos, 15 + sin);
+                    }
+                    else (x, z) = (2, DetMath.Max(2, 15 - 1.5 * (t - 13)));
+                    pilot.Target = new Double3(x, y, z);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                }
+                long before = AllocProbe.Before();
+                core.Advance(stick);
+                if (k >= Arm) r.Allocated += AllocProbe.After(before);
+                recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+                if (k == Arm - 1)
+                {
+                    r.Frozen = f.TrailCount;
+                    laid = new Double3[f.TrailCount];
+                    laidMaterial = new double[f.TrailCount];
+                    for (int i = 0; i < laid.Length; i++)
+                    {
+                        laid[i] = f.Trail[i];
+                        laidMaterial[i] = f.TrailMaterial(i);
+                    }
+                }
+                if (k < Arm) continue;
+                int c = f.TrailCount;
+                if (c < r.Fewest) r.Fewest = c;
+                for (int i = c; i < over.Length && over[i] != 0; i++) over[i] = 0; // given back
+                for (int i = 1; i < c; i++)
+                {
+                    Double3 p = f.Trail[i];
+                    at[0] = new XZ(p.X, p.Z);
+                    f.World.SampleGround(at, ground);
+                    bool known = (ground[0].Flags & GroundFlags.Hole) == 0;
+                    bool moves = f.Moves(i, f.Rotors.At(p, ground[0].Height, out _), ground[0].Height, ground[0].Surface, known, out double push, out double hold);
+                    double held = DetMath.Max(hold, f.TrailAir(i));
+                    if (held > 0 && push / held > r.MostMargin) r.MostMargin = push / held;
+                    if (!moves)
+                    {
+                        over[i] = 0;
+                        continue;
+                    }
+                    over[i] += FlightCore.Dt;
+                    if (over[i] > r.LongestOver) r.LongestOver = over[i];
+                    if (r.DeepestOver < 0 || i < r.DeepestOver)
+                    {
+                        r.DeepestOver = i;
+                        r.DepthOver = c - 1 - i;
+                    }
+                }
+            }
+            recorder.Close();
+            r.Log = log.ToArray();
+            r.Wedges = f.Chain.Wedges;
+            r.Thaws = f.Thaws;
+            r.Thawed = f.Thawed;
+            r.KeptExact = true;
+            for (int i = 0; i < r.Fewest && i < laid.Length; i++)
+                if (!(f.Trail[i].X == laid[i].X && f.Trail[i].Y == laid[i].Y && f.Trail[i].Z == laid[i].Z)) r.KeptExact = false;
+            // Where the laid line is now against where it was laid, at the same material: the chain's nodes and the trail's points
+            // past the fewest (refrozen since) whose material the trail held at the arming.
+            CableChain line = f.Chain;
+            double top = laidMaterial[laidMaterial.Length - 1];
+            void Judge(Double3 x, double s)
+            {
+                if (!(s <= top)) return;
+                int j = 1;
+                while (j < laidMaterial.Length - 1 && laidMaterial[j] < s) j++;
+                double span = laidMaterial[j] - laidMaterial[j - 1], u = span > 0 ? (s - laidMaterial[j - 1]) / span : 0;
+                Double3 was = laid[j - 1] + (laid[j] - laid[j - 1]) * u;
+                double d = (x - was).Length();
+                if (d > r.Moved) r.Moved = d;
+                if (x.Y - f.Diameter / 2 > 1e-3 && d > r.Lifted) r.Lifted = d;
+            }
+            for (int i = 0; i < line.Count; i++) Judge(line[i].Position, line[i].Material);
+            for (int i = r.Fewest; i < f.TrailCount; i++) Judge(f.Trail[i], f.TrailMaterial(i));
             return r;
         }
 
