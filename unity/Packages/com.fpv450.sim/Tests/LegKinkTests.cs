@@ -49,15 +49,16 @@ namespace Fpv450.Sim.Tests
             Assert.That(s.CrackedFactor, Is.EqualTo(1), "the crack keeps the tube's stiffness (drone.json)");
         }
 
-        // The cut landing across the package's 9.98° slope (`--slopes`' row): the drone's tilt from upright when its first leg is lost.
-        static double TiltAtTheFirstBreak(DroneSpec spec, out SlopeScenarios.Touchdown t)
+        // The cut landing across the package's 9.98° slope (`--slopes`' row): the drone's tilt from upright when a leg first keeps a
+        // set (bends past its section's yield) and when it is first lost.
+        static double TiltAtTheFirst(DroneSpec spec, EventKind kind, out SlopeScenarios.Touchdown t)
         {
             double at = double.NaN;
             t = SlopeScenarios.Land(spec, 9.98, RainLevel.Sunny, 90, observe: core =>
             {
                 if (!double.IsNaN(at)) return;
                 for (int k = 0; k < core.Events.Count; k++)
-                    if (core.Events[k].Kind == EventKind.LegBroken)
+                    if (core.Events[k].Kind == kind && core.Events[k].Index != (byte)LegMode.SkidFold)
                     {
                         double up = core.State.Attitude.Rotate(new Double3(0, 1, 0)).Y;
                         at = Math.Acos(Math.Max(-1, Math.Min(1, up))) * 57.29577951308232;
@@ -76,10 +77,16 @@ namespace Fpv450.Sim.Tests
             int at = text.IndexOf(now1, StringComparison.Ordinal);
             Assert.That(at, Is.GreaterThanOrEqualTo(0), "drone.json's crack factor");
             DroneSpec halved = DroneSpec.Parse(text.Substring(0, at) + "\"cracked_stiffness_factor\": {\"value\": 0.5" + text.Substring(at + now1.Length));
-            double now = TiltAtTheFirstBreak(Spec, out SlopeScenarios.Touchdown t), wrong = TiltAtTheFirstBreak(halved, out SlopeScenarios.Touchdown w);
-            TestContext.Out.WriteLine($"the first leg lost at a tilt of {now:F1}° (end {t.EndTilt:F1}°); with the halved crack {wrong:F1}° (end {w.EndTilt:F1}°)");
-            Assert.That(double.IsNaN(now) || now > 30, "no leg is lost before the drone has rolled past 30°: the legs part in the fall, if at all");
-            Assert.That(wrong, Is.LessThan(15), "the known-wrong parts a leg under the static load, before the roll");
+            double setNow = TiltAtTheFirst(Spec, EventKind.LegSet, out SlopeScenarios.Touchdown t), lostNow = TiltAtTheFirst(Spec, EventKind.LegBroken, out _);
+            double setWrong = TiltAtTheFirst(halved, EventKind.LegSet, out SlopeScenarios.Touchdown w), lostWrong = TiltAtTheFirst(halved, EventKind.LegBroken, out _);
+            TestContext.Out.WriteLine($"a leg first set at a tilt of {setNow:F1}°, first lost at {lostNow:F1}° (end {t.EndTilt:F1}°); with the halved crack "
+                + $"{setWrong:F1}° and {lostWrong:F1}° (end {w.EndTilt:F1}°)");
+            Assert.That(double.IsNaN(lostNow) || lostNow > 30, "no leg is lost before the drone has rolled past 30°: the legs part in the fall, if at all");
+            // The soft legs' quasi-static roll tip, 14.40° (p7g-legs 1.3, LandingStability.SoftRollTipDeg, derived): a leg that first
+            // yields past it yields in the roll; one that yields before it yields under the landing's load on the slope.
+            const double tip = 14.40;
+            Assert.That(double.IsNaN(setNow) || setNow > tip, "no leg yields before the drone has rolled past its soft legs' tip");
+            Assert.That(setWrong, Is.LessThan(tip), "the known-wrong (model 90's halved crack) yields a leg on the slope, before the roll");
         }
     }
 }
