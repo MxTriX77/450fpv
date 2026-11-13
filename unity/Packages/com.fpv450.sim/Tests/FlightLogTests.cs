@@ -633,13 +633,15 @@ namespace Fpv450.Sim.Tests
             Assert.That(unknown.Outcome, Is.EqualTo(ReplayOutcome.Refused));
             StringAssert.Contains("cannot open the world 'floor'", unknown.Message);
 
-            // The first header entry is the flight's: a u16 tag, a u32 length, then the model version.
+            // The first header entry is the flight's: a u16 tag, a u32 length, then the model version. Another model is the
+            // code's own with its low byte moved on by one (a fixed 99 was the code's own number at model 99, and matched).
             byte[] model = (byte[])bytes.Clone();
             Assert.That(BitConverter.ToUInt16(model, LogHeader.PrologueSize), Is.EqualTo(1));
-            model[LogHeader.PrologueSize + 6] = 99;
+            int anotherModel = (LogFormat.ModelVersion & ~0xFF) | ((LogFormat.ModelVersion + 1) & 0xFF);
+            model[LogHeader.PrologueSize + 6] = (byte)anotherModel;
             ReplayResult other = FlightReplay.Run(new MemoryStream(model), OpenWorld, drone);
             Assert.That(other.Outcome, Is.EqualTo(ReplayOutcome.Refused), other.Message);
-            StringAssert.Contains("model version 99", other.Message);
+            StringAssert.Contains("model version " + anotherModel, other.Message);
 
             var settings = new MemoryStream();
             Record(settings, 10, h =>
