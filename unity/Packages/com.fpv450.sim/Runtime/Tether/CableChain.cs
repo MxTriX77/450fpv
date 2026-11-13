@@ -309,6 +309,9 @@ namespace Fpv450.Sim.Tether
         /// the spool's law (no SpoolAfterSlide), as to model 88.</summary>
         public bool KeepSlideStretch;
 
+        // The rounds of the pack's draw into a run at the exit and the run's slide after it in a step (numerical).
+        const int SlideRounds = 8;
+
         /// <summary>The Newton solves taken (Relinearise, at most MaxNewton a step), and the steps that ended with
         /// a segment's tension still past NewtonTolerance from its model (the budget spent): the linearisation's residue left in the
         /// line.</summary>
@@ -757,7 +760,16 @@ namespace Fpv450.Sim.Tether
                 SettleContact(a.Position, along, wrap, low, ref a.Contact1);
             }
             CapstanRuns();
-            if (Spool.Active && n >= 2 && !KeepSlideStretch) work += SpoolAfterSlide();
+            // The pack's line drawn into a run that reaches the exit, and the run's profile again from it (a few rounds, numerical:
+            // each round the run's high side settles toward the law's tension times e^(μk·θ)).
+            if (Spool.Active && n >= 2 && !KeepSlideStretch)
+                for (int round = 0; round < SlideRounds; round++)
+                {
+                    double paid = SpoolPaid;
+                    work += SpoolAfterSlide();
+                    if (!(SpoolPaid > paid)) break;
+                    CapstanRuns();
+                }
 
             e1 = Energy(out double endMagnitude);
             double budget = e0 + work;

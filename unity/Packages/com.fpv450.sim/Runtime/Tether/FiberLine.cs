@@ -1056,9 +1056,7 @@ namespace Fpv450.Sim.Tether
             // The crest's node never stretches the line (p7d-tether design 18): where the segment's line covers both straight pieces
             // to the ground, no piece is shorter than its straight length (the taut paths' share had left the piece up a ledge's
             // face 2 % short, a 19 N spring that threw its node at 27 m/s); where it does not (a nearly taut chord cut through a
-            // corner), the node goes from the chord toward the ground only as far as the line reaches, both pieces slack-free at
-            // zero strain, and the ground's slot then holds the overlap left (CableContact.Sunk) until the line's own pull draws
-            // line over the corner (it had been put 2.5 cm short, a 6.8 N spring).
+            // corner, which a node on the ground would leave 2.5 cm short, a 6.8 N spring), the shortfall is drawn from the pack.
             double rest = _chain[j + 1].Material - na.Material, la = (on - a).Length(), lb = (b - on).Length();
             if (_capstanLip) { }
             else if (rest >= la + lb)
@@ -1068,22 +1066,21 @@ namespace Fpv450.Sim.Tether
                 if (rest - mine < lb) mine = rest - lb;
                 share = mine / rest;
             }
+            else if (_chain.Spool.Active && !_chain.Spool.Locked && !_chain[_chain.Count - 1].Crest)
+            {
+                // The segment's line does not reach the ground there: the line laid round the corner is drawn from the pack, every
+                // node from the far end of the segment to the exit taking the shortfall on its material coordinate (each
+                // segment there keeps its rest length; the exit's material grows by it, as a payout), both pieces then at their
+                // straight lengths. (The pack's peel over that much line, G·δ, a ten-thousandth of a joule, is not charged.)
+                double shortfall = la + lb - rest;
+                for (int k = j + 1; k < _chain.Count; k++) _chain[k].Material += shortfall;
+                share = la / (la + lb);
+            }
             else
             {
-                double u = Double3.Dot(on - a, d) / (len * len);
-                Double3 foot = a + d * (u < 0 ? 0 : u > 1 ? 1 : u);
-                double lo2 = 0, hi2 = 1;
-                for (int k = 0; k < 40; k++)
-                {
-                    double mid = 0.5 * (lo2 + hi2);
-                    Double3 x = foot + (on - foot) * mid;
-                    if ((x - a).Length() + (b - x).Length() > rest) hi2 = mid;
-                    else lo2 = mid;
-                }
-                on = foot + (on - foot) * lo2;
-                la = (on - a).Length();
-                lb = (b - on).Length();
-                share = la + lb > 0 ? la / (la + lb) : 0.5;
+                CrestsRefused++;
+                Clear(ref na, a, b, CrestSlack);
+                return;
             }
             if (_chain.SplitCrest(j, share, on) || Yield(inside) && _chain.SplitCrest(j, share, on)) CrestsInserted++;
             else

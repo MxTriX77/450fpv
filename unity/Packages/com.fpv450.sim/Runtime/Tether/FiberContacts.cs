@@ -94,6 +94,9 @@ namespace Fpv450.Sim.Tether
         // A kept slot's plane moving under its node deeper than this (m) is an overlap the node did not make (numerical: 1 N on a
         // fixed member's spring, far above a pressed node's step-to-step change).
         const double SinkTolerance = 1e-4;
+        // A kept slot's point moving this far over the member in a step (m) has jumped, not slid (numerical: a thin member's
+        // radius; the coil's switch was 29.6 mm, a node's slide in a step at 2 m/s 2 mm).
+        const double SinkJump = 0.005;
         const double CellSize = 0.25;
         // A box test's slack, m (numerical: far above the rounding of a closest approach's points a kilometre out, 1e-13 m).
         const double BoxSlack = 1e-9;
@@ -1244,19 +1247,22 @@ namespace Fpv450.Sim.Tether
             // An overlap the slot's new plane puts the node in, not reached by its own motion (CableContact.Sunk): on a fresh slot
             // any depth inside; on a kept one the depth past where the old plane had it, beyond SinkTolerance; it follows the node
             // out as the node rises.
-            double inside = Double3.Dot(c.Normal, node.Position - c.Point);
-            if (inside > 0) inside = 0;
+            double depth = Double3.Dot(c.Normal, node.Position - c.Point);
+            if (depth > 0) depth = 0;
+            double inside = depth;
             double sunk;
-            if (!kept) sunk = inside;
+            if (!kept) sunk = 0; // a fresh slot pushes a node it finds inside out: the member is solid
             else
             {
-                // The old plane carried on by the member's own motion over the step (a drone part's), so a part sweeping into
-                // the line pushes it: only a plane that jumps under the node leaves an overlap.
-                double before = Double3.Dot(slot.Normal, node.Position - (slot.Point + slot.Velocity * _dt));
+                // A kept slot leaves an overlap only where its point jumped across the member (the record's closest segment
+                // switching), past the member's own motion over the step by more than SinkJump: a plane that turns or drifts with
+                // the node, or a drone part that sweeps into the line, pushes it as ever.
+                Double3 carried = slot.Point + slot.Velocity * _dt;
+                double before = Double3.Dot(slot.Normal, node.Position - carried);
                 if (before > 0) before = 0;
                 sunk = slot.Sunk;
-                if (inside < before - SinkTolerance) sunk += inside - before;
-                if (sunk < inside) sunk = inside; // the node has risen out of the overlap by its own loads
+                if ((c.Point - carried).Length() > SinkJump && inside < before - SinkTolerance) sunk += inside - before;
+                if (sunk < depth) sunk = depth; // the node has risen out of the overlap by its own loads
             }
             if (!kept)
             {

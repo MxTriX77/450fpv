@@ -1368,15 +1368,15 @@ namespace Fpv450.Sim.Tests
         /// p7d-tether design 18 (the lip's point-contact law with the bore's entry, μ_l 0.45, G₀ over the light and conventional
         /// bands; and the fiber's contacts: an overlap a slot's new plane makes held, not thrown, CableContact.Sunk; the capstans'
         /// slides no longer stretching the exit's segment past the spool's law, CableChain.SpoolAfterSlide; a crest's node never
-        /// stretching its segment; the model number is the orchestrator's at the merge): re-recorded. Audited case by case: with
+        /// stretching its segment, the shortfall drawn from the pack; the model number is the orchestrator's at the merge): re-recorded. Audited case by case: with
         /// the known-wrong line before design 18 (FlightSetup.TetherBeforeDesign18) on models 74–88's μ_l 0.3 and G₀ band
         /// (Model88Tether) it is model 88's pin, 0xF74FECF3FEF4F329 (Model88TetherHash), every record and event
         /// (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel88s), and every kept audit of an older line keeps its
         /// own pin flying it. The records differ from step 1 (the spool's factor and the flight's G₀ enter the line's first step);
-        /// at most 5.0 mm and 0.03° apart, the ends 1.8 mm apart, 0.2497 m up, 3 impacts; the line whole, 0.498 m paid out against
+        /// at most 5.0 mm and 0.03° apart, the ends 1.8 mm apart, 0.2497 m up, 3 impacts; the line whole, 0.461 m paid out against
         /// 0.224: this seed's G₀ is now from the light pack's band, so the liftoff and the landing draw more line at a lower pull.
         /// Every golden without the line keeps its pin.
-        public const ulong TetherHash = 0xE01A91E14E4E82D9UL;
+        public const ulong TetherHash = 0x01ED5FCD190EEA61UL;
 
         /// <summary>The tether golden at model 88, which models 84–88 kept until p7d-tether design 18 (the lip's point-contact law,
         /// μ_l 0.45, the light peel): the flight with the known-wrong capstan lip (FlightSetup.TetherBeforeDesign18) on models 74–88's

@@ -460,7 +460,12 @@ namespace Fpv450.Sim.Tests
                 long nowOver = over;
                 most = 0;
                 over = 0;
-                old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherLinearStep = true);
+                // Model 74's chain: the linear step on the line before design 18 (its exit's segment stretched by the slides too).
+                old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x =>
+                {
+                    x.TetherLinearStep = true;
+                    x.TetherBeforeDesign18 = true;
+                });
                 oldMost = most;
                 oldOver = over;
                 most = nowMost;
