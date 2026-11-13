@@ -113,13 +113,19 @@ namespace Fpv450.Sim.Tests
                         weakest = c;
                     }
                 }
-                // The sim's own onset: the lowest level touchdown speed (to 5 mm/s) that leaves a leg set.
-                double lo = derived, hi = derived / 0.6;
-                Assert.That(Run(Down(hi, seed)).Damaged(), Is.GreaterThan(0), "a leg sets at " + hi.ToString("F2") + " m/s");
+                // The sim's own onset: the lowest level touchdown speed (to 5 mm/s) that leaves a leg set (or lost past it). Since w9 2.6
+                // a crack (the edge's local yield) comes before the set, so the crack alone does not count.
+                static bool Bent(LegScenarios.Outcome x)
+                {
+                    for (int c = 0; c < 4; c++) if ((x.Flags[c] & (LegFlags.Set | LegFlags.Broken)) != 0) return true;
+                    return false;
+                }
+                double lo = derived * 0.6, hi = derived / 0.6;
+                Assert.That(Bent(Run(Down(hi, seed))), "a leg sets at " + hi.ToString("F2") + " m/s");
                 while (hi - lo > 0.005)
                 {
                     double mid = (lo + hi) / 2;
-                    if (Run(Down(mid, seed)).Damaged() > 0) hi = mid;
+                    if (Bent(Run(Down(mid, seed)))) hi = mid;
                     else lo = mid;
                 }
                 TestContext.Out.WriteLine($"seed {seed}: leg_{LegDamage.Names[weakest]} the weakest, its set onset {derived:F3} m/s undamped (derived), "

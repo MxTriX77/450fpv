@@ -304,6 +304,9 @@ namespace Fpv450.Sim.Contact
         // tube about the clamp and carries its T-joint square), the socket edge's envelope and its moment the law judged.
         readonly double[] _topTurn = new double[Legs], _footTurn = new double[Legs], _sway = new double[Legs], _footMoment = new double[Legs];
         readonly double[] _footEnvelope = { 1, 1, 1, 1 };
+
+        // Each edge's hinge rotation past its kink (rad; w9 2.6): the clamp's edge and a frame leg's socket edge.
+        readonly double[] _hinge = new double[Legs], _footHinge = new double[Legs];
         readonly bool[] _footFlowing = new bool[Legs];
 
         // The jaws' bed at the foot (N/m; 0 holds them rigid, 1.2's chain) and each leg's friction couple there, μ·P·D over
@@ -486,6 +489,46 @@ namespace Fpv450.Sim.Contact
             return tear < _kink[leg] ? tear : _kink[leg];
         }
 
+        // Whether the edge tears before it kinks (then it parts at PartingRatio; else it kinks there and folds).
+        bool TearsFirst(int leg, double s)
+        {
+            double f = _shape * (1 + s), ky = _yieldMoment[leg] * (1 - s) / _ei[leg], g = _partCurvature[leg] / ky;
+            return f - (f - 1) / (g * g) <= _kink[leg];
+        }
+
+        /// <summary>
+        /// The kinked hinge's rotation to its tear, rad (w9 2.6): past the kink the fold is a plastic hinge about one diameter
+        /// long (assumed: a tube's local buckle spans about its diameter), so the edge's strain K_t·(θ/D)·c reaches ε_b at
+        /// θ = ε_b·D/(K_t·c), 0.27 rad nominal (0.15–0.33 over the bounds). Until then the folded leg stays on, bent.
+        /// </summary>
+        public double TearRotation(int leg) => _partCurvature[leg] * _spec.OuterDiameter;
+
+        // The fold past the kink (w9 2.6): the hinge holds the kink's moment (an upper bound: a real kink's moment falls as it
+        // folds), and the foot's move Δ past `done` that brings the edge's demand to it, h(Δ) = held + min(λ·k·(done + Δ),
+        // λ·relievable) + selfMove·(done + Δ) + P·min(done + Δ, δ) − M, increasing in Δ; NaN when even the move left to the
+        // tear, `left`, cannot (the edge tears).
+        static double FoldMove(double held, double moment, double kg, double lever, double relievable, double pd, double dway, double selfMove,
+            double done, double left)
+        {
+            if (!(left > 0) || !(FoldExcess(left, held, moment, kg, lever, relievable, pd, dway, selfMove, done) >= 0)) return double.NaN;
+            if (!(FoldExcess(0, held, moment, kg, lever, relievable, pd, dway, selfMove, done) < 0)) return 0;
+            double lo = 0, hi = left;
+            for (int n = 0; n < Bisections; n++)
+            {
+                double mid = lo + (hi - lo) / 2;
+                if (FoldExcess(mid, held, moment, kg, lever, relievable, pd, dway, selfMove, done) < 0) lo = mid;
+                else hi = mid;
+            }
+            return hi;
+        }
+
+        static double FoldExcess(double d, double held, double moment, double kg, double lever, double relievable, double pd, double dway,
+            double selfMove, double done)
+        {
+            double move = done + d, give = lever * kg * move, cap = lever * relievable, straight = move < dway ? move : dway;
+            return held + (give < cap ? give : cap) + selfMove * move + pd * straight - moment;
+        }
+
         /// <summary>
         /// One leg's step: its loads in, what its give relieves out, and its events (Part the leg's, or its T-joint's, Index
         /// the LegMode; A the load, B the capacity it passed, C the touch's closing speed). cause carries the contact that
@@ -639,9 +682,29 @@ namespace Fpv450.Sim.Contact
                     double last = RotationRatio(top, f) - r0;
                     if (last > 0) _bend[leg] = _bend[leg] + way * (last * kc * lever);
                     if (top > env) _envelope[leg] = top;
-                    flags |= LegFlags.Broken;
-                    Emit(events, EventKind.LegBroken, leg, mode, cause, m, top * mc, speed);
-                    return;
+                    // Past the kink the leg folds and stays on, bent, until its hinge tears (w9 2.6); a tear first parts it.
+                    double done = last > 0 ? last * scale : 0;
+                    double fold = TearsFirst(leg, s) ? double.NaN
+                        : FoldMove(top * mc, m, kl, lever, relievable, pd, dway, 0, done, (TearRotation(leg) - _hinge[leg]) * lever);
+                    if (double.IsNaN(fold))
+                    {
+                        flags |= LegFlags.Broken;
+                        Emit(events, EventKind.LegBroken, leg, mode, cause, m, top * mc, speed);
+                        return;
+                    }
+                    _hinge[leg] += fold / lever;
+                    _bend[leg] = _bend[leg] + way * (fold / lever);
+                    double total = done + fold;
+                    if (relievable > 0 && total > 0)
+                    {
+                        double give = relievable / kl, move = total < give ? total : give;
+                        relief.Lateral = relief.Lateral + way * (kl * move);
+                        relief.Any = true;
+                    }
+                    flags |= LegFlags.Set;
+                    if (!_flowing[leg]) Emit(events, EventKind.LegSet, leg, mode, cause, m, env * mc, speed);
+                    _flowing[leg] = true;
+                    goto Joint;
                 }
                 double lo = env, hi = top;
                 for (int n = 0; n < Bisections; n++)
@@ -672,6 +735,7 @@ namespace Fpv450.Sim.Contact
             else _flowing[leg] = false;
 
             // The T-joint: the skid's slip in its bore, the socket's break.
+            Joint:
             if ((flags & LegFlags.SkidLoose) != 0) return;
             TJoint(leg, ref flags, DetMath.Abs(loads.SkidAxial), (lateral * _spec.SocketLever + couple).Length(), events, cause, speed);
         }
@@ -774,10 +838,32 @@ namespace Fpv450.Sim.Contact
                     double last = RotationRatio(partAt, f) - r0;
                     if (last > 0) TopTurn(leg, way, last * kc * lever * share, top);
                     if (partAt > env) _envelope[leg] = partAt;
-                    flags |= LegFlags.Broken;
-                    Emit(events, EventKind.LegBroken, leg, mode, cause, m, partAt * mc, speed);
-                    footZ = 0;
-                    return true;
+                    // Past the kink it folds (w9 2.6, as the cantilever's): the foot's move per hinge turn is λ·Λ.
+                    double done = last > 0 ? last * scale : 0, unit = lever * share;
+                    double fold = TearsFirst(leg, s) ? double.NaN
+                        : FoldMove(partAt * mc, m, kg, lever, relievable, pshare, dway, selfMove, done, (TearRotation(leg) - _hinge[leg]) * unit);
+                    if (double.IsNaN(fold))
+                    {
+                        flags |= LegFlags.Broken;
+                        Emit(events, EventKind.LegBroken, leg, mode, cause, m, partAt * mc, speed);
+                        footZ = 0;
+                        return true;
+                    }
+                    _hinge[leg] += fold / unit;
+                    TopTurn(leg, way, fold / unit, top);
+                    double total = done + fold;
+                    if (relievable > 0 && total > 0)
+                    {
+                        double give = relievable / kg, move = total < give ? total : give, t = move / share;
+                        Double3 off = new Double3(kx * way.X * t, 0, kz * top * way.Z * t);
+                        relief.Lateral = relief.Lateral + off;
+                        relief.Any = true;
+                        lateral = lateral - off;
+                    }
+                    flags |= LegFlags.Set;
+                    if (!_flowing[leg]) Emit(events, EventKind.LegSet, leg, mode, cause, m, env * mc, speed);
+                    _flowing[leg] = true;
+                    goto Socket;
                 }
                 double lo = env, hi = partAt;
                 for (int n = 0; n < Bisections; n++)
@@ -810,6 +896,7 @@ namespace Fpv450.Sim.Contact
             else _flowing[leg] = false;
 
             // The socket's edge: along the skid only (across it the foot is free), its share and the self-stress now.
+            Socket:
             footZ = foot * lever * lateral.Z + (1 - rt) * pDelta.Z + kr * (_topTurn[leg] - _footTurn[leg]);
             double mb = DetMath.Abs(footZ);
             _footMoment[leg] = mb;
@@ -839,9 +926,29 @@ namespace Fpv450.Sim.Contact
                     double last = RotationRatio(partAt, f) - r0;
                     if (last > 0) FootTurn(leg, sign * last * kc * arm, foot);
                     if (partAt > env) _footEnvelope[leg] = partAt;
-                    flags |= LegFlags.SkidLoose;
-                    _skidMode[leg] = LegMode.Bending;
-                    Emit(events, EventKind.SkidLoose, leg, LegMode.Bending, cause, mb, partAt * mc, speed);
+                    // Past the kink the socket's edge folds too (w9 2.6); its foot's move per hinge turn is its own lever.
+                    double done = last > 0 ? last * scale : 0;
+                    double fold = TearsFirst(leg, s) ? double.NaN
+                        : FoldMove(partAt * mc, mb, kz, arm, relievable, pb, dz, selfMove, done, (TearRotation(leg) - _footHinge[leg]) * arm);
+                    if (double.IsNaN(fold))
+                    {
+                        flags |= LegFlags.SkidLoose;
+                        _skidMode[leg] = LegMode.Bending;
+                        Emit(events, EventKind.SkidLoose, leg, LegMode.Bending, cause, mb, partAt * mc, speed);
+                        return false;
+                    }
+                    _footHinge[leg] += fold / arm;
+                    FootTurn(leg, sign * fold / arm, foot);
+                    double total = done + fold;
+                    if (relievable > 0 && total > 0)
+                    {
+                        double give = relievable / kz, move = total < give ? total : give;
+                        relief.Lateral = relief.Lateral + new Double3(0, 0, sign * kz * move);
+                        relief.Any = true;
+                    }
+                    flags |= LegFlags.Set;
+                    if (!_footFlowing[leg]) Emit(events, EventKind.LegSet, leg, LegMode.Bending, cause, mb, env * mc, speed, true);
+                    _footFlowing[leg] = true;
                     return false;
                 }
                 double lo = env, hi = partAt;
