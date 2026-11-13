@@ -121,7 +121,7 @@ namespace Fpv450.FlightBench
             }
             // p7b-airframe design 3g's audit (the own wake's level read off its record): with model 92's level and bound
             // (GoldenFlights.Model92WakeLevel) each golden that flies the own wake is its model 92 pin, every record and event
-            // (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel92s).
+            // (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s; the tether's is design 18's, model 93's).
             {
                 WindSetup calm = WindSetup.Of(WindLevel.Calm);
                 ulong p92 = GoldenFlights.FlyPowered(Drone(), out _, wakeLevel: false),
@@ -129,10 +129,10 @@ namespace Fpv450.FlightBench
                     c92 = GoldenFlights.FlyContact(Drone(), out _, wakeLevel: false), g92 = GoldenFlights.FlyRange(Drone(), out _, wakeLevel: false),
                     t92 = GoldenFlights.FlyContact(Drone(), out _, tether: true, wakeLevel: false);
                 bool ok92 = p92 == GoldenFlights.Model92PoweredHash && r92 == GoldenFlights.Model92RainPoweredHash && c92 == GoldenFlights.Model92ContactHash
-                    && g92 == GoldenFlights.Model92RangeHash && t92 == GoldenFlights.Model92TetherHash;
+                    && g92 == GoldenFlights.Model92RangeHash && t92 == GoldenFlights.Model93TetherHash;
                 rangeOk &= ok92;
                 Console.WriteLine($"with model 92's own-wake level: powered 0x{p92:X16}, rain 0x{r92:X16}, contact 0x{c92:X16}, range 0x{g92:X16}, tether 0x{t92:X16} "
-                    + $"({(ok92 ? "model 92's, bit for bit" : "NOT model 92's")}): {(ok92 ? "PASS" : "FAIL")}");
+                    + $"({(ok92 ? "model 93's, bit for bit" : "NOT model 93's")}): {(ok92 ? "PASS" : "FAIL")}");
             }
             // p7a-ground 1.12's audit (model 33), restated at the physics integration 2 (model 34): without the layers' area laws
             // the range flight is p7d-tether's model 31 flight over the whole record, and model 32's over model 28's 1904 bytes,
@@ -797,7 +797,7 @@ namespace Fpv450.FlightBench
             var times = new long[steps];
             for (int k = 0; k < warmup; k++) core.Advance(sticks[k]);
 
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = AllocProbe.Before();
             for (int k = 0; k < steps; k++)
             {
                 StickSample stick = sticks[(warmup + k) % sticks.Length];
@@ -806,7 +806,7 @@ namespace Fpv450.FlightBench
                 core.Advance(stick);
                 times[k] = Stopwatch.GetTimestamp() - t0;
             }
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+            allocated = AllocProbe.After(allocated);
 
             Array.Sort(times);
             double us = 1e6 / Stopwatch.Frequency;

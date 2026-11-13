@@ -212,7 +212,7 @@ namespace Fpv450.Sim.Tests
                         for (int i = 0; i < 32; i++) sink += f.At(nodes[i], 0, out _).Y; // the JIT's warm-up
                 // the least of 20 alternating rounds of 1000 steps each (the least is the field's own cost on a shared machine)
                 double[] ns = { double.PositiveInfinity, double.PositiveInfinity };
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 for (int round = 0; round < 40; round++)
                 {
                     RotorAir f = round % 2 == 0 ? on : off;
@@ -222,10 +222,10 @@ namespace Fpv450.Sim.Tests
                     double t = (Stopwatch.GetTimestamp() - t0) * 1e9 / Stopwatch.Frequency / (1000.0 * 32);
                     if (t < ns[round % 2]) ns[round % 2] = t;
                 }
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                long allocated = AllocProbe.After(before);
                 Print($"{name}: At {ns[0]:F1} ns a node with the fountain and the ground vortex, {ns[1]:F1} ns on design 4's field "
                     + $"(+{ns[0] - ns[1]:F1} ns, {32 * (ns[0] - ns[1]) / 1000:F2} µs a step over 32 nodes; the least of 20 rounds, under load); {allocated} B ({sink:E1})");
-                Assert.That(allocated, Is.EqualTo(0), "0 B in the steps");
+                Assert.That(allocated, Is.Zero, "0 B in the steps" + AllocProbe.Report());
             }
         }
     }

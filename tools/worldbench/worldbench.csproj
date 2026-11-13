@@ -2,11 +2,15 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <!-- No background collection: during one, GC.GetAllocatedBytesForCurrentThread counts bytes nobody allocated (AllocProbe). -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="../simcore/simcore.csproj" />
     <!-- The wake grid's synthetic layout, shared with the sim tests (it has no NUnit). -->
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" />
+    <!-- The 0 B measure, shared with the sim tests (it has no NUnit). -->
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AllocProbe.cs" Link="AllocProbe.cs" />
   </ItemGroup>
 </Project>

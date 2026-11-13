@@ -352,6 +352,8 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe design 3f (the own wake by flight state, on model 90): re-recorded. Audited case by case: with model 90's own-wake
         // law (Propulsion.HoverWakeLaw) model 90's pin, every record and event (GoldenFlightTests.WithModel90sOwnWakeEachGoldenIsModel90s).
         // With 3f's it moves from step 25 (the first armed steps' climb), 0.5° and 0.08 m by 4 s, ends 143.3913 m up against 143.8328, 0.69 m apart.
+        // p7b-airframe design 3g (the own wake's level read off its record, model 94): re-recorded (model 92's level and bound (GoldenFlights.Model92WakeLevel): model 93's pin, every record and event, GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s);
+        // from step 25, at most 0.17 m and 0.37° apart, ends 143.5458 m up against 143.3913.
         public const ulong PoweredHash = 0x71571798E9C97719UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
@@ -466,6 +468,8 @@ namespace Fpv450.Sim.Tests
         // 10 s against 136.8783, at most 15.4° apart.
         // p7b-airframe design 3f: re-recorded, audited as the powered flight (model 90's own-wake law: model 90's pin); from step 22,
         // ends 142.2366 m up against 142.5168, 0.56 m apart.
+        // p7b-airframe design 3g (model 94): re-recorded, audited as the powered flight (model 92's level: model 93's pin); from step 22,
+        // at most 0.14 m and 0.36° apart, ends 142.2130 m up against 142.2366.
         public const ulong RainPoweredHash = 0x78EC41F77E2DC817UL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
@@ -1069,6 +1073,8 @@ namespace Fpv450.Sim.Tests
         // 0.61° apart, the same 3 impacts, at rest 0.2497 m up on 4 pairs, 2.2 mm from 75's rest.
         // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 1.3 mm and 0.11°, 3 impacts as
         // before, at rest 0.4 mm from 90's end.
+        // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 29.8 mm and 1.15°, 3 impacts
+        // as before, at rest 6.9 mm from 93's end.
         public const ulong ContactHash = 0x043EEB284B4A8E0AUL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
@@ -1372,9 +1378,52 @@ namespace Fpv450.Sim.Tests
         /// trail, which then holds one point more than 79's until step 10000. At rest 0.07 mm (x) and 0.38 mm (z) from 79's,
         /// 0.2497 m up; the line whole, 0.224 m paid out, 15 nodes and trail 7 as 79's. Every golden without the line keeps its
         /// pin, and every kept audit of an older line flies the sliding trail (FlyContact), so each keeps its own.
+        /// p7d-tether design 18 (the lip's point-contact law with the bore's entry, μ_l 0.45, G₀ over the light and conventional
+        /// bands; and the fiber's contacts: an overlap a slot's new plane makes held, not thrown, CableContact.Sunk; the capstans'
+        /// slides no longer stretching the exit's segment past the spool's law, CableChain.SpoolAfterSlide; a crest's node never
+        /// stretching its segment, the shortfall drawn from the pack; the model number is the orchestrator's at the merge): re-recorded. Audited case by case: with
+        /// the known-wrong line before design 18 (FlightSetup.TetherBeforeDesign18) on models 74–88's μ_l 0.3 and G₀ band
+        /// (Model88Tether) it is model 88's pin, 0xF74FECF3FEF4F329 (Model88TetherHash), every record and event
+        /// (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel92s, with model 90's own wake too), and every kept audit of an older line keeps its
+        /// own pin flying it. The records differ from step 1 (the spool's factor and the flight's G₀ enter the line's first step);
+        /// at most 5.0 mm and 0.03° apart, the ends 1.8 mm apart, 0.2497 m up, 3 impacts; the line whole, 0.461 m paid out against
+        /// 0.224: this seed's G₀ is now from the light pack's band, so the liftoff and the landing draw more line at a lower pull.
+        /// Every golden without the line keeps its pin.
         // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 1.5 mm and 0.14°, the line whole,
         // 0.224 m paid out as before.
-        public const ulong TetherHash = 0x41698A8FFED15F7FUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model92TetherHash = 0xAC3394DD75D81F71UL;
+        /// Merged with p7b-airframe design 3f (model 92's own wake, re-pinned there at 0xAC3394DD75D81F71, Model92TetherHash): the
+        /// merged flight re-recorded, 0x7FE2C30025663025. Audited case by case, all three ways: with
+        /// the line before design 18 it is model 92's pin; with model 90's own-wake law it is design 18's pin on model 90's line,
+        /// 0x01ED5FCD190EEA61 (Design18OnModel90TetherHash); with both, model 88's (= model 90's, 0xF74FECF3FEF4F329); each every
+        /// record and event (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel92s, WithModel90sOwnWakeEachGoldenIsModel90s).
+        /// The merged flight against model 92's: from step 1, at most 5.0 mm and 0.03° apart, the ends 1.4 mm apart, 0.2497 m up,
+        /// 3 impacts, the line whole, 0.466 m paid out against 0.224.
+        // p7b-airframe design 3g (the own wake's level read off its record, model 94), merged onto design 18 (model 93): the merged
+        // flight re-recorded, 0x99C789A0CB2EC6B2. Audited case by case, all three ways: with model 92's level and bound
+        // (GoldenFlights.Model92WakeLevel) it is model 93's pin, 0x7FE2C30025663025 (Model93TetherHash); with the line before design 18
+        // it is 3g's pin on model 92's line, 0x41698A8FFED15F7F (Design3gOnModel92TetherHash); with both, model 92's; each every record
+        // and event (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s, WithTheLineBeforeDesign18TheTetherGoldenIsModel92s).
+        // The merged flight against model 93's: from step 10, at most 29.8 mm and 1.13° apart, the ends 7.0 mm apart, 0.2494 m up,
+        // 3 impacts, the line whole, 0.489 m paid out against 0.466.
+        public const ulong TetherHash = 0x99C789A0CB2EC6B2UL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL;
+
+        /// <summary>The tether golden with p7b-airframe design 3g's level on model 92's line (the wake-level branch's pin before it
+        /// merged model 93): the merged flight with the line before design 18 gives it, every record and event.</summary>
+        public const ulong Design3gOnModel92TetherHash = 0x41698A8FFED15F7FUL;
+
+        /// <summary>The tether golden with p7d-tether design 18 on model 90's own-wake law (the fiber branch's pin before it merged
+        /// model 92): the merged flight with Propulsion.HoverWakeLaw gives it, every record and event.</summary>
+        public const ulong Design18OnModel90TetherHash = 0x01ED5FCD190EEA61UL;
+
+        /// <summary>The tether golden at model 92 (p7b-airframe design 3f's own wake, before p7d-tether design 18): the merged
+        /// flight with the line before design 18 (FlightSetup.TetherBeforeDesign18, Model88Tether) gives it, every record and event
+        /// (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel92s).</summary>
+        public const ulong Model92TetherHash = 0xAC3394DD75D81F71UL;
+
+        /// <summary>The tether golden at model 88, which models 84–88 kept until p7d-tether design 18 (the lip's point-contact law,
+        /// μ_l 0.45, the light peel): the flight with the known-wrong capstan lip (FlightSetup.TetherBeforeDesign18) on models 74–88's
+        /// μ and peel band (Model88Tether) gives it, every record and event.</summary>
+        public const ulong Model88TetherHash = 0xF74FECF3FEF4F329UL;
 
         /// <summary>The tether golden at model 79, which models 80–84 kept until w3-farmland-ground 2.4: the flight with the
         /// sliding trail (FlightSetup.TetherSlidingTrail) gives it, every record and event.</summary>
@@ -1750,6 +1799,8 @@ namespace Fpv450.Sim.Tests
         // Model 76: 0xAF745CC52447E017.
         // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 3.2 mm and 0.07°, 4 impacts as
         // before, at rest 0.9 mm from 90's end.
+        // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 34.9 mm and 0.40°, 3 impacts
+        // against 4 (one light touch no longer happens), at rest 10.1 mm from 93's end.
         public const ulong RangeHash = 0x9A6EE9908AA9E2F0UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL;
 
         /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
@@ -2075,7 +2126,7 @@ namespace Fpv450.Sim.Tests
         /// </summary>
         public static Tether.TetherTable Model70Tether(Tether.TetherTable table)
         {
-            var rows = (Tether.TetherRow[])table.Rows.Clone();
+            var rows = (Tether.TetherRow[])Model88Tether(table).Rows.Clone();
             for (int i = 0; i < rows.Length; i++)
             {
                 if (rows[i].Name == "spool.exit_position_m") rows[i].Values = new[] { 0, -0.170081, -0.204958 };
@@ -2084,6 +2135,22 @@ namespace Fpv450.Sim.Tests
                 else if (rows[i].Name == "spool.peel_reference_rate_m_s") rows[i].Values = new double[] { 1 };
                 else if (rows[i].Name == "spool.lip_archard_wear_coefficient") rows[i].Values = new double[] { 0 };
                 else if (rows[i].Name == "spool.mouth_radius_m") rows[i].Values = new double[] { 0 };
+            }
+            return new Tether.TetherTable(rows, table.ContentHash);
+        }
+
+        /// <summary>
+        /// tether.json as models 74–88 flew it (before p7d-tether design 18): the lip's μ 0.3 (assumed then) and G₀ uniform over the
+        /// published 2–10 g (the quantile [[0, 0.0196], [1, 0.0981]] draws the same bits as the band did); every other row the file's.
+        /// With FlightSetup.TetherBeforeDesign18 it flies model 88's lip (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel92s, with model 90's own wake too).
+        /// </summary>
+        public static Tether.TetherTable Model88Tether(Tether.TetherTable table)
+        {
+            var rows = (Tether.TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (rows[i].Name == "spool.lip_friction") rows[i].Values = new[] { 0.3 };
+                else if (rows[i].Name == "spool.peel_energy_j_m") rows[i].Values = new[] { 0, 0.0196, 1, 0.0981 };
             }
             return new Tether.TetherTable(rows, table.ContentHash);
         }
@@ -2115,7 +2182,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? ownWake = null, bool? wakeLevel = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2156,6 +2223,11 @@ namespace Fpv450.Sim.Tests
                     && table == null && yawI && edit == null && recirculation && fiberContacts && cuts && body && coulomb && heat != false
                     && !airmode && linearStep != true && edgewise != false && spec.Coil.Housing >= 0 && !OnModel70sNozzle(spec);
                 setup.TetherSlidingTrail = slidingTrail ?? !golden;
+                // p7d-tether design 18: every line before it met the hole's edge by the capstan (FlightSetup.TetherBeforeDesign18) on
+                // models 74–88's μ and peel band (Model88Tether), so every kept audit flies both, the sliding trail's too; beforeDesign18
+                // says so outright.
+                setup.TetherBeforeDesign18 = beforeDesign18 ?? !(golden && slidingTrail != true && ownWake != false); // model 90's own wake is older than design 18
+                if (setup.TetherBeforeDesign18) setup.Tether = Model88Tether(setup.Tether);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);
@@ -2374,7 +2446,7 @@ namespace Fpv450.Sim.Tests
         /// its bound 3.66) wherever the own wake flies 3f's law, and model 92's (0.029 and 3) for every kept audit of an older
         /// model, the same flights OwnWake gives model 90's law, and for an audit that says ownWake false. Both are spec values in
         /// the header's tag 23, so a flight with model 92's is model 92's bit for bit. The audit of 3g against model 92 is
-        /// GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel92s.</summary>
+        /// GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s.</summary>
         public static void WakeLevel(FlightSetup setup, bool? measured, bool? ownWake, int layout, bool airmode, bool older)
         {
             if (setup.RotorWake == null || (measured ?? ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize))) return;

@@ -83,7 +83,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(kw / kf, Is.Not.EqualTo(3.03).Within(1).Percent, "known-wrong: without the area law it is the foot's");
                 Assert.That(wrong.Overlap[c] / skid.Overlap[c], Is.GreaterThan(1.5), "so it presses about twice as deep");
             }
-            Assert.That(skid.Allocated + foot.Allocated, Is.EqualTo(0), "0 B a step on a layer");
+            Assert.That(skid.Allocated + foot.Allocated, Is.Zero, "0 B a step on a layer" + AllocProbe.Report());
         }
 
         // ---- The stroke ---------------------------------------------------------------------------------------------
@@ -123,7 +123,7 @@ namespace Fpv450.Sim.Tests
             // takes its share: each corner carries 8.24 g of its quarter at 10 g, and the known-wrong's fabric reaches 143 mm, past
             // the 120 mm stroke the target stops at (it fails it) but short of the 150 mm box (on the old coil past it).
             Assert.That(soft.Total, Is.GreaterThanOrEqualTo(10 * soft.Weight), "the press reached 10 g");
-            Assert.That(soft.Allocated, Is.EqualTo(0), "0 B a step at the stroke");
+            Assert.That(soft.Allocated, Is.Zero, "0 B a step at the stroke" + AllocProbe.Report());
 
             FlightWorld range = new FlightWorld(RangeScenarios.World);
             SurfaceTable table = SoilScenarios.Table();
@@ -153,7 +153,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(matWrong.Compression[c], Is.GreaterThan(SoilScenarios.MatDepth), "known-wrong: past the mat's own thickness");
             }
             Assert.That(mat.Total, Is.GreaterThanOrEqualTo(20 * mat.Weight), "the press reached 20 g");
-            Assert.That(mat.Allocated, Is.EqualTo(0), "0 B a step carried onto the soil");
+            Assert.That(mat.Allocated, Is.Zero, "0 B a step carried onto the soil" + AllocProbe.Report());
         }
 
         // ---- The straw rest in rain ----------------------------------------------------------------------------------
@@ -208,9 +208,9 @@ namespace Fpv450.Sim.Tests
             for (int k = 0; k < 2500; k++)
             {
                 var stick = new Control.StickSample { HostUs = k * FlightCore.StepUs };
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 500) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 500) allocated += AllocProbe.After(before);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
                 for (int c = 0; c < 4; c++) carried |= core.Contacts.SoilOf(c).Engaged && core.Contacts.SoilOf(c).Static > 0;
             }
@@ -218,7 +218,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(recorder.Fault, Is.Null);
             Assert.That(core.State.Crashed, Is.False);
             Assert.That(carried, Is.True, "the mat passed its stroke and carried a skid onto its soil");
-            Assert.That(allocated, Is.EqualTo(0), "0 B a step on the layer and its soil");
+            Assert.That(allocated, Is.Zero, "0 B a step on the layer and its soil" + AllocProbe.Report());
             ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
             Log.ReplayResult r = Log.FlightReplay.Run(new MemoryStream(stream.ToArray()), id => id == "test-range" ? world : null, spec.ContentHash, null,
                 SoilScenarios.Table().Hash, materialsHash: materials);
