@@ -238,7 +238,8 @@ namespace Fpv450.Sim.Log
             "Diameter", "Blades", "Pitch", "ThrustCoefficient", "TorqueRatio", "ReferenceRpm", "StaticRpm", "StaticThrustRatio",
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
-        public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
+        public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart",
+            "HullFrontalArea", "HullSize", "HullRatios", "HullAngles", "HullMoments", "HullAddedVolume", "HullPotential", "HullOn" }; // the hull's in its own entry, TagHull (p7c-wind design 12)
         public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes", "Version" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
@@ -283,7 +284,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1315,6 +1316,30 @@ namespace Fpv450.Sim.Log
                     }
                 }
             });
+            // The hull's moment since p7c-wind design 12, an entry of its own as the crowns' (no format change). A log without it
+            // flew no hull moment.
+            Entry(w, TagHull, e =>
+            {
+                e.Write(Aero != null);
+                if (Aero == null) return;
+                e.Write(Aero.HullFrontalArea);
+                V3(e, Aero.HullSize);
+                S3(e, Aero.HullAddedVolume);
+                e.Write(Aero.HullPotential);
+                e.Write(Aero.HullOn);
+                double[] ratios = Aero.HullRatios ?? new double[0];
+                e.Write((ushort)ratios.Length);
+                for (int i = 0; i < ratios.Length; i++)
+                {
+                    e.Write(ratios[i]);
+                    e.Write((ushort)Aero.HullAngles[i].Length);
+                    for (int k = 0; k < Aero.HullAngles[i].Length; k++)
+                    {
+                        e.Write(Aero.HullAngles[i][k]);
+                        e.Write(Aero.HullMoments[i][k]);
+                    }
+                }
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1469,6 +1494,41 @@ namespace Fpv450.Sim.Log
                                     Contacts.Legs.StiffnessSigma = sigma;
                                     Contacts.Legs.StiffnessBound = bound;
                                 }
+                            }
+                        }
+                        break;
+                    case TagHull:
+                        if (r.ReadBoolean())
+                        {
+                            double area = r.ReadDouble();
+                            Double3 hullSize = V3(r);
+                            Sym3 added = S3(r);
+                            bool potential = r.ReadBoolean(), on = r.ReadBoolean();
+                            int curves = r.ReadUInt16();
+                            double[] ratios = curves > 0 ? new double[curves] : null;
+                            double[][] angles = curves > 0 ? new double[curves][] : null, moments = curves > 0 ? new double[curves][] : null;
+                            for (int i = 0; i < curves; i++)
+                            {
+                                ratios[i] = r.ReadDouble();
+                                int points = r.ReadUInt16();
+                                angles[i] = new double[points];
+                                moments[i] = new double[points];
+                                for (int k = 0; k < points; k++)
+                                {
+                                    angles[i][k] = r.ReadDouble();
+                                    moments[i][k] = r.ReadDouble();
+                                }
+                            }
+                            if (Aero != null)
+                            {
+                                Aero.HullFrontalArea = area;
+                                Aero.HullSize = hullSize;
+                                Aero.HullAddedVolume = added;
+                                Aero.HullPotential = potential;
+                                Aero.HullOn = on;
+                                Aero.HullRatios = ratios;
+                                Aero.HullAngles = angles;
+                                Aero.HullMoments = moments;
                             }
                         }
                         break;

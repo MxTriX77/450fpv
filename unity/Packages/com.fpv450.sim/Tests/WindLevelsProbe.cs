@@ -41,7 +41,8 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>The pitching moment's parts about body +x (N·m) at the state for a wind field (world m/s at a world
-        /// point): the rotors' thrust about the CoM, their hub moments, their H-forces, the body's drag, the coil's.</summary>
+        /// point): the rotors' thrust about the CoM, their hub moments, their H-forces, the body's drag, the coil's, the hull's
+        /// moment (p7c-wind design 12).</summary>
         public static double[] Parts(FlightCore core, FlightSetup setup, FlightState s, Func<Double3, Double3> wind)
         {
             Propulsion pr = core.Propulsion;
@@ -64,7 +65,8 @@ namespace Fpv450.Sim.Tests
             double body = Double3.Cross(cpt - com, core.Aero.Body(Air(cpt))).X;
             ref readonly DronePart coil = ref setup.Mass.Part(core.Aero.Spec.CoilPart);
             double coilM = Double3.Cross(coil.Position - com, core.Aero.Coil(Air(coil.Position), coil)).X;
-            return new[] { thrust, hub, h, body, coilM };
+            double hull = new Aero(GoldenFlights.WithTheHull(core.Aero.Spec)).Hull(Air(cpt)).X; // off in flight (D-107): what it would add
+            return new[] { thrust, hub, h, body, coilM, hull };
         }
 
         [Test, Explicit]
@@ -81,7 +83,7 @@ namespace Fpv450.Sim.Tests
                 Double3 r = core.Propulsion.Hub(i) - com;
                 TestContext.WriteLine($"  hub {i}: r {r.X:F3} {r.Y:F3} {r.Z:F3}, {s.RotorSpeed[i]:F0} rad/s");
             }
-            string[] names = { "thrust", "hub", "H-force", "body drag", "coil drag" };
+            string[] names = { "thrust", "hub", "H-force", "body drag", "coil drag", "hull" };
             Double3 at = s.Position;
             Double3 forward = s.Attitude.Rotate(new Double3(0, 0, 1));
             forward = new Double3(forward.X, 0, forward.Z) * (1 / Math.Sqrt(forward.X * forward.X + forward.Z * forward.Z));
@@ -166,6 +168,9 @@ namespace Fpv450.Sim.Tests
             ("noflapping", false, s => s.Flapping = null),
             ("steady-noownwake", true, s => s.RotorWake = null),
             ("steady-noownwake-noasym", true, s => { s.RotorWake = null; s.Asymmetry = null; }),
+            ("hull", false, s => s.Aero = GoldenFlights.WithTheHull(s.Aero)), // p7c-wind design 12, off by default (D-107)
+            ("steady-hull", true, s => s.Aero = GoldenFlights.WithTheHull(s.Aero)),
+            ("potential", false, s => { s.Aero = GoldenFlights.WithTheHull(s.Aero); s.Aero.HullPotential = true; }), // its known-wrong
         };
 
         /// <summary>

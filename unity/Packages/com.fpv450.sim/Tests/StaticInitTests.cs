@@ -61,7 +61,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Log.LogFormat", "TetherTraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogFormat", "TraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader+<>c", "<>9", "the lambda cache of LogHeader.SettingsFields, the header's write (setup)" },
-            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__149_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup; 149 since 2.3's crown entry and design 18's TetherBeforeDesign18, a lambda before it)" },
+            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__150_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup; 150 since p7c-wind design 12's hull entry, a lambda before it)" },
             { "Fpv450.Sim.Log.LogHeader", "AeroFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "AsymmetryFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "BladeFieldsLogged", "read only by the suite's log-coverage tests" },

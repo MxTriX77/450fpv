@@ -2072,7 +2072,7 @@ namespace Fpv450.Sim.Tests
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
             int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null)
+            bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null, bool? hull = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -2091,6 +2091,7 @@ namespace Fpv450.Sim.Tests
             Edgewise(setup, edgewise, layout, airmode);
             WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false);
             edit?.Invoke(setup);
+            Hull(setup, hull);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
             DescentBranch(core, descentBranch, wakeLevel, ownWake, layout, airmode, edgewise == false);
@@ -2492,6 +2493,21 @@ namespace Fpv450.Sim.Tests
         public static void OwnWake(FlightCore core, bool? ownWake, int layout, bool airmode, bool older)
         {
             if (!(ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize))) core.Propulsion.HoverWakeLaw = true;
+        }
+
+        /// <summary>The hull's moment (p7c-wind design 12, D-107): off in every flight, the goldens' too; hull on flies it (no pin:
+        /// HullTests.WithTheHullAWindyPoweredFlightDiffersAndStaysBounded).</summary>
+        public static void Hull(FlightSetup setup, bool? hull)
+        {
+            if (hull == true && setup.Aero != null) setup.Aero = WithTheHull(setup.Aero);
+        }
+
+        /// <summary>The airframe's drag with the hull's moment flown (AeroSpec.HullOn).</summary>
+        public static AeroSpec WithTheHull(AeroSpec aero)
+        {
+            AeroSpec a = aero.Clone();
+            a.HullOn = true;
+            return a;
         }
 
         /// <summary>The edgewise flow's thrust and torque (D-087, model 76; RotorFlappingSpec.EdgewiseThrust) in a golden flight: edgewise,
