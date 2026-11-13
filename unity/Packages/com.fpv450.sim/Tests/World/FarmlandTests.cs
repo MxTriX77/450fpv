@@ -390,10 +390,9 @@ namespace Fpv450.Sim.Tests
         }
 
         // The flight thread is never the thread that loaded the world: its first small query beside the ruins (a part's or a fiber
-        // node's, as a step asks them) must allocate nothing either. Today it allocates MapWorld.Region's [ThreadStatic] cache,
-        // 17,048 B, on every thread but the loading one (night-alloc-hunt).
+        // node's, as a step asks them) must allocate nothing either. MapWorld.Region made a [ThreadStatic] cache there, 17,048 B, on
+        // every thread but the loading one (night-alloc-hunt); the world now makes its caches as it loads (night-region-cache).
         [Test]
-        [Ignore("A real allocation: MapWorld.Region makes its [ThreadStatic] RegionCache (17,048 B) at a fresh thread's first small query. Owner: the world builder; remove this Ignore with the fix.")]
         public void AFreshThreadsFirstQueryBesideTheRuins_AllocatesNothing()
         {
             MapWorld world = World;
@@ -414,6 +413,54 @@ namespace Fpv450.Sim.Tests
             flight.Join();
             if (allocated != 0)
                 Assert.Fail($"{allocated} B in a fresh thread's first small query beside the ruins (510, 610){report}");
+        }
+
+        // Several fresh threads at once, each with its first small query beside the ruins, released together: none allocates, each
+        // gets the loading thread's bits, and none found every region cache in use.
+        [Test]
+        public void SeveralFreshThreadsFirstQueriesAtOnce_AllocateNothingAndAgree()
+        {
+            MapWorld world = World;
+            double y = Sample(510, 610).Height;
+            var a = new Double3(510, y + 0.01, 610);
+            var near = new Capsule(a, a + new Double3(0.1, 0, 0.01), 0.005);
+            var alone = new StaticContact[16];
+            int n = world.StaticContacts(near, near, 0.1, alone);
+            Assert.That(n, Is.GreaterThan(0), "the query meets something");
+            long shortBefore = world.RegionsShort;
+            const int count = 6;
+            var allocated = new long[count];
+            var reports = new string[count];
+            var got = new StaticContact[count][];
+            var counts = new int[count];
+            var start = new Barrier(count);
+            var threads = new Thread[count];
+            for (int t = 0; t < count; t++)
+            {
+                int me = t;
+                got[me] = new StaticContact[16];
+                threads[t] = new Thread(() =>
+                {
+                    StaticContact[] contacts = got[me];
+                    start.SignalAndWait();
+                    long before = AllocProbe.Before();
+                    counts[me] = world.StaticContacts(near, near, 0.1, contacts);
+                    allocated[me] = AllocProbe.After(before);
+                    reports[me] = AllocProbe.Report();
+                });
+                threads[t].Start();
+            }
+            foreach (Thread thread in threads)
+                thread.Join();
+            for (int t = 0; t < count; t++)
+            {
+                if (allocated[t] != 0)
+                    Assert.Fail($"thread {t}: {allocated[t]} B in its first small query beside the ruins (510, 610){reports[t]}");
+                Assert.That(counts[t], Is.EqualTo(n), $"thread {t}");
+                for (int k = 0; k < n; k++)
+                    Assert.That(got[t][k], Is.EqualTo(alone[k]), $"thread {t}, contact {k}");
+            }
+            Assert.That(world.RegionsShort, Is.EqualTo(shortBefore), "queries that found every region cache in use");
         }
     }
 }

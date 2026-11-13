@@ -667,3 +667,14 @@ From `p7b-airframe` 1.10d's grade on the physics line (model 94; design 3g). It 
   - the measure counts the floor's own fields as the shake.
 - **The shake is an excess over the same flight's hover** (`p7b-airframe` 1.10f, after 1.10e). What the pilot calls the image vibrating is motion the hover before it does not show. The margin comes from a false-alarm rate on the hover's own distribution, never from the pilot's 0.3–0.7 s, and the visible line stays the floor of what shows at all. PHY-10's cause sentence is restated from that grade.
 - **Until then** `ShakeTests.ShakeOnlyWhenItsCausesMeet`, `flightbench --shake` and `--scenarios` fail on the physics line, and the physics ledger's row P23 stays "partly".
+
+## D-107 The hull's moment is measured, it restores, and it is not flown yet · Accepted
+From `p7c-wind` 1.5's second grade on the physics line (model 94; design 12). It settles D-105's third point.
+- **As one body the hull's potential couple is as large as its parts'.** The canister, the bottle, the packs and the plates as one hull (gaps under 10 mm closed) carry 0.30 N·m nose down at the cruise, against the separate bodies' 0.32. Treating the parts apart never overstated it.
+- **Measured short blunt bodies turn the other way.** Flat-faced cylinders of the hull's proportions restore, the nose turning back into the flow, up to 28–73° of incidence (AEDC-TR-72-180); at L/d 1.53 near 0° the measured moment is −1.7 times Munk's. No share of the potential couple exists for this body: the potential couple is the known-wrong, and it fails as one (Severe T2 2.92° against P's 0.28°).
+- **The measured moment is built and not flown.** In pitch it lowers the wind's own motion a little further (Severe T2 0.136° → 0.125°, P 0.28°). In yaw its weathercock lifts the field's swing toward the footage (T5 0.345° → 0.389°, P 0.44°) but breaks the footage's roll-with-yaw-rate correlation, which passed (T10b 0.70 → 0.21 in Severe and −0.14 in Windy, P +0.57). Measured P wins: the law, its data and the hull's added-mass tool (`tools/hullmass`) are on the line, switched off in every flight.
+- **What decides it:**
+  - first the harness pilot's pitch and yaw holds checked against P, since a weaker yaw hold than a real pilot's gives the same miss; then the hull is graded again;
+  - failing that, a measurement or a flow solution of the airframe's own yaw moment in sideslip, with its open sides, its arms and the rotors' wash.
+- **The low band's missing motion is still open** (T2, T4, T9b), and the hull is not it. The candidates left: the harness pilot's holds, the vertical gust gradient across each disc, slow vertical gusts at the drone's height.
+- `p7c-wind` 1.5 stays open.

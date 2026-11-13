@@ -280,10 +280,10 @@ namespace Fpv450.Sim.Tests
         /// (yaw 90°); flown 3 s past the touch.
         /// </summary>
         public static Touchdown Land(DroneSpec spec, double deg, RainLevel rain, double yawDeg, bool terrainAtZero = false, string surface = "meadow_sod",
-            Action<FlightCore> prepare = null)
+            Action<FlightCore> prepare = null, Action<FlightCore> observe = null)
         {
             FlightWorld world = Site(deg, out Double3 at, out Double3 n, surface, terrainAtZero);
-            return Land(spec, world, at, n, rain, yawDeg, prepare);
+            return Land(spec, world, at, n, rain, yawDeg, prepare, observe);
         }
 
         /// <summary>The same landing on the farmland at (x, z), its nose uphill (yaw 0, the fall line's way up) or yawDeg from it.</summary>
@@ -295,7 +295,9 @@ namespace Fpv450.Sim.Tests
             return Land(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, prepare);
         }
 
-        static Touchdown Land(DroneSpec spec, FlightWorld world, Double3 at, Double3 n, RainLevel rain, double yawDeg, Action<FlightCore> prepare)
+        // observe, if given, reads the core after each step of the landing (a trace; it must not change the core).
+        static Touchdown Land(DroneSpec spec, FlightWorld world, Double3 at, Double3 n, RainLevel rain, double yawDeg, Action<FlightCore> prepare,
+            Action<FlightCore> observe = null)
         {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at + new Double3(0, stand + 1, 0), rain);
@@ -332,6 +334,7 @@ namespace Fpv450.Sim.Tests
                 if (touch >= 0) stick.Throttle = 0;
                 stick.HostUs = s.Step * FlightCore.StepUs;
                 core.Advance(stick);
+                observe?.Invoke(core);
                 ref readonly FlightState now = ref core.State;
                 for (int i = 0; i < core.Events.Count; i++)
                 {
@@ -384,8 +387,10 @@ namespace Fpv450.Sim.Tests
         {
             /// <summary>The facet (deg); the crash's step after the start (−1 for none), its part, speed (m/s) and peak acceleration
             /// (m/s², the event's); the deepest any part's surface reached past the slope's plane (m) and the shape that did;
-            /// tunnels.</summary>
-            public double Facet, Speed, PeakAccel, Depth;
+            /// tunnels. LegExcess (w9 2.6, the ledger's gap 14): the most a support or skid lay past the plane beyond its corner's
+            /// own give that step (its soil's sink, its leg's compression and lean: the sweep's Ground allowance), m, and by which.
+            public double Facet, Speed, PeakAccel, Depth, LegExcess;
+            public string LegExcessBy;
             public long CrashStep;
             public int Tunnels;
             public string DepthBy;
@@ -426,7 +431,7 @@ namespace Fpv450.Sim.Tests
             }
             var core = new FlightCore(setup);
             var r = new Impact { Facet = SlopeAngle(n), CrashStep = -1 };
-            ContactShape[] shapes = setup.Contacts.Shapes;
+            ContactModel model = core.Contacts;
             for (int k = 0; k < 1000; k++)
             {
                 core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs });
@@ -443,15 +448,28 @@ namespace Fpv450.Sim.Tests
                     }
                 }
                 ref readonly FlightState s = ref core.State;
-                foreach (ContactShape sh in shapes)
+                // The shapes where the contact model has them now (a set or folded leg's turned, a hanging half's give), and only those
+                // still on the drone: a parted leg's piece has left it (w9 2.6; the build's shapes read a dropped leg as driven 17–19
+                // cm into the ground with the body's tumble, the ledger's gap 14).
+                for (int i = 0; i < model.ShapeCount; i++)
                 {
-                    if (sh.Role == ContactRole.Disc) continue;
+                    ContactShape sh = model.Shape(i);
+                    if (sh.Role == ContactRole.Disc || model.ShapeOff(i)) continue;
                     foreach (Double3 end in new[] { sh.A, sh.B })
                     {
                         Double3 x = s.Position + s.Attitude.Rotate(end);
                         double past = sh.Radius - Double3.Dot(n, x - foot);
                         if (past > r.Depth) r.DepthBy = sh.Name;
                         r.Depth = Math.Max(r.Depth, past);
+                        if (sh.Role != ContactRole.Support && sh.Role != ContactRole.Skid || sh.Corner < 0 || sh.Corner > 3) continue;
+                        ContactModel.SkidSoil soil = model.SoilOf(sh.Corner);
+                        double sink = soil.Engaged ? Math.Max(soil.Sink0, Math.Max(soil.Sink1, soil.Sink2)) : 0;
+                        double excess = past - sink - Math.Abs(core.Trace.LegCompression[sh.Corner]) - Math.Abs(core.Trace.LegLean[sh.Corner]);
+                        if (excess > r.LegExcess)
+                        {
+                            r.LegExcess = excess;
+                            r.LegExcessBy = $"{sh.Name} ({model.Corner(sh.Corner)})";
+                        }
                     }
                 }
             }
