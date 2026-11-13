@@ -154,15 +154,17 @@ namespace Fpv450.Sim.Tests
             return surface != 0 && (hits[0].Object == WorldIds.Ground || hits[0].Material == WorldIds.NoMaterial);
         }
 
-        /// <summary>Whether a column of the drone's size over (x, h, z) is clear of every object but the ground, soil and the patch
-        /// it stands on.</summary>
+        /// <summary>Whether a column of the drone's size over (x, h, z) is clear of every object but the ground and soil, and of the
+        /// patch it stands on but for its lumps (S04's straw stands a few cm proud of the point the ray met: within PatchLumps).</summary>
+        public const double PatchLumps = 0.15;
+
         public static bool Clear(MapWorld map, double x, double h, double z, int patch = -1)
         {
             var found = new StaticContact[16];
             var column = new Capsule(new Double3(x, h + 0.55, z), new Double3(x, h + 2.5, z), 0.5);
             int n = Math.Min(map.StaticContacts(column, column, 0, found, QueryFilter.None), found.Length);
             for (int i = 0; i < n; i++)
-                if (found[i].Object != WorldIds.Ground && found[i].Surface == 0 && found[i].Object != patch) return false;
+                if (found[i].Object != WorldIds.Ground && found[i].Surface == 0 && !(found[i].Object == patch && found[i].Distance > -PatchLumps)) return false;
             return true;
         }
 
