@@ -1851,7 +1851,7 @@ namespace Fpv450.Sim.Tether
                     ds = len / (1 + t / AxialStiffness) - rest;
                     if (!Spool.TwoWay && ds < 0) ds = 0;
                 }
-                else if (!Spool.Locked && len > rest)
+                else if (!Spool.Locked && len > rest && !KeepSlideStretch)
                 {
                     // Its ends not parting this step, yet stretched past the static hold (a node a part's or a member's slot
                     // moved at the step's end, p7d-tether design 18: 1–3 N held on the exit's segment against the law's 0.26 N,
