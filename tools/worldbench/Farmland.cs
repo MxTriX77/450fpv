@@ -423,7 +423,7 @@ namespace Fpv450.WorldBench
                     long queries = 0, allocated = 0;
                     for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT and the caches
                     {
-                        long before = GC.GetAllocatedBytesForCurrentThread();
+                        long before = Fpv450.Sim.Tests.AllocProbe.Before();
                         queries = 0;
                         for (int s = 0; s < steps; s++)
                         {
@@ -432,7 +432,7 @@ namespace Fpv450.WorldBench
                             times[s] = Stopwatch.GetTimestamp() - start;
                             queries += pattern.Queries;
                         }
-                        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                        allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                     }
                     Array.Sort(times);
                     double median = times[steps / 2] * us, p99 = times[steps * 99 / 100] * us, most = times[steps - 1] * us;
@@ -476,14 +476,14 @@ namespace Fpv450.WorldBench
             for (int i = 0; i < 1000; i++)
                 world.StaticContacts(previous[i], current[i], PhysicsMargin, contacts);
             world.Raycast(rays.AsSpan(0, 1000), 2, hits);
-            long a0 = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+            long a0 = Fpv450.Sim.Tests.AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
             world.SampleGround(points, samples);
             long t1 = Stopwatch.GetTimestamp();
             for (int i = 0; i < n; i++)
                 world.StaticContacts(previous[i], current[i], PhysicsMargin, contacts);
             long t2 = Stopwatch.GetTimestamp();
             world.Raycast(rays, 2, hits);
-            long t3 = Stopwatch.GetTimestamp(), a1 = GC.GetAllocatedBytesForCurrentThread();
+            long t3 = Stopwatch.GetTimestamp(), a1 = a0 + Fpv450.Sim.Tests.AllocProbe.After(a0);
             double ms = 1e3 / Stopwatch.Frequency;
             Console.WriteLine($"  farmland.samples {n} over the {patches.Length} spots: {(t1 - t0) * ms:F2} ms (budget 10 ms)");
             Console.WriteLine($"  farmland.capsules {n} at random poses there, moving up to 30 mm: {(t2 - t1) * ms:F2} ms (shown)");
@@ -534,7 +534,7 @@ namespace Fpv450.WorldBench
                     for (int i = 0; i < asked; i++)
                         world.SnagsNear(centres[i], radius, snags);
                     var each = new long[asked];
-                    long found = 0, before = GC.GetAllocatedBytesForCurrentThread();
+                    long found = 0, before = Fpv450.Sim.Tests.AllocProbe.Before();
                     int most = 0;
                     for (int i = 0; i < asked; i++)
                     {
@@ -544,7 +544,7 @@ namespace Fpv450.WorldBench
                         found += got;
                         most = Math.Max(most, got);
                     }
-                    long bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+                    long bytes = Fpv450.Sim.Tests.AllocProbe.After(before);
                     Array.Sort(each);
                     failures += bytes == 0 ? 0 : 1;
                     Console.WriteLine($"  farmland.snags r {radius} m, {ObjectSpots[spot].Name}: median {each[asked / 2] * us:F1} us, p99 {each[asked * 99 / 100] * us:F1} us, "

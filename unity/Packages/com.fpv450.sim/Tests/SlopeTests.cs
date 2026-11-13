@@ -147,7 +147,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(r.Refused, Is.EqualTo(0));
             Assert.That(r.Broken, Is.False);
             Assert.That(r.Wedges, Is.EqualTo(0));
-            Assert.That(r.Allocated, Is.EqualTo(0), "0 B in steady state");
+            Assert.That(r.Allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             ContactScenarios.RepositoryMaterials(out ulong materials);
             ReplayResult same = FlightReplay.Run(new System.IO.MemoryStream(r.Log), id => id == "ridge" ? new FlightWorld(SlopeScenarios.Ridge()) : null,
                 Drone().ContentHash, tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);

@@ -376,6 +376,29 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model90TetherHash, GoldenFlights.TetherHash, sw);
         }
 
+        // p7b-airframe design 3g's audit (the own wake's level read off its record, model 94, merged onto model 93): with model
+        // 92's level and bound (RotorWakeSpec.ThrustSigma 0.029, Bound 3; GoldenFlights.Model92WakeLevel) each golden that flies
+        // the own wake is its model 93 pin, every record and event (the powered, rain, contact and range pins are model 92's,
+        // which model 93 kept: a flight without the line steps as 92 did; the tether's is design 18's, Model93TetherHash); with the
+        // measured 0.017 and 3.66 it is its new pin. So the level is the whole move. The tumble flies no rotor and keeps its pin.
+        [Test]
+        public void WithModel92sWakeLevelEachGoldenIsModel93s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const string sw = "model 92's own-wake level";
+            Audit("powered", "model 93", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 93", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 93", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 93", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 93", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model93TetherHash, GoldenFlights.TetherHash, sw);
+        }
+
         // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 (WakeLayout.Version 1: each cell's porosity
         // by K§10.3's covered fraction, the nearest wake alone, the porosity-free boost) the range golden is 1.1's pin, model 76's
         // re-record (Model76RangeHash), every record and event; with version 2 it is the new pin. So the wake grid is the whole of
@@ -1057,13 +1080,17 @@ namespace Fpv450.Sim.Tests
         // known-wrong line before design 18 (FlightSetup.TetherBeforeDesign18) on models 74–88's μ and peel band
         // (GoldenFlights.Model88Tether) the tether golden is model 92's pin (p7b-airframe design 3f's own wake, merged), every record
         // and event, and with model 90's own-wake law too (Propulsion.HoverWakeLaw) model 88's, which models 84–90 kept; every golden
-        // without the line keeps its pin. So design 18 is the whole of its move against the line it merged onto.
+        // without the line keeps its pin. So design 18 is the whole of its move against the line it merged onto. Since p7b-airframe
+        // design 3g (model 94) the audit flies model 92's own-wake level (0.029, bound 3), and with the measured level the line before
+        // design 18 gives 3g's pin on model 92's line (Design3gOnModel92TetherHash).
         [Test]
         public void WithTheLineBeforeDesign18TheTetherGoldenIsModel92s()
         {
             DroneSpec spec = RepositoryDrone.Spec();
-            Audit("tether", "model 92", (capstan, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, beforeDesign18: capstan), c),
-                GoldenFlights.Model92TetherHash, GoldenFlights.TetherHash, "the line before design 18");
+            Audit("tether", "model 92", (capstan, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, beforeDesign18: capstan, wakeLevel: false), c),
+                GoldenFlights.Model92TetherHash, GoldenFlights.Model93TetherHash, "the line before design 18, on model 92's own-wake level");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: true), Is.EqualTo(GoldenFlights.Design3gOnModel92TetherHash),
+                "with the measured own-wake level (design 3g): the wake-level branch's pin before the merge");
             Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: true, ownWake: false), Is.EqualTo(GoldenFlights.Model88TetherHash),
                 "with model 90's own wake too: model 88's pin");
             Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: false, ownWake: false), Is.EqualTo(GoldenFlights.Design18OnModel90TetherHash),

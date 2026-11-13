@@ -302,11 +302,11 @@ namespace Fpv450.Sim.Tests
             world.Geometry(Find("L03_medium", 1), 0, out ShapeGeometry g);
             var results = new Conductor[64];
             world.WiresNear(g.Center, 2, results);
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int i = 0; i < 100; i++)
                 world.WiresNear(g.Center + new Double3(0.2 * i, 0, 0), i % 2 == 0 ? 2 : 30, results);
             // Is.Zero, not Is.EqualTo(0): .NET's JIT boxes that 0 (24 B) before the closing count is read.
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.Zero);
+            Assert.That(AllocProbe.After(before), Is.Zero, AllocProbe.Report());
         }
 
         [Test]

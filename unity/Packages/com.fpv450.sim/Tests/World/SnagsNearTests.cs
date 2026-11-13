@@ -300,11 +300,11 @@ namespace Fpv450.Sim.Tests
             (string Name, Double3 At)[] points = Points();
             var results = new SnagSegment[4096];
             world.SnagsNear(points[0].At, 2, results);
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int i = 0; i < 120; i++)
                 world.SnagsNear(points[i % points.Length].At + new Double3(0.05 * i, 0, 0), i % 2 == 0 ? 1 : 2, results);
             // Is.Zero, not Is.EqualTo(0): .NET's JIT boxes that 0 (24 B) before the closing count is read.
-            Assert.That(GC.GetAllocatedBytesForCurrentThread() - before, Is.Zero);
+            Assert.That(AllocProbe.After(before), Is.Zero, AllocProbe.Report());
         }
 
         // ---- Determinism ------------------------------------------------------------------------------------------------
