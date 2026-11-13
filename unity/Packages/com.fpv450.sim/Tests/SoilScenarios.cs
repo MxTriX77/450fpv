@@ -775,7 +775,7 @@ namespace Fpv450.Sim.Tests
             var lastS = new double[4];
             bool[] pulled = new bool[4];
             double beyond = 0, lift = 0;
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 0; k < 20000 && beyond < 0.006; k++)
             {
                 FlightState was = s;
@@ -819,7 +819,7 @@ namespace Fpv450.Sim.Tests
                 }
                 if (!any && (pulled[0] || pulled[1] || pulled[2] || pulled[3] || lift > 0.03)) beyond += Step;
             }
-            r.Allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            r.Allocated = AllocProbe.After(before);
             return r;
         }
 

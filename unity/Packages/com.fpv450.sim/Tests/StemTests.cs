@@ -109,7 +109,7 @@ namespace Fpv450.Sim.Tests
             double frontFresh = run.Fresh[1] + run.Fresh[3], rearFresh = run.Fresh[0] + run.Fresh[2];
             TestContext.Out.WriteLine($"fresh per rotor {F(run.Fresh)}, sliced {F(run.Sliced)}; episodes {run.Starts}/{run.Ends}; {run.Allocated} B");
             Assert.That(rearFresh, Is.LessThan(0.7 * frontFresh), "the rear discs run in the front ones' track");
-            Assert.That(run.Allocated, Is.EqualTo(0));
+            Assert.That(run.Allocated, Is.Zero, AllocProbe.Report());
         }
 
         // The pilot's landing: an approach at 2 m/s coming down at 0.5 m/s, a flare, the touch. The front discs cut what stands in
@@ -128,7 +128,7 @@ namespace Fpv450.Sim.Tests
             Print("approach", run, calm);
             Assert.That(run.Touch, Is.GreaterThan(0));
             Assert.That(run.FreshBefore[1] + run.FreshBefore[3], Is.GreaterThan(1.3 * (run.FreshBefore[0] + run.FreshBefore[2])), "cut in front of the camera");
-            Assert.That(run.Allocated, Is.EqualTo(0), "0 B in steady state");
+            Assert.That(run.Allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             Assert.That(run.Refused, Is.EqualTo(0));
             ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, RepositoryDrone.Spec().ContentHash, null,
                 SoilScenarios.Table().Hash, materialsHash: Hash());
@@ -159,7 +159,7 @@ namespace Fpv450.Sim.Tests
             double wrongFresh = wrong.FreshBefore[0] + wrong.FreshBefore[1] + wrong.FreshBefore[2] + wrong.FreshBefore[3];
             TestContext.Out.WriteLine($"the known-wrong (no fold, no critical speed): {wrongFresh:F0} fresh before the touch");
             Assert.That(wrongFresh, Is.GreaterThan(2 * fresh), "the known-wrong cuts what the slipstream lays over");
-            Assert.That(run.Allocated, Is.EqualTo(0));
+            Assert.That(run.Allocated, Is.Zero, AllocProbe.Report());
         }
 
         // The pilot (2026-11-13): the shake grows with the straws' number and thickness, from one a pilot lands through to one that
@@ -199,7 +199,7 @@ namespace Fpv450.Sim.Tests
                         if (kind == "vertical") roll[a, b] = Math.Sqrt(rr * rr + pr * pr);
                         TestContext.Out.WriteLine($"  density ×{densities[a]}, diameter ×{diameters[b]}: roll {rr:F2} °/s {ra:F3}°, pitch {pr:F2} °/s {pa:F3}°, wander {wander:F2}°, "
                             + $"dip {dip:F0} rad/s ({dip / hoverOmega * 100:F1} %), current +{peak:F1} A, fresh {fresh:F0}, sliced {sliced:F0}, {power:F1} W; {r.Allocated} B");
-                        Assert.That(r.Allocated, Is.EqualTo(0), $"0 B in the {kind} run at density ×{densities[a]}, diameter ×{diameters[b]}");
+                        Assert.That(r.Allocated, Is.Zero, $"0 B in the {kind} run at density ×{densities[a]}, diameter ×{diameters[b]}" + AllocProbe.Report());
                     }
             }
             Assert.That(roll[2, 2], Is.GreaterThan(roll[1, 1]), "more and thicker straw shakes more");
@@ -232,7 +232,7 @@ namespace Fpv450.Sim.Tests
                 + $"episodes {r.Starts} begun, {r.Ends} ended; {r.Allocated} B");
             Assert.That(r.LastCut, Is.LessThan(r.Steps - 2000), "no cut in the last 2 s");
             Assert.That(r.Ends, Is.EqualTo(r.Starts), "every episode ended");
-            Assert.That(r.Allocated, Is.EqualTo(0));
+            Assert.That(r.Allocated, Is.Zero, AllocProbe.Report());
         }
 
         // "The test range's straw": S04's stalks by the same law. A disc creeping through the range golden's landing spot at 0.4 m meets
@@ -249,7 +249,7 @@ namespace Fpv450.Sim.Tests
                 + $"episodes {r.Starts}/{r.Ends}; {r.Allocated} B");
             Assert.That(cached, Is.GreaterThan(0), "the discs pass over S04's elements");
             Assert.That(r.Fresh[0] + r.Fresh[1] + r.Fresh[2] + r.Fresh[3], Is.GreaterThan(0), "the stalks standing to the discs are cut");
-            Assert.That(r.Allocated, Is.EqualTo(0));
+            Assert.That(r.Allocated, Is.Zero, AllocProbe.Report());
         }
 
         // G8: a strike's push along its rotor's axis loads that arm's mode at the tip in the step it happens, as a thrust impulse over

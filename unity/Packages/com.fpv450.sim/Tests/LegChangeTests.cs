@@ -182,9 +182,9 @@ namespace Fpv450.Sim.Tests
             var r = new HalfPush();
             for (int k = 0; k < 150; k++)
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(StickSample.Neutral);
-                if (k >= 10) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 10) r.Allocated += AllocProbe.After(before);
                 ref readonly FlightState s = ref core.State;
                 for (int i = 0; i < core.Events.Count; i++)
                 {
@@ -231,7 +231,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(on.Touches, Is.GreaterThan(0), "the half meets the rod");
             Assert.That(on.Tunnels, Is.Zero, "no tunnel");
             Assert.That(on.Deepest, Is.LessThan(0.005), "it stands out of the rod by its contact spring's share and a step's travel, under its radius");
-            Assert.That(on.Allocated, Is.Zero, "0 B a step with a half hanging and giving");
+            Assert.That(on.Allocated, Is.Zero, "0 B a step with a half hanging and giving" + AllocProbe.Report());
             Assert.That(off.Touches, Is.GreaterThan(0));
             Assert.That(off.Tunnels, Is.GreaterThan(0), "the known-wrong passes the rod's middle: a Tunnel");
         }

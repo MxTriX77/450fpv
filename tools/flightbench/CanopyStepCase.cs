@@ -38,11 +38,11 @@ namespace Fpv450.FlightBench
                 }
                 StickSample stick = pilot.Sticks(k, (release + k) * FlightCore.StepUs);
                 bool inStrip = core.Wind.Canopy.Weight(core.State.Position) > 0;
-                long a = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+                long a = AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
                 long t = Stopwatch.GetTimestamp() - t0;
                 if (k < warmup) continue;
-                allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                allocated += AllocProbe.After(a);
                 if (inStrip) inside[ni++] = t;
                 else outside[no++] = t;
             }

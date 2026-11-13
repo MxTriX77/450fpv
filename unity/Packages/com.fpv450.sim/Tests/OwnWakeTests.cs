@@ -114,6 +114,105 @@ namespace Fpv450.Sim.Tests
             Assert.That(RotorWakeSpec.Induced(0, -3), Is.EqualTo(0.1 + Math.Sqrt(1.01)).Within(1e-15), "a deep descent held at VzD");
         }
 
+        /// <summary>One rotor's thrust over Steps at 920 rad/s in a steady flow, body m/s, with its own wake at the spec's level
+        /// (or model 92's): each step's thrust, and its v_h from the mean.</summary>
+        static double[] Thrusts(DroneSpec spec, Double3 velocity, bool level92, out double vh)
+        {
+            RotorWakeSpec wake = spec.BuildRotorWake();
+            if (level92) GoldenFlights.Model92WakeLevel(wake);
+            var p = new Propulsion(spec.BuildPropulsion(), null, null, default, null, default, wake, new FlightRandom(7).Open("rotor.wake"));
+            var s = new FlightState { Attitude = Quat.Identity, Velocity = velocity };
+            for (int i = 0; i < 4; i++) s.RotorSpeed[i] = 920;
+            var t = new double[Steps];
+            double mean = 0;
+            for (int k = 0; k < Steps; k++)
+            {
+                p.BeginStep(s);
+                t[k] = p.Thrust(0);
+                mean += t[k] / Steps;
+                p.AdvanceWake(ref s, FlightCore.Dt);
+                s.Step++;
+            }
+            double radius = spec.Props.Diameter / 2;
+            vh = Math.Sqrt(mean / (2 * wake.AirDensity * Math.PI * radius * radius));
+            return t;
+        }
+
+        static double Share(double[] t, int from, int n, out double peakToPeak)
+        {
+            double mean = 0, var = 0, lo = double.MaxValue, hi = double.MinValue;
+            for (int k = from; k < from + n; k++) mean += t[k] / n;
+            for (int k = from; k < from + n; k++)
+            {
+                var += (t[k] - mean) * (t[k] - mean) / n;
+                lo = Math.Min(lo, t[k]);
+                hi = Math.Max(hi, t[k]);
+            }
+            peakToPeak = (hi - lo) / mean;
+            return Math.Sqrt(var) / mean;
+        }
+
+        // Design 3g: the hover's thrust read as Stack, Caradonna and Savaş 2004 read theirs (rotor-thrust-spectrum.md §2): in
+        // windows as long as their record, 35 R/v_h (90 revolutions over their τ of 0.78 R/v_h), the record's own σ, 1.72 % of
+        // the mean, lies inside the middle 80 % of the sim's windows; model 92's level (2.9 %, the record's peak to peak read as
+        // 4.2σ) puts it under every one of its windows but a few, so it fails. The window's peak to peak against its own σ is
+        // printed: the record's 7.3 is a kurtosis of 4.3, which a Gaussian process does not carry.
+        [Test]
+        public void TheHoversLevelIsTheRecords()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            const double record = 0.0172, recordSpan = 7.3, recordLength = 35;
+            foreach (bool level92 in new[] { false, true })
+            {
+                double[] t = Thrusts(spec, default, level92, out double vh);
+                int n = (int)Math.Round(recordLength * spec.Props.Diameter / 2 / vh / FlightCore.Dt), windows = Steps / n;
+                var sigmas = new double[windows];
+                int wide = 0;
+                for (int w = 0; w < windows; w++)
+                {
+                    sigmas[w] = Share(t, w * n, n, out double span);
+                    if (span / sigmas[w] >= recordSpan) wide++;
+                }
+                Array.Sort(sigmas);
+                double p10 = sigmas[windows / 10], p50 = sigmas[windows / 2], p90 = sigmas[windows * 9 / 10];
+                int under = 0;
+                foreach (double x in sigmas) if (x <= record) under++;
+                TestContext.WriteLine($"{(level92 ? "model 92's level" : "the measured level")}: {windows} windows of {n} steps (35 R/v_h at v_h {vh:F2} m/s): "
+                    + $"σ 10 / 50 / 90 % {p10:P2} / {p50:P2} / {p90:P2} of the thrust, the record's {record:P2} at or over {under} of them; "
+                    + $"a peak to peak of 7.3σ or more in {wide}");
+                if (level92) Assert.That(record, Is.LessThan(p10), "model 92's level is too lively for its own record");
+                else Assert.That(record, Is.InRange(p10, p90), "the record's σ is a window of the sim's");
+            }
+        }
+
+        // Design 3g's one measured point away from the hover: Stack et al.'s fast shallow descent (their Fig. 8, V_x/v_h 1.62,
+        // V_z/v_h −0.93, the disc level, assumed; v_h the run's own), whose trimmed σ is the hover's (1.32–1.41 % against 1.36–
+        // 1.50 %). The law's thrust σ there over the hover's, and its corner, printed beside the record's; nothing is fitted.
+        [Test, Explicit("a printed comparison: one point")]
+        public void TheFastShallowDescentAgainstTheLaw()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double[] hover = Thrusts(spec, default, false, out double vh0);
+            double h = Share(hover, 0, Steps, out _);
+            // The flow is set on the hover's v_h, then read on the run's own (its thrust differs).
+            double[] t = Thrusts(spec, new Double3(1.62 * vh0, -0.93 * vh0, 0), false, out double vh);
+            double d = Share(t, 0, Steps, out _), mu = 1.62 * vh0 / vh, a = -0.93 * vh0 / vh, v = RotorWakeSpec.Induced(mu, a);
+            TestContext.WriteLine($"hover: σ {h:P2} of the thrust at v_h {vh0:F2} m/s");
+            TestContext.WriteLine($"the descent: μ {mu:F2}, a {a:F2} (held at {-RotorWakeSpec.DescentHold:F1}): v_i/v_h {v:F3}, the inflow's σ × {v * v:F3}, "
+                + $"the corner × {1 / v:F2}; the thrust's σ {d:P2} of it at v_h {vh:F2} m/s, {d / h:F2} of the hover's (the record: 0.92–0.97 trimmed alike, "
+                + $"1.23 whole with its drift); model 90's fade {RotorWakeSpec.Fade(mu):F2}");
+            // What reaches the thrust: in a descent past the props' held branch (Propulsion.DescentAdvanceRatioLimit, J −0.05)
+            // the inflow's wander moves the thrust on one side only. An axial descent at 0.59 v_h (OwnWakeTests' case), and a
+            // shallow one inside the branch, against the law's inflow ratio.
+            foreach (double axial in new[] { -0.15, -0.59 })
+            {
+                double[] x = Thrusts(spec, new Double3(0, axial * vh0, 0), false, out double vx);
+                double r = Share(x, 0, Steps, out _), va = RotorWakeSpec.Induced(0, axial * vh0 / vx);
+                TestContext.WriteLine($"an axial descent at {-axial:F2} v_h (J {axial * vh0 / (920 / (2 * Math.PI) * spec.Props.Diameter):F3}): the inflow's σ × {va * va:F3}, "
+                    + $"the thrust's σ {r:P2}, {r / h:F2} of the hover's");
+            }
+        }
+
         static double HoverInduced(DroneSpec spec)
         {
             var p = new Propulsion(spec.BuildPropulsion(), null, null, default, null, default, null, default);

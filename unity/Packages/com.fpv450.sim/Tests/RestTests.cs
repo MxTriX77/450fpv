@@ -151,20 +151,19 @@ namespace Fpv450.Sim.Tests
         [Test]
         public void ARestingPropAllocatesNothing()
         {
-            long start = 0, end = 0;
+            long start = 0, allocated = 0;
             int k = 0;
             double load = 0;
             RestScenarios.Block(Spec, seconds: 1, stepped: core =>
             {
                 k++;
-                if (k == 200) start = GC.GetAllocatedBytesForCurrentThread();
-                if (k == 1000) end = GC.GetAllocatedBytesForCurrentThread();
+                if (k == 200) start = AllocProbe.Before();
+                if (k == 1000) allocated = AllocProbe.After(start);
                 load = core.Trace.BladeLoad1[RestScenarios.FrontLeft];
             });
-            long allocated = end - start;
             TestContext.Out.WriteLine($"  {allocated} B over 800 steps resting on the blade ({load:F2} N on it at the end)");
             Assert.That(load, Is.GreaterThan(0), "resting on it");
-            Assert.That(allocated, Is.Zero);
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

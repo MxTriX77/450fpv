@@ -239,12 +239,12 @@ namespace Fpv450.Sim.Tests
             FiberCutScenarios.SessionAirframe(spec, setup);
             var core = new FlightCore(setup);
             for (int k = 0; k < 1000; k++) core.Advance(new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 8 });
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (int k = 1000; k < 4000; k++)
                 core.Advance(new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = k < 2000 ? 0 : Math.Min(1, (k - 2000) / 500.0) * 0.8 });
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            long allocated = AllocProbe.After(before);
             TestContext.WriteLine($"  {allocated} B over 3000 steps; the drone {core.State.Position.Y - g.Height:F3} m up");
-            Assert.That(allocated, Is.EqualTo(0));
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

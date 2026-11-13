@@ -281,11 +281,11 @@ namespace Fpv450.Sim.Tests
             }
             int coil = Spec.Coil.Part;
             double lighter = mass.Part(coil).Mass - 6.9e-4;
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = AllocProbe.Before();
             mass.SetPartMass(coil, lighter);
             modes.Rebuild(mass, ref q, ref rate);
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
-            Assert.That(allocated, Is.EqualTo(0), "the rebuild allocates nothing");
+            allocated = AllocProbe.After(allocated);
+            Assert.That(allocated, Is.Zero, "the rebuild allocates nothing" + AllocProbe.Report());
             double highest = 0;
             for (int m = 0; m < modes.Count; m++) highest = DetMath.Max(highest, (modes.Frequency(m) - before[m]) / before[m]);
             Print($"the coil 0.69 g lighter: the modes' frequencies rise by up to {highest:E2} of themselves");
@@ -347,16 +347,16 @@ namespace Fpv450.Sim.Tests
                     plan(k * FlightCore.Dt, core, pilot);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                 }
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 2000) allocated += AllocProbe.After(before);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
             }
             recorder.Close();
             Print($"paid {core.Tether.PaidOut:F2} m, {core.Tether.Chain.Count} nodes, trail {core.Tether.TrailCount}, the modes rebuilt with the coil; "
                 + $"{allocated} B allocated in the steps");
             Assert.That(core.Tether.PaidOut, Is.GreaterThan(20), "rebuilds happened");
-            Assert.That(allocated, Is.EqualTo(0), "0 B in steady state");
+            Assert.That(allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
             ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "floor" ? FlightWorld.Floor() : null, Spec.ContentHash,
                 tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);
