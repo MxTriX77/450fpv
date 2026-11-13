@@ -82,6 +82,38 @@ namespace Fpv450.Sim.Tests
             Assert.That(FiberCuts.LipFactor(150 * Deg, free, mu, 0.004, ei, 0.1), Is.EqualTo(DetMath.Exp(mu * 150 * Deg)));
         }
 
+        // Design 18 in the step: a flight with the cuts whose line meets the hole's edge at a point (the drone backing over its
+        // line) allocates nothing in steady state.
+        [Test]
+        public void TheEdgesLawAllocatesNothingInAStep()
+        {
+            FlightSetup setup = TetherScenarios.Setup(Spec, WindLevel.Calm, cuts: true);
+            var core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            long allocated = 0;
+            int point = 0;
+            for (int k = 0; k < 7000; k++)
+            {
+                double t = k * FlightCore.Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    pilot.HoldVelocity = t >= 3;
+                    pilot.Target = new Double3(0, setup.StartPosition.Y + 1.5, t < 3 ? 0 : core.State.Position.Z);
+                    pilot.TargetVelocity = new Double3(0, 0, -3);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                }
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                core.Advance(stick);
+                if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (core.Tether.Attached && core.Tether.Cuts.Bend(core.Tether.Cuts.BendCount - 1).PointEdge) point++;
+            }
+            Print($"{point} steps with the line on the edge at a point; {allocated} B from step 2000");
+            Assert.That(point, Is.GreaterThan(100), "the edge's point law ran");
+            Assert.That(allocated, Is.EqualTo(0));
+        }
+
         // fiber-tether: "The draws cover their bounds".
         [Test]
         public void TheDrawsCoverTheirBounds()
