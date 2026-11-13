@@ -318,7 +318,16 @@ namespace Fpv450.Sim.Contact
                 {
                     _contacts.DiscPair(i, k, out int obj, out int shape, out ushort material, out byte surface);
                     if (!Geometry(i, k, obj, shape, surface, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)) continue;
-                    if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m)) continue;
+                    // The slab now, or the slab's own sweep over the step for a shape it passed through between (BladeCut.Crossing:
+                    // a thin branch or wire met along the axis): the blades meet it at the hub where the slab held it, while it did.
+                    Double3 at = hub;
+                    double lo = 0, hi = 1;
+                    bool crossed = false;
+                    if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m))
+                    {
+                        if (!BladeCut.Crossing(g, chain, _contacts.DiscFrom(i), hub, axis, d.HalfThickness, d.Radius, out m, out at, out lo, out hi)) continue;
+                        crossed = true;
+                    }
                     if (Crown(surface, material))
                     {
                         // A crown's twig shell: its twigs (Twigs, below), once for the shells' union, never a glance per shell.
@@ -331,7 +340,7 @@ namespace Fpv450.Sim.Contact
                         }
                         continue;
                     }
-                    if (_spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
+                    if (!crossed && _spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
                     {
                         // A softer face that holds the radial line past the rim (the soil, a trunk's face): a segment of the disc.
                         BladeCut.Along(g, chain, hub, axis, m.Direction, d.HalfThickness, _radius, out _, out double rout, out _, out _);
@@ -343,9 +352,9 @@ namespace Fpv450.Sim.Contact
                     {
                         if (obj == skipObject && shape == skipShape && b == skipBlade) continue;
                         double ahead = Wrap(psi - (start + TwoPi * b / _blades));
-                        if (!(ahead > 0 && ahead <= sweep)) continue;
+                        if (!(ahead > sweep * lo && ahead <= sweep * hi)) continue;
                         passed |= 1 << c;
-                        if (Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, hub, axis, m, psi, events, ref impulse, ref angular))
+                        if (Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, at, axis, m, psi, events, ref impulse, ref angular))
                             changed |= 1 << c;
                     }
                 }

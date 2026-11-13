@@ -311,6 +311,7 @@ namespace Fpv450.Sim.Contact
         // before (its side give's softening), and a hanging half's force and couple onto the leg that holds it.
         readonly ContactShape[] _base;
         readonly Double3[] _wasA, _wasB;
+        readonly Double3[] _discFrom; // each disc's hub at the step's start (world), for a slab crossing within the step (Disc, PropStrikes)
         readonly bool[] _off;
         readonly CornerState[] _corner = new CornerState[4];
         readonly Double3[] _fold = new Double3[4], _setApplied = new Double3[4], _foldApplied = new Double3[4];
@@ -534,6 +535,7 @@ namespace Fpv450.Sim.Contact
 
             _base = (ContactShape[])_shapes.Clone();
             _wasA = new Double3[n];
+            _discFrom = new Double3[n];
             _wasB = new Double3[n];
             _off = new bool[n];
             for (int i = 0; i < n; i++) _off[i] = _shapes[i].Role == ContactRole.Blade; // until AttachRotors places them
@@ -691,6 +693,10 @@ namespace Fpv450.Sim.Contact
         /// <summary>A prop disc's pairs now (0 for any other shape): the shapes its slab cuts or its ring touched, in the order
         /// they came (PropStrikes reads them after each Sense).</summary>
         public int DiscPairs(int shape) => _shapes[shape].Role == ContactRole.Disc ? _count[shape] : 0;
+
+        /// <summary>Disc shape's hub at the last Sense's start pose (world): its slab swept from there to the hub now is the step's
+        /// (BladeCut.Crossing).</summary>
+        public Double3 DiscFrom(int shape) => _discFrom[shape];
 
         /// <summary>A disc's pair k: the world object and its shape, their material and surface.</summary>
         public void DiscPair(int shape, int k, out int obj, out int objShape, out ushort material, out byte surface)
@@ -4223,6 +4229,7 @@ namespace Fpv450.Sim.Contact
             for (int k = 0; k < _count[i]; k++) _pairs[first + k].Seen = false;
             double r = d.Radius + d.HalfThickness;
             Double3 hubWas = World(was, d.A), hubNow = World(now, d.A);
+            _discFrom[i] = hubWas;
             int gate = _world.StaticContacts(new Capsule(hubWas, hubWas, r), new Capsule(hubNow, hubNow, r), 0, _buf);
             int gated = gate < Buffer ? gate : Buffer;
             for (int j = 0; j < gated; j++) _gate[j] = _buf[j];
@@ -4278,7 +4285,7 @@ namespace Fpv450.Sim.Contact
                 StaticContact c = _gate[j];
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m)) continue;
+                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m, hubWas, true)) continue;
                 if (k == PairsPerShape)
                 {
                     lost++;
@@ -4321,7 +4328,8 @@ namespace Fpv450.Sim.Contact
 
         // Whether (obj, shape) cuts the disc's slab within its rim at the hub's pose now (BladeCut, the world's geometry now:
         // a runtime object where it is; a terrain's ground the plane of the contact that names it, GroundPlane).
-        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m)
+        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m,
+            Double3 from = default, bool swept = false)
         {
             m = default;
             ShapeGeometry g;
@@ -4335,7 +4343,10 @@ namespace Fpv450.Sim.Contact
                 if (hi < lo) return false;
                 chain = chain.Slice(lo, hi - lo + 2);
             }
-            return BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m);
+            if (BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m)) return true;
+            // A shape the slab crossed within the step, in neither its start's slab nor its end's (2.6's addendum): the gate's sweep met
+            // it, and the slab's own sweep holds it between.
+            return swept && BladeCut.Crossing(g, chain, from, hub, axis, d.HalfThickness, d.Radius, out m, out _, out _, out _);
         }
 
         /// <summary>A terrain's ground at a contact as a plane (w3-farmland-ground 2.2): the plane through the contact's point with
