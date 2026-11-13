@@ -914,8 +914,19 @@ namespace Fpv450.Sim.Log
         ///    ring's own unsteadiness starts, so nothing is counted twice; its bound is 3σ of the present state. The hover is
         ///    unchanged; the cruise keeps ×0.236 of the hover's σ where 90 kept ×0.49. The powered, rain, contact, range and tether
         ///    goldens moved and are re-pinned; Propulsion.HoverWakeLaw (unlogged, the suite's) flies 90's law for the kept audits.
+        /// 93: the fiber at the exit and in its contacts (p7d-tether 1.11, design 18, on 92;
+        ///    unity/physics/physics-integration-2--night-fiber-law): at the exit's edge the line touches at a point, its bend
+        ///    length being longer than the edge's radius plus the coating, so the lip turns it through two free arms with
+        ///    T₂/T₁ = sin²(φ₁/2)/sin²(φ₂/2), the bore's entry a second point in series; the capstan law is kept only for a lip the
+        ///    line really wraps. μ_l is 0.45 (the coating's published band 0.36–1.0), the pack's peel band reaches down to 0.01 g,
+        ///    and the edge's wear is a Hertz point contact. In the contacts a resting node whose kept slot's point jumps is held,
+        ///    not thrown (CableContact.Sunk); a crest node's split leaves no piece shorter than its straight length, the
+        ///    shortfall drawn from the pack; and after the slides the pack lets out what brings the exit segment back to the
+        ///    payout law (CableChain.SpoolAfterSlide). The tether golden moved and is re-pinned; FlightSetup.TetherBeforeDesign18
+        ///    (in the header's tether entry) with GoldenFlights.Model88Tether flies the line before design 18 for the kept
+        ///    audits. A flight without the line steps as 92 did.
         /// </summary>
-        public const int ModelVersion = 92;
+        public const int ModelVersion = 93;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

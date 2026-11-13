@@ -29,12 +29,20 @@ namespace Fpv450.FlightBench
         public static bool Run(int seeds)
         {
             DroneSpec spec = PoweredFlightCase.Drone();
-            double[] g = TetherScenarios.Table().Row("spool.peel_energy_j_m").Values;
-            Action<FlightSetup> twoWay = s => s.TetherTwoWay = true, bare = s => s.TetherWithoutContacts = true,
+            // The two-way spool takes line back at its hold, Lip·G₀: a reel's take-up, flown at models 74–88's 2–10 g so that the
+            // known-wrong is a reel that keeps its line short (design 18: on the light pack's 0.01–2 g its take-up is too weak to).
+            Action<FlightSetup> twoWay = s =>
+                {
+                    s.TetherTwoWay = true;
+                    s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
+                },
+                bare = s => s.TetherWithoutContacts = true,
                 air4 = s => s.TetherDesign4Air = true,
                 flared = s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_radius_m", 0.004),
-                peel2 = s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 2 * g[0], 2 * g[1]),
-                mu45 = s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.45);
+                peel2 = s => s.Tether = FiberCutScenarios.Scaled(s.Tether, "spool.peel_energy_j_m", 2),
+                muLow = s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.36),
+                muHigh = s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 1.0),
+                muOld = s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.3);
             Row R(string name, Target t, Func<ulong, FiberCutScenarios.Outcome> fly) => new Row { Name = name, Target = t, Fly = fly };
             var rows = new List<Row>
             {
@@ -42,25 +50,30 @@ namespace Fpv450.FlightBench
                 R("normal liftoff, Windy", Target.Never, s => FiberCutScenarios.Liftoff(spec, false, s, null, WindLevel.Windy)),
                 R("very sharp liftoff", Target.Some, s => FiberCutScenarios.Liftoff(spec, true, s)),
                 R("backward after liftoff", Target.Some, s => FiberCutScenarios.Backward(spec, s)),
+                // Design 18's reading of "after lift off": the legs just off, inside the 4 R where the wake meets the ground. Judged
+                // since the exit's segment keeps the spool's law (CableChain.SpoolAfterSlide; before, the legs' slides stretched it to
+                // 1.4–2.9 N against the law's 0.26 N).
+                R("backward just after liftoff, at 0.4 m (design 18)", Target.Some, s => FiberCutScenarios.Backward(spec, s, null, 3, 0.4)),
                 R("sharp reverse from 54 km/h, Calm", Target.MayOrMayNot, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
                 R("sharp reverse from 54 km/h, Windy", Target.MayOrMayNot, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Windy, s)),
                 R("pitch-back from 90 km/h, the cruise's throttle held (D-087)", Target.None, s => FiberCutScenarios.PitchBack(spec, WindLevel.Calm, s, null, 25)),
                 R("orbit of 20 m at 54 km/h", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, null, 21).O),
                 R("gentle 180° turn of 15 m at 54 km/h", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
-                R("cruise at 100 km/h, Calm", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0).O),
-                R("cruise at 100 km/h, Windy", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0).O),
+                R("cruise at 100 km/h, Calm, its height held", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0, heightFirst: true).O),
+                R("cruise at 100 km/h, Windy, its height held", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, heightFirst: true).O),
                 R("tree snag", Target.Some, s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
                 R("known-wrong: sharp reverse, Calm, the two-way spool", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, twoWay)),
                 R("known-wrong: tree snag without the fiber's contacts", Target.None, s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s, bare)),
                 R("known-wrong: very sharp liftoff, design 4's air", Target.None, s => FiberCutScenarios.Liftoff(spec, true, s, air4)),
                 R("known-wrong: sharp reverse, Calm, the flared 4 mm lip", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, flared)),
                 R("sensitivity: sharp reverse, Calm, G0 doubled", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, peel2)),
-                R("sensitivity: sharp reverse, Calm, lip mu 0.45", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, mu45)),
-                R("sensitivity: backward after liftoff, G0 doubled", Target.None, s => FiberCutScenarios.Backward(spec, s, peel2)),
-                R("sensitivity: backward after liftoff, lip mu 0.45", Target.None, s => FiberCutScenarios.Backward(spec, s, mu45)),
-                R("sensitivity: very sharp liftoff, lip mu 0.45", Target.None, s => FiberCutScenarios.Liftoff(spec, true, s, mu45)),
-                R("sensitivity: orbit of 20 m at 54 km/h, lip mu 0.45", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, mu45, 21).O),
-                R("sensitivity: cruise at 100 km/h, Windy, lip mu 0.45", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, 90, mu45).O),
+                R("sensitivity: sharp reverse, Calm, lip mu 0.36 (the band's floor)", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, muLow)),
+                R("sensitivity: sharp reverse, Calm, lip mu 1.0 (the band's top)", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, muHigh)),
+                R("sensitivity: backward after liftoff, lip mu 1.0", Target.None, s => FiberCutScenarios.Backward(spec, s, muHigh)),
+                R("sensitivity: very sharp liftoff, lip mu 1.0", Target.None, s => FiberCutScenarios.Liftoff(spec, true, s, muHigh)),
+                R("sensitivity: orbit of 20 m at 54 km/h, lip mu 1.0", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, muHigh, 21).O),
+                R("sensitivity: cruise at 100 km/h, Windy, its height held, lip mu 1.0", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, 90, muHigh, heightFirst: true).O),
+                R("sensitivity: backward after liftoff, models to 88's lip mu 0.3", Target.None, s => FiberCutScenarios.Backward(spec, s, muOld)),
             };
             Console.WriteLine($"--tether: the pilot's four causes (PHY-19, p7d-tether 1.11), {rows.Count} rows of {seeds} seeds on the session's drone; "
                 + Power.Describe());
@@ -130,7 +143,7 @@ namespace Fpv450.FlightBench
             var counts = new SortedDictionary<string, int>();
             foreach (FiberCutScenarios.Outcome o in r.O)
             {
-                string key = o.Broken ? $"{o.Mechanism} at {o.Place}" : "whole";
+                string key = !o.Broken ? "whole" : o.Place == FiberMember.Lip ? $"{o.Mechanism} at {o.Place} ({o.Band})" : $"{o.Mechanism} at {o.Place}";
                 counts[key] = counts.TryGetValue(key, out int k) ? k + 1 : 1;
             }
             return string.Join(", ", counts.Select(kv => $"{kv.Key} {kv.Value}")) + $" of {r.O.Length}";

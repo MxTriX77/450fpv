@@ -32,7 +32,7 @@ namespace Fpv450.Sim.Tests
             if (coilLeft >= 0) loadout.CoilPaidOut = spec.Coil.FiberLength - coilLeft;
             ContactSpec contacts = spec.BuildContacts(loadout, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
-            return new FlightSetup
+            var setup = new FlightSetup
             {
                 Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(loadout), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Contacts = contacts, StartPosition = new Double3(0, stand, 0), StartPackCharge = 0.9, CameraPosition = spec.CameraPosition,
@@ -42,6 +42,17 @@ namespace Fpv450.Sim.Tests
                 // scenarios fly them on (cuts).
                 TetherWithoutCuts = !cuts,
             };
+            // FIBER_LIPLAW (design 18's audit of the scenarios): "capstan" flies models 74–88's lip, μ and peel band (the known-wrong
+            // capstan lip on GoldenFlights.Model88Tether); "peel88" models 74–88's peel band alone; "mu03" their μ 0.3 alone.
+            string law = System.Environment.GetEnvironmentVariable("FIBER_LIPLAW");
+            if (law == "capstan")
+            {
+                setup.TetherBeforeDesign18 = true;
+                setup.Tether = GoldenFlights.Model88Tether(setup.Tether);
+            }
+            else if (law == "peel88") setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
+            else if (law == "mu03") setup.Tether = FiberCutScenarios.With(setup.Tether, "spool.lip_friction", 0.3);
+            return setup;
         }
 
         /// <summary>The height of the body origin standing legs-on on the floor.</summary>
@@ -129,7 +140,7 @@ namespace Fpv450.Sim.Tests
                 if (core.State.Step * FlightCore.Dt > climb + cruise - 5)
                 {
                     exit += tr.ExitTension;
-                    lipIrr += DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * tr.Irregularity;
+                    lipIrr += f.Lip * tr.Irregularity;
                     rate += tr.PayoutSpeed;
                     ground += DetMath.Sqrt(core.State.Velocity.X * core.State.Velocity.X + core.State.Velocity.Z * core.State.Velocity.Z);
                     n++;
@@ -209,7 +220,7 @@ namespace Fpv450.Sim.Tests
                 if (core.State.Step == (long)(turn * 1000))
                 {
                     r.AtTurn = tr.PaidOut;
-                    r.Hold = DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * f.PeelEnergy * tr.Irregularity;
+                    r.Hold = f.Lip * f.PeelEnergy * tr.Irregularity;
                     r.TrailAtTurn = tr.Trail;
                 }
                 if (t > turn && tr.PaidOut < r.LeastAfterTurn) r.LeastAfterTurn = tr.PaidOut;
@@ -314,12 +325,20 @@ namespace Fpv450.Sim.Tests
         /// pull's own payout still with 2), which model 68's 1 µm caught as the payout.</summary>
         public const double PayoutThreshold = 1e-3;
 
+        /// <summary>FIBER_PULLPROBE=1 prints the pulled trail's exit every 20 steps from the pull to its payout (forensics).</summary>
+        static readonly bool PullProbe = System.Environment.GetEnvironmentVariable("FIBER_PULLPROBE") == "1";
+
         public static PulledTrail PullTrail(DroneSpec spec)
         {
             var layout = new Double3[6];
             for (int i = 0; i < 6; i++) layout[i] = new Double3(i % 2 == 0 ? 0 : 6, 0, -50 + 10 * i);
             layout[5] = new Double3(0, 0, -0.1);
             FlightSetup setup = Setup(spec, layout: layout);
+            // The claim's pack holds more than the laid line's last corners: G₀ over models 74–88's 2–10 g (p7d-tether design 18).
+            // A lightly bonded pack (0.01–2 g, half the flights since design 18) lets line out before the zigzag's last corners
+            // lift (traced, FIBER_PULLPROBE: on the new band this seed's hold is 0.016 N against 0.054 N on the old, and the payout begins with 3 points still frozen), which is the
+            // pack's physics, not the trail's.
+            setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
             double stand = Stand(setup);
             var r = new PulledTrail { Fewest = int.MaxValue, TrailAtPayout = -1 };
             bool lifting = false;
@@ -354,12 +373,14 @@ namespace Fpv450.Sim.Tests
                     if (tr.Trail < r.Fewest) r.Fewest = tr.Trail;
                 }
                 lastTrail = tr.Trail;
+                if (PullProbe && t > 2 && r.TrailAtPayout < 0 && core.State.Step % 20 == 0)
+                    Console.WriteLine($"t {t:F3} trail {tr.Trail} paid {(tr.PaidOut - r.PaidBeforePull) * 1e3:F3} mm exitT {tr.ExitTension:F4} hold {f.Lip * f.PeelEnergy * tr.Irregularity:F4} lip {tr.LipAngle * 180 / Math.PI:F1}° factor {f.Lip:F4} sdot {tr.PayoutSpeed:F4}");
                 if (t <= 2) r.PaidBeforePull = tr.PaidOut;
                 if (r.TrailAtPayout < 0 && tr.PaidOut - r.PaidBeforePull > PayoutThreshold && t > 2)
                 {
                     CableChain line = f.Chain;
                     r.TrailAtPayout = tr.Trail;
-                    double hold = DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * f.PeelEnergy * tr.Irregularity;
+                    double hold = f.Lip * f.PeelEnergy * tr.Irregularity;
                     r.TensionOverHold = tr.ExitTension / hold;
                     r.LineOverChord = (line[line.Count - 1].Material - f.TrailMaterial(0)) / (line[line.Count - 1].Position - f.Trail[0]).Length();
                 }
