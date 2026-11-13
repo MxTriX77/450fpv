@@ -41,6 +41,8 @@ namespace Fpv450.Sim.Tether
         public double Macro, Micro;
         /// <summary>Where the line touches the member at its sharpest node, world m.</summary>
         public Double3 Point;
+        /// <summary>The hole's edge met at one point (design 18's law; Press then its normal force), not wrapped.</summary>
+        public bool PointEdge;
     }
 
     /// <summary>A break the checks found (FiberCuts.Check, FiberLine's prop check).</summary>
@@ -72,8 +74,9 @@ namespace Fpv450.Sim.Tether
     ///   Each band is its quantile table, read piecewise linearly: + − × ÷ only.
     /// - The bends after each step (Collect): every pressing contact, neighbouring nodes on one capstan member as one wrap of
     ///   their whole turn (the elastica over a point edge takes the wrap's θ), R_eff = max(R_edge + c, √(EI/T)/(2·sin(θ/4))),
-    ///   σ = E·r/R_eff + T/A_g; and the exit lip, the hole's edge (spool.lip_radius_m at the lip's wrap θ_e under the exit's
-    ///   tension: its 0.3 mm is under the elastica's radius at every tension the exit meets, so the elastica decides there).
+    ///   σ = E·r/R_eff + T/A_g; and the exit lip, the hole's edge (design 18): the line meets spool.lip_radius_m's 0.3 mm at one
+    ///   point (PointContact), turned there by the lip's wrap θ_e less the bore's free angle, its glass bent at the outer arm's
+    ///   curvature under the exit's tension; decision 6's bend only where the line wraps the edge (Wraps).
     /// - The hole's edge's wear (WearLip, D-087): the line paying out over it and its lead turning round it, at the edge's own
     ///   Archard k (spool.lip_archard_wear_coefficient), beyond the angle the bore lets the line leave without touching it.
     /// - Abrasion (Wear): a section pressed on a member other than the ground or a layer (the coating on soil or straw under the
@@ -115,7 +118,7 @@ namespace Fpv450.Sim.Tether
         public const double AbrasiveEdge = 0.001;
 
         readonly double _youngs, _glassRadius, _glassArea, _bending, _coating, _lineRadius, _reduced, _hardness, _severe, _mild;
-        readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle;
+        readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle, _lipFriction;
         readonly double[] _span, _flaw, _intact, _abraded;
         readonly double _macroA, _macroRadiusA, _macroDecay, _microSmooth, _microRough;
         readonly bool _oneStrength;
@@ -156,6 +159,7 @@ namespace Fpv450.Sim.Tether
             _lipRadius = table.Number("spool.lip_radius_m");
             _lipWear = table.Number("spool.lip_archard_wear_coefficient");
             _mouthRadius = table.Number("spool.mouth_radius_m");
+            _lipFriction = table.Number("spool.lip_friction");
             // The line lies across the bore before it bends over the hole's edge: no touch within atan(2·r_m/L_n) of the axis.
             _freeAngle = DetMath.Atan2(2 * _mouthRadius, table.Number("spool.nozzle_length_m"));
             _macroA = table.Number("link.macrobend_loss_a_db");
@@ -261,6 +265,64 @@ namespace Fpv450.Sim.Tether
             return elastica > cap ? elastica : cap;
         }
 
+        /// <summary>
+        /// The point-contact law at a sharp edge (p7d-tether design 18; fiber-exit.md §2.3, derived; Singh 2022 the published
+        /// check): a line with bending stiffness turned θ (rad) over an edge sharper than its own radius of curvature touches it at
+        /// one point and turns through two free elastica arms, φ₁ on the pack's side under T₁ and φ₂ outside under T₂, sliding
+        /// outward. Curvature continuous, √T₁·sin(φ₁/2) = √T₂·sin(φ₂/2), and the tangent's balance, T₂·cos φ₂ − T₁·cos φ₁ =
+        /// μ·(T₁·sin φ₁ + T₂·sin φ₂), give ratio = T₂/T₁ = sin²(φ₁/2)/sin²(φ₂/2) and the outer arm's turn φ₂ (rad), functions of θ
+        /// and μ alone: bisection on φ₁ in (θ/2, θ), a fixed 60 halvings (the residual rises from −2μ·sin(θ/2) to +∞). 1 and 0 at no
+        /// turn. The edge's curvature is κ = 2·sin(φ₂/2)·√(T₂/EI).
+        /// </summary>
+        public static void PointContact(double theta, double mu, out double ratio, out double outer)
+        {
+            if (!(theta > 0))
+            {
+                ratio = 1;
+                outer = 0;
+                return;
+            }
+            double lo = theta / 2, hi = theta;
+            for (int i = 0; i < 60; i++)
+            {
+                double p1 = 0.5 * (lo + hi);
+                DetMath.SinCos(p1 / 2, out double h1, out double g1);
+                DetMath.SinCos((theta - p1) / 2, out double h2, out double g2);
+                double s1 = 2 * h1 * g1, c1 = 1 - 2 * h1 * h1, s2 = 2 * h2 * g2, c2 = 1 - 2 * h2 * h2;
+                double k = h1 * h1 / (h2 * h2);
+                if (k * c2 - c1 - mu * (s1 + k * s2) > 0) hi = p1;
+                else lo = p1;
+            }
+            double phi1 = 0.5 * (lo + hi);
+            outer = theta - phi1;
+            DetMath.SinCos(phi1 / 2, out double a, out _);
+            DetMath.SinCos(outer / 2, out double b, out _);
+            ratio = a * a / (b * b);
+        }
+
+        /// <summary>Whether the line wraps an arris of radius cap (R_edge + c, m) at the point law's outer turn (rad) under T (N)
+        /// outside: the arris is at least the contact's radius of curvature 1/κ (design 18; the capstan law's domain).</summary>
+        public static bool Wraps(double outer, double cap, double bending, double tension)
+        {
+            if (!(outer > 0) || !(tension > 0)) return false;
+            DetMath.SinCos(outer / 2, out double s, out _);
+            return cap * 2 * s * DetMath.Sqrt(tension / bending) >= 1;
+        }
+
+        /// <summary>
+        /// The spool's factor over the nozzle, T outside over the pack's pull (design 18): the line pulled θ (rad) off the
+        /// nozzle's axis lies across the bore up to its free angle α (rad) and turns min(θ, α) at the bore's entry and the rest,
+        /// max(0, θ − α), at the hole's edge, each a point contact, in series; where the line wraps the edge (cap = R_edge + c, m,
+        /// at the last tension outside, N), decision 3's capstan e^(μθ) over the whole turn.
+        /// </summary>
+        public static double LipFactor(double theta, double free, double mu, double cap, double bending, double tension)
+        {
+            double entry = theta < free ? theta : free;
+            PointContact(entry, mu, out double inner, out _);
+            PointContact(theta - entry, mu, out double edge, out double outer);
+            return Wraps(outer, cap, bending, tension) ? DetMath.Exp(mu * theta) : inner * edge;
+        }
+
         /// <summary>The glass's stress at a bend, σ = E·r/R_eff + T/A_g, Pa.</summary>
         public double BendStress(double rEff, double tension) =>
             (rEff < double.PositiveInfinity ? _youngs * _glassRadius / rEff : 0) + (tension > 0 ? tension / _glassArea : 0);
@@ -350,12 +412,40 @@ namespace Fpv450.Sim.Tether
             for (int b = 0; b < _bendCount; b++)
             {
                 ref FiberBend p = ref _bends[b];
-                p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
+                if (p.Kind == (byte)FiberMember.Lip) LipBend(ref p);
+                else p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
                 p.Stress = BendStress(p.Radius, p.Tension);
                 p.Macro = MacroLoss(p.Radius, p.Turn);
                 p.Micro = (p.Rough ? _microRough : _microSmooth) * p.Press;
                 if (p.Radius < MinBendRadius) MinBendRadius = p.Radius;
             }
+        }
+
+        // The hole's edge (design 18): the turn there is the lip's past the bore's free angle; none, no contact. A point contact
+        // bends the glass at the outer arm's curvature, R_eff = √(EI/T)/(2·sin(φ₂/2)), and presses the edge with T₁·sin φ₁ +
+        // T₂·sin φ₂; a wrapped edge takes decision 6's bend.
+        void LipBend(ref FiberBend p)
+        {
+            double edge = p.Turn > _freeAngle ? p.Turn - _freeAngle : 0;
+            p.PointEdge = false;
+            p.Press = 0;
+            if (!(edge > 0) || !(p.Tension > 0))
+            {
+                p.Radius = double.PositiveInfinity;
+                return;
+            }
+            PointContact(edge, _lipFriction, out double ratio, out double outer);
+            if (Wraps(outer, _lipRadius + _coating, _bending, p.Tension))
+            {
+                p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
+                return;
+            }
+            DetMath.SinCos(outer / 2, out double s2, out _);
+            DetMath.SinCos(edge - outer, out double s1, out _);
+            DetMath.SinCos(outer, out double so, out _);
+            p.Radius = DetMath.Sqrt(_bending / p.Tension) / (2 * s2);
+            p.Press = p.Tension / ratio * s1 + p.Tension * so;
+            p.PointEdge = true;
         }
 
         static double TurnAt(CableChain chain, int i)
@@ -439,11 +529,13 @@ namespace Fpv450.Sim.Tether
         /// <summary>
         /// The hole's edge's wear over the step (after Collect; p7d-tether 1.8, D-087): the line pressed on the edge at the lip's
         /// wrap θ under the exit's tension T, beyond the angle it passes the bore free (spool.nozzle_length_m, spool.mouth_radius_m).
-        /// Its load per metre q = T/R_eff over the wrap's length R_eff·θ; Hertz's line contact of the coating on the edge, half-width
-        /// b = √(4·q·r_c/(π·E*)), mean pressure p = q/(2b), never above H (plastic: 2b = q/H). Archard at the lip's own k
-        /// (spool.lip_archard_wear_coefficient): line paying out (payout m this step) passes the edge once, each point sliding
-        /// R_eff·θ along it and, as the lead turns about the nozzle's axis (turn rad this step), r_m·turn round it for every
-        /// payout's worth, so its one pass wears k·p·R_eff·θ·√(1 + (r_m·turn/payout)²)/H, and the section at the lip wears through
+        /// At a point contact (design 18) the edge's normal force N, Hertz of the crossed cylinders (the coating's radius on the
+        /// arris), mean pressure never above H, over the contact's length 2a; on a wrapped edge (decision 17's), the load per metre
+        /// q = T/R_eff over the wrap's length R_eff·θ, Hertz's line contact, half-width b = √(4·q·r_c/(π·E*)), p = q/(2b), never
+        /// above H. Archard at the lip's own k (spool.lip_archard_wear_coefficient): line paying out (payout m this step) passes the
+        /// edge once, each point sliding that length along it and, as the lead turns about the nozzle's axis (turn rad this step),
+        /// r_m·turn round it for every
+        /// payout's worth, so its one pass wears k·p·length·√(1 + (r_m·turn/payout)²)/H, and the section at the lip wears through
         /// when that reaches the coating; line held still (no payout) rubs round the edge in place, k·p·r_m·turn on the section at
         /// the lip, its depth summed (Depth). A section worn through takes its abraded strength (FiberSection Abraded | 0x40 at the
         /// Lip); returns its depth's share of the coating this step (0 untouched, ≥ 1 worn through).
@@ -452,10 +544,29 @@ namespace Fpv450.Sim.Tether
         {
             ref readonly FiberBend lip = ref _bends[_bendCount - 1];
             if (!(lip.Turn > _freeAngle) || !(lip.Tension > 0) || !(lip.Radius < double.PositiveInfinity)) return 0;
-            double q = lip.Tension / lip.Radius;
-            double half = DetMath.Sqrt(4 * q * _lineRadius / (Pi * _reduced));
-            double p = q / (2 * half);
-            if (p > _hardness) p = _hardness;
+            double p, slide;
+            if (lip.PointEdge)
+            {
+                // Design 18: one point of contact pressed by N, Hertz of the crossed cylinders as Wear's (the coating's radius on
+                // the arris), plastic past H; a point of line passing slides the contact's length 2a.
+                double r2 = _lipRadius > _coating ? _lipRadius : _coating, radius = DetMath.Sqrt(_lineRadius * r2);
+                double contact = DetMath.Cbrt(3 * lip.Press * radius / (4 * _reduced));
+                p = lip.Press / (Pi * contact * contact);
+                if (p > _hardness)
+                {
+                    p = _hardness;
+                    contact = DetMath.Sqrt(lip.Press / (Pi * _hardness));
+                }
+                slide = 2 * contact;
+            }
+            else
+            {
+                double q = lip.Tension / lip.Radius;
+                double half = DetMath.Sqrt(4 * q * _lineRadius / (Pi * _reduced));
+                p = q / (2 * half);
+                if (p > _hardness) p = _hardness;
+                slide = lip.Radius * lip.Turn;
+            }
             double across = _mouthRadius * DetMath.Abs(turn);
             long sec = Section(material);
             double depth;
@@ -463,7 +574,7 @@ namespace Fpv450.Sim.Tether
             if (payout > 0)
             {
                 double ratio = across / payout;
-                depth = _lipWear * p * lip.Radius * lip.Turn * DetMath.Sqrt(1 + ratio * ratio) / _hardness;
+                depth = _lipWear * p * slide * DetMath.Sqrt(1 + ratio * ratio) / _hardness;
                 if (!(depth >= _coating)) return depth / _coating;
                 slot = Slot(sec, events, lip.Point);
                 if (slot < 0 || _worn[slot]) return depth / _coating;

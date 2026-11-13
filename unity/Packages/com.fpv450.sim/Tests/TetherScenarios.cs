@@ -129,7 +129,7 @@ namespace Fpv450.Sim.Tests
                 if (core.State.Step * FlightCore.Dt > climb + cruise - 5)
                 {
                     exit += tr.ExitTension;
-                    lipIrr += DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * tr.Irregularity;
+                    lipIrr += f.Lip * tr.Irregularity;
                     rate += tr.PayoutSpeed;
                     ground += DetMath.Sqrt(core.State.Velocity.X * core.State.Velocity.X + core.State.Velocity.Z * core.State.Velocity.Z);
                     n++;
@@ -209,7 +209,7 @@ namespace Fpv450.Sim.Tests
                 if (core.State.Step == (long)(turn * 1000))
                 {
                     r.AtTurn = tr.PaidOut;
-                    r.Hold = DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * f.PeelEnergy * tr.Irregularity;
+                    r.Hold = f.Lip * f.PeelEnergy * tr.Irregularity;
                     r.TrailAtTurn = tr.Trail;
                 }
                 if (t > turn && tr.PaidOut < r.LeastAfterTurn) r.LeastAfterTurn = tr.PaidOut;
@@ -359,7 +359,7 @@ namespace Fpv450.Sim.Tests
                 {
                     CableChain line = f.Chain;
                     r.TrailAtPayout = tr.Trail;
-                    double hold = DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * f.PeelEnergy * tr.Irregularity;
+                    double hold = f.Lip * f.PeelEnergy * tr.Irregularity;
                     r.TensionOverHold = tr.ExitTension / hold;
                     r.LineOverChord = (line[line.Count - 1].Material - f.TrailMaterial(0)) / (line[line.Count - 1].Position - f.Trail[0]).Length();
                 }

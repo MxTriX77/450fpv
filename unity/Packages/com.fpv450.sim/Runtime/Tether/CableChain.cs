@@ -159,7 +159,8 @@ namespace Fpv450.Sim.Tether
         public bool Locked;
         /// <summary>The known-wrong two-way spool (design 16): it takes line back in at the static hold tension.</summary>
         public bool TwoWay;
-        /// <summary>e^(μ·θ_e), the exit lip's capstan this step (at least 1).</summary>
+        /// <summary>The nozzle's factor this step, T outside over the pack's pull (FiberLine: FiberCuts.LipFactor, design 18; at
+        /// least 1).</summary>
         public double Lip;
         /// <summary>N: the pack's static peel resistance at the section at the peel, G₀·irregularity.</summary>
         public double Peel;

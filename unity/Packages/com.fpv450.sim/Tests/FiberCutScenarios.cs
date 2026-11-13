@@ -219,12 +219,27 @@ namespace Fpv450.Sim.Tests
             s.Modes = spec.BuildModes();
         }
 
-        /// <summary>tether.json with one band row's bounds replaced (p7d-tether 1.11's sensitivity).</summary>
+        /// <summary>tether.json with one band row's bounds replaced (p7d-tether 1.11's sensitivity); a quantile row becomes uniform
+        /// over them.</summary>
         public static TetherTable WithBand(TetherTable table, string name, double low, double high)
         {
             var rows = (TetherRow[])table.Rows.Clone();
             for (int i = 0; i < rows.Length; i++)
-                if (rows[i].Name == name) rows[i].Values = new[] { low, high };
+                if (rows[i].Name == name) rows[i].Values = rows[i].Kind == TetherValueKind.Quantiles ? new[] { 0, low, 1, high } : new[] { low, high };
+            return new TetherTable(rows, table.ContentHash);
+        }
+
+        /// <summary>tether.json with one row's values scaled (a quantile row's values, not its probabilities: the sensitivity).</summary>
+        public static TetherTable Scaled(TetherTable table, string name, double factor)
+        {
+            var rows = (TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+            {
+                if (rows[i].Name != name) continue;
+                double[] v = (double[])rows[i].Values.Clone();
+                for (int j = rows[i].Kind == TetherValueKind.Quantiles ? 1 : 0; j < v.Length; j += rows[i].Kind == TetherValueKind.Quantiles ? 2 : 1) v[j] *= factor;
+                rows[i].Values = v;
+            }
             return new TetherTable(rows, table.ContentHash);
         }
 
@@ -543,7 +558,7 @@ namespace Fpv450.Sim.Tests
             var bands = new[]
             {
                 new[] { t.Row("strength.span_pa").Values[1], t.Row("strength.span_pa").Values[3] },
-                t.Row("spool.peel_energy_j_m").Values,
+                new[] { t.Row("spool.peel_energy_j_m").Values[1], t.Row("spool.peel_energy_j_m").Values[5] },
                 t.Row("spool.irregularity").Values,
                 new[] { t.Row("strength.intact_pa").Values[1], t.Row("strength.intact_pa").Values[3] },
                 new[] { t.Row("strength.flaw_pa").Values[1], t.Row("strength.flaw_pa").Values[3] },
@@ -575,7 +590,7 @@ namespace Fpv450.Sim.Tests
                 SeedStream s = random.Open("fiber.span_strength");
                 Add(0, random.DrawQuantile(ref s, "span_strength_pa", span));
                 SeedStream p = random.Open("spool.peel");
-                Add(1, random.Draw(ref p, "peel_energy_j_m", bands[1][0], bands[1][1]));
+                Add(1, random.DrawQuantile(ref p, "peel_energy_j_m", t.Row("spool.peel_energy_j_m").Values));
                 if (seed <= 20)
                 {
                     var check = new FlightRandom(seed);

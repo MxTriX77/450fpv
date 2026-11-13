@@ -29,6 +29,59 @@ namespace Fpv450.Sim.Tests
             public void Dispose() => FiberCutScenarios.SessionDrone = false;
         }
 
+        // Design 18: the point-contact law at the hole's edge against fiber-exit.md §2.3's table (derived there by a separate
+        // script), its limits, and where the capstan law takes over.
+        [Test]
+        public void ThePointContactLawAtTheEdge()
+        {
+            const double Deg = Math.PI / 180;
+            (double Mu, double Theta, double Ratio)[] table =
+            {
+                (0.3, 90, 1.52), (0.3, 150, 1.77), (0.3, 180, 1.81), (0.45, 30, 1.26), (0.45, 90, 1.87), (0.45, 120, 2.14),
+                (0.45, 135, 2.25), (0.45, 150, 2.33), (0.45, 180, 2.39), (0.7, 150, 3.55), (1.0, 90, 3.73), (1.0, 150, 5.55), (1.0, 180, 5.83),
+            };
+            foreach (var r in table)
+            {
+                FiberCuts.PointContact(r.Theta * Deg, r.Mu, out double ratio, out double outer);
+                Print($"μ {r.Mu} θ {r.Theta}°: T₂/T₁ {ratio:0.000} (the note's {r.Ratio}), φ₂ {outer / Deg:0.0}°, capstan {Math.Exp(r.Mu * r.Theta * Deg):0.00}");
+                Assert.That(ratio, Is.EqualTo(r.Ratio).Within(0.006), $"μ {r.Mu} θ {r.Theta}");
+                Assert.That(ratio, Is.LessThanOrEqualTo(Math.Exp(r.Mu * r.Theta * Deg)), "never above the capstan (Singh 2022)");
+                Assert.That(outer, Is.LessThan(r.Theta * Deg / 2), "the higher tension's arm turns less");
+            }
+            // The limits: no friction, no gain and a symmetric bend; a small turn, the capstan's; no turn, nothing.
+            FiberCuts.PointContact(150 * Deg, 0, out double r0, out double o0);
+            Assert.That(r0, Is.EqualTo(1).Within(1e-12));
+            Assert.That(o0, Is.EqualTo(75 * Deg).Within(1e-12));
+            FiberCuts.PointContact(5 * Deg, 0.45, out double small, out _);
+            Assert.That(small, Is.EqualTo(Math.Exp(0.45 * 5 * Deg)).Within(1e-4));
+            FiberCuts.PointContact(0, 0.45, out double none, out double noTurn);
+            Assert.That(none, Is.EqualTo(1));
+            Assert.That(noTurn, Is.EqualTo(0));
+
+            // The note's stress check: at 150° and μ 0.45 the band's top, G·irr 0.123 N, bends the glass 2.51 GPa at the edge.
+            TetherTable t = TetherScenarios.Table();
+            double ei = t.Number("fiber.bending_stiffness_n_m2"), er = t.Number("fiber.youngs_modulus_pa") * t.Number("fiber.glass_diameter_m") / 2;
+            FiberCuts.PointContact(150 * Deg, 0.45, out double k150, out double o150);
+            double t2 = 0.123 * k150, sigma = er * 2 * Math.Sin(o150 / 2) * Math.Sqrt(t2 / ei) + t2 / t.Number("fiber.glass_area_m2");
+            Print($"150°, μ 0.45, G·irr 0.123 N: T₂ {t2:0.000} N, σ {sigma / 1e9:0.000} GPa");
+            Assert.That(sigma / 1e9, Is.EqualTo(2.51).Within(0.01));
+
+            // The spool's factor: 1 with the line on the axis, the bore's entry alone up to its free angle, continuous past it;
+            // the 0.3 mm edge never wrapped under 5 N at 150°, the 4 mm flare wrapped at 0.1 N (the capstan's e^(μθ) then).
+            double free = Math.Atan2(2 * t.Number("spool.mouth_radius_m"), t.Number("spool.nozzle_length_m"));
+            double cap = t.Number("spool.lip_radius_m") + t.Number("fiber.coating_thickness_m"), mu = t.Number("spool.lip_friction");
+            Assert.That(mu, Is.EqualTo(0.45), "design 18's μ_l");
+            Assert.That(FiberCuts.LipFactor(0, free, mu, cap, ei, 0.1), Is.EqualTo(1));
+            FiberCuts.PointContact(free, mu, out double entry, out _);
+            Assert.That(FiberCuts.LipFactor(free, free, mu, cap, ei, 0.1), Is.EqualTo(entry));
+            Assert.That(FiberCuts.LipFactor(free + 1e-9, free, mu, cap, ei, 0.1), Is.EqualTo(entry).Within(1e-6));
+            FiberCuts.PointContact(150 * Deg - free, mu, out double rim, out double rimOuter);
+            Assert.That(FiberCuts.LipFactor(150 * Deg, free, mu, cap, ei, 5), Is.EqualTo(entry * rim));
+            Assert.That(FiberCuts.Wraps(rimOuter, cap, ei, 5), Is.False, "a 0.3 mm edge is met at a point under 5 N");
+            Assert.That(FiberCuts.Wraps(rimOuter, 0.004 + t.Number("fiber.coating_thickness_m"), ei, 0.1), Is.True, "the 4 mm flare is wrapped at 0.1 N");
+            Assert.That(FiberCuts.LipFactor(150 * Deg, free, mu, 0.004, ei, 0.1), Is.EqualTo(DetMath.Exp(mu * 150 * Deg)));
+        }
+
         // fiber-tether: "The draws cover their bounds".
         [Test]
         public void TheDrawsCoverTheirBounds()
@@ -577,14 +630,13 @@ namespace Fpv450.Sim.Tests
             int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 10;
             string winds = Environment.GetEnvironmentVariable("FIBER_WINDS") ?? "Calm,Windy";
             string pick = Environment.GetEnvironmentVariable("FIBER_CONFIGS");
-            double[] g = TetherScenarios.Table().Row("spool.peel_energy_j_m").Values;
             const double Gram = 9.80665e-3;
             var configs = new (string Name, Action<FlightSetup> Edit)[]
             {
                 ("base", null),
                 ("G0 0.01–2 g (US 5,167,382's reduced adhesive)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 0.01 * Gram, 2 * Gram)),
                 ("G0 5–10 g (US 5,167,382's conventional pack)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 5 * Gram, 10 * Gram)),
-                ("G0 ×2 (4–20 g)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 2 * g[0], 2 * g[1])),
+                ("G0 ×2", s => s.Tether = FiberCutScenarios.Scaled(s.Tether, "spool.peel_energy_j_m", 2)),
                 ("n 0.1", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.1)),
                 ("n 0.3", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3)),
                 ("n 0.3, v_ref 1 m/s", s =>
@@ -592,9 +644,9 @@ namespace Fpv450.Sim.Tests
                     s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3);
                     s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_reference_rate_m_s", 1);
                 }),
-                ("μ 0.15", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.15)),
-                ("μ 0.45", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.45)),
-                ("μ 0.75", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.75)),
+                ("μ 0.3 (models to 88)", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.3)),
+                ("μ 0.36", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.36)),
+                ("μ 1.0", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 1.0)),
             };
             double[] speeds = { 10, 15, 20, 25, 27.8 };
             for (int ci = 0; ci < configs.Length; ci++)
