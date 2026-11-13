@@ -36,6 +36,9 @@ namespace Fpv450.Sim.Tests
     /// - **The pilot's stick noise** (D-060): every pilot flies with the optimal-control model's motor noise
     ///   (HarnessPilot.UseRemnant, on the run's seed), its level learnt over the measured span only (the release's first
     ///   DiscardSeconds and the climb are not a steady flight); `remnant: false` flies the noiseless pilot, the known-wrong.
+    /// - **The human pilot** (p7c-wind design 13, an option): `HumanPilots` fly HarnessPilot.Human (McRuer's crossover and
+    ///   delay for a rate-command element) and, with their remnant, the observation noise on the attitude errors beside
+    ///   the motor noise; their variants are K§8.5's but the delay's, which flies the published range's middle and top.
     /// </summary>
     public static class WindHarness
     {
@@ -104,6 +107,10 @@ namespace Fpv450.Sim.Tests
         {
             public string Name;
             public double Delay = 0.10, TauV = 0.5, FieldSplit = WindHarness.FieldSplit, BeltSplit = WindHarness.BeltSplit;
+
+            /// <summary>The human pilot (p7c-wind design 13, HarnessPilot.Human): its crossover, `Delay` its effective delay,
+            /// and with its remnant the observation noise beside the motor noise.</summary>
+            public bool Human;
         }
 
         /// <summary>The nominal pilot and its variants, flown on the same seeds; s = 1 and s = 0 are for T11b only.</summary>
@@ -116,6 +123,24 @@ namespace Fpv450.Sim.Tests
             new Pilot { Name = "tv1.0", TauV = 1.0 },
             new Pilot { Name = "s1", FieldSplit = 1, BeltSplit = 1 },
             new Pilot { Name = "s0", FieldSplit = 0, BeltSplit = 0 },
+        };
+
+        /// <summary>The human pilot's effective delay, s (HarnessPilot.HumanEffectiveDelay).</summary>
+        public const double HumanDelay = HarnessPilot.HumanEffectiveDelay;
+
+        /// <summary>
+        /// The human pilot (p7c-wind design 13) and the same variants, flown on the same seeds: the effective delay at the
+        /// published range's middle and top (0.15 and 0.20 s) in place of K§8.5's d 0 and 0.2, τ_v and the split as K§8.5's.
+        /// </summary>
+        public static readonly Pilot[] HumanPilots =
+        {
+            new Pilot { Name = "nominal", Human = true, Delay = HumanDelay },
+            new Pilot { Name = "te0.15", Human = true, Delay = 0.15 },
+            new Pilot { Name = "te0.2", Human = true, Delay = 0.20 },
+            new Pilot { Name = "tv0.3", Human = true, Delay = HumanDelay, TauV = 0.3 },
+            new Pilot { Name = "tv1.0", Human = true, Delay = HumanDelay, TauV = 1.0 },
+            new Pilot { Name = "s1", Human = true, Delay = HumanDelay, FieldSplit = 1, BeltSplit = 1 },
+            new Pilot { Name = "s0", Human = true, Delay = HumanDelay, FieldSplit = 0, BeltSplit = 0 },
         };
 
         /// <summary>One logged camera frame, and the flight's truth beside it (for the run's summary, never the CSV).</summary>
@@ -147,6 +172,11 @@ namespace Fpv450.Sim.Tests
             /// left, m/s; the mean airspeed, m/s; the lean per m/s of crosswind into it, degrees; the mean height error
             /// of the 2 s loop from the height it holds, m.</summary>
             public double MeanRollDeg, MeanPitchDeg, MeanCrosswind, MeanAirspeed, LeanPerMs, MeanHeightError;
+
+            /// <summary>The pilot's remnant: its share of each commanded body rate's variance (p, q, r) over the measured span
+            /// (HarnessPilot.RemnantShare), and whether the human pilot flew (design 13).</summary>
+            public double[] RemnantShare = new double[3];
+            public bool Human;
 
             /// <summary>wind_stats.py's --segment argument for the belt, or null.</summary>
             public string Segment => BeltLast > 0 ? BeltFirst + "-" + BeltLast : null;
@@ -382,7 +412,13 @@ namespace Fpv450.Sim.Tests
             {
                 Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.FieldSplit, Course = course, Height = low,
             };
+            if (pilot.Human)
+            {
+                p.Human(); // design 13: its crossover; the delay is the variant's
+                p.Delay = pilot.Delay;
+            }
             if (run.Remnant) p.UseRemnant(run.Seed); // D-060: the stick noise; the noiseless pilot is the known-wrong
+            if (run.Remnant && pilot.Human) p.UseObservationNoise(run.Seed); // design 13: the human's observation noise too
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             var right = new Double3(cos, 0, -sin);
@@ -435,6 +471,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
             }
             core.Wind.Dispose();
+            run.Human = pilot.Human;
+            for (int a = 0; a < 3; a++) run.RemnantShare[a] = p.Measured > 0 ? p.RemnantShare(a) : 0;
             run.Samples = samples.ToArray();
             int count = 0;
             foreach (Sample s in run.Samples)
