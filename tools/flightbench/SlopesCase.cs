@@ -85,9 +85,14 @@ namespace Fpv450.FlightBench
                 foreach (double deg in new[] { 20.0, 30, 38 })
                 {
                     SlopeScenarios.Impact c = SlopeScenarios.Crash(spec, deg, 10), p = SlopeScenarios.Crash(spec, deg, 10, true);
-                    Row($"{c.Facet:F2}°", c.CrashStep > 0 && p.CrashStep > 0 && Math.Abs(c.Depth - p.Depth) < 0.002 && c.Tunnels + p.Tunnels == 0,
+                    // The ledger's gap 14 (D-091, w9 2.6): no support or skid past the ground by more than the sweep's 20 mm beyond its
+                    // corner's own give; the parts as the contact model has them, the dropped pieces gone. The frame's deepest is printed
+                    // beside (a soft layer's compression, the sweep's finding 11, is not judged here).
+                    double tol = SweepScenarios.GroundTolerance;
+                    Row($"{c.Facet:F2}°", c.CrashStep > 0 && p.CrashStep > 0 && c.LegExcess <= tol && p.LegExcess <= tol && c.Tunnels + p.Tunnels == 0,
                         $"the crash by the {c.CrashBy} at {c.Speed:F2} m/s, {c.PeakAccel:F0} m/s² (the plane: {p.CrashBy}, {p.Speed:F2} m/s, {p.PeakAccel:F0} m/s²); "
-                        + $"the deepest past the ground {c.Depth * 1e3:F2} mm by the {c.DepthBy} (the plane {p.Depth * 1e3:F2} mm); tunnels {c.Tunnels + p.Tunnels}");
+                        + $"the deepest past the ground {c.Depth * 1e3:F2} mm by the {c.DepthBy} (the plane {p.Depth * 1e3:F2} mm); a leg's part past its give "
+                        + $"{c.LegExcess * 1e3:F2} mm by the {c.LegExcessBy ?? "-"} (the plane {p.LegExcess * 1e3:F2} mm, {p.LegExcessBy ?? "-"}; at most {tol * 1e3:F0}); tunnels {c.Tunnels + p.Tunnels}");
                 }
             }
 
