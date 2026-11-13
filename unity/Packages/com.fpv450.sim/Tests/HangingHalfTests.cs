@@ -179,9 +179,9 @@ namespace Fpv450.Sim.Tests
         // The audit's rows (3.0b): farmland #329 Slide, whose half (its leg broken, Hanging, Stub) went 1.6 → 47.5 mm into the tilled
         // ground in one step at 0.35 N when its holder's foot touched the short stems' layer, and range #61 Slide on S04, whose halves
         // went through the soil box under the straw tiles, 20–110 mm in a step. With the depth law each half stays within the sweep's
-        // allowance (GroundTolerance: no leg's give, no sink) and moves only as the body does, and as its holder's set places it
-        // before its give follows a step later (#329's step 7507: leg rl sets 0.12 rad and the half's end is 7.3 mm in for a
-        // step, then 1.5 mm); each flight replays bit for bit and steps at 0 B. Model 98's placement fails Ground on both.
+        // allowance (GroundTolerance: no leg's give, no sink) and moves only as the body does, its give following its holder's set
+        // in the step it sets (#329's step 7507: leg rl sets 0.12 rad; without that the end stood 7.3 mm in for a step); each flight
+        // replays bit for bit and steps at 0 B. Model 98's placement fails Ground on both.
         [Test]
         public void ASlideWithAHangingHalfKeepsItOutOfTheGround()
         {
@@ -198,7 +198,7 @@ namespace Fpv450.Sim.Tests
                 Assert.That(rs.Steps, Is.GreaterThan(100), $"{name}: a half hangs and is judged");
                 Assert.That(right.Failed[(int)Check.Ground], Is.False, $"{name}: the hanging half within its allowance");
                 Assert.That(rs.Deepest, Is.LessThan(GroundTolerance), $"{name}: never past GroundTolerance in the ground");
-                Assert.That(rs.Jump, Is.LessThan(0.010), $"{name}: it moves step to step as the body does (2 m/s, 2 mm a step) and its holder's set");
+                Assert.That(rs.Jump, Is.LessThan(0.005), $"{name}: it moves step to step as the body does (2 m/s, 2 mm a step)");
                 Assert.That(right.Failed[(int)Check.Replay], Is.False, $"{name}: the log replays bit for bit");
                 Assert.That(right.Failed[(int)Check.Alloc], Is.False, $"{name}: 0 B a step");
                 Assert.That(wrong.Failed[(int)Check.Ground], Is.True, $"{name}: model 98's half lies past its allowance");
