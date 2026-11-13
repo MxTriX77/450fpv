@@ -1134,6 +1134,18 @@ namespace Fpv450.Sim.Tests
                 "design 19 on model 94's clipped descent branch: the wash branch's pin before the merge");
         }
 
+        // p7d-tether design 20's audit (the laid line in the rotors' wash, on model 97): with the known-wrong airless trail
+        // (FlightSetup.TetherAirlessTrail: only the trail's end tested against the air, model 97's) the tether golden is model 97's
+        // pin, every record and event; every kept audit of an older line flies it and keeps its pin; every golden without the line
+        // keeps its pin. So the trail's air is the whole of the move.
+        [Test]
+        public void WithTheAirlessTrailTheTetherGoldenIsModel97s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 97", (airless, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, airlessTrail: airless), c),
+                GoldenFlights.Model97TetherHash, GoldenFlights.TetherHash, "the airless trail");
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the
