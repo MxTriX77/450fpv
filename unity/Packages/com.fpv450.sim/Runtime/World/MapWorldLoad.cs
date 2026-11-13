@@ -415,8 +415,9 @@ namespace Fpv450.Sim.World
             _leafBox = new Bounds[_leafPrims.Length];
             for (int k = 0; k < _leafPrims.Length; k++)
                 _leafBox[k] = _prims[_leafPrims[k]].Box;
-            if (_region == null)
-                _region = new RegionCache(); // the loading thread's, so its first query allocates nothing
+            _regions = new RegionCache[RegionCache.PerWorld]; // made now, so no query ever allocates one
+            for (int k = 0; k < _regions.Length; k++)
+                _regions[k] = new RegionCache(k);
             ListCells(_gaps.Length, k => (CellX(_gaps[k].X0), CellX(_gaps[k].X1), CellZ(_gaps[k].Z0), CellZ(_gaps[k].Z1)), out _gapStart, out _gapItems);
             PlaceMicro(rowMeta, rowPosition, rowRotation, rowScale);
             WorldBugs = PlaceWires(rowMeta, rowPosition, rowRotation, rowClass, file);

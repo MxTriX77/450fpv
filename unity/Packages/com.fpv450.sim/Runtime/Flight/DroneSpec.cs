@@ -1674,15 +1674,61 @@ namespace Fpv450.Sim.Flight
                 AeroSpec aero = spec.Aero;
                 aero.CoilPart = spec.Coil.Housing >= 0 ? spec.Coil.Housing : spec.Coil.Part;
                 if (!IsObject(p, "aero")) return;
-                Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient");
+                Members(p, "aero", "air_density_kg_m3", "body_area_m2", "body_center_of_pressure_m", "drag_coefficient", "hull");
                 aero.AirDensity = Positive(p, "air_density_kg_m3", "aero");
                 if (Vector(p, "body_area_m2", "aero", out aero.BodyArea)
                     && !(aero.BodyArea.X > 0 && aero.BodyArea.Y > 0 && aero.BodyArea.Z > 0))
                     Fail("aero.body_area_m2", "every silhouette must be above 0");
                 Vector(p, "body_center_of_pressure_m", "aero", out aero.BodyCenterOfPressure);
                 aero.DragCoefficient = Positive(p, "drag_coefficient", "aero");
+                if (p.Member("hull") != null) ReadHull(p.Member("hull"), aero);
                 if (aero.CoilPart >= 0 && spec.Parts[aero.CoilPart].Kind != PartKind.Cylinder)
                     Fail(spec.Coil.Housing >= 0 ? "coil.housing" : "coil.part", "the coil's drag needs its part to be a cylinder");
+            }
+
+            // The hull's moment (p7c-wind design 12), optional: none, no moment.
+            void ReadHull(JsonNode h, AeroSpec aero)
+            {
+                const string path = "aero.hull";
+                if (!IsObject(h, path)) return;
+                Members(h, path, "frontal_area_m2", "size_m", "added_volume_m3", "moment_curves");
+                aero.HullFrontalArea = Positive(h, "frontal_area_m2", path);
+                if (Vector(h, "size_m", path, out aero.HullSize) && !(aero.HullSize.X > 0 && aero.HullSize.Y > 0 && aero.HullSize.Z > 0))
+                    Fail(path + ".size_m", "every size must be above 0");
+                double[] a = Numbers(h, "added_volume_m3", path, 6);
+                if (a.Length == 6) aero.HullAddedVolume = new Sym3(a[0], a[1], a[2], a[3], a[4], a[5]);
+                else if (a.Length != 0) Fail(path + ".added_volume_m3", "must be [xx, yy, zz, xy, xz, yz]");
+                JsonNode curves = Labelled(h, "moment_curves", path);
+                if (curves == null || !IsArray(curves, path + ".moment_curves.value", 1)) return;
+                int n = curves.Items.Count;
+                aero.HullRatios = new double[n];
+                aero.HullAngles = new double[n][];
+                aero.HullMoments = new double[n][];
+                for (int i = 0; i < n; i++)
+                {
+                    string at = path + ".moment_curves.value[" + i + "]";
+                    JsonNode c = curves.Items[i];
+                    if (!IsObject(c, at)) return;
+                    Members(c, at, "length_over_diameter", "alpha_deg", "cm");
+                    JsonNode r = Required(c, "length_over_diameter", at), xs = Required(c, "alpha_deg", at), ys = Required(c, "cm", at);
+                    if (r == null || xs == null || ys == null) return;
+                    aero.HullRatios[i] = r.Kind == JsonKind.Number ? r.Number : double.NaN;
+                    if (!(aero.HullRatios[i] > (i > 0 ? aero.HullRatios[i - 1] : 0))) Fail(at + ".length_over_diameter", "must be above 0 and rise from curve to curve");
+                    if (!IsArray(xs, at + ".alpha_deg", 2) || !IsArray(ys, at + ".cm", 2)) return;
+                    if (xs.Items.Count != ys.Items.Count) { Fail(at, "alpha_deg and cm must be as long"); return; }
+                    var x = new double[xs.Items.Count];
+                    var y = new double[x.Length];
+                    for (int k = 0; k < x.Length; k++)
+                    {
+                        x[k] = xs.Items[k].Kind == JsonKind.Number ? xs.Items[k].Number : double.NaN;
+                        y[k] = ys.Items[k].Kind == JsonKind.Number ? ys.Items[k].Number : double.NaN;
+                        if (!(x[k] > (k > 0 ? x[k - 1] : -1)) || double.IsNaN(y[k])) Fail(at + "[" + k + "]", "the angles must rise and every value be a number");
+                    }
+                    if (x[0] != 0 || x[x.Length - 1] != 90 || y[0] != 0 || y[y.Length - 1] != 0)
+                        Fail(at, "must run from 0° to 90°, with no moment at either");
+                    aero.HullAngles[i] = x;
+                    aero.HullMoments[i] = y;
+                }
             }
 
             // ---- the building blocks ----

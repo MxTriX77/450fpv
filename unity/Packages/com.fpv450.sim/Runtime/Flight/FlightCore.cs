@@ -803,7 +803,7 @@ namespace Fpv450.Sim.Flight
             return s.Attitude.InverseRotate(_wind.At(camera, WindGround(camera)) - s.Velocity) - Double3.Cross(s.BodyRate, _camera);
         }
 
-        // The body's and the coil's drag (Aero) on the air's velocity at their centres, into the air's body-axis sums;
+        // The body's and the coil's drag (Aero) on the air's velocity at their centres, and the hull's moment, into the air's body-axis sums;
         // in rain, the drops' momentum flux on the same silhouettes (RainField), and the water they bring.
         void Drag(in FlightState s, in MassProperties body, ref Double3 force, ref Double3 moment)
         {
@@ -813,6 +813,8 @@ namespace Fpv450.Sim.Flight
             Double3 f = _aero.Body(a);
             force = force + f;
             moment = moment + Double3.Cross(cp - com, f);
+            // The hull's moment on the same air (a pure moment, p7c-wind design 12).
+            if (_aero.HasHull) moment = moment + _aero.Hull(a);
             Double3 fall = default, rain = default;
             double flux = 0;
             if (_rain != null)

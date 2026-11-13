@@ -421,9 +421,11 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// One flight at a point: Land (its rows Land and Liftoff), Cut, Drop or Slide. heading: NaN to draw it (Draws), else the
         /// nose's bearing in deg. prepare changes the core before its first step (a known-wrong); a flight so changed is not
-        /// replayed (replay false). Rows come back in the manoeuvre's order.
+        /// replayed (replay false). Rows come back in the manoeuvre's order. observe, if given, reads the core after each step
+        /// (a trace; it must not change the core).
         /// </summary>
-        public static Row[] Fly(Context c, in Point p, Manoeuvre m, ulong sweepSeed, double heading = double.NaN, Action<FlightCore> prepare = null, bool replay = true)
+        public static Row[] Fly(Context c, in Point p, Manoeuvre m, ulong sweepSeed, double heading = double.NaN, Action<FlightCore> prepare = null, bool replay = true,
+            Action<FlightCore> observe = null)
         {
             var row = new Row { Point = p, Manoeuvre = m };
             Row lift = m == Manoeuvre.Land ? new Row { Point = p, Manoeuvre = Manoeuvre.Liftoff } : null;
@@ -581,6 +583,7 @@ namespace Fpv450.Sim.Tests
                 stick.HostUs = s.Step * FlightCore.StepUs;
                 Row r = lifting ? lift : row;
                 judge.Step(stick, r, k >= 1000, recorder);
+                observe?.Invoke(core);
                 steps++;
                 ref readonly FlightState now = ref core.State;
                 if (touch < 0 && k >= hover && core.Trace.ContactsTouching > 0)
@@ -801,7 +804,9 @@ namespace Fpv450.Sim.Tests
                     if (_energy > EnergyTolerance) r.Fail(Check.Energy, step, $"{_energy:F3} J more than the contacts took");
                 }
 
-                // Events: twice in a step, refused, tunnels and world bugs, crashes, blades on the ground.
+                // Events: twice in a step, refused, tunnels and world bugs, crashes, blades on the ground. Twice is the same kind, part,
+                // index, object, shape and material: a blade through a crown's shell in one step cuts a twig (twig) and strikes the
+                // step's leaves (foliage) on the same shell, two strikes (w9-village-physics 2.3 §4; 2.6's addendum, Village #283, #474).
                 StepEvents ev = core.Events;
                 r.Judge(Check.EventsOnce);
                 r.Judge(Check.EventsKept);
@@ -812,9 +817,9 @@ namespace Fpv450.Sim.Tests
                     for (int j = 0; j < i; j++)
                     {
                         ref readonly FlightEvent o = ref ev[j];
-                        if (o.Kind == e.Kind && o.Part == e.Part && o.Index == e.Index && o.Object == e.Object && o.Shape == e.Shape)
+                        if (o.Kind == e.Kind && o.Part == e.Part && o.Index == e.Index && o.Object == e.Object && o.Shape == e.Shape && o.Material == e.Material)
                         {
-                            r.Fail(Check.EventsOnce, step, $"{e.Kind} twice on part {e.Part}, index {e.Index}, object {e.Object} shape {e.Shape}");
+                            r.Fail(Check.EventsOnce, step, $"{e.Kind} twice on part {e.Part}, index {e.Index}, object {e.Object} shape {e.Shape} material {e.Material}");
                             break;
                         }
                     }

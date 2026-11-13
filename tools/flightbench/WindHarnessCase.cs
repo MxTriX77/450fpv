@@ -25,7 +25,7 @@ namespace Fpv450.FlightBench
     // wind (WindHarness.FlyMap), and `--wrong nomap` the same course without the map's obstacles (WindSetup.Of).
     internal static class WindHarnessCase
     {
-        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--history N] [--map <id> [--wrong nomap]]";
+        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--hull off|on|potential] [--history N] [--map <id> [--wrong nomap]]";
 
         public static int Run(string[] args)
         {
@@ -34,6 +34,7 @@ namespace Fpv450.FlightBench
             int seeds = 5, history = 0, first = 1;
             string output = null, mapId = null;
             bool all = true, belt = true, steady = false, drag = true, remnant = true, interference = true, nomap = false;
+            string hull = "off";
             for (int i = 2; i < args.Length; i++)
             {
                 string value = i + 1 < args.Length ? args[i + 1] : null;
@@ -49,16 +50,21 @@ namespace Fpv450.FlightBench
                         steady = value == "steady"; drag = value != "nodrag"; remnant = value != "noiseless"; interference = value != "nowake"; i++; break;
                     case "--wrong" when value == "nomap": nomap = true; i++; break;
                     case "--map" when value != null: mapId = value; i++; break;
+                    // p7c-wind design 12: the hull's measured moment, off in every flight (D-107); on, or its known-wrong potential couple.
+                    case "--hull" when value == "off" || value == "on" || value == "potential": hull = value; i++; break;
                     default: return Fail(Usage);
                 }
             }
 
             DroneSpec spec = PoweredFlightCase.Drone();
+            spec.Aero.HullOn = hull != "off";
+            spec.Aero.HullPotential = hull == "potential";
             WindHarness.Pilot[] pilots = all ? WindHarness.Pilots : new[] { WindHarness.Pilots[0] };
             if (nomap && mapId == null) return Fail(Usage);
             if (mapId != null) return RunMap(spec, level, seeds, first, pilots, mapId, nomap, drag, remnant, output);
             Console.WriteLine($"flightbench: the wind harness (p7c-wind 1.2, K§8.5): {level}, the {WindPreset.Model} wind"
                 + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (interference ? "" : ", the known-wrong airframe without the rotors in each other's wake") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
+                + (hull == "on" ? ", the hull's measured moment on" : hull == "potential" ? ", the known-wrong hull's potential couple" : "")
                 + $", {seeds} seeds × {pilots.Length} pilots, {WindHarness.Seconds:F0} s each and the climb between the stretches (unmeasured), the first {WindHarness.DiscardSeconds:F0} s discarded");
 
             var runs = new WindHarness.Run[pilots.Length * seeds];
