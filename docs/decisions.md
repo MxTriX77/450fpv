@@ -857,3 +857,17 @@ From `p7c-wind` 1.5b on the physics line (model 96; design 13). It answers D-107
 - **The low band is still missing** (Severe T2 0.144° against P's 0.28°; pitch's 0.23–0.5 Hz band three times under). The slower hold fixes the spectrum's shape, not its size. The candidates left are the air's: the vertical gust gradient across each disc, and slow vertical gusts at the drone's height (`p7c-wind` 1.5c).
 - **The hover is still too still** in its 1–4 Hz band, and its heading most of all: 20–45 times under the footage with either pilot. A published remnant scales with the errors a pilot sees, and a near-still hover's are small. What moves a hovering drone's heading is open (`p7c-wind` 1.5d).
 - The golden flights keep the pilot they had.
+
+## D-110 A hovering drone's heading is moved by the pilot's hand, not by the airframe · Accepted
+From `p7c-wind` 1.5d's ranking on the physics line (model 97; design 14). Nothing is built.
+- **The gap:** in a hover the sim's heading is 20–45 times stiller than the footage's (yaw in the 1–4 Hz band 0.005° against 0.11–0.15°).
+- **No airframe source is near it.** Each was ranked by hand on the airframe's own numbers and checked against the flown sim:
+  - each rotor's torque unsteadiness: 0.001° as flown, at most 0.015° if it moved in step with the thrust, 0.041° with its in-plane twin;
+  - the motors' spreads under the roll and pitch corrections: 0.001–0.002°;
+  - the products of inertia: under 0.003°; the fiber's pull at the nozzle: 60 times short;
+  - the air's swirl: it would take 0.8–1.1 m/s of uncorrelated in-plane air at each hub, where a calm hover's eddies give about 0.1 m/s.
+  Together they stay under 0.004°, which the flown floor confirms (0.0024°). The physics lacks nothing that matters here.
+- **The yaw loop is not the reason either.** It barely rejects anything at 1–4 Hz (its crossover is 1.4 Hz against roll's 6.2 Hz), and a footage-sized heading uses under 1 % of the yaw authority.
+- **The hand is the only candidate of the right size.** The footage's heading needs 11 µs of yaw stick past the deadband (2.3 % of half stick), and it holds 0.07–0.21° across every phase and every air, as a hand's would and an airframe's would not. A published remnant scales with the errors a pilot sees, so the harness's human is rightly quiet in a still hover; the hand's tremor is inside every deadband; crosstalk from the throttle reaches it only from a busy throttle, which no published model gives.
+- **Part of the rate gap is the footage's measurement.** The rotation-only fit reads the camera's own sideways travel as yaw and its heave as pitch: below 1 Hz a drift of 2–5 cm/s at 1–2 m reads 0.4–1.9 °/s. The footage's hover rate and its bands below 1 Hz are upper bounds on rotation.
+- **So:** in the game the pilot's own hand supplies the heading's motion. The harness cannot grade a hover's heading against the footage until a human's stick in a hover is sized from data: a public dataset of people hovering small rotorcraft by radio is the next source, and failing that one blackbox log of a hover from the pilot's own quad (a question about their own kit, logged). `p7c-wind` 1.5d stays open.
