@@ -531,6 +531,7 @@ The 15–20° slides that move (#432, #434, #436, #437, #438, #446, #448) ended 
 - `--contacts`: PASS.
 - `--ground`: exit 1 before and after, the same 16 lone-corner targets not met (design 13's, 2.9's). Only the cross-slope landings that go over move, which the bench does not compare (Village at (313.04, 20.00) 53.1 → 56.0°; the 9.43° package 180.0 → 63.6°).
 - `tools/replay --record … --legs`, then `replay` (leg rr off, fr and fl broken, their halves hanging): match, 4000 steps and 156 events bit for bit, and 585 loose-piece records.
+- `dotnet test tools/simtests -c Release` on f8d9bed0: 907 passed, 2 failed of 909, the two of §10 (21 min, loaded).
 
 ### 10. Still not met, and assumed
 - **Not met:**
