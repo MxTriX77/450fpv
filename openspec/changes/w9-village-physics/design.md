@@ -895,7 +895,83 @@ The step's buffer (64) refused 24 events in the bush hover's first step. A step'
 - **A hover in a crown** (GreenBush_Dry, 25 s): the props turn, what they cut, no blade frozen, no break at 0 kg, no event refused.
 - Hand checks within 10 %: the twigs' hold (F_y on the whole drone against the contact force measured while it falls through), and the leaves' work a second against `crown_twigs.py` for the run's own speeds and LAD.
 
-(As built, the runs and the checks follow below.)
+### 7. As built
+
+**Code:**
+- `ContactSpec.cs`: `MaterialRow.Crown`, a `CrownRow` (the twigs' and leaves' constants, W̄ and δ̄ derived from them). `PhysicsMaterials.cs` reads a row's `crown` block, every value labelled.
+- `ContactModel.cs`: `Layered` gives a crown row's per-part stiffness k_e = (L_V·p/4)·W̄/δ̄ and **no damper** (below); `Update` yields a crown pair's plane past δ̄ and keeps the pair while its part backs out inside the shell; one crown pair carries a part (the deepest; the rest held for the step); `CapCrown` holds a leg's push on the twigs to the hold of its half-skid and lets its anchor go past δ̄; `Final`'s release (`Reached`) takes the twigs' reach on a crown pair. `TouchingOn(material)` for forensics (what a drone at rest rests on).
+- `PropStrikes.cs`: `CrownTwigLength` and `CrownTwigDiameter` are the row's (`Twigs` reads them there); `Leaves` and its cleared store (`LeafCells`, `LeafWork`, `LeafCutWork`, `LeafWorkOn(c)`).
+- `StepTrace.cs`, `FlightCore.cs`: `StepEvents.ForContacts(shapes)` sizes the step's buffer (§5).
+- `LogHeader.cs`: a tagged header entry (`TagCrown`, 29) holds each row's crown block, as 2.2's stems' and 2.9's ground's: **no log format change** (`LogFormat.Version` unchanged). A log without it flew model 89's shells.
+- `physics_materials.json`: `twig.crown`, each value labelled (§2, §4).
+
+**Changed while running (each measured, each a physics reason, nothing tuned to an outcome):**
+1. **No damper on a crown pair.** The row's ζ 0.2 on k_e gave 0.3–1 N·s/m a part: at 2 m/s 30 times the twigs' hold, a viscous drag no twig has. The twigs' rate effect is their inertia, ½·m_e·v² a twig met (m_e ≈ 0.24·ρAa, 2.5 g at the middle arm, derived): 4 % of W̄ at 2 m/s and half of it at 7 m/s, of a hold that is itself 1.6 % of the weight. Left out and named.
+2. **A leg's push capped at the twigs' hold (`CapCrown`).** Measured in the drop test before it: a foot held by its stick anchor while the body fell through took the lever's statics (p7g-legs 1.4) to 45 N a point, the corner's leg load to 132 N, with its anchor 0.16 m off (2.4's runaway, on the twigs). The twigs under a foot carry at most the half-skid's F_y and break past δ̄; so the leg's push on them is scaled to that hold, and its anchor lets go past δ̄ whether it slid or not. After: 0.03 N a leg, the anchors within 37 mm.
+3. **The leaves' samples on the rim and a 2.5 cm cell.** On a 5 cm grid alone a disc moving in its plane met its fresh leaves at the grid's leading points, 0.10 m from the hub instead of the tip's 0.127 m: (0.10/0.127)² = 0.62 of the fling. The leaves enter a disc moving in its plane across its rim, where the tips take them; so the rim is sampled every cell of arc, and the grid's points trail in cells the rim cleared. The cell went to 2.5 cm so a straight path's width is quantised to at most +8 % (5 cm: +18 %).
+
+**The runs** (measured on this branch; `CrownTests`, `ObjectContactTests`):
+
+| Run | Measured | Hand | |
+|---|---|---|---|
+| The drone dropped disarmed into a 4 m twig sphere: the twigs' upward force while 0.3–1.5 m in | **0.852 N** | 0.846 N (Σp = the drone's shapes along the vertical, L_V·p/4·W̄) | **+0.7 %** |
+| … where it is after 1.5 s | 10.53 m in, 13.6 m/s (free fall: 11.0 m, 14.7 m/s) | | falls through |
+| … model 89's shell (the known-wrong) | rests on the crown's top: −0.06 m in (bounced up) | | holds it like a solid |
+| A disc through GreenBush's leaves (LAD 0.976) at 2 m/s: the front rotors' leaf work while wholly inside | **18.67 J** | 17.72 J (2R·v⊥·m_A·LAD·t·(ωR)², the run's own ω and v, step by step) | **+5.4 %** |
+| … the rear rotors (in the front ones' track) over the whole flight | 3.51 J | less than the front's | the cleared track |
+| … 4–15 Hz body rate in the leaves / before | 0.21 °/s / 0.56 °/s (before: the pilot's acceleration) | | no shake from leaves alone at 2 m/s |
+
+- **The bush hover** (`AHoverInACrownBreaksNoBladeTwice`, 25 s 1.24 m up in GreenBush_Dry): the props turn from the first second (0 rotor-steps at rest after it, against 3 rotors standing still for 25 s on model 89); 8 twigs cut for 60.7 J; 3,544 leaf cells for 66.1 J (most in the first second, the disc's own volume; then a held disc meets nothing new: "a hover cuts itself clear"); 0 breaks, none at 0 kg; **0 events refused, in the first step too (it made 271)**; at the end 1.45 m up on 0.37 N from its contacts (the pilot holds its height, the twigs carry nothing). Replays bit for bit (25,016 steps, 1,372 events); 0 B after the first second.
+- **The crown flight at 6.85 m/s, the stems on** (`ADroneInACrownPaysForItsTwigsAndDoesNotHang`): first touch 10.89 s; 22 twigs cut for 144.3 J; 21,448 leaf cells for 126.7 J; the front rotors dip 26.6 % in the crown's first second, the body's 4–15 Hz rate 15.1 °/s there against 0.04 °/s before (the crown's twigs, leaves and branches together); it **crashes on a branch** (bark) and ends on the ground 16.9 m from where model 89 hung it, 0 events refused (at most 43 in a step), 0 B. **The known-wrong** (model 89's shells: no crown block, 30 N/m a part, the blades glancing) hangs 4.21 m up on 28 twig pairs, 0 on bark.
+- **The spec's crown flight, 2 m/s into IslandTree** (`TwoMetresASecondIntoACrown`): first touch 21.12 s; 7 twigs cut for 52.1 J; 7,665 leaf cells for 22.6 J; the front rotors dip 10.6 %; 4–15 Hz body rate 9.3 °/s in the crown's first second against 0.00 °/s before, the blade-pass band's strongest line 0.007 °/s at 230 Hz (the shake is the loop's answer to the rotors' dips, as 2.12's); it **flies through the crown** and leaves it at 2 m/s, 4.1 m up, a leg damaged on the way (730 loose-piece records). Replays bit for bit (30,016 steps, 5,742 events); 0 B in the crown's steps; 0 events refused (at most 57 in a step).
+- **What holds and what breaks** (the answer to the task): a crown's 5–10 mm twigs break one by one at 0.115 J and hold 0.75 N of the drone; a prop is never frozen by them (0.029 N a blade); a turning blade cuts each twig it meets (2.7's law, 6.6–7.6 J a twig in these runs) or, too slow, stops on it and cuts it on its next turn. The drone hangs in a tree only on a **branch** (the shells' bark capsules, 27–43 mm here) or on the ground. That is the model's answer for every crown on Village; whether a real drone sometimes hangs a moment on two twigs near their bases is the mean's limit (§2), named below.
+
+### 8. Goldens and benches, audited case by case
+
+- **`flightbench --golden`:** 62 PASS, no FAIL (the same lines as ca718e20): no golden flies through a crown, and the range golden's straw is not a crown row. The event buffer's size changes no flight (it only stops refusing).
+- **`flightbench --contacts`** (ca718e20 against this branch, every row compared; only the crown rows moved):
+  - the test range's V01_L crown at 10 m/s: the crash behind it on the ash's timber at 9.71 m/s (model 89: 6.71 m/s): its shells no longer took the drone's speed away.
+  - **the farmland crowns at 10 m/s:** the twigs' impulse **0.13–0.47 N·s** (model 89: 31–76 N·s, up to 1.6 times the drone's whole 47 N·s of momentum: the shells were walls). IslandTree: flies through (no crash, as before). Pine002_M, Pine004_1, Pine006_01 now crash on their **branches** at 9.8–10.5 m/s (model 89: Pine002_M none, the rest at 2.8–6.5 m/s after the shells slowed them).
+  - **Two rows fail, "no tunnel"** (not a golden; measured, each after the crash): Pine002_M, `skid_left` (leg_fl broken 131 steps before, its half-skid hanging) 115 mm through a 47 mm bark capsule at 14.27 m/s, step 10415; Pine004_1, a resting blade of `prop_fl` (the rotor stopped in the crash) 63 mm into a 28 mm bark capsule at 8.48 m/s, step 10120. Both are a tumbling, broken drone's part passing a thin rigid branch at a speed the shells used to take away: a hanging half's elastic turn and a blade come back to rest, not the crown's law. They are physics bugs and are named for the orchestrator (below), not fixed here: the task is the crown.
+  - the farmland bush: 0.13 N·s from its twigs (model 89: 48.63), 4 twigs cut for 27.8 J (model 89: none, the blades glancing at rest), out at 10.09 m/s.
+- **No golden was re-recorded.**
+
+### 9. The checks, as run (this branch; a shared machine: no timing counts)
+
+```
+dotnet test tools/simtests -c Release --filter "FullyQualifiedName~CrownTests|FullyQualifiedName~ObjectContactTests"
+  8 passed (the numbers in §7, printed by each)
+dotnet test tools/simtests -c Release            (on 71456dac)
+  Failed: 4, Passed: 855, Total: 859, 32 m 40 s
+    TheHeaderCoversTheContactTypes             MaterialRow.Crown not in the header's coverage list: added (logged in TagCrown)
+    NoStaticReferenceFieldOnTheStepPath        LogHeader's sort lambda renumbered 147 → 148 by the crown entry: the list follows
+    WithoutTheHangingGiveTheWindyCrownIsModel50s  model 50's kept audit flew through V01_L's twigs at speed: it flies model 89's
+                                               shells now (GoldenFlights.WithoutTheCrowns), its Tunnel at step 10975 again
+    SnagsNear_AllocatesNothing                 2600 B, World code untouched: passes alone (a first-call allocation)
+dotnet test ... the four above, CrownTests, ObjectContactTests   (on 26c2b496)
+  Passed: 12, Failed: 0
+dotnet run -c Release --project tools/flightbench -- --golden
+  6 golden cases registered; 62 PASS, 0 FAIL
+dotnet run -c Release --project tools/flightbench -- --contacts
+  contacts: FAIL (the two post-crash tunnels of §8; every other row PASS)
+bit-exact replays: TwoMetresASecondIntoACrown  Match, 30016 steps and 5742 events, bit for bit, and 730 loose-piece records
+                   AHoverInACrownBreaksNoBladeTwice  Match, 25016 steps and 1372 events, bit for bit
+0 B: the crown flight from its first touch, the bush hover after its first second (asserted)
+python tools/hygiene/precommit.py --tree HEAD
+  3587 files scanned, 0 findings
+python -m pytest tools/blender/tests -k "material or physics"
+  61 passed
+openspec validate w9-village-physics --strict
+  Change 'w9-village-physics' is valid
+```
+
+### 10. Still assumed, and not met
+
+- **Assumed:** L_V 2 m/m³ (inside the pipe model's 0.2–24), d 7.5 mm, ℓ 0.5 m, σ 50 MPa, E 10 GPa, every twig met across, the arm even over ℓ; the leaves' dry matter 0.35, their critical speed's edge factor 3, the cell 2.5 cm, the needles as leaves; the slab a rim cell strikes, h_f + (s − h_f)·|v̂·â|.
+- **The mean, not the twigs one by one.** A drone never rests a moment on two strong twigs; placing twigs by hash in the shell as 2.12 places stems would give it, and a rate the pilot could judge. Not built.
+- **The twigs' inertia** (½·m_e·v² a twig met) and **the leaves' drag on the rotor's inflow** (a porous blockage, about 2 % of the disc loading): left out, named.
+- **The shells' fit** (the world builder's, D-096): the shells are felt 0.3–0.7 m before the drawn leaves and twig spheres sit up to 141 mm off the drawn crown. The leaves' density is the drawn leaf area over the shells' volume (2.8), so a disc meets the drawn crown's leaf area in total, spread over the shells' larger volume. Seen here: IslandTree's shells at the test spot reach 1.3–1.5 m radius.
+- **Not met:** `--contacts`' two post-crash tunnels (§8).
 
 ## 2.9 Village's ground rows and the liftoff harness
 
