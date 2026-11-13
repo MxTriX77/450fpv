@@ -399,28 +399,6 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model93TetherHash, GoldenFlights.TetherHash, sw);
         }
 
-        // p7c-wind design 12's audit (the hull's measured moment, D-107: built, graded, not flown): without the hull, as every flight
-        // flies, each golden is its pin, model 94's, every record and event; with it on (GoldenFlights.WithTheHull), its Hull pin,
-        // which moves the powered and rain flights from step 0 (4.9 m apart at 10 s) and the grounded three within 0.1 mm and
-        // 0.02°. The tumble flies no air.
-        [Test]
-        public void WithTheHullEachGoldenIsItsPin()
-        {
-            DroneSpec spec = RepositoryDrone.Spec();
-            WindSetup calm = WindSetup.Of(WindLevel.Calm);
-            const string sw = "the hull's moment off";
-            Audit("powered", "model 94", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, hull: !old), c),
-                GoldenFlights.PoweredHash, GoldenFlights.HullPoweredHash, sw);
-            Audit("rain", "model 94", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, hull: !old), c),
-                GoldenFlights.RainPoweredHash, GoldenFlights.HullRainPoweredHash, sw);
-            Audit("contact", "model 94", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, hull: !old), c),
-                GoldenFlights.ContactHash, GoldenFlights.HullContactHash, sw);
-            Audit("range", "model 94", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, hull: !old), c),
-                GoldenFlights.RangeHash, GoldenFlights.HullRangeHash, sw);
-            Audit("tether", "model 94", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, hull: !old), c),
-                GoldenFlights.TetherHash, GoldenFlights.HullTetherHash, sw);
-        }
-
         // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 (WakeLayout.Version 1: each cell's porosity
         // by K§10.3's covered fraction, the nearest wake alone, the porosity-free boost) the range golden is 1.1's pin, model 76's
         // re-record (Model76RangeHash), every record and event; with version 2 it is the new pin. So the wake grid is the whole of

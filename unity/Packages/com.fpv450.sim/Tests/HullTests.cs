@@ -1,5 +1,6 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using NUnit.Framework;
 
 namespace Fpv450.Sim.Tests
@@ -30,6 +31,40 @@ namespace Fpv450.Sim.Tests
             Assert.That(spec.HullOn, Is.False);
             Assert.That(new Aero(spec).HasHull, Is.False);
             Assert.That(RepositoryAero().HasHull, Is.True);
+        }
+
+        [Test]
+        public void WithTheHullAWindyPoweredFlightDiffersAndStaysBounded()
+        {
+            // The flight-level guard, a property and no pin (D-107): the powered golden's Windy flight with the hull on leaves the
+            // default flight's records (the air moves from the first step) and stays a flight: finite, armed, not crashed, its
+            // body rates and its end within reach of the default's (graded: 315 °/s both, 1.04 m apart in height at 10 s).
+            DroneSpec spec = RepositoryDrone.Spec();
+            double MaxRate(bool hull, out FlightCore core, out int differs, System.Collections.Generic.List<ulong> against)
+            {
+                double most = 0;
+                int k = 0, d = 0;
+                GoldenFlights.FlyPowered(spec, out core, hull: hull, onRecord: r =>
+                {
+                    LogFormat.DecodeStep(r, out FlightState st, out _, out _);
+                    Assert.That(double.IsFinite(st.Position.Y) && double.IsFinite(st.BodyRate.Length()), Is.True, "step " + k);
+                    most = Math.Max(most, st.BodyRate.Length());
+                    ulong h = GoldenFlights.Fnv(0xCBF29CE484222325UL, r, 0, r.Length);
+                    if (against.Count > k) { if (against[k] != h) d++; } else against.Add(h);
+                    k++;
+                });
+                differs = d;
+                return most;
+            }
+            var records = new System.Collections.Generic.List<ulong>();
+            double off = MaxRate(false, out FlightCore a, out _, records);
+            double on = MaxRate(true, out FlightCore b, out int differ, records);
+            TestContext.WriteLine($"hull on: {differ} of {records.Count} records differ; peak rate {on / DegToRad:F0} °/s against {off / DegToRad:F0}; "
+                + $"ends {b.State.Position.Y:F2} m up against {a.State.Position.Y:F2}");
+            Assert.That(differ, Is.GreaterThan(records.Count / 2), "the hull moves the Windy flight");
+            Assert.That(b.State.Crashed, Is.False);
+            Assert.That(on, Is.LessThan(1.2 * off), "its body rates stay within the default flight's reach");
+            Assert.That(Math.Abs(b.State.Position.Y - a.State.Position.Y), Is.LessThan(5));
         }
 
         [Test]

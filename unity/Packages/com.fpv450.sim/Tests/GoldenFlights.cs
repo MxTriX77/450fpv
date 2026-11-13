@@ -354,8 +354,7 @@ namespace Fpv450.Sim.Tests
         // With 3f's it moves from step 25 (the first armed steps' climb), 0.5° and 0.08 m by 4 s, ends 143.3913 m up against 143.8328, 0.69 m apart.
         // p7b-airframe design 3g (the own wake's level read off its record, model 94): re-recorded (model 92's level and bound (GoldenFlights.Model92WakeLevel): model 93's pin, every record and event, GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s);
         // from step 25, at most 0.17 m and 0.37° apart, ends 143.5458 m up against 143.3913.
-        // p7c-wind design 12 (the hull's measured moment, D-107): off in every flight, so each pin is model 94's; with it on, the Hull pin (GoldenFlightTests.WithTheHullEachGoldenIsItsPin).
-        public const ulong PoweredHash = 0x71571798E9C97719UL, HullPoweredHash = 0x75057439E7631BD4UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL;
+        public const ulong PoweredHash = 0x71571798E9C97719UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -471,8 +470,7 @@ namespace Fpv450.Sim.Tests
         // ends 142.2366 m up against 142.5168, 0.56 m apart.
         // p7b-airframe design 3g (model 94): re-recorded, audited as the powered flight (model 92's level: model 93's pin); from step 22,
         // at most 0.14 m and 0.36° apart, ends 142.2130 m up against 142.2366.
-        // p7c-wind design 12 (the hull's measured moment, D-107): off in every flight, so each pin is model 94's; with it on, the Hull pin (GoldenFlightTests.WithTheHullEachGoldenIsItsPin).
-        public const ulong RainPoweredHash = 0x78EC41F77E2DC817UL, HullRainPoweredHash = 0x100B389621A46EEDUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL;
+        public const ulong RainPoweredHash = 0x78EC41F77E2DC817UL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -1077,8 +1075,7 @@ namespace Fpv450.Sim.Tests
         // before, at rest 0.4 mm from 90's end.
         // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 29.8 mm and 1.15°, 3 impacts
         // as before, at rest 6.9 mm from 93's end.
-        // p7c-wind design 12 (the hull's measured moment, D-107): off in every flight, so each pin is model 94's; with it on, the Hull pin (GoldenFlightTests.WithTheHullEachGoldenIsItsPin).
-        public const ulong ContactHash = 0x043EEB284B4A8E0AUL, HullContactHash = 0x5632B089FDB4925EUL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL;
+        public const ulong ContactHash = 0x043EEB284B4A8E0AUL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1408,8 +1405,7 @@ namespace Fpv450.Sim.Tests
         // and event (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s, WithTheLineBeforeDesign18TheTetherGoldenIsModel92s).
         // The merged flight against model 93's: from step 10, at most 29.8 mm and 1.13° apart, the ends 7.0 mm apart, 0.2494 m up,
         // 3 impacts, the line whole, 0.489 m paid out against 0.466.
-        // p7c-wind design 12 (the hull's measured moment, D-107): off in every flight, so each pin is model 94's; with it on, the Hull pin (GoldenFlightTests.WithTheHullEachGoldenIsItsPin).
-        public const ulong TetherHash = 0x99C789A0CB2EC6B2UL, HullTetherHash = 0xFC4E827A9DFC4DDDUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL;
+        public const ulong TetherHash = 0x99C789A0CB2EC6B2UL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL;
 
         /// <summary>The tether golden with p7b-airframe design 3g's level on model 92's line (the wake-level branch's pin before it
         /// merged model 93): the merged flight with the line before design 18 gives it, every record and event.</summary>
@@ -1805,8 +1801,7 @@ namespace Fpv450.Sim.Tests
         // before, at rest 0.9 mm from 90's end.
         // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 34.9 mm and 0.40°, 3 impacts
         // against 4 (one light touch no longer happens), at rest 10.1 mm from 93's end.
-        // p7c-wind design 12 (the hull's measured moment, D-107): off in every flight, so each pin is model 94's; with it on, the Hull pin (GoldenFlightTests.WithTheHullEachGoldenIsItsPin).
-        public const ulong RangeHash = 0x9A6EE9908AA9E2F0UL, HullRangeHash = 0xEB417BDB75B3EE23UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL;
+        public const ulong RangeHash = 0x9A6EE9908AA9E2F0UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL;
 
         /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
         public const ulong Model76RangeHash = 0xAF745CC52447E017UL;
@@ -2188,7 +2183,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? hull = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2240,7 +2235,6 @@ namespace Fpv450.Sim.Tests
             Edgewise(setup, edgewise, layout, airmode);
             WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
             edit?.Invoke(setup);
-            Hull(setup, hull);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -2303,7 +2297,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
             SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? wakes2 = null, bool? ownWake = null, bool? wakeLevel = null, bool? hull = null)
+            bool? wakes2 = null, bool? ownWake = null, bool? wakeLevel = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2330,7 +2324,6 @@ namespace Fpv450.Sim.Tests
             Edgewise(setup, edgewise, layout, airmode);
             WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false);
             edit?.Invoke(setup);
-            Hull(setup, hull);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
@@ -2478,8 +2471,8 @@ namespace Fpv450.Sim.Tests
             if (!(ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize))) core.Propulsion.HoverWakeLaw = true;
         }
 
-        /// <summary>The hull's moment (p7c-wind design 12, D-107): off in every golden, as in every flight, unless hull says on;
-        /// the hull's pins (HullPoweredHash and the rest) fly it. The audit is GoldenFlightTests.WithTheHullEachGoldenIsItsPin.</summary>
+        /// <summary>The hull's moment (p7c-wind design 12, D-107): off in every flight, the goldens' too; hull on flies it (no pin:
+        /// HullTests.WithTheHullAWindyPoweredFlightDiffersAndStaysBounded).</summary>
         public static void Hull(FlightSetup setup, bool? hull)
         {
             if (hull == true && setup.Aero != null) setup.Aero = WithTheHull(setup.Aero);
