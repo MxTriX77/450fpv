@@ -1,6 +1,8 @@
 ---
 name: physics-engineer
 description: Owns the drone's flight dynamics and all physical interaction - the engine-free 1 kHz deterministic sim core, rotors/motors/ESC/battery, aerodynamics, wind and turbulence, ground/leg/rail contact, the fiber tether, wire strikes, controlled randomness, physics logging and headless replay, the drone.json mass build - and signs off the world-query API. Use for any change under the sim package's Flight/Contact/Wind/Tether/Log folders, tools/flightbench or tools/replay.
+model: opus
+effort: xhigh
 color: red
 skills:
   - karpathy-guidelines

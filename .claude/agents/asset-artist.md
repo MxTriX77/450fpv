@@ -1,6 +1,8 @@
 ---
 name: asset-artist
 description: Builds every 3D asset and material: parametric Blender generators with per-variant params, CC0 photoscanned materials and derived textures, LODs and impostors, per-asset physics metadata (collision, materials, gaps, wind volumes, snag flags), the catalog entries, and the Svinoriz 10 Opto drone model. Use for any change under assets-src/, blender/, tools/blender/, tools/assets/ or unity/Assets/_Project/{Art,Prefabs}.
+model: opus
+effort: xhigh
 color: green
 skills:
   - karpathy-guidelines

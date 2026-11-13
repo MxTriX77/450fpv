@@ -1,6 +1,8 @@
 ---
 name: qa-engineer
 description: Reviews every branch before it merges against its spec scenarios, requirements, budgets and repo hygiene; owns tests, benchmarks (PLT-07), screenshot reviews, golden-file audits, determinism checks and crash forensics from physics logs (bug vs pilot error). Use after a role finishes a change, before every pilot gate, or when the pilot reports a crash or odd behaviour.
+model: opus
+effort: xhigh
 color: orange
 skills:
   - karpathy-guidelines
