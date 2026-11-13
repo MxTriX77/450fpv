@@ -343,7 +343,8 @@ namespace Fpv450.Sim.Tether
             _loadLength = new double[nodes];
             if (setup.Propulsion != null)
                 _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air,
-                    setup.TetherFountainThroughBody ? null : parts);
+                    setup.TetherFountainThroughBody ? null : parts,
+                    setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air);
 
             // The coil: the line left on it, from its part's mass over the empty spool's.
             _coilPart = setup.TetherCoilPart;
