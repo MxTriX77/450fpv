@@ -109,8 +109,8 @@ namespace Fpv450.Sim.Tether
     /// trail behind it. FlightCore steps it inside its 1 ms step, after the body moves:
     /// - The exit is the chain's last node, anchored to the canister's nozzle tip (spool.exit_position_m) and following it;
     ///   line flows out through it by CableSpool's law (the peel's rate law at the section's irregularity, the momentum flux,
-    ///   the balloon, the lip's capstan e^(μθ) over the wrap between the nozzle's axis, spool.exit_direction, and the first
-    ///   segment), and never back. The coil's mass falls by the line paid out and the mass model is rebuilt each span.coil_rebuild_m.
+    ///   the balloon, the nozzle's factor over the wrap θ between the nozzle's axis, spool.exit_direction, and the first
+    ///   segment: design 18's point contacts at the bore's entry and the hole's edge, FiberCuts.LipFactor), and never back. The coil's mass falls by the line paid out and the mass model is rebuilt each span.coil_rebuild_m.
     /// - The line pulls the drone at the exit: the exit segment's tension along it less the momentum flux μ·ṡ² (the leaving
     ///   line carries it away; derived from the variable-mass momentum balance), applied in the next step (the one-step lag
     ///   of design 2).
@@ -172,6 +172,9 @@ namespace Fpv450.Sim.Tether
         // step (NaN before the first).
         readonly Double3 _azimuthX, _azimuthY;
         double _lipAzimuth = double.NaN;
+        // The lip's law (design 18): the bore's free angle, the edge's radius plus the coating, the glass's EI; the factor this step.
+        readonly double _freeAngle, _lipCap, _bending;
+        double _lipFactor = 1;
         readonly double _lipFriction, _peelEnergy, _rateExponent, _referenceRate, _balloonLength, _balloonMass, _sectionLength;
         readonly double _irregularityLo, _irregularityHi;
         readonly SeedStream _irregularity;
@@ -184,6 +187,7 @@ namespace Fpv450.Sim.Tether
         readonly double[] _trailMaterial, _trailHeld, _trailAir;
         readonly double _freezeTime, _freezeSpeed, _hold;
         readonly bool _slidingTrail; // FlightSetup.TetherSlidingTrail: the trail before w3-farmland-ground 2.4
+        readonly bool _capstanLip;   // FlightSetup.TetherBeforeDesign18: the line before design 18
         int _trailCount;
 
         // The coil.
@@ -253,6 +257,7 @@ namespace Fpv450.Sim.Tether
             _terrain = !World.Geometry(WorldIds.Ground, 0, out _);
             TwoWay = setup.TetherTwoWay;
             _slidingTrail = setup.TetherSlidingTrail;
+            _capstanLip = setup.TetherBeforeDesign18;
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
                 : setup.Rain == RainLevel.SevereRain ? table.Number("fiber.wet_film_severe_m") : 0;
@@ -276,6 +281,9 @@ namespace Fpv450.Sim.Tether
             _azimuthX = across * (1 / across.Length());
             _azimuthY = Double3.Cross(_exitLead, _azimuthX);
             _lipFriction = table.Number("spool.lip_friction");
+            _freeAngle = DetMath.Atan2(2 * table.Number("spool.mouth_radius_m"), table.Number("spool.nozzle_length_m"));
+            _lipCap = table.Number("spool.lip_radius_m") + table.Number("fiber.coating_thickness_m");
+            _bending = table.Number("fiber.bending_stiffness_n_m2");
             _rateExponent = table.Number("spool.peel_rate_exponent");
             _referenceRate = table.Number("spool.peel_reference_rate_m_s");
             _balloonLength = table.Number("spool.balloon_length_m");
@@ -283,7 +291,7 @@ namespace Fpv450.Sim.Tether
             _sectionLength = table.Number("fiber.section_length_m");
             double[] peel = table.Row("spool.peel_energy_j_m").Values;
             SeedStream peelStream = random.Open("spool.peel");
-            _peelEnergy = random.Draw(ref peelStream, "peel_energy_j_m", peel[0], peel[1]);
+            _peelEnergy = random.DrawQuantile(ref peelStream, "peel_energy_j_m", peel);
             double[] irregularity = table.Row("spool.irregularity").Values;
             _irregularityLo = irregularity[0];
             _irregularityHi = irregularity[1];
@@ -312,6 +320,7 @@ namespace Fpv450.Sim.Tether
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
+                KeepSlideStretch = setup.TetherBeforeDesign18,
             };
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
@@ -355,7 +364,7 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength);
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18);
                 _link = new FiberLink(table);
             }
             _propulsion = propulsion;
@@ -495,8 +504,8 @@ namespace Fpv450.Sim.Tether
         public double PackLaw(double sdot) =>
             _dryMass * sdot * sdot + _peelEnergy * Irregularity(_section) * (sdot > _referenceRate ? DetMath.Exp(_rateExponent * DetMath.Log(sdot / _referenceRate)) : 1);
 
-        /// <summary>The lip's capstan e^(μθ) at the last step's wrap.</summary>
-        public double Lip => DetMath.Exp(_lipFriction * _lipAngle);
+        /// <summary>The spool's factor over the nozzle at the last step's wrap (FiberCuts.LipFactor, design 18).</summary>
+        public double Lip => _lipFactor;
 
         // ---- the launch ----
 
@@ -699,12 +708,15 @@ namespace Fpv450.Sim.Tether
             Double3 aft = q.Rotate(_exitLead);
             Double3 first = _chain[n - 2].Position - exit.Position;
             _lipAngle = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
+            // The nozzle's law (design 18): point contacts at the bore's entry and the hole's edge; whether the line wraps the
+            // edge is judged on the last step's tension outside (the factor is set before the step).
+            _lipFactor = _capstanLip ? DetMath.Exp(_lipFriction * _lipAngle) : FiberCuts.LipFactor(_lipAngle, _freeAngle, _lipFriction, _lipCap, _bending, ExitTension);
             _section = exit.Material + _balloonLength;
             double irregularity = Irregularity(_section);
             bool empty = PaidOut >= _coilLine;
             _chain.Spool = new CableSpool
             {
-                Active = true, Locked = empty, TwoWay = TwoWay, Lip = DetMath.Exp(_lipFriction * _lipAngle),
+                Active = true, Locked = empty, TwoWay = TwoWay, Lip = _lipFactor,
                 Peel = _peelEnergy * irregularity, RateExponent = _rateExponent, ReferenceRate = _referenceRate,
                 FluxMass = _dryMass, BalloonMass = _balloonMass,
             };
@@ -1041,6 +1053,35 @@ namespace Fpv450.Sim.Tether
             Double3 on = point + normal * _radius;
             double share = Taut(a, on);
             share /= share + Taut(on, b);
+            // The crest's node never stretches the line (p7d-tether design 18): where the segment's line covers both straight pieces
+            // to the ground, no piece is shorter than its straight length (the taut paths' share had left the piece up a ledge's
+            // face 2 % short, a 19 N spring that threw its node at 27 m/s); where it does not (a nearly taut chord cut through a
+            // corner, which a node on the ground would leave 2.5 cm short, a 6.8 N spring), the shortfall is drawn from the pack.
+            double rest = _chain[j + 1].Material - na.Material, la = (on - a).Length(), lb = (b - on).Length();
+            if (_capstanLip) { }
+            else if (rest >= la + lb)
+            {
+                double mine = rest * share;
+                if (mine < la) mine = la;
+                if (rest - mine < lb) mine = rest - lb;
+                share = mine / rest;
+            }
+            else if (_chain.Spool.Active && !_chain.Spool.Locked && !_chain[_chain.Count - 1].Crest)
+            {
+                // The segment's line does not reach the ground there: the line laid round the corner is drawn from the pack, every
+                // node from the far end of the segment to the exit taking the shortfall on its material coordinate (each
+                // segment there keeps its rest length; the exit's material grows by it, as a payout), both pieces then at their
+                // straight lengths. (The pack's peel over that much line, G·δ, a ten-thousandth of a joule, is not charged.)
+                double shortfall = la + lb - rest;
+                for (int k = j + 1; k < _chain.Count; k++) _chain[k].Material += shortfall;
+                share = la / (la + lb);
+            }
+            else
+            {
+                CrestsRefused++;
+                Clear(ref na, a, b, CrestSlack);
+                return;
+            }
             if (_chain.SplitCrest(j, share, on) || Yield(inside) && _chain.SplitCrest(j, share, on)) CrestsInserted++;
             else
             {

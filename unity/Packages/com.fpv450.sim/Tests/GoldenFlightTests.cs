@@ -1053,6 +1053,23 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model79TetherHash, GoldenFlights.TetherHash, "the sliding trail");
         }
 
+        // p7d-tether design 18's audit (the lip's point-contact law, μ_l 0.45, the light peel, and the fiber's contacts): with the
+        // known-wrong line before design 18 (FlightSetup.TetherBeforeDesign18) on models 74–88's μ and peel band
+        // (GoldenFlights.Model88Tether) the tether golden is model 92's pin (p7b-airframe design 3f's own wake, merged), every record
+        // and event, and with model 90's own-wake law too (Propulsion.HoverWakeLaw) model 88's, which models 84–90 kept; every golden
+        // without the line keeps its pin. So design 18 is the whole of its move against the line it merged onto.
+        [Test]
+        public void WithTheLineBeforeDesign18TheTetherGoldenIsModel92s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 92", (capstan, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, beforeDesign18: capstan), c),
+                GoldenFlights.Model92TetherHash, GoldenFlights.TetherHash, "the line before design 18");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: true, ownWake: false), Is.EqualTo(GoldenFlights.Model88TetherHash),
+                "with model 90's own wake too: model 88's pin");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: false, ownWake: false), Is.EqualTo(GoldenFlights.Design18OnModel90TetherHash),
+                "design 18 on model 90's own wake: the fiber branch's pin before the merge");
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the

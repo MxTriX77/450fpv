@@ -546,8 +546,10 @@ namespace Fpv450.Sim.Tests
             /// ground at a step's end (m, every 10th) and the deepest the chords between the spacing law's nodes (its crests' left
             /// out: the line before 2.5) would have (LawDeepest, m), the steps a crest's node lay on the lip (within CrestDepth of its
             /// edge), and the crests' nodes put in.</summary>
-            public double FastestNode, Behind, Paid, Deepest, LawDeepest;
+            public double FastestNode, FastestExit, Behind, Paid, Deepest, LawDeepest;
             public int OnLip;
+            /// <summary>The chain's TetherWedges, safe steps and clips over the flight (p7d-tether design 18).</summary>
+            public long Wedges, SafeSteps, Clips;
             public long Crests;
             public bool Broken;
             public string Break;
@@ -583,7 +585,8 @@ namespace Fpv450.Sim.Tests
                 bool onLip = false;
                 for (int i = 0; i < chain.Count; i++)
                 {
-                    r.FastestNode = Math.Max(r.FastestNode, chain[i].Velocity.Length());
+                    if (i + 1 < chain.Count) r.FastestNode = Math.Max(r.FastestNode, chain[i].Velocity.Length());
+                    else r.FastestExit = Math.Max(r.FastestExit, chain[i].Velocity.Length());
                     Double3 x = chain[i].Position;
                     if (x.X < LedgeX && x.X > LedgeX - 0.5) r.Behind = Math.Max(r.Behind, Ground(q, x.X, x.Z).Height - x.Y);
                     double dx = x.X - LedgeX, dy = x.Y - top;
@@ -597,6 +600,9 @@ namespace Fpv450.Sim.Tests
                 }
                 r.Crests = core.Tether.CrestsInserted;
                 r.Paid = core.Tether.PaidOut;
+                r.Wedges = chain.Wedges;
+                r.SafeSteps = chain.SafeSteps;
+                r.Clips = chain.Clips;
                 if (!r.Broken && core.Tether.Broken)
                 {
                     r.Broken = true;
@@ -673,6 +679,10 @@ namespace Fpv450.Sim.Tests
             var layout = new Double3[(int)(startZ - anchorZ)];
             for (int i = 0; i < layout.Length; i++) layout[i] = new Double3(0, 0, anchorZ + i);
             FlightSetup setup = TetherScenarios.Setup(spec, layout: layout, cuts: true);
+            // The claim's crest node is the chain's: on a lightly bonded pack (0.01–2 g, half the flights since p7d-tether design
+            // 18) the laid line over the crest rests and freezes into the trail before 10 s (traced: the nearest chain node then
+            // 44.8 m off the crest, the line still over it), so the flight keeps models 74–88's 2–10 g.
+            setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
             double stand = TetherScenarios.Stand(setup);
             setup.World = new FlightWorld(map);
             setup.StartPosition = new Double3(0, Ground(map, 0, startZ).Height + stand, startZ);
