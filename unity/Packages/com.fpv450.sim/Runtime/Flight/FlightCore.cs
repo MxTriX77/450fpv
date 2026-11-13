@@ -152,6 +152,13 @@ namespace Fpv450.Sim.Flight
         /// The audit against model 94 and the harness's known-wrong for the wash, never a pilot's flight.</summary>
         public bool TetherWakeReach4R;
 
+        /// <summary>The known-wrong laid trail before p7d-tether design 20 (model 97's): only the trail's last point is tested
+        /// against the air (node 0's, across the chain's first segment, past what it froze with plus μs·w of the polymer pair); a
+        /// frozen point deeper takes no air at all. TetherWakeReach4R, TetherBeforeDesign18 and TetherDesign4Air imply it (every
+        /// kept audit of an older line). The audit against model 97 and the known-wrong for the laid line in the wash, never a
+        /// pilot's flight.</summary>
+        public bool TetherAirlessTrail;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the

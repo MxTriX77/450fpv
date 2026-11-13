@@ -1425,8 +1425,12 @@ namespace Fpv450.Sim.Tests
         // kept audit of an older line flies the cut-off and keeps its own pin.
         // The merged flight against model 96's: from step 26, at most 0.3 mm and 0.01° apart, the ends 0.2 mm apart, 0.2493 m up,
         // 3 impacts, the line whole, 0.396 m paid out against 0.462.
-        public const ulong TetherHash = 0xF6ADE19C0945D137UL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
-            Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL;
+        // p7d-tether design 20 (the laid line in the rotors' wash, on model 97): re-recorded, 0xB90A040EEF9F938A. Audited: with the
+        // airless trail (FlightSetup.TetherAirlessTrail) it is model 97's pin, 0xF6ADE19C0945D137 (Model97TetherHash), every record
+        // and event (GoldenFlightTests.WithTheAirlessTrailTheTetherGoldenIsModel97s). Every kept audit of an older line flies the
+        // airless trail (FlyContact's airlessTrail, on for every flight other than the tether golden's own) and keeps its pin.
+        public const ulong TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+            Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin
         /// before it merged model 96): the merged flight with Propulsion.ClippedDescentBranch gives it, every record and event.</summary>
@@ -2211,7 +2215,7 @@ namespace Fpv450.Sim.Tests
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
             bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null,
-            bool? wakeReach4R = null)
+            bool? wakeReach4R = null, bool? airlessTrail = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2261,6 +2265,10 @@ namespace Fpv450.Sim.Tests
                 // kept audit flies it (the line before design 18 implies it), model 92's own-wake level's and model 94's clipped descent
                 // branch's too; wakeReach4R says so outright.
                 setup.TetherWakeReach4R = wakeReach4R ?? !(golden && slidingTrail != true && ownWake != false && wakeLevel != false && descentBranch != false);
+                // p7d-tether design 20: every line before it laid a trail that took no air but at its end (FlightSetup.
+                // TetherAirlessTrail), so every kept audit flies it (the cut-off implies it), model 94's clipped descent branch's too;
+                // airlessTrail says so outright.
+                setup.TetherAirlessTrail = airlessTrail ?? !(golden && slidingTrail != true && ownWake != false && wakeLevel != false && descentBranch != false);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

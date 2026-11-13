@@ -687,3 +687,36 @@ From `p7b-airframe` 1.10f on the physics line (model 96; design 3i). It carries 
 - **Against the pilot's account:** the empty drone's punch from 9 m/s shakes 0.3–0.7 s on 80 % (median 0.42 s). Never from a held hover or a gentle step (0 of 400). Past the kick on 21.5 % of all full punches out of a descent: "doesn't happen much" is met.
 - **Open:** at 2 kg the shake is short (medians 0.06–0.14 s) while the arrest is long (0.35–0.94 s), so "longer when heavy" is not what the physics shows. Whether the loaded drone's short shake is right is not settled: its turn per thrust step against its own floor is probed before PHY-10's payload clause is fixed.
 - **The margin is pinned at model 96.** A change that moves the hover's floor re-runs its calibration (`ShakeAttributionProbe.TheHoldsMargin`).
+
+## D-109 The wind harness flies a human pilot; the hull still waits · Accepted
+From `p7c-wind` 1.5b on the physics line (model 96; design 13). It answers D-107's first decider.
+- **The harness pilot is a human's.** McRuer's crossover pilot at the published 4.3 rad/s on every axis with an effective delay of 0.10 s, and Levison's remnant: observation noise at −20 dB on the roll, pitch and heading errors through a 0.1 s neuromotor lag, beside D-060's −25 dB motor noise, each a seeded bounded stream on the sticks. Nothing is fitted to the wind's targets.
+- **It reads P's own decays back better than K§8.5's pilot did** (roll / pitch / yaw to 1/e: 0.29 / 0.20 / 0.28 s, against P's 0.30 / 0.17 / 0.33 s and the old pilot's 0.36 / 0.17 / 0.36 s), so it becomes the wind harness's default pilot. K§8.5's pilot stays as a variant and the noiseless human is the known-wrong. With it Windy meets 13 of 21 targets (9 before) and Severe 11 (12 before): Severe gains T5 and T6b–c and loses T3's ratio, T7's belt share and T11b's tilt. The pilot is chosen for reading the measurement back, not for the count.
+- **The hull's yaw moment still breaks T10b with the human pilot** (Severe 0.16 and Windy −0.09, against P's +0.57), and without the hull the human passes it at both levels. So the pilot's yaw hold was not the reason. What is left is D-107's second decider: a measurement or a flow solution of the airframe's own yaw moment in sideslip. The hull stays off.
+- **The low band is still missing** (Severe T2 0.144° against P's 0.28°; pitch's 0.23–0.5 Hz band three times under). The slower hold fixes the spectrum's shape, not its size. The candidates left are the air's: the vertical gust gradient across each disc, and slow vertical gusts at the drone's height (`p7c-wind` 1.5c).
+- **The hover is still too still** in its 1–4 Hz band, and its heading most of all: 20–45 times under the footage with either pilot. A published remnant scales with the errors a pilot sees, and a near-still hover's are small. What moves a hovering drone's heading is open (`p7c-wind` 1.5d).
+- The golden flights keep the pilot they had.
+
+## D-110 A hovering drone's heading is moved by the pilot's hand, not by the airframe · Accepted
+From `p7c-wind` 1.5d's ranking on the physics line (model 97; design 14). Nothing is built.
+- **The gap:** in a hover the sim's heading is 20–45 times stiller than the footage's (yaw in the 1–4 Hz band 0.005° against 0.11–0.15°).
+- **No airframe source is near it.** Each was ranked by hand on the airframe's own numbers and checked against the flown sim:
+  - each rotor's torque unsteadiness: 0.001° as flown, at most 0.015° if it moved in step with the thrust, 0.041° with its in-plane twin;
+  - the motors' spreads under the roll and pitch corrections: 0.001–0.002°;
+  - the products of inertia: under 0.003°; the fiber's pull at the nozzle: 60 times short;
+  - the air's swirl: it would take 0.8–1.1 m/s of uncorrelated in-plane air at each hub, where a calm hover's eddies give about 0.1 m/s.
+  Together they stay under 0.004°, which the flown floor confirms (0.0024°). The physics lacks nothing that matters here.
+- **The yaw loop is not the reason either.** It barely rejects anything at 1–4 Hz (its crossover is 1.4 Hz against roll's 6.2 Hz), and a footage-sized heading uses under 1 % of the yaw authority.
+- **The hand is the only candidate of the right size.** The footage's heading needs 11 µs of yaw stick past the deadband (2.3 % of half stick), and it holds 0.07–0.21° across every phase and every air, as a hand's would and an airframe's would not. A published remnant scales with the errors a pilot sees, so the harness's human is rightly quiet in a still hover; the hand's tremor is inside every deadband; crosstalk from the throttle reaches it only from a busy throttle, which no published model gives.
+- **Part of the rate gap is the footage's measurement.** The rotation-only fit reads the camera's own sideways travel as yaw and its heave as pitch: below 1 Hz a drift of 2–5 cm/s at 1–2 m reads 0.4–1.9 °/s. The footage's hover rate and its bands below 1 Hz are upper bounds on rotation.
+- **So:** in the game the pilot's own hand supplies the heading's motion. The harness cannot grade a hover's heading against the footage until a human's stick in a hover is sized from data: a public dataset of people hovering small rotorcraft by radio is the next source, and failing that one blackbox log of a hover from the pilot's own quad (a question about their own kit, logged). `p7c-wind` 1.5d stays open.
+
+## D-112 The wind's slow pitch is the pilot's, not the air's · Accepted
+From `p7c-wind` 1.5c's ranking on the physics line (model 97; design 15). Nothing is built in the wind.
+- **The gap:** with the human harness pilot the drone's slow pitch in Severe wind is about half clip P's (T2 0.144° against 0.28°; the 0.23–0.5 Hz band 0.085° against 0.27°).
+- **The field already flies the published vertical gust** at the harness's heights: in 0.23–0.5 Hz it carries 1.03 of Kaimal's spectrum at 20 and 35 m, and more than the published below 10 m.
+- **The air cannot give P's band.** Per m/s of updraft the closed loop pitches 0.08–0.25° over 0.23–0.5 Hz, so a gust of the published size gives 0.06°. P's 0.27° would need 1.63 m/s of updraft in that band alone, 4.6 times the published band, and scaled that far P's other measured targets fail (T1, T5, T6d). The gradients between the front and rear rotors and across each disc, the mean shear, the belt's eddies and the terrain's slow updrafts are each under a tenth of what it needs.
+- **The footage itself says so:** its calm phases show more slow pitch (0.18–0.62° at 0.4–1 Hz in the hover and the low cruise) than P's storm does (0.155°).
+- **So the low band is the pilot's own slow pitch:** the speed and course corrections the harness's pilot does not make, since it holds one pitch. In the game the pilot's hand supplies it. The harness can grade it once a pilot's slow corrections are modelled from the calm footage (`p7c-wind` 1.5f), which is a pilot-model task and not physics.
+- **What the field does lack, for its own task** (`p7c-wind` 1.5e): its turbulence's scale with height. It holds one length scale at every height, so below 10 m its vertical gusts are too slow: 1.2–2.4 times the published below 0.5 Hz and 0.53–0.81 of it at 1–4 Hz. That moves the hover and the low flight in wind.
+- `p7c-wind` 1.5c is closed as ranked; 1.5 stays open on its targets.

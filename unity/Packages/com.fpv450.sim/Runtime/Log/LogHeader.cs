@@ -120,6 +120,7 @@ namespace Fpv450.Sim.Log
             "TetherSlidingTrail",
             "TetherBeforeDesign18",
             "TetherWakeReach4R",
+            "TetherAirlessTrail",
             "StemAir", "StemWash",
         };
 
@@ -377,6 +378,7 @@ namespace Fpv450.Sim.Log
         public bool TetherSlidingTrail;
         public bool TetherBeforeDesign18;
         public bool TetherWakeReach4R;
+        public bool TetherAirlessTrail;
 
         /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
         /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
@@ -479,6 +481,7 @@ namespace Fpv450.Sim.Log
                 TetherSlidingTrail = setup.TetherSlidingTrail,
                 TetherBeforeDesign18 = setup.TetherBeforeDesign18,
                 TetherWakeReach4R = setup.TetherWakeReach4R,
+                TetherAirlessTrail = setup.TetherAirlessTrail,
                 StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
                 StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
@@ -600,6 +603,7 @@ namespace Fpv450.Sim.Log
                 TetherSlidingTrail = TetherSlidingTrail,
                 TetherBeforeDesign18 = TetherBeforeDesign18,
                 TetherWakeReach4R = TetherWakeReach4R,
+                TetherAirlessTrail = TetherAirlessTrail,
                 StemAir = StemAir,
                 StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
@@ -1173,6 +1177,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherSlidingTrail);
                 e.Write(TetherBeforeDesign18);
                 e.Write(TetherWakeReach4R);
+                e.Write(TetherAirlessTrail);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1844,6 +1849,7 @@ namespace Fpv450.Sim.Log
                         TetherSlidingTrail = r.ReadBoolean();
                         TetherBeforeDesign18 = r.ReadBoolean();
                         TetherWakeReach4R = r.ReadBoolean();
+                        TetherAirlessTrail = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {

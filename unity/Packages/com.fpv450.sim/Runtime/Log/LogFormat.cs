@@ -960,8 +960,18 @@ namespace Fpv450.Sim.Log
         ///    the peak falling as r^-1.1; Verhoff's profile). Only the line feels it: the tether golden moved and is
         ///    re-pinned; FlightSetup.TetherWakeReach4R (in the header's tether entry) flies 96's cut-off for the kept
         ///    audits. A flight without the line steps as 96 did.
+        /// 98: the laid line in the rotors' wash (p7d-tether 1.11c, design 20, on 97;
+        ///    unity/physics/physics-integration-2--w9-laid-line): the frozen trail gives its line back where the air moves
+        ///    it. To 97 a frozen point took no air and only the trail's last point was ever tested. Now a point lying on
+        ///    the ground is held by the ground's static friction on its weight less the wall's lift, H = μs·max(0, w − L)
+        ///    (or by the push it froze with, if larger), against the drag across its laid run at the air of the line's own
+        ///    height; a point off the ground (a twig, a bush's top, a span) is held as before. Each step the trail's end
+        ///    and one deeper point, in turn over the window the chain's spacing allows (at most 31), are tested at
+        ///    RotorAir's field, and a point that would move thaws the trail down to it; the trail beyond the window stays
+        ///    frozen. The tether golden moved and is re-pinned; FlightSetup.TetherAirlessTrail (in the header's tether
+        ///    entry) flies 97's trail for the kept audits. A flight without the line steps as 96 did.
         /// </summary>
-        public const int ModelVersion = 97;
+        public const int ModelVersion = 98;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
