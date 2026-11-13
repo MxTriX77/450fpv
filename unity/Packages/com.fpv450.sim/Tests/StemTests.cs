@@ -27,7 +27,7 @@ namespace Fpv450.Sim.Tests
         /// Each is cut at the rim at e_s·A_w + μ·h_f·u², its diameter by the allometry at its length (the field's tops spread over
         /// each 2 cm above h). Every 10th step is evaluated (numerical). Returns the stems; work gives their joules.
         /// </summary>
-        static double Entries(StemScenarios.Run r, int c, int from, int to, out double work, double density = 1, double diameter = 1)
+        internal static double Entries(StemScenarios.Run r, int c, int from, int to, out double work, double density = 1, double diameter = 1)
         {
             MapWorld village = SlopeScenarios.Farmland();
             SurfaceTable table = SoilScenarios.Table();
@@ -86,51 +86,34 @@ namespace Fpv450.Sim.Tests
 
         // The pilot's account, as a creep: a front disc moving through the densest tall cell at a held height cuts the stems its
         // leading edge meets standing, each a discrete hit; the slipstream folds what is under it; the rear discs run in the front
-        // ones' track and meet stubs at their own plane. The hand calculation counts the leading edge's entries, which is the whole
-        // count where the slipstream holds every stem under the disc down: 2.12's column, where the cut's law is checked within
-        // 10 %. Under the wash with distance (2.13) the near column is R/√2 wide and the fountain rises between the discs, so stems
-        // that pass under the leading edge below its plane stand up into the disc behind it: the entries are a floor.
+        // ones' track and meet stubs at their own plane.
         [Test]
         public void ACreepCutsWhatItsLeadingEdgesMeet()
         {
-            foreach (bool column in new[] { true, false })
+            StemScenarios.Run run = StemScenarios.Creep(speed: 0.5);
+            int from = 4100, to = (int)run.Steps - 1;
+            double hand = 0, handWork = 0, sim = 0, simWork = 0, seconds = (to - from) * FlightCore.Dt;
+            for (int c = 1; c < 4; c += 2)
             {
-                StemScenarios.Run run = StemScenarios.Creep(speed: 0.5, column: column);
-                int from = 4100, to = (int)run.Steps - 1;
-                double hand = 0, handWork = 0, sim = 0, simWork = 0, seconds = (to - from) * FlightCore.Dt;
-                string law = column ? "2.12's column" : "the wash";
-                for (int c = 1; c < 4; c += 2)
-                {
-                    double h = Entries(run, c, from, to, out double w), n = Sum(run.Fresh1[c], from, to), e = Sum(run.FreshWork1[c], from, to);
-                    TestContext.Out.WriteLine($"{law}, rotor {c}: {seconds:F1} s creeping at 0.5 m/s, 0.6 m: fresh cuts {n:F0} = {n / seconds:F1} /s (hand {h / seconds:F1}), "
-                        + $"their work {e / seconds:F2} W (hand {w / seconds:F2}), {e / Math.Max(1, n) * 1000:F0} mJ a cut (hand {w / h * 1000:F0})");
-                    hand += h;
-                    handWork += w;
-                    sim += n;
-                    simWork += e;
-                }
-                TestContext.Out.WriteLine($"{law}, the front discs: {sim:F0} fresh cuts (hand {hand:F1}), {simWork:F2} J (hand {handWork:F2})");
-                if (column)
-                {
-                    Assert.That(sim, Is.EqualTo(hand).Within(10).Percent, "the leading edges' stems, by hand, under the column");
-                    Assert.That(simWork, Is.EqualTo(handWork).Within(10).Percent, "their work, by hand, under the column");
-                }
-                else
-                {
-                    Assert.That(sim, Is.GreaterThanOrEqualTo(0.9 * hand), "at least the leading edges' stems under the wash");
-                    Assert.That(simWork / sim, Is.EqualTo(handWork / hand).Within(15).Percent, "a cut's work, by hand, under the wash");
-                }
-                double frontFresh = run.Fresh[1] + run.Fresh[3], rearFresh = run.Fresh[0] + run.Fresh[2];
-                TestContext.Out.WriteLine($"{law}: fresh per rotor {F(run.Fresh)}, sliced {F(run.Sliced)}; episodes {run.Starts}/{run.Ends}; {run.Allocated} B");
-                Assert.That(rearFresh, Is.LessThan(0.7 * frontFresh), "the rear discs run in the front ones' track");
-                Assert.That(run.Allocated, Is.Zero, AllocProbe.Report());
+                double h = Entries(run, c, from, to, out double w), n = Sum(run.Fresh1[c], from, to), e = Sum(run.FreshWork1[c], from, to);
+                TestContext.Out.WriteLine($"rotor {c}: {seconds:F1} s creeping at 0.5 m/s, 0.6 m: fresh cuts {n:F0} = {n / seconds:F1} /s (hand {h / seconds:F1}), "
+                    + $"their work {e / seconds:F2} W (hand {w / seconds:F2}), {e / Math.Max(1, n) * 1000:F0} mJ a cut (hand {w / h * 1000:F0})");
+                hand += h;
+                handWork += w;
+                sim += n;
+                simWork += e;
             }
+            TestContext.Out.WriteLine($"the front discs: {sim:F0} fresh cuts (hand {hand:F1}), {simWork:F2} J (hand {handWork:F2})");
+            Assert.That(sim, Is.EqualTo(hand).Within(10).Percent, "the leading edges' stems, by hand");
+            Assert.That(simWork, Is.EqualTo(handWork).Within(10).Percent, "their work, by hand");
+            double frontFresh = run.Fresh[1] + run.Fresh[3], rearFresh = run.Fresh[0] + run.Fresh[2];
+            TestContext.Out.WriteLine($"fresh per rotor {F(run.Fresh)}, sliced {F(run.Sliced)}; episodes {run.Starts}/{run.Ends}; {run.Allocated} B");
+            Assert.That(rearFresh, Is.LessThan(0.7 * frontFresh), "the rear discs run in the front ones' track");
+            Assert.That(run.Allocated, Is.Zero, AllocProbe.Report());
         }
 
         // The pilot's landing: an approach at 2 m/s coming down at 0.5 m/s, a flare, the touch. The front discs cut what stands in
-        // front of them (in front of the camera), at least as much as the rear discs behind it: under the wash (2.13) every disc's
-        // outer ring meets its stems standing as it comes down, so the front's lead over the rear is small (2.12's column: 1.3
-        // times); the log replays bit for bit.
+        // front of them (in front of the camera), within 10 % of the hand calculation over the run-in; the log replays bit for bit.
         [Test]
         public void TheApproachCutsInFrontOfTheCamera()
         {
@@ -144,8 +127,7 @@ namespace Fpv450.Sim.Tests
             }
             Print("approach", run, calm);
             Assert.That(run.Touch, Is.GreaterThan(0));
-            Assert.That(run.FreshBefore[1] + run.FreshBefore[3], Is.GreaterThan(0), "cut in front of the camera");
-            Assert.That(run.FreshBefore[1] + run.FreshBefore[3], Is.GreaterThanOrEqualTo(run.FreshBefore[0] + run.FreshBefore[2]), "at least as much as behind it");
+            Assert.That(run.FreshBefore[1] + run.FreshBefore[3], Is.GreaterThan(1.3 * (run.FreshBefore[0] + run.FreshBefore[2])), "cut in front of the camera");
             Assert.That(run.Allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             Assert.That(run.Refused, Is.EqualTo(0));
             ReplayResult replay = FlightReplay.Run(new MemoryStream(log.ToArray()), StemScenarios.OpenFarmland, RepositoryDrone.Spec().ContentHash, null,
@@ -158,18 +140,12 @@ namespace Fpv450.Sim.Tests
         // The spec's vertical landing after a hover over the spot: the slipstream folds most stems under the discs in the hover; the
         // fresh cuts are what the drift runs the discs onto (the hand calculation's entries, a floor) and the stems the jet has not
         // yet folded (those whose natural lean lies across the swirl start from it alone); the stubs are sliced as the discs come
-        // down. The known-wrong (nothing folds, every stem met is cut) cuts more than twice as many. The pilot: "Usually it lies flat
-        // because of prop wash power, but not always". Under the wash with distance (2.13) this is not met (design.md 2.13, a gap):
-        // the stems under the discs at 1.9 m take the merged jet's 10–35 Pa, not 2.12's 229 Pa, and most stand.
+        // down. The known-wrong (nothing folds, every stem met is cut) cuts more than twice as many.
         [Test]
         public void TheVerticalLandingFoldsMostStems()
         {
             StemScenarios.Run run = StemScenarios.Landing(), calm = StemScenarios.Landing(stems: false);
             int touch = (int)run.Touch - 1;
-            foreach (int at in new[] { 4000, 6000, touch })
-                TestContext.Out.WriteLine($"step {at + 1}, the front right hub {run.Height[at]:F2} m up: under the discs {run.Under[at]}, folded past 45° {run.Folded[at]} "
-                    + $"({run.Folded[at] / Math.Max(1, run.Under[at]) * 100:F0} %), the tall (1 m or longer) {run.FoldedTall[at]} of {run.UnderTall[at]}; standing over their planes "
-                    + $"{run.Over[at]}; their mean pressure {run.Load[at]:F1} Pa");
             double fresh = 0, bound = 0;
             for (int c = 0; c < 4; c++)
             {
@@ -247,21 +223,14 @@ namespace Fpv450.Sim.Tests
         }
 
         // "A hover cuts itself clear": the discs 0.5 m up in the cell's stems for 10 s. The slipstream folds what is under the
-        // discs; the hold's drift runs the leading edges into a few; once the discs have cut round them nothing uncut is left in
-        // their reach, and the stubs' slices stop too (every episode ended). Under the wash (2.13) the outer rings' stubs, which no
-        // column holds down, are sliced for longer as they spring back.
+        // discs; the hold's drift runs the leading edges into a few; once the discs have cut round them nothing is left.
         [Test]
         public void AHoverInGrassCutsItselfClear()
         {
             StemScenarios.Run r = StemScenarios.Hover();
-            long lastFresh = -1;
-            for (int i = 0; i < r.Steps && i < r.Pitch.Length; i++)
-                for (int c = 0; c < 4; c++)
-                    if (r.Fresh1[c][i] > 0) lastFresh = i + 1;
-            TestContext.Out.WriteLine($"hover 10 s: fresh {F(r.Fresh)}, sliced {F(r.Sliced)}, work {F(r.Work)} J; the last fresh cut at step {lastFresh}, the last cut at "
-                + $"step {r.LastCut}; episodes {r.Starts} begun, {r.Ends} ended; {r.Allocated} B");
-            Assert.That(lastFresh, Is.LessThan(r.Steps - 2000), "no uncut stem met in the last 2 s");
-            Assert.That(r.LastCut, Is.LessThan(r.Steps), "the stubs' slices stop");
+            TestContext.Out.WriteLine($"hover 10 s: fresh {F(r.Fresh)}, sliced {F(r.Sliced)}, work {F(r.Work)} J; the last cut at step {r.LastCut}; "
+                + $"episodes {r.Starts} begun, {r.Ends} ended; {r.Allocated} B");
+            Assert.That(r.LastCut, Is.LessThan(r.Steps - 2000), "no cut in the last 2 s");
             Assert.That(r.Ends, Is.EqualTo(r.Starts), "every episode ended");
             Assert.That(r.Allocated, Is.Zero, AllocProbe.Report());
         }

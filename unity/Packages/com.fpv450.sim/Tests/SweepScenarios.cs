@@ -300,15 +300,14 @@ namespace Fpv450.Sim.Tests
 
             public ContactSpec Contacts() => Spec.BuildContacts(Loadout, Materials, MaterialsHash, Surfaces);
 
-            /// <summary>The player's flight but the line (FarmlandLineCase's setup without its tether); its stems read the rotors'
-            /// air by tether.json's law as the player's do with the line (w9-village-physics 2.13).</summary>
+            /// <summary>The player's flight but the line (FarmlandLineCase's setup without its tether).</summary>
             public FlightSetup Setup(Double3 start, double headingDeg, ulong seed)
             {
                 double yaw = headingDeg / 57.29577951308232;
                 return new FlightSetup
                 {
                     Seed = seed, World = World, Mass = Spec.BuildMass(Loadout), Propulsion = Spec.BuildPropulsion(), Aero = Spec.BuildAero(),
-                    Wind = Wind, Rain = RainLevel.Sunny, CameraPosition = Spec.CameraPosition, Contacts = Contacts(), StemAir = SoilScenarios.StemAir(),
+                    Wind = Wind, Rain = RainLevel.Sunny, CameraPosition = Spec.CameraPosition, Contacts = Contacts(),
                     Asymmetry = Spec.BuildAsymmetry(), Placement = Spec.BuildPlacement(), VortexRing = Spec.BuildVortexRing(),
                     GroundEffect = Spec.BuildGroundEffect(), RotorWake = Spec.BuildRotorWake(), Flapping = Spec.BuildFlapping(),
                     Interference = Spec.BuildInterference(), Modes = Spec.BuildModes(),

@@ -10,10 +10,12 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The stems under the wash with distance (w9-village-physics 2.13, design.md "## 2.13"): the air on a stem by p7d-tether
-    /// design 19's law against the hand calculation at the drone's heights, and 2.12's column failing it; the stems and the line
-    /// reading one air in one flight; the stems' refresh against every step; and the known-wrong column flying model 97's stem
-    /// flights bit for bit.
+    /// The stems under the wash with distance (w9-village-physics 2.13, design.md "## 2.13"), built and graded, not flown (D-111:
+    /// every flight flies 2.12's column until the near wake's spread and the jets' turbulence are built; FlightSetup.StemWash asks
+    /// for it): the air on a stem by p7d-tether design 19's law against the hand calculation at the drone's heights, and 2.12's
+    /// column failing it; the stems and the line reading one air in one flight; the stems' refresh against every step; the stem
+    /// flights by default model 97's bit for bit, and changed with the wash; and the wash's grades on 2.12's straw landing, its gap
+    /// against the pilot's "usually it lies flat" asserted as it stands.
     /// </summary>
     public class StemWashTests
     {
@@ -80,6 +82,7 @@ namespace Fpv450.Sim.Tests
             setup.Tether = GoldenFlights.TetherFor(spec, TetherScenarios.Table());
             setup.TetherCoilPart = spec.Coil.Part;
             setup.TetherSpoolMass = spec.Coil.SpoolMass;
+            setup.StemWash = true;
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, at);
             for (int k = 0; k < 16; k++) core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 });
@@ -111,8 +114,8 @@ namespace Fpv450.Sim.Tests
         {
             foreach (string kind in new[] { "vertical", "approach" })
             {
-                StemScenarios.Run every = kind == "vertical" ? StemScenarios.Landing(refresh: 1) : StemScenarios.Approach(refresh: 1);
-                StemScenarios.Run eighth = kind == "vertical" ? StemScenarios.Landing(refresh: 8) : StemScenarios.Approach(refresh: 8);
+                StemScenarios.Run every = kind == "vertical" ? StemScenarios.Landing(wash: true, refresh: 1) : StemScenarios.Approach(wash: true, refresh: 1);
+                StemScenarios.Run eighth = kind == "vertical" ? StemScenarios.Landing(wash: true, refresh: 8) : StemScenarios.Approach(wash: true, refresh: 8);
                 double f1 = 0, f8 = 0, s1 = 0, s8 = 0;
                 for (int c = 0; c < 4; c++)
                 {
@@ -128,32 +131,119 @@ namespace Fpv450.Sim.Tests
             }
         }
 
-        // The known-wrong (FlightSetup.StemColumn): 2.12's undiminished column flies model 97's stem flights bit for bit: each
-        // step's pose, rates, rotor speeds, the stems' records and the events, hashed (FNV-1a), against model 97's own runs.
+        // By default (no StemWash) the stems fly 2.12's column: the six stem flights are model 97's bit for bit (each step's pose,
+        // rates, rotor speeds, the stems' records and the events, hashed FNV-1a, pinned from model 97's own runs). With the wash
+        // they differ; a law no flight flies carries no pins.
         [Test]
-        public void WithTheColumnTheStemFlightsAreModel97s()
+        public void ByDefaultTheStemFlightsAreModel97sAndTheWashChangesThem()
         {
             var pins = new (string Name, ulong Hash)[]
             {
                 ("landing", 0x4E4A92C087261306UL), ("approach", 0x1F33ED416F8BF433UL), ("creep", 0x6D26625A0D5E47D0UL),
                 ("hover", 0x5687D97D870648A3UL), ("range", 0xAE31E8EC100D6742UL), ("thick", 0xCB0A2376DF0B0498UL),
             };
-            foreach (var (name, pin) in pins)
-            {
-                ulong hash = 0xCBF29CE484222325UL;
-                Action<FlightCore> stepped = core => hash = StateHash(hash, core);
-                switch (name)
+            foreach (bool wash in new[] { false, true })
+                foreach (var (name, pin) in pins)
                 {
-                    case "landing": StemScenarios.Landing(stepped: stepped, column: true); break;
-                    case "approach": StemScenarios.Approach(stepped: stepped, column: true); break;
-                    case "creep": StemScenarios.Creep(speed: 0.5, stepped: stepped, column: true); break;
-                    case "hover": StemScenarios.Hover(stepped: stepped, column: true); break;
-                    case "range": StemScenarios.RangeCreep(stepped: stepped, column: true); break;
-                    default: StemScenarios.Landing(stepped: stepped, column: true, scales: new StemScenarios.Scales { Density = 2, Diameter = 1.5 }); break;
+                    ulong hash = 0xCBF29CE484222325UL;
+                    Action<FlightCore> stepped = core => hash = StateHash(hash, core);
+                    switch (name)
+                    {
+                        case "landing": StemScenarios.Landing(stepped: stepped, wash: wash); break;
+                        case "approach": StemScenarios.Approach(stepped: stepped, wash: wash); break;
+                        case "creep": StemScenarios.Creep(speed: 0.5, stepped: stepped, wash: wash); break;
+                        case "hover": StemScenarios.Hover(stepped: stepped, wash: wash); break;
+                        case "range": StemScenarios.RangeCreep(stepped: stepped, wash: wash); break;
+                        default: StemScenarios.Landing(stepped: stepped, wash: wash, scales: new StemScenarios.Scales { Density = 2, Diameter = 1.5 }); break;
+                    }
+                    TestContext.Out.WriteLine($"{name}{(wash ? ", the wash" : "")}: 0x{hash:X16} (model 97's 0x{pin:X16})");
+                    if (wash) Assert.That(hash, Is.Not.EqualTo(pin), name + ": the wash moves the stems");
+                    else Assert.That(hash, Is.EqualTo(pin), name + ": model 97's stems by default");
                 }
-                TestContext.Out.WriteLine($"{name}: 0x{hash:X16} (model 97's 0x{pin:X16})");
-                Assert.That(hash, Is.EqualTo(pin), name + ": model 97's stems with the column");
+        }
+
+        // The wash's creep (0.5 m/s at 0.6 m): the front discs cut at least the stems their leading edges meet (StemTests' hand
+        // count, a floor here: the near column is R/√2 wide and the fountain rises between the discs, so stems passing under the
+        // leading edge below its plane stand up into the disc behind it), each at the hand's work; the rear discs in the front's
+        // track.
+        [Test]
+        public void UnderTheWashACreepCutsAtLeastItsLeadingEdgesStems()
+        {
+            StemScenarios.Run run = StemScenarios.Creep(speed: 0.5, wash: true);
+            int from = 4100, to = (int)run.Steps - 1;
+            double hand = 0, handWork = 0, sim = 0, simWork = 0;
+            for (int c = 1; c < 4; c += 2)
+            {
+                hand += StemTests.Entries(run, c, from, to, out double w);
+                handWork += w;
+                for (int i = from; i < to; i++)
+                {
+                    sim += run.Fresh1[c][i];
+                    simWork += run.FreshWork1[c][i];
+                }
             }
+            double front = run.Fresh[1] + run.Fresh[3], rear = run.Fresh[0] + run.Fresh[2];
+            TestContext.Out.WriteLine($"the wash's creep, the front discs: {sim:F0} fresh cuts (the leading edges' {hand:F1} by hand), {simWork / sim * 1000:F0} mJ a cut "
+                + $"(hand {handWork / hand * 1000:F0}); front {front:F0}, rear {rear:F0}; {run.Allocated} B");
+            Assert.That(sim, Is.GreaterThanOrEqualTo(0.9 * hand), "at least the leading edges' stems");
+            Assert.That(simWork / sim, Is.EqualTo(handWork / hand).Within(15).Percent, "a cut's work, by hand");
+            Assert.That(rear, Is.LessThan(0.7 * front), "the rear discs run in the front ones' track");
+            Assert.That(run.Allocated, Is.Zero, AllocProbe.Report());
+        }
+
+        // The wash's approach: the front discs cut in front of the camera at least as much as the rear behind it (2.12's column:
+        // 1.3 times; under the wash every disc's outer ring meets its stems standing as it comes down).
+        [Test]
+        public void UnderTheWashTheApproachCutsInFrontAtLeastAsMuchAsBehind()
+        {
+            StemScenarios.Run run = StemScenarios.Approach(wash: true);
+            double front = run.FreshBefore[1] + run.FreshBefore[3], rear = run.FreshBefore[0] + run.FreshBefore[2];
+            TestContext.Out.WriteLine($"the wash's approach: fresh before the touch, front {front:F0}, rear {rear:F0} ({front / rear:F2} times); {run.Allocated} B");
+            Assert.That(front, Is.GreaterThan(0), "cut in front of the camera");
+            Assert.That(front, Is.GreaterThanOrEqualTo(rear), "at least as much as behind it");
+            Assert.That(run.Allocated, Is.Zero, AllocProbe.Report());
+        }
+
+        // The wash's hover (0.5 m, 10 s): no uncut stem is met in the last 2 s and every episode ends (the outer rings' stubs, which
+        // no column holds down, are sliced for longer as they spring back: 2.12's column clears by 5.6 s, the wash by 8.3 s).
+        [Test]
+        public void UnderTheWashAHoverCutsItsUncutStemsClear()
+        {
+            StemScenarios.Run r = StemScenarios.Hover(wash: true);
+            long lastFresh = -1;
+            for (int i = 0; i < r.Steps && i < r.Pitch.Length; i++)
+                for (int c = 0; c < 4; c++)
+                    if (r.Fresh1[c][i] > 0) lastFresh = i + 1;
+            TestContext.Out.WriteLine($"the wash's hover: the last fresh cut at step {lastFresh}, the last cut at {r.LastCut} of {r.Steps}; episodes {r.Starts}/{r.Ends}; {r.Allocated} B");
+            Assert.That(lastFresh, Is.LessThan(r.Steps - 2000), "no uncut stem met in the last 2 s");
+            Assert.That(r.Ends, Is.EqualTo(r.Starts), "every episode ended");
+            Assert.That(r.Allocated, Is.Zero, AllocProbe.Report());
+        }
+
+        // THE GAP (P12b, D-111), asserted as it stands so that nobody reads it as met: the pilot, "Usually it lies flat because of
+        // prop wash power, but not always". Under 2.12's column (what flies) most stems under the discs fold in the vertical
+        // landing's 1.9 m hover; under the wash alone most stand (the short dry culms under the merged jet's 10–35 Pa, the tall
+        // ones in each disc's outer ring where design 19 has no column), and the no-fold known-wrong cuts less than twice as many.
+        // Its missing mechanisms: the near wake's contraction and spread, the jets' turbulence on near-upright stems, the stand's
+        // contact (design.md 2.13). When they are built this test is to fail, and be turned round.
+        [Test]
+        public void TheGapUnderTheWashMostStemsStand()
+        {
+            StemScenarios.Run column = StemScenarios.Landing(), wash = StemScenarios.Landing(wash: true), none = StemScenarios.Landing(wash: true, knownWrong: true);
+            const int hover = 4000; // the hover's end, the front right hub 1.85 m up
+            double folded = column.Folded[hover] / column.Under[hover], washFolded = wash.Folded[hover] / wash.Under[hover];
+            double fresh = 0, noFold = 0;
+            for (int c = 0; c < 4; c++)
+            {
+                fresh += wash.FreshBefore[c];
+                noFold += none.FreshBefore[c];
+            }
+            TestContext.Out.WriteLine($"the hover's end: under the discs folded past 45°, 2.12's column {folded * 100:F0} % ({column.FoldedTall[hover]} of {column.UnderTall[hover]} tall), "
+                + $"the wash {washFolded * 100:F0} % ({wash.FoldedTall[hover]} of {wash.UnderTall[hover]} tall); the wash's fresh cuts before the touch {fresh:F0}, "
+                + $"the no-fold known-wrong's {noFold:F0}");
+            Assert.That(folded, Is.GreaterThan(0.5), "2.12's column folds most (what flies)");
+            Assert.That(washFolded, Is.LessThan(0.5), "THE GAP: under the wash alone most stems under the discs stand (P12b not met)");
+            Assert.That(noFold, Is.LessThan(2 * fresh), "THE GAP: the no-fold known-wrong cuts less than twice the wash's");
         }
 
         static ulong Mix(ulong h, double x)
