@@ -352,7 +352,9 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe design 3f (the own wake by flight state, on model 90): re-recorded. Audited case by case: with model 90's own-wake
         // law (Propulsion.HoverWakeLaw) model 90's pin, every record and event (GoldenFlightTests.WithModel90sOwnWakeEachGoldenIsModel90s).
         // With 3f's it moves from step 25 (the first armed steps' climb), 0.5° and 0.08 m by 4 s, ends 143.3913 m up against 143.8328, 0.69 m apart.
-        public const ulong PoweredHash = 0xC26EFDA0A6C746DFUL, Model90PoweredHash = 0x8106C2D393DFAA8DUL;
+        // p7b-airframe design 3g (the own wake's level read off its record, model 94): re-recorded (model 92's level and bound (GoldenFlights.Model92WakeLevel): model 93's pin, every record and event, GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s);
+        // from step 25, at most 0.17 m and 0.37° apart, ends 143.5458 m up against 143.3913.
+        public const ulong PoweredHash = 0x71571798E9C97719UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -466,7 +468,9 @@ namespace Fpv450.Sim.Tests
         // 10 s against 136.8783, at most 15.4° apart.
         // p7b-airframe design 3f: re-recorded, audited as the powered flight (model 90's own-wake law: model 90's pin); from step 22,
         // ends 142.2366 m up against 142.5168, 0.56 m apart.
-        public const ulong RainPoweredHash = 0x1E65DE44C92861ECUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL;
+        // p7b-airframe design 3g (model 94): re-recorded, audited as the powered flight (model 92's level: model 93's pin); from step 22,
+        // at most 0.14 m and 0.36° apart, ends 142.2130 m up against 142.2366.
+        public const ulong RainPoweredHash = 0x78EC41F77E2DC817UL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -1069,7 +1073,9 @@ namespace Fpv450.Sim.Tests
         // 0.61° apart, the same 3 impacts, at rest 0.2497 m up on 4 pairs, 2.2 mm from 75's rest.
         // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 1.3 mm and 0.11°, 3 impacts as
         // before, at rest 0.4 mm from 90's end.
-        public const ulong ContactHash = 0x4B87B519E3D8548BUL, Model90ContactHash = 0x461C89E4B98BAA7AUL;
+        // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 29.8 mm and 1.15°, 3 impacts
+        // as before, at rest 6.9 mm from 93's end.
+        public const ulong ContactHash = 0x043EEB284B4A8E0AUL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1392,7 +1398,18 @@ namespace Fpv450.Sim.Tests
         /// record and event (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel92s, WithModel90sOwnWakeEachGoldenIsModel90s).
         /// The merged flight against model 92's: from step 1, at most 5.0 mm and 0.03° apart, the ends 1.4 mm apart, 0.2497 m up,
         /// 3 impacts, the line whole, 0.466 m paid out against 0.224.
-        public const ulong TetherHash = 0x7FE2C30025663025UL, Model90TetherHash = 0xF74FECF3FEF4F329UL;
+        // p7b-airframe design 3g (the own wake's level read off its record, model 94), merged onto design 18 (model 93): the merged
+        // flight re-recorded, 0x99C789A0CB2EC6B2. Audited case by case, all three ways: with model 92's level and bound
+        // (GoldenFlights.Model92WakeLevel) it is model 93's pin, 0x7FE2C30025663025 (Model93TetherHash); with the line before design 18
+        // it is 3g's pin on model 92's line, 0x41698A8FFED15F7F (Design3gOnModel92TetherHash); with both, model 92's; each every record
+        // and event (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s, WithTheLineBeforeDesign18TheTetherGoldenIsModel92s).
+        // The merged flight against model 93's: from step 10, at most 29.8 mm and 1.13° apart, the ends 7.0 mm apart, 0.2494 m up,
+        // 3 impacts, the line whole, 0.489 m paid out against 0.466.
+        public const ulong TetherHash = 0x99C789A0CB2EC6B2UL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL;
+
+        /// <summary>The tether golden with p7b-airframe design 3g's level on model 92's line (the wake-level branch's pin before it
+        /// merged model 93): the merged flight with the line before design 18 gives it, every record and event.</summary>
+        public const ulong Design3gOnModel92TetherHash = 0x41698A8FFED15F7FUL;
 
         /// <summary>The tether golden with p7d-tether design 18 on model 90's own-wake law (the fiber branch's pin before it merged
         /// model 92): the merged flight with Propulsion.HoverWakeLaw gives it, every record and event.</summary>
@@ -1782,7 +1799,9 @@ namespace Fpv450.Sim.Tests
         // Model 76: 0xAF745CC52447E017.
         // p7b-airframe design 3f: re-recorded (model 90's own-wake law: model 90's pin); from step 10, at most 3.2 mm and 0.07°, 4 impacts as
         // before, at rest 0.9 mm from 90's end.
-        public const ulong RangeHash = 0x10E64598977FA0CDUL, Model90RangeHash = 0x9731F9263E4E25B1UL;
+        // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 34.9 mm and 0.40°, 3 impacts
+        // against 4 (one light touch no longer happens), at rest 10.1 mm from 93's end.
+        public const ulong RangeHash = 0x9A6EE9908AA9E2F0UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL;
 
         /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
         public const ulong Model76RangeHash = 0xAF745CC52447E017UL;
@@ -2041,7 +2060,7 @@ namespace Fpv450.Sim.Tests
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
             int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? ownWake = null)
+            bool? ownWake = null, bool? wakeLevel = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -2058,6 +2077,7 @@ namespace Fpv450.Sim.Tests
             setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
+            WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
@@ -2162,7 +2182,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2212,6 +2232,7 @@ namespace Fpv450.Sim.Tests
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
+            WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
@@ -2275,7 +2296,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
             SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? wakes2 = null, bool? ownWake = null)
+            bool? wakes2 = null, bool? ownWake = null, bool? wakeLevel = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2300,6 +2321,7 @@ namespace Fpv450.Sim.Tests
             setup.Settings.airmode = airmode; // model 69 (D-086): off; every kept audit of an older model flies it on
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
+            WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false);
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
@@ -2418,6 +2440,24 @@ namespace Fpv450.Sim.Tests
         public static void Wakes(FlightSetup setup, bool? wakes2, int layout, bool airmode)
         {
             if (setup.Wind.Wakes != null && !(wakes2 ?? (!airmode && layout >= LogFormat.StepSize))) setup.Wind.Wakes.Version = 1;
+        }
+
+        /// <summary>The own wake's level (p7b-airframe design 3g): wakeLevel, or by default the measured one (RotorWakeSpec's 0.017 and
+        /// its bound 3.66) wherever the own wake flies 3f's law, and model 92's (0.029 and 3) for every kept audit of an older
+        /// model, the same flights OwnWake gives model 90's law, and for an audit that says ownWake false. Both are spec values in
+        /// the header's tag 23, so a flight with model 92's is model 92's bit for bit. The audit of 3g against model 92 is
+        /// GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s.</summary>
+        public static void WakeLevel(FlightSetup setup, bool? measured, bool? ownWake, int layout, bool airmode, bool older)
+        {
+            if (setup.RotorWake == null || (measured ?? ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize))) return;
+            Model92WakeLevel(setup.RotorWake);
+        }
+
+        /// <summary>Model 92's own-wake level and bound (3e: the record's peak to peak read as 4.2σ; the ring's 3σ).</summary>
+        public static void Model92WakeLevel(RotorWakeSpec wake)
+        {
+            wake.ThrustSigma = 0.029;
+            wake.Bound = 3;
         }
 
         /// <summary>The own wake's law by flight state (p7b-airframe design 3f): ownWake, or by default on for the current pins and

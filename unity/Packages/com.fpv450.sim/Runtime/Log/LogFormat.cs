@@ -925,8 +925,16 @@ namespace Fpv450.Sim.Log
         ///    payout law (CableChain.SpoolAfterSlide). The tether golden moved and is re-pinned; FlightSetup.TetherBeforeDesign18
         ///    (in the header's tether entry) with GoldenFlights.Model88Tether flies the line before design 18 for the kept
         ///    audits. A flight without the line steps as 92 did.
+        /// 94: the rotors' own wake at its measured level (p7b-airframe 1.10d, design 3g, on 93;
+        ///    unity/physics/physics-integration-2--w9-wake-level): the hover's thrust σ is 1.7 % of the thrust
+        ///    (RotorWakeSpec.ThrustSigma 0.017, read point by point off Stack, Caradonna and Savaş 2004's Fig. 7; 92 read the
+        ///    record's peak to peak as 4.2σ, 0.029, and it is 7.3σ) and its bound 3.66σ, the record's own half range (92: 3σ),
+        ///    so the wake moves the hover's thrust at most ±6.2 %. The corner (0.2·v_h/R) and the law by flight state are
+        ///    92's. Both are spec values in the header's rotor-wake entry, so no switch flies the old level:
+        ///    GoldenFlights.Model92WakeLevel sets 0.029 and 3 for the kept audits. The powered, rain, contact, range and
+        ///    tether goldens moved and are re-pinned.
         /// </summary>
-        public const int ModelVersion = 93;
+        public const int ModelVersion = 94;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

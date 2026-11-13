@@ -6,8 +6,9 @@ namespace Fpv450.Sim.Tests
 {
     /// <summary>
     /// airframe-effects' "Shake only when its causes meet" (p7b-airframe 1.4, PHY-10, PR-1): arrested descents of the
-    /// repository's drone, legs on, at a payload, with its asymmetry, rings, flapping and the airframe's modes, in still air
-    /// 300 m up. The closed-loop pilot hovers it for HoverSeconds; then the throttle is chopped (ChopStick) for a drop time,
+    /// repository's drone, legs on, at a payload, with its asymmetry, rings, flapping, the rotors' own wakes (design 3g, as
+    /// every pilot's flight flies them) and the airframe's modes, in still air 300 m up (the ground's wash moot there, and a
+    /// vertical punch forms no interference). The closed-loop pilot hovers it for HoverSeconds; then the throttle is chopped (ChopStick) for a drop time,
     /// so it falls; then the pilot's input to arrest it, roll, pitch and yaw centred: a sharp step to a stick, or a gentle
     /// ramp to the hover's stick plus GentleStep over GentleRamp; held until the descent is arrested (or for HoldLimit), then
     /// the hover's stick, sticks centred, to the window's end. A drop of 0 is the same input from the hover.
@@ -144,6 +145,7 @@ namespace Fpv450.Sim.Tests
                 Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(new Loadout { Payload = payload, Legs = true }),
                 Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(), Wind = WindSetup.Of(WindLevel.Still),
                 Asymmetry = spec.BuildAsymmetry(), VortexRing = spec.BuildVortexRing(), Flapping = spec.BuildFlapping(),
+                RotorWake = spec.BuildRotorWake(), // design 3g: before it the scenario flew no own wake
                 StartPosition = new Double3(0, 300, 0), StartPackCharge = 0.9,
             };
             if (modes) setup.Modes = spec.BuildModes();

@@ -30,22 +30,26 @@ namespace Fpv450.Sim.Flight
     /// </summary>
     public sealed class RotorWakeSpec
     {
-        /// <summary>The thrust's σ in hover, a share of the thrust: 0.029 (derived from published: Stack, Caradonna and Savaş
+        /// <summary>The thrust's σ in hover, a share of the thrust: 0.017 (derived from published: Stack, Caradonna and Savaş
         /// 2004, "Flow visualizations and extended thrust time histories of rotor vortex wakes in descent", AHS 4th Decennial
-        /// Specialist's Conference on Aeromechanics, NASA Ames: a 25.4 cm three-bladed rotor in hover in a 60 m tow tank,
-        /// its thrust filtered below the rev over 90 revolutions, fluctuating 12 % of the mean peak to peak; read as about
-        /// 4.2σ, the expected range of 30–50 independent samples of a Gaussian, so σ 2.7–3.2 %). Bounded above by Zhou, Ning
-        /// and Hu 2021 (ISPIV 2021, Iowa State: a single 240 mm rotor at 4860 rpm, 3.0 N, σ 0.21 N = 7 % of the thrust over
-        /// 0–1500 Hz on a JR3 load cell, the vibration included).</summary>
-        public double ThrustSigma = 0.029;
+        /// Specialist's Conference on Aeromechanics, NASA Ames: a 25.4 cm three-bladed rotor in hover in a 60 m tow tank, its
+        /// thrust filtered below the rev; its Fig. 7 read point by point off the paper's vector plot, 17 491 points over 90
+        /// revolutions, σ 1.72 % of the mean, docs/reference-notes/rotor-thrust-spectrum.md §2; band 0.014–0.019, the record
+        /// trimmed by 20 revolutions to its filter-corrected 1.9 %). Model 92 and older read the record's 12 % peak to peak as
+        /// 4.2σ, 0.029; it is 7.3σ.</summary>
+        public double ThrustSigma = 0.017;
 
-        /// <summary>The first-order corner, f·R/v_h: 0.2 (published: the low band of a rotor's own wake unsteadiness near hover,
-        /// Johnson 2005, NASA/TP-2005-213477, Table 2, as the vortex ring's fluctuation takes it; for the hover's wake assumed).
-        /// At the hover's v_h, about 9.7 m/s, it is 15 Hz.</summary>
+        /// <summary>The first-order corner, f·R/v_h: 0.2 (derived from published: the same record's autocorrelation is a
+        /// first-order process's, τ ≈ 2.0 revolutions = 0.78 R/v_h, so 1/(2πτ) is 0.20, band 0.17–0.25; the note's §2). At the
+        /// hover's v_h, about 9.7 m/s, it is 15 Hz. Johnson 2005's Table 2, once its source, is ω·R/v_h in rad/s and the
+        /// vortex ring's.</summary>
         public double CornerFrequency = 0.2;
 
-        /// <summary>Its bound, over its σ: 3 (assumed, as the vortex ring's ±3σ).</summary>
-        public double Bound = 3;
+        /// <summary>Its bound, over its σ: 3.66 (derived from measured: half the record's 12.6 % peak to peak over its 1.72 %
+        /// σ, the note's §2, its two sides taken as equal, assumed), so the wake moves the hover's thrust at most as far as the
+        /// record went, ±6.3 %. Model 92 and older: 3 (assumed, as the vortex ring's ±3σ), which clips the record's own
+        /// peaks.</summary>
+        public double Bound = 3.66;
 
         /// <summary>The air's density, kg/m³ (drone.json's aero air_density_kg_m3, 1.225, published ISA).</summary>
         public double AirDensity = 1.225;
