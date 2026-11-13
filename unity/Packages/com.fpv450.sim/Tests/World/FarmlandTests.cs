@@ -388,5 +388,32 @@ namespace Fpv450.Sim.Tests
             if (allocated != 0)
                 Assert.Fail($"{allocated} B over 100 steps among the village's ruins and debris (500-520, 600-620)" + AllocProbe.Report());
         }
+
+        // The flight thread is never the thread that loaded the world: its first small query beside the ruins (a part's or a fiber
+        // node's, as a step asks them) must allocate nothing either. Today it allocates MapWorld.Region's [ThreadStatic] cache,
+        // 17,048 B, on every thread but the loading one (night-alloc-hunt).
+        [Test]
+        [Ignore("A real allocation: MapWorld.Region makes its [ThreadStatic] RegionCache (17,048 B) at a fresh thread's first small query. Owner: the world builder; remove this Ignore with the fix.")]
+        public void AFreshThreadsFirstQueryBesideTheRuins_AllocatesNothing()
+        {
+            MapWorld world = World;
+            var contacts = new StaticContact[16];
+            double y = Sample(510, 610).Height;
+            var a = new Double3(510, y + 0.01, 610);
+            var near = new Capsule(a, a + new Double3(0.1, 0, 0.01), 0.005);
+            long allocated = 0;
+            string report = "";
+            var flight = new Thread(() =>
+            {
+                long before = AllocProbe.Before();
+                world.StaticContacts(near, near, 0.1, contacts);
+                allocated = AllocProbe.After(before);
+                report = AllocProbe.Report();
+            });
+            flight.Start();
+            flight.Join();
+            if (allocated != 0)
+                Assert.Fail($"{allocated} B in a fresh thread's first small query beside the ruins (510, 610){report}");
+        }
     }
 }
