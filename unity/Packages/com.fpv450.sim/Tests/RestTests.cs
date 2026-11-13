@@ -99,13 +99,17 @@ namespace Fpv450.Sim.Tests
             // (most on the old coil). Armed, the idle blade still strikes, chips and moves the drone on most. Since model 74 (the
             // nozzle bent 12.5° lower, D-086) the nozzle props the rolled drone too: the blade bears on 6 of 20 and strikes on 9 (11 of
             // 20 at 70), so the pilot's case, a blade resting on the rail, is judged where it is the case: on every seed whose blade
-            // bears, armed, it strikes, chips, moves the drone and rests over the known-wrong.
-            Assert.That(w.Rests, Is.GreaterThan(0), "disarmed, the drone rests on the blade (over 1 N) on some seeds");
+            // bears, armed, it strikes, chips, moves the drone and rests over the known-wrong. Since w9-village-physics 2.6's addendum
+            // a blade bears when it carries more than its own weight and the drone rests over the known-wrong by more than the blade's
+            // own deflection (RestScenarios.Racks): the 1 N and 3 mm before were assumed, and on the corrected legs the blade bears
+            // 0.8–0.9 N on every seed, the rear-left leg (no longer softened by a crack) carrying the rest of that corner.
+            Assert.That(w.Rests, Is.GreaterThan(0), "disarmed, the drone rests on the blade (more than its own weight) on some seeds");
             Assert.That(w.BearingStrikes, Is.EqualTo(w.Rests), "armed at idle, a bearing blade strikes");
             Assert.That(w.BearingChips, Is.EqualTo(w.Rests), "and chips: damaged, its material lost");
             Assert.That(w.BearingMoves, Is.EqualTo(w.Rests), "the drone moves (over 1 mm)");
-            Assert.That(w.BearingOver, Is.EqualTo(w.Rests), "it rests over the known-wrong, the prop in the rail (over 3 mm)");
-            Assert.That(w.Strikes, Is.GreaterThan(w.Rests), "and an idle blade near the roof strikes on more seeds than bear on it");
+            Assert.That(w.BearingOver, Is.EqualTo(w.Rests), "it rests over the known-wrong, the prop in the rail (by more than the blade's deflection)");
+            // (Before 2.6's addendum: more seeds strike than bear. Every seed's blade now bears, so none is left to strike unloaded.)
+            Assert.That(w.Strikes, Is.GreaterThanOrEqualTo(w.Rests), "and an idle blade near the roof strikes on at least the seeds that bear on it");
             Assert.That(w.Notches, Is.GreaterThan(0), "on some its leading edge is crushed on the steel, a share of its chord");
             Assert.That(w.OnTheRail, Is.GreaterThan(0), "on some the rail is struck first");
             Assert.That(w.WrongBearsNothing, Is.EqualTo(w.N), "the known-wrong's blade bears nothing");
