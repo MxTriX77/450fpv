@@ -1003,6 +1003,19 @@ dotnet run -c Release --project tools/flightbench -- --contacts
 bit-exact replays: TwoMetresASecondIntoACrown  Match, 30016 steps and 5742 events, bit for bit, and 730 loose-piece records
                    AHoverInACrownBreaksNoBladeTwice  Match, 25016 steps and 1372 events, bit for bit
 0 B: the crown flight from its first touch, the bush hover after its first second (asserted)
+dotnet test tools/simtests -c Release            (on aec5b8d3, before the line's merge)
+  Passed: 859, Failed: 0, Total: 859, 22 m 55 s
+after the line's merge (10709759) and the reach for every hold (54b2fee9, b400ebfe):
+  dotnet run -c Release --project tools/flightbench -- --sweep test-range 400 1 --point 440
+    #440 Slide lever 0.290 m (ok; model 89 4.93 m), Cut 0.433 m (ok; 1.10 m); their rows fail Ground (finding 6) and the Land row's Lifts
+  dotnet run -c Release --project tools/flightbench -- --sweep test-range 400 1 --point 430 / --point 445
+    the two tunnels unchanged (§9b)
+  dotnet test ... AnchorReach, LegChange, LegReplay, Slope, RangeContact, ObjectContact, Crown, Sweep, Landing tests
+    Passed: 78, Failed: 0
+  dotnet test tools/simtests -c Release   (on b400ebfe)
+    Passed: 866, Failed: 0, Total: 866, 44 m 16 s
+  flightbench --golden: 62 PASS, 0 FAIL;  --slopes: PASS;  --contacts: FAIL, the same two post-crash tunnels (§8); one more
+    row moved, Pine006_01's crown (541 twig contacts against 493, a post-crash slide on its bark), still PASS
 python tools/hygiene/precommit.py --tree HEAD
   3587 files scanned, 0 findings
 python -m pytest tools/blender/tests -k "material or physics"
@@ -1010,6 +1023,22 @@ python -m pytest tools/blender/tests -k "material or physics"
 openspec validate w9-village-physics --strict
   Change 'w9-village-physics' is valid
 ```
+
+### 9b. Every hold's anchor at once (the sweep's findings 2 and 3, added to this task)
+
+**The rule, by what each hold can physically do** (`ContactModel.Final`, `CapCrown`):
+- **What bounds an anchor is the leg, not the hold.** A held foot farther than γL (0.176 m; the frame's 0.187 m along the skid) is one the leg no longer reaches (2.4's derivation). That is geometry, the same whatever holds the foot, so the release now applies to **every** leg pair's slide: the ground's (2.4), a **soil shape's** (a range patch's floor and ends are objects), a **rigid shape's** (a wall, a beam, a branch), and a **crown's**. The soil foot's own anchor already took it (`SoilTrial`, `SoilFinal`, on the ground or a soil shape alike).
+- **A hold shorter than the leg lets go sooner:** a crown's twigs at δ̄ = 37 mm (a twig bent sideways past it has broken; whether the foot slides or sticks, `CapCrown`). A soil's groove gives millimetres and a rigid shape nothing, both far inside γL, so the leg's reach is theirs (2.4's note on the groove's give stands).
+- 2.4 kept objects out because releasing the crown's shells lodged the drone in them: that was the shells' false hold (§1), gone with §3.
+
+**Acceptance rows:**
+- **#440 on E01's 22° end** (`SweepTests.OnE01sSoilShapesTheReachHoldsTheLever`, `--sweep test-range 400 1 --point 440`): the slide's largest lever **0.290 m** (model 89: 4.93 m, 214.2 N·m on 43.4 N), the cut's **0.433 m** (model 89: 1.10 m); both pass the sweep's lever. Their rows still fail the sweep's Ground check (a broken leg's hanging half 20–24 mm into the soil: finding 6, the legs engineer's) and the Land row's liftoff (as on model 89). The known-wrong, the reach off: 4.93 m.
+- **The crown flight:** §7's, unchanged by this rule (its anchors on twigs were already bounded by `CapCrown`).
+
+**Finding 3, the two tunnels on E01** (traced with a scratch print at the `Tunnel` call, not committed): **they do not share a cause, and neither is the anchor's.**
+- **#430 Cut, step 5640:** `support_rl_joint` of the left skid, its corner `Hanging, Stub` (leg_rl broken, the half hanging from the other T-joint), 58 mm through the top of a belt_straw soil box (0.44 × 0.30 × 0.33 m), its normal flipped. A hanging half's support driven through the soil: finding 6's mechanism, the legs engineer's (`--w9-legs`).
+- **#445 Slide, step 6392:** `support_fl_joint`, an **intact** corner, 7.1 mm into a belt_straw soil box (0.71 × 0.80 × 0.50 m) on the tilted end, its latched plane the box's top while the query's nearest face flipped to a side as the sunk support slid off the box's edge, then not seen. A soil box is a soil (it yields to the foot, the sink is the soil's law), but the tunnel rule takes every surface row as rigid. So it is most likely a false tunnel at a soil box's edge, not a part through a solid; to be settled by whoever owns the tunnel rule for soil shapes (`ContactModel.Update`'s `RowOf(p).Rigid` for a soil surface). Not changed here.
+- Both still fail the sweep's tunnel check on this branch, unchanged by the reach.
 
 ### 10. Still assumed, and not met
 
