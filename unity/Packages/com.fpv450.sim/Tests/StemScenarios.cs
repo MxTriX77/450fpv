@@ -45,8 +45,10 @@ namespace Fpv450.Sim.Tests
 
             /// <summary>Per step (index = step − 1): the body rate (rad/s; X pitch, Y yaw, Z roll), the front discs' cuts and
             /// work (fr + fl), the rotors' speeds (rad/s), the motors' currents (A, the feed's field means), the front right hub's
-            /// height over the ground (m) and the body's speed over the ground (m/s).</summary>
-            public readonly double[] Pitch, Yaw, Roll, FrontCuts, FrontFresh, FrontWork, Height, Speed;
+            /// height over the ground (m) and the body's speed over the ground (m/s); over the four discs (2.13), the stems based
+            /// under them, those of them leaning past 45°, the same for the tall ones (drawn 1 m or longer), those standing over
+            /// their planes, and their mean pressure (Pa).</summary>
+            public readonly double[] Pitch, Yaw, Roll, FrontCuts, FrontFresh, FrontWork, Height, Speed, Under, Folded, UnderTall, FoldedTall, Over, Load;
             public readonly double[][] Omega = new double[4][], Amps = new double[4][];
 
             /// <summary>Per rotor and step: its fresh cuts and their work (J), its hub's place (world x, z), its height over the
@@ -64,6 +66,12 @@ namespace Fpv450.Sim.Tests
                 FrontWork = new double[capacity];
                 Height = new double[capacity];
                 Speed = new double[capacity];
+                Under = new double[capacity];
+                Folded = new double[capacity];
+                UnderTall = new double[capacity];
+                FoldedTall = new double[capacity];
+                Over = new double[capacity];
+                Load = new double[capacity];
                 for (int c = 0; c < 4; c++)
                 {
                     Omega[c] = new double[capacity];
@@ -92,13 +100,16 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>A flight from at (the body origin) on Village with surfaces.json, armed in its first 16 steps; the known-wrong
         /// folds no stem and cuts every stem met; log records it when given; stems false flies without them; scales sweep the
-        /// field's density and diameters.</summary>
-        public static FlightCore Start(Double3 at, bool knownWrong, Stream log, out FlightRecorder recorder, bool stems = true, Scales? scales = null)
+        /// field's density and diameters; wash flies the stems under the wash with distance (2.13, FlightSetup.StemWash: off by
+        /// default, D-111, so every flight flies 2.12's column).</summary>
+        public static FlightCore Start(Double3 at, bool knownWrong, Stream log, out FlightRecorder recorder, bool stems = true, Scales? scales = null,
+            bool wash = false)
         {
             DroneSpec spec = RepositoryDrone.Spec();
             var world = new FlightWorld(Village);
             FlightSetup setup = SoilScenarios.Setup(spec, world, at);
             setup.Contacts.Stems = stems;
+            setup.StemWash = wash;
             var core = new FlightCore(setup);
             if (knownWrong)
             {
@@ -174,6 +185,18 @@ namespace Fpv450.Sim.Tests
                 r.FrontWork[at] = frontWork;
                 r.Height[at] = core.Strikes.StemLast[1].Height;
                 r.Speed[at] = Math.Sqrt(v.X * v.X + v.Z * v.Z);
+                double load = 0;
+                for (int c = 0; c < 4; c++)
+                {
+                    PropStrikes.StemRecord s = core.Strikes.StemLast[c];
+                    r.Under[at] += s.Under;
+                    r.Folded[at] += s.Folded;
+                    r.UnderTall[at] += s.UnderTall;
+                    r.FoldedTall[at] += s.FoldedTall;
+                    r.Over[at] += s.Over;
+                    load += s.Load * s.Under;
+                }
+                r.Load[at] = r.Under[at] > 0 ? load / r.Under[at] : 0;
                 core.GetSignals(out FeedSignals f);
                 Double3 axis = core.State.Attitude.Rotate(new Double3(0, 1, 0));
                 for (int c = 0; c < 4; c++)
@@ -203,17 +226,18 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>
-        /// The spec's straw landing: from a hover with the hubs 1.9 m over the densest tall cell (over its tallest tops, 1.77 m), the
-        /// target comes down at descent m/s (and forward at forward m/s, heading +z), the sticks held when the skids are 0.1 m up, the
-        /// throttle cut at the first touch, flown 2 s past it (SoilScenarios.Land's pilot).
+        /// The spec's straw landing: from a hover with the hubs 1.9 m (from) over the densest tall cell (over its tallest tops, 1.77 m),
+        /// the target comes down at descent m/s (and forward at forward m/s, heading +z), the sticks held when the skids are 0.1 m up,
+        /// the throttle cut at the first touch, flown 2 s past it (SoilScenarios.Land's pilot).
         /// </summary>
         public static Run Landing(double descent = 0.5, double forward = 0, bool knownWrong = false, Stream log = null, Action<FlightCore> stepped = null,
-            bool stems = true, Scales? scales = null)
+            bool stems = true, Scales? scales = null, bool wash = false, int refresh = 0, double from = 1.9)
         {
             double stand = SoilScenarios.Standing(RepositoryDrone.Spec()), ground = Ground(new XZ(Dense.X, Dense.Z - forward * 2.6));
             var foot = new Double3(Dense.X, ground, Dense.Z - forward * 2.6);
-            double y0 = ground + 1.9 - HubOverOrigin;
-            FlightCore core = Start(new Double3(foot.X, y0, foot.Z), knownWrong, log, out FlightRecorder recorder, stems, scales);
+            double y0 = ground + from - HubOverOrigin;
+            FlightCore core = Start(new Double3(foot.X, y0, foot.Z), knownWrong, log, out FlightRecorder recorder, stems, scales, wash);
+            if (refresh > 0) core.Strikes.StemAirRefresh = refresh;
             var r = new Run(Capacity);
             var pilot = new SimPilot(core.Controller, new Double3(foot.X, y0, foot.Z));
             Arm(core, r, recorder, stepped);
@@ -266,13 +290,14 @@ namespace Fpv450.Sim.Tests
         /// cell's centre (the approach's run-in v·(1.9 − flare)/descent and the flare's v²/(2·3 m/s²), assumed).
         /// </summary>
         public static Run Approach(double speed = 2, double descent = 0.5, double flare = 1.1, Stream log = null, Action<FlightCore> stepped = null,
-            bool stems = true, Scales? scales = null)
+            bool stems = true, Scales? scales = null, bool wash = false, int refresh = 0)
         {
             double stand = SoilScenarios.Standing(RepositoryDrone.Spec());
             double run = speed * (1.9 - flare) / descent + speed * speed / 6;
             var start = new XZ(Dense.X, Dense.Z - run);
             double y0 = Ground(start) + 1.9 - HubOverOrigin;
-            FlightCore core = Start(new Double3(start.X, y0, start.Z), false, log, out FlightRecorder recorder, stems, scales);
+            FlightCore core = Start(new Double3(start.X, y0, start.Z), false, log, out FlightRecorder recorder, stems, scales, wash);
+            if (refresh > 0) core.Strikes.StemAirRefresh = refresh;
             var r = new Run(Capacity);
             var pilot = new SimPilot(core.Controller, new Double3(start.X, y0, start.Z));
             Arm(core, r, recorder, stepped);
@@ -314,11 +339,11 @@ namespace Fpv450.Sim.Tests
         /// (+z, the nose) at speed m/s for seconds, the hubs' height over the ground held throughout.
         /// </summary>
         public static Run Creep(double height = 0.6, double speed = 0.3, double seconds = 6, Stream log = null, Action<FlightCore> stepped = null, bool stems = true,
-            Scales? scales = null)
+            Scales? scales = null, bool wash = false)
         {
             var start = new XZ(Dense.X, Dense.Z - 1.3);
             double y = Ground(start) + height - HubOverOrigin;
-            FlightCore core = Start(new Double3(start.X, y, start.Z), false, log, out FlightRecorder recorder, stems, scales);
+            FlightCore core = Start(new Double3(start.X, y, start.Z), false, log, out FlightRecorder recorder, stems, scales, wash);
             var r = new Run(Capacity);
             var pilot = new SimPilot(core.Controller, new Double3(start.X, y, start.Z));
             Arm(core, r, recorder, stepped);
@@ -341,11 +366,11 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>A hover with the hubs height m over the densest tall cell for seconds.</summary>
-        public static Run Hover(double height = 0.5, double seconds = 10, Stream log = null, Action<FlightCore> stepped = null)
+        public static Run Hover(double height = 0.5, double seconds = 10, Stream log = null, Action<FlightCore> stepped = null, bool wash = false)
         {
             double y = Ground(Dense) + height - HubOverOrigin;
             var at = new Double3(Dense.X, y, Dense.Z);
-            FlightCore core = Start(at, false, log, out FlightRecorder recorder);
+            FlightCore core = Start(at, false, log, out FlightRecorder recorder, wash: wash);
             var r = new Run(Capacity);
             var pilot = new SimPilot(core.Controller, at);
             Arm(core, r, recorder, stepped);
@@ -359,12 +384,14 @@ namespace Fpv450.Sim.Tests
         /// The range's straw (S04, the range golden's landing spot, RangeScenarios.Straw): 3 s of hover with the hubs at height m
         /// (world y, the straw's ground at 0) 1 m south of it, then forward (+z) at speed m/s for seconds through its stalks.
         /// </summary>
-        public static Run RangeCreep(double height = 0.4, double speed = 0.3, double seconds = 4, Action<FlightCore> stepped = null)
+        public static Run RangeCreep(double height = 0.4, double speed = 0.3, double seconds = 4, Action<FlightCore> stepped = null, bool wash = false)
         {
             DroneSpec spec = RepositoryDrone.Spec();
             Double3 foot = RangeScenarios.Straw;
             var at = new Double3(foot.X, height - HubOverOrigin, foot.Z - 1.0);
-            var core = new FlightCore(SoilScenarios.Setup(spec, new FlightWorld(RangeScenarios.World), at));
+            FlightSetup setup = SoilScenarios.Setup(spec, new FlightWorld(RangeScenarios.World), at);
+            setup.StemWash = wash;
+            var core = new FlightCore(setup);
             var r = new Run(Capacity);
             var pilot = new SimPilot(core.Controller, at);
             Arm(core, r, null, stepped);

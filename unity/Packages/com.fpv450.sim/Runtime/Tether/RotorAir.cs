@@ -541,6 +541,25 @@ namespace Fpv450.Sim.Tether
             return air;
         }
 
+        /// <summary>
+        /// Rotor i's near column at p (w9-village-physics 2.13, the stems' swirl): its speed along the disc's normal there, m/s
+        /// (far_wake_speed_ratio·v_i times the near wake's share at p), 0 outside it. The same test as At's column, read only.
+        /// </summary>
+        public double Column(int i, Double3 p)
+        {
+            double vi = _induced[i];
+            if (!(vi > 0)) return 0;
+            Double3 q = p - _hub[i];
+            if (Double3.Dot(_normal[i], q) > 0) return 0;
+            Double3 w = _wake[i];
+            double h = Double3.Dot(q, w);
+            if (!(h > 0)) return 0;
+            Double3 off = q - w * h;
+            double share = _cutOff ? 1 : 1 - Merged(Double3.Dot(p - _farCentre, _farAxis));
+            bool above = !_jet[i] || p.Y > _ground[i];
+            return above && Double3.Dot(off, off) < _wakeRadius * _wakeRadius && share > 0 ? _wakeSpeed * vi * share : 0;
+        }
+
         // Design 19's merged jet at p (s along its axis), weighted w(s), its descent falling linearly to nothing over r_i/2 above
         // the ground where it lands; and its radial wall jet, weighted w(s_g): u_m = U_g·r/r_i inside r_i (the stagnation
         // flow), U_g·(r_i/r)^1.1 beyond, across the height Verhoff's profile on δ = c·R·(R/H)^e, R = max(r, r_i).
