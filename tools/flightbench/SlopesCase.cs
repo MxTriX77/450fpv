@@ -113,7 +113,8 @@ namespace Fpv450.FlightBench
                 SlopeScenarios.Ledge lip = SlopeScenarios.AtLedge(spec, false), face = SlopeScenarios.AtLedge(spec, true);
                 Row("over the ledge's lip", lip.Tunnels == 0,
                     $"the step {lip.Step:F3} m: it tips over and falls it, {lip.PeakLoad:F0} N, {lip.PeakAccel:F0} m/s², and ends {lip.EndX - SlopeScenarios.LedgeX:F2} m past the lip; crashes {lip.Crashes}, tunnels {lip.Tunnels}");
-                Row("into a far seam's face", face.PeakLoad < 150 && face.Rise < 0.01 && face.Tunnels == 0,
+                // The leg under its buckling load (385 N, the cap 2.2's bug hit); since w9 2.6 it meets the face elastically to 158 N (SlopeTests).
+                Row("into a far seam's face", face.PeakLoad < 385 && face.Rise < 0.01 && face.Tunnels == 0,
                     $"the step {face.Step * 1e3:F1} mm, nose first at 1 m/s: {face.PeakLoad:F0} N, {face.PeakAccel:F0} m/s², rose {face.Rise * 1e3:F1} mm; crashes {face.Crashes}, tunnels {face.Tunnels}");
             }
 
