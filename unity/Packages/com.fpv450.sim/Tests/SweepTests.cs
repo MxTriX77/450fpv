@@ -105,13 +105,14 @@ namespace Fpv450.Sim.Tests
 
         // Energy (3.0b): the blades' passes kick the body after the rigid body with the rotors' own spin (PropStrikes.Apply), the
         // rotors' work; the old check read it as the contacts' return (range #405 Slide: +0.168 J at its first strike, by hand the
-        // passes' share to 1 mJ; #86 Slide +0.098 J). Credited up to what the strikes took from the rotors, and gravity's work at the
-        // kick's own v̄, the slides pass. The known-wrong: a leg damper that pushes instead of resisting (ContactSpec.LegDamping
-        // negated, an active contact) gives the body energy no force paid for, and the same Land fails the corrected check.
+        // passes' share to 1 mJ; #86 Slide +0.098 J; #154 Slide, a blade grinding a rigid face, ±7 mJ a step). Credited since the
+        // start up to what the strikes took from the rotors since the start, and gravity's work at the kick's own v̄, the slides
+        // pass. The known-wrong: a leg damper that pushes instead of resisting (ContactSpec.LegDamping negated, an active contact)
+        // gives the body energy no force paid for, and the same Land fails the corrected check.
         [Test]
         public void TheBladesPassesAreTheRotorsWork_AnActiveLegDamperIsNot()
         {
-            foreach (int p in new[] { 405, 86 })
+            foreach (int p in new[] { 405, 86, 154 })
                 Assert.That(FlyRange(p, Manoeuvre.Slide).Failed[(int)Check.Energy], Is.False, $"#{p} Slide: the passes' kicks are the rotors' work");
             Row right = FlyRange(0, Manoeuvre.Land);
             Row wrong = FlyRange(0, Manoeuvre.Land, core => core.Contacts.Spec.LegDamping = -core.Contacts.Spec.LegDamping);

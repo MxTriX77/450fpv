@@ -829,7 +829,8 @@ namespace Fpv450.Sim.Tests
             readonly StaticContact[] _found = new StaticContact[8];
             readonly GroundSample[] _g = new GroundSample[1];
             readonly XZ[] _at = new XZ[1];
-            double _energy; // the contacts' net return since the start, J (ΔKE less the other forces' work)
+            double _energy; // the contacts' net return since the start, J (ΔKE less the other forces' work and the passes' credit)
+            double _raw, _passes, _taken; // since the start, J: ΔKE less the other forces' work; the passes' kicks; what the strikes took
             double[] _backed; // each frame part's penalty overlap at its force this step (PairReach.Backed)
             readonly CornerState[] _cornerBefore = new CornerState[4]; // each corner's state at the step's start
             readonly double[] _groove = new double[4], _grooveSink = new double[4]; // each corner's sink to judge, its groove's depth, m
@@ -927,8 +928,9 @@ namespace Fpv450.Sim.Tests
                 // - The blades' passes (PropStrikes.Apply, after the rigid body: stems, strikes, jams) kick the velocity and the rate
                 //   with the rotors' own spin: the rotors' work, never the contacts'. The step is re-integrated from its start with the
                 //   trace's net force and moment (RigidBody.Step, the core's own), and the passes' share is the kinetic energy past that,
-                //   credited up to what the step's strikes took from the rotors (BladeStrikes' energy): no more than the rotors gave,
-                //   and nothing in a step without a strike.
+                //   credited since the start up to what the strikes took from the rotors since the start (BladeStrikes' energy): no
+                //   more than the rotors gave. Since the start, not step by step: a blade grinding a rigid face kicks the body back and
+                //   forth (range #154 Slide: −7.0 mJ, then +7.2 mJ on a strike that took 6.4 mJ, every other step), its net a loss.
                 // - Gravity's work is −m·g·v̄_y·dt, the same v̄ as the kick's; the potential m·g·Δy moves by m·g·v1_y·dt (the drift's
                 //   new velocity), ½·m·g·dt·Δv_y apart, which sums to ½·m·g·dt times the vertical speed's change since the start
                 //   (0.03 J at 1 m/s on 6 kg): the integrator's, not a contact's.
@@ -943,10 +945,10 @@ namespace Fpv450.Sim.Tests
                     Double3 fOther = tr.NetForce - tr.ContactForce;
                     Double3 mOther = tr.NetMoment - tr.ContactMoment;
                     double work = (Double3.Dot(fOther, vbar) + Double3.Dot(mOther, wbar)) * FlightCore.Dt;
-                    double taken = 0;
-                    for (int i = 0; i < BladeStrikes.Slots; i++) taken += s.BladeStrikes[i].Energy;
-                    double passes = Math.Min(Kinetic(s, b1) - Kinetic(integrated, b0), taken);
-                    _energy += Kinetic(s, b1) - Kinetic(s0, b0) - work - passes;
+                    for (int i = 0; i < BladeStrikes.Slots; i++) _taken += s.BladeStrikes[i].Energy;
+                    _passes += Kinetic(s, b1) - Kinetic(integrated, b0);
+                    _raw += Kinetic(s, b1) - Kinetic(s0, b0) - work;
+                    _energy = _raw - Math.Min(_passes, _taken);
                     r.Judge(Check.Energy);
                     r.Worse(Check.Energy, _energy);
                     if (_energy > EnergyTolerance) r.Fail(Check.Energy, step, $"{_energy:F3} J more than the contacts took");
