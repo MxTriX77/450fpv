@@ -152,6 +152,13 @@ namespace Fpv450.Sim.Flight
         /// The audit against model 94 and the harness's known-wrong for the wash, never a pilot's flight.</summary>
         public bool TetherWakeReach4R;
 
+        /// <summary>The known-wrong laid trail before p7d-tether design 20 (model 97's): only the trail's last point is tested
+        /// against the air (node 0's, across the chain's first segment, past what it froze with plus μs·w of the polymer pair); a
+        /// frozen point deeper takes no air at all. TetherWakeReach4R, TetherBeforeDesign18 and TetherDesign4Air imply it (every
+        /// kept audit of an older line). The audit against model 97 and the known-wrong for the laid line in the wash, never a
+        /// pilot's flight.</summary>
+        public bool TetherAirlessTrail;
+
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
         /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>
