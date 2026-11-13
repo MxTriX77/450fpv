@@ -73,9 +73,8 @@ namespace Fpv450.Sim.Contact
         /// <summary>The tube's lower end in the T-joint's socket above the foot, m.</summary>
         public double SocketLever;
 
-        /// <summary>The tube: its free length (the clamp's bottom to the T-joint's top), its section, its modulus (nominal; the
-        /// stiffness's spread is p7a-ground 1.17's leg.stiffness, never drawn here), m and Pa; a cracked tube's stiffness over
-        /// an intact one's.</summary>
+        /// <summary>The tube: its free length (the clamp's bottom to the T-joint's top), its section, its modulus (nominal; each
+        /// leg's spread is its leg.stiffness draw, StiffnessSigma), m and Pa; a cracked tube's stiffness over an intact one's.</summary>
         public double FreeLength, OuterDiameter, InnerDiameter, Modulus, CrackedFactor;
 
         /// <summary>The clamp's bolt and the tube's length in its jaws; the T-joint's pinch screw and its socket's outer
@@ -86,6 +85,26 @@ namespace Fpv450.Sim.Contact
         /// elongation at break, the clamp's edge factor, the wing nut's hand torque (N·m), the nut factor, the jaws' friction,
         /// the T-joint's screw torque (N·m) and the print's interlayer strength (Pa).</summary>
         public LegBound YieldStress, Elongation, EdgeFactor, ClampTorque, NutFactor, Friction, TJointTorque, Interlayer;
+
+        /// <summary>
+        /// The legs' stiffness spread (w9-village-physics 2.9, p7a-ground design 12, D-086: hand-made legs vary): each leg's tube
+        /// modulus times 1 + δ, δ nearly normal with this σ, clamped to ±StiffnessBound, one stream "leg.stiffness" with four draws
+        /// at the flight's start. 0 and 0 (the default) draw nothing: the nominal legs, as the goldens fly and a log before 2.9
+        /// did; a flight that draws its build (the player's, SessionSetup, as it draws the placement and the motors) sets
+        /// DrawnSigma and DrawnBound.
+        /// </summary>
+        public double StiffnessSigma, StiffnessBound;
+
+        /// <summary>The spread a drawn build flies: σ 3 %, bound 10 % (assumed, design 12: the clamps' and T-joints' fit and the
+        /// tube's stock; nothing is published for a hand-cut PVC-U leg).</summary>
+        public const double DrawnSigma = 0.03, DrawnBound = 0.10;
+
+        /// <summary>Draws the legs' stiffness on this spec's flights (DrawnSigma, DrawnBound).</summary>
+        public void DrawStiffness()
+        {
+            StiffnessSigma = DrawnSigma;
+            StiffnessBound = DrawnBound;
+        }
 
         /// <summary>p7g-legs 1.3: each leg's skid (DroneSpec.Parts, the one through its T-joint), the leg on the same skid, and
         /// the skid's axis under the leg (body m), where a skid hanging from that leg's T-joint turns.</summary>
@@ -260,9 +279,10 @@ namespace Fpv450.Sim.Contact
         const int Bisections = 60;
 
         readonly LegDamageSpec _spec;
-        readonly double _ei, _c, _shape, _buckling;
+        readonly double _c, _shape;
         readonly double[] _yieldMoment = new double[Legs], _squash = new double[Legs], _edge = new double[Legs], _partCurvature = new double[Legs],
-            _slipForce = new double[Legs], _twistMoment = new double[Legs], _skidSlip = new double[Legs], _socketMoment = new double[Legs];
+            _slipForce = new double[Legs], _twistMoment = new double[Legs], _skidSlip = new double[Legs], _socketMoment = new double[Legs],
+            _modulus = { 1, 1, 1, 1 }, _ei = new double[Legs], _buckling = new double[Legs];
 
         readonly LegFlags[] _flags = new LegFlags[Legs];
         readonly double[] _envelope = { 1, 1, 1, 1 }, _twist = new double[Legs], _bow = new double[Legs], _slip = new double[Legs], _moment = new double[Legs];
@@ -291,9 +311,7 @@ namespace Fpv450.Sim.Contact
             _jawStiffness = jawStiffness;
             double i = _spec.SecondMoment, area = _spec.Area;
             _c = _spec.OuterDiameter / 2;
-            _ei = _spec.Modulus * i;
             _shape = _spec.ShapeFactor;
-            _buckling = _spec.BucklingLoad;
             double socket = Pi * (Pow4(_spec.SocketDiameter) - Pow4(_spec.OuterDiameter)) / (32 * _spec.SocketDiameter);
             for (int k = 0; k < Legs; k++)
             {
@@ -317,6 +335,18 @@ namespace Fpv450.Sim.Contact
                 _socketMoment[k] = layers * socket;
                 _jawFriction[k] = _twistMoment[k] / Lever(k);
             }
+            // The legs' stiffness spread (2.9, design 12): a stream of its own after the strengths, so no other draw moves.
+            if (_spec.StiffnessSigma > 0 || _spec.StiffnessBound > 0)
+            {
+                SeedStream st = random.Open("leg.stiffness");
+                for (int k = 0; k < Legs; k++)
+                    _modulus[k] = 1 + random.DrawNormal(ref st, "leg.stiffness." + Names[k], _spec.StiffnessSigma, _spec.StiffnessBound);
+            }
+            for (int k = 0; k < Legs; k++)
+            {
+                _ei[k] = _modulus[k] * _spec.Modulus * i;
+                _buckling[k] = _modulus[k] * _spec.BucklingLoad;
+            }
         }
 
         const double Pi = 3.141592653589793;
@@ -337,7 +367,11 @@ namespace Fpv450.Sim.Contact
         /// <summary>The leg's stiffness over an intact one's by its state: the cracked factor once cracked, 0 broken or off. The
         /// contact law flies it on the tube's own stiffnesses (p7g-legs 1.3).</summary>
         public double StiffnessFactor(int leg) =>
-            (_flags[leg] & (LegFlags.Broken | LegFlags.Detached)) != 0 ? 0 : (_flags[leg] & LegFlags.Cracked) != 0 ? _spec.CrackedFactor : 1;
+            (_flags[leg] & (LegFlags.Broken | LegFlags.Detached)) != 0 ? 0 : (_flags[leg] & LegFlags.Cracked) != 0 ? _modulus[leg] * _spec.CrackedFactor : _modulus[leg];
+
+        /// <summary>The leg's drawn modulus over the nominal tube's (its leg.stiffness draw, 2.9; 1 without a spread): what its
+        /// buckling and sway loads scale by.</summary>
+        public double Modulus(int leg) => _modulus[leg];
 
         /// <summary>The leg spring's rest moved by the leg's give: along the leg (the bow's shortening less the clamp's slip,
         /// m) and across it at the foot by the jaws' turn (body, m). The set and the twist move the leg's shapes instead
@@ -404,7 +438,7 @@ namespace Fpv450.Sim.Contact
         public Double3 BowMomentVector(int leg, double axial)
         {
             if (!(_bow[leg] > 0)) return default;
-            double p = axial < _buckling ? axial : _buckling;
+            double p = axial < _buckling[leg] ? axial : _buckling[leg];
             if (!(p > 0)) return default;
             return _bowDir[leg] * (BowMoment * p * DetMath.Sqrt(_bow[leg] * _spec.FreeLength / BowShortening));
         }
@@ -417,7 +451,8 @@ namespace Fpv450.Sim.Contact
         /// <summary>The clamp's edge's first yield under an axial load, (1 − |P|/(σ_y·A))·σ_y·I/(c·K_t), N·m.</summary>
         public double CrackMoment(int leg, double axial) => _yieldMoment[leg] * (1 - DetMath.Abs(axial) / _squash[leg]) / _edge[leg];
         public double PartingMoment(int leg) => PartingRatio(leg, 0) * CrackMoment(leg);
-        public double BucklingLoad => _buckling;
+        /// <summary>The nominal tube's buckling load, N (each leg's is it times Modulus(leg)).</summary>
+        public double BucklingLoad => _spec.BucklingLoad;
         public double ClampSlip(int leg) => _slipForce[leg];
         public double ClampTwist(int leg) => _twistMoment[leg];
         public double SkidSlip(int leg) => _skidSlip[leg];
@@ -427,7 +462,7 @@ namespace Fpv450.Sim.Contact
         // m* at axial share s: the moment ratio where the edge's curvature κ_c·g(m) reaches the parting curvature.
         double PartingRatio(int leg, double s)
         {
-            double f = _shape * (1 + s), kc = _yieldMoment[leg] * (1 - s) / _edge[leg] / _ei, g = _partCurvature[leg] / kc;
+            double f = _shape * (1 + s), kc = _yieldMoment[leg] * (1 - s) / _edge[leg] / _ei[leg], g = _partCurvature[leg] / kc;
             return f - (f - 1) / (g * g);
         }
 
@@ -483,9 +518,9 @@ namespace Fpv450.Sim.Contact
             else _turning[leg] = false;
 
             // Buckling: the bow takes the excess shortening past the buckling load, and gives it back as the load falls.
-            if (p > _buckling || _bow[leg] > 0)
+            if (p > _buckling[leg] || _bow[leg] > 0)
             {
-                double was = _bow[leg], now = was + (p - _buckling) / loads.AxialStiffness;
+                double was = _bow[leg], now = was + (p - _buckling[leg]) / loads.AxialStiffness;
                 if (!(now > 0)) now = 0;
                 if (now != was)
                 {
@@ -511,7 +546,7 @@ namespace Fpv450.Sim.Contact
             // couple: Δ = (|r| − F_f)/(k + k_j) along r = F − k_j·u_j, k the side give's chain with the jaws held. The turn
             // moves the side spring's rest (LateralOffset); the friction's work is the joint's damping, never a tuned ζ.
             // The axial load on the deflected tube (P·δ, 1.3) loads the jaws and the edge with the force across.
-            double carried = p < _buckling ? p : _buckling;
+            double carried = p < _buckling[leg] ? p : _buckling[leg];
             Double3 pDelta = loads.Deflection * carried;
             Double3 lateral = loads.LawLateral;
             _footMoment[leg] = 0;
@@ -574,7 +609,7 @@ namespace Fpv450.Sim.Contact
                 }
                 // θ_p per unit of κ_c·L, and the foot's move θ_p·L per κ_c·L²: the set turns the leg's shapes rigidly about the
                 // clamp's edge (design 8), so its foot moves θ_p·L (1.2's spring rest moved δ_p, the curvature's own offset).
-                double kc = mc / _ei, r0 = RotationRatio(env, f), d0 = r0, scale = kc * lever * lever;
+                double kc = mc / _ei[leg], r0 = RotationRatio(env, f), d0 = r0, scale = kc * lever * lever;
                 // The set straightens the tube's deflection by the foot's move too, which takes P·δ off (at most δ that way).
                 double pd = carried > 0 ? carried : 0, dway = Double3.Dot(loads.Deflection, way);
                 if (!(dway > 0)) dway = 0;
@@ -692,7 +727,7 @@ namespace Fpv450.Sim.Contact
             _moment[leg] = m;
             double s = DetMath.Abs(carried) / _squash[leg];
             if (s > 0.999) s = 0.999;
-            double mc = _yieldMoment[leg] * (1 - s) / _edge[leg], f = _shape * (1 + s), kc = mc / _ei, pd = carried > 0 ? carried : 0;
+            double mc = _yieldMoment[leg] * (1 - s) / _edge[leg], f = _shape * (1 + s), kc = mc / _ei[leg], pd = carried > 0 ? carried : 0;
             LegMode mode = bow.Length() * 2 >= m ? LegMode.Buckling : LegMode.Bending;
             if (m >= mc && (flags & LegFlags.Cracked) == 0)
             {

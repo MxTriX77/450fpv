@@ -22,7 +22,8 @@ namespace Fpv450.FlightBench
     // `--tether [seeds]` flies the fiber's acceptance harness, the pilot's four causes on 20 seeds a row by default, and judges
     // design 16's targets and the known-wrong models (p7d-tether 1.11).
     // `--replay-step <log> [--from S] [--to S]` replays a flight log bit for bit and times its steps and their world queries
-    // in that window of flight seconds against PLT-04 (w3-farmland-ground 2.1).
+    // in that window of flight seconds against PLT-04 (w3-farmland-ground 2.1). `--ground [seeds] [--nominal-legs]` flies the liftoff harness on
+    // Village's and House's grounds with its known-wrong models and Village's ground rows (w9-village-physics 2.9).
     internal static class Program
     {
         private static int Main(string[] args)
@@ -154,6 +155,17 @@ namespace Fpv450.FlightBench
                 {
                     Console.WriteLine("flightbench: the legs' outcomes over touchdown speed, roll and drift (p7g-legs 1.4), " + seeds + " seeds a cell");
                     return LegsCase.Run(seeds) ? 0 : 1;
+                }
+            }
+            if (args.Length >= 1 && args.Length <= 3 && args[0] == "--ground")
+            {
+                int seeds = 10;
+                bool nominal = args[args.Length - 1] == "--nominal-legs";
+                int counted = nominal ? args.Length - 1 : args.Length;
+                if (counted == 1 || counted == 2 && int.TryParse(args[1], out seeds) && seeds >= 2)
+                {
+                    Console.WriteLine("flightbench: the liftoff harness and Village's ground rows (w9-village-physics 2.9, p7a-ground design 13), " + seeds + " seeds a cell");
+                    return GroundCase.Run(seeds, nominal) ? 0 : 1;
                 }
             }
             if (args.Length >= 1 && args[0] == "--wind-harness")

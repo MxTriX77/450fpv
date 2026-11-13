@@ -206,7 +206,8 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>The airframe's effects as SessionSetup.Build gives the player (the powered golden's and the build tolerance):
         /// the motors' asymmetry, the build tolerance, the vortex rings, the ground and ceiling effect, each rotor's wake
-        /// unsteadiness, the flapping's blade with its edgewise thrust, the rotors' interference and the airframe's modes.</summary>
+        /// unsteadiness, the flapping's blade with its edgewise thrust, the rotors' interference and the airframe's modes; and the
+        /// legs' stiffness drawn (w9-village-physics 2.9).</summary>
         public static void SessionAirframe(DroneSpec spec, FlightSetup s)
         {
             s.Asymmetry = spec.BuildAsymmetry();
@@ -217,6 +218,7 @@ namespace Fpv450.Sim.Tests
             s.Flapping = spec.BuildFlapping();
             s.Interference = spec.BuildInterference();
             s.Modes = spec.BuildModes();
+            s.Contacts?.Legs?.DrawStiffness(); // the legs' stiffness (w9-village-physics 2.9)
         }
 
         /// <summary>tether.json with one band row's bounds replaced (p7d-tether 1.11's sensitivity).</summary>

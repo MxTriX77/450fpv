@@ -828,7 +828,137 @@ To be written by task 2.3.
 
 ## 2.9 Village's ground rows and the liftoff harness
 
-To be written by task 2.9.
+**Owner:** physics-engineer · **Requirements:** PHY-01, PHY-03, PHY-24, LOG-01, LOG-02, TST-03 · **Branch:** `unity/physics/physics-integration-2--w9-liftoff` (from 2955136e, model 86) · With p7a-ground 1.17 and its design 12–13. No log format change: one tagged header entry (below). The model number is the orchestrator's at the merge.
+
+The pilot's words this answers (the physics ledger's P1–P5, P10): a leg "may get randomly stuck for a moment which affects the horizon while you liftoff"; "sometimes a little bit. but based on ground type and how soft it is - more often. if it's raining it sticks most of the times"; a leg "could get thrusted and get stuck a bit INTO that ground when landing"; legs hand-made, "as flexible as a carbon plastic", varying per drone (D-086).
+
+### 1. Why no leg stuck alone (measured before any code)
+
+The measurements are a scratch console harness compiling the suite's scenarios against `tools/simcore` (the session's scratchpad, `night-liftoff/probe`, not committed), on this branch's base. Village's level spots are the audit's (§1.2's survey): `tilled` (715.97, 105.47), `meadow_sod` (322.29, 32.58), `weeds` (26.66, 20.00), `dirt_track` (590.17, 108.80). Each liftoff: armed at rest 2 s, then a throttle ramp; 12 seeds a cell; "lone" is design 13's held leg (one corner over 1 N at least 20 ms after the other three left, the body turning at least 0.5° toward it); "group" is one or more corners leaving at least 20 ms after the rest with the same turn toward them (the pilot's "one or many of them").
+
+1. **The audit flew an ideal drone.** `SoilScenarios.Setup` builds no build placement (D-086's balance, `build.placement`) and no motor asymmetry: four identical corners under a symmetric thrust, so they leave together, as the brief says they must. Every player flight carries both (`SessionSetup`). With the session's airframe (`FiberCutScenarios.SessionAirframe`: asymmetry, placement, vortex ring, ground effect, wake, flapping, interference, modes) and the audit's ramp (hover + 0.1 over 0.5 s, held), wet ground holds a pair or a single corner on 1–2 seeds of 6 per cell, the body turning up to 1.1°, but it holds the whole drone down in most wet cells for the 2.5 s run (tilled Rain 5 of 6, Severe 6 of 6).
+2. **The ramp is not a pilot's liftoff.** No pilot holds hover + 0.1 while the drone stays down; they add throttle until it leaves. How fast decides what the ground can do. Two protocols, measured on the session's airframe (lone / group, of 12):
+
+| Ground | Moisture | Brisk: past hover + 0.1 the throttle climbs on at the ramp's rate (1.16 /s) | Gentle: past hover + 0.1 it climbs 0.23 /s |
+|---|---|---|---|
+| tilled | dry | 0 / 0 | 0 / 0 |
+| | Rain | 0 / 2 | 1 / 3 |
+| | Severe rain | 1 / 3 | 2 / 9 |
+| meadow_sod | dry | 0 / 0 | 0 / 0 |
+| | Rain | 0 / 2 | 1 / 4 |
+| | Severe rain | 2 / 6 | 4 / 10 |
+| weeds | dry | 0 / 0 | 1 / 1 |
+| | Rain | 0 / 0 | 2 / 4 |
+| | Severe rain | 1 / 4 | 3 / 8 |
+| dirt_track | dry | 0 / 0 | 0 / 0 |
+| | Rain | 0 / 1 | 0 / 1 |
+| | Severe rain | 0 / 3 | 0 / 5 |
+
+   - **Why the brisk pull frees them together** (derived from the traces): once a corner's hold is the last, the body pivots about it and the corner carries F_C = (T − W)·I/(I + m·r²) of the thrust's excess at once (about 0.18 (T − W) for a corner 0.27 m from the centre, I about 0.08 kg·m², m 5.2 kg, derived), plus the controller's answer to the tilt, which pulls it the same way. A throttle still climbing at 1.16 /s passes a wet corner's 6.6 N (Rain) or 11 N (Severe rain) within a few milliseconds of the others. A gentle climb leaves F_C under the hold for tens of milliseconds while the body turns: the pilot's "for a moment".
+   - **The gentle liftoff is the pilot's own** (B 11, D-087): "very sharp lift off" is one of the four ways they name to cut the fiber, so their ordinary liftoff is gentle. The harness flies it (§3).
+3. **Mechanisms tried and not built** (each a temporary edit on this branch, measured on the brisk protocol, reverted):
+   - **A different hold under each foot** (each corner's wetted footprint scaled 1.3 / 0.8 / 1.0 / 0.7): tilled Rain and Severe rain lone 0 of 8, holds 3–20 ms, turns ≤ 0.71°. A ±30 % spread in the hold does not hold one corner alone under a pull that passes every hold together.
+   - **The groove venting only at its mouth** (the cohesive pull released at the set's depth z_p, where the skid's underside reaches the soil's surface and air can enter the gap, instead of δ_a's 2–3 mm): lone 0–3 of 12 against 0–2, groups within one seed of the base. Its physical case is Vesic 1971's reading of suction as the pore pressure across the object, but the measured effect is within the seeds' scatter, and no readable source gave its displacement: not built.
+   - **The groove holding a lifting skid across** (its passive wall P(θ) kept while the skid is still below the surface, after it stops pressing): no change (lone 0–2, groups within one seed). The feet carry 0.1–0.5 N across at the liftoff (measured, dry tilled), so the wall has nothing to hold.
+   - **Adhesion growing with the load before the pull** (the pressed corner holding harder): not built. The published soil–metal tests treat the normal adhesion as independent of the normal load (Payne 1956, building on Fountaine and Payne 1954, as restated in the secondary literature; the originals were not readable here).
+4. **So the soil's hold lacks nothing the account needs in rain**, given the build's balance and the pilot's liftoff. The wet sets' σ_a (3 and 5 kPa, assumed) and δ_a (2 and 3 mm, assumed) are untouched; nothing is tuned.
+5. **Dry ground has no hold at all** in this model: σ_a = 0, the anchor and the groove act only across the ground and only while the skid presses. A dry leg can stay down only by carrying load while the body tips off the other three (the build's balance), which the controller levels within milliseconds (1 of 48 above). The "sometimes, a little" on dry soft ground needs what holds a dry foot: stems and roots over the skid (hooks, W9 2.10, p7a-ground design 8). Design 13's risk note says exactly this: the cause is a missing mechanism, never a tuned rate.
+6. **The legs' stiffness (D-086, design 12)** is drawn per leg per flight: built (§2). It changes the release little (derived): a leg's vertical stiffness is the arm under the clamp (67.6 kN/m) in series with the tube's EA/L (397 kN/m) and the T-joint (553 kN/m), 52.3 kN/m (drone.json), so ±10 % on the tube moves it by about ±1.2 %; the leg's side give (268 N/m, the tube's 3EI/L³) moves by the whole ±10 %.
+
+### 2. What is built
+
+- **`leg.stiffness`** (design 12, PHY-24, D-086): one stream, four draws at the flight's start, each leg's flexural and axial modulus factor 1 + δ, δ nearly normal (Irwin–Hall, `FlightRandom.DrawNormal`), σ 3 %, clamped to ±10 % (assumed, design 12: the hand-made legs' fit and their tube's stock; nothing is published for a hand-cut PVC-U leg; `LegDamageSpec.StiffnessSigma`, `StiffnessBound`). Drawn in `LegDamage`'s constructor after the strengths (a stream of its own, so no other draw moves), recorded in the header's draws. It scales what the tube's modulus sets: in the contact law (`ContactModel.LegGive`) the tube's EA/L share, its 3EI/L³ at the foot and the frame's give, as the crack's factor does, and the buckling cap the lever flies on (π²EI/4L² · its bow factor); in the failure law the tube's EI (the curvature a moment bends it to) and its buckling load. The strengths are unchanged: the yield stress is its own draw. A flight without the legs' law draws nothing.
+  - **An opt-in, as the build's placement and the motors' asymmetry are** (measured, why): drawn by default, every flight with the legs' law moved, the goldens and the kept audits among them, even those that touch nothing (the step record logs `LegStiffnessFactor`, now the draw): 40 FAIL lines of `--golden`. The established rule is that a drawn build is the setup's choice (`FlightSetup.Asymmetry`, `Placement`: "a FlightSetup without one flies the exact build, as the goldens do"). So `LegDamageSpec.StiffnessSigma` and `StiffnessBound` default to 0 (the nominal legs), and `LegDamageSpec.DrawStiffness()` sets the drawn σ 3 % and bound 10 % (`DrawnSigma`, `DrawnBound`). The suite's session airframe (`FiberCutScenarios.SessionAirframe`) and the replay tool's pilot flight (`tools/replay` `ScriptedFlight`) call it. **The player's `FlightSession` (the Unity app, not this branch's) needs the same one line** beside its `Placement = spec.BuildPlacement()`: `setup.Contacts.Legs?.DrawStiffness();`. With the opt-in, `--golden` is 61 PASS: no golden moved.
+- **The anchors' reach in `ContactSpec`** (2.4's debt): `ContactSpec.AnchorReach` beside `HangingGive`, read by `ContactModel.Reached`; `ContactModel.AnchorReach` is gone, and `GoldenFlights.WithoutTheReach` sets the model's own spec (its known-wrong, a bench's, never recorded).
+- **The header** (no format change): one tagged entry, `TagGround` (28), as 2.2 logged the stems: the contacts' `AnchorReach`, then the legs' `StiffnessSigma` and `StiffnessBound`. A reader that does not know the tag lists it as unknown and skips it. A log without it is read as its model flew: the reach on from model 86 (the header's model number), off before; no stiffness spread (σ and bound 0, so no `leg.stiffness` stream is opened).
+
+### 3. The harness (`flightbench --ground [seeds]`, design 13)
+
+- **Spots:** Village's five classes on their level spots (the four above and `dry_crust` (714.12, 106.58)), its 10° slopes (`weeds` (313.04, 20.00), `meadow_sod` (311.19, 50.71)), and House's grounds on the test range: its track start (the plane's `belt_straw`) and its first S04 patch.
+- **Each flight:** the session's airframe and the flight seed (so the build's balance, the motors and the legs are drawn); in still air; the drone level (its nose uphill on a slope), its skids' lowest point 2 mm over the ground beneath it, moving at the touch's speed with the throttle cut (armed at idle: the pilot's cut at the touch), half the seeds a vertical touch at 0.3 m/s and half the pilot's glide (0.5 m/s down, 0.3 m/s forward), as design 13; 2 s at rest; then the gentle liftoff: the throttle ramps to the spot's hover + 0.1 over 0.5 s and climbs on at 0.2 a second until the drone is off (no corner over 1 N and the body 10 mm up), where it stays (assumed protocol, read from B 11), for at most 4 s.
+- **Per flight:** the lone held corner (design 13's rule) and the held group (one or more corners, the same 20 ms and 0.5°), each with its hold, turn and peak pull. Per cell the rates; per spot the mean sink at rest.
+- **The targets** (design 13's reading of the pilot's words, on the lone corner; firm = `dirt_track`, `dry_crust`; soft = the rest): dry firm held on at least one flight and at most a third; dry soft above dry firm by more than the two rates' 95 % binomial margin, and under half; soft in Rain above half; firm in Rain above dry firm; soft in Severe rain at least as often as in Rain. The group's rates are printed beside them.
+- **The four known-wrong models, each judged on the target it must miss:** a dice roll at the dry firm rate everywhere (an outcome model, seeded; must miss "more often on soft" or "in rain"); the dry rows in rain (`surfaces.json`'s dry set in every moisture, flown on the soft spots; must miss "in rain"); K§7.3's touch rule, every anchored element touching a skid hooks (an outcome model: no hook law exists until 2.10, so every flight on a vegetated soft spot counts as held; must miss "under half"); Coulomb friction with no anchor, no adhesion and no ploughing (the rigid ground with μ 0.5/0.4, flown; must miss "at least one" or "in rain").
+- **Village against its packages** (2.9's other rows): the pilot's cut landing (`SlopeScenarios.LandOnFarmland` against `Land`) and the disarmed rest (`SettleOnFarmland`, new, against `Settle`) on the audit's 10° and 14.4° Village spots, along and across, against W3's slope package at the same angle and class: where both stay on their legs (end tilt under 15°; past it the legs parted, 2.6's), the end tilt within 1°. The soft-soil landing at 1 m/s on Village's `tilled` against a floor of `tilled`, dry, Rain and Severe rain (`LiftoffScenarios.Drop`: the nominal drone level, 2 mm over, 1 m/s down, the throttle cut, 3 s): the peak sink and the sink after 3 s within 1 mm. `SoilScenarios.Land` was not used: it misreads its touch on wet ground (audit §6).
+
+### 4. Results
+
+`flightbench --ground` (10 seeds a cell: 5 vertical, 5 glide), on this branch with the legs drawn ("after") and with `--nominal-legs` (no spread: the base's physics, "before"); measured. Lone = design 13's held corner; "one or many" = the held group. Each cell n = 10.
+
+| Spot | Moisture | Lone, before → after | One or many, before → after | Longest lone hold, most turn (after) | Mean sink at rest |
+|---|---|---|---|---|---|
+| Village tilled | dry | 0 → 0 | 1 → 2 | | 4.90 mm |
+| | Rain | 0 → 0 | 7 → 8 | | 9.00 mm |
+| | Severe rain | 1 → 1 | 8 → 8 | 20 ms, 0.74° | 13.69 mm |
+| Village meadow_sod | dry | 0 → 0 | 0 → 0 | | 3.87 mm |
+| | Rain | 0 → 1 | 3 → 2 | 23 ms, 0.65° | 6.57 mm |
+| | Severe rain | 0 → 0 | 8 → 8 | | 9.64 mm |
+| Village weeds | dry | 0 → 0 | 0 → 0 | | 2.78 mm |
+| | Rain | 0 → 0 | 6 → 6 | | 4.70 mm |
+| | Severe rain | 2 → 1 | 10 → 8 | 21 ms, 0.82° | 6.34 mm |
+| Village dry_crust (firm) | dry | 0 → 0 | 0 → 0 | | 1.77 mm |
+| | Rain | 1 → 1 | 5 → 2 | 29 ms, 0.56° | 2.94 mm |
+| | Severe rain | 2 → 2 | 5 → 5 | 25 ms, 1.01° | 3.87 mm |
+| Village dirt_track (firm) | dry | 0 → 0 | 0 → 0 | | 1.17 mm |
+| | Rain | 1 → 0 | 1 → 0 | | 2.03 mm |
+| | Severe rain | 0 → 0 | 4 → 5 | | 2.65 mm |
+| Village weeds 10° | dry | 1 → 0 | 1 → 0 | | 4.42 mm |
+| | Rain | 0 → 0 | 8 → 10 | | 8.25 mm |
+| | Severe rain | 2 → 0 | 8 → 8 | | 10.11 mm |
+| Village meadow_sod 9.39° | dry | 0 → 0 | 0 → 0 | | 5.79 mm |
+| | Rain | 0 → 0 | 6 → 7 | | 12.29 mm |
+| | Severe rain | 0 → 3 | 4 → 6 | 29 ms, 1.41° | 14.39 mm |
+| House track start (belt_straw) | dry | 0 → 0 | 0 → 0 | | 4.68 mm |
+| | Rain | 0 → 0 | 2 → 4 | | 8.40 mm |
+| | Severe rain | 3 → 3 | 10 → 10 | 25 ms, 1.08° | 12.92 mm |
+| House S04 patch | all | the step throws (below) | | | |
+
+Over the groups (after): dry firm lone 0/20, one or many 0/20; dry soft 0/63, 2/63 (3 %); Rain firm 1/20, 2/20; Rain soft 1/60, 37/60 (62 %); Severe rain firm 2/20, 10/20; Severe rain soft 8/60 (13 %), 48/60 (80 %). Before: dry soft lone 1/63, group 2/63; Rain soft 0/60, 32/60; Severe rain soft 8/60, 48/60.
+
+- **Design 13's targets on the lone corner: not met.** "Sometimes when dry" (dry firm 0 of 20), "more often on soft" (dry soft 0 of 63) and "most liftoffs in rain" (Rain soft 1 of 60) miss; "firm in Rain above dry firm" and "Severe rain at least Rain" are met. `--ground` exits 1 on them.
+- **On the pilot's own words, "one or many of them", the wet account is met**: in Rain 62 % of the soft-ground liftoffs hold a leg or a pair at least 20 ms while the body turns at least 0.5° toward it, 80 % in Severe rain; on the firm track and crust 10 % in Rain; dry soft ground 3 %, dry firm never. The held group is mostly a pair on one side or one end (the build's balance fore and aft or side to side), which tips the horizon 0.5–2.3° (the traces of §1).
+- **The legs' spread moves the rates within the seeds' scatter** (lone 8 → 8 of 60 in Severe rain on soft ground; groups ±1–3 per cell), as §1.6 derived. Built because D-086 asks for it, not because it makes the account.
+- **The lone corner stays rare** (13 % in Severe rain on soft ground, 2 % in Rain) for §1.2's reason: once three corners have left, the last carries the climbing thrust's excess and the controller's answer to the tilt, and even the gentle climb passes a wet corner's hold within 20–30 ms. What would keep one corner held while the other three lift is a difference between the feet of the order of the hold itself; the ground under the four feet is one class, one moisture and no micro-relief (audit 1.10). The ground is world-derived, never drawn, so this is named for the world (§5), not built here.
+- **Dry ground: no hold** (§1.5). The 3 % of dry soft liftoffs that hold a group are the build's balance on the tilled spot. Hooks (2.10) are what the pilot's "sometimes, a little" on dry ground needs.
+- **The four known-wrong models each miss their target** (every row PASS): the dice at the dry firm rate (0 everywhere) misses "more often on soft" and "in rain"; the dry rows in rain hold no lone corner in rain (0/60 on soft ground) and miss "in rain"; the touch rule holds every dry soft liftoff (63/63) and misses "under half"; Coulomb friction alone holds nothing on dry firm (0/20) or in rain (0/60). But the model misses the same lone-corner targets as known-wrongs 1, 2 and 4, so on the lone corner the harness cannot yet tell the model from them. The known-wrongs are judged on the lone corner only; judging them on the group too is the next step for the harness.
+- **House's S04 patch: every liftoff's step throws**, with the legs drawn and without (so not this branch's): `PropStrikes.Roots` reads its table at a negative index (`PropStems.cs:237`, W9 2.2's stems) in all three moistures, and in Rain and Severe rain some seeds end with a NaN in the rain film's mass (`MassModel.SetPartMass` from `FlightCore.cs:562`), also with the rigid ground of known-wrong 4. 27 of 30 flights; `--ground`'s "no liftoff's step throws" row fails on it. Not fixed here.
+- **No liftoff tunnels or crashes** on any spot.
+- **Village against the packages:** every compared row within 1°: along, 10.00° weeds 10.0/0.1° against 10.0/0.0°, 9.39° meadow 9.4/0.1 against 9.4/0.3, 14.43° meadow 14.4/0.2 against 14.5/0.6, 14.36° weeds 14.4/0.2 against 14.4/0.4; the rests along at all four and across at 10°, within 0.1° and 1 mm. Across, the cut landings at 9.39–14.43° end on their side on both (50–52°, the downhill legs parted, 2.6's G2), as do the rests across at 14.4°: printed, not compared.
+- **The soft-soil landing on tilled** (peak / after 3 s, mm): dry Village 7.985 / 7.193 against the floor 7.988 / 7.278; Rain 11.357 / 10.798 against 11.548 / 11.096; Severe rain 14.030 / 13.747 against 13.846 / 13.598: within 0.30 mm.
+- **No golden moved** (§2). No log format change; one tagged header entry.
+
+### 5. What is still not met, and for whom
+
+- **A lone corner "sometimes" on dry ground, "more often" on soft dry ground, and alone "most of the time" in rain** (design 13's lone-corner targets): not met. The group ("one or many") is met in rain.
+- **For W9 2.10 (stems on the legs):** the dry account rests on hooks; today nothing holds a dry foot. Its acceptance can be this harness's dry rows.
+- **For the world-builder:** a world-derived difference between the four feet (relief at the skid's scale, a clod, a wetter patch) is what would turn the wet pair into a lone corner. Not a draw: map data.
+- **For W9 2.6 (legs on a side slope):** the cut landings across 9.39–14.43° on Village and on the packages still part the downhill legs and end on a side (50–52°), Village and package within 1–3°; the rests across 14.4° roll to 52–58°. The law was left alone.
+- **For the stems' branch (2.12, 2.10):** `PropStrikes.Roots` throws on S04's patch on every liftoff (above).
+- **For the app (game-developer):** `FlightSession` must call `setup.Contacts.Legs?.DrawStiffness()` for the player to fly drawn legs (§2).
+
+### 6. Checks run (this branch, a shared machine: no timing counts)
+
+```
+dotnet test tools/simtests -c Release            → 848 passed, 1 failed of 849 (30 m 24 s, loaded): StaticInitTests.NoStaticReferenceFieldOnTheStepPath,
+                                                    LogHeader's sort lambda renumbered <>9__146_0 → <>9__147_0 by the new entry; its allowlist line
+                                                    updated, then: Passed NoStaticReferenceFieldOnTheStepPath, Passed AHeldLegTipsTheHorizonAndLetsGo
+                                                    (the latter added after the full run: 3 of 10 seeds a lone corner, 21–25 ms, 0.82–1.08°)
+  LiftoffTests: TheLegDrawsCoverTheirBounds (16000 draws 0.9000–1.1000, mean +0.00006, σ 0.02997), TheDrawsMoveNoOtherDraw,
+  TheHeaderLogsTheReachAndTheSpreadAndAFlightWithoutTheReachReplays (reach on: Match, 4000 steps and 21 events bit for bit;
+  reach off: Match, the same), ALogWithoutTheEntryReadsAsItsModelFlew, AVillageLiftoffAllocatesNothing (0 B over 3000 steps)
+flightbench --golden    → 61 PASS, exit 0 (no golden moved)
+flightbench --ground    → exit 1: the lone-corner targets not met; S04's patch throws (27 flights); the known-wrongs PASS; Village
+                          against the packages PASS where compared; tilled against the floor PASS (§4)
+flightbench --ground 10 --nominal-legs → the same verdicts (§4's "before")
+flightbench --contacts  → 80 PASS, exit 0
+flightbench --slopes    → 13 PASS, exit 0
+flightbench --legs      → 6 verdicts PASS, exit 0
+flightbench --landing   → 29 PASS, exit 0
+flightbench --probe     → exit 1, 2 checks, both as before 2.4: a corner's support moment changes 1.707 N·m a step sliding with
+                          legs on (limit 0.51); the coil 0.1141 m over the stand's base against the note's 0.135 m. 2.4's release
+                          did not touch this probe's sliding (no stretch past the reach there); unchanged by this branch.
+python tools/hygiene/precommit.py --tree HEAD → (below, in the handback)
+```
 
 ## 2.10 Stems on the legs and the fiber
 
