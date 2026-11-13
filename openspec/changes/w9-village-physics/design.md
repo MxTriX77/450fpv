@@ -336,7 +336,57 @@ On this branch with the line's model 93 merged in (502ffa0f). Traced with a scra
 - **By hand:** J·ω ≈ 2·10⁻⁵ kg·m² · 80 rad/s over the body's ~0.03 kg·m² is about 0.05 rad/s.
 - **Right by hand:** an armed drone on its side with a prop in the dirt chatters.
 
-**7. Seen, not chased:** the seven Village slide levers on light contacts and the three E01 soil-box skid tunnels (below, with the House sweep's counts).
+**7. Seen, not chased.**
+- **The Village slide levers:** #18 Slide is now 3.15 N·m on 6.23 N, a 0.506 m lever, after the slide on weeds at 2.4°. All seven are light contacts (2–13 N of a 46 N drone) and read on |ΣF|, so the sweep's finding 10 applies to them.
+- **E01's three skid tunnels:** #416, #425 and #445 are unchanged (skids 15–19 mm into a soil box, where 2.3 §9b judged the tunnel rule takes a soil box as rigid).
+- **New on the range:** #419 Cut's Peak (1008 m/s², 1.25 s after the touch, on E01's 22° end) and Lever rows #61, #413 and #440 (0.71–1.40 m on 7–15 N). The Lever rows are light contacts on S04 and E01; #245's lever, 0.609 m, stands as before.
+
+**As changed** (commits on this branch):
+- `ContactModel.BladeStiffness`: the radius is the blade's own point (§8.1).
+- `BladeCut.Crossing`, `PropStrikes.Apply`, and `ContactModel.Disc` and `Cuts`: the slab's sweep (§8.2). It adds `DiscFrom`, an array allocated at construction.
+- **Tests:** `StrikeTests.ABranchCrossedWithinAStepIsMet` is new. `SoilScenarios.PatchMat` and `StemLiftoffTests` carry §8.3; `RestScenarios.Racks`/`BladeWeight` and `RestTests` carry §8.4; `SweepScenarios`' EventsOnce key carries §8.5.
+- No model number and no log format change.
+
+**The House sweep** (`--sweep test-range 400 1 --threads 6`, with replays), against 2.6's after-rows (failing rows, then the rows ending past 45°/120°):
+
+| Check | before | now |
+|---|---|---|
+| Ground | 35 (4 hanging, 19 frame) | 32 (5 hanging, 16 frame) |
+| Lever | 3 | 4 |
+| Energy | 10 | 9 |
+| Tunnel | 3 (E01 #416, #425, #445) | 3 (the same) |
+| Peak | 0 | 1 (#419 Cut) |
+| Rest | 5 | 5 |
+| Replay | not run | 0 of 2240 failing: every flight bit for bit |
+| Alloc | 73 | 66 (thread-dependent, finding 9) |
+| level Land / Cut / Drop / Slide | 2/0, 3/1, 363/91, 24/7 of 428 | 2/1, 3/1, 361/101, 24/6 |
+| 20–30° Land / Cut / Drop / Slide | 19/7, 20/6, 14/8, 16/8 of 20 | 19/6, 17/8, 15/8, 15/9 |
+
+**The checks, as run** (on e1fbfbc6, the merged tree; a shared machine, no timing counts):
+```
+dotnet test tools/simtests -c Release --filter "...ArmingWithAPropOnTheRackMovesTheDrone|...ALiftoffFromTheRangesStrawIsFlown|...IntoACrown"
+    → 3 passed (rack: bears 0.80–0.92 N on 20 of 20, strikes 20, moves 20, over the known-wrong 20; S04 mat: off 0.44–0.52 s at 0.505–0.581;
+      crown: 0 tunnels)
+dotnet test ... StrikeTests.ABranchCrossedWithinAStepIsMet → passed: 24 of 120 crossings met (0.20; by hand 0.27), 0 at the step's ends
+dotnet test tools/simtests -c Release → Failed 1, Passed 879, Total 880 (50 min, loaded): only SweepTests.OnE01sSoilShapesTheReachHoldsTheLever,
+    QA's known-wrong being rebuilt on another branch (the brief's item 4); every 0 B test passed in the run
+flightbench --golden   → 63 PASS, 0 FAIL, exit 0: no golden moved, nothing re-recorded
+flightbench --contacts → contacts: PASS, exit 0 (Pine004_1, Pine002_M and the V01_L crowns: no tunnel; the line 4c40ac55 alone: FAIL on Pine002_M
+    and Pine004_1)
+flightbench --legs     → exit 0 (6.3 % over, 28.6 % down, 61.8 % damaged: unchanged)
+flightbench --landing  → 29 PASS, exit 0
+flightbench --slopes   → slopes PASS, exit 0
+flightbench --ground   → exit 1, design 13's lone-corner targets as at 2.9 (no liftoff tunnel, no throw)
+flightbench --sweep test-range 400 1 --threads 6 → the table above; Replay 0/2240 (bit for bit); exit 1 on the rows named
+python tools/hygiene/precommit.py --tree HEAD → 3608 files scanned, 0 findings
+```
+
+**Still not met:**
+- E01's three soil-box skid tunnels (the tunnel rule on soil shapes).
+- The sweep's Ground (32), Energy (9), Rest (5, each a tipped drone's idle prop on the ground; #340 is right by hand) and Alloc rows.
+- `--ground`'s lone-corner targets.
+- The S04 patch centre's step case is now physics in its own right, flown by no test.
+- A rod across a disc is still met at one azimuth, the nearest point's.
 
 ## 2.7 The crown twig's repeated break (G5)
 
