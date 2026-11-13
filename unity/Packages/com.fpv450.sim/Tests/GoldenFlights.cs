@@ -745,6 +745,12 @@ namespace Fpv450.Sim.Tests
         public const ulong Model41PoweredHash = 0xCA9A9F3EF97C2118UL, Model41RainPoweredHash = 0x724D775C852F6B48UL,
             Model41ContactHash = 0xB7391628EDE527ADUL, Model41TumbleHash = 0xA6914F6702FE98F3UL, Model41RangeHash = 0x1FB746560EDFD45AUL;
 
+        /// <summary>w9-village-physics 2.6: the same audit's contact flight on the law's section yield. Model 41's leg_fr bowed at the
+        /// 2.6 m/s corner touch past its edge's first yield and kept a 0.065° set there; since 2.6 the set starts at the section's
+        /// own yield (2.94–3.28 N·m on these draws) and the edge's local yield only cracks it (every leg Cracked, no set). The
+        /// model-63 fixture keeps its crack factor 0.5, so the set's onset is the whole move. Audited (design.md 2.6 §5).</summary>
+        public const ulong Model41ContactOnTheSectionsYieldHash = 0xE8FBF706509DA086UL;
+
         /// <summary>Its audit against p7f-damage (GoldenFlightTests.WithoutTheLineEachGoldenIsModel35s): p7f-damage's model 35
         /// record is the record less the fiber's 104 bytes at Model28Layout (Model35Skip), and its pins, which every golden flown
         /// without the line's mechanisms (no surfaces.json, no area laws, no line, model 34's yaw I) keeps bit for bit, every
