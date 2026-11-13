@@ -123,25 +123,44 @@ namespace Fpv450.Sim.Tests
         static double Unit(ulong x) => (x >> 11) * (1.0 / 9007199254740992.0);
 
         /// <summary>The ground a drone would land on at (x, z): the first surface a ray from above meets, if it is the ground or a
-        /// soil shape (a patch); false under any other object (a crown, a roof, a wire).</summary>
-        public static bool GroundAt(MapWorld map, double x, double z, out double height, out Double3 normal, out byte surface)
+        /// soil shape; false under any other object (a crown, a roof, a wire).</summary>
+        public static bool GroundAt(MapWorld map, double x, double z, out double height, out Double3 normal, out byte surface) =>
+            GroundAt(map, x, z, out height, out normal, out surface, out _);
+
+        /// <summary>The same, and over a ground patch or a hole (SampleGround's Hole: their shapes are the ground there, S04's straw
+        /// among them) the patch's object, whatever its first shape's material, if its top lies within 1.5 m of the plain ground
+        /// around it (else a crown or a roof over the patch); patch −1 elsewhere.</summary>
+        public static bool GroundAt(MapWorld map, double x, double z, out double height, out Double3 normal, out byte surface, out int patch)
         {
             var hits = new RayHit[1];
             map.Raycast(new[] { new Ray(new Double3(x, 300, z), new Double3(0, -1, 0)) }, 600, hits);
             height = hits[0].Point.Y;
             normal = hits[0].Normal;
             surface = hits[0].Surface;
-            return !double.IsInfinity(hits[0].Distance) && surface != 0 && (hits[0].Object == WorldIds.Ground || hits[0].Material == WorldIds.NoMaterial);
+            patch = -1;
+            if (double.IsInfinity(hits[0].Distance)) return false;
+            var g = new GroundSample[5];
+            map.SampleGround(new[] { new XZ(x, z), new XZ(x + 30, z), new XZ(x - 30, z), new XZ(x, z + 30), new XZ(x, z - 30) }, g);
+            if ((g[0].Flags & GroundFlags.Hole) != 0 && hits[0].Object != WorldIds.Ground)
+            {
+                double plain = double.PositiveInfinity;
+                for (int i = 1; i < 5; i++) if ((g[i].Flags & GroundFlags.Hole) == 0) plain = Math.Min(plain, g[i].Height);
+                if (!(height - plain < 1.5)) return false;
+                patch = hits[0].Object;
+                return true;
+            }
+            return surface != 0 && (hits[0].Object == WorldIds.Ground || hits[0].Material == WorldIds.NoMaterial);
         }
 
-        /// <summary>Whether a column of the drone's size over (x, h, z) is clear of every object but the ground and soil.</summary>
-        public static bool Clear(MapWorld map, double x, double h, double z)
+        /// <summary>Whether a column of the drone's size over (x, h, z) is clear of every object but the ground, soil and the patch
+        /// it stands on.</summary>
+        public static bool Clear(MapWorld map, double x, double h, double z, int patch = -1)
         {
             var found = new StaticContact[16];
             var column = new Capsule(new Double3(x, h + 0.55, z), new Double3(x, h + 2.5, z), 0.5);
             int n = Math.Min(map.StaticContacts(column, column, 0, found, QueryFilter.None), found.Length);
             for (int i = 0; i < n; i++)
-                if (found[i].Object != WorldIds.Ground && found[i].Surface == 0) return false;
+                if (found[i].Object != WorldIds.Ground && found[i].Surface == 0 && found[i].Object != patch) return false;
             return true;
         }
 
@@ -149,7 +168,7 @@ namespace Fpv450.Sim.Tests
         public static bool Classify(MapWorld map, double x, double z, out Point p)
         {
             p = default;
-            if (!GroundAt(map, x, z, out double h, out Double3 n, out byte surface) || !Clear(map, x, h, z)) return false;
+            if (!GroundAt(map, x, z, out double h, out Double3 n, out byte surface, out int patch) || !Clear(map, x, h, z, patch)) return false;
             double slope = Math.Atan2(Math.Sqrt(n.X * n.X + n.Z * n.Z), n.Y) * 57.29577951308232;
             int band = 0;
             while (band + 1 < Bands.Length && slope >= Bands[band + 1]) band++;
@@ -162,7 +181,8 @@ namespace Fpv450.Sim.Tests
                 stems = "bare";
                 for (int i = 0; i < k; i++) stems = patches[i].Layer >= 10 ? "tall" : stems == "tall" ? "tall" : "short";
             }
-            p = new Point { X = x, Z = z, Height = h, Normal = n, Slope = slope, Band = band, Surface = map.SurfaceName(surface), Stems = stems };
+            p = new Point { X = x, Z = z, Height = h, Normal = n, Slope = slope, Band = band, Stems = stems,
+                Surface = patch >= 0 ? "patch:" + map.ObjectName(patch) : map.SurfaceName(surface) };
             return true;
         }
 
@@ -417,7 +437,7 @@ namespace Fpv450.Sim.Tests
                     sx -= 6 * dir.X;
                     sz -= 6 * dir.Z;
                 }
-                found = GroundAt(map, sx, sz, out double sh, out _, out _) && Clear(map, sx, sh, sz);
+                found = GroundAt(map, sx, sz, out double sh, out _, out _, out int under) && Clear(map, sx, sh, sz, under);
                 start = new Double3(sx, sh + stand + 1, sz);
                 if (!double.IsNaN(heading)) break;
             }
