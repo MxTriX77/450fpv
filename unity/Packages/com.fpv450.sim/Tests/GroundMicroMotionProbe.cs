@@ -438,6 +438,37 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        /// <summary>
+        /// p7c-wind design 16's grade (Explicit): the note's flights with the human pilot (the harness's default, D-109), before
+        /// (the one-scale field, WindSetup.OneScale: model 98's) and after (the field by height) on the same seeds 1–3: the hover
+        /// at 1.25, 0.75, 0.45 and 0.3 m in still air (no field: one row), Calm and Windy; A's last metres and S's low cruise at
+        /// S's pitch in Calm and Windy.
+        /// </summary>
+        [Test, Explicit]
+        public void FieldScalesTable()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double cruise = WindHarness.HeldPitchAirspeed(spec, 11, out _, pitchDeg: GroundMicroMotion.ClipSPitchDeg);
+            var fields = new (string Name, Action<FlightSetup> Edit)[] { ("one-scale", s => s.Wind.OneScale = true), ("by height", null) };
+            foreach (double h in new[] { 1.25, 0.75, 0.45, 0.3 })
+            {
+                TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, Still", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, WindLevel.Still, 1, 3, human: true)));
+                foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                    foreach (var f in fields)
+                        TestContext.WriteLine(GroundMicroMotion.Rows($"hover {h} m, {level}, {f.Name}",
+                            GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, h, level, 1, 3, f.Edit, human: true)));
+            }
+            foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                foreach (var f in fields)
+                {
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"descent 6.5 to 3.5 m, 8 m/s, {level}, {f.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, level, 1, 3, f.Edit, airspeed: 8, seconds: 11, descent: 0.5, human: true)));
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m at S's pitch, {level}, {f.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, f.Edit, airspeed: cruise, human: true,
+                            cruisePitchDeg: GroundMicroMotion.ClipSPitchDeg)));
+                }
+        }
+
         /// <summary>Each source switched against the as-built hover at 1.25 m in still air (seeds 1–3).</summary>
         public static readonly (string Name, Action<FlightSetup> Edit, bool Remnant)[] Sources =
         {
