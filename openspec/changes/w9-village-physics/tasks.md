@@ -131,6 +131,7 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - **Then the corrected inputs and law,** each number labelled, and the runs: a vertical landing and a landing approach into the densest tall cell and into a cell of high grass with straw. Report the stems cut a second at the front discs, the rotors' speed dips and currents, and the shake: roll and pitch rate in 4–15 Hz and at the blade pass, and the camera's vibration. Compare with the footage note's targets (letter H into straw: 30–120 °/s turns and a residue 3–10 times the calm one; brushing a stalk: 1.7–2.5 times in 4–15 Hz). Say plainly whether the quad shakes, and how.
   - Propose the spec's amended straw-landing scenario (the orchestrator applies it). A hand calculation first, the run within 10 % of it.
   - Checks: the new scenarios' tests, `dotnet test tools/simtests -c Release`, `flightbench --golden` (every moved golden audited), bit-exact replay, 0 B, `precommit.py --tree HEAD`.
+- [ ] 2.13 [physics-engineer] **The stems under the wash with distance**, after `p7d-tether` 1.11b. `PropStems`' slipstream reads the same law: the pressure on a stem falls with the disc's height over it as the wake spreads and slows, so straw is laid before the touchdown as far as the wash really reaches and no further (the pilot: "usually it lies flat because of prop wash power, but not always"). The straw landing's scenarios (2.12) and the liftoff harness graded before and after on the same seeds; the undiminished column its known-wrong; goldens audited.
 
 ## 3. Review
 

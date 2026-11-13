@@ -116,11 +116,14 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>One rotor's thrust over Steps at 920 rad/s in a steady flow, body m/s, with its own wake at the spec's level
         /// (or model 92's): each step's thrust, and its v_h from the mean.</summary>
-        static double[] Thrusts(DroneSpec spec, Double3 velocity, bool level92, out double vh)
+        static double[] Thrusts(DroneSpec spec, Double3 velocity, bool level92, out double vh, bool clipped = false)
         {
             RotorWakeSpec wake = spec.BuildRotorWake();
             if (level92) GoldenFlights.Model92WakeLevel(wake);
-            var p = new Propulsion(spec.BuildPropulsion(), null, null, default, null, default, wake, new FlightRandom(7).Open("rotor.wake"));
+            var p = new Propulsion(spec.BuildPropulsion(), null, null, default, null, default, wake, new FlightRandom(7).Open("rotor.wake"))
+            {
+                ClippedDescentBranch = clipped,
+            };
             var s = new FlightState { Attitude = Quat.Identity, Velocity = velocity };
             for (int i = 0; i < 4; i++) s.RotorSpeed[i] = 920;
             var t = new double[Steps];
@@ -202,14 +205,45 @@ namespace Fpv450.Sim.Tests
                 + $"the corner × {1 / v:F2}; the thrust's σ {d:P2} of it at v_h {vh:F2} m/s, {d / h:F2} of the hover's (the record: 0.92–0.97 trimmed alike, "
                 + $"1.23 whole with its drift); model 90's fade {RotorWakeSpec.Fade(mu):F2}");
             // What reaches the thrust: in a descent past the props' held branch (Propulsion.DescentAdvanceRatioLimit, J −0.05)
-            // the inflow's wander moves the thrust on one side only. An axial descent at 0.59 v_h (OwnWakeTests' case), and a
-            // shallow one inside the branch, against the law's inflow ratio.
+            // the inflow's wander moves the thrust both ways at the blade's slope there (design 3h; model 94 clipped it on one
+            // side). An axial descent at 0.59 v_h (OwnWakeTests' case), and a shallow one inside the branch, against the law's
+            // inflow ratio.
             foreach (double axial in new[] { -0.15, -0.59 })
             {
                 double[] x = Thrusts(spec, new Double3(0, axial * vh0, 0), false, out double vx);
                 double r = Share(x, 0, Steps, out _), va = RotorWakeSpec.Induced(0, axial * vh0 / vx);
                 TestContext.WriteLine($"an axial descent at {-axial:F2} v_h (J {axial * vh0 / (920 / (2 * Math.PI) * spec.Props.Diameter):F3}): the inflow's σ × {va * va:F3}, "
                     + $"the thrust's σ {r:P2}, {r / h:F2} of the hover's");
+            }
+        }
+
+        // Design 3h: in a descent past the props' held branch (J −0.05) the own wake's inflow moves the blades both ways, at the
+        // table's curve's slope there (0.857 of the first segment's) over its mean, the inflow scaled by the rotor's own v_h
+        // (√1.0445 of the hover's): the thrust's σ over the hover's is the law's inflow ratio (v_i/v_h)² times 0.838, 1.02 at an
+        // axial descent of 0.59 v_h and 0.31 at Stack et al.'s Fig. 8 point. Model 94's branch (Propulsion.ClippedDescentBranch)
+        // cuts the inflow's lower half there and fails both (0.69 and 0.21 of the hover's).
+        [Test]
+        public void TheHeldDescentPassesTheWakeBothWays()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            double[] j = spec.Props.InflowAdvanceRatio, ratio = spec.Props.InflowThrustRatio;
+            double s1 = (ratio[1] - ratio[0]) / (j[1] - j[0]), s2 = (ratio[2] - ratio[1]) / (j[2] - j[1]);
+            double c = (s2 - s1) / (0.5 * (j[2] - j[0])), jh = Propulsion.DescentAdvanceRatioLimit;
+            double f = 1 + s1 * jh + 0.5 * c * jh * jh, blade = (s1 + c * jh) / s1 / Math.Sqrt(f);
+            TestContext.WriteLine($"the curve: slope {s1:F4}, curvature {c:F4}, at the held limit {f:F5} and {(s1 + c * jh) / s1:F3} of the slope; "
+                + $"the stall at J {-s1 / c:F4}; the thrust's σ per unit inflow × {blade:F3} of the hover's");
+            double h = Share(Thrusts(spec, default, false, out double vh0), 0, Steps, out _);
+            foreach ((string name, Double3 flow) in new[] { ("an axial descent at 0.59 v_h", new Double3(0, -0.59, 0)), ("Stack et al.'s Fig. 8", new Double3(1.62, -0.93, 0)) })
+            {
+                Double3 velocity = flow * vh0;
+                double passes = Share(Thrusts(spec, velocity, false, out double vh), 0, Steps, out _) / h;
+                double clipped = Share(Thrusts(spec, velocity, false, out _, clipped: true), 0, Steps, out _) / h;
+                double mu = Math.Sqrt(velocity.X * velocity.X + velocity.Z * velocity.Z) / vh, v = RotorWakeSpec.Induced(mu, velocity.Y / vh);
+                double expected = v * v * blade;
+                TestContext.WriteLine($"{name}: the law's inflow × {v * v:F3}, the thrust's σ expected {expected:F3} of the hover's; "
+                    + $"both ways {passes:F3}, model 94's clipped branch {clipped:F3}");
+                Assert.That(passes, Is.EqualTo(expected).Within(5).Percent, name + ": the wake passes both ways");
+                Assert.That(clipped, Is.LessThan(0.9 * expected), name + ": model 94's clipped branch is the known-wrong");
             }
         }
 

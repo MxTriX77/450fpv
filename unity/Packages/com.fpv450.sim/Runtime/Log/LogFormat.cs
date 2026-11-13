@@ -942,8 +942,36 @@ namespace Fpv450.Sim.Log
         ///    a disc's slab meets a shape it crosses within one step (BladeCut.Crossing: a thin branch or wire met along
         ///    the axis faster than its thickness and the slab's a step). No golden flight breaks a leg or crosses such a
         ///    shape, so no pin moved; model 41's kept contact audit is re-pinned on the section's yield.
+        /// 96: the props' descent branch passes the inflow both ways (p7b-airframe 1.10e, design 3h, on 95;
+        ///    unity/physics/physics-integration-2--w9-descent-branch): only the freestream's advance ratio is held at
+        ///    DescentAdvanceRatioLimit; what the ring, the re-ingested wash and the own wake add moves the blades both
+        ///    ways about it (95 clipped it there again, so whatever lowered the inflow was cut: half a wave in every
+        ///    descent past the limit). Below J 0 the thrust and the torque follow their tables' first segment's slope
+        ///    with the first two segments' curvature, held at the thrust's vertex, the blade's stall (J −0.350, +16.8 %
+        ///    thrust; the class's measured static pitch sweep stops gaining at +15.8 %). The held mean falls 0.33 %. The
+        ///    powered, rain, contact, range and tether goldens moved and are re-pinned; Propulsion.ClippedDescentBranch
+        ///    (unlogged, the suite's) flies 95's branch for the kept audits.
+        /// 97: the wash below the rotors with distance (p7d-tether 1.11b, design 19, on 96;
+        ///    unity/physics/physics-integration-2--w9-rotor-wash): the air the rotors put on the line. To 96 a disc's column
+        ///    reached the ground only within 4 R (assumed), so a drone higher up put no air on the ground at all. Now the
+        ///    near wake holds to one motor distance below the rotors, the four jets are one round jet from 2.5 of them
+        ///    (Bauersfeld et al. 2024: its centreline's decay and its spread, measured on six quadrotors), blended between,
+        ///    and from any height the jet lands as a radial wall jet of its momentum flux (Poreh, Tsuei and Cermak 1967:
+        ///    the peak falling as r^-1.1; Verhoff's profile). Only the line feels it: the tether golden moved and is
+        ///    re-pinned; FlightSetup.TetherWakeReach4R (in the header's tether entry) flies 96's cut-off for the kept
+        ///    audits. A flight without the line steps as 96 did.
+        /// 98: the laid line in the rotors' wash (p7d-tether 1.11c, design 20, on 97;
+        ///    unity/physics/physics-integration-2--w9-laid-line): the frozen trail gives its line back where the air moves
+        ///    it. To 97 a frozen point took no air and only the trail's last point was ever tested. Now a point lying on
+        ///    the ground is held by the ground's static friction on its weight less the wall's lift, H = μs·max(0, w − L)
+        ///    (or by the push it froze with, if larger), against the drag across its laid run at the air of the line's own
+        ///    height; a point off the ground (a twig, a bush's top, a span) is held as before. Each step the trail's end
+        ///    and one deeper point, in turn over the window the chain's spacing allows (at most 31), are tested at
+        ///    RotorAir's field, and a point that would move thaws the trail down to it; the trail beyond the window stays
+        ///    frozen. The tether golden moved and is re-pinned; FlightSetup.TetherAirlessTrail (in the header's tether
+        ///    entry) flies 97's trail for the kept audits. A flight without the line steps as 96 did.
         /// </summary>
-        public const int ModelVersion = 95;
+        public const int ModelVersion = 98;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

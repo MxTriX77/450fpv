@@ -365,6 +365,10 @@ namespace Fpv450.Sim.Tether
 
         // ---- what the tests and the log read ----
 
+        /// <summary>The line's static friction on a ground surface (SampleGround's id) at the flight's moisture: its set's, else the
+        /// polymer pair (p7d-tether design 20: what holds a laid point).</summary>
+        public double GroundStatic(byte surface) => _surfStatic[surface];
+
         /// <summary>The least bend radius over the line's pressing contacts after the last step (FiberMinBendRadius), m; +∞ for
         /// none. Its node, its member's kind and the bend's θ, T and σ there.</summary>
         public double MinBendRadius { get; private set; } = double.PositiveInfinity;
