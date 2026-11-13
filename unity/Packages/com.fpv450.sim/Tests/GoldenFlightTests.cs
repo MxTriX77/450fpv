@@ -376,6 +376,28 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model90TetherHash, GoldenFlights.TetherHash, sw);
         }
 
+        // p7b-airframe design 3g's audit (the own wake's level read off its record, on model 92): with model 92's level and
+        // bound (RotorWakeSpec.ThrustSigma 0.029, Bound 3; GoldenFlights.Model92WakeLevel) each golden that flies the own wake is
+        // its model 92 pin, every record and event; with the measured 0.017 and 3.66 it is its new pin. So the level is the
+        // whole move. The tumble flies no rotor and keeps its pin.
+        [Test]
+        public void WithModel92sWakeLevelEachGoldenIsModel92s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const string sw = "model 92's own-wake level";
+            Audit("powered", "model 92", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 92", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 92", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 92", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 92", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, wakeLevel: !old), c),
+                GoldenFlights.Model92TetherHash, GoldenFlights.TetherHash, sw);
+        }
+
         // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 (WakeLayout.Version 1: each cell's porosity
         // by K§10.3's covered fraction, the nearest wake alone, the porosity-free boost) the range golden is 1.1's pin, model 76's
         // re-record (Model76RangeHash), every record and event; with version 2 it is the new pin. So the wake grid is the whole of
