@@ -421,9 +421,11 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// One flight at a point: Land (its rows Land and Liftoff), Cut, Drop or Slide. heading: NaN to draw it (Draws), else the
         /// nose's bearing in deg. prepare changes the core before its first step (a known-wrong); a flight so changed is not
-        /// replayed (replay false). Rows come back in the manoeuvre's order.
+        /// replayed (replay false). Rows come back in the manoeuvre's order. observe, if given, reads the core after each step
+        /// (a trace; it must not change the core).
         /// </summary>
-        public static Row[] Fly(Context c, in Point p, Manoeuvre m, ulong sweepSeed, double heading = double.NaN, Action<FlightCore> prepare = null, bool replay = true)
+        public static Row[] Fly(Context c, in Point p, Manoeuvre m, ulong sweepSeed, double heading = double.NaN, Action<FlightCore> prepare = null, bool replay = true,
+            Action<FlightCore> observe = null)
         {
             var row = new Row { Point = p, Manoeuvre = m };
             Row lift = m == Manoeuvre.Land ? new Row { Point = p, Manoeuvre = Manoeuvre.Liftoff } : null;
@@ -581,6 +583,7 @@ namespace Fpv450.Sim.Tests
                 stick.HostUs = s.Step * FlightCore.StepUs;
                 Row r = lifting ? lift : row;
                 judge.Step(stick, r, k >= 1000, recorder);
+                observe?.Invoke(core);
                 steps++;
                 ref readonly FlightState now = ref core.State;
                 if (touch < 0 && k >= hover && core.Trace.ContactsTouching > 0)

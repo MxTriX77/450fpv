@@ -132,9 +132,59 @@ In the handback: the new test, `flightbench --slopes`, `--legs`, `--contacts`, `
 - **2.3 and 2.7 (crowns):** a leg's anchor on a twig shell still runs past the leg's reach (0.66–0.99 m on IslandTree). The crown flight's "does not hang" rests on it (above). Whoever gives a crown its hold should apply `Reached` to object pairs with it and re-judge that test.
 - **Suggested, a p7g-legs review** (not in this branch): a consistent return on the spring's share alone. The slide divides the trial's whole excess by the stretch's spring; the release bounds what that can do, but the overshoot itself is still there within the reach.
 
-## 2.6 The legs on a side slope (G2)
+## 2.6 The legs on a side slope (G2), and the legs' failure law against the map-wide sweep
 
-To be written by task 2.6.
+**Owner:** physics-engineer · **Requirements:** PHY-02, PHY-04, PHY-24, DRN-01 · **Branch:** `unity/physics/physics-integration-2--w9-legs` (from 53e182dc, model 90) · the physics ledger's gaps 7 and 14, the sweep's findings 4, 5 and 6 (`docs/reviews/w9-village-physics-sweep.md` §4). The model number is the orchestrator's at the merge.
+
+Labels: **published** (a cited source), **measured** (letter T or a run here), **derived** (computed here from labelled inputs), **assumed** (a named, tunable value). The scratch harness that made the traces is the session's `night-legs/probe` (not committed): it flies `SweepScenarios.Fly` with a read-only `observe` hook (added to the test code here) and prints each leg's clamp moment, axial load, lean and side give, and a hanging corner's ground pairs.
+
+### 1. The hand calculation (before any code)
+
+**The tube** (drone.json `legs.tube`, every input labelled there): PVC-U, D 10 mm, d 8 mm (wall t 1 mm, D/t 10), E 3.0 GPa, σ_y 55 MPa (50–58), ε_b 20 % (15–20), free length L 0.2135 m, the foot's lever λ 0.2335 m; the clamp's edge factor K_t 1.5 (1.2–2.0, assumed). Derived: I 2.898e-10 m⁴, S = I/c 5.796e-8 m³, Z_p 8.133e-8 m³, shape factor f 1.403, EI 0.869 N·m². The drone of the sweep (L1, 2 kg, legs on): 6.080 kg (derived, `BuildMass`), 14.9 N a leg at rest.
+
+| Capacity at the clamp (nominal; the bounds' weakest–strongest) | N·m | Label |
+|---|---|---|
+| the jaw edge's first local yield, σ_y·S/K_t | 2.13 (1.45–2.80) | derived |
+| the section's first yield, σ_y·S | 3.19 (2.90–3.36) | derived |
+| the section's fully plastic moment, σ_y·Z_p | 4.47 | derived |
+| the tube's local buckling (kink): AISC 360-16 F8-2 for a non-compact round tube, M_n = (0.021·E/(D/t) + σ_y)·S | **3.55** (3.26–3.73) | published formula, applied to PVC-U by analogy: assumed |
+| tearing at the jaw edge, the edge's strain K_t·κ·c = ε_b on the section's own moment–curvature law | 4.45 (4.01–4.70) | derived |
+| the model-90 law's parting (the moment–curvature law scaled down by K_t: f·σ_y·S/K_t) | 2.98 (2.03–3.92) | as built |
+
+**The material's own behaviour:**
+- **Ductile, not brittle, at the jaw's edge.** ε_b (15–20 %) is 8–11 × the yield strain (1.83 %), so a blunt raiser (K_t 1.2–2.0, a printed jaw's edge) yields locally and the yield spreads over the section before anything tears: for a ductile section under a monotonic load the raiser lowers the first local yield, not the limit moment (Shigley's *Mechanical Engineering Design*, §3-13 and §6-2: static loads on ductile parts take no K_t; the limit analysis of a plastic hinge). PVC-U is notch-sensitive (notched Charpy 2–6 kJ/m², drone.json's note), which matters at a sharp notch or in the cold (class-legs.md [12][13]); the jaw is neither, and the sim flies no temperature.
+- **It kinks before it tears.** (D/t)·σ_y/E = 0.183 lies between the compact (0.07) and slender (0.31) limits of AISC 360-16 Table B4.1b for round tubes: the tube reaches its first yield but buckles locally on its compression side before its plastic moment. The elastic local buckling strain 0.605·t/R = 0.134 (Timoshenko and Gere, published) is 7 × ε_y, so the kink is plastic. Anyone who has bent thin PVC tube by hand has seen it: it flattens and folds, whitening, rather than snapping. Past the kink the leg carries less and folds; it no longer holds the drone. The kink (3.55 N·m) comes before tearing (4.45), so it is the leg's end as a support.
+- **The rate.** A glassy polymer's yield rises with the log of the strain rate (Eyring; Bauwens-Crowet et al. 1969 for PVC). The slope was not readable here; about 4 MPa a decade is assumed. A landing's edge strain rate is 0.05/s (a slope's creep) to 10/s (a drop) against the data sheets' about 1e-2/s (50 mm/min): +3 to +12 MPa, so the capacities above are 5–20 % low under impact. **Not built** (a lower bound, named in §6): it moves no verdict below.
+- **A crack.** The model-90 law cracks the tube at the edge's first local yield and halves its bending stiffness from then on (`cracked_stiffness_factor` 0.5, assumed: "a crack through about half the wall"). No source gives it, and the physics above says the edge's local yield in a ductile tube is a yield zone (stress-whitening), not a crack: a through-wall crack needs the edge's strain at ε_b, which is past the kink. The halved stiffness also halves the lever's sway load (47 → 23.5 N), under the downhill legs' 13–38 N on a side slope.
+
+**Each landing, by hand** (the drone level, the throttle cut at the touch; dynamic factor 2 for a suddenly applied load, an upper bound):
+
+| Landing | What the legs carry | Against the capacities | By hand |
+|---|---|---|---|
+| 0.5 m/s, level | 0.76 J; peak 156 N a leg on rigid ground (52.3 kN/m a leg, derived) | buckling 385 N; no moment across | every leg intact |
+| 0.5 m/s across 10° | the feet hold (μ_s 0.5 > tan 10°); W·sin 10° = 10.3 N across, 2.6 N a leg; on the cantilever across (268 N/m, P·Δ to the sway load 47 N): lean 14–18 mm, M 0.76–0.95 N·m static, ≤ 1.9 dynamic; the tangential energy 0.023 J | under the section's yield (2.90 at the weakest draw); the weak draws' edge may whiten | **stands**, leaning 1–2 cm; no set, no break |
+| 0.5 m/s across 15° | 3.9 N a leg across, the downhill legs 25 N: lean 21–31 mm, M 1.1–1.6 static, ≤ 3.2 dynamic | about the section's yield: a set on a weak draw, under the kink | the soft legs' quasi-static roll tip is 14.4° (`LandingStability.SoftRollTipDeg`, p7g-legs 1.3): **past it the drone rolls over on its legs' sway, broken or not** ("the drone may fall", P9) |
+| 1 m drop (touch 2.9–3.4 m/s) | 29 J at 3.1 m/s. Each leg: 1.42 J to its buckling load (the arm and tube in series), then the bow at 385 N: w = 12.9 mm and 2.0 mm of shortening to the kink, 0.77 J; 2.2 J a leg, 8.8 J for four | the bow's moment 0.715·P·w passes the kink within about 2 mm of shortening | **every leg kinks (breaks)** within a few ms: four legs take a level touch up to about 1.7 m/s (2.2 with the soil's sink); the rest goes into the frame and the canister. Right, as the sweep found |
+| 2 m/s slide along the skids, 0.3–0.5 m/s down | the skids slide (μ_k 0.4): along the skid each foot carries μ_k·N; at the sim's 30–50 N a corner that is 12–20 N; the frame leg's clamp takes 0.524·λ of it: 1.5–2.5 N·m | under the section's yield; a foot force of 29 N kinks a frame leg | **slides to a stop upright in about 0.5 m** (3.9 m/s², and tipping on the friction needs μ_k > tan 42.7° = 0.92); a hard touch (N past about 70 N a corner) kinks the leading pair |
+
+### 2. The material and the mount against the sources and the pilot's words
+- "Plastic", "a little bit soft", "hand-made", "they vary" (P3, P4, D-086): PVC-U tube is plastic and the softest 10 mm leg (class-legs.md §2); on a 10° side slope it leans 1–2 cm, and it sways at about 2 Hz. D-086 settled it ("the PVC-U legs stand").
+- "As flexible as a carbon plastic": carbon (CFRP) tube is 23 × as stiff (class-legs.md row I), glass fibre 9 × (row G). class-legs.md §3 inferred GFRP from letter T's sheen, but named no source for the class; the pilot says "usually plastic". **No source supports another material or mount for this class's hand-made legs, so the tube stays.** Its stiffness and strength draws (D-086) stand.
+- "The legs bounce the drone back up" (P7): that is the legs' axial spring (52.3 kN/m, mostly the arm under the clamp, at ζ 0.2) and the soil, which no change here touches.
+- "Sometimes the stumbling effect" (P3) and "it falls when landing a bit more often" (P15, D-079): the soft cantilever's lean and its 14.4° roll tip make a cut landing on a side slope fall from about 14°, and a hard landing kinks its legs. A leg that breaks under the static load on a 10° slope, 0.3 s after a gentle landing, is not in the pilot's account and not in the hand calculation.
+
+### 3. The sweep's rows, traced (model 90, this branch's base)
+- **The drop** (Village #0, 3.10 m/s on weeds): the touching pair reaches the 385 N buckling cap in 2–3 ms, cracks at 1.16–1.85 N·m and parts at 2.04–3.20 N·m (the bow's moment), all four within 9 ms. **As the hand calculation says** (they would kink at 3.26–3.73 instead, about 1 ms later; still all four). Then the body falls 20 cm in 25 ms with no contact, meets the ground at 2 m/s on its frame and canister for about 30 ms, leaves it at 0.9 m/s turning 4–5 rad/s and lands on its back (146°) at 1 s. That rebound and turn are the frame parts' and the props' contacts, not the legs' law (§6).
+- **Across 12.6°** (Village #199 Cut, meadow_sod, 0.45 m/s): the corners' leans grow over 0.5 s at P 13–38 N (the downhill pair) to 40–67 mm; leg_rr cracks at 77 ms (2.25 N·m against its draw's 2.23), leg_fl at 251 ms (1.78 against 1.77); from the crack their side give falls to 0–50 N/m (the halved stiffness past its halved sway load) and they creep, set and part at 565 and 613 ms (2.57 and 3.68 N·m). The drone then rolls to 60°. **Not as by hand:** the crack's half stiffness (no source) and the K_t on the section's capacity (parting at 2.52–3.58 N·m, under the section's kink).
+- **The slide** (Village #0, 2.2 m/s along, 0.43 m/s down): the first foot sticks and the body runs on over it (lean 2.2 mm a ms); the leading legs crack at 1.49–2.04 N·m in 11–37 ms, creep at 1.6–2.9 N·m and part at 216 and 226 ms (2.70 and 2.92 N·m), then the drone flips (51° at the end, 249 of 339 on the back). **Not as by hand:** the same K_t on the capacity and the halved stiffness; every moment it saw is under the section's kink.
+- **A hanging half "in the ground"** (range #5 Slide, `support_fl_end` 91 mm past, the corner Hanging, Stub, Folded): the half's geometric depth stays 2–5 mm while its spring's overlap (its depth without the half's elastic give) grows to 95 mm under the tumbling body; the half carries its fold cap (10.8 N). At 376–378 ms its deepest point changes and its pairs read no depth for one step: **with no touching pair the massless half's elastic give is set to zero, its shapes snap back 91 mm into the ground** (the sweep's reading), the next step sees them deep, the give comes back, and the cycle repeats (44 mm, 91 mm, 49 mm, 25 mm over 10 ms). A one-step limit cycle of an explicit massless give, not physics: the half's pair must stay touching while its unturned overlap is positive. The fold's cap is also the edge's first local yield (σ_y·S/K_t over the lever), K_t's misuse again.
+- **The 10 m/s crash's 172–194 mm** (`--slopes`): to be traced after the fixes (§4).
+
+### 4. What changes (the plan)
+1. **The law** (`LegDamage`): the edge's first local yield (M_y/K_t) stays the `LegCracked` event (the jaw edge whitens) and changes no stiffness; the set follows the section's own moment–curvature law from its own yield M_y(1 − s); the tube is lost (`LegBroken`) at the first of its kink (M_n/M_y, the drawn σ_y and modulus) and its edge's tearing strain (K_t·κ·c = ε_b, as before). The same at a frame leg's socket edge.
+2. **The input**: `legs.tube.cracked_stiffness_factor` 0.5 → 1.0, with the reason; a new labelled input for the kink's coefficient (AISC's 0.021).
+3. **The hanging half**: its pairs stay touching while their unturned overlap is positive; its fold's cap is the section's yield at the bore.
+4. Nothing else: the axial spring, the buckling, the lever, the frame, the soil and the draws are untouched.
 
 ## 2.7 The crown twig's repeated break (G5)
 
