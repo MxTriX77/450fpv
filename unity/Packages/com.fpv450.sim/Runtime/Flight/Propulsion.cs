@@ -392,6 +392,14 @@ namespace Fpv450.Sim.Flight
         /// <summary>The rotors' wake σ in hover, over v_h (the thrust's σ through the props' static slope).</summary>
         public double WakeSigma => _wakeSigma;
 
+        /// <summary>
+        /// Model 90's own-wake law (D-064 as built to p7b-airframe 1.10): σ faded by Glauert's v_i/v_h at the in-plane μ only,
+        /// the corner at v_h, the bound the hover's. Off in a flight. Not in RotorWakeSpec, so the header does not record it
+        /// (the change takes no log format): a flight flown with it on is a kept audit's or a bench's, never recorded for a
+        /// replay.
+        /// </summary>
+        public bool HoverWakeLaw { get; set; }
+
         /// <summary>The inflow over v_h of a thrust share at hover, through the props' static slope (derived).</summary>
         public double ShareToInflow => _shareToInflow;
 
@@ -884,10 +892,11 @@ namespace Fpv450.Sim.Flight
         }
 
         /// <summary>
-        /// The rotors' own wakes over one step of dt seconds (RotorWakeSpec, D-064): each rotor's wake inflow over v_h, x, a
-        /// first-order process, x ← a·x + √(1 − a²)·σ·n, a = τ/(τ + dt), τ = R/(2π·CornerFrequency·v_h), σ the hover's (the
-        /// thrust's σ through the static slope) faded by Glauert's v_i/v_h at the rotor's in-plane μ, n from
-        /// "rotor.wake" at the step and the corner, bounded at Bound times the hover's σ. A stopped rotor has none.
+        /// The rotors' own wakes over one step of dt seconds (RotorWakeSpec, D-064, p7b-airframe design 3f): each rotor's wake
+        /// inflow over v_h, x, a first-order process, x ← a·x + √(1 − a²)·σ·n, a = τ/(τ + dt), τ = R/(2π·CornerFrequency·V_t),
+        /// σ the hover's (the thrust's σ through the static slope) times (v_i/v_h)², v_i Glauert's at the rotor's in-plane μ and
+        /// axial inflow (RotorWakeSpec.Induced) and V_t = v_h²/v_i the wake's transport velocity, n from "rotor.wake" at the
+        /// step and the corner, bounded at Bound times that σ. A stopped rotor has none. HoverWakeLaw flies model 90's.
         /// </summary>
         public void AdvanceWake(ref FlightState s, double dt)
         {
@@ -900,10 +909,22 @@ namespace Fpv450.Sim.Flight
                     continue;
                 }
                 Double3 p = _inPlane[i];
-                double sigma = _wakeSigma * RotorWakeSpec.Fade(DetMath.Sqrt(p.X * p.X + p.Z * p.Z) / vh);
-                double tau = _radius / (TwoPi * _wake.CornerFrequency * vh), a = tau / (tau + dt);
+                double mu = DetMath.Sqrt(p.X * p.X + p.Z * p.Z) / vh, sigma, transport, bound;
+                if (HoverWakeLaw)
+                {
+                    sigma = _wakeSigma * RotorWakeSpec.Fade(mu);
+                    transport = vh;
+                    bound = _wake.Bound * _wakeSigma;
+                }
+                else
+                {
+                    double v = RotorWakeSpec.Induced(mu, _inflow[i] / vh);
+                    sigma = _wakeSigma * (v * v);
+                    transport = vh / v;
+                    bound = _wake.Bound * sigma;
+                }
+                double tau = _radius / (TwoPi * _wake.CornerFrequency * transport), a = tau / (tau + dt);
                 double x = a * s.WakeInflow[i] + DetMath.Sqrt(1 - a * a) * sigma * VortexRingSpec.Normal(_wakeStream, s.Step, i);
-                double bound = _wake.Bound * _wakeSigma;
                 s.WakeInflow[i] = x > bound ? bound : x < -bound ? -bound : x;
             }
         }
