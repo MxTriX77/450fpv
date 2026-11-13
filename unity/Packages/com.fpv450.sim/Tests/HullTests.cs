@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Fpv450.Sim.Tests
 {
     /// <summary>
-    /// The hull's moment (p7c-wind design 12, Aero.Hull): drone.json's measured curves are Rhudy and Baker's tables, the moment's
+    /// The hull's moment (p7c-wind design 12, Aero.Hull; off by default, D-107): drone.json's measured curves are Rhudy and Baker's tables, the moment's
     /// sign and size at clip P's cruise trim by hand in both planes, and its known-wrong, the hull's potential-flow couple, which
     /// turns the hull the other way.
     /// </summary>
@@ -17,7 +17,19 @@ namespace Fpv450.Sim.Tests
         {
             AeroSpec spec = RepositoryDrone.Spec().BuildAero();
             spec.HullPotential = potential;
+            spec.HullOn = true;
             return new Aero(spec);
+        }
+
+        [Test]
+        public void TheHullIsOffUnlessAFlightAsksForIt()
+        {
+            // D-107: built, graded, not flown; drone.json's data is read and logged, the moment off by default.
+            AeroSpec spec = RepositoryDrone.Spec().BuildAero();
+            Assert.That(spec.HullFrontalArea, Is.GreaterThan(0));
+            Assert.That(spec.HullOn, Is.False);
+            Assert.That(new Aero(spec).HasHull, Is.False);
+            Assert.That(RepositoryAero().HasHull, Is.True);
         }
 
         [Test]

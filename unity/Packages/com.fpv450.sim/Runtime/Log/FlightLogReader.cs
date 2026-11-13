@@ -303,7 +303,8 @@ namespace Fpv450.Sim.Log
                 w.WriteLine("  aero: air " + G(h.Aero.AirDensity) + " kg/m3, body silhouette side/top/front " + V(h.Aero.BodyArea, "0.0000")
                     + " m2 at " + V(h.Aero.BodyCenterOfPressure, "0.000") + " m, C_d " + G(h.Aero.DragCoefficient) + ", coil "
                     + (h.Aero.CoilPart >= 0 ? PartName((ushort)h.Aero.CoilPart) : "none") + ", hull "
-                    + (h.Aero.HullPotential ? "the potential couple (a known-wrong)"
+                    + (!h.Aero.HullOn ? (h.Aero.HullFrontalArea > 0 ? "off (its data logged)" : "none")
+                        : h.Aero.HullPotential ? "the potential couple (a known-wrong)"
                         : h.Aero.HullFrontalArea > 0 ? G(h.Aero.HullFrontalArea) + " m2 of " + V(h.Aero.HullSize, "0.000") + " m, " + h.Aero.HullRatios.Length + " measured curves"
                         : "none"));
             else

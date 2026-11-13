@@ -65,7 +65,7 @@ namespace Fpv450.Sim.Tests
             double body = Double3.Cross(cpt - com, core.Aero.Body(Air(cpt))).X;
             ref readonly DronePart coil = ref setup.Mass.Part(core.Aero.Spec.CoilPart);
             double coilM = Double3.Cross(coil.Position - com, core.Aero.Coil(Air(coil.Position), coil)).X;
-            double hull = core.Aero.HasHull ? core.Aero.Hull(Air(cpt)).X : 0;
+            double hull = new Aero(GoldenFlights.WithTheHull(core.Aero.Spec)).Hull(Air(cpt)).X; // off in flight (D-107): what it would add
             return new[] { thrust, hub, h, body, coilM, hull };
         }
 
@@ -168,9 +168,9 @@ namespace Fpv450.Sim.Tests
             ("noflapping", false, s => s.Flapping = null),
             ("steady-noownwake", true, s => s.RotorWake = null),
             ("steady-noownwake-noasym", true, s => { s.RotorWake = null; s.Asymmetry = null; }),
-            ("nohull", false, s => s.Aero = GoldenFlights.WithoutTheHull(s.Aero)), // p7c-wind design 12
-            ("steady-nohull", true, s => s.Aero = GoldenFlights.WithoutTheHull(s.Aero)),
-            ("potential", false, s => { s.Aero = s.Aero.Clone(); s.Aero.HullPotential = true; }), // its known-wrong
+            ("hull", false, s => s.Aero = GoldenFlights.WithTheHull(s.Aero)), // p7c-wind design 12, off by default (D-107)
+            ("steady-hull", true, s => s.Aero = GoldenFlights.WithTheHull(s.Aero)),
+            ("potential", false, s => { s.Aero = GoldenFlights.WithTheHull(s.Aero); s.Aero.HullPotential = true; }), // its known-wrong
         };
 
         /// <summary>

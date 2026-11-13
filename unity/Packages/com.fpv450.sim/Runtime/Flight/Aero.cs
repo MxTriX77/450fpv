@@ -45,6 +45,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>The known-wrong: the hull's potential-flow couple ρ(A·v) × v in place of its measured moment.</summary>
         public bool HullPotential;
 
+        /// <summary>Whether the hull's moment flies (p7c-wind design 12, D-107): off by default in every flight, the data read
+        /// and logged; a test or a harness turns it on (it broke T10b, so it waits for the harness pilot's holds).</summary>
+        public bool HullOn;
+
         public AeroSpec Clone() => (AeroSpec)MemberwiseClone();
     }
 
@@ -64,7 +68,7 @@ namespace Fpv450.Sim.Flight
     ///   about x (pitch) α = atan2(−v_y, v_z) and L/d = L/H, about y (yaw) β = atan2(v_x, v_z) and L/d = L/W, the moment
     ///   −C_m·½ρ(v_⊥² + v_z²)·A·d with d the hull's height or width; the curves interpolated linearly in the angle and in L/d,
     ///   held at their ends; beyond 90° (the hull backwards) C_m(180° − α) = −C_m(α), a symmetric body's. A pure moment: the
-    ///   forces stay the drag's above.
+    ///   forces stay the drag's above. Off unless AeroSpec.HullOn (D-107): it broke T10b, so it waits for the harness pilot's holds.
     /// The rotors' in-plane drag, the H-force, is the rotors' (Propulsion.HForce). Basic operations only.
     /// </summary>
     public sealed class Aero
@@ -81,7 +85,7 @@ namespace Fpv450.Sim.Flight
             Spec = spec.Clone();
             _q = 0.5 * spec.AirDensity * spec.DragCoefficient;
             _area = spec.BodyArea;
-            HasHull = spec.HullFrontalArea > 0 || spec.HullPotential;
+            HasHull = spec.HullOn && (spec.HullFrontalArea > 0 || spec.HullPotential);
             if (!(spec.HullFrontalArea > 0)) return;
             _hull = 0.5 * spec.AirDensity * spec.HullFrontalArea;
             _pitchRatio = spec.HullSize.Z / spec.HullSize.Y;

@@ -239,7 +239,7 @@ namespace Fpv450.Sim.Log
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart",
-            "HullFrontalArea", "HullSize", "HullRatios", "HullAngles", "HullMoments", "HullAddedVolume", "HullPotential" }; // the hull's in its own entry, TagHull (p7c-wind design 12)
+            "HullFrontalArea", "HullSize", "HullRatios", "HullAngles", "HullMoments", "HullAddedVolume", "HullPotential", "HullOn" }; // the hull's in its own entry, TagHull (p7c-wind design 12)
         public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes", "Version" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
@@ -1326,6 +1326,7 @@ namespace Fpv450.Sim.Log
                 V3(e, Aero.HullSize);
                 S3(e, Aero.HullAddedVolume);
                 e.Write(Aero.HullPotential);
+                e.Write(Aero.HullOn);
                 double[] ratios = Aero.HullRatios ?? new double[0];
                 e.Write((ushort)ratios.Length);
                 for (int i = 0; i < ratios.Length; i++)
@@ -1502,7 +1503,7 @@ namespace Fpv450.Sim.Log
                             double area = r.ReadDouble();
                             Double3 hullSize = V3(r);
                             Sym3 added = S3(r);
-                            bool potential = r.ReadBoolean();
+                            bool potential = r.ReadBoolean(), on = r.ReadBoolean();
                             int curves = r.ReadUInt16();
                             double[] ratios = curves > 0 ? new double[curves] : null;
                             double[][] angles = curves > 0 ? new double[curves][] : null, moments = curves > 0 ? new double[curves][] : null;
@@ -1524,6 +1525,7 @@ namespace Fpv450.Sim.Log
                                 Aero.HullSize = hullSize;
                                 Aero.HullAddedVolume = added;
                                 Aero.HullPotential = potential;
+                                Aero.HullOn = on;
                                 Aero.HullRatios = ratios;
                                 Aero.HullAngles = angles;
                                 Aero.HullMoments = moments;
