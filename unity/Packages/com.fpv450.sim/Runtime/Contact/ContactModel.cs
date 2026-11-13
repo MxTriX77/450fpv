@@ -1463,7 +1463,7 @@ namespace Fpv450.Sim.Contact
                 if (!hanging && _spec.LegLeverLength > 0 && ks > 0)
                 {
                     // The lever (1.4): each point's force by the leg's statics at its own push; the leg's give its points' shares.
-                    double anchor = ratio * ka, cap = BowOverSway * _spec.LegSwayLoad, tube = 0, side = 0, lean = 0, tubeF = 0, sideF = 0;
+                    double anchor = ratio * ka, cap = SwayCap(c), tube = 0, side = 0, lean = 0, tubeF = 0, sideF = 0;
                     Double3 axis = LeverAxis(c, s, up);
                     if (frame) _frameAxis[c] = FrameAxis(s, axis, up);
                     for (int i = 0; i < _shapes.Length; i++)
@@ -1560,6 +1560,10 @@ namespace Fpv450.Sim.Contact
         // crack's factor, the damper with it at the same ζ), and across it at the foot, ks with its damper cs: the tube's
         // 3EI/L³ by the crack's factor less the axial load's geometric stiffness, k_t·P/P_sway, never below 0; the jaws held
         // (their bed turns by their friction, LegDamage). Without the parts (1.2's chain), LegSideStiffness as it was.
+        // The lever's buckling cap at leg c (p7g-legs 1.4): its bow factor on the sway load π²EI/(4L²), which the leg's drawn
+        // modulus scales (leg.stiffness, w9-village-physics 2.9; 1 without the legs' law).
+        double SwayCap(int c) => BowOverSway * _spec.LegSwayLoad * (_legs != null ? _legs.Modulus(c) : 1);
+
         void LegGive(int c, out double k0, out double c0, out double ks, out double cs)
         {
             k0 = _spec.LegStiffness;
@@ -2115,18 +2119,11 @@ namespace Fpv450.Sim.Contact
         // (LegFrameLeverLength), by the square of the stretch's way's cosine to the frame as the slide's stiffness is. A stretch
         // past it is a foot the leg no longer reaches: the ground has let it go, the leg springs back, and the hold starts
         // again where the foot is (the stretch 0). True when it let one go.
-        /// <summary>
-        /// A leg's held foot within its reach (w9-village-physics 2.4, model 86; Reached): on for every flight. Off only for the
-        /// suite's known-wrong, model 85's slide, whose stretch past a spent side give ran to tens of metres and the moment's
-        /// lever with it. Not in ContactSpec, so the header does not record it (the change takes no log format): a flight flown
-        /// with it off is a bench's or an older model's kept audit, never recorded for a replay.
-        /// </summary>
-        public bool AnchorReach { get; set; } = true;
-
+        // A held foot within its reach is ContactSpec.AnchorReach's (2.4, logged since 2.9).
         bool Reached(int c, ref Double3 stretch)
         {
             double l0 = _spec.LegLeverLength, s2 = Double3.Dot(stretch, stretch);
-            if (!AnchorReach || !(l0 > 0) || !(s2 > 0)) return false;
+            if (!_spec.AnchorReach || !(l0 > 0) || !(s2 > 0)) return false;
             double reach = l0;
             if (_frame[c])
             {
@@ -2801,12 +2798,12 @@ namespace Fpv450.Sim.Contact
                     double a = Double3.Dot(legUp, d) - along;
                     Double3 lat = d - legUp * Double3.Dot(legUp, d) - across;
                     double delta = lat.Length();
-                    Lever(a, delta, k0, 0, legSide, _spec.LegLeverLength, BowOverSway * _spec.LegSwayLoad, out double secant, out rise);
+                    Lever(a, delta, k0, 0, legSide, _spec.LegLeverLength, SwayCap(c), out double secant, out rise);
                     kq0 = OnAnchor(secant, _spec.FrictionStiffnessRatio * k0);
                     if (frame)
                     {
                         // The frame's plane on its own lever (model 54): the rise blended by the lean's share along the skid.
-                        Lever(a, delta, k0, 0, _frameGive[c], _spec.LegFrameLeverLength, BowOverSway * _spec.LegSwayLoad, out double secantF, out double riseF);
+                        Lever(a, delta, k0, 0, _frameGive[c], _spec.LegFrameLeverLength, SwayCap(c), out double secantF, out double riseF);
                         double lf = Double3.Dot(lat, _frameAxis[c]), share = delta > 0 ? lf * lf / (delta * delta) : 0;
                         rise += (riseF - rise) * share;
                         kq0f = OnAnchor(secantF, _spec.FrictionStiffnessRatio * k0);
@@ -3020,7 +3017,7 @@ namespace Fpv450.Sim.Contact
             double ratio = _spec.FrictionStiffnessRatio;
             double kq = legSide > 0 && kn > 0 ? Series(legSide, ratio * kn) : 0;
             bool lever = _spec.LegLeverLength > 0 && legSide > 0;
-            double secant = legSide, cap = BowOverSway * _spec.LegSwayLoad;
+            double secant = legSide, cap = SwayCap(c);
             double cq = legSideDamp > 0 && cn > 0 ? Series(legSideDamp, DetMath.Sqrt(ratio) * cn) : 0;
             // The skid's frame along the skid (p7g-legs, model 54): its give and damper in series with the groove's anchor.
             bool frame = _frame[c];

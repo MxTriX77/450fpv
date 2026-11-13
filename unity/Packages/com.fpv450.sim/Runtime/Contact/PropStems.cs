@@ -5,24 +5,24 @@ using Fpv450.Sim.World;
 namespace Fpv450.Sim.Contact
 {
     /// <summary>
-    /// The props in standing stems (w9-village-physics 2.2, its design.md "## 2.2"; PHY-05, PHY-24, PHY-26): a map's stem field
-    /// (IWorldQuery.StemsNear) and its drawn straws and stems (MicroDetailNear's S04 elements) under each turning disc, every step,
-    /// after the shapes' passes. Engine-free, allocation-free in a step, DetMath only; nothing about it is drawn.
-    /// - The slipstream lays them over: the load across a stem is q·C_d·d·cos²φ with q = T/A (momentum theory's contracted wake),
-    ///   and it leans as a rigid link on a base spring 4EI/L, φ/cos²φ = q·C_d·d·L³/(8EI), its top at L·cos φ. The load follows the
-    ///   rotor's q with PressTime pressing them and RiseTime letting them up.
-    /// - A blade cuts a stem only where its speed across it, ω·r·cos φ, reaches the stem's critical speed v_c = k_edge·[F_c·√d /
-    ///   (2√(2π)·(EI·μ³)^¼)]^(2/3), F_c = e_s·A_w/d (stem-properties.md §2.2); slower, the stem is pushed aside and nothing is taken.
-    /// - A cut costs e_s·A_w and the swept band's fling μ·h_f·u² (h_f = c·sin θ + t·cos θ), a slice of a stub min(1, Δ/d)·e_s·A_w
-    ///   and μ·Δ·u²; the rotor pays it, the body takes E/u against the blade's motion and the pitched face's E_cut·(c·cos θ/h_f)/u
-    ///   along the axis.
-    /// - The field's stems lie evenly over the disc: its blades share them, their in-plane impulses cancel. A disc moving into
-    ///   stems meets them upright across its leading arc, ∝ cos(ψ − ψ_lead), each blade cutting what entered since the last.
-    ///   An element is met by the blade crossing its azimuth, once a pass.
-    /// - A stem cut stands lower: each rotor's field height cut to and stubs, every disc's trail over the field (where its stems
-    ///   were cut, and to what), and for the elements a grid of the planes each stalk's ground was cut to.
-    /// The step's cuts go to BladeStrikes (StrikeKind.Stem), a rotor's episode to the log (StemEpisode, start and end), the
-    /// field's cut pieces to the feed (FeedSignals.StemCuts…); a stem's force goes through Breaks as a twig's does.
+    /// The props in standing stems (w9-village-physics 2.2 and 2.12, design.md "## 2.2" and "## 2.12"; PHY-05, PHY-24, PHY-26):
+    /// a map's stem field (IWorldQuery.StemsNear) and its drawn straws and stems (MicroDetailNear's S04 elements) about each disc,
+    /// every step, after the shapes' passes. Engine-free, allocation-free in a step, DetMath only; nothing about it is drawn.
+    /// - The field's stems are placed one by one from the world (2.12): per 0.1 m square, the cell's stems per m² reaching h_ref, each
+    ///   at its own place, natural lean and drawn length from its own hash (world-derived, never a flight draw); its diameter from
+    ///   its length by the kind's allometry, d = d₁·L^(1/1.53) (Niklas 1995).
+    /// - A disc's slipstream (q = T/A) folds the stems under it: a vertical jet loads a stem leaning φ with q·C_d·d·sin²φ, so as a
+    ///   rigid link on 4EI/L its moment is m(φ) = (φ − φ₀) − A·sin²φ − G·sin φ, A = q·C_d·d·L³/(8EI), G = μ·g·L³/(8EI); its lean
+    ///   follows φ' = −m/τ at its first mode's τ = L²/(1.875²·√(EI/μ)). A folded stem stands as an arch, its crest 0.5·l_b,
+    ///   l_b = (EI/(q·C_d·d))^(1/3).
+    /// - A blade cuts a stem whose top stands over the disc's plane where its speed across the stem's axis reaches the stem's
+    ///   critical speed v_c = k_edge·[F_c·√d / (2√(2π)·(EI·μ³)^¼)]^(2/3), F_c = e_s·A_w/d (stem-properties.md §2.2); slower, it is
+    ///   pushed aside. A cut costs e_s·A_w and the swept band's fling μ·h_f·u², a slice of a stub min(1, Δ/d)·e_s·A_w and μ·Δ·u²;
+    ///   the rotor pays it, the body takes E/u against the blade's motion and the pitched face's E_cut·(c·cos θ/h_f)/u along the
+    ///   axis, each at its own radius and azimuth, by the blade crossing it in the step.
+    /// - Each stem keeps its lean and its length (shortened by a cut) in a store shared by every disc, keyed by its hash.
+    /// The step's cuts go to BladeStrikes (StrikeKind.Stem), a rotor's episode to the log (StemEpisode, start and end), the cut
+    /// pieces to the feed (FeedSignals.StemCuts…); a stem's force goes through Breaks as a twig's does.
     /// </summary>
     public sealed partial class PropStrikes
     {
@@ -34,66 +34,88 @@ namespace Fpv450.Sim.Contact
         /// and nylon line's 61–86 m/s on grass, the blade's nose being 0.13–0.65 mm round; stem-properties.md §2.2).</summary>
         public const double EdgeFactor = 3;
 
-        /// <summary>The stems' load follows the rotor's q pressing them down in 0.04 s (derived: a 0.5 m culm's top driven over by
-        /// w/μ ≈ 500 m/s² gets there in about 44 ms) and rising in 0.1 s (assumed: inside the 0.02–0.35 s quarter periods of 0.2 m
-        /// stubble and a 0.6 m culm's first bending mode).</summary>
-        public const double StemPressTime = 0.04, StemRiseTime = 0.1;
+        /// <summary>A stem's diameter grows as its length to this power: H ∝ D^1.53 over 76 herbaceous species (published: Niklas
+        /// 1995, Ann. Bot. 75: 133–142). The cover row's diameter_m is a 1 m stem's.</summary>
+        public const double StemAllometry = 1 / 1.53;
 
-        /// <summary>The elements' cut grid's cell, m, and its slots (numerical: a stalk's ground; 4,096 cells of cut ground, the home
-        /// slot overwritten when its probe finds none free).</summary>
-        public const double StemGridCell = 0.05;
-        const int StemGridSlots = 4096, StemGridProbe = 8;
+        /// <summary>A field stem's natural lean, rad: up to 15° by its hash (assumed, 5–25°: the drawn blades' spread and the
+        /// detail's half tilt to the ground). It sets how readily a stem starts to fold in a vertical jet.</summary>
+        public const double StemNaturalLean = 0.2617993877991494;
 
-        /// <summary>Each disc's trail over the stem field: an entry every 1 cm of its hub's travel, the last 64 kept (numerical: 0.64 m,
-        /// twice the 0.32 m a rear disc runs behind a front one).</summary>
-        public const double StemTrailStep = 0.01;
-        const int StemTrailSize = 64;
+        /// <summary>A folded stalk's arch stands to this share of its bending length (derived: the elastica of a stalk clamped
+        /// upright, loaded w·sin²θ normal to it, its end on the ground: 0.43–0.61 for L/l_b 3–6; design.md 2.12).</summary>
+        public const double StemFoldedCrest = 0.5;
 
-        /// <summary>A rotor's element cache is asked again once its hub has moved this far, m (numerical), over the disc's radius and
+        /// <summary>The radius at which the wake's swirl is taken, over R: 2/3 (assumed: the disc's mean radius by area weighting
+        /// of a uniform load).</summary>
+        public const double StemSwirlRadius = 2.0 / 3;
+
+        /// <summary>A cut through a leaning or folded stem leaves the stub up to the plane along a leg no flatter than this cosine
+        /// (assumed: the arch's rising leg within about 45° of upright where the plane crosses it).</summary>
+        public const double StemStubCos = 0.7;
+
+        /// <summary>The field's squares, m; the height the squares' stems reach, m (the lowest a disc's plane comes over the
+        /// ground while the drone stands: 0.288 m less 0.06 m for a rim tilted 30°, less a margin); the layers' reach shares'
+        /// height step, m (all numerical).</summary>
+        public const double StemSquare = 0.1, StemReference = 0.2, StemReachStep = 0.05;
+
+        /// <summary>No field stem is placed under a disc more than this over the ground, m (numerical: the drawn stems stand to
+        /// 1.77 m; a slipstream's grip on a canopy further down is left out).</summary>
+        public const double StemWakeTop = 2.5;
+
+        /// <summary>A rotor's cache of stems is rebuilt once its hub has moved this far, m (numerical), over the disc's radius and
         /// this margin again.</summary>
         public const double StemCacheRefresh = 0.1;
-        const int StemCacheSize = 1024, StemPatchesMax = 64;
 
         /// <summary>A stem episode ends this long after its last whole stem, s (numerical: the forensics' grain).</summary>
         public const double StemQuietTime = 0.1;
 
-        const int FieldKinds = 3, TableSize = 256;
+        const int StemCacheSize = 1024, StemPatchesMax = 64, StateSlots = 16384, StateProbe = 16, SquareSlots = 1024, SquareProbe = 8,
+            Layers = 16, ReachEntries = 41;
+        const double Gravity = 9.80665, PointRadius = 1e-3;
 
-        /// <summary>One kind's tissue at the flight's moisture: its section's wall area, mass per length, bending stiffness, the
-        /// slipstream's lean per pascal C_d·d/(8EI), the critical speed and a cut's edge work.</summary>
+        /// <summary>One stem's tissue: its section's wall area, mass per length, bending stiffness, the slipstream's lean per
+        /// pascal per m³ C_d·d/(8EI), the critical speed and a cut's edge work.</summary>
         struct Tissue
         {
             public bool Known;
             public ushort Code;
-            public double D, Area, Mu, Kappa0, Vc, Cut;
+            public double D, Area, Mu, EI, Kappa0, Vc, Cut;
         }
 
-        /// <summary>One cached element: its base, its length along its points and its top over its base, its tissue.</summary>
+        /// <summary>One cached stem: its base, its lean's direction, its drawn length and top over its base, its tissue and the
+        /// constants of its lean (μg/8EI, its mode's τ per m², cos φ₀), its state's key and slot.</summary>
         struct Stalk
         {
-            public Double3 Base;
-            public double Length, Rise;
+            public Double3 Base, Lean;
+            public double Length, Rise, Phi0, CosPhi0, MuG8, Tau0;
             public Tissue T;
-            public bool Inside;
+            public ulong Id;
+            public int Slot;
         }
 
-        /// <summary>The last step's stems per rotor, for a test or a bench: the disc's height over the ground (m) and the height its
-        /// field stems are cut to (m, +∞ for none), the stems' load (Pa), the step's fresh cuts, stub slices (cut equivalents) and
-        /// entries cut (stems), all its cuts (stems, fractional), its work (J), the impulse it gave the body in the disc's plane
-        /// (world N·s) and along the rotor's axis (N·s), and the elements met.</summary>
+        /// <summary>The last step's stems per rotor, for a test or a bench: the disc's height over the ground (m), the
+        /// slipstream's pressure (Pa), the step's fresh cuts and stub slices (cut equivalents), all its cuts, its work and the fresh
+        /// cuts' share of it (J), the
+        /// impulse it gave the body in the disc's plane (world N·s) and along the rotor's axis (N·s), the stems cached about the
+        /// disc and those under it standing over its plane.</summary>
         public struct StemRecord
         {
-            public double Height, Cut, Load, Fresh, Sliced, Entered, Cuts, Work, Axial;
+            public double Height, Load, Fresh, Sliced, Cuts, Work, FreshWork, Axial;
             public Double3 InPlane;
-            public int Elements;
+            public int Cached, Over;
         }
 
         /// <summary>The last step's stems per rotor (StemRecord), Corners' order.</summary>
         public readonly StemRecord[] StemLast = new StemRecord[4];
 
-        /// <summary>The known-wrong's switches, for a test's comparison only (a flight never sets them): off, the slipstream lays
-        /// no stem over, and a blade cuts every stem it meets whatever its speed (the audit's §5.2 law).</summary>
+        /// <summary>The known-wrong's switches, for a test's comparison only (a flight never sets them): off, the slipstream folds
+        /// no stem, and a blade cuts every stem it meets whatever its speed.</summary>
         public bool StemLean = true, StemCritical = true;
+
+        /// <summary>A sweep's scales on the field's stems per m² and on every stem's diameter (design.md 2.12's sweep only: a flight
+        /// never sets them, and a log does not carry them).</summary>
+        public double StemDensityScale = 1, StemDiameterScale = 1;
 
         /// <summary>Each corner's strikes' impulse along its rotor's axis this step, N·s (every kind: shapes, twigs, stems), which
         /// loads its arm's mode at the tip (AirframeModes.Strike, G8).</summary>
@@ -101,28 +123,39 @@ namespace Fpv450.Sim.Contact
 
         Corners _tip;
         bool _stemsOn;
-        readonly Tissue[] _tissue = new Tissue[7];                  // by CoverKind
-        readonly double[] _leanTable = new double[TableSize + 1], _leanCos = new double[TableSize + 1]; // φ and cos φ at s = x/(1 + x), x = φ/cos²φ
-        readonly double[] _root1 = new double[TableSize + 1], _root2 = new double[TableSize + 1]; // φ·cos φ = c, both branches
-        double _rootMax, _rootPhi;
+        readonly CoverSet[] _coverSets = new CoverSet[7]; // by CoverKind
         readonly StemPatch[] _patches = new StemPatch[StemPatchesMax];
-        readonly XZ[] _hubXZ = new XZ[4];
-        readonly GroundSample[] _hubGround = new GroundSample[4];
-        readonly double[] _stemQ = new double[4], _stemCut = { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity };
-        readonly double[] _stemDue = new double[4 * FieldKinds], _stemStubs = new double[4 * FieldKinds];
+        readonly XZ[] _hubXZ = new XZ[4], _point = new XZ[1];
+        readonly GroundSample[] _hubGround = new GroundSample[4], _pointGround = new GroundSample[1];
+        readonly double[] _stemQ = new double[4];
+        readonly bool[] _stemNear = new bool[4];
         readonly double[] _slotCuts = new double[8];
-        readonly double[] _trailX = new double[4 * StemTrailSize], _trailZ = new double[4 * StemTrailSize], _trailY = new double[4 * StemTrailSize];
-        readonly int[] _trailHead = new int[4], _trailCount = new int[4];
-        readonly long[] _gridKey = new long[StemGridSlots];
-        readonly double[] _gridY = new double[StemGridSlots];
 
-        // The elements' caches, per rotor: StemCacheSize slots each.
+        // The stems' states, shared by every disc: key (0 empty), lean, length, the jet on it and its lag, its top over its base,
+        // the steps they were last loaded, advanced and seen.
+        readonly ulong[] _sKey = new ulong[StateSlots];
+        readonly double[] _sPhi = new double[StateSlots], _sLen = new double[StateSlots], _sQ = new double[StateSlots], _sQLag = new double[StateSlots],
+            _sTop = new double[StateSlots], _sSwirl = new double[StateSlots];
+        readonly bool[] _sRest = new bool[StateSlots];
+        readonly long[] _sLoaded = new long[StateSlots], _sAdvanced = new long[StateSlots], _sSeen = new long[StateSlots];
+
+        // The field's squares: key, the ground's height and normal at the centre, the stems per m² reaching h_ref per layer.
+        readonly long[] _qKey = new long[SquareSlots];
+        readonly double[] _qGround = new double[SquareSlots], _qNx = new double[SquareSlots], _qNz = new double[SquareSlots], _qNy = new double[SquareSlots];
+        readonly double[] _qDensity = new double[SquareSlots * Layers];
+
+        // The layers: kind, tallest top, and the share of stems at h_ref still reaching h_ref + j·StemReachStep.
+        readonly StemKind[] _layerKind = new StemKind[Layers];
+        readonly double[] _layerTop = new double[Layers];
+        readonly bool[] _layerReach = new bool[Layers];
+        readonly double[] _reach = new double[Layers * ReachEntries];
+
+        // The stems cached about each rotor: StemCacheSize slots each.
         readonly Stalk[] _stalks = new Stalk[4 * StemCacheSize];
         readonly int[] _stalkCount = new int[4];
         readonly Double3[] _cacheAt = new Double3[4];
         readonly bool[] _cacheValid = new bool[4];
         readonly MicroElement[] _elements = new MicroElement[StemCacheSize];
-        CoverSet _strawSet, _stemSet;
 
         // The episodes and the feed's field window, per rotor.
         readonly double[] _episodeFrac = new double[4], _episodeWork = new double[4], _episodeCuts = new double[4], _episodeDiameter = new double[4];
@@ -135,79 +168,17 @@ namespace Fpv450.Sim.Contact
         // The step's per rotor sums for the log and the feed.
         readonly double[] _stepCuts = new double[4], _stepLength = new double[4], _stepRadius = new double[4], _stepWork = new double[4],
             _stepDiameter = new double[4], _stepKind = new double[4 * 7];
-        readonly Double3[] _lastHub = new Double3[4];
 
         void InitStems()
         {
             _stemsOn = _spec.Stems && _spec.Surfaces != null;
-            for (int i = 0; i < StemGridSlots; i++) _gridKey[i] = long.MinValue;
+            for (int i = 0; i < SquareSlots; i++) _qKey[i] = long.MinValue;
             if (!_stemsOn) return;
             CoverRow[] rows = _spec.Surfaces.Cover;
-            for (int k = (int)CoverKind.GrassBlade; k <= (int)CoverKind.BurntCulm && k < rows.Length; k++)
-            {
-                CoverSet set = _contacts.Cover((CoverKind)k);
-                if (set.Diameter > 0 && set.CutEnergy > 0) _tissue[k] = TissueOf(set, set.Diameter, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1));
-            }
-            if (rows.Length > (int)CoverKind.Stem)
-            {
-                _strawSet = _contacts.Cover(CoverKind.Straw);
-                _stemSet = _contacts.Cover(CoverKind.Stem);
-            }
-
-            // φ/cos²φ = x over s = x/(1 + x) ∈ [0, 1], and the two roots of φ·cos φ = c over c ∈ [0, max], by bisection at load.
-            for (int j = 0; j <= TableSize; j++)
-            {
-                double s = (double)j / TableSize;
-                if (j == TableSize)
-                {
-                    _leanTable[j] = Pi / 2;
-                    _leanCos[j] = 0;
-                    continue;
-                }
-                double x = s / (1 - s), lo = 0, hi = Pi / 2;
-                for (int n = 0; n < 60; n++)
-                {
-                    double m = 0.5 * (lo + hi);
-                    DetMath.SinCos(m, out _, out double cm);
-                    if (m < x * cm * cm) lo = m;
-                    else hi = m;
-                }
-                _leanTable[j] = 0.5 * (lo + hi);
-                DetMath.SinCos(_leanTable[j], out _, out _leanCos[j]);
-            }
-            double a = 0, b = Pi / 2; // cos φ = φ·sin φ at the most φ·cos φ
-            for (int n = 0; n < 60; n++)
-            {
-                double m = 0.5 * (a + b);
-                DetMath.SinCos(m, out double sm, out double cm);
-                if (cm > m * sm) a = m;
-                else b = m;
-            }
-            _rootPhi = 0.5 * (a + b);
-            DetMath.SinCos(_rootPhi, out _, out double cr);
-            _rootMax = _rootPhi * cr;
-            for (int j = 0; j <= TableSize; j++)
-            {
-                double c = _rootMax * j / TableSize;
-                _root1[j] = Bisect(c, 0, _rootPhi, true);
-                _root2[j] = Bisect(c, _rootPhi, Pi / 2, false);
-            }
+            for (int k = 0; k < rows.Length && k < _coverSets.Length; k++) _coverSets[k] = _contacts.Cover((CoverKind)k);
         }
 
-        // The root of φ·cos φ = c between lo and hi, rising (the short branch) or falling.
-        static double Bisect(double c, double lo, double hi, bool rising)
-        {
-            for (int n = 0; n < 60; n++)
-            {
-                double m = 0.5 * (lo + hi);
-                DetMath.SinCos(m, out _, out double cm);
-                if (m * cm < c == rising) lo = m;
-                else hi = m;
-            }
-            return 0.5 * (lo + hi);
-        }
-
-        // A kind's tissue from its cover set at diameter d and modulus E.
+        // A stem's tissue from its cover set at diameter d and modulus E.
         static Tissue TissueOf(in CoverSet set, double d, double modulus, ushort code)
         {
             double di = d * (1 - 2 * set.WallShare), d2 = d * d, di2 = di * di;
@@ -217,38 +188,12 @@ namespace Fpv450.Sim.Contact
             double ratio = cut / d * DetMath.Sqrt(d) / (2 * DetMath.Sqrt(TwoPi) * inertia), cube = DetMath.Cbrt(ratio);
             return new Tissue
             {
-                Known = true, Code = code, D = d, Area = area, Mu = mu, Kappa0 = StemDrag * d / (8 * ei), Vc = EdgeFactor * cube * cube, Cut = cut,
+                Known = true, Code = code, D = d, Area = area, Mu = mu, EI = ei, Kappa0 = StemDrag * d / (8 * ei), Vc = EdgeFactor * cube * cube, Cut = cut,
             };
         }
 
-        // The lean of a stem whose κ·L³ is x, φ/cos²φ = x, as its cosine, read from the table.
-        double LeanCos(double x)
-        {
-            if (!(x > 0)) return 1;
-            double s = x / (1 + x) * TableSize;
-            int j = (int)s;
-            if (j >= TableSize) return _leanCos[TableSize];
-            return _leanCos[j] + (_leanCos[j + 1] - _leanCos[j]) * (s - j);
-        }
-
-        // The two roots of φ·cos φ = c (0 ≤ c ≤ the most), read from the tables.
-        void Roots(double c, out double phi1, out double phi2)
-        {
-            double s = c / _rootMax * TableSize;
-            int j = (int)s;
-            if (j >= TableSize)
-            {
-                phi1 = phi2 = _rootPhi;
-                return;
-            }
-            double u = s - j;
-            phi1 = _root1[j] + (_root1[j + 1] - _root1[j]) * u;
-            phi2 = _root2[j] + (_root2[j + 1] - _root2[j]) * u;
-        }
-
-        // ---- the cut grid ----------------------------------------------------------------------------------------------------
-
-        long GridKey(double x, double z) => ((long)Floor(x / StemGridCell) << 32) ^ (uint)Floor(z / StemGridCell);
+        // A hash's i-th uniform in [0, 1).
+        static double Uniform(ulong id, ulong i) => (FlightRandom.Mix64(unchecked(id + (i + 1) * 0x9E3779B97F4A7C15UL)) >> 11) * (1.0 / 9007199254740992.0);
 
         // ⌊v⌋ for a cell index, by a truncation and a compare (basic operations only).
         static int Floor(double v)
@@ -257,87 +202,246 @@ namespace Fpv450.Sim.Contact
             return v < t ? t - 1 : t;
         }
 
-        int GridHome(long key) => (int)(FlightRandom.Mix64((ulong)key) & (StemGridSlots - 1));
+        // ---- the stems' states ------------------------------------------------------------------------------------------------
 
-        // The plane the ground at (x, z) was cut to, world y; +∞ for none.
-        double GridCut(double x, double z)
+        // The state's slot of stem id (inserted at its drawn length and natural lean if new; when its probe is full, the slot seen
+        // longest ago is taken over).
+        int State(ulong id, double length, double phi0, long step)
         {
-            long key = GridKey(x, z);
-            int home = GridHome(key);
-            for (int p = 0; p < StemGridProbe; p++)
+            int home = (int)(FlightRandom.Mix64(id) & (StateSlots - 1)), oldest = home;
+            for (int p = 0; p < StateProbe; p++)
             {
-                int i = (home + p) & (StemGridSlots - 1);
-                if (_gridKey[i] == key) return _gridY[i];
-                if (_gridKey[i] == long.MinValue) return double.PositiveInfinity;
+                int i = (home + p) & (StateSlots - 1);
+                if (_sKey[i] == id) return i;
+                if (_sKey[i] == 0)
+                {
+                    oldest = i;
+                    break;
+                }
+                if (_sSeen[i] < _sSeen[oldest]) oldest = i;
             }
-            return double.PositiveInfinity;
+            _sKey[oldest] = id;
+            _sPhi[oldest] = phi0;
+            _sLen[oldest] = length;
+            _sQ[oldest] = _sQLag[oldest] = _sSwirl[oldest] = 0;
+            _sRest[oldest] = false;
+            _sTop[oldest] = double.NaN;
+            _sLoaded[oldest] = _sAdvanced[oldest] = -1;
+            _sSeen[oldest] = step;
+            return oldest;
         }
 
-        // The ground at (x, z) is cut down to y (its plane lowered, never raised).
-        void GridLower(double x, double z, double y)
+        // A cached stem's slot, found again if another stem took it over.
+        int SlotOf(ref Stalk k, long step)
         {
-            long key = GridKey(x, z);
-            int home = GridHome(key);
-            for (int p = 0; p < StemGridProbe; p++)
-            {
-                int i = (home + p) & (StemGridSlots - 1);
-                if (_gridKey[i] == key)
-                {
-                    if (y < _gridY[i]) _gridY[i] = y;
-                    return;
-                }
-                if (_gridKey[i] != long.MinValue) continue;
-                _gridKey[i] = key;
-                _gridY[i] = y;
-                return;
-            }
-            _gridKey[home] = key;
-            _gridY[home] = y;
+            if (_sKey[k.Slot] != k.Id) k.Slot = State(k.Id, k.Length, k.Phi0, step);
+            _sSeen[k.Slot] = step;
+            return k.Slot;
         }
 
-        // ---- the discs' trails over the stem field ------------------------------------------------------------------------------
+        // ---- the field's squares and layers ---------------------------------------------------------------------------------
 
-        // A rotor's disc over stems now stands at hub with its stems cut down to the plane y: a new trail entry once the hub has
-        // moved StemTrailStep from the last, else the last one's plane lowered to it.
-        void Trail(int c, Double3 hub, double y)
+        // The square (ix, iz)'s slot, asked of the world if not yet known: its ground and the stems per m² reaching h_ref per layer.
+        int Square(int ix, int iz)
         {
-            int at = c * StemTrailSize;
-            if (_trailCount[c] > 0)
+            long key = ((long)ix << 32) ^ (uint)iz;
+            int home = (int)(FlightRandom.Mix64((ulong)key) & (SquareSlots - 1));
+            int at = home;
+            for (int p = 0; p < SquareProbe; p++)
             {
-                int last = at + (_trailHead[c] + StemTrailSize - 1) % StemTrailSize;
-                double dx = hub.X - _trailX[last], dz = hub.Z - _trailZ[last];
-                if (dx * dx + dz * dz < StemTrailStep * StemTrailStep)
+                int i = (home + p) & (SquareSlots - 1);
+                if (_qKey[i] == key) return i;
+                if (_qKey[i] == long.MinValue)
                 {
-                    if (y < _trailY[last]) _trailY[last] = y;
-                    return;
+                    at = i;
+                    break;
                 }
             }
-            int i = at + _trailHead[c];
-            _trailX[i] = hub.X;
-            _trailZ[i] = hub.Z;
-            _trailY[i] = y;
-            _trailHead[c] = (_trailHead[c] + 1) % StemTrailSize;
-            if (_trailCount[c] < StemTrailSize) _trailCount[c]++;
+            var centre = new XZ((ix + 0.5) * StemSquare, (iz + 0.5) * StemSquare);
+            _point[0] = centre;
+            _world.SampleGround(_point, _pointGround);
+            _qKey[at] = key;
+            _qGround[at] = _pointGround[0].Height;
+            Double3 n = _pointGround[0].Normal;
+            bool flat = !(n.Y > 0.1);
+            _qNx[at] = flat ? 0 : n.X;
+            _qNz[at] = flat ? 0 : n.Z;
+            _qNy[at] = flat ? 1 : n.Y;
+            for (int l = 0; l < Layers; l++) _qDensity[at * Layers + l] = 0;
+            int count = _world.StemsNear(centre, PointRadius, StemReference, _patches);
+            if (count > _patches.Length) count = _patches.Length;
+            double inverse = 1 / (Pi * PointRadius * PointRadius);
+            bool unseen = false;
+            for (int p = 0; p < count; p++)
+            {
+                StemPatch patch = _patches[p];
+                if (patch.Layer >= Layers) continue;
+                _qDensity[at * Layers + patch.Layer] += patch.Density * patch.Area * inverse; // the circle's mean on a cell's edge
+                _layerKind[patch.Layer] = patch.Kind;
+                _layerTop[patch.Layer] = patch.HeightMax;
+                unseen |= !_layerReach[patch.Layer];
+            }
+            if (unseen) Reach(centre);
+            return at;
         }
 
-        // The plane the field's stems at (x, z) were cut down to: the lowest of every trail entry whose disc held the point strictly
-        // inside (any rotor's: a rear disc in the front one's track, a disc back over its own); +∞ for ground no disc has cut.
-        double TrailCut(double x, double z, double rtip)
+        // The layers seen at centre for the first time: the share of their stems at h_ref still reaching each height, from the
+        // field there (the same in every cell: the field is the cell's count × the layer's reach), to 1e-9.
+        void Reach(XZ centre)
         {
-            double y = double.PositiveInfinity, inside = rtip * (1 - 1e-6);
-            for (int c = 0; c < 4; c++)
-                for (int k = 0; k < _trailCount[c]; k++)
+            Span<double> base0 = stackalloc double[Layers];
+            Span<bool> fresh = stackalloc bool[Layers];
+            Span<double> here = stackalloc double[Layers];
+            base0.Clear();
+            fresh.Clear();
+            for (int j = 0; j < ReachEntries; j++)
+            {
+                int count = _world.StemsNear(centre, PointRadius, StemReference + j * StemReachStep, _patches);
+                if (count > _patches.Length) count = _patches.Length;
+                here.Clear();
+                for (int p = 0; p < count; p++)
+                    if (_patches[p].Layer < Layers) here[_patches[p].Layer] += _patches[p].Density * _patches[p].Area;
+                for (int l = 0; l < Layers; l++)
                 {
-                    int i = c * StemTrailSize + k;
-                    double dx = x - _trailX[i], dz = z - _trailZ[i];
-                    if (dx * dx + dz * dz < inside * inside && _trailY[i] < y) y = _trailY[i];
+                    if (j == 0)
+                    {
+                        fresh[l] = !_layerReach[l] && here[l] > 0;
+                        base0[l] = here[l];
+                    }
+                    if (!fresh[l]) continue;
+                    double share = here[l] / base0[l];
+                    _reach[l * ReachEntries + j] = (long)(share * 1e9 + 0.5) * 1e-9;
                 }
-            return y;
+            }
+            for (int l = 0; l < Layers; l++)
+                if (fresh[l]) _layerReach[l] = true;
+        }
+
+        // The drawn length of a stem of layer l at the share s of its layer's stems at h_ref (the shares fall with height).
+        double LengthAt(int l, double s)
+        {
+            int at = l * ReachEntries;
+            for (int j = 0; j + 1 < ReachEntries; j++)
+            {
+                double a = _reach[at + j], b = _reach[at + j + 1];
+                if (b > s) continue;
+                double u = a > b ? (a - s) / (a - b) : 0;
+                return StemReference + (j + u) * StemReachStep;
+            }
+            return StemReference + (ReachEntries - 1) * StemReachStep;
+        }
+
+        // ---- the caches -------------------------------------------------------------------------------------------------------
+
+        // Rotor c's cache about hub: the field's stems based within the disc and the refresh's margin (where the world has a
+        // ground height), then S04's elements.
+        void Cache(int c, Double3 hub, bool field, long step)
+        {
+            _cacheAt[c] = hub;
+            _cacheValid[c] = true;
+            double reach = _radius + StemCacheRefresh + 0.02, reach2 = reach * reach;
+            int m = 0, at = c * StemCacheSize;
+            int x0 = Floor((hub.X - reach) / StemSquare), x1 = field ? Floor((hub.X + reach) / StemSquare) : x0 - 1;
+            int z0 = Floor((hub.Z - reach) / StemSquare), z1 = Floor((hub.Z + reach) / StemSquare);
+            for (int iz = z0; iz <= z1; iz++)
+                for (int ix = x0; ix <= x1; ix++)
+                {
+                    int q = Square(ix, iz);
+                    for (int l = 0; l < Layers; l++)
+                    {
+                        double density = _qDensity[q * Layers + l] * StemDensityScale;
+                        if (!(density > 0) || !_layerReach[l]) continue;
+                        int k = (int)_layerKind[l] + (int)CoverKind.GrassBlade - 1;
+                        if (k < (int)CoverKind.GrassBlade || k > (int)CoverKind.BurntCulm) continue;
+                        CoverSet set = _coverSets[k];
+                        if (!(set.Diameter > 0) || !(set.CutEnergy > 0)) continue;
+                        ulong cell = FlightRandom.Mix64(unchecked(((ulong)(uint)ix << 32) ^ (uint)iz ^ ((ulong)l << 59)));
+                        double count = density * StemSquare * StemSquare;
+                        int K = (int)(count + Uniform(cell, 0));
+                        for (int s = 0; s < K && m < StemCacheSize; s++)
+                        {
+                            ulong id = FlightRandom.Mix64(unchecked(cell + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
+                            double x = (ix + Uniform(id, 0)) * StemSquare, z = (iz + Uniform(id, 1)) * StemSquare;
+                            double dx = x - hub.X, dz = z - hub.Z;
+                            if (dx * dx + dz * dz > reach2) continue;
+                            double length = LengthAt(l, (s + Uniform(id, 2)) / K);
+                            double phi0 = StemNaturalLean * Uniform(id, 3), azimuth = TwoPi * Uniform(id, 4);
+                            double cx = (ix + 0.5) * StemSquare, cz = (iz + 0.5) * StemSquare;
+                            double y = _qGround[q] - (_qNx[q] * (x - cx) + _qNz[q] * (z - cz)) / _qNy[q];
+                            // d = d₁·L^(1/1.53): the kind's 1 m stem's diameter (the row's diameter_m) at the stem's own length.
+                            double d = set.Diameter * StemDiameterScale * DetMath.Exp(StemAllometry * DetMath.Log(length));
+                            DetMath.SinCos(azimuth, out double sa, out double ca);
+                            Add(ref _stalks[at + m++], id, new Double3(x, y, z), new Double3(ca, 0, sa), length, length, phi0,
+                                TissueOf(set, d, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1)), step);
+                        }
+                    }
+                }
+            if (_coverSets.Length > (int)CoverKind.Stem && (_coverSets[(int)CoverKind.Straw].CutEnergy > 0 || _coverSets[(int)CoverKind.Stem].CutEnergy > 0))
+            {
+                int n = _world.MicroDetailNear(hub, reach, MicroKind.Straw | MicroKind.Stem, _elements);
+                if (n > _elements.Length) n = _elements.Length;
+                for (int e = 0; e < n && m < StemCacheSize; e++)
+                {
+                    MicroElement el = _elements[e];
+                    CoverKind kind = el.Kind == MicroKind.Stem ? CoverKind.Stem : CoverKind.Straw;
+                    CoverSet set = _coverSets[(int)kind];
+                    if (!(set.CutEnergy > 0) || !(el.Diameter > 0)) continue;
+                    // The element's modulus in its row's range by its Id's hash: the fiber's rule (world-derived, never a flight draw).
+                    double u = (FlightRandom.Mix64(el.Id) >> 11) * (1.0 / 9007199254740992.0);
+                    double modulus = set.ModulusMin + (set.ModulusMax - set.ModulusMin) * u;
+                    double top = DetMath.Max(el.P0.Y, DetMath.Max(el.P1.Y, el.P2.Y));
+                    double length = (el.P1 - el.P0).Length() + (el.P2 - el.P1).Length();
+                    ulong id = FlightRandom.Mix64(el.Id ^ 0x5304_5304_5304_5304UL) | 1;
+                    // Its lean's direction: its drawn shape's, or by its hash when drawn upright.
+                    Double3 lean = el.P2 - el.P0;
+                    lean = new Double3(lean.X, 0, lean.Z);
+                    double across = lean.Length();
+                    if (across > 1e-9) lean = lean * (1 / across);
+                    else
+                    {
+                        DetMath.SinCos(TwoPi * Uniform(id, 4), out double sa, out double ca);
+                        lean = new Double3(ca, 0, sa);
+                    }
+                    double rise = top - el.P0.Y, phi0 = length > rise && length > 0 ? DetMath.Acos(DetMath.Min(1, rise / length)) : 0;
+                    Add(ref _stalks[at + m++], id, el.P0, lean, length, rise, phi0,
+                        TissueOf(set, el.Diameter * StemDiameterScale, modulus, (ushort)((int)kind + 1)), step);
+                }
+            }
+            _stalkCount[c] = m;
+        }
+
+        void Add(ref Stalk k, ulong id, Double3 basePoint, Double3 lean, double length, double rise, double phi0, in Tissue t, long step)
+        {
+            k.Base = basePoint;
+            k.Lean = lean;
+            k.Length = length;
+            k.Rise = rise;
+            k.Phi0 = phi0;
+            DetMath.SinCos(phi0, out _, out k.CosPhi0);
+            k.T = t;
+            k.MuG8 = t.Mu * Gravity / (8 * t.EI);
+            k.Tau0 = 1 / (1.875 * 1.875 * DetMath.Sqrt(t.EI / t.Mu));
+            k.Id = id;
+            k.Slot = State(id, length, phi0, step);
+        }
+
+        // A stem's top over its base: leaning, L·cos φ (its drawn shape's rise at most); folded by a jet, its arch's crest.
+        double TopOf(in Stalk k, int s)
+        {
+            double len = _sLen[s];
+            DetMath.SinCos(_sPhi[s], out _, out double cp);
+            double rise = k.Rise * (len / k.Length), top = DetMath.Min(rise, len * cp), q = _sQLag[s];
+            if (q > 0)
+            {
+                double lb = DetMath.Cbrt(k.T.EI / (StemDrag * k.T.D * q));
+                top = DetMath.Max(top, DetMath.Min(DetMath.Min(rise, len * k.CosPhi0), StemFoldedCrest * lb));
+            }
+            return top;
         }
 
         // ---- the step --------------------------------------------------------------------------------------------------------
 
-        // The four hubs' ground, once a step before the discs' passes (the field's heights).
+        // Before the discs' passes: the four hubs' ground, each rotor's cache, the jet on each stem, and every cached stem's lean.
         void StemsBegin(in FlightState now)
         {
             _tip = default;
@@ -349,12 +453,88 @@ namespace Fpv450.Sim.Contact
             Array.Clear(_stepDiameter, 0, 4);
             Array.Clear(_stepKind, 0, _stepKind.Length);
             for (int c = 0; c < 4; c++) StemLast[c] = default;
+            Span<double> hx = stackalloc double[4], hy = stackalloc double[4], hz = stackalloc double[4];
             for (int c = 0; c < 4; c++)
             {
                 Double3 hub = _discOf[c] >= 0 ? now.Position + now.Attitude.Rotate(_spec.Shapes[_discOf[c]].A) : now.Position;
                 _hubXZ[c] = new XZ(hub.X, hub.Z);
+                hx[c] = hub.X;
+                hy[c] = hub.Y;
+                hz[c] = hub.Z;
             }
             _world.SampleGround(_hubXZ, _hubGround);
+            long step = now.Step;
+            Double3 axis = now.Attitude.Rotate(Up);
+            double R = _radius, dt = FlightCore.Dt;
+            for (int c = 0; c < 4; c++)
+            {
+                var hub = new Double3(hx[c], hy[c], hz[c]);
+                double ground = _hubGround[c].Height, h = hub.Y - ground;
+                // A world without a ground height (the test range's plane) has no field, only its elements.
+                bool field = ground > double.NegativeInfinity;
+                _stemNear[c] = _discOf[c] >= 0 && (!field || h < StemWakeTop);
+                StemLast[c].Height = h;
+                if (!_stemNear[c])
+                {
+                    _stalkCount[c] = 0;
+                    _cacheValid[c] = false;
+                    continue;
+                }
+                if (!_cacheValid[c] || (hub - _cacheAt[c]).Length() > StemCacheRefresh) Cache(c, hub, field, step);
+                // The slipstream's pressure under the disc, q = T/A (momentum theory's contracted wake), on the stems based under it,
+                // and its swirl's angle off the axis, tan β = Q/(2·T·r̄) (momentum theory: the wake's angular momentum flux is the
+                // torque, w_θ = Q/(ρ·2v_i·A·r̄) over its axial 2v_i; r̄ = 2R/3, assumed), turning with the rotor.
+                double thrust = _propulsion.Thrust(c), q = StemLean && thrust > 0 ? thrust / (Pi * R * R) : 0;
+                double swirl = q > 0 ? DetMath.Abs(_propulsion.Torque(c)) / (2 * thrust * StemSwirlRadius * R) : 0, spin = _spin[c];
+                _stemQ[c] = q;
+                StemLast[c].Load = q;
+                StemLast[c].Cached = _stalkCount[c];
+                for (int e = 0; e < _stalkCount[c]; e++)
+                {
+                    ref Stalk k = ref _stalks[c * StemCacheSize + e];
+                    int s = SlotOf(ref k, step);
+                    if (_sLoaded[s] != step)
+                    {
+                        _sLoaded[s] = step;
+                        _sQ[s] = 0;
+                    }
+                    if (!(q > _sQ[s])) continue;
+                    Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
+                    double r2 = Double3.Dot(flat, flat);
+                    if (!(r2 <= R * R)) continue;
+                    _sQ[s] = q;
+                    // The swirl's tilt in the stem's own plane of lean: tan β times the wake's turning direction along its lean.
+                    Double3 turning = r2 > 0 ? Double3.Cross(axis, flat) * (-spin / DetMath.Sqrt(r2)) : default;
+                    _sSwirl[s] = swirl * Double3.Dot(turning, k.Lean);
+                }
+            }
+            // Each stem's lean once a step: φ' = −m(φ)/τ, semi-implicit in its slope; its jet's lag over τ for the arch.
+            for (int c = 0; c < 4; c++)
+            {
+                if (!_stemNear[c]) continue;
+                for (int e = 0; e < _stalkCount[c]; e++)
+                {
+                    ref Stalk k = ref _stalks[c * StemCacheSize + e];
+                    int s = k.Slot;
+                    if (_sAdvanced[s] == step) continue;
+                    _sAdvanced[s] = step;
+                    double q = _sLoaded[s] == step ? _sQ[s] : 0, phi = _sPhi[s];
+                    if (!(q > 0) && !(_sQLag[s] > 0) && _sRest[s]) continue; // at rest, its top known
+                    double len = _sLen[s], l3 = len * len * len, tau = len * len * k.Tau0;
+                    double A = q * k.T.Kappa0 * l3, G = k.MuG8 * l3, beta = q > 0 ? _sSwirl[s] : 0;
+                    // m(φ) = (φ − φ₀) − A·sin(φ + β)·|sin(φ + β)| − G·sin φ: the jet tilted β in the stem's plane, its normal share.
+                    DetMath.SinCos(phi, out double sp, out double cp);
+                    DetMath.SinCos(phi + beta, out double sj, out double cj);
+                    double aj = DetMath.Abs(sj);
+                    double m = phi - k.Phi0 - A * sj * aj - G * sp, slope = 1 - 2 * A * aj * cj - G * cp, rate = dt / tau;
+                    double next = DetMath.Min(Pi / 2, DetMath.Max(-Pi / 2, phi - m * rate / (1 + DetMath.Max(0, slope) * rate)));
+                    _sRest[s] = !(q > 0) && DetMath.Abs(next - phi) < 1e-12;
+                    _sPhi[s] = next;
+                    double lag = _sQLag[s] + (q - _sQLag[s]) * (dt / (tau + dt));
+                    _sQLag[s] = lag > 1e-9 ? lag : 0;
+                    _sTop[s] = TopOf(k, s);
+                }
+            }
         }
 
         // One rotor's stems this step (disc shape i, corner c), its blades sweeping from start over sweep. True when a blade changed.
@@ -362,24 +542,61 @@ namespace Fpv450.Sim.Contact
             StepEvents events, ref Double3 impulse, ref Double3 angular)
         {
             ref StemRecord rec = ref StemLast[c];
-            if (!_stemsOn) return false;
-            double R = _radius, dt = FlightCore.Dt, omega = now.RotorSpeed[c];
-            // The stems' load follows the rotor's q = T/A: quicker pressed than let up.
-            double thrust = _propulsion.Thrust(c), q = thrust > 0 ? thrust / (Pi * R * R) : 0, was = _stemQ[c];
-            double tau = q > was ? StemPressTime : StemRiseTime;
-            _stemQ[c] = was + (q - was) * (dt / (dt + tau));
-            q = StemLean ? _stemQ[c] : 0;
-            rec.Load = q;
-            rec.Cut = _stemCut[c];
+            if (!_stemsOn || !_stemNear[c]) return false;
+            double omega = now.RotorSpeed[c];
+            if (!(omega > 0) || !(axis.Y > 0.2)) return false;
+            double R = _radius, rtip = 0, rroot = (_b.Stations[0] - 0.5 * _span) * R, s = _spin[c];
+            for (int b = 0; b < _blades; b++) rtip = DetMath.Max(rtip, _propulsion.Rotor(c).Blade(b).TipRadius * R);
+            Double3 hub = now.Position + now.Attitude.Rotate(d.A);
+            double work = 0, axial = 0;
+            Double3 inPlane = default;
             bool changed = false;
-            if (omega > 0)
+            for (int e = 0; e < _stalkCount[c]; e++)
             {
-                double rtip = 0;
-                for (int b = 0; b < _blades; b++) rtip = DetMath.Max(rtip, _propulsion.Rotor(c).Blade(b).TipRadius * R);
-                Double3 hub = now.Position + now.Attitude.Rotate(d.A);
-                changed |= Field(i, d, c, ref now, body, hub, axis, start, sweep, q, rtip, ref rec, events, ref impulse, ref angular);
-                changed |= Elements(i, d, c, ref now, body, hub, axis, start, sweep, q, rtip, ref rec, events, ref impulse, ref angular);
+                ref Stalk k = ref _stalks[c * StemCacheSize + e];
+                Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
+                double r2 = Double3.Dot(flat, flat);
+                if (r2 > rtip * rtip || r2 < rroot * rroot) continue;
+                int slot = k.Slot;
+                double plane = hub.Y - (axis.X * rel.X + axis.Z * rel.Z) / axis.Y, top = k.Base.Y + _sTop[slot];
+                if (!(top > plane) || !(k.Base.Y < plane)) continue;
+                rec.Over++;
+                double r = DetMath.Sqrt(r2);
+                Double3 dir = flat * (1 / r);
+                // The blade's speed across the stem's axis: ω·r·√(1 − (t̂·â)²), t̂ the blade's motion there, â the stem's axis.
+                DetMath.SinCos(_sPhi[slot], out double sp, out double cp);
+                Double3 motion = Double3.Cross(axis, dir) * -s, stem = new Double3(k.Lean.X * sp, cp, k.Lean.Z * sp);
+                double along = Double3.Dot(motion, stem), across = omega * r * DetMath.Sqrt(DetMath.Max(0, 1 - along * along));
+                if (StemCritical && !(across >= k.T.Vc)) continue; // pushed aside
+                double psi = Azimuth(now.Attitude, dir, c);
+                int by = -1;
+                for (int b = 0; b < _blades && by < 0; b++)
+                {
+                    double ahead = Wrap(psi - (start + TwoPi * b / _blades));
+                    if (ahead > 0 && ahead <= sweep) by = b;
+                }
+                if (by < 0) continue;
+                // Fresh if never cut; else a stub sliced by the drop over the plane. The cut leaves it to the plane along its leg.
+                double len = _sLen[slot], drop = top - plane, rise = plane - k.Base.Y, leg = DetMath.Max(cp, StemStubCos);
+                bool fresh = !(len < k.Length);
+                double slice = fresh ? 0 : DetMath.Min(1, drop / k.T.D), piece = fresh ? DetMath.Max(0, len - rise / leg) : drop, was = work;
+                changed |= Part(i, d, c, by, ref now, body, hub, axis, psi, r, k.T, fresh ? 1 : 0, slice, fresh ? 0 : drop, 1, piece, events,
+                    ref impulse, ref angular, ref work, ref inPlane, ref axial);
+                _sLen[slot] = DetMath.Min(len, rise / leg);
+                _sTop[slot] = TopOf(k, slot);
+                if (fresh)
+                {
+                    rec.Fresh += 1;
+                    rec.FreshWork += work - was;
+                }
+                else rec.Sliced += slice;
+                rec.Cuts += 1;
+                if (!(now.RotorSpeed[c] > 0)) break;
+                omega = now.RotorSpeed[c];
             }
+            rec.Work += work;
+            rec.InPlane = rec.InPlane + inPlane;
+            rec.Axial += axial;
             return changed;
         }
 
@@ -400,176 +617,6 @@ namespace Fpv450.Sim.Contact
                 _fieldAngle[r] = _lastAngle[r];
             }
             _sumCuts = _sumLength = _sumRadius = default;
-        }
-
-        // The stem field's stems under the disc (design.md 2.2, the law's steps 1–6).
-        bool Field(int i, in ContactShape d, int c, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, double start, double sweep,
-            double q, double rtip, ref StemRecord rec, StepEvents events, ref Double3 impulse, ref Double3 angular)
-        {
-            double ground = _hubGround[c].Height;
-            if (!(ground > double.NegativeInfinity)) return false;
-            double R = _radius, dt = FlightCore.Dt, omega = now.RotorSpeed[c], h = hub.Y - ground, cut = _stemCut[c];
-            rec.Height = h;
-            int n = _world.StemsNear(_hubXZ[c], R, h, _patches);
-            if (n > _patches.Length) n = _patches.Length;
-            double passes = _blades * omega * dt / TwoPi, disc = Pi * R * R, rroot = (_b.Stations[0] - 0.5 * _span) * R;
-            // The hub's motion across the stems in the disc's plane: what it runs into is met upright at its leading edge.
-            Double3 v = PointVelocity(now, hub), across = v - axis * Double3.Dot(v, axis);
-            double speed = across.Length();
-            Double3 lead = speed > 0 ? across * (1 / speed) : default;
-            double atLead = speed > 0 ? TrailCut(hub.X + lead.X * rtip, hub.Z + lead.Z * rtip, rtip) - ground : double.PositiveInfinity;
-            double fresh = 0, sliced = 0, entered = 0;
-            Span<double> nH = stackalloc double[FieldKinds], rH = stackalloc double[FieldKinds], lH = stackalloc double[FieldKinds];
-            Span<double> nE = stackalloc double[FieldKinds], lE = stackalloc double[FieldKinds];
-            nH.Clear(); rH.Clear(); lH.Clear(); nE.Clear(); lE.Clear();
-            bool deeper = cut > h && cut < double.PositiveInfinity;
-            // Per kind, the lengths [L1, L2] whose leaning tops stand to the disc (the two roots of φ·cos φ = κh³; all from h up
-            // without the slipstream), and κ.
-            Span<double> l1 = stackalloc double[FieldKinds], l2 = stackalloc double[FieldKinds], kap = stackalloc double[FieldKinds];
-            for (int f = 0; f < FieldKinds; f++)
-            {
-                Tissue t = _tissue[f + (int)CoverKind.GrassBlade];
-                double kappa = q * t.Kappa0, x = kappa * h * h * h;
-                kap[f] = kappa;
-                if (!t.Known || !(kappa > 0))
-                {
-                    l1[f] = h;
-                    l2[f] = double.PositiveInfinity;
-                    continue;
-                }
-                if (!(x < _rootMax))
-                {
-                    l1[f] = l2[f] = 0; // none stands to the disc
-                    continue;
-                }
-                Roots(x, out double phi1, out double phi2);
-                DetMath.SinCos(phi1, out _, out double c1);
-                DetMath.SinCos(phi2, out _, out double c2);
-                l1[f] = h / c1;
-                l2[f] = c2 > 0 ? DetMath.Cbrt(phi2 / (kappa * c2 * c2)) : double.PositiveInfinity;
-            }
-            for (int p = 0; p < n; p++)
-            {
-                StemPatch patch = _patches[p];
-                int k = (int)patch.Kind + (int)CoverKind.GrassBlade - 1;
-                if (k < (int)CoverKind.GrassBlade || k > (int)CoverKind.BurntCulm || !_tissue[k].Known) continue;
-                Tissue t = _tissue[k];
-                int f = k - (int)CoverKind.GrassBlade;
-                // The stems reaching the disc as they lean, where the blade is fast enough across them: their tops above h spread
-                // evenly up to the patch's tallest (assumed), so the lengths standing to it are the share (L2 − L1)/(top − h).
-                double above = patch.HeightMax - h, lo = DetMath.Max(l1[f], h), hi = DetMath.Min(l2[f], patch.HeightMax);
-                if (above > 0 && hi > lo)
-                {
-                    double count = patch.Density * patch.Area * (hi - lo) / above, mid = 0.5 * (lo + hi);
-                    double cphi = LeanCos(kap[f] * mid * mid * mid), share = Annulus(t.Vc, omega, cphi, rtip, rroot, out double rms);
-                    nH[f] += count * share;
-                    rH[f] += count * share * rms;
-                    lH[f] += count * share * DetMath.Max(0, mid - h / cphi); // the piece above the cut
-                }
-                // What the leading edge runs into: upright, its tops up to the tallest or to the ground's cut plane there.
-                if (speed > 0 && omega * rtip >= (StemCritical ? t.Vc : 0))
-                {
-                    double top = DetMath.Min(atLead, patch.HeightMax), span = patch.HeightMax - h;
-                    if (top > h && span > 0)
-                    {
-                        double stand = patch.Density * patch.Area / disc * (top - h) / span;
-                        nE[f] += stand;
-                        lE[f] += stand * 0.5 * (top - h);
-                    }
-                }
-            }
-
-            // The parts: the stems under the disc (fresh tops, sliced stubs), and those the leading edge meets.
-            double work = 0;
-            bool changed = false;
-            Double3 inPlane = default;
-            double axial = 0;
-            for (int f = 0; f < FieldKinds; f++)
-            {
-                int k = f + (int)CoverKind.GrassBlade;
-                Tissue t = _tissue[k];
-                if (!t.Known) continue;
-                // The stubs cut before stand at the height cut to: coming down, the disc slices them; the stems it now meets
-                // beyond them (come within its reach as it came down, or risen as the slipstream eased) are fresh, due until a
-                // blade sweeps them.
-                ref double due = ref _stemDue[c * FieldKinds + f], stubs = ref _stemStubs[c * FieldKinds + f];
-                double drop = deeper ? cut - h : 0, slices = deeper ? stubs * DetMath.Min(passes, drop / t.D) : 0;
-                double flungStubs = deeper ? stubs * drop : 0;
-                if (nH[f] > stubs)
-                {
-                    due += nH[f] - stubs;
-                    stubs = nH[f];
-                }
-                double take = due * DetMath.Min(1, passes);
-                due -= take;
-                double r = nH[f] > 0 ? rH[f] / nH[f] : DetMath.Sqrt(0.5 * (rtip * rtip + rroot * rroot)); // stubs alone: over the blade
-                double length = nH[f] > 0 ? lH[f] / nH[f] : 0;
-                if (take > 0 || slices > 0)
-                {
-                    // Shared evenly by the blades, at their own azimuths this step.
-                    double cuts = take + slices;
-                    for (int b = 0; b < _blades; b++)
-                        changed |= Part(i, d, c, b, ref now, body, hub, axis, start + 0.5 * sweep + TwoPi * b / _blades, r, t,
-                            take / _blades, slices / _blades, flungStubs / _blades, cuts / _blades, (take * length + slices * drop) / cuts, events,
-                            ref impulse, ref angular, ref work, ref inPlane, ref axial);
-                    fresh += take;
-                    sliced += slices;
-                }
-                double enter = 2 * rtip * speed * dt * nE[f];
-                if (enter > 0)
-                {
-                    double piece = lE[f] / nE[f], psiLead = Azimuth(now.Attitude, lead, c);
-                    for (int b = 0; b < _blades; b++)
-                    {
-                        double psi = start + 0.5 * sweep + TwoPi * b / _blades;
-                        double weight = 0.5 * Pi * DetMath.Max(0, Cos(psi - psiLead));
-                        if (!(weight > 0)) continue;
-                        double rb = _propulsion.Rotor(c).Blade(b).TipRadius * R;
-                        changed |= Part(i, d, c, b, ref now, body, hub, axis, psi, rb, t, enter * weight, 0, 0, enter * weight, piece, events,
-                            ref impulse, ref angular, ref work, ref inPlane, ref axial);
-                    }
-                    entered += enter;
-                }
-            }
-
-            // The height cut to: down to the disc where it came down; towards the ground it moves onto in the share it sweeps, and
-            // its stubs towards the stems reaching the disc there.
-            if (h < cut) cut = h;
-            if (speed > 0)
-            {
-                double s = DetMath.Min(1, 2 * rtip * speed * dt / (Pi * rtip * rtip));
-                cut += s * (DetMath.Min(atLead, h) - cut);
-                for (int f = 0; f < FieldKinds; f++) _stemStubs[c * FieldKinds + f] += s * (nH[f] - _stemStubs[c * FieldKinds + f]);
-            }
-            _stemCut[c] = cut;
-            if (n > 0) Trail(c, hub, ground + cut); // the ground under the disc stands no higher than that
-            rec.Cut = cut;
-            rec.Fresh += fresh;
-            rec.Sliced += sliced;
-            rec.Entered += entered;
-            rec.Cuts += fresh + sliced + entered;
-            rec.Work += work;
-            rec.InPlane = rec.InPlane + inPlane;
-            rec.Axial += axial;
-            return changed;
-        }
-
-        // The share of the disc where a blade at ω cuts a stem leaning φ (its cosine cphi), ω·r·cos φ ≥ v_c, outside the root,
-        // and its cuts' rms radius (the stems even over the disc).
-        double Annulus(double vc, double omega, double cphi, double rtip, double rroot, out double rms)
-        {
-            double across = omega * cphi, rc = StemCritical ? (across > 0 ? vc / across : double.PositiveInfinity) : 0;
-            rc = DetMath.Max(rc, rroot);
-            rms = 0;
-            if (!(rc < rtip)) return 0;
-            rms = DetMath.Sqrt(0.5 * (rtip * rtip + rc * rc));
-            return (rtip * rtip - rc * rc) / (_radius * _radius);
-        }
-
-        static double Cos(double a)
-        {
-            DetMath.SinCos(a, out _, out double c);
-            return c;
         }
 
         // One part of a rotor's stems on blade b at azimuth psi (rotor's), radius r: cuts fresh stems, slices stubs (cut
@@ -632,7 +679,7 @@ namespace Fpv450.Sim.Contact
                 e.C = share;
                 events.Add(e);
             }
-            // The log: the blade's step in BladeStrikes, its whole stems counted from the running mean.
+            // The log: the blade's step in BladeStrikes, its whole stems counted from the running count.
             double counted = cuts * share;
             int slot = BladeStrikes.Slot(c, b);
             if (slot < BladeStrikes.Slots)
@@ -652,89 +699,6 @@ namespace Fpv450.Sim.Contact
             _stepKind[c * 7 + t.Code - 1] += counted;
             _lastAngle[c] = now.RotorAngle[c];
             return damaged;
-        }
-
-        // S04's drawn straws and stems under the disc (the range): discrete, each met by the blade crossing its azimuth.
-        bool Elements(int i, in ContactShape d, int c, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, double start, double sweep,
-            double q, double rtip, ref StemRecord rec, StepEvents events, ref Double3 impulse, ref Double3 angular)
-        {
-            if (!(_strawSet.CutEnergy > 0) && !(_stemSet.CutEnergy > 0)) return false;
-            if (!_cacheValid[c] || (hub - _cacheAt[c]).Length() > StemCacheRefresh) Cache(c, _cacheValid[c] ? _lastHub[c] : hub, hub, rtip, axis);
-            _lastHub[c] = hub;
-            int count = _stalkCount[c];
-            if (count == 0 || !(axis.Y > 0.2)) return false;
-            double omega = now.RotorSpeed[c], rroot = (_b.Stations[0] - 0.5 * _span) * _radius;
-            double work = 0, axial = 0;
-            Double3 inPlane = default;
-            bool changed = false;
-            for (int e = 0; e < count; e++)
-            {
-                ref Stalk k = ref _stalks[c * StemCacheSize + e];
-                Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
-                double r = flat.Length();
-                bool inside = r <= rtip && r >= rroot;
-                bool entering = inside && !k.Inside;
-                k.Inside = inside;
-                if (!inside || !(omega > 0)) continue;
-                rec.Elements++;
-                // Its top: leaning in the slipstream (upright as it enters), or the plane its ground was cut to.
-                double cphi = entering ? 1 : LeanCos(q * k.T.Kappa0 * k.Length * k.Length * k.Length);
-                double own = k.Base.Y + DetMath.Min(k.Rise, k.Length * cphi), cutTo = GridCut(k.Base.X, k.Base.Z), top = DetMath.Min(own, cutTo);
-                double plane = hub.Y - (axis.X * rel.X + axis.Z * rel.Z) / axis.Y;
-                if (!(top > plane) || !(k.Base.Y < plane)) continue;
-                if (StemCritical && !(omega * r * cphi >= k.T.Vc)) continue; // pushed aside
-                double psi = Azimuth(now.Attitude, flat * (1 / r), c);
-                int by = -1;
-                for (int b = 0; b < _blades && by < 0; b++)
-                {
-                    double ahead = Wrap(psi - (start + TwoPi * b / _blades));
-                    if (ahead > 0 && ahead <= sweep) by = b;
-                }
-                if (by < 0) continue;
-                double drop = top - plane;
-                bool fresh = !(cutTo < own);
-                double slice = fresh ? 0 : DetMath.Min(1, drop / k.T.D), piece = fresh ? DetMath.Max(0, k.Length - (plane - k.Base.Y) / cphi) : drop;
-                GridLower(k.Base.X, k.Base.Z, plane);
-                changed |= Part(i, d, c, by, ref now, body, hub, axis, psi, r, k.T, fresh ? 1 : 0, slice, fresh ? 0 : drop, 1, piece, events,
-                    ref impulse, ref angular, ref work, ref inPlane, ref axial);
-                if (fresh) rec.Fresh += 1;
-                else rec.Sliced += slice;
-                rec.Cuts += 1;
-                if (!(now.RotorSpeed[c] > 0)) break;
-                omega = now.RotorSpeed[c];
-            }
-            rec.Work += work;
-            rec.InPlane = rec.InPlane + inPlane;
-            rec.Axial += axial;
-            return changed;
-        }
-
-        // The rotor's element cache about its hub: the straws and stems whose bases lie within the disc and the refresh's margin.
-        void Cache(int c, Double3 last, Double3 hub, double rtip, Double3 axis)
-        {
-            _cacheAt[c] = hub;
-            _cacheValid[c] = true;
-            int n = _world.MicroDetailNear(hub, _radius + StemCacheRefresh + 0.02, MicroKind.Straw | MicroKind.Stem, _elements);
-            if (n > _elements.Length) n = _elements.Length;
-            int m = 0;
-            for (int e = 0; e < n; e++)
-            {
-                MicroElement el = _elements[e];
-                CoverSet set = el.Kind == MicroKind.Stem ? _stemSet : _strawSet;
-                if (!(set.CutEnergy > 0) || !(el.Diameter > 0)) continue;
-                // The element's modulus in its row's range by its Id's hash: the fiber's rule (world-derived, never a flight draw).
-                double u = (FlightRandom.Mix64(el.Id) >> 11) * (1.0 / 9007199254740992.0);
-                double modulus = set.ModulusMin + (set.ModulusMax - set.ModulusMin) * u;
-                double top = DetMath.Max(el.P0.Y, DetMath.Max(el.P1.Y, el.P2.Y));
-                ref Stalk k = ref _stalks[c * StemCacheSize + m++];
-                k.Base = el.P0;
-                k.Length = (el.P1 - el.P0).Length() + (el.P2 - el.P1).Length();
-                k.Rise = top - el.P0.Y;
-                k.T = TissueOf(set, el.Diameter, modulus, (ushort)((el.Kind == MicroKind.Stem ? (int)CoverKind.Stem : (int)CoverKind.Straw) + 1));
-                Double3 rel = k.Base - last, flat = rel - axis * Double3.Dot(rel, axis);
-                k.Inside = flat.Length() <= rtip; // inside at the last step: not met as an entry
-            }
-            _stalkCount[c] = m;
         }
 
         // The rotor's episode (StemEpisode) and the feed's field window, after its stems this step.

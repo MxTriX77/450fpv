@@ -153,9 +153,24 @@ namespace Fpv450.Sim.Tests
         /// The drone set down disarmed on the slope, its skids on it (its up the slope's normal, the skids 10 µm in) with the nose
         /// uphill (yaw 0: the skids along the fall line) or across it (yaw 90°), in rain's moisture, for seconds.
         /// </summary>
-        public static Rest Settle(DroneSpec spec, double deg, RainLevel rain, double yawDeg, double seconds = 3, SurfaceTable table = null)
+        public static Rest Settle(DroneSpec spec, double deg, RainLevel rain, double yawDeg, double seconds = 3, SurfaceTable table = null,
+            string surface = "meadow_sod")
         {
-            FlightWorld world = Site(deg, out Double3 foot, out Double3 n);
+            FlightWorld world = Site(deg, out Double3 foot, out Double3 n, surface);
+            return Settle(spec, world, foot, n, rain, yawDeg, seconds, table);
+        }
+
+        /// <summary>The same rest on the farmland at (x, z) (w9-village-physics 2.9), dry, its nose uphill (yaw 0) or yawDeg from it.</summary>
+        public static Rest SettleOnFarmland(DroneSpec spec, double x, double z, double yawDeg, double seconds = 3)
+        {
+            MapWorld w = Farmland();
+            GroundSample g = Ground(w, x, z);
+            double uphill = Math.Atan2(-g.Normal.X, -g.Normal.Z) * RadToDeg;
+            return Settle(spec, new FlightWorld(w), new Double3(x, g.Height, z), g.Normal, RainLevel.Sunny, uphill + yawDeg, seconds, null);
+        }
+
+        static Rest Settle(DroneSpec spec, FlightWorld world, Double3 foot, Double3 n, RainLevel rain, double yawDeg, double seconds, SurfaceTable table)
+        {
             double stand = SoilScenarios.Standing(spec);
             FlightSetup setup = SoilScenarios.Setup(spec, world, foot + n * (stand - 1e-5), rain, table: table);
             setup.StartAttitude = Aligned(n, yawDeg);

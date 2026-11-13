@@ -197,6 +197,15 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool HangingGive = true;
 
+        /// <summary>
+        /// A leg's held foot within its reach (w9-village-physics 2.4, model 86; ContactModel.Reached): a soil foot's or a leg
+        /// point's stretch on the ground past what the leg's lever reaches turned square (γL across its tube, the frame's lever
+        /// along the skid) is let go, and the hold starts again at the foot. On for every flight; off only for the known-wrong and
+        /// the kept audits against model 85, whose slide ran the stretch to tens of metres and the moment's lever with it. The
+        /// header records it in its own entry (2.9), so a flight flown with it off replays.
+        /// </summary>
+        public bool AnchorReach = true;
+
 
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
