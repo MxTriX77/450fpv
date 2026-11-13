@@ -822,9 +822,80 @@ The step's cost was not measured again here. A field stem costs a little per ste
 - The wheat plant's 0.9 m height for the anchor, and the green culm's 1.5 mm at 0.75 m.
 - The agricultural downwash-in-canopy measurements were not readable here. No number of theirs is used.
 
-## 2.3 Leaves in crowns
+## 2.3 Leaves in crowns, and what a crown's twigs hold
 
-To be written by task 2.3.
+**Owner:** physics-engineer · **Requirements:** PHY-05, PHY-24, PHY-26, LOG-03 · **Branch:** `unity/physics/physics-integration-2--w9-crowns` (from ca718e20, model 89) · Widened by three findings (2.4's anchors on shells, 2.7's held props, 2.7's event overflow). The model number is the orchestrator's at the merge.
+
+Labels as in 2.2: **measured**, **published**, **carried**, **derived**, **assumed**, **numerical**. Every number below is printed by `tools/flightbench/handcalc/crown_twigs.py`, which reads the constants from `physics_materials.json`'s `twig.crown` block.
+
+### 1. What was wrong (measured on ca718e20)
+
+The crown's twig shell is a row of `physics_materials.json` (`twig`): 30 N/m per touching part, no limit, the friction's stick anchor on it. A shell is a sphere of 0.8–1.7 m radius (IslandTree's 19 at the test's spot, GreenBush_Dry's 6; measured, `StaticContacts` round them), so a part 0.5–1 m inside one is pushed 15–30 N back towards the sphere's face, and a crown of 7–10 overlapping shells pushes 7–10 times that. The row's own rationale ("one 10 mm green twig 0.8 m long under each part") is a twig that breaks or lets go under a foot's 11.8 N: its moment there is 9.4 N·m, a stress of 96 MPa, at the top of green wood's rupture (derived; §2). So the shell held the drone like a soft solid, which no twig can:
+- **The crown flight with the stems on** (`ObjectContactTests`' crown, `Contacts.Stems` true): first touch 10.89 s, 6 twigs cut, then the drone rests 4.17 m up for the last 10 s with 21 pairs touching and 38.7 N from them (its weight less the rotors' thrust), rotor fr at 100 rad/s and rl at 480 (measured). With the stems off it frees itself at 18.9 s by a crash on a bark capsule; the outcome turned on which flight the liftoff's grass gave it.
+- **The bush hover** (`AHoverInACrownBreaksNoBladeTwice`'s start, 1.24 m up in GreenBush_Dry): step 0 makes 360 pairs and 777 N, 4 legs break and 4 crack, 7 motor bells dent, 88 events (24 refused); then three rotors stand still for 25 s in the shells (their blades' 25–39 N each, 2.7) while the drone rests on 198 pairs at 43 N (measured).
+- **The anchors** (2.4): a leg's stick anchor on a shell slides 0.66–0.99 m, past the leg's 0.176 m reach, and 2.4 left shells out of its release because releasing them lodged the drone: the shells' push was then the only thing that held it.
+
+### 2. What a twig holds (first principles)
+
+**One twig** (each number: `twig.crown`, labelled there):
+- diameter d = 7.5 mm (assumed, carried: the shell's 5–10 mm cards), free length ℓ = 0.5 m from the branch it grows on (assumed, carried: one axis a foliage spray), green wood's rupture σ = 50 MPa (assumed: 23–90 MPa over small stems' bending tests, lower toward the pith; green black locust's published 95 MPa is the upper bound) and modulus E = 10 GPa (assumed, carried from the row; 5.7–18 GPa in the same tests).
+- A part bearing on it at an arm a from its base bends it as a cantilever: k(a) = 3EI/a³, EI = 1.553 N·m² (derived). It breaks (a green twig hinges and lets go: greenstick) at P_b = σZ/a, Z = πd³/32 = 4.14e-8 m³, so **8.3 N at its middle** (a = 0.25 m), after a deflection δ_b = 2σa²/(3Ed) (derived).
+- **Does the part slip off first?** The twig's slope at the load when it breaks is σa/(Ed): 9.5° at its middle, under the 26.6° at which a part with μs 0.5 slides along it. So a twig breaks before it lets a part slide off, over its whole length (derived). (A twig met end-on would buckle at π²EI/(4a²), 61 N at its middle; one met across, the common case, bends. The law takes every twig as met across, assumed.)
+- The arm is even over (0, ℓ] (assumed: nothing places a part nearer a twig's base than its tip). The mean work to break one twig is **W̄ = σ²Zℓ/(6Ed) = 0.115 J** and its mean deflection at the break **δ̄ = 2σℓ²/(9Ed) = 37 mm** (derived).
+
+**The twigs a part meets** (stereology, derived): a crown's twigs are lines of length density L_V (m/m³) in random directions. The lines hitting a convex body number L_V·S/4, S its surface, so a part pushed a distance z meets L_V·p·z/4 twigs, p the perimeter of its silhouette seen along the push (a capsule's 2l⊥ + πw, a sphere's πw). Each twig met is bent by the part's further advance until it breaks after its δ_b. So, once the part has moved δ̄ into fresh twigs, it carries a steady
+- **F_y = n'·W̄, n' = L_V·p/4** (each metre of advance breaks n' twigs at W̄ each; derived), reached over δ̄: its secant stiffness **k_e = F_y/δ̄**.
+- L_V = **2.0 m/m³** (assumed, carried from `PropStrikes.CrownTwigLength`). The pipe model checks it: a twig of section A carries a leaf area A·(AL:AS) (Shinozaki 1964), angiosperm branches 0.01–10 m²/cm² (published, PROMETHEUS protocols), 0.1–1 taken; over the crowns' 0.21–2.09 m²/m³ of leaf (2.8) that is 0.2–24 m/m³ of 7.5 mm twigs (derived). 2 lies inside, in its lower part.
+
+**The drone in a crown** (the repository's contact shapes, each pushed down; `crown_twigs.py`):
+
+| Parts | silhouette p (m) | twigs a metre | F_y (N) | k_e (N/m) |
+|---|---|---|---|---|
+| skids (4) | 1.886 | 0.94 | 0.108 | 2.9 |
+| arms (8 tubes) | 2.935 | 1.47 | 0.169 | 4.6 |
+| stacks, packs, payload, coil | 3.275 | 1.64 | 0.188 | 5.1 |
+| blades (4 rotors, at rest) | 4.372 | 2.19 | 0.251 | 6.8 |
+| legs, motors | 0.593 | 0.30 | 0.034 | 0.9 |
+| **the whole drone** | 13.06 | 6.5 | **0.75** | |
+
+- **When it lodges, when it falls through.** The twigs hold 0.75 N against its 46.5 N weight (1.6 %): **a 4.7 kg drone falls through a crown's twigs** and stops only on what is stronger, a branch (the shells' bark capsules, 27–43 mm at the test's spot) or the ground. To hang on twigs alone the crown would need L_V = 124 m/m³ of 7.5 mm twigs, 62 times the assumed one and 5 times the pipe model's top: a hedge's thicket, not a tree's crown (derived). A drone with thrust in a crown flies on through it, paying 0.115 J a twig its parts break and its props' cuts.
+- **A blade at rest in a shell** carries at most 0.029 N, its stick friction 1.3e-3 N·m about the shaft (derived), against the 1.1–1.8 N·m the shells' 25–39 N gave (model 89). So **a prop is never held still by twigs**: the motor turns it, it leaves rest, and `PropStrikes.Twigs` cuts what it meets. A blade that cuts a twig at speed pays e_s·A + its fling (2.7's law); a rotor too slow for that work stops on the twig (2.7's jam, kept), and the motor's next turns cut it.
+- **This is a mean.** A part meets twigs one by one; the law carries their expectation, as `Twigs` does for the props. A drone might rest a moment on two twigs near their bases (25 N each at a = 0.1 m), which the mean cannot give; placing twigs one by one by hash, as 2.12 places stems, would. It is named below, not built.
+
+### 3. The law (`ContactModel`, the twig shell's hold)
+
+A crown row (`twig.crown` present) replaces its per-part 30 N/m for the drone's parts (the fiber keeps the row's own fields: `Tether/` is not this task's):
+1. **Stiffness:** each part's k_e = (L_V·p/4)·W̄/δ̄, p its silhouette along the pair's normal (`Layered`, where every compliant row's per-part stiffness is made), in series with the part's own; damped at the row's ζ (0.2).
+2. **The yield:** a crown pair's spring reads its depth past its yield, and the yield grows so the depth it reads is never more than δ̄: the plane moves in with the part (twigs met and broken), and stays when the part backs out (the twigs behind it are broken; it meets nothing until it is past where it was).
+3. **One crown a part:** the overlapping shells stand for one crown's twigs, so a part's deepest crown pair carries them and its other crown pairs are held (suppressed) for the step, as `Twigs` takes the deepest shell's meeting for their union.
+4. **The anchors:** a leg's stick anchor on a crown pair lets go past the twigs' reach, δ̄, which is shorter than the leg's own 0.176 m (2.4's `Reached`, with the twig's reach): a twig bent sideways past it has broken. The ground's rule is unchanged.
+
+**The known-wrong:** model 89's row (30 N/m, no yield): the crown test's base flight hangs at 4.17 m on the shells' push.
+
+### 4. The leaves (`PropStrikes.Leaves`)
+
+**The numbers** (`twig.crown`, each labelled): leaf area density per variant (measured, 2.8: 0.21–2.09 m²/m³; a variant without leaves, 0), dry leaf mass per area 0.06 kg/m² (published, Onoda et al. 2011) over a dry matter content of 0.35 (assumed) = **0.171 kg/m² fresh**, work to shear 0.1 J/m (published, Onoda), a critical speed of 132 m/s (derived: 2.11 §2.2's leaf blade across its width, 44 m/s sharp, × the prop's edge factor 3, assumed), and the cleared cell, 0.05 m (assumed: half a 10 cm leaf).
+
+**The law, per turning rotor in a crown, per step:**
+- The disc's plane is sampled every 5 cm (21 points within R, numerical); a point in the crown's immersed part (past the deepest shell's chord, `Twigs`' region) lies in a world cube of 5 cm. A cube no disc has passed before is **fresh**: its leaves are met now and it is kept cleared (a store of the cubes passed, keyed by the crown and the cube, 16,384 slots, the home slot overwritten when full; 2.12's per-stem store's pattern). A disc held still clears its cubes and meets nothing more; a rear disc in a front one's track meets what the front left.
+- Each fresh cube at radius r, the blade's speed u = ω·r: the blade strikes the leaf area LAD·A_c·t, A_c = (5 cm)², t the slab its section sweeps there (its frontal height h_f moving in its plane; the whole cube moving along its axis: t = h_f + (s − h_f)·|v̂·â|). It **flings** that leaf's fresh mass to its speed (m_A·LAD·A_c·t·u², 2.2's fling) and, where u ≥ 132 m/s, **cuts** it: 0.1 J/m over its trace on the plane, (π/4)·LAD·A_c a slab (stereology, derived) times t/h_f slabs. Slower, the leaf is pushed aside uncut (no cut work), its struck mass flung all the same.
+- The rotor pays it (ω' = √(ω² − 2E/J)), the body takes the in-plane impulse and the reaction about the shaft at the cube's point (2.7's `Twig`'s accounting), each cube by the blade whose turn it is. One `BladeStrike` a rotor a step for the step's leaves, on the crown's shell with the world's `foliage` material (the twigs keep `twig`), and the blade's `BladeStrikes` slot.
+
+**What it gives, by hand** (derived, `crown_twigs.py`): a disc driven at 2 m/s through a crown sweeps 0.51 m² of fresh plane a second: 0.4–10 W of fling for LAD 0.21–2.09 at 900–1,500 rad/s, and no cut at the mean radius (u 76–127 m/s under 132). A disc coming down at 0.5 m/s sweeps its whole volume: **5–53 W** a disc, against the hover's 110–160 W: the dips and the shake of a descent into a leafy crown. Each fresh cube is a discrete hit (0.02–0.1 J), so the work arrives in a train at the cubes' rate, never as a smooth drag.
+
+**Not modelled:** the leaves' drag on the rotor's inflow through the crown (the aero's: a porous blockage of ½ρv²·C_d·LAD·L, about 2 % of the disc loading for 0.5 m of LAD 1, derived), named for the aero.
+
+### 5. The event buffer
+
+The step's buffer (64) refused 24 events in the bush hover's first step. A step's events are bounded at their source by the contact table: each pair slot (shapes × 24) makes or breaks at most once a step, and a slot freed by a break can be made again in the same step. So the buffer is **sized from what a step can raise**: 64 for every other producer, plus 2 a pair slot of the flight's contact shapes (`StepEvents.ForContacts`). It allocates once, at the core's construction (109 shapes: 5,296 events). Bounding at a source would drop forensics (every `ContactMade` is a record QA reads); refusing none is the requirement.
+
+### 6. The runs (the spec's)
+
+- **The crown flight, 2 m/s into a crown** (the spec's "Leaves in a crown"): the crown test's IslandTree, flown at 2 m/s as well as 6.85 m/s, the stems on: what the twigs and the leaves take, the rotors' dips, the body's rate at 4–15 Hz and at the blade pass, where it ends and why.
+- **A hover in a crown** (GreenBush_Dry, 25 s): the props turn, what they cut, no blade frozen, no break at 0 kg, no event refused.
+- Hand checks within 10 %: the twigs' hold (F_y on the whole drone against the contact force measured while it falls through), and the leaves' work a second against `crown_twigs.py` for the run's own speeds and LAD.
+
+(As built, the runs and the checks follow below.)
 
 ## 2.9 Village's ground rows and the liftoff harness
 
