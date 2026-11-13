@@ -41,12 +41,15 @@ namespace Fpv450.Sim.Tests
         {
             public double[][] Turn = new double[3][];
             public double MeanRotorHeightOverR, MeanSpeed, MeanThrottle;
+
+            /// <summary>The pilot's remnant share of each commanded body rate's variance (HarnessPilot.RemnantShare).</summary>
+            public double[] RemnantShare = new double[3];
         }
 
         /// <summary>motion_bands.py's numbers per axis.</summary>
         public sealed class Grade
         {
-            public double[] RateSd = new double[3], Wobble = new double[3], Acf = new double[3];
+            public double[] RateSd = new double[3], Wobble = new double[3], Acf = new double[3], RemnantShare = new double[3];
             public double[][] Angle = { new double[3], new double[3], new double[3] };
             public double RotorHeightOverR, Speed;
         }
@@ -64,10 +67,12 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// Flies one probe flight: a hover with the camera `height` m over the floor, or a cruise at `height` m and `airspeed`
-        /// m/s; `remnant` gives the pilot its stick noise; `edit` changes the setup (a source off, the known-wrong).
+        /// m/s; `remnant` gives the pilot its stick noise; `edit` changes the setup (a source off, the known-wrong); `human`
+        /// flies the human pilot (p7c-wind design 13: its crossover and delay, and with `remnant` its observation noise beside
+        /// the motor noise).
         /// </summary>
         public static Run Fly(DroneSpec spec, Phase phase, double height, WindLevel level, ulong seed, Action<FlightSetup> edit = null,
-            bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0)
+            bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0, bool human = false)
         {
             FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(level), seed);
             MicroMotion.Airframe(spec, setup);
@@ -87,7 +92,9 @@ namespace Fpv450.Sim.Tests
             CrosswindScenario.Arm(core);
             long release = core.State.Step;
             var pilot = new HarnessPilot(core.Controller) { Course = 0, Height = origin, Hover = phase == Phase.Hover, PitchDeg = pitchDeg, Learning = false };
+            if (human) pilot.Human();
             if (remnant) pilot.UseRemnant(seed);
+            if (remnant && human) pilot.UseObservationNoise(seed);
 
             int steps = (int)(seconds * 1000), from = (int)(Discard * 1000);
             double q = 50 / Fps;
@@ -139,6 +146,7 @@ namespace Fpv450.Sim.Tests
             }
             core.Wind.Dispose();
             for (int a = 0; a < 3; a++) run.Turn[a] = turns[a].ToArray();
+            for (int a = 0; a < 3; a++) run.RemnantShare[a] = pilot.Measured > 0 ? pilot.RemnantShare(a) : 0;
             run.MeanRotorHeightOverR /= n;
             run.MeanSpeed /= n;
             run.MeanThrottle /= n;
@@ -156,6 +164,7 @@ namespace Fpv450.Sim.Tests
         public static Grade Analyse(Run run)
         {
             var g = new Grade { RotorHeightOverR = run.MeanRotorHeightOverR, Speed = run.MeanSpeed };
+            for (int a = 0; a < 3; a++) g.RemnantShare[a] = run.RemnantShare[a];
             for (int a = 0; a < 3; a++)
             {
                 double[] d = run.Turn[a];
@@ -255,6 +264,7 @@ namespace Fpv450.Sim.Tests
                     m.RateSd[a] += g.RateSd[a] * g.RateSd[a] / all.Count;
                     m.Wobble[a] += g.Wobble[a] * g.Wobble[a] / all.Count;
                     m.Acf[a] += g.Acf[a] / all.Count;
+                    m.RemnantShare[a] += g.RemnantShare[a] / all.Count;
                     for (int b = 0; b < 3; b++) m.Angle[a][b] += g.Angle[a][b] * g.Angle[a][b] / all.Count;
                 }
             }
@@ -268,11 +278,11 @@ namespace Fpv450.Sim.Tests
         }
 
         public static Grade Mean(DroneSpec spec, Phase phase, double height, WindLevel level, ulong first, int seeds,
-            Action<FlightSetup> edit = null, bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0)
+            Action<FlightSetup> edit = null, bool remnant = true, double airspeed = 0, double seconds = Seconds, double descent = 0, bool human = false)
         {
             var all = new List<Grade>();
             for (ulong seed = first; seed < first + (ulong)seeds; seed++)
-                all.Add(Analyse(Fly(spec, phase, height, level, seed, edit, remnant, airspeed, seconds, descent)));
+                all.Add(Analyse(Fly(spec, phase, height, level, seed, edit, remnant, airspeed, seconds, descent, human)));
             return Mean(all);
         }
 
@@ -283,8 +293,8 @@ namespace Fpv450.Sim.Tests
             string[] axes = { "roll", "pitch", "yaw" };
             b.Append(name).Append(string.Format(CultureInfo.InvariantCulture, " (rotors {0:F1} R, {1:F1} m/s)", g.RotorHeightOverR, g.Speed));
             for (int a = 0; a < 3; a++)
-                b.Append(string.Format(CultureInfo.InvariantCulture, "\n  {0,-5} rate {1:F2} deg/s; angle {2:F4} / {3:F4} / {4:F4} deg; wobble {5:F3} deg, 1/e {6:F2} s",
-                    axes[a], g.RateSd[a], g.Angle[a][0], g.Angle[a][1], g.Angle[a][2], g.Wobble[a], g.Acf[a]));
+                b.Append(string.Format(CultureInfo.InvariantCulture, "\n  {0,-5} rate {1:F2} deg/s; angle {2:F4} / {3:F4} / {4:F4} deg; wobble {5:F3} deg, 1/e {6:F2} s; remnant share {7:F3}",
+                    axes[a], g.RateSd[a], g.Angle[a][0], g.Angle[a][1], g.Angle[a][2], g.Wobble[a], g.Acf[a], g.RemnantShare[a]));
             return b.ToString();
         }
     }
@@ -392,6 +402,29 @@ namespace Fpv450.Sim.Tests
             foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
                 foreach (var row in TableRows)
                     TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m 11 m/s, {level}, {row.Name}", GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, row.Edit, airspeed: 11)));
+        }
+
+        /// <summary>
+        /// p7c-wind design 13's grade (Explicit): the note's flights, before (K§8.5's pilot) and after (the human pilot) on the
+        /// same seeds, and the human without its remnant (the known-wrong): the hover at 1.25 m (C, D, E) in still air and in
+        /// Calm, A's last metres, S's low cruise in Calm and Windy.
+        /// </summary>
+        [Test, Explicit]
+        public void HumanPilotTable()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            var pilots = new (string Name, bool Human, bool Remnant)[] { ("K§8.5's pilot", false, true), ("human", true, true), ("human, noiseless", true, false) };
+            foreach (var p in pilots)
+            {
+                foreach (WindLevel level in new[] { WindLevel.Still, WindLevel.Calm })
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"hover 1.25 m, {level}, {p.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Hover, 1.25, level, 1, 3, remnant: p.Remnant, human: p.Human)));
+                TestContext.WriteLine(GroundMicroMotion.Rows($"descent 6.5 to 3.5 m, 8 m/s, Calm, {p.Name}",
+                    GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 6.5, WindLevel.Calm, 1, 3, remnant: p.Remnant, airspeed: 8, seconds: 11, descent: 0.5, human: p.Human)));
+                foreach (WindLevel level in new[] { WindLevel.Calm, WindLevel.Windy })
+                    TestContext.WriteLine(GroundMicroMotion.Rows($"cruise 7.5 m 11 m/s, {level}, {p.Name}",
+                        GroundMicroMotion.Mean(spec, GroundMicroMotion.Phase.Cruise, 7.5, level, 1, 3, remnant: p.Remnant, airspeed: 11, human: p.Human)));
+            }
         }
 
         /// <summary>Each source switched against the as-built hover at 1.25 m in still air (seeds 1–3).</summary>
