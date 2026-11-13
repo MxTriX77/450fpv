@@ -30,8 +30,8 @@
 //   first.
 // - The house's queries (p6-world-query, D-087: the step inside Z01's room): a cell's list holds each
 //   item's bounds beside it; a small query (each side of its bounds at most 1 m: a drone's part, a fiber
-//   node, a rotor's ray) tests the items of the thread's region that holds it (RegionCache), not the
-//   cells; the ground is skipped where every core end is above it by more than the margin (AboveGround);
+//   node, a rotor's ray) tests the items of a region that holds it (RegionCache, one of the world's, held by the query
+//   alone while it runs), not the cells; the ground is skipped where every core end is above it by more than the margin (AboveGround);
 //   and a still capsule's box clearance is taken once (ShapeMath.Sweep). Each tests exactly the shapes
 //   the grid walk tests, or proves the skipped one gives none, so every result keeps its bits.
 // - Wires for physics (p7d-tether 1.2): StaticContacts and Raycast skip every wire under QueryFilter.NoWires;
@@ -56,6 +56,7 @@
 // Contacts.cs and WorldObjects.cs (8 m broadphase cells there, 2 m here; see ShapeMath).
 
 using System;
+using System.Threading;
 
 namespace Fpv450.Sim.World
 {
@@ -235,6 +236,7 @@ namespace Fpv450.Sim.World
                 for (int k = entry * RegionCache.Capacity, end = k + cached.Count[entry]; k < end; k++)
                     if (cached.Items[k].Box.Overlaps(reach))
                         SweepItem(cached.Items[k].Item, stack, previous, current, margin, speed, reach, noWires, results, ref count);
+                Give(cached);
             }
             else
             {
@@ -442,6 +444,7 @@ namespace Fpv450.Sim.World
                 for (int k = entry * RegionCache.Capacity, end = k + cached.Count[entry]; k < end; k++)
                     if (cached.Items[k].Box.Overlaps(reach))
                         RayItem(cached.Items[k].Item, stack, o, d, reach, noWires, ref found, ref best, ref normal, ref hit);
+                Give(cached);
             }
             else
             {
@@ -671,9 +674,10 @@ namespace Fpv450.Sim.World
         // ---- The grid ----------------------------------------------------------------------------------------------
 
         /// <summary>
-        /// The thread's region (RegionCache) that holds a small reach (each side at most RegionCache.Reach), gathered from the
-        /// grid on a miss over the reach grown by RegionCache.Grow on every side; null for a larger reach, or for a region of
-        /// more than RegionCache.Capacity items: those walk the grid.
+        /// A region (RegionCache) that holds a small reach (each side at most RegionCache.Reach), gathered from the grid on a
+        /// miss over the reach grown by RegionCache.Grow on every side, in a cache this query holds alone until it gives it back
+        /// (Give); null for a larger reach, for a region of more than RegionCache.Capacity items, or when every cache is in use
+        /// (RegionsShort counts those): those walk the grid.
         /// </summary>
         private RegionCache Region(in Bounds reach, out int entry)
         {
@@ -681,7 +685,9 @@ namespace Fpv450.Sim.World
             if (!(reach.Max.X - reach.Min.X <= RegionCache.Reach && reach.Max.Y - reach.Min.Y <= RegionCache.Reach
                 && reach.Max.Z - reach.Min.Z <= RegionCache.Reach))
                 return null;
-            RegionCache c = _region ?? (_region = new RegionCache());
+            RegionCache c = Take();
+            if (c == null)
+                return null;
             for (int e = 0; e < RegionCache.Entries; e++)
             {
                 if (c.World[e] == this && c.Region[e].Holds(reach))
@@ -706,7 +712,10 @@ namespace Fpv450.Sim.World
                         if ((e.CellX > x0 ? e.CellX : x0) != cx || (e.CellZ > z0 ? e.CellZ : z0) != cz || !e.Box.Overlaps(region))
                             continue;
                         if (n == RegionCache.Capacity)
+                        {
+                            Give(c);
                             return null;
+                        }
                         c.Items[first + n++] = e;
                     }
                 }
@@ -795,19 +804,56 @@ namespace Fpv450.Sim.World
 
     public sealed partial class MapWorld
     {
-        [ThreadStatic] private static RegionCache _region;
+        /// <summary>The world's region caches, made with it (MapWorldLoad.cs); a slot is null while a query holds its cache.</summary>
+        private readonly RegionCache[] _regions;
+        private long _regionsShort;
 
         /// <summary>
-        /// A thread's last few regions of the grid, each with the cell items whose bounds meet it (the house's queries). A
+        /// Small queries that found every region cache in use and walked the grid instead: the same results, slower. Nonzero
+        /// means more queries ran at once than the world has caches (RegionCache.PerWorld): a step's budget is at risk, so a test
+        /// or a bench that sees it fails.
+        /// </summary>
+        public long RegionsShort => Interlocked.Read(ref _regionsShort);
+
+        /// <summary>
+        /// A free cache, taken out of its slot so no other query can use it; first from the calling thread's own slot, so a
+        /// thread finds its last regions again. Null when every cache is in use. Allocates nothing.
+        /// </summary>
+        private RegionCache Take()
+        {
+            int n = _regions.Length, s = Environment.CurrentManagedThreadId % n;
+            for (int i = 0; i < n; i++, s = s + 1 < n ? s + 1 : 0)
+            {
+                RegionCache c = Interlocked.Exchange(ref _regions[s], null);
+                if (c != null)
+                    return c;
+            }
+            Interlocked.Increment(ref _regionsShort);
+            return null;
+        }
+
+        /// <summary>Puts back a cache Take gave, its writes visible to whichever query takes it next.</summary>
+        private void Give(RegionCache c) => Volatile.Write(ref _regions[c.Slot], c);
+
+        /// <summary>
+        /// A query's last few regions of the grid, each with the cell items whose bounds meet it (the house's queries). A
         /// drone's parts and the fiber's nodes ask many small queries a step in one region, beside a building whose cells list
         /// a score of boxes each: a query whose reach a region holds tests the region's few items instead of walking the cells.
         /// Every item whose bounds meet the reach meets the region, so a query tests exactly the shapes it tests walking the
         /// grid, and its results are the same bits (StaticContacts inserts in canonical order whatever the order of its
-        /// tests). Per thread, so queries stay reentrant and callable from any thread; allocated at a thread's first small
-        /// query, then nothing. It holds no runtime objects, which are checked apart.
+        /// tests), whichever cache serves it. The world makes PerWorld of them as it loads; a query holds one alone while it runs
+        /// (Take, Give), so queries stay reentrant and callable from any thread, and no query ever allocates one (a thread's
+        /// first small query made a [ThreadStatic] one, 17 KB, mid-flight on the flight thread: night-region-cache). It holds
+        /// no runtime objects, which are checked apart.
         /// </summary>
         private sealed class RegionCache
         {
+            /// <summary>Caches a world makes: twice the processors, at least 8, so every thread can query at once.</summary>
+            public static readonly int PerWorld = Math.Max(8, 2 * Environment.ProcessorCount);
+            /// <summary>Its slot in the world's _regions.</summary>
+            public readonly int Slot;
+            public RegionCache(int slot) => Slot = slot;
+
             /// <summary>Regions kept; items a region holds at most; a reach's largest side to use one, and a region's growth on every side, m.</summary>
             public const int Entries = 8, Capacity = 32;
             public const double Reach = 1.0, Grow = 0.5;
