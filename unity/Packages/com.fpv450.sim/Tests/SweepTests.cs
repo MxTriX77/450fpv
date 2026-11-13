@@ -49,6 +49,29 @@ namespace Fpv450.Sim.Tests
             Assert.That(rightFailed, Is.Empty, "with the reach no spot fails the lever");
         }
 
+        // The sweep's finding 2 (docs/reviews/w9-village-physics-sweep.md §4): on the test range's E01, whose floor and ends are
+        // soil shapes (objects), the reach applied to the ground's pairs only (2.4), and #440's slide down the 22° end held a foot
+        // 4.93 m off (214.2 N·m on 43.4 N), its cut 1.10 m. Since w9-village-physics 2.3 every hold lets a foot go where the leg
+        // no longer reaches it (the ground, a soil shape, a rigid shape; a crown's twigs at their own reach): both pass the
+        // lever. The known-wrong, the reach off (model 85's slide), fails it.
+        [Test]
+        public void OnE01sSoilShapesTheReachHoldsTheLever()
+        {
+            var range = new Context(MapWorld.Load(RangeScenarios.Root, "test-range"), RepositoryDrone.Spec(), WindLevel.Calm);
+            Point[] points = Draw(range.Map, 400, 1, out _);
+            Point p = Array.Find(points, q => q.Index == 440);
+            Assert.That(p.X, Is.EqualTo(59.38).Within(0.01), "the premise: the sweep's #440 on E01's 22° end");
+            foreach (Manoeuvre m in new[] { Manoeuvre.Slide, Manoeuvre.Cut })
+            {
+                Row right = Fly(range, p, m, 1, replay: false)[0];
+                Print($"#440 {m}: the largest lever {right.Worst[(int)Check.Lever]:F3} m; {right.Line()}");
+                Assert.That(right.Failed[(int)Check.Lever], Is.False, $"#440 {m}: {right.Detail}");
+            }
+            Row wrong = Fly(range, p, Manoeuvre.Slide, 1, prepare: GoldenFlights.WithoutTheReach, replay: false)[0];
+            Print($"#440 Slide without the reach: the largest lever {wrong.Worst[(int)Check.Lever]:F3} m");
+            Assert.That(wrong.Failed[(int)Check.Lever], Is.True, "the known-wrong fails the lever");
+        }
+
         [Test]
         public void TheSameSeedGivesTheSameRows()
         {
