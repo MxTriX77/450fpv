@@ -417,8 +417,9 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model94ContactHash, GoldenFlights.ContactHash, sw);
             Audit("range", "model 94", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, descentBranch: !old), c),
                 GoldenFlights.Model94RangeHash, GoldenFlights.RangeHash, sw);
-            Audit("tether", "model 94", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, descentBranch: !old), c),
-                GoldenFlights.Model94TetherHash, GoldenFlights.TetherHash, sw);
+            // The tether's on the 4 R cut-off of the wash both ways (p7d-tether design 19 came after): model 94's pin, and model 96's.
+            Audit("tether", "model 94", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, descentBranch: !old, wakeReach4R: true), c),
+                GoldenFlights.Model94TetherHash, GoldenFlights.Model96TetherHash, sw);
         }
 
         // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 (WakeLayout.Version 1: each cell's porosity
@@ -1117,6 +1118,20 @@ namespace Fpv450.Sim.Tests
                 "with model 90's own wake too: model 88's pin");
             Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: false, ownWake: false), Is.EqualTo(GoldenFlights.Design18OnModel90TetherHash),
                 "design 18 on model 90's own wake: the fiber branch's pin before the merge");
+        }
+
+        // p7d-tether design 19's audit (the wash below the rotors with distance, model 97, merged onto model 96): with the known-wrong
+        // 4 R cut-off of the wash (FlightSetup.TetherWakeReach4R) the tether golden is model 96's pin, every record and event; with
+        // model 94's clipped descent branch and the wash's law it is design 19's pin on model 94's line (the wash branch's before the
+        // merge); every golden without the line keeps its pin. So the merged far jet and its landing are the whole of the move.
+        [Test]
+        public void WithTheWakeCutOffTheTetherGoldenIsModel96s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 96", (cut, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, wakeReach4R: cut), c),
+                GoldenFlights.Model96TetherHash, GoldenFlights.TetherHash, "the 4 R cut-off of the wash");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, descentBranch: false, wakeReach4R: false), Is.EqualTo(GoldenFlights.Design19OnModel94TetherHash),
+                "design 19 on model 94's clipped descent branch: the wash branch's pin before the merge");
         }
 
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every

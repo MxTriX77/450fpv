@@ -951,8 +951,17 @@ namespace Fpv450.Sim.Log
         ///    thrust; the class's measured static pitch sweep stops gaining at +15.8 %). The held mean falls 0.33 %. The
         ///    powered, rain, contact, range and tether goldens moved and are re-pinned; Propulsion.ClippedDescentBranch
         ///    (unlogged, the suite's) flies 95's branch for the kept audits.
+        /// 97: the wash below the rotors with distance (p7d-tether 1.11b, design 19, on 96;
+        ///    unity/physics/physics-integration-2--w9-rotor-wash): the air the rotors put on the line. To 96 a disc's column
+        ///    reached the ground only within 4 R (assumed), so a drone higher up put no air on the ground at all. Now the
+        ///    near wake holds to one motor distance below the rotors, the four jets are one round jet from 2.5 of them
+        ///    (Bauersfeld et al. 2024: its centreline's decay and its spread, measured on six quadrotors), blended between,
+        ///    and from any height the jet lands as a radial wall jet of its momentum flux (Poreh, Tsuei and Cermak 1967:
+        ///    the peak falling as r^-1.1; Verhoff's profile). Only the line feels it: the tether golden moved and is
+        ///    re-pinned; FlightSetup.TetherWakeReach4R (in the header's tether entry) flies 96's cut-off for the kept
+        ///    audits. A flight without the line steps as 96 did.
         /// </summary>
-        public const int ModelVersion = 96;
+        public const int ModelVersion = 97;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
