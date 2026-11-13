@@ -120,71 +120,158 @@ namespace Fpv450.Sim.Tests
             Assert.That(wrong.Failed[(int)Check.Energy], Is.True, "a damper that pushes gives energy back: the check fails it");
         }
 
-        // Lever (3.0b): range #180 Slide, 1.42 N·m on a net 2.36 N, a 0.602 m "lever" on |ΣF|; by hand its pairs' normals sum to
-        // 20.8 N and every point of application lies within 0.38 m: a couple. Judged pair by pair (PairReach) it passes; the
-        // known-wrongs (the reach off) are WithoutTheReach_TheSweepFailsTheLever and OnE01sSoilShapesTheReachHoldsTheLever, both
-        // still failing on the per-pair reading (76–1184 m and 0.63–82 m).
-        // Since 2.6b's depth law the row flies another path (its hanging halves stand out of the soil, not 57.7 mm in it), so the
-        // audit flies the flight it judged by hand, on model 98's placement (ContactSpec.HangingDepth off, a kept audit). On the new
-        // path a pair on S04's straw latched to a tile's far side face, 229 mm in, puts its point 0.547 m from the CoM: the sweep's
-        // finding, handed on.
+        // The range's points on a patch (S04's straw over its soil, E01's soil boxes), in the draw's order.
+        static Point[] RangePatch(string patch) => Array.FindAll(_rangePoints ??= Draw(Range().Map, 400, 1, out _), q => q.Surface == "patch:" + patch);
+
+        // Lever (3.0b): |M|/|ΣF| is no lever where contacts push against each other. Range #180 Slide at model 95 read 0.602 m (1.42
+        // N·m on a net 2.36 N), while its pairs' normals summed to 20.8 N and every point of application lay within 0.38 m. Over
+        // S04's slides, every step whose |M|/|ΣF| exceeds the farthest point any of its forces acts at (PairReach) is a couple: no
+        // force set acting within r of the CoM makes |M| > r·|ΣF| unless its forces partly cancel. Over those steps the per-pair
+        // reading stays within Reach whatever |M|/|ΣF| says. The set, not one row: whether a flight's couple passes 0.5 m on |ΣF|
+        // turns on its path. The known-wrongs (the reach off) are WithoutTheReach_TheSweepFailsTheLever and
+        // OnE01sSoilShapesTheReachHoldsTheLever.
         [Test]
-        public void ACoupleOfLightContactsPassesTheLever()
+        public void ACouplesLeverIsItsPairsReach()
         {
-            Row row = FlyRange(180, Manoeuvre.Slide, core => core.Contacts.Spec.HangingDepth = false);
-            Assert.That(row.Judged[(int)Check.Lever] && !row.Failed[(int)Check.Lever], Is.True, "#180 Slide's couple has its forces within reach");
-            Assert.That(row.Worst[(int)Check.Lever], Is.LessThan(Reach));
+            int couples = 0;
+            double mostRatio = 0, mostReach = 0;
+            foreach (Point p in RangePatch("S04_patch"))
+                Fly(Range(), p, Manoeuvre.Slide, 1, replay: false, observe: core =>
+                {
+                    ref readonly StepTrace tr = ref core.Trace;
+                    double cf = tr.ContactForce.Length(), cm = tr.ContactMoment.Length();
+                    if (!(cf > 0)) return;
+                    double far = PairReach.Farthest(core.Contacts, core.State, core.State.Position + core.State.Attitude.Rotate(core.Body.CenterOfMass), out _);
+                    if (!(cm > far * cf)) return;
+                    couples++;
+                    mostRatio = Math.Max(mostRatio, cm / cf);
+                    mostReach = Math.Max(mostReach, far);
+                });
+            Print($"S04's slides: {couples} couple steps, |M|/|ΣF| up to {mostRatio:F3} m, the pairs' farthest point then {mostReach:F3} m");
+            Assert.That(couples, Is.GreaterThan(0), "the premise: S04's slides make couples");
+            Assert.That(mostReach, Is.LessThan(Reach), "in a couple the pairs' forces act within reach");
         }
 
-        // Tunnel (3.0b): range #425 Slide's support_fl_end is dropped from E01's soil box 15.0 mm in, its corner's soil sunk 12.5
-        // mm and the ground's pair beside carrying it: the soil's own give, no passage. #431 Slide's hanging half (its leg gone, so
-        // no give) is dropped 37.9 mm into the box with no sink: through it, and the corrected check still fails it.
+        // Tunnel (3.0b), on made events: the core's rule takes a surface's row as rigid, so a part dropped from a soil box inside the
+        // soil's own sink and the part's give is no passage (range #425 Slide at model 95: support_fl_end 15.0 mm in E01's box, its
+        // soil sunk 12.5 mm), and a real passage through a soil box still fails (#431 Slide at model 95: a hanging half, no give, 37.9
+        // mm in with no sink). On anything rigid every Tunnel fails, and every WorldBug.
         [Test]
         public void ATunnelOnSoilIsJudgedByTheSoilsDepth()
         {
-            Row soil = FlyRange(425, Manoeuvre.Slide), through = FlyRange(431, Manoeuvre.Slide);
-            Assert.That(soil.Failed[(int)Check.Tunnel], Is.False, "#425 Slide: 15 mm in a soil box that sank 12.5 mm");
-            Assert.That(through.Failed[(int)Check.Tunnel], Is.True, "#431 Slide: a hanging half 38 mm through the box");
-        }
-
-        // Ground (3.0b): a frame part's depth is its own penalty spring's at the force its pairs carry, up to its thickness (range
-        // #430 Drop: motor_fr 22.8–26 mm in E01's floor at 2.1–2.2 kN, a 4.9 m/s drop on its side), so it passes. The known-wrong:
-        // the frame parts 100 times softer (their springs' Stiffness and StiffnessUp × 0.01), so a part sinks wholly under the
-        // surface, and the same drop fails. A hanging half's compression in the trace is its own overlap, which excused it by itself, and its
-        // give is in its placement already: range #61 Slide's half lies 96.8 mm in the ground with 2 N behind it, and fails. Since 2.6b's
-        // depth law that half lies in by its force over its contact spring (HangingHalfTests), so the check's known-wrong flies model
-        // 98's placement (ContactSpec.HangingDepth off): 20.6–110.5 mm in the soil box.
-        [Test]
-        public void AFramePartAtItsForcePasses_ASoftOneOrAHangingHalfInTheGroundFails()
-        {
-            Row frame = FlyRange(430, Manoeuvre.Drop);
-            Row soft = FlyRange(430, Manoeuvre.Drop, core =>
+            FlightEvent Tunnel(byte surface, double depth)
             {
-                ContactShape[] shapes = core.Contacts.Spec.Shapes;
-                for (int i = 0; i < shapes.Length; i++)
-                    if (shapes[i].Role == ContactRole.Body)
-                    {
-                        shapes[i].Stiffness *= 0.01;
-                        shapes[i].StiffnessUp *= 0.01;
-                    }
-            });
-            Row half = FlyRange(61, Manoeuvre.Slide, core => core.Contacts.Spec.HangingDepth = false);
-            Assert.That(frame.Failed[(int)Check.Ground], Is.False, "#430 Drop: the motor's depth is its spring's at 2 kN");
-            Assert.That(soft.Failed[(int)Check.Ground], Is.True, "#430 Drop on springs 100 times softer: a part wholly under the surface");
-            Assert.That(half.Failed[(int)Check.Ground], Is.True, "#61 Slide: a hanging half deep in the ground");
+                FlightEvent e = FlightEvent.Of(EventKind.Tunnel);
+                e.Surface = surface;
+                e.A = depth;
+                return e;
+            }
+            const byte soil = 4;
+            Assert.That(TunnelFails(Tunnel(soil, 0.015), 0, 0.0125, out _), Is.False, "15 mm in a soil box that sank 12.5 mm");
+            Assert.That(TunnelFails(Tunnel(soil, 0.0379), LegGive(CornerState.Hanging | CornerState.Stub, 0.0379, 0), 0, out _), Is.True,
+                "a hanging half 38 mm through the box, no sink and no give");
+            Assert.That(TunnelFails(Tunnel(soil, 0.030), 0.004, 0.0075, out _), Is.False, "a leg's 4 mm and its soil's 7.5 mm hold 30 mm");
+            Assert.That(TunnelFails(Tunnel(soil, 0.032), 0.004, 0.0075, out _), Is.True, "and not 32 mm");
+            Assert.That(TunnelFails(Tunnel(0, 0.001), 1, 1, out _), Is.True, "through anything rigid, at any depth");
+            Assert.That(TunnelFails(FlightEvent.Of(EventKind.WorldBug), 1, 1, out _), Is.True, "a world bug");
+            Assert.That(TunnelFails(FlightEvent.Of(EventKind.ContactMade), 0, 0, out _), Is.False, "no other kind");
         }
 
-        // Rest (3.0b): range #131 Drop lies on its back with two props at idle; it holds its place to 1 mm and its attitude to 0.2°
-        // while its rate swings ±0.16 rad/s at ~15 Hz: at rest. #405 Drop, on its side, slides 0.49 m/s and turns 1.8 rad/s pushed
-        // by its idle props on S04's straw 10 s after the touch: not at rest, and the corrected check still fails it. Since 2.6b's
-        // depth law #405 flies another path and rests within the 10 s, so the known-wrong flies the slide it judged, on model 98's
-        // placement (ContactSpec.HangingDepth off, a kept audit).
+        // Ground (3.0b): a leg point may lie as deep as its leg's give in the state the step's forces were made in; a half whose leg
+        // is gone has none (the trace's compression there is the half's own overlap, which excused it by itself: range #61 Slide at
+        // model 95, a half 96.8 mm in with 2 N). A frame part may lie as deep as its own spring's overlap at its force, never past its
+        // thickness.
+        [Test]
+        public void ALegsGiveIsItsLegs_AFramePartsItsSpringsToItsThickness()
+        {
+            Assert.That(LegGive(CornerState.None, -0.012, 0.030), Is.EqualTo(0.042).Within(1e-12), "a whole leg: along and across");
+            Assert.That(LegGive(CornerState.Hanging | CornerState.Stub, 0.0968, 0), Is.EqualTo(0), "a hanging half: none");
+            Assert.That(LegGive(CornerState.Hanging | CornerState.Stub | CornerState.Folded, 0.05, 0.02), Is.EqualTo(0), "folded too");
+            Assert.That(LegGive(CornerState.Hanging | CornerState.TubeGone, 0.05, 0.02), Is.EqualTo(0), "its tube gone");
+            Assert.That(FrameGive(0.026, 0.0186), Is.EqualTo(0.026), "a motor can at 2.2 kN: its spring's 26 mm");
+            Assert.That(FrameGive(0.120, 0.0186), Is.EqualTo(0.0372), "never past its 37.2 mm thickness");
+        }
+
+        // The same on flights: a frame part's overlap at its own force passes on E01's drops, the soil boxes' hardest landings (at
+        // model 95 #430 Drop's motor_fr lay 22.8–26 mm in E01's floor at 2.1–2.2 kN, past the 20 mm tolerance alone), and the
+        // known-wrong, the frame parts' springs 1000 times softer on the drops that landed on a frame part, sinks parts wholly under
+        // the surface and fails. Over the set, and the known-wrong's set chosen by the right flights: which drop lands on a frame part
+        // and how deep turns on its path.
+        [Test]
+        public void AFramePartAtItsForcePasses_ASoftOneFails()
+        {
+            Point[] e01 = RangePatch("E01_curving");
+            var framed = new List<Point>();
+            int frameFails = 0, softFails = 0;
+            double deepest = 0;
+            var found = new StaticContact[16];
+            foreach (Point p in e01)
+            {
+                double deep = 0;
+                Row row = Fly(Range(), p, Manoeuvre.Drop, 1, replay: false, observe: core =>
+                {
+                    ContactModel cm = core.Contacts;
+                    for (int i = 0; i < cm.ShapeCount; i++)
+                    {
+                        ContactShape sh = cm.Shape(i);
+                        if (cm.ShapeOff(i) || sh.Role != ContactRole.Body) continue;
+                        var cap = new Capsule(core.State.Position + core.State.Attitude.Rotate(sh.A), core.State.Position + core.State.Attitude.Rotate(sh.B), sh.Radius);
+                        int n = Math.Min(Range().Map.StaticContacts(cap, cap, 0, found, QueryFilter.NoWires), found.Length);
+                        for (int j = 0; j < n; j++) if (found[j].Surface != 0) deep = Math.Max(deep, -found[j].Distance);
+                    }
+                })[0];
+                deepest = Math.Max(deepest, deep);
+                if (deep > GroundTolerance) framed.Add(p);
+                if (row.Failed[(int)Check.Ground] && row.Detail.Contains("the corner frame")) frameFails++;
+            }
+            // The known-wrong on the drops that landed on a frame part (most of E01's drops land on their legs alone).
+            foreach (Point p in framed)
+            {
+                Row row = Fly(Range(), p, Manoeuvre.Drop, 1, prepare: core =>
+                {
+                    ContactShape[] shapes = core.Contacts.Spec.Shapes;
+                    for (int i = 0; i < shapes.Length; i++)
+                        if (shapes[i].Role == ContactRole.Body)
+                        {
+                            shapes[i].Stiffness *= 0.001;
+                            shapes[i].StiffnessUp *= 0.001;
+                        }
+                }, replay: false)[0];
+                Print($"soft #{p.Index} Drop: Ground worst {row.Worst[(int)Check.Ground] * 1e3:F1} mm past its allowance, Tunnel worst {row.Worst[(int)Check.Tunnel] * 1e3:F1} mm; {row.Detail}");
+                // At model 98 the soft drops lie 46–144 mm past their allowance at worst, the tolerance's 2–7 times.
+                if (row.Failed[(int)Check.Ground]) softFails++;
+            }
+            Print($"E01's {e01.Length} drops: {framed.Count} put a frame part past {GroundTolerance * 1e3:F0} mm (deepest {deepest * 1e3:F1} mm), {frameFails} fail Ground on a frame part; soft springs: {softFails} of {framed.Count} fail");
+            Assert.That(framed, Is.Not.Empty, "the premise: E01's drops put frame parts past the tolerance alone");
+            Assert.That(frameFails, Is.EqualTo(0), "a frame part's overlap at its own force passes");
+            Assert.That(softFails, Is.EqualTo(framed.Count), "the known-wrong: springs 1000 times softer sink a frame part wholly in");
+        }
+
+        // Rest (3.0b), on made poses: at rest means the body went nowhere over the hold, its mean speed and turn under the spec's
+        // 0.05 m/s and 0.1 rad/s. An idle motor's vibration in place is rest (range #131 Drop at model 95: 1 mm and 0.2° while its
+        // rate swung ±0.16 rad/s at ~15 Hz); a slide at 0.49 m/s or a turn at 1.8 rad/s (#405 Drop at model 95, pushed by its idle
+        // props on S04's straw) is not; a creep is judged by the spec's own speed.
         [Test]
         public void AnIdleVibrationIsRest_ASlideIsNot()
         {
-            Row still = FlyRange(131, Manoeuvre.Drop), sliding = FlyRange(405, Manoeuvre.Drop, core => core.Contacts.Spec.HangingDepth = false);
-            Assert.That(still.Failed[(int)Check.Rest], Is.False, "#131 Drop: vibrating in place");
-            Assert.That(sliding.Failed[(int)Check.Rest], Is.True, "#405 Drop: still sliding");
+            int Hold(Func<double, (Double3 At, double Turn)> pose)
+            {
+                var w = new RestWindow();
+                int most = 0;
+                for (int k = 0; k < 2 * RestHold; k++)
+                {
+                    var (at, turn) = pose(k * FlightCore.Dt);
+                    most = Math.Max(most, w.Add(at, new Quat(Math.Sin(turn / 2), 0, 0, Math.Cos(turn / 2))));
+                }
+                return most;
+            }
+            double w15 = 2 * Math.PI * 15;
+            Assert.That(Hold(t => (new Double3(0.001 * Math.Sin(w15 * t), 0, 0), 0.0017 * Math.Sin(w15 * t))), Is.GreaterThanOrEqualTo(RestHold),
+                "vibrating 1 mm and 0.1° at 15 Hz (its rate ±0.16 rad/s) is at rest");
+            Assert.That(Hold(t => (new Double3(0.49 * t, 0, 0), 0)), Is.LessThan(RestHold), "a slide at 0.49 m/s is not");
+            Assert.That(Hold(t => (default, 1.8 * t)), Is.LessThan(RestHold), "a turn at 1.8 rad/s is not");
+            Assert.That(Hold(t => (new Double3(0.04 * t, 0, 0), 0.08 * t)), Is.GreaterThanOrEqualTo(RestHold), "a creep under the spec's speeds is at rest");
+            Assert.That(Hold(t => (new Double3(0.06 * t, 0, 0), 0)), Is.LessThan(RestHold), "and over them is not");
         }
 
         [Test]

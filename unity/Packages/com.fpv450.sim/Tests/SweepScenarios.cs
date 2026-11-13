@@ -506,8 +506,8 @@ namespace Fpv450.Sim.Tests
             StickSample held = default;
             bool holding = false;
             long touch = -1, restAt = -1, liftStart = -1, liftAt = -1, quiet = 0;
-            Double3 touchedAt = default, lastV = core.State.Velocity, restPos = default;
-            Quat restAtt = default;
+            Double3 touchedAt = default, lastV = core.State.Velocity;
+            var rest = new RestWindow();
             double groundAtFoot = p.Height;
             const int hover = 3000;
             int steps = 0;
@@ -609,18 +609,7 @@ namespace Fpv450.Sim.Tests
                         row.Worse(Check.Peak, acc);
                         if (!(acc < PeakBound)) row.Fail(Check.Peak, now.Step, $"{acc:F0} m/s² at {(now.Step - touch)} ms after the touch");
                     }
-                    // At rest: over the hold the body goes nowhere, its mean speed and turn rate since the hold began under RestSpeed and
-                    // RestRate (3.0b). The step's own speeds read an armed drone's idle vibration as motion: range #131 Drop, on its back
-                    // with two props at idle, held its place to 1 mm and its attitude to 0.2° while its rate swung ±0.16 rad/s at ~15 Hz.
-                    if (quiet == 0)
-                    {
-                        restPos = now.Position;
-                        restAtt = now.Attitude;
-                    }
-                    double hold = RestHold * FlightCore.Dt, cosHalf = Math.Abs(restAtt.W * now.Attitude.W + restAtt.X * now.Attitude.X
-                        + restAtt.Y * now.Attitude.Y + restAtt.Z * now.Attitude.Z);
-                    bool still = (now.Position - restPos).Length() < RestSpeed * hold && 2 * Math.Acos(Math.Min(1, cosHalf)) < RestRate * hold;
-                    quiet = still ? quiet + 1 : 0;
+                    quiet = rest.Add(now.Position, now.Attitude);
                     if (restAt < 0 && quiet >= RestHold) restAt = now.Step;
                     bool late = now.Step - touch >= (long)(RestSeconds / FlightCore.Dt);
                     if (restAt >= 0 || late)
@@ -708,6 +697,68 @@ namespace Fpv450.Sim.Tests
         {
             double up = s.Attitude.Rotate(new Double3(0, 1, 0)).Y;
             return Math.Acos(Math.Max(-1, Math.Min(1, up))) * 57.29577951308232;
+        }
+
+        // ---- The checks' rules, each a function of what one step shows (3.0b: tested on made states, never on one flight's path) --
+
+        /// <summary>Tunnel's verdict on one event: a WorldBug, and a Tunnel through anything rigid (no surface), always fail; a Tunnel
+        /// through the ground or a soil shape fails when it lay more than GroundTolerance past its soil's sink and the part's own give
+        /// (past, m): the core's rule takes a surface's row as rigid, so a part dropped from a soil box inside the soil's own sink is no
+        /// passage (range #425 Slide at model 95: support_fl_end 15.0 mm in E01's box, its soil sunk 12.5 mm). Other kinds pass.</summary>
+        public static bool TunnelFails(in FlightEvent e, double give, double sink, out double past)
+        {
+            past = 0;
+            if (e.Kind == EventKind.WorldBug || e.Kind == EventKind.Tunnel && e.Surface == 0)
+            {
+                past = double.PositiveInfinity;
+                return true;
+            }
+            if (e.Kind != EventKind.Tunnel) return false;
+            past = e.A - sink - give;
+            return past > GroundTolerance;
+        }
+
+        /// <summary>A leg point's own give this step, m: its leg's compression along the tube and lean across it (the trace's, which
+        /// the rigid body's geometry shows as overlap while the modelled foot stays put), in the state the step's forces were made in
+        /// (its start's; in the step a leg breaks the trace still holds the give it carried its load with). None for a half whose leg
+        /// is gone (Hanging, Stub, TubeGone): the trace's compression there is the half's own deepest overlap, which would excuse any
+        /// depth by itself, and the half's give, its cantilever's turn, is already in its shapes' placement.</summary>
+        public static double LegGive(CornerState atStart, double compression, double lean) =>
+            (atStart & (CornerState.Hanging | CornerState.Stub | CornerState.TubeGone)) != 0 ? 0 : Math.Abs(compression) + Math.Abs(lean);
+
+        /// <summary>A frame part's give, m: its own penalty spring's overlap at the force it carries (backed), never past its own
+        /// thickness (a part wholly under the surface is through it at any force). Not its radius: a motor can 37 mm across on its back
+        /// at 3.2 m/s carried 2.4 kN 39 mm into a 34° sod slope (farmland #476 Drop at model 95), some 2 MPa over its section against
+        /// the few tenths of a MPa soft topsoil bears (assumed, published range), so it punches in.</summary>
+        public static double FrameGive(double backed, double radius) => Math.Min(backed, 2 * radius);
+
+        /// <summary>
+        /// Rest's hold: the steps in a row over which the body has gone nowhere, its mean speed and turn rate since the hold began
+        /// under RestSpeed and RestRate. The step's own speeds read an armed drone's idle vibration as motion (range #131 Drop at model
+        /// 95, on its back with two props at idle: its place held to 1 mm and its attitude to 0.2° while its rate swung ±0.16 rad/s at
+        /// ~15 Hz).
+        /// </summary>
+        public sealed class RestWindow
+        {
+            Double3 _at;
+            Quat _att;
+
+            public int Quiet { get; private set; }
+
+            /// <summary>The pose after a step; returns Quiet.</summary>
+            public int Add(Double3 position, Quat attitude)
+            {
+                if (Quiet == 0)
+                {
+                    _at = position;
+                    _att = attitude;
+                }
+                double hold = RestHold * FlightCore.Dt;
+                double cosHalf = Math.Abs(_att.W * attitude.W + _att.X * attitude.X + _att.Y * attitude.Y + _att.Z * attitude.Z);
+                bool still = (position - _at).Length() < RestSpeed * hold && 2 * Math.Acos(Math.Min(1, cosHalf)) < RestRate * hold;
+                Quiet = still ? Quiet + 1 : 0;
+                return Quiet;
+            }
         }
 
         // ---- The pairs' points of application ------------------------------------------------------------------------------
@@ -1008,15 +1059,16 @@ namespace Fpv450.Sim.Tests
                     // depth its soil's sink and its own give hold (range #425 Slide: support_fl_end 15.0 mm in E01's box, its corner's
                     // soil sunk 12.5 mm, carried by the ground's pair beside it) is no passage. Past that allowance by GroundTolerance
                     // it is; on anything rigid every Tunnel and WorldBug is.
-                    if (e.Kind == EventKind.Tunnel && e.Surface != 0 && e.Index < core.Contacts.ShapeCount)
+                    if (e.Kind == EventKind.Tunnel || e.Kind == EventKind.WorldBug)
                     {
-                        double past = ThroughSoil(e.A, Give(core.Contacts, tr, e.Index, out double sink), sink);
-                        r.Worse(Check.Tunnel, past);
-                        if (past > GroundTolerance)
-                            r.Fail(Check.Tunnel, step, $"Tunnel by {core.Contacts.Shape(e.Index).Name} {e.A * 1e3:F1} mm into the soil, {past * 1e3:F1} mm past its sink and its give");
+                        bool soil = e.Kind == EventKind.Tunnel && e.Surface != 0;
+                        double sink = 0, give = soil ? Give(core.Contacts, tr, e.Index, out sink) : 0;
+                        bool through = TunnelFails(e, give, sink, out double past);
+                        if (soil) r.Worse(Check.Tunnel, past);
+                        if (through)
+                            r.Fail(Check.Tunnel, step, soil ? $"Tunnel by {core.Contacts.Shape(e.Index).Name} {e.A * 1e3:F1} mm into the soil, {past * 1e3:F1} mm past its sink and its give"
+                                : $"{e.Kind} by part {e.Part} at {e.A:F4}");
                     }
-                    else if (e.Kind == EventKind.Tunnel || e.Kind == EventKind.WorldBug)
-                        r.Fail(Check.Tunnel, step, $"{e.Kind} by part {e.Part} at {e.A:F4}");
                     if (e.Kind == EventKind.EventsLost) r.Fail(Check.EventsKept, step, "an EventsLost event");
                     if (e.Kind == EventKind.Crash)
                     {
@@ -1073,10 +1125,6 @@ namespace Fpv450.Sim.Tests
                 }
             }
 
-            /// <summary>How far a part dropped from the soil at depth (m) lay past what its soil's sink and its own give hold, m: a
-            /// passage when more than GroundTolerance (the Tunnel check on a surface).</summary>
-            public static double ThroughSoil(double depth, double give, double sink) => depth - sink - give;
-
             // A part's own give this step beyond its corner's soil sink (sink), m: Ground's allowance less GroundTolerance.
             double Give(ContactModel cmodel, in StepTrace tr, int i, out double sink)
             {
@@ -1086,24 +1134,18 @@ namespace Fpv450.Sim.Tests
                 {
                     // The part's, over its shapes: a capsule and the spheres at its ends are one part, and the force goes to whichever
                     // the model pairs (range #436 Drop: the payload capsule 20.4 mm in E01's floor, its aft sphere carrying 2.2 kN).
-                    // Never past its own thickness: a penalty overlap stands for the soil's give under the part, and a part wholly under
-                    // the surface is through it at any force. Not its radius: a motor can (37 mm across) on its back at 3.2 m/s carried
-                    // 2.4 kN 39 mm into a 34° sod slope (farmland #476 Drop): some 2 MPa over its section, against the few tenths of a
-                    // MPa soft topsoil bears (assumed, published range), so it punches in.
                     double part = 0;
                     for (int j = 0; j < cmodel.ShapeCount; j++)
                         if (cmodel.Shape(j).Part == sh.Part && cmodel.Shape(j).Role == ContactRole.Body) part = Math.Max(part, _backed[j]);
-                    return Math.Min(part, 2 * sh.Radius);
+                    return FrameGive(part, sh.Radius);
                 }
                 if (sh.Corner < 0 || sh.Corner >= 4) return 0;
                 // Its soil's sink, or, where the soil has let it go, the groove it pressed while the corner's skid still lies over it:
                 // the soil there is displaced, and the box's geometry does not know it (range #446 Slide, step 6581: skid_rr 22.9 mm
-                // in E01's box with no force, its corner's soil, sunk 20.9 mm and 23.4 mm deepest, let go the step before).
+                // in E01's box with no force, its corner's soil, sunk 20.9 mm and 23.4 mm deepest, let go the step before). Its leg's
+                // give in the state at the step's start (range #436 Cut, step 5330: 35.7 mm along, 52.3 mm across at 30 N, then broken).
                 sink = _groove[sh.Corner];
-                // The leg's state the step's forces were made in (its start's): in the step a leg breaks the trace still holds the
-                // give it carried its load with (range #436 Cut, step 5330: 35.7 mm along, 52.3 mm across at 30 N, then broken).
-                if ((_cornerBefore[sh.Corner] & (CornerState.Hanging | CornerState.Stub | CornerState.TubeGone)) != 0) return 0;
-                return Math.Abs(tr.LegCompression[sh.Corner]) + Math.Abs(tr.LegLean[sh.Corner]);
+                return LegGive(_cornerBefore[sh.Corner], tr.LegCompression[sh.Corner], tr.LegLean[sh.Corner]);
             }
 
             static bool Finite(Double3 x) => double.IsFinite(x.X) && double.IsFinite(x.Y) && double.IsFinite(x.Z);

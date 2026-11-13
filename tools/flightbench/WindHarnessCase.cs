@@ -23,11 +23,12 @@ namespace Fpv450.FlightBench
     // rotors' wakes) and `--belt off` fly the known-wrong families that tools/wind/grade_levels.py grades every target on.
     // `--map <id>` (p7c-wind, the map's wind) flies the course along the map's tree belt over its crowns in the map's own
     // wind (WindHarness.FlyMap), and `--wrong nomap` the same course without the map's obstacles (WindSetup.Of).
-    // `--pilot human` (p7c-wind design 13) flies the human pilot and its variants (WindHarness.HumanPilots) in place of
-    // K§8.5's; `--wrong noiseless` is then the human without its remnant. Each run prints its pilot's remnant share.
+    // The human pilot and its variants (WindHarness.HumanPilots, p7c-wind design 13) are the harness's default (D-109);
+    // `--pilot k85` flies K§8.5's pilot and its variants in their place, a variant. `--wrong noiseless` is the pilot without
+    // its remnant, the human's the known-wrong. Each run prints its pilot's remnant share.
     internal static class WindHarnessCase
     {
-        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--hull off|on|potential] [--pilot k85|human] [--history N] [--map <id> [--wrong nomap]]";
+        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--hull off|on|potential] [--pilot human|k85] [--history N] [--map <id> [--wrong nomap]]";
 
         public static int Run(string[] args)
         {
@@ -37,7 +38,7 @@ namespace Fpv450.FlightBench
             string output = null, mapId = null;
             bool all = true, belt = true, steady = false, drag = true, remnant = true, interference = true, nomap = false;
             string hull = "off";
-            bool human = false;
+            bool human = true; // D-109: the human pilot is the harness's default
             for (int i = 2; i < args.Length; i++)
             {
                 string value = i + 1 < args.Length ? args[i + 1] : null;
@@ -55,7 +56,7 @@ namespace Fpv450.FlightBench
                     case "--map" when value != null: mapId = value; i++; break;
                     // p7c-wind design 12: the hull's measured moment, off in every flight (D-107); on, or its known-wrong potential couple.
                     case "--hull" when value == "off" || value == "on" || value == "potential": hull = value; i++; break;
-                    // p7c-wind design 13: K§8.5's pilot (the default) or the human pilot, each with its variants.
+                    // p7c-wind design 13, D-109: the human pilot (the default) or K§8.5's pilot, each with its variants.
                     case "--pilot" when value == "k85" || value == "human": human = value == "human"; i++; break;
                     default: return Fail(Usage);
                 }
@@ -67,7 +68,7 @@ namespace Fpv450.FlightBench
             WindHarness.Pilot[] family = human ? WindHarness.HumanPilots : WindHarness.Pilots;
             WindHarness.Pilot[] pilots = all ? family : new[] { family[0] };
             if (nomap && mapId == null) return Fail(Usage);
-            if (mapId != null) return RunMap(spec, level, seeds, first, pilots, mapId, nomap, drag, remnant, output);
+            if (mapId != null) return RunMap(spec, level, seeds, first, pilots, mapId, nomap, drag, remnant, output, human);
             Console.WriteLine($"flightbench: the wind harness (p7c-wind 1.2, K§8.5): {level}, the {WindPreset.Model} wind"
                 + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (interference ? "" : ", the known-wrong airframe without the rotors in each other's wake") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
                 + (hull == "on" ? ", the hull's measured moment on" : hull == "potential" ? ", the known-wrong hull's potential couple" : "")
@@ -165,7 +166,7 @@ namespace Fpv450.FlightBench
         // The course along a map's belt (WindHarness.FlyMap): the runs, their CSVs and manifest under <out>/<level>-map
         // (-map-nomap for the known-wrong), for wind_stats.py's belt and field segments.
         static int RunMap(DroneSpec spec, WindLevel level, int seeds, int first, WindHarness.Pilot[] pilots, string mapId, bool nomap, bool drag,
-            bool remnant, string output)
+            bool remnant, string output, bool human)
         {
             MapWorld map = MapWorld.Load(RangeScenarios.Root, mapId);
             MapWind m = MapWind.Of(map);
@@ -204,7 +205,7 @@ namespace Fpv450.FlightBench
                 }
                 var doc = new
                 {
-                    harness = "p7c-wind, the map's wind (K§8.5's pilot along " + mapId + "'s belt)", level = level.ToString(),
+                    harness = "p7c-wind, the map's wind (" + (human ? "the human pilot" : "K§8.5's pilot") + " along " + mapId + "'s belt)", level = level.ToString(),
                     wind = nomap ? "field without the map's obstacles (known-wrong)" : "field with the map's obstacles", belt = !nomap, map = mapId, remnant,
                     belt_height_m = m.Belts[0].Strip.Height, discarded_s = WindHarness.DiscardSeconds,
                     how = "per run: wind_stats.py --csv <dir>/<csv> --segment <segment> --json <out>", runs = manifest,

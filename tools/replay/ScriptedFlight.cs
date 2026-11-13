@@ -338,7 +338,7 @@ namespace Fpv450.Replay
             {
                 world = OpenWorld(map, out string where) ?? throw new ArgumentException("--map " + map + ": " + where);
                 StartPoint start = Array.Find(((MapWorld)world.Query).StartPoints, p => p.LegsOn && !p.Stand);
-                if (start.Id == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand");
+                if (start.Id == null && footAt == null) throw new ArgumentException("--map " + map + ": no legs-on start point off a stand (give --foot)");
                 foot = start.Position;
                 double headingDeg = start.HeadingDeg;
                 if (footAt != null)
@@ -381,6 +381,12 @@ namespace Fpv450.Replay
                 setup.Tether = TetherTable.Parse(File.ReadAllText(tetherPath));
                 setup.TetherCoilPart = spec.Coil.Part;
                 setup.TetherSpoolMass = spec.Coil.SpoolMass;
+            }
+            else
+            {
+                // Without the line the props' stems still read the rotors' air by tether.json's law (w9-village-physics 2.13).
+                string table = RepositoryTether();
+                if (table != null) setup.StemAir = TetherTable.Parse(File.ReadAllText(table));
             }
             var core = new FlightCore(setup);
             LogHeader header = LogHeader.For(setup, core);

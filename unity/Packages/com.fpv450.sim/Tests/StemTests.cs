@@ -27,7 +27,7 @@ namespace Fpv450.Sim.Tests
         /// Each is cut at the rim at e_s·A_w + μ·h_f·u², its diameter by the allometry at its length (the field's tops spread over
         /// each 2 cm above h). Every 10th step is evaluated (numerical). Returns the stems; work gives their joules.
         /// </summary>
-        static double Entries(StemScenarios.Run r, int c, int from, int to, out double work, double density = 1, double diameter = 1)
+        internal static double Entries(StemScenarios.Run r, int c, int from, int to, out double work, double density = 1, double diameter = 1)
         {
             MapWorld village = SlopeScenarios.Farmland();
             SurfaceTable table = SoilScenarios.Table();

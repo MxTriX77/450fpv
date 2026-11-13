@@ -970,8 +970,19 @@ namespace Fpv450.Sim.Log
         ///    RotorAir's field, and a point that would move thaws the trail down to it; the trail beyond the window stays
         ///    frozen. The tether golden moved and is re-pinned; FlightSetup.TetherAirlessTrail (in the header's tether
         ///    entry) flies 97's trail for the kept audits. A flight without the line steps as 96 did.
+        /// 99: a hanging skid half lies in the ground by its force (w9-village-physics 2.6b, on 98;
+        ///    unity/physics/physics-integration-2--w9-hanging-half): a broken leg's half hanging from its neighbour is a
+        ///    beam built in at the holder's T-joint, 3EI/r³ at its touching points' own levers, in series with its contact
+        ///    spring and the holder's tube. Its depth in the ground is its contact force over its contact spring, and the
+        ///    rest of its overlap is its give, split between the beam's turn and the bore's move by their compliances, so
+        ///    the split never jumps with the force. To 98 the give was rebuilt each step from the springs' push, the
+        ///    bore's give read the holder's foot chain (0 N/m on a soil's unload line) and the deepest pair could flip
+        ///    between two faces: a half lay 20–110 mm in the ground at 1–14 N and stepped by as much. A compliant row
+        ///    yields to a rigid one, the half follows its holder's set in the same step and is caught where it lay when
+        ///    it starts to hang. No golden flight breaks a leg, so no pin moved; ContactSpec.HangingDepth (a header
+        ///    entry of its own) off flies 98's placement for the kept audits.
         /// </summary>
-        public const int ModelVersion = 98;
+        public const int ModelVersion = 99;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
