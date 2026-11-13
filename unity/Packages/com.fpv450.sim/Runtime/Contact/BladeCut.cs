@@ -81,6 +81,41 @@ namespace Fpv450.Sim.Contact
             return true;
         }
 
+        /// <summary>
+        /// A shape the disc's slab passed through within one step (w9-village-physics 2.6's addendum): in neither the slab at the
+        /// step's start hub (from) nor at its end (now), but in the slab at a hub between, the slab swept along the step's motion
+        /// (a thin branch or wire met along the axis faster than its thickness and the slab's 2h a step). The slab is sampled at
+        /// most h apart along the move; m and hub are the first sample that cuts the shape, and [lo, hi] the step's share during
+        /// which the slab held it (each sample standing for its own share). False when no sample between cuts it.
+        /// </summary>
+        public static bool Crossing(in ShapeGeometry s, ReadOnlySpan<Double3> chain, Double3 from, Double3 now, Double3 axis, double h, double reach,
+            out Meeting m, out Double3 hub, out double lo, out double hi)
+        {
+            m = default;
+            hub = now;
+            lo = hi = 0;
+            Double3 move = now - from;
+            double travel = DetMath.Abs(Double3.Dot(move, axis));
+            if (!(travel > h) || Nearest(s, chain, from, axis, h, reach, out _)) return false;
+            int n = (int)(travel / h) + 1;
+            bool found = false;
+            for (int k = 1; k < n; k++)
+            {
+                double t = k / (double)n;
+                Double3 at = from + move * t;
+                if (!Nearest(s, chain, at, axis, h, reach, out Meeting mk)) continue;
+                if (!found)
+                {
+                    found = true;
+                    m = mk;
+                    hub = at;
+                    lo = t - 0.5 / n;
+                }
+                hi = t + 0.5 / n;
+            }
+            return found;
+        }
+
         /// <summary>The shape along one blade line (unit dir, in the disc's plane): where its ribbon first meets it, rIn, and
         /// where it leaves it, rOut (+∞ when it is still inside at reach); false when the line misses it within reach.</summary>
         public static bool Along(in ShapeGeometry s, ReadOnlySpan<Double3> chain, Double3 hub, Double3 axis, Double3 dir, double h, double reach,

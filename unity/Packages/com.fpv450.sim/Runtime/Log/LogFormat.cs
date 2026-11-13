@@ -933,8 +933,17 @@ namespace Fpv450.Sim.Log
         ///    92's. Both are spec values in the header's rotor-wake entry, so no switch flies the old level:
         ///    GoldenFlights.Model92WakeLevel sets 0.029 and 3 for the kept audits. The powered, rain, contact, range and
         ///    tether goldens moved and are re-pinned.
+        /// 95: the legs' failure law and the blades' thin shapes (w9-village-physics 2.6 and its addendum, on 94;
+        ///    unity/physics/physics-integration-2--w9-legs): a crack keeps the leg's stiffness (90 halved it at the jaw
+        ///    edge's first yield), the set starts at the section's yield, 3.19 N·m, and the tube kinks at 3.55 N·m, folds as
+        ///    a plastic hinge and tears at 0.27 rad; a hanging half stays in contact, gives no more than its overlap and
+        ///    tears at its hinge. A resting blade's stiffness is read at its own material point, not at the face's plane
+        ///    (a blade pushed deep into a limb read as a cantilever longer than itself and passed through unbroken), and
+        ///    a disc's slab meets a shape it crosses within one step (BladeCut.Crossing: a thin branch or wire met along
+        ///    the axis faster than its thickness and the slab's a step). No golden flight breaks a leg or crosses such a
+        ///    shape, so no pin moved; model 41's kept contact audit is re-pinned on the section's yield.
         /// </summary>
-        public const int ModelVersion = 94;
+        public const int ModelVersion = 95;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

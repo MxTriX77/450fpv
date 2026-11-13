@@ -40,10 +40,16 @@ namespace Fpv450.Sim.Tests
 
         // The range's S04 patch: its straw mat's pieces stand 0.125 m on a soil box set in a hole in the ground plane, and its
         // stalks stand in the mat. The drone starts with its skids 2 mm over the highest face under each (LiftoffScenarios.Over).
+        // Since 2.6's addendum it starts on one mat piece (SoilScenarios.PatchMat): at the patch's centre the rear-right foot stood
+        // 6 cm past a mat piece's edge, over the 0.125 m step to the soil box, its joint support on the edge. Armed at idle, that
+        // support creeps off the straw's edge, the corner drops into the step (about 27° about the other diagonal, past the soft
+        // legs' 14.4° roll tip) and the drone rolls onto its side, its downhill legs kinking: a landing half on a step, which the
+        // physics never promised to lift off from (2.6's addendum: at the centre Rain seed 1 was off at 0.580 s on the legs' old
+        // crack and is never off on the corrected legs; on a rest balanced on one diagonal which way it goes is not robust).
         [Test]
         public void ALiftoffFromTheRangesStrawIsFlown()
         {
-            Liftoffs("S04 patch", () => new FlightWorld(SoilScenarios.Range()), SoilScenarios.PatchCentre);
+            Liftoffs("S04 patch", () => new FlightWorld(SoilScenarios.Range()), w => SoilScenarios.PatchMat(w));
         }
 
         // Village's densest tall cell: the field's stems stand round the legs and under the discs as the rotors spin up.

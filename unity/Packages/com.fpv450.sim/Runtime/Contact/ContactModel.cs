@@ -311,6 +311,7 @@ namespace Fpv450.Sim.Contact
         // before (its side give's softening), and a hanging half's force and couple onto the leg that holds it.
         readonly ContactShape[] _base;
         readonly Double3[] _wasA, _wasB;
+        readonly Double3[] _discFrom; // each disc's hub at the step's start (world), for a slab crossing within the step (Disc, PropStrikes)
         readonly bool[] _off;
         readonly CornerState[] _corner = new CornerState[4];
         readonly Double3[] _fold = new Double3[4], _setApplied = new Double3[4], _foldApplied = new Double3[4];
@@ -534,6 +535,7 @@ namespace Fpv450.Sim.Contact
 
             _base = (ContactShape[])_shapes.Clone();
             _wasA = new Double3[n];
+            _discFrom = new Double3[n];
             _wasB = new Double3[n];
             _off = new bool[n];
             for (int i = 0; i < n; i++) _off[i] = _shapes[i].Role == ContactRole.Blade; // until AttachRotors places them
@@ -691,6 +693,10 @@ namespace Fpv450.Sim.Contact
         /// <summary>A prop disc's pairs now (0 for any other shape): the shapes its slab cuts or its ring touched, in the order
         /// they came (PropStrikes reads them after each Sense).</summary>
         public int DiscPairs(int shape) => _shapes[shape].Role == ContactRole.Disc ? _count[shape] : 0;
+
+        /// <summary>Disc shape's hub at the last Sense's start pose (world): its slab swept from there to the hub now is the step's
+        /// (BladeCut.Crossing).</summary>
+        public Double3 DiscFrom(int shape) => _discFrom[shape];
 
         /// <summary>A disc's pair k: the world object and its shape, their material and surface.</summary>
         public void DiscPair(int shape, int k, out int obj, out int objShape, out ushort material, out byte surface)
@@ -959,12 +965,14 @@ namespace Fpv450.Sim.Contact
         // the hub, bent at the contact's radius r across its section at the station there (flatwise across the chord, edgewise
         // along it, the section's principal axes at its pitch; axially along the span), in series with its mount, the motor's
         // can (its shape's Stiffness across body y, StiffnessUp along it, as a body shape's). Also the contact's radius, the
-        // blade's direction of motion there and the section's axes (body).
+        // blade's direction of motion there and the section's axes (body). The radius is the blade's own material point nearest the
+        // face, its core's: the pair's point lies on the face's plane, its depth off the blade, and on a blade pushed deep into a
+        // branch it ran past the tip, reading the cantilever beyond the blade's length (w9-village-physics 2.6's addendum).
         double BladeStiffness(int i, in Pair p, in FlightState s, out double share, out double r, out Double3 motion, out Double3 flat, out Double3 along)
         {
             int slot = _bladeSlot[i], c = slot / _bladesPer, b = slot % _bladesPer;
             ContactShape shape = _shapes[i];
-            Double3 at = s.Attitude.InverseRotate(p.Point - s.Position) - _hub[c];
+            Double3 at = s.Attitude.InverseRotate(p.Point + p.N * (shape.Radius - p.Depth) - s.Position) - _hub[c];
             var plane = new Double3(at.X, 0, at.Z);
             r = plane.Length();
             Double3 radial = r > 0 ? plane * (1 / r) : new Double3(1, 0, 0);
@@ -1426,6 +1434,29 @@ namespace Fpv450.Sim.Contact
                     if (!hanging && _cling != null && _cling[c] > 0) Cling(c, s, com, ref f, ref m, ref load, ref compression, ref touching);
                     continue;
                 }
+                // A hanging half that lies deepest in a crown's twig shell while it also meets something solid (a branch's bark, the
+                // ground) is held by the solid (w9 2.6): the corner's one chain takes that point's row and overlap. On the twigs' row
+                // the chain was the twigs' near-nothing in series, every point of the half carried nothing, and the half passed the
+                // branch inside the shell (Pine002_M, 151 mm through its bark at 7.5 m/s).
+                if (hanging && RowOf(deepPair < 0 ? _ground[deepShape] : _pairs[deepShape * PairsPerShape + deepPair]).Crown != null)
+                {
+                    double held = 0;
+                    for (int i = 0; i < _shapes.Length; i++)
+                    {
+                        ContactRole role = _shapes[i].Role;
+                        if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                        for (int k = -1; k < _count[i]; k++)
+                        {
+                            ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                            if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                            if (!(p.Overlap > held) || RowOf(p).Crown != null) continue;
+                            held = p.Overlap;
+                            deepShape = i;
+                            deepPair = k;
+                        }
+                    }
+                    if (held > 0) deepest = held;
+                }
                 compression[c] = deepest;
                 ref Pair deep = ref deepPair < 0 ? ref _ground[deepShape] : ref _pairs[deepShape * PairsPerShape + deepPair];
                 Row row = RowOf(deep);
@@ -1844,8 +1875,8 @@ namespace Fpv450.Sim.Contact
         }
 
         // A hanging skid half (p7g-legs 1.3): its points' forces within their cones, the moment they make about the holding
-        // leg's bore, and past the skid's first yield there (the holding leg's drawn σ_y·I/(c·K_t), its edge factor on the
-        // bore's edge) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
+        // leg's bore, and past the skid's first yield there (the holding leg's drawn σ_y·I/c; w9 2.6: the bore edge's K_t lowers
+        // only its local yield) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
         // the bore (from the next step its shapes, and its held points' anchors with them), and this step's force is relieved
         // by it. Its force and its couple about the bore load the holding leg (Judge).
         void Hang(int c, in FlightState s, Double3 up, StepEvents events)
@@ -1856,6 +1887,7 @@ namespace Fpv450.Sim.Contact
             Double3 couple = default, deepAt = default, deepN = default;
             int causeShape = -1, causePair = -1;
             double strong = 0, deepest = 0;
+            bool deepCrown = false;
             if (_legTouching[c])
             {
                 for (int i = 0; i < _shapes.Length; i++)
@@ -1872,6 +1904,7 @@ namespace Fpv450.Sim.Contact
                             deepest = p.Overlap;
                             deepAt = p.Point;
                             deepN = p.N;
+                            deepCrown = RowOf(p).Crown != null;
                         }
                         Double3 fp = Coned(p, RowOf(p));
                         law = law + fp;
@@ -1887,7 +1920,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
             _hangTouching[c] = _legTouching[c];
-            double cap = _legs.CrackMoment(holder) / _skidLever, size2 = law.Length();
+            double cap = _legs.YieldMoment(holder) / _skidLever, size2 = law.Length();
             if (_legTouching[c] && size2 > cap && _axial[c] > 0)
             {
                 Double3 e = law * (1 / size2);
@@ -1926,6 +1959,17 @@ namespace Fpv450.Sim.Contact
                     events.Add(ev);
                 }
             }
+            // Folded past its hinge's tear at the bore (w9 2.6), the skid tears there and its holder lets it go: the half cannot
+            // fold on through what it meets (the sweep's and the crowns' tunnels through a hanging half at a crash's speed).
+            double tear = _legs.TearRotation(holder);
+            if (Double3.Dot(_fold[c], _fold[c]) > tear * tear && (_legs.Flags(holder) & LegFlags.SkidLoose) == 0)
+            {
+                FlightEvent cause = causeShape >= 0
+                    ? Of(EventKind.SkidLoose, causeShape, causePair < 0 ? _ground[causeShape] : _pairs[causeShape * PairsPerShape + causePair])
+                    : FlightEvent.Of(EventKind.SkidLoose);
+                _legs.TearSkid(holder, events, cause, _fold[c].Length(), tear, cause.C);
+                _restructure = true;
+            }
             // The elastic turn: the massless half gives |F|/k_cantilever, its deepest point moved that far out along its normal
             // by the least turn about the bore, φ = (r × n)·δ/|r × n|² (none untouched).
             _elastic[c] = default;
@@ -1953,14 +1997,28 @@ namespace Fpv450.Sim.Contact
                     Double3 push = deepN * deepest;
                     double a = Double3.Dot(up, push);
                     Double3 lat = push - up * a;
-                    double give = Double3.Dot(up * (ka * a) + lat * kl, deepN) / kc;
-                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0;
+                    // In a crown's twig shell the chain gives by the force its points carry (w9 2.6): the twigs give way first
+                    // (CapCrown), so they carry less than the springs' push on the overlap, and read from the push alone the half
+                    // gave by the whole overlap, which the next step read back as overlap (Unturned): the give ran away (0.43 m in
+                    // 50 ms in Pine002_M) and the half's shapes passed a branch inside the shell. And no give moves the deepest point
+                    // past its overlap.
+                    Double3 spring = up * (ka * a) + lat * kl;
+                    double size = spring.Length(), share = deepCrown && size > carried ? carried / size : 1;
+                    double give = Double3.Dot(spring, deepN) / kc * share;
+                    double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0, turned = 0;
                     if (r2 > 0 && give > 0)
                     {
                         _elastic[c] = axis * (give / r2);
                         along = give * (rn * rn / r2);
+                        turned = give * (a2 / r2);
                     }
-                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0);
+                    if (kl > 0 && kl < k0) along += Double3.Dot(lat, deepN) * kl * (1 / kl - 1 / k0) * share;
+                    double moved = turned + along;
+                    if (moved > deepest)
+                    {
+                        _elastic[c] = _elastic[c] * (deepest / moved);
+                        along *= deepest / moved;
+                    }
                     _hangShift[c] = n * along;
                 }
             }
@@ -4061,10 +4119,23 @@ namespace Fpv450.Sim.Contact
             return Double3.Dot(p.Entry, deep - g.Center) < 0;
         }
 
+        // A hanging half's point still pressed (w9-village-physics 2.6): its shapes stand out of what they touch by the half's
+        // elastic give, which the massless half holds only while it is pressed, so its pair touches while its overlap without
+        // that give is positive. On its turned depth alone a pair the give had just lifted clear read no force for a step, the
+        // give fell to 0 and the half's shapes snapped back into the ground by it (the sweep's 91 mm, a one-step limit cycle).
+        bool Hung(int i, in Pair p, in FlightState s)
+        {
+            if (!_spec.HangingGive || _legs == null) return false;
+            ContactRole role = _shapes[i].Role;
+            int c = _shapes[i].Corner;
+            if (role != ContactRole.Support && role != ContactRole.Skid || c < 0 || c >= 4 || (_corner[c] & CornerState.Hanging) == 0) return false;
+            return p.Depth + Unturned(c, p, s) > 0;
+        }
+
         // Touching starts or ends: ContactMade (and maybe an impact) or ContactBroken.
         void Transition(ref Pair p, int i, in FlightState now, StepEvents events, bool objectPair)
         {
-            bool touching = p.Depth > 0;
+            bool touching = p.Depth > 0 || Hung(i, p, now);
             if (touching == p.Touching) return;
             if (!touching)
             {
@@ -4158,6 +4229,7 @@ namespace Fpv450.Sim.Contact
             for (int k = 0; k < _count[i]; k++) _pairs[first + k].Seen = false;
             double r = d.Radius + d.HalfThickness;
             Double3 hubWas = World(was, d.A), hubNow = World(now, d.A);
+            _discFrom[i] = hubWas;
             int gate = _world.StaticContacts(new Capsule(hubWas, hubWas, r), new Capsule(hubNow, hubNow, r), 0, _buf);
             int gated = gate < Buffer ? gate : Buffer;
             for (int j = 0; j < gated; j++) _gate[j] = _buf[j];
@@ -4213,7 +4285,7 @@ namespace Fpv450.Sim.Contact
                 StaticContact c = _gate[j];
                 int k = 0;
                 while (k < _count[i] && (_pairs[first + k].Object != c.Object || _pairs[first + k].Shape != c.Shape)) k++;
-                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m)) continue;
+                if (k < _count[i] || !Cuts(d, hubNow, axis, c.Object, c.Shape, c.Point, c.Normal, c.Surface, out BladeCut.Meeting m, hubWas, true)) continue;
                 if (k == PairsPerShape)
                 {
                     lost++;
@@ -4256,7 +4328,8 @@ namespace Fpv450.Sim.Contact
 
         // Whether (obj, shape) cuts the disc's slab within its rim at the hub's pose now (BladeCut, the world's geometry now:
         // a runtime object where it is; a terrain's ground the plane of the contact that names it, GroundPlane).
-        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m)
+        bool Cuts(in ContactShape d, Double3 hub, Double3 axis, int obj, int shape, Double3 point, Double3 normal, byte surface, out BladeCut.Meeting m,
+            Double3 from = default, bool swept = false)
         {
             m = default;
             ShapeGeometry g;
@@ -4270,7 +4343,10 @@ namespace Fpv450.Sim.Contact
                 if (hi < lo) return false;
                 chain = chain.Slice(lo, hi - lo + 2);
             }
-            return BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m);
+            if (BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out m)) return true;
+            // A shape the slab crossed within the step, in neither its start's slab nor its end's (2.6's addendum): the gate's sweep met
+            // it, and the slab's own sweep holds it between.
+            return swept && BladeCut.Crossing(g, chain, from, hub, axis, d.HalfThickness, d.Radius, out m, out _, out _, out _);
         }
 
         /// <summary>A terrain's ground at a contact as a plane (w3-farmland-ground 2.2): the plane through the contact's point with

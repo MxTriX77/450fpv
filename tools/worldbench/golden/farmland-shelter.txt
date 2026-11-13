@@ -1,6 +1,6 @@
 # worldbench golden: the farmland's shelter rows behind its hedges and trees and among the village's ruins (w7-farmland-wind 1.2). FNV-1a 64 over every printed number's bits and the two grids.
 # Re-record only with a WakeGrid.Version bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record
-farmland_shelter.version 2.94
+farmland_shelter.version 2.95
 farmland_shelter.grids 2f82ac2bc273b50d
 farmland_shelter.hedge 2dbf34b45940df8b
 farmland_shelter.trees 9b00d8800674cbe5
