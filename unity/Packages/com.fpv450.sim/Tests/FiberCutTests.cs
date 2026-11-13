@@ -329,7 +329,7 @@ namespace Fpv450.Sim.Tests
             for (ulong seed = 1; seed <= 20; seed++)
             {
                 FiberCutScenarios.Coil c = FiberCutScenarios.OverTheCoil(Spec, seed, false);
-                Print($"seed {seed}: {c.O}; on the coil {c.Touching} steps, its most stress at a barb {c.MostStress / 1e9:F3} GPa, the least strength there {c.LeastStrength / 1e9:F3}, turn {c.MostTurn:F3}; a touch moved {c.MostMoved * 1e3:F2} mm along its record");
+                Print($"seed {seed}: {c.O}; on the coil {c.Touching} steps, its most stress at a barb {c.MostStress / 1e9:F3} GPa, the least strength there {c.LeastStrength / 1e9:F3}, turn {c.MostTurn:F3}; a touch moved {c.MostMoved * 1e3:F2} mm along its record (most at {c.MovedAt:F3} s, T {c.MovedTension:F3} N, N {c.MovedPress:F3} N, the other contact {c.MovedOther} {c.MovedOtherPress:F3} N, the drone {c.MovedHeight:F2} m up)");
                 if (c.Touching > 0) touched++;
                 // Since model 70 (p7f-damage 1.6b, the motors' heat) seed 20's hover rubs the line on a barb until its abrasion takes
                 // the section's strength to 0.68 GPa and it cuts there at 10.6 s (Abrasion at Snag, 1.08 GPa): the barbs' static
@@ -523,7 +523,12 @@ namespace Fpv450.Sim.Tests
                 ("gentle 180° turn of 15 m at 54 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
                 ("cruise at 100 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0).O),
                 ("sharp reverse", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
-                ("sharp reverse, the two-way spool", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, x => x.TetherTwoWay = true)),
+                // The two-way spool's take-up at models 74–88's 2–10 g (design 18; TetherCase's known-wrong).
+                ("sharp reverse, the two-way spool", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, x =>
+                {
+                    x.TetherTwoWay = true;
+                    x.Tether = FiberCutScenarios.WithBand(x.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
+                })),
                 ("tree snag", s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
                 ("very sharp liftoff", s => FiberCutScenarios.Liftoff(spec, true, s)),
                 ("backward after liftoff", s => FiberCutScenarios.Backward(spec, s)),
@@ -862,7 +867,7 @@ namespace Fpv450.Sim.Tests
                     }
                 }
                 Double3 b1 = s.Attitude.InverseRotate(c[n - 2].Position - s.Position);
-                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}");
+                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}{(Environment.GetEnvironmentVariable("FIBER_NODES") == "1" ? Near(c) : "")}");
             };
             FiberCutScenarios.Outcome o;
             try
@@ -870,6 +875,8 @@ namespace Fpv450.Sim.Tests
                 o = which == "pitchback" ? FiberCutScenarios.PitchBack(spec, WindLevel.Calm, seed, null, speed)
                     : which == "sharp" ? FiberCutScenarios.Liftoff(spec, true, seed)
                     : which == "backward" ? FiberCutScenarios.Backward(spec, seed)
+                    : which == "cruise" ? FiberCutScenarios.Turn(spec, WindLevel.Windy, seed, 27.8, 0).O
+                    : which == "backlow" ? FiberCutScenarios.Backward(spec, seed, null, 3, double.TryParse(Environment.GetEnvironmentVariable("FIBER_HEIGHT"), out double h) ? h : 0.4)
                     : FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, seed, null, speed);
             }
             finally
@@ -879,6 +886,19 @@ namespace Fpv450.Sim.Tests
             }
             Print($"most lip σ {mostS / 1e9:0.000} GPa at {mostSAt:0.000} (θ {mostSTheta * 180 / Math.PI:0}°, T {mostST:0.000}); most chain exit T {mostT:0.000} at {mostTAt:0.000} (θ {mostTTheta * 180 / Math.PI:0}°); most ṡ jump {mostJump:0.00} m/s at {jumpAt:0.000} (θ {jumpTheta * 180 / Math.PI:0}°)");
             Print($"{which} seed {seed}: {o}");
+        }
+
+        // The last three nodes' contacts and segment tensions (FIBER_NODES=1): the member, its normal force, a capstan's hold.
+        static string Near(CableChain c)
+        {
+            string r = "";
+            for (int i = Math.Max(0, c.Count - 4); i < c.Count - 1; i++)
+            {
+                ref CableNode a = ref c[i];
+                string k(in CableContact x) => x.Active ? $"{(FiberMember)x.MemberKind}{x.Member}:{x.NormalForce:0.000}{(x.Capstan ? "c" : "")}" : "-";
+                r += $" [{i} T {c.Tension(i):0.000} {k(a.Contact0)} {k(a.Contact1)}]";
+            }
+            return r;
         }
 
         [Test, Explicit("a probe: the line at the exit through a turn, printed step by step from FIBER_FROM s")]

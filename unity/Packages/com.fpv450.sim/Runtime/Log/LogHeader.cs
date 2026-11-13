@@ -118,6 +118,7 @@ namespace Fpv450.Sim.Log
             "TetherZeroForceHold", "GyroRange",
             "TetherLinearStep",
             "TetherSlidingTrail",
+            "TetherCapstanLip",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -371,6 +372,7 @@ namespace Fpv450.Sim.Log
         public bool TetherZeroForceHold;
         public bool TetherLinearStep;
         public bool TetherSlidingTrail;
+        public bool TetherCapstanLip;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -465,6 +467,7 @@ namespace Fpv450.Sim.Log
                 TetherZeroForceHold = setup.TetherZeroForceHold,
                 TetherLinearStep = setup.TetherLinearStep,
                 TetherSlidingTrail = setup.TetherSlidingTrail,
+                TetherCapstanLip = setup.TetherCapstanLip,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -582,6 +585,7 @@ namespace Fpv450.Sim.Log
                 TetherZeroForceHold = TetherZeroForceHold,
                 TetherLinearStep = TetherLinearStep,
                 TetherSlidingTrail = TetherSlidingTrail,
+                TetherCapstanLip = TetherCapstanLip,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -1151,6 +1155,7 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherZeroForceHold);
                 e.Write(TetherLinearStep);
                 e.Write(TetherSlidingTrail);
+                e.Write(TetherCapstanLip);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1652,6 +1657,7 @@ namespace Fpv450.Sim.Log
                         TetherZeroForceHold = r.ReadBoolean();
                         TetherLinearStep = r.ReadBoolean();
                         TetherSlidingTrail = r.ReadBoolean();
+                        TetherCapstanLip = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {

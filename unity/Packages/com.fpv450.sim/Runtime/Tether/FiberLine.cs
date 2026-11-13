@@ -187,6 +187,7 @@ namespace Fpv450.Sim.Tether
         readonly double[] _trailMaterial, _trailHeld, _trailAir;
         readonly double _freezeTime, _freezeSpeed, _hold;
         readonly bool _slidingTrail; // FlightSetup.TetherSlidingTrail: the trail before w3-farmland-ground 2.4
+        readonly bool _capstanLip;   // FlightSetup.TetherCapstanLip: the lip before design 18
         int _trailCount;
 
         // The coil.
@@ -256,6 +257,7 @@ namespace Fpv450.Sim.Tether
             _terrain = !World.Geometry(WorldIds.Ground, 0, out _);
             TwoWay = setup.TetherTwoWay;
             _slidingTrail = setup.TetherSlidingTrail;
+            _capstanLip = setup.TetherCapstanLip;
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
                 : setup.Rain == RainLevel.SevereRain ? table.Number("fiber.wet_film_severe_m") : 0;
@@ -361,7 +363,7 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength);
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherCapstanLip);
                 _link = new FiberLink(table);
             }
             _propulsion = propulsion;
@@ -707,7 +709,7 @@ namespace Fpv450.Sim.Tether
             _lipAngle = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
             // The nozzle's law (design 18): point contacts at the bore's entry and the hole's edge; whether the line wraps the
             // edge is judged on the last step's tension outside (the factor is set before the step).
-            _lipFactor = FiberCuts.LipFactor(_lipAngle, _freeAngle, _lipFriction, _lipCap, _bending, ExitTension);
+            _lipFactor = _capstanLip ? DetMath.Exp(_lipFriction * _lipAngle) : FiberCuts.LipFactor(_lipAngle, _freeAngle, _lipFriction, _lipCap, _bending, ExitTension);
             _section = exit.Material + _balloonLength;
             double irregularity = Irregularity(_section);
             bool empty = PaidOut >= _coilLine;

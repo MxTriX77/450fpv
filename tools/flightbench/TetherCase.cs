@@ -29,7 +29,14 @@ namespace Fpv450.FlightBench
         public static bool Run(int seeds)
         {
             DroneSpec spec = PoweredFlightCase.Drone();
-            Action<FlightSetup> twoWay = s => s.TetherTwoWay = true, bare = s => s.TetherWithoutContacts = true,
+            // The two-way spool takes line back at its hold, Lip·G₀: a reel's take-up, flown at models 74–88's 2–10 g so that the
+            // known-wrong is a reel that keeps its line short (design 18: on the light pack's 0.01–2 g its take-up is too weak to).
+            Action<FlightSetup> twoWay = s =>
+                {
+                    s.TetherTwoWay = true;
+                    s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
+                },
+                bare = s => s.TetherWithoutContacts = true,
                 air4 = s => s.TetherDesign4Air = true,
                 flared = s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_radius_m", 0.004),
                 peel2 = s => s.Tether = FiberCutScenarios.Scaled(s.Tether, "spool.peel_energy_j_m", 2),
@@ -43,6 +50,10 @@ namespace Fpv450.FlightBench
                 R("normal liftoff, Windy", Target.Never, s => FiberCutScenarios.Liftoff(spec, false, s, null, WindLevel.Windy)),
                 R("very sharp liftoff", Target.Some, s => FiberCutScenarios.Liftoff(spec, true, s)),
                 R("backward after liftoff", Target.Some, s => FiberCutScenarios.Backward(spec, s)),
+                // Design 18's reading of "after lift off": the legs just off, inside the 4 R where the wake meets the ground. Printed,
+                // not judged: its edge cuts are traced to the exit's segment stretched past the payout's law (1.4–2.9 N while the law
+                // gives 0.26 N) as the legs' slots catch the line rising under the belly, a chain artefact, not a pull on the glass.
+                R("backward just after liftoff, at 0.4 m (design 18)", Target.None, s => FiberCutScenarios.Backward(spec, s, null, 3, 0.4)),
                 R("sharp reverse from 54 km/h, Calm", Target.MayOrMayNot, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
                 R("sharp reverse from 54 km/h, Windy", Target.MayOrMayNot, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Windy, s)),
                 R("pitch-back from 90 km/h, the cruise's throttle held (D-087)", Target.None, s => FiberCutScenarios.PitchBack(spec, WindLevel.Calm, s, null, 25)),
@@ -132,7 +143,7 @@ namespace Fpv450.FlightBench
             var counts = new SortedDictionary<string, int>();
             foreach (FiberCutScenarios.Outcome o in r.O)
             {
-                string key = o.Broken ? $"{o.Mechanism} at {o.Place}" : "whole";
+                string key = !o.Broken ? "whole" : o.Place == FiberMember.Lip ? $"{o.Mechanism} at {o.Place} ({o.Band})" : $"{o.Mechanism} at {o.Place}";
                 counts[key] = counts.TryGetValue(key, out int k) ? k + 1 : 1;
             }
             return string.Join(", ", counts.Select(kv => $"{kv.Key} {kv.Value}")) + $" of {r.O.Length}";

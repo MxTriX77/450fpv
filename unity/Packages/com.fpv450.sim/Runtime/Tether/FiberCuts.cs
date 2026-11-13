@@ -121,7 +121,7 @@ namespace Fpv450.Sim.Tether
         readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle, _lipFriction;
         readonly double[] _span, _flaw, _intact, _abraded;
         readonly double _macroA, _macroRadiusA, _macroDecay, _microSmooth, _microRough;
-        readonly bool _oneStrength;
+        readonly bool _oneStrength, _capstanLip;
         SeedStream _sections;
 
         // The section table: open addressing on k, never emptied (the flight's).
@@ -137,7 +137,7 @@ namespace Fpv450.Sim.Tether
         readonly int[] _open = new int[2], _next = new int[2];
         int _bendCount;
 
-        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false)
+        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false, bool capstanLip = false)
         {
             _youngs = table.Number("fiber.youngs_modulus_pa");
             _glassRadius = table.Number("fiber.glass_diameter_m") / 2;
@@ -168,6 +168,7 @@ namespace Fpv450.Sim.Tether
             _microSmooth = table.Number("link.microbend_smooth_db_per_n");
             _microRough = table.Number("link.microbend_rough_db_per_n");
             _oneStrength = oneStrength;
+            _capstanLip = capstanLip;
 
             SeedStream span = random.Open("fiber.span_strength");
             SpanStrength = random.DrawQuantile(ref span, "span_strength_pa", _span);
@@ -429,6 +430,12 @@ namespace Fpv450.Sim.Tether
             double edge = p.Turn > _freeAngle ? p.Turn - _freeAngle : 0;
             p.PointEdge = false;
             p.Press = 0;
+            if (_capstanLip)
+            {
+                // The known-wrong (FlightSetup.TetherCapstanLip): decision 6's bend over the whole wrap, as to model 88.
+                p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
+                return;
+            }
             if (!(edge > 0) || !(p.Tension > 0))
             {
                 p.Radius = double.PositiveInfinity;

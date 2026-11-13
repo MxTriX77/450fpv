@@ -1031,6 +1031,18 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model79TetherHash, GoldenFlights.TetherHash, "the sliding trail");
         }
 
+        // p7d-tether design 18's audit (the lip's point-contact law, μ_l 0.45, the light peel): with the known-wrong capstan lip
+        // (FlightSetup.TetherCapstanLip) on models 74–88's μ and peel band (GoldenFlights.Model88Tether) the tether golden is model
+        // 88's pin, every record and event; every golden without the line keeps its pin. So the lip's law, μ_l and the peel band
+        // are the whole of design 18's move.
+        [Test]
+        public void WithTheCapstanLipTheTetherGoldenIsModel88s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 88", (capstan, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, capstanLip: capstan), c),
+                GoldenFlights.Model88TetherHash, GoldenFlights.TetherHash, "the capstan lip");
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the

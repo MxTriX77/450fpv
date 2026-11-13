@@ -137,6 +137,12 @@ namespace Fpv450.Sim.Flight
         /// audit against model 84 before 2.4 and every older line, never a pilot's flight.</summary>
         public bool TetherSlidingTrail;
 
+        /// <summary>The known-wrong capstan lip (the hole's edge to model 88, before p7d-tether design 18): the spool's factor
+        /// e^(μθ) over the lip's whole wrap, the edge's bend decision 6's symmetric elastica at every wrap, and its wear over the
+        /// wrap's length R_eff·θ; the line conforming to a 0.3 mm edge its own stiffness keeps it off. The audit against model 88
+        /// and every older line, and the harness's known-wrong for the edge's law, never a pilot's flight.</summary>
+        public bool TetherCapstanLip;
+
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
         /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>

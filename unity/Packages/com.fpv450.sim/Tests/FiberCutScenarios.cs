@@ -33,6 +33,8 @@ namespace Fpv450.Sim.Tests
             public FiberMember Place;
             public int Object, Shape, Part;
             public double Time, Stress, Strength, Turn, Tension, Radius, Material;
+            /// <summary>The broken section's band (intact, flaw, abraded; the span's for a tension cut): design 18's edge tears.</summary>
+            public SectionBand Band;
             /// <summary>The line's least distance to a rotor's rim over the flight, m; the most exit tension, N; the most lip angle,
             /// rad; the least margin, dB; the dips; the least bend radius, m.</summary>
             public double Rim, ExitMost, LipMost, MarginLeast, BendLeast;
@@ -92,6 +94,7 @@ namespace Fpv450.Sim.Tests
                     {
                         O.Stress = e.C;
                         O.Strength = e.B;
+                        O.Band = (SectionBand)(e.Index & 0x03);
                     }
                     if (e.Kind != EventKind.TetherBreak) continue;
                     O.Broken = true;
@@ -190,6 +193,10 @@ namespace Fpv450.Sim.Tests
             SevereLip = System.Environment.GetEnvironmentVariable("FIBER_LIPWEAR") == "severe",
             OldPeel = System.Environment.GetEnvironmentVariable("FIBER_PEEL") == "old";
 
+        /// <summary>FIBER_REACH=n flies every scenario with the rotors' wake reaching the ground from n radii (rotor_air.
+        /// wake_reach_over_radius, 4 assumed): p7d-tether design 18's sensitivity of the liftoff causes to the outwash's reach.</summary>
+        public static readonly double Reach = double.TryParse(System.Environment.GetEnvironmentVariable("FIBER_REACH"), out double reach) ? reach : 0;
+
         /// <summary>FIBER_BLADE=edgewise flies every scenario with the flapping's blade (RotorFlappingSpec, as the session's drone flies)
         /// and so the edgewise flow's thrust and torque (EdgewiseThrust, model 76); FIBER_BLADE=axial with the blade but the props'
         /// axial tables alone (model 75's and 78's rotor). Unset, the scenarios fly without the blade, as they always have: the
@@ -258,6 +265,7 @@ namespace Fpv450.Sim.Tests
             if (FlaredLip) setup.Tether = With(setup.Tether, "spool.lip_radius_m", 0.004);
             if (SevereLip) setup.Tether = With(setup.Tether, "spool.lip_archard_wear_coefficient", setup.Tether.Number("fiber.archard_wear_coefficient"));
             if (OldPeel) setup.Tether = With(setup.Tether, "spool.peel_reference_rate_m_s", 1);
+            if (Reach > 0) setup.Tether = With(setup.Tether, "rotor_air.wake_reach_over_radius", Reach);
             if (ThroughTheBody) setup.TetherFountainThroughBody = true;
             if (ZeroForceHold) setup.TetherZeroForceHold = true;
             if (LinearStep) setup.TetherLinearStep = true;
@@ -514,15 +522,17 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// "Sudden momentum backwards after lift off" (design 16): the pilot's liftoff to 1.5 m, then at 3 s 3 m/s backward (−z)
-        /// over the launch point and the line rising from it for 3 s, then a hover. The known-wrong: design 4's air.
+        /// over the launch point and the line rising from it for 3 s, then a hover. The known-wrong: design 4's air. Design 18 flies
+        /// it also just after the legs leave the ground (height 0.4 m, under the 4 R where the wake meets the ground, so the
+        /// fountain and the ground vortex act on the line laid beneath).
         /// </summary>
-        public static Outcome Backward(DroneSpec spec, ulong seed, Action<FlightSetup> edit = null, double speed = 3)
+        public static Outcome Backward(DroneSpec spec, ulong seed, Action<FlightSetup> edit = null, double speed = 3, double height = 1.5)
         {
             FlightSetup setup = Setup(spec, WindLevel.Calm, seed, edit);
             double stand = TetherScenarios.Stand(setup);
             return Run(setup, 8, (t, core, pilot) =>
             {
-                pilot.Target = new Double3(0, stand + 1.5, t < 3 ? 0 : core.State.Position.Z);
+                pilot.Target = new Double3(0, stand + height, t < 3 ? 0 : core.State.Position.Z);
                 pilot.HoldVelocity = t >= 3;
                 pilot.TargetVelocity = new Double3(0, 0, t < 6 ? -speed : 0);
             });
@@ -1003,6 +1013,11 @@ namespace Fpv450.Sim.Tests
             /// the coil; the largest stress at a barb and the least strength of a section at a barb, Pa; the most turn at a barb.</summary>
             public double MostMoved, MostStress, LeastStrength, MostTurn;
             public long Touching;
+            /// <summary>When the most move was reached, s, the touching node's larger tension then, N, and its normal force, N.</summary>
+            public double MovedAt, MovedTension, MovedPress;
+            /// <summary>The node's other contact then (FiberMember), its normal force, N, and the drone's height over the floor, m.</summary>
+            public FiberMember MovedOther;
+            public double MovedOtherPress, MovedHeight;
         }
 
         /// <summary>
@@ -1067,7 +1082,18 @@ namespace Fpv450.Sim.Tests
                         touch = true;
                         // The touch's place along the record: its hold (the chain's), against where it first touched (its Origin, the
                         // member's reach a line's radius under the hold: that radius taken off).
-                        if (c.Engaged) res.MostMoved = Math.Max(res.MostMoved, (c.Hold - c.Origin).Length() - Table.Number("fiber.coating_diameter_m") / 2);
+                        double moved = (c.Hold - c.Origin).Length() - Table.Number("fiber.coating_diameter_m") / 2;
+                        if (c.Engaged && moved > res.MostMoved)
+                        {
+                            res.MostMoved = moved;
+                            res.MovedAt = t;
+                            res.MovedTension = Math.Max(i > 0 ? line.Tension(i - 1) : 0, i < line.Count - 1 ? line.Tension(i) : 0);
+                            res.MovedPress = c.NormalForce;
+                            CableContact o = c.Member == a.Contact0.Member && c.MemberKind == a.Contact0.MemberKind ? a.Contact1 : a.Contact0;
+                            res.MovedOther = o.Active ? (FiberMember)o.MemberKind : FiberMember.Span;
+                            res.MovedOtherPress = o.Active ? o.NormalForce : 0;
+                            res.MovedHeight = core.State.Position.Y;
+                        }
                         double strength = f.Cuts.Strength(f.Cuts.Section(a.Material), out _);
                         res.LeastStrength = Math.Min(res.LeastStrength, strength);
                     }
