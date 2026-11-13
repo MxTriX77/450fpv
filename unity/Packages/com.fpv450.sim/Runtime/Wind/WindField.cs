@@ -389,7 +389,7 @@ namespace Fpv450.Sim.Wind
         // λ the profile's log, clamped to the table's top.
         readonly bool _scaled;
         readonly Double3[] _pol;
-        readonly double[] _unit;
+        readonly double[] _unit, _rise; // the table and each row's rise to the next
         readonly double _perStep, _hA, _hB, _wA, _wB, _sTop;
 
         // The wakes: the worker and the eddies' unit wave directions, 2π/λ over H, unit amplitudes, phases and each step's
@@ -546,6 +546,8 @@ namespace Fpv450.Sim.Wind
                     double ka = kMin * DetMath.Exp(DetMath.Log(ratio) * j / modes), kb = kMin * DetMath.Exp(DetMath.Log(ratio) * (j + 1) / modes);
                     _unit[j] = 2 * DetMath.Sqrt(BandEnergy(ka, kb, 1, lo));
                 }
+                _rise = new double[_unit.Length];
+                for (int j = 0; j + 1 < _unit.Length; j++) _rise[j] = _unit[j + 1] - _unit[j];
                 // Each component's bound: the largest sum of its modes' amplitudes at any grid row (an interpolated row's sum
                 // lies between its neighbours').
                 for (int j = 0; j < rows; j++)
@@ -793,13 +795,15 @@ namespace Fpv450.Sim.Wind
             double sw = DetMath.Min(DetMath.Max(lambda * _perStep + _wA, _wB), _sTop);
             int jh = (int)sh, jw = (int)sw;
             double th = sh - jh, tw = sw - jw, x = 0, y = 0, z = 0;
-            for (int m = 0; m < _wave.Length; m++)
+            Double3[] wave = _wave, pol = _pol;
+            double[] unit = _unit, rise = _rise, offset = _offset;
+            for (int m = 0; m < wave.Length; m++)
             {
-                Double3 k = _wave[m];
-                double cos = DetMath.Cos(k.X * point.X + k.Y * point.Y + k.Z * point.Z + _offset[m]);
-                double h0 = _unit[m + jh], w0 = _unit[m + jw];
-                double hc = (h0 + th * (_unit[m + jh + 1] - h0)) * cos, wc = (w0 + tw * (_unit[m + jw + 1] - w0)) * cos;
-                Double3 c = _pol[m];
+                Double3 k = wave[m];
+                double cos = DetMath.Cos(k.X * point.X + k.Y * point.Y + k.Z * point.Z + offset[m]);
+                int ih = m + jh, iw = m + jw;
+                double hc = (unit[ih] + th * rise[ih]) * cos, wc = (unit[iw] + tw * rise[iw]) * cos;
+                Double3 c = pol[m];
                 x += c.X * hc;
                 y += c.Y * wc;
                 z += c.Z * hc;
