@@ -134,9 +134,12 @@ namespace Fpv450.Sim.Tests
                 // The set's window: from the onset a set grows to a degree or two, and past about 1.06 times it a leg parts.
                 foreach (double over in new[] { 1.0, 1.08, 1.15 })
                     TestContext.Out.WriteLine($"  at {over:F2}×, {hi * over:F3} m/s: {Describe(Run(Down(hi * over, seed)))}");
-                double speed = hi * 1.04;
+                // At the onset itself (w9 2.6): on the section's yield a set's window is narrow, the kink (1.11 × the yield) about
+                // 4 % of speed over it in a level landing, where the bow's moment rises with the root of its shortening and the bowed
+                // leg kinks and is lost (Broken: the bow's fold is not modelled). Model 90's set ran from the edge's crack to 2.98 N·m.
+                double speed = hi;
                 LegScenarios.Outcome o = Run(Down(speed, seed)), elastic = Run(new LegScenarios.Touch { Velocity = new Double3(0, -speed, 0), Seed = seed, Elastic = true });
-                TestContext.Out.WriteLine($"  at 1.04×, {speed:F3} m/s: {Describe(o)}");
+                TestContext.Out.WriteLine($"  at the onset, {speed:F3} m/s: {Describe(o)}");
                 int set = 0;
                 for (int c = 0; c < 4; c++)
                 {

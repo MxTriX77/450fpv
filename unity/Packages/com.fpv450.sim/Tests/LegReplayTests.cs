@@ -150,9 +150,11 @@ namespace Fpv450.Sim.Tests
             {
                 LegFlags f = landed.Contacts.Legs.Flags(c);
                 TestContext.Out.WriteLine($"the drifting touch, leg_{LegDamage.Names[c]}: {f}, set {LegScenarios.SetDegrees(landed.Contacts.Legs.Set(c)):F4}°");
-                if ((f & LegFlags.Set) != 0 && (f & (LegFlags.Broken | LegFlags.Detached)) == 0 && LegScenarios.SetDegrees(landed.Contacts.Legs.Set(c)) > 1) bentOn++;
+                // Since w9 2.6 a set on and under its kink is small (the kink at 1.11 × the section's yield): a leg set and on, its set
+                // past 0, where model 90's set ran on to 1–2° from the edge's crack.
+                if ((f & LegFlags.Set) != 0 && (f & (LegFlags.Broken | LegFlags.Detached)) == 0 && LegScenarios.SetDegrees(landed.Contacts.Legs.Set(c)) > 0) bentOn++;
             }
-            Assert.That(bentOn, Is.GreaterThanOrEqualTo(1), "a leg bent past 1° and on");
+            Assert.That(bentOn, Is.GreaterThanOrEqualTo(1), "a leg set and on");
             ReplayResult bentReplay = FlightReplay.Run(new MemoryStream(drift), id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash, materialsHash: materials);
             TestContext.Out.WriteLine(bentReplay.Message);
             Assert.That(bentReplay.Outcome, Is.EqualTo(ReplayOutcome.Match), bentReplay.Message);
