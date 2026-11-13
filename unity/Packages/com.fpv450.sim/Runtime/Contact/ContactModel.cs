@@ -959,12 +959,14 @@ namespace Fpv450.Sim.Contact
         // the hub, bent at the contact's radius r across its section at the station there (flatwise across the chord, edgewise
         // along it, the section's principal axes at its pitch; axially along the span), in series with its mount, the motor's
         // can (its shape's Stiffness across body y, StiffnessUp along it, as a body shape's). Also the contact's radius, the
-        // blade's direction of motion there and the section's axes (body).
+        // blade's direction of motion there and the section's axes (body). The radius is the blade's own material point nearest the
+        // face, its core's: the pair's point lies on the face's plane, its depth off the blade, and on a blade pushed deep into a
+        // branch it ran past the tip, reading the cantilever beyond the blade's length (w9-village-physics 2.6's addendum).
         double BladeStiffness(int i, in Pair p, in FlightState s, out double share, out double r, out Double3 motion, out Double3 flat, out Double3 along)
         {
             int slot = _bladeSlot[i], c = slot / _bladesPer, b = slot % _bladesPer;
             ContactShape shape = _shapes[i];
-            Double3 at = s.Attitude.InverseRotate(p.Point - s.Position) - _hub[c];
+            Double3 at = s.Attitude.InverseRotate(p.Point + p.N * (shape.Radius - p.Depth) - s.Position) - _hub[c];
             var plane = new Double3(at.X, 0, at.Z);
             r = plane.Length();
             Double3 radial = r > 0 ? plane * (1 / r) : new Double3(1, 0, 0);
