@@ -10,5 +10,7 @@
     <ProjectReference Include="../simcore/simcore.csproj" />
     <!-- The wake grid's synthetic layout, shared with the sim tests (it has no NUnit). -->
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/World/WakeGridFixture.cs" />
+    <!-- The 0 B measure, shared with the sim tests (it has no NUnit). -->
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/AllocProbe.cs" Link="AllocProbe.cs" />
   </ItemGroup>
 </Project>

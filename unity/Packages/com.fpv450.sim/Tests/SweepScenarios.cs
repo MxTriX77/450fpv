@@ -745,9 +745,9 @@ namespace Fpv450.Sim.Tests
                 FlightState s0 = core.State;
                 MassProperties b0 = core.Body;
                 double e0 = Energy(s0, b0);
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                long allocated = AllocProbe.After(before);
                 recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
                 ref readonly FlightState s = ref core.State;
                 ref readonly StepTrace tr = ref core.Trace;
@@ -758,7 +758,7 @@ namespace Fpv450.Sim.Tests
                 {
                     r.Judge(Check.Alloc);
                     r.Worse(Check.Alloc, allocated);
-                    if (allocated != 0) r.Fail(Check.Alloc, step, $"{allocated} B in a step");
+                    if (allocated != 0) r.Fail(Check.Alloc, step, $"{allocated} B in a step" + AllocProbe.Report());
                 }
 
                 // Finite and bounded.

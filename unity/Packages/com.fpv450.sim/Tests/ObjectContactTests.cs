@@ -283,7 +283,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(cut.LeafCells, Is.GreaterThan(0), "the blades meet the crown's leaves");
             Assert.That(HangsOnTwigs(cut), Is.False, "the drone does not hang on twigs");
             Assert.That(cut.Lost, Is.EqualTo(0), "no event refused");
-            Assert.That(cut.Allocated, Is.EqualTo(0), "0 B in the crown's steps");
+            Assert.That(cut.Allocated, Is.Zero, "0 B in the crown's steps" + AllocProbe.Report());
             Assert.That(HangsOnTwigs(wrong), Is.True, "the known-wrong hangs on the shells");
         }
 

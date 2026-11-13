@@ -163,7 +163,7 @@ namespace Fpv450.WorldBench
                 long allocated = 0, records = 0;
                 for (int pass = 0; pass < 2; pass++)
                 {
-                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    long before = Fpv450.Sim.Tests.AllocProbe.Before();
                     records = 0;
                     for (int st = 0; st < steps; st++)
                     {
@@ -173,7 +173,7 @@ namespace Fpv450.WorldBench
                             records += world.StemsNear(new XZ(x + dx, z + dz), discs ? RotorRadius : 0.01, discs ? h : 0, found);
                         times[st] = Stopwatch.GetTimestamp() - start;
                     }
-                    allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                 }
                 Array.Sort(times);
                 failures += allocated == 0 ? 0 : 1;
