@@ -522,19 +522,23 @@ namespace Fpv450.Sim.Tests
         // p7c-wind--map-wakes: 0x9E8D9108B60D91B8. Model 22 (merged onto D-060's field): re-pinned; with z0 0.03 m, σ_u/U
         // 0.135 and the 1 m cut (a temporary switch, reverted) it is model 21's bit for bit, so D-060's field is the change.
         // Model 88 (w7-farmland-wind 1.2, the wake grid's version 2): re-pinned; with version 1 it is the pin before.
-        const ulong PinnedMapWind = 0x5406364FFBB28D46UL, PinnedMapWindVersion1 = 0x0EF8A67AC398C411UL;
+        // p7c-wind design 16 (the field's turbulence by height): re-pinned; with the one-scale field (WindSetup.OneScale) it is model
+        // 98's pin, and with version 1 too the pin before (every kept audit flies the one-scale field).
+        const ulong PinnedMapWind = 0xF32F96472E7803E6UL, PinnedMapWindModel98 = 0x5406364FFBB28D46UL, PinnedMapWindVersion1 = 0x0EF8A67AC398C411UL;
 
         [Test]
         public void TheMapsWindIsTheSameBitsOnEveryRuntime()
         {
-            foreach (int version in new[] { 1, WakeGrid.Version })
-                Assert.That(WindOverMap(version), Is.EqualTo(version == 1 ? PinnedMapWindVersion1 : PinnedMapWind), "the wake grid's version " + version);
+            Assert.That(WindOverMap(WakeGrid.Version, true), Is.EqualTo(PinnedMapWindModel98), "the one-scale field: model 98's");
+            Assert.That(WindOverMap(1, true), Is.EqualTo(PinnedMapWindVersion1), "the wake grid's version 1 on the one-scale field");
+            Assert.That(WindOverMap(WakeGrid.Version, false), Is.EqualTo(PinnedMapWind), "the field by height");
         }
 
-        static ulong WindOverMap(int version)
+        static ulong WindOverMap(int version, bool oneScale)
         {
             WindSetup setup = WindSetup.ForMap(Map, WindLevel.Severe);
             setup.Wakes.Version = version;
+            setup.OneScale = oneScale;
             using var wind = new WindField(setup, new FlightRandom(21));
             Double3[] points =
             {
@@ -555,7 +559,7 @@ namespace Fpv450.Sim.Tests
                     }
                 }
             }
-            TestContext.Out.WriteLine($"the map's wind, Severe seed 21, 4000 steps at 7 points, the wake grid's version {version}: 0x{hash:X16}");
+            TestContext.Out.WriteLine($"the map's wind, Severe seed 21, 4000 steps at 7 points, the wake grid's version {version}{(oneScale ? ", the one-scale field" : "")}: 0x{hash:X16}");
             return hash;
         }
 
@@ -983,20 +987,23 @@ namespace Fpv450.Sim.Tests
         // The cavity's wind in E01's run at seven points over 4 s of Severe, every bit of it, pinned on .NET 10 for the Unity
         // EditMode run on Mono (the same test), as PinnedMapWind: the body's origin 0.75 m over the floor of the leg's middle. Since
         // w7-farmland-wind 1.2 (model 88) the field around the run carries the wake grid's version 2; with version 1 it is
-        // the pin before (the audit: the wake grid is the whole move).
-        const ulong PinnedCutWind = 0x3A0EDD30EF795FB3UL, PinnedCutWindVersion1 = 0xC73E7B7D2F312D6EUL;
+        // the pin before (the audit: the wake grid is the whole move). p7c-wind design 16: re-pinned; with the one-scale field it is
+        // model 98's pin, and with version 1 too the pin before.
+        const ulong PinnedCutWind = 0x26DB2FBB90A366AAUL, PinnedCutWindModel98 = 0x3A0EDD30EF795FB3UL, PinnedCutWindVersion1 = 0xC73E7B7D2F312D6EUL;
 
         [Test]
         public void TheCutsWindIsTheSameBitsOnEveryRuntime()
         {
-            foreach (int version in new[] { 1, WakeGrid.Version })
-                Assert.That(CutWind(version), Is.EqualTo(version == 1 ? PinnedCutWindVersion1 : PinnedCutWind), "the wake grid's version " + version);
+            Assert.That(CutWind(WakeGrid.Version, true), Is.EqualTo(PinnedCutWindModel98), "the one-scale field: model 98's");
+            Assert.That(CutWind(1, true), Is.EqualTo(PinnedCutWindVersion1), "the wake grid's version 1 on the one-scale field");
+            Assert.That(CutWind(WakeGrid.Version, false), Is.EqualTo(PinnedCutWind), "the field by height");
         }
 
-        static ulong CutWind(int version)
+        static ulong CutWind(int version, bool oneScale)
         {
             WindSetup setup = WindSetup.ForMap(Map, WindLevel.Severe);
             setup.Wakes.Version = version;
+            setup.OneScale = oneScale;
             using var wind = new WindField(setup, new FlightRandom(21));
             Double3 o = Leg + new Double3(0, -0.75, 0);
             Double3[] points =
@@ -1020,7 +1027,7 @@ namespace Fpv450.Sim.Tests
                     }
                 }
             }
-            TestContext.Out.WriteLine($"the cavity's wind in E01's run, Severe seed 21, 4000 steps at 7 points, the wake grid's version {version}: 0x{hash:X16}");
+            TestContext.Out.WriteLine($"the cavity's wind in E01's run, Severe seed 21, 4000 steps at 7 points, the wake grid's version {version}{(oneScale ? ", the one-scale field" : "")}: 0x{hash:X16}");
             return hash;
         }
     }
