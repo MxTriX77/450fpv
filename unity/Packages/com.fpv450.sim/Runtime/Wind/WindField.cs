@@ -60,8 +60,10 @@ namespace Fpv450.Sim.Wind
         /// tenth of a 1 km boundary layer).</summary>
         public double ProfileTop;
 
-        /// <summary>The turbulence's taper over the ground, m: its amplitude grows from 0 at d to full at d + this
-        /// (assumed: the surface blocks the gusts within about a metre).</summary>
+        /// <summary>The turbulence's taper over the ground, m: its amplitude grows from 0 at d to full at d + this (derived,
+        /// p7c-wind design 16: the cover's roughness sublayer, z_w − d = c_w·(h_c − d), Raupach 1994's c_w 2 as CanopyFlow's,
+        /// 0.198 m; the ground's blocking of the large eddies is the scales' law, HeightScaled. The one-scale field's 1 m was
+        /// assumed: "the surface blocks the gusts within about a metre").</summary>
         public double TaperHeight;
 
         // ---- the turbulence (K§6.7 layer 2): von Kármán, as random Fourier modes ----
@@ -77,16 +79,35 @@ namespace Fpv450.Sim.Wind
         /// <summary>Von Kármán's constant (published).</summary>
         public const double Karman = 0.4;
 
-        /// <summary>σ_w/σ_u (derived: MIL-HDBK-1797's low-altitude (0.177 + 0.000823·h)^0.4 at h = 35 m = 114.8 ft).</summary>
+        /// <summary>σ_w/u* in the neutral surface layer, constant with height (published: Panofsky and Dutton 1984; MOST's
+        /// φ_w(0), Charrondière and Stiperski 2023, Table 1).</summary>
+        public const double SurfaceSigmaW = 1.25;
+
+        /// <summary>σ_w/σ_u (derived, design 16: the surface layer's 1.25/2.4 = 0.521 at every height; the one-scale field's
+        /// 0.594 is MIL-HDBK-1797's low-altitude (0.177 + 0.000823·h)^0.4 at h = 35 m = 114.8 ft).</summary>
         public double VerticalRatio;
 
-        /// <summary>L_u, m: the horizontal components' longitudinal integral scale (derived: MIL-HDBK-1797's
-        /// h / (0.177 + 0.000823·h)^1.2 at 35 m, inside K§6.7's 115–200 m). Isotropy gives L_v = L_u / 2 (the
-        /// handbook's von Kármán form).</summary>
+        /// <summary>The turbulence's scales follow the height (p7c-wind 1.5e, design 16): each open mode's amplitude at a
+        /// point is von Kármán's at that point's own scales, HorizontalScaleAt and VerticalScaleAt. Off, the one-scale field
+        /// (model 98's, OneScale(): HorizontalScale and VerticalScale at every height), the known-wrong.</summary>
+        public bool HeightScaled;
+
+        /// <summary>L_h/(z − d) and L_w/(z − d) (derived, design 16): von Kármán's isotropic scales that give its spectrum
+        /// the neutral surface layer's σ (SurfaceSigmaU, SurfaceSigmaW) and Kaimal et al. (1972)'s inertial range,
+        /// nS/u*² = 0.309·f^(−2/3) for u and 0.396 for w at f = n(z − d)/U (Kolmogorov's with ε = u*³/(κz)), so L ∝ σ³/ε:
+        /// 3.132 and 0.470. Mann (1994)'s fit to Kaimal's spectra, 0.44 z in this form, agrees for w within 7 %.
+        /// Above ProfileTop they hold, as the mean; below the cover's roughness sublayer the canopy top's scales floor them
+        /// (CanopyScaleU and CanopyScaleW over CoverHeight).</summary>
+        public double HorizontalScaleOverHeight, VerticalScaleOverHeight;
+
+        /// <summary>L_u, m: the horizontal components' longitudinal integral scale in the one-scale field (derived:
+        /// MIL-HDBK-1797's h / (0.177 + 0.000823·h)^1.2 at 35 m, inside K§6.7's 115–200 m), and in both fields the
+        /// reference of the modes' longest wavenumber (LongestFraction). Isotropy gives L_v = L_u / 2 (the handbook's von
+        /// Kármán form).</summary>
         public double HorizontalScale;
 
-        /// <summary>L_w, m: the vertical component's (derived: the handbook's 2·L_w = h in its von Kármán form, so the
-        /// isotropic scale of w is h, at 35 m; K§6.7's "L_w ≈ the height").</summary>
+        /// <summary>L_w, m: the vertical component's in the one-scale field (derived: the handbook's 2·L_w = h in its von
+        /// Kármán form, so the isotropic scale of w is h, at 35 m; K§6.7's "L_w ≈ the height").</summary>
         public double VerticalScale;
 
         /// <summary>The modes (assumed: about 34 per decade of wavenumber, so the drone's 0.1–40 Hz sees a near-normal sum;
@@ -169,9 +190,12 @@ namespace Fpv450.Sim.Wind
             DisplacementRatio = 0.67;
             Roughness = 0.10;
             ProfileTop = 100;
-            TaperHeight = 1;
+            TaperHeight = CanopyFlow.Cw * (CoverHeight - DisplacementRatio * CoverHeight);
             Intensity = SurfaceIntensity(Roughness, DisplacementRatio * CoverHeight, ReferenceHeight);
-            VerticalRatio = 0.594;
+            VerticalRatio = SurfaceSigmaW / SurfaceSigmaU;
+            HeightScaled = true;
+            HorizontalScaleOverHeight = 3.132;
+            VerticalScaleOverHeight = 0.470;
             HorizontalScale = 167;
             VerticalScale = 35;
             Modes = 138;
@@ -221,11 +245,39 @@ namespace Fpv450.Sim.Wind
         /// <summary>d, m.</summary>
         public double Displacement => DisplacementRatio * CoverHeight;
 
+        /// <summary>The one-scale field of this preset (model 98's, design 16's known-wrong and the kept audits' field):
+        /// HorizontalScale and VerticalScale at every height, σ_w/σ_u MIL-HDBK-1797's at 35 m (0.594), the 1 m taper.</summary>
+        public WindPreset OneScale()
+        {
+            WindPreset p = this;
+            p.HeightScaled = false;
+            p.VerticalRatio = 0.594;
+            p.TaperHeight = 1;
+            return p;
+        }
+
+        /// <summary>The scales' floor, m (design 16: the cover's canopy-top eddies, CanopyScaleU and CanopyScaleW times
+        /// CoverHeight, in its roughness sublayer).</summary>
+        public double HorizontalFloor => CanopyScaleU * CoverHeight;
+
+        /// <summary>The vertical scale's floor, m.</summary>
+        public double VerticalFloor => CanopyScaleW * CoverHeight;
+
+        /// <summary>The horizontal components' isotropic scale at a height over the ground, m: HorizontalScaleOverHeight·(z − d),
+        /// z held at ProfileTop, floored at HorizontalFloor; the one-scale field's HorizontalScale at every height.</summary>
+        public double HorizontalScaleAt(double height) => HeightScaled
+            ? DetMath.Max(HorizontalScaleOverHeight * (DetMath.Min(height, ProfileTop) - Displacement), HorizontalFloor) : HorizontalScale;
+
+        /// <summary>The vertical component's isotropic scale at a height over the ground, m (as HorizontalScaleAt).</summary>
+        public double VerticalScaleAt(double height) => HeightScaled
+            ? DetMath.Max(VerticalScaleOverHeight * (DetMath.Min(height, ProfileTop) - Displacement), VerticalFloor) : VerticalScale;
+
         internal void Check()
         {
             if (!(MeanLo > 0 && MeanHi >= MeanLo) || !(CoverHeight > 0) || !(Roughness > 0) || !(DisplacementRatio >= 0)
                 || !(ReferenceHeight > Displacement + Roughness) || !(ProfileTop >= ReferenceHeight) || !(TaperHeight > 0)
                 || !(Intensity >= 0) || !(VerticalRatio >= 0) || !(HorizontalScale > 0) || !(VerticalScale > 0) || Modes < 1
+                || !(HorizontalScaleOverHeight > 0) || !(VerticalScaleOverHeight > 0)
                 || !(ShortestWavelength > 0) || !(LongestFraction > 0) || !(WakeEddyMin > 0 && WakeEddyMax >= WakeEddyMin) || WakeModes < 1
                 || !(CanopySigmaU >= 0) || !(CanopySigmaV >= 0) || !(CanopySigmaW >= 0) || !(CanopyScaleU > 0) || !(CanopyScaleW > 0)
                 || CanopyModes < 1 || !(CanopyConvection >= 0) || !(CanopyDecay >= 0) || !(BlendingHeights > 2) || !(CanopyEdge > 0)
@@ -257,9 +309,14 @@ namespace Fpv450.Sim.Wind
     ///   Modes random Fourier modes in log-spaced bands from k_min to 2π/ShortestWavelength: per mode a wavenumber
     ///   uniform in its band, a direction uniform on the sphere, a polarisation across it (so each mode carries
     ///   vorticity) at a uniform angle and a uniform phase, from wind.turbulence's draws 5·n to 5·n + 4 (counter-based).
-    ///   Its horizontal part has the amplitude 2·√(band energy) of σ_u and L_u, its vertical part that of σ_w and L_w.
-    ///   Frozen and advected with the mean wind (Taylor): the phase is κ·(x − X(t)) + φ, X(t) the drift. Each
-    ///   component is bounded by the sum of its modes' amplitudes (Bound). Tapered to 0 at d over TaperHeight.
+    ///   Its horizontal part has the amplitude 2·√(band energy) of σ_u and L_u, its vertical part that of σ_w and L_w, at
+    ///   the point's own scales (p7c-wind 1.5e, design 16, WindPreset.HeightScaled: L ∝ z − d from the surface layer's σ
+    ///   and Kaimal's inertial range, floored by the cover's canopy-top eddies; the one-scale field, WindSetup.OneScale,
+    ///   holds the handbook's at 35 m everywhere). The bands are log-spaced with one ratio, so a band's energy at a scale is
+    ///   a function of the band's index plus the scale's log over the band step: one table of the unit band amplitude on
+    ///   that grid, read and interpolated at index m + s, s from the profile's own log. Frozen and advected with the mean
+    ///   wind (Taylor): the phase is κ·(x − X(t)) + φ, X(t) the drift. Each component is bounded by the largest sum of its
+    ///   modes' amplitudes at any height (Bound). Tapered to 0 at d over TaperHeight.
     /// - **The wakes** (p7c-wind 1.5), when the setup has obstacles (WakeLayout): 1.3's wake grid of them on its worker
     ///   (WakeGridWorker), stepped with the direction's bearing at each step and sampled at each point at its height over
     ///   the ground under the body. Its speed scales the mean along the wind (below 0 the flow reverses); its turbulence
@@ -322,9 +379,18 @@ namespace Fpv450.Sim.Wind
         // reference height (X, Z) and its drift since the start (X, Z).
         readonly double[] _fromDeg, _vx, _vz, _cx, _cz;
 
-        // The turbulence's modes: wave vector (rad/m), amplitude (m/s, world), phase (rad); each step's phase offset.
+        // The turbulence's modes: wave vector (rad/m), amplitude (m/s, world; the one-scale field's), phase (rad); each step's
+        // phase offset.
         readonly Double3[] _wave, _amp;
         readonly double[] _phase, _offset;
+
+        // The scales with height (design 16): each mode's polarization times σ (σ_u, σ_w, σ_u), the unit band amplitude on
+        // the bands' log grid from the smallest scale, and a point's grid offset s = max(λ·_perStep + a, b) per component,
+        // λ the profile's log, clamped to the table's top.
+        readonly bool _scaled;
+        readonly Double3[] _pol;
+        readonly double[] _unit;
+        readonly double _perStep, _hA, _hB, _wA, _wB, _sTop;
 
         // The wakes: the worker and the eddies' unit wave directions, 2π/λ over H, unit amplitudes, phases and each step's
         // offset −κ̂·X(t).
@@ -343,7 +409,7 @@ namespace Fpv450.Sim.Wind
         // modes', a strip's eddies' (with the strip), and the wake eddies' (with 1 over the obstacle's height).
         readonly CutFrame _cuts;
         CanopyFlow _cutStrip;
-        double _cutOpen, _cutCanopy, _cutWake, _cutWakeInv;
+        double _cutOpen, _cutCanopy, _cutWake, _cutWakeInv, _cutLambda;
 
         // The step's frame (Begin).
         double _t, _ground;
@@ -360,9 +426,12 @@ namespace Fpv450.Sim.Wind
         /// <summary>The same with a preset of the caller's (a test's known-wrong field); the log records the level's own.</summary>
         public WindField(in WindSetup setup, FlightRandom random, in WindPreset preset) : this(setup, random, preset, null) { }
 
-        /// <summary>The same with a preset of the caller's over a terrain's hills, built for the preset's profile.</summary>
-        public WindField(in WindSetup setup, FlightRandom random, in WindPreset preset, HillFlow hills)
+        /// <summary>The same with a preset of the caller's over a terrain's hills, built for the preset's profile. A setup that
+        /// says OneScale flies that preset's one-scale field (WindPreset.OneScale, model 98's).</summary>
+        public WindField(in WindSetup setup, FlightRandom random, in WindPreset given, HillFlow hills)
         {
+            bool level = setup.Level != WindLevel.Still && setup.Level != WindLevel.Steady;
+            WindPreset preset = setup.OneScale && level ? given.OneScale() : given;
             Setup = setup;
             Preset = preset;
             _front = setup.Front?.Checked();
@@ -426,8 +495,10 @@ namespace Fpv450.Sim.Wind
             SigmaV = SigmaH * preset.VerticalRatio;
             SeedStream turbulence = random.Open("wind.turbulence");
             int modes = preset.Modes;
+            _scaled = preset.HeightScaled;
             _wave = new Double3[modes];
-            _amp = new Double3[modes];
+            if (_scaled) _pol = new Double3[modes];
+            else _amp = new Double3[modes];
             _phase = new double[modes];
             _offset = new double[modes];
             double kMin = preset.LongestFraction / (Knee * preset.HorizontalScale), kMax = TwoPi / preset.ShortestWavelength;
@@ -442,13 +513,55 @@ namespace Fpv450.Sim.Wind
                 var dir = new Double3(r * cos, z, r * sin);
                 _wave[m] = dir * k;
                 Double3 c = Across(dir, Unit(turbulence, i + 3));
+                _phase[m] = TwoPi * Unit(turbulence, i + 4);
+                if (_scaled)
+                {
+                    _pol[m] = new Double3(SigmaH * c.X, SigmaV * c.Y, SigmaH * c.Z);
+                    continue;
+                }
                 double ah = 2 * DetMath.Sqrt(BandEnergy(ka, kb, SigmaH, preset.HorizontalScale));
                 double aw = 2 * DetMath.Sqrt(BandEnergy(ka, kb, SigmaV, preset.VerticalScale));
                 _amp[m] = new Double3(ah * c.X, aw * c.Y, ah * c.Z);
-                _phase[m] = TwoPi * Unit(turbulence, i + 4);
                 bound0 += DetMath.Abs(_amp[m].X);
                 bound1 += DetMath.Abs(_amp[m].Y);
                 bound2 += DetMath.Abs(_amp[m].Z);
+            }
+            if (_scaled)
+            {
+                // The unit band amplitude on the bands' own log grid from the smallest scale (design 16): band m at the scale
+                // lo·e^(s·Δ) has the energy of band m + s at lo, Δ the bands' log step, so one table serves every mode at every
+                // height; a point's s is the profile's log over Δ plus the law's offset, or the floor's (WindPreset.*ScaleAt).
+                double step = DetMath.Log(ratio) / modes, lo = DetMath.Min(preset.HorizontalFloor, preset.VerticalFloor);
+                _perStep = 1 / step;
+                _hA = DetMath.Log(preset.HorizontalScaleOverHeight * _z0 / lo) * _perStep;
+                _hB = DetMath.Log(preset.HorizontalFloor / lo) * _perStep;
+                _wA = DetMath.Log(preset.VerticalScaleOverHeight * _z0 / lo) * _perStep;
+                _wB = DetMath.Log(preset.VerticalFloor / lo) * _perStep;
+                double lambdaTop = DetMath.Log((_top - _d) / _z0);
+                _sTop = DetMath.Max(DetMath.Max(lambdaTop * _perStep + _hA, _hB), DetMath.Max(lambdaTop * _perStep + _wA, _wB));
+                int rows = (int)_sTop + 1;
+                _unit = new double[modes + rows];
+                for (int j = 0; j < _unit.Length; j++)
+                {
+                    double ka = kMin * DetMath.Exp(DetMath.Log(ratio) * j / modes), kb = kMin * DetMath.Exp(DetMath.Log(ratio) * (j + 1) / modes);
+                    _unit[j] = 2 * DetMath.Sqrt(BandEnergy(ka, kb, 1, lo));
+                }
+                // Each component's bound: the largest sum of its modes' amplitudes at any grid row (an interpolated row's sum
+                // lies between its neighbours').
+                for (int j = 0; j < rows; j++)
+                {
+                    double x = 0, y = 0, w = 0;
+                    for (int m = 0; m < modes; m++)
+                    {
+                        double a = _unit[m + j];
+                        x += DetMath.Abs(a * _pol[m].X);
+                        y += DetMath.Abs(a * _pol[m].Y);
+                        w += DetMath.Abs(a * _pol[m].Z);
+                    }
+                    bound0 = DetMath.Max(bound0, x);
+                    bound1 = DetMath.Max(bound1, y);
+                    bound2 = DetMath.Max(bound2, w);
+                }
             }
             Bound = new Double3(bound0, bound1, bound2);
             if (setup.Canopies != null)
@@ -579,6 +692,7 @@ namespace Fpv450.Sim.Wind
             }
             var at = new Double3(origin.X, _ground + h, origin.Z);
             double lambda = Log(h), profile = lambda / _logRef, taper = DetMath.Min(1, (h - _d) / Preset.TaperHeight), speed;
+            _cutLambda = lambda; // the open modes' scales at the drive's height, as their shares
             _cutStrip = null;
             _cutOpen = taper;
             _cutCanopy = _cutWake = _cutWakeInv = 0;
@@ -645,9 +759,15 @@ namespace Fpv450.Sim.Wind
             return wind;
         }
 
-        /// <summary>The turbulence alone at a world point in the step's frame, untapered, world m/s.</summary>
+        /// <summary>The turbulence alone at a world point in the step's frame, untapered, world m/s: at the scales of its
+        /// height over the step's ground (Begin's; the floor's within the cover or with no ground under it).</summary>
         public Double3 Turbulence(in Double3 point)
         {
+            if (_scaled)
+            {
+                double h = point.Y - _ground;
+                return Scaled(point, h - _d > _z0 && h < double.PositiveInfinity ? Log(h) : 0);
+            }
             double x = 0, y = 0, z = 0;
             for (int m = 0; m < _wave.Length; m++)
             {
@@ -657,6 +777,32 @@ namespace Fpv450.Sim.Wind
                 x += a.X * cos;
                 y += a.Y * cos;
                 z += a.Z * cos;
+            }
+            return new Double3(x, y, z);
+        }
+
+        // The open modes at a point whose profile's log over its ground is λ, ln((min(h, top) − d)/z0): at its own scales, or
+        // the one-scale field's (Turbulence).
+        Double3 Modes(in Double3 point, double lambda) => _scaled ? Scaled(point, lambda) : Turbulence(point);
+
+        // The height-scaled modes (design 16): each mode's unit band amplitude read off the table at the point's grid offset
+        // for the horizontal and the vertical scale, linear between rows, times its polarization and σ.
+        Double3 Scaled(in Double3 point, double lambda)
+        {
+            double sh = DetMath.Min(DetMath.Max(lambda * _perStep + _hA, _hB), _sTop);
+            double sw = DetMath.Min(DetMath.Max(lambda * _perStep + _wA, _wB), _sTop);
+            int jh = (int)sh, jw = (int)sw;
+            double th = sh - jh, tw = sw - jw, x = 0, y = 0, z = 0;
+            for (int m = 0; m < _wave.Length; m++)
+            {
+                Double3 k = _wave[m];
+                double cos = DetMath.Cos(k.X * point.X + k.Y * point.Y + k.Z * point.Z + _offset[m]);
+                double h0 = _unit[m + jh], w0 = _unit[m + jw];
+                double hc = (h0 + th * (_unit[m + jh + 1] - h0)) * cos, wc = (w0 + tw * (_unit[m + jw + 1] - w0)) * cos;
+                Double3 c = _pol[m];
+                x += c.X * hc;
+                y += c.Y * wc;
+                z += c.Z * hc;
             }
             return new Double3(x, y, z);
         }
@@ -718,7 +864,7 @@ namespace Fpv450.Sim.Wind
                         double speed = profile + w * (c.Speed(h) / MeanSpeed - profile);
                         mean = Hill(_mean * speed, point.X, point.Z, lambda);
                         if (!fluctuations) return mean;
-                        Double3 open = Turbulence(point) * (taper * (1 - w * (1 - r)));
+                        Double3 open = Modes(point, lambda) * (taper * (1 - w * (1 - r)));
                         Double3 canopy = c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
                         return mean + open + canopy;
                     }
@@ -727,7 +873,7 @@ namespace Fpv450.Sim.Wind
                     _wakes.Sample(point.X, point.Z, h, out WakeSample b);
                     mean = Hill(_mean * ((1 - w) * profile * b.Speed + w * (c.Speed(h) / MeanSpeed)), point.X, point.Z, lambda);
                     if (!fluctuations) return mean;
-                    Double3 mixed = mean + Turbulence(point) * (taper * (1 - w * (1 - r))) + c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
+                    Double3 mixed = mean + Modes(point, lambda) * (taper * (1 - w * (1 - r))) + c.Eddies(point) * (taper * r * DetMath.Sqrt(w * c.Layer(h)));
                     double b2 = b.Turbulence * b.Turbulence - 1;
                     if (!(b2 > 0) || !(b.ObstacleHeight > 0)) return mixed;
                     return mixed + WakeEddies(point, 1 / b.ObstacleHeight) * (DetMath.Sqrt(b2) * SigmaH * (taper * DetMath.Sqrt(1 - w)));
@@ -736,12 +882,12 @@ namespace Fpv450.Sim.Wind
             if (_wakes == null)
             {
                 mean = Hill(_mean * profile, point.X, point.Z, lambda);
-                return fluctuations ? mean + Turbulence(point) * taper : mean;
+                return fluctuations ? mean + Modes(point, lambda) * taper : mean;
             }
             _wakes.Sample(point.X, point.Z, h, out WakeSample s);
             mean = Hill(_mean * (profile * s.Speed), point.X, point.Z, lambda);
             if (!fluctuations) return mean;
-            Double3 wind = mean + Turbulence(point) * taper;
+            Double3 wind = mean + Modes(point, lambda) * taper;
             double t2 = s.Turbulence * s.Turbulence - 1;
             if (!(t2 > 0) || !(s.ObstacleHeight > 0)) return wind;
             return wind + WakeEddies(point, 1 / s.ObstacleHeight) * (DetMath.Sqrt(t2) * SigmaH * taper);
@@ -794,7 +940,7 @@ namespace Fpv450.Sim.Wind
         {
             Double3 mean = _cuts.Flow(point, out double scale);
             if (!(scale > 0)) return mean;
-            Double3 fluctuation = Turbulence(point) * _cutOpen;
+            Double3 fluctuation = Modes(point, _cutLambda) * _cutOpen;
             if (_cutStrip != null) fluctuation = fluctuation + _cutStrip.Eddies(point) * _cutCanopy;
             if (_cutWake > 0) fluctuation = fluctuation + WakeEddies(point, _cutWakeInv) * _cutWake;
             return mean + fluctuation * scale;

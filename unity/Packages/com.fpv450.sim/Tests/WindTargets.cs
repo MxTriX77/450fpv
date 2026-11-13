@@ -277,7 +277,7 @@ namespace Fpv450.Sim.Tests
                     if (f >= lo && f < hi) band += 2 * (re[j] * re[j] + im[j] * im[j]) / ((double)n * n);
                 }
                 measured += band;
-                double sigma = preset.Intensity * h.Mean, length = preset.HorizontalScale;
+                double sigma = preset.Intensity * h.Mean, length = preset.HorizontalScaleAt(preset.ReferenceHeight); // the scale where the path flies (design 16)
                 double o1 = 2 * Math.PI * lo / airspeed, o2 = 2 * Math.PI * hi / airspeed, sum = 0;
                 const int steps = 2000;
                 for (int i = 0; i < steps; i++)
