@@ -887,8 +887,16 @@ namespace Fpv450.Sim.Log
         ///    and fling from the rotor, its push on the blade and the arm (AirframeModes.Strike), a stem episode in the log (event
         ///    39). A strike along a rotor's axis loads its arm's mode at the tip (2.2's G8). A flight that meets no stem and no
         ///    axial strike steps as 88 did.
+        /// 90: each leg's own stiffness, and the anchors' reach in the header (w9-village-physics 2.9, on 89;
+        ///    unity/physics/physics-integration-2--w9-liftoff): a drawn build's four legs each take a stiffness factor 1 + δ
+        ///    from the stream leg.stiffness (σ 3 %, within ±10 %, assumed; D-086's hand-made legs), which scales the tube's axial
+        ///    and bending springs, the frame's give and the buckling cap in the contacts and in the legs' failure law. It is
+        ///    drawn only where the build asks (LegDamageSpec.DrawStiffness, as the placement and the motors' asymmetry are), so
+        ///    a flight that does not ask steps as 89 did. ContactSpec.AnchorReach replaces ContactModel's unlogged switch and is
+        ///    written in the header's ground entry (TagGround) with the spread's σ and bound; a log without the entry reads as
+        ///    its model flew.
         /// </summary>
-        public const int ModelVersion = 89;
+        public const int ModelVersion = 90;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
