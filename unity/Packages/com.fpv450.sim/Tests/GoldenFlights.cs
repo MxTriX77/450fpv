@@ -725,6 +725,16 @@ namespace Fpv450.Sim.Tests
         /// flies with it; a flight to be recorded sets it on its setup's ContactSpec instead, which the header records (2.9).</summary>
         public static readonly Action<FlightCore> WithoutTheReach = core => core.Contacts.Spec.AnchorReach = false;
 
+        /// <summary>Physics_materials.json's rows without their crown blocks (w9-village-physics 2.3's known-wrong, model 89's twig
+        /// shells: 30 N/m a part with no limit, the blades glancing; a copy, the hash the file's). An older model's kept audit flies
+        /// through a crown with it.</summary>
+        public static MaterialRow[] WithoutTheCrowns(MaterialRow[] rows)
+        {
+            var copy = (MaterialRow[])rows.Clone();
+            for (int i = 0; i < copy.Length; i++) copy[i].Crown = null;
+            return copy;
+        }
+
         /// <summary>A flight's contacts without the skid's frame (p7g-legs, model 54's audit and known-wrong): one value both ways,
         /// every leg the cantilever along the skid as across it (ContactSpec's frame give, sway load and lever 0, LegDamageSpec's
         /// frame shares 0), model 51's legs.</summary>

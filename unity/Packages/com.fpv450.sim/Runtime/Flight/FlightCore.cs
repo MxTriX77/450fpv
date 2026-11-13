@@ -237,7 +237,7 @@ namespace Fpv450.Sim.Flight
         Corners _rotorThrust = default; // each rotor's mean thrust over the step's sub-steps, for the modes
         ModeSet _modeAccel; // the modes' accelerations over the last step, for the camera
         StepTrace _trace;
-        readonly StepEvents _events = new StepEvents();
+        readonly StepEvents _events; // sized from the contact table (StepEvents.ForContacts, w9-village-physics 2.3)
         readonly Tether.FiberLine _tether; // the fiber (FlightSetup.Tether), or null
         readonly Control.Failsafe _failsafe; // the controller's failsafe on the line's break (p7d-tether 1.8), or null
         // The link's field window (FeedSignals): the exit's tension (sum, max), the least bend radius, the margin (sum, least).
@@ -353,6 +353,7 @@ namespace Fpv450.Sim.Flight
             RuntimeIds = new int[objects.Length];
             for (int i = 0; i < objects.Length; i++)
                 RuntimeIds[i] = World.Query.AddObject(objects[i].Name, objects[i].Shapes);
+            _events = new StepEvents(StepEvents.ForContacts(setup.Contacts?.Shapes?.Length ?? 0));
             if (setup.Contacts != null)
             {
                 Contact.Moisture moisture = Contact.SurfaceTable.MoistureOf(setup.Rain);
