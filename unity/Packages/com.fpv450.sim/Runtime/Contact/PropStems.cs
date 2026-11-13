@@ -1,5 +1,7 @@
 using System;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
+using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Contact
@@ -21,6 +23,12 @@ namespace Fpv450.Sim.Contact
     ///   the rotor pays it, the body takes E/u against the blade's motion and the pitched face's E_cut·(c·cos θ/h_f)/u along the
     ///   axis, each at its own radius and azimuth, by the blade crossing it in the step.
     /// - Each stem keeps its lean and its length (shortened by a cut) in a store shared by every disc, keyed by its hash.
+    /// - The wash with distance (2.13, design.md "## 2.13"; UseWash): the stems read the line's law of the rotors' air (RotorAir,
+    ///   p7d-tether design 19) through an instance of their own, begun each step with the line's inputs. A stem takes the air
+    ///   at ⅔·L·cos φ over its base on its vertical, with its near column's swirl, refreshed every StemAirRefresh steps by its
+    ///   slot; its load normal to it in its plane of lean is ½ρ·C_d·d·|u_φ|·u_φ a length, so m(φ) = (φ − φ₀) − K·|u_φ|·u_φ − G·sin φ,
+    ///   K = ½ρ·C_d·d·L³/(8EI): 2.12's A·sin²φ under a vertical jet, the whole cross-flow on a standing stem in a wall jet, and
+    ///   the fountain standing it up. Without it (FlightSetup.StemColumn, or no table) the slipstream is 2.12's, above.
     /// The step's cuts go to BladeStrikes (StrikeKind.Stem), a rotor's episode to the log (StemEpisode, start and end), the cut
     /// pieces to the feed (FeedSignals.StemCuts…); a stem's force goes through Breaks as a twig's does.
     /// </summary>
@@ -95,15 +103,18 @@ namespace Fpv450.Sim.Contact
         }
 
         /// <summary>The last step's stems per rotor, for a test or a bench: the disc's height over the ground (m), the
-        /// slipstream's pressure (Pa), the step's fresh cuts and stub slices (cut equivalents), all its cuts, its work and the fresh
+        /// slipstream's pressure (Pa: 2.12's T/A; with the wash, 2.13, the mean in-plane pressure ½ρ·(u_lean² + u_y²) on the stems
+        /// based under the disc), the step's fresh cuts and stub slices (cut equivalents), all its cuts, its work and the fresh
         /// cuts' share of it (J), the
         /// impulse it gave the body in the disc's plane (world N·s) and along the rotor's axis (N·s), the stems cached about the
-        /// disc and those under it standing over its plane.</summary>
+        /// disc and those under it standing over its plane; the stems based under the disc (within R of its axis) and those of
+        /// them leaning past 45° (2.13, before the step's lean), the same for the tall ones (drawn 1 m or longer: the pilot's
+        /// "high grass"), and the fresh cuts outside R/√2 (the disc's outer ring).</summary>
         public struct StemRecord
         {
-            public double Height, Load, Fresh, Sliced, Cuts, Work, FreshWork, Axial;
+            public double Height, Load, Fresh, Sliced, Cuts, Work, FreshWork, Axial, FreshRing;
             public Double3 InPlane;
-            public int Cached, Over;
+            public int Cached, Over, Under, Folded, UnderTall, FoldedTall;
         }
 
         /// <summary>The last step's stems per rotor (StemRecord), Corners' order.</summary>
@@ -116,6 +127,29 @@ namespace Fpv450.Sim.Contact
         /// <summary>A sweep's scales on the field's stems per m² and on every stem's diameter (design.md 2.12's sweep only: a flight
         /// never sets them, and a log does not carry them).</summary>
         public double StemDensityScale = 1, StemDiameterScale = 1;
+
+        /// <summary>Every how many steps a stem's air is taken again, by its slot (2.13, numerical: 8 ms, under half the lean's τ
+        /// of every stem that can reach a standing disc's plane). A test's comparison sets 1; a flight never sets it.</summary>
+        public int StemAirRefresh = 8;
+
+        /// <summary>The stems' rotor air (2.13: the line's law, begun with the line's inputs while stems are near), or null for
+        /// 2.12's undiminished column.</summary>
+        public RotorAir Wash => _air;
+
+        // 2.13: the stems' air, its inputs and the step's hubs; the air on each stem (world m/s, its swirl in) and its step.
+        RotorAir _air;
+        WindField _wind;
+        double _rho;
+        readonly Double3[] _motor = new Double3[4], _washHub = new Double3[4], _washAir = new Double3[4];
+        readonly double[] _washThrust = new double[4], _washGround = new double[4];
+        readonly bool[] _washDisc = new bool[4];
+        readonly XZ[] _washXZ = new XZ[4];
+        readonly GroundSample[] _washSample = new GroundSample[4];
+        readonly Ray[] _soilRay = new Ray[1];
+        readonly RayHit[] _soilHit = new RayHit[1];
+        Double3 _washUp;
+        double[] _sUx, _sUy, _sUz;
+        long[] _sAir;
 
         /// <summary>Each corner's strikes' impulse along its rotor's axis this step, N·s (every kind: shapes, twigs, stems), which
         /// loads its arm's mode at the tip (AirframeModes.Strike, G8).</summary>
@@ -132,8 +166,9 @@ namespace Fpv450.Sim.Contact
         readonly double[] _slotCuts = new double[8];
 
         // The stems' states, shared by every disc: key (0 empty), lean, length, the jet on it and its lag, its top over its base,
-        // the steps they were last loaded, advanced and seen.
+        // the steps they were last loaded, advanced and seen; the lean's sine and cosine, kept with it (2.13: taken once a lean).
         readonly ulong[] _sKey = new ulong[StateSlots];
+        readonly double[] _sSin = new double[StateSlots], _sCos = new double[StateSlots];
         readonly double[] _sPhi = new double[StateSlots], _sLen = new double[StateSlots], _sQ = new double[StateSlots], _sQLag = new double[StateSlots],
             _sTop = new double[StateSlots], _sSwirl = new double[StateSlots];
         readonly bool[] _sRest = new bool[StateSlots];
@@ -176,6 +211,32 @@ namespace Fpv450.Sim.Contact
             if (!_stemsOn) return;
             CoverRow[] rows = _spec.Surfaces.Cover;
             for (int k = 0; k < rows.Length && k < _coverSets.Length; k++) _coverSets[k] = _contacts.Cover((CoverKind)k);
+        }
+
+        /// <summary>
+        /// The stems read the rotors' wash with distance (w9-village-physics 2.13): the line's law (RotorAir, p7d-tether design 19)
+        /// from table's rotor_air rows, with the line's switches (recirculation: the fountain and the ground vortex; body: the
+        /// drone's shapes over the fountain; cutOff: the 4 R known-wrong), begun each step at the motors' hubs with the wind.
+        /// FlightCore calls it at construction; without it the stems fly 2.12's undiminished column.
+        /// </summary>
+        public void UseWash(TetherTable table, PropulsionSpec propulsion, WindField wind, bool recirculation, bool body, bool cutOff)
+        {
+            if (!_stemsOn) return;
+            _air = new RotorAir(table, _radius, recirculation, body ? _contacts : null, cutOff);
+            _wind = wind ?? throw new ArgumentNullException(nameof(wind));
+            _rho = table.Number("fiber.air_density_kg_m3");
+            for (int i = 0; i < 4; i++)
+            {
+                _motor[i] = propulsion.Motors[i].Position;
+                // The discs' hubs are the motors' (drone.json): their ground is the stems' own sample; else its own.
+                _washDisc[i] = _discOf[i] >= 0 && _spec.Shapes[_discOf[i]].A.X == _motor[i].X && _spec.Shapes[_discOf[i]].A.Y == _motor[i].Y
+                    && _spec.Shapes[_discOf[i]].A.Z == _motor[i].Z;
+            }
+            _sUx = new double[StateSlots];
+            _sUy = new double[StateSlots];
+            _sUz = new double[StateSlots];
+            _sAir = new long[StateSlots];
+            for (int i = 0; i < StateSlots; i++) _sAir[i] = -1;
         }
 
         // A stem's tissue from its cover set at diameter d and modulus E.
@@ -222,12 +283,14 @@ namespace Fpv450.Sim.Contact
             }
             _sKey[oldest] = id;
             _sPhi[oldest] = phi0;
+            DetMath.SinCos(phi0, out _sSin[oldest], out _sCos[oldest]);
             _sLen[oldest] = length;
             _sQ[oldest] = _sQLag[oldest] = _sSwirl[oldest] = 0;
             _sRest[oldest] = false;
             _sTop[oldest] = double.NaN;
             _sLoaded[oldest] = _sAdvanced[oldest] = -1;
             _sSeen[oldest] = step;
+            if (_sAir != null) _sAir[oldest] = -1;
             return oldest;
         }
 
@@ -428,10 +491,10 @@ namespace Fpv450.Sim.Contact
         // A stem's top over its base: leaning, L·cos φ (its drawn shape's rise at most); folded by a jet, its arch's crest.
         double TopOf(in Stalk k, int s)
         {
-            double len = _sLen[s];
-            DetMath.SinCos(_sPhi[s], out _, out double cp);
+            double len = _sLen[s], cp = _sCos[s];
             double rise = k.Rise * (len / k.Length), top = DetMath.Min(rise, len * cp), q = _sQLag[s];
-            if (q > 0)
+            // A stem standing to its natural lean's top or higher stands over any crest (the crest is at most that): no root.
+            if (q > 0 && top < DetMath.Min(rise, len * k.CosPhi0))
             {
                 double lb = DetMath.Cbrt(k.T.EI / (StemDrag * k.T.D * q));
                 top = DetMath.Max(top, DetMath.Min(DetMath.Min(rise, len * k.CosPhi0), StemFoldedCrest * lb));
@@ -439,10 +502,83 @@ namespace Fpv450.Sim.Contact
             return top;
         }
 
+        // A stem under a disc in its record: standing or folded past 45°, and among the tall (drawn 1 m or longer).
+        void Count(ref StemRecord rec, in Stalk k, int s)
+        {
+            bool folded = _sPhi[s] > Pi / 4, tall = !(k.Length < 1);
+            rec.Under++;
+            if (folded) rec.Folded++;
+            if (!tall) return;
+            rec.UnderTall++;
+            if (folded) rec.FoldedTall++;
+        }
+
+        // ---- the wash (2.13) ------------------------------------------------------------------------------------------------
+
+        // The stems' rotor air this step, with the line's inputs (FiberLine's Begin): each motor's hub, its rotor's mean thrust,
+        // the wind at it less its velocity (over a hole the step's own frame, NaN), the ground under it (the soil under a hole),
+        // and the drone's shapes over the fountain.
+        void BeginWash(in FlightState now, in Corners thrust, Double3 up)
+        {
+            Quat q = now.Attitude;
+            bool own = false;
+            for (int i = 0; i < 4; i++)
+            {
+                _washHub[i] = now.Position + q.Rotate(_motor[i]);
+                _washXZ[i] = new XZ(_washHub[i].X, _washHub[i].Z);
+                own |= !_washDisc[i];
+            }
+            if (own) _world.SampleGround(_washXZ, _washSample);
+            for (int i = 0; i < 4; i++)
+            {
+                GroundSample g = _washDisc[i] ? _hubGround[i] : _washSample[i];
+                bool hole = (g.Flags & GroundFlags.Hole) != 0;
+                _washGround[i] = hole ? _world.SoilUnder(_washHub[i], _soilRay, _soilHit, out _) : g.Height;
+                Double3 v = now.Velocity + q.Rotate(Double3.Cross(now.BodyRate, _motor[i]));
+                _washAir[i] = _wind.At(_washHub[i], hole ? double.NaN : g.Height) - v;
+                _washThrust[i] = thrust[i];
+            }
+            _washUp = up;
+            if (_air.BodyBlocks) _air.PlaceBody(now.Position, q);
+            _air.Begin(_washHub, up, _washThrust, _washAir, _washGround);
+        }
+
+        // Stem k's air (slot s) at ⅔·L·cos φ over its base on its vertical, with its near column's swirl, taken again every
+        // StemAirRefresh steps by its slot (at once when new or stale) and held between; returns its in-plane pressure,
+        // ½ρ·(u_lean² + u_y²), Pa.
+        double StemAir(in Stalk k, int s, long step)
+        {
+            long last = _sAir[s];
+            if (!(last >= 0 && step - last < StemAirRefresh && (step + s) % StemAirRefresh != 0))
+            {
+                _sAir[s] = step;
+                double cp = _sCos[s];
+                var p = new Double3(k.Base.X, k.Base.Y + 2.0 / 3 * _sLen[s] * cp, k.Base.Z);
+                Double3 u = _air.At(p, k.Base.Y, out _);
+                // A near column turns with its rotor (2.12): tan β = Q/(2·T·r̄) times the column's speed, along the turning.
+                for (int j = 0; j < 4; j++)
+                {
+                    double w = _air.Column(j, p), t = _propulsion.Thrust(j);
+                    if (!(w > 0) || !(t > 0)) continue;
+                    Double3 rel = p - _washHub[j], flat = rel - _washUp * Double3.Dot(rel, _washUp);
+                    double r2 = Double3.Dot(flat, flat);
+                    if (!(r2 > 0)) continue;
+                    double tan = DetMath.Abs(_propulsion.Torque(j)) / (2 * t * StemSwirlRadius * _radius);
+                    u = u + Double3.Cross(_washUp, flat) * (-_spin[j] * w * tan / DetMath.Sqrt(r2));
+                }
+                _sUx[s] = u.X;
+                _sUy[s] = u.Y;
+                _sUz[s] = u.Z;
+            }
+            double ul = _sUx[s] * k.Lean.X + _sUz[s] * k.Lean.Z, uy = _sUy[s];
+            return 0.5 * _rho * (ul * ul + uy * uy);
+        }
+
         // ---- the step --------------------------------------------------------------------------------------------------------
 
-        // Before the discs' passes: the four hubs' ground, each rotor's cache, the jet on each stem, and every cached stem's lean.
-        void StemsBegin(in FlightState now)
+        // Before the discs' passes: the four hubs' ground, each rotor's cache, the jet on each stem, and every cached stem's lean;
+        // with the wash (2.13), the stems' rotor air begun first from the step's mean thrust.
+        void StemsBegin(in FlightState now, in Corners thrust)
         {
             _tip = default;
             if (!_stemsOn) return;
@@ -466,6 +602,16 @@ namespace Fpv450.Sim.Contact
             long step = now.Step;
             Double3 axis = now.Attitude.Rotate(Up);
             double R = _radius, dt = FlightCore.Dt;
+            if (_air != null)
+            {
+                bool any = false;
+                for (int c = 0; c < 4; c++)
+                {
+                    double ground = _hubGround[c].Height;
+                    any |= _discOf[c] >= 0 && (!(ground > double.NegativeInfinity) || hy[c] - ground < StemWakeTop);
+                }
+                if (any) BeginWash(now, thrust, axis);
+            }
             for (int c = 0; c < 4; c++)
             {
                 var hub = new Double3(hx[c], hy[c], hz[c]);
@@ -481,14 +627,35 @@ namespace Fpv450.Sim.Contact
                     continue;
                 }
                 if (!_cacheValid[c] || (hub - _cacheAt[c]).Length() > StemCacheRefresh) Cache(c, hub, field, step);
+                StemLast[c].Cached = _stalkCount[c];
+                if (_air != null)
+                {
+                    // The wash (2.13): each stem's air once a step, the field's, not a disc's; the stems under the disc counted.
+                    double load = 0;
+                    for (int e = 0; e < _stalkCount[c]; e++)
+                    {
+                        ref Stalk k = ref _stalks[c * StemCacheSize + e];
+                        int s = SlotOf(ref k, step);
+                        if (_sLoaded[s] != step)
+                        {
+                            _sLoaded[s] = step;
+                            _sQ[s] = StemAir(k, s, step);
+                        }
+                        Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
+                        if (!(Double3.Dot(flat, flat) <= R * R)) continue;
+                        Count(ref StemLast[c], k, s);
+                        load += _sQ[s];
+                    }
+                    StemLast[c].Load = StemLast[c].Under > 0 ? load / StemLast[c].Under : 0;
+                    continue;
+                }
                 // The slipstream's pressure under the disc, q = T/A (momentum theory's contracted wake), on the stems based under it,
                 // and its swirl's angle off the axis, tan β = Q/(2·T·r̄) (momentum theory: the wake's angular momentum flux is the
                 // torque, w_θ = Q/(ρ·2v_i·A·r̄) over its axial 2v_i; r̄ = 2R/3, assumed), turning with the rotor.
-                double thrust = _propulsion.Thrust(c), q = StemLean && thrust > 0 ? thrust / (Pi * R * R) : 0;
-                double swirl = q > 0 ? DetMath.Abs(_propulsion.Torque(c)) / (2 * thrust * StemSwirlRadius * R) : 0, spin = _spin[c];
+                double thrust1 = _propulsion.Thrust(c), q = StemLean && thrust1 > 0 ? thrust1 / (Pi * R * R) : 0;
+                double swirl = q > 0 ? DetMath.Abs(_propulsion.Torque(c)) / (2 * thrust1 * StemSwirlRadius * R) : 0, spin = _spin[c];
                 _stemQ[c] = q;
                 StemLast[c].Load = q;
-                StemLast[c].Cached = _stalkCount[c];
                 for (int e = 0; e < _stalkCount[c]; e++)
                 {
                     ref Stalk k = ref _stalks[c * StemCacheSize + e];
@@ -498,9 +665,10 @@ namespace Fpv450.Sim.Contact
                         _sLoaded[s] = step;
                         _sQ[s] = 0;
                     }
-                    if (!(q > _sQ[s])) continue;
                     Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
                     double r2 = Double3.Dot(flat, flat);
+                    if (r2 <= R * R) Count(ref StemLast[c], k, s);
+                    if (!(q > _sQ[s])) continue;
                     if (!(r2 <= R * R)) continue;
                     _sQ[s] = q;
                     // The swirl's tilt in the stem's own plane of lean: tan β times the wake's turning direction along its lean.
@@ -521,15 +689,35 @@ namespace Fpv450.Sim.Contact
                     double q = _sLoaded[s] == step ? _sQ[s] : 0, phi = _sPhi[s];
                     if (!(q > 0) && !(_sQLag[s] > 0) && _sRest[s]) continue; // at rest, its top known
                     double len = _sLen[s], l3 = len * len * len, tau = len * len * k.Tau0;
-                    double A = q * k.T.Kappa0 * l3, G = k.MuG8 * l3, beta = q > 0 ? _sSwirl[s] : 0;
-                    // m(φ) = (φ − φ₀) − A·sin(φ + β)·|sin(φ + β)| − G·sin φ: the jet tilted β in the stem's plane, its normal share.
-                    DetMath.SinCos(phi, out double sp, out double cp);
-                    DetMath.SinCos(phi + beta, out double sj, out double cj);
-                    double aj = DetMath.Abs(sj);
-                    double m = phi - k.Phi0 - A * sj * aj - G * sp, slope = 1 - 2 * A * aj * cj - G * cp, rate = dt / tau;
+                    double G = k.MuG8 * l3, m, slope, rate = dt / tau;
+                    double sp = _sSin[s], cp = _sCos[s];
+                    if (_air != null)
+                    {
+                        // 2.13: the held air in the stem's plane of lean, u_φ = u·ê_φ along the lean's growth and u·â along the
+                        // stem; m(φ) = (φ − φ₀) − K·|u_φ|·u_φ − G·sin φ, K = ½ρ·C_d·d·L³/(8EI), its slope 1 + 2K·|u_φ|·(u·â) − G·cos φ.
+                        double ul = 0, uy = 0;
+                        if (q > 0)
+                        {
+                            ul = _sUx[s] * k.Lean.X + _sUz[s] * k.Lean.Z;
+                            uy = _sUy[s];
+                        }
+                        double K = 0.5 * _rho * k.T.Kappa0 * l3, uphi = ul * cp - uy * sp, ua = ul * sp + uy * cp, au = DetMath.Abs(uphi);
+                        m = phi - k.Phi0 - K * au * uphi - G * sp;
+                        slope = 1 + 2 * K * au * ua - G * cp;
+                    }
+                    else
+                    {
+                        double A = q * k.T.Kappa0 * l3, beta = q > 0 ? _sSwirl[s] : 0;
+                        // m(φ) = (φ − φ₀) − A·sin(φ + β)·|sin(φ + β)| − G·sin φ: the jet tilted β in the stem's plane, its normal share.
+                        DetMath.SinCos(phi + beta, out double sj, out double cj);
+                        double aj = DetMath.Abs(sj);
+                        m = phi - k.Phi0 - A * sj * aj - G * sp;
+                        slope = 1 - 2 * A * aj * cj - G * cp;
+                    }
                     double next = DetMath.Min(Pi / 2, DetMath.Max(-Pi / 2, phi - m * rate / (1 + DetMath.Max(0, slope) * rate)));
                     _sRest[s] = !(q > 0) && DetMath.Abs(next - phi) < 1e-12;
                     _sPhi[s] = next;
+                    DetMath.SinCos(next, out _sSin[s], out _sCos[s]);
                     double lag = _sQLag[s] + (q - _sQLag[s]) * (dt / (tau + dt));
                     _sQLag[s] = lag > 1e-9 ? lag : 0;
                     _sTop[s] = TopOf(k, s);
@@ -564,7 +752,7 @@ namespace Fpv450.Sim.Contact
                 double r = DetMath.Sqrt(r2);
                 Double3 dir = flat * (1 / r);
                 // The blade's speed across the stem's axis: ω·r·√(1 − (t̂·â)²), t̂ the blade's motion there, â the stem's axis.
-                DetMath.SinCos(_sPhi[slot], out double sp, out double cp);
+                double sp = _sSin[slot], cp = _sCos[slot];
                 Double3 motion = Double3.Cross(axis, dir) * -s, stem = new Double3(k.Lean.X * sp, cp, k.Lean.Z * sp);
                 double along = Double3.Dot(motion, stem), across = omega * r * DetMath.Sqrt(DetMath.Max(0, 1 - along * along));
                 if (StemCritical && !(across >= k.T.Vc)) continue; // pushed aside
@@ -588,6 +776,7 @@ namespace Fpv450.Sim.Contact
                 {
                     rec.Fresh += 1;
                     rec.FreshWork += work - was;
+                    if (r2 * 2 > R * R) rec.FreshRing += 1; // outside the near column's R/√2 (momentum theory's far wake)
                 }
                 else rec.Sliced += slice;
                 rec.Cuts += 1;

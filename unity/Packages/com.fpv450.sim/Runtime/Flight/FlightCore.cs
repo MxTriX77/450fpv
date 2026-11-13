@@ -152,6 +152,17 @@ namespace Fpv450.Sim.Flight
         /// The audit against model 94 and the harness's known-wrong for the wash, never a pilot's flight.</summary>
         public bool TetherWakeReach4R;
 
+        /// <summary>tether.json's table for the stems' air in a flight without the line (w9-village-physics 2.13): the props'
+        /// stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads (RotorAir). With the line
+        /// the line's table is read and this one is not. Null with no line: the stems fly the undiminished column (StemColumn),
+        /// and the header says so. The header records its rows and hash.</summary>
+        public Tether.TetherTable StemAir;
+
+        /// <summary>The known-wrong stems' slipstream (w9-village-physics 2.12's, model 97's): q = T/A on every stem based within
+        /// R of a disc's axis at any height under PropStrikes.StemWakeTop, its swirl, nothing elsewhere. The audit against model
+        /// 97 and the stems' known-wrong for the wash with distance, never a pilot's flight.</summary>
+        public bool StemColumn;
+
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
         /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>
@@ -389,7 +400,15 @@ namespace Fpv450.Sim.Flight
                     _trace.Loose = _loose;
                 }
                 if (_propulsion != null && setup.Propulsion.Rotor != null && setup.Contacts.BladeStrikes)
+                {
                     _strikes = new Contact.PropStrikes(_contacts, World, _propulsion, setup.Propulsion, Random);
+                    // The stems read the line's law of the rotors' air (w9-village-physics 2.13): the line's table and switches,
+                    // or tether.json's for the stems alone; with neither, or the known-wrong, 2.12's undiminished column.
+                    Tether.TetherTable air = setup.Tether ?? setup.StemAir;
+                    if (air != null && !setup.StemColumn)
+                        _strikes.UseWash(air, setup.Propulsion, _wind, !setup.TetherDesign4Air, !setup.TetherFountainThroughBody,
+                            setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air);
+                }
             }
 
             // The fiber (p7d-tether 1.6), laid at the start pose; its draws after every other model's.
@@ -561,7 +580,7 @@ namespace Fpv450.Sim.Flight
             // they leave (p7f-damage design 6), after the move as the strikes are sensed.
             if (_strikes != null)
             {
-                _strikes.Apply(angles, ref s, body, _events);
+                _strikes.Apply(angles, ref s, body, _events, _rotorThrust);
                 // Each strike's push along its rotor's axis loads its arm at the tip in this step (w9-village-physics 2.2, G8).
                 if (_modes != null && ModesSpec.StrikeLoad) _modes.Strike(ref s.ModeRate, ref _modeAccel, _strikes.TipImpulse, Dt);
                 Guard(default, default, s, "prop strikes");

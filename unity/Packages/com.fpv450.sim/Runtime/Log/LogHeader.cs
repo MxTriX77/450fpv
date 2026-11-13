@@ -120,6 +120,7 @@ namespace Fpv450.Sim.Log
             "TetherSlidingTrail",
             "TetherBeforeDesign18",
             "TetherWakeReach4R",
+            "StemAir", "StemColumn",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -285,7 +286,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -376,6 +377,12 @@ namespace Fpv450.Sim.Log
         public bool TetherSlidingTrail;
         public bool TetherBeforeDesign18;
         public bool TetherWakeReach4R;
+
+        /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): tether.json's rows and hash read by the
+        /// props' stems in a flight without the line (FlightSetup.StemAir; null with the line or none), and whether the stems
+        /// flew 2.12's undiminished column (FlightSetup.StemColumn, or no table to read; every log without the entry did).</summary>
+        public TetherTable StemAir;
+        public bool StemColumn;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -472,6 +479,8 @@ namespace Fpv450.Sim.Log
                 TetherSlidingTrail = setup.TetherSlidingTrail,
                 TetherBeforeDesign18 = setup.TetherBeforeDesign18,
                 TetherWakeReach4R = setup.TetherWakeReach4R,
+                StemAir = setup.Tether == null ? setup.StemAir : null,
+                StemColumn = setup.StemColumn || (setup.Tether ?? setup.StemAir) == null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -591,6 +600,8 @@ namespace Fpv450.Sim.Log
                 TetherSlidingTrail = TetherSlidingTrail,
                 TetherBeforeDesign18 = TetherBeforeDesign18,
                 TetherWakeReach4R = TetherWakeReach4R,
+                StemAir = StemAir,
+                StemColumn = StemColumn,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -1345,6 +1356,25 @@ namespace Fpv450.Sim.Log
                     }
                 }
             });
+            // The stems' air since w9-village-physics 2.13, an entry of its own as the stems' (no format change): the column
+            // switch, then tether.json's rows and hash when the stems read them without the line. A log without it flew 2.12's
+            // column.
+            Entry(w, TagStemAir, e =>
+            {
+                e.Write(StemColumn);
+                e.Write(StemAir != null);
+                if (StemAir == null) return;
+                e.Write(StemAir.ContentHash);
+                e.Write((ushort)StemAir.Rows.Length);
+                foreach (TetherRow row in StemAir.Rows)
+                {
+                    Text(e, row.Name);
+                    e.Write(row.Label);
+                    e.Write((byte)row.Kind);
+                    e.Write((ushort)row.Values.Length);
+                    foreach (double x in row.Values) e.Write(x);
+                }
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1400,7 +1430,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1501,6 +1531,21 @@ namespace Fpv450.Sim.Log
                                 }
                             }
                         }
+                        break;
+                    case TagStemAir:
+                        sawStemAir = true;
+                        StemColumn = r.ReadBoolean();
+                        StemAir = null;
+                        if (!r.ReadBoolean()) break;
+                        ulong airHash = r.ReadUInt64();
+                        var airRows = new TetherRow[r.ReadUInt16()];
+                        for (int i = 0; i < airRows.Length; i++)
+                        {
+                            airRows[i] = new TetherRow { Name = Text(r), Label = r.ReadByte(), Kind = (TetherValueKind)r.ReadByte() };
+                            airRows[i].Values = new double[r.ReadUInt16()];
+                            for (int k = 0; k < airRows[i].Values.Length; k++) airRows[i].Values[k] = r.ReadDouble();
+                        }
+                        StemAir = new TetherTable(airRows, airHash);
                         break;
                     case TagHull:
                         if (r.ReadBoolean())
@@ -1890,6 +1935,12 @@ namespace Fpv450.Sim.Log
                 // Before w9-village-physics 2.2 no flight met stems or loaded an arm at its tip from a strike.
                 if (Contacts != null) Contacts.Stems = false;
                 if (Modes != null) Modes.StrikeLoad = false;
+            }
+            if (!sawStemAir)
+            {
+                // Before w9-village-physics 2.13 the stems flew 2.12's undiminished column.
+                StemColumn = true;
+                StemAir = null;
             }
             if (!sawGround && Contacts != null)
             {

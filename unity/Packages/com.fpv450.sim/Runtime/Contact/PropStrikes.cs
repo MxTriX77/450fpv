@@ -271,13 +271,14 @@ namespace Fpv450.Sim.Contact
         /// <summary>
         /// The step's passes, after Sense: each disc's pairs at the pose now, the rotors' sweep over the step from their angles
         /// at its start (from, before the propulsion's sub-steps turned them) to now's; the rotors' speeds and angles, the body's
-        /// velocity and rate, BladeStrikes and the blades change; the damaged rotors are rebuilt.
+        /// velocity and rate, BladeStrikes and the blades change; the damaged rotors are rebuilt. thrust is each rotor's mean
+        /// thrust over the step (FlightCore's), which the stems' air reads (UseWash, w9-village-physics 2.13).
         /// </summary>
-        public void Apply(in Corners from, ref FlightState now, in MassProperties body, StepEvents events)
+        public void Apply(in Corners from, ref FlightState now, in MassProperties body, StepEvents events, in Corners thrust = default)
         {
             Double3 axis = now.Attitude.Rotate(Up), impulse = default, angular = default;
             int changed = 0, passed = 0;
-            StemsBegin(now);
+            StemsBegin(now, thrust);
             for (int n = 0; n < _discs.Length; n++)
             {
                 int i = _discs[n];
