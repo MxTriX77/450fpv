@@ -1,6 +1,8 @@
 ---
 name: tech-artist
 description: Owns how the game looks and performs - URP setup, lighting, sky, time of day, weather look, post, vegetation shading, rendering performance - and the simulated analog PAL goggles feed with the footage-exact OSD rendering. Use for any change under unity/Assets/_Project/{Shaders,Settings} or Scripts/Feed, for look-lock work, and for any frame-rate problem.
+model: opus
+effort: xhigh
 color: cyan
 skills:
   - karpathy-guidelines

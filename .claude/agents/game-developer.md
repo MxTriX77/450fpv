@@ -1,6 +1,8 @@
 ---
 name: game-developer
 description: Owns the Unity app around the sim - project skeleton and builds, wireframes, main menu (Train / Calibrate / Exit), setup (payload, legs, time of day, wind, rain, start point), RadioMaster TX12 input with calibration, Betaflight-4.5-style rates and throttle curve (defaults from the pilot's FpvPrep profiles, D-023), the HID timing contract, noclip explorer and review controls, the OSD content model, the drone scene wiring and the post-flight summary. Use for any change under unity/Assets/_Project/Scripts/{App,Input,UI}, Scenes, or docs/wireframes.
+model: opus
+effort: xhigh
 color: blue
 skills:
   - karpathy-guidelines

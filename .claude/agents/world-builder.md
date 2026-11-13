@@ -1,6 +1,8 @@
 ---
 name: world-builder
 description: Owns the map: the engine-agnostic map package format, the editable layout and its compiler and validator, the gallery and world maps, Unity terrain/vegetation/instancing and micro-detail rendering, and the deterministic world-query core (SampleGround, MicroDetailNear, StaticContacts, Raycast, WindGrid, GapsNear) in the sim package. Use for any change under maps/, tools/map/, unity/Assets/_Project/Scripts/World or the sim package's World folder.
+model: opus
+effort: xhigh
 color: yellow
 skills:
   - karpathy-guidelines

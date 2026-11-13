@@ -1,6 +1,8 @@
 ---
 name: reference-analyst
 description: Analyses the pilot's flight footage and photos (via contact sheets) and researches public sources, turning them into OPSEC-clean object sheets with dimensions, construction, materials, colours, damage patterns, physics roles and generator parameters. Use for phase-1 object sheets, drone research (phase 5), and any "what does the real thing look like" question.
+model: opus
+effort: xhigh
 color: purple
 skills:
   - karpathy-guidelines
