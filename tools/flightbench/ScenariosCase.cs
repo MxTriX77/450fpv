@@ -17,8 +17,8 @@ namespace Fpv450.FlightBench
         static bool _ok = true;
 
         /// <summary>The seeds the shake's ringless known-wrong is judged on, each of the six arrested descents (a rate; QA's
-        /// integration review, N2): bootstrapped from 520 seeds' flights at model 26, a fresh 40 fails it spuriously about
-        /// 0.6 % of the time (0.57 % of 20 000 draws), 20 about 3.3 %.</summary>
+        /// integration review, N2): on the excess over the hover (design 3i) the ringless count past the kick is 0.41 of the
+        /// ringed one on seeds 1–200, and bootstrapped from them a fresh 40's ratio reaches two thirds under 0.1 % of the time.</summary>
         const ulong RinglessSeeds = 40;
 
         static void Row(string name, bool pass, string detail, bool knownWrong = false)
@@ -352,9 +352,9 @@ namespace Fpv450.FlightBench
                         ShakeScenario.HoldsTheLimit(prot) && prot.ArrestedAfter > sharp.ArrestedAfter && prot.TiltMax > sharp.TiltMax,
                         $"tilt {prot.TiltMax:F2}° against the drone's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(prot));
                 }
-            Row($"known-wrong: no ring (the rotors never re-ingest their wash), the six arrested descents on seeds 1-{RinglessSeeds}: most full punches' shake weaker, "
-                + "lasting past the kick on at most half as many",
-                !(ringlessWeaker >= ShakeScenario.Most * punches && 2 * ringlessLasts <= ringedLasts),
+            Row($"known-wrong: no ring (the rotors never re-ingest their wash), the six arrested descents on seeds 1-{RinglessSeeds}: "
+                + "the shake lasting past the kick on at most two thirds as many",
+                !ShakeScenario.RingCarriesIt(ringedLasts, ringlessLasts),
                 $"weaker {ringlessWeaker}/{punches}; past the kick ({ShakeScenario.KickSeconds:F1} s) on {ringlessLasts}/{punches} against {ringedLasts}", knownWrong: true);
             ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
             Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.EndsWithTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
