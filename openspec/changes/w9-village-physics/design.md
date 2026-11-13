@@ -388,6 +388,68 @@ python tools/hygiene/precommit.py --tree HEAD → 3608 files scanned, 0 findings
 - The S04 patch centre's step case is now physics in its own right, flown by no test.
 - A rod across a disc is still met at one azimuth, the nearest point's.
 
+## 2.6b A hanging skid half that sinks into the ground
+
+**Owner:** physics-engineer · **Requirements:** PHY-02, PHY-04, DRN-01 · **Branch:** `unity/physics/physics-integration-2--w9-hanging-half` (model 98's line with 3.0b's corrected checks) · QA's 3.0b findings: a broken leg's hanging half 20–100 mm in the ground at 1–7 N on 115 farmland and 23 range rows, its depth stepping or flipping step by step.
+
+Labels as in 2.6. The traces are the session's scratch probe (not committed): it flies `SweepScenarios.Fly` with its read-only `observe` hook and prints, each step, every hanging corner's turn, move, fold and holder, its shapes' depth in the ground (as the sweep's Ground check reads it, `StaticContacts` against the surfaces) and each pair's depth, overlap, force and stretch. QA's numbers were model 95's; at model 98 the same rows still fail, at other steps (the line moved the flights).
+
+### 1. What a hanging half is, by hand
+
+**The beam.** Leg fl gone, its half of the left skid (the middle at z 0, its T-joint support at z 0.1025 m, its end at 0.22 m) hangs from leg rl's T-joint at z −0.1025 m. That T-joint's 30 mm run grips the skid (an M3 pinch screw, drone.json `legs.skid_grip_length_m`, measured/assumed), so the half is a cantilever built in at the bore; past the section's yield there (3.19 N·m) it is 2.6's plastic hinge (the fold), which this task leaves alone. The tube is the legs' stock (drone.json `legs.tube`: D 10, d 8 mm measured, E 3.0 GPa published): EI 0.8694 N·m² (derived). A force at a point r from the bore bends it there by r³/(3EI) (a tip-loaded cantilever, derived):
+
+| Point of the half | r from the bore, m | 3EI/r³, N/m |
+|---|---|---|
+| its middle | 0.1025 | 2422 |
+| its T-joint support | 0.205 (the bores' distance) | 302.8 (model 98's `HangingStiffness`, for every point) |
+| its outer end (the tip) | 0.3225 | 77.8 |
+
+**The chain in series** from the ground to the body: the tube stock's contact spring k_t 6600 N/m (drone.json, model 26's penetration spring, assumed; a 10/8 mm ring's diametral stiffness over a 10 mm patch is some 180 kN/m, so the contact's own give is overstated, which only puts the half deeper), what it touches (a rigid row; a soil is met as its rigid surface by a hanging half, as since 2.6), the cantilever k_c(r), and across the legs' axis the bore's give, the holding leg's tube bent at its foot, 3EI/L³ = 268 N/m (derived, `legs.tube`), its axial spring (52.3 kN/m) stiff. Along the contact's normal n, with s the sine of n's angle to the legs' axis:
+
+  1/k = 1/k_t + 1/k_c(r) + s²/268 (the stick anchor's tangential spring is in series across the axis too)
+
+A tip pressed in by an overlap u (its depth as the rigid half would lie) carries F = k·u, and lies in the ground by its contact's own compression, **δ = F/k_t**; the rest of u is the chain's give, the cantilever's turn and the bore's move. Level, at the tip: k = 76.9 N/m; u = 70 mm (the rows' overlaps) gives 5.4 N and δ = 0.82 mm.
+
+**Why 100 mm at 1 N is impossible.** 100 mm into the ground is the contact spring compressed 100 mm: 660 N. The cantilever alone, bent 100 mm at its tip, carries 7.8 N. 1 N puts the contact 0.15 mm in. So a half 100 mm in at 1 N is its placement and its force read from two different things: the shapes stand where one quantity put them and the force comes from another.
+
+**The soil it is treated as rigid for** (not built here): tilled loam's bearing 4.0e6 N/m³ (surfaces.json, assumed) under a 10 mm tube over 30–100 mm of its length at 5 N sinks z = (F/(2·k·L·√(2R)))^(2/3) = 1.6–3.5 mm dry, about twice that wet: inside GroundTolerance.
+
+### 2. Where model 98 places a hanging half, each step
+
+`Placed` = the holder's bore (by the holder's set) + Turn(fold + elastic) about it + a move along the deepest point's normal (`_hangShift`). The fold is plastic and integrated; the holder's set is the holder's own. **The elastic turn and the move are made afresh each step in `Hang`** from the deepest point's overlap g (its depth without them, `Unturned`): the springs' push g·n split along the legs' axis (k_a) and across it (k_l), the cantilever's give (push·k)·n/302.8 by the least turn, and across the axis (lat·n)·k_l·(1/k_l − 1/k_0) for the holder's give and the anchor. Three things in that make the depth something other than F/k_t:
+1. The push leaves out the anchor's stretch, which the force (`Trial`, d = g·n − stretch) keeps: on a slide the stretch is 50–180 mm, so the give answers a force the half does not carry.
+2. k_l takes the holding leg's give as `_side[holder]`, the holder's **foot chain**: its tube in series with its own anchor and what its own foot touches. That is not the bore's path, and it reads 0 when the holder's foot lightly touches soil or a layer; at k_l = 0 the move across, whose limit as k_l → 0 is the whole lateral push, is set to 0 (`kl > 0`).
+3. The point and normal are the deepest pair's, whatever it is: when two pairs with opposing normals take turns being deepest, each step's give undoes the last.
+
+### 3. Farmland #329 Slide (tilled 3.47°, heading 129.2°, seed 43E3A2232D02CFCF): the holder's foot chain reads 0
+
+At model 98 the row fails Ground at step 7807 (QA's 7598 at model 95). Leg fl broke (Stub) earlier; its half hangs from leg rl (Set, Cracked, Twisted, its set (0.055, 0.215, −0.077) rad, unchanged over these steps); the drone is on its left side at 57.9°, sliding at 1.12 m/s; the half bears on the tilled ground at its end (overlap 69.6 mm, 68 % of the corner's points' share) and its joint (32.3 mm), its anchors stretched 47–51 mm.
+
+| Step | holder rl's foot on the soil | holder's foot chain (axial, across) | the half's k_l | the half's move (`_hangShift`) | its end in the ground | its force |
+|---|---|---|---|---|---|---|
+| 7805 | not touching | 52 300, 265.3 N/m | 70.8 N/m | 36.8 mm | 1.8 mm | 6.14 N |
+| 7806 | sink 0.09 mm, the soil's stiffness 218.9 N/m | 218.0, 81.1 | 44.1 | 40.8 mm | 1.6 mm | 3.64 N |
+| 7807 | sink 0.02 mm, unloading: 0.0 N/m | 0.0, 0.0 | **0.0** | **1.3 mm** | **47.5 mm** | 0.35 N |
+| 7808–7812 | 0.0 | 0.0, 0.0 | 0.0 | 0.3 mm | 47.1–47.3 mm | 0.13–5.1 N |
+
+By hand at 7806: push 69.6 mm along n, the legs' axis 57.9° off it (cos 0.531): the cantilever's give (289.5·0.531·0.0696·0.531 + 44.1·0.050)/302.8 = 26.0 mm, the move across 0.050·(1 − 44.1/289.5) = 42.4 mm: 68 mm of the 69.6, the end 1.6 mm in. At 7807 the holder's soil, a 10 mm tube 0.02 mm deep, has a footprint width ∝ √sink and is on its unload line, so its stiffness reads 0; the holder's foot chain in series with it reads 0, so does the half's k_l, the move across drops to 0 and the turn alone (18.8 mm) is left: the end goes back **46 mm into the ground in one step**, carrying 0.35 N (no chain across, and along the tilted axis the anchor's stretch cancels the push). **The term that jumps is k_l, through the holder's foot chain**, which is not the bore's give at all: the holder's tube bends the same whatever its foot lightly touches.
+
+### 4. Range #61 Slide (S04's straw tiles on their soil box, heading 161.1°, seed 84A5E2E8AA450A2A): opposing pairs
+
+Two faults, both from point 3 of §2, on S04's tiles: the straw (a compliant layer row) lies on the patch's soil box (surface 4, met rigid). A part inside a tile past its middle is latched to the tile's far face (the query's nearest; only a rigid box takes the body's side, `BodySide`), so the half's pairs on the straw read normals down (a tile's underside) or along the skid (a tile's side).
+- **Into the soil, through a gap (6854 → 6855).** Leg fr breaks at 6854; its half hangs from leg rr. Its deepest pair is the skid's on tile 712/85, latched to the tile's underside (n down, 45.9 mm); the soil box's pair under the end support stands 25.4 mm clear. The give moves the half down along the tile's normal by the overlap, and the end lands **20.6 mm in the soil box**: Ground fails there (the row's first failure at 98).
+- **A one-step limit cycle (7033 → 7036).** The deepest pair alternates between the soil box's top under the end support (n up, 74.6 mm) and tile 712/85's side face at the joint support (n along the skid, 72.8 mm), each the other's opposite in its turn: the elastic turn about the body's x −0.096 → +0.224 → −0.330 → +0.275 rad and the end 0 → 107.0 → 0 → **110.5 mm** in the soil at 8–14 N, with the soil pair's anchor stretched 117–183 mm. QA's 1.4 / 96.8 / −5.8 / 96.3 mm at model 95 is this.
+
+### 5. The law (the plan)
+
+1. **The depth law** (`ContactModel.HangDepth`, `ContactSpec.HangingDepth`): the massless half bears at the point its chain reads, overlap g along that point's normal n; its contact carries F_n = F·n (the corner's carried force this step) and lies in by its own compression alone, F_n/k_t, plus a compliant row's own share of g (a layer's series share k0/(k0 + k_r), its stroke once solid). The rest of g is the chain's give and moves the shapes out along n. So the depth is F/k by construction and the placement follows g, which only the body's motion moves.
+2. **The split** of that move between the cantilever's turn and the bore's move is by their compliances along n in the chain `Trial` flies (the turn's a²/(r²·k_c); the rest r_n²/(r²·k_c) + (1 − (u·n)²)(1/k_l − 1/k_0)), never by the force, so it does not jump with it.
+3. **The cantilever at its points' own levers**: 1/k_c = Σ w_i·r_i³/(3EI) over the corner's touching points by their shares of its overlap (`Trial`'s), so a point's entry or exit moves it continuously; 77.8 N/m at the tip.
+4. **The bore's give is the holding leg's tube** (`HolderGive`: 3EI/L³ by its drawn modulus and state; its P·Δ under the half's 1–16 N against the 47 N sway load left out, assumed), not its foot chain.
+5. **A compliant row yields to a rigid one**: a hanging half deepest in a layer (S04's straw) or a crown that also touches a rigid row is held by the rigid row (2.6's crown rule, widened).
+6. **No give into a solid across a gap**: a rigid-row pair of the corner that the move closes bounds the move to its gap over the closing a unit move gives there.
+7. **Model 98's placement stays flyable**: `ContactSpec.HangingDepth` off, recorded in a header entry of its own (no format change; a log without it flew model 98's).
+
 ## 2.7 The crown twig's repeated break (G5)
 
 **Reproduced** (measured, `ObjectContactTests.AHoverInACrownBreaksNoBladeTwice`, model 85): the drone starts 1.24 m over the ground at (525.79, 612.74), inside GreenBush_Dry's crown, and the pilot holds that point for 25 s with surfaces.json. 150,239 `BladeDamaged` Break events, all with 0 kg lost, 150,231 at a station the blade had already broken at; 8 in every step. **No twig was cut** (0 `BladeStrike` on twig): the candidate, `PropStrikes.Twig`, never ran.
