@@ -202,6 +202,32 @@ namespace Fpv450.Sim.Tests
         }
 
         [Test]
+        public void AHeldLegTipsTheHorizonAndLetsGo()
+        {
+            // p7a-ground 1.17's "A held leg tips the horizon and lets go": the harness's flight from House's track start in Severe
+            // rain (the plane's saturated belt_straw), seeds 1–10: a corner holds alone at least 20 ms after the other three,
+            // the body turns at least 0.5° toward it, and the drone then leaves; no flight tunnels or crashes.
+            DroneSpec spec = Drone();
+            var world = new FlightWorld(SoilScenarios.Range());
+            Double3 foot = SoilScenarios.TrackStart(world);
+            double hover = LiftoffScenarios.Hover(spec, world, foot);
+            int lone = 0;
+            for (ulong seed = 1; seed <= 10; seed++)
+            {
+                LiftoffScenarios.Liftoff r = LiftoffScenarios.Fly(spec, new FlightWorld(SoilScenarios.Range()), foot, hover, RainLevel.SevereRain, seed, seed % 2 == 0);
+                TestContext.WriteLine($"  seed {seed}: off {r.Off:F3} s at {r.OffThrottle:F3}; lone {r.Lone} {r.LoneHold * 1000:F0} ms {r.LoneTurn:F2}° {r.LonePeak:F1} N; " +
+                    $"group {r.Group} {r.GroupHold * 1000:F0} ms {r.GroupTurn:F2}°");
+                Assert.That(r.Off, Is.Not.NaN, "the drone leaves the ground");
+                Assert.That(r.Tunnels + r.Crashes, Is.EqualTo(0));
+                if (r.Lone < 0) continue;
+                lone++;
+                Assert.That(r.LoneHold, Is.GreaterThanOrEqualTo(LiftoffScenarios.HeldTime));
+                Assert.That(r.LoneTurn, Is.GreaterThanOrEqualTo(LiftoffScenarios.HeldTurn));
+            }
+            Assert.That(lone, Is.GreaterThan(0), "a corner holds alone on some liftoff (3 of 10 measured, design 2.9)");
+        }
+
+        [Test]
         public void AVillageLiftoffAllocatesNothing()
         {
             // 0 B in steady state on the wet ground's liftoff with the legs drawn: the rest and the pull, steps alone.
