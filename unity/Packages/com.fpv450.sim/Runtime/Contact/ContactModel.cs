@@ -2233,9 +2233,10 @@ namespace Fpv450.Sim.Contact
                     {
                         Double3 st = p.Stretch + t * ((size - kinetic) / ktt);
                         p.Stretch = st - n * Double3.Dot(n, st);
-                        // The ground's hold (2.4) and a crown's twigs, which let go at their own reach (2.3); other objects' shapes keep 2.4's rule.
-                        if (p.Object == WorldIds.Ground) Reached(c, ref p.Stretch);
-                        else if (row.Crown != null) Reached(c, ref p.Stretch, row.Crown.TwigReach);
+                        // Every hold lets the foot go where the leg no longer reaches it (2.4's reach, the leg's geometry, whatever
+                        // holds it): the ground, a soil shape (its groove's give is millimetres, left out as 2.4 left it), a rigid
+                        // shape; a crown's twigs sooner, at their own reach δ̄, past which the twig bent sideways has broken (2.3).
+                        Reached(c, ref p.Stretch, row.Crown != null ? row.Crown.TwigReach : double.PositiveInfinity);
                     }
                     p.Sliding = true;
                 }
