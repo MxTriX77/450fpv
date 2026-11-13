@@ -50,7 +50,7 @@ namespace Fpv450.FlightBench
             foreach (Point p in points) if (p.Quota) quota++;
             Console.WriteLine($"flightbench: the landing sweep on {mapId}, seed {seed}, {level} air, L1 (2 kg, legs on), every model but the line; "
                 + $"{points.Length} points ({count} in proportion to area, {quota} more to reach {MinPerClass} a class, band and stratum) from {candidates} candidates "
-                + $"in {drawn:F1} s; {threads} threads{(replay ? "" : ", no replays")}");
+                + $"in {drawn:F1} s; {threads} threads{(replay ? "" : ", no replays")}; {Power.Describe()}");
 
             var jobs = new List<(int Point, Manoeuvre M)>();
             foreach (Point p in points)
