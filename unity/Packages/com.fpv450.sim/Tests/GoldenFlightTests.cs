@@ -1339,7 +1339,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(GoldenFlights.FlyPowered(spec, out _, at, skip, layout: end, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, onRecord: Line, yawI: false, airmode: true),
                 Is.EqualTo(GoldenFlights.Model41RainPoweredHash), "rain");
             Assert.That(GoldenFlights.FlyContact(spec, out _, at, skip, layout: end, onRecord: Line, soil: false, yawI: false, edit: GoldenFlights.WithoutTheLever, airmode: true),
-                Is.EqualTo(GoldenFlights.Model41ContactHash), "contact, on the rigid floor");
+                Is.EqualTo(GoldenFlights.Model41ContactOnTheSectionsYieldHash), "contact, on the rigid floor (since 2.6 on the section's yield)");
             Assert.That(GoldenFlights.FlyRange(spec, out _, at, skip, layout: end, onRecord: Line, materials: GoldenFlights.WithoutTheAreaLaws(), yawI: false,
                 edit: GoldenFlights.WithoutTheLever, airmode: true), Is.EqualTo(GoldenFlights.Model41RangeHash), "range, without the area laws");
             Assert.That(GoldenFlights.FlyTumble(spec, out _, out _, at, skip, end), Is.EqualTo(GoldenFlights.Model41TumbleHash), "tumble");

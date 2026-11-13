@@ -147,6 +147,34 @@ namespace Fpv450.Sim.Tests
             throw new InvalidOperationException("the test range has no S04 patch");
         }
 
+        /// <summary>A spot on the first S04 patch's straw mat where the drone stands wholly on one mat piece: the centre of the mat
+        /// piece nearest the patch's centre whose box holds a circle of reach (m; the skids' footprint's half diagonal and some) round
+        /// it. The patch's centre lies on a mat piece's edge, a corner of the drone over the 0.125 m step to the soil box
+        /// (w9-village-physics 2.6's addendum).</summary>
+        public static Double3 PatchMat(FlightWorld world, double reach = 0.3)
+        {
+            IWorldQuery q = world.Query;
+            Double3 centre = PatchCentre(world), best = default;
+            double nearest = double.PositiveInfinity;
+            for (int o = 0; q.ObjectName(o) != null; o++)
+            {
+                if (!q.ObjectName(o).StartsWith("S04_patch", StringComparison.Ordinal)) continue;
+                for (int s = 1; q.Geometry(o, s, out ShapeGeometry g); s++)
+                {
+                    if (g.Kind != ShapeKind.Box || q.MaterialName(g.Material) != "straw" || g.HalfExtents.X < reach || g.HalfExtents.Z < reach) continue;
+                    double dx = g.Center.X - centre.X, dz = g.Center.Z - centre.Z, d = dx * dx + dz * dz;
+                    if (d < nearest)
+                    {
+                        nearest = d;
+                        best = new Double3(g.Center.X, g.Center.Y + g.HalfExtents.Y, g.Center.Z);
+                    }
+                }
+                break;
+            }
+            if (double.IsInfinity(nearest)) throw new InvalidOperationException("the S04 patch has no mat piece the drone stands on wholly");
+            return best;
+        }
+
         // ---- The re-landing on its own prints --------------------------------------------------------------------------
 
         public struct Relanding

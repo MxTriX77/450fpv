@@ -333,22 +333,29 @@ namespace Fpv450.Sim.Tests
         public void TheNextLandingFeelsADamagedLeg()
         {
             MaterialRow[] m = Materials(out ulong h);
-            // The bent leg: the first set a harsh level landing leaves (1.2's scenario, seed 1, 1.04 times its sim's onset).
+            // The bent leg: the first set a harsh level landing leaves (1.2's scenario, seed 1, 1.04 times its sim's onset). Since w9
+            // 2.6 a crack (the edge's local yield) comes before the set and does not count.
+            static bool Bent(LegScenarios.Outcome x)
+            {
+                for (int c = 0; c < 4; c++) if ((x.Flags[c] & (LegFlags.Set | LegFlags.Broken)) != 0) return true;
+                return false;
+            }
             const ulong seed = 1;
             double lo = 1.5, hi = 2.6;
             while (hi - lo > 0.005)
             {
                 double mid = (lo + hi) / 2;
-                if (LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -mid, 0), Seed = seed }).Damaged() > 0) hi = mid;
+                if (Bent(LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -mid, 0), Seed = seed }))) hi = mid;
                 else lo = mid;
             }
-            LegScenarios.Outcome harsh = LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -hi * 1.04, 0), Seed = seed });
+            // At the onset (w9 2.6: past about 1.04 × it the level landing's bowed legs kink and are lost, AHarshLandingBendsALeg).
+            LegScenarios.Outcome harsh = LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -hi, 0), Seed = seed });
             int leg = -1;
             for (int c = 0; c < 4 && leg < 0; c++)
                 if ((harsh.Flags[c] & LegFlags.Set) != 0 && (harsh.Flags[c] & LegFlags.Broken) == 0 && LegScenarios.SetDegrees(harsh.Set[c]) > 0) leg = c;
             Assert.That(leg, Is.GreaterThanOrEqualTo(0), "the harsh landing bends a leg");
             Double3 set = harsh.Set[leg];
-            TestContext.Out.WriteLine($"the harsh landing at {hi * 1.04:F3} m/s bends leg_{LegDamage.Names[leg]} {LegScenarios.SetDegrees(set):F2}° (its foot's way {set.X:F4}, {set.Z:F4}; twist {set.Y:F4} rad)");
+            TestContext.Out.WriteLine($"the harsh landing at {hi:F3} m/s bends leg_{LegDamage.Names[leg]} {LegScenarios.SetDegrees(set):F2}° (its foot's way {set.X:F4}, {set.Z:F4}; twist {set.Y:F4} rad)");
 
             // The lowest drift that tips it, toward each side in turn: along x and along z, each way. Toward the damaged side
             // is the leg's own side of each axis.

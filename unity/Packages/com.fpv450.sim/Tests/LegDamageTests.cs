@@ -88,7 +88,7 @@ namespace Fpv450.Sim.Tests
         {
             LegDamageSpec s = d.Spec;
             double k = Spec.Legs.Stiffness, p = d.BucklingLoad;
-            double mc = d.CrackMoment(leg, p);
+            double mc = d.YieldMoment(leg, p); // the set starts at the section's yield (w9 2.6)
             double w = mc / (LegDamage.BowMoment * p), bow = LegDamage.BowShortening * w * w / s.FreeLength;
             double quarter = mass / 4, energy = p * p / (2 * k) + p * bow - quarter * G * (p / k + bow);
             return Math.Sqrt(2 * energy / quarter);
@@ -113,13 +113,19 @@ namespace Fpv450.Sim.Tests
                         weakest = c;
                     }
                 }
-                // The sim's own onset: the lowest level touchdown speed (to 5 mm/s) that leaves a leg set.
-                double lo = derived, hi = derived / 0.6;
-                Assert.That(Run(Down(hi, seed)).Damaged(), Is.GreaterThan(0), "a leg sets at " + hi.ToString("F2") + " m/s");
+                // The sim's own onset: the lowest level touchdown speed (to 5 mm/s) that leaves a leg set (or lost past it). Since w9 2.6
+                // a crack (the edge's local yield) comes before the set, so the crack alone does not count.
+                static bool Bent(LegScenarios.Outcome x)
+                {
+                    for (int c = 0; c < 4; c++) if ((x.Flags[c] & (LegFlags.Set | LegFlags.Broken)) != 0) return true;
+                    return false;
+                }
+                double lo = derived * 0.6, hi = derived / 0.6;
+                Assert.That(Bent(Run(Down(hi, seed))), "a leg sets at " + hi.ToString("F2") + " m/s");
                 while (hi - lo > 0.005)
                 {
                     double mid = (lo + hi) / 2;
-                    if (Run(Down(mid, seed)).Damaged() > 0) hi = mid;
+                    if (Bent(Run(Down(mid, seed)))) hi = mid;
                     else lo = mid;
                 }
                 TestContext.Out.WriteLine($"seed {seed}: leg_{LegDamage.Names[weakest]} the weakest, its set onset {derived:F3} m/s undamped (derived), "
@@ -128,9 +134,12 @@ namespace Fpv450.Sim.Tests
                 // The set's window: from the onset a set grows to a degree or two, and past about 1.06 times it a leg parts.
                 foreach (double over in new[] { 1.0, 1.08, 1.15 })
                     TestContext.Out.WriteLine($"  at {over:F2}×, {hi * over:F3} m/s: {Describe(Run(Down(hi * over, seed)))}");
-                double speed = hi * 1.04;
+                // At the onset itself (w9 2.6): on the section's yield a set's window is narrow, the kink (1.11 × the yield) about
+                // 4 % of speed over it in a level landing, where the bow's moment rises with the root of its shortening and the bowed
+                // leg kinks and is lost (Broken: the bow's fold is not modelled). Model 90's set ran from the edge's crack to 2.98 N·m.
+                double speed = hi;
                 LegScenarios.Outcome o = Run(Down(speed, seed)), elastic = Run(new LegScenarios.Touch { Velocity = new Double3(0, -speed, 0), Seed = seed, Elastic = true });
-                TestContext.Out.WriteLine($"  at 1.04×, {speed:F3} m/s: {Describe(o)}");
+                TestContext.Out.WriteLine($"  at the onset, {speed:F3} m/s: {Describe(o)}");
                 int set = 0;
                 for (int c = 0; c < 4; c++)
                 {
@@ -265,7 +274,7 @@ namespace Fpv450.Sim.Tests
         static double PartingEnergy(LegDamage d, int leg, double kl)
         {
             LegDamageSpec s = d.Spec;
-            double lever = d.Lever(leg), mc = d.CrackMoment(leg), f = s.ShapeFactor, kc = mc / (s.Modulus * s.SecondMoment);
+            double lever = d.Lever(leg), mc = d.YieldMoment(leg), f = s.ShapeFactor, kc = mc / (s.Modulus * s.SecondMoment);
             double top = d.PartingMoment(leg) / mc, scale = kc * lever * lever, energy = 0, last = 0;
             const int n = 4000;
             for (int i = 1; i <= n; i++)
