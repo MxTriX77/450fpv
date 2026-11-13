@@ -50,17 +50,17 @@ namespace Fpv450.FlightBench
                 R("normal liftoff, Windy", Target.Never, s => FiberCutScenarios.Liftoff(spec, false, s, null, WindLevel.Windy)),
                 R("very sharp liftoff", Target.Some, s => FiberCutScenarios.Liftoff(spec, true, s)),
                 R("backward after liftoff", Target.Some, s => FiberCutScenarios.Backward(spec, s)),
-                // Design 18's reading of "after lift off": the legs just off, inside the 4 R where the wake meets the ground. Printed,
-                // not judged: its edge cuts are traced to the exit's segment stretched past the payout's law (1.4–2.9 N while the law
-                // gives 0.26 N) as the legs' slots catch the line rising under the belly, a chain artefact, not a pull on the glass.
-                R("backward just after liftoff, at 0.4 m (design 18)", Target.None, s => FiberCutScenarios.Backward(spec, s, null, 3, 0.4)),
+                // Design 18's reading of "after lift off": the legs just off, inside the 4 R where the wake meets the ground. Judged
+                // since the exit's segment keeps the spool's law (CableChain.SpoolAfterSlide; before, the legs' slides stretched it to
+                // 1.4–2.9 N against the law's 0.26 N).
+                R("backward just after liftoff, at 0.4 m (design 18)", Target.Some, s => FiberCutScenarios.Backward(spec, s, null, 3, 0.4)),
                 R("sharp reverse from 54 km/h, Calm", Target.MayOrMayNot, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
                 R("sharp reverse from 54 km/h, Windy", Target.MayOrMayNot, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Windy, s)),
                 R("pitch-back from 90 km/h, the cruise's throttle held (D-087)", Target.None, s => FiberCutScenarios.PitchBack(spec, WindLevel.Calm, s, null, 25)),
                 R("orbit of 20 m at 54 km/h", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, null, 21).O),
                 R("gentle 180° turn of 15 m at 54 km/h", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
-                R("cruise at 100 km/h, Calm", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0).O),
-                R("cruise at 100 km/h, Windy", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0).O),
+                R("cruise at 100 km/h, Calm, its height held", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0, heightFirst: true).O),
+                R("cruise at 100 km/h, Windy, its height held", Target.Never, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, heightFirst: true).O),
                 R("tree snag", Target.Some, s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
                 R("known-wrong: sharp reverse, Calm, the two-way spool", Target.None, s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, twoWay)),
                 R("known-wrong: tree snag without the fiber's contacts", Target.None, s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s, bare)),
@@ -72,7 +72,7 @@ namespace Fpv450.FlightBench
                 R("sensitivity: backward after liftoff, lip mu 1.0", Target.None, s => FiberCutScenarios.Backward(spec, s, muHigh)),
                 R("sensitivity: very sharp liftoff, lip mu 1.0", Target.None, s => FiberCutScenarios.Liftoff(spec, true, s, muHigh)),
                 R("sensitivity: orbit of 20 m at 54 km/h, lip mu 1.0", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, muHigh, 21).O),
-                R("sensitivity: cruise at 100 km/h, Windy, lip mu 1.0", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, 90, muHigh).O),
+                R("sensitivity: cruise at 100 km/h, Windy, its height held, lip mu 1.0", Target.None, s => FiberCutScenarios.Turn(spec, WindLevel.Windy, s, 27.8, 0, 90, muHigh, heightFirst: true).O),
                 R("sensitivity: backward after liftoff, models to 88's lip mu 0.3", Target.None, s => FiberCutScenarios.Backward(spec, s, muOld)),
             };
             Console.WriteLine($"--tether: the pilot's four causes (PHY-19, p7d-tether 1.11), {rows.Count} rows of {seeds} seeds on the session's drone; "

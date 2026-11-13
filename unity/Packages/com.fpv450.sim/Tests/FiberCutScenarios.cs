@@ -390,12 +390,16 @@ namespace Fpv450.Sim.Tests
         /// of 360° at a slow rate needs longer).
         /// </summary>
         public static Turned Turn(DroneSpec spec, WindLevel wind, ulong seed, double speed, double rate, double degrees = 90,
-            Action<FlightSetup> edit = null, double seconds = 16)
+            Action<FlightSetup> edit = null, double seconds = 16, bool heightFirst = false)
         {
             FlightSetup setup = Setup(spec, wind, seed, edit);
             double stand = TetherScenarios.Stand(setup);
             double w = rate * Pi / 180, total = degrees * Pi / 180;
             var r = new Turned();
+            // heightFirst (p7d-tether design 18, the cruise rows): the pilot holds the cruise's height before its speed, as a pilot
+            // flies wind at the normal cruise and takes the ground speed the drone makes: the speed asked is cut 0.5 a second of
+            // its own while the drone is 0.3 m or more under its height, and given back at 0.2 a second once it is not.
+            double ask = 1;
             double lastNose = double.NaN, lastPath = double.NaN;
             Double3 lastV = default;
             r.O = Run(setup, seconds, (t, core, pilot) =>
@@ -414,7 +418,13 @@ namespace Fpv450.Sim.Tests
                 DetMath.SinCos(psi, out double sin, out double cos);
                 pilot.Heading = new Double3(sin, 0, cos);
                 pilot.YawRate = t >= 11 && w * (t - 11) < total ? w : 0;
-                pilot.TargetVelocity = new Double3(speed * sin, 0, speed * cos);
+                if (heightFirst)
+                {
+                    ask += s.Position.Y < y - 0.3 ? -0.5 * Dt : 0.2 * Dt;
+                    if (ask < 0.3) ask = 0.3;
+                    else if (ask > 1) ask = 1;
+                }
+                pilot.TargetVelocity = new Double3(speed * ask * sin, 0, speed * ask * cos);
                 pilot.Target = new Double3(s.Position.X, y, s.Position.Z);
                 Double3 nose = s.Attitude.Rotate(new Double3(0, 0, 1));
                 double noseYaw = DetMath.Atan2(nose.X, nose.Z), pathYaw = DetMath.Atan2(s.Velocity.X, s.Velocity.Z);
@@ -1028,6 +1038,11 @@ namespace Fpv450.Sim.Tests
         /// at 0.1 N) lies over the loops, and drifts on at 0.3 m/s; or (reverse) climbs to 1.6 m and flies back over the coil to z −2,
         /// so the line snagged on the barbs is turned round them.
         /// </summary>
+        /// <summary>FIBER_COILTRACE=t prints each node pressed over 1 N in the coil's flight from t s for FIBER_COILSPAN s (forensics).</summary>
+        static readonly double CoilTrace = double.TryParse(System.Environment.GetEnvironmentVariable("FIBER_COILTRACE"), out double ct) ? ct : 0,
+            CoilTraceSpan = double.TryParse(System.Environment.GetEnvironmentVariable("FIBER_COILSPAN"), out double cs) ? cs : 0.05;
+        static readonly int CoilTraceNode = int.TryParse(System.Environment.GetEnvironmentVariable("FIBER_COILNODE"), out int cn) ? cn : -1;
+
         public static Coil OverTheCoil(DroneSpec spec, ulong seed, bool reverse, double seconds = 16)
         {
             FlightSetup setup = TetherScenarios.Setup(spec, WindLevel.Calm, seed: seed, cuts: true);
@@ -1075,6 +1090,17 @@ namespace Fpv450.Sim.Tests
                         + $"({(at >= 0 ? line[at].Position.Y.ToString("F3") + ", " + line[at].Position.Z.ToString("F3") : "")}) {least * 1e3:F1} mm from a loop; caches' snags {f.Contacts.Cache(0).Snags}/{f.Contacts.Cache(1).Snags}/{f.Contacts.Cache(2).Snags}");
                 }
                 bool touch = false;
+                if (CoilTrace > 0 && t >= CoilTrace && t < CoilTrace + CoilTraceSpan)
+                    for (int i = 0; i < line.Count; i++)
+                    {
+                        ref CableNode a = ref line[i];
+                        foreach (CableContact c in new[] { a.Contact0, a.Contact1 })
+                        {
+                            if (!c.Active || c.MemberKind != (byte)FiberMember.Snag || i != CoilTraceNode && !(c.NormalForce > 1)) continue;
+                            double g = Double3.Dot(c.Normal, a.Position - c.Point);
+                            Console.WriteLine($"CT t {t:F3} node {i}/{line.Count} s {a.Material:F3} {(FiberMember)c.MemberKind}{c.Member} N {c.NormalForce:F3} g {g * 1e3:F3} mm v {a.Velocity.Length():F3} T {(i > 0 ? line.Tension(i - 1) : 0):F3}/{(i < line.Count - 1 ? line.Tension(i) : 0):F3} P ({c.Point.X:F4},{c.Point.Y:F4},{c.Point.Z:F4}) n ({c.Normal.X:F3},{c.Normal.Y:F3},{c.Normal.Z:F3}) x ({a.Position.X:F4},{a.Position.Y:F4},{a.Position.Z:F4}) hold {(c.Hold - c.Origin).Length() * 1e3:F2} mm engaged {c.Engaged} fresh {c.Fresh} slid {c.Slid}");
+                        }
+                    }
                 for (int i = 0; i < line.Count; i++)
                 {
                     ref CableNode a = ref line[i];
@@ -1082,9 +1108,13 @@ namespace Fpv450.Sim.Tests
                     {
                         if (!c.Active || c.MemberKind != (byte)FiberMember.Snag || !(c.NormalForce > 0)) continue;
                         touch = true;
-                        // The touch's place along the record: its hold (the chain's), against where it first touched (its Origin, the
-                        // member's reach a line's radius under the hold: that radius taken off).
-                        double moved = (c.Hold - c.Origin).Length() - Table.Number("fiber.coating_diameter_m") / 2;
+                        // The touch's place along the record: the node, against where this touch began (Touched, the node's
+                        // centre then; p7d-tether design 18: before, against the slot's first touch, Origin, a line's radius
+                        // under it, so a slack line lifted off the wire and laid down again 30–44 mm along it counted as one touch
+                        // sliding there).
+                        // The node's travel over the member's surface since: its hold's is nil at a barb's notch by construction.
+                        Double3 travel = a.Position - c.Touched;
+                        double moved = (travel - c.Normal * Double3.Dot(c.Normal, travel)).Length();
                         if (c.Engaged && moved > res.MostMoved)
                         {
                             res.MostMoved = moved;

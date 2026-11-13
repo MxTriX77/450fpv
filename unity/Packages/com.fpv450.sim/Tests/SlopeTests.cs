@@ -165,10 +165,13 @@ namespace Fpv450.Sim.Tests
         {
             SlopeScenarios.LineLedge l = SlopeScenarios.LineOverLedge(Drone());
             Print($"the law's chords at most {l.LawDeepest:F4} m in the ground, the line {l.Deepest:F4} m; a crest's node on the lip {l.OnLip} steps; "
-                + $"{l.Crests} crests' nodes put in; the fastest node {l.FastestNode:F2} m/s, {l.Paid:F1} m paid out, " + (l.Broken ? "broken: " + l.Break : "whole"));
+                + $"{l.Crests} crests' nodes put in; the fastest node {l.FastestNode:F2} m/s (the exit, with the drone: {l.FastestExit:F2}), {l.Paid:F1} m paid out, {l.Wedges} wedges, {l.SafeSteps} safe steps, {l.Clips} clips, " + (l.Broken ? "broken: " + l.Break : "whole"));
             Assert.That(l.LawDeepest, Is.GreaterThan(2 * FiberLine.CrestDepth), "premise: the spacing law's chords cut the step's corner");
             Assert.That(l.Deepest, Is.LessThanOrEqualTo(FiberLine.CrestDepth));
             Assert.That(l.OnLip, Is.GreaterThan(1000), "a crest's node on the lip");
+            // The line's own nodes (p7d-tether design 18: the exit is anchored to the drone and printed apart; it moved 5.6 m/s once
+            // in the step after a TetherWedge stopped the line, as the drone pulled it on). The ledge's flight wedges hundreds of
+            // times, model 88's too (651 there, printed): the crests' churn at the lip, handed on, not judged here.
             Assert.That(l.FastestNode, Is.LessThan(5));
             Assert.That(l.Broken, Is.False);
         }

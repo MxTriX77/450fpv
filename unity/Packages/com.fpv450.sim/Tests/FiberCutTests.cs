@@ -367,6 +367,9 @@ namespace Fpv450.Sim.Tests
                 // the section's strength to 0.68 GPa and it cuts there at 10.6 s (Abrasion at Snag, 1.08 GPa): the barbs' static
                 // stress never passes the line's drawn strength, the wear does. Traced over 40 seeds: without the heat none cuts, with
                 // it seed 20 alone; the claims are judged against the static cut (the spec's wording is the orchestrator's: handback).
+                // Since p7d-tether design 18's overlaps (CableContact.Sunk) none cuts: the barbs' presses that wore the line through
+                // (9–49 N at 0–2 N of tension) were nodes thrown out of an overlap their slot's new plane put them in. A touch is
+                // judged from where it began (CableContact.Touched), the node's travel over the barb's surface.
                 bool worn = c.O.Broken && c.O.Mechanism == TetherMechanism.Abrasion;
                 if (c.LeastStrength > c.MostStress) Assert.That(c.O.Broken && !worn, Is.False, "holds where the strength exceeds the stress at the barbs, but by wear");
                 if (c.LeastStrength > 1.35e9) Assert.That(c.O.Broken && !worn && c.O.Place == FiberMember.Snag, Is.False, "never cut at a barb above 1.35 GPa, but by wear");
@@ -874,6 +877,7 @@ namespace Fpv450.Sim.Tests
                 double t = k * FlightCore.Dt;
                 ref readonly FlightState s = ref core.State;
                 FiberLine l = core.Tether;
+                if (l.BrokeThisStep) Print($"BROKE t {t:0.000} sdot {l.Chain.SpoolSpeed:0.000} paying {l.Chain.SpoolPaying} exitT {l.Chain.SpoolExitTension:0.000} pack {l.Chain.SpoolPackTension:0.000} paid {l.Chain.SpoolPaid * 1e3:0.000} mm lipfactor {l.Chain.Spool.Lip:0.000} peel {l.Chain.Spool.Peel:0.0000}");
                 if (l.Broken || !l.Attached) return;
                 CableChain c = l.Chain;
                 int n = c.Count;
@@ -899,7 +903,7 @@ namespace Fpv450.Sim.Tests
                     }
                 }
                 Double3 b1 = s.Attitude.InverseRotate(c[n - 2].Position - s.Position);
-                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}{(Environment.GetEnvironmentVariable("FIBER_NODES") == "1" ? Near(c) : "")}");
+                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}{(Environment.GetEnvironmentVariable("FIBER_NODES") == "1" ? Near(c) : "")}{(Environment.GetEnvironmentVariable("FIBER_SPOOL") == "1" ? $" | spool paying {c.SpoolPaying} exitT {c.SpoolExitTension:0.000} pack {c.SpoolPackTension:0.000} lip {c.Spool.Lip:0.000} peel {c.Spool.Peel:0.0000} paid {c.SpoolPaid * 1e3:0.000} mm seg {(c[n - 1].Position - c[n - 2].Position).Length() * 1e3:0.00} mm rest {(c[n - 1].Material - c[n - 2].Material) * 1e3:0.00} mm" : "")}");
             };
             FiberCutScenarios.Outcome o;
             try
@@ -924,7 +928,7 @@ namespace Fpv450.Sim.Tests
         static string Near(CableChain c)
         {
             string r = "";
-            for (int i = Math.Max(0, c.Count - 4); i < c.Count - 1; i++)
+            for (int i = Math.Max(0, c.Count - (int.TryParse(Environment.GetEnvironmentVariable("FIBER_NEAR"), out int near) ? near : 4)); i < c.Count - 1; i++)
             {
                 ref CableNode a = ref c[i];
                 string k(in CableContact x) => x.Active ? $"{(FiberMember)x.MemberKind}{x.Member}:{x.NormalForce:0.000}{(x.Capstan ? "c" : "")}" : "-";
