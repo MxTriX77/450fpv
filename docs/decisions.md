@@ -678,3 +678,12 @@ From `p7c-wind` 1.5's second grade on the physics line (model 94; design 12). It
   - failing that, a measurement or a flow solution of the airframe's own yaw moment in sideslip, with its open sides, its arms and the rotors' wash.
 - **The low band's missing motion is still open** (T2, T4, T9b), and the hull is not it. The candidates left: the harness pilot's holds, the vertical gust gradient across each disc, slow vertical gusts at the drone's height.
 - `p7c-wind` 1.5 stays open.
+
+## D-108 The punch-out shake's causes on the new measure: the wash first, the spreads second · Accepted
+From `p7b-airframe` 1.10f on the physics line (model 96; design 3i). It carries out D-106 and restates D-070's numbers; D-069's ESC finding stands.
+- **The measure, as built** (D-106): a field shows the shake when its motion reaches 3.77 times the same flight's hover (the last 2 s before the chop) and at least the visible line. The margin is the largest of 10,000 held hovers a payload, so a held hover reads as a shake about once in 10,000 flights. Fields within 0.1 s of each other are one episode. On the old fixed line half of all held hovers "shook".
+- **The causes, on 200 seeds of the six full punches** (lasting past the motors' kick, out of 1,200): the drone 258, without the ring 107, without the motors' spreads 217, with the centre of mass centred 261, with a rigid airframe 251. So the re-ingested wash carries about three fifths of it (151) and the spreads about a sixth (41); the forward centre of mass and the frame's flexing carry none. D-070's order holds on the new measure.
+- **The rotors' own wake is not a cause.** It is the floor the shake is told from: without it more punches read as a shake (468), and at model 92's higher level fewer (133).
+- **Against the pilot's account:** the empty drone's punch from 9 m/s shakes 0.3–0.7 s on 80 % (median 0.42 s). Never from a held hover or a gentle step (0 of 400). Past the kick on 21.5 % of all full punches out of a descent: "doesn't happen much" is met.
+- **Open:** at 2 kg the shake is short (medians 0.06–0.14 s) while the arrest is long (0.35–0.94 s), so "longer when heavy" is not what the physics shows. Whether the loaded drone's short shake is right is not settled: its turn per thrust step against its own floor is probed before PHY-10's payload clause is fixed.
+- **The margin is pinned at model 96.** A change that moves the hover's floor re-runs its calibration (`ShakeAttributionProbe.TheHoldsMargin`).
