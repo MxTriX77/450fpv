@@ -513,7 +513,7 @@ namespace Fpv450.Sim.Tests
                 }
                 Assert.That(again, Is.EqualTo(sum), "step " + step);
             }
-            Assert.That(allocated, Is.EqualTo(0), "the step only samples" + AllocProbe.Report());
+            Assert.That(allocated, Is.Zero, "the step only samples" + AllocProbe.Report());
             Assert.That(differ, Is.GreaterThan(6000 * points.Length * 9 / 10), "another seed, another wind");
         }
 
@@ -974,7 +974,7 @@ namespace Fpv450.Sim.Tests
                 + $"model 26's field there 0x{inside26:X16}; held off the run 0x{outside:X16}, model 26's 0x{outside26:X16} ({never} steps in a cut)");
             Assert.That(b, Is.EqualTo(a), "the same seed, the same wind at every hub");
             Assert.That(inCut, Is.GreaterThan(59000).And.EqualTo(inCut2), "the flight held in the run");
-            Assert.That(allocated, Is.EqualTo(0), AllocProbe.Report());
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
             Assert.That(never, Is.EqualTo(0));
             Assert.That(outside, Is.EqualTo(outside26), "a flight that never enters a cut's opening steps as at model 26");
             Assert.That(inside26, Is.Not.EqualTo(a), "the cut's own flow");

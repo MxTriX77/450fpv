@@ -32,7 +32,8 @@ namespace Fpv450.Sim.Tests
             long bytes = AllocProbe.After(before);
             string report = AllocProbe.Report();
             TestContext.Out.WriteLine($"{bytes} B{report}");
-            Assert.That(bytes, Is.EqualTo(IntPtr.Size == 8 ? 24 : 12), "one object, its header and method table pointer");
+            // A bool, not Is.EqualTo(24): the JIT may move the constraint's boxed 24 into the window.
+            Assert.That(bytes == (IntPtr.Size == 8 ? 24 : 12), $"one object, its header and method table pointer: {bytes} B");
 #if NET7_0_OR_GREATER
             Assert.That(report, AllocProbe.NamesTypes ? Does.Contain("AllocProbeTests+Deliberate ×1 24 B") : Does.Contain("alloc-names.runsettings"));
 #endif

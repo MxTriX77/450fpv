@@ -285,7 +285,7 @@ namespace Fpv450.Sim.Tests
             mass.SetPartMass(coil, lighter);
             modes.Rebuild(mass, ref q, ref rate);
             allocated = AllocProbe.After(allocated);
-            Assert.That(allocated, Is.EqualTo(0), "the rebuild allocates nothing" + AllocProbe.Report());
+            Assert.That(allocated, Is.Zero, "the rebuild allocates nothing" + AllocProbe.Report());
             double highest = 0;
             for (int m = 0; m < modes.Count; m++) highest = DetMath.Max(highest, (modes.Frequency(m) - before[m]) / before[m]);
             Print($"the coil 0.69 g lighter: the modes' frequencies rise by up to {highest:E2} of themselves");
@@ -356,7 +356,7 @@ namespace Fpv450.Sim.Tests
             Print($"paid {core.Tether.PaidOut:F2} m, {core.Tether.Chain.Count} nodes, trail {core.Tether.TrailCount}, the modes rebuilt with the coil; "
                 + $"{allocated} B allocated in the steps");
             Assert.That(core.Tether.PaidOut, Is.GreaterThan(20), "rebuilds happened");
-            Assert.That(allocated, Is.EqualTo(0), "0 B in steady state" + AllocProbe.Report());
+            Assert.That(allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
             ContactScenarios.RepositoryMaterials(out ulong materials); // the replay holds the flight's physics_materials.json (p7f-damage 1.1a)
             ReplayResult r = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "floor" ? FlightWorld.Floor() : null, Spec.ContentHash,
                 tetherHash: TetherScenarios.Table().ContentHash, materialsHash: materials);

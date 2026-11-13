@@ -244,7 +244,7 @@ namespace Fpv450.Sim.Tests
                 core.Advance(new StickSample { HostUs = k * FlightCore.StepUs, Arm = true, Throttle = k < 2000 ? 0 : Math.Min(1, (k - 2000) / 500.0) * 0.8 });
             long allocated = AllocProbe.After(before);
             TestContext.WriteLine($"  {allocated} B over 3000 steps; the drone {core.State.Position.Y - g.Height:F3} m up");
-            Assert.That(allocated, Is.EqualTo(0), AllocProbe.Report());
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

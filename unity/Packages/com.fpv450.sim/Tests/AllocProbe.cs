@@ -17,7 +17,8 @@ namespace Fpv450.Sim.Tests
     /// GC.GetAllocatedBytesForCurrentThread. That counter is exact only while no background collection runs: during one it books the
     /// unused tail of the thread's allocation context (under the 8 KiB quantum) as allocated though nothing was, the 0 B checks'
     /// one-in-six failures (night-alloc-hunt). So the host runs with concurrent GC off (simtests.csproj), and the first Before refuses
-    /// to measure otherwise. A window's body must be a call: written inline, the JIT may move an allocation across the reads.
+    /// to measure otherwise. A window's body must be a call, and nothing beside it may allocate inline: the JIT moves an inline
+    /// allocation across the reads (Is.EqualTo(0)'s boxed 0 was counted in TetherTests' window), so a 0 B check asserts Is.Zero.
     /// When a window shows bytes, Report says how many did and how many bytes; in a host started with the runtime's allocation
     /// events (tools/simtests/alloc-names.runsettings) it also names what the runtime saw this thread allocate in the first.
     /// </summary>

@@ -344,7 +344,7 @@ namespace Fpv450.Sim.Tests
                 long now = AllocProbe.After(before);
                 if (now != 0 && firstAlloc < 0) { firstAlloc = step; allocated = now; }
             }
-            Assert.That(allocated, Is.EqualTo(0), "first at step " + firstAlloc + AllocProbe.Report());
+            Assert.That(allocated, Is.Zero, "first at step " + firstAlloc + AllocProbe.Report());
             Assert.That(worker.Builds, Is.EqualTo(2));
             Assert.That(sum, Is.Not.NaN);
         }

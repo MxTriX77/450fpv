@@ -941,7 +941,7 @@ namespace Fpv450.Sim.Tests
             }
             long bytes = AllocProbe.After(before);
             TestContext.WriteLine($"2500 steps of {chain.Count} nodes: {bytes} B; slides {chain.Slides}, splits {chain.Splits}, merges {chain.Merges}");
-            Assert.That(bytes, Is.EqualTo(0), AllocProbe.Report());
+            Assert.That(bytes, Is.Zero, AllocProbe.Report());
             Assert.That(chain.Splits + chain.Merges, Is.GreaterThan(0));
         }
 

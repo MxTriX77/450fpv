@@ -225,7 +225,7 @@ namespace Fpv450.Sim.Tests
                 long allocated = AllocProbe.After(before);
                 Print($"{name}: At {ns[0]:F1} ns a node with the fountain and the ground vortex, {ns[1]:F1} ns on design 4's field "
                     + $"(+{ns[0] - ns[1]:F1} ns, {32 * (ns[0] - ns[1]) / 1000:F2} µs a step over 32 nodes; the least of 20 rounds, under load); {allocated} B ({sink:E1})");
-                Assert.That(allocated, Is.EqualTo(0), "0 B in the steps" + AllocProbe.Report());
+                Assert.That(allocated, Is.Zero, "0 B in the steps" + AllocProbe.Report());
             }
         }
     }
