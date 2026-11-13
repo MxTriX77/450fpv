@@ -155,8 +155,9 @@ namespace Fpv450.Sim.Tests
         }
 
         /// <summary>Whether a column of the drone's size over (x, h, z) is clear of every object but the ground and soil, and of the
-        /// patch it stands on but for its lumps (S04's straw stands a few cm proud of the point the ray met: within PatchLumps).</summary>
-        public const double PatchLumps = 0.15;
+        /// patch it stands on but for its lumps (S04's straw stands a few cm proud of the point the ray met: within PatchLumps), and of
+        /// any ground rising WallRise over it within the column (0.6 m in 0.5 m: steeper than 50°).</summary>
+        public const double PatchLumps = 0.15, WallRise = 0.6;
 
         public static bool Clear(MapWorld map, double x, double h, double z, int patch = -1)
         {
@@ -164,7 +165,12 @@ namespace Fpv450.Sim.Tests
             var column = new Capsule(new Double3(x, h + 0.55, z), new Double3(x, h + 2.5, z), 0.5);
             int n = Math.Min(map.StaticContacts(column, column, 0, found, QueryFilter.None), found.Length);
             for (int i = 0; i < n; i++)
+            {
                 if (found[i].Object != WorldIds.Ground && found[i].Surface == 0 && !(found[i].Object == patch && found[i].Distance > -PatchLumps)) return false;
+                // Ground or soil standing WallRise over the spot within the drone's reach is a wall of earth beside it (a cut's
+                // side: the range's E01 floor lies 1.35 m under the plane around it), not the slope it lands on.
+                if (found[i].Surface != 0 && found[i].Point.Y > h + WallRise) return false;
+            }
             return true;
         }
 
