@@ -1606,10 +1606,11 @@ namespace Fpv450.Sim.Tether
         }
 
         /// <summary>
-        /// Whether air at the trail's point k (its run from point k - 1) would move it (design 20): the drag across its run D past
-        /// max(H, D_f), H its support's static friction on the weight the wall's lift leaves it (Loads' lift, within its gap of
-        /// the ground; off the ground the polymer pair's alone), D_f the push it froze with. ground is the ground's height under
-        /// it, surface its id (known: not over a hole); push is D and hold H, N/m.
+        /// Whether air at the trail's point k (its run from point k - 1) would move it (design 20): lying on the ground, the drag
+        /// across its run D past max(H, D_f), H its surface's static friction on the weight the wall's lift leaves it (Loads'
+        /// lift), D_f the push it froze with; off the ground (on a twig, a bush's top, in a span) held as the trail always held
+        /// it, D past D_f plus the polymer pair's friction on its weight. ground is the ground's height under it, surface its id
+        /// (known: not over a hole); push is D and hold H, N/m.
         /// </summary>
         public bool Moves(int k, Double3 air, double ground, byte surface, bool known, out double push, out double hold)
         {
@@ -1623,7 +1624,7 @@ namespace Fpv450.Sim.Tether
             bool lying = gap < _liftGap * _diameter;
             hold = Hold(uc, gap, lying && known && _contacts != null ? _contacts.GroundStatic(surface) : _groundStatic);
             double bore = _trailAir[k];
-            return push > (hold > bore ? hold : bore);
+            return lying ? push > (hold > bore ? hold : bore) : push > bore + hold;
         }
 
         /// <summary>What holds a metre of line at rest in air crossing it at u, its centre gap over the ground (design 20), N/m:
