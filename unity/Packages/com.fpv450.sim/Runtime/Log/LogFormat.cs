@@ -942,8 +942,17 @@ namespace Fpv450.Sim.Log
         ///    a disc's slab meets a shape it crosses within one step (BladeCut.Crossing: a thin branch or wire met along
         ///    the axis faster than its thickness and the slab's a step). No golden flight breaks a leg or crosses such a
         ///    shape, so no pin moved; model 41's kept contact audit is re-pinned on the section's yield.
+        /// 96: the props' descent branch passes the inflow both ways (p7b-airframe 1.10e, design 3h, on 95;
+        ///    unity/physics/physics-integration-2--w9-descent-branch): only the freestream's advance ratio is held at
+        ///    DescentAdvanceRatioLimit; what the ring, the re-ingested wash and the own wake add moves the blades both
+        ///    ways about it (95 clipped it there again, so whatever lowered the inflow was cut: half a wave in every
+        ///    descent past the limit). Below J 0 the thrust and the torque follow their tables' first segment's slope
+        ///    with the first two segments' curvature, held at the thrust's vertex, the blade's stall (J −0.350, +16.8 %
+        ///    thrust; the class's measured static pitch sweep stops gaining at +15.8 %). The held mean falls 0.33 %. The
+        ///    powered, rain, contact, range and tether goldens moved and are re-pinned; Propulsion.ClippedDescentBranch
+        ///    (unlogged, the suite's) flies 95's branch for the kept audits.
         /// </summary>
-        public const int ModelVersion = 95;
+        public const int ModelVersion = 96;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

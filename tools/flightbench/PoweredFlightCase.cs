@@ -134,6 +134,21 @@ namespace Fpv450.FlightBench
                 Console.WriteLine($"with model 92's own-wake level: powered 0x{p92:X16}, rain 0x{r92:X16}, contact 0x{c92:X16}, range 0x{g92:X16}, tether 0x{t92:X16} "
                     + $"({(ok92 ? "model 93's, bit for bit" : "NOT model 93's")}): {(ok92 ? "PASS" : "FAIL")}");
             }
+            // p7b-airframe design 3h's audit (the props' held descent branch both ways): with model 94's clipped branch
+            // (Propulsion.ClippedDescentBranch) each golden is its model 94 pin, every record and event
+            // (GoldenFlightTests.WithTheClippedDescentBranchEachGoldenIsModel94s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p94 = GoldenFlights.FlyPowered(Drone(), out _, descentBranch: false),
+                    r94 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, descentBranch: false),
+                    c94 = GoldenFlights.FlyContact(Drone(), out _, descentBranch: false), g94 = GoldenFlights.FlyRange(Drone(), out _, descentBranch: false),
+                    t94 = GoldenFlights.FlyContact(Drone(), out _, tether: true, descentBranch: false);
+                bool ok94 = p94 == GoldenFlights.Model94PoweredHash && r94 == GoldenFlights.Model94RainPoweredHash && c94 == GoldenFlights.Model94ContactHash
+                    && g94 == GoldenFlights.Model94RangeHash && t94 == GoldenFlights.Model94TetherHash;
+                rangeOk &= ok94;
+                Console.WriteLine($"with model 94's clipped descent branch: powered 0x{p94:X16}, rain 0x{r94:X16}, contact 0x{c94:X16}, range 0x{g94:X16}, tether 0x{t94:X16} "
+                    + $"({(ok94 ? "model 94's, bit for bit" : "NOT model 94's")}): {(ok94 ? "PASS" : "FAIL")}");
+            }
             // p7a-ground 1.12's audit (model 33), restated at the physics integration 2 (model 34): without the layers' area laws
             // the range flight is p7d-tether's model 31 flight over the whole record, and model 32's over model 28's 1904 bytes,
             // dry and in Rain.

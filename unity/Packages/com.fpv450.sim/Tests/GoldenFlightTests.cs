@@ -399,6 +399,28 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model93TetherHash, GoldenFlights.TetherHash, sw);
         }
 
+        // p7b-airframe design 3h's audit (the props' held descent branch passes the inflow's perturbations both ways, on model 94):
+        // with model 94's clipped branch (Propulsion.ClippedDescentBranch) each golden is its model 94 pin, every record and event;
+        // with the blade's curve both ways it is its new pin. So the branch is the whole move. The tumble flies no rotor and keeps
+        // its pin.
+        [Test]
+        public void WithTheClippedDescentBranchEachGoldenIsModel94s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const string sw = "model 94's clipped descent branch";
+            Audit("powered", "model 94", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, descentBranch: !old), c),
+                GoldenFlights.Model94PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 94", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, descentBranch: !old), c),
+                GoldenFlights.Model94RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 94", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, descentBranch: !old), c),
+                GoldenFlights.Model94ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 94", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, descentBranch: !old), c),
+                GoldenFlights.Model94RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 94", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, descentBranch: !old), c),
+                GoldenFlights.Model94TetherHash, GoldenFlights.TetherHash, sw);
+        }
+
         // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 (WakeLayout.Version 1: each cell's porosity
         // by K§10.3's covered fraction, the nearest wake alone, the porosity-free boost) the range golden is 1.1's pin, model 76's
         // re-record (Model76RangeHash), every record and event; with version 2 it is the new pin. So the wake grid is the whole of
@@ -1089,7 +1111,7 @@ namespace Fpv450.Sim.Tests
             DroneSpec spec = RepositoryDrone.Spec();
             Audit("tether", "model 92", (capstan, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, beforeDesign18: capstan, wakeLevel: false), c),
                 GoldenFlights.Model92TetherHash, GoldenFlights.Model93TetherHash, "the line before design 18, on model 92's own-wake level");
-            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: true), Is.EqualTo(GoldenFlights.Design3gOnModel92TetherHash),
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: true, descentBranch: false), Is.EqualTo(GoldenFlights.Design3gOnModel92TetherHash),
                 "with the measured own-wake level (design 3g): the wake-level branch's pin before the merge");
             Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true, beforeDesign18: true, ownWake: false), Is.EqualTo(GoldenFlights.Model88TetherHash),
                 "with model 90's own wake too: model 88's pin");
