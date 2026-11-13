@@ -1,6 +1,6 @@
 # worldbench golden: the farmland's wind rows (w7-farmland-wind 1.1). FNV-1a 64 over every printed number's bits, the hills' grid on a lattice and the Severe field at the rows' points.
 # Re-record only with a model bump (D-072), audited case by case: dotnet run --project tools/worldbench -- --golden --record
-farmland_wind.version 1.88
+farmland_wind.version 1.89
 farmland_wind.grid b2569e2d787ee7e4
 farmland_wind.crest 122c1a71cf68fc2c
 farmland_wind.lee 6e43b0a6d46ffb23
