@@ -197,8 +197,11 @@ namespace Fpv450.Sim.Tests
                 state = Mix(state);
                 double z = z0 + (z1 - z0) * Unit(state);
                 candidates++;
-                if (!Classify(map, x, z, out Point p)) continue;
                 bool quota = points.Count >= count;
+                // Past the proportional points only a short class, band or stratum is wanted: the ground's band and class from
+                // SampleGround first (cheap), the whole classification only for a candidate that could fill one.
+                if (quota && !ShortBand(map, x, z, counts)) continue;
+                if (!Classify(map, x, z, out Point p)) continue;
                 if (quota && !Short(p)) continue;
                 p.Index = points.Count;
                 p.Quota = quota;
@@ -208,9 +211,29 @@ namespace Fpv450.Sim.Tests
             return points.ToArray();
         }
 
+        // Every slope band is wanted on a map with any slope (one of a terrain), whether or not the proportional points met it.
         static bool AnyShort(Dictionary<string, int> counts)
         {
             foreach (int c in counts.Values) if (c < MinPerClass) return true;
+            if (counts.ContainsKey("b:1"))
+                for (int b = 0; b < Bands.Length; b++)
+                    if (!counts.TryGetValue("b:" + b, out int c) || c < MinPerClass) return true;
+            return false;
+        }
+
+        static bool ShortBand(MapWorld map, double x, double z, Dictionary<string, int> counts)
+        {
+            var g = new GroundSample[1];
+            map.SampleGround(new[] { new XZ(x, z) }, g);
+            if ((g[0].Flags & GroundFlags.Hole) != 0) return true;
+            Double3 n = g[0].Normal;
+            double slope = Math.Atan2(Math.Sqrt(n.X * n.X + n.Z * n.Z), n.Y) * 57.29577951308232;
+            int band = 0;
+            while (band + 1 < Bands.Length && slope >= Bands[band + 1]) band++;
+            bool Want(string k) => !counts.TryGetValue(k, out int c) || c < MinPerClass;
+            if (Want("b:" + band) && (band == 0 || counts.ContainsKey("b:1"))) return true;
+            if (Want("s:" + map.SurfaceName(g[0].Surface))) return true;
+            foreach (var kv in counts) if (kv.Key.StartsWith("g:") && kv.Value < MinPerClass) return true;
             return false;
         }
 
@@ -281,6 +304,8 @@ namespace Fpv450.Sim.Tests
             public double TouchSpeed, PeakAccel, EndTilt, Slide, RestTime = double.PositiveInfinity, LiftTime = double.PositiveInfinity;
             public int Crashes, BladeTouches;
             public string Detail = "";
+            /// <summary>The flight's events by kind (a forensic reader's summary; not in Line, so not in the rows' hash).</summary>
+            public string Events = "";
 
             public Row()
             {
@@ -313,7 +338,9 @@ namespace Fpv450.Sim.Tests
             }
 
             /// <summary>The row as one tab-separated line, every number with its digits fixed (the same bits print the same).</summary>
-            public string Line()
+            /// <summary>alloc false leaves the allocation verdict out (the rows' hash: what a step allocates is the runtime's, a
+            /// thread's first use of a lazily made cache, so it is the one column a thread count may move).</summary>
+            public string Line(bool alloc = true)
             {
                 CultureInfo ci = CultureInfo.InvariantCulture;
                 var s = new System.Text.StringBuilder();
@@ -322,14 +349,25 @@ namespace Fpv450.Sim.Tests
                     .Append(Point.Slope.ToString("F2", ci)).Append('\t').Append(Heading.ToString("F1", ci)).Append('\t').Append(Seed.ToString("X16", ci));
                 if (Skipped)
                     return s.Append("\tSKIPPED\t").Append(Note).ToString();
-                s.Append('\t').Append(Pass ? "PASS" : "FAIL");
+                bool pass = true;
+                for (int i = 0; i < Checks; i++) pass &= !Failed[i] || !alloc && i == (int)Check.Alloc;
+                s.Append('\t').Append(pass ? "PASS" : "FAIL");
                 for (int i = 0; i < Checks; i++)
-                    s.Append('\t').Append(!Judged[i] ? "-" : Failed[i] ? "F@" + First[i] : "ok").Append(':').Append(Worst[i].ToString("G6", ci));
+                    if (!alloc && i == (int)Check.Alloc) s.Append("\t*");
+                    else s.Append('\t').Append(!Judged[i] ? "-" : Failed[i] ? "F@" + First[i] : "ok").Append(':').Append(Worst[i].ToString("G6", ci));
                 s.Append('\t').Append(TouchSpeed.ToString("F3", ci)).Append('\t').Append(PeakAccel.ToString("F0", ci)).Append('\t')
                     .Append(EndTilt.ToString("F1", ci)).Append('\t').Append(Slide.ToString("F2", ci)).Append('\t')
                     .Append(RestTime.ToString("F3", ci)).Append('\t').Append(LiftTime.ToString("F3", ci)).Append('\t').Append(Crashes)
-                    .Append('\t').Append(BladeTouches).Append('\t').Append(Note).Append('\t').Append(Detail);
+                    .Append('\t').Append(BladeTouches).Append('\t').Append(Note).Append('\t').Append(alloc ? Detail : Strip(Detail));
                 return s.ToString();
+            }
+
+            static string Strip(string detail)
+            {
+                var kept = new List<string>();
+                foreach (string part in detail.Split(new[] { "; " }, StringSplitOptions.RemoveEmptyEntries))
+                    if (!part.StartsWith("Alloc:", StringComparison.Ordinal)) kept.Add(part);
+                return string.Join("; ", kept);
             }
 
             public static string Header()
@@ -576,7 +614,11 @@ namespace Fpv450.Sim.Tests
             }
             row.Crashes = judge.CrashesBefore(liftStart);
             if (lift != null) lift.Crashes = judge.Crashes - row.Crashes;
-            foreach (Row r in rows) r.BladeTouches = judge.BladeTouches;
+            foreach (Row r in rows)
+            {
+                r.BladeTouches = judge.BladeTouches;
+                r.Events = judge.Kinds();
+            }
             core.Wind?.Dispose();
 
             if (recorder != null)
@@ -615,6 +657,16 @@ namespace Fpv450.Sim.Tests
             double _energy; // the contacts' net return since the start, J (ΔE_mech less the other forces' work)
             public int Crashes, BladeTouches;
             readonly List<long> _crashSteps = new List<long>();
+            readonly int[] _kinds = new int[64];
+            readonly long[] _firstOf = new long[64];
+
+            public string Kinds()
+            {
+                var s = new System.Text.StringBuilder();
+                for (int i = 0; i < _kinds.Length; i++)
+                    if (_kinds[i] > 0) s.Append(s.Length > 0 ? ", " : "").Append((EventKind)i).Append(' ').Append(_kinds[i]).Append(" (first @").Append(_firstOf[i]).Append(')');
+                return s.ToString();
+            }
 
             public Judge(Context c, FlightCore core, Double3 start)
             {
@@ -719,6 +771,7 @@ namespace Fpv450.Sim.Tests
                             break;
                         }
                     }
+                    if ((int)e.Kind < _kinds.Length && _kinds[(int)e.Kind]++ == 0) _firstOf[(int)e.Kind] = step;
                     if (e.Kind == EventKind.Tunnel || e.Kind == EventKind.WorldBug)
                         r.Fail(Check.Tunnel, step, $"{e.Kind} by part {e.Part} at {e.A:F4}");
                     if (e.Kind == EventKind.EventsLost) r.Fail(Check.EventsKept, step, "an EventsLost event");

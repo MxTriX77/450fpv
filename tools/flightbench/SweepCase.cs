@@ -16,7 +16,7 @@ namespace Fpv450.FlightBench
     // The map-wide landing sweep (w9-village-physics 3.0): `--sweep <map> <points> <seed>` draws the points (SweepScenarios.Draw),
     // flies the four flights at each (Land with its Liftoff, Cut, Drop, Slide) on --threads threads, each flight its own core, and
     // prints the counts per invariant by map, class, slope band, stem stratum and manoeuvre, then every failing row with the command
-    // that replays it. `--point <i>` flies point i alone and prints its rows in full; `--out <file>` writes every row (TSV);
+    // that replays it. `--point <i>` flies point i alone and prints its rows in full (`--from <i>` the points from i on); `--out <file>` writes every row (TSV);
     // `--wind <level>` flies another level (Calm by default); `--no-replay` leaves the replays out. The rows' SHA-256 is printed: the
     // same seed gives the same rows on any thread count.
     internal static class SweepCase
@@ -27,13 +27,14 @@ namespace Fpv450.FlightBench
                 || !ulong.TryParse(args[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out ulong seed))
                 return Usage();
             string mapId = args[1], outFile = null;
-            int threads = Math.Max(1, Environment.ProcessorCount / 2), only = -1;
+            int threads = Math.Max(1, Environment.ProcessorCount / 2), only = -1, from = 0;
             WindLevel level = WindLevel.Calm;
             bool replay = true;
             for (int i = 4; i < args.Length; i++)
             {
                 if (args[i] == "--threads" && i + 1 < args.Length && int.TryParse(args[++i], out threads) && threads >= 1) continue;
                 if (args[i] == "--point" && i + 1 < args.Length && int.TryParse(args[++i], out only) && only >= 0) continue;
+                if (args[i] == "--from" && i + 1 < args.Length && int.TryParse(args[++i], out from) && from >= 0) continue;
                 if (args[i] == "--out" && i + 1 < args.Length) { outFile = args[++i]; continue; }
                 if (args[i] == "--wind" && i + 1 < args.Length && Enum.TryParse(args[++i], true, out level)) continue;
                 if (args[i] == "--no-replay") { replay = false; continue; }
@@ -53,7 +54,7 @@ namespace Fpv450.FlightBench
 
             var jobs = new List<(int Point, Manoeuvre M)>();
             foreach (Point p in points)
-                if (only < 0 || p.Index == only)
+                if (only < 0 ? p.Index >= from : p.Index == only)
                     foreach (Manoeuvre m in new[] { Manoeuvre.Land, Manoeuvre.Cut, Manoeuvre.Drop, Manoeuvre.Slide })
                         jobs.Add((p.Index, m));
             if (jobs.Count == 0)
@@ -74,14 +75,19 @@ namespace Fpv450.FlightBench
             var rows = new List<Row>();
             foreach (Row[] r in results) rows.AddRange(r);
             var text = new StringBuilder(Row.Header()).Append('\n');
-            foreach (Row r in rows) text.Append(r.Line()).Append('\n');
-            string hash;
+            var physics = new StringBuilder();
+            foreach (Row r in rows)
+            {
+                text.Append(r.Line()).Append('\n');
+                physics.Append(r.Line(alloc: false)).Append('\n');
+            }
+            string hash; // the allocation column left out (Row.Line)
             using (SHA256 sha = SHA256.Create())
-                hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text.ToString()))).Replace("-", "").ToLowerInvariant();
+                hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(physics.ToString()))).Replace("-", "").ToLowerInvariant();
             if (outFile != null) File.WriteAllText(outFile, text.ToString());
 
             if (only >= 0)
-                foreach (Row r in rows) Console.WriteLine("  " + r.Line().Replace('\t', ' '));
+                foreach (Row r in rows) Console.WriteLine("  " + r.Line().Replace('\t', ' ') + "\n    events: " + r.Events);
 
             Tables(mapId, rows);
             int failing = 0;
@@ -97,7 +103,7 @@ namespace Fpv450.FlightBench
                     + $"heading {r.Heading:F1}° seed {r.Seed:X16}: {s}; {r.Detail}; `{command} --point {r.Point.Index}`");
             }
             Console.WriteLine($"flightbench: sweep {rows.Count} rows, {failing} failing; drawing {drawn:F1} s, flying {flown:F1} s "
-                + $"({flown / Math.Max(1, jobs.Count) * threads:F2} s a flight a thread); rows SHA-256 {hash}");
+                + $"({flown / Math.Max(1, jobs.Count) * threads:F2} s a flight a thread); rows SHA-256 without the allocation column {hash}");
             if (!Power.OnAc) Console.WriteLine("flightbench: not on AC power, so the times are not evidence (PLT-07)");
             return failing == 0 ? 0 : 1;
         }
@@ -144,7 +150,7 @@ namespace Fpv450.FlightBench
 
         static int Usage()
         {
-            Console.Error.WriteLine("usage: flightbench --sweep <farmland | test-range> <points> <seed> [--threads N] [--point I] [--out FILE] [--wind LEVEL] [--no-replay]");
+            Console.Error.WriteLine("usage: flightbench --sweep <farmland | test-range> <points> <seed> [--threads N] [--point I | --from I] [--out FILE] [--wind LEVEL] [--no-replay]");
             return 2;
         }
     }
