@@ -204,11 +204,12 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// wind-turbulence's "Clip P's pitch flies the cruise" (p7c-wind 1.6, PHY-17a): the nominal pilot holds clip P's
-        /// pitch, a level heading north and 35 m in still air, released at `releaseSpeed`; the airspeed it settles at, the
-        /// mean over the run's last `MeasuredSeconds`, and the mean pitch there (the tracker's, degrees). `hForce` ≥ 0
-        /// replaces drone.json's rotor in-plane drag, N per m/s (a known-wrong model).
+        /// pitch (or `pitchDeg`, the tracker's, nose down negative), a level heading north and 35 m in still air, released at
+        /// `releaseSpeed`; the airspeed it settles at, the mean over the run's last `MeasuredSeconds`, and the mean pitch there
+        /// (`heldDeg`, the tracker's). `hForce` ≥ 0 replaces drone.json's rotor in-plane drag, N per m/s (a known-wrong model).
         /// </summary>
-        public static double HeldPitchAirspeed(DroneSpec spec, double releaseSpeed, out double pitchDeg, double hForce = -1)
+        public static double HeldPitchAirspeed(DroneSpec spec, double releaseSpeed, out double heldDeg, double hForce = -1,
+            double pitchDeg = HarnessPilot.ClipPPitchDeg)
         {
             const double height = 35;
             FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Still));
@@ -216,15 +217,15 @@ namespace Fpv450.Sim.Tests
             Airframe(spec, setup);
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = new Double3(0, 0, releaseSpeed);
-            DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
+            DetMath.SinCos(-pitchDeg * DegToRad / 2, out double sp, out double cp);
             setup.StartAttitude = new Quat(sp, 0, 0, cp);
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
-            var p = new HarnessPilot(core.Controller) { Course = 0, Height = height };
+            var p = new HarnessPilot(core.Controller) { Course = 0, Height = height, PitchDeg = pitchDeg };
             long release = core.State.Step;
             int steps = (int)(Seconds * 1000), from = (int)((Seconds - MeasuredSeconds) * 1000), frame = 0, n = 0;
             double speed = 0;
-            pitchDeg = 0;
+            heldDeg = 0;
             for (int k = 0; k < steps; k++)
             {
                 if (k * HarnessPilot.CameraHz >= frame * 1000.0)
@@ -235,13 +236,13 @@ namespace Fpv450.Sim.Tests
                     if (k >= from)
                     {
                         speed += core.State.Velocity.Length();
-                        pitchDeg += f.Pitch * RadToDeg;
+                        heldDeg += f.Pitch * RadToDeg;
                         n++;
                     }
                 }
                 core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
             }
-            pitchDeg /= n;
+            heldDeg /= n;
             return speed / n;
         }
 
