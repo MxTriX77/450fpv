@@ -190,6 +190,120 @@ namespace Fpv450.Sim.Tests
             Assert.That(Math.Abs(ground.Y), Is.LessThan(1e-12), "no flow through the ground (the image)");
         }
 
+        // A quad's four hubs, square at motor distance l (the diagonal), at height h over the floor, each at thrust t, still air.
+        static RotorAir Quad(double r, double l, double h, double t, bool cutOff = false)
+        {
+            double s = l / (2 * Math.Sqrt(2));
+            var field = new RotorAir(Table, r, true, null, cutOff);
+            field.Begin(new[] { new Double3(s, h, -s), new Double3(-s, h, -s), new Double3(s, h, s), new Double3(-s, h, s) },
+                new Double3(0, 1, 0), new[] { t, t, t, t }, new Double3[4], new double[4]);
+            return field;
+        }
+
+        // Design 19 against Bauersfeld, Muller, Ziegler, Coletti and Scaramuzza (IEEE RA-L 2024, arXiv 2403.13321): the Matrice 300
+        // (6.3 kg, 53.34 cm props, l 89.4 cm; U_H 5.36 m/s in their Table I) hovering 100 m up: from 2.5 l the merged jet's
+        // centreline is U_H·10.11/(s/l + 5.817) and its half-width 0.07668·(s/l + 5.817)·l (their eq. 9: the law is their fit, so
+        // this checks it is built as published), the profile half at r½. The known-wrong (model 94's columns without end) puts
+        // nothing on the axis between the discs and 2 v_i under each hub at any depth: it fails the measured centreline.
+        [Test]
+        public void TheMergedJetDecaysAsMeasured()
+        {
+            const double r = 0.2667, l = 0.894, mass = 6.3;
+            double t = mass * 9.80665 / 4;
+            RotorAir f = Quad(r, l, 100, t), wrong = Quad(r, l, 100, t, cutOff: true);
+            double uh = f.FarSpeed, rho = Table.Number("fiber.air_density_kg_m3");
+            Print($"Bauersfeld et al.'s Matrice 300: U_H {uh:F3} m/s (their 5.36 at their air), l {f.MotorDistance:F4} m; the jet's momentum "
+                + $"flux {Math.PI * Math.Pow(10.11 * 0.07668 * l, 2) * uh * uh / (3 * (Math.Sqrt(2) - 1)) * rho / (4 * t):F3} of the thrust");
+            Assert.That(uh / 5.36, Is.InRange(0.98, 1.02), "U_H as their Table I (their air slightly thinner)");
+            Assert.That(f.MotorDistance, Is.EqualTo(l).Within(1e-12));
+            foreach (double st in new[] { 2.5, 3.0, 5.0, 10.0 })
+            {
+                double y = 100 - st * l, uc = -f.At(new Double3(0, y, 0), 0, out _).Y, measured = uh * 10.11 / (st + 5.817);
+                double half = 0.07668 * (st + 5.817) * l, atHalf = -f.At(new Double3(half, y, 0), 0, out _).Y;
+                double wrongAxis = -wrong.At(new Double3(0, y, 0), 0, out _).Y;
+                double wrongHub = -wrong.At(new Double3(l / (2 * Math.Sqrt(2)), y, -l / (2 * Math.Sqrt(2))), 0, out _).Y;
+                Print($"s/l {st:F1}: U_C {uc:F3} m/s (measured {measured:F3}), at r½ {atHalf / uc:F4} of it; the cut-off: {wrongAxis:F3} on the axis, {wrongHub:F3} under a hub");
+                Assert.That(uc / measured - 1, Is.EqualTo(0).Within(1e-12), "the centreline as published");
+                Assert.That(atHalf / uc, Is.EqualTo(0.5).Within(1e-12), "half at the half-width");
+                Assert.That(Math.Abs(wrongAxis / measured - 1), Is.GreaterThan(0.5), "the cut-off fails the measured centreline");
+                Assert.That(wrongHub / measured, Is.GreaterThan(1.5), "and keeps 2 v_i under a hub at any depth");
+            }
+        }
+
+        // Design 19's landing: the session's drone (R 0.127 m, l 0.452 m, v_h 10.1 m/s) hovering at 1.5 to 10 m. The merged jet's
+        // momentum turns into the wall jet at r_i (derived: the wall jet's momentum flux there equals the jet's, ∫f² checked by
+        // quadrature); beyond, the peak falls as r^−1.1 (Poreh et al. 1967) and is nearly independent of the height (Fradenburgh
+        // 1960: the momentum flux is the same from any height); a line lying at 0.3 mm feels it. The known-wrong 4 R cut-off puts
+        // nothing on the ground from 1.5 m. Below one motor distance the field is the cut-off's (model 94's) to the bit.
+        [Test]
+        public void TheOutwashLandsFromAnyHeight()
+        {
+            const double r = 0.127, l = 0.452;
+            double t = Thrust(r, 10.1), a = Math.Sqrt(2) - 1;
+            double[] profile = Table.Row("rotor_air.wall_jet_profile").Values;
+            double F(double eta) => profile[1] * Math.Pow(eta, 1.0 / 7) * (1 - Erf(profile[0] * eta));
+            double square = 0;
+            for (int k = 0; k < 200000; k++) square += Math.Pow(F((k + 0.5) * 5e-5), 2) * 5e-5;
+            Print($"Verhoff's ∫f² {square:F5} (the table's {Table.Number("rotor_air.wall_jet_profile_square_integral")}), f(1) {F(1):F4}");
+            Assert.That(Table.Number("rotor_air.wall_jet_profile_square_integral"), Is.EqualTo(square).Within(1e-4));
+            double peak = 0.1648, previous = double.NaN;
+            foreach (double h in new[] { 1.5, 3.0, 6.0, 10.0 })
+            {
+                RotorAir f = Quad(r, l, h, t);
+                Assert.That(f.FarLands && f.FarLandingShare == 1 && f.NearShare == 0, $"the merged jet alone lands from {h} m");
+                double ri = f.FarStart, ug = f.FarGroundSpeed, x = h / l + 5.817, half = 0.07668 * x * l, hv = h + 5.817 * l;
+                double Um(double rr)
+                {
+                    double big = Math.Max(rr, ri), delta = 0.098 * big * Math.Pow(big / hv, -0.1);
+                    f.At(new Double3(rr, peak * delta, 0), 0, out Double3 jet);
+                    return jet.X;
+                }
+                double deltaI = 0.098 * ri * Math.Pow(ri / hv, -0.1);
+                double wall = 2 * Math.PI * ri * ug * ug * deltaI * square, free = Math.PI * ug * ug * half * half / (3 * a);
+                double u2 = Um(2), u4 = Um(4);
+                f.At(new Double3(2, 0.0003, 0), 0, out Double3 line);
+                Print($"hub at {h} m: U_g {ug:F3} m/s, r_i {ri:F3} m ({ri / hv:F3} H); the wall jet's momentum at r_i {wall / free:F4} of the jet's; "
+                    + $"u_m {Um(ri):F3} at r_i, {u2:F3} at 2 m, {u4:F3} at 4 m (ratio {u4 / u2:F4}, r^−1.1 {Math.Pow(2, -1.1):F4}); at a line's 0.3 mm at 2 m {line.X:F3} m/s");
+                Assert.That(wall / free, Is.EqualTo(1).Within(2e-3), "the wall jet carries the landing jet's momentum flux");
+                Assert.That(Um(ri) / ug, Is.EqualTo(1).Within(1e-3), "it starts at the jet's centreline speed");
+                if (ri < 2) Assert.That(u4 / u2, Is.EqualTo(Math.Pow(2, -1.1)).Within(1e-3), "the peak falls as r^−1.1");
+                Assert.That(line.X, Is.GreaterThan(0.5), "a line lying at 0.3 mm feels the outwash");
+                if (!double.IsNaN(previous)) Assert.That(u2 / previous, Is.InRange(0.8, 1.25), "nearly independent of the height");
+                previous = u2;
+            }
+            Quad(r, l, 1.5, t, cutOff: true).At(new Double3(2, 0.0003, 0), 0, out Double3 none);
+            Assert.That(none.X, Is.Zero, "the known-wrong 4 R cut-off: no outwash from 1.5 m");
+            RotorAir low = Quad(r, l, 0.3, t), cut = Quad(r, l, 0.3, t, cutOff: true);
+            for (int k = 0; k < 200; k++)
+            {
+                var p = new Double3(-1 + 0.01 * k, 0.0003 + 0.002 * (k % 7), 0.003 * k - 0.3);
+                Double3 x = low.At(p, 0, out Double3 j1), y = cut.At(p, 0, out Double3 j2);
+                Assert.That(x.X == y.X && x.Y == y.Y && x.Z == y.Z && j1.X == j2.X && j1.Z == j2.Z, $"below l the cut-off's field to the bit at {p.X}, {p.Y}, {p.Z}");
+            }
+            // 0 B with the merged jet landing (the far path's Log and Exp).
+            RotorAir high = Quad(r, l, 1.5, t);
+            double sink = 0;
+            for (int k = 0; k < 2000; k++) sink += high.At(new Double3(0.01 * (k % 300), 0.0003 + 0.001 * (k % 13), 0.2), 0, out _).X;
+            long before = AllocProbe.Before();
+            for (int k = 0; k < 32000; k++) sink += high.At(new Double3(0.01 * (k % 300), 0.0003 + 0.001 * (k % 13), 0.2), 0, out _).X;
+            long allocated = AllocProbe.After(before);
+            Print($"the merged jet's At: {allocated} B ({sink:E1})");
+            Assert.That(allocated, Is.Zero, "0 B" + AllocProbe.Report());
+        }
+
+        // erf by its series to rounding (the test's own, not the field's Abramowitz and Stegun fit).
+        static double Erf(double x)
+        {
+            if (x > 5) return 1; // erfc(5) = 1.5e-12
+            double sum = 0, term = x;
+            for (int n = 0; n < 200; n++)
+            {
+                sum += term / (2 * n + 1);
+                term *= -x * x / (n + 1);
+            }
+            return 2 / Math.Sqrt(Math.PI) * sum;
+        }
+
         // The field's cost over the line's 32 nodes and its allocation: At at the nodes of a line laid under a hovering drone and
         // trailing ahead of a reversing one, with the fountain and the vortex and on design 4's field (Release; the machine
         // shared, so under load: the orchestrator re-measures on an idle machine).
@@ -212,7 +326,7 @@ namespace Fpv450.Sim.Tests
                         for (int i = 0; i < 32; i++) sink += f.At(nodes[i], 0, out _).Y; // the JIT's warm-up
                 // the least of 20 alternating rounds of 1000 steps each (the least is the field's own cost on a shared machine)
                 double[] ns = { double.PositiveInfinity, double.PositiveInfinity };
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 for (int round = 0; round < 40; round++)
                 {
                     RotorAir f = round % 2 == 0 ? on : off;
@@ -222,10 +336,10 @@ namespace Fpv450.Sim.Tests
                     double t = (Stopwatch.GetTimestamp() - t0) * 1e9 / Stopwatch.Frequency / (1000.0 * 32);
                     if (t < ns[round % 2]) ns[round % 2] = t;
                 }
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                long allocated = AllocProbe.After(before);
                 Print($"{name}: At {ns[0]:F1} ns a node with the fountain and the ground vortex, {ns[1]:F1} ns on design 4's field "
                     + $"(+{ns[0] - ns[1]:F1} ns, {32 * (ns[0] - ns[1]) / 1000:F2} µs a step over 32 nodes; the least of 20 rounds, under load); {allocated} B ({sink:E1})");
-                Assert.That(allocated, Is.EqualTo(0), "0 B in the steps");
+                Assert.That(allocated, Is.Zero, "0 B in the steps" + AllocProbe.Report());
             }
         }
     }

@@ -970,6 +970,36 @@ namespace Fpv450.Sim.Tests
             Assert.That(touching, Is.GreaterThan(count / 10), "the queries meet the house's boxes");
         }
 
+        // The test range's twin of FarmlandTests' fresh thread (night-region-cache): a fiber node's first query on a thread that did
+        // not load the world, by Z01's west window, allocates nothing and gets the loading thread's contacts.
+        [Test]
+        public void AFreshThreadsFirstQueryByTheHouse_AllocatesNothing()
+        {
+            MapWorld world = World;
+            var node = new Capsule(new Double3(-175.0, 1.2, -51.0), new Double3(-175.0, 1.2, -51.0), 0.001);
+            var alone = new StaticContact[16];
+            int n = world.StaticContacts(node, node, 0.3, alone);
+            Assert.That(n, Is.GreaterThan(0), "the node meets the house");
+            var contacts = new StaticContact[16];
+            int got = 0;
+            long allocated = 0;
+            string report = "";
+            var flight = new Thread(() =>
+            {
+                long before = AllocProbe.Before();
+                got = world.StaticContacts(node, node, 0.3, contacts);
+                allocated = AllocProbe.After(before);
+                report = AllocProbe.Report();
+            });
+            flight.Start();
+            flight.Join();
+            if (allocated != 0)
+                Assert.Fail($"{allocated} B in a fresh thread's first small query by Z01's west window{report}");
+            Assert.That(got, Is.EqualTo(n));
+            for (int k = 0; k < n; k++)
+                Assert.That(contacts[k], Is.EqualTo(alone[k]), $"contact {k}");
+        }
+
         [Test]
         public void BatchedEqualsSingle_ForSamplesAndRays()
         {

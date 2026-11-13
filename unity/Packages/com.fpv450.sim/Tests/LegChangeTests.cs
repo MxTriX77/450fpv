@@ -182,9 +182,9 @@ namespace Fpv450.Sim.Tests
             var r = new HalfPush();
             for (int k = 0; k < 150; k++)
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(StickSample.Neutral);
-                if (k >= 10) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 10) r.Allocated += AllocProbe.After(before);
                 ref readonly FlightState s = ref core.State;
                 for (int i = 0; i < core.Events.Count; i++)
                 {
@@ -231,7 +231,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(on.Touches, Is.GreaterThan(0), "the half meets the rod");
             Assert.That(on.Tunnels, Is.Zero, "no tunnel");
             Assert.That(on.Deepest, Is.LessThan(0.005), "it stands out of the rod by its contact spring's share and a step's travel, under its radius");
-            Assert.That(on.Allocated, Is.Zero, "0 B a step with a half hanging and giving");
+            Assert.That(on.Allocated, Is.Zero, "0 B a step with a half hanging and giving" + AllocProbe.Report());
             Assert.That(off.Touches, Is.GreaterThan(0));
             Assert.That(off.Tunnels, Is.GreaterThan(0), "the known-wrong passes the rod's middle: a Tunnel");
         }
@@ -333,22 +333,29 @@ namespace Fpv450.Sim.Tests
         public void TheNextLandingFeelsADamagedLeg()
         {
             MaterialRow[] m = Materials(out ulong h);
-            // The bent leg: the first set a harsh level landing leaves (1.2's scenario, seed 1, 1.04 times its sim's onset).
+            // The bent leg: the first set a harsh level landing leaves (1.2's scenario, seed 1, 1.04 times its sim's onset). Since w9
+            // 2.6 a crack (the edge's local yield) comes before the set and does not count.
+            static bool Bent(LegScenarios.Outcome x)
+            {
+                for (int c = 0; c < 4; c++) if ((x.Flags[c] & (LegFlags.Set | LegFlags.Broken)) != 0) return true;
+                return false;
+            }
             const ulong seed = 1;
             double lo = 1.5, hi = 2.6;
             while (hi - lo > 0.005)
             {
                 double mid = (lo + hi) / 2;
-                if (LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -mid, 0), Seed = seed }).Damaged() > 0) hi = mid;
+                if (Bent(LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -mid, 0), Seed = seed }))) hi = mid;
                 else lo = mid;
             }
-            LegScenarios.Outcome harsh = LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -hi * 1.04, 0), Seed = seed });
+            // At the onset (w9 2.6: past about 1.04 × it the level landing's bowed legs kink and are lost, AHarshLandingBendsALeg).
+            LegScenarios.Outcome harsh = LegScenarios.Run(Spec, m, h, new LegScenarios.Touch { Velocity = new Double3(0, -hi, 0), Seed = seed });
             int leg = -1;
             for (int c = 0; c < 4 && leg < 0; c++)
                 if ((harsh.Flags[c] & LegFlags.Set) != 0 && (harsh.Flags[c] & LegFlags.Broken) == 0 && LegScenarios.SetDegrees(harsh.Set[c]) > 0) leg = c;
             Assert.That(leg, Is.GreaterThanOrEqualTo(0), "the harsh landing bends a leg");
             Double3 set = harsh.Set[leg];
-            TestContext.Out.WriteLine($"the harsh landing at {hi * 1.04:F3} m/s bends leg_{LegDamage.Names[leg]} {LegScenarios.SetDegrees(set):F2}° (its foot's way {set.X:F4}, {set.Z:F4}; twist {set.Y:F4} rad)");
+            TestContext.Out.WriteLine($"the harsh landing at {hi:F3} m/s bends leg_{LegDamage.Names[leg]} {LegScenarios.SetDegrees(set):F2}° (its foot's way {set.X:F4}, {set.Z:F4}; twist {set.Y:F4} rad)");
 
             // The lowest drift that tips it, toward each side in turn: along x and along z, each way. Toward the damaged side
             // is the leg's own side of each axis.
@@ -387,8 +394,12 @@ namespace Fpv450.Sim.Tests
                 Assert.That(tilt[3, d], Is.EqualTo(tilt[0, d]), "and lands as the intact at 0.3 m/s");
                 differs |= critical[1, d] != critical[0, d] || tilt[1, d] != tilt[0, d];
             }
+            // Since model 86 (the anchors' reach) no build tips under 4 m/s of drift: the missing leg's tips at 2–4 m/s rode a
+            // hanging support's anchor left 2–5.8 m behind it (the moment's lever, w9-village-physics 2.4). It is felt in the
+            // landing at 0.3 m/s instead: toward its side it tips at a lower drift, or where neither tips it leans farther.
             foreach (int d in new[] { towardX, towardZ })
-                Assert.That(critical[2, d], Is.LessThan(critical[0, d]), "the missing leg tips at a lower drift toward its side");
+                Assert.That(critical[2, d] < critical[0, d] || critical[2, d] == critical[0, d] && tilt[2, d] > tilt[0, d], Is.True,
+                    "the missing leg tips at a lower drift toward its side, or leans farther at 0.3 m/s");
             Assert.That(differs, "the next landing feels the bent leg");
             double outward = set.X * Math.Sign(at.X) + set.Z * Math.Sign(at.Z);
             TestContext.Out.WriteLine($"the set moves the foot {(outward > 0 ? "outward" : "inward")}; toward its side the bent build tips at "

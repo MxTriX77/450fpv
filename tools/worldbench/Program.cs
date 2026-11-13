@@ -19,7 +19,8 @@ namespace Fpv450.WorldBench
     // Worlds: the floor stub (p6-world-query-gallery task 1.1, golden/floor.txt) and the test range (tasks 1.4 and 1.5,
     // golden/test-range.txt; TestRange.cs), the map of D-047; the wake grid over its synthetic layout (golden/wakes.txt); and
     // the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2; golden/farmland.txt; Farmland.cs); and the farmland's wind
-    // rows over its hills (w7-farmland-wind 1.1; golden/farmland-wind.txt; FarmlandWind.cs).
+    // rows over its hills (w7-farmland-wind 1.1; golden/farmland-wind.txt; FarmlandWind.cs) and behind its hedges, trees and ruins
+    // (1.2; golden/farmland-shelter.txt; FarmlandShelter.cs).
     internal static partial class Program
     {
         private const int GoldenCount = 10000;
@@ -165,6 +166,11 @@ namespace Fpv450.WorldBench
                 Add(e.Diameter); Add(e.Area); Add(e.Parent); Add(e.ParentShape);
             }
 
+            public void Add(in StemPatch p)
+            {
+                Add(p.Cell); Add((long)p.Layer); Add((long)p.Kind); Add(p.Area); Add(p.Density); Add(p.HeightMin); Add(p.HeightMax);
+            }
+
             public void Add(in Conductor c)
             {
                 Add(c.Object); Add(c.Shape); Add(c.Diameter); Add(c.MassPerMetre); Add(c.Sag); Add(c.AxialStiffness); Add(c.BreakingForce);
@@ -272,9 +278,12 @@ namespace Fpv450.WorldBench
                 + GoldenFile("test-range", "the test range (p6-world-query-gallery 1.4, D-047) with a fixed stand", TestRangeCases(), record)
                 + GoldenFile("wakes", "the wake grid over its synthetic layout (p7c-wind 1.3)", WakeBench.Cases(), record,
                     "every cell's and sample's bits; WakeGrid.Version bumps with a re-record")
-                + GoldenFile("farmland", "the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2)", FarmlandCases(), record)
+                + GoldenFile("farmland", "the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2) and its stem field (w9-village-physics 2.1)", FarmlandCases(), record)
                 + GoldenFile("farmland-wind", "the farmland's wind rows (w7-farmland-wind 1.1)", FarmlandWindCases(), record,
-                    "every printed number's bits, the hills' grid on a lattice and the Severe field at the rows' points", "a model bump (D-072)");
+                    "every printed number's bits, the hills' grid on a lattice and the Severe field at the rows' points", "a model bump (D-072)")
+                + GoldenFile("farmland-shelter", "the farmland's shelter rows behind its hedges and trees and among the village's ruins "
+                    + "(w7-farmland-wind 1.2)", FarmlandShelterCases(), record, "every printed number's bits and the two grids",
+                    "a WakeGrid.Version bump");
             if (record)
                 return failures == 0 ? 0 : 1;
             Console.WriteLine(failures == 0 ? "worldbench: ALL PASS" : $"worldbench: {failures} FAILED");
@@ -358,7 +367,7 @@ namespace Fpv450.WorldBench
             var times = new long[steps];
             for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = Fpv450.Sim.Tests.AllocProbe.Before();
                 for (int s = 0; s < steps; s++)
                 {
                     long start = Stopwatch.GetTimestamp();
@@ -368,7 +377,7 @@ namespace Fpv450.WorldBench
                     world.Raycast(rays, 5, hits);
                     times[s] = Stopwatch.GetTimestamp() - start;
                 }
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                long allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                 if (pass == 0)
                     continue;
                 Array.Sort(times);
@@ -385,12 +394,12 @@ namespace Fpv450.WorldBench
             Capsules(100000, out previous, out current);
             rays = Rays(100000);
             hits = new RayHit[rays.Length];
-            long a0 = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+            long a0 = Fpv450.Sim.Tests.AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
             for (int i = 0; i < previous.Length; i++)
                 world.StaticContacts(previous[i], current[i], 0.02, contacts);
             long t1 = Stopwatch.GetTimestamp();
             world.Raycast(rays, 2, hits);
-            long t2 = Stopwatch.GetTimestamp(), a1 = GC.GetAllocatedBytesForCurrentThread();
+            long t2 = Stopwatch.GetTimestamp(), a1 = a0 + Fpv450.Sim.Tests.AllocProbe.After(a0);
             double ms = 1e3 / Stopwatch.Frequency;
             Console.WriteLine($"  floor.capsules 100000: {(t1 - t0) * ms:F2} ms (budget 100 ms)");
             Console.WriteLine($"  floor.rays 100000 of <= 2 m: {(t2 - t1) * ms:F2} ms (budget 100 ms); {a1 - a0} B allocated by both");

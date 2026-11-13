@@ -248,6 +248,81 @@ namespace Fpv450.Sim.Tests
             Assert.That(Math.Abs(wrong / expected - 1), Is.GreaterThan(0.1), "−20 dB is not the motor noise's ratio");
         }
 
+        // p7c-wind design 13: the human pilot's remnant is Levison's, referred to the input, and mostly what it sees.
+        // - On a known error (a 1 Hz roll swing, σ_e² = A²/2) the perceived roll's noise has the optimal-control model's
+        //   observation noise variance through the neuromotor lag, π·ρ_y·σ_e²·fps·(1 − a)/(1 + a), a = e^(−1/(fps·τ_n)), ρ_y
+        //   at −20 dB, and its lag-1 correlation is a; the motor noise's −25 dB in its place fails, and without
+        //   UseObservationNoise the pilot perceives the frame as it is.
+        // - In a Severe harness flight (seed 1) the human's remnant share of each commanded rate's variance is over K§8.5's
+        //   pilot's, whose remnant is the motor noise alone, and under identification experiments' top, 30 % of the control
+        //   power (NTRS 20170005722); the noiseless human (the known-wrong) has none and fails.
+        [Test]
+        public void TheHumansRemnantIsMostlyWhatItSees()
+        {
+            const double amplitude = 0.05, fps = HarnessPilot.CameraHz; // rad
+            double Variance(double db, bool observe, out double lag1)
+            {
+                var pilot = new HarnessPilot(null) { ObservationNoiseDb = db };
+                if (observe) pilot.UseObservationNoise(7);
+                double sum = 0, sum2 = 0, cross = 0, last = 0;
+                int n = 0;
+                for (long k = 0; k < (long)(fps * 300); k++)
+                {
+                    var f = new HarnessPilot.Frame { Step = k, Roll = amplitude * Math.Sin(2 * Math.PI * k / fps), Pitch = HarnessPilot.ClipPPitchDeg * DegToRad };
+                    double noise = f.Roll - pilot.Perceive(f).Roll;
+                    if (k >= fps * 30)
+                    {
+                        sum += noise;
+                        sum2 += noise * noise;
+                        cross += noise * last;
+                        n++;
+                    }
+                    last = noise;
+                }
+                double mean = sum / n, v = sum2 / n - mean * mean;
+                lag1 = v > 0 ? (cross / n - mean * mean) / v : 0;
+                return v / (amplitude * amplitude / 2);
+            }
+            double a = Math.Exp(-1 / (fps * 0.1));
+            double expected = Math.PI * 0.01 * fps * (1 - a) / (1 + a);
+            double got = Variance(-20, true, out double lag1), wrong = Variance(-25, true, out _), none = Variance(-20, false, out _);
+            TestContext.Out.WriteLine($"observation noise over the error's variance: {got:F4} (the model's {expected:F4}); lag-1 correlation {lag1:F4} ({a:F4}); "
+                + $"at −25 dB {wrong:F4}; without it {none:F4}");
+            Assert.That(got / expected, Is.EqualTo(1).Within(0.1));
+            Assert.That(lag1, Is.EqualTo(a).Within(0.02));
+            Assert.That(Math.Abs(wrong / expected - 1), Is.GreaterThan(0.1), "−25 dB is the motor noise's ratio, not the observation noise's");
+            Assert.That(none, Is.EqualTo(0), "the noiseless pilot perceives the frame as it is");
+
+            // The perception allocates nothing (its rows are the pilot's own).
+            var seeing = new HarnessPilot(null);
+            seeing.UseObservationNoise(7);
+            PerceiveSecond(seeing);
+            long before = AllocProbe.Before();
+            PerceiveSecond(seeing);
+            long bytes = AllocProbe.After(before);
+            Assert.That(bytes, Is.Zero, AllocProbe.Report());
+
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindHarness.Run human = WindHarness.Fly(spec, WindLevel.Severe, 1, 0, 10, WindHarness.HumanPilots[0]);
+            WindHarness.Run k85 = WindHarness.Fly(spec, WindLevel.Severe, 1, 0, 10, WindHarness.Pilots[0]);
+            WindHarness.Run noiseless = WindHarness.Fly(spec, WindLevel.Severe, 1, 0, 10, WindHarness.HumanPilots[0], remnant: false);
+            string[] axes = { "p", "q", "r" };
+            for (int i = 0; i < 3; i++)
+            {
+                TestContext.Out.WriteLine($"{axes[i]}: remnant share, the human {human.RemnantShare[i]:F3}, K§8.5's pilot {k85.RemnantShare[i]:F3}, the noiseless human {noiseless.RemnantShare[i]:F3}");
+                Assert.That(human.RemnantShare[i], Is.GreaterThan(k85.RemnantShare[i]), "mostly what it sees: over the motor noise's alone");
+                Assert.That(human.RemnantShare[i], Is.LessThan(0.3), "under the experiments' top");
+                Assert.That(noiseless.RemnantShare[i], Is.Not.GreaterThan(k85.RemnantShare[i]), "the noiseless human has no remnant");
+            }
+        }
+
+        // A second of frames through a pilot's perception.
+        static void PerceiveSecond(HarnessPilot pilot)
+        {
+            for (int k = 0; k < 30; k++)
+                pilot.Perceive(new HarnessPilot.Frame { Step = k, Roll = 0.01 * k, Pitch = HarnessPilot.ClipPPitchDeg * DegToRad });
+        }
+
         // D-060, hover-micro-motion.md §2.3: each logged frame shows the newest whole PAL field at its horizon row, as the
         // recorder writes it at its 29.917 Hz ticks, so the frames' instants jitter by a field (σ 20/√12 = 5.8 ms) against
         // the tracker's uniform clock. The uniform clock (the harness before D-060, the known-wrong) has no such spread.

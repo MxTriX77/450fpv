@@ -140,9 +140,9 @@ namespace Fpv450.Sim.Tests
 
         struct CrownRun
         {
-            public double FirstTouch, Work, Height, Away;
-            public int Cuts, Glances;
-            public long Allocated, Steps;
+            public double FirstTouch, Work, Height, Away, Speed, LeafWork, Dip, ShakeIn, ShakeOut, Line, LineAt;
+            public int Cuts, Glances, Lost, Bark, Twig, MostEvents;
+            public long Allocated, Steps, LeafCells;
             public bool Crashed;
         }
 
@@ -151,11 +151,17 @@ namespace Fpv450.Sim.Tests
         // route's bearing, climbed to 5 m and flown at 6.85 m/s into the crown, the pilot holding that velocity for 25 s; with
         // surfaces.json's ground and twigs or without (the known-wrong: the twig shells glance). The first touch of the tree (s),
         // the twigs cut and their work (J), the glances on its shells, and at the end the height over the ground (m), the distance
-        // from where it hung (m) and whether it crashed.
-        static CrownRun Crown(bool table, System.IO.Stream log = null)
+        // from where it hung (m) and whether it crashed. Since w9-village-physics 2.3: at speed (m/s) instead of 6.85; the field's
+        // stems on, as in the game (crown: false flies the known-wrong, the twig row without its crown block: model 89's 30 N/m a
+        // part with no limit, its blades glancing); the leaves met and their work, the events refused, the most in a step, the
+        // pairs on the tree's bark and twigs at the end and its speed then; the front rotors' deepest dip under their speed before
+        // the crown, and the body's 4–15 Hz rate (roll and pitch, °/s) over the first second in the crown against the second
+        // before it, with the strongest line at 200–400 Hz (the blade pass) in it.
+        static CrownRun Crown(bool table, System.IO.Stream log = null, double speed = 6.85, bool crown = true)
         {
             MapWorld w = SlopeScenarios.Farmland();
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
+            if (!crown) m = GoldenFlights.WithoutTheCrowns(m);
             DroneSpec spec = RepositoryDrone.Spec();
             var hung = new XZ(341.9, 278.5);
             var foot = new XZ(hung.X + 0.596 * 30, hung.Z + 0.803 * 30);
@@ -181,27 +187,41 @@ namespace Fpv450.Sim.Tests
             }
             void Advance(StickSample stick, bool timed)
             {
-                long before = System.GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (timed) r.Allocated += System.GC.GetAllocatedBytesForCurrentThread() - before;
+                if (timed) r.Allocated += AllocProbe.After(before);
                 recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
             }
             for (int k = 0; k < 16; k++) Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 }, false); // CrosswindScenario.Arm's
             var pilot = new SimPilot(core.Controller, site.Foot + new Double3(0, 5, 0)) { Heading = site.Nose() };
-            ushort twig = w.MaterialId("twig");
-            for (int k = 0; k < 25000; k++)
+            ushort twig = w.MaterialId("twig"), bark = w.MaterialId("bark");
+            int steps = speed < 4 ? 30000 : 25000, first = -1;
+            double[] roll = new double[steps], pitch = new double[steps];
+            double hover = 0;
+            for (int k = 0; k < steps; k++)
             {
                 if (k == 6000)
                 {
                     pilot.HoldVelocity = true;
-                    pilot.TargetVelocity = site.Nose() * 6.85;
+                    pilot.TargetVelocity = site.Nose() * speed;
+                    hover = 0.5 * (core.State.RotorSpeed[1] + core.State.RotorSpeed[3]);
                 }
                 // The steps in the crown, from its first touch on: 0 B (the pilot's sticks outside them).
                 Advance(pilot.Sticks(core, core.State.Step * FlightCore.StepUs), !double.IsNaN(r.FirstTouch));
+                roll[k] = core.State.BodyRate.Z;
+                pitch[k] = core.State.BodyRate.X;
+                r.Lost += core.Events.Lost;
+                r.MostEvents = System.Math.Max(r.MostEvents, core.Events.Count);
+                if (first >= 0 && k < first + 1000)
+                    for (int c = 1; c < 4; c += 2) r.Dip = System.Math.Max(r.Dip, (hover - core.State.RotorSpeed[c]) / hover);
                 for (int i = 0; i < core.Events.Count; i++)
                 {
                     FlightEvent e = core.Events[i];
-                    if (double.IsNaN(r.FirstTouch) && (e.Kind == EventKind.ContactMade || e.Kind == EventKind.PropStrike) && e.Material == twig) r.FirstTouch = k * FlightCore.Dt;
+                    if (double.IsNaN(r.FirstTouch) && (e.Kind == EventKind.ContactMade || e.Kind == EventKind.PropStrike) && e.Material == twig)
+                    {
+                        r.FirstTouch = k * FlightCore.Dt;
+                        first = k;
+                    }
                     if (e.Kind == EventKind.Crash) r.Crashed = true;
                     if (e.Kind != EventKind.BladeStrike || e.Material != twig) continue;
                     if ((StrikeMode)(e.Index >> 4) == StrikeMode.Glance) r.Glances++;
@@ -215,32 +235,74 @@ namespace Fpv450.Sim.Tests
             ref readonly FlightState end = ref core.State;
             w.SampleGround(new[] { new XZ(end.Position.X, end.Position.Z) }, gs);
             r.Height = end.Position.Y - gs[0].Height;
+            r.Speed = end.Velocity.Length();
+            r.Bark = core.Contacts.TouchingOn(bark);
+            r.Twig = core.Contacts.TouchingOn(twig);
+            r.LeafCells = core.Strikes.LeafCells;
+            r.LeafWork = core.Strikes.LeafWork;
+            if (first >= 1000 && first + 1000 <= steps)
+            {
+                r.ShakeIn = System.Math.Sqrt(Sq(Shake.RateRms(roll, first, 1000, 4, 15)) + Sq(Shake.RateRms(pitch, first, 1000, 4, 15)));
+                r.ShakeOut = System.Math.Sqrt(Sq(Shake.RateRms(roll, first - 1000, 1000, 4, 15)) + Sq(Shake.RateRms(pitch, first - 1000, 1000, 4, 15)));
+                r.Line = Shake.Line(roll, first, 1000, 200, 400, out r.LineAt);
+            }
             r.Away = System.Math.Sqrt((end.Position.X - hung.X) * (end.Position.X - hung.X) + (end.Position.Z - hung.Z) * (end.Position.Z - hung.Z));
             r.Steps = core.State.Step;
             recorder?.Close();
             return r;
         }
 
+        static double Sq(double x) => x * x;
+
+        static void Print(string name, in CrownRun r) =>
+            TestContext.Out.WriteLine($"{name}: first touch at {r.FirstTouch:F2} s; {r.Cuts} twigs cut for {r.Work:F1} J, {r.Glances} glances; "
+                + $"{r.LeafCells} leaf cells for {r.LeafWork:F2} J; the front rotors' deepest dip {100 * r.Dip:F1} % in the crown's first second; "
+                + $"4–15 Hz body rate {r.ShakeIn:F2} °/s in it against {r.ShakeOut:F2} °/s before, the strongest line at 200–400 Hz {r.Line:F3} °/s at "
+                + $"{r.LineAt:F0} Hz; at the end {r.Height:F2} m up at {r.Speed:F2} m/s, {r.Away:F2} m from where it hung, {r.Bark} pairs on bark and "
+                + $"{r.Twig} on twigs, {(r.Crashed ? "crashed" : "no crash")}; {r.Lost} events refused, at most {r.MostEvents} in a step");
+
+        // At rest in the tree and held by its twigs alone: what no crown's twigs can do (design.md 2.3 §2).
+        static bool HangsOnTwigs(in CrownRun r) => r.Height > 1 && r.Speed < 0.05 && r.Bark == 0 && r.Twig > 0;
+
         // A drone in a crown (the hills runs: pushed into IslandTree's at 6.85 m/s it hung 241 s at 5 m over the ground with no fall
         // and no crash, 88,699 blade strikes taking 0.00 J each). With its twigs cut at their cost (PropStrikes.Twigs) the props pay
-        // for each and the drone does not stay: it leaves the crown, crashed or fallen; the known-wrong, the shells glancing, hangs.
+        // for each, and since w9-village-physics 2.3 the twigs hold a part only as far as they bend and break: 0.75 N of its 46 N
+        // (design.md 2.3 §2), so the drone hangs only where a branch (the bark capsules) or the ground holds it. The field's stems on,
+        // as in the game (model 89 needed them off: its liftoff in the grass took it into the crown another way, and it hung on the
+        // shells). The known-wrong, model 89's shells (30 N/m a part, no limit, the blades glancing), hangs on them.
         [Test]
         public void ADroneInACrownPaysForItsTwigsAndDoesNotHang()
         {
-            var log = new System.IO.MemoryStream();
-            CrownRun cut = Crown(true, log), wrong = Crown(false);
-            foreach ((string name, CrownRun r) in new[] { ("twigs cut", cut), ("the known-wrong, the shells glancing", wrong) })
-                TestContext.Out.WriteLine($"{name}: first touch at {r.FirstTouch:F2} s; {r.Cuts} twigs cut for {r.Work:F1} J, {r.Glances} glances; at 25 s "
-                    + $"{r.Height:F2} m up, {r.Away:F2} m from where it hung, {(r.Crashed ? "crashed" : "no crash")}");
+            CrownRun cut = Crown(true), wrong = Crown(true, crown: false);
+            Print("twigs cut", cut);
+            Print("the known-wrong, model 89's shells", wrong);
             Assert.That(cut.FirstTouch, Is.LessThan(15), "the premise: the crown is met");
             Assert.That(cut.Cuts, Is.GreaterThan(0), "the blades cut twigs");
             Assert.That(cut.Work / cut.Cuts, Is.GreaterThan(1), "each twig costs its rotor joules, not nothing");
             Assert.That(cut.Glances, Is.EqualTo(0), "a twig shell never glances");
-            Assert.That(cut.Crashed || cut.Height < 1 || cut.Away > 5, Is.True, "the drone does not hang in the crown");
-            Assert.That(wrong.Glances, Is.GreaterThan(1000), "the known-wrong's shells glance");
-            Assert.That(!wrong.Crashed && wrong.Height > 3 && wrong.Away < 3, Is.True, "the known-wrong hangs in the crown");
+            Assert.That(cut.LeafCells, Is.GreaterThan(0), "the blades meet the crown's leaves");
+            Assert.That(HangsOnTwigs(cut), Is.False, "the drone does not hang on twigs");
+            Assert.That(cut.Lost, Is.EqualTo(0), "no event refused");
+            Assert.That(cut.Allocated, Is.Zero, "0 B in the crown's steps" + AllocProbe.Report());
+            Assert.That(HangsOnTwigs(wrong), Is.True, "the known-wrong hangs on the shells");
+        }
+
+        // The spec's crown flight (w9-village-physics "Leaves in a crown"): the same climb, then 2 m/s into IslandTree's crown. The
+        // twigs and leaves cut take their energy from physics_materials.json's twig.crown; what holds it at the end is a branch or
+        // the ground, never the twigs; nothing is refused; its log replays headless bit for bit with 0 B in the crown's steps.
+        [Test]
+        public void TwoMetresASecondIntoACrown()
+        {
+            var log = new System.IO.MemoryStream();
+            CrownRun cut = Crown(true, log, 2);
+            Print("2 m/s into IslandTree", cut);
+            Assert.That(cut.FirstTouch, Is.LessThan(30), "the premise: the crown is met");
+            Assert.That(cut.LeafCells, Is.GreaterThan(0), "the blades meet the crown's leaves");
+            Assert.That(cut.LeafWork, Is.GreaterThan(0), "and pay for them");
+            Assert.That(HangsOnTwigs(cut), Is.False, "the drone does not hang on twigs");
+            Assert.That(cut.Lost, Is.EqualTo(0), "no event refused");
             // The twigs' count is the flight's own state (no draw): the log replays headless bit for bit, and a step allocates nothing.
-            Assert.That(cut.Allocated, Is.EqualTo(0), "0 B in the crown's steps");
+            Assert.That(cut.Allocated, Is.Zero, "0 B in the crown's steps" + AllocProbe.Report());
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
             var world = new FlightWorld(SlopeScenarios.Farmland());
             ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "farmland" ? world : null, RepositoryDrone.Spec().ContentHash,
@@ -248,6 +310,109 @@ namespace Fpv450.Sim.Tests
             TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
             Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
             Assert.That(replay.Steps, Is.EqualTo(cut.Steps));
+        }
+
+        struct HoverRun
+        {
+            public int Breaks, ZeroMass, Repeats, Cuts, MostInStep, Opening, Lost, Resting, MostEvents;
+            public double Work, LeafWork, Height, Contact;
+            public long Allocated, Steps, LeafCells;
+        }
+
+        // w9-village-physics 2.7 (audit §1.15, G5): the audit's 35° spot on the farmland, (525.79, 612.74), lies inside a
+        // GreenBush_Dry crown. The drone starts there 1.24 m over the ground and the pilot holds that point for seconds, with
+        // surfaces.json's ground and twigs: the breaks (BladeDamaged, mode Break), those that took no mass, those that repeat a
+        // station a blade already broke at, the twigs cut and their work, the most BladeDamaged in one step, and the events the
+        // step's buffer refused: in the first step (every pair in the crown made at once) and after it.
+        static HoverRun CrownHover(int seconds, System.IO.Stream log = null)
+        {
+            MapWorld w = SlopeScenarios.Farmland();
+            DroneSpec spec = RepositoryDrone.Spec();
+            var spot = new XZ(525.79, 612.74);
+            var gs = new GroundSample[1];
+            w.SampleGround(new[] { spot }, gs);
+            var at = new Double3(spot.X, gs[0].Height + 1.24, spot.Z);
+            var world = new FlightWorld(w);
+            FlightSetup setup = SoilScenarios.Setup(spec, world, at);
+            var core = new FlightCore(setup);
+            FlightRecorder recorder = null;
+            if (log != null)
+            {
+                LogHeader header = LogHeader.For(setup, core);
+                header.WorldId = "farmland";
+                header.SetDrone(spec, spec.Nominal);
+                recorder = new FlightRecorder(log, header, FlightRecorder.DefaultCapacity, ownsStream: false);
+            }
+            ushort twig = w.MaterialId("twig");
+            var r = new HoverRun();
+            var broken = new HashSet<(int, int, double)>();
+            var pilot = new SimPilot(core.Controller, at);
+            for (int k = 0; k < 16 + 1000 * seconds; k++)
+            {
+                StickSample stick = k < 16 ? new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 } : pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
+                long before = AllocProbe.Before();
+                core.Advance(stick);
+                if (k >= 1016) r.Allocated += AllocProbe.After(before);
+                recorder?.RecordStep(core.State, stick, core.Trace, core.Events);
+                if (k == 0) r.Opening = core.Events.Lost;
+                else r.Lost += core.Events.Lost;
+                r.MostEvents = System.Math.Max(r.MostEvents, core.Events.Count);
+                for (int c = 0; c < 4 && k >= 1016; c++)
+                    if (core.Contacts.Resting(c)) r.Resting++;
+                int damaged = 0;
+                for (int i = 0; i < core.Events.Count; i++)
+                {
+                    FlightEvent e = core.Events[i];
+                    if (e.Kind == EventKind.BladeStrike && e.Material == twig && (StrikeMode)(e.Index >> 4) != StrikeMode.Glance)
+                    {
+                        r.Cuts++;
+                        r.Work += e.A;
+                    }
+                    if (e.Kind != EventKind.BladeDamaged) continue;
+                    damaged++;
+                    if ((StrikeMode)(e.Index >> 4) != StrikeMode.Break) continue;
+                    r.Breaks++;
+                    if (!(e.B > 0)) r.ZeroMass++;
+                    if (!broken.Add((e.Part, e.Index & 15, e.C))) r.Repeats++;
+                }
+                r.MostInStep = System.Math.Max(r.MostInStep, damaged);
+            }
+            r.Steps = core.State.Step;
+            r.LeafCells = core.Strikes.LeafCells;
+            r.LeafWork = core.Strikes.LeafWork;
+            r.Height = core.State.Position.Y - gs[0].Height;
+            r.Contact = core.Trace.ContactForce.Length();
+            recorder?.Close();
+            return r;
+        }
+
+        // A hover inside a bush crown (G5): at model 85 every blade of all four props logged a Break at 0.9888 R taking 0 kg on
+        // every step, 200,000 events in 25 s: its props stand still in the shells, and each resting blade's load radius was its
+        // pairs' points on the shells' planes, 4.5–5.5 R, so the station at its tip "broke" again (2.7). A break takes mass and
+        // happens at most once at any station of a blade.
+        [Test]
+        public void AHoverInACrownBreaksNoBladeTwice()
+        {
+            var log = new System.IO.MemoryStream();
+            HoverRun r = CrownHover(25, log);
+            TestContext.Out.WriteLine($"25 s in GreenBush_Dry's crown: {r.Cuts} twigs cut for {r.Work:F1} J; {r.Breaks} breaks, {r.ZeroMass} with 0 kg lost, "
+                + $"{r.Repeats} at a station already broken; at most {r.MostInStep} BladeDamaged in a step; events refused {r.Opening} in the first step, "
+                + $"{r.Lost} after (at most {r.MostEvents} in a step); {r.Resting} rotor-steps at rest after the first second; {r.LeafCells} leaf cells "
+                + $"for {r.LeafWork:F2} J; at the end {r.Height:F2} m up with {r.Contact:F2} N from its contacts; {r.Allocated} B after the first second");
+            Assert.That(r.ZeroMass, Is.EqualTo(0), "no break takes 0 kg");
+            Assert.That(r.Repeats, Is.EqualTo(0), "a blade breaks at most once at any station");
+            Assert.That(r.Opening, Is.EqualTo(0), "the step's buffer refuses no event in the first step (2.3: sized from the contact table)");
+            Assert.That(r.Lost, Is.EqualTo(0), "nor after it");
+            Assert.That(r.Resting, Is.EqualTo(0), "after the first second no prop stands still in the twigs (2.3: they hold a blade with 0.03 N)");
+            Assert.That(r.LeafCells, Is.GreaterThan(0), "the props meet the bush's leaves");
+            Assert.That(r.Allocated, Is.Zero, "0 B in steady state" + AllocProbe.Report());
+            MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
+            var world = new FlightWorld(SlopeScenarios.Farmland());
+            ReplayResult replay = FlightReplay.Run(new System.IO.MemoryStream(log.ToArray()), id => id == "farmland" ? world : null, RepositoryDrone.Spec().ContentHash,
+                null, SoilScenarios.Table().Hash, materialsHash: hash);
+            TestContext.Out.WriteLine($"replay: {replay.Outcome}, {replay.Steps} steps; {replay.Message}");
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            Assert.That(replay.Steps, Is.EqualTo(r.Steps));
         }
 
         // Model 85 (the known-wrong): without surfaces.json a blade's passes glanced through the floor (no face to them) while a

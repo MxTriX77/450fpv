@@ -381,6 +381,15 @@ namespace Fpv450.Sim.Flight
         /// A: its load (the larger stress's share of its strength); B: the bend's root stress, Pa; C: the twist's, Pa.
         /// </summary>
         ArmBroken = 38,
+
+        /// <summary>
+        /// A rotor's stem episode (w9-village-physics 2.2, PropStems): its props began cutting stems, at the step its count of whole
+        /// stems first passes one (Index its corner), or stopped, 0.1 s after the last (Index its corner | 0x80). Part the rotor's
+        /// disc shape's part, Object the ground (−1), Material the cover kind it cut most of + 1 (Contact.CoverKind), Point the hub.
+        /// A: the episode's energy so far, J; B: its stems so far (the mean count); C: their mean diameter, m. Two events an
+        /// episode, never one a cut (LOG-01); each step's cuts are in BladeStrikes (StrikeKind.Stem).
+        /// </summary>
+        StemEpisode = 39,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>
@@ -491,7 +500,18 @@ namespace Fpv450.Sim.Flight
     {
         readonly FlightEvent[] _items;
 
-        public StepEvents(int capacity = 64)
+        /// <summary>The events every producer but the contacts' pairs can raise in a step (the buffer's size before 2.3).</summary>
+        public const int Others = 64;
+
+        /// <summary>
+        /// A step's events for a flight of this many contact shapes (w9-village-physics 2.3): each pair slot (shapes ×
+        /// ContactModel.PairsPerShape) makes or breaks a contact at most once a step, and a slot freed by a break is made again in
+        /// the same step at most once more, so 2 a slot, plus Others. A crown's first step makes every pair in its shells at once:
+        /// the 64 of before refused 24 there (2.7), a hole in the crash forensics. Allocated once, with the core.
+        /// </summary>
+        public static int ForContacts(int shapes) => Others + 2 * shapes * Contact.ContactModel.PairsPerShape;
+
+        public StepEvents(int capacity = Others)
         {
             if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
             _items = new FlightEvent[capacity];

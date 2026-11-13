@@ -73,6 +73,11 @@ namespace Fpv450.Sim.Flight
         /// strength, Pa: 90 MPa (assumed, woven carbon/epoxy's 80–125 MPa). Past either at the root the arm breaks (ArmFlex).</summary>
         public double ArmFlexuralStrength = 600e6, ArmShearStrength = 90e6;
 
+        /// <summary>A strike's impulse along its rotor's axis loads that arm's mode at its tip in the step it happens (w9-village-physics
+        /// 2.2, G8: AirframeModes.Strike). On for every flight; off only for the kept audits of earlier models, whose arms felt a
+        /// strike only through the rigid body's relief and the rotor's thrust a step later.</summary>
+        public bool StrikeLoad = true;
+
         /// <summary>Each corner's hub above its arm's mid-plane, m; its tip's first moment of mass about the mid-plane, Σm·h (kg·m),
         /// and its tip's inertia about the arm's axis, Σ(m·h² + I_own) (kg·m²): the motor's and the prop's parts (DroneSpec.BuildModes),
         /// in Corners order.</summary>
@@ -387,6 +392,30 @@ namespace Fpv450.Sim.Flight
                 accel[mode] = (next - v) / dt;
                 rate[mode] = next;
                 q[mode] = x + dt * next;
+            }
+        }
+
+        /// <summary>
+        /// The step's strikes on the arms' tips (w9-village-physics 2.2, G8): each corner's impulse along +y (body N·s, its strikes'
+        /// share along its rotor's axis, PropStrikes.TipImpulse) loads the modes in the step it happens, as Advance's thrust at the tip
+        /// does over a step: the modal impulse Φᵢ·P at the tip and the relief of the rigid body's share (the impulse and its moment
+        /// about the CoM, which the body has already taken). The rates change at once; the accelerations gain the change over dt, so
+        /// the camera sees the hit in this step. Allocation-free.
+        /// </summary>
+        public void Strike(ref ModeSet rate, ref ModeSet accel, in Corners impulse, double dt)
+        {
+            for (int mode = 0; mode < _n; mode++)
+            {
+                double p = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                    double j = impulse[i];
+                    if (j == 0) continue;
+                    Double3 r = _r[i], f = new Double3(0, j, 0), m = Double3.Cross(r, f);
+                    p += _tipForce[mode, i] * j + _relief[mode, 1] * j + _relief[mode, 3] * m.X + _relief[mode, 4] * m.Y + _relief[mode, 5] * m.Z;
+                }
+                rate[mode] = rate[mode] + p;
+                accel[mode] = accel[mode] + p / dt;
             }
         }
 

@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Wind;
@@ -301,7 +302,11 @@ namespace Fpv450.Sim.Log
             if (h.Aero != null)
                 w.WriteLine("  aero: air " + G(h.Aero.AirDensity) + " kg/m3, body silhouette side/top/front " + V(h.Aero.BodyArea, "0.0000")
                     + " m2 at " + V(h.Aero.BodyCenterOfPressure, "0.000") + " m, C_d " + G(h.Aero.DragCoefficient) + ", coil "
-                    + (h.Aero.CoilPart >= 0 ? PartName((ushort)h.Aero.CoilPart) : "none"));
+                    + (h.Aero.CoilPart >= 0 ? PartName((ushort)h.Aero.CoilPart) : "none") + ", hull "
+                    + (!h.Aero.HullOn ? (h.Aero.HullFrontalArea > 0 ? "off (its data logged)" : "none")
+                        : h.Aero.HullPotential ? "the potential couple (a known-wrong)"
+                        : h.Aero.HullFrontalArea > 0 ? G(h.Aero.HullFrontalArea) + " m2 of " + V(h.Aero.HullSize, "0.000") + " m, " + h.Aero.HullRatios.Length + " measured curves"
+                        : "none"));
             else
                 w.WriteLine("  aero: none (a bench body)");
             if (h.Contacts != null)
@@ -505,6 +510,11 @@ namespace Fpv450.Sim.Log
                 case EventKind.ArmBroken:
                     return "ARM BROKEN: arm " + CornerName(e.Index) + " broke at its clamp under its rotor's turning load, " + G(e.A) + " of its strength (bend "
                         + G(e.B * 1e-6) + " MPa, twist " + G(e.C * 1e-6) + " MPa); its prop is lost";
+                case EventKind.StemEpisode:
+                    return ((e.Index & 0x80) == 0 ? "STEMS: rotor " : "STEMS DONE: rotor ") + CornerName((byte)(e.Index & 0x7F))
+                        + ((e.Index & 0x80) == 0 ? " began cutting " : " stopped cutting ")
+                        + (e.Material > 0 && e.Material <= SurfaceTable.CoverKinds.Length ? SurfaceTable.CoverKinds[e.Material - 1] : "stems") + ", "
+                        + G(e.B) + " stems for " + G(e.A) + " J so far, " + G(e.C * 1000) + " mm across, hub at " + V(e.Point, "0.000") + " m";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);
@@ -577,7 +587,7 @@ namespace Fpv450.Sim.Log
             foreach (NamedValue v in h.WindParameters) text += ", " + v.Name + " " + G(v.Value);
             WakeLayout b = h.Wind.Wakes;
             if (b != null)
-                text += "; wakes (p7c-wind 1.5, wake grid version " + WakeGrid.Version + "): " + b.Volumes.Length + " wind volumes on "
+                text += "; wakes (p7c-wind 1.5, wake grid version " + b.Version + "): " + b.Volumes.Length + " wind volumes on "
                     + b.NX + " × " + b.NZ + " cells of 2 m from " + G(b.OriginX) + ", " + G(b.OriginZ) + " m";
             GustFront f = h.Wind.Front;
             if (f != null)

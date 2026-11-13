@@ -218,7 +218,7 @@ namespace Fpv450.WorldBench
                     checksum += s.Speed;
                 }
                 int c0 = GC.CollectionCount(0), c1 = GC.CollectionCount(1), c2 = GC.CollectionCount(2);
-                long a0 = GC.GetAllocatedBytesForCurrentThread();
+                long a0 = AllocProbe.Before();
                 long start = Stopwatch.GetTimestamp();
                 for (int s = 0; s < Steps; s++)
                 {
@@ -250,7 +250,7 @@ namespace Fpv450.WorldBench
                     }
                     run.Work[s] = Stopwatch.GetTimestamp() - now;
                 }
-                run.Allocated = GC.GetAllocatedBytesForCurrentThread() - a0;
+                run.Allocated = AllocProbe.After(a0);
                 run.Gc0 = GC.CollectionCount(0) - c0;
                 run.Gc1 = GC.CollectionCount(1) - c1;
                 run.Gc2 = GC.CollectionCount(2) - c2;

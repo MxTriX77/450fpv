@@ -87,6 +87,7 @@ The far ring reaches 4 km past the map, to [−4000, 5000]². Its side tiles rea
 - **Each value** is how many instances of that layer grow in the cell. This is Unity's instance-count scatter, which spreads them over the cell.
 - **The 14 layers** in `map.json` (`grass.layers`) carry the generator's group (Green, GreenClump, Dry, DryClump, Burnt, TallGreen, TallDry, TallBurnt), the width and height scale ranges, the mesh's vertical extent (`mesh_y_m`) and the layer's total. An instance stands about `mesh_y_m[1]` × its height scale tall. The 2.84 M instances drive the micro-detail on each class (AST-10, W4a).
 - **Not exported:** the surround's grass, which grows within 170 m of the map's edge. The sim knows no grass there.
+- **The stem field** (w9-village-physics 2.1): the sim derives stems per m² per cell and layer from these counts and `assets-src/vendor_plant_numbers.json` at load (`MapWorldStems.cs`, `IWorldQuery.StemsNear`); nothing is added to the package. `validate.py` checks it.
 
 ## Placements (`placements.json`)
 

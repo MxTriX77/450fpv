@@ -14,8 +14,16 @@ namespace Fpv450.Sim.Tether
     ///   Q/(2πd²) toward the hub (derived).
     /// - Below it: the wake column of radius far_wake_radius_ratio·R moving at far_wake_speed_ratio·v_i along −n (published
     ///   far wake), laid along the flow through the disc (the free stream with v_i, so a forward flight sweeps it back).
-    /// - Where the column meets the ground within wake_reach_over_radius·R along it, a radial wall jet of the column's flux,
-    ///   u = πR²·v_i/(2π·r·h_j) outward from where it lands, inside h_j of the ground (mass conservation; h_j from the table).
+    /// - Where the column meets the ground, a radial wall jet of the column's flux, u = πR²·v_i/(2π·r·h_j) outward from where
+    ///   it lands, inside h_j of the ground (mass conservation; h_j from the table).
+    /// The wake with distance (design 19): the columns hold to one motor distance l below the hubs' centre (along the jets'
+    /// mean direction) and from 2.5 l the four have merged into one turbulent round jet, U_C = U_H·Bd/(s/l − s₀/l),
+    /// r½ = S·(s/l − s₀/l)·l, U = U_C/(1 + (√2 − 1)ξ²)² (published, Bauersfeld et al. 2024), U_H the rotors' rms v_i; between,
+    /// linearly blended (assumed). Where its axis meets the ground (from any height) its momentum turns into a radial wall jet:
+    /// u_m = U_g·(r_i/r)^1.1, δ = 0.098·r·(r/H)^−0.1, Verhoff's profile across it (published, Poreh et al. 1967, Verhoff 1963),
+    /// r_i from the momentum flux, the stagnation flow inside it (derived); the near landings (their wall jets, the fountain and
+    /// the vortices) share the ground by 1 − w(s_g). The known-wrong (FlightSetup.TetherWakeReach4R, model 94's field): each
+    /// column without end, a wall jet only within wake_reach_over_radius·R, no merged jet.
     /// The fountain and the ground vortex (p7d-tether 1.6b, D-075), the paths by which a line under or ahead of the drone
     /// reaches a disc (off for the known-wrong design 4 field, FlightSetup.TetherDesign4Air):
     /// - The fountain: where the wall jets of two rotors meet (at a point, the two strongest; their meeting line the locus of
@@ -106,18 +114,51 @@ namespace Fpv450.Sim.Tether
         const double ErfP = 0.3275911, ErfA1 = 0.254829592, ErfA2 = -0.284496736, ErfA3 = 1.421413741, ErfA4 = -1.453152027,
             ErfA5 = 1.061405429;
 
+        // Design 19: the wake with distance (the table's constants) and the step's merged jet.
+        readonly bool _cutOff;
+        readonly double _mergeStart, _mergeEnd, _farDecay, _farSpread, _farOrigin;
+        readonly double _wallRatio, _wallExponent, _wallDecay, _profileA, _profileB, _profileSquare;
+        double _motorDistance, _farSpeed; // l, m; U_H, m/s
+        Double3 _farCentre, _farAxis;     // the hubs' centre and the jets' mean direction (unit, downstream)
+        double _near = 1;                 // the near wake's share at the ground: 1 − w(s_g)
+        bool _farLands;
+        Double3 _farLanding;
+        double _farLandingShare, _farGroundSpeed, _farStart, _farOriginDistance; // w(s_g), U_g, r_i, H
+
+        // (√2 − 1): the merged jet's profile constant (Bauersfeld et al. 2024's eq. 3, published).
+        const double ProfileA = 0.41421356237309503;
+
+        // The fixed-point passes for r_i (numerical: the (r/H)^−0.1 factor converges to rounding within 4).
+        const int StartPasses = 4;
+
         /// <param name="radius">R, the props' radius, m.</param>
         /// <param name="recirculation">The fountain and the ground vortex (1.6b); false for design 4's field alone, the
         /// known-wrong (FlightSetup.TetherDesign4Air).</param>
         /// <param name="body">The drone's contact shapes over the fountain (model 61); null lets the fountain through the body,
         /// model 59's field (FlightSetup.TetherFountainThroughBody, the known-wrong).</param>
-        public RotorAir(TetherTable table, double radius, bool recirculation = true, ContactModel body = null)
+        /// <param name="cutOff">Design 19's known-wrong (FlightSetup.TetherWakeReach4R, model 94's field): each column without
+        /// end, a wall jet only within wake_reach_over_radius, no merged jet.</param>
+        public RotorAir(TetherTable table, double radius, bool recirculation = true, ContactModel body = null, bool cutOff = false)
         {
             _radius = radius;
             _density = table.Number("fiber.air_density_kg_m3");
             _wakeSpeed = table.Number("rotor_air.far_wake_speed_ratio");
             _wakeRadius = table.Number("rotor_air.far_wake_radius_ratio") * radius;
             _reach = table.Number("rotor_air.wake_reach_over_radius") * radius;
+            _cutOff = cutOff;
+            double[] merge = table.Row("rotor_air.wake_merge_over_motor_distance").Values;
+            _mergeStart = merge[0];
+            _mergeEnd = merge[1];
+            _farDecay = table.Number("rotor_air.far_jet_decay");
+            _farSpread = table.Number("rotor_air.far_jet_spreading_rate");
+            _farOrigin = table.Number("rotor_air.far_jet_virtual_origin_over_motor_distance");
+            _wallRatio = table.Number("rotor_air.wall_jet_half_height_ratio");
+            _wallExponent = table.Number("rotor_air.wall_jet_half_height_exponent");
+            _wallDecay = table.Number("rotor_air.wall_jet_decay_exponent");
+            double[] profile = table.Row("rotor_air.wall_jet_profile").Values;
+            _profileA = profile[0];
+            _profileB = profile[1];
+            _profileSquare = table.Number("rotor_air.wall_jet_profile_square_integral");
             _jetThickness = table.Number("rotor_air.wall_jet_thickness_over_radius") * radius;
             _recirculation = recirculation;
             _fountainMomentum = table.Number("rotor_air.fountain_momentum_ratio");
@@ -264,7 +305,7 @@ namespace Fpv450.Sim.Tether
                 if (vi > 0 && _wake[i].Y < 0)
                 {
                     double along = (hubs[i].Y - groundUnderHub[i]) / -_wake[i].Y;
-                    if (along >= 0 && along <= _reach)
+                    if (along >= 0 && (_cutOff ? along <= _reach : along < double.PositiveInfinity)) // no ground under it (−∞): no landing
                     {
                         _jet[i] = true;
                         _landing[i] = hubs[i] + _wake[i] * along;
@@ -291,6 +332,16 @@ namespace Fpv450.Sim.Tether
                 _vortexB[i] = centre + axis * _vortexSpan;
                 _circulation[i] = _vortexCirculation * vh * _radius * grow;
             }
+            if (!_cutOff)
+            {
+                // Design 19: the merged far jet and its landing; the near wake's landings share the ground by 1 − w(s_g).
+                Far(groundUnderHub);
+                for (int i = 0; i < Rotors; i++)
+                {
+                    if (!(_near > 0)) _jet[i] = false;
+                    _circulation[i] = _circulation[i] * _near;
+                }
+            }
             // A rotor whose upstream wall jet meets another's landing wake forms no vortex of its own: shadowed by a landing
             // ahead of it, wholly within one span across, not at all beyond two, ramped over a span along (assumed).
             if (!_recirculation) return;
@@ -313,6 +364,79 @@ namespace Fpv450.Sim.Tether
             }
         }
 
+        // Design 19's merged jet this step (after the rotors' wakes): l from the hubs, the jets' mean direction from the hubs'
+        // centre, U_H the rms induced velocity; where its axis meets the ground (the hubs' mean ground), U_g, r_i and H.
+        void Far(double[] groundUnderHub)
+        {
+            Double3 centre = default, axis = default;
+            double square = 0, ground = 0;
+            int grounds = 0;
+            for (int i = 0; i < Rotors; i++)
+            {
+                centre = centre + _hub[i];
+                axis = axis + _wake[i];
+                square = square + _induced[i] * _induced[i];
+                double g = groundUnderHub[i];
+                if (g > double.NegativeInfinity && g < double.PositiveInfinity)
+                {
+                    ground = ground + g; // the hubs' mean ground over those with ground under them (a hole's −∞ left out)
+                    grounds++;
+                }
+            }
+            centre = centre * 0.25;
+            ground = grounds > 0 ? ground / grounds : double.NegativeInfinity;
+            double spread = 0;
+            for (int i = 0; i < Rotors; i++) spread = spread + (_hub[i] - centre).Length();
+            _motorDistance = 0.5 * spread; // 2 × the mean distance from the centre
+            _farCentre = centre;
+            double len = axis.Length();
+            _farAxis = len > 0 ? axis * (1 / len) : new Double3(0, -1, 0);
+            _farSpeed = DetMath.Sqrt(0.25 * square);
+            _near = 1;
+            _farLands = false;
+            _farLandingShare = 0;
+            if (!(_motorDistance > 0) || !(_farAxis.Y < 0) || !(_farSpeed > 0)) return;
+            double along = (centre.Y - ground) / -_farAxis.Y;
+            if (!(along >= 0) || !(along < double.PositiveInfinity)) return; // no ground under a hub (−∞): no landing
+            double w = Merged(along);
+            _near = 1 - w;
+            if (!(w > 0)) return;
+            double l = _motorDistance, x = along / l - _farOrigin, half = _farSpread * x * l;
+            _farLands = true;
+            _farLandingShare = w;
+            _farLanding = centre + _farAxis * along;
+            _farGroundSpeed = _farSpeed * _farDecay / x;
+            _farOriginDistance = along - _farOrigin * l;
+            // r_i from the momentum flux: r_i = r½/√(6(√2 − 1)·c_i·∫f²), c_i = c·(r_i/H)^e.
+            double c = _wallRatio, start = half;
+            for (int k = 0; k < StartPasses; k++)
+            {
+                start = half / DetMath.Sqrt(6 * ProfileA * c * _profileSquare);
+                c = _wallRatio * Power(start / _farOriginDistance, _wallExponent);
+            }
+            _farStart = start;
+        }
+
+        // The merged jet's share at s along its axis: 0 to the merge's start, 1 from its end, linear between (design 19).
+        double Merged(double s)
+        {
+            double t = (s / _motorDistance - _mergeStart) / (_mergeEnd - _mergeStart);
+            return t <= 0 ? 0 : t >= 1 ? 1 : t;
+        }
+
+        static double Power(double x, double e) => DetMath.Exp(e * DetMath.Log(x));
+
+        /// <summary>Design 19's step: the motor distance l (m), the merged jet's U_H (m/s), the near wake's share at the ground
+        /// (1 − w(s_g)), and the merged jet's landing (whether, where, its share w(s_g), U_g in m/s, r_i in m).</summary>
+        public double MotorDistance => _motorDistance;
+        public double FarSpeed => _farSpeed;
+        public double NearShare => _near;
+        public bool FarLands => _farLands;
+        public Double3 FarLanding => _farLanding;
+        public double FarLandingShare => _farLandingShare;
+        public double FarGroundSpeed => _farGroundSpeed;
+        public double FarStart => _farStart;
+
         /// <summary>
         /// The rotors' added air at a point, world m/s, with the ground's height under it (−∞ for none); jet is the wall
         /// jets' share of it (horizontal, the flow along the ground that lifts a line lying in it).
@@ -324,6 +448,13 @@ namespace Fpv450.Sim.Tether
             bool column = false;
             int first = -1, second = -1; // the two strongest wall jets here, by v_i²/r² (their speeds' order)
             double firstKey = 0, secondKey = 0, firstZ = 0, secondZ = 0;
+            // Design 19: the point's distance along the merged jet and the near columns' share there (1: model 94's columns).
+            double farAlong = 0, columnShare = 1;
+            if (!_cutOff)
+            {
+                farAlong = Double3.Dot(p - _farCentre, _farAxis);
+                columnShare = 1 - Merged(farAlong);
+            }
             for (int i = 0; i < Rotors; i++)
             {
                 double vi = _induced[i];
@@ -368,9 +499,9 @@ namespace Fpv450.Sim.Tether
                 {
                     Double3 off = q - w * h;
                     bool above = !_jet[i] || p.Y > _ground[i];
-                    if (above && Double3.Dot(off, off) < _wakeRadius * _wakeRadius)
+                    if (above && Double3.Dot(off, off) < _wakeRadius * _wakeRadius && columnShare > 0)
                     {
-                        air = air - n * (_wakeSpeed * vi);
+                        air = air - n * (_wakeSpeed * vi * columnShare);
                         column = true;
                         continue;
                     }
@@ -379,11 +510,12 @@ namespace Fpv450.Sim.Tether
                 if (!_jet[i] || !(p.Y - groundUnderPoint <= _jetThickness)) continue;
                 double dx = p.X - _landing[i].X, dz = p.Z - _landing[i].Z, r2 = dx * dx + dz * dz;
                 if (!(r2 > _wakeRadius * _wakeRadius)) continue;
-                double scale = vi * _radius * _radius / (2 * _jetThickness * r2); // Q/(2π·r·h_j) along (dx, dz)/r
+                double scale = vi * _radius * _radius / (2 * _jetThickness * r2) * _near; // Q/(2π·r·h_j) along (dx, dz)/r
                 var u = new Double3(dx * scale, 0, dz * scale);
                 air = air + u;
                 jet = jet + u;
             }
+            if (!_cutOff) FarAir(p, groundUnderPoint, farAlong, ref air, ref jet);
             if (!_recirculation) return air;
             if (!column && second >= 0 && firstZ <= 0 && secondZ <= 0)
             {
@@ -407,6 +539,59 @@ namespace Fpv450.Sim.Tether
                 air = air + Segment(p, new Double3(a.X, 2 * ground - a.Y, a.Z), new Double3(b.X, 2 * ground - b.Y, b.Z), -g);
             }
             return air;
+        }
+
+        /// <summary>
+        /// Rotor i's near column at p (w9-village-physics 2.13, the stems' swirl): its speed along the disc's normal there, m/s
+        /// (far_wake_speed_ratio·v_i times the near wake's share at p), 0 outside it. The same test as At's column, read only.
+        /// </summary>
+        public double Column(int i, Double3 p)
+        {
+            double vi = _induced[i];
+            if (!(vi > 0)) return 0;
+            Double3 q = p - _hub[i];
+            if (Double3.Dot(_normal[i], q) > 0) return 0;
+            Double3 w = _wake[i];
+            double h = Double3.Dot(q, w);
+            if (!(h > 0)) return 0;
+            Double3 off = q - w * h;
+            double share = _cutOff ? 1 : 1 - Merged(Double3.Dot(p - _farCentre, _farAxis));
+            bool above = !_jet[i] || p.Y > _ground[i];
+            return above && Double3.Dot(off, off) < _wakeRadius * _wakeRadius && share > 0 ? _wakeSpeed * vi * share : 0;
+        }
+
+        // Design 19's merged jet at p (s along its axis), weighted w(s), its descent falling linearly to nothing over r_i/2 above
+        // the ground where it lands; and its radial wall jet, weighted w(s_g): u_m = U_g·r/r_i inside r_i (the stagnation
+        // flow), U_g·(r_i/r)^1.1 beyond, across the height Verhoff's profile on δ = c·R·(R/H)^e, R = max(r, r_i).
+        void FarAir(Double3 p, double groundUnderPoint, double s, ref Double3 air, ref Double3 jet)
+        {
+            double height = p.Y - groundUnderPoint;
+            double w = Merged(s);
+            if (w > 0)
+            {
+                double l = _motorDistance, x = s / l - _farOrigin, half = _farSpread * x * l;
+                Double3 off = p - _farCentre - _farAxis * s;
+                double d = 1 + ProfileA * Double3.Dot(off, off) / (half * half);
+                double u = _farSpeed * _farDecay / x / (d * d) * w;
+                if (_farLands)
+                {
+                    double depth = 0.5 * _farStart;
+                    if (height < depth) u = height > 0 ? u * (height / depth) : 0;
+                }
+                air = air + _farAxis * u;
+            }
+            if (!_farLands || !(height > 0)) return;
+            double dx = p.X - _farLanding.X, dz = p.Z - _farLanding.Z, r = DetMath.Sqrt(dx * dx + dz * dz);
+            if (!(r > 0)) return;
+            double ri = _farStart, big = r > ri ? r : ri;
+            double um = r < ri ? _farGroundSpeed * (r / ri) : _farGroundSpeed * Power(ri / r, _wallDecay);
+            double delta = _wallRatio * big * Power(big / _farOriginDistance, _wallExponent);
+            double eta = height / delta;
+            double f = _profileB * DetMath.Exp(DetMath.Log(eta) / 7) * (1 - Erf(_profileA * eta));
+            double scale = um * f * _farLandingShare / r;
+            var v = new Double3(dx * scale, 0, dz * scale);
+            air = air + v;
+            jet = jet + v;
         }
 
         // The fountain's upward speed at p from the wall jets of rotors k and m (k's the stronger here): their meeting line
@@ -437,7 +622,7 @@ namespace Fpv450.Sim.Tether
             if (!(exponent > CutOff)) return 0;
             double centre = DetMath.Sqrt(momentum * iy * _centreScale);
             double rise = height < _jetThickness ? height * _inverseJet : 1;
-            double share = _fade[k] < _fade[m] ? _fade[k] : _fade[m];
+            double share = (_fade[k] < _fade[m] ? _fade[k] : _fade[m]) * _near; // design 19: the near wake's share
             sheet = new FountainSheet { Nx = nx, Nz = nz, Delta = delta, Momentum = momentum, Y = y, Height = height, Share = share };
             return centre * DetMath.Exp(exponent) * rise * share;
         }

@@ -66,6 +66,8 @@ namespace Fpv450.FlightBench
 
         public int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results) =>
             _world.MicroDetailNear(centre, radius, kinds, results);
+        public int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results) =>
+            _world.StemsNear(centre, radius, height, results);
         public int WiresNear(Double3 centre, double radius, Span<Conductor> results) => _world.WiresNear(centre, radius, results);
         public int SnagsNear(Double3 centre, double radius, Span<SnagSegment> results) => _world.SnagsNear(centre, radius, results);
         public bool Feature(int obj, int shape, out GroundFeature feature) => _world.Feature(obj, shape, out feature);

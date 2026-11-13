@@ -36,6 +36,11 @@ namespace Fpv450.Sim.Tests
     /// - **The pilot's stick noise** (D-060): every pilot flies with the optimal-control model's motor noise
     ///   (HarnessPilot.UseRemnant, on the run's seed), its level learnt over the measured span only (the release's first
     ///   DiscardSeconds and the climb are not a steady flight); `remnant: false` flies the noiseless pilot, the known-wrong.
+    /// - **The human pilot** (p7c-wind design 13; the harness's default since D-109): `HumanPilots` fly HarnessPilot.Human
+    ///   (McRuer's crossover and delay for a rate-command element) and, with their remnant, the observation noise on the
+    ///   attitude errors beside the motor noise; their variants are K§8.5's but the delay's, which flies the published
+    ///   range's middle and top. `Pilots`, K§8.5's pilot and its variants, stay a variant; the noiseless human is the
+    ///   known-wrong.
     /// </summary>
     public static class WindHarness
     {
@@ -104,6 +109,10 @@ namespace Fpv450.Sim.Tests
         {
             public string Name;
             public double Delay = 0.10, TauV = 0.5, FieldSplit = WindHarness.FieldSplit, BeltSplit = WindHarness.BeltSplit;
+
+            /// <summary>The human pilot (p7c-wind design 13, HarnessPilot.Human): its crossover, `Delay` its effective delay,
+            /// and with its remnant the observation noise beside the motor noise.</summary>
+            public bool Human;
         }
 
         /// <summary>The nominal pilot and its variants, flown on the same seeds; s = 1 and s = 0 are for T11b only.</summary>
@@ -116,6 +125,24 @@ namespace Fpv450.Sim.Tests
             new Pilot { Name = "tv1.0", TauV = 1.0 },
             new Pilot { Name = "s1", FieldSplit = 1, BeltSplit = 1 },
             new Pilot { Name = "s0", FieldSplit = 0, BeltSplit = 0 },
+        };
+
+        /// <summary>The human pilot's effective delay, s (HarnessPilot.HumanEffectiveDelay).</summary>
+        public const double HumanDelay = HarnessPilot.HumanEffectiveDelay;
+
+        /// <summary>
+        /// The human pilot (p7c-wind design 13) and the same variants, flown on the same seeds: the effective delay at the
+        /// published range's middle and top (0.15 and 0.20 s) in place of K§8.5's d 0 and 0.2, τ_v and the split as K§8.5's.
+        /// </summary>
+        public static readonly Pilot[] HumanPilots =
+        {
+            new Pilot { Name = "nominal", Human = true, Delay = HumanDelay },
+            new Pilot { Name = "te0.15", Human = true, Delay = 0.15 },
+            new Pilot { Name = "te0.2", Human = true, Delay = 0.20 },
+            new Pilot { Name = "tv0.3", Human = true, Delay = HumanDelay, TauV = 0.3 },
+            new Pilot { Name = "tv1.0", Human = true, Delay = HumanDelay, TauV = 1.0 },
+            new Pilot { Name = "s1", Human = true, Delay = HumanDelay, FieldSplit = 1, BeltSplit = 1 },
+            new Pilot { Name = "s0", Human = true, Delay = HumanDelay, FieldSplit = 0, BeltSplit = 0 },
         };
 
         /// <summary>One logged camera frame, and the flight's truth beside it (for the run's summary, never the CSV).</summary>
@@ -148,6 +175,11 @@ namespace Fpv450.Sim.Tests
             /// of the 2 s loop from the height it holds, m.</summary>
             public double MeanRollDeg, MeanPitchDeg, MeanCrosswind, MeanAirspeed, LeanPerMs, MeanHeightError;
 
+            /// <summary>The pilot's remnant: its share of each commanded body rate's variance (p, q, r) over the measured span
+            /// (HarnessPilot.RemnantShare), and whether the human pilot flew (design 13).</summary>
+            public double[] RemnantShare = new double[3];
+            public bool Human;
+
             /// <summary>wind_stats.py's --segment argument for the belt, or null.</summary>
             public string Segment => BeltLast > 0 ? BeltFirst + "-" + BeltLast : null;
         }
@@ -172,11 +204,12 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>
         /// wind-turbulence's "Clip P's pitch flies the cruise" (p7c-wind 1.6, PHY-17a): the nominal pilot holds clip P's
-        /// pitch, a level heading north and 35 m in still air, released at `releaseSpeed`; the airspeed it settles at, the
-        /// mean over the run's last `MeasuredSeconds`, and the mean pitch there (the tracker's, degrees). `hForce` ≥ 0
-        /// replaces drone.json's rotor in-plane drag, N per m/s (a known-wrong model).
+        /// pitch (or `pitchDeg`, the tracker's, nose down negative), a level heading north and 35 m in still air, released at
+        /// `releaseSpeed`; the airspeed it settles at, the mean over the run's last `MeasuredSeconds`, and the mean pitch there
+        /// (`heldDeg`, the tracker's). `hForce` ≥ 0 replaces drone.json's rotor in-plane drag, N per m/s (a known-wrong model).
         /// </summary>
-        public static double HeldPitchAirspeed(DroneSpec spec, double releaseSpeed, out double pitchDeg, double hForce = -1)
+        public static double HeldPitchAirspeed(DroneSpec spec, double releaseSpeed, out double heldDeg, double hForce = -1,
+            double pitchDeg = HarnessPilot.ClipPPitchDeg)
         {
             const double height = 35;
             FlightSetup setup = CrosswindScenario.Setup(spec, WindSetup.Of(WindLevel.Still));
@@ -184,15 +217,15 @@ namespace Fpv450.Sim.Tests
             Airframe(spec, setup);
             setup.StartPosition = new Double3(0, height, 0);
             setup.StartVelocity = new Double3(0, 0, releaseSpeed);
-            DetMath.SinCos(-HarnessPilot.ClipPPitchDeg * DegToRad / 2, out double sp, out double cp);
+            DetMath.SinCos(-pitchDeg * DegToRad / 2, out double sp, out double cp);
             setup.StartAttitude = new Quat(sp, 0, 0, cp);
             var core = new FlightCore(setup);
             CrosswindScenario.Arm(core);
-            var p = new HarnessPilot(core.Controller) { Course = 0, Height = height };
+            var p = new HarnessPilot(core.Controller) { Course = 0, Height = height, PitchDeg = pitchDeg };
             long release = core.State.Step;
             int steps = (int)(Seconds * 1000), from = (int)((Seconds - MeasuredSeconds) * 1000), frame = 0, n = 0;
             double speed = 0;
-            pitchDeg = 0;
+            heldDeg = 0;
             for (int k = 0; k < steps; k++)
             {
                 if (k * HarnessPilot.CameraHz >= frame * 1000.0)
@@ -203,13 +236,13 @@ namespace Fpv450.Sim.Tests
                     if (k >= from)
                     {
                         speed += core.State.Velocity.Length();
-                        pitchDeg += f.Pitch * RadToDeg;
+                        heldDeg += f.Pitch * RadToDeg;
                         n++;
                     }
                 }
                 core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
             }
-            pitchDeg /= n;
+            heldDeg /= n;
             return speed / n;
         }
 
@@ -351,7 +384,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
-            bool steady = false, bool remnant = true, bool interference = true)
+            bool steady = false, bool remnant = true, bool interference = true, System.Action<FlightSetup> airframe = null)
         {
             double height = HeightOf(i, n), low = BeltHeightOf(i, n), climb = ClimbSecondsOf(i, n), seconds = Seconds + climb;
             double[] history = History(level, seed, 120, out double drawn);
@@ -360,6 +393,7 @@ namespace Fpv450.Sim.Tests
                 throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + seconds + " s within 90° of its drawn direction");
             FlightSetup setup = Setup(spec, level, seed, low, belt && !steady, drag, out double courseDeg, out double fromDeg,
                 steady ? 0 : start, steady, interference);
+            airframe?.Invoke(setup); // a probe's change to the airframe (WindLevelsProbe's attribution)
             BeltStretch(out double beltFrom, out double beltTo);
             var run = new Run
             {
@@ -381,7 +415,13 @@ namespace Fpv450.Sim.Tests
             {
                 Delay = pilot.Delay, TauV = pilot.TauV, Split = pilot.FieldSplit, Course = course, Height = low,
             };
+            if (pilot.Human)
+            {
+                p.Human(); // design 13: its crossover; the delay is the variant's
+                p.Delay = pilot.Delay;
+            }
             if (run.Remnant) p.UseRemnant(run.Seed); // D-060: the stick noise; the noiseless pilot is the known-wrong
+            if (run.Remnant && pilot.Human) p.UseObservationNoise(run.Seed); // design 13: the human's observation noise too
             DetMath.SinCos(course, out double sin, out double cos);
             var along = new Double3(sin, 0, cos);
             var right = new Double3(cos, 0, -sin);
@@ -434,6 +474,8 @@ namespace Fpv450.Sim.Tests
                 core.Advance(p.Sticks(k, (release + k) * FlightCore.StepUs));
             }
             core.Wind.Dispose();
+            run.Human = pilot.Human;
+            for (int a = 0; a < 3; a++) run.RemnantShare[a] = p.Measured > 0 ? p.RemnantShare(a) : 0;
             run.Samples = samples.ToArray();
             int count = 0;
             foreach (Sample s in run.Samples)

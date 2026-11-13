@@ -82,9 +82,9 @@ namespace Fpv450.FlightBench
             {
                 if (log.Kind != LogFormat.StepBlock) continue;
                 LogFormat.DecodeStick(log.Payload, out StickSample stick);
-                long a = GC.GetAllocatedBytesForCurrentThread(), q = timed ? clock.Ticks : 0, t0 = Stopwatch.GetTimestamp();
+                long a = AllocProbe.Before(), q = timed ? clock.Ticks : 0, t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
-                long dt = Stopwatch.GetTimestamp() - t0, b = GC.GetAllocatedBytesForCurrentThread();
+                long dt = Stopwatch.GetTimestamp() - t0, b = a + AllocProbe.After(a);
                 long step = core.State.Step;
                 LogFormat.EncodeStep(replayed, core.State, stick, core.Trace);
                 if (LogFormat.StepOf(log.Payload) != step || !log.Payload.SequenceEqual(replayed))

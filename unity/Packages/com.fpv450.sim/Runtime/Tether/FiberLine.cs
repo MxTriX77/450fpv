@@ -109,8 +109,8 @@ namespace Fpv450.Sim.Tether
     /// trail behind it. FlightCore steps it inside its 1 ms step, after the body moves:
     /// - The exit is the chain's last node, anchored to the canister's nozzle tip (spool.exit_position_m) and following it;
     ///   line flows out through it by CableSpool's law (the peel's rate law at the section's irregularity, the momentum flux,
-    ///   the balloon, the lip's capstan e^(μθ) over the wrap between the nozzle's axis, spool.exit_direction, and the first
-    ///   segment), and never back. The coil's mass falls by the line paid out and the mass model is rebuilt each span.coil_rebuild_m.
+    ///   the balloon, the nozzle's factor over the wrap θ between the nozzle's axis, spool.exit_direction, and the first
+    ///   segment: design 18's point contacts at the bore's entry and the hole's edge, FiberCuts.LipFactor), and never back. The coil's mass falls by the line paid out and the mass model is rebuilt each span.coil_rebuild_m.
     /// - The line pulls the drone at the exit: the exit segment's tension along it less the momentum flux μ·ṡ² (the leaving
     ///   line carries it away; derived from the variable-mass momentum balance), applied in the next step (the one-step lag
     ///   of design 2).
@@ -125,8 +125,11 @@ namespace Fpv450.Sim.Tether
     ///   trail.freeze_speed_m_s), or held still that long in a span between such nodes, more than near_length_m of line from the
     ///   exit, it freezes into the trail with the tension and the air it bore; the trail's last point lifts back into the chain
     ///   when the chain's pull would move it (across or off its laid run past the friction of the line it lumps, or along it
-    ///   past what the run and its corners hold: w3-farmland-ground 2.4), or the air at it passes what it bore by the ground's
-    ///   friction. A laid node the ground holds across the chord between its neighbours (a turn) is held as a crest is.
+    ///   past what the run and its corners hold: w3-farmland-ground 2.4), or the air at it would (design 20: its drag across its
+    ///   run past its surface's friction on the weight the wall's lift leaves it, or past what it bore). One point deeper a step,
+    ///   in turn over the points the chain has room for, is tested at the rotors' air: if the wash would move it, the trail gives
+    ///   back every point down to it (FlightSetup.TetherAirlessTrail: the end alone, model 97's). A laid node the ground holds
+    ///   across the chord between its neighbours (a turn) is held as a crest is.
     /// - On a terrain the line lies over the ground (w3-farmland-ground 2.5, Crests): a segment whose chord passes more than
     ///   KeepGap under the ground takes a node there, on the ground at its deepest point (a crest, a step's lip), and a node the
     ///   ground holds over the chord between its neighbours is never merged away; CrestNodes such nodes besides span.max_nodes.
@@ -172,6 +175,9 @@ namespace Fpv450.Sim.Tether
         // step (NaN before the first).
         readonly Double3 _azimuthX, _azimuthY;
         double _lipAzimuth = double.NaN;
+        // The lip's law (design 18): the bore's free angle, the edge's radius plus the coating, the glass's EI; the factor this step.
+        readonly double _freeAngle, _lipCap, _bending;
+        double _lipFactor = 1;
         readonly double _lipFriction, _peelEnergy, _rateExponent, _referenceRate, _balloonLength, _balloonMass, _sectionLength;
         readonly double _irregularityLo, _irregularityHi;
         readonly SeedStream _irregularity;
@@ -184,7 +190,13 @@ namespace Fpv450.Sim.Tether
         readonly double[] _trailMaterial, _trailHeld, _trailAir;
         readonly double _freezeTime, _freezeSpeed, _hold;
         readonly bool _slidingTrail; // FlightSetup.TetherSlidingTrail: the trail before w3-farmland-ground 2.4
+        readonly bool _capstanLip;   // FlightSetup.TetherBeforeDesign18: the line before design 18
+        readonly bool _airless;      // FlightSetup.TetherAirlessTrail (or an older line's switch): the trail before design 20
         int _trailCount;
+        // Design 20: the round of the trail's window (one point deeper than its end tested a step) and that point's ground.
+        long _thawProbe;
+        readonly XZ[] _thawAt = new XZ[1];
+        readonly GroundSample[] _thawGround = new GroundSample[1];
 
         // The coil.
         readonly int _coilPart;
@@ -210,6 +222,7 @@ namespace Fpv450.Sim.Tether
         readonly Double3[] _hubs = new Double3[4], _hubAir = new Double3[4];
         readonly double[] _thrust = new double[4], _hubGround = new double[4];
         readonly double[] _airPerMetre; // the air's force per metre on each node at rest against what holds it, the freeze's and lift's test
+        readonly Double3[] _airAt;      // the air each node took in Loads, world m/s (NaN for a node put at the chain's start since): design 20's
         // The step's loads as each node took them, in the order the nodes had then (forensics: the field's law at each node).
         readonly Double3[] _loadPoint, _loadVelocity, _loadAir, _loadTangent, _loadForce, _loadLift;
         readonly double[] _loadLength, _loadMaterial;
@@ -253,6 +266,8 @@ namespace Fpv450.Sim.Tether
             _terrain = !World.Geometry(WorldIds.Ground, 0, out _);
             TwoWay = setup.TetherTwoWay;
             _slidingTrail = setup.TetherSlidingTrail;
+            _capstanLip = setup.TetherBeforeDesign18;
+            _airless = setup.TetherAirlessTrail || setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air;
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
                 : setup.Rain == RainLevel.SevereRain ? table.Number("fiber.wet_film_severe_m") : 0;
@@ -276,6 +291,9 @@ namespace Fpv450.Sim.Tether
             _azimuthX = across * (1 / across.Length());
             _azimuthY = Double3.Cross(_exitLead, _azimuthX);
             _lipFriction = table.Number("spool.lip_friction");
+            _freeAngle = DetMath.Atan2(2 * table.Number("spool.mouth_radius_m"), table.Number("spool.nozzle_length_m"));
+            _lipCap = table.Number("spool.lip_radius_m") + table.Number("fiber.coating_thickness_m");
+            _bending = table.Number("fiber.bending_stiffness_n_m2");
             _rateExponent = table.Number("spool.peel_rate_exponent");
             _referenceRate = table.Number("spool.peel_reference_rate_m_s");
             _balloonLength = table.Number("spool.balloon_length_m");
@@ -283,7 +301,7 @@ namespace Fpv450.Sim.Tether
             _sectionLength = table.Number("fiber.section_length_m");
             double[] peel = table.Row("spool.peel_energy_j_m").Values;
             SeedStream peelStream = random.Open("spool.peel");
-            _peelEnergy = random.Draw(ref peelStream, "peel_energy_j_m", peel[0], peel[1]);
+            _peelEnergy = random.DrawQuantile(ref peelStream, "peel_energy_j_m", peel);
             double[] irregularity = table.Row("spool.irregularity").Values;
             _irregularityLo = irregularity[0];
             _irregularityHi = irregularity[1];
@@ -312,6 +330,7 @@ namespace Fpv450.Sim.Tether
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
+                KeepSlideStretch = setup.TetherBeforeDesign18,
             };
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
@@ -324,6 +343,7 @@ namespace Fpv450.Sim.Tether
             _groundNormal = new Double3[nodes];
             _groundAt = new Double3[nodes];
             _airPerMetre = new double[nodes];
+            _airAt = new Double3[nodes];
             _loadPoint = new Double3[nodes];
             _loadVelocity = new Double3[nodes];
             _loadAir = new Double3[nodes];
@@ -334,7 +354,8 @@ namespace Fpv450.Sim.Tether
             _loadLength = new double[nodes];
             if (setup.Propulsion != null)
                 _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air,
-                    setup.TetherFountainThroughBody ? null : parts);
+                    setup.TetherFountainThroughBody ? null : parts,
+                    setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air);
 
             // The coil: the line left on it, from its part's mass over the empty spool's.
             _coilPart = setup.TetherCoilPart;
@@ -355,7 +376,7 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength);
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18);
                 _link = new FiberLink(table);
             }
             _propulsion = propulsion;
@@ -495,8 +516,8 @@ namespace Fpv450.Sim.Tether
         public double PackLaw(double sdot) =>
             _dryMass * sdot * sdot + _peelEnergy * Irregularity(_section) * (sdot > _referenceRate ? DetMath.Exp(_rateExponent * DetMath.Log(sdot / _referenceRate)) : 1);
 
-        /// <summary>The lip's capstan e^(μθ) at the last step's wrap.</summary>
-        public double Lip => DetMath.Exp(_lipFriction * _lipAngle);
+        /// <summary>The spool's factor over the nozzle at the last step's wrap (FiberCuts.LipFactor, design 18).</summary>
+        public double Lip => _lipFactor;
 
         // ---- the launch ----
 
@@ -699,12 +720,15 @@ namespace Fpv450.Sim.Tether
             Double3 aft = q.Rotate(_exitLead);
             Double3 first = _chain[n - 2].Position - exit.Position;
             _lipAngle = DetMath.Atan2(Double3.Cross(aft, first).Length(), Double3.Dot(aft, first));
+            // The nozzle's law (design 18): point contacts at the bore's entry and the hole's edge; whether the line wraps the
+            // edge is judged on the last step's tension outside (the factor is set before the step).
+            _lipFactor = _capstanLip ? DetMath.Exp(_lipFriction * _lipAngle) : FiberCuts.LipFactor(_lipAngle, _freeAngle, _lipFriction, _lipCap, _bending, ExitTension);
             _section = exit.Material + _balloonLength;
             double irregularity = Irregularity(_section);
             bool empty = PaidOut >= _coilLine;
             _chain.Spool = new CableSpool
             {
-                Active = true, Locked = empty, TwoWay = TwoWay, Lip = DetMath.Exp(_lipFriction * _lipAngle),
+                Active = true, Locked = empty, TwoWay = TwoWay, Lip = _lipFactor,
                 Peel = _peelEnergy * irregularity, RateExponent = _rateExponent, ReferenceRate = _referenceRate,
                 FluxMass = _dryMass, BalloonMass = _balloonMass,
             };
@@ -1041,6 +1065,35 @@ namespace Fpv450.Sim.Tether
             Double3 on = point + normal * _radius;
             double share = Taut(a, on);
             share /= share + Taut(on, b);
+            // The crest's node never stretches the line (p7d-tether design 18): where the segment's line covers both straight pieces
+            // to the ground, no piece is shorter than its straight length (the taut paths' share had left the piece up a ledge's
+            // face 2 % short, a 19 N spring that threw its node at 27 m/s); where it does not (a nearly taut chord cut through a
+            // corner, which a node on the ground would leave 2.5 cm short, a 6.8 N spring), the shortfall is drawn from the pack.
+            double rest = _chain[j + 1].Material - na.Material, la = (on - a).Length(), lb = (b - on).Length();
+            if (_capstanLip) { }
+            else if (rest >= la + lb)
+            {
+                double mine = rest * share;
+                if (mine < la) mine = la;
+                if (rest - mine < lb) mine = rest - lb;
+                share = mine / rest;
+            }
+            else if (_chain.Spool.Active && !_chain.Spool.Locked && !_chain[_chain.Count - 1].Crest)
+            {
+                // The segment's line does not reach the ground there: the line laid round the corner is drawn from the pack, every
+                // node from the far end of the segment to the exit taking the shortfall on its material coordinate (each
+                // segment there keeps its rest length; the exit's material grows by it, as a payout), both pieces then at their
+                // straight lengths. (The pack's peel over that much line, G·δ, a ten-thousandth of a joule, is not charged.)
+                double shortfall = la + lb - rest;
+                for (int k = j + 1; k < _chain.Count; k++) _chain[k].Material += shortfall;
+                share = la / (la + lb);
+            }
+            else
+            {
+                CrestsRefused++;
+                Clear(ref na, a, b, CrestSlack);
+                return;
+            }
             if (_chain.SplitCrest(j, share, on) || Yield(inside) && _chain.SplitCrest(j, share, on)) CrestsInserted++;
             else
             {
@@ -1223,6 +1276,7 @@ namespace Fpv450.Sim.Tether
             Double3 still = air - t * Double3.Dot(air, t);
             double us = still.Length();
             _airPerMetre[i] = _drag.PerMetre(us);
+            _airAt[i] = air;
         }
 
         // ---- the cuts and the link (1.8) ----
@@ -1477,6 +1531,7 @@ namespace Fpv450.Sim.Tether
             // freezes with the supported node at rest beyond it (Spanned). The sliding trail froze only a node on a support, and also asked for air its ground's friction holds
             // (μs·w), which a node resting on a bush's top in wind never met.
             double exitMaterial = _chain[n - 1].Material;
+            bool changed = false; // node 0 is another this step (a freeze or a lift): its air from Loads is not its own
             while (_chain.Count >= 3)
             {
                 ref CableNode a = ref _chain[1];
@@ -1498,32 +1553,139 @@ namespace Fpv450.Sim.Tether
                 _trail[_trailCount] = a.Position;
                 _trailMaterial[_trailCount] = a.Material;
                 _trailHeld[_trailCount] = _chain.Tension(1);
-                _trailAir[_trailCount] = _airPerMetre[1];
+                // What it froze with: the air's push across the run it lies in (design 20: the drag across the run from the trail's
+                // end to it, as Moves reads it), or the trail's before design 20, the push across the chain at it.
+                _trailAir[_trailCount] = _airless || _slidingTrail ? _airPerMetre[1] : Across(_airAt[1], a.Position - _trail[_trailCount - 1]);
                 _trailCount++;
                 _chain.RemoveFirst();
                 ShiftAir(-1);
                 AnchorTrailEnd();
+                changed = true;
             }
             // Lift: the trail's last point back into the chain while the chain pulls it off where it lies (Pulled), or the air
-            // at it passes what it held at rest by the ground's friction. The sliding trail lifted it once the pull's size passed
-            // the tension it held and the friction of trail.hold_length_m of line, whichever way it pulled, or the air passed the
-            // ground's friction alone.
+            // at it would move it (design 20, Moves: the air its node took this step across its laid run past what holds it, its
+            // surface's friction on the weight the wall's lift leaves, or what it froze with; tested the step after the end is a
+            // new point). The trail before design 20 (TetherAirlessTrail) lifted it once the air across the chain at it passed what
+            // it froze with plus the polymer pair's friction. The sliding trail lifted it once the pull's size passed the tension
+            // it held and the friction of trail.hold_length_m of line, whichever way it pulled, or the air passed the ground's
+            // friction alone.
             while (_trailCount >= 2 && !_chain.SpacingFull && (_slidingTrail
                 ? _chain.Tension(0) > _trailHeld[_trailCount - 1] + _hold || _airPerMetre[0] > _groundStatic * _weight
-                : Pulled() || _airPerMetre[0] > _trailAir[_trailCount - 1] + _groundStatic * _weight))
+                : Pulled() || (_airless ? _airPerMetre[0] > _trailAir[_trailCount - 1] + _groundStatic * _weight : !changed && EndMoves())))
             {
-                ref CableNode a = ref _chain[0];
-                a.AnchorStiffness = 0;
-                a.AnchorDamping = 0;
-                a.RestTime = 0;
-                a.StillTime = 0;
-                a.Lifted = !_slidingTrail;
-                _trailCount--;
-                _chain.InsertFirst(_trail[_trailCount - 1], _trailMaterial[_trailCount - 1]);
-                ShiftAir(1);
-                AnchorTrailEnd();
+                LiftEnd();
+                changed = true;
+            }
+            // Design 20: one point deeper in turn, the line laid before the trail's end in the rotors' wash.
+            if (!_airless && !_slidingTrail && _rotors != null) Thaw();
+        }
+
+        // The trail's last point back into the chain: node 0 (anchored there) set free, the point before it the new end.
+        void LiftEnd()
+        {
+            ref CableNode a = ref _chain[0];
+            a.AnchorStiffness = 0;
+            a.AnchorDamping = 0;
+            a.RestTime = 0;
+            a.StillTime = 0;
+            a.Lifted = !_slidingTrail;
+            _trailCount--;
+            _chain.InsertFirst(_trail[_trailCount - 1], _trailMaterial[_trailCount - 1]);
+            ShiftAir(1);
+            AnchorTrailEnd();
+        }
+
+        // ---- the laid line in the wash (p7d-tether design 20) ----
+
+        // The air's push across a run of line at rest, N/m: White's drag on the air across it.
+        double Across(Double3 air, Double3 run)
+        {
+            double lr = run.Length();
+            Double3 t = lr > 0 ? run * (1 / lr) : default;
+            return _drag.PerMetre((air - t * Double3.Dot(air, t)).Length());
+        }
+
+        /// <summary>
+        /// Whether air at the trail's point k (its run from point k - 1) would move it (design 20): lying on the ground, the drag
+        /// across its run D past max(H, D_f), H its surface's static friction on the weight the wall's lift leaves it (Loads'
+        /// lift), D_f the push it froze with; off the ground (on a twig, a bush's top, in a span) held as the trail always held
+        /// it, D past D_f plus the polymer pair's friction on its weight. ground is the ground's height under it, surface its id
+        /// (known: not over a hole); push is D and hold H, N/m.
+        /// </summary>
+        public bool Moves(int k, Double3 air, double ground, byte surface, bool known, out double push, out double hold)
+        {
+            Double3 p = _trail[k];
+            Double3 run = p - _trail[k - 1];
+            double lr = run.Length();
+            Double3 t = lr > 0 ? run * (1 / lr) : default;
+            double uc = (air - t * Double3.Dot(air, t)).Length();
+            push = _drag.PerMetre(uc);
+            double gap = p.Y - ground - _radius;
+            bool lying = gap < _liftGap * _diameter;
+            hold = Hold(uc, gap, lying && known && _contacts != null ? _contacts.GroundStatic(surface) : _groundStatic);
+            double bore = _trailAir[k];
+            return lying ? push > (hold > bore ? hold : bore) : push > bore + hold;
+        }
+
+        /// <summary>What holds a metre of line at rest in air crossing it at u, its centre gap over the ground (design 20), N/m:
+        /// μs on the weight the wall's lift leaves it, ½ρu²·d·C_L fading to nothing over wall_lift_gap_over_diameter (Loads' lift),
+        /// none once the lift passes the weight.</summary>
+        public double Hold(double u, double gap, double mu)
+        {
+            double reach = _liftGap * _diameter;
+            double lift = gap < reach ? 0.5 * _drag.Density * u * u * _diameter * _liftCoefficient * (gap > 0 ? 1 - gap / reach : 1) : 0;
+            double press = _weight - lift;
+            return press > 0 ? mu * press : 0;
+        }
+
+        // The trail's end at its node 0's air from Loads this step (none for a node put there since) and its ground sample.
+        bool EndMoves()
+        {
+            Double3 air = _airAt[0];
+            if (double.IsNaN(air.X)) return false;
+            GroundSample g = _ground[0];
+            return Moves(_trailCount - 1, air, _groundHeight[0], g.Surface, (g.Flags & GroundFlags.Hole) == 0, out _, out _);
+        }
+
+        /// <summary>The push each trail point froze with, N/m (design 20's D_f; before it, the push across the chain then).</summary>
+        public double TrailAir(int i) => _trailAir[i];
+
+        // The window: the trail's points before its end that can come back with every point after them within the chain's
+        // spacing room, never its anchor.
+        int ThawWindow
+        {
+            get
+            {
+                int room = _chain.SpacingCapacity - (_chain.Count - _chain.Crests);
+                return room - 1 < _trailCount - 2 ? room - 1 : _trailCount - 2;
             }
         }
+
+        // Design 20: one point of the window a step, in turn, at the rotors' air at its own height and ground (the far line's wind
+        // is left out); if it would move, every point from the trail's end down to it comes back into the chain.
+        void Thaw()
+        {
+            int window = ThawWindow;
+            if (window < 1) return;
+            int depth = 1 + (int)(_thawProbe++ % window);
+            int k = _trailCount - 1 - depth;
+            Double3 p = _trail[k];
+            _thawAt[0] = new XZ(p.X, p.Z);
+            World.SampleGround(new ReadOnlySpan<XZ>(_thawAt, 0, 1), new Span<GroundSample>(_thawGround, 0, 1));
+            GroundSample g = _thawGround[0];
+            bool known = (g.Flags & GroundFlags.Hole) == 0;
+            double ground = known ? g.Height : World.SoilUnder(p, _soilRay, _soilHit, out _);
+            if (!(ground > double.NegativeInfinity && ground < double.PositiveInfinity)) return; // no soil under it: no landing, no lift
+            if (!Moves(k, _rotors.At(p, ground, out _), ground, g.Surface, known, out _, out _)) return;
+            for (int i = 0; i <= depth; i++) LiftEnd();
+            Thaws++;
+            Thawed += depth + 1;
+        }
+
+        /// <summary>The window's thaws this flight (design 20: a point behind the trail's end in the wash), and the points they
+        /// gave back (forensics; the record's trail count carries each).</summary>
+        public long Thaws { get; private set; }
+        public long Thawed { get; private set; }
 
         // The trail's last point is pulled off where it lies (w3-farmland-ground 2.4). The chain pulls it with P along its
         // first segment; the laid run behind it (the trail's last segment, straight by construction) holds it with the tension
@@ -1607,15 +1769,22 @@ namespace Fpv450.Sim.Tether
         // A pressing slot whose hold stuck through the step (no slip over its member, no line sliding through it).
         static bool Sticks(in CableContact c) => !Presses(c) || !c.Slid && !c.Sliding;
 
-        // The per-node air test follows the nodes as the trail takes or gives one (the new node 0, a trail point, at rest: 0).
+        // The per-node air test follows the nodes as the trail takes or gives one (the new node 0, a trail point, at rest: 0;
+        // its air unknown until the next step's Loads).
         void ShiftAir(int by)
         {
             int n = _chain.Count;
-            if (by < 0) Array.Copy(_airPerMetre, 1, _airPerMetre, 0, n);
+            if (by < 0)
+            {
+                Array.Copy(_airPerMetre, 1, _airPerMetre, 0, n);
+                Array.Copy(_airAt, 1, _airAt, 0, n);
+            }
             else
             {
                 Array.Copy(_airPerMetre, 0, _airPerMetre, 1, n - 1);
                 _airPerMetre[0] = 0;
+                Array.Copy(_airAt, 0, _airAt, 1, n - 1);
+                _airAt[0] = new Double3(double.NaN, double.NaN, double.NaN);
             }
         }
 
