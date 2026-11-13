@@ -43,7 +43,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(t.Number("fiber.axial_stiffness_n"), Is.EqualTo(895.8));
             Assert.That(t.Number("fiber.proof_force_n"), Is.EqualTo(8.461));
             Assert.That(t.Number("link.launch_margin_db"), Is.EqualTo(13.5));
-            Assert.That(t.Row("spool.peel_energy_j_m").Values, Is.EqualTo(new[] { 0.0196, 0.0981 }));
+            Assert.That(t.Row("spool.peel_energy_j_m").Values, Is.EqualTo(new[] { 0, 9.81e-5, 0.5, 0.0196, 1, 0.0981 }));
             Assert.That(t.Row("strength.span_pa").Values, Is.EqualTo(new[] { 0, 6.895e8, 1, 1.4e9 }));
             Assert.That(t.Row("strength.span_pa").Kind, Is.EqualTo(TetherValueKind.Quantiles));
             Assert.That(DroneSpec.Labels[t.Row("fiber.youngs_modulus_pa").Label], Is.EqualTo("published"));
@@ -56,7 +56,7 @@ namespace Fpv450.Sim.Tests
         // Each fault the loader guards: the edit to the repository's table and a problem it must name.
         [TestCase("\"youngs_modulus_pa\": {\"value\": 7.3e10, \"label\": \"published\", ", "\"youngs_modulus_pa\": {\"value\": 7.3e10, ",
             "fiber.youngs_modulus_pa.label: missing")]
-        [TestCase("\"lip_friction\": {\"value\": 0.3, \"label\": \"assumed\"", "\"lip_friction\": {\"value\": 0.3, \"label\": \"guessed\"",
+        [TestCase("\"lip_friction\": {\"value\": 0.45, \"label\": \"derived\"", "\"lip_friction\": {\"value\": 0.45, \"label\": \"guessed\"",
             "spool.lip_friction.label: must be one of")]
         [TestCase("\"anchor_behind_start_m\": {\"value\": 3, \"label\": \"assumed\", \"rationale\"",
             "\"anchor_behind_start_m\": {\"value\": 3, \"label\": \"assumed\", \"note\"", "launch.anchor_behind_start_m.rationale: missing")]
@@ -154,7 +154,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(same.Steps, Is.EqualTo(200));
 
             // One value changed: a valid table of another hash.
-            ulong changed = TetherTable.Parse(Edit(text, "\"lip_friction\": {\"value\": 0.3,", "\"lip_friction\": {\"value\": 0.31,")).ContentHash;
+            ulong changed = TetherTable.Parse(Edit(text, "\"lip_friction\": {\"value\": 0.45,", "\"lip_friction\": {\"value\": 0.46,")).ContentHash;
             Assert.That(changed, Is.Not.EqualTo(table.ContentHash));
             ReplayResult other = FlightReplay.Run(new MemoryStream(bytes), id => id == "floor" ? FlightWorld.Floor() : null, spec.ContentHash, tetherHash: changed);
             Assert.That(other.Outcome, Is.EqualTo(ReplayOutcome.Refused), other.Message);
@@ -174,7 +174,7 @@ namespace Fpv450.Sim.Tests
             string text = Text().Replace("\r\n", "\n");
             ulong lf = TetherTable.Parse(text).ContentHash;
             Assert.That(TetherTable.Parse(text.Replace("\n", "\r\n")).ContentHash, Is.EqualTo(lf));
-            Assert.That(TetherTable.Parse(Edit(text, "\"lip_friction\": {\"value\": 0.3,", "\"lip_friction\": {\"value\": 0.30,")).ContentHash, Is.Not.EqualTo(lf));
+            Assert.That(TetherTable.Parse(Edit(text, "\"lip_friction\": {\"value\": 0.45,", "\"lip_friction\": {\"value\": 0.450,")).ContentHash, Is.Not.EqualTo(lf));
         }
     }
 }

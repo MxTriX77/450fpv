@@ -29,6 +29,91 @@ namespace Fpv450.Sim.Tests
             public void Dispose() => FiberCutScenarios.SessionDrone = false;
         }
 
+        // Design 18: the point-contact law at the hole's edge against fiber-exit.md §2.3's table (derived there by a separate
+        // script), its limits, and where the capstan law takes over.
+        [Test]
+        public void ThePointContactLawAtTheEdge()
+        {
+            const double Deg = Math.PI / 180;
+            (double Mu, double Theta, double Ratio)[] table =
+            {
+                (0.3, 90, 1.52), (0.3, 150, 1.77), (0.3, 180, 1.81), (0.45, 30, 1.26), (0.45, 90, 1.87), (0.45, 120, 2.14),
+                (0.45, 135, 2.25), (0.45, 150, 2.33), (0.45, 180, 2.39), (0.7, 150, 3.55), (1.0, 90, 3.73), (1.0, 150, 5.55), (1.0, 180, 5.83),
+            };
+            foreach (var r in table)
+            {
+                FiberCuts.PointContact(r.Theta * Deg, r.Mu, out double ratio, out double outer);
+                Print($"μ {r.Mu} θ {r.Theta}°: T₂/T₁ {ratio:0.000} (the note's {r.Ratio}), φ₂ {outer / Deg:0.0}°, capstan {Math.Exp(r.Mu * r.Theta * Deg):0.00}");
+                Assert.That(ratio, Is.EqualTo(r.Ratio).Within(0.006), $"μ {r.Mu} θ {r.Theta}");
+                Assert.That(ratio, Is.LessThanOrEqualTo(Math.Exp(r.Mu * r.Theta * Deg)), "never above the capstan (Singh 2022)");
+                Assert.That(outer, Is.LessThan(r.Theta * Deg / 2), "the higher tension's arm turns less");
+            }
+            // The limits: no friction, no gain and a symmetric bend; a small turn, the capstan's; no turn, nothing.
+            FiberCuts.PointContact(150 * Deg, 0, out double r0, out double o0);
+            Assert.That(r0, Is.EqualTo(1).Within(1e-12));
+            Assert.That(o0, Is.EqualTo(75 * Deg).Within(1e-12));
+            FiberCuts.PointContact(5 * Deg, 0.45, out double small, out _);
+            Assert.That(small, Is.EqualTo(Math.Exp(0.45 * 5 * Deg)).Within(1e-4));
+            FiberCuts.PointContact(0, 0.45, out double none, out double noTurn);
+            Assert.That(none, Is.EqualTo(1));
+            Assert.That(noTurn, Is.EqualTo(0));
+
+            // The note's stress check: at 150° and μ 0.45 the band's top, G·irr 0.123 N, bends the glass 2.51 GPa at the edge.
+            TetherTable t = TetherScenarios.Table();
+            double ei = t.Number("fiber.bending_stiffness_n_m2"), er = t.Number("fiber.youngs_modulus_pa") * t.Number("fiber.glass_diameter_m") / 2;
+            FiberCuts.PointContact(150 * Deg, 0.45, out double k150, out double o150);
+            double t2 = 0.123 * k150, sigma = er * 2 * Math.Sin(o150 / 2) * Math.Sqrt(t2 / ei) + t2 / t.Number("fiber.glass_area_m2");
+            Print($"150°, μ 0.45, G·irr 0.123 N: T₂ {t2:0.000} N, σ {sigma / 1e9:0.000} GPa");
+            Assert.That(sigma / 1e9, Is.EqualTo(2.51).Within(0.01));
+
+            // The spool's factor: 1 with the line on the axis, the bore's entry alone up to its free angle, continuous past it;
+            // the 0.3 mm edge never wrapped under 5 N at 150°, the 4 mm flare wrapped at 0.1 N (the capstan's e^(μθ) then).
+            double free = Math.Atan2(2 * t.Number("spool.mouth_radius_m"), t.Number("spool.nozzle_length_m"));
+            double cap = t.Number("spool.lip_radius_m") + t.Number("fiber.coating_thickness_m"), mu = t.Number("spool.lip_friction");
+            Assert.That(mu, Is.EqualTo(0.45), "design 18's μ_l");
+            Assert.That(FiberCuts.LipFactor(0, free, mu, cap, ei, 0.1), Is.EqualTo(1));
+            FiberCuts.PointContact(free, mu, out double entry, out _);
+            Assert.That(FiberCuts.LipFactor(free, free, mu, cap, ei, 0.1), Is.EqualTo(entry));
+            Assert.That(FiberCuts.LipFactor(free + 1e-9, free, mu, cap, ei, 0.1), Is.EqualTo(entry).Within(1e-6));
+            FiberCuts.PointContact(150 * Deg - free, mu, out double rim, out double rimOuter);
+            Assert.That(FiberCuts.LipFactor(150 * Deg, free, mu, cap, ei, 5), Is.EqualTo(entry * rim));
+            Assert.That(FiberCuts.Wraps(rimOuter, cap, ei, 5), Is.False, "a 0.3 mm edge is met at a point under 5 N");
+            Assert.That(FiberCuts.Wraps(rimOuter, 0.004 + t.Number("fiber.coating_thickness_m"), ei, 0.1), Is.True, "the 4 mm flare is wrapped at 0.1 N");
+            Assert.That(FiberCuts.LipFactor(150 * Deg, free, mu, 0.004, ei, 0.1), Is.EqualTo(DetMath.Exp(mu * 150 * Deg)));
+        }
+
+        // Design 18 in the step: a flight with the cuts whose line meets the hole's edge at a point (the drone backing over its
+        // line) allocates nothing in steady state.
+        [Test]
+        public void TheEdgesLawAllocatesNothingInAStep()
+        {
+            FlightSetup setup = TetherScenarios.Setup(Spec, WindLevel.Calm, cuts: true);
+            var core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            long allocated = 0;
+            int point = 0;
+            for (int k = 0; k < 7000; k++)
+            {
+                double t = k * FlightCore.Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    pilot.HoldVelocity = t >= 3;
+                    pilot.Target = new Double3(0, setup.StartPosition.Y + 1.5, t < 3 ? 0 : core.State.Position.Z);
+                    pilot.TargetVelocity = new Double3(0, 0, -3);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                }
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                core.Advance(stick);
+                if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (core.Tether.Attached && core.Tether.Cuts.Bend(core.Tether.Cuts.BendCount - 1).PointEdge) point++;
+            }
+            Print($"{point} steps with the line on the edge at a point; {allocated} B from step 2000");
+            Assert.That(point, Is.GreaterThan(100), "the edge's point law ran");
+            Assert.That(allocated, Is.EqualTo(0));
+        }
+
         // fiber-tether: "The draws cover their bounds".
         [Test]
         public void TheDrawsCoverTheirBounds()
@@ -276,12 +361,15 @@ namespace Fpv450.Sim.Tests
             for (ulong seed = 1; seed <= 20; seed++)
             {
                 FiberCutScenarios.Coil c = FiberCutScenarios.OverTheCoil(Spec, seed, false);
-                Print($"seed {seed}: {c.O}; on the coil {c.Touching} steps, its most stress at a barb {c.MostStress / 1e9:F3} GPa, the least strength there {c.LeastStrength / 1e9:F3}, turn {c.MostTurn:F3}; a touch moved {c.MostMoved * 1e3:F2} mm along its record");
+                Print($"seed {seed}: {c.O}; on the coil {c.Touching} steps, its most stress at a barb {c.MostStress / 1e9:F3} GPa, the least strength there {c.LeastStrength / 1e9:F3}, turn {c.MostTurn:F3}; a touch moved {c.MostMoved * 1e3:F2} mm along its record (most at {c.MovedAt:F3} s, T {c.MovedTension:F3} N, N {c.MovedPress:F3} N, the other contact {c.MovedOther} {c.MovedOtherPress:F3} N, the drone {c.MovedHeight:F2} m up)");
                 if (c.Touching > 0) touched++;
                 // Since model 70 (p7f-damage 1.6b, the motors' heat) seed 20's hover rubs the line on a barb until its abrasion takes
                 // the section's strength to 0.68 GPa and it cuts there at 10.6 s (Abrasion at Snag, 1.08 GPa): the barbs' static
                 // stress never passes the line's drawn strength, the wear does. Traced over 40 seeds: without the heat none cuts, with
                 // it seed 20 alone; the claims are judged against the static cut (the spec's wording is the orchestrator's: handback).
+                // Since p7d-tether design 18's overlaps (CableContact.Sunk) none cuts: the barbs' presses that wore the line through
+                // (9–49 N at 0–2 N of tension) were nodes thrown out of an overlap their slot's new plane put them in. A touch is
+                // judged from where it began (CableContact.Touched), the node's travel over the barb's surface.
                 bool worn = c.O.Broken && c.O.Mechanism == TetherMechanism.Abrasion;
                 if (c.LeastStrength > c.MostStress) Assert.That(c.O.Broken && !worn, Is.False, "holds where the strength exceeds the stress at the barbs, but by wear");
                 if (c.LeastStrength > 1.35e9) Assert.That(c.O.Broken && !worn && c.O.Place == FiberMember.Snag, Is.False, "never cut at a barb above 1.35 GPa, but by wear");
@@ -372,7 +460,12 @@ namespace Fpv450.Sim.Tests
                 long nowOver = over;
                 most = 0;
                 over = 0;
-                old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherLinearStep = true);
+                // Model 74's chain: the linear step on the line before design 18 (its exit's segment stretched by the slides too).
+                old = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x =>
+                {
+                    x.TetherLinearStep = true;
+                    x.TetherBeforeDesign18 = true;
+                });
                 oldMost = most;
                 oldOver = over;
                 most = nowMost;
@@ -470,7 +563,12 @@ namespace Fpv450.Sim.Tests
                 ("gentle 180° turn of 15 m at 54 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
                 ("cruise at 100 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0).O),
                 ("sharp reverse", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
-                ("sharp reverse, the two-way spool", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, x => x.TetherTwoWay = true)),
+                // The two-way spool's take-up at models 74–88's 2–10 g (design 18; TetherCase's known-wrong).
+                ("sharp reverse, the two-way spool", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, x =>
+                {
+                    x.TetherTwoWay = true;
+                    x.Tether = FiberCutScenarios.WithBand(x.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
+                })),
                 ("tree snag", s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
                 ("very sharp liftoff", s => FiberCutScenarios.Liftoff(spec, true, s)),
                 ("backward after liftoff", s => FiberCutScenarios.Backward(spec, s)),
@@ -577,14 +675,13 @@ namespace Fpv450.Sim.Tests
             int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 10;
             string winds = Environment.GetEnvironmentVariable("FIBER_WINDS") ?? "Calm,Windy";
             string pick = Environment.GetEnvironmentVariable("FIBER_CONFIGS");
-            double[] g = TetherScenarios.Table().Row("spool.peel_energy_j_m").Values;
             const double Gram = 9.80665e-3;
             var configs = new (string Name, Action<FlightSetup> Edit)[]
             {
                 ("base", null),
                 ("G0 0.01–2 g (US 5,167,382's reduced adhesive)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 0.01 * Gram, 2 * Gram)),
                 ("G0 5–10 g (US 5,167,382's conventional pack)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 5 * Gram, 10 * Gram)),
-                ("G0 ×2 (4–20 g)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 2 * g[0], 2 * g[1])),
+                ("G0 ×2", s => s.Tether = FiberCutScenarios.Scaled(s.Tether, "spool.peel_energy_j_m", 2)),
                 ("n 0.1", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.1)),
                 ("n 0.3", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3)),
                 ("n 0.3, v_ref 1 m/s", s =>
@@ -592,9 +689,9 @@ namespace Fpv450.Sim.Tests
                     s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3);
                     s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_reference_rate_m_s", 1);
                 }),
-                ("μ 0.15", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.15)),
-                ("μ 0.45", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.45)),
-                ("μ 0.75", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.75)),
+                ("μ 0.3 (models to 88)", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.3)),
+                ("μ 0.36", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.36)),
+                ("μ 1.0", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 1.0)),
             };
             double[] speeds = { 10, 15, 20, 25, 27.8 };
             for (int ci = 0; ci < configs.Length; ci++)
@@ -785,6 +882,7 @@ namespace Fpv450.Sim.Tests
                 double t = k * FlightCore.Dt;
                 ref readonly FlightState s = ref core.State;
                 FiberLine l = core.Tether;
+                if (l.BrokeThisStep) Print($"BROKE t {t:0.000} sdot {l.Chain.SpoolSpeed:0.000} paying {l.Chain.SpoolPaying} exitT {l.Chain.SpoolExitTension:0.000} pack {l.Chain.SpoolPackTension:0.000} paid {l.Chain.SpoolPaid * 1e3:0.000} mm lipfactor {l.Chain.Spool.Lip:0.000} peel {l.Chain.Spool.Peel:0.0000}");
                 if (l.Broken || !l.Attached) return;
                 CableChain c = l.Chain;
                 int n = c.Count;
@@ -810,7 +908,7 @@ namespace Fpv450.Sim.Tests
                     }
                 }
                 Double3 b1 = s.Attitude.InverseRotate(c[n - 2].Position - s.Position);
-                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}");
+                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}{(Environment.GetEnvironmentVariable("FIBER_NODES") == "1" ? Near(c) : "")}{(Environment.GetEnvironmentVariable("FIBER_SPOOL") == "1" ? $" | spool paying {c.SpoolPaying} exitT {c.SpoolExitTension:0.000} pack {c.SpoolPackTension:0.000} lip {c.Spool.Lip:0.000} peel {c.Spool.Peel:0.0000} paid {c.SpoolPaid * 1e3:0.000} mm seg {(c[n - 1].Position - c[n - 2].Position).Length() * 1e3:0.00} mm rest {(c[n - 1].Material - c[n - 2].Material) * 1e3:0.00} mm" : "")}");
             };
             FiberCutScenarios.Outcome o;
             try
@@ -818,6 +916,8 @@ namespace Fpv450.Sim.Tests
                 o = which == "pitchback" ? FiberCutScenarios.PitchBack(spec, WindLevel.Calm, seed, null, speed)
                     : which == "sharp" ? FiberCutScenarios.Liftoff(spec, true, seed)
                     : which == "backward" ? FiberCutScenarios.Backward(spec, seed)
+                    : which == "cruise" ? FiberCutScenarios.Turn(spec, WindLevel.Windy, seed, 27.8, 0).O
+                    : which == "backlow" ? FiberCutScenarios.Backward(spec, seed, null, 3, double.TryParse(Environment.GetEnvironmentVariable("FIBER_HEIGHT"), out double h) ? h : 0.4)
                     : FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, seed, null, speed);
             }
             finally
@@ -827,6 +927,19 @@ namespace Fpv450.Sim.Tests
             }
             Print($"most lip σ {mostS / 1e9:0.000} GPa at {mostSAt:0.000} (θ {mostSTheta * 180 / Math.PI:0}°, T {mostST:0.000}); most chain exit T {mostT:0.000} at {mostTAt:0.000} (θ {mostTTheta * 180 / Math.PI:0}°); most ṡ jump {mostJump:0.00} m/s at {jumpAt:0.000} (θ {jumpTheta * 180 / Math.PI:0}°)");
             Print($"{which} seed {seed}: {o}");
+        }
+
+        // The last three nodes' contacts and segment tensions (FIBER_NODES=1): the member, its normal force, a capstan's hold.
+        static string Near(CableChain c)
+        {
+            string r = "";
+            for (int i = Math.Max(0, c.Count - (int.TryParse(Environment.GetEnvironmentVariable("FIBER_NEAR"), out int near) ? near : 4)); i < c.Count - 1; i++)
+            {
+                ref CableNode a = ref c[i];
+                string k(in CableContact x) => x.Active ? $"{(FiberMember)x.MemberKind}{x.Member}:{x.NormalForce:0.000}{(x.Capstan ? "c" : "")}" : "-";
+                r += $" [{i} T {c.Tension(i):0.000} {k(a.Contact0)} {k(a.Contact1)}]";
+            }
+            return r;
         }
 
         [Test, Explicit("a probe: the line at the exit through a turn, printed step by step from FIBER_FROM s")]

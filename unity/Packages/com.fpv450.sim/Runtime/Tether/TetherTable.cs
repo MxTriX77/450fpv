@@ -99,7 +99,7 @@ namespace Fpv450.Sim.Tether
             ("strength.flaw_pa", TetherValueKind.Quantiles),
             ("strength.intact_pa", TetherValueKind.Quantiles),
             ("strength.abraded_pa", TetherValueKind.Quantiles),
-            ("spool.peel_energy_j_m", TetherValueKind.Band),
+            ("spool.peel_energy_j_m", TetherValueKind.Quantiles),
             ("spool.peel_rate_exponent", TetherValueKind.Positive),
             ("spool.peel_reference_rate_m_s", TetherValueKind.Positive),
             ("spool.irregularity", TetherValueKind.Band),
