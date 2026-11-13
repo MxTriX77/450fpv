@@ -78,7 +78,9 @@ namespace Fpv450.FlightBench
                 Village(farm, "weeds 10°", 313.040, 20.000, false),
                 Village(farm, "meadow_sod 10°", 311.190, 50.710, false),
             };
-            Double3 track = SoilScenarios.TrackStart(new FlightWorld(range)), patch = SoilScenarios.PatchCentre(new FlightWorld(range));
+            // The S04 patch on one mat piece (SoilScenarios.PatchMat): its centre lies on a piece's edge, a foot over the 0.125 m step
+            // to the soil box, so a row there flew the fall into the step (w9-village-physics 2.6's addendum §3).
+            Double3 track = SoilScenarios.TrackStart(new FlightWorld(range)), patch = SoilScenarios.PatchMat(new FlightWorld(range));
             s.Add(new Spot { Name = "House track start", Surface = "belt_straw", House = true, Open = () => new FlightWorld(range), Foot = track });
             s.Add(new Spot { Name = "House S04 patch", Surface = "straw over belt_straw", House = true, Open = () => new FlightWorld(range), Foot = patch });
             return s;
