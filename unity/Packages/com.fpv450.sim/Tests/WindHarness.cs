@@ -36,9 +36,11 @@ namespace Fpv450.Sim.Tests
     /// - **The pilot's stick noise** (D-060): every pilot flies with the optimal-control model's motor noise
     ///   (HarnessPilot.UseRemnant, on the run's seed), its level learnt over the measured span only (the release's first
     ///   DiscardSeconds and the climb are not a steady flight); `remnant: false` flies the noiseless pilot, the known-wrong.
-    /// - **The human pilot** (p7c-wind design 13, an option): `HumanPilots` fly HarnessPilot.Human (McRuer's crossover and
-    ///   delay for a rate-command element) and, with their remnant, the observation noise on the attitude errors beside
-    ///   the motor noise; their variants are K§8.5's but the delay's, which flies the published range's middle and top.
+    /// - **The human pilot** (p7c-wind design 13; the harness's default since D-109): `HumanPilots` fly HarnessPilot.Human
+    ///   (McRuer's crossover and delay for a rate-command element) and, with their remnant, the observation noise on the
+    ///   attitude errors beside the motor noise; their variants are K§8.5's but the delay's, which flies the published
+    ///   range's middle and top. `Pilots`, K§8.5's pilot and its variants, stay a variant; the noiseless human is the
+    ///   known-wrong.
     /// </summary>
     public static class WindHarness
     {

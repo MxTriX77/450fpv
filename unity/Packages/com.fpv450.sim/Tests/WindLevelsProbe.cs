@@ -176,7 +176,7 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// Where the harness's pitch comes from: Severe's nominal runs on seeds 1–N (PITCH_PROBE_SEEDS, default 5) with each
         /// source taken out, written as the harness's CSVs under PITCH_PROBE_OUT/&lt;variant&gt;/ for
-        /// tools/wind/pitch_probe.py. Explicit.
+        /// tools/wind/pitch_probe.py. The harness's default pilot flies them, the human (D-109). Explicit.
         /// </summary>
         [Test, Explicit]
         public void TheAttribution()
@@ -190,7 +190,7 @@ namespace Fpv450.Sim.Tests
             System.Threading.Tasks.Parallel.ForEach(jobs, job =>
             {
                 var v = Array.Find(Variants, x => x.Name == job.Item1);
-                WindHarness.Run r = WindHarness.Fly(spec, WindLevel.Severe, (ulong)(job.Item2 + 1), job.Item2, n, WindHarness.Pilots[0],
+                WindHarness.Run r = WindHarness.Fly(spec, WindLevel.Severe, (ulong)(job.Item2 + 1), job.Item2, n, WindHarness.HumanPilots[0],
                     belt: !v.Steady, steady: v.Steady, airframe: v.Change);
                 string dir = System.IO.Path.Combine(root, v.Name);
                 System.IO.Directory.CreateDirectory(dir);
