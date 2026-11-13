@@ -161,11 +161,7 @@ namespace Fpv450.Sim.Tests
         {
             MapWorld w = SlopeScenarios.Farmland();
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong hash);
-            if (!crown)
-            {
-                m = (MaterialRow[])m.Clone();
-                for (int i = 0; i < m.Length; i++) m[i].Crown = null;
-            }
+            if (!crown) m = GoldenFlights.WithoutTheCrowns(m);
             DroneSpec spec = RepositoryDrone.Spec();
             var hung = new XZ(341.9, 278.5);
             var foot = new XZ(hung.X + 0.596 * 30, hung.Z + 0.803 * 30);

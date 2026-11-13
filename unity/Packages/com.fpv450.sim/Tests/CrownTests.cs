@@ -86,21 +86,13 @@ namespace Fpv450.Sim.Tests
             return r;
         }
 
-        // Model 89's shell (the known-wrong): 30 N/m a part with no limit, the twig rows without their crown block.
-        static MaterialRow[] WithoutTheCrown(MaterialRow[] rows)
-        {
-            var copy = (MaterialRow[])rows.Clone();
-            for (int i = 0; i < copy.Length; i++) copy[i].Crown = null;
-            return copy;
-        }
-
         // A 4.7 kg drone falls through a crown's twigs (design 2.3 §2): they break at 0.115 J each and hold 0.75 N of its 46 N,
         // the hand calculation's within 10 %. Model 89's shell held it on the crown's top like a soft solid.
         [Test]
         public void ADroneFallsThroughACrownsTwigsOnTheirStrength()
         {
             MaterialRow[] rows = ContactScenarios.RepositoryMaterials(out ulong hash);
-            Fall twigs = Drop(rows, hash), wrong = Drop(WithoutTheCrown(rows), hash);
+            Fall twigs = Drop(rows, hash), wrong = Drop(GoldenFlights.WithoutTheCrowns(rows), hash);
             TestContext.Out.WriteLine($"the twigs: {twigs.Force:F3} N up while 0.3–1.5 m in (hand {twigs.Hand:F3} N, weight {twigs.Weight:F1} N); "
                 + $"after 1.5 s {twigs.Depth:F2} m in at {twigs.Speed:F2} m/s");
             TestContext.Out.WriteLine($"model 89's shell: {wrong.Force:F1} N up; after 1.5 s {wrong.Depth:F3} m in at {wrong.Speed:F3} m/s");
