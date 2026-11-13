@@ -1879,6 +1879,7 @@ namespace Fpv450.Sim.Contact
             Double3 couple = default, deepAt = default, deepN = default;
             int causeShape = -1, causePair = -1;
             double strong = 0, deepest = 0;
+            bool deepCrown = false;
             if (_legTouching[c])
             {
                 for (int i = 0; i < _shapes.Length; i++)
@@ -1895,6 +1896,7 @@ namespace Fpv450.Sim.Contact
                             deepest = p.Overlap;
                             deepAt = p.Point;
                             deepN = p.N;
+                            deepCrown = RowOf(p).Crown != null;
                         }
                         Double3 fp = Coned(p, RowOf(p));
                         law = law + fp;
@@ -1987,13 +1989,13 @@ namespace Fpv450.Sim.Contact
                     Double3 push = deepN * deepest;
                     double a = Double3.Dot(up, push);
                     Double3 lat = push - up * a;
-                    // The chain gives by the force it carries (w9 2.6): where what it touches gives way first (a twig shell, a soil's
-                    // cap, the fold's cap), its points carry less than the springs' push on the overlap, and the chain gives that much
-                    // less. Read from the push alone, a half pressed into a yielding crown at a crash's speed gave by the whole
-                    // overlap, which its next step read back as overlap (Unturned): the give ran away (0.43 m in 50 ms through
-                    // Pine002_M) and the half's shapes passed a branch. And no give moves the deepest point past its overlap.
+                    // In a crown's twig shell the chain gives by the force its points carry (w9 2.6): the twigs give way first
+                    // (CapCrown), so they carry less than the springs' push on the overlap, and read from the push alone the half
+                    // gave by the whole overlap, which the next step read back as overlap (Unturned): the give ran away (0.43 m in
+                    // 50 ms in Pine002_M) and the half's shapes passed a branch inside the shell. And no give moves the deepest point
+                    // past its overlap.
                     Double3 spring = up * (ka * a) + lat * kl;
-                    double size = spring.Length(), share = size > carried ? carried / size : 1;
+                    double size = spring.Length(), share = deepCrown && size > carried ? carried / size : 1;
                     double give = Double3.Dot(spring, deepN) / kc * share;
                     double r2 = Double3.Dot(r, r), rn = Double3.Dot(r, n), along = 0, turned = 0;
                     if (r2 > 0 && give > 0)
