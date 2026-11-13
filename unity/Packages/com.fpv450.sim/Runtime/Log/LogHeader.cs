@@ -190,7 +190,7 @@ namespace Fpv450.Sim.Log
         {
             "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "AreaLaw", "AreaReferenceDepth", "ElasticModulus", "HasWet",
             "WetStiffnessRatio", "WetStiffness", "WetStaticFriction", "WetKineticFriction", "WetAdhesion", "WetAdhesionRelease", "Hardness",
-            "CrushStrength", "Density", "EdgeRadius",
+            "CrushStrength", "Density", "EdgeRadius", "Crown", // Crown in its own entry, TagCrown (w9-village-physics 2.3)
         };
 
         /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
