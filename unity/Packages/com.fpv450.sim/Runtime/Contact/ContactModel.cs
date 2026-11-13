@@ -1786,8 +1786,8 @@ namespace Fpv450.Sim.Contact
         }
 
         // A hanging skid half (p7g-legs 1.3): its points' forces within their cones, the moment they make about the holding
-        // leg's bore, and past the skid's first yield there (the holding leg's drawn σ_y·I/(c·K_t), its edge factor on the
-        // bore's edge) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
+        // leg's bore, and past the skid's first yield there (the holding leg's drawn σ_y·I/c; w9 2.6: the bore edge's K_t lowers
+        // only its local yield) the fold, perfectly plastic: the excess over the cap, (|F| − M_y/a)/k along F, turns the half about
         // the bore (from the next step its shapes, and its held points' anchors with them), and this step's force is relieved
         // by it. Its force and its couple about the bore load the holding leg (Judge).
         void Hang(int c, in FlightState s, Double3 up, StepEvents events)
@@ -1829,7 +1829,7 @@ namespace Fpv450.Sim.Contact
                 }
             }
             _hangTouching[c] = _legTouching[c];
-            double cap = _legs.CrackMoment(holder) / _skidLever, size2 = law.Length();
+            double cap = _legs.YieldMoment(holder) / _skidLever, size2 = law.Length();
             if (_legTouching[c] && size2 > cap && _axial[c] > 0)
             {
                 Double3 e = law * (1 / size2);
@@ -3948,10 +3948,23 @@ namespace Fpv450.Sim.Contact
             return Double3.Dot(p.Entry, deep - g.Center) < 0;
         }
 
+        // A hanging half's point still pressed (w9-village-physics 2.6): its shapes stand out of what they touch by the half's
+        // elastic give, which the massless half holds only while it is pressed, so its pair touches while its overlap without
+        // that give is positive. On its turned depth alone a pair the give had just lifted clear read no force for a step, the
+        // give fell to 0 and the half's shapes snapped back into the ground by it (the sweep's 91 mm, a one-step limit cycle).
+        bool Hung(int i, in Pair p, in FlightState s)
+        {
+            if (!_spec.HangingGive || _legs == null) return false;
+            ContactRole role = _shapes[i].Role;
+            int c = _shapes[i].Corner;
+            if (role != ContactRole.Support && role != ContactRole.Skid || c < 0 || c >= 4 || (_corner[c] & CornerState.Hanging) == 0) return false;
+            return p.Depth + Unturned(c, p, s) > 0;
+        }
+
         // Touching starts or ends: ContactMade (and maybe an impact) or ContactBroken.
         void Transition(ref Pair p, int i, in FlightState now, StepEvents events, bool objectPair)
         {
-            bool touching = p.Depth > 0;
+            bool touching = p.Depth > 0 || Hung(i, p, now);
             if (touching == p.Touching) return;
             if (!touching)
             {
