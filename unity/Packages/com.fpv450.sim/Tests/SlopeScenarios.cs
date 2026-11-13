@@ -710,9 +710,9 @@ namespace Fpv450.Sim.Tests
                     pilot.Target = new Double3(0, s0.Y + Math.Min(3, t), z);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                 }
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 1) r.Allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 1) r.Allocated += AllocProbe.After(before);
                 recorder.RecordStep(core.State, stick, core.Trace, core.Events);
                 if (k % 10 == 9 && !core.Tether.Broken) r.Deepest = Math.Max(r.Deepest, Deepest(map, core.Tether.Chain));
             }

@@ -703,13 +703,13 @@ Row($"{a.Name} ({a.Variant}, {(a.ClimbRate > 0 ? $"climbing at {a.ClimbRate} m/s
                 for (int k = 0; k < warmup + steps; k++)
                 {
                     StickSample s = stick(core, k);
-                    if (k == warmup) before = GC.GetAllocatedBytesForCurrentThread();
+                    if (k == warmup) before = AllocProbe.Before();
                     long t0 = Stopwatch.GetTimestamp();
                     core.Advance(s);
                     if (k >= warmup) times[r * steps + k - warmup] = Stopwatch.GetTimestamp() - t0;
                     if (r == 0 && k == warmup) touching = core.Trace.ContactsTouching;
                 }
-                allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                allocated += AllocProbe.After(before);
                 armed &= core.State.Armed;
             }
             Array.Sort(times);

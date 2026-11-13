@@ -498,11 +498,11 @@ namespace Fpv450.Sim.Tests
             long allocated = 0;
             for (long step = 0; step < 6000; step++)
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 a.Begin(step, points[0], 0);
                 Double3 sum = default;
                 foreach (Double3 p in points) sum = sum + a.At(p);
-                if (step >= 100) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (step >= 100) allocated += AllocProbe.After(before);
                 b.Begin(step, points[0], 0);
                 other.Begin(step, points[0], 0);
                 Double3 again = default;
@@ -513,7 +513,7 @@ namespace Fpv450.Sim.Tests
                 }
                 Assert.That(again, Is.EqualTo(sum), "step " + step);
             }
-            Assert.That(allocated, Is.EqualTo(0), "the step only samples");
+            Assert.That(allocated, Is.Zero, "the step only samples" + AllocProbe.Report());
             Assert.That(differ, Is.GreaterThan(6000 * points.Length * 9 / 10), "another seed, another wind");
         }
 
@@ -931,9 +931,9 @@ namespace Fpv450.Sim.Tests
                 {
                     if (k == heldSeconds * 1000) pilot.Target = new Double3(hold.X, 5, hold.Z);
                     StickSample stick = pilot.Sticks(core, core.State.Step * FlightCore.StepUs);
-                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    long before = AllocProbe.Before();
                     core.Advance(stick);
-                    if (k >= 1000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                    if (k >= 1000) allocated += AllocProbe.After(before);
                     CutFrame f = core.Wind.Cut;
                     if (f != null && f.Active && !f.Covered && core.State.Position.Y < f.Lip) inCut++;
                     for (int i = 0; i < 4; i++)
@@ -974,7 +974,7 @@ namespace Fpv450.Sim.Tests
                 + $"model 26's field there 0x{inside26:X16}; held off the run 0x{outside:X16}, model 26's 0x{outside26:X16} ({never} steps in a cut)");
             Assert.That(b, Is.EqualTo(a), "the same seed, the same wind at every hub");
             Assert.That(inCut, Is.GreaterThan(59000).And.EqualTo(inCut2), "the flight held in the run");
-            Assert.That(allocated, Is.EqualTo(0));
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
             Assert.That(never, Is.EqualTo(0));
             Assert.That(outside, Is.EqualTo(outside26), "a flight that never enters a cut's opening steps as at model 26");
             Assert.That(inside26, Is.Not.EqualTo(a), "the cut's own flow");

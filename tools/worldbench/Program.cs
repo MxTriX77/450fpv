@@ -367,7 +367,7 @@ namespace Fpv450.WorldBench
             var times = new long[steps];
             for (int pass = 0; pass < 2; pass++) // the first pass warms the JIT
             {
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = Fpv450.Sim.Tests.AllocProbe.Before();
                 for (int s = 0; s < steps; s++)
                 {
                     long start = Stopwatch.GetTimestamp();
@@ -377,7 +377,7 @@ namespace Fpv450.WorldBench
                     world.Raycast(rays, 5, hits);
                     times[s] = Stopwatch.GetTimestamp() - start;
                 }
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                long allocated = Fpv450.Sim.Tests.AllocProbe.After(before);
                 if (pass == 0)
                     continue;
                 Array.Sort(times);
@@ -394,12 +394,12 @@ namespace Fpv450.WorldBench
             Capsules(100000, out previous, out current);
             rays = Rays(100000);
             hits = new RayHit[rays.Length];
-            long a0 = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+            long a0 = Fpv450.Sim.Tests.AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
             for (int i = 0; i < previous.Length; i++)
                 world.StaticContacts(previous[i], current[i], 0.02, contacts);
             long t1 = Stopwatch.GetTimestamp();
             world.Raycast(rays, 2, hits);
-            long t2 = Stopwatch.GetTimestamp(), a1 = GC.GetAllocatedBytesForCurrentThread();
+            long t2 = Stopwatch.GetTimestamp(), a1 = a0 + Fpv450.Sim.Tests.AllocProbe.After(a0);
             double ms = 1e3 / Stopwatch.Frequency;
             Console.WriteLine($"  floor.capsules 100000: {(t1 - t0) * ms:F2} ms (budget 100 ms)");
             Console.WriteLine($"  floor.rays 100000 of <= 2 m: {(t2 - t1) * ms:F2} ms (budget 100 ms); {a1 - a0} B allocated by both");

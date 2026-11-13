@@ -431,16 +431,16 @@ namespace Fpv450.Sim.Tests
                 stick.HostUs = core.State.Step * FlightCore.StepUs;
                 core.Advance(stick);
             }
-            long start = GC.GetAllocatedBytesForCurrentThread();
+            long start = AllocProbe.Before();
             for (int k = 0; k < 500; k++)
             {
                 stick.HostUs = core.State.Step * FlightCore.StepUs;
                 core.Advance(stick);
                 core.CameraVibration();
             }
-            long allocated = GC.GetAllocatedBytesForCurrentThread() - start;
+            long allocated = AllocProbe.After(start);
             TestContext.Out.WriteLine($"  {allocated} B over 500 steps");
-            Assert.That(allocated, Is.Zero);
+            Assert.That(allocated, Is.Zero, AllocProbe.Report());
         }
     }
 }

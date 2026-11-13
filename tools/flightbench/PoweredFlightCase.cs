@@ -782,7 +782,7 @@ namespace Fpv450.FlightBench
             var times = new long[steps];
             for (int k = 0; k < warmup; k++) core.Advance(sticks[k]);
 
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = AllocProbe.Before();
             for (int k = 0; k < steps; k++)
             {
                 StickSample stick = sticks[(warmup + k) % sticks.Length];
@@ -791,7 +791,7 @@ namespace Fpv450.FlightBench
                 core.Advance(stick);
                 times[k] = Stopwatch.GetTimestamp() - t0;
             }
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+            allocated = AllocProbe.After(allocated);
 
             Array.Sort(times);
             double us = 1e6 / Stopwatch.Frequency;

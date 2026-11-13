@@ -104,14 +104,14 @@ namespace Fpv450.Sim.Tests
                     pilot.TargetVelocity = new Double3(0, 0, -3);
                     stick = pilot.Sticks(core, k * FlightCore.StepUs);
                 }
-                long before = GC.GetAllocatedBytesForCurrentThread();
+                long before = AllocProbe.Before();
                 core.Advance(stick);
-                if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - before;
+                if (k >= 2000) allocated += AllocProbe.After(before);
                 if (core.Tether.Attached && core.Tether.Cuts.Bend(core.Tether.Cuts.BendCount - 1).PointEdge) point++;
             }
             Print($"{point} steps with the line on the edge at a point; {allocated} B from step 2000");
             Assert.That(point, Is.GreaterThan(100), "the edge's point law ran");
-            Assert.That(allocated, Is.EqualTo(0));
+            Assert.That(allocated, Is.Zero, "0 B from step 2000" + AllocProbe.Report());
         }
 
         // fiber-tether: "The draws cover their bounds".

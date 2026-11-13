@@ -130,10 +130,10 @@ namespace Fpv450.FlightBench
                 bool whole = !core.Tether.Broken && crashed < 0; // the flight as the step begins
                 StickSample stick = Sticks(pilot, core, foot, stand, t, core.State.Step * FlightCore.StepUs);
                 long solves = core.Tether.Chain.NewtonSolves;
-                long a = GC.GetAllocatedBytesForCurrentThread(), t0 = Stopwatch.GetTimestamp();
+                long a = AllocProbe.Before(), t0 = Stopwatch.GetTimestamp();
                 core.Advance(stick);
                 long dt = Stopwatch.GetTimestamp() - t0;
-                if (k >= 2000) allocated += GC.GetAllocatedBytesForCurrentThread() - a;
+                if (k >= 2000) allocated += AllocProbe.After(a);
                 solves = core.Tether.Chain.NewtonSolves - solves; // model 77's segments' Newton solves this step
                 if (solves > newtonMax) newtonMax = solves;
                 if (t >= 12 && whole)
