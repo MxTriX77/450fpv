@@ -81,7 +81,7 @@ namespace Fpv450.FlightBench
             // The tallies over the arrested descents (the three drops, both payloads) and the gentle ramps from 5-9 m/s.
             int arrests = 0, fullShown = 0, ringlessShown = 0, ringlessWeaker = 0, protectHolds = 0, protectTilts = 0, protectLonger = 0;
             int fullLasts = 0, ringlessLasts = 0, spreadlessLasts = 0;
-            int ramps = 0, wobbles = 0, halfShorterPairs = 0;
+            int ramps = 0, wobbles = 0, fastRamps = 0, fastWobbles = 0, halfShorterPairs = 0;
             var ratios = new List<double>();
             foreach (double payload in new[] { 0.0, 2.0 })
                 foreach (double drop in new[] { 0.3, 0.6, 1.0 })
@@ -109,6 +109,11 @@ namespace Fpv450.FlightBench
                         {
                             ramps++;
                             if (ShakeScenario.Wobbles(g)) wobbles++;
+                            if (drop == 1.0)
+                            {
+                                fastRamps++;
+                                if (ShakeScenario.Wobbles(g)) fastWobbles++;
+                            }
                         }
                         if (ShakeScenario.HoldsTheLimit(w)) protectHolds++;
                         if (w.TiltMax > f.TiltMax) protectTilts++;
@@ -184,12 +189,12 @@ namespace Fpv450.FlightBench
             // shows on 200 of 200, the 2 kg one on 190 (its threshold over its hover's floor, the arrest's shake near it).
             Check("nearly every empty full punch from 9 m/s shows it, and most at 2 kg", fastShown >= Nearly(Seeds) && heavyShown >= ShakeScenario.Most * Seeds,
                 $"empty {fastShown}/{Seeds}, 2 kg {heavyShown}/{Seeds}; from 2.5-9 m/s {fullShown}/{arrests}");
-            // The wobble's showing is a rate (D-053's rule): the 2 kg ramp from 5.4 m/s peaks at 0.10-0.28°, a fraction over
-            // the visible line (0.088°), and seed 2421 of the first fresh sets flown after the integration review (2001-2040,
-            // 2401-2440, 2801-2840) stayed at 0.085°. Its ring is every flight's: over 1.33 s on all 2080 ramps of the 520 seeds
-            // the claims were set on, where all 2080 showed it.
-            Check("every gentle ramp from 5-9 m/s keeps its rotors in their ring over 1 s, and nearly every one wobbles (shown)", ringLeast > 1.0 && wobbles >= Nearly(ramps),
-                $"{wobbles}/{ramps}; the ring {ringLeast:F2} s at least");
+            // The wobble's showing is a rate (D-053's rule). Its ring is every flight's. On the excess over the hover (design 3i)
+            // it shows on every ramp from 9 m/s on seeds 1-240 (480 of 480) and from 5.3-5.4 m/s on 430 of 480: the empty
+            // drone's on 235 of 240, the 2 kg drone's on 195 (its wobble at 0.12-0.30° against a threshold of 0.11-0.20°).
+            Check("every gentle ramp from 5-9 m/s keeps its rotors in their ring over 1 s; nearly every one from 9 m/s wobbles (shown), and most from 5 m/s",
+                ringLeast > 1.0 && fastWobbles >= Nearly(fastRamps) && wobbles - fastWobbles >= ShakeScenario.Most * (ramps - fastRamps),
+                $"from 9 m/s {fastWobbles}/{fastRamps}, from 5 m/s {wobbles - fastWobbles}/{ramps - fastRamps}; the ring {ringLeast:F2} s at least");
             Check("the shake varies between occurrences: neighbouring seeds' peaks differ in every cell", Varies(cells), "");
             // "The shake lasts as long as the arrest".
             Check("every full punch is arrested and its shake ends within the loop's settling after the arrest", ends == arrests,
