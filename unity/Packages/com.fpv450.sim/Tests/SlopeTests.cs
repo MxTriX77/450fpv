@@ -104,7 +104,10 @@ namespace Fpv450.Sim.Tests
             SlopeScenarios.Ledge l = SlopeScenarios.AtLedge(Drone(), true);
             Print($"the seam's step {l.Step * 1e3:F1} mm: the most on a leg {l.PeakLoad:F1} N, peak {l.PeakAccel:F0} m/s², rise {l.Rise * 1e3:F1} mm, tunnels {l.Tunnels}");
             Assert.That(l.Step, Is.GreaterThan(0.05), "premise: a step the skids meet");
-            Assert.That(l.PeakLoad, Is.LessThan(150));
+            // Under the leg's buckling load (385 N, the cap model 2.2's bug hit when a support read the step's top). Since w9 2.6 the
+            // leg meets the face elastically to its section's yield (157.7 N; model 90's crack and set at the edge's 2.13 N·m let it
+            // give at 50.6 N).
+            Assert.That(l.PeakLoad, Is.LessThan(385));
             Assert.That(l.Rise, Is.LessThan(0.01));
             Assert.That(l.Tunnels, Is.EqualTo(0));
         }

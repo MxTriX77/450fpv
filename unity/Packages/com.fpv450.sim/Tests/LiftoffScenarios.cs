@@ -62,7 +62,7 @@ namespace Fpv450.Sim.Tests
         /// soil); rigid flies without it, the plain-friction ground (μ 0.5/0.4); edit changes the setup (a comparison's).
         /// </summary>
         public static Liftoff Fly(DroneSpec spec, FlightWorld world, Double3 foot, double hover, RainLevel rain, ulong seed, bool glide,
-            double yawDeg = 0, SurfaceTable table = null, bool rigid = false, Action<FlightSetup> edit = null)
+            double yawDeg = 0, SurfaceTable table = null, bool rigid = false, Action<FlightSetup> edit = null, Action<FlightCore> observe = null)
         {
             double yaw = yawDeg / RadToDeg;
             var q = new Quat(0, Math.Sin(yaw / 2), 0, Math.Cos(yaw / 2));
@@ -79,6 +79,7 @@ namespace Fpv450.Sim.Tests
             for (int k = 0; k < 2000; k++)
             {
                 core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = true });
+                observe?.Invoke(core); // a trace (read-only)
                 Count(core, ref r);
             }
             Double3[] corner = new Double3[4];
@@ -101,6 +102,7 @@ namespace Fpv450.Sim.Tests
                 double t = k * FlightCore.Dt;
                 double th = !double.IsNaN(held) ? held : t < RampSeconds ? t / RampSeconds * top : Math.Min(1, top + (t - RampSeconds) * Climb);
                 core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = true, Throttle = th });
+                observe?.Invoke(core); // a trace (read-only)
                 Count(core, ref r);
                 bool any = false;
                 for (int c = 0; c < 4; c++)
