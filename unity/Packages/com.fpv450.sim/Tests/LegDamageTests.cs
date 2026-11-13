@@ -88,7 +88,7 @@ namespace Fpv450.Sim.Tests
         {
             LegDamageSpec s = d.Spec;
             double k = Spec.Legs.Stiffness, p = d.BucklingLoad;
-            double mc = d.CrackMoment(leg, p);
+            double mc = d.YieldMoment(leg, p); // the set starts at the section's yield (w9 2.6)
             double w = mc / (LegDamage.BowMoment * p), bow = LegDamage.BowShortening * w * w / s.FreeLength;
             double quarter = mass / 4, energy = p * p / (2 * k) + p * bow - quarter * G * (p / k + bow);
             return Math.Sqrt(2 * energy / quarter);
@@ -265,7 +265,7 @@ namespace Fpv450.Sim.Tests
         static double PartingEnergy(LegDamage d, int leg, double kl)
         {
             LegDamageSpec s = d.Spec;
-            double lever = d.Lever(leg), mc = d.CrackMoment(leg), f = s.ShapeFactor, kc = mc / (s.Modulus * s.SecondMoment);
+            double lever = d.Lever(leg), mc = d.YieldMoment(leg), f = s.ShapeFactor, kc = mc / (s.Modulus * s.SecondMoment);
             double top = d.PartingMoment(leg) / mc, scale = kc * lever * lever, energy = 0, last = 0;
             const int n = 4000;
             for (int i = 1; i <= n; i++)
