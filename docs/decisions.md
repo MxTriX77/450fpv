@@ -711,6 +711,18 @@ From `p7c-wind` 1.5d's ranking on the physics line (model 97; design 14). Nothin
 - **Part of the rate gap is the footage's measurement.** The rotation-only fit reads the camera's own sideways travel as yaw and its heave as pitch: below 1 Hz a drift of 2–5 cm/s at 1–2 m reads 0.4–1.9 °/s. The footage's hover rate and its bands below 1 Hz are upper bounds on rotation.
 - **So:** in the game the pilot's own hand supplies the heading's motion. The harness cannot grade a hover's heading against the footage until a human's stick in a hover is sized from data: a public dataset of people hovering small rotorcraft by radio is the next source, and failing that one blackbox log of a hover from the pilot's own quad (a question about their own kit, logged). `p7c-wind` 1.5d stays open.
 
+## D-111 The stems keep the undiminished column until the near wake is whole · Accepted
+From `w9-village-physics` 2.13's grade on the physics line (model 97; design 2.13).
+- **The stems can read the fiber's wash** (design 19's law: the near wake, one merged jet with its measured decay and spread, its landing). It is built, checked against the hand calculation at 16 points, and switched off in every flight.
+- **Why it is not flown:** with it most straw under the discs stands. In a vertical landing on Village's densest tall cell 7 / 14 / 20 % of the stems under the discs are folded with the hubs 1.85 / 1.0 / 0.5 m up, against the column's 72 / 71 / 57 %; from a 3 m hover 1–4 %. The pilot: "Usually it lies flat because of prop wash power, but not always." The pilot's account outranks the calculation (D-104).
+- **What the law lacks, traced:**
+  - the short dry culms under the discs sit 1.3–1.7 m below the hubs, in the merged jet's 10–35 Pa, and need 100–400 Pa to fold;
+  - the tall stems stand in each disc's outer ring, where design 19's near wake has no flow: its column does not spread;
+  - only the jet's mean is built, where its turbulence would fold a near-upright dry stem from about 0.6 m.
+  So the far field is right and the near field is incomplete.
+- **What it moved the right way,** for when it flies: twice the fresh cuts at the front discs (137 against 69), and a shake that still grows with the straws' number and thickness (2.4–15.7 °/s across the sweep, against 0.03–9.7).
+- **What decides it** (`w9-village-physics` 2.14): the near wake's contraction and spread and the jets' turbulence on near-upright stems, for the stems and the line together; then the stand's mutual contact. The wash flies for the stems when the folded share meets the pilot's "usually", and when the step's cost in the densest cell (100–150 µs more, unmeasured on a quiet machine) fits the budget.
+
 ## D-112 The wind's slow pitch is the pilot's, not the air's · Accepted
 From `p7c-wind` 1.5c's ranking on the physics line (model 97; design 15). Nothing is built in the wind.
 - **The gap:** with the human harness pilot the drone's slow pitch in Severe wind is about half clip P's (T2 0.144° against 0.28°; the 0.23–0.5 Hz band 0.085° against 0.27°).
