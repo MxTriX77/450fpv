@@ -31,7 +31,7 @@ namespace Fpv450.Sim.Tests
             /// <summary>Nothing NaN or unbounded: the state finite, |v| ≤ MaxSpeed, |ω| ≤ MaxRate, within MaxRange of the start.</summary>
             Finite = 0,
             /// <summary>No frame part, support or skid deeper past the ground's (or a soil shape's) surface than GroundTolerance beyond
-            /// what its corner's soil model says its nodes sank (0 for a frame part).</summary>
+            /// what its corner's soil model says its nodes sank and its leg's own give (both 0 for a frame part).</summary>
             Ground,
             /// <summary>The contacts' moment about the CoM at most Reach times their force's size (the spec's rule for G1).</summary>
             Lever,
@@ -811,7 +811,8 @@ namespace Fpv450.Sim.Tests
                 {
                     r.Judge(Check.Ground);
                     ContactModel cmodel = core.Contacts;
-                    double excess = 0, depthThen = 0, sinkThen = 0;
+                    double excess = 0, depthThen = 0, sinkThen = 0, giveThen = 0;
+                    string stateThen = null;
                     string by = null;
                     for (int i = 0; i < cmodel.ShapeCount; i++)
                     {
@@ -819,26 +820,32 @@ namespace Fpv450.Sim.Tests
                         if (cmodel.ShapeOff(i) || sh.Role != ContactRole.Support && sh.Role != ContactRole.Skid && sh.Role != ContactRole.Body) continue;
                         // A leg's support or skid may lie as deep as its corner's soil says its nodes sank this step (the soil model's own
                         // depth); every part GroundTolerance past that.
-                        double sink = 0;
+                        // A leg's support or skid may also lie as deep as its leg's own give this step: its compression along the
+                        // tube and its lean across it on its lever (the trace's), which the rigid body's geometry shows as overlap
+                        // while the modelled foot stays on the ground.
+                        double sink = 0, give = 0;
                         if (sh.Role != ContactRole.Body && sh.Corner >= 0 && sh.Corner < 4)
                         {
                             ContactModel.SkidSoil soil = cmodel.SoilOf(sh.Corner);
                             if (soil.Engaged) sink = Math.Max(soil.Sink0, Math.Max(soil.Sink1, soil.Sink2));
+                            give = Math.Abs(tr.LegCompression[sh.Corner]) + Math.Abs(tr.LegLean[sh.Corner]);
                         }
                         var cap = new Capsule(s.Position + s.Attitude.Rotate(sh.A), s.Position + s.Attitude.Rotate(sh.B), sh.Radius);
                         int k = Math.Min(_c.Map.StaticContacts(cap, cap, 0, _found, QueryFilter.NoWires), _found.Length);
                         for (int j = 0; j < k; j++)
-                            if (_found[j].Surface != 0 && -_found[j].Distance - sink > excess)
+                            if (_found[j].Surface != 0 && -_found[j].Distance - sink - give > excess)
                             {
-                                excess = -_found[j].Distance - sink;
+                                excess = -_found[j].Distance - sink - give;
                                 depthThen = -_found[j].Distance;
                                 sinkThen = sink;
+                                giveThen = give;
+                                stateThen = sh.Role != ContactRole.Body && sh.Corner >= 0 && sh.Corner < 4 ? cmodel.Corner(sh.Corner).ToString() : "frame";
                                 by = sh.Name;
                             }
                     }
                     r.Worse(Check.Ground, excess);
                     if (excess > GroundTolerance)
-                        r.Fail(Check.Ground, step, $"{by} {depthThen * 1e3:F1} mm past the ground (its soil's sink {sinkThen * 1e3:F1} mm) at {v:F2} m/s");
+                        r.Fail(Check.Ground, step, $"{by} {depthThen * 1e3:F1} mm past the ground (its soil's sink {sinkThen * 1e3:F1} mm, its leg's give {giveThen * 1e3:F1} mm, the corner {stateThen}) at {v:F2} m/s");
                 }
             }
 
