@@ -2041,7 +2041,7 @@ namespace Fpv450.Sim.Tests
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
             int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? ownWake = null)
+            bool? ownWake = null, bool? hull = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -2059,6 +2059,7 @@ namespace Fpv450.Sim.Tests
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
+            Hull(setup, hull, ownWake, layout, airmode, edgewise == false);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
             var record = new byte[LogFormat.StepSize];
@@ -2162,7 +2163,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? hull = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2213,6 +2214,7 @@ namespace Fpv450.Sim.Tests
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
+            Hull(setup, hull, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
             var pilot = new SimPilot(core.Controller, new Double3(0, stand + 1, 0));
@@ -2275,7 +2277,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
             SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? wakes2 = null, bool? ownWake = null)
+            bool? wakes2 = null, bool? ownWake = null, bool? hull = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2301,6 +2303,7 @@ namespace Fpv450.Sim.Tests
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
             edit?.Invoke(setup);
+            Hull(setup, hull, ownWake, layout, airmode, edgewise == false);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
             var pilot = new SimPilot(core.Controller, foot + new Double3(0, stand + 1, 0));
@@ -2428,6 +2431,30 @@ namespace Fpv450.Sim.Tests
         public static void OwnWake(FlightCore core, bool? ownWake, int layout, bool airmode, bool older)
         {
             if (!(ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize))) core.Propulsion.HoverWakeLaw = true;
+        }
+
+        /// <summary>The hull's moment (p7c-wind design 12): hull, or by default on for the current pins and off for every kept audit
+        /// of an older model, the same flights as OwnWake's (airmode on, an older record, an older model's switch, or model 90's own
+        /// wake) and the line before design 18 (model 92's). The audit of design 12 against model 93 is
+        /// GoldenFlightTests.WithoutTheHullEachGoldenIsModel93s.</summary>
+        public static void Hull(FlightSetup setup, bool? hull, bool? ownWake, int layout, bool airmode, bool older)
+        {
+            bool current = ownWake ?? (!airmode && !older && layout >= LogFormat.StepSize);
+            if (!(hull ?? (current && !setup.TetherBeforeDesign18)) && setup.Aero != null) setup.Aero = WithoutTheHull(setup.Aero);
+        }
+
+        /// <summary>The airframe's drag without the hull's moment (every model before p7c-wind design 12).</summary>
+        public static AeroSpec WithoutTheHull(AeroSpec aero)
+        {
+            AeroSpec a = aero.Clone();
+            a.HullFrontalArea = 0;
+            a.HullSize = default;
+            a.HullRatios = null;
+            a.HullAngles = null;
+            a.HullMoments = null;
+            a.HullAddedVolume = default;
+            a.HullPotential = false;
+            return a;
         }
 
         /// <summary>The edgewise flow's thrust and torque (D-087, model 76; RotorFlappingSpec.EdgewiseThrust) in a golden flight: edgewise,
