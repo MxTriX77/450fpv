@@ -69,8 +69,9 @@ namespace Fpv450.Sim.Flight
     /// - the prop: T = k_T(rpm)·f_T(J)·ω² and Q = κ·k_T·q(rpm)·f_Q(J)·ω², drone.json's published tables of the
     ///   static coefficients against rpm (C_T rises with rpm) and against the advance ratio J = V_a/(n·D) of the
     ///   axial inflow through the disc (the forward-flight derate, PHB-03): never a flat factor. A descending rotor
-    ///   (J below 0) keeps the static slope to DescentAdvanceRatioLimit, then holds; the vortex ring replaces that
-    ///   branch in p7b-airframe.
+    ///   (J below 0) follows the table's first segment's slope and its first two segments' curvature, its freestream held at
+    ///   DescentAdvanceRatioLimit; the vortex ring adds its inflow over that branch (p7b-airframe), and the ring's, the wash's
+    ///   and the own wake's inflow move the blades both ways about it, to the curve's vertex, the blade's stall (design 3h).
     /// - the ESC's current limit (drone.json's esc_current_limit_a; the policy of p6-flight-core 1.5): an ESC whose
     ///   motor would draw more than the limit while driving lowers its effective duty to d' = (I_lim·R + Ke·ω)/V, so
     ///   the motor's current is the limit, as BLHeli_32's per-ESC current protection does (its manual: fast enough
@@ -140,6 +141,9 @@ namespace Fpv450.Sim.Flight
         readonly bool _unbalanced;
         readonly double _kT, _kQ, _diameter, _hPerSpeed;
         readonly double[] _rpm, _rpmThrust, _rpmTorque, _j, _jThrust, _jTorque;
+        // Below J 0 (design 3h): each table's first two segments' curvature, and the thrust's vertex, the blade's stall, where
+        // the curves are held.
+        readonly double _thrustCurve, _torqueCurve, _stallAdvance;
         readonly double[] _series = new double[2], _conductance = new double[2], _capacity = new double[2];
 
         // The ESCs on a disarm (EscDisarm): each one's speed below which its firmware leaves the run loop (rad/s; +∞ for
@@ -320,6 +324,9 @@ namespace Fpv450.Sim.Flight
             _j = p.InflowAdvanceRatio;
             _jThrust = p.InflowThrustRatio;
             _jTorque = p.InflowTorqueRatio;
+            Curve(_jThrust, out double thrustSlope, out _thrustCurve);
+            Curve(_jTorque, out _, out _torqueCurve);
+            _stallAdvance = _thrustCurve < 0 && thrustSlope < 0 ? -thrustSlope / _thrustCurve : double.NegativeInfinity;
             for (int k = 0; k < 2; k++)
             {
                 DronePack pack = spec.Packs[k];
@@ -399,6 +406,14 @@ namespace Fpv450.Sim.Flight
         /// replay.
         /// </summary>
         public bool HoverWakeLaw { get; set; }
+
+        /// <summary>
+        /// Model 94's descent branch (p7b-airframe design 3h's kept audit): below J 0 the tables' first segments continued in a line
+        /// to DescentAdvanceRatioLimit and the ring's, the wash's and the wake's inflow clipped there again with the freestream's.
+        /// Off in a flight. Not in a spec, so the header does not record it (as HoverWakeLaw): a flight flown with it on is a kept
+        /// audit's or a bench's, never recorded for a replay.
+        /// </summary>
+        public bool ClippedDescentBranch { get; set; }
 
         /// <summary>The inflow over v_h of a thrust share at hover, through the props' static slope (derived).</summary>
         public double ShareToInflow => _shareToInflow;
@@ -1329,9 +1344,10 @@ namespace Fpv450.Sim.Flight
             }
             double rpm = w * (60 / TwoPi);
             double advance = va / (w * (_diameter / TwoPi));
+            double held = advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit);
             double w2 = w * w;
-            thrust = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, advance) * w2;
-            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, advance) * w2;
+            thrust = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, _thrustCurve, held) * w2;
+            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, _torqueCurve, held) * w2;
         }
 
         // A rotor's thrust and torque at speed w with this step's inflow (Aero), and with its vortex ring when the rotors
@@ -1339,7 +1355,9 @@ namespace Fpv450.Sim.Flight
         // scales the thrust; _meanThrust keeps the thrust without the fluctuation (in the ring the torque keeps the
         // freestream's, as measured). With the ground and the ceiling, the re-ingested wash's inflow joins the ring's and the
         // surfaces' gain scales the thrust; the rotor's own wake (D-064) joins the wash. The wash and the wake move the
-        // torque's advance ratio too: the blades see that inflow, so the props' published torque against J answers it.
+        // torque's advance ratio too: the blades see that inflow, so the props' published torque against J answers it. Only the
+        // freestream's advance ratio is held at the descent limit: what the ring, the wash and the wake add passes both ways
+        // (design 3h; ClippedDescentBranch clips it there again, model 94's).
         void RotorAero(int i, double w, out double thrust, out double torque)
         {
             if ((_lost & (1 << i)) != 0)
@@ -1376,10 +1394,10 @@ namespace Fpv450.Sim.Flight
             double own = (_ground == null ? 0 : _washInflow[i]) + (_wake == null ? 0 : _wakeInflow[i]);
             double held = advance >= 0 ? advance : DetMath.Max(advance, DescentAdvanceRatioLimit);
             double j = held + (_ringInflow[i] + own) * _ringAdvance / w;
-            double mean = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, j) * w2;
+            double mean = _kT * Table(_rpm, _rpmThrust, rpm) * InflowRatio(_jThrust, _thrustCurve, j) * w2;
             if (_ground != null) mean *= _surfaceGain[i];
-            double jq = own == 0 ? advance : held + own * _ringAdvance / w;
-            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, jq) * w2;
+            double jq = own == 0 ? held : held + own * _ringAdvance / w;
+            torque = _kQ * Table(_rpm, _rpmTorque, rpm) * InflowRatio(_jTorque, _torqueCurve, jq) * w2;
             if (_edgeThrust != null) Edgewise(j, jq, _inPlaneSpeed[i] / (w * (0.5 * _diameter)), ref mean, ref torque);
             bool damaged = (_damaged & (1 << i)) != 0;
             if (damaged)
@@ -1412,12 +1430,31 @@ namespace Fpv450.Sim.Flight
             r.Loads(jt, jq, thrust, torque, out _momentP[i], out _momentQ[i], out _forceP[i], out _forceQ[i]);
         }
 
-        // A ratio against the advance ratio: the table, its first segment continued below 0 to the descent limit.
-        double InflowRatio(double[] ratio, double advance)
+        // A ratio against the advance ratio: the table; below 0 its first segment's slope with its first two segments' curvature
+        // (design 3h: the blade's own curve, both ways about any held point), held at the thrust's vertex, the blade's stall. The
+        // freestream's advance ratio is held at the descent limit by the callers. ClippedDescentBranch: model 94's line, clipped
+        // at the limit.
+        double InflowRatio(double[] ratio, double curve, double advance)
         {
             if (advance >= 0) return Table(_j, ratio, advance);
-            double j = DetMath.Max(advance, DescentAdvanceRatioLimit);
-            return ratio[0] + j * (ratio[1] - ratio[0]) / (_j[1] - _j[0]);
+            if (ClippedDescentBranch)
+            {
+                double clipped = DetMath.Max(advance, DescentAdvanceRatioLimit);
+                return ratio[0] + clipped * (ratio[1] - ratio[0]) / (_j[1] - _j[0]);
+            }
+            double j = DetMath.Max(advance, _stallAdvance);
+            return ratio[0] + j * ((ratio[1] - ratio[0]) / (_j[1] - _j[0]) + 0.5 * curve * j);
+        }
+
+        // A table's first segment's slope and the curvature of its first two segments (the change of their slopes over the
+        // distance between their middles), per unit advance ratio (design 3h). 0 for a table of fewer than three points.
+        void Curve(double[] ratio, out double slope, out double curve)
+        {
+            slope = (ratio[1] - ratio[0]) / (_j[1] - _j[0]);
+            curve = 0;
+            if (_j.Length < 3) return;
+            double next = (ratio[2] - ratio[1]) / (_j[2] - _j[1]);
+            curve = (next - slope) / (0.5 * (_j[2] - _j[0]));
         }
 
         // Linear between the points, held at the ends.
