@@ -152,16 +152,17 @@ namespace Fpv450.Sim.Flight
         /// The audit against model 94 and the harness's known-wrong for the wash, never a pilot's flight.</summary>
         public bool TetherWakeReach4R;
 
-        /// <summary>tether.json's table for the stems' air in a flight without the line (w9-village-physics 2.13): the props'
-        /// stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads (RotorAir). With the line
-        /// the line's table is read and this one is not. Null with no line: the stems fly the undiminished column (StemColumn),
-        /// and the header says so. The header records its rows and hash.</summary>
+        /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
+        /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
+        /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the
+        /// stems read it.</summary>
         public Tether.TetherTable StemAir;
 
-        /// <summary>The known-wrong stems' slipstream (w9-village-physics 2.12's, model 97's): q = T/A on every stem based within
-        /// R of a disc's axis at any height under PropStrikes.StemWakeTop, its swirl, nothing elsewhere. The audit against model
-        /// 97 and the stems' known-wrong for the wash with distance, never a pilot's flight.</summary>
-        public bool StemColumn;
+        /// <summary>The stems under the wash with distance (w9-village-physics 2.13, a test's or a bench's option, D-111): the
+        /// props' stems read design 19's law of the rotors' air (the line's table, or StemAir) in place of 2.12's slipstream
+        /// (q = T/A on every stem based within R of a disc's axis, its swirl, nothing elsewhere), which every flight flies until
+        /// the near wake's spread and the jets' turbulence are built. Off: model 98's stems.</summary>
+        public bool StemWash;
 
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
@@ -402,10 +403,10 @@ namespace Fpv450.Sim.Flight
                 if (_propulsion != null && setup.Propulsion.Rotor != null && setup.Contacts.BladeStrikes)
                 {
                     _strikes = new Contact.PropStrikes(_contacts, World, _propulsion, setup.Propulsion, Random);
-                    // The stems read the line's law of the rotors' air (w9-village-physics 2.13): the line's table and switches,
-                    // or tether.json's for the stems alone; with neither, or the known-wrong, 2.12's undiminished column.
+                    // On request the stems read the line's law of the rotors' air (w9-village-physics 2.13, D-111): the line's
+                    // table and switches, or tether.json's for the stems alone; otherwise 2.12's column.
                     Tether.TetherTable air = setup.Tether ?? setup.StemAir;
-                    if (air != null && !setup.StemColumn)
+                    if (air != null && setup.StemWash)
                         _strikes.UseWash(air, setup.Propulsion, _wind, !setup.TetherDesign4Air, !setup.TetherFountainThroughBody,
                             setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air);
                 }

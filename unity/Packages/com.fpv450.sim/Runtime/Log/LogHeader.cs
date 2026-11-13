@@ -120,7 +120,7 @@ namespace Fpv450.Sim.Log
             "TetherSlidingTrail",
             "TetherBeforeDesign18",
             "TetherWakeReach4R",
-            "StemAir", "StemColumn",
+            "StemAir", "StemWash",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -378,11 +378,11 @@ namespace Fpv450.Sim.Log
         public bool TetherBeforeDesign18;
         public bool TetherWakeReach4R;
 
-        /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): tether.json's rows and hash read by the
-        /// props' stems in a flight without the line (FlightSetup.StemAir; null with the line or none), and whether the stems
-        /// flew 2.12's undiminished column (FlightSetup.StemColumn, or no table to read; every log without the entry did).</summary>
+        /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
+        /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
+        /// they read without the line (FlightSetup.StemAir; null with the line, or without the wash).</summary>
         public TetherTable StemAir;
-        public bool StemColumn;
+        public bool StemWash;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -479,8 +479,8 @@ namespace Fpv450.Sim.Log
                 TetherSlidingTrail = setup.TetherSlidingTrail,
                 TetherBeforeDesign18 = setup.TetherBeforeDesign18,
                 TetherWakeReach4R = setup.TetherWakeReach4R,
-                StemAir = setup.Tether == null ? setup.StemAir : null,
-                StemColumn = setup.StemColumn || (setup.Tether ?? setup.StemAir) == null,
+                StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
+                StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -601,7 +601,7 @@ namespace Fpv450.Sim.Log
                 TetherBeforeDesign18 = TetherBeforeDesign18,
                 TetherWakeReach4R = TetherWakeReach4R,
                 StemAir = StemAir,
-                StemColumn = StemColumn,
+                StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -1356,12 +1356,12 @@ namespace Fpv450.Sim.Log
                     }
                 }
             });
-            // The stems' air since w9-village-physics 2.13, an entry of its own as the stems' (no format change): the column
+            // The stems' air since w9-village-physics 2.13, an entry of its own as the stems' (no format change): the wash's
             // switch, then tether.json's rows and hash when the stems read them without the line. A log without it flew 2.12's
             // column.
             Entry(w, TagStemAir, e =>
             {
-                e.Write(StemColumn);
+                e.Write(StemWash);
                 e.Write(StemAir != null);
                 if (StemAir == null) return;
                 e.Write(StemAir.ContentHash);
@@ -1534,7 +1534,7 @@ namespace Fpv450.Sim.Log
                         break;
                     case TagStemAir:
                         sawStemAir = true;
-                        StemColumn = r.ReadBoolean();
+                        StemWash = r.ReadBoolean();
                         StemAir = null;
                         if (!r.ReadBoolean()) break;
                         ulong airHash = r.ReadUInt64();
@@ -1938,8 +1938,8 @@ namespace Fpv450.Sim.Log
             }
             if (!sawStemAir)
             {
-                // Before w9-village-physics 2.13 the stems flew 2.12's undiminished column.
-                StemColumn = true;
+                // Before w9-village-physics 2.13 the stems flew 2.12's column.
+                StemWash = false;
                 StemAir = null;
             }
             if (!sawGround && Contacts != null)

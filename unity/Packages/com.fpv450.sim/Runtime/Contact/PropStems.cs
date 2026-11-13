@@ -28,7 +28,8 @@ namespace Fpv450.Sim.Contact
     ///   at ⅔·L·cos φ over its base on its vertical, with its near column's swirl, refreshed every StemAirRefresh steps by its
     ///   slot; its load normal to it in its plane of lean is ½ρ·C_d·d·|u_φ|·u_φ a length, so m(φ) = (φ − φ₀) − K·|u_φ|·u_φ − G·sin φ,
     ///   K = ½ρ·C_d·d·L³/(8EI): 2.12's A·sin²φ under a vertical jet, the whole cross-flow on a standing stem in a wall jet, and
-    ///   the fountain standing it up. Without it (FlightSetup.StemColumn, or no table) the slipstream is 2.12's, above.
+    ///   the fountain standing it up. Off by default (D-111: its near field waits for the near wake's spread and the jets'
+    ///   turbulence); without FlightSetup.StemWash, or with no table, the slipstream is 2.12's, above.
     /// The step's cuts go to BladeStrikes (StrikeKind.Stem), a rotor's episode to the log (StemEpisode, start and end), the cut
     /// pieces to the feed (FeedSignals.StemCuts…); a stem's force goes through Breaks as a twig's does.
     /// </summary>
@@ -639,7 +640,7 @@ namespace Fpv450.Sim.Contact
                         if (_sLoaded[s] != step)
                         {
                             _sLoaded[s] = step;
-                            _sQ[s] = StemAir(k, s, step);
+                            _sQ[s] = StemLean ? StemAir(k, s, step) : 0; // the known-wrong folds nothing, as 2.12's
                         }
                         Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
                         if (!(Double3.Dot(flat, flat) <= R * R)) continue;
