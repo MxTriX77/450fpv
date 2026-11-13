@@ -146,6 +146,12 @@ namespace Fpv450.Sim.Flight
         /// never a pilot's flight.</summary>
         public bool TetherBeforeDesign18;
 
+        /// <summary>The known-wrong wash below the rotors before p7d-tether design 19 (model 94's): each disc's column at 2v_i
+        /// without end, and a wall jet on the ground only when a disc stands within rotor_air.wake_reach_over_radius (4 R) along
+        /// its wake; no merged far jet. TetherBeforeDesign18 and TetherDesign4Air imply it (every kept audit of an older line).
+        /// The audit against model 94 and the harness's known-wrong for the wash, never a pilot's flight.</summary>
+        public bool TetherWakeReach4R;
+
         /// <summary>The gyro's full scale, °/s (p7f-damage 1.6, the losses, model 72): each axis the flight controller reads is clipped to ±it,
         /// as its sensor's range does: 2000 (published: Betaflight 4.5's ICM-426xx driver sets INV_FSR_2000DPS; the class's SpeedyBee
         /// F405 V4 carries an ICM-42688-P; its BMI270 and MPU-6000 drivers set ±2000 too). 0: no range, model 68's clean gyro.</summary>

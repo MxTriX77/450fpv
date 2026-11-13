@@ -603,6 +603,18 @@ namespace Fpv450.Sim.Tests
             Double3 sum = default;
             bool inColumn = false;
             var below = new bool[4];
+            // Design 19, written apart: the merged jet from the hubs' centre along the wakes' mean direction, its share
+            // w(s) = (s/l − 1)/1.5 clamped; the near columns weighted 1 − w(s), their landings 1 − w(s_g) (RotorAir.NearShare).
+            Double3 centre = default, axis = default;
+            for (int m = 0; m < 4; m++)
+            {
+                centre = centre + (s.Position + s.Attitude.Rotate(core.Propulsion.Hub(m))) * 0.25;
+                axis = axis + air.Wake(m);
+            }
+            axis = axis * (1 / axis.Length());
+            double l = air.MotorDistance, along = Double3.Dot(p - centre, axis);
+            double Share(double d) => Math.Min(1, Math.Max(0, (d / l - 1) / 1.5));
+            double columnShare = 1 - Share(along), near = air.NearShare;
             for (int m = 0; m < 4; m++)
             {
                 double vi = air.Induced(m);
@@ -620,9 +632,9 @@ namespace Fpv450.Sim.Tests
                 }
                 Double3 w = air.Wake(m);
                 double h = Double3.Dot(q, w);
-                if (h > 0 && (q - w * h).Length() < wakeRadius && (!air.Lands(m) || p.Y > 0))
+                if (h > 0 && (q - w * h).Length() < wakeRadius && (!air.Lands(m) || p.Y > 0) && columnShare > 0)
                 {
-                    sum = sum - n * (2 * vi);
+                    sum = sum - n * (2 * vi * columnShare);
                     inColumn = true;
                     continue;
                 }
@@ -630,14 +642,47 @@ namespace Fpv450.Sim.Tests
                 Double3 land = air.Landing(m);
                 double dx = p.X - land.X, dz = p.Z - land.Z, r = Math.Sqrt(dx * dx + dz * dz);
                 if (!(r > wakeRadius)) continue;
-                double u = Math.PI * radius * radius * vi / (2 * Math.PI * r * jet);
+                double u = Math.PI * radius * radius * vi / (2 * Math.PI * r * jet) * near;
                 sum = sum + new Double3(dx / r * u, 0, dz / r * u);
             }
+            // The merged jet: Bauersfeld et al.'s U_C and r½ on the Tollmien profile, falling linearly over r_i/2 above the floor
+            // where it lands; its wall jet u_m = U_g·r/r_i inside r_i, U_g·(r_i/r)^1.1 beyond, Verhoff's profile on
+            // δ = 0.098·R·(R/H)^−0.1, H = s_g + 5.817·l (the floor at 0).
+            double sj = Share(along);
+            if (sj > 0)
+            {
+                double x = along / l + 5.817, half = 0.07668 * x * l, off = (p - centre - axis * along).Length();
+                double u = air.FarSpeed * 10.11 / x / Math.Pow(1 + (Math.Sqrt(2) - 1) * off * off / (half * half), 2) * sj;
+                if (air.FarLands && p.Y < 0.5 * air.FarStart) u = p.Y > 0 ? u * p.Y / (0.5 * air.FarStart) : 0;
+                sum = sum + axis * u;
+            }
+            if (air.FarLands && p.Y > 0)
+            {
+                double dx = p.X - air.FarLanding.X, dz = p.Z - air.FarLanding.Z, r = Math.Sqrt(dx * dx + dz * dz);
+                double ri = air.FarStart, big = Math.Max(r, ri), sg = centre.Y / -axis.Y, hv = sg + 5.817 * l;
+                double um = r < ri ? air.FarGroundSpeed * r / ri : air.FarGroundSpeed * Math.Pow(ri / r, 1.1);
+                double eta = p.Y / (0.098 * big * Math.Pow(big / hv, -0.1));
+                double u = um * 1.48 * Math.Pow(eta, 1.0 / 7) * (1 - Erf(0.68 * eta)) * air.FarLandingShare;
+                if (r > 0) sum = sum + new Double3(dx / r * u, 0, dz / r * u);
+            }
             if (!air.Recirculation) return sum;
-            if (!inColumn) sum = sum + new Double3(0, ExpectedFountain(air, table, p, 0, below), 0); // the floor at 0
+            if (!inColumn) sum = sum + new Double3(0, ExpectedFountain(air, table, p, 0, below) * near, 0); // the floor at 0
             for (int m = 0; m < 4; m++)
                 sum = sum + ExpectedVortex(air, p, m, 0);
             return sum;
+        }
+
+        // erf by its series (the test's own; erfc(5) = 1.5e-12).
+        static double Erf(double x)
+        {
+            if (x > 5) return 1;
+            double sum = 0, term = x;
+            for (int k = 0; k < 200; k++)
+            {
+                sum += term / (2 * k + 1);
+                term *= -x * x / (k + 1);
+            }
+            return 2 / Math.Sqrt(Math.PI) * sum;
         }
 
         /// <summary>

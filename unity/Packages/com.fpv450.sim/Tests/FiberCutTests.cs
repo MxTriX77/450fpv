@@ -908,14 +908,34 @@ namespace Fpv450.Sim.Tests
                     }
                 }
                 Double3 b1 = s.Attitude.InverseRotate(c[n - 2].Position - s.Position);
-                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}{(Environment.GetEnvironmentVariable("FIBER_NODES") == "1" ? Near(c) : "")}{(Environment.GetEnvironmentVariable("FIBER_SPOOL") == "1" ? $" | spool paying {c.SpoolPaying} exitT {c.SpoolExitTension:0.000} pack {c.SpoolPackTension:0.000} lip {c.Spool.Lip:0.000} peel {c.Spool.Peel:0.0000} paid {c.SpoolPaid * 1e3:0.000} mm seg {(c[n - 1].Position - c[n - 2].Position).Length() * 1e3:0.00} mm rest {(c[n - 1].Material - c[n - 2].Material) * 1e3:0.00} mm" : "")}");
+                string wash = "";
+                if (Environment.GetEnvironmentVariable("FIBER_AIR") == "1" && l.Rotors != null)
+                {
+                    // Design 19's forensics: the merged jet's landing and the line's air (the wind is Calm's) at its lowest and highest nodes.
+                    RotorAir ra = l.Rotors;
+                    double flat = 0, rise = 0, low = double.PositiveInfinity, top = double.NegativeInfinity;
+                    int lifted = 0;
+                    for (int i = 0; i < l.LoadCount; i++)
+                    {
+                        Double3 a = l.LoadAir(i), lift = l.LoadLift(i);
+                        double hz = DetMath.Sqrt(a.X * a.X + a.Z * a.Z);
+                        if (lift.Y > 0) { lifted++; if (hz > flat) flat = hz; } // a node lying in the air along the ground: the wall lifts it
+                        if (a.Y > rise) rise = a.Y;
+                        low = DetMath.Min(low, l.LoadPoint(i).Y);
+                        top = DetMath.Max(top, l.LoadPoint(i).Y);
+                    }
+                    top -= low;
+                    wash = $" | wash near {ra.NearShare:0.00} far {(ra.FarLands ? $"U_g {ra.FarGroundSpeed:0.0} r_i {ra.FarStart:0.00} at ({ra.FarLanding.X:0.00},{ra.FarLanding.Z:0.00})" : "-")} line: {lifted} nodes wall-lifted, at most {flat:0.00} m/s along the ground; up {rise:0.00} m/s; its highest node {top:0.000} m over its lowest";
+                }
+                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00}{wash} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}{(Environment.GetEnvironmentVariable("FIBER_NODES") == "1" ? Near(c) : "")}{(Environment.GetEnvironmentVariable("FIBER_SPOOL") == "1" ? $" | spool paying {c.SpoolPaying} exitT {c.SpoolExitTension:0.000} pack {c.SpoolPackTension:0.000} lip {c.Spool.Lip:0.000} peel {c.Spool.Peel:0.0000} paid {c.SpoolPaid * 1e3:0.000} mm seg {(c[n - 1].Position - c[n - 2].Position).Length() * 1e3:0.00} mm rest {(c[n - 1].Material - c[n - 2].Material) * 1e3:0.00} mm" : "")}");
             };
             FiberCutScenarios.Outcome o;
             try
             {
+                Action<FlightSetup> wake = Environment.GetEnvironmentVariable("FIBER_WAKE") == "4R" ? x => x.TetherWakeReach4R = true : null;
                 o = which == "pitchback" ? FiberCutScenarios.PitchBack(spec, WindLevel.Calm, seed, null, speed)
-                    : which == "sharp" ? FiberCutScenarios.Liftoff(spec, true, seed)
-                    : which == "backward" ? FiberCutScenarios.Backward(spec, seed)
+                    : which == "sharp" ? FiberCutScenarios.Liftoff(spec, true, seed, wake)
+                    : which == "backward" ? FiberCutScenarios.Backward(spec, seed, wake)
                     : which == "cruise" ? FiberCutScenarios.Turn(spec, WindLevel.Windy, seed, 27.8, 0).O
                     : which == "backlow" ? FiberCutScenarios.Backward(spec, seed, null, 3, double.TryParse(Environment.GetEnvironmentVariable("FIBER_HEIGHT"), out double h) ? h : 0.4)
                     : FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, seed, null, speed);
