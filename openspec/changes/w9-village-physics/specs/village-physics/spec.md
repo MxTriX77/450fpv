@@ -44,8 +44,12 @@ The sim SHALL query, per cell of the farmland, the grass and straw there: stems 
 A rotor whose blade disc meets grass, straw or crown leaves SHALL strike and cut stems, each cut taking an impulse and an energy from published stem properties (diameter, density, cutting energy or shear strength) out of the rotor's torque and thrust. Stems the downwash bends away, or that the blade meets below their critical cutting speed, SHALL escape uncut. The drone's shaking SHALL be that impulse train through the airframe and the rotors' speed dips through the flight controller, never noise on the pose (PHY-05, PHY-24, PHY-26).
 
 #### Scenario: Landing in tall straw
-- **WHEN** a scripted landing (seeded) descends at 0.5 m/s into the farmland's densest tall cell
-- **THEN** the log shows each blade's cuts per step with their stem kind and energy and one stem episode per rotor (event kind 39), the rotors' speed dips by the computed torque, the body's vibration has its peak at the blade-pass frequency with an amplitude computed from the impulses (printed against the hand calculation in design.md within 10 %), and no random value is added to the pose
+- **WHEN** a scripted landing (seeded) comes down into the farmland's densest tall cell, vertically after a hover over it and as the pilot's approach (2 m/s forward, 0.5 m/s down, a flare, the touch)
+- **THEN** the field's stems stand as the world places them, each with the diameter of its drawn length and able to stand under its own weight; the slipstream folds most of those under a disc and not all; the front discs cut more than the rear ones on the approach; the cuts a front disc's leading edge meets in a creep are within 10 % of the hand calculation in design.md, and their work too; each cut is a discrete hit in the log (the blade's strikes, and a stem episode per rotor, event kind 39); the rotors' speed dips by the computed torque; and no random value is added to the pose
+
+#### Scenario: The shake grows with the straw
+- **WHEN** the same vertical landing is flown over a sweep of the stand's density (half to twice) and the stalks' diameter (0.75 to 1.5 times)
+- **THEN** the body's roll and pitch rate at 4–15 Hz and the rotors' speed dips grow with the density and with the diameter, from a shake a pilot lands through to one that stalls a rotor, with no threshold tuned; the log replays bit for bit with 0 B allocated in steady state
 
 #### Scenario: A hover cuts itself clear
 - **WHEN** the drone hovers with its discs inside standing grass for 10 s

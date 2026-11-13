@@ -1,6 +1,6 @@
 # Tasks: w7-farmland-wind
 
-Order: 1.1, then 1.2; 1.3 after W3's 2.4 (merge `--w3-ground` in first); then 2.1. Branch `unity/physics/physics-integration-2--w7-wind`, cut from `--w3-ground` at 23e1b148 (W3 1.2's objects merged back). Merge `--w3-ground` in again before 2.1 if it has moved. It merges onto the line after W3.
+Order: 1.1, then 1.2, then 2.1. 1.1 merged into `--w3-ground` (595ca9fa), so W7 landed with W3. 1.2 was built on `unity/physics/physics-integration-2--w7-wind` (cut from `--w3-ground` at 23e1b148) and merged onto the physics line by `unity/physics/physics-integration-2--w9-wind` as model 88.
 
 ## 1. The wind over the farmland
 
@@ -19,17 +19,23 @@ Order: 1.1, then 1.2; 1.3 after W3's 2.4 (merge `--w3-ground` in first); then 2.
   - Determinism (IEEE basic operations, `DetMath`), 0 B in steady state, bit-exact replays, and the wind's cost within PLT-04.
   - Write design.md.
   - Checks: `dotnet test tools/simtests`, worldbench and flightbench `--golden`, flightbench `--slopes`, `python tools/hygiene/precommit.py --tree HEAD`.
-- [ ] 1.2 [physics-engineer] The belts and the village.
+- [x] 1.2 [physics-engineer] The belts and the village.
+  - **On the line** (design.md, "On the line: model 88"): merged onto the physics line at 2955136e (model 86) by `unity/physics/physics-integration-2--w9-wind` as **model 88** (D-072; 87 is the stems'). One conflict, `LogFormat.cs`'s notes, resolved by giving 1.2 model 88's own note. Goldens: only the two farmland version stamps move (`farmland_wind.version` 1.86 → 1.88, `farmland_shelter.version` 2.84 → 2.88); every shelter row hashes as on its branch. Behind F7's hedge at 5 / 10 H the line read 0.71 / 0.85 and now 0.63 / 0.78 (Brandle's 0.50 / 0.65); behind Ruin_RoofCollapsed the line had no reverse flow and now has one to 2.0 H. A Village flight in Windy replays bit for bit on version 2 and on version 1.
+  - As built (design.md, decisions 4–6; built as model 84 extended, on the line as model 88; WakeGrid version 2):
+    - **What the check found:** the farmland has no shelterbelt (no "posadka" group): its trees stand in groves and short rows, its bushes in field-edge hedges, its ruins are thin-walled shells. The wake grid kept only the nearest obstacle, so F7's hedge cut the F6|F7 trees' wake at 6 m (0.54 to 1.00); and its cell porosity rule diluted thin walls, missed them between samples and multiplied stacked courses and trunks under crowns.
+    - **The lane's frontal porosity** (`WakeObstacles.Transmission`): solids opaque however thin, porous parts by Beer–Lambert over their chord, parts at different heights side by side; a cell is an obstacle where a footprint overlaps it.
+    - **The overlying wake:** each cell also keeps the nearest taller obstacle upwind; the speeds multiply and the excess variances add. The two slots halve the shelter dropped (bound > 0.1 in 11–16 % of the farmland's wake cells against 24–29 %).
+    - **The porous boost** scales with (1 − β), anchored at the fit's 0.45.
+    - **Version 1** is kept bit for bit behind `WakeLayout.Version` (logged); the kept audits fly it.
+    - **Rows** (`worldbench`, `golden/farmland-shelter.txt`) against Brandle, Zhou and Hodges 2002 (read): F7's hedge, 25 % dense, 0.63 / 0.78 / 0.84 / 0.87 / 0.92 at 5 / 10 / 15 / 20 / 30 H against 0.50 / 0.65 / 0.80 / 0.85 / 1.00, within a class step; F6|F7's short tree pairs; behind the east pair 0.72–0.74 at 2–5 H where the nearest wake alone reads 0.95; Ruin_RoofCollapsed's reverse flow to 2.0 H against Fackrell's 2.10 H; Ruin_Stump inside its cavity at −0.24 to −0.30 where the nearest wake alone reads +0.66 to +0.75.
+    - **Goldens:** worldbench `wakes` re-recorded at version 2 (the fixture belt's β 0.473 → 0.466, still Perera's), `farmland-shelter` new, the rest unchanged; the range golden flight re-pinned (version 1 gives model 76's pin, version 2 at most 1.7 mm and 0.02° from it); the cut's and the map's wind pins re-pinned with version 1 kept; the house check moved to H01_I; every kept audit holds; `--slopes` the base's.
+    - **Costs** (shared machine): the farmland's grid builds in 0.62 s over the cores (0.36–0.42), rebuilds in 1.15–1.39 s on the worker (0.54–0.96, inside the 3 s takeover), samples in 0.79–0.85 µs (0.49–0.59), 64 MB a grid (32).
   - Check the wakes and canopy flow behind the farmland's tree belts and in the village against published shelterbelt data. Fix what is missing from the physics, not a tuned value.
   - Rows behind a belt and in the village, as goldens.
   - Wind and world code only; the tether stays as it is (1.3).
   - Model 84, extended, with every moved golden audited case by case.
   - Checks: as 1.1, plus `dotnet test tools/inputtests`.
-- [ ] 1.3 [physics-engineer] The laid fiber rests. After W3's 2.4 has landed on `--w3-ground`, merge it in first; 2.4 owns the fiber's contacts and `FiberLine.Ground`.
-  - A rest test for laid nodes: a node that the ground holds in still air freezes into the trail, and wakes when its wind, its contacts or the line's tension say so.
-  - Cast a node's soil over a hole once a step, shared between the wind posting and the tether's ground pass.
-  - Rerun `flightbench --bench farmland-line-step` in Severe wind. Report the far nodes' speeds, how many freeze, and the step's p99 before and after.
-  - Model 84, extended, goldens audited. Checks: as 1.2.
+- 1.3 moved: the laid fiber's rest (the rest test, the shared soil cast, the Severe re-run) is W3's task 2.4 (`w3-farmland-ground`), because 2.4 owns the tether and W7 1.1 had already merged into `--w3-ground`.
 
 ## 2. Review
 

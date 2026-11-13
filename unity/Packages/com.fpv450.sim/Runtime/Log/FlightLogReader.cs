@@ -583,7 +583,7 @@ namespace Fpv450.Sim.Log
             foreach (NamedValue v in h.WindParameters) text += ", " + v.Name + " " + G(v.Value);
             WakeLayout b = h.Wind.Wakes;
             if (b != null)
-                text += "; wakes (p7c-wind 1.5, wake grid version " + WakeGrid.Version + "): " + b.Volumes.Length + " wind volumes on "
+                text += "; wakes (p7c-wind 1.5, wake grid version " + b.Version + "): " + b.Volumes.Length + " wind volumes on "
                     + b.NX + " × " + b.NZ + " cells of 2 m from " + G(b.OriginX) + ", " + G(b.OriginZ) + " m";
             GustFront f = h.Wind.Front;
             if (f != null)

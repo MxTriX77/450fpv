@@ -862,10 +862,33 @@ namespace Fpv450.Sim.Log
         ///    lever with it, to 19–87 m in a few steps (1,455 N·m on 41.5 N at 9.98° weeds). ContactModel.AnchorReach off (unlogged, the suite's) is 85's
         ///    slide, the known-wrong. A flight whose stretches stay within the reach steps as 85 did.
         ///    Also under 86 (w9-village-physics 2.7): a resting blade's load radius is held to its tip, and no blade breaks at a
-        ///    station at or past its tip. The stems on the props (2.2, PropStems) fly on this line under 86 until model 87
-        ///    names them together with 2.12's stalks.
+        ///    station at or past its tip. The stems on the props (2.2, PropStems) flew on this line under 86 and 88 until model
+        ///    89 named them together with 2.12's stalks (87 was never used).
+        /// 88: the wind over the farmland's belts and ruins (w7-farmland-wind 1.2, on 86; built on
+        ///    unity/physics/physics-integration-2--w7-wind as 84 extended, merged onto the line by
+        ///    unity/physics/physics-integration-2--w9-wind; assigned by D-072, 87 is the stems' line): the wake grid's version 2
+        ///    (WakeGrid.Version, logged per flight in the wind entry as WakeLayout.Version; a log of version 1 replays its own
+        ///    grid). The farmland has no shelterbelt: its trees stand in groves and short rows, its bushes in hedges, its ruins are
+        ///    thin-walled shells, and version 1 read them wrong. Its cell rule diluted a 0.24 m wall or missed it between samples,
+        ///    multiplied a wall's stacked courses and a trunk under its crown as if in series, and the grid kept the nearest wake
+        ///    alone, so a hedge 14 m behind a tree row ended the row's shelter. Now an obstacle's porosity is its frontal porosity
+        ///    across each lane from its volumes' geometry (WakeObstacles.Transmission: solids opaque however thin, porous parts by
+        ///    Beer–Lambert over their chord, parts at different heights side by side; a cell is an obstacle where a volume's
+        ///    footprint overlaps it), each cell carries the overlying wake of the nearest taller obstacle upwind (speeds multiply,
+        ///    excess variances add), and the porous boost scales with the obstacle's deficit (1 − β). The range golden moved
+        ///    (re-pinned; with version 1 it is model 76's pin), and every kept audit of an older model flies version 1. A flight
+        ///    with no wind volumes, or one flown on version 1, steps as 86 did.
+        /// 89: the stems on the props (w9-village-physics 2.2 and 2.12, on 88; unity/physics/physics-integration-2--w9-cut and
+        ///    --w9-straw): a rotor's disc meets the map's stem field (IWorldQuery.StemsNear, QueryVersion 9) and the range's
+        ///    straw. Field stems are placed one by one by the world (each from its own hash: its place, its natural lean, its
+        ///    drawn length), sized by allometry from that length (d = d₁·L^(1/1.53)), and folded by the slipstream at their own
+        ///    pace (a vertical jet loads only the part that leans; a folded stalk is an arch). A blade cuts a stem only where its
+        ///    speed across the stem's axis reaches the stem's critical cutting speed, and each cut is a discrete hit: its edge work
+        ///    and fling from the rotor, its push on the blade and the arm (AirframeModes.Strike), a stem episode in the log (event
+        ///    39). A strike along a rotor's axis loads its arm's mode at the tip (2.2's G8). A flight that meets no stem and no
+        ///    axial strike steps as 88 did.
         /// </summary>
-        public const int ModelVersion = 86;
+        public const int ModelVersion = 89;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

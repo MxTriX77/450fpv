@@ -19,7 +19,8 @@ namespace Fpv450.WorldBench
     // Worlds: the floor stub (p6-world-query-gallery task 1.1, golden/floor.txt) and the test range (tasks 1.4 and 1.5,
     // golden/test-range.txt; TestRange.cs), the map of D-047; the wake grid over its synthetic layout (golden/wakes.txt); and
     // the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2; golden/farmland.txt; Farmland.cs); and the farmland's wind
-    // rows over its hills (w7-farmland-wind 1.1; golden/farmland-wind.txt; FarmlandWind.cs).
+    // rows over its hills (w7-farmland-wind 1.1; golden/farmland-wind.txt; FarmlandWind.cs) and behind its hedges, trees and ruins
+    // (1.2; golden/farmland-shelter.txt; FarmlandShelter.cs).
     internal static partial class Program
     {
         private const int GoldenCount = 10000;
@@ -279,7 +280,10 @@ namespace Fpv450.WorldBench
                     "every cell's and sample's bits; WakeGrid.Version bumps with a re-record")
                 + GoldenFile("farmland", "the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2) and its stem field (w9-village-physics 2.1)", FarmlandCases(), record)
                 + GoldenFile("farmland-wind", "the farmland's wind rows (w7-farmland-wind 1.1)", FarmlandWindCases(), record,
-                    "every printed number's bits, the hills' grid on a lattice and the Severe field at the rows' points", "a model bump (D-072)");
+                    "every printed number's bits, the hills' grid on a lattice and the Severe field at the rows' points", "a model bump (D-072)")
+                + GoldenFile("farmland-shelter", "the farmland's shelter rows behind its hedges and trees and among the village's ruins "
+                    + "(w7-farmland-wind 1.2)", FarmlandShelterCases(), record, "every printed number's bits and the two grids",
+                    "a WakeGrid.Version bump");
             if (record)
                 return failures == 0 ? 0 : 1;
             Console.WriteLine(failures == 0 ? "worldbench: ALL PASS" : $"worldbench: {failures} FAILED");

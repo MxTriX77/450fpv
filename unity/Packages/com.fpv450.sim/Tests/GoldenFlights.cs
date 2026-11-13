@@ -1724,7 +1724,15 @@ namespace Fpv450.Sim.Tests
         // the edgewise flow (RotorFlappingSpec.EdgewiseThrust off) model 75's pin (Model75RangeHash), every record and event
         // (GoldenFlightTests.WithoutTheEdgewiseFlowEachGoldenIsModel75s). With it the flight moves from step 9; at most 7.0 mm and
         // 0.17° apart, 3 impacts against 4, at rest 0.2452 m up on 8 pairs, 1.4 mm from 75's rest.
-        public const ulong RangeHash = 0xAF745CC52447E017UL;
+        // Model 88 (w7-farmland-wind 1.2, the wake grid's version 2): re-recorded. Audited case by case: with the wake grid's
+        // version 1 model 76's pin (Model76RangeHash), every record and event (GoldenFlightTests.WithVersion1WakesTheRangeGoldenIsModel76s);
+        // every kept audit of an older model flies version 1 (GoldenFlights.Wakes). With version 2 the flight moves from step 176; at
+        // most 1.7 mm and 0.02° apart, 4 impacts against 3, at rest 0.2452 m up on 8 pairs, 0.9 mm from 76's rest.
+        // Model 76: 0xAF745CC52447E017.
+        public const ulong RangeHash = 0x9731F9263E4E25B1UL;
+
+        /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
+        public const ulong Model76RangeHash = 0xAF745CC52447E017UL;
 
         /// <summary>Model 32's range golden (the pin before p7a-ground 1.12) and its flight in Rain with surfaces.json (1.13's,
         /// rolled 17.6° on wet straw), which the flight without the layers' area laws keeps (WithoutTheAreaLaws).</summary>
@@ -2189,7 +2197,8 @@ namespace Fpv450.Sim.Tests
         public static ulong FlyRange(DroneSpec spec, out FlightCore core, int skipAt = LogFormat.StepSize, int skipBytes = 0, bool asymmetry = true,
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
-            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null)
+            SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
+            bool? wakes2 = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2201,6 +2210,7 @@ namespace Fpv450.Sim.Tests
             setup.Rain = rain;
             setup.World = new FlightWorld(RangeScenarios.World);
             setup.Wind = wind ?? WindSetup.ForMap(RangeScenarios.World, WindLevel.Calm);
+            Wakes(setup, wakes2, layout, airmode);
             if (asymmetry) setup.Asymmetry = spec.BuildAsymmetry();
             if (ring) setup.VortexRing = spec.BuildVortexRing();
             if (ground) setup.GroundEffect = spec.BuildGroundEffect();
@@ -2321,6 +2331,15 @@ namespace Fpv450.Sim.Tests
                 checks.Wander = DetMath.Max(checks.Wander, (s.BodyRate - setup.StartBodyRate).Length());
             }
             return hash;
+        }
+
+        /// <summary>The wake grid's version (w7-farmland-wind 1.2, model 88): version 2's frontal porosity per lane, overlying wake and
+        /// porosity-scaled boost, or version 1's rules. Every golden flown over an older model's record or in airmode (each kept audit
+        /// of an older model) flies version 1, so it stays bit for bit; the audit of 1.2 against model 86 is
+        /// GoldenFlightTests.WithVersion1WakesTheRangeGoldenIsModel76s.</summary>
+        public static void Wakes(FlightSetup setup, bool? wakes2, int layout, bool airmode)
+        {
+            if (setup.Wind.Wakes != null && !(wakes2 ?? (!airmode && layout >= LogFormat.StepSize))) setup.Wind.Wakes.Version = 1;
         }
 
         /// <summary>The edgewise flow's thrust and torque (D-087, model 76; RotorFlappingSpec.EdgewiseThrust) in a golden flight: edgewise,

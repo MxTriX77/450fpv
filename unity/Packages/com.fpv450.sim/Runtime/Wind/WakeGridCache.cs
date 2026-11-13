@@ -2,13 +2,14 @@
 // build's freeze). A new flight's WindField took 0.2–0.9 s on the test range to build its wake grid for the drawn
 // bearing (WakeGrid.Build), the frame's freeze on every R, Fly and restart; WakeGrid.Build now spreads it over the cores,
 // and this keeps the last build:
-// - The key is the layout's content, bit for bit (its origin, its size and every volume's fields), and the bearing's
+// - The key is the layout's content, bit for bit (its origin, its size, its version and every volume's fields), and the bearing's
 //   bits; the grid is a pure function of them (WakeGrid's header, WakeGrid.Version within the process). A flight with
 //   the same layout and bearing (a restart with the same seed, a replay, a test's second flight) gets a copy of the
 //   kept grid, bit for bit what a build gives; the same layout at another bearing shares the obstacle grid and builds.
 // - The kept grid is never handed out: each flight's worker owns its copy and rebuilds it in place as the wind turns.
 // - Load time only: the FlightCore constructor (through WindField's) calls it, never a step. Its memory is one obstacle
-//   grid and one wake grid (on the test range 256 × 256 cells, about 10 MB), held for the process.
+//   grid and one wake grid (since WakeGrid version 2 each cell holds two wakes: on the test range's 256 × 256 cells about
+//   17 MB, on the farmland's 500 × 500 about 64 MB), held for the process.
 
 using System;
 using Fpv450.Sim.World;
@@ -20,7 +21,7 @@ namespace Fpv450.Sim.Wind
         sealed class Entry
         {
             public double OriginX, OriginZ;
-            public int NX, NZ;
+            public int NX, NZ, Version;
             public WindVolume[] Volumes; // the layout's, copied
             public WakeObstacles Obstacles;
             public WakeGrid Grid;        // the kept build, never handed out
@@ -55,6 +56,7 @@ namespace Fpv450.Sim.Wind
                     OriginZ = layout.OriginZ,
                     NX = layout.NX,
                     NZ = layout.NZ,
+                    Version = layout.Version,
                     Volumes = (WindVolume[])layout.Volumes.Clone(),
                     Obstacles = obstacles,
                     Grid = grid.Copy(),
@@ -72,7 +74,7 @@ namespace Fpv450.Sim.Wind
         static bool Same(Entry e, WakeLayout layout)
         {
             if (Bits(e.OriginX) != Bits(layout.OriginX) || Bits(e.OriginZ) != Bits(layout.OriginZ) || e.NX != layout.NX || e.NZ != layout.NZ
-                || e.Volumes.Length != layout.Volumes.Length)
+                || e.Version != layout.Version || e.Volumes.Length != layout.Volumes.Length)
                 return false;
             for (int i = 0; i < e.Volumes.Length; i++)
             {

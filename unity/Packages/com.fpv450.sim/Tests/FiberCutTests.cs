@@ -451,6 +451,54 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // p7d-tether 1.11 (design 16, 17): the pilot's causes on eight seeds a row, the short version of flightbench --tether that a
+        // normal run judges. Asserted: the flights that must keep the line keep it (a normal liftoff, a 20 m orbit and a gentle 15 m
+        // U-turn at 54 km/h, the cruise at 100 km/h); a sharp reverse cuts on some seeds, each cut naming its mechanism and place,
+        // and by its slack at a rear disc, which the two-way spool's known-wrong never does; a tree snag cuts on some. Printed, not
+        // asserted, because design 17 derives that the physics does not meet them: a very sharp liftoff and a backward move after
+        // liftoff cutting on some, and the reverse tearing at the hole's edge.
+        [Test]
+        public void ThePilotsCausesOnEightSeeds()
+        {
+            const int Seeds = 8;
+            using IDisposable airframe = TheSessionDrone();
+            DroneSpec spec = Spec;
+            var rows = new (string Name, Func<ulong, FiberCutScenarios.Outcome> Fly)[]
+            {
+                ("normal liftoff", s => FiberCutScenarios.Liftoff(spec, false, s)),
+                ("orbit of 20 m at 54 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 43, 360, null, 21).O),
+                ("gentle 180° turn of 15 m at 54 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 15, 57, 180).O),
+                ("cruise at 100 km/h", s => FiberCutScenarios.Turn(spec, WindLevel.Calm, s, 27.8, 0).O),
+                ("sharp reverse", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s)),
+                ("sharp reverse, the two-way spool", s => FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, s, x => x.TetherTwoWay = true)),
+                ("tree snag", s => FiberCutScenarios.TreeSnag(spec, WindLevel.Calm, s)),
+                ("very sharp liftoff", s => FiberCutScenarios.Liftoff(spec, true, s)),
+                ("backward after liftoff", s => FiberCutScenarios.Backward(spec, s)),
+            };
+            var o = new FiberCutScenarios.Outcome[rows.Length, Seeds];
+            System.Threading.Tasks.Parallel.For(0, rows.Length * Seeds,
+                new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 2) },
+                i => o[i / Seeds, i % Seeds] = rows[i / Seeds].Fly((ulong)(i % Seeds + 1)));
+            int Count(int row, Func<FiberCutScenarios.Outcome, bool> p)
+            {
+                int c = 0;
+                for (int s = 0; s < Seeds; s++) if (p(o[row, s])) c++;
+                return c;
+            }
+            for (int r = 0; r < rows.Length; r++)
+                for (int s = 0; s < Seeds; s++) Print($"{rows[r].Name} seed {s + 1}: {o[r, s]}");
+            for (int r = 0; r < 4; r++) Assert.That(Count(r, x => x.Broken), Is.EqualTo(0), rows[r].Name + " keeps the line");
+            int cuts = Count(4, x => x.Broken), discs = Count(4, x => x.Broken && x.Mechanism == TetherMechanism.Prop);
+            Assert.That(cuts, Is.InRange(1, Seeds - 1), "a sharp reverse may or may not cut");
+            Assert.That(Count(4, x => x.Broken && (x.Mechanism == TetherMechanism.Wedge || x.Place == FiberMember.None)), Is.EqualTo(0),
+                "each reverse cut names its mechanism and place");
+            Assert.That(discs, Is.GreaterThan(0), "the reverse cuts by its slack at a rear disc");
+            Assert.That(Count(5, x => x.Broken && x.Mechanism == TetherMechanism.Prop), Is.EqualTo(0), "the two-way spool leaves no slack for a disc (the known-wrong)");
+            Assert.That(Count(6, x => x.Broken), Is.GreaterThan(0), "a tree snag cuts on some");
+            Print($"not met (design 17): very sharp liftoff cuts {Count(7, x => x.Broken)} of {Seeds}, backward after liftoff {Count(8, x => x.Broken)} of {Seeds}; "
+                + $"the reverse at the hole's edge {Count(4, x => x.Broken && x.Place == FiberMember.Lip)} of {Seeds} (by a rear disc {discs})");
+        }
+
         // D-087's grid: turns of 90° and 180° at each speed up to 100 km/h and each heading rate (0 the straight cruise), and sudden
         // reverses from each speed, over seeds (FIBER_SEEDS, 5 by default) in Calm and Windy; each cell's cuts, mechanisms and
         // places, and what the drone made of the turn, printed (FIBER_THREADS flights at once, 6 by default; each flight is its
@@ -481,7 +529,14 @@ namespace Fpv450.Sim.Tests
                 foreach (double v in speeds)
                 {
                     double vv = v;
-                    cells.Add(($"{vv * 3.6:0} km/h, reverse to −8 m/s", s => (FiberCutScenarios.SharpReverse(Spec, wind, s, null, vv), "")));
+                    cells.Add(($"{vv * 3.6:0} km/h, reverse to −8 m/s", s => Edge(FiberCutScenarios.SharpReverse(Spec, wind, s, null, vv))));
+                }
+                // p7d-tether 1.11: the pilot's own reverse, a pitch-back at the cruise's throttle held, from 36–100 km/h.
+                foreach (double v in speeds)
+                {
+                    if (v < 10) continue;
+                    double vv = v;
+                    cells.Add(($"{vv * 3.6:0} km/h, pitch-back to −8 m/s, throttle held", s => Edge(FiberCutScenarios.PitchBack(Spec, wind, s, null, vv))));
                 }
                 var results = new (FiberCutScenarios.Outcome O, string Note)[cells.Count, seeds];
                 var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = threads };
@@ -497,6 +552,94 @@ namespace Fpv450.Sim.Tests
                         Print($"{wn} {cells[c].Name} seed {s + 1}: {o}; {results[c, s].Note}");
                     }
                     Print($"== {wn} {cells[c].Name}: " + string.Join(", ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Key} {kv.Value}")) + $" of {seeds}");
+                }
+            }
+        }
+
+        static (FiberCutScenarios.Outcome, string) Edge(FiberCutScenarios.Outcome o) =>
+            (o, $"the edge's most σ {o.EdgeMost / 1e9:0.000} GPa at {o.EdgeAt:0.000} s (θ {o.EdgeTurn * 180 / Math.PI:0}°, T {o.EdgeTension:0.000} N); ends {o.Height:0.0} m up");
+
+        static string Code(FiberCutScenarios.Outcome o) => !o.Broken ? "W" : o.Mechanism == TetherMechanism.Prop ? "D"
+            : o.Mechanism == TetherMechanism.Tension ? "T" : o.Mechanism == TetherMechanism.Bend ? (o.Place == FiberMember.Lip ? "L" : "B")
+            : o.Mechanism == TetherMechanism.Abrasion ? (o.Place == FiberMember.Lip ? "A" : "a") : o.Mechanism.ToString();
+
+        // p7d-tether 1.11: the sensitivity of the reverses (the sharp reverse and the pilot's pitch-back at the cruise's throttle held,
+        // 36–100 km/h) to the spool's three numbers, on the session's drone (FIBER_AIRFRAME=bare the bare drone), seeds 1–FIBER_SEEDS
+        // (10 by default) in Calm and Windy (FIBER_WINDS): per configuration, row and wind, the cuts by cause (W whole, D disc, T tension
+        // on the span, L bend at the hole's edge, A abrasion at it, B bend elsewhere, a abrasion elsewhere) and the hole's edge's most
+        // stress from the stick (11 s) while whole: its mean and most, and how many flights pass 3.0 GPa, the intact band's floor.
+        // FIBER_CONFIGS picks configurations by number (0 the base; all by default); FIBER_THREADS flights at once (10 by default).
+        [Test, Explicit("the reverses' sensitivity to the spool's numbers, printed: minutes")]
+        public void TheReversesSensitivityToTheSpool()
+        {
+            using IDisposable airframe = TheSessionDrone();
+            int seeds = int.TryParse(Environment.GetEnvironmentVariable("FIBER_SEEDS"), out int n) ? n : 10;
+            int threads = int.TryParse(Environment.GetEnvironmentVariable("FIBER_THREADS"), out int m) ? m : 10;
+            string winds = Environment.GetEnvironmentVariable("FIBER_WINDS") ?? "Calm,Windy";
+            string pick = Environment.GetEnvironmentVariable("FIBER_CONFIGS");
+            double[] g = TetherScenarios.Table().Row("spool.peel_energy_j_m").Values;
+            const double Gram = 9.80665e-3;
+            var configs = new (string Name, Action<FlightSetup> Edit)[]
+            {
+                ("base", null),
+                ("G0 0.01–2 g (US 5,167,382's reduced adhesive)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 0.01 * Gram, 2 * Gram)),
+                ("G0 5–10 g (US 5,167,382's conventional pack)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 5 * Gram, 10 * Gram)),
+                ("G0 ×2 (4–20 g)", s => s.Tether = FiberCutScenarios.WithBand(s.Tether, "spool.peel_energy_j_m", 2 * g[0], 2 * g[1])),
+                ("n 0.1", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.1)),
+                ("n 0.3", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3)),
+                ("n 0.3, v_ref 1 m/s", s =>
+                {
+                    s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_rate_exponent", 0.3);
+                    s.Tether = FiberCutScenarios.With(s.Tether, "spool.peel_reference_rate_m_s", 1);
+                }),
+                ("μ 0.15", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.15)),
+                ("μ 0.45", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.45)),
+                ("μ 0.75", s => s.Tether = FiberCutScenarios.With(s.Tether, "spool.lip_friction", 0.75)),
+            };
+            double[] speeds = { 10, 15, 20, 25, 27.8 };
+            for (int ci = 0; ci < configs.Length; ci++)
+            {
+                var config = configs[ci];
+                if (pick != null && Array.IndexOf(pick.Split(','), ci.ToString()) < 0) continue;
+                foreach (string wn in winds.Split(','))
+                {
+                    WindLevel wind = wn == "Windy" ? WindLevel.Windy : WindLevel.Calm;
+                    var flights = new FiberCutScenarios.Outcome[2, speeds.Length, seeds];
+                    var options = new System.Threading.Tasks.ParallelOptions { MaxDegreeOfParallelism = threads };
+                    System.Threading.Tasks.Parallel.For(0, 2 * speeds.Length * seeds, options, i =>
+                    {
+                        int row = i / (speeds.Length * seeds), v = i / seeds % speeds.Length, s = i % seeds;
+                        flights[row, v, s] = row == 0
+                            ? FiberCutScenarios.SharpReverse(Spec, wind, (ulong)(s + 1), config.Edit, speeds[v])
+                            : FiberCutScenarios.PitchBack(Spec, wind, (ulong)(s + 1), config.Edit, speeds[v]);
+                    });
+                    for (int row = 0; row < 2; row++)
+                    {
+                        string name = row == 0 ? "sharp reverse" : "pitch-back, throttle held";
+                        var all = new System.Collections.Generic.SortedDictionary<string, int>();
+                        double sum = 0, most = 0;
+                        int over = 0;
+                        string cells = "";
+                        for (int v = 0; v < speeds.Length; v++)
+                        {
+                            var counts = new System.Collections.Generic.SortedDictionary<string, int>();
+                            for (int s = 0; s < seeds; s++)
+                            {
+                                FiberCutScenarios.Outcome o = flights[row, v, s];
+                                string c = Code(o);
+                                counts[c] = counts.TryGetValue(c, out int k) ? k + 1 : 1;
+                                all[c] = all.TryGetValue(c, out int ka) ? ka + 1 : 1;
+                                sum += o.EdgeMost;
+                                if (o.EdgeMost > most) most = o.EdgeMost;
+                                if (o.EdgeMost >= 3.0e9) over++;
+                                Print($"[{ci} {config.Name}] {wn} {name} {speeds[v] * 3.6:0} km/h seed {s + 1}: {o}; " + Edge(o).Item2);
+                            }
+                            cells += $" | {speeds[v] * 3.6:0}: " + string.Join(" ", System.Linq.Enumerable.Select(counts, kv => $"{kv.Value}{kv.Key}"));
+                        }
+                        int total = speeds.Length * seeds;
+                        Print($"== [{ci} {config.Name}] {wn} {name}:{cells} | all " + string.Join(" ", System.Linq.Enumerable.Select(all, kv => $"{kv.Value}{kv.Key}"))
+                            + $" of {total}; the edge's most σ mean {sum / total / 1e9:0.000} GPa, most {most / 1e9:0.000}, at or past 3.0 GPa {over}");
+                    }
                 }
             }
         }
@@ -615,6 +758,75 @@ namespace Fpv450.Sim.Tests
             {
                 FiberCutScenarios.Each = null;
             }
+        }
+
+        // Night-fiber probe: the hole's edge in each of the pilot's causes, step by step (FIBER_CASE reverse, pitchback, sharp,
+        // backward; FIBER_SEED; FIBER_SPEED; FIBER_FROM, FIBER_TO, FIBER_EVERY steps): the lip's wrap, its capped and the chain's own
+        // tension, the payout's speed and its change in the step, the stress, and the line's least distance to a disc.
+        [Test, Explicit("a probe: the lip through a cause, printed")]
+        public void ProbeTheLipInTheCauses()
+        {
+            string which = Environment.GetEnvironmentVariable("FIBER_CASE") ?? "reverse";
+            ulong seed = ulong.TryParse(Environment.GetEnvironmentVariable("FIBER_SEED"), out ulong v) ? v : 1;
+            double speed = double.TryParse(Environment.GetEnvironmentVariable("FIBER_SPEED"), out double sp) ? sp : 15;
+            double from = double.TryParse(Environment.GetEnvironmentVariable("FIBER_FROM"), out double f) ? f : 0;
+            double to = double.TryParse(Environment.GetEnvironmentVariable("FIBER_TO"), out double tt) ? tt : 99;
+            int every = int.TryParse(Environment.GetEnvironmentVariable("FIBER_EVERY"), out int e) ? e : 50;
+            DroneSpec spec = Spec;
+            var hubs = new Double3[4];
+            for (int m = 0; m < 4; m++) hubs[m] = spec.Motors[m].Position;
+            double radius = spec.Props.Diameter / 2;
+            using IDisposable airframe = TheSessionDrone();
+            double last = 0, mostS = 0, mostT = 0, mostTTheta = 0, mostTAt = 0, mostSAt = 0, mostSTheta = 0, mostST = 0, mostJump = 0, jumpTheta = 0, jumpAt = 0;
+            FiberCutScenarios.StopAtBreak = true;
+            FiberCutScenarios.Each = core =>
+            {
+                long k = core.State.Step;
+                double t = k * FlightCore.Dt;
+                ref readonly FlightState s = ref core.State;
+                FiberLine l = core.Tether;
+                if (l.Broken || !l.Attached) return;
+                CableChain c = l.Chain;
+                int n = c.Count;
+                ref readonly FiberBend lip = ref l.Cuts.Bend(l.Cuts.BendCount - 1);
+                double sdot = c.SpoolSpeed, jump = sdot - last;
+                last = sdot;
+                if (lip.Stress > mostS) { mostS = lip.Stress; mostSAt = t; mostSTheta = lip.Turn; mostST = lip.Tension; }
+                if (l.ExitTension > mostT) { mostT = l.ExitTension; mostTAt = t; mostTTheta = lip.Turn; }
+                if (jump > mostJump) { mostJump = jump; jumpAt = t; jumpTheta = lip.Turn; }
+                if (t < from || t > to || k % every != 0) return;
+                Double3 nose = s.Attitude.Rotate(new Double3(0, 0, 1)), up = s.Attitude.Rotate(new Double3(0, 1, 0));
+                double pitch = DetMath.Atan2(nose.Y, DetMath.Sqrt(nose.X * nose.X + nose.Z * nose.Z)) * 180 / Math.PI;
+                double best = double.PositiveInfinity;
+                for (int m = 0; m < 4; m++)
+                {
+                    Double3 hub = s.Position + s.Attitude.Rotate(hubs[m]);
+                    for (int i = 0; i < n; i++)
+                    {
+                        Double3 q = c[i].Position - hub;
+                        double z = Double3.Dot(q, up), lat = (q - up * z).Length();
+                        double rim = lat < radius ? DetMath.Abs(z) : DetMath.Sqrt((lat - radius) * (lat - radius) + z * z);
+                        if (rim < best) best = rim;
+                    }
+                }
+                Double3 b1 = s.Attitude.InverseRotate(c[n - 2].Position - s.Position);
+                Print($"t {t:0.000} y {s.Position.Y:0.00} z {s.Position.Z:0.00} v ({s.Velocity.X:0.0},{s.Velocity.Y:0.0},{s.Velocity.Z:0.0}) nose-up {pitch:0} thr {s.Fc.Throttle:0.00} | lip {lip.Turn * 180 / Math.PI:0}° T {lip.Tension:0.000} chainT {l.ExitTension:0.000} σ {lip.Stress / 1e9:0.00} sdot {sdot:0.00} paid {l.PaidOut:0.0} n {n} node1 ({b1.X:0.00},{b1.Y:0.00},{b1.Z:0.00}) rim {best * 1e3:0}");
+            };
+            FiberCutScenarios.Outcome o;
+            try
+            {
+                o = which == "pitchback" ? FiberCutScenarios.PitchBack(spec, WindLevel.Calm, seed, null, speed)
+                    : which == "sharp" ? FiberCutScenarios.Liftoff(spec, true, seed)
+                    : which == "backward" ? FiberCutScenarios.Backward(spec, seed)
+                    : FiberCutScenarios.SharpReverse(spec, WindLevel.Calm, seed, null, speed);
+            }
+            finally
+            {
+                FiberCutScenarios.Each = null;
+                FiberCutScenarios.StopAtBreak = false;
+            }
+            Print($"most lip σ {mostS / 1e9:0.000} GPa at {mostSAt:0.000} (θ {mostSTheta * 180 / Math.PI:0}°, T {mostST:0.000}); most chain exit T {mostT:0.000} at {mostTAt:0.000} (θ {mostTTheta * 180 / Math.PI:0}°); most ṡ jump {mostJump:0.00} m/s at {jumpAt:0.000} (θ {jumpTheta * 180 / Math.PI:0}°)");
+            Print($"{which} seed {seed}: {o}");
         }
 
         [Test, Explicit("a probe: the line at the exit through a turn, printed step by step from FIBER_FROM s")]
