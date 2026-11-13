@@ -100,10 +100,25 @@ namespace Fpv450.FlightBench
                 + $"{g.Contacts.ImpactCount} impacts, ends {g.State.Position.Y:F4} m up on {g.Trace.ContactsTouching} touching pairs: {(rangeOk ? "PASS" : "FAIL")}");
             // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 the range flight is model 76's pin, every
             // record and event (GoldenFlightTests.WithVersion1WakesTheRangeGoldenIsModel76s); the edgewise audits below fly version 1 too.
-            ulong v1 = GoldenFlights.FlyRange(Drone(), out _, wakes2: false);
+            ulong v1 = GoldenFlights.FlyRange(Drone(), out _, wakes2: false, ownWake: false);
             bool v1ok = v1 == GoldenFlights.Model76RangeHash;
             rangeOk &= v1ok;
             Console.WriteLine($"range-flight with the wake grid's version 1: 0x{v1:X16} ({(v1ok ? "model 76's, bit for bit" : "NOT model 76's")}): {(v1ok ? "PASS" : "FAIL")}");
+            // p7b-airframe design 3f's audit (the own wake by flight state): with model 90's own-wake law (Propulsion.HoverWakeLaw)
+            // each golden that flies the own wake is its model 90 pin, every record and event
+            // (GoldenFlightTests.WithModel90sOwnWakeEachGoldenIsModel90s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p90 = GoldenFlights.FlyPowered(Drone(), out _, ownWake: false),
+                    r90 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, ownWake: false),
+                    c90 = GoldenFlights.FlyContact(Drone(), out _, ownWake: false), g90 = GoldenFlights.FlyRange(Drone(), out _, ownWake: false),
+                    t90 = GoldenFlights.FlyContact(Drone(), out _, tether: true, ownWake: false);
+                bool ok90 = p90 == GoldenFlights.Model90PoweredHash && r90 == GoldenFlights.Model90RainPoweredHash && c90 == GoldenFlights.Model90ContactHash
+                    && g90 == GoldenFlights.Model90RangeHash && t90 == GoldenFlights.Model90TetherHash;
+                rangeOk &= ok90;
+                Console.WriteLine($"with model 90's own wake: powered 0x{p90:X16}, rain 0x{r90:X16}, contact 0x{c90:X16}, range 0x{g90:X16}, tether 0x{t90:X16} "
+                    + $"({(ok90 ? "model 90's, bit for bit" : "NOT model 90's")}): {(ok90 ? "PASS" : "FAIL")}");
+            }
             // p7a-ground 1.12's audit (model 33), restated at the physics integration 2 (model 34): without the layers' area laws
             // the range flight is p7d-tether's model 31 flight over the whole record, and model 32's over model 28's 1904 bytes,
             // dry and in Rain.

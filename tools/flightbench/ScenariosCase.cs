@@ -386,11 +386,14 @@ namespace Fpv450.FlightBench
             stillRain.Rain = RainLevel.SevereRain;
             var atRest = new FlightCore(stillRain);
             atRest.Advance(new StickSample());
+            // The coil's top silhouette is its housing's cylinder seen from above, L·D·√(1 − a_y²) + (π/4)·D²·|a_y| for its axis a
+            // (the canister tilts rear-down, D01's; the old coil's L·D held only for a level axis).
             DronePart coil = stillRain.Mass.Part(stillRain.Aero.CoilPart);
-            double top = stillRain.Aero.BodyArea.Y + coil.Length * coil.Diameter;
+            double ay = coil.Axis.Y;
+            double top = stillRain.Aero.BodyArea.Y + coil.Length * coil.Diameter * Math.Sqrt(1 - ay * ay) + Math.PI / 4 * coil.Diameter * coil.Diameter * Math.Abs(ay);
             double hover = RainPreset.WaterDensity * atRest.Rain.RateMmPerHour * RainPreset.MmPerHour * atRest.Rain.FallSpeed * top;
             Row("at rest in still air: ρ_w·R·V on the top silhouettes, down", Math.Abs(-atRest.Trace.RainForce.Y - hover) <= 0.01 * hover,
-                $"{-atRest.Trace.RainForce.Y * 1000:F3} mN against {hover * 1000:F3} mN");
+                $"{-atRest.Trace.RainForce.Y * 1000:F3} mN against {hover * 1000:F3} mN (the housing's axis {Math.Asin(Math.Abs(ay)) * 180 / Math.PI:F2}° off level)");
             Row("known-wrong: rain as denser air", Math.Abs(0 - hover) <= 0.01 * hover, "0 mN at rest", knownWrong: true);
 
             return _ok;
