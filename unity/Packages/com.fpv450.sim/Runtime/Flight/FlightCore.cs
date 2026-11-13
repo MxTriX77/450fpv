@@ -304,6 +304,12 @@ namespace Fpv450.Sim.Flight
                 if (_rain.FilmMass > 0) mass.SetPartMass(_filmPart, _rain.FilmMass);
             }
             _mass = mass;
+            // A start state that is not finite is the caller's bug, named here rather than flown (w9-village-physics 2.12's addendum).
+            if (!Finite(setup.StartPosition)) throw new ArgumentException("setup.StartPosition is not finite: " + setup.StartPosition, nameof(setup));
+            if (!Finite(setup.StartVelocity)) throw new ArgumentException("setup.StartVelocity is not finite: " + setup.StartVelocity, nameof(setup));
+            if (!Finite(setup.StartBodyRate)) throw new ArgumentException("setup.StartBodyRate is not finite: " + setup.StartBodyRate, nameof(setup));
+            Quat q0 = setup.StartAttitude;
+            if (!(Finite(q0.X) && Finite(q0.Y) && Finite(q0.Z) && Finite(q0.W))) throw new ArgumentException("setup.StartAttitude is not finite", nameof(setup));
             _state = new FlightState
             {
                 Position = setup.StartPosition,
@@ -511,12 +517,16 @@ namespace Fpv450.Sim.Flight
             Double3 airForce = default, airMoment = default;
             if (_fc == null) s.Armed = flown.Arm;
             else Propel(ref s, flown, body, ref force, ref moment, ref airForce, ref airMoment);
+            Guard(force, moment, s, "propulsion");
             if (_aero != null) Drag(s, body, ref airForce, ref airMoment);
+            Guard(airForce, airMoment, s, "aerodynamics");
             Double3 airWorld = s.Attitude.Rotate(airForce);
             force = force + airWorld;
             moment = moment + airMoment;
             if (_contacts != null) _contacts.Forces(ref s, body, ref force, ref moment, ref _trace, _events);
+            Guard(force, moment, s, "contacts");
             if (_tether != null) TetherForce(s, body, ref force, ref moment);
+            Guard(force, moment, s, "tether");
 
             // The airframe's modes under the rotors' thrust and the relief of the body's whole load (AirframeModes).
             if (_modes != null)
@@ -525,6 +535,7 @@ namespace Fpv450.Sim.Flight
             // Semi-implicit Euler (RigidBody): the velocities first, then the positions with the new velocities.
             FlightState was = s;
             RigidBody.Step(ref s, in body, Gravity + force * body.InverseMass, moment, Dt);
+            Guard(default, default, s, "rigid body");
             _trace.NetForce = force + Gravity * body.Mass;
             _trace.NetMoment = moment;
             _trace.AeroForce = airWorld;
@@ -538,6 +549,7 @@ namespace Fpv450.Sim.Flight
                 if (_contacts.RestructurePending) Rebuild(_contacts.Restructure(s, _events), ref s, true);
             }
             if (_contacts != null) _contacts.Sense(was, ref s, _events);
+            Guard(default, default, s, "contact sense");
             // The blades' passes across what the discs cut: their work off the rotors, their impulses on the body, the damage
             // they leave (p7f-damage design 6), after the move as the strikes are sensed.
             if (_strikes != null)
@@ -545,6 +557,7 @@ namespace Fpv450.Sim.Flight
                 _strikes.Apply(angles, ref s, body, _events);
                 // Each strike's push along its rotor's axis loads its arm at the tip in this step (w9-village-physics 2.2, G8).
                 if (_modes != null && ModesSpec.StrikeLoad) _modes.Strike(ref s.ModeRate, ref _modeAccel, _strikes.TipImpulse, Dt);
+                Guard(default, default, s, "prop strikes");
             }
             _contacts?.Shafts?.Trace(s, ref _trace); // the shafts after the strikes that bend them (p7f-damage 1.6)
             if (_vibration != null) _vibration.Add(CameraAcceleration(was, s), FieldSteps);
@@ -568,8 +581,25 @@ namespace Fpv450.Sim.Flight
             // The film takes the water the drops brought this step; the next step flies its mass.
             if (_rain == null) return;
             _rain.Fill(_rainMassRate, Dt);
+            if (!Finite(_rain.FilmMass)) throw new NonFiniteStateException("the rain film's mass", "rain", s.Step);
             _mass.SetPartMass(_filmPart, _rain.FilmMass);
             _trace.FilmMass = _rain.FilmMass;
+        }
+
+        static bool Finite(double x) => x - x == 0; // false for NaN and ±∞ (basic operations only)
+
+        static bool Finite(Double3 v) => Finite(v.X) && Finite(v.Y) && Finite(v.Z);
+
+        /// <summary>The step's guard (w9-village-physics 2.12's addendum): the step's force and moment so far and the state's pose,
+        /// velocity, rate and rotor speeds after a part of the step; the first value that is not finite throws, naming the part
+        /// that made it, in the step it appears. Comparisons only; nothing allocates unless it throws.</summary>
+        static void Guard(Double3 force, Double3 moment, in FlightState s, string part)
+        {
+            string what = !Finite(force) ? "force" : !Finite(moment) ? "moment" : !Finite(s.Position) ? "position" : !Finite(s.Velocity) ? "velocity"
+                : !Finite(s.BodyRate) ? "body rate" : !(Finite(s.Attitude.X) && Finite(s.Attitude.Y) && Finite(s.Attitude.Z) && Finite(s.Attitude.W)) ? "attitude"
+                : !(Finite(s.RotorSpeed.RearRight) && Finite(s.RotorSpeed.FrontRight) && Finite(s.RotorSpeed.RearLeft) && Finite(s.RotorSpeed.FrontLeft)) ? "rotor speed"
+                : null;
+            if (what != null) throw new NonFiniteStateException(what, part, s.Step);
         }
 
         // The line's pull at the exit (FiberLine.Force, from the last step's end) and its moment about the centre of mass, and

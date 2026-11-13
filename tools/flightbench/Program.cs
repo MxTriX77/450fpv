@@ -168,6 +168,8 @@ namespace Fpv450.FlightBench
                     return GroundCase.Run(seeds, nominal) ? 0 : 1;
                 }
             }
+            if (args.Length >= 1 && args[0] == "--sweep")
+                return SweepCase.Run(args);
             if (args.Length >= 1 && args[0] == "--wind-harness")
                 return WindHarnessCase.Run(args);
             if (args.Length == 1 && args[0] == "--rate-tracking")
@@ -208,7 +210,7 @@ namespace Fpv450.FlightBench
                 if (args.Length == 1 || args.Length == 3 && args[1] == "--break" && Enum.TryParse(args[2], true, out piece))
                     return ContactProbeCase.Run(piece) ? 0 : 1;
             }
-            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S]");
+            Console.Error.WriteLine("usage: flightbench --golden | --bench [houses-line-step | houses-window-step | farmland-line-step [calm | windy | severe]] | --turns [calm | windy | severe] | --scenarios | --shake [first seed] | --contacts | --slopes | --landing | --factory [seeds] [first seed] | --damage [seeds] | --legs [seeds] | --probe [--break latch|margin|refresh|spheres|disc] | --wind-harness <level> [...] | --rate-tracking | --pitch-back | --tether [seeds] | --rate-log <log>... | --replay-step <log> [--from S] [--to S] | --sweep <map> <points> <seed> [...]");
             return 2;
         }
     }

@@ -38,6 +38,7 @@
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FiberCutScenarios.cs" Link="FiberCutScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/FiberContactScenarios.cs" Link="FiberContactScenarios.cs" />
     <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/LiftoffScenarios.cs" Link="LiftoffScenarios.cs" />
+    <Compile Include="../../unity/Packages/com.fpv450.sim/Tests/SweepScenarios.cs" Link="SweepScenarios.cs" />
   </ItemGroup>
 
   <!-- K§8.5's simulated pilot and the test flight, which the wind-harness mode flies (p7c-wind 1.2). -->
