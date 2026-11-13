@@ -75,9 +75,22 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - Goldens it could move, each audited case by case: the range golden, every kept audit whose anchors slide, p7g's `LegChangeTests`, `LegReplayTests` and `RangeContactTests`, `SlopeTests`' landing table.
   - **As built** (design.md §2.4): the line is the cone's slide, which divided the lever's statics and dampers by the stretch's own spring (9.8 N/m on a 0.2 N corner) and ran the stretch to 39 m. A stretch past what the leg's lever reaches turned square (γL 0.176 m, the frame's 0.187 m) is let go: the hold starts again at the foot (`ContactModel.Reached`). This is applied in a soil corner's trial and slide and to a leg point on the ground; an object's shell is left to 2.3 and 2.7. `AnchorReachTests`: 34 landings, the largest lever 0.357 m; the known-wrong, 85's slide (`ContactModel.AnchorReach` off, unlogged), 35.0 m. Village and package agree at 10° along (both rest). Model 86; no golden re-recorded, 61 PASS. Three p7g pins re-pinned with their audits; `farmland_wind.version` 1.86.
 - [ ] 2.5 [tech-artist] **Cut bits on camera**, after 2.2. From `FeedSignals`' cuts per rotor, drawn as pieces leaving the front discs at the blade's speed, in front of the camera. A replay draws the same pieces. The feed's look is otherwise unchanged (D-026).
-- [ ] 2.6 [physics-engineer] **G2: the legs on a side slope** (audit §1.7), after 2.4.
+- [x] 2.6 [physics-engineer] **G2: the legs on a side slope** (audit §1.7), after 2.4.
   - Rerun the cross-slope landings and trace the clamp moments. Judge against p7g-legs' failure law and its sources whether 10 × 8 mm PVC-U legs part about 0.3 s after a 0.5 m/s cut landing across 10°, and write the reading in design.md.
   - Checks: `flightbench --legs`, `--slopes land`. Goldens move only if the law changes (then p7g's, audited).
+  - **As built** (design.md §2.6): model 90's law cracked a leg at its jaw edge's first local yield, halved its stiffness (no source; that also halved the lever's sway load under a side slope's downhill legs), and parted it at f·M_y/K_t (2.98 N·m), under the section's own yield. Now:
+    - the crack keeps the stiffness, and the set starts at the section's yield (3.19 N·m);
+    - the tube kinks at the AISC F8 non-compact moment (3.55 N·m, assumed by analogy), folds on as a plastic hinge and tears at ε_b·D/(K_t·c);
+    - a hanging half stays in contact while it is pressed, its give is bounded by its overlap (in a crown, by its force) and governed by a solid touch, and it tears off past its hinge.
+  - **G2:** the legs hold to the drone's soft-leg roll tip (first set at 15.7° of tilt, lost at 73° in the fall) and the cut landing across 10° still rolls onto its side, by the soft legs' sway: the pilot's "may fall".
+  - **Counts on 488 Village points:**
+    - cuts past 45° at 5–10°: 30 → 14 of 69; at 10–15°: 19 → 14 of 20;
+    - level slides on the back: 257 → 104 of 339 (range 224 → 7 of 428);
+    - Ground failures 464 → 30 (hanging 446 → 13);
+    - the 1 m drop still kinks all four legs (29 J against about 9 J, right by hand);
+    - `--slopes`' crash: 172–194 mm → 2–6 mm, the measurement's fault (gap 14).
+  - **Goldens:** none moved (63 PASS on model 92); one kept audit re-pinned (model 41's contact, on the section's yield).
+  - **Still open** (§6): a bowed leg's fold, a torn skid keeping the holder's half, the drop's flip by the frame's contacts, and four red tests traced but not re-judged.
 - [x] 2.7 [physics-engineer] **G5: the crown twig's repeated zero-mass break** (audit §1.15). In parallel with 2.4.
   - Reproduce with a hover inside the bush crown at (525.79, 612.74), 1.24 m up: 200,000 `BladeDamaged` events in 25 s. Fix `PropStrikes.Twig` (a break at the blade's own tip is no break) and bound the events.
   - A new test: a hover in a crown logs no `BladeDamaged` with 0 kg lost.

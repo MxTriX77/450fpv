@@ -186,6 +186,114 @@ Labels: **published** (a cited source), **measured** (letter T or a run here), *
 3. **The hanging half**: its pairs stay touching while their unturned overlap is positive; its fold's cap is the section's yield at the bore.
 4. Nothing else: the axial spring, the buckling, the lever, the frame, the soil and the draws are untouched.
 
+### 5. As built
+
+**The law** (`LegDamage`, `drone.json`):
+- `LegCracked` fires at the jaw edge's first local yield (σ_y·S·(1 − s)/K_t, as before) and changes no stiffness: `legs.tube.cracked_stiffness_factor` is 0.5 → 1.0, relabelled derived, with the reason in its note.
+- The set follows the section's own moment–curvature law from M_y(1 − s). K_t now acts only on the edge's local tearing strain.
+- **The kink** (`LegDamage.KinkCoefficient` 0.021, AISC 360-16 F8-2, applied to PVC-U by analogy, assumed): M_n/M_y = 1 + 0.021·E·t/(D·σ_y), on each leg's drawn E and σ_y. The nominal leg kinks at 3.55 N·m.
+- **Past the kink a leg folds and stays on, bent.** It is a plastic hinge that holds the kink's moment (an upper bound: a real kink's moment falls as it folds; `FoldMove`). Its rotation is integrated, and the leg tears (`LegBroken`) at `TearRotation` = ε_b·D/(K_t·c): 0.27 rad nominal, 0.15–0.33 over the bounds. This assumes a hinge one diameter long.
+- If the edge tears before it kinks, the leg parts at once, as before.
+- The same holds at a frame leg's clamp and socket edges.
+- A bowed leg (one under buckling) cannot be relieved by a fold, so past its kink it is lost (`LegBroken`). The bow's own fold is not modelled.
+- The hanging half's fold cap is the section's yield at the bore, σ_y·S/a, where it was σ_y·S/(K_t·a).
+
+**The hanging half** (`ContactModel`):
+- **`Hung`:** a hanging half's pair stays touching while its overlap without the half's elastic give is positive. This ends the one-step snap-back.
+- **The give is bounded:** it never moves the deepest point past its overlap. Inside a crown's twig shell it scales by the force its points carry (the twigs give first). Without this, the give ran away to 0.43 m in 50 ms in Pine002_M.
+- **A solid touch governs:** in a twig shell that also touches a solid (bark, ground), the corner's chain takes the solid's row and overlap. On the twigs' row the half carried nothing and passed a branch.
+- **The tear (`LegDamage.TearSkid`):** a hanging skid folded past its holder's `TearRotation` tears at the bore, and the holder lets it go (`SkidLoose`, `SkidFold`). The skid is one piece in the build, so the holder's own half leaves with it (left open).
+
+**The benches' readings:**
+- **`--slopes`' crash** (gap 14) measures the contact model's placed shapes and skips the pieces that have left. The 172–194 mm was the build's shape of a dropped leg.
+- The bench now asserts no support or skid more than 20 mm past its corner's give (the sweep's rule). The largest is now 2.2–6.1 mm. The frame parts' 24–64 mm into the sod is printed beside it, not judged (the sweep's finding 11).
+
+**The sweep's kinds against the hand calculation** (traced on the session's probe):
+
+| Kind | By hand | The sim now |
+|---|---|---|
+| 0.5 m/s, level | intact | intact (`--legs`, every seed) |
+| Across 10° | the legs hold the static load; past the soft legs' 14.4° tip the drone rolls | the uphill skid touches and the drone rocks onto its downhill skid. The legs lean 40–50 mm and stay elastic to a tilt of 15.7° (`LegKinkTests`), then the drone rolls past its soft tip and ends on its side (51.5°). The legs are lost only at 73° in the fall (model 90: at 3.7°, 0.3 s after the touch). **G2 is the soft legs' sway and the rocking's momentum, not a leg that parts.** |
+| Across 12.6° (#199) | about the tip | the drone sits on its downhill skid and slowly rolls past the tip (61°); the legs fold, then tear in the fall |
+| 1 m drop | every leg kinks; 29 J against about 9 J | every leg buckles and is lost within 9 ms; the drone falls on its frame and canister, and may bounce onto its back (the frame's and props' contacts, §6) |
+| 2 m/s slide along | slides upright when the corner's N stays under about 45 N; P·Δ on the frame leg adds 0.9 N·m | Village #0 ends upright (3.4°, 11 sets, 4 cracks, no break); range #5 upright (0.4°) |
+| A hanging half "in the ground" | never past its contact spring's share | Village 446 → 13 rows, range 318 → 4 (below) |
+
+**The counts, before (53e182dc, model 90) and after** (`--sweep … 400 1 --no-replay`, the same points and flights; the build at 7ddb3c48 on model 91's line). Each cell is the rows ending past 45° / past 120°, of n:
+
+| Village | 0–5° | 5–10° | 10–15° | 15–20° | 20–30° | 30°+ |
+|---|---|---|---|---|---|---|
+| Land | 0/0 → 0/0 of 339 | 8/0 → 3/0 of 69 | 15/0 → 14/1 | 18/1 → 13/0 | 20/3 → 18/4 | 20/1 → 20/2 |
+| Cut | 0/0 → 0/0 | 30/0 → 14/0 | 19/0 → 14/1 | 19/3 → 11/0 | 20/6 → 20/2 | 17/4 → 20/4 |
+| Drop | 339/129 → 335/134 | 67/38 → 66/38 | 18/9 → 17/9 | 17/5 → 20/5 | 13/7 → 14/7 | 15/5 → 18/7 |
+| Slide | 326/257 → 243/104 | 68/43 → 60/11 | 19/11 → 20/6 | 12/5 → 13/5 | 15/8 → 12/9 | 14/9 → 15/11 |
+
+| Range (level; E01's 22° end) | Land | Cut | Drop | Slide |
+|---|---|---|---|---|
+| level, of 428 | 2/0 → 2/0 | 3/0 → 3/1 | 370/90 → 363/91 | 309/224 → 24/7 |
+| 20–30°, of 20 | 18/6 → 19/7 | 20/6 → 20/6 | 17/7 → 14/8 | 12/3 → 16/8 |
+
+The checks, failing rows (Village before → after; range before → after):
+- **Ground:** 464 → 30, of which on a hanging corner 446 → 13; range 332 → 35, of which hanging 318 → 4.
+- **Lever:** 0 → 7 (slides, 0.51–0.81 m on 2–13 N); range 2 → 3 (#245 Drop, #435 and #442 Land on E01).
+- **Tunnel:** 0 → 0; range 0 → 3 (E01 slides #416, #425, #445; skids 15–20 mm into its soil boxes).
+- **EventsOnce:** 0 → 2 (BladeStrike twice on part 7, #283 and #474).
+- **Energy:** 23 → 23; range 9 → 9.
+- **Rest:** 18 → 23 over the manoeuvres.
+- **Alloc:** 76 → 72 (thread-dependent: finding 9).
+- Rows SHA-256 without the allocation column: Village before `2495fc1f…`, after `50fd1413…`.
+
+- **Before and after the fold** (an intermediate run with the kink but no fold, Village): slides on level ground 314/244 ended past 45°/120°. With the fold, 243/104.
+- **`--legs`** (40 seeds), before → after:
+  - over the grid, over 4.8 → 6.3 %, down 31.0 → 28.6 %, damaged 61.8 → 61.8 %
+  - the normal landing intact on every seed
+  - visible bends (≥ 1° and on) in 0–60 % of a cell, up to 9.3°
+  - every row PASS
+- **`--landing`:** 29 PASS before and after; two cells' tips move (5° and 20° with no drift).
+- **`--ground`:** within the seeds' scatter; exit 1 as before (design 13's lone-corner targets, 2.9's).
+- **`--golden` on the merged model-92 tree:** 63 PASS, 0 FAIL. No pin moved: no golden damages a leg.
+  - The kept audit "without the line's mechanisms" (model 41's legs on the model-63 fixture, the lever off) moved its contact flight. Model 41 set leg_fr 0.065° where its bowed moment passed the edge's first yield; on the law's section yield that leg only cracks (2.04–2.33 against 2.94–3.28 N·m).
+  - It is re-pinned as `GoldenFlights.Model41ContactOnTheSectionsYieldHash` (0xE8FBF706509DA086), audited: the set's onset is that flight's whole move (every leg Cracked, no set).
+
+### 6. What is still not met, and for whom
+- **A kinked bowed leg is dropped,** not folded: a level harsh landing keeps a set only in a window about 4 % of speed wide (`AHarshLandingBendsALeg` is judged at the onset). The bow's post-kink fold is the next law item.
+- **A torn hanging skid takes the holder's half with it** (the build has one skid part).
+- **The drop's flip onto the back** (Village 134 of 339) after the legs are lost is the frame parts' and the props' contacts (a 0.45 restitution off the canister, prop strikes at idle). That is not the legs' law; it is suggested as a task.
+- **Red on this branch** (each traced; all pass on model 91's line):
+  - `RestTests.ArmingWithAPropOnTheRackMovesTheDrone`: the blade bears 0.80–0.92 N on every seed, under the test's 1 N. The legs no longer soften at a crack. Its thresholds are QA's call.
+  - `SweepTests.OnE01sSoilShapesTheReachHoldsTheLever`'s known-wrong: with legs that no longer part, no E01 flight runs a foot away even with the reach off (the largest lever 0.43 m over six flights).
+  - `StemLiftoffTests.ALiftoffFromTheRangesStrawIsFlown` (S04, seed 2, the glide): the drone rolls onto its right skid on the mat from 0.25 s, before any set, and is on its side by 1 s.
+  - `RangeContactTests.IntoACrown`: prop_rr through V01_M's bark, a blade.
+- **Not mine, seen:**
+  - `--contacts`' Pine004_1 row: prop_fl through the bark.
+  - The E01 soil-box tunnels of #416, #425 and #445.
+  - The 7 new Village slide levers on light contacts.
+  - The 2 `BladeStrike` repeats.
+- **Assumed (named):**
+  - `KinkCoefficient` 0.021 (the AISC analogy)
+  - the hinge one diameter long (`TearRotation`)
+  - the fold holding the kink's moment
+  - the 14.40° soft roll tip as G2's judge
+  - the rate's effect, about 4 MPa a decade, not built (it would raise every capacity 5–20 % under impact)
+
+### 7. The checks, as run (merged tree, the shared machine; no timing counts)
+On f4ded873 + its two test commits (the line's model 92 merged in), unless named:
+```
+dotnet test tools/simtests -c Release --filter LegKinkTests  → 2 passed (edge 2.125, section yield 3.188, kink 3.553, tear 4.449, lost at
+    3.553 N·m, model 90's 2.975; across 9.98°: a leg first set at 15.7° of tilt, first lost at 72.9°; with the halved crack 12.4° and 33.5°)
+dotnet test tools/simtests -c Release   → 872 passed, 4 failed of 876 (26 m 44 s, loaded): IntoACrown, ArmingWithAPropOnTheRackMovesTheDrone,
+    ALiftoffFromTheRangesStrawIsFlown, OnE01sSoilShapesTheReachHoldsTheLever (§6; all four pass on model 91's line 5b2e1ab7, run there)
+flightbench --golden    → 63 PASS, 0 FAIL, exit 0 (no pin moved; model 41's contact audit on its new pin)
+flightbench --legs      → every row PASS, exit 0 (6.3 % over, 28.6 % down, 61.8 % damaged)
+flightbench --landing   → 29 PASS, exit 0
+flightbench --slopes    → exit 0 (the seam row on the leg's buckling load since this branch; the crash rows judge the legs' parts: ≤ 6.1 mm past their give)
+flightbench --contacts  → exit 1: 2 tunnels, both blades (prop_rr through V01_M's bark in V01_L's crown; prop_fl through Pine004_1's bark); Pine002_M none
+flightbench --ground    → exit 1, design 13's lone-corner targets as at 2.9 (unchanged within the seeds' scatter)
+flightbench --sweep farmland|test-range 400 1 --no-replay → §5's counts (model 91's tree, 7ddb3c48; the physics since unchanged but model 92's wake)
+flightbench --sweep farmland 400 1 --point 0, --sweep test-range 400 1 --point 5 (with replays) → 10 flights, Replay ok, Alloc ok (0 B) on each
+python tools/hygiene/precommit.py --tree HEAD → 3608 files scanned, 0 findings
+```
+
 ## 2.7 The crown twig's repeated break (G5)
 
 **Reproduced** (measured, `ObjectContactTests.AHoverInACrownBreaksNoBladeTwice`, model 85): the drone starts 1.24 m over the ground at (525.79, 612.74), inside GreenBush_Dry's crown, and the pilot holds that point for 25 s with surfaces.json. 150,239 `BladeDamaged` Break events, all with 0 kg lost, 150,231 at a station the blade had already broken at; 8 in every step. **No twig was cut** (0 `BladeStrike` on twig): the candidate, `PropStrikes.Twig`, never ran.
