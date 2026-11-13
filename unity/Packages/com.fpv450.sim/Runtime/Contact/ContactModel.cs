@@ -218,6 +218,7 @@ namespace Fpv450.Sim.Contact
             public double Adhesion, AdhesionRelease; // a wet layer's cling σ_a (Pa) and its release δ_a (m), 1.13; 0 when dry
             public AreaLaw Law;                      // a layer's area law and its reference depth (m), 1.12; None for any other row
             public double LawDepth;
+            public CrownRow Crown;                   // a crown's twig shell (w9-village-physics 2.3): its twigs' law; null for any other row
         }
 
         /// <summary>The footprint ring's grooves (design 3, assumed: two a corner).</summary>
@@ -452,6 +453,7 @@ namespace Fpv450.Sim.Contact
                         Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(k * _massShare),
                         Adhesion = r.Rigid ? 0 : r.WetAdhesion, AdhesionRelease = r.Rigid ? 0 : r.WetAdhesionRelease,
                         Law = r.Rigid ? AreaLaw.None : r.AreaLaw, LawDepth = r.Rigid ? 0 : r.AreaReferenceDepth,
+                        Crown = r.Rigid ? null : r.Crown,
                     };
                     clings |= _byMaterial[id].Adhesion > 0;
                     continue;
@@ -461,6 +463,7 @@ namespace Fpv450.Sim.Contact
                     Known = true, Rigid = r.Rigid, StaticFriction = r.StaticFriction, KineticFriction = r.KineticFriction, Stiffness = r.Stiffness,
                     Damping = r.Rigid ? 0 : 2 * r.DampingRatio * DetMath.Sqrt(r.Stiffness * _massShare),
                     Law = r.Rigid ? AreaLaw.None : r.AreaLaw, LawDepth = r.Rigid ? 0 : r.AreaReferenceDepth,
+                    Crown = r.Rigid ? null : r.Crown,
                 };
             }
             if (clings && _skids != null) _cling = new double[4];
@@ -833,6 +836,20 @@ namespace Fpv450.Sim.Contact
             for (int k = 0; k < _count[i]; k++)
                 if (_pairs[i * PairsPerShape + k].Touching && !_pairs[i * PairsPerShape + k].Suppressed) return true;
             return false;
+        }
+
+        /// <summary>The pairs touching a world material now, not held by another (forensics: what a drone at rest in a crown rests
+        /// on, w9-village-physics 2.3).</summary>
+        public int TouchingOn(ushort material)
+        {
+            int n = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    if (p.Touching && !p.Suppressed && p.Surface == WorldIds.NoSurface && p.Material == material) n++;
+                }
+            return n;
         }
 
         /// <summary>A blade's load in the last Forces (slot corner × blades + blade).</summary>
@@ -1490,6 +1507,7 @@ namespace Fpv450.Sim.Contact
                         _sideF[c] = sideF;
                         _tubeSideF[c] = tubeF;
                     }
+                    CapCrown(c, s);
                     continue;
                 }
                 if (frame) _frameAxis[c] = FrameAxis(s, up, up);
@@ -1504,6 +1522,46 @@ namespace Fpv450.Sim.Contact
                         ref Pair p = ref _pairs[i * PairsPerShape + k];
                         if (p.Touching && !p.Suppressed) Trial(ref p, s, up, sum, push, ka, ca, kl, cl, moved, along, across, _dt, frame, klf, clf, _frameAxis[c]);
                     }
+                }
+                CapCrown(c, s);
+            }
+        }
+
+        // A leg on a crown's twigs (2.3): what its points push on them is at most what the twigs it bears on carry, the leg one part
+        // (its half-skid's silhouette) at the twigs' reach. The lever's statics (p7g-legs 1.4) turn a held foot's sideways stretch
+        // into an axial force no twig carries (45 N a point, measured, a foot held 0.16 m off as the body fell through): past the
+        // twigs' hold, or with its anchor past their reach, the twigs under it have broken, so its force is scaled to the hold and
+        // its anchor lets go.
+        void CapCrown(int c, in FlightState s)
+        {
+            double sum = 0, hold = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    CrownRow crown = RowOf(p).Crown;
+                    if (!p.Touching || p.Suppressed || crown == null) continue;
+                    double fn = Double3.Dot(p.N, p.Force);
+                    if (fn > 0) sum += fn;
+                    hold = DetMath.Max(hold, CrownStiffness(crown, _halfSkid[c] >= 0 ? _halfSkid[c] : i, p.N, s) * crown.TwigReach);
+                    if (Double3.Dot(p.Stretch, p.Stretch) > crown.TwigReach * crown.TwigReach) p.Stretch = default;
+                }
+            }
+            if (!(sum > hold)) return;
+            double scale = hold / sum;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = 0; k < _count[i]; k++)
+                {
+                    ref Pair p = ref _pairs[i * PairsPerShape + k];
+                    if (!p.Touching || p.Suppressed || RowOf(p).Crown == null) continue;
+                    p.Force = p.Force * scale;
+                    p.Stretch = default;
                 }
             }
         }
@@ -2120,7 +2178,7 @@ namespace Fpv450.Sim.Contact
         // past it is a foot the leg no longer reaches: the ground has let it go, the leg springs back, and the hold starts
         // again where the foot is (the stretch 0). True when it let one go.
         // A held foot within its reach is ContactSpec.AnchorReach's (2.4, logged since 2.9).
-        bool Reached(int c, ref Double3 stretch)
+        bool Reached(int c, ref Double3 stretch, double hold = double.PositiveInfinity)
         {
             double l0 = _spec.LegLeverLength, s2 = Double3.Dot(stretch, stretch);
             if (!_spec.AnchorReach || !(l0 > 0) || !(s2 > 0)) return false;
@@ -2130,6 +2188,7 @@ namespace Fpv450.Sim.Contact
                 double sf = Double3.Dot(stretch, _frameAxis[c]);
                 reach += (_spec.LegFrameLeverLength - l0) * (sf * sf / s2);
             }
+            if (hold < reach) reach = hold; // a crown's twig bent sideways past its reach has broken (2.3)
             if (!(s2 > reach * reach)) return false;
             stretch = default;
             return true;
@@ -2174,7 +2233,10 @@ namespace Fpv450.Sim.Contact
                     {
                         Double3 st = p.Stretch + t * ((size - kinetic) / ktt);
                         p.Stretch = st - n * Double3.Dot(n, st);
-                        if (p.Object == WorldIds.Ground) Reached(c, ref p.Stretch); // the ground's hold only (2.4: an object's shell is 2.3's and 2.7's)
+                        // Every hold lets the foot go where the leg no longer reaches it (2.4's reach, the leg's geometry, whatever
+                        // holds it): the ground, a soil shape (its groove's give is millimetres, left out as 2.4 left it), a rigid
+                        // shape; a crown's twigs sooner, at their own reach δ̄, past which the twig bent sideways has broken (2.3).
+                        Reached(c, ref p.Stretch, row.Crown != null ? row.Crown.TwigReach : double.PositiveInfinity);
                     }
                     p.Sliding = true;
                 }
@@ -2600,6 +2662,15 @@ namespace Fpv450.Sim.Contact
             k = row.Stiffness;
             c = row.Damping;
             stroke = double.PositiveInfinity;
+            if (row.Crown != null)
+            {
+                // No damper: the twigs' resistance is their bending and breaking (W̄ a twig), not a viscous one; the row's ζ on k_e
+                // gave 0.3–1 N·s/m a part, 30 times the yield at 2 m/s. Their inertia, ½·m_e·v² a twig met, is left out (design
+                // 2.3: 4 % of W̄ at 2 m/s, half at 7 m/s, of a hold that is itself 1.6 % of the drone's weight).
+                k = CrownStiffness(row.Crown, part, p.N, s);
+                c = 0;
+                return;
+            }
             if (row.Law == AreaLaw.None) return;
             ContactShape sh = _shapes[part];
             bool disc = Same(sh.A, sh.B);
@@ -2608,6 +2679,36 @@ namespace Fpv450.Sim.Contact
             k = row.Stiffness * scale;
             c = row.Damping * DetMath.Sqrt(scale);
             stroke = _stroke * thickness;
+        }
+
+        // ---- A crown's twigs (w9-village-physics 2.3, design.md 2.3) -------------------------------------------------------
+
+        // A part pushed along n into a crown's twigs (L_V of them a m³, random directions) meets L_V·p/4 of them a metre, p the
+        // perimeter of its silhouette along n (a capsule's 2·l⊥ + π·w, a sphere's π·w: the lines hitting a convex body, L_V·S/4),
+        // and each takes W̄ to break, so past the twigs' mean reach δ̄ it carries F_y = (L_V·p/4)·W̄ steadily; its stiffness is
+        // that hold over δ̄ (the secant; CrownRow's W̄ and δ̄). In series with the part's own, as every compliant row's.
+        double CrownStiffness(CrownRow k, int part, Double3 n, in FlightState s)
+        {
+            ContactShape sh = _shapes[part];
+            double perimeter = 3.141592653589793 * 2 * sh.Radius;
+            if (!Same(sh.A, sh.B))
+            {
+                Double3 ab = s.Attitude.Rotate(sh.B - sh.A), across = ab - n * Double3.Dot(n, ab);
+                perimeter += 2 * across.Length();
+            }
+            return k.TwigLength * perimeter / 4 * k.TwigWork / k.TwigReach;
+        }
+
+        // A crown pair's yield: the depth its spring reads is at most the twigs' mean reach δ̄. Pushed deeper, the twigs it bent
+        // past it have broken and it meets fresh ones: its plane moves in with it. Backing out, the plane stays (the twigs
+        // behind it are broken; it meets nothing until it is past where it was).
+        static void Yield(ref Pair p, double reach)
+        {
+            double x = p.Depth - reach;
+            if (!(x > 0)) return;
+            p.P = p.P - p.N * x;
+            p.Point = p.Point - p.N * x;
+            p.Depth = reach;
         }
 
         // A layer row's factor for a footprint on pair p's shape (Layer.Scale at the layer's depth), and the shape's thickness
@@ -3699,6 +3800,8 @@ namespace Fpv450.Sim.Contact
             {
                 ref Pair p = ref _pairs[first + k];
                 Depth(ref p, part);
+                CrownRow crown = RowOf(p).Crown;
+                if (crown != null) Yield(ref p, crown.TwigReach);
                 // A blade's slack: its overlap where it came back after its rotor's passes, then only less as the blade leaves
                 // (never a spring pressed by no motion, PlaceBlades).
                 if (blade) p.Slack = _appeared[i] ? DetMath.Max(p.Depth, 0) : DetMath.Min(p.Slack, DetMath.Max(p.Depth, 0));
@@ -3710,7 +3813,7 @@ namespace Fpv450.Sim.Contact
                     if (p.Touching) Broken(ref p, i, now.Step, events);
                     continue;
                 }
-                if (p.Latched && -p.Depth > _spec.Margin)
+                if (p.Latched && -p.Depth > _spec.Margin && crown == null)
                 {
                     if (p.Touching) Broken(ref p, i, now.Step, events);
                     continue;
@@ -3720,6 +3823,16 @@ namespace Fpv450.Sim.Contact
                 kept++;
             }
             _count[i] = kept;
+            // One crown a part (2.3): its overlapping shells stand for one crown's twigs, so its deepest touching crown pair carries
+            // them and the others are held for the step (Twigs takes the deepest shell's meeting for their union, as here).
+            int deepest = -1;
+            for (int k = 0; k < kept; k++)
+            {
+                ref Pair p = ref _pairs[first + k];
+                if (p.Touching && RowOf(p).Crown != null && (deepest < 0 || p.Depth > _pairs[first + deepest].Depth)) deepest = k;
+            }
+            for (int k = 0; deepest >= 0 && k < kept; k++)
+                if (k != deepest && _pairs[first + k].Touching && RowOf(_pairs[first + k]).Crown != null) _pairs[first + k].Suppressed = true;
         }
 
         // A part found inside a rigid box with no first touch this step (a blade come back to rest, a piece a leg's set or break

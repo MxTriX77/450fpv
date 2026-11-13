@@ -191,7 +191,7 @@ namespace Fpv450.Sim.Log
         {
             "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "AreaLaw", "AreaReferenceDepth", "ElasticModulus", "HasWet",
             "WetStiffnessRatio", "WetStiffness", "WetStaticFriction", "WetKineticFriction", "WetAdhesion", "WetAdhesionRelease", "Hardness",
-            "CrushStrength", "Density", "EdgeRadius",
+            "CrushStrength", "Density", "EdgeRadius", "Crown", // Crown in its own entry, TagCrown (w9-village-physics 2.3)
         };
 
         /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
@@ -283,7 +283,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28;
+            TagStems = 27, TagGround = 28, TagCrown = 29;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1293,6 +1293,28 @@ namespace Fpv450.Sim.Log
                 e.Write(Contacts.Legs.StiffnessSigma);
                 e.Write(Contacts.Legs.StiffnessBound);
             });
+            // The crowns' twigs and leaves since w9-village-physics 2.3, an entry of its own as the stems' (no format change):
+            // each material row's crown block, in the rows' order. A log without it flew model 89's twig shells.
+            Entry(w, TagCrown, e =>
+            {
+                MaterialRow[] rows = Contacts?.Materials ?? new MaterialRow[0];
+                e.Write((ushort)rows.Length);
+                foreach (MaterialRow m in rows)
+                {
+                    CrownRow k = m.Crown;
+                    e.Write(k != null);
+                    if (k == null) continue;
+                    foreach (double x in new[] { k.TwigLength, k.TwigDiameter, k.TwigFreeLength, k.TwigRupture, k.TwigModulus, k.LeafMassPerArea, k.LeafDryMatter,
+                        k.LeafWork, k.LeafCriticalSpeed, k.LeafCell })
+                        e.Write(x);
+                    e.Write((ushort)k.Variants.Length);
+                    for (int i = 0; i < k.Variants.Length; i++)
+                    {
+                        Text(e, k.Variants[i]);
+                        e.Write(k.LeafAreaDensity[i]);
+                    }
+                }
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1450,6 +1472,29 @@ namespace Fpv450.Sim.Log
                             }
                         }
                         break;
+                    case TagCrown:
+                    {
+                        int crownRows = r.ReadUInt16();
+                        for (int i = 0; i < crownRows; i++)
+                        {
+                            if (!r.ReadBoolean()) continue;
+                            var k = new CrownRow
+                            {
+                                TwigLength = r.ReadDouble(), TwigDiameter = r.ReadDouble(), TwigFreeLength = r.ReadDouble(), TwigRupture = r.ReadDouble(),
+                                TwigModulus = r.ReadDouble(), LeafMassPerArea = r.ReadDouble(), LeafDryMatter = r.ReadDouble(), LeafWork = r.ReadDouble(),
+                                LeafCriticalSpeed = r.ReadDouble(), LeafCell = r.ReadDouble(),
+                            };
+                            k.Variants = new string[r.ReadUInt16()];
+                            k.LeafAreaDensity = new double[k.Variants.Length];
+                            for (int j = 0; j < k.Variants.Length; j++)
+                            {
+                                k.Variants[j] = Text(r);
+                                k.LeafAreaDensity[j] = r.ReadDouble();
+                            }
+                            if (Contacts?.Materials != null && i < Contacts.Materials.Length) Contacts.Materials[i].Crown = k;
+                        }
+                        break;
+                    }
                     case TagDroneInternals:
                         tablesHash = r.ReadUInt64();
                         sawTables = true;

@@ -101,7 +101,42 @@ namespace Fpv450.Sim.Contact
         /// row whose members are round, or homogenised: the fiber reads their own radius or skips them, p7d-tether 1.7).</summary>
         public double EdgeRadius;
 
+        /// <summary>What a crown's twig shell of this row stands for (its crown block, w9-village-physics 2.3); null for none.</summary>
+        public CrownRow Crown;
+
         public readonly bool Rigid => Stiffness == 0;
+    }
+
+    /// <summary>
+    /// A crown row's twigs and leaves (physics_materials.json's twig.crown, each value labelled there; design.md 2.3). The twigs:
+    /// their length per volume (m/m³), diameter, free length from their branch (m), green wood's rupture stress and modulus
+    /// (Pa). The leaves: dry mass per area (kg/m²), dry matter content, work to shear (J/m), the edge's critical speed (m/s),
+    /// the cleared cell (m), and each variant's leaf area density (m²/m³; a variant not listed, none).
+    /// </summary>
+    public sealed class CrownRow
+    {
+        public double TwigLength, TwigDiameter, TwigFreeLength, TwigRupture, TwigModulus;
+        public double LeafMassPerArea, LeafDryMatter, LeafWork, LeafCriticalSpeed, LeafCell;
+        public string[] Variants = new string[0];
+        public double[] LeafAreaDensity = new double[0];
+
+        /// <summary>A twig met by a part bearing at an arm spread evenly over its free length ℓ breaks at P = σZ/a after
+        /// δ = 2σa²/(3Ed): the mean work to break it, W̄ = σ²Zℓ/(6Ed), J, and its mean deflection then, δ̄ = 2σℓ²/(9Ed), m
+        /// (derived, Z = πd³/32).</summary>
+        public double TwigWork => TwigRupture * TwigRupture * (3.141592653589793 * TwigDiameter * TwigDiameter * TwigDiameter / 32) * TwigFreeLength
+            / (6 * TwigModulus * TwigDiameter);
+
+        public double TwigReach => 2 * TwigRupture * TwigFreeLength * TwigFreeLength / (9 * TwigModulus * TwigDiameter);
+
+        /// <summary>A leaf's fresh mass per area, kg/m² (dry over its dry matter content).</summary>
+        public double LeafFreshMass => LeafMassPerArea / LeafDryMatter;
+
+        /// <summary>A variant's leaf area density, m²/m³; 0 for one not listed.</summary>
+        public double LeafAreaDensityOf(string variant)
+        {
+            int i = variant == null ? -1 : Array.IndexOf(Variants, variant);
+            return i < 0 ? 0 : LeafAreaDensity[i];
+        }
     }
 
     /// <summary>

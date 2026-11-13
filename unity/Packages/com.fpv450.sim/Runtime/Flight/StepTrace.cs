@@ -500,7 +500,18 @@ namespace Fpv450.Sim.Flight
     {
         readonly FlightEvent[] _items;
 
-        public StepEvents(int capacity = 64)
+        /// <summary>The events every producer but the contacts' pairs can raise in a step (the buffer's size before 2.3).</summary>
+        public const int Others = 64;
+
+        /// <summary>
+        /// A step's events for a flight of this many contact shapes (w9-village-physics 2.3): each pair slot (shapes ×
+        /// ContactModel.PairsPerShape) makes or breaks a contact at most once a step, and a slot freed by a break is made again in
+        /// the same step at most once more, so 2 a slot, plus Others. A crown's first step makes every pair in its shells at once:
+        /// the 64 of before refused 24 there (2.7), a hole in the crash forensics. Allocated once, with the core.
+        /// </summary>
+        public static int ForContacts(int shapes) => Others + 2 * shapes * Contact.ContactModel.PairsPerShape;
+
+        public StepEvents(int capacity = Others)
         {
             if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
             _items = new FlightEvent[capacity];
