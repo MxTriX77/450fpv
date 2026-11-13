@@ -804,7 +804,9 @@ namespace Fpv450.Sim.Tests
                     if (_energy > EnergyTolerance) r.Fail(Check.Energy, step, $"{_energy:F3} J more than the contacts took");
                 }
 
-                // Events: twice in a step, refused, tunnels and world bugs, crashes, blades on the ground.
+                // Events: twice in a step, refused, tunnels and world bugs, crashes, blades on the ground. Twice is the same kind, part,
+                // index, object, shape and material: a blade through a crown's shell in one step cuts a twig (twig) and strikes the
+                // step's leaves (foliage) on the same shell, two strikes (w9-village-physics 2.3 §4; 2.6's addendum, Village #283, #474).
                 StepEvents ev = core.Events;
                 r.Judge(Check.EventsOnce);
                 r.Judge(Check.EventsKept);
@@ -815,9 +817,9 @@ namespace Fpv450.Sim.Tests
                     for (int j = 0; j < i; j++)
                     {
                         ref readonly FlightEvent o = ref ev[j];
-                        if (o.Kind == e.Kind && o.Part == e.Part && o.Index == e.Index && o.Object == e.Object && o.Shape == e.Shape)
+                        if (o.Kind == e.Kind && o.Part == e.Part && o.Index == e.Index && o.Object == e.Object && o.Shape == e.Shape && o.Material == e.Material)
                         {
-                            r.Fail(Check.EventsOnce, step, $"{e.Kind} twice on part {e.Part}, index {e.Index}, object {e.Object} shape {e.Shape}");
+                            r.Fail(Check.EventsOnce, step, $"{e.Kind} twice on part {e.Part}, index {e.Index}, object {e.Object} shape {e.Shape} material {e.Material}");
                             break;
                         }
                     }
