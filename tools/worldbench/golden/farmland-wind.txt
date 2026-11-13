@@ -6,4 +6,4 @@ farmland_wind.crest 122c1a71cf68fc2c
 farmland_wind.lee 6e43b0a6d46ffb23
 farmland_wind.ledge 3d4ef3d798b2b73b
 farmland_wind.open 9c64f5f2dac4470f
-farmland_wind.node 079b21b107bfb511
+farmland_wind.node cf03161e4c758a3e
