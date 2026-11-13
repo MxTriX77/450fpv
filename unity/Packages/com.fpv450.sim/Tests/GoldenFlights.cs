@@ -1356,17 +1356,20 @@ namespace Fpv450.Sim.Tests
         /// 0.2497 m up; the line whole, 0.224 m paid out, 15 nodes and trail 7 as 79's. Every golden without the line keeps its
         /// pin, and every kept audit of an older line flies the sliding trail (FlyContact), so each keeps its own.
         /// p7d-tether design 18 (the lip's point-contact law with the bore's entry, μ_l 0.45, G₀ over the light and conventional
-        /// bands; the model number is the orchestrator's at the merge): re-recorded. Audited case by case: with the known-wrong
-        /// capstan lip (FlightSetup.TetherCapstanLip) on models 74–88's μ_l 0.3 and G₀ band (Model88Tether) it is model 88's pin,
-        /// 0xF74FECF3FEF4F329 (Model88TetherHash), every record and event (GoldenFlightTests.WithTheCapstanLipTheTetherGoldenIsModel88s),
-        /// and every kept audit of an older line (models 50, 52, 54, 75, 77's merge, 79) keeps its own pin flying both. The records
-        /// differ from step 1 (the spool's factor and the flight's G₀ enter the line's first step); at most 5.0 mm and 0.20° apart, the
-        /// ends 2.3 mm apart, 0.2497 m up, 3 impacts; the line whole, 0.493 m paid out against 0.224: this seed's G₀ is now from the
-        /// light pack's band, so the liftoff and the landing draw more line at a lower pull. Every golden without the line keeps its pin.
-        public const ulong TetherHash = 0x6EF3B9949152664AUL;
+        /// bands; and the fiber's contacts: an overlap a slot's new plane makes held, not thrown, CableContact.Sunk; the capstans'
+        /// slides no longer stretching the exit's segment past the spool's law, CableChain.SpoolAfterSlide; a crest's node never
+        /// stretching its segment; the model number is the orchestrator's at the merge): re-recorded. Audited case by case: with
+        /// the known-wrong line before design 18 (FlightSetup.TetherBeforeDesign18) on models 74–88's μ_l 0.3 and G₀ band
+        /// (Model88Tether) it is model 88's pin, 0xF74FECF3FEF4F329 (Model88TetherHash), every record and event
+        /// (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel88s), and every kept audit of an older line keeps its
+        /// own pin flying it. The records differ from step 1 (the spool's factor and the flight's G₀ enter the line's first step);
+        /// at most 5.0 mm and 0.03° apart, the ends 1.8 mm apart, 0.2497 m up, 3 impacts; the line whole, 0.498 m paid out against
+        /// 0.224: this seed's G₀ is now from the light pack's band, so the liftoff and the landing draw more line at a lower pull.
+        /// Every golden without the line keeps its pin.
+        public const ulong TetherHash = 0xE01A91E14E4E82D9UL;
 
         /// <summary>The tether golden at model 88, which models 84–88 kept until p7d-tether design 18 (the lip's point-contact law,
-        /// μ_l 0.45, the light peel): the flight with the known-wrong capstan lip (FlightSetup.TetherCapstanLip) on models 74–88's
+        /// μ_l 0.45, the light peel): the flight with the known-wrong capstan lip (FlightSetup.TetherBeforeDesign18) on models 74–88's
         /// μ and peel band (Model88Tether) gives it, every record and event.</summary>
         public const ulong Model88TetherHash = 0xF74FECF3FEF4F329UL;
 
@@ -2080,7 +2083,7 @@ namespace Fpv450.Sim.Tests
         /// <summary>
         /// tether.json as models 74–88 flew it (before p7d-tether design 18): the lip's μ 0.3 (assumed then) and G₀ uniform over the
         /// published 2–10 g (the quantile [[0, 0.0196], [1, 0.0981]] draws the same bits as the band did); every other row the file's.
-        /// With FlightSetup.TetherCapstanLip it flies model 88's lip (GoldenFlightTests.WithTheCapstanLipTheTetherGoldenIsModel88s).
+        /// With FlightSetup.TetherBeforeDesign18 it flies model 88's lip (GoldenFlightTests.WithTheLineBeforeDesign18TheTetherGoldenIsModel88s).
         /// </summary>
         public static Tether.TetherTable Model88Tether(Tether.TetherTable table)
         {
@@ -2120,7 +2123,7 @@ namespace Fpv450.Sim.Tests
             Action<byte[]> onRecord = null, bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize,
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
-            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? capstanLip = null)
+            bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2161,11 +2164,11 @@ namespace Fpv450.Sim.Tests
                     && table == null && yawI && edit == null && recirculation && fiberContacts && cuts && body && coulomb && heat != false
                     && !airmode && linearStep != true && edgewise != false && spec.Coil.Housing >= 0 && !OnModel70sNozzle(spec);
                 setup.TetherSlidingTrail = slidingTrail ?? !golden;
-                // p7d-tether design 18: every line before it met the hole's edge by the capstan (FlightSetup.TetherCapstanLip) on
-                // models 74–88's μ and peel band (Model88Tether), so every kept audit flies both, the sliding trail's too; capstanLip
+                // p7d-tether design 18: every line before it met the hole's edge by the capstan (FlightSetup.TetherBeforeDesign18) on
+                // models 74–88's μ and peel band (Model88Tether), so every kept audit flies both, the sliding trail's too; beforeDesign18
                 // says so outright.
-                setup.TetherCapstanLip = capstanLip ?? !(golden && slidingTrail != true);
-                if (setup.TetherCapstanLip) setup.Tether = Model88Tether(setup.Tether);
+                setup.TetherBeforeDesign18 = beforeDesign18 ?? !(golden && slidingTrail != true);
+                if (setup.TetherBeforeDesign18) setup.Tether = Model88Tether(setup.Tether);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

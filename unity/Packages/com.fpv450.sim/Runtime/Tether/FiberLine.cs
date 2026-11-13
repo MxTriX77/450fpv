@@ -187,7 +187,7 @@ namespace Fpv450.Sim.Tether
         readonly double[] _trailMaterial, _trailHeld, _trailAir;
         readonly double _freezeTime, _freezeSpeed, _hold;
         readonly bool _slidingTrail; // FlightSetup.TetherSlidingTrail: the trail before w3-farmland-ground 2.4
-        readonly bool _capstanLip;   // FlightSetup.TetherCapstanLip: the lip before design 18
+        readonly bool _capstanLip;   // FlightSetup.TetherBeforeDesign18: the line before design 18
         int _trailCount;
 
         // The coil.
@@ -257,7 +257,7 @@ namespace Fpv450.Sim.Tether
             _terrain = !World.Geometry(WorldIds.Ground, 0, out _);
             TwoWay = setup.TetherTwoWay;
             _slidingTrail = setup.TetherSlidingTrail;
-            _capstanLip = setup.TetherCapstanLip;
+            _capstanLip = setup.TetherBeforeDesign18;
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
                 : setup.Rain == RainLevel.SevereRain ? table.Number("fiber.wet_film_severe_m") : 0;
@@ -320,6 +320,7 @@ namespace Fpv450.Sim.Tether
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
+                KeepSlideStretch = setup.TetherBeforeDesign18,
             };
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
@@ -363,7 +364,7 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherCapstanLip);
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18);
                 _link = new FiberLink(table);
             }
             _propulsion = propulsion;
@@ -1052,6 +1053,38 @@ namespace Fpv450.Sim.Tether
             Double3 on = point + normal * _radius;
             double share = Taut(a, on);
             share /= share + Taut(on, b);
+            // The crest's node never stretches the line (p7d-tether design 18): where the segment's line covers both straight pieces
+            // to the ground, no piece is shorter than its straight length (the taut paths' share had left the piece up a ledge's
+            // face 2 % short, a 19 N spring that threw its node at 27 m/s); where it does not (a nearly taut chord cut through a
+            // corner), the node goes from the chord toward the ground only as far as the line reaches, both pieces slack-free at
+            // zero strain, and the ground's slot then holds the overlap left (CableContact.Sunk) until the line's own pull draws
+            // line over the corner (it had been put 2.5 cm short, a 6.8 N spring).
+            double rest = _chain[j + 1].Material - na.Material, la = (on - a).Length(), lb = (b - on).Length();
+            if (_capstanLip) { }
+            else if (rest >= la + lb)
+            {
+                double mine = rest * share;
+                if (mine < la) mine = la;
+                if (rest - mine < lb) mine = rest - lb;
+                share = mine / rest;
+            }
+            else
+            {
+                double u = Double3.Dot(on - a, d) / (len * len);
+                Double3 foot = a + d * (u < 0 ? 0 : u > 1 ? 1 : u);
+                double lo2 = 0, hi2 = 1;
+                for (int k = 0; k < 40; k++)
+                {
+                    double mid = 0.5 * (lo2 + hi2);
+                    Double3 x = foot + (on - foot) * mid;
+                    if ((x - a).Length() + (b - x).Length() > rest) hi2 = mid;
+                    else lo2 = mid;
+                }
+                on = foot + (on - foot) * lo2;
+                la = (on - a).Length();
+                lb = (b - on).Length();
+                share = la + lb > 0 ? la / (la + lb) : 0.5;
+            }
             if (_chain.SplitCrest(j, share, on) || Yield(inside) && _chain.SplitCrest(j, share, on)) CrestsInserted++;
             else
             {

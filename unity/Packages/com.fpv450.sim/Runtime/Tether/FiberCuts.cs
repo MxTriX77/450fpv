@@ -432,7 +432,7 @@ namespace Fpv450.Sim.Tether
             p.Press = 0;
             if (_capstanLip)
             {
-                // The known-wrong (FlightSetup.TetherCapstanLip): decision 6's bend over the whole wrap, as to model 88.
+                // The known-wrong (FlightSetup.TetherBeforeDesign18): decision 6's bend over the whole wrap, as to model 88.
                 p.Radius = BendRadius(p.Edge, p.Turn, p.Tension);
                 return;
             }

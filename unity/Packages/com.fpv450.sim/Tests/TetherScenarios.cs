@@ -47,7 +47,7 @@ namespace Fpv450.Sim.Tests
             string law = System.Environment.GetEnvironmentVariable("FIBER_LIPLAW");
             if (law == "capstan")
             {
-                setup.TetherCapstanLip = true;
+                setup.TetherBeforeDesign18 = true;
                 setup.Tether = GoldenFlights.Model88Tether(setup.Tether);
             }
             else if (law == "peel88") setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
