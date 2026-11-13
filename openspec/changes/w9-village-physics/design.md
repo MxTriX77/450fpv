@@ -822,6 +822,52 @@ The step's cost was not measured again here. A field stem costs a little per ste
 - The wheat plant's 0.9 m height for the anchor, and the green culm's 1.5 mm at 0.75 m.
 - The agricultural downwash-in-canopy measurements were not readable here. No number of theirs is used.
 
+### Addendum: the S04 patch's liftoffs that threw (2.9's harness, `--ground`)
+
+**The report:** on House's S04 patch, every Rain and Severe rain liftoff threw `ArgumentOutOfRangeException` in `MassModel.SetPartMass`, from the rain film's mass. Every Sunny one was "never off" with a sink of 0.00 mm. Village's rows and House's track start were clean.
+
+**The chain, found by stepping one liftoff and checking every value each step:**
+1. **The cause is the harness's start, not the stems.** `LiftoffScenarios.Over` puts the skids 2 mm over `SampleGround`'s height. The range's S04 patch is a hole in the ground plane, filled by the patch's object: a 12 × 12 m soil box with its top at −0.125 m, and the straw mat's pieces, 0.125 m boxes standing on it with their tops at 0. `SampleGround` there reports `GroundFlags.Hole` and a height of −∞. So `Over` returned a body origin at y = −∞ (measured: start (−134.0, −∞, −13.355)).
+2. **The core took it silently.** Nothing checked the start, and the first step's forces, velocities and pose were all non-finite (step 17: y −∞).
+3. **In Rain** the first thing that checks its argument is the film's mass: `RainField.Fill` gives NaN from the non-finite state, and `MassModel.SetPartMass` (`FlightCore.cs`, the step's last line) throws.
+4. **In Sunny** there is no film, so nothing throws. The body stays at −∞ and never rises 1 cm over its rest, so the harness reads "never off" with a sink of 0 (the soil's sink bookkeeping never touches a skid).
+- **The stems take no part.** Stepping it with the start fixed: the S04 stalks cached about the discs (24–120) never stand over a disc's plane (0 cuts), because they lie in the mat with their tops at 0.17 m at most (2.2's hand calculation D). `Part`'s √(ω² − 2E/J) can't go negative: when a cut's energy reaches the rotor's ½Jω², `share < 1` stops the rotor (`RotorJammed`) and the root is not taken.
+
+**The fix:**
+- **The harness:** where `SampleGround` reports a hole, `Over` takes the ground as the highest face a ray straight down meets. If there is none, it throws, naming the point.
+- **The core** (`FlightCore`):
+  - It refuses a start that is not finite, with an `ArgumentException` naming the field (`StartPosition`, `StartVelocity`, `StartBodyRate`, `StartAttitude`).
+  - Its step guard checks the force and moment so far and the state's pose, velocity, rate and rotor speeds after each part of the step: propulsion, aerodynamics, contacts, tether, rigid body, contact sense, prop strikes. It also checks the rain film's mass before `SetPartMass`.
+  - The first value that is not finite throws `NonFiniteStateException`, naming the quantity, the part and the step. The checks are comparisons only (x − x == 0), and nothing allocates unless one throws.
+- Nothing is clamped. No physics value changed, so the goldens can't move; the runs below confirm it.
+
+**What a liftoff from S04 does now** (`StemLiftoffTests`, the harness's own flight, a vertical touch and a glide in each weather):
+- **Dry:** off at 0.553–0.560 s, at a throttle of 0.588–0.590.
+- **Rain:** 0.570–0.587 s at 0.592–0.595.
+- **Severe rain:** 0.563–0.621 s at 0.590–0.602.
+- Every one has a sink of 0.00 mm: the mat's pieces are rigid boxes, and no soil row lies under them. No stem is cut. There is no lone held corner, no crash and no tunnel. So the drone lifts off from S04 dry near 59 % throttle, inside the pilot's 50–65 %.
+- **Village's densest tall cell:** off at 0.549–1.076 s at 0.588–0.693; sink 3.7–9.5 mm; the pull at the legs is 0 dry, 5.2–6.3 N in Rain and 9.9–10.2 N in Severe rain.
+
+**The checks, as run** (on this branch, cut from f14e9438 at model 90; timings indicative):
+
+```
+dotnet test tools/simtests -c Release --filter "FullyQualifiedName~StemLiftoffTests"   → 4 passed (the numbers above)
+dotnet test tools/simtests -c Release   → Passed! Failed: 0, Passed: 860, Total: 860, 33 m 26 s (machine shared)
+flightbench --golden     → 62 PASS, 0 FAIL
+flightbench --contacts   → 80 PASS, 0 FAIL
+flightbench --landing    → 29 PASS, 0 FAIL
+flightbench --ground 4   → House S04 patch: Sunny/Rain/Severe rain never off 0, threw 0;
+                           no liftoff tunnels: PASS; no liftoff's step throws: 0 flights threw: PASS;
+                           the pilot's account (design 13's targets): FAIL, 2.9's known "not met", unchanged by this fix
+bit-exact replay: the goldens' replays and StemTests' approach (Match, bit for bit); 0 B: every stem test's run
+python tools/hygiene/precommit.py --tree HEAD   → 0 findings
+```
+
+**For QA:**
+- The S04 patch's centre lies on a mat piece's edge. Stepped with 2 s armed at idle and no touch-down speed (not the harness's flight), the drone settled on two legs, with the others over the 0.125 m step to the soil box, and the idle's airmode tipped it to 50°. The harness's flight lifts off cleanly.
+- A liftoff spot fully on one mat piece would read the mat alone. That is the harness's choice, not changed here.
+- The 0 B flake in `TheShakeGrowsWithTheStrawsNumberAndThickness`: this work did not show what allocates.
+
 ## 2.3 Leaves in crowns, and what a crown's twigs hold
 
 **Owner:** physics-engineer · **Requirements:** PHY-05, PHY-24, PHY-26, LOG-03 · **Branch:** `unity/physics/physics-integration-2--w9-crowns` (from ca718e20, model 89) · Widened by three findings (2.4's anchors on shells, 2.7's held props, 2.7's event overflow). The model number is the orchestrator's at the merge.

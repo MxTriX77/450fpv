@@ -128,10 +128,13 @@ namespace Fpv450.Sim.Tests
         }
 
         // The body's start with the skids' lowest point 2 mm over the ground beneath it, so the touch keeps the descent the
-        // pilot flew it at with the throttle cut.
-        static Double3 Over(FlightSetup setup, FlightWorld world, Double3 foot, Quat q)
+        // pilot flew it at with the throttle cut. Where the terrain has a hole (the test range's S04 patch: its soil box is a
+        // placed object over a hole in the ground plane, w9-village-physics 2.12's addendum) the ground is the highest face a ray
+        // straight down meets.
+        internal static Double3 Over(FlightSetup setup, FlightWorld world, Double3 foot, Quat q)
         {
             double lift = double.NegativeInfinity;
+            var hit = new RayHit[1];
             foreach (ContactShape s in setup.Contacts.Shapes)
             {
                 if (s.Role != ContactRole.Skid && s.Role != ContactRole.Support) continue;
@@ -139,6 +142,14 @@ namespace Fpv450.Sim.Tests
                 {
                     Double3 w = q.Rotate(p);
                     double ground = SlopeScenarios.Ground(world.Query, foot.X + w.X, foot.Z + w.Z).Height;
+                    if (!(ground > double.NegativeInfinity))
+                    {
+                        var from = new Double3(foot.X + w.X, foot.Y + 10, foot.Z + w.Z);
+                        world.Query.Raycast(new[] { new Ray(from, new Double3(0, -1, 0)) }, 20, hit);
+                        ground = hit[0].Distance <= 20 ? hit[0].Point.Y : double.NaN;
+                    }
+                    if (!(ground > double.NegativeInfinity) || double.IsNaN(ground))
+                        throw new InvalidOperationException($"no ground under the skid at ({foot.X + w.X}, {foot.Z + w.Z})");
                     lift = Math.Max(lift, ground + s.Radius - w.Y - foot.Y);
                 }
             }

@@ -351,7 +351,7 @@ namespace Fpv450.Sim.Tests
 
         /// <summary>Flies run i of n for a seed with a pilot, and logs it.</summary>
         public static Run Fly(DroneSpec spec, WindLevel level, ulong seed, int i, int n, Pilot pilot, bool belt = true, bool drag = true,
-            bool steady = false, bool remnant = true, bool interference = true)
+            bool steady = false, bool remnant = true, bool interference = true, System.Action<FlightSetup> airframe = null)
         {
             double height = HeightOf(i, n), low = BeltHeightOf(i, n), climb = ClimbSecondsOf(i, n), seconds = Seconds + climb;
             double[] history = History(level, seed, 120, out double drawn);
@@ -360,6 +360,7 @@ namespace Fpv450.Sim.Tests
                 throw new System.InvalidOperationException("seed " + seed + "'s 120 min hold no " + seconds + " s within 90° of its drawn direction");
             FlightSetup setup = Setup(spec, level, seed, low, belt && !steady, drag, out double courseDeg, out double fromDeg,
                 steady ? 0 : start, steady, interference);
+            airframe?.Invoke(setup); // a probe's change to the airframe (WindLevelsProbe's attribution)
             BeltStretch(out double beltFrom, out double beltTo);
             var run = new Run
             {
