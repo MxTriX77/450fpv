@@ -1120,6 +1120,199 @@ python tools/hygiene/precommit.py --tree HEAD   → 0 findings
 - A liftoff spot fully on one mat piece would read the mat alone. That is the harness's choice, not changed here.
 - The 0 B flake in `TheShakeGrowsWithTheStrawsNumberAndThickness`: this work did not show what allocates.
 
+## 2.13 The stems under the wash with distance
+
+**The pilot's words** (`docs/pilot-questions.md`, answered 2026-11-13; the physics ledger's P12, P12a, P12b): on a landing in tall straw "straws are noticeable cut in front of my quads camera and my quad is shaking"; of the grass in the wash, "Usually it lies flat because of prop wash power, but not always". When the wash lays the straw, and how much of it still stands when the discs arrive, decides the cuts and the shake. Nothing here is fitted to the footage or to these words: they are what the runs are graded against.
+
+Labels as in 2.2 and 2.12: **measured**, **published**, **carried**, **derived**, **assumed**, **numerical**.
+
+### What is wrong: one wake, two laws
+
+Since model 97 the line's air (`RotorAir`, p7d-tether design 19) follows the wash with distance: decision 4's near columns (2v_i within R/√2 under each disc) to one motor distance l (0.452 m) below the hubs' centre, Bauersfeld et al.'s merged round jet from 2.5 l, blended between, and its landing from any height as a radial wall jet with its stagnation flow, the near landings' fountain and ground vortex sharing the ground by 1 − w(s_g). The stems (`PropStems`, 2.12) still take q = T/A, undiminished, on every stem based within R of a disc's axis, at any hub height under `StemWakeTop` (2.5 m), and nothing anywhere else. By design 19's numbers (below) that is right only for a stem whose top stands in a near column; a stem 1 to 2 m under the hubs takes 3–35 % of T/A, and the merged jet reaches the stems between the discs' tracks, which 2.12 never loads.
+
+### The hand calculation (before the code)
+
+`tools/flightbench/handcalc/stem_wash.py` works design 19's law again for the stem scenarios' hover (4.735 kg, measured in `SoilScenarios.Setup`; T 11.61 N a rotor, v_h 9.67 m/s, T/A 229 Pa, derived) over flat ground in still air, at the 2/3 point of an upright stem (below), under a hub, between two discs (0.21 m right of the centre, outside both discs and their columns) and at the centre. Its arithmetic is its own; `RotorAir.At` gives the same numbers to 1e-6 at every point (measured, a scratch run; the test below makes it a check). The folding pressure is 2.12's lean law from the mean natural lean 7.5°: the least q past which m(φ) = (φ − φ₀) − A·sin²φ − G·sin φ has no equilibrium short of lying flat (derived), with the near column's 6° swirl where the point lies in one.
+
+Folding pressure (Pa), no swirl / in a near column: dry 0.3 m 280 / 213; 0.5 m 157 / 123; 1.0 m 64 / 56; 1.5 m 33 / 33; 1.77 m 26 / 26; green 0.3 m 52 / 43; 0.5 m 24 / 23; 1.0 m 7.5 / 7.5 (green stands to 1.34 m, 2.12).
+
+| Hubs up | Stem (2/3 point) | Under a hub | Between the discs | Centre | 2.12's law |
+|---|---|---|---|---|---|
+| 2.5 m (all merged jet; lands at 8.6 m/s, r_i 0.84 m) | 0.3 m (0.20 m) | 6.4 Pa: all stand | 6.9 Pa: all stand | 11.2 Pa: all stand | 229 Pa under a disc, 0 between |
+| | 1.0 m (0.67 m) | 31 Pa: dry stands, green folds | 34: dry stands, green folds | 60: dry stands, green folds | |
+| | 1.5 m (1.00 m) | 33: dry at its fold | 36: dry folds | 70: dry folds | |
+| | 1.77 m (1.18 m) | 33: dry folds | 37: folds | 77: folds | |
+| 1.5 m (merged at the ground; 10.7 m/s, r_i 0.68 m) | 0.3 m | 12: all stand | 13: all stand | 27: all stand | |
+| | 0.5 m (0.33 m) | 33: dry stands, green folds | 37: same | 81: same | |
+| | 1.0 m | 99 (column 44 %): all fold | 13: dry stands, green folds | 32: dry stands, green folds | |
+| | 1.5 m | 210 (column): folds | 0.2: stands | 0.6: stands | |
+| | 1.77 m | 229 (column): folds | 0: stands | 0: stands | |
+| 1.0 m (near share at the ground 0.19) | 0.3 m | 89: dry stands, green folds | 0.9: all stand | 7.9: all stand | |
+| | 0.5 m | 149: all fold | 0.8: all stand | 7.3: all stand | |
+| | 1.0 m | 229 (column): all fold | rising 1.2 m/s (fountain): stand | rising 0.7 m/s: stand | |
+| 0.5 m (near 0.93) | 0.3, 0.5 m | 229 (column): all fold | rising 7.6, 6.9 m/s: stand | rising 4.2, 3.8 m/s: stand | |
+| 0.3 m (near 1) | 0.3 m | 229 (column): folds | rising 8.2 m/s: stands | rising 4.5 m/s: stands | |
+
+(The centre is under the drone's body, which the fountain meets: the table's centre leaves the body out; the test reads the hub and the between points only.)
+
+What it says, by hand:
+- **From 2.5 m the merged jet lays the tall straw and the green grass, not the short dry stems**: 26–77 Pa on the 1.5–1.77 m dry stalks and every green stem from 0.5 m, against 2.12's 229 Pa under the discs only. The wash lays the tallest straw before the discs come near, wider than the discs' tracks.
+- **Under a hub's near column the law is 2.12's** (229 Pa = T/A, derived: ½ρ(2v_i)² = T/A in the hover): the stems whose 2/3 point lies within R/√2 of a hub fold as 2.12 had them. But the column is R/√2 wide, so the stems based in each disc's outer ring (0.71–1 R) take no column at all, where 2.12 laid them at 229 Pa: half a disc's area meets its stems as the law leaves them standing.
+- **Between the discs, under 1.13 m** (2.5 l), the tall stems' upper parts lie in the still air between the near columns, and lower, near the ground in the near wake, the fountain rises at 4–8 m/s and holds stems up. So the stems the discs meet in the last half metre of a landing are the outer rings' and the drift's: more fresh cuts than 2.12 under each disc, the same under its column.
+- **"Usually flat, but not always"** comes out by hand as: the tall and green ones laid from 2.5 m by the merged jet, the short dry ones standing until a column passes over them, the outer rings and the fountain's band left standing.
+
+### The law: how `PropStems` reads design 19
+
+1. **One air.** The stems read the line's law through a `RotorAir` of their own in `PropStrikes`, built from the flight's rotor-air table with the line's own switches (the fountain and ground vortex off with `TetherDesign4Air`, the body off with `TetherFountainThroughBody`, the 4 R cut-off with `TetherWakeReach4R`, `TetherBeforeDesign18` or `TetherDesign4Air`), and begun once a step in `StemsBegin`, while any rotor's stems are near, with the line's inputs: each motor's hub, each rotor's mean thrust over the step (`FlightCore`'s, the line's), the wind at each hub less the hub's velocity (`WindField.At(hub, ground)`), the ground under each hub (`SampleGround`'s, or the soil under a hole, `FlightWorld.SoilUnder`, as the line takes it), and the drone's shapes placed (`PlaceBody`). The two instances see the same air at the same pose; the stems' begins before the step's strikes change the body's velocity (the line's after), so in a step with a cut they differ by that impulse's mm/s at the hubs. A test pins them bit for bit in a step without one. `RotorAir` gains one read-only query, `Column(rotor, point)`: that rotor's near column's speed there (the same test `At` makes), for the swirl. `At` and the field are unchanged, so no line moves.
+2. **A flight without the line** carries tether.json's table in `FlightSetup.StemAir` (with the line, `Tether` is the table and `StemAir` is not read). A header entry of its own (no format change, as `TagStems`) records the wash's switch and the table's rows and hash; `FlightReplay` refuses a replay whose tether.json differs, and `tools/replay` loads tether.json for such a log. `SoilScenarios.Setup` sets it (it is read only with the wash); the app flies the line. A setup with neither table flies the column, and its header says so.
+3. **What a stem feels.** Its air u is the field at one point on the vertical through its base, at ⅔·L·cos φ over it (L its length now, φ its lean): the moment of a load linear along a rigid link is that of the whole load at ⅔ L (derived: ∫f·s ds = f(⅔L)·L²/2 for f linear in s), and on the vertical through the base because 2.12 took the jet by the stem's base (assumed, as there: a leaning stem's upper part leaving a narrow column is left out; the field is smooth in height, so the point moves no load across a column's edge as the stem leans). In a near column the wake also turns with its rotor: 2.12's swirl, tan β = Q/(2·T·r̄), r̄ = 2R/3, as a velocity tan β times that column's speed along the turning direction (derived, carried); none in the merged jet (derived: in a trimmed hover the two pairs of rotors of opposite spin carry equal and opposite angular momentum, so the merged jet has none). The load normal to the stem in its plane of lean is the cross-flow principle's, ½ρ·C_d·d·|u_φ|·u_φ a length, u_φ = u·ê_φ (ê_φ the direction φ grows), so
+   - m(φ) = (φ − φ₀) − K·|u_φ|·u_φ − G·sin φ, K = ½ρ·C_d·d·L³/(8EI), and the slope 1 + 2K·|u_φ|·(u·â) − G·cos φ (â the stem's axis) keeps 2.12's semi-implicit step;
+   - under a vertical jet u_φ = w·sin φ: 2.12's A·sin²φ with q = ½ρw², which is T/A in a near column (2.12's law is the near column's case);
+   - in a wall jet along the lean, u_φ = u_h·cos φ: a standing stem takes the whole cross-flow, a horizontal wind's load (the ground's flow in the landing's wall jet, and in the stagnation flow under the drone);
+   - in the fountain's rising air, u_φ = −w·sin φ: it stands a stem back up.
+   - The folded arch's crest (2.12, 0.5·l_b) takes l_b from the in-plane flow's pressure ½ρ·(u_lean² + u_y²), lagged over τ as 2.12's q (derived: under a vertical jet, 2.12's).
+   - The flow across the stem's plane of lean is left out (one degree of lean, as 2.12; assumed): under the discs the flow is vertical and lies wholly in the plane; the wall jet's horizontal flow is the part lost, within about 2δ ≈ 0.1–0.2 m of the ground (Verhoff's profile is 0.09 of its peak at 2δ).
+4. **The refresh (numerical).** `RotorAir.At` costs 170–335 ns a point here (measured, a scratch bench on the shared machine: most of it the merged jet's wall jet and the fountain), and the dense tall cell keeps about 1,400 stems in the four caches (measured in the vertical landing), about 0.4 ms a step. Each stem's air is therefore taken every 8 steps, an eighth of the stems a step by their slot, and at once when a stem is first met or its air is older than 8 steps; it holds between. 8 ms is under half the lean's τ of every stem that can reach a standing disc's plane (≥ 20 ms, a 0.3 m dry stem) and the hub moves 16 mm in it at the approach's 2 m/s, a sixth of a column's radius. A test flies the landing and the approach at every step and at 8 and holds their cuts within the stems' own count noise.
+5. **Where stems are loaded** stays `StemWakeTop`, the hubs 2.5 m over the ground under them (numerical, re-derived): the wash lays the tallest straw from higher (the 1.77 m stalk's 26 Pa under a hub at 4 m, at the centre to about 5 m, by the law), but a stem's lean is history only for its τ (≤ 0.45 s, a tall green culm). From 2.5 m to the tallest drawn tops (1.8 m) a descent at the pilot's 0.5 m/s takes 1.4 s, three of the slowest τ, so what the discs meet is the same; a faster descent from higher meets some tall green stems less laid than the law would leave them (named). The caches cost nothing at cruise heights.
+6. **The switch.** As designed, 2.12's undiminished column (q = T/A on every stem based within R of a disc's axis, its swirl, nothing elsewhere) was to be the known-wrong. It fails the hand calculation at depth (229 Pa where the law gives 6–33 Pa under a hub at 2.5 m) and between the discs (0 where it gives 7–37 Pa). **As decided at the merge (D-111)** it stays what every flight flies: `FlightSetup.StemWash` asks for the wash, on only where a test or a bench asks, and without it every flight is model 98's bit for bit.
+7. **The log and the records.** `StemRecord.Load` becomes the mean in-plane pressure on the stems based under the disc (2.12's q under the column); `Under` and `Folded` count those stems and those leaning past 45° ("most, not all"). Nothing is drawn; nothing touches the pose.
+
+### What the runs must show, and which way they should move (by hand)
+
+Graded before (the column) and after (the law) on the same seeds: 2.12's straw landings (vertical and approach: the stems standing to the discs at the touch, the fresh cuts at the front discs, the 4–15 Hz roll and pitch rate, the shake over the stand's density ×0.5–2 and the stalks' diameter ×0.75–1.5), the liftoff harness (`flightbench --ground`), and the sweep on one map (`--sweep test-range 400 1 --threads 4`).
+- Under each disc the outer ring's stems now stand to the disc's plane: **more fresh cuts and slices** in the vertical landing and the approach, so a stronger shake at Village's stand, toward "cut ... shaking", whose size the footage note's ranges judge. The creep's leading-edge count (2·R·v·D(h)) stays: the leading edge meets stems upright under either law.
+- **The tall straw and the green grass are laid from 2.5 m** wider than the discs (toward "usually flat"); the short dry stems and the fountain's band stand ("not always").
+- The S04 mat's stalks lie in their mat (2.12: tops ≤ 0.17 m), and the fountain cannot raise a stem past its drawn top: the range's sweep rows should not move.
+- Liftoffs on Village's dense cell cut more at spin-up (the outer rings) and the fountain stands the stems between the discs.
+
+### The numbers
+
+| Number | Value | Label |
+|---|---|---|
+| The rotors' air | design 19's `RotorAir` and tether.json's `rotor_air` rows | published / derived, carried |
+| ρ | 1.225 kg/m³ (tether.json) | published, carried |
+| The stem's point | ⅔·L·cos φ over its base, on its vertical | derived (one-point rule) / assumed (the vertical, 2.12's) |
+| The swirl in a near column | tan β = Q/(2·T·r̄), r̄ = 2R/3, times the column's speed | derived / assumed (2.12), carried |
+| The swirl in the merged jet | none | derived |
+| The arch's pressure | ½ρ·(u_lean² + u_y²) | derived |
+| The refresh | every 8 steps, by slot; at once when new or stale | numerical |
+| `StemWakeTop` | 2.5 m | numerical (re-derived above) |
+| C_d, the stalks, the lean law | 2.12's | carried |
+
+### Left out, named
+
+The near wake's contraction (decision 4's column is R/√2 from the disc down; by momentum theory's vortex cylinder the slipstream is R/√(1 + z/√(z² + R²)) wide at z under the disc, at v_i(1 + z/√(z² + R²)), so the outer ring 0.71–1 R lies in it within 0–1 R under the disc, nearest the rim the thinnest, at 25–73 % of T/A: some of the ring's stems would fold in the last 0.06–0.25 s before a disc coming down at 0.5 m/s reaches them, about their τ, which the law leaves standing, so the ring's cuts are a bound from above; a fix belongs to `RotorAir` for the line and the stems together); a leaning stem's upper part leaving a narrow column; the flow across a stem's plane of lean; the jet's turbulence (an upright stem in the merged jet starts from its natural lean alone); the wind's own load on the stems; the canopy's drag on the jet (a stand takes the jet's momentum, so more would stand: the cuts are a floor); the wake's travel time (design 19's quasi-steady field); the stems outside a disc's cache (ahead of an approach's front discs) feel no air.
+
+### As built
+
+**Built and graded, not flown (D-111).** Every flight flies 2.12's column; `FlightSetup.StemWash` asks for the wash. With design 19's law alone most straw under the discs stands (below), against the pilot's "Usually it lies flat because of prop wash power, but not always": the far field is right and the near field is incomplete. What decides it, in order:
+1. the near wake's contraction and spread and the jets' turbulence on near-upright stems, built in `RotorAir` for the line and the stems together;
+2. then the stand's mutual contact;
+3. then the folded share under the discs against "usually it lies flat", and the step's cost on a quiet machine (PLT-04).
+
+**Code** (the core: `PropStems.cs`, `PropStrikes.Apply`, `FlightCore`, `RotorAir.Column`, `LogHeader`, `FlightReplay`; `tools/replay`):
+- `PropStrikes.UseWash` builds the stems' `RotorAir` from `FlightSetup.Tether ?? FlightSetup.StemAir` with the line's switches; `FlightCore` passes each step's mean thrust to `Apply`. `BeginWash` begins it in `StemsBegin` while any rotor's stems are near, with the line's inputs (the motors' hubs, the wind at each less its velocity, the ground or the soil under a hole, the body placed).
+- `StemAir` takes a stem's air at ⅔·L·cos φ over its base with its near column's swirl (`RotorAir.Column`), every `StemAirRefresh` (8) steps by slot, at once when new or stale, and returns its in-plane pressure; the lean's step reads the held air in the velocity form above. 2.12's column is the other branch, untouched.
+- Cost, bit for bit in both laws: each stem keeps its lean's sine and cosine (one `SinCos` a lean, not three), and `TopOf` takes the arch's cube root only for a stem leaning past its natural top.
+- `FlightSetup.StemAir` and `StemWash`; header entry 31 (`TagStemAir`): the wash's switch (on only with a table to read), the table's rows and hash when the stems read them without the line; a log without the entry flew the column. With the wash, `StemLean` off (the known-wrong "no fold") takes the stems' air away, as it takes 2.12's q. `FlightReplay`: a replay holding no tether.json takes the stems' rows from the header, one holding one must hold the flight's (the line's check unchanged). `tools/replay` loads tether.json for such a log; its scripted flight's stems read tether.json without `--line`, and `--map` with `--foot` flies where the map has no legs-on start (the farmland).
+- `StemRecord`: `Load` (the wash: the mean in-plane pressure on the stems under the disc), `Under`, `Folded`, `UnderTall`, `FoldedTall` (drawn 1 m or longer), `FreshRing` (fresh cuts past R/√2).
+- `SoilScenarios.Setup` sets `StemAir`; `StemScenarios` flies `wash` and `refresh` on request and records the stems under the discs each step; `Landing` takes its hover height (`from`). `StemTests` is 2.12's, unchanged (it grades what flies).
+
+**Tests** (`StemWashTests`):
+- `TheWashOnAStemFallsWithHeight`: design 19's air at the stems' points, 2.5 to 0.3 m up, under a hub and between the discs, against `stem_wash.py` within 1e-5 m/s at all 16 points; 2.12's column is 35.6 times the law under a hub 2.5 m up and has nothing where the law gives 33.6 Pa between the discs.
+- `TheStemsAndTheLineReadOneAir`: with the line, 2 m over the densest tall cell in the map's calm air, the stems' air and the line's are equal bit for bit at 240 points over 6 steps.
+- `TheRefreshHoldsTheCuts`: every step against every 8: vertical landing fresh 272 / 253 and slices 7,798 / 7,751; approach fresh 103 / 105 and slices 3,210 / 3,210 (within 2√(n₁ + n₈) and 5 %).
+- `ByDefaultTheStemFlightsAreModel97sAndTheWashChangesThem`: by default the landing, approach, creep, hover, the range's creep and the thick sweep cell are model 97's flights bit for bit (a hash of every step's pose, rates, rotor speeds, stem records and events, pinned from the base build); with the wash each differs (no pins for a law no flight flies).
+- The wash's grades, each asking for it: `UnderTheWashACreepCutsAtLeastItsLeadingEdgesStems` (the hand count a floor, a cut's work within 15 %), `UnderTheWashTheApproachCutsInFrontAtLeastAsMuchAsBehind`, `UnderTheWashAHoverCutsItsUncutStemsClear`, and `TheGapUnderTheWashMostStemsStand`, which asserts the gap as it stands: the column folds most stems under the discs at the hover's end, the wash fewer than half, and the no-fold known-wrong cuts less than twice the wash's.
+
+**The column against the wash on the same seeds** (the column: what flies, model 97's flight bit for bit; the wash: `StemWash`; Village's densest tall cell; the stems under the discs are those based within R of a hub's axis, counted before the step's lean):
+
+| The vertical landing (from a 1.9 m hover, 0.5 m/s down) | 2.12's column | The wash |
+|---|---|---|
+| Stems under the discs folded past 45°, hubs 1.85 / 1.0 / 0.5 m up | 72 / 71 / 57 % | 7 / 14 / 20 % |
+| The tall ones (drawn ≥ 1 m) folded, the same heights | 12/14, 12/14, 6/14 | 4/14, 7/15, 1/15 |
+| Their mean pressure, the same heights | 225 / 229 / 195 Pa | 15 / 39 / 66 Pa |
+| Standing over the discs' planes at the touch | 130 | 188 |
+| Fresh cuts before the touch, front / rear | 69 / 68 | 137 / 116 |
+| Slices before the touch (cut equivalents) | 4,206 | 7,751 |
+| Roll and pitch, 4–15 Hz, the last 2 s | 1.67 / 1.58 °/s, 0.053 / 0.051° | 7.54 / 5.42 °/s, 0.220 / 0.143° |
+| The front rotors' deepest dip, the current's peak, the front's power | 30.5 %, +22.1 A, 91.5 W | 75.3 %, +53.1 A, 237 W |
+
+| The pilot's approach (2 m/s, 0.5 m/s down, flare at 1.1 m) | 2.12's column | The wash |
+|---|---|---|
+| Stems under the discs folded past 45°, hubs 1.5 / 0.7 / 0.5 m up | 32 / 45 / 59 % | 1 / 13 / 22 % |
+| Standing over the discs' planes at the touch | 30 | 70 |
+| Fresh cuts before the touch, front / rear | 33 / 25 (1.32 times) | 55 / 50 (1.10 times) |
+| Roll 4–15 Hz, the last 2 s; pitch (the flare's alone 6.68 °/s) | 1.23 °/s 0.031°; 6.79 °/s | 1.76 °/s 0.044°; 6.92 °/s |
+| The front rotors' deepest dip; the front's power | 11.6 %; 15.8 W | 19.1 %; 33.4 W |
+
+The shake over the stand (vertical landing, roll 4–15 Hz, °/s; density ×0.5 / ×1 / ×2 across, diameter ×0.75 / ×1 / ×1.5 down): 2.12's column 0.03 / 0.49 / 1.18, 1.17 / 1.67 / 2.39, 8.76 / 7.15 / 9.71; the wash 2.40 / 4.15 / 5.70, 3.07 / 7.54 / 11.71, 8.66 / 8.47 / 15.65. The approach's roll: 0.42–2.34 against 0.84–3.03 °/s. It still grows with the straws' number and thickness, from about 4 times higher at the thin end to 1.5 times at the thick.
+
+Creep (0.5 m/s at 0.6 m, front discs): 185 fresh cuts, 15.56 J (hand 184.6, 15.19 J) under the column; 233 and 17.10 J under the wash (+26 % on the leading edge's entries, 74 mJ a cut against 81 by hand). The hover (0.5 m, 10 s): the last fresh cut at 5.5 s and the last slice at 5.6 s under the column, 7.8 s and 8.3 s under the wash; 19 episodes begun and ended. S04's creep: fresh 0 / 7 / 0 / 1 → 0 / 4 / 0 / 3, slices 7 → 83.
+
+The liftoff harness (`flightbench --ground`, 10 seeds a cell, the same seeds): every verdict as before; the pilot's account (design 13's lone-corner targets) FAIL as before, 2.9's known "not met"; no tunnel, no throw. The counts move by a seed or two: dry soft one-or-many 2 → 3 of 70, Rain soft lone 4 → 5 and one-or-many 36 → 38 of 70, Severe soft lone 11 → 13 of 70, Severe firm lone 3 → 2 of 20; S04's Rain lone 3 → 4 of 10 (never off 2 → 1). Village against the packages stays within 1° (9.7° against 10.0° along at 10°). `StemLiftoffTests`: Village's dense cell off at 0.548 / 0.653 / 0.686 s (dry, Rain, Severe rain; 0.548 / 0.647 / 0.694 before) at throttle 0.587–0.615.
+
+The test-range sweep (`--sweep test-range 400 1 --threads 4`): 58 failing rows against 57; 28 of 2,240 rows move, 26 on S04's patch and 2 on belt_straw beside it. Lever 5 → 4 (61 Land and 67 Slide pass, 61 Slide fails), Energy 9 → 12 (61 Drop, 61 Slide, 401 Slide and 406 Land fail, 406 Slide passes), 409's liftoff no longer judged; every other check as before. The prediction above (S04 would not move) was wrong. The likely cause, from the range creep's slices 7 → 83 and not traced row by row: S04's stalks that 2.12's column held down within R now stand in the discs' outer rings and are sliced. The Energy rows on stems are the check QA's 3.0b already names as misjudging slides over stems (0.05–0.3 J over).
+
+**Where the change comes from** (traced, `FreshRing`, `UnderTall`):
+- The stems under the discs are mostly short dry culms (0.2–0.6 m): from a 1.9 m hover their ⅔ points lie 1.3–1.7 m under the hubs, in the merged jet's stagnation flow at 10–35 Pa, against their folding 100–400 Pa. 2.12 pressed them at 229 Pa, where they folded with the swirl's help.
+- The tall ones fold where their ⅔ point lies in a hub's near column (R/√2) and stand in the disc's outer ring, where design 19 has no column and the merged jet is not formed yet (l to 2.5 l, the band's still air between the columns: 0.2–5 Pa).
+- So more stems stand to the discs as they come down: 92 % of the fresh cuts are past R/√2 under either law (the rim meets the stems first), and their number doubles.
+- From a 3 m hover the wash folds no more (`Landing(from: 3)`: 1 % under the discs at 2.4 m, 4 % at 2 m): the stems' fold under the merged jet needs a natural lean to start from, and their folding pressure grows fast as that lean falls (dry 1.5 m: 33 Pa from 7.5°, 113 Pa from 2°).
+
+**Plainly, against the pilot's account:**
+- **Toward:** "noticeable cut in front of my quad's camera": the front discs' fresh cuts before the touch 33 → 55 on the approach, 69 → 137 vertically. "My quad is shaking": the approach's roll at 4–15 Hz 1.23 → 1.76 °/s. "Shaking too much (A LOT of straws and thicker)": it still grows with the straws' number and thickness (P12a).
+- **Away:** "Usually it lies flat because of prop wash power, but not always" (P12b): the stems under the discs folded at the hover 72 % → 7 %, the tall ones 86 % → 29 %; the no-fold known-wrong (with the wash, `StemLean` off takes the stems' air away, as it takes 2.12's q) cuts 368, less than twice the wash's 253, where 2.12's own check asks for more than twice (`TheVerticalLandingFoldsMostStems`, which passes under the column that flies; `TheGapUnderTheWashMostStemsStand` asserts the wash's shortfall as it stands). The front discs' lead over the rear falls (1.32 → 1.10 times). The shake's scale rises about fourfold at Village's densest cell: its vertical landing moves from the footage's brushing range (0.07–0.09°, 2.12's "agreeable") to 0.22°, a front rotor dipping 75 %.
+- This is a gap: the pilot's account outranks this result, so the wash is not flown (D-111).
+
+**The mechanisms the result lacks** (each by hand; none fitted, none built here):
+- *The near wake's spread.* In design 19 each near column keeps R/√2 to l and is only faded out across the blend band to 2.5 l. A real rotor's wake contracts to about 0.78 R within half a radius, then its shear layer spreads. A round jet's half-width grows about 0.1 a unit length (published spreading rate), so between 2 and 8 R under a disc (the band that holds the stems' ⅔ points from a 1–2 m hover) the jet covers the outer ring at most of its speed. That is the stems' main missing load: the ring's tall stems would take tens of pascals or more, past their fold. It belongs to `RotorAir`, for the line and the stems together, with its own audit of the line.
+- *The jets' turbulence.* An upright stem in a jet with fluctuations σ takes a mean normal load of about 1.6·σ·W·φ near upright (E[x|x|]'s slope, 2σ√(2/π)): linear in φ, not φ². Under a near column at 229 Pa and σ ≈ 0.2 W, every stalk with A > 3 (the dry ones from about 0.6 m, every green one from 0.3 m) is unstable upright and folds from any lean.
+- *The stand's contact.* Folding stems lean on their neighbours: a dense stand lies down together.
+
+### The checks, as run (on this branch; the machine shared, no timing counts)
+
+As merged, the wash off (every flight 2.12's column):
+
+```
+dotnet test tools/simtests -c Release --filter "StemWashTests|StemTests|StemLiftoffTests|StaticInitTests|GoldenFlightTests"
+  Total tests: 90, Passed: 90 (the six stem flights their model 97 pins by default and changed with the wash;
+  TheVerticalLandingFoldsMostStems passes under the column; TheGapUnderTheWashMostStemsStand: the column 72 %
+  folded at the hover's end (13 of 15 tall), the wash 7 % (5 of 15 tall), the no-fold known-wrong 368 against 253)
+dotnet test tools/simtests -c Release
+  Passed! - Failed: 0, Passed: 906, Skipped: 0, Total: 906, Duration: 46 m 13 s
+dotnet run -c Release --project tools/flightbench -- --golden      65 PASS, 0 FAIL, exit 0 (no golden moved)
+dotnet run -c Release --project tools/flightbench -- --contacts    80 PASS, 0 FAIL, exit 0
+dotnet run -c Release --project tools/flightbench -- --landing     29 PASS, 0 FAIL, exit 0
+flightbench --sweep test-range 400 1 --threads 4                  2240 rows, 57 failing; rows SHA-256 d62c2549…, the base's
+python tools/hygiene/precommit.py --tree HEAD    0 findings
+openspec validate w9-village-physics --strict    Change 'w9-village-physics' is valid
+```
+
+With the wash as every flight's law (0e967770, before D-111), the grades above:
+
+```
+dotnet test tools/simtests -c Release --filter "StemWashTests|StemTests|StemLiftoffTests"
+  15 tests: 14 passed; TheVerticalLandingFoldsMostStems failed (399 against more than 506; its known-wrong then kept the
+  wash's air, since fixed: 368)
+dotnet test tools/simtests -c Release
+  Failed! - Failed: 1, Passed: 901, Skipped: 0, Total: 902, Duration: 39 m 58 s
+  (the one: TheVerticalLandingFoldsMostStems, the P12b gap; an earlier full run also failed StaticInitTests'
+  NoStaticReferenceFieldOnTheStepPath on the header's sort lambda renumbered by the new entry, fixed in ca1d58f3)
+dotnet run -c Release --project tools/flightbench -- --golden      65 PASS, 0 FAIL, exit 0 (no golden moved)
+dotnet run -c Release --project tools/flightbench -- --contacts    80 PASS, exit 0
+dotnet run -c Release --project tools/flightbench -- --landing     29 PASS, exit 0
+dotnet run -c Release --project tools/flightbench -- --ground      exit 1: design 13's targets FAIL as before; every other verdict PASS
+flightbench --sweep test-range 400 1 --threads 4                  2240 rows, 58 failing (57 before); rows SHA-256 02b11c85…
+replay --record stems.fpvlog --seconds 30 --wind calm --map farmland --foot 768.07,24.165658,917.48,0
+  30000 steps, 63 events (28 StemEpisode), the stems' air from tether.json without the line
+replay stems.fpvlog      tether.json 0x03DA807510BD8389; match: 30000 steps and 63 events, bit for bit; exit 0 (Match)
+python tools/hygiene/precommit.py --tree HEAD    3623 files scanned, 0 findings
+openspec validate w9-village-physics --strict    Change 'w9-village-physics' is valid
+```
+
+Indicative cost (Advance alone, hovers 1.9 / 1.0 / 0.5 m over the densest tall cell, 1,400 stems cached; medians of 100-step chunks, the quieter of two runs on the shared machine, before the sine-and-cosine store): without stems 19–106 µs, 2.12's column 109–141 µs, the wash every 8 steps 259–351 µs (best chunks 189–310), every step 536–833 µs. The wash adds about 175 `RotorAir.At` calls a step (170–335 ns each on a quiet scratch bench) and the lean of every cached stem (all are loaded under the merged jet, where 2.12 loaded those under the discs). PLT-04 (p99 ≤ 300 µs) is QA's on a quiet machine; in this cell it is at risk.
+
 ## 2.3 Leaves in crowns, and what a crown's twigs hold
 
 **Owner:** physics-engineer · **Requirements:** PHY-05, PHY-24, PHY-26, LOG-03 · **Branch:** `unity/physics/physics-integration-2--w9-crowns` (from ca718e20, model 89) · Widened by three findings (2.4's anchors on shells, 2.7's held props, 2.7's event overflow). The model number is the orchestrator's at the merge.

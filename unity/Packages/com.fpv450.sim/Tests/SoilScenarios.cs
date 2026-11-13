@@ -54,7 +54,9 @@ namespace Fpv450.Sim.Tests
         public static FlightWorld Floor(string surface) => new FlightWorld(new FloorWorld(0, surface, "steel", "timber"));
 
         /// <summary>The legs-on drone with surfaces.json (or table) at rest on world at start, still air, in rain; rigid flies
-        /// without the table, the known-wrong rigid ground with plain friction (μ 0.5/0.4 on every surface, p6-flight-core 1.6).</summary>
+        /// without the table, the known-wrong rigid ground with plain friction (μ 0.5/0.4 on every surface, p6-flight-core 1.6).
+        /// Its props' stems read the rotors' air by tether.json's law (FlightSetup.StemAir, w9-village-physics 2.13), as a
+        /// pilot's flight does with the line.</summary>
         public static FlightSetup Setup(DroneSpec spec, FlightWorld world, Double3 start, RainLevel rain = RainLevel.Sunny, ulong seed = 0x450F,
             bool asymmetry = false, SurfaceTable table = null, bool rigid = false)
         {
@@ -64,9 +66,15 @@ namespace Fpv450.Sim.Tests
                 Seed = seed, World = world, Mass = spec.BuildMass(spec.Nominal), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Asymmetry = asymmetry ? spec.BuildAsymmetry() : null, Rain = rain,
                 Contacts = spec.BuildContacts(spec.Nominal, materials, hash, rigid ? null : table ?? Table()), StartPosition = start, StartPackCharge = 0.9,
-                CameraPosition = spec.CameraPosition,
+                CameraPosition = spec.CameraPosition, StemAir = StemAir(),
             };
         }
+
+        static Tether.TetherTable _stemAir;
+
+        /// <summary>The repository's tether.json, read once: the stems' air without the line (w9-village-physics 2.13).</summary>
+        public static Tether.TetherTable StemAir() => _stemAir ??= Tether.TetherTable.Parse(System.IO.File.ReadAllText(
+            ContactScenarios.RepositoryFile(Tether.TetherTable.RelativePath)));
 
         /// <summary>The body origin's height with the skids' lowest point on y = 0, the legs unloaded.</summary>
         public static double Standing(DroneSpec spec)

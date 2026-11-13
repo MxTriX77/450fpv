@@ -1,7 +1,9 @@
 """Grades the K section 8.6 wind targets per level (p7c-wind 1.5, design 2; wind.md sections 6.2-6.4).
 
 Reads `flightbench --wind-harness <level> --out DIR` runs (harness.json and one CSV per run in the tracker's
-columns), analyses each with wind_stats.py's `analyse`, averages each field over the nominal runs (T8 pools the
+columns), flown by the harness's default pilot, the human (p7c-wind design 13, D-109; `--pilot k85` flies K section
+8.5's pilot as a variant, graded the same way), analyses each with wind_stats.py's `analyse`, averages each field
+over the nominal runs (T8 pools the
 gaps, T11b uses the s = 1 and s = 0 variants) and grades it against the level's column of wind.md's tables:
 Severe as section 6.3, Windy with the angle spreads and band RMS scaled by c = 0.5 (the tangent of the mean lean
 for T0), Calm ceilings only (section 6.4). Each target is then graded on its known-wrong model's runs, where one was
@@ -11,8 +13,9 @@ flown, and must fail there:
   spreads and spectra, T7, T8, T10)
 - `-nobelt`: the field without the belt's wooded strip, its canopy flow (the belt's spreads and ratios, T7's belt
   share, T10b's belt), flown at the same heights
-- `-noiseless`: the pilot without its stick noise (D-060, HarnessPilot's motor noise), a second known-wrong for the
-  pitch spread and its 1-4 Hz (T2, T6c), where the human remnant belongs; every flown known-wrong must fail
+- `-noiseless`: the pilot without its remnant (the human's: Levison's observation noise on its attitude errors and
+  D-060's motor noise on its sticks, HarnessPilot), a second known-wrong for the pitch spread and its 1-4 Hz (T2,
+  T6c), where the human remnant belongs; every flown known-wrong must fail
 - `-nowake`: the airframe without the rotors in each other's wake (p7b-airframe 1.3d, D-060's rear rotors in the front
   rotors' wake), a third known-wrong for the pitch spread and its bands (T2, T6b, T6c)
 - `as severe` (Calm only): Severe's runs graded on Calm's ceilings, a calm level as strong as Severe (every ceiling
