@@ -896,42 +896,42 @@
     },
     "grass_blade": {
       "dry": {
-        "elastic_modulus_pa": {"value": [1.0e9, 1.0e9], "label": "assumed", "note": "1 GPa (0.33–6.6): inside the published straw (0.33–6.6 GPa, Tavakoli et al. 2009 and O'Dogherty et al. 1995) and alfalfa (0.79–3.99 GPa, Nazari Galedar et al. 2008) bounds; no green culm's was readable (stem-properties.md §4, §5)"},
+        "elastic_modulus_pa": {"value": [6.4e9, 6.4e9], "label": "derived", "note": "the least modulus with which the tallest drawn green culm (1.341 m, 2.29 mm by the allometry) stands under its own weight, L_c = 1.986·(EI/μg)^(1/3) (w9-village-physics design.md 2.12); inside wheat straw's published tensile 4.8–6.6 GPa (O'Dogherty et al. 1995, stem-properties.md [6]). 2.11's assumed 1 GPa let no drawn culm over 0.72 m stand"},
         "wall_share": {"value": 0.125, "label": "derived", "note": "radius : wall 1 : 0.25 or less, so wall / d = 0.25 × 0.5 (InfoFlora [1]; stem-properties.md §4)"},
         "density_kg_m3": {"value": 1000.0, "label": "assumed", "note": "living, water-filled tissue, 900–1050 (stem-properties.md §4)"},
         "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass), as the stem row's"},
         "cut_energy_j_per_m2": {"value": 10000.0, "label": "assumed", "note": "10 kJ/m² (5–25): under straw's 18.8–25.7, above leaf laminae's 0.18–2.7 (stem-properties.md §4)"},
         "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending, as the stem row's"},
-        "diameter_m": {"value": 0.0015, "label": "published", "note": "a green grass culm, 1–2 mm (Dactylis glomerata, Arrhenatherum elatius; InfoFlora's species pages, stem-properties.md [1], §4)"}
+        "diameter_m": {"value": 0.00181, "label": "derived", "note": "a 1 m stem's; a stem of length L is d·L^(1/1.53) (Niklas 1995, Ann. Bot. 75: 133–142: H ∝ D^1.53 over 76 herbaceous species). From InfoFlora's 1–2 mm culms on 30–120 cm grasses (stem-properties.md [1]), 1.5 mm at 0.75 m their middle (assumed); design.md 2.12"}
       },
       "wet": {
-        "elastic_modulus_pa": {"value": [1.0e9, 1.0e9], "label": "derived", "note": "the dry set's"},
+        "elastic_modulus_pa": {"value": [6.4e9, 6.4e9], "label": "derived", "note": "the dry set's"},
         "wall_share": {"value": 0.125, "label": "derived", "note": "the dry set's"},
         "density_kg_m3": {"value": 1000.0, "label": "derived", "note": "the dry set's"},
         "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
         "cut_energy_j_per_m2": {"value": 10000.0, "label": "derived", "note": "the dry set's"},
         "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"},
-        "diameter_m": {"value": 0.0015, "label": "derived", "note": "the dry set's"}
+        "diameter_m": {"value": 0.00181, "label": "derived", "note": "the dry set's"}
       }
     },
     "dry_culm": {
       "dry": {
         "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "assumed", "note": "2 GPa (0.5–6.6): drier is stiffer, the published direction (Nazari Galedar et al. 2008, Tavakoli et al. 2009; stem-properties.md §4)"},
-        "wall_share": {"value": 0.125, "label": "assumed", "note": "a dead culm keeps its green section (stem-properties.md §4)"},
-        "density_kg_m3": {"value": 500.0, "label": "assumed", "note": "the straw row's dry wall tissue, 300–600 (stem-properties.md §4)"},
+        "wall_share": {"value": 0.125, "label": "derived", "note": "wheat's second basal internode, a 0.475–0.586 mm wall on 3.87–4.54 mm, 0.124 (Yao et al. 2012, Aust. J. Crop Sci. 6(5): 899–903, Table 1); a dead culm keeps its section"},
+        "density_kg_m3": {"value": 400.0, "label": "derived", "note": "wheat's basal internode: 17.8–25.5 mg dry a cm over its wall's area gives 320–450 kg/m³ (Yao et al. 2012, Table 1), with a standing dead stem's 10–15 % moisture on it; design.md 2.12"},
         "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass), as the stem row's"},
         "cut_energy_j_per_m2": {"value": 15000.0, "label": "assumed", "note": "15 kJ/m² (8–25): drier shears with less energy (Nazari Galedar et al. 2008) and weathered stems are 0.3–0.7 as strong (Šarauskis et al. 2013; stem-properties.md §4)"},
         "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending, as the stem row's"},
-        "diameter_m": {"value": 0.0015, "label": "assumed", "note": "a dead culm keeps its green section (stem-properties.md §4)"}
+        "diameter_m": {"value": 0.00449, "label": "derived", "note": "a 1 m stem's; a stem of length L is d·L^(1/1.53) (Niklas 1995: H ∝ D^1.53). From wheat's 3.87–4.54 mm second basal internode (Yao et al. 2012), 4.2 mm on a 0.9 m plant (the height assumed: semi-dwarf wheats' 0.8–1.0 m); design.md 2.12"}
       },
       "wet": {
         "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "derived", "note": "the dry set's"},
         "wall_share": {"value": 0.125, "label": "derived", "note": "the dry set's"},
-        "density_kg_m3": {"value": 500.0, "label": "derived", "note": "the dry set's"},
+        "density_kg_m3": {"value": 400.0, "label": "derived", "note": "the dry set's"},
         "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
         "cut_energy_j_per_m2": {"value": 15000.0, "label": "derived", "note": "the dry set's"},
         "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"},
-        "diameter_m": {"value": 0.0015, "label": "derived", "note": "the dry set's"}
+        "diameter_m": {"value": 0.00449, "label": "derived", "note": "the dry set's"}
       }
     },
     "burnt_culm": {
@@ -942,7 +942,7 @@
         "hook_release_n": {"value": [1.0, 4.0], "label": "assumed", "note": "carried (surfaces-review §3.1, belt_straw's grass), as the stem row's"},
         "cut_energy_j_per_m2": {"value": 7500.0, "label": "assumed", "note": "the dry culm's × 0.5 (stem-properties.md §4, no source)"},
         "damping_ratio": {"value": 0.1, "label": "assumed", "note": "p7a-ground design 8: a rooted stem's bending, as the stem row's"},
-        "diameter_m": {"value": 0.0015, "label": "assumed", "note": "the dry culm's (stem-properties.md §4: no source on charred stems, §5)"}
+        "diameter_m": {"value": 0.00449, "label": "assumed", "note": "the dry culm's 1 m stem, by the same allometry (no source on charred stems, stem-properties.md §5; design.md 2.12)"}
       },
       "wet": {
         "elastic_modulus_pa": {"value": [2.0e9, 2.0e9], "label": "derived", "note": "the dry set's"},
@@ -951,7 +951,7 @@
         "hook_release_n": {"value": [1.5, 6.0], "label": "derived", "note": "the dry set's × wetting.cover_hook_release_wet"},
         "cut_energy_j_per_m2": {"value": 7500.0, "label": "derived", "note": "the dry set's"},
         "damping_ratio": {"value": 0.1, "label": "derived", "note": "the dry set's"},
-        "diameter_m": {"value": 0.0015, "label": "derived", "note": "the dry set's"}
+        "diameter_m": {"value": 0.00449, "label": "derived", "note": "the dry set's"}
       }
     }
   }
