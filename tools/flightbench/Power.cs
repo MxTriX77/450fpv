@@ -31,17 +31,16 @@ namespace Fpv450.FlightBench
         static extern uint CallNtPowerInformation(int level, IntPtr input, uint inputLength,
             [Out] ProcessorPowerInformation[] output, uint outputLength);
 
-        public static bool OnAc { get; private set; }
+        /// <summary>The charger connected (ACLineStatus 1), read when asked: whatever the battery's charge does at a charge limit, and
+        /// never a value left from an earlier Describe (a case that printed no Describe read false).</summary>
+        public static bool OnAc => OperatingSystem.IsWindows() && GetSystemPowerStatus(out SystemPowerStatus status) && status.ACLineStatus == 1;
 
         public static string Describe()
         {
             if (!OperatingSystem.IsWindows()) return "power state unknown";
             string source = "unknown source";
             if (GetSystemPowerStatus(out SystemPowerStatus status))
-            {
-                OnAc = status.ACLineStatus == 1;
                 source = status.ACLineStatus switch { 0 => "battery, not evidence (PLT-07)", 1 => "AC", _ => source };
-            }
             return $"{source}, {Plan()} plan, {Mode()} mode, {Clock()}";
         }
 

@@ -31,18 +31,22 @@ namespace Fpv450.Sim.Tests
             /// <summary>Nothing NaN or unbounded: the state finite, |v| ≤ MaxSpeed, |ω| ≤ MaxRate, within MaxRange of the start.</summary>
             Finite = 0,
             /// <summary>No frame part, support or skid deeper past the ground's (or a soil shape's) surface than GroundTolerance beyond
-            /// what its corner's soil model says its nodes sank and its leg's own give (both 0 for a frame part).</summary>
+            /// what its corner's soil model says its nodes sank and its leg's own give (0 for a half whose leg is gone), or, for a frame
+            /// part, its own penalty spring's overlap at the force its pairs carry.</summary>
             Ground,
-            /// <summary>The contacts' moment about the CoM at most Reach times their force's size (the spec's rule for G1).</summary>
+            /// <summary>Every touching pair's force acts within Reach of the CoM (PairReach), so the contacts' moment is at most Reach
+            /// times the sum of their forces' sizes (the spec's rule for G1).</summary>
             Lever,
-            /// <summary>The body's mechanical energy since the start never above the rotors', the air's and gravity's work by more
-            /// than EnergyTolerance: the contacts give back no more than they took.</summary>
+            /// <summary>The body's kinetic energy since the start never above the rotors', the air's and gravity's work (the blades'
+            /// passes among the rotors', up to what they took from the rotors) by more than EnergyTolerance: the contacts give back no
+            /// more than they took.</summary>
             Energy,
             /// <summary>No part logs the same event (kind, part, index, object, shape) twice in a step (G5's kind).</summary>
             EventsOnce,
             /// <summary>The step's event buffer refuses nothing.</summary>
             EventsKept,
-            /// <summary>No Tunnel and no WorldBug event (both bugs by definition).</summary>
+            /// <summary>No WorldBug event, no Tunnel through anything rigid, and none through the ground or a soil shape deeper than
+            /// GroundTolerance past its soil's sink and the part's own give (Ground's allowance).</summary>
             Tunnel,
             /// <summary>A gentle landing's peak acceleration after the touch under twice the legs' design 50 g (flightbench --slopes' rule).</summary>
             Peak,
@@ -66,8 +70,9 @@ namespace Fpv450.Sim.Tests
         public const double Reach = 0.5;
 
         /// <summary>The deepest a part may lie past the ground's surface, m (assumed: the ledger's gap 14 names no number. 20 mm is
-        /// several times the sink the soil model gives a loaded skid on the softest class at a landing (tilled, mm) and the penalty
-        /// springs' depth under a 50 g impact; a skid 17–19 cm in is a part through the ground).</summary>
+        /// several times the sink the soil model gives a loaded skid on the softest class at a landing (tilled, mm); a skid 17–19 cm
+        /// in is a part through the ground). A frame part's penalty overlap is counted at its force (PairReach.Backed), not in it:
+        /// a motor can on E01's soil took 26 mm at 2.2 kN in a 4.9 m/s drop (3.0b).</summary>
         public const double GroundTolerance = 0.020;
 
         /// <summary>The energy the contacts may return beyond what they took since the start, J (assumed: 1 % of a 2.5 kg drone's
@@ -76,8 +81,9 @@ namespace Fpv450.Sim.Tests
 
         public const double MaxSpeed = 50, MaxRate = 100, MaxRange = 1000;
 
-        /// <summary>At rest: the body's speed under RestSpeed and its rate under RestRate for RestHold steps in a row, within
-        /// RestSeconds of the touch (the spec's 10 s).</summary>
+        /// <summary>At rest: for RestHold steps in a row the body's mean speed and turn rate since the hold began under RestSpeed and
+        /// RestRate (it goes nowhere: an idle motor's vibration in place is not motion), within RestSeconds of the touch (the spec's
+        /// 10 s).</summary>
         public const double RestSpeed = 0.05, RestRate = 0.1, RestSeconds = 10;
         public const int RestHold = 500;
 
@@ -501,6 +507,7 @@ namespace Fpv450.Sim.Tests
             bool holding = false;
             long touch = -1, restAt = -1, liftStart = -1, liftAt = -1, quiet = 0;
             Double3 touchedAt = default, lastV = core.State.Velocity;
+            var rest = new RestWindow();
             double groundAtFoot = p.Height;
             const int hover = 3000;
             int steps = 0;
@@ -602,8 +609,7 @@ namespace Fpv450.Sim.Tests
                         row.Worse(Check.Peak, acc);
                         if (!(acc < PeakBound)) row.Fail(Check.Peak, now.Step, $"{acc:F0} m/s² at {(now.Step - touch)} ms after the touch");
                     }
-                    bool still = now.Velocity.Length() < RestSpeed && now.BodyRate.Length() < RestRate;
-                    quiet = still ? quiet + 1 : 0;
+                    quiet = rest.Add(now.Position, now.Attitude);
                     if (restAt < 0 && quiet >= RestHold) restAt = now.Step;
                     bool late = now.Step - touch >= (long)(RestSeconds / FlightCore.Dt);
                     if (restAt >= 0 || late)
@@ -693,6 +699,176 @@ namespace Fpv450.Sim.Tests
             return Math.Acos(Math.Max(-1, Math.Min(1, up))) * 57.29577951308232;
         }
 
+        // ---- The checks' rules, each a function of what one step shows (3.0b: tested on made states, never on one flight's path) --
+
+        /// <summary>Tunnel's verdict on one event: a WorldBug, and a Tunnel through anything rigid (no surface), always fail; a Tunnel
+        /// through the ground or a soil shape fails when it lay more than GroundTolerance past its soil's sink and the part's own give
+        /// (past, m): the core's rule takes a surface's row as rigid, so a part dropped from a soil box inside the soil's own sink is no
+        /// passage (range #425 Slide at model 95: support_fl_end 15.0 mm in E01's box, its soil sunk 12.5 mm). Other kinds pass.</summary>
+        public static bool TunnelFails(in FlightEvent e, double give, double sink, out double past)
+        {
+            past = 0;
+            if (e.Kind == EventKind.WorldBug || e.Kind == EventKind.Tunnel && e.Surface == 0)
+            {
+                past = double.PositiveInfinity;
+                return true;
+            }
+            if (e.Kind != EventKind.Tunnel) return false;
+            past = e.A - sink - give;
+            return past > GroundTolerance;
+        }
+
+        /// <summary>A leg point's own give this step, m: its leg's compression along the tube and lean across it (the trace's, which
+        /// the rigid body's geometry shows as overlap while the modelled foot stays put), in the state the step's forces were made in
+        /// (its start's; in the step a leg breaks the trace still holds the give it carried its load with). None for a half whose leg
+        /// is gone (Hanging, Stub, TubeGone): the trace's compression there is the half's own deepest overlap, which would excuse any
+        /// depth by itself, and the half's give, its cantilever's turn, is already in its shapes' placement.</summary>
+        public static double LegGive(CornerState atStart, double compression, double lean) =>
+            (atStart & (CornerState.Hanging | CornerState.Stub | CornerState.TubeGone)) != 0 ? 0 : Math.Abs(compression) + Math.Abs(lean);
+
+        /// <summary>A frame part's give, m: its own penalty spring's overlap at the force it carries (backed), never past its own
+        /// thickness (a part wholly under the surface is through it at any force). Not its radius: a motor can 37 mm across on its back
+        /// at 3.2 m/s carried 2.4 kN 39 mm into a 34° sod slope (farmland #476 Drop at model 95), some 2 MPa over its section against
+        /// the few tenths of a MPa soft topsoil bears (assumed, published range), so it punches in.</summary>
+        public static double FrameGive(double backed, double radius) => Math.Min(backed, 2 * radius);
+
+        /// <summary>
+        /// Rest's hold: the steps in a row over which the body has gone nowhere, its mean speed and turn rate since the hold began
+        /// under RestSpeed and RestRate. The step's own speeds read an armed drone's idle vibration as motion (range #131 Drop at model
+        /// 95, on its back with two props at idle: its place held to 1 mm and its attitude to 0.2° while its rate swung ±0.16 rad/s at
+        /// ~15 Hz).
+        /// </summary>
+        public sealed class RestWindow
+        {
+            Double3 _at;
+            Quat _att;
+
+            public int Quiet { get; private set; }
+
+            /// <summary>The pose after a step; returns Quiet.</summary>
+            public int Add(Double3 position, Quat attitude)
+            {
+                if (Quiet == 0)
+                {
+                    _at = position;
+                    _att = attitude;
+                }
+                double hold = RestHold * FlightCore.Dt;
+                double cosHalf = Math.Abs(_att.W * attitude.W + _att.X * attitude.X + _att.Y * attitude.Y + _att.Z * attitude.Z);
+                bool still = (position - _at).Length() < RestSpeed * hold && 2 * Math.Acos(Math.Min(1, cosHalf)) < RestRate * hold;
+                Quiet = still ? Quiet + 1 : 0;
+                return Quiet;
+            }
+        }
+
+        // ---- The pairs' points of application ------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Where each touching pair's force acts (ContactModel.Forces' own points): a support's or skid's pair (its shape's own and
+        /// its ground pair) at its contact point less its anchor's stretch when the legs give sideways (Final), a soil corner's foot
+        /// likewise (SoilFinal), every other part's at its contact point (Apply). Read by reflection: the core keeps its pairs
+        /// private and a test may not add a hook to it (3.0b). A disc's pairs carry no force here (PropStrikes' passes).
+        /// </summary>
+        public static class PairReach
+        {
+            const System.Reflection.BindingFlags Private = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            static readonly System.Reflection.FieldInfo PairsF = typeof(ContactModel).GetField("_pairs", Private),
+                CountF = typeof(ContactModel).GetField("_count", Private), GroundF = typeof(ContactModel).GetField("_ground", Private),
+                SoilF = typeof(ContactModel).GetField("_soilPoint", Private);
+            static readonly Type PairT = PairsF.FieldType.GetElementType(), SoilT = SoilF.FieldType.GetElementType();
+            static readonly System.Reflection.FieldInfo Touching = PairT.GetField("Touching"), Suppressed = PairT.GetField("Suppressed"),
+                PointF = PairT.GetField("Point"), StretchF = PairT.GetField("Stretch"), SoilOn = SoilT.GetField("On"), SoilFoot = SoilT.GetField("Foot");
+
+            /// <summary>The farthest point of application from com (world), m, and its shape (−1 for none).</summary>
+            public static double Farthest(ContactModel model, in FlightState s, Double3 com, out int shape)
+            {
+                var pairs = (Array)PairsF.GetValue(model);
+                var count = (int[])CountF.GetValue(model);
+                var ground = (Array)GroundF.GetValue(model);
+                var soil = (Array)SoilF.GetValue(model);
+                bool series = model.Spec.LegSideStiffness > 0;
+                double far = 0;
+                shape = -1;
+                for (int i = 0; i < model.ShapeCount; i++)
+                {
+                    ContactRole role = model.Shape(i).Role;
+                    if (model.ShapeOff(i) || role == ContactRole.Disc) continue;
+                    bool leg = series && (role == ContactRole.Support || role == ContactRole.Skid);
+                    if (role == ContactRole.Support) Take(ground.GetValue(i), leg, i, com, ref far, ref shape);
+                    for (int k = 0; k < count[i]; k++) Take(pairs.GetValue(i * ContactModel.PairsPerShape + k), leg, i, com, ref far, ref shape);
+                }
+                for (int c = 0; c < soil.Length; c++)
+                {
+                    object sp = soil.GetValue(c);
+                    if (!(bool)SoilOn.GetValue(sp)) continue;
+                    object foot = SoilFoot.GetValue(sp);
+                    double d = ((Double3)PointF.GetValue(foot) - (Double3)StretchF.GetValue(foot) - com).Length();
+                    if (d > far)
+                    {
+                        far = d;
+                        shape = FirstOfCorner(model, c);
+                    }
+                }
+                return far;
+            }
+
+            static readonly System.Reflection.FieldInfo ImpulseF = PairT.GetField("Impulse"), NormalF = PairT.GetField("N"),
+                ObjectF = PairT.GetField("Object"), ShapeF = PairT.GetField("Shape");
+
+            /// <summary>
+            /// Each frame part's (ContactRole.Body) penalty overlap at its own force this step, m, into backed (by shape): the largest
+            /// of its touching pairs' normal force over the part's stiffness along that pair's normal (ContactModel.Forces: 1/(u²/k_up
+            /// + (1 − u²)/k), u the normal's body-up share). The force is the pair's impulse's growth over the step (Apply adds its
+            /// normal force·dt; a pair made in the step before starts from 0), so a pair that carries nothing backs nothing. last and
+            /// now hold the impulses by (shape, object, object's shape) across steps.
+            /// </summary>
+            public static void Backed(ContactModel model, in FlightState s, Dictionary<(int, int, int), double> last, Dictionary<(int, int, int), double> now,
+                double[] backed)
+            {
+                var pairs = (Array)PairsF.GetValue(model);
+                var count = (int[])CountF.GetValue(model);
+                now.Clear();
+                for (int i = 0; i < model.ShapeCount; i++)
+                {
+                    backed[i] = 0;
+                    ContactShape sh = model.Shape(i);
+                    if (model.ShapeOff(i) || sh.Role != ContactRole.Body) continue;
+                    for (int k = 0; k < count[i]; k++)
+                    {
+                        object p = pairs.GetValue(i * ContactModel.PairsPerShape + k);
+                        if (!(bool)Touching.GetValue(p) || (bool)Suppressed.GetValue(p)) continue;
+                        var key = (i, (int)ObjectF.GetValue(p), (int)ShapeF.GetValue(p));
+                        double impulse = (double)ImpulseF.GetValue(p);
+                        now[key] = impulse;
+                        double fn = (impulse - (last.TryGetValue(key, out double was) && was <= impulse ? was : 0)) / FlightCore.Dt;
+                        Double3 nb = s.Attitude.InverseRotate((Double3)NormalF.GetValue(p));
+                        double up = nb.Y * nb.Y, ks = 1 / (up / sh.StiffnessUp + (1 - up) / sh.Stiffness);
+                        backed[i] = Math.Max(backed[i], fn / ks);
+                    }
+                }
+            }
+
+            static void Take(object p, bool leg, int i, Double3 com, ref double far, ref int shape)
+            {
+                if (!(bool)Touching.GetValue(p) || (bool)Suppressed.GetValue(p)) return;
+                Double3 at = (Double3)PointF.GetValue(p);
+                if (leg) at = at - (Double3)StretchF.GetValue(p);
+                double d = (at - com).Length();
+                if (d > far)
+                {
+                    far = d;
+                    shape = i;
+                }
+            }
+
+            static int FirstOfCorner(ContactModel model, int c)
+            {
+                for (int i = 0; i < model.ShapeCount; i++)
+                    if (model.Shape(i).Corner == c && model.Shape(i).Role == ContactRole.Skid) return i;
+                return 0;
+            }
+        }
+
         // ---- The per-step judge -------------------------------------------------------------------------------------------
 
         /// <summary>Steps a core and judges every step against the invariants it can see in a step (all but Rest, Lifts, Replay).</summary>
@@ -704,7 +880,13 @@ namespace Fpv450.Sim.Tests
             readonly StaticContact[] _found = new StaticContact[8];
             readonly GroundSample[] _g = new GroundSample[1];
             readonly XZ[] _at = new XZ[1];
-            double _energy; // the contacts' net return since the start, J (ΔE_mech less the other forces' work)
+            double _energy; // the contacts' net return since the start, J (ΔKE less the other forces' work and the passes' credit)
+            double _raw, _passes, _taken; // since the start, J: ΔKE less the other forces' work; the passes' kicks; what the strikes took
+            double[] _backed; // each frame part's penalty overlap at its force this step (PairReach.Backed)
+            readonly CornerState[] _cornerBefore = new CornerState[4]; // each corner's state at the step's start
+            readonly double[] _groove = new double[4], _grooveSink = new double[4]; // each corner's sink to judge, its groove's depth, m
+            readonly Double3[] _grooveAt = new Double3[4]; // where each corner's skid lay when its soil last held it, world
+            Dictionary<(int, int, int), double> _impulses = new Dictionary<(int, int, int), double>(), _impulsesNow = new Dictionary<(int, int, int), double>();
             public int Crashes, BladeTouches;
             readonly List<long> _crashSteps = new List<long>();
             readonly int[] _kinds = new int[64];
@@ -733,11 +915,10 @@ namespace Fpv450.Sim.Tests
                 return n;
             }
 
-            static double Energy(in FlightState s, in MassProperties b)
+            static double Kinetic(in FlightState s, in MassProperties b)
             {
-                Double3 com = s.Position + s.Attitude.Rotate(b.CenterOfMass);
-                Double3 v = s.Velocity + s.Attitude.Rotate(Double3.Cross(s.BodyRate, b.CenterOfMass));
-                return 0.5 * b.Mass * Double3.Dot(v, v) + 0.5 * Double3.Dot(s.BodyRate, b.Inertia * s.BodyRate) + b.Mass * 9.80665 * com.Y;
+                Double3 v = ComVelocity(s, b);
+                return 0.5 * b.Mass * Double3.Dot(v, v) + 0.5 * Double3.Dot(s.BodyRate, b.Inertia * s.BodyRate);
             }
 
             static Double3 ComVelocity(in FlightState s, in MassProperties b) => s.Velocity + s.Attitude.Rotate(Double3.Cross(s.BodyRate, b.CenterOfMass));
@@ -747,7 +928,7 @@ namespace Fpv450.Sim.Tests
                 FlightCore core = _core;
                 FlightState s0 = core.State;
                 MassProperties b0 = core.Body;
-                double e0 = Energy(s0, b0);
+                for (int c = 0; c < 4; c++) _cornerBefore[c] = core.Contacts.Corner(c);
                 long before = AllocProbe.Before();
                 core.Advance(stick);
                 long allocated = AllocProbe.After(before);
@@ -775,30 +956,50 @@ namespace Fpv450.Sim.Tests
                 if (!finite || v > MaxSpeed || w > MaxRate || away > MaxRange)
                     r.Fail(Check.Finite, step, finite ? $"|v| {v:F1} m/s, |ω| {w:F1} rad/s, {away:F0} m from the start" : "a NaN or ∞ in the state or the trace");
 
-                // The lever: |M| ≤ Reach · |ΣF| (the vector sum's size, never more than the sum of the sizes: a step under it is under the
-                // spec's bound; AnchorReachTests' reading).
+                // The lever, pair by pair (3.0b): the spec's |M| ≤ Reach·Σ|F_i| holds whenever every pair's force acts within Reach of
+                // the CoM (|r_i × F_i| ≤ |r_i|·|F_i|), so each touching pair's own point of application is judged: its contact point, a
+                // leg point's less its anchor's stretch (ContactModel.Final, SoilFinal: the foot where the ground holds it). |M|/|ΣF|
+                // was not that: two contacts pushing against each other make a couple with almost no net force (range #180 Slide,
+                // 1.42 N·m on 2.36 N: its pairs' normals sum to 20.8 N, every point within 0.38 m). The core has no per-pair reading,
+                // so PairReach reads its pairs by reflection, outside the step's allocation probe.
                 double cf = tr.ContactForce.Length(), cm = tr.ContactMoment.Length();
                 if (cf > 0 || cm > 0)
                 {
                     r.Judge(Check.Lever);
-                    double lever = cf > 0 ? cm / cf : double.PositiveInfinity;
-                    r.Worse(Check.Lever, lever);
-                    if (cm > Reach * cf + 1e-9) r.Fail(Check.Lever, step, cf > 0 ? $"{cm:F2} N·m on {cf:F2} N, a {lever:F3} m lever" : $"{cm:F3} N·m with no contact force");
+                    double reach = PairReach.Farthest(core.Contacts, s, s.Position + s.Attitude.Rotate(core.Body.CenterOfMass), out int part);
+                    r.Worse(Check.Lever, reach);
+                    if (reach > Reach)
+                        r.Fail(Check.Lever, step, $"{core.Contacts.Shape(part).Name}'s force {reach:F3} m from the CoM ({cm:F2} N·m on {cf:F2} N)");
                 }
 
-                // The energy: ΔE_mech of the body less the work of every force but the contacts' (rotors, air, gravity), summed since the
-                // start. RigidBody's kick makes the CoM's ΔKE exactly F·v̄·dt and the turn's ΔKE exactly M·(ω0 + ½I⁻¹M·dt)·dt, so what
-                // is left is the contacts' work plus anything the step adds outside the integration. A step whose mass changes (a piece
-                // let go) is left out of the sum.
+                // The energy: the body's kinetic energy since the start less the work of every force but the contacts' (rotors, air,
+                // gravity), summed. RigidBody's kick makes the CoM's ΔKE exactly F·v̄·dt and the turn's ΔKE exactly
+                // M·(ω0 + ½I⁻¹M·dt)·dt, so what is left is the contacts' work plus anything the step adds outside the integration but
+                // the blades' passes. Two terms the step really has besides (3.0b, judged by hand on range #405 Slide):
+                // - The blades' passes (PropStrikes.Apply, after the rigid body: stems, strikes, jams) kick the velocity and the rate
+                //   with the rotors' own spin: the rotors' work, never the contacts'. The step is re-integrated from its start with the
+                //   trace's net force and moment (RigidBody.Step, the core's own), and the passes' share is the kinetic energy past that,
+                //   credited since the start up to what the strikes took from the rotors since the start (BladeStrikes' energy): no
+                //   more than the rotors gave. Since the start, not step by step: a blade grinding a rigid face kicks the body back and
+                //   forth (range #154 Slide: −7.0 mJ, then +7.2 mJ on a strike that took 6.4 mJ, every other step), its net a loss.
+                // - Gravity's work is −m·g·v̄_y·dt, the same v̄ as the kick's; the potential m·g·Δy moves by m·g·v1_y·dt (the drift's
+                //   new velocity), ½·m·g·dt·Δv_y apart, which sums to ½·m·g·dt times the vertical speed's change since the start
+                //   (0.03 J at 1 m/s on 6 kg): the integrator's, not a contact's.
+                // A step whose mass changes (a piece let go) is left out of the sum.
                 MassProperties b1 = core.Body;
                 if (b1.Mass == b0.Mass)
                 {
-                    Double3 vbar = (ComVelocity(s0, b0) + ComVelocity(s, b1)) * 0.5;
+                    FlightState integrated = s0;
+                    RigidBody.Step(ref integrated, b0, tr.NetForce * b0.InverseMass, tr.NetMoment, FlightCore.Dt);
+                    Double3 vbar = (ComVelocity(s0, b0) + ComVelocity(integrated, b0)) * 0.5;
                     Double3 wbar = s0.BodyRate + (b0.InverseInertia * tr.NetMoment) * (0.5 * FlightCore.Dt);
-                    Double3 fOther = tr.NetForce - tr.ContactForce - FlightCore.Gravity * b0.Mass;
+                    Double3 fOther = tr.NetForce - tr.ContactForce;
                     Double3 mOther = tr.NetMoment - tr.ContactMoment;
                     double work = (Double3.Dot(fOther, vbar) + Double3.Dot(mOther, wbar)) * FlightCore.Dt;
-                    _energy += Energy(s, b1) - e0 - work;
+                    for (int i = 0; i < BladeStrikes.Slots; i++) _taken += s.BladeStrikes[i].Energy;
+                    _passes += Kinetic(s, b1) - Kinetic(integrated, b0);
+                    _raw += Kinetic(s, b1) - Kinetic(s0, b0) - work;
+                    _energy = _raw - Math.Min(_passes, _taken);
                     r.Judge(Check.Energy);
                     r.Worse(Check.Energy, _energy);
                     if (_energy > EnergyTolerance) r.Fail(Check.Energy, step, $"{_energy:F3} J more than the contacts took");
@@ -807,6 +1008,35 @@ namespace Fpv450.Sim.Tests
                 // Events: twice in a step, refused, tunnels and world bugs, crashes, blades on the ground. Twice is the same kind, part,
                 // index, object, shape and material: a blade through a crown's shell in one step cuts a twig (twig) and strikes the
                 // step's leaves (foliage) on the same shell, two strikes (w9-village-physics 2.3 §4; 2.6's addendum, Village #283, #474).
+                // Each corner's soil sink to judge its skid by (Ground and Tunnel): the soil's own while it holds the corner; after it
+                // lets go, the last held sink while the half-skid's middle lies within its half length of where it was held.
+                for (int c = 0; c < 4; c++)
+                {
+                    int skid = -1;
+                    for (int i = 0; i < core.Contacts.ShapeCount && skid < 0; i++)
+                        if (core.Contacts.Shape(i).Role == ContactRole.Skid && core.Contacts.Shape(i).Corner == c) skid = i;
+                    if (skid < 0)
+                    {
+                        _groove[c] = 0;
+                        continue;
+                    }
+                    ContactShape k = core.Contacts.Shape(skid);
+                    Double3 middle = s.Position + s.Attitude.Rotate((k.A + k.B) * 0.5);
+                    ContactModel.SkidSoil soil = core.Contacts.SoilOf(c);
+                    if (soil.Engaged)
+                    {
+                        _grooveSink[c] = Math.Max(0, Math.Max(soil.Sink0, Math.Max(soil.Sink1, soil.Sink2)));
+                        _grooveAt[c] = middle;
+                        _groove[c] = _grooveSink[c];
+                    }
+                    else _groove[c] = (middle - _grooveAt[c]).Length() < 0.5 * (k.B - k.A).Length() ? _grooveSink[c] : 0;
+                }
+
+                // The frame parts' backed overlaps (Ground and Tunnel), every step, so each pair's impulse has its step before.
+                if (_backed == null || _backed.Length != core.Contacts.ShapeCount) _backed = new double[core.Contacts.ShapeCount];
+                PairReach.Backed(core.Contacts, s, _impulses, _impulsesNow, _backed);
+                (_impulses, _impulsesNow) = (_impulsesNow, _impulses);
+
                 StepEvents ev = core.Events;
                 r.Judge(Check.EventsOnce);
                 r.Judge(Check.EventsKept);
@@ -824,8 +1054,21 @@ namespace Fpv450.Sim.Tests
                         }
                     }
                     if ((int)e.Kind < _kinds.Length && _kinds[(int)e.Kind]++ == 0) _firstOf[(int)e.Kind] = step;
+                    // A tunnel on the ground or a soil shape (a surface: soil gives) is judged by the soil's own depth law (3.0b): the
+                    // core's rule takes a surface's row as rigid (ContactModel's surface rows), so a part dropped from a soil box at a
+                    // depth its soil's sink and its own give hold (range #425 Slide: support_fl_end 15.0 mm in E01's box, its corner's
+                    // soil sunk 12.5 mm, carried by the ground's pair beside it) is no passage. Past that allowance by GroundTolerance
+                    // it is; on anything rigid every Tunnel and WorldBug is.
                     if (e.Kind == EventKind.Tunnel || e.Kind == EventKind.WorldBug)
-                        r.Fail(Check.Tunnel, step, $"{e.Kind} by part {e.Part} at {e.A:F4}");
+                    {
+                        bool soil = e.Kind == EventKind.Tunnel && e.Surface != 0;
+                        double sink = 0, give = soil ? Give(core.Contacts, tr, e.Index, out sink) : 0;
+                        bool through = TunnelFails(e, give, sink, out double past);
+                        if (soil) r.Worse(Check.Tunnel, past);
+                        if (through)
+                            r.Fail(Check.Tunnel, step, soil ? $"Tunnel by {core.Contacts.Shape(e.Index).Name} {e.A * 1e3:F1} mm into the soil, {past * 1e3:F1} mm past its sink and its give"
+                                : $"{e.Kind} by part {e.Part} at {e.A:F4}");
+                    }
                     if (e.Kind == EventKind.EventsLost) r.Fail(Check.EventsKept, step, "an EventsLost event");
                     if (e.Kind == EventKind.Crash)
                     {
@@ -854,14 +1097,15 @@ namespace Fpv450.Sim.Tests
                         // depth); every part GroundTolerance past that.
                         // A leg's support or skid may also lie as deep as its leg's own give this step: its compression along the
                         // tube and its lean across it on its lever (the trace's), which the rigid body's geometry shows as overlap
-                        // while the modelled foot stays on the ground.
-                        double sink = 0, give = 0;
-                        if (sh.Role != ContactRole.Body && sh.Corner >= 0 && sh.Corner < 4)
-                        {
-                            ContactModel.SkidSoil soil = cmodel.SoilOf(sh.Corner);
-                            if (soil.Engaged) sink = Math.Max(soil.Sink0, Math.Max(soil.Sink1, soil.Sink2));
-                            give = Math.Abs(tr.LegCompression[sh.Corner]) + Math.Abs(tr.LegLean[sh.Corner]);
-                        }
+                        // while the modelled foot stays on the ground. Not a half whose leg is gone (Hanging, Stub, TubeGone, 3.0b):
+                        // the trace's compression there is the half's own deepest overlap, which excused any depth by itself, and the
+                        // half's give, its cantilever's turn, is already in its shapes' placement (ContactModel's hanging chain: its
+                        // shapes stand out of what they touch by the contact spring's share), so it may lie only GroundTolerance in.
+                        // A frame part may lie as deep as its own penalty spring's overlap at the force its pairs carry this step
+                        // (PairReach.Backed, 3.0b): on the ground and soil a frame part's row is rigid, so that overlap is the whole of
+                        // the contact's give (range #430 Drop: motor_fr 22.8 mm in E01's floor carrying 2.1 kN, 26 mm at 2.2 kN). A
+                        // part deep with nothing pushing it out backs nothing.
+                        double give = Give(cmodel, tr, i, out double sink);
                         var cap = new Capsule(s.Position + s.Attitude.Rotate(sh.A), s.Position + s.Attitude.Rotate(sh.B), sh.Radius);
                         int k = Math.Min(_c.Map.StaticContacts(cap, cap, 0, _found, QueryFilter.NoWires), _found.Length);
                         for (int j = 0; j < k; j++)
@@ -877,8 +1121,31 @@ namespace Fpv450.Sim.Tests
                     }
                     r.Worse(Check.Ground, excess);
                     if (excess > GroundTolerance)
-                        r.Fail(Check.Ground, step, $"{by} {depthThen * 1e3:F1} mm past the ground (its soil's sink {sinkThen * 1e3:F1} mm, its leg's give {giveThen * 1e3:F1} mm, the corner {stateThen}) at {v:F2} m/s");
+                        r.Fail(Check.Ground, step, $"{by} {depthThen * 1e3:F1} mm past the ground (its soil's sink {sinkThen * 1e3:F1} mm, its {(stateThen == "frame" ? "spring's overlap at its force" : "leg's give")} {giveThen * 1e3:F1} mm, the corner {stateThen}) at {v:F2} m/s");
                 }
+            }
+
+            // A part's own give this step beyond its corner's soil sink (sink), m: Ground's allowance less GroundTolerance.
+            double Give(ContactModel cmodel, in StepTrace tr, int i, out double sink)
+            {
+                ContactShape sh = cmodel.Shape(i);
+                sink = 0;
+                if (sh.Role == ContactRole.Body)
+                {
+                    // The part's, over its shapes: a capsule and the spheres at its ends are one part, and the force goes to whichever
+                    // the model pairs (range #436 Drop: the payload capsule 20.4 mm in E01's floor, its aft sphere carrying 2.2 kN).
+                    double part = 0;
+                    for (int j = 0; j < cmodel.ShapeCount; j++)
+                        if (cmodel.Shape(j).Part == sh.Part && cmodel.Shape(j).Role == ContactRole.Body) part = Math.Max(part, _backed[j]);
+                    return FrameGive(part, sh.Radius);
+                }
+                if (sh.Corner < 0 || sh.Corner >= 4) return 0;
+                // Its soil's sink, or, where the soil has let it go, the groove it pressed while the corner's skid still lies over it:
+                // the soil there is displaced, and the box's geometry does not know it (range #446 Slide, step 6581: skid_rr 22.9 mm
+                // in E01's box with no force, its corner's soil, sunk 20.9 mm and 23.4 mm deepest, let go the step before). Its leg's
+                // give in the state at the step's start (range #436 Cut, step 5330: 35.7 mm along, 52.3 mm across at 30 N, then broken).
+                sink = _groove[sh.Corner];
+                return LegGive(_cornerBefore[sh.Corner], tr.LegCompression[sh.Corner], tr.LegLean[sh.Corner]);
             }
 
             static bool Finite(Double3 x) => double.IsFinite(x.X) && double.IsFinite(x.Y) && double.IsFinite(x.Z);
