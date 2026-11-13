@@ -2104,8 +2104,8 @@ namespace Fpv450.Sim.Contact
         // push on g without the anchor's stretch, the bore's share lost where the holding leg's foot chain read 0.
         //
         // And no give moves the half into a solid it meets from the other side: each of the corner's pairs on a rigid row (the
-        // ground, a soil, a rigid shape) that the move closes (its normal facing away from n at its point) across a gap, its
-        // overlap without the give −gap, bounds the move to the gap over the closing a unit move gives there. On S04 the straw's
+        // ground, a soil, a rigid shape) whose face faces the move (its normal more than 120° from n) and that the move closes
+        // across a gap, its overlap without the give −gap, bounds the move to the gap over the closing a unit move gives there. On S04 the straw's
         // pairs latched to a tile's underside (n down) moved the half down through the soil box under it, the next step the box's
         // pair the other way: range #61's one-step limit cycle (1.4 / 96.8 / −5.8 / 96.3 mm at 2–7 N). A compliant row (a layer,
         // a crown) yields to the half, as it does to the part.
@@ -2138,6 +2138,10 @@ namespace Fpv450.Sim.Contact
                     if (k < 0 ? role != ContactRole.Support : p.Suppressed) continue;
                     if (!RowOf(p).Rigid) continue;
                     Double3 nj = s.Attitude.InverseRotate(p.N), rj = back.Rotate(s.Attitude.InverseRotate(p.Point - bore));
+                    // Only a face that faces the move (FacingAway, more than 120° from n): a side face the half moves along is no stop
+                    // (range #429 Slide: a soil box's side 88° from the top it lies in, met by the turn's sideways share, held the half
+                    // 57 mm in the top).
+                    if (Double3.Dot(n, nj) > FacingAway) continue;
                     double closing = -(1 - share) * Double3.Dot(n, nj) - (share > 0 ? share / a2 * Double3.Dot(Double3.Cross(axis, rj), nj) : 0);
                     double gap = -(p.Depth + Unturned(c, p, s, placed));
                     if (!(closing > 0) || !(gap >= 0)) continue; // a pressed pair bears in the chain itself (its share of Trial's push)
@@ -2145,6 +2149,28 @@ namespace Fpv450.Sim.Contact
                 }
             }
             if (!(move > 0)) return;
+            // A second face: the corner's other pressed rigid pair with the most of its overlap left by that move, its face more
+            // than 30° from n and not facing it (a re-entrant corner of two faces, E01's soil boxes), is left by a move square to n
+            // as well, so the first stays as deep as its force says (range #447 Slide: two box faces 89° apart, each 33 mm deep,
+            // took turns being the deepest and the half stood 28 mm in the other).
+            Double3 second = default;
+            double left = 0;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                ContactRole role = _shapes[i].Role;
+                if (_shapes[i].Corner != c || role != ContactRole.Support && role != ContactRole.Skid) continue;
+                for (int k = -1; k < _count[i]; k++)
+                {
+                    ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                    if (k < 0 ? role != ContactRole.Support || !p.Touching : !p.Touching || p.Suppressed) continue;
+                    if (!(p.Overlap > 0) || !RowOf(p).Rigid) continue;
+                    Double3 nj = s.Attitude.InverseRotate(p.N);
+                    double cos = Double3.Dot(n, nj), rest = p.Overlap - move * cos;
+                    if (!(cos < SecondFace) || !(cos > FacingAway) || !(rest > left)) continue;
+                    left = rest;
+                    second = (nj - n * cos) * (rest / (1 - cos * cos));
+                }
+            }
             double turned = move * share;
             if (share > 0)
             {
@@ -2157,8 +2183,12 @@ namespace Fpv450.Sim.Contact
                 if (slope > 0) theta += (turned - (a * sin - rn * (1 - cos))) / slope;
                 _elastic[c] = axis * (theta / a);
             }
-            _hangShift[c] = n * (move - turned);
+            _hangShift[c] = n * (move - turned) + second;
         }
+
+        // A second face of a hanging half's chain is one more than 30° from its first (cos 30°, assumed: within it the first's move
+        // leaves it too, to the cosine's 13 %).
+        const double SecondFace = 0.8660254037844386;
 
         // A corner's support under its leg (the skid's sphere at the T-joint): the hanging half's lever point.
         readonly int[] _jointSupport = { -2, -2, -2, -2 };
@@ -2519,6 +2549,7 @@ namespace Fpv450.Sim.Contact
         // carried with it so a held foot stays where the ground holds it.
         void MoveShapes(in FlightState s)
         {
+            if (_spec.HangingGive && _spec.HangingDepth) FollowSets(s);
             for (int c = 0; c < 4; c++)
             {
                 Double3 set = _legs.Set(c);
@@ -2550,6 +2581,28 @@ namespace Fpv450.Sim.Contact
                 for (int i = 0; i < _shapes.Length; i++)
                     if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
                         Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
+            }
+        }
+
+        // A hanging half follows its holder's set in the step it sets (w9 2.6b, the depth law): the set turns the holder's bore and the
+        // half with it about the holder's clamp, and the massless half's give takes at once what that moves its bearing point into what
+        // it touches, along that point's normal, as the holder's foot moves (its move, never below none). Without it the half stood for
+        // a step where the set put it (range #413 Slide: leg rr sets 0.077 rad and the half's end is 22.3 mm in the soil box for a step,
+        // then 2.2 mm). Before the sets are applied (MoveShapes): _setTurn is still the set the shapes stand by.
+        void FollowSets(in FlightState s)
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                int shape = _hangDeepShape[c], pair = _hangDeepPair[c];
+                if ((_corner[c] & CornerState.Hanging) == 0 || !_legTouching[c] || shape < 0) continue;
+                int h = _spec.Legs.Sibling[c];
+                if (Same(_legs.Set(h), _setApplied[h])) continue;
+                ref Pair d = ref pair < 0 ? ref _ground[shape] : ref _pairs[shape * PairsPerShape + pair];
+                if (!(d.Overlap > 0)) continue;
+                Double3 clamp = _spec.Legs.Clamp[h], x = s.Attitude.InverseRotate(d.Point - s.Position) - clamp, n = s.Attitude.InverseRotate(d.N);
+                Double3 moved = Turn(_legs.SetRotation(h) - _setIgnored[h]).Rotate(_setTurn[h].Conjugate().Rotate(x)) - x;
+                double was = Double3.Dot(_hangShift[c], n), along = was - Double3.Dot(moved, n);
+                _hangShift[c] = _hangShift[c] + n * ((along > 0 ? along : 0) - was);
             }
         }
 
@@ -2683,6 +2736,7 @@ namespace Fpv450.Sim.Contact
                         if (Holds(c) || (_corner[c] & CornerState.Hanging) != 0) continue;
                         // Its half now hangs from the other T-joint: placed by that leg's set from here.
                         _corner[c] |= CornerState.Hanging;
+                        if (_spec.HangingGive && _spec.HangingDepth) Catch(c, s);
                         for (int i = 0; i < _shapes.Length; i++)
                             if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && (_base[i].Role == ContactRole.Support || _base[i].Role == ContactRole.Skid))
                                 Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
@@ -2691,6 +2745,41 @@ namespace Fpv450.Sim.Contact
             }
             for (int c = 0; c < 4; c++) _followed[c] = _legs.Flags(c);
             return ch;
+        }
+
+        // A half that starts to hang is caught where it lay (w9 2.6b, the depth law): placed by its holder's set it would jump from
+        // where its own leg held it (that leg's set, its compression and lean the leg's give) into what it touches, so its first
+        // give is what that jump takes its deepest touching point into it, along that point's normal, and the half's points stay
+        // as deep as its leg left them; its depth law takes it from the next step. Without it the half stood a step 25 mm in S04's
+        // soil box (range #61 Land, step 6168, its leg's give 0.5 mm). Before its shapes are placed by the holder: _shiftApplied is
+        // still none.
+        void Catch(int c, in FlightState s)
+        {
+            double best = 0, deeper = 0;
+            Double3 n = default;
+            for (int i = 0; i < _shapes.Length; i++)
+            {
+                if (_off[i] || _legOf[i] >= 0 || _base[i].Corner != c || _base[i].Role != ContactRole.Support && _base[i].Role != ContactRole.Skid) continue;
+                Double3 a0 = _shapes[i].A, ab0 = _shapes[i].B - a0, a = Placed(i, _base[i].A), b = Placed(i, _base[i].B);
+                double len = Double3.Dot(ab0, ab0);
+                for (int k = -1; k < _count[i]; k++)
+                {
+                    if (k < 0 && _shapes[i].Role != ContactRole.Support) continue;
+                    ref Pair p = ref k < 0 ? ref _ground[i] : ref _pairs[i * PairsPerShape + k];
+                    if (!p.Touching || k >= 0 && p.Suppressed) continue;
+                    Double3 at = s.Attitude.InverseRotate(p.Point - s.Position);
+                    double t = len > 0 ? Double3.Dot(at - a0, ab0) / len : 0;
+                    t = t < 0 ? 0 : t > 1 ? 1 : t;
+                    double deepening = -Double3.Dot(p.N, s.Attitude.Rotate(a + (b - a) * t - (a0 + ab0 * t)));
+                    if (!(deepening > 0) || !(p.Depth + deepening > best)) continue;
+                    best = p.Depth + deepening;
+                    deeper = deepening;
+                    n = p.N;
+                }
+            }
+            if (!(deeper > 0)) return;
+            _hangShift[c] = s.Attitude.InverseRotate(n) * deeper;
+            _shiftApplied[c] = _hangShift[c];
         }
 
         // A hanging half that leaves with its skid is unloaded: its elastic give springs back (its fold stays), so the piece
