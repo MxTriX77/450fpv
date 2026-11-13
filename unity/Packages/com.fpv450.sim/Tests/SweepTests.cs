@@ -124,10 +124,14 @@ namespace Fpv450.Sim.Tests
         // 20.8 N and every point of application lies within 0.38 m: a couple. Judged pair by pair (PairReach) it passes; the
         // known-wrongs (the reach off) are WithoutTheReach_TheSweepFailsTheLever and OnE01sSoilShapesTheReachHoldsTheLever, both
         // still failing on the per-pair reading (76–1184 m and 0.63–82 m).
+        // Since 2.6b's depth law the row flies another path (its hanging halves stand out of the soil, not 57.7 mm in it), so the
+        // audit flies the flight it judged by hand, on model 98's placement (ContactSpec.HangingDepth off, a kept audit). On the new
+        // path a pair on S04's straw latched to a tile's far side face, 229 mm in, puts its point 0.547 m from the CoM: the sweep's
+        // finding, handed on.
         [Test]
         public void ACoupleOfLightContactsPassesTheLever()
         {
-            Row row = FlyRange(180, Manoeuvre.Slide);
+            Row row = FlyRange(180, Manoeuvre.Slide, core => core.Contacts.Spec.HangingDepth = false);
             Assert.That(row.Judged[(int)Check.Lever] && !row.Failed[(int)Check.Lever], Is.True, "#180 Slide's couple has its forces within reach");
             Assert.That(row.Worst[(int)Check.Lever], Is.LessThan(Reach));
         }
@@ -172,11 +176,13 @@ namespace Fpv450.Sim.Tests
 
         // Rest (3.0b): range #131 Drop lies on its back with two props at idle; it holds its place to 1 mm and its attitude to 0.2°
         // while its rate swings ±0.16 rad/s at ~15 Hz: at rest. #405 Drop, on its side, slides 0.49 m/s and turns 1.8 rad/s pushed
-        // by its idle props on S04's straw 10 s after the touch: not at rest, and the corrected check still fails it.
+        // by its idle props on S04's straw 10 s after the touch: not at rest, and the corrected check still fails it. Since 2.6b's
+        // depth law #405 flies another path and rests within the 10 s, so the known-wrong flies the slide it judged, on model 98's
+        // placement (ContactSpec.HangingDepth off, a kept audit).
         [Test]
         public void AnIdleVibrationIsRest_ASlideIsNot()
         {
-            Row still = FlyRange(131, Manoeuvre.Drop), sliding = FlyRange(405, Manoeuvre.Drop);
+            Row still = FlyRange(131, Manoeuvre.Drop), sliding = FlyRange(405, Manoeuvre.Drop, core => core.Contacts.Spec.HangingDepth = false);
             Assert.That(still.Failed[(int)Check.Rest], Is.False, "#131 Drop: vibrating in place");
             Assert.That(sliding.Failed[(int)Check.Rest], Is.True, "#405 Drop: still sliding");
         }
