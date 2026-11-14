@@ -524,6 +524,57 @@ namespace Fpv450.Tests.Session
             rig.Session.Dispose();
         }
 
+        // QA's own case of "The same flight in Unity and headless" (w15-player-physics 2.1): another seed, other sticks and the
+        // farmland (its ground, its stems, its line, legs on, 1 kg, Windy): lifted, pitched forward and back, let down and cut.
+        // It replays bit for bit in-process, and a copy of the log is kept in the temp folder's fpv450-qa/ (by runtime) for
+        // tools/replay to re-fly on .NET; the records' hash is printed so Mono's and .NET's own flights can be compared.
+        [Test]
+        public void AnotherSeedsFlightOverTheFarmlandReplaysHeadless()
+        {
+            const ulong seed = 0xC0A7_9E11;
+            FlightWorldChoice farmland = FlightWorlds.Farmland(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                farmland.ApplyTo(i);
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Payload = 1.0, Wind = WindLevel.Windy };
+                i.NewSeed = () => seed;
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            for (int ms = 0; ms < 6000 && rig.Session.State == SessionState.Flying; ms += 10)
+            {
+                rig.Radio.Throttle = ms < 900 ? 0.64 : ms < 2600 ? 0.55 : ms < 4600 ? 0.47 : ms < 5200 ? 0.40 : 0;
+                rig.Radio.Pitch = ms >= 900 && ms < 1500 ? 0.3 : ms >= 2600 && ms < 3300 ? -0.3 : 0;
+                rig.Run(10);
+            }
+            rig.Session.EndFlight();
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, "the log closed");
+            ulong records = RecordsHash(rig.Session.LogPath, out LogHeader h, out long steps);
+            TestContext.WriteLine("QA's session flight: " + steps + " steps, model " + h.ModelVersion + ", records 0x" + records.ToString("X16") + " (" + h.Runtime + ")");
+            Assert.That(h.ModelVersion, Is.EqualTo(LogFormat.ModelVersion), "the line's model");
+            string kept = Path.Combine(Path.GetTempPath(), "fpv450-qa",
+                "w15-session-" + seed.ToString("x") + "-" + (Type.GetType("Mono.Runtime") != null ? "mono" : "net") + ".flightlog");
+            Directory.CreateDirectory(Path.GetDirectoryName(kept));
+            using (var from = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var to = new FileStream(kept, FileMode.Create, FileAccess.Write))
+                from.CopyTo(to);
+            TestContext.WriteLine("kept " + kept);
+
+            ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+            ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+            ReplayResult replay;
+            using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                replay = FlightReplay.Run(f, id => id == farmland.Id ? farmland.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            rig.Session.Dispose();
+        }
+
         /// <summary>AFlightIsTheSameInUnityAndHeadless's records at model 99: re-pin it only with the physics or the session's
         /// setup changed, audited as a golden is.</summary>
         const ulong SessionFlightRecords = 0x2BCFA28885EDA4CE;
