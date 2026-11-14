@@ -344,7 +344,7 @@ namespace Fpv450.Sim.Wind
     /// rotor forces (flight-randomness): never the pose. Begin fixes a step's frame (its time, the drift, each mode's
     /// phase offset, the ground, a cut's frame); At answers for that frame. Zero allocations after the constructor.
     /// </summary>
-    public sealed class WindField : IDisposable
+    public sealed partial class WindField : IDisposable
     {
         const double Dt = 0.001; // FlightCore.Dt
         const double DegToRad = 0.017453292519943295;
