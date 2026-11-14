@@ -61,7 +61,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Log.LogFormat", "TetherTraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogFormat", "TraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader+<>c", "<>9", "the lambda cache of LogHeader.SettingsFields, the header's write (setup)" },
-            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__155_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup; 155 since p7c-wind design 12's hull entry and w9-village-physics 2.13's stems' air entry, lambdas before it, and p7d-tether design 19's TetherWakeReach4R, design 20's TetherAirlessTrail and 2.13's StemAir and StemWash, members before it)" },
+            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__156_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup; 156 since p7c-wind design 12's hull entry, w9-village-physics 2.13's stems' air entry and 2.6b's hanging entry, lambdas before it, and p7d-tether design 19's TetherWakeReach4R, design 20's TetherAirlessTrail and 2.13's StemAir and StemWash, members before it)" },
             { "Fpv450.Sim.Log.LogHeader", "AeroFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "AsymmetryFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "BladeFieldsLogged", "read only by the suite's log-coverage tests" },

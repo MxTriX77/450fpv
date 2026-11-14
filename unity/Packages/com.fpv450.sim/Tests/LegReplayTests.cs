@@ -141,9 +141,12 @@ namespace Fpv450.Sim.Tests
 
             // The drifting touch: bent and on, by a set a pilot sees (past 1°). Since model 86 (the anchors' reach) at 12° and
             // (1.0, −0.7) m/s: 10° and (0.6, −0.5) bent leg_fr 1.92° only by a support's anchor that slid 0.21 m in one step
-            // (past the leg's 0.176 m reach), and now sets leg_rr 0.30°.
+            // (past the leg's 0.176 m reach), and now sets leg_rr 0.30°. Since w9 2.6b's depth law leg_rr's hanging half carries
+            // 0.2–0.8 N at its tip (77.8 N/m there, 302.8 at the bores' distance before), the rocking drone tips onto that corner by
+            // 1.3 s and leg_fr bows and breaks in the fall, so the set leg's replay flies this touch on model 98's placement
+            // (ContactSpec.HangingDepth off, a kept audit; the header records it).
             MaterialRow[] rows = ContactScenarios.RepositoryMaterials(out ulong rowsHash);
-            var touch = new LegScenarios.Touch { RollDeg = 12, Velocity = new Double3(1.0, -0.7, 0), Seed = 20 };
+            var touch = new LegScenarios.Touch { RollDeg = 12, Velocity = new Double3(1.0, -0.7, 0), Seed = 20, Edit = c => { c.HangingDepth = false; return c; } };
             byte[] drift = Record(LegScenarios.Setup(spec, rows, rowsHash, touch), "floor", spec, 3000, out FlightCore landed);
             int bentOn = 0;
             for (int c = 0; c < 4; c++)

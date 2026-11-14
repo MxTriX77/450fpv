@@ -173,7 +173,7 @@ namespace Fpv450.Sim.Log
             "BladeRest", "BladeRestSpeed",
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
-            "BladeRoot", "Stems", "AnchorReach",
+            "BladeRoot", "Stems", "AnchorReach", "HangingDepth",
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
             "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
             "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
@@ -287,7 +287,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1380,6 +1380,13 @@ namespace Fpv450.Sim.Log
                     foreach (double x in row.Values) e.Write(x);
                 }
             });
+            // The hanging half's depth law since w9-village-physics 2.6b, an entry of its own as the ground's (no format change). A
+            // log without it flew model 98's placement.
+            Entry(w, TagHanging, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts != null) e.Write(Contacts.HangingDepth);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1435,7 +1442,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1551,6 +1558,14 @@ namespace Fpv450.Sim.Log
                             for (int k = 0; k < airRows[i].Values.Length; k++) airRows[i].Values[k] = r.ReadDouble();
                         }
                         StemAir = new TetherTable(airRows, airHash);
+                        break;
+                    case TagHanging:
+                        sawHanging = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool depth = r.ReadBoolean();
+                            if (Contacts != null) Contacts.HangingDepth = depth;
+                        }
                         break;
                     case TagHull:
                         if (r.ReadBoolean())
@@ -1954,6 +1969,8 @@ namespace Fpv450.Sim.Log
                 Contacts.AnchorReach = ModelVersion >= 86;
                 if (Contacts.Legs != null) Contacts.Legs.StiffnessSigma = Contacts.Legs.StiffnessBound = 0;
             }
+            // Before w9-village-physics 2.6b a hanging half lay where model 98's give put it.
+            if (!sawHanging && Contacts != null) Contacts.HangingDepth = false;
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
                     + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));

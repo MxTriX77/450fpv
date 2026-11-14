@@ -233,6 +233,17 @@ namespace Fpv450.Sim.Contact
         public bool HangingGive = true;
 
         /// <summary>
+        /// A hanging skid half lies in what it touches by its contact's own compression (w9-village-physics 2.6b): with
+        /// HangingGive, the massless half's deepest point stands in by its carried force over its tube stock's contact spring
+        /// (and a layer's own share of the overlap), the rest of its overlap is its chain's give, split between the cantilever's
+        /// turn and the bore's move by their compliances; its cantilever is 3EI/r³ at its points' own levers from the bore, and
+        /// the bore gives as its holding leg's tube. On for every flight; off only for the known-wrong and the kept audits
+        /// against model 98, whose give was its springs' push without the anchor's stretch and whose bore gave by the holding
+        /// leg's foot chain, so a half lay 20–100 mm in the ground at 1–7 N. The header records it in its own entry.
+        /// </summary>
+        public bool HangingDepth = true;
+
+        /// <summary>
         /// A leg's held foot within its reach (w9-village-physics 2.4, model 86; ContactModel.Reached): a soil foot's or a leg
         /// point's stretch on the ground past what the leg's lever reaches turned square (γL across its tube, the frame's lever
         /// along the skid) is let go, and the hold starts again at the foot. On for every flight; off only for the known-wrong and
