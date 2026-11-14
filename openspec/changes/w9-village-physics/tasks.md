@@ -167,6 +167,13 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
     - the arm under a capsule and under L03's own conductor: 540.0 N, 0 N beside, no Tunnel, 0 B; the known-wrong presses 560.8 N while clear and logs 2 Tunnels;
     - the jaws: 1172 N on 1 mm against the tube's 6.6;
     - the header.
+  - **Checks** (design 2.6d §7, each bench against model 100's contacts and attributed law by law):
+    - `--golden` 66 PASS, no pin moved;
+    - `--slopes` and `--legs` PASS, number for number;
+    - `--landing` 29 PASS, one information row moved (E01's run's tip, by `SupportByDepth`'s hanging half);
+    - `--contacts` PASS, its crash rows within a few % (the 40 m/s rod still logged as a pass);
+    - the suite in Release: 938 of 939, the one red `ASnagDipsTheLink` (the base's, p7d-tether 1.11d);
+    - `precommit.py --tree HEAD` 0 findings; `openspec validate --strict` valid.
   - **Not built** (named in design 2.6d §6): the clamp block's own failure; the conductor's span compliance; a box face's edge (not met on the band); the arms' out-of-plane stiffness at their contact's station (18 kN/m is the motor's).
 
 ## 3. Review

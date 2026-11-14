@@ -671,6 +671,28 @@ Below, the depth along n is the member's own surface, not its tangent plane. The
 - **The tube in its jaws, against model 100:**
   - The jaws' spring is the plate arm's in its plane (1.172 MN/m, derived). By hand, a rigid 9 mm conductor met there at 10 m/s stops a 4.7 kg drone within v·√(m/k) ≈ 20 mm. The flight logs a crash by acceleration (leg_fl on L03), and the tube slips out of the jaws on the way.
   - Neither the clamp block's own failure nor the conductor's span compliance is modelled. A taut span gives about 4T/L across at midspan (derived; physics_materials.json's `cable` row names it, T = w·L²/(8·sag)), tens to hundreds of N/m, so the line travels far further than the frame gives. Both would soften the stop in truth. Named, not built.
+- **`SupportByDepth` changes hanging halves only.** For any other part a pair touches by its own depth (`Transition`). Instrumented on S04's Severe-rain liftoff (a scratch build, reverted), every support touching without depth is a hanging half's: the liftoff breaks leg rr on seeds 1–4, and its half's end or joint support touches S04's soil box only through the give, 31–55 mm clear.
+
+### 7. Benches and goldens, audited against model 100's contacts
+
+Each bench was flown on this branch and on a scratch build with the three switches defaulted off (model 100's contacts, the source restored at once), then with each switch alone off to say which law moves a row. A shared machine: no timing counts.
+- `--golden`: 66 PASS, 0 FAIL. No pin moved, nothing re-recorded: no golden flight meets a round member latched past its side, a hung support or a jaws touch.
+- `--slopes` and `--legs`: PASS, number for number model 100's (every verdict row, the grid and the tipped landings).
+- `--landing`: 29 PASS, as before. One information row moved, E01's run (free body, 10° of roll, 0.5 m/s down): the lateral speed that tips it, never → 2.184 m/s, caught 3.563 → 3.244 m/s. That is `SupportByDepth`: the touch breaks a leg, and the hanging half's skid now carries its own touch on E01's soil boxes where a clear support had taken it.
+- `--contacts`: PASS, every row. Moved, by law:
+  - **`RollOff`:**
+    - the 9 mm rod at 40 m/s still goes through and is logged: 3 contacts and 2 Tunnels (114 mm) against 8 and 8 (120 mm), a pass along the normal;
+    - at 2 m/s the leg tubes still stop it, the end speed 1.38 against 1.39 m/s;
+    - the pole's impulse 84.13 against 84.11 N·s; V01_L's crown 71.51 against 71.40 N·s;
+    - the climb into L03: after the strike it falls to the ground, the crash by the canister at 6.58 against 9.60 m/s, 1394 against 1678 m/s²;
+    - the skid across a conductor ends 6.054 against 6.100 m under it;
+    - the farmland crowns' twig counts within 20 %.
+  - **`SupportByDepth`:** S04's Severe-rain liftoff, the most a corner is pulled down 0.59 against 0.00 N (a hanging half, above), and the range's crash rows (crown, wall, car) and Pine002_M's counts.
+  - **`ClampedTube`:** the range wire crash's impact (3453 against 3478 m/s², 51.91 against 52.82 N·s, with the other two laws) and Pine006_01's twig counts.
+- `dotnet test tools/simtests -c Release` (the final tree, 34 min): 938 passed, 1 failed of 939. The failure is `FiberCutTests.ASnagDipsTheLink`, red on the base (p7d-tether 1.11d's). The first run (52 min, before two test fixes) also failed:
+  - `StaticInitTests.NoStaticReferenceFieldOnTheStepPath`: the header's sort lambda renumbered 159 → 160 by the new entry's lambda before it. The allowlist entry was renumbered; it measures what it did.
+  - `WithoutTheHangingGiveTheWindyCrownIsModel50s`: a kept audit; it now flies model 100's contacts (the three switches off), design 16's rule for a kept audit of an older model.
+- `python tools/hygiene/precommit.py --tree HEAD`: 3632 files scanned, 0 findings. `openspec validate w9-village-physics --strict`: valid.
 
 ## 2.7 The crown twig's repeated break (G5)
 
