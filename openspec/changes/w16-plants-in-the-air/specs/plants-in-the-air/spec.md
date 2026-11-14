@@ -40,6 +40,17 @@ The pieces the props cut SHALL be drawn leaving the discs, from the sim's cut ev
 - **WHEN** the props cut straw on a landing
 - **THEN** pieces leave the discs at the blade's speed in the feed, and their number follows the log's cuts
 
+### Requirement: The wash raises dust from dry ground
+The props' wash SHALL lift dust from dry ground where its speed along the ground passes the surface's published threshold for lifting grains, and the dust SHALL be drawn in the feed (VIS-06).
+
+#### Scenario: A landing on dry ground
+- **WHEN** the drone descends to land on a dry surface
+- **THEN** no dust lifts while the wash at the ground stays under the surface's threshold, whiffs of dust start where it passes it, and they grow as the drone comes lower
+
+#### Scenario: A landing on wet or covered ground
+- **WHEN** the drone lands in rain or on a surface whose threshold the wash never reaches
+- **THEN** no dust lifts
+
 ### Requirement: The drone feels what it flies through
 Plants SHALL act on the drone's legs, body and props by their stiffness and drag (PHY-05), so skimming grass drags the drone and a crown's twigs and leaves hold it more than grass does, computed, not tuned.
 

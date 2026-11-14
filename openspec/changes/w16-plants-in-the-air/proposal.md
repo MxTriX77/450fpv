@@ -8,6 +8,7 @@ The pilot, 2026-11-14, after flying the model 100 build:
 - "the drone is not affected by grass, and it should be affected even more heavily when thicker stuff (like twigs and tree leaves)."
 - "let's do that sway matches real wind behavior real time." On the gusts' direction: "it should match this also".
 - "when i say swayed by wind - i mean reaslistically. they are flexible, so they should flexibly get back to their default position if a gust is short etc., again - calculate and make it realistic"
+- "about grass cutting, swaying because of propwash, dusts whiffs as you land closer to the ground - refer to [clip H] - towards the end you will see short examples"
 
 Today the drawn plants move by their shaders' own wind, which has nothing to do with the air the drone flies in, and not at all in the props' wash. What the props cut exists only in the physics, the log and the summary. The stems act on the props but not on the legs or the body (`w9-village-physics` 2.10 is open), a crown's leaves act only on the blades, and the stems' wash is built and switched off (D-111, `w9-village-physics` 2.13 and 2.14).
 
@@ -20,6 +21,8 @@ Today the drawn plants move by their shaders' own wind, which has nothing to do 
   - The wash flattens the grass under the drone and ripples it outward.
   - Every number is labelled measured, published, derived or assumed.
 - **What the props cut is seen.** Cut stems, straw and leaves leave the discs as pieces at the blade's speed, from the sim's cut events (`w9-village-physics` 2.5 moves here).
+- **The wash raises dust.** Low over dry ground, whiffs of dust lift where the wash's speed along the ground passes the soil's threshold for lifting grains, and grow as the drone comes lower (VIS-06). The thresholds come from published dust-entrainment and rotorcraft brownout research, per surface in the surface table.
+- **Clip H's ending is the check.** The pilot's clip H shows short examples of all three: grass cut by the props, grass swaying in the wash, and dust whiffs as the drone lands.
 - **The drone feels what it flies through:**
   - stems on the legs and the body (`w9-village-physics` 2.10);
   - a crown's leaves and twigs on the body and the props;
