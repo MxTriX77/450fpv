@@ -113,30 +113,56 @@ namespace Fpv450.Sim.Tests
         }
 
         // The drone's front-right arm alone (its two edge capsules, r 3 mm, 18 kN/m out of its plane; every other shape off, Reuse), held
-        // level under a rigid conductor (a steel capsule R 4.5 mm along x, 1 mm over the arm's core reach ρ = 7.5 mm, across the arm 0.10 m
-        // forward of the centre), then moved by hand: up 16 mm at 2 m/s, so its core stands 7.5 mm past the conductor's axis (fault 2's arm
-        // at 11681, bent 16 mm), then forward at 5 m/s until the conductor has passed the arm's root ends and is 0.13 m behind them.
-        static Slide SlideTheArm(bool rollOff)
+        // level under a rigid conductor R 4.5 mm, 1 mm over the arm's core reach ρ = 7.5 mm, across the arm 0.10 m forward of the centre:
+        // a steel capsule over the floor, or L03_medium's conductor on the range at its midspan (its chain, the drone turned so the
+        // conductor runs along its x). Then moved by hand: up 16 mm at 2 m/s, so its core stands 7.5 mm past the conductor's axis (fault
+        // 2's arm at 11681, bent 16 mm), then forward at 5 m/s until the conductor has passed the arm's root ends and is 0.13 m behind them.
+        static Slide SlideTheArm(bool rollOff, bool wire = false)
         {
             DroneSpec spec = RepositoryDrone.Spec();
             MaterialRow[] m = ContactScenarios.RepositoryMaterials(out ulong h);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, m, h);
             contacts.RollOff = rollOff;
-            FlightWorld world = FlightWorld.Floor();
-            world.Query.ResetRuntimeObjects();
-            const double R = 0.0045, Lift = 0.0085, Ahead = 0.10, Height = 3, Root = 0.027224; // arm_fr_a's root end, the last the conductor passes
-            int conductor = world.Query.AddObject("conductor", new[]
+            const double R = 0.0045, Lift = 0.0085, Ahead = 0.10, Root = 0.027224; // arm_fr_a's root end, the last the conductor passes
+            FlightWorld world;
+            int conductor;
+            Double3 origin;
+            Quat q = Quat.Identity;
+            if (wire)
             {
-                new ShapeGeometry { Kind = ShapeKind.Capsule, Center = new Double3(0, Height + Lift, Ahead), AxisX = Y, AxisY = X, AxisZ = -Z, Radius = R, HalfLength = 1.0,
-                    Material = world.Query.MaterialId("steel") },
-            });
+                world = new FlightWorld(RangeScenarios.World);
+                conductor = RangeScenarios.Placed("L03_medium", 1);
+                Assert.That(RangeScenarios.World.Geometry(conductor, 3, out ShapeGeometry g) && g.Radius == R, "L03_medium's conductor, 9 mm across");
+                ReadOnlySpan<Double3> chain = RangeScenarios.World.WirePoints(conductor, 3);
+                int mid = chain.Length / 2;
+                // Its chain's segment from the middle point on, which the arm crosses 9–11 cm along (the segment is longer than that).
+                Double3 along = chain[mid + 1] - chain[mid];
+                Assert.That(along.Length(), Is.GreaterThan(0.2), "the arm crosses one segment");
+                along = along * (1 / along.Length());
+                // The yaw and the tilt that take the body's x along that segment (it slopes where the span is not at its lowest).
+                double angle = Math.Atan2(-along.Z, along.X), slope = Math.Atan2(along.Y, Math.Sqrt(along.X * along.X + along.Z * along.Z));
+                q = new Quat(0, Math.Sin(angle / 2), 0, Math.Cos(angle / 2)) * new Quat(0, 0, Math.Sin(slope / 2), Math.Cos(slope / 2));
+                Assert.That((q.Rotate(X) - along).Length(), Is.LessThan(1e-12), "the body's x along the conductor");
+                origin = chain[mid] - q.Rotate(new Double3(0, Lift, Ahead));
+            }
+            else
+            {
+                world = FlightWorld.Floor();
+                world.Query.ResetRuntimeObjects();
+                origin = new Double3(0, 3, 0);
+                conductor = world.Query.AddObject("conductor", new[]
+                {
+                    new ShapeGeometry { Kind = ShapeKind.Capsule, Center = origin + new Double3(0, Lift, Ahead), AxisX = Y, AxisY = X, AxisZ = -Z, Radius = R, HalfLength = 1.0,
+                        Material = world.Query.MaterialId("steel") },
+                });
+            }
             double mass = spec.BuildMass(spec.Nominal).Properties.Mass;
             var model = new ContactModel(contacts, world, mass, random: new FlightRandom(0x450F));
             int[] arm = { Array.FindIndex(contacts.Shapes, x => x.Name == "arm_fr_a"), Array.FindIndex(contacts.Shapes, x => x.Name == "arm_fr_b") };
             model.Reuse(mass, arm, 2, new[] { contacts.Shapes[arm[0]], contacts.Shapes[arm[1]] });
             MassProperties body = default;
             body.Mass = mass;
-            var s = new FlightState { Attitude = Quat.Identity, Position = new Double3(0, Height, 0) };
+            var s = new FlightState { Attitude = q, Position = origin };
             var events = new StepEvents();
             model.Sense(s, ref s, events);
             var r = new Slide();
@@ -144,8 +170,9 @@ namespace Fpv450.Sim.Tests
             {
                 FlightState was = s;
                 s.Step++;
-                s.Velocity = k < 8 ? new Double3(0, 2, 0) : new Double3(0, 0, 5);
-                s.Position = k < 8 ? new Double3(0, Height + 0.002 * (k + 1), 0) : new Double3(0, Height + 0.016, 0.005 * (k - 7));
+                Double3 local = k < 8 ? new Double3(0, 0.002 * (k + 1), 0) : new Double3(0, 0.016, 0.005 * (k - 7));
+                s.Velocity = q.Rotate(k < 8 ? new Double3(0, 2, 0) : new Double3(0, 0, 5));
+                s.Position = origin + q.Rotate(local);
                 events.Clear();
                 long before = AllocProbe.Before();
                 model.Sense(was, ref s, events);
@@ -160,33 +187,35 @@ namespace Fpv450.Sim.Tests
                     if (events[e].Kind == EventKind.ContactBroken) r.Breaks++;
                 }
                 // The conductor behind the arm's last root end, and its clearance from it (the core 7.5 mm over its axis).
-                double behind = Root - (Ahead - s.Position.Z), up = s.Position.Y - Height - Lift, clear = Math.Sqrt(behind * behind + up * up) - R - 0.003;
-                if (k >= 8 && Ahead - s.Position.Z > 0.040659) r.DepthSpanning = Math.Max(r.DepthSpanning, -f.Y); // it crosses both edges
+                double behind = Root - (Ahead - local.Z), up = local.Y - Lift, clear = Math.Sqrt(behind * behind + up * up) - R - 0.003;
+                if (k >= 8 && Ahead - local.Z > 0.040659) r.DepthSpanning = Math.Max(r.DepthSpanning, -Double3.Dot(f, q.Rotate(Y))); // it crosses both edges
                 if (behind > 0 && clear >= 0.010) r.PressedClear = Math.Max(r.PressedClear, f.Length());
             }
             return r;
         }
 
-        // By hand: pressed 7.5 mm past the axis the arm's depth along n is ρ + 7.5 = 15 mm, its 18.7 kN/m out of its plane (StiffnessUp,
-        // the arm level) about 270 N each edge, while the conductor crosses it. When the conductor passes a root end by more than ρ its
-        // core is beside the member: the pair ends as a break, and nothing presses the arm. The known-wrong keeps the plane: it presses the
-        // arm with its 15 mm while the conductor is 10 mm and more clear of it, and logs a Tunnel when the conductor leaves the 0.1 m margin.
-        [Test]
-        public void AnArmPressedPastAConductorRollsOffItsRootEnds()
+        // By hand: pressed 7.5 mm past the axis the arm's depth along n is ρ + 7.5 = 15 mm, its 18 kN/m out of its plane (StiffnessUp,
+        // the arm level) 270 N each edge, while the conductor crosses it. When the conductor passes a root end by more than ρ its core is
+        // beside the member: the pair ends as a break, and nothing presses the arm. The known-wrong keeps the plane: it presses the arm with
+        // its 15 mm while the conductor is 10 mm and more clear of it, and logs a Tunnel when the conductor leaves the 0.1 m margin. The
+        // same under a capsule and under the range's conductor (a wire's chain, 0 B a step).
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AnArmPressedPastAConductorRollsOffItsRootEnds(bool wire)
         {
-            Slide right = SlideTheArm(true), wrong = SlideTheArm(false);
+            Slide right = SlideTheArm(true, wire), wrong = SlideTheArm(false, wire);
             foreach ((string name, Slide x) in new[] { ("the member's own surface", right), ("model 100's tangent plane (the known-wrong)", wrong) })
-                Print($"{name}: {x.DepthSpanning:F1} N while it crosses the arm, {x.PressedClear:F1} N at 10 mm and more clear, {x.Breaks} breaks, {x.Tunnels} tunnels, "
-                    + $"{x.Allocated} B in 40 steps");
+                Print($"{(wire ? "L03's conductor" : "a capsule")}, {name}: {x.DepthSpanning:F1} N while it crosses the arm, {x.PressedClear:F1} N at 10 mm and more clear, "
+                    + $"{x.Breaks} breaks, {x.Tunnels} tunnels, {x.Allocated} B in 40 steps");
             double hand = 2 * Array.Find(RepositoryDrone.Spec().BuildContacts(RepositoryDrone.Spec().Nominal, ContactScenarios.RepositoryMaterials(out ulong h), h).Shapes,
                 x => x.Name == "arm_fr_b").StiffnessUp * 0.015;
             Print($"by hand: 2 edges × StiffnessUp × 15 mm = {hand:F1} N");
-            Assert.That(right.DepthSpanning, Is.EqualTo(hand).Within(1e-6), "pressed 15 mm along n by the conductor while it crosses the arm (both edges)");
+            Assert.That(right.DepthSpanning, Is.EqualTo(hand).Within(1e-6 * hand), "pressed 15 mm along n by the conductor while it crosses the arm (both edges)");
             Assert.That(right.Tunnels, Is.Zero, "rolled off the conductor: no Tunnel");
             Assert.That(right.Breaks, Is.EqualTo(2), "each edge's pair ends as a break");
             Assert.That(right.PressedClear, Is.Zero, "nothing presses an arm the conductor has left");
             Assert.That(right.Allocated, Is.Zero, "0 B a step" + AllocProbe.Report());
-            Assert.That(wrong.DepthSpanning, Is.EqualTo(right.DepthSpanning).Within(1e-9), "the plane's while the conductor crosses the arm");
+            Assert.That(wrong.DepthSpanning, Is.EqualTo(right.DepthSpanning).Within(1e-6 * hand), "the plane's while the conductor crosses the arm");
             Assert.That(wrong.PressedClear, Is.GreaterThan(200), "the known-wrong presses an arm the conductor has left");
             Assert.That(wrong.Tunnels, Is.GreaterThan(0), "and logs a Tunnel when the conductor leaves the margin");
         }
