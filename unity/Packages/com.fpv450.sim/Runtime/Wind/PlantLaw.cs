@@ -214,16 +214,21 @@ namespace Fpv450.Sim.Wind
         const double Floor = 0.01;
 
         /// <summary>The 12-point Gauss–Hermite rule's positive nodes and weights (published, Abramowitz and Stegun 25.4.46; the
-        /// suite checks its moments): E[g(μ + σξ)] = Σ wᵢ·g(μ + √2·σ·xᵢ)/√π over ±xᵢ.</summary>
-        internal static readonly double[] HermiteX =
-        {
-            0.31424037625435913, 0.9477883912401638, 1.5976826351526048, 2.2795070805010598, 3.0206370251208896, 3.889724897869782,
-        };
+        /// suite checks its moments): E[g(μ + σξ)] = Σ wᵢ·g(μ + √2·σ·xᵢ)/√π over ±xᵢ. Constants, no table (StaticInitTests).</summary>
+        internal const int HermiteCount = 6;
 
-        internal static readonly double[] HermiteW =
+        internal static double Hermite(int i, out double weight)
         {
-            0.5701352362624795, 0.26049231026416114, 0.05160798561588393, 0.0039053905846290616, 8.573687043587859e-05, 2.658551684356302e-07,
-        };
+            switch (i)
+            {
+                case 0: weight = 0.5701352362624795; return 0.31424037625435913;
+                case 1: weight = 0.26049231026416114; return 0.9477883912401638;
+                case 2: weight = 0.05160798561588393; return 1.5976826351526048;
+                case 3: weight = 0.0039053905846290616; return 2.2795070805010598;
+                case 4: weight = 8.573687043587859e-05; return 3.0206370251208896;
+                default: weight = 2.658551684356302e-07; return 3.889724897869782;
+            }
+        }
 
         internal const double SqrtPi = 1.7724538509055159, Sqrt2 = 1.4142135623730951;
 
@@ -245,8 +250,18 @@ namespace Fpv450.Sim.Wind
 
         /// <summary>The 8-point Gauss–Legendre rule on [−1, 1] (published), the positive half: a span's integrals with the
         /// element's own motion in the drag.</summary>
-        static readonly double[] LegendreX = { 0.1834346424956498, 0.525532409916329, 0.7966664774136267, 0.9602898564975363 };
-        static readonly double[] LegendreW = { 0.362683783378362, 0.3137066458778873, 0.2223810344533745, 0.1012285362903763 };
+        const int LegendreCount = 4;
+
+        static double Legendre(int i, out double weight)
+        {
+            switch (i)
+            {
+                case 0: weight = 0.362683783378362; return 0.1834346424956498;
+                case 1: weight = 0.3137066458778873; return 0.525532409916329;
+                case 2: weight = 0.2223810344533745; return 0.7966664774136267;
+                default: weight = 0.1012285362903763; return 0.9602898564975363;
+            }
+        }
 
         /// <summary>The forces on a link leaning φ toward (ex, ez), at rest, in air uniform over its drag span (world m/s).</summary>
         public static void Uniform(in PlantMechanics m, double phi, double ex, double ez, in Double3 air, out Forces f) =>
@@ -263,10 +278,10 @@ namespace Fpv450.Sim.Wind
             double ratio = SinOver(phi, s);
             double vn = (air.X * ex + air.Z * ez) * c - air.Y * s, vp = air.Z * ex - air.X * ez;
             double s0 = m.DragFrom, s1 = m.DragTo, mid = 0.5 * (s0 + s1), half = 0.5 * (s1 - s0);
-            for (int i = 0; i < LegendreX.Length; i++)
+            for (int i = 0; i < LegendreCount; i++)
                 for (int side = -1; side <= 1; side += 2)
                 {
-                    double at = mid + side * half * LegendreX[i], w = half * LegendreW[i];
+                    double node = Legendre(i, out double weight), at = mid + side * half * node, w = half * weight;
                     Point(m, vn - at * rateAlong, vp - at * ratio * rateAcross, out double gn, out double gp, out double hn, out double hp);
                     f.Along += w * gn * at;
                     f.Across += w * gp * at;

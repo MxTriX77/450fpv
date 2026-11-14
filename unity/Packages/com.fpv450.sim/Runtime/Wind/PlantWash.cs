@@ -58,28 +58,28 @@ namespace Fpv450.Sim.Wind
         /// disturbed crusts and loose loam, Belnap and Gillette 1997), rubble's fines 0.25–0.5 and the films on asphalt and slabs
         /// 0.2–0.3 (assumed). k_s 2 mm on soils, 0.5 mm on paving (assumed: rolled soil, the note's §5.2); clay 20 % on loams, 10 %
         /// on spoil-free fines (assumed, Fécan's 10–30 %).</summary>
-        public static readonly Row[] Rows =
+        public static bool Find(string surface, out Row row)
         {
-            new Row { Name = "crater_spoil", Threshold = 0.19, Roughness = 0.002, Clay = 20 },
-            new Row { Name = "dirt_track", Threshold = 0.22, Roughness = 0.002, Clay = 20, Film = true },
-            new Row { Name = "belt_bare", Threshold = 0.27, Roughness = 0.002, Clay = 20 },
-            new Row { Name = "burnt_field", Threshold = 0.25, Roughness = 0.002, Clay = 20 },
-            new Row { Name = "tilled", Threshold = 0.375, Roughness = 0.002, Clay = 20 },
-            new Row { Name = "dry_crust", Threshold = 0.75, Roughness = 0.002, Clay = 20 },
-            new Row { Name = "rubble", Threshold = 0.37, Roughness = 0.002, Clay = 10, Film = true },
-            new Row { Name = "asphalt", Threshold = 0.25, Roughness = 0.0005, Clay = 10, Film = true },
-            new Row { Name = "concrete_slab", Threshold = 0.25, Roughness = 0.0005, Clay = 10, Film = true },
-        };
+            switch (surface)
+            {
+                case "crater_spoil": row = new Row { Name = surface, Threshold = 0.19, Roughness = 0.002, Clay = 20 }; return true;
+                case "dirt_track": row = new Row { Name = surface, Threshold = 0.22, Roughness = 0.002, Clay = 20, Film = true }; return true;
+                case "belt_bare": row = new Row { Name = surface, Threshold = 0.27, Roughness = 0.002, Clay = 20 }; return true;
+                case "burnt_field": row = new Row { Name = surface, Threshold = 0.25, Roughness = 0.002, Clay = 20 }; return true;
+                case "tilled": row = new Row { Name = surface, Threshold = 0.375, Roughness = 0.002, Clay = 20 }; return true;
+                case "dry_crust": row = new Row { Name = surface, Threshold = 0.75, Roughness = 0.002, Clay = 20 }; return true;
+                case "rubble": row = new Row { Name = surface, Threshold = 0.37, Roughness = 0.002, Clay = 10, Film = true }; return true;
+                case "asphalt": row = new Row { Name = surface, Threshold = 0.25, Roughness = 0.0005, Clay = 10, Film = true }; return true;
+                case "concrete_slab": row = new Row { Name = surface, Threshold = 0.25, Roughness = 0.0005, Clay = 10, Film = true }; return true;
+                default: row = default; return false; // covered, or not a surface of the table
+            }
+        }
 
         /// <summary>A surface's threshold u*_t (m/s) at the flight's moisture, from its row and the surface table (the wet set's
         /// water content over the surface's dry bulk density); +∞ for a surface with no row (covered), or saturated.</summary>
         public static double Threshold(string surface, Moisture moisture, SurfaceTable table, out Row row)
         {
-            row = default;
-            int i = Rows.Length - 1;
-            while (i >= 0 && Rows[i].Name != surface) i--;
-            if (i < 0 || moisture == Moisture.Saturated) return double.PositiveInfinity;
-            row = Rows[i];
+            if (!Find(surface, out row) || moisture == Moisture.Saturated) return double.PositiveInfinity;
             if (moisture == Moisture.Dry) return row.Threshold;
             double bulk = 0;
             foreach (SurfaceRow s in table.Surfaces)
@@ -133,10 +133,6 @@ namespace Fpv450.Sim.Wind
     /// </summary>
     public sealed class PlantWash
     {
-        /// <summary>The heights the air is sampled at over a node's ground, m: fine at the wall (the wall jet's peak lies at
-        /// 0.165·δ, 1–6 cm here), the near jets' top-hat edge h_j straddled by ±2 % (filled in by the constructor), then to the
-        /// tallest drawn stems (numerical).</summary>
-        static readonly double[] BaseHeights = { 0.008, 0.02, 0, 0, 0.08, 0.15, 0.27, 0.45, 0.7, 1.0, 1.4, 1.9 };
 
         /// <summary>A wash weaker than this where it lands (m/s: the merged jet's landing speed or a near column's) moves no plant
         /// visibly (published: no visible change in a crop under 3 m/s at the canopy, the note's [21]): the tick skips the air (the
@@ -155,6 +151,9 @@ namespace Fpv450.Sim.Wind
         readonly IWorldQuery _world;
         readonly Double3[] _motors;
         readonly PlantMechanics[] _bands;
+        // The heights the air is sampled at over a node's ground, m: fine at the wall (the wall jet's peak lies at 0.165·δ,
+        // 1–6 cm here), the near jets' top-hat edge h_j straddled by ±2 %, then to the tallest drawn stems (numerical); and each
+        // band's rest.
         readonly double[] _heights, _rest;
         readonly int[] _bandHeights;
         readonly int _size, _tickSteps, _heightCount;
@@ -212,9 +211,7 @@ namespace Fpv450.Sim.Wind
             _wallExponent = table.Number("rotor_air.wall_jet_half_height_exponent");
             double hj = _air.JetThickness, top = DustTop;
             foreach (PlantMechanics b in _bands) top = DetMath.Max(top, b.DragTo);
-            _heights = (double[])BaseHeights.Clone();
-            _heights[2] = 0.98 * hj;
-            _heights[3] = 1.02 * hj;
+            _heights = new[] { 0.008, 0.02, 0.98 * hj, 1.02 * hj, 0.08, 0.15, 0.27, 0.45, 0.7, 1.0, 1.4, 1.9 };
             Array.Sort(_heights);
             int count = 0;
             while (count < _heights.Length && (count == 0 || _heights[count - 1] < top)) count++;

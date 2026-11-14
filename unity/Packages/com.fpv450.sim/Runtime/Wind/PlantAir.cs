@@ -296,9 +296,9 @@ namespace Fpv450.Sim.Wind
                 return;
             }
             double spread = PlantLaw.Sqrt2 * sigma;
-            for (int i = 0; i < PlantLaw.HermiteX.Length; i++)
+            for (int i = 0; i < PlantLaw.HermiteCount; i++)
             {
-                double w = PlantLaw.HermiteW[i] / PlantLaw.SqrtPi, x = spread * PlantLaw.HermiteX[i];
+                double node = PlantLaw.Hermite(i, out double weight), w = weight / PlantLaw.SqrtPi, x = spread * node;
                 Term(m, mu + x, w, ref drag, ref along, ref across);
                 Term(m, mu - x, w, ref drag, ref along, ref across);
             }
