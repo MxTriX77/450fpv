@@ -285,10 +285,9 @@ def friction(um, ym, r, H, ks):
     return max(smooth, rough), smooth, rough
 
 
-def jet_peak(h, r):
-    """The wall jet's peak speed along the ground at radius r (diagonal through a hub) and its height, from 300 heights."""
+def jet_peak(h, x, z):
+    """The wall jet's peak speed along the ground at (x, z) and its height, from 300 heights to 0.25 m."""
     best, at = 0.0, 0.01
-    x = z = r / math.sqrt(2)
     for i in range(1, 301):
         y = 0.25 * i / 300
         (ux, uy, uz), _ = W.air(h, x, y, z)
@@ -349,18 +348,22 @@ if __name__ == "__main__":
                 print(f"      flat (>= 1 rad) {('to ' + format(max(flat), '.1f') + ' m') if flat else 'nowhere'}; "
                       f"leaning (>= 0.1 rad) {('to ' + format(max(lean), '.1f') + ' m') if lean else 'nowhere'}")
 
-    print("\n== the dust: the wall jet's u* (smooth Poreh c_f, rough Nikuradse at k_s), the largest along the diagonal ==")
+    print("\n== the dust: the wall jet's u* (smooth Poreh c_f, rough Nikuradse at k_s), the largest over the grid's nodes ==")
     heights = [0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0, 15.0]
     best = {}
     for h in heights:
         wg, Ug, ri, H = W.landing(h)
         Hj = H if wg > 0 else h
         cells = []
-        for r in [0.05 * i for i in range(2, 121)]:
-            um, ym = jet_peak(h, r)
-            if um <= 0:
-                continue
-            cells.append((r, um, ym))
+        # The wash grid's own nodes (0.15 m cells, centres at (i + 1/2)·0.15) to 2.4 m, one octant (the hover's symmetry).
+        for i in range(16):
+            for j in range(i + 1):
+                x, z = (i + 0.5) * 0.15, (j + 0.5) * 0.15
+                r = math.hypot(x, z)
+                um, ym = jet_peak(h, x, z)
+                if um <= 0:
+                    continue
+                cells.append((r, um, ym))
         best[h] = cells
         top = max(cells, key=lambda c: c[1])
         print(f"  hubs {h} m: the jet's peak {top[1]:.2f} m/s at r {top[0]:.2f} m, {1e3 * top[2]:.1f} mm up "
@@ -383,7 +386,7 @@ if __name__ == "__main__":
             res.append(on)
         print(f"    {name}: u*_t {ut} m/s ({label}), k_s {ks} m: dust from {res[0]} m dry; wet (w {wet_w:.1f} %, "
               f"x{factor:.2f}): from {res[1]}")
-    print("  u* per hover height (the largest along the radius; smooth / rough at k_s 2 mm):")
+    print("  u* per hover height (the largest over the nodes; smooth / rough at k_s 2 mm):")
     for h in heights:
         wg, Ug, ri, H = W.landing(h)
         Hj = H if wg > 0 else h
