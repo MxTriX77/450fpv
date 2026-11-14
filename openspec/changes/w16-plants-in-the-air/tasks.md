@@ -7,8 +7,10 @@ Branch `unity/physics/physics-integration-2--w16-plants`, cut from `--w3-preview
 - [ ] 1.1 [reference-analyst] **The plants' numbers, published.** For each plant class the farmland draws (its grass, straw and weed prefabs, the hedges' shrubs, and each tree species' trunk, branches, twigs and leaves):
   - the first bending modes' natural frequencies and damping ratios, the flexural rigidity, the drag's reconfiguration (Vogel's exponent), leaf flutter, and how each scales with size;
   - the rotor downwash on crops and grass from agricultural UAV research: the downwash field and the canopy's deflection under it, by height and thrust;
+  - the dust the wash lifts from dry ground: published threshold friction velocities per soil (dust entrainment, rotorcraft brownout), and how the wall jet's speed at the ground relates to them;
   - each number with its source, labelled measured / published / derived / assumed.
-  If the pilot's clips are still on this machine, add what they show of grass and leaves in wind and in the wash, by letter. Writes `docs/reference-notes/plants-in-the-air.md`. No GPU.
+  - **Clip H's ending** (the pilot pointed to it: "towards the end you will see short examples"): what it shows of grass cut by the props, grass swaying in the wash, and dust whiffs as the drone lands: the heights, the extents, the timing and the motion, measured where the frames allow, by letter only.
+  Writes `docs/reference-notes/plants-in-the-air.md`. No GPU.
 - [ ] 1.2 [physics-engineer] **The law,** design first, after 1.1. No GPU.
   - Each plant class is damped modes driven by the drag of the sim's air (`WindField` and `RotorAir`) at its height, with reconfiguration; give its response to a step gust and to the wash.
   - A stem's fold under the wash (`PropStems`) and its drawn bend stay one law.
@@ -18,7 +20,10 @@ Branch `unity/physics/physics-integration-2--w16-plants`, cut from `--w3-preview
   - The friend's vegetation shaders (grass, leaves, bark) take the sim's field and wash instead of their own wind, near and far: a field texture around the camera and each plant's modal response.
   - The wash's flattening ring under the drone.
   - The frame rate holds (PLT-02).
-- [ ] 1.4 [tech-artist] **The cut pieces on camera** (was `w9-village-physics` 2.5). Needs the GPU. From `FeedSignals`' cuts per rotor, pieces leave the front discs at the blade's speed, drawn in front of the camera; a replay draws the same pieces.
+- [ ] 1.4 [tech-artist] **The cut pieces and the dust on camera** (the pieces were `w9-village-physics` 2.5). Needs the GPU.
+  - From `FeedSignals`' cuts per rotor, pieces leave the front discs at the blade's speed, drawn in front of the camera; a replay draws the same pieces.
+  - Dust whiffs lift from dry ground where the wash's speed along it passes the surface's threshold (1.2 gives the law and the thresholds), and grow as the drone comes lower.
+  - Checked against clip H's ending.
 - [ ] 1.5 [physics-engineer] **The drone feels what it flies through** (`w9-village-physics` 2.10, extended), after 1.2. No GPU.
   - The stems' forces on the legs and the body: touchdown jitter and drag when skimming weeds (PHY-05).
   - A crown's leaves and twigs on the body and the props.
