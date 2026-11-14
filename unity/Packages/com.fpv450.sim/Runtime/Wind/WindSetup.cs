@@ -44,6 +44,11 @@ namespace Fpv450.Sim.Wind
         /// A pilot's level only: Still and Steady air never read the ground.</summary>
         public CutSpec[] Cuts;
 
+        /// <summary>A pilot's level only: the one-scale field (p7c-wind design 16's known-wrong, WindPreset.OneScale: model 98's
+        /// turbulence, the handbook's scales at 35 m at every height) in place of the scales by height. The header's preset
+        /// records it (height_scaled); the kept audits of older models fly it.</summary>
+        public bool OneScale;
+
         public static WindSetup Of(WindLevel level) => new WindSetup { Level = level };
 
         /// <summary>

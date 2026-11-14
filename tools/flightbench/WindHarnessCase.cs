@@ -28,7 +28,7 @@ namespace Fpv450.FlightBench
     // its remnant, the human's the known-wrong. Each run prints its pilot's remnant share.
     internal static class WindHarnessCase
     {
-        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--hull off|on|potential] [--pilot human|k85] [--history N] [--map <id> [--wrong nomap]]";
+        const string Usage = "usage: flightbench --wind-harness calm|windy|severe [--seeds N] [--first-seed S] [--out DIR] [--pilots nominal|all] [--belt on|off] [--wrong steady|nodrag|noiseless|nowake] [--hull off|on|potential] [--pilot human|k85] [--field height|one-scale] [--history N] [--map <id> [--wrong nomap]]";
 
         public static int Run(string[] args)
         {
@@ -39,6 +39,7 @@ namespace Fpv450.FlightBench
             bool all = true, belt = true, steady = false, drag = true, remnant = true, interference = true, nomap = false;
             string hull = "off";
             bool human = true; // D-109: the human pilot is the harness's default
+            bool oneScale = false; // p7c-wind design 16: the field's scales by height; one-scale flies model 98's field (its known-wrong)
             for (int i = 2; i < args.Length; i++)
             {
                 string value = i + 1 < args.Length ? args[i + 1] : null;
@@ -58,6 +59,7 @@ namespace Fpv450.FlightBench
                     case "--hull" when value == "off" || value == "on" || value == "potential": hull = value; i++; break;
                     // p7c-wind design 13, D-109: the human pilot (the default) or K§8.5's pilot, each with its variants.
                     case "--pilot" when value == "k85" || value == "human": human = value == "human"; i++; break;
+                    case "--field" when value == "height" || value == "one-scale": oneScale = value == "one-scale"; i++; break;
                     default: return Fail(Usage);
                 }
             }
@@ -68,17 +70,20 @@ namespace Fpv450.FlightBench
             WindHarness.Pilot[] family = human ? WindHarness.HumanPilots : WindHarness.Pilots;
             WindHarness.Pilot[] pilots = all ? family : new[] { family[0] };
             if (nomap && mapId == null) return Fail(Usage);
+            if (mapId != null && oneScale) return Fail(Usage);
             if (mapId != null) return RunMap(spec, level, seeds, first, pilots, mapId, nomap, drag, remnant, output, human);
             Console.WriteLine($"flightbench: the wind harness (p7c-wind 1.2, K§8.5): {level}, the {WindPreset.Model} wind"
                 + (drag ? "" : ", the known-wrong airframe without drag") + (remnant ? "" : ", the known-wrong noiseless pilot") + (interference ? "" : ", the known-wrong airframe without the rotors in each other's wake") + (steady ? ", the known-wrong fixed vector (no turbulence, direction changes or wakes)" : belt ? $" with its wooded strip (H {WindHarness.StripHeight:F1} m, {WindHarness.StripWidthHeights:F1} H wide, λ {WindHarness.StripAreaIndex:F2}, the wind along it)" : " without the strip")
                 + (hull == "on" ? ", the hull's measured moment on" : hull == "potential" ? ", the known-wrong hull's potential couple" : "")
                 + (human ? ", the human pilot (design 13)" : ", K§8.5's pilot")
+                + (oneScale ? ", the known-wrong one-scale field (model 98's, design 16)" : "")
                 + $", {seeds} seeds × {pilots.Length} pilots, {WindHarness.Seconds:F0} s each and the climb between the stretches (unmeasured), the first {WindHarness.DiscardSeconds:F0} s discarded");
 
             var runs = new WindHarness.Run[pilots.Length * seeds];
             var clock = System.Diagnostics.Stopwatch.StartNew();
             Parallel.For(0, runs.Length, j =>
-                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant, interference));
+                runs[j] = WindHarness.Fly(spec, level, (ulong)(j % seeds + first), j % seeds, seeds, pilots[j / seeds], belt, drag, steady, remnant, interference,
+                    oneScale ? s => s.Wind.OneScale = true : null));
             Console.WriteLine($"  {runs.Length} flights in {clock.Elapsed.TotalSeconds:F1} s");
 
             foreach (WindHarness.Run r in runs)

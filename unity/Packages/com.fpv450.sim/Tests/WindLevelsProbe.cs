@@ -217,7 +217,9 @@ namespace Fpv450.Sim.Tests
             const double fps = HarnessPilot.CameraHz, seconds = 120, spacing = 0.32;
             WindPreset preset = WindPreset.Of(WindLevel.Severe);
             // The open field at each height, then the harness's wooded strip crossed at 0.5 and 0.75 H (its canopy's eddies;
-            // Kaimal's row there is the open field's at that height, for scale).
+            // Kaimal's row there is the open field's at that height, for scale). p7c-wind design 16: the one-scale field (model
+            // 98's, the known-wrong) first, then the field by height, on the same seeds.
+            foreach (bool oneScale in new[] { true, false })
             foreach (double height in new[] { 2.0, 5.0, 10.0, 20.0, 35.0, 50.0, -0.5, -0.75 })
             {
                 bool strip = height < 0;
@@ -231,6 +233,7 @@ namespace Fpv450.Sim.Tests
                     double from = drawn.FromDeg, course = (from + 90) % 360;
                     drawn.Dispose();
                     WindSetup setup = WindSetup.Of(WindLevel.Severe);
+                    setup.OneScale = oneScale;
                     if (strip) setup.Canopies = new[] { WindHarness.Strip(course) };
                     var field = new WindField(setup, new FlightRandom(seed));
                     DetMath.SinCos(course * DegToRad, out double sin, out double cos);
@@ -276,14 +279,14 @@ namespace Fpv450.Sim.Tests
                     field.Dispose();
                 }
                 string Row(double[] x) => string.Join(" / ", Array.ConvertAll(x, y => Math.Sqrt(y).ToString("F3")));
-                TestContext.WriteLine($"{(strip ? $"in the strip at {-height} H, {z:F1} m" : $"{z} m")} (u* {ustar:F3} m/s, the field's σ_w {sigmaW:F3}, Kaimal's 1.25·u* {1.25 * ustar:F3}; met at {speed:F1} m/s), "
+                TestContext.WriteLine($"{(oneScale ? "one-scale" : "by height")}, {(strip ? $"in the strip at {-height} H, {z:F1} m" : $"{z} m")} (u* {ustar:F3} m/s, the field's σ_w {sigmaW:F3}, Kaimal's 1.25·u* {1.25 * ustar:F3}; met at {speed:F1} m/s), "
                     + $"RMS in 0.23–0.5 / 0.5–1 / 1–2 / 2–4 Hz, m/s: w {Row(w)}; Kaimal's w {Row(kaimal)}; headwind {Row(head)}; crosswind {Row(cross)}; "
                     + $"w over {spacing} m {Row(dw)}");
             }
         }
 
         // Band RMS of a series sampled at fps: Welch over Hann windows of 128 samples, half overlap, each less its line.
-        static double[] Bands(double[] x, double fps, double[] lo, double[] hi)
+        internal static double[] Bands(double[] x, double fps, double[] lo, double[] hi)
         {
             const int n = 128;
             var psd = new double[n / 2 + 1];

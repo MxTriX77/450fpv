@@ -243,7 +243,7 @@ namespace Fpv450.Sim.Log
         };
         public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart",
             "HullFrontalArea", "HullSize", "HullRatios", "HullAngles", "HullMoments", "HullAddedVolume", "HullPotential", "HullOn" }; // the hull's in its own entry, TagHull (p7c-wind design 12)
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts", "OneScale" }; // OneScale as the preset's height_scaled
         public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes", "Version" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
@@ -453,7 +453,7 @@ namespace Fpv450.Sim.Log
                 GyroRange = setup.GyroRange,
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
-                WindParameters = PresetOf(setup.Wind.Level),
+                WindParameters = PresetOf(setup.Wind.Level, setup.Wind.OneScale),
                 Rain = setup.Rain,
                 RainParameters = RainPreset.Named(setup.Rain),
                 CameraPosition = setup.CameraPosition,
@@ -514,10 +514,14 @@ namespace Fpv450.Sim.Log
         }
 
         /// <summary>A pilot's level's preset by name, as the header records it; none for still or steady air.</summary>
-        public static NamedValue[] PresetOf(WindLevel level)
+        public static NamedValue[] PresetOf(WindLevel level) => PresetOf(level, false);
+
+        /// <summary>The same for the field a flight flies: the level's, or its one-scale field (WindSetup.OneScale, p7c-wind
+        /// design 16's known-wrong), named by height_scaled.</summary>
+        public static NamedValue[] PresetOf(WindLevel level, bool oneScale)
         {
             if (level == WindLevel.Still || level == WindLevel.Steady) return new NamedValue[0];
-            WindPreset p = WindPreset.Of(level);
+            WindPreset p = oneScale ? WindPreset.Of(level).OneScale() : WindPreset.Of(level);
             return new[]
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
@@ -526,6 +530,8 @@ namespace Fpv450.Sim.Log
                 new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
                 new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
                 new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
+                new NamedValue(HeightScaledName, p.HeightScaled ? 1 : 0), new NamedValue("horizontal_scale_over_height", p.HorizontalScaleOverHeight),
+                new NamedValue("vertical_scale_over_height", p.VerticalScaleOverHeight),
                 new NamedValue("modes", p.Modes), new NamedValue("shortest_wavelength_m", p.ShortestWavelength),
                 new NamedValue("longest_over_knee", p.LongestFraction),
                 new NamedValue("wake_eddy_min_over_h", p.WakeEddyMin), new NamedValue("wake_eddy_max_over_h", p.WakeEddyMax),
@@ -540,6 +546,18 @@ namespace Fpv450.Sim.Log
                 new NamedValue("shift_lo_deg", p.ShiftLoDeg), new NamedValue("shift_hi_deg", p.ShiftHiDeg),
                 new NamedValue("ramp_lo_s", p.RampLo), new NamedValue("ramp_hi_s", p.RampHi), new NamedValue("horizon_s", p.Horizon),
             };
+        }
+
+        /// <summary>The preset's name for its scales by height (p7c-wind design 16): 1 the level's field, 0 its one-scale field.</summary>
+        public const string HeightScaledName = "height_scaled";
+
+        // Whether a log's preset flew the scales by height: a log without the name flew the one-scale field (every model
+        // before design 16).
+        static bool HeightScaledIn(NamedValue[] preset)
+        {
+            foreach (NamedValue v in preset)
+                if (v.Name == HeightScaledName) return v.Value != 0;
+            return false;
         }
 
         /// <summary>This process's runtime and architecture, as the header records them (".NET 10.0.x X64", "Mono …").</summary>
@@ -1649,6 +1667,7 @@ namespace Fpv450.Sim.Log
                         };
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        Wind.OneScale = Wind.Level != WindLevel.Still && Wind.Level != WindLevel.Steady && !HeightScaledIn(WindParameters);
                         if (r.ReadBoolean())
                         {
                             int wakeVersion = r.ReadInt32();

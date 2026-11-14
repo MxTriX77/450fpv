@@ -1146,6 +1146,28 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model97TetherHash, GoldenFlights.TetherHash, "the airless trail");
         }
 
+        // p7c-wind design 16's audit (the field's turbulence by height, on model 98): with the one-scale field (WindSetup.OneScale,
+        // WindPreset.OneScale: the handbook's scales at 35 m at every height, model 98's) each golden flown in a level's wind is
+        // its model 98 pin, every record and event; with the scales by height it is its new pin. So the field is the whole move.
+        // The tumble flies no air and keeps its pin.
+        [Test]
+        public void WithTheOneScaleFieldEachGoldenIsModel98s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            WindSetup calm = WindSetup.Of(WindLevel.Calm);
+            const string sw = "the one-scale field";
+            Audit("powered", "model 98", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, onRecord: keep, heightScaled: !old), c),
+                GoldenFlights.Model98PoweredHash, GoldenFlights.PoweredHash, sw);
+            Audit("rain", "model 98", (old, keep) => (GoldenFlights.FlyPowered(spec, out FlightCore c, wind: calm, rain: RainLevel.SevereRain, onRecord: keep, heightScaled: !old), c),
+                GoldenFlights.Model98RainPoweredHash, GoldenFlights.RainPoweredHash, sw);
+            Audit("contact", "model 98", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, onRecord: keep, heightScaled: !old), c),
+                GoldenFlights.Model98ContactHash, GoldenFlights.ContactHash, sw);
+            Audit("range", "model 98", (old, keep) => (GoldenFlights.FlyRange(spec, out FlightCore c, onRecord: keep, heightScaled: !old), c),
+                GoldenFlights.Model98RangeHash, GoldenFlights.RangeHash, sw);
+            Audit("tether", "model 98", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, heightScaled: !old), c),
+                GoldenFlights.Model98TetherHash, GoldenFlights.TetherHash, sw);
+        }
+
         // p7f-damage 1.6b's audit (model 70, the motors' heat and dirt, off 68), kept: with the heat off (ContactSpec.MotorHeat) every
         // golden over model 68's 3168 bytes is model 68's pin, every record and event (the tether's with the fiber's contacts, the
         // cuts, the link and the failsafe), and the heat's block is zero on every record. So the heat (which every flight with the

@@ -401,6 +401,17 @@ namespace Fpv450.Sim.Tests
         }
 
         // fiber-tether: "A snag dips the link".
+        // Red since p7c-wind 1.5e (the field's turbulence by height) on a fault in the line's contacts, not the air (its follow-up,
+        // p7c-wind tasks.md): a segment passes through the 2 mm twig beside a node that holds the twig's slot. FiberContacts puts a
+        // contact node in a segment only farther than its least piece (5 mm) from both ends, and a node's slot keeps that node off
+        // the member, not its segments; the twig's half circumference is 3.1 mm, so no second node sits on it either. Traced
+        // (ProbeTheLineThroughTheTwig) on seeds 1–6, the line crosses the twig's axis below its tip on every flight in Calm and in
+        // Windy's one-scale field (model 98's), and on 4 of 6 in Windy by height: in Calm at the wrap's half turn, the node pressing
+        // and its segment through the twig's axis; in Windy by height on seeds 1, 2, 3 and 5 at the first pass, a node 3–4 mm from
+        // the axis (or inside the twig) and its segment swept through in the gusts, so the line never wraps (seed 5: 44 steps, 4°
+        // at most). Until the line cannot pass
+        // a twig it stays red; then the scenario's own brittleness (one orbit's catch: 0–18 535 steps over seeds 1–6 in Calm) is
+        // restated over a seed set.
         [Test]
         public void ASnagDipsTheLink()
         {
@@ -413,6 +424,82 @@ namespace Fpv450.Sim.Tests
             Assert.That(d.Spread, Is.GreaterThan(0), "it varies as the wrap flutters in the wind");
             if (d.Dips > 0) Assert.That(d.DipsNamingTwig, Is.EqualTo(d.Dips + d.DipEnds), "each dip names the twig's Id");
         }
+
+        // The replay of the fault above: AroundATwig flown with the line's winding round the twig's axis read each step (the sum over
+        // its segments of the angle each subtends at the axis, in plan); a jump of a full turn is a segment crossing the axis, and
+        // below the twig's tip (1.6 m) that is the line through the twig. Prints each crossing with the nodes within 0.3 m of the
+        // axis (r mm, bearing °, height, slots). FIBER_SEEDS (1–6), FIBER_LEVEL (Windy), FIBER_FIELD=one-scale for model 98's field.
+        [Test, Explicit("a probe: the line through the twig, printed")]
+        public void ProbeTheLineThroughTheTwig()
+        {
+            string seeds = Environment.GetEnvironmentVariable("FIBER_SEEDS") ?? "1,2,3,4,5,6";
+            WindLevel level = (WindLevel)Enum.Parse(typeof(WindLevel), Environment.GetEnvironmentVariable("FIBER_LEVEL") ?? "Windy");
+            bool one = Environment.GetEnvironmentVariable("FIBER_FIELD") == "one-scale";
+            const double tip = 1.6, axisZ = 4, turn = 2 * 3.141592653589793;
+            foreach (string s in seeds.Split(','))
+            {
+                ulong seed = ulong.Parse(s);
+                double last = double.NaN;
+                int through = 0, count = 0;
+                string before = "";
+                FiberCutScenarios.Each = core =>
+                {
+                    CableChain c = core.Tether.Chain;
+                    double w = 0, most = 0, y = double.NaN;
+                    for (int i = 0; i + 1 < c.Count; i++)
+                    {
+                        Double3 a = c[i].Position, b = c[i + 1].Position;
+                        double ax = a.X, az = a.Z - axisZ, bx = b.X, bz = b.Z - axisZ;
+                        double angle = Math.Atan2(ax * bz - az * bx, ax * bx + az * bz);
+                        w += angle;
+                        if (!(Math.Abs(angle) > most)) continue;
+                        most = Math.Abs(angle);
+                        double dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz;
+                        double u = l2 > 0 ? Math.Max(0, Math.Min(1, -(ax * dx + az * dz) / l2)) : 0;
+                        y = a.Y + u * (b.Y - a.Y);
+                    }
+                    string near = Near(c, axisZ);
+                    if (!double.IsNaN(last) && Math.Abs(w - last) > turn / 2)
+                    {
+                        // A segment sweeping across the axis keeps the node count; a remesh (nodes merged or split) that jumps the
+                        // winding is printed apart, its crossing not located.
+                        bool swept = c.Count == count, inside = swept && y >= 0 && y < tip;
+                        if (inside) through++;
+                        Print($"seed {seed} step {core.State.Step}: the winding {last * 57.29578:F0}° → {w * 57.29578:F0}°, "
+                            + (swept ? $"a segment across the axis at {y:F3} m ({(inside ? "through the twig" : "past its ends")})" : $"a remesh, {count} → {c.Count} nodes")
+                            + $"; before: {before}; after: {near}");
+                    }
+                    last = w;
+                    count = c.Count;
+                    before = near;
+                };
+                FiberCutScenarios.Dip d;
+                try
+                {
+                    d = FiberCutScenarios.AroundATwig(Spec, seed, level, edit: one ? x => x.Wind.OneScale = true : null);
+                }
+                finally
+                {
+                    FiberCutScenarios.Each = null;
+                }
+                Print($"seed {seed}, {level}{(one ? ", the one-scale field" : "")}: wrapped {d.Wrapped} steps, the twig's loss up to {d.TwigLoss:F3} dB; {through} crossings through the twig; {d.O}");
+            }
+        }
+
+        static string Near(CableChain c, double axisZ)
+        {
+            string s = "";
+            for (int i = 0; i < c.Count; i++)
+            {
+                ref CableNode a = ref c[i];
+                double x = a.Position.X, z = a.Position.Z - axisZ, r = Math.Sqrt(x * x + z * z);
+                if (r > 0.3 || a.Position.Y > 1.7) continue;
+                s += $"[{i} r {r * 1e3:F1} mm, {Math.Atan2(z, x) * 57.29578:F0}°, y {a.Position.Y:F3}, {Slot(a.Contact0)} {Slot(a.Contact1)}]";
+            }
+            return s;
+        }
+
+        static string Slot(in CableContact q) => q.Active ? $"{(FiberMember)q.MemberKind} {q.NormalForce:F3} N" : "-";
 
         // fiber-tether: "A free line costs only its length and its lip".
         [Test]
