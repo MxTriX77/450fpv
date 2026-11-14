@@ -198,6 +198,7 @@ namespace Fpv450.Sim.Contact
             public byte Surface;
             public Double3 P, N, Entry; // the plane, and the normal the part came in by
             public bool Latched, Flipped, Seen, Touching, Suppressed;
+            public bool Beside;         // its part's core left a round member's side this step (RollOff): not pressed, its latch let go
             public double Depth;        // at the pose Sense last saw, m
             public double Slack;        // a blade's overlap its spring does not read: what it came back to rest in, as it shrinks since, m
             public Double3 Point;       // the contact point on the plane under the core there, world
@@ -1193,12 +1194,14 @@ namespace Fpv450.Sim.Contact
                     Row row = RowOf(p);
                     double ks, bladeShare = 0, r = 0;
                     Double3 motion = default, flat = default, along = default;
+                    bool jaws = !blade && InJaws(i, p, s, axis);
                     if (blade) ks = BladeStiffness(i, p, s, out bladeShare, out r, out motion, out flat, out along);
                     else
                     {
                         Double3 nb = s.Attitude.InverseRotate(p.N);
                         double up = nb.Y * nb.Y;
-                        ks = 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
+                        ks = jaws ? 1 / (up / _spec.Legs.StubStiffnessUp + (1 - up) / _spec.Legs.StubStiffness)
+                            : 1 / (up / shape.StiffnessUp + (1 - up) / shape.Stiffness);
                     }
                     double cs = 2 * shape.DampingRatio * DetMath.Sqrt(ks * _massShare);
                     // A layer by this part's footprint, solid past its stroke: then the part's own spring alone (1.12, P7). The
@@ -1268,8 +1271,9 @@ namespace Fpv450.Sim.Contact
                     Double3 fw = Apply(ref p, i, k, fn, kn, cn, p.Depth, row, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                     int leg = _legOf[i];
                     if (leg < 0 || !(p.Depth > 0) || (_corner[leg] & (CornerState.Stub | CornerState.TubeGone)) != 0) continue;
-                    // A leg tube's touch loads its leg: along it, and at the clamp's edge by its height under it.
-                    double height = Double3.Dot(axis, World(s, _spec.Legs.Clamp[leg]) - p.Point);
+                    // A leg tube's touch loads its leg: along it, and at the clamp's edge by its height under it (in the jaws none:
+                    // the clamp carries it, ClampedTube).
+                    double height = jaws ? 0 : Double3.Dot(axis, World(s, _spec.Legs.Clamp[leg]) - p.Point);
                     _tubeForce[leg] = _tubeForce[leg] + fw;
                     _tubeMoment[leg] = _tubeMoment[leg] + (fw - axis * Double3.Dot(axis, fw)) * height;
                     double size = fw.Length();
@@ -1319,6 +1323,19 @@ namespace Fpv450.Sim.Contact
                 _impact.B = _impactImpulse.Length();
                 events.Add(_impact);
             }
+        }
+
+        // A touch on an intact leg's tube in its clamp's jaws (w9-village-physics 2.6d, ContactSpec.ClampedTube): the tube's core
+        // point there lies above the clamp's bottom edge along the legs' axis, where the jaws hold it, so the touch meets the clamp's
+        // mount, as a broken leg's stub in the same jaws does (StubStiffness, p7g-legs model 51), and bends no free tube. On the tube's
+        // own penetration spring (6.6 kN/m, assumed) L03's conductor, met in leg_fl's jaws at 10.3 m/s, went 123 mm through it.
+        bool InJaws(int i, in Pair p, in FlightState s, Double3 up)
+        {
+            int leg = _legOf[i];
+            if (!_spec.ClampedTube || leg < 0 || _spec.Legs == null || !(_spec.Legs.StubStiffness > 0)
+                || (_corner[leg] & (CornerState.Stub | CornerState.TubeGone)) != 0) return false;
+            Double3 core = p.Point - p.N * (p.Depth - _shapes[i].Radius);
+            return Double3.Dot(up, core - World(s, _spec.Legs.Clamp[leg])) > 0;
         }
 
         // One touching point of a leg: its depth into the corner's deepest and sum, and its closing speed weighted by depth.
@@ -4079,6 +4096,7 @@ namespace Fpv450.Sim.Contact
             {
                 ref Pair p = ref _pairs[first + k];
                 Depth(ref p, part);
+                Member(ref p, part);
                 CrownRow crown = RowOf(p).Crown;
                 if (crown != null) Yield(ref p, crown.TwigReach);
                 // A blade's slack: its overlap where it came back after its rotor's passes, then only less as the blade leaves
@@ -4205,11 +4223,15 @@ namespace Fpv450.Sim.Contact
                 ContactShape s = _shapes[i];
                 if (i == capsule || s.Part != c.Part || s.Role == ContactRole.Disc || !Same(s.A, s.B)) continue;
                 double reach = c.Radius + s.Radius;
-                if (s.Role == ContactRole.Support && _ground[i].Touching && Near(_ground[i].Point, contact.Point, reach)) return true;
+                // A sphere carries the capsule's touch only by its own depth (2.6d, SupportByDepth): one a hanging half's give holds
+                // touching (Hung) is pressed through the half's chain, not on that face.
+                bool byDepth = _spec.SupportByDepth;
+                if (s.Role == ContactRole.Support && _ground[i].Touching && (!byDepth || _ground[i].Depth > 0) && Near(_ground[i].Point, contact.Point, reach))
+                    return true;
                 for (int k = 0; k < _count[i]; k++)
                 {
                     ref Pair p = ref _pairs[i * PairsPerShape + k];
-                    if (!p.Touching || p.Suppressed) continue;
+                    if (!p.Touching || p.Suppressed || byDepth && !(p.Depth > 0)) continue;
                     if (Near(p.Point, contact.Point, reach)) return true;
                     if (s.Role == ContactRole.Support && (p.Object == contact.Object && p.Shape == contact.Shape || OnPlane(p.N, p.Point, contact.Point))
                         && -contact.Distance <= p.Depth + c.Radius) return true;
@@ -4322,6 +4344,29 @@ namespace Fpv450.Sim.Contact
             p.Point = core - p.N * h;
         }
 
+        // A latched pair on a round rigid member (w9-village-physics 2.6d, ContactSpec.RollOff): its depth and point are the member's
+        // own along the latched normal (RoundMember), not the tangent plane's, and a part whose core left the member's side is beside
+        // it: not pressed, its latch let go, so the next query meets it afresh. On model 100's plane an arm whose core had passed
+        // L03's conductor and then left its side read 10–18 mm 34–98 mm clear of it and was pressed with 200–390 N until the
+        // conductor left the margin, a Tunnel; a hanging half's shapes followed that plane 0.39 m with the drone's travel.
+        void Member(ref Pair p, in Capsule part)
+        {
+            p.Beside = false;
+            if (!_spec.RollOff || !p.Latched || p.Object == WorldIds.Ground || p.Surface != WorldIds.NoSurface || !RowOf(p).Rigid) return;
+            if (!_world.Geometry(p.Object, p.Shape, out ShapeGeometry g)) return;
+            ReadOnlySpan<Double3> chain = g.Kind == ShapeKind.Wire ? _world.WirePoints(p.Object, p.Shape) : default;
+            double depth = p.Depth;
+            Double3 point = p.Point;
+            MemberReading reading = RoundMember.Read(g, chain, part.A, part.B, part.Radius, p.N, ref depth, ref point);
+            if (reading == MemberReading.Face) return;
+            p.Depth = depth;
+            p.Point = point;
+            if (reading != MemberReading.Beside) return;
+            p.Beside = true;
+            p.Latched = false;
+            p.Flipped = false;
+        }
+
         static Double3 Closest(Double3 a, Double3 b, Double3 x)
         {
             Double3 ab = b - a;
@@ -4346,7 +4391,7 @@ namespace Fpv450.Sim.Contact
         // give fell to 0 and the half's shapes snapped back into the ground by it (the sweep's 91 mm, a one-step limit cycle).
         bool Hung(int i, in Pair p, in FlightState s)
         {
-            if (!_spec.HangingGive || _legs == null) return false;
+            if (!_spec.HangingGive || _legs == null || p.Beside) return false;
             ContactRole role = _shapes[i].Role;
             int c = _shapes[i].Corner;
             if (role != ContactRole.Support && role != ContactRole.Skid || c < 0 || c >= 4 || (_corner[c] & CornerState.Hanging) == 0) return false;

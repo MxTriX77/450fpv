@@ -121,6 +121,7 @@ namespace Fpv450.Sim.Log
             "TetherBeforeDesign18",
             "TetherWakeReach4R",
             "TetherAirlessTrail",
+            "TetherBeforeDesign21",
             "StemAir", "StemWash",
         };
 
@@ -173,7 +174,7 @@ namespace Fpv450.Sim.Log
             "BladeRest", "BladeRestSpeed",
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
-            "BladeRoot", "Stems", "AnchorReach", "HangingDepth",
+            "BladeRoot", "Stems", "AnchorReach", "HangingDepth", "RollOff", "SupportByDepth", "ClampedTube",
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
             "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
             "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
@@ -287,7 +288,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -379,6 +380,7 @@ namespace Fpv450.Sim.Log
         public bool TetherBeforeDesign18;
         public bool TetherWakeReach4R;
         public bool TetherAirlessTrail;
+        public bool TetherBeforeDesign21;
 
         /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
         /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
@@ -482,6 +484,7 @@ namespace Fpv450.Sim.Log
                 TetherBeforeDesign18 = setup.TetherBeforeDesign18,
                 TetherWakeReach4R = setup.TetherWakeReach4R,
                 TetherAirlessTrail = setup.TetherAirlessTrail,
+                TetherBeforeDesign21 = setup.TetherBeforeDesign21,
                 StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
                 StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
@@ -622,6 +625,7 @@ namespace Fpv450.Sim.Log
                 TetherBeforeDesign18 = TetherBeforeDesign18,
                 TetherWakeReach4R = TetherWakeReach4R,
                 TetherAirlessTrail = TetherAirlessTrail,
+                TetherBeforeDesign21 = TetherBeforeDesign21,
                 StemAir = StemAir,
                 StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
@@ -1197,14 +1201,17 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherWakeReach4R);
                 e.Write(TetherAirlessTrail);
                 e.Write(TetherLayout != null);
-                if (TetherLayout == null) return;
-                e.Write((ushort)TetherLayout.Length);
-                foreach (Double3 p in TetherLayout)
+                if (TetherLayout != null)
                 {
-                    e.Write(p.X);
-                    e.Write(p.Y);
-                    e.Write(p.Z);
+                    e.Write((ushort)TetherLayout.Length);
+                    foreach (Double3 p in TetherLayout)
+                    {
+                        e.Write(p.X);
+                        e.Write(p.Y);
+                        e.Write(p.Z);
+                    }
                 }
+                e.Write(TetherBeforeDesign21); // p7d-tether design 21: last, so a log without it reads as the slots before it
             });
             Entry(w, TagRuntimeObjects, e =>
             {
@@ -1405,6 +1412,16 @@ namespace Fpv450.Sim.Log
                 e.Write(Contacts != null);
                 if (Contacts != null) e.Write(Contacts.HangingDepth);
             });
+            // A latched pair on a round member, a support's touch by its own depth and a tube's touch in its clamp's jaws since
+            // w9-village-physics 2.6d, an entry of their own (no format change). A log without it flew model 100's three laws.
+            Entry(w, TagMembers, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts == null) return;
+                e.Write(Contacts.RollOff);
+                e.Write(Contacts.SupportByDepth);
+                e.Write(Contacts.ClampedTube);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1460,7 +1477,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false, sawMembers = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1583,6 +1600,19 @@ namespace Fpv450.Sim.Log
                         {
                             bool depth = r.ReadBoolean();
                             if (Contacts != null) Contacts.HangingDepth = depth;
+                        }
+                        break;
+                    case TagMembers:
+                        sawMembers = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool rollOff = r.ReadBoolean(), byDepth = r.ReadBoolean(), clamped = r.ReadBoolean();
+                            if (Contacts != null)
+                            {
+                                Contacts.RollOff = rollOff;
+                                Contacts.SupportByDepth = byDepth;
+                                Contacts.ClampedTube = clamped;
+                            }
                         }
                         break;
                     case TagHull:
@@ -1891,6 +1921,8 @@ namespace Fpv450.Sim.Log
                             for (int i = 0; i < TetherLayout.Length; i++)
                                 TetherLayout[i] = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
                         }
+                        // Before p7d-tether design 21 (model 100 and older) a slot held its node alone.
+                        TetherBeforeDesign21 = r.BaseStream.Position >= end || r.ReadBoolean();
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];
@@ -1990,6 +2022,14 @@ namespace Fpv450.Sim.Log
             }
             // Before w9-village-physics 2.6b a hanging half lay where model 98's give put it.
             if (!sawHanging && Contacts != null) Contacts.HangingDepth = false;
+            // Before w9-village-physics 2.6d a latched pair kept its tangent plane on a round member, a support touching through a
+            // hanging half's give carried a skid's touch, and a tube met a touch in its clamp's jaws on its own spring.
+            if (!sawMembers && Contacts != null)
+            {
+                Contacts.RollOff = false;
+                Contacts.SupportByDepth = false;
+                Contacts.ClampedTube = false;
+            }
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
                     + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));
