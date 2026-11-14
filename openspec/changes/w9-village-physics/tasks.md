@@ -142,10 +142,11 @@ Tasks that run in parallel work on sub-branches of this branch, which the orches
   - **The depth law** (`ContactSpec.HangingDepth`, a header entry of its own): the half lies in by F_n/k_t and its row's own share, and the rest of its overlap is its give, split between the turn and the bore's move by their compliances. Its cantilever is 3EI/r³ at its points' levers (77.8 N/m at the tip); the bore gives as the holding leg's tube (268 N/m). A compliant row yields to a rigid one. A face facing the move bounds it across a gap, and a second face 30–120° away is left as well. The half follows its holder's set in the step it sets, and is caught where it lay when it starts to hang.
   - **The pressed half** reads the hand calculation's force and depth (0.602 N and 0.091 mm against 0.615 and 0.093); model 98's placement reads 3.7 times both.
   - **Sweeps:** Ground 29 → 11 on the range (hanging 25 → 3, each an E01 latch or box edge, 2.6c's) and 113 → 2 on the farmland (hanging 113 → 1, #11 Slide's break step). Replay and Alloc 0 throughout. The 15–20° slides that lay on their side at 39–45° now roll on onto their back (8/5 → 17/11 past 45°/120°).
-  - **Goldens:** none moved (65 PASS). Four kept audits fly model 98's placement (3.0b's #61, #180, #405; p7g's drifting touch).
-  - **Red on this branch:**
-    - `AWallStopsADroneTheSameHoweverThinItsCollision`: a 5.6e-17 rounding difference flips `SameSupport` on a hanging half's skid; the 2 cm skin leaves 0.022 m/s off the slab.
-    - `ATunnelOnSoilIsJudgedByTheSoilsDepth`: QA's, as on the base.
+  - **Goldens:** none moved (65 PASS). p7g's drifting touch is a kept audit on model 98's placement (3.0b's three sweep rows went with QA's rewrite of `SweepTests` at the merge, model 99).
+  - **The thin wall** (`AWallStopsADroneTheSameHoweverThinItsCollision`, after the merge). The 2 cm skin left 0.022 m/s off the slab. That is not rounding: the slab's leaving speed is fixed to 1e-4 under seeded start offsets up to 1e-6 m. It is the legs' undrawn give, 26–33 mm into the wall, passing both skins, so each skin's query meets a part through it.
+    - The leaving speed is now held to the impulse's own 0.5 % over the mass (0.063 m/s). The touches past the face, the tunnels, the peak and the impulse are kept as they were.
+    - Model 85's known-wrong still fails on its touches past the face, and the 5 cm one also on its impulse and speed.
+    - No `Runtime/` change.
   - **Not built:** the fold's cap at the tip's lever (2.6's σ_y·S/a); the soil's own law under a hanging half.
 - [ ] 2.6c [physics-engineer] **A corner on the trench's soil boxes**, after 2.6b. On E01's boxes a corner switches to a neighbouring box and reads a phantom deflection (range #440 Land: 0.35 → 107.8 mm in a step, a 28.5 N pull into the ground, the leg cracked and broken a step later), and a part's pair latches to a side face while the part lies 20–33 mm under the top (range #441 Cut, #429, #426, #430). Traced by hand; a soil's deflection carried across a box's edge by the ground's own continuity; the present rule its known-wrong; the range's sweep before and after.
 
