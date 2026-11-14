@@ -297,6 +297,9 @@ def jet_peak(h, x, z):
     return best, max(at, 0.165 * W.H_J)   # the near jets' top-hat: its thickness taken as its delta (assumed)
 
 
+FECAN_MAX = 10.0    # gravimetric water %, the band the note reads Fécan's law over (assumed)
+
+
 def fecan(water_percent, clay_percent):
     wp = 0.0014 * clay_percent ** 2 + 0.17 * clay_percent
     return 1.0 if water_percent <= wp else math.sqrt(1 + 1.21 * (water_percent - wp) ** 0.68)
@@ -373,7 +376,8 @@ if __name__ == "__main__":
     for name, (ut, label, ks, clay) in DUST.items():
         bulk = SURF["surfaces"][name]["dry"].get("bulk_density_kg_m3", {}).get("value", 1300.0)
         wet_w = 100 * water * 1000.0 / bulk
-        factor = fecan(wet_w, clay)
+        # Fécan's factor only to FECAN_MAX; wetter, the topsoil's own cohesion holds its grains: none (the design's §5).
+        factor = fecan(wet_w, clay) if wet_w <= FECAN_MAX else float("inf")
         res = []
         for thr in (ut, ut * factor):
             on = None

@@ -25,9 +25,12 @@ namespace Fpv450.Sim.Wind
     ///   u_m·√(c_f/2), c_f = 0.06·(u_m·δ/ν)^−0.3·(r/H)^−0.16, δ = y_m/0.165 (Poreh et al. 1967 and Verhoff's profile, published)
     ///   and the fully rough wall's u_m/(5.75·log₁₀(y_m/k_s) + 8.5) (Nikuradse, published; k_s per surface, assumed): the
     ///   transitional wall lies between and tends to the larger.
-    /// - **Wet ground** raises the threshold by Fécan et al.'s √(1 + 1.21·(w − w′)^0.68), w′ = 0.0014c² + 0.17c (published; w the
-    ///   gravimetric water %, the wet set's water content over the surface's dry bulk density; c the clay %, assumed per surface);
-    ///   saturated ground lifts none (assumed: no loose grains). Covered surfaces (sod, weeds, straw, litter) shelter the soil and
+    /// - **Wet ground lifts none** (derived): the sim's wet and saturated sets hold a loam's field capacity (Wetting.WaterContentWet,
+    ///   25 % by volume, 15–24 % by mass here), and at it the topsoil's grains are bound in the set's own cohesion, 0.3–18 kPa
+    ///   (the sets' cohesion_pa), against the wash's shear ρu*² of at most 8 Pa (u* ≤ 2.5 m/s at a 0.3 m hover). Fécan et al.'s
+    ///   moisture factor √(1 + 1.21·(w − w′)^0.68), w′ = 0.0014c² + 0.17c (published; w the gravimetric water %, c the clay %,
+    ///   assumed per surface) holds only up to FecanMaximum, the moisture it was fitted to; past it, none. "Wet" is what the sim
+    ///   knows: the flight's rain (SurfaceTable.MoistureOf). Covered surfaces (sod, weeds, straw, litter) shelter the soil and
     ///   lift none (published in kind, Kok et al. 2012): their chaff is the cut pieces' (1.4).
     /// - **The flux** past the threshold, Q = 2.61·(ρ/g)·u*³·(1 − r²)·(1 + r), r = u*_t/u* (White 1979, recalled).
     /// </summary>
@@ -38,6 +41,10 @@ namespace Fpv450.Sim.Wind
 
         /// <summary>The bulk density of the loose film on a paved surface, kg/m³: 1300 (assumed, a loose silt's), for its wetting.</summary>
         public const double FilmBulkDensity = 1300;
+
+        /// <summary>The highest gravimetric water %, Fécan's factor is taken to: 10 (assumed: the band the reference note reads the
+        /// law over, ×1.5–2.5 at 5–10 %; plants-in-the-air.md §5.1). Wetter ground lifts no dust (DustLaw's summary).</summary>
+        public const double FecanMaximum = 10;
 
         /// <summary>White's constant (published, recalled).</summary>
         public const double White = 2.61;
@@ -76,7 +83,8 @@ namespace Fpv450.Sim.Wind
         }
 
         /// <summary>A surface's threshold u*_t (m/s) at the flight's moisture, from its row and the surface table (the wet set's
-        /// water content over the surface's dry bulk density); +∞ for a surface with no row (covered), or saturated.</summary>
+        /// water content over the surface's dry bulk density, Fécan's factor up to FecanMaximum); +∞ for a surface with no row
+        /// (covered), saturated, or wetter than Fécan's range (the wet topsoil's cohesion holds its grains).</summary>
         public static double Threshold(string surface, Moisture moisture, SurfaceTable table, out Row row)
         {
             if (!Find(surface, out row) || moisture == Moisture.Saturated) return double.PositiveInfinity;
@@ -86,6 +94,7 @@ namespace Fpv450.Sim.Wind
                 if (s.Name == surface) bulk = s.Dry.BulkDensity;
             if (!(bulk > 0)) bulk = FilmBulkDensity; // a paved surface: its loose film's
             double water = 100 * table.Wetting.WaterContentWet * table.WaterDensity / bulk;
+            if (water > FecanMaximum) return double.PositiveInfinity;
             double wp = 0.0014 * row.Clay * row.Clay + 0.17 * row.Clay;
             if (!(water > wp)) return row.Threshold;
             return row.Threshold * DetMath.Sqrt(1 + 1.21 * DetMath.Exp(0.68 * DetMath.Log(water - wp)));
@@ -407,7 +416,7 @@ namespace Fpv450.Sim.Wind
         {
             _friction[s] = 0;
             _flux[s] = 0;
-            if (_still[s] || !(_threshold[s] < double.PositiveInfinity)) return;
+            if (_still[s]) return; // u* everywhere the wash blows (1.4 may use it), the flux only past a finite threshold
             double peak = 0;
             int k0 = s * _heightCount;
             for (int k = 0; k < _heightCount && _heights[k] <= DustTop; k++)

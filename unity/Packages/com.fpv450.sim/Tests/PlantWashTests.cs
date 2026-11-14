@@ -166,14 +166,14 @@ namespace Fpv450.Sim.Tests
         // threshold, dry and wet (0: none), u* the largest over the grid's own nodes.
         static readonly (string Surface, double Dry, double Wet)[] HandDust =
         {
-            ("crater_spoil", 10, 2), ("dirt_track", 8, 2), ("belt_bare", 6, 1.5), ("burnt_field", 8, 1.5), ("tilled", 4, 0.75),
-            ("dry_crust", 1.5, 0.5), ("rubble", 4, 0.75), ("asphalt", 6, 0.75), ("concrete_slab", 6, 0.75),
+            ("crater_spoil", 10, 0), ("dirt_track", 8, 0), ("belt_bare", 6, 0), ("burnt_field", 8, 0), ("tilled", 4, 0),
+            ("dry_crust", 1.5, 0), ("rubble", 4, 0), ("asphalt", 6, 0), ("concrete_slab", 6, 0),
         };
 
         static readonly double[] DustHeights = { 0.3, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0, 15.0 };
 
-        // The dust rises as the drone comes lower: per surface, the grid's onset height dry and wet the hand
-        // calculation's (its 12 heights against the hand's 300 for the jet's peak); covered ground and saturated ground none.
+        // The dust rises as the drone comes lower: per surface, the grid's onset height the hand calculation's, dry (its 11 heights
+        // against the hand's 300 for the jet's peak) and wet (none: past Fécan's range); covered and saturated ground none.
         [Test]
         public void DustRisesAsTheDroneComesLower()
         {
@@ -212,9 +212,25 @@ namespace Fpv450.Sim.Tests
                 grid.Advance(Pose(0, 0.3));
                 Assert.That(grid.DustAt(0.3, 0.3, out DustSample d) && !d.Lifts && double.IsPositiveInfinity(d.Threshold), covered + ": covered, no dust");
             }
-            PlantWash soaked = Grid("crater_spoil", RainLevel.SevereRain, new PlantMechanics[0], out _, 16);
-            soaked.Advance(Pose(0, 0.3));
-            Assert.That(soaked.DustAt(0.3, 0.3, out DustSample wet) && !wet.Lifts, "saturated ground, no dust");
+            // Bare loam in rain: a hover 0.25 m up lifts nothing anywhere (the wet topsoil's cohesion holds its grains, design.md
+            // §5), where the same loam dry lifts dust over the whole footprint and from 6 m up (above).
+            foreach (RainLevel rain in new[] { RainLevel.Sunny, RainLevel.Rain, RainLevel.SevereRain })
+            {
+                PlantWash low = Grid("belt_bare", rain, new PlantMechanics[0], out _, 32);
+                low.Advance(Pose(0, 0.25));
+                int lifting = 0;
+                double most = 0;
+                for (int i = -15; i < 15; i++)
+                    for (int j = -15; j < 15; j++)
+                        if (low.DustAt((i + 0.5) * 0.15, (j + 0.5) * 0.15, out DustSample d))
+                        {
+                            if (d.Lifts) lifting++;
+                            most = Math.Max(most, d.Friction);
+                        }
+                Print($"belt_bare, hubs 0.25 m up in {rain}: {lifting} nodes lift dust, u* up to {most:F3} m/s (ρu*² {Rho * most * most:F1} Pa)");
+                if (rain == RainLevel.Sunny) Assert.That(lifting, Is.GreaterThan(100), "dry loam lifts dust under a low hover");
+                else Assert.That(lifting, Is.Zero, rain + ": wet loam lifts none");
+            }
         }
 
 
