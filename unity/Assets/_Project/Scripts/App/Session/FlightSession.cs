@@ -465,7 +465,9 @@ namespace Fpv450.App.Session
         /// wakes, its belt's canopy and its cuts' cavity flow: WindSetup.ForMap), the rain (the ground's moisture with the
         /// table), the fiber line with tether.json, the airframe's effects as the powered golden's, the settings, a new world, and the start point:
         /// legs on, the drone standing on the ground there, its skids unloaded; legs off, the launch stand placed there
-        /// as a runtime object and the drone resting on its posts; both at the start point's heading.
+        /// as a runtime object and the drone resting on its posts; both at the start point's heading. Legs on, each leg's
+        /// stiffness is drawn from the flight's seed (LegDamageSpec.DrawStiffness: the hand-made legs, w9-village-physics 2.9,
+        /// D-086), as the replay's pilot flies them (ScriptedFlight); the log's header records the spread and the draws.
         /// </summary>
         public static FlightSetup Build(SessionInputs inputs, ulong seed, out Loadout loadout, out StartPoint start)
         {
@@ -477,6 +479,7 @@ namespace Fpv450.App.Session
             start = Find(inputs.StartPoints, c.StartPoint);
             FlightWorld world = inputs.World();
             ContactSpec contacts = spec.BuildContacts(loadout, inputs.Materials, inputs.MaterialsHash, inputs.Surfaces);
+            contacts.Legs?.DrawStiffness(); // a pilot's flight: the hand-made legs as this seed draws them (none with the legs off)
             var foot = new Double3(start.X, GroundAt(world, start), start.Z);
             DetMath.SinCos(start.Yaw / 2, out double sin, out double cos);
             var setup = new FlightSetup

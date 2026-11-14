@@ -330,6 +330,57 @@ namespace Fpv450.Tests.Session
             }
         }
 
+        // ---- The physics line in the player (w15-player-physics 1.1) ---------------------------------------------------
+
+        // "The legs as the pilot's hands made them": legs on, the session's setup draws each leg's stiffness from the flight's
+        // seed (LegDamageSpec.DrawStiffness, as the replay's pilot flies them), the log's header records the spread and the
+        // four draws, each leg flies its own, and two seeds draw differently; legs off, nothing is drawn.
+        [Test]
+        public void EachFlightDrawsItsLegsFromItsSeed()
+        {
+            var drawn = new List<double[]>();
+            foreach (ulong seed in new ulong[] { 0x1E65, 0x1E66 })
+            {
+                Rig rig = Make(i =>
+                {
+                    i.NewSeed = () => seed;
+                    i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm };
+                });
+                rig.Session.Start();
+                FlightCore core = rig.Session.Core;
+                Assert.That((rig.Session.Setup.Contacts.Legs.StiffnessSigma, rig.Session.Setup.Contacts.Legs.StiffnessBound),
+                    Is.EqualTo((LegDamageSpec.DrawnSigma, LegDamageSpec.DrawnBound)), "the build drawn");
+                rig.Run(200);
+                rig.Session.EndFlight();
+                LogHeader h = rig.Session.ReadSummary().Log.Header;
+                Assert.That((h.Seed, h.Contacts.Legs.StiffnessSigma, h.Contacts.Legs.StiffnessBound), Is.EqualTo((seed, LegDamageSpec.DrawnSigma, LegDamageSpec.DrawnBound)),
+                    "the header records the spread");
+                var draws = new List<double>();
+                foreach (ParameterDraw d in h.Draws)
+                {
+                    if (d.Stream != "leg.stiffness") continue;
+                    Assert.That(d.Parameter, Is.EqualTo("leg.stiffness." + LegDamage.Names[draws.Count]));
+                    Assert.That((d.Lo, d.Hi), Is.EqualTo((-LegDamageSpec.DrawnBound, LegDamageSpec.DrawnBound)), d.Parameter);
+                    Assert.That(core.Contacts.Legs.Modulus(draws.Count), Is.EqualTo(1 + d.Value), d.Parameter + ": the leg flies its draw");
+                    draws.Add(d.Value);
+                }
+                TestContext.WriteLine("seed 0x" + seed.ToString("X") + ": the legs' stiffness " + string.Join(", ", draws.ConvertAll(v => (1 + v).ToString("0.0000"))));
+                Assert.That(draws.Count, Is.EqualTo(4), "four draws a flight, in the header");
+                drawn.Add(draws.ToArray());
+                rig.Session.Dispose();
+            }
+            Assert.That(drawn[0], Is.Not.EqualTo(drawn[1]), "each seed its own legs");
+
+            Rig off = Make(i => i.Choices = new FlightChoices { Legs = false, Wind = WindLevel.Calm });
+            off.Session.Start();
+            Assert.That(off.Session.Setup.Contacts.Legs, Is.Null, "legs off: no legs to draw");
+            off.Run(200);
+            off.Session.EndFlight();
+            LogHeader none = off.Session.ReadSummary().Log.Header;
+            Assert.That(Array.Exists(none.Draws, d => d.Stream == "leg.stiffness"), Is.False, "legs off: no leg drawn");
+            off.Session.Dispose();
+        }
+
         // ---- Arm and disarm ---------------------------------------------------------------------------------------------
 
         [Test]
@@ -1312,9 +1363,10 @@ namespace Fpv450.Tests.Session
             rig.Session.Dispose();
         }
 
-        // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.5 m/s, disarmed, from 10 mm over its
-        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 14's leg strengths; seed 3's until model 50, where
-        // its rear left holds). The rear-left foot meets the kerb first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
+        // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.4 m/s, disarmed, from 10 mm over its
+        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 38's leg strengths and stiffness; seed 3's until
+        // model 50, where its rear left holds; seed 14's at 1.5 m/s until model 99 with the legs drawn (w15-player-physics 1.1),
+        // where all four legs crack or part; of seeds 10–39 at 1.0–1.5 m/s only this one leaves the two below). The rear-left foot meets the kerb first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
         // the rear left parts at its clamp's edge on the kerb. That ends nothing; the summary lists both legs with their state,
         // the landing or the object, and the speed, worded from the log. R's restart (the drone standing, as a flight starts)
         // has four intact legs on its own draws.
@@ -1322,8 +1374,8 @@ namespace Fpv450.Tests.Session
         public void TheSummaryNamesTheDamage()
         {
             const int rr = 0, fr = 1, rl = 2, fl = 3; // Corners order
-            const double kerb = 0.008;
-            ulong seed = 14;
+            const double kerb = 0.008, drop = 1.4;
+            ulong seed = 38;
             bool first = true;
             Rig rig = Make(i =>
             {
@@ -1334,7 +1386,7 @@ namespace Fpv450.Tests.Session
                     first = false;
                     Double3 foot = s.Contacts.Legs.Foot[rl];
                     s.StartPosition = s.StartPosition + new Double3(0, kerb + 0.002, 0);
-                    s.StartVelocity = new Double3(0, -1.5, 0);
+                    s.StartVelocity = new Double3(0, -drop, 0);
                     ShapeGeometry box = Box(new Double3(s.StartPosition.X + foot.X, kerb / 2, s.StartPosition.Z + foot.Z), new Double3(0.05, kerb / 2, 0.015),
                         s.World.Query.MaterialId("steel"));
                     s.RuntimeObjects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("kerb", new[] { box }) }.ToArray();
@@ -1374,7 +1426,7 @@ namespace Fpv450.Tests.Session
             Assert.That(rig.Session.Restart(), Is.True);
             FlightCore again = rig.Session.Core;
             Assert.That(again, Is.Not.SameAs(core));
-            Assert.That(rig.Session.Seed, Is.EqualTo(15UL), "the next flight's own seed");
+            Assert.That(rig.Session.Seed, Is.EqualTo(39UL), "the next flight's own seed");
             rig.Run(500);
             ref readonly PosePair pair = ref rig.Session.Poses.Read();
             for (int c = rr; c <= fl; c++)
@@ -1411,7 +1463,9 @@ namespace Fpv450.Tests.Session
         // met the bumper at 101°, 103° and 105°; from model 64 0.51 meets the body's sheet metal at 103° and 105°, and 0.52
         // meets the bumper with the canister at 103°, 105° and 107°, 8.5–9.0 m/s, while 0.50 and 0.48 fly past or low; from
         // model 76, the rotors' edgewise flow, 0.52 meets the body's sheet metal, and at model 79 0.53 meets the bumper with the
-        // canister at 103°, 105° and 107°, 9.0–9.6 m/s, while 0.52 meets the sheet metal and 0.54 the glass or flies past). The summary names the placed car by MapWorld.ObjectName, through the
+        // canister at 103°, 105° and 107°, 9.0–9.6 m/s, while 0.52 meets the sheet metal and 0.54 the glass or flies past; at
+        // model 99 with the legs drawn (w15-player-physics 1.1) 0.525 meets the bumper with the payload at 103°, 105° and 107°,
+        // 7.0–10.4 m/s, while 0.52 and mostly 0.53 meet the sheet metal). The summary names the placed car by MapWorld.ObjectName, through the
         // log's world id and hash; without the world, or with another, it is "object N".
         [Test]
         public void ACrashIntoTheRangesCarNamesIt()
@@ -1432,7 +1486,7 @@ namespace Fpv450.Tests.Session
             FlightCore core = rig.Session.Core;
             for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
             {
-                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.53; // lift, then low and level
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.525; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }
