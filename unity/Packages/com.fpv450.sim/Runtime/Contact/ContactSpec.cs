@@ -244,6 +244,38 @@ namespace Fpv450.Sim.Contact
         public bool HangingDepth = true;
 
         /// <summary>
+        /// A latched pair on a round member reads the member's own surface along its latched normal (w9-village-physics 2.6d,
+        /// RoundMember): on a sphere, a capsule, a wire or a cylinder's side, its depth is how far its core must go along that normal
+        /// to leave the member grown by its radius, and where that line misses the member the part has rolled off its side, an
+        /// ordinary break, its latch let go. A box's face and a cylinder's cap keep the plane. On for every flight; off only for the
+        /// known-wrong and the kept audits against model 100, whose latch kept the tangent plane, infinite, after the part's core had
+        /// passed a thin member's axis and left its side: it pressed an arm with 390 N while the conductor was 34–98 mm clear, carried
+        /// a hanging half's shapes 0.39 m with the drone's travel, and logged a Tunnel when the member left the margin. The header
+        /// records it in its own entry with SupportByDepth.
+        /// </summary>
+        public bool RollOff = true;
+
+        /// <summary>
+        /// A support sphere carries a skid capsule's touch (SameSupport, P3) only while it touches by its own depth (w9-village-physics
+        /// 2.6d): one a hanging half's give holds touching (Hung) is pressed through the half's chain, not on that face. On for every
+        /// flight; off only for the known-wrong and the kept audits against model 100, whose rule handed a hanging skid's pressed
+        /// contact on a limb to its end sphere 11 mm clear of it; the chain then read the sphere's normal, 88° off, and the half's
+        /// give jumped and put the skid 110 mm through the limb in a step. Only hanging halves change. The header records it in its
+        /// own entry with RollOff.
+        /// </summary>
+        public bool SupportByDepth = true;
+
+        /// <summary>
+        /// A touch on an intact leg's tube in its clamp's jaws (above the clamp's bottom edge along the legs' axis) meets the clamp's
+        /// mount, as the broken leg's stub there does (LegDamageSpec.StubStiffness, the plate arm under the clamp in its plane and out
+        /// of it), and bends no free tube at the edge (w9-village-physics 2.6d). On for every flight; off only for the known-wrong and
+        /// the kept audits against model 100, whose tube met it on its own penetration spring (6.6 kN/m, assumed) the whole length:
+        /// L03's conductor, met in leg_fl's jaws at 10.3 m/s, went 123 mm through it, a Tunnel. The header records it in its own entry
+        /// with RollOff.
+        /// </summary>
+        public bool ClampedTube = true;
+
+        /// <summary>
         /// A leg's held foot within its reach (w9-village-physics 2.4, model 86; ContactModel.Reached): a soil foot's or a leg
         /// point's stretch on the ground past what the leg's lever reaches turned square (γL across its tube, the frame's lever
         /// along the skid) is let go, and the hold starts again at the foot. On for every flight; off only for the known-wrong and
