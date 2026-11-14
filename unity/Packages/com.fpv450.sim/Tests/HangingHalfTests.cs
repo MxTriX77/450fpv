@@ -119,6 +119,18 @@ namespace Fpv450.Sim.Tests
         static Context Farmland() => _farmland ??= new Context(SlopeScenarios.Farmland(), Spec, WindLevel.Calm);
         static Context Range() => _range ??= new Context(MapWorld.Load(RangeScenarios.Root, "test-range"), Spec, WindLevel.Calm);
 
+        // The audit's rows in the air they were audited in: Calm's one-scale field (model 98's, WindSetup.OneScale), as every kept
+        // audit of an older model flies it since p7c-wind design 16.
+        static Context _farmlandOneScale, _rangeOneScale;
+        static Context OneScale(Context c)
+        {
+            var o = new Context(c.Map, Spec, WindLevel.Calm);
+            o.Wind.OneScale = true;
+            return o;
+        }
+        static Context FarmlandOneScale() => _farmlandOneScale ??= OneScale(Farmland());
+        static Context RangeOneScale() => _rangeOneScale ??= OneScale(Range());
+
         sealed class Series
         {
             public readonly double[] Last = { double.NaN, double.NaN, double.NaN, double.NaN };
@@ -182,25 +194,36 @@ namespace Fpv450.Sim.Tests
         // allowance (GroundTolerance: no leg's give, no sink) and moves only as the body does, its give following its holder's set
         // in the step it sets (#329's step 7507: leg rl sets 0.12 rad; without that the end stood 7.3 mm in for a step); each flight
         // replays bit for bit and steps at 0 B. Model 98's placement fails Ground on both.
+        // Since p7c-wind 1.5e (the field's turbulence by height) Calm's gusts near the ground fly #329's slide on another path, on which
+        // model 98's half goes 7.2 mm in at most (6.8 mm in a step) and passes Ground (range #61's still fails it, 104.0 mm): the
+        // known-wrong hung on the audit's one path.
+        // So the depth law is judged in the field by height and on the audit's rows as audited (the one-scale field, model 98's air,
+        // design 16's rule for a kept audit), and the known-wrong on those rows: the same flight's pair, each half as its law places it.
         [Test]
         public void ASlideWithAHangingHalfKeepsItOutOfTheGround()
         {
             Point farm = Array.Find(_farmPoints ??= Draw(Farmland().Map, 400, 1, out _), q => q.Index == 329);
             Point range = Array.Find(_rangePoints ??= Draw(Range().Map, 400, 1, out _), q => q.Index == 61);
-            foreach ((string name, Context c, Point p) in new[] { ("farmland #329", Farmland(), farm), ("range #61", Range(), range) })
+            foreach ((string name, Context c, Context audited, Point p) in new[]
+                { ("farmland #329", Farmland(), FarmlandOneScale(), farm), ("range #61", Range(), RangeOneScale(), range) })
             {
-                Series rs = new Series(), ws = new Series();
-                Row right = Slide(c, p, true, rs), wrong = Slide(c, p, false, ws);
-                Print($"{name} Slide, the depth law: {right.Line()}");
-                Print($"  {rs.Steps} corner-steps hanging, deepest {rs.Deepest * 1e3:F1} mm, largest step {rs.Jump * 1e3:F1} mm at {rs.JumpAt}");
-                Print($"{name} Slide, model 98's placement: {wrong.Line()}");
+                foreach ((string air, Context x) in new[] { ("by height", c), ("one-scale", audited) })
+                {
+                    var rs = new Series();
+                    Row right = Slide(x, p, true, rs);
+                    Print($"{name} Slide, the depth law, the field {air}: {right.Line()}");
+                    Print($"  {rs.Steps} corner-steps hanging, deepest {rs.Deepest * 1e3:F1} mm, largest step {rs.Jump * 1e3:F1} mm at {rs.JumpAt}");
+                    Assert.That(rs.Steps, Is.GreaterThan(100), $"{name}, {air}: a half hangs and is judged");
+                    Assert.That(right.Failed[(int)Check.Ground], Is.False, $"{name}, {air}: the hanging half within its allowance");
+                    Assert.That(rs.Deepest, Is.LessThan(GroundTolerance), $"{name}, {air}: never past GroundTolerance in the ground");
+                    Assert.That(rs.Jump, Is.LessThan(0.005), $"{name}, {air}: it moves step to step as the body does (2 m/s, 2 mm a step)");
+                    Assert.That(right.Failed[(int)Check.Replay], Is.False, $"{name}, {air}: the log replays bit for bit");
+                    Assert.That(right.Failed[(int)Check.Alloc], Is.False, $"{name}, {air}: 0 B a step");
+                }
+                var ws = new Series();
+                Row wrong = Slide(audited, p, false, ws);
+                Print($"{name} Slide, model 98's placement, the one-scale field: {wrong.Line()}");
                 Print($"  {ws.Steps} corner-steps hanging, deepest {ws.Deepest * 1e3:F1} mm, largest step {ws.Jump * 1e3:F1} mm at {ws.JumpAt}");
-                Assert.That(rs.Steps, Is.GreaterThan(100), $"{name}: a half hangs and is judged");
-                Assert.That(right.Failed[(int)Check.Ground], Is.False, $"{name}: the hanging half within its allowance");
-                Assert.That(rs.Deepest, Is.LessThan(GroundTolerance), $"{name}: never past GroundTolerance in the ground");
-                Assert.That(rs.Jump, Is.LessThan(0.005), $"{name}: it moves step to step as the body does (2 m/s, 2 mm a step)");
-                Assert.That(right.Failed[(int)Check.Replay], Is.False, $"{name}: the log replays bit for bit");
-                Assert.That(right.Failed[(int)Check.Alloc], Is.False, $"{name}: 0 B a step");
                 Assert.That(wrong.Failed[(int)Check.Ground], Is.True, $"{name}: model 98's half lies past its allowance");
                 Assert.That(ws.Jump, Is.GreaterThan(0.020), $"{name}: and steps by centimetres");
             }
