@@ -27,6 +27,10 @@ namespace Fpv450.Sim.Flight
         /// <summary>Rotor speed per corner, rad/s (0 until 1.4).</summary>
         public Corners RotorSpeed;
 
+        /// <summary>Each rotor's mean thrust over the step's sub-steps, N (the line's wash takes it; w16-plants-in-the-air: the
+        /// plants' wash reads the same). Render-side.</summary>
+        public Corners RotorThrust;
+
         public bool Armed;
 
         /// <summary>Leg compression per corner, m, positive when compressed (0 until 1.6; p5-drone draws the flex).</summary>
@@ -93,6 +97,7 @@ namespace Fpv450.Sim.Flight
                 Velocity = a.Velocity + (b.Velocity - a.Velocity) * t,
                 BodyRate = a.BodyRate + (b.BodyRate - a.BodyRate) * t,
                 RotorSpeed = Corners.Lerp(a.RotorSpeed, b.RotorSpeed, t),
+                RotorThrust = Corners.Lerp(a.RotorThrust, b.RotorThrust, t),
                 Armed = b.Armed,
                 LegCompression = Corners.Lerp(a.LegCompression, b.LegCompression, t),
                 FiberPaidOut = a.FiberPaidOut + (b.FiberPaidOut - a.FiberPaidOut) * t,

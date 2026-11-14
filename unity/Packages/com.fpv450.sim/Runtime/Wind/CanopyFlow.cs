@@ -35,7 +35,7 @@ namespace Fpv450.Sim.Wind
     /// Randomness enters only the air's velocity through the modes' draws, never the pose. Zero allocations after the
     /// constructor.
     /// </summary>
-    public sealed class CanopyFlow
+    public sealed partial class CanopyFlow
     {
         /// <summary>Raupach (1994)'s constants (published).</summary>
         public const double Cd1 = 7.5, Cs = 0.003, Cr = 0.3, BetaMax = 0.3, Cw = 2;
