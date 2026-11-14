@@ -381,6 +381,104 @@ namespace Fpv450.Tests.Session
             off.Session.Dispose();
         }
 
+        // "A landing in straw" and "A flight that cuts nothing": a session's flight on the farmland as the player flies it (its
+        // ground, its line, legs on, 1 kg, Calm) from a hover with the hubs 1.9 m over the densest tall straw (StemScenarios.Dense,
+        // its tops at 1.77 m), let down under the hover's throttle; on the ground the throttle is cut, and the flight is ended
+        // 1.5 s later. The props cut stems: the log holds each rotor's episodes (StemEpisode, a start and an end each), and the
+        // summary has a line for each rotor that cut, its stems and work the episodes' ends' own. The flight replays bit for
+        // bit. A flight on the floor meets no stem, and its summary has no such line.
+        [Test]
+        public void ALandingInStrawNamesTheCutStems()
+        {
+            FlightWorldChoice farmland = FlightWorlds.Farmland(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                farmland.ApplyTo(i);
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Payload = 1.0, Wind = WindLevel.Calm };
+                i.Adjust = s =>
+                {
+                    var under = new GroundSample[1];
+                    s.World.SampleGround(new[] { StemScenarios.Dense }, under);
+                    s.StartPosition = new Double3(StemScenarios.Dense.X, under[0].Height + 1.9 - StemScenarios.HubOverOrigin, StemScenarios.Dense.Z);
+                };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            FlightCore core = rig.Session.Core;
+            rig.Radio.Throttle = StrawThrottle; // under the hover: down into the straw
+            int ms = 0;
+            for (; ms < 5000 && core.Trace.ContactsTouching == 0; ms += 10) rig.Run(10);
+            Assert.That(core.Trace.ContactsTouching, Is.GreaterThan(0), "down on the ground");
+            rig.Radio.Throttle = 0;
+            rig.Run(1500);
+            TestContext.WriteLine("on the ground " + ms + " ms after the arming, at " + core.State.Position.ToString());
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, p.Log.CutReason);
+            var starts = new int[4];
+            var ends = new double[4];
+            int endCount = 0;
+            foreach (LoggedEvent e in p.Log.Events)
+            {
+                if (e.Event.Kind != EventKind.StemEpisode) continue;
+                if ((e.Event.Index & 0x80) == 0) starts[e.Event.Index]++;
+                else
+                {
+                    ends[e.Event.Index & 0x7F] += e.Event.B;
+                    endCount++;
+                }
+            }
+            Assert.That(endCount, Is.GreaterThan(0), "the log holds the stems' episodes");
+            Assert.That(endCount, Is.EqualTo(starts[0] + starts[1] + starts[2] + starts[3]), "each episode ended once the props stopped");
+            Assert.That(p.Stems, Is.Not.Empty, "the summary names the cut");
+            int last = -1;
+            foreach (CutStems s in p.Stems)
+            {
+                Assert.That(s.Corner, Is.GreaterThan(last), "in Corners order");
+                last = s.Corner;
+                Assert.That((s.First.Event.Kind, s.First.Event.Index), Is.EqualTo((EventKind.StemEpisode, (byte)s.Corner)), "from its first episode's start");
+                Assert.That(s.Episodes, Is.EqualTo(starts[s.Corner]));
+                Assert.That(s.Count, Is.EqualTo(ends[s.Corner]), "its stems, the episodes' ends' own");
+                Assert.That((s.Count >= 1, s.Energy > 0), Is.EqualTo((true, true)), "a whole stem at least, and its work");
+                string line = p.Describe(s);
+                Assert.That(p.Lines(), Has.Member(line));
+                StringAssert.StartsWith("stems at ", line);
+                StringAssert.Contains(": rotor " + new[] { "rear right", "front right", "rear left", "front left" }[s.Corner] + " cut ", line);
+            }
+            for (int c = 0; c < 4; c++)
+                Assert.That(p.Stems.Exists(s => s.Corner == c), Is.EqualTo(starts[c] > 0), "a line for rotor " + c + " only if it cut");
+
+            ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+            ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+            ReplayResult replay;
+            using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                replay = FlightReplay.Run(f, id => id == farmland.Id ? farmland.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            rig.Session.Dispose();
+
+            // A flight that cuts nothing: up off the floor, no stem there.
+            Rig floor = Make(i => i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm });
+            floor.Session.Start();
+            floor.ArmCycle();
+            floor.Radio.Throttle = 0.62;
+            floor.Run(800);
+            floor.Session.EndFlight();
+            PostFlight none = floor.Session.ReadSummary();
+            Assert.That(none.Log.Count(EventKind.StemEpisode), Is.Zero);
+            Assert.That(none.Stems, Is.Empty);
+            Assert.That(none.Lines().Exists(l => l.StartsWith("stems", StringComparison.Ordinal)), Is.False, "no stems' line");
+            floor.Session.Dispose();
+        }
+
+        /// <summary>The straw landing's throttle stick (under the hover at 1 kg).</summary>
+        const double StrawThrottle = 0.45;
+
         // ---- Arm and disarm ---------------------------------------------------------------------------------------------
 
         [Test]

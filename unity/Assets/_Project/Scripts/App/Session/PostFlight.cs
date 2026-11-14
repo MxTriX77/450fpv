@@ -36,6 +36,8 @@ namespace Fpv450.App.Session
     /// Then the legs' damage (p7g-legs 1.5), in Corners order: each leg not intact at the last step record (its state there,
     /// the elastic bow left out, and its set), with the event of its worst state, which names the landing or the object it
     /// met and the speed it touched at.
+    /// Then the stems the props cut (w9-village-physics 2.2), per rotor in Corners order, from the log's StemEpisode events
+    /// alone: its episodes from the first one's start, the stems and the work over them, and the cover kind it cut most of.
     /// </summary>
     public sealed class PostFlight
     {
@@ -74,6 +76,9 @@ namespace Fpv450.App.Session
 
         /// <summary>The legs' damage, each damaged leg in Corners order (p7g-legs 1.5).</summary>
         public readonly List<DamagedLeg> Legs = new List<DamagedLeg>();
+
+        /// <summary>The stems the props cut, each rotor that cut any in Corners order (w9-village-physics 2.2).</summary>
+        public readonly List<CutStems> Stems = new List<CutStems>();
 
         static readonly string[] CornerNames = { "rear right", "front right", "rear left", "front left" };
 
@@ -181,7 +186,43 @@ namespace Fpv450.App.Session
                     p.Legs.Add(leg);
                 }
             }
+            // The stems: a rotor's episode is its start and, 0.1 s after its last cut, its end with the episode's totals; an
+            // episode the flight's end cut short counts at its start's.
+            var cut = new CutStems[4];
+            var open = new bool[4];
+            var started = new FlightEvent[4];
+            foreach (LoggedEvent e in log.Events)
+            {
+                if (e.Event.Kind != EventKind.StemEpisode) continue;
+                int c = e.Event.Index & 0x7F;
+                if ((e.Event.Index & 0x80) != 0)
+                {
+                    AddEpisode(ref cut[c], e.Event);
+                    open[c] = false;
+                    continue;
+                }
+                if (cut[c].Episodes++ == 0) cut[c].First = e;
+                started[c] = e.Event;
+                open[c] = true;
+            }
+            for (int c = 0; c < 4; c++)
+            {
+                if (open[c]) AddEpisode(ref cut[c], started[c]);
+                if (cut[c].Episodes == 0) continue;
+                cut[c].Corner = c;
+                p.Stems.Add(cut[c]);
+            }
             return p;
+        }
+
+        // An episode's last event into its rotor's stems: its stems and work, and its cover kind when it is the largest yet.
+        static void AddEpisode(ref CutStems stems, in FlightEvent e)
+        {
+            stems.Count += e.B;
+            stems.Energy += e.A;
+            if (e.B <= stems.Largest) return;
+            stems.Largest = e.B;
+            stems.Kind = e.Material;
         }
 
         // How bad an event is for the leg at corner c, by the state it brings: 0 for another part's or another kind.
@@ -306,6 +347,17 @@ namespace Fpv450.App.Session
                 + e.C.ToString("0.00", C) + " m/s";
         }
 
+        /// <summary>A rotor's cut stems in words, from its first episode's start: "stems at 0:03.2: rotor front left cut 41
+        /// stems, most of them straw, for 2.35 J", with ", over 2 episodes" for more than one.</summary>
+        public string Describe(in CutStems stems)
+        {
+            string kind = stems.Kind > 0 && stems.Kind <= SurfaceTable.CoverKinds.Length
+                ? ", most of them " + SurfaceTable.CoverKinds[stems.Kind - 1].Replace('_', ' ')
+                : "";
+            return "stems at " + Clock(stems.First.Step * FlightCore.Dt) + ": rotor " + CornerNames[stems.Corner] + " cut " + stems.Count.ToString("0", C)
+                + " stems" + kind + ", for " + stems.Energy.ToString("0.00", C) + " J" + (stems.Episodes > 1 ? ", over " + stems.Episodes.ToString(C) + " episodes" : "");
+        }
+
         // A leg gone says so alone; one still on lists its bend and twist (degrees), its crack and its skid.
         static string StateWords(in DamagedLeg leg)
         {
@@ -340,6 +392,8 @@ namespace Fpv450.App.Session
                 lines.Add(Describe(d));
             foreach (DamagedLeg l in Legs)
                 lines.Add(Describe(l));
+            foreach (CutStems s in Stems)
+                lines.Add(Describe(s));
             if (Log.Header.Input == InputSource.Keyboard) lines.Add("keyboard: never tune from this flight");
             lines.Add("seed 0x" + Seed.ToString("X16", C));
             lines.Add("log " + LogPath);
