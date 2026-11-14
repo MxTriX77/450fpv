@@ -1219,8 +1219,8 @@ namespace Fpv450.Sim.Tether
                 c.Normal = s.Normal;
                 c.Point = s.Point + s.Normal * _radius;
                 // Design 21: a sphere or a capsule too thin for the least piece to catch a segment crossing it pushes a node it finds
-                // inside out, as before (near its axis a kept overlap's plane turns round with the node). Its corner is not built: on
-                // S04's straw the corner's offset, up to 4 mm off a stalk, froze a trail point above it (named).
+                // inside out, as before (near its axis a kept overlap's plane turns round with the node). Its corner is not built yet
+                // (named).
                 if (!_nodeSlots && hit.M.Kind == FiberMember.Shape && _world.Geometry(hit.M.Object, hit.M.Shape, out ShapeGeometry g)
                     && (g.Kind == ShapeKind.Sphere || g.Kind == ShapeKind.Capsule) && g.Radius + _radius <= Piece(0))
                     c.Thin = true;
@@ -1238,8 +1238,7 @@ namespace Fpv450.Sim.Tether
             c.Point = core + nrm * (hit.M.Radius + _radius);
             c.Gap = dist - hit.M.Radius - _radius;
             // Design 21: a thin rigid round member (a twig, a conductor) holds the node at its segments' corner. Not a snag record:
-            // its barbs lock the touch along the record and the coil's loops overlap, so a corner moving under a locked node pushed
-            // the line to 7–29 N on the coil run (named, not built).
+            // its barbs lock the touch along the record and the coil's loops overlap (named, not built).
             if (!_nodeSlots && (hit.M.Kind == FiberMember.Twig || hit.M.Kind == FiberMember.Wire))
             {
                 c.Thin = true;

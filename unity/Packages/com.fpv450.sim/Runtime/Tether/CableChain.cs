@@ -1495,8 +1495,8 @@ namespace Fpv450.Sim.Tether
         // nodes on one member stayed stretched while both ends were slack, its nodes' holds along the line carrying the pull.
         // Whether a node of the run holds the line by a law of its own: a gliding member (a drone part: the contacts' predictive
         // Coulomb rule, CableContact.Glide), a barb's notch (its lock) or a member that lets go (a hook's release, a stem's
-        // buckling: CableContact.Cap). Such a run's inner pieces are left to it (the skid's wrap, 1.7; the coil run and the straw's
-        // hooks, 1.8).
+        // buckling: CableContact.Cap). Such a run's inner pieces are left to it (judged on them, the skid's wrap of 1.7 stopped
+        // pulling the drone down and the coil run of 1.8 was cut by tension).
         bool HeldOtherwise(int first, int last)
         {
             for (int i = first; i <= last; i++)
