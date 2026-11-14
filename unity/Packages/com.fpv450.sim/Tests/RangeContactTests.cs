@@ -611,9 +611,12 @@ namespace Fpv450.Sim.Tests
         // the band, 27 heights 5.36–5.62 m in 1 cm steps, where a skid, a leg, the payload, a front rim and a motor each meet the
         // cable first somewhere. The claim is judged on every flight (a tunnel through anything rigid, the cable or a crown's bark,
         // is a bug, never a rate), the premise on the band: the cable reached (15–27 of the 27 on five Severe draws by height and
-        // three with the one-scale field). The rim-first case without wind stays above (5.475 m, Still). Red since the merge with
-        // the line at model 99: at 5.40 and 5.43 m a hanging skid half passes the cable (w9-village-physics 2.6b's depth by its
-        // force; none with ContactSpec.HangingDepth off), a fault in the contacts reported in p7c-wind tasks.md (1.5e's follow-up).
+        // three with the one-scale field). The rim-first case without wind stays above (5.475 m, Still). Red at models 99 and 100:
+        // at 5.40 and 5.43 m a skid's end support passed the cable under the latch's tangent plane, which then dragged its hanging
+        // half 0.26–0.39 m with the drone's travel until the cable left the margin (p7c-wind tasks.md, 1.5e's follow-up). Green since
+        // w9-village-physics 2.6d (design 2.6d): a latched pair on a round member reads the member's own surface along its normal and
+        // rolls off its side (ContactSpec.RollOff); a hung support carries no skid's touch (SupportByDepth); a touch in a leg's jaws
+        // meets the clamp's mount (ClampedTube). The band's other draws by height are below.
         [Test]
         public void InSeveresFieldNoTunnelOnTheWiresBand()
         {
@@ -621,6 +624,44 @@ namespace Fpv450.Sim.Tests
             Assert.That(band.Lost, Is.Empty, "no contact lost");
             Assert.That(band.Tunnels, Is.Empty, "no tunnel through a rigid shape at any height of the band");
             Assert.That(band.Reached, Is.GreaterThan(0), "the premise: the band reaches L03's cable");
+        }
+
+        // The band on its other four draws by height (w9-village-physics 2.6d), each a flight of the claim. At model 100: seed 1, 5.42 m,
+        // a hanging skid half through V01_M's bark (a hung end support carried its pressed touch, the half's give jumped 88°); seed 3,
+        // 5.58 m, arm_fr past the cable and pressed by the tangent plane 34–98 mm clear of it (fault 2), and once that is let go
+        // leg_fl's tube through the cable in its clamp's jaws on its own 6.6 kN/m; seed 4, 5.36 m, a skid's end support as at 5.40 m.
+        [TestCase(1UL)]
+        [TestCase(2UL)]
+        [TestCase(3UL)]
+        [TestCase(4UL)]
+        public void InSeveresFieldNoTunnelOnTheWiresBandOnItsOtherDraws(ulong seed)
+        {
+            WireBand band = FlyTheWiresBand(WindSetup.Of(WindLevel.Severe), seed);
+            Assert.That(band.Lost, Is.Empty, "no contact lost");
+            Assert.That(band.Tunnels, Is.Empty, "no tunnel through a rigid shape at any height of the band");
+            Assert.That(band.Reached, Is.GreaterThan(0), "the premise: the band reaches L03's cable");
+        }
+
+        // Each 2.6d law closes its own tunnel on the flight that found it, flown in model 100's contacts (its known-wrong) and with that
+        // law alone added (w9-village-physics design 2.6d): the tangent plane let go (RollOff) on fault 1's end supports (0x450F 5.40 m,
+        // seed 4 5.36 m) and fault 2's arm (seed 3 5.58 m), where it unmasks leg_fl's tube through the cable in its jaws, which the
+        // clamp's mount (ClampedTube) closes; a hung support carrying no skid's touch (SupportByDepth) on seed 1's bark (5.42 m).
+        [TestCase("", "RollOff", 0UL, 540, "skid_left through L03_medium cable")]
+        [TestCase("", "RollOff", 4UL, 536, "skid_left through L03_medium cable")]
+        [TestCase("", "RollOff", 3UL, 558, "arm_fr through L03_medium cable")]
+        [TestCase("RollOff", "ClampedTube", 3UL, 558, "leg_fl through L03_medium cable")]
+        [TestCase("", "SupportByDepth", 1UL, 542, "skid_left through V01_M bark")]
+        public void OnTheWiresBandEachLawClosesItsTunnel(string before, string law, ulong seed, int cm, string through)
+        {
+            WireBand Fly(string laws) => FlyTheWiresBand(WindSetup.Of(WindLevel.Severe), seed == 0 ? null : seed, true, cm, cm, c =>
+            {
+                c.RollOff = laws.Contains("RollOff");
+                c.SupportByDepth = laws.Contains("SupportByDepth");
+                c.ClampedTube = laws.Contains("ClampedTube");
+            });
+            string at = $"{cm / 100.0:F2} m: {through}";
+            Assert.That(Fly(before).Tunnels, Does.Contain(at), $"without {law}: model 100's tunnel");
+            Assert.That(Fly(before + "," + law).Tunnels, Does.Not.Contain(at), $"{law} closes it");
         }
 
         public struct WireBand
@@ -633,7 +674,8 @@ namespace Fpv450.Sim.Tests
         /// touch L03's cable, and each flight's tunnels and lost contacts (its height, the part, the shape and the object), printed.
         /// seed null is the contact scenarios' own draw (0x450F); hangingDepth false flies w9-village-physics 2.6b's model 98
         /// placement of a hanging half (ContactSpec.HangingDepth).</summary>
-        public static WireBand FlyTheWiresBand(WindSetup wind, ulong? seed, bool hangingDepth = true, int fromCm = 536, int toCm = 562)
+        public static WireBand FlyTheWiresBand(WindSetup wind, ulong? seed, bool hangingDepth = true, int fromCm = 536, int toCm = 562,
+            System.Action<ContactSpec> contacts = null)
         {
             MaterialRow[] m = Materials(out ulong h);
             RangeScenarios.Approach a = RangeScenarios.Find("wire");
@@ -647,6 +689,7 @@ namespace Fpv450.Sim.Tests
                     {
                         if (seed.HasValue) s.Seed = seed.Value;
                         s.Contacts.HangingDepth = hangingDepth;
+                        contacts?.Invoke(s.Contacts);
                     });
                 band.Flights++;
                 if (p.Touched.Count > 0) band.Reached++;
@@ -662,8 +705,9 @@ namespace Fpv450.Sim.Tests
         }
 
         // The band on another draw or field, printed (WIRE_SEEDS a comma list, 0 the scenarios' own; WIRE_FIELD one-scale for
-        // model 98's field; WIRE_HANGING 0 for model 98's hanging half; WIRE_FROM_CM and WIRE_TO_CM): the replay of 1.5e's
-        // follow-up's tunnels (p7c-wind tasks.md).
+        // model 98's field; WIRE_HANGING 0 for model 98's hanging half; WIRE_ROLLOFF, WIRE_BYDEPTH, WIRE_JAWS 0 for model 100's
+        // contacts, w9-village-physics 2.6d's known-wrongs; WIRE_FROM_CM and WIRE_TO_CM): the replay of 1.5e's follow-up's tunnels
+        // (p7c-wind tasks.md).
         [Test, Explicit("a probe: the wire's band on other draws, printed")]
         public void ProbeTheWiresBand()
         {
@@ -672,13 +716,22 @@ namespace Fpv450.Sim.Tests
             bool hanging = System.Environment.GetEnvironmentVariable("WIRE_HANGING") != "0";
             int from = int.TryParse(System.Environment.GetEnvironmentVariable("WIRE_FROM_CM"), out int f) ? f : 536;
             int to = int.TryParse(System.Environment.GetEnvironmentVariable("WIRE_TO_CM"), out int t) ? t : 562;
+            // w9-village-physics 2.6d's known-wrongs: WIRE_ROLLOFF, WIRE_BYDEPTH or WIRE_JAWS 0 flies model 100's law.
+            bool rollOff = System.Environment.GetEnvironmentVariable("WIRE_ROLLOFF") != "0", byDepth = System.Environment.GetEnvironmentVariable("WIRE_BYDEPTH") != "0",
+                jaws = System.Environment.GetEnvironmentVariable("WIRE_JAWS") != "0";
             foreach (string s in seeds.Split(','))
             {
                 ulong seed = ulong.Parse(s);
                 WindSetup wind = WindSetup.Of(WindLevel.Severe);
                 wind.OneScale = one;
-                TestContext.Progress.WriteLine($"seed {(seed == 0 ? "0x450F" : s)}, {(one ? "the one-scale field" : "the field by height")}, the hanging half {(hanging ? "by its force" : "as model 98")}:");
-                WireBand band = FlyTheWiresBand(wind, seed == 0 ? null : seed, hanging, from, to);
+                TestContext.Progress.WriteLine($"seed {(seed == 0 ? "0x450F" : s)}, {(one ? "the one-scale field" : "the field by height")}, the hanging half {(hanging ? "by its force" : "as model 98")}"
+                    + $"{(rollOff ? "" : ", the tangent plane")}{(byDepth ? "" : ", a hung support carrying")}{(jaws ? "" : ", the tube's spring in its jaws")}:");
+                WireBand band = FlyTheWiresBand(wind, seed == 0 ? null : seed, hanging, from, to, c =>
+                {
+                    c.RollOff = rollOff;
+                    c.SupportByDepth = byDepth;
+                    c.ClampedTube = jaws;
+                });
                 TestContext.Progress.WriteLine($"  {band.Reached} of {band.Flights} reach the cable; tunnels: {(band.Tunnels.Count == 0 ? "none" : string.Join("; ", band.Tunnels))}");
             }
         }
