@@ -56,20 +56,30 @@ namespace Fpv450.Sim.Wind
         /// steady air on its mean (quasi-static: its mode is fast beside the wash's changes at a creep, design.md §4.5). Without a
         /// wash (null), Wind's.
         /// </summary>
-        public void Sample(in PlantMechanics m, int band, PlantWash wash, in Double3 basePoint, double ground, out PlantBend bend)
+        public void Sample(in PlantMechanics m, int band, PlantWash wash, in Double3 basePoint, double ground, out PlantBend bend) =>
+            Sample(m, band, wash, null, basePoint, ground, out bend);
+
+        /// <summary>The same over two grids with the same bands: a fine one (the columns' footprints) read first where it holds the
+        /// place, then a coarse one (the ring).</summary>
+        public void Sample(in PlantMechanics m, int band, PlantWash fine, PlantWash coarse, in Double3 basePoint, double ground, out PlantBend bend)
         {
+            PlantWash wash = fine != null && fine.LastTick >= 0 ? fine : coarse;
             if (wash == null || wash.LastTick < 0)
             {
                 Respond(m, basePoint, ground, default, default, default, out bend);
                 return;
             }
-            double last = wash.LastTick * FlightCore.Dt, fraction = (_t - (last - wash.Tick)) / wash.Tick;
-            fraction = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
-            if (band >= 0 && wash.Bend(band, basePoint.X, basePoint.Z, fraction, out PlantBend grid, out Double3 washAir))
-            {
-                Respond(m, basePoint, ground, default, washAir, grid, out bend);
-                return;
-            }
+            if (band >= 0)
+                for (int g = 0; g < 2; g++)
+                {
+                    PlantWash w = g == 0 ? fine : coarse;
+                    if (w == null || w.LastTick < 0) continue;
+                    double last = w.LastTick * FlightCore.Dt, fraction = (_t - (last - w.Tick)) / w.Tick;
+                    fraction = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
+                    if (!w.Bend(band, basePoint.X, basePoint.Z, fraction, out PlantBend grid, out Double3 washAir)) continue;
+                    Respond(m, basePoint, ground, default, washAir, grid, out bend);
+                    return;
+                }
             var load = new Double3(basePoint.X, basePoint.Y + m.LoadPoint, basePoint.Z);
             Double3 steady = wash.Rotors.At(load, ground, out _);
             Respond(m, basePoint, ground, steady, default, default, out bend);

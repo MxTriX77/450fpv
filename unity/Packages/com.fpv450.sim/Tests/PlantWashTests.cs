@@ -117,7 +117,7 @@ namespace Fpv450.Sim.Tests
             PlantMechanics green = PlantAirTests.Green(0.6);
             foreach (double h in new[] { 0.5, 1.0, 2.0, 4.0 })
             {
-                PlantWash fine = Grid("belt_bare", RainLevel.Sunny, new[] { green }, out _, 48, 0.05);
+                PlantWash fine = Grid("belt_bare", RainLevel.Sunny, new[] { green }, out PlantAir plants, 48, 0.05);
                 PlantWash coarse = Grid("belt_bare", RainLevel.Sunny, new[] { green }, out _);
                 for (long step = 0; step <= 8000; step += TickSteps)
                 {
@@ -135,6 +135,14 @@ namespace Fpv450.Sim.Tests
                 if (h == 2.0) Assert.That(pressed, Is.LessThan(0.5), "2 m: within the landing");
                 if (h == 4.0) Assert.That(pressedNodes, Is.Zero, "4 m: nothing pressed");
                 if (h >= 2.0) Assert.That(ring, Is.GreaterThan(1.8), $"{h} m: the ring leans past 1.8 m");
+                // The drawn side reads the fine grid where it holds the place, the coarse one beyond it (still air: the wind adds none).
+                plants.Begin(8.0);
+                plants.Sample(green, 0, fine, coarse, new Double3(Hub, 0, Hub), 0, out PlantBend under);
+                plants.Sample(green, 0, fine, coarse, new Double3(2.0, 0, 0.3), 0, out PlantBend far);
+                fine.Bend(0, Hub, Hub, 1, out PlantBend fineUnder, out _);
+                coarse.Bend(0, 2.0, 0.3, 1, out PlantBend coarseFar, out _);
+                Assert.That(Math.Abs(under.X - fineUnder.X) + Math.Abs(under.Z - fineUnder.Z), Is.LessThan(1e-12), $"{h} m: under a hub, the fine grid's");
+                Assert.That(Math.Abs(far.X - coarseFar.X) + Math.Abs(far.Z - coarseFar.Z), Is.LessThan(1e-12), $"{h} m: 2 m out, the coarse grid's");
             }
         }
 
