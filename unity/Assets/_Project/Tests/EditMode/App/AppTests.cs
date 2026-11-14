@@ -152,6 +152,29 @@ namespace Fpv450.Tests.App
             Assert.That(FeedSignalLog.Value(feed, FeedSignal.LinkState), Is.EqualTo("Broken by Prop"));
         }
 
+        /// <summary>The props' cut stems (w9-village-physics 2.2) pass on per rotor as the physics publishes them, with no Live bit
+        /// and no stub: 0 before a flight (w15-player-physics 1.1).</summary>
+        [Test]
+        public void TheFeedPassesOnTheStemsCuts()
+        {
+            var feed = new FlightFeedSignals();
+            feed.Update(default, false, 0, 0, 0);
+            for (int r = 0; r < 4; r++)
+                Assert.That(new[] { feed.StemCuts(r), feed.StemPieceLengthM(r), feed.StemCutRadiusM(r), feed.StemBladeAngle(r) }, Is.EqualTo(new float[4]), "rotor " + r + " before a flight");
+
+            var s = new SimSignals
+            {
+                StemCuts = new Corners { RearRight = 0.25, FrontLeft = 2.5 },
+                StemPieceLength = new Corners { FrontLeft = 0.31 },
+                StemCutRadius = new Corners { FrontLeft = 0.118 },
+                StemBladeAngle = new Corners { FrontLeft = 1.25 },
+            };
+            feed.Update(s, true, 1, 0, 2);
+            Assert.That((feed.StemCuts(3), feed.StemPieceLengthM(3), feed.StemCutRadiusM(3), feed.StemBladeAngle(3)), Is.EqualTo((2.5f, 0.31f, 0.118f, 1.25f)), "front left");
+            Assert.That((feed.StemCuts(0), feed.StemPieceLengthM(0)), Is.EqualTo((0.25f, 0f)), "rear right");
+            Assert.That((feed.StemCuts(1), feed.StemCuts(2)), Is.EqualTo((0f, 0f)), "the two that cut none");
+        }
+
         // D-087: R, like every new flight, ends whatever loss the feed was playing, so the new flight's first field is the
         // picture: a recovering dropout on Godot's timer (D-085), one held by the fiber's dip, and the staged loss of a break
         // to the terminal blue. Two feeds on one seed reach the same lost field; the new flight (its link whole, no dips)
