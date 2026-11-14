@@ -271,6 +271,24 @@ namespace Fpv450.Sim.World
             for (int k = 0, n = _cells.Length; k < n; k++) FillCell(k, steps, _lane);
         }
 
+        /// <summary>
+        /// A rebuild in place shared by threads (the worker's and its helpers', WakeGridWorker), allocating nothing: BeginRebuild
+        /// sets the direction and the extents every cell reads and returns the march's steps; then each of the obstacles' NZ rows
+        /// is filled once (FillRow), on any thread, each with its own lane (WakeObstacles.NewLane). Each cell is computed by the
+        /// same operations from the obstacles and the direction alone, so the grid's bits are Rebuild's (as Build's).
+        /// </summary>
+        public int BeginRebuild(double fromDeg)
+        {
+            Direction(fromDeg);
+            return Extents();
+        }
+
+        /// <summary>Row j's cells (BeginRebuild), with this thread's lane memory.</summary>
+        public void FillRow(int j, int steps, WakeObstacles.Lane lane)
+        {
+            for (int k = j * Obstacles.NX, end = k + Obstacles.NX; k < end; k++) FillCell(k, steps, lane);
+        }
+
         void Direction(double fromDeg)
         {
             FromDeg = fromDeg;
