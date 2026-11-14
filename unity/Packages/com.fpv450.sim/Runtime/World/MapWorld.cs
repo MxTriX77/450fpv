@@ -44,6 +44,10 @@
 //   a ray's own entry into the ground.
 // - A long reach's corridor (w3-farmland-ground 2.1): a reach of more than Corridor cells walks only the cells its sweep's hull
 //   reaches within the pad, row by row, as the terrain's does; the same contacts.
+// - A still core's clip (w9 step budget): for a capsule that does not move (the fiber's segments) an item, a tree node or a
+//   shape is tested only where its bounds also come within the pad of the core's segment (Meets), not merely meet the
+//   reach's box, which a long diagonal segment fills with shapes far from it; the same contacts (the pilot's line laid over
+//   the farmland ruin's 7,016 boxes: its queries 31 % faster).
 // - Ids: materials are the names given at load (physics_materials.json's rows in file
 //   order, 1 … n); surfaces are S01–S13 (SurfaceIds, 1 … 13).
 // - Identity (design 6): FNV-1a over the placement file, every referenced .assetmeta.json
@@ -229,13 +233,19 @@ namespace Fpv450.Sim.World
                 return count; // the ground alone (w3-farmland-ground 2.5)
 
             Span<int> stack = stackalloc int[MaxDepth + 2];
+            // A still core (the fiber's queries): bounds its segment cannot come within the pad of hold no contact, so an item
+            // whose bounds meet the reach is also clipped against the segment (Meets; a long segment's reach holds many far shapes).
+            // A core no longer than the pad gains nothing over the reach's box, and skips the clip.
+            double grow = (pad > 0 ? pad : 0) + CullSlack;
+            Double3 core = current.B - current.A;
+            bool still = ShapeMath.Still(previous, current) && Double3.Dot(core, core) > grow * grow;
             RegionCache cached = Region(reach, out int entry);
             if (cached != null)
             {
                 // The region's items: every item whose bounds meet the reach is among them (the region holds the reach).
                 for (int k = entry * RegionCache.Capacity, end = k + cached.Count[entry]; k < end; k++)
-                    if (cached.Items[k].Box.Overlaps(reach))
-                        SweepItem(cached.Items[k].Item, stack, previous, current, margin, speed, reach, noWires, results, ref count);
+                    if (Meets(cached.Items[k].Box, reach, still, current, grow))
+                        SweepItem(cached.Items[k].Item, stack, previous, current, margin, speed, reach, still, grow, noWires, results, ref count);
                 Give(cached);
             }
             else
@@ -262,8 +272,8 @@ namespace Fpv450.Sim.World
                             ref readonly CellItem e = ref _cellItems[k];
                             bool first = corridor ? FirstInCorridor(e, rows, z0, z1, cx, cz)
                                 : (e.CellX > x0 ? e.CellX : x0) == cx && (e.CellZ > z0 ? e.CellZ : z0) == cz;
-                            if (first && e.Box.Overlaps(reach))
-                                SweepItem(e.Item, stack, previous, current, margin, speed, reach, noWires, results, ref count);
+                            if (first && Meets(e.Box, reach, still, current, grow))
+                                SweepItem(e.Item, stack, previous, current, margin, speed, reach, still, grow, noWires, results, ref count);
                         }
                     }
                 }
@@ -332,9 +342,9 @@ namespace Fpv450.Sim.World
             return previous.A.Y - y - r > above && previous.B.Y - y - r > above && current.A.Y - y - r > above && current.B.Y - y - r > above;
         }
 
-        /// <summary>A cell item's sweeps whose bounds meet the reach: shape i's, or those of object ~i's tree (SweepPrim).</summary>
+        /// <summary>A cell item's sweeps whose bounds meet the reach (Meets): shape i's, or those of object ~i's tree (SweepPrim).</summary>
         private void SweepItem(int item, Span<int> stack, in Capsule previous, in Capsule current, double margin, double speed, in Bounds reach,
-            bool noWires, Span<StaticContact> results, ref int count)
+            bool still, double grow, bool noWires, Span<StaticContact> results, ref int count)
         {
             if (item >= 0)
             {
@@ -347,7 +357,7 @@ namespace Fpv450.Sim.World
             {
                 int at = stack[--top];
                 ref readonly Node node = ref _nodes[at];
-                if (!node.Box.Overlaps(reach))
+                if (!Meets(node.Box, reach, still, current, grow))
                     continue;
                 if (node.Count == 0)
                 {
@@ -356,10 +366,26 @@ namespace Fpv450.Sim.World
                     continue;
                 }
                 for (int m = node.First; m < node.First + node.Count; m++)
-                    if (_leafBox[m].Overlaps(reach))
+                    if (Meets(_leafBox[m], reach, still, current, grow))
                         SweepPrim(_leafPrims[m], previous, current, margin, speed, reach, noWires, results, ref count);
             }
         }
+
+        /// <summary>
+        /// The slack of a still core's clip (Meets), m (numerical: far above the rounding of the clip and of a shape's bounds a
+        /// kilometre out, 1e-13 m, and of a closest approach, which a search only reads long).
+        /// </summary>
+        private const double CullSlack = 1e-6;
+
+        /// <summary>
+        /// Whether a query tests bounds `box`: they meet its reach and, for a still core (the fiber's segments), the core's
+        /// segment comes within `grow` (the pad and CullSlack) of them (ShapeMath.SegmentMeets). Bounds the segment cannot come
+        /// within the pad of hold no shape within the margin of the capsule (a shape lies within its bounds), and a still core
+        /// has no first touch, so its sweep finds no contact there: every query gives the same contacts, in the same order, with
+        /// the same bits, testing fewer shapes (w9 step budget).
+        /// </summary>
+        private static bool Meets(in Bounds box, in Bounds reach, bool still, in Capsule current, double grow) =>
+            box.Overlaps(reach) && (!still || ShapeMath.SegmentMeets(current.A, current.B, box, grow));
 
         /// <summary>Placed shape i's sweep, its contact inserted in canonical order; none for a wire when noWires.</summary>
         private void SweepPrim(int i, in Capsule previous, in Capsule current, double margin, double speed, in Bounds reach, bool noWires,
