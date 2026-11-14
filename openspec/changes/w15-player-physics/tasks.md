@@ -23,8 +23,15 @@ Branch `unity/physics/physics-integration-2--w15-player`, cut from `--w3-preview
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the spec scenarios: the player's flight equal to the headless one bit for bit; the legs' draw in a player's flight; the summary naming the cuts; Unity's EditMode suite green and its 0 B checks honest; the player built with `tools/build_latest.ps1 -PlanFile <a plan naming this branch> -Out <a scratch folder>` and its smoke PASS; nothing of the friend's world pushed.
+- [x] 2.1 [qa-engineer] Review against the spec scenarios: the player's flight equal to the headless one bit for bit; the legs' draw in a player's flight; the summary naming the cuts; Unity's EditMode suite green and its 0 B checks honest; the player built with `tools/build_latest.ps1 -PlanFile <a plan naming this branch> -Out <a scratch folder>` and its smoke PASS; nothing of the friend's world pushed.
 
 ## 3. The build
 
-- [ ] 3.1 [orchestrator] Merge into `--w3-preview`; `tools/build_latest.json` on the trunk says what the build holds (a chore PR); tell the pilot the command.
+- [x] 3.1 [orchestrator] Merge into `--w3-preview`; `tools/build_latest.json` on the trunk says what the build holds (a chore PR); tell the pilot the command.
+  - *As built (2026-11-14):*
+    - **The pilot's order changed the build twice** (D-113): the build first, then everything recently built merged in, tested fully or not. So the wind field's turbulence by height (`p7c-wind` 1.5e) went into the physics line as **model 100** (`ebfe40be`) and into this branch (`8801cbf3`) after QA's review, which covers a1bb5b07..10805b91 at model 99.
+    - **Landed:** `--w3-preview` at `94b56747` (this branch's tree at `8801cbf3`); the trunk's pointer and D-113 by PR #257 (`e8bcd268`).
+    - **Two builds.** The trial at model 99 (tree 10805b91, `-PlanFile`, `-Out` a scratch folder): exit 0 after 47.6 min, the shaders compiled from scratch in a new worktree; `[Smoke] PASS: 0 checks failed, 0 errors logged`. Then the pilot's build at model 100 by the plain command with `-KeepWorktree` (tree 94b56747, into `unity\Builds\Latest`): exit 0 after 3.2 min, `[Smoke] PASS: 0 checks failed, 0 errors logged`.
+    - **The built player is the line's flight:** its smoke flight over House, recorded by the player on Mono, is a model 100 log, and `tools/replay` on .NET gives "match: 4523 steps and 31 events, bit for bit" (run from this branch's worktree: run from the trunk's checkout the tool reads the trunk's older `drone.json` and refuses it).
+    - **Not met at the build:** on model 100 the full sim suite, the line's benches and Unity's EditMode suite were not run before the build; the developer's pinned windy hash in `AFlightIsTheSameInUnityAndHeadless` is model 99's; the spec's "every EditMode test passes" still lacks the two sim-owned tests (1.1's note). The change stays open until those are settled.
+    - **Found in the tools:** `build_latest.ps1` writes `BUILD-INFO.txt`'s base line from the branch's head when it writes the file, not from what it built (QA's review).
