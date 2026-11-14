@@ -742,6 +742,7 @@ namespace Fpv450.Sim.Tests
             c.MemberKind = (byte)FiberMember.Shape;
             c.Member = (7UL << 32) | 3;
             c.Edge = edge;
+            c.Abrasive = true; // a hard metal arris (p7d-tether design 21's class: the severe band, as FiberContacts.AbrasiveOf gives it)
             chain[1].Contact0 = c;
             chain[2].AnchorStiffness = 100;
             Double3 load0 = dOut * (5 + low * Math.Exp(0.3 * theta) / 100);
@@ -1252,7 +1253,7 @@ namespace Fpv450.Sim.Tests
         {
             public Outcome O;
             /// <summary>The most tension of any segment over the flight, N; the steps a node pressed the timber; the sections worn
-            /// through; the deepest wear at a node pressing the timber, m.</summary>
+            /// through on a world member (not the drone's lip); the deepest wear at a node pressing the timber, m.</summary>
             public double MostTension, DeepestWear;
             public long Touching;
             public int WornThrough;
@@ -1296,7 +1297,7 @@ namespace Fpv450.Sim.Tests
                 core.Advance(stick);
                 w.Step(core);
                 for (int i = 0; i < core.Events.Count; i++)
-                    if (core.Events[i].Kind == EventKind.FiberSection && (core.Events[i].Index & 0x40) != 0) res.WornThrough++;
+                    if (core.Events[i].Kind == EventKind.FiberSection && (core.Events[i].Index & 0x40) != 0 && core.Events[i].Object >= 0) res.WornThrough++;
                 FiberLine f = core.Tether;
                 if (f.Broken) break;
                 CableChain c = f.Chain;

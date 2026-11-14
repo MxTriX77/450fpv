@@ -97,6 +97,10 @@ namespace Fpv450.Sim.Tether
         // A kept slot's point moving this far over the member in a step (m) has jumped, not slid (numerical: a thin member's
         // radius; the coil's switch was 29.6 mm, a node's slide in a step at 2 m/s 2 mm).
         const double SinkJump = 0.005;
+        // Design 21: an overlap a shape's slot keeps is let out at this speed, m/s (numerical: 0.01 mm a step, 0.1 N more on a
+        // fixed member's spring, against the 1–9 mm a whole push gave at 10–90 N), so the node leaves it within a second
+        // whatever holds it in, and never freezes into the trail inside a shape.
+        const double SinkRelax = 0.01;
         const double CellSize = 0.25;
         // A box test's slack, m (numerical: far above the rounding of a closest approach's points a kilometre out, 1e-13 m).
         const double BoxSlack = 1e-9;
@@ -1041,6 +1045,19 @@ namespace Fpv450.Sim.Tether
                     if (same < 0) count++;
                     else if (c.Gap < _cand[same].Gap) _cand[same] = c;
                 }
+                // Design 21: a node lying on the ground or a layer (within InsertGap of it) keeps a thin member's plane at ρ: the line
+                // lies over the stalk there, it cannot wrap it through the ground, and the corner's offset froze trail points up to
+                // 4 mm off the straw's top (S04's lie).
+                bool lying = false;
+                for (int k = 0; k < count; k++)
+                    if ((_cand[k].M.Kind == FiberMember.Ground || _cand[k].M.Kind == FiberMember.Layer) && _cand[k].Gap < InsertGap) lying = true;
+                if (lying)
+                    for (int k = 0; k < count; k++)
+                        if (_cand[k].Cornered)
+                        {
+                            _cand[k].Point = _cand[k].PlainPoint;
+                            _cand[k].Gap = _cand[k].PlainGap;
+                        }
                 // The two nearest (the first on a tie).
                 int first = -1, second = -1;
                 for (int k = 0; k < count; k++)
@@ -1157,6 +1174,7 @@ namespace Fpv450.Sim.Tether
         bool Evaluate(ref CableNode a, in Hit hit, ref int near, ref Candidate c)
         {
             c.M = hit.M;
+            c.Cornered = false;
             c.Thin = hit.M.Kind == FiberMember.Part; // a drone part pushes as before (a moving member: design 21 leaves its slots)
             Double3 x = a.Position;
             if (hit.M.Plane)
@@ -1200,27 +1218,12 @@ namespace Fpv450.Sim.Tether
                 }
                 c.Normal = s.Normal;
                 c.Point = s.Point + s.Normal * _radius;
-                // Design 21: a sphere or a capsule too thin for the least piece to catch a segment crossing it holds the node at
-                // its segments' corner.
+                // Design 21: a sphere or a capsule too thin for the least piece to catch a segment crossing it pushes a node it finds
+                // inside out, as before (near its axis a kept overlap's plane turns round with the node). Its corner is not built: on
+                // S04's straw the corner's offset, up to 4 mm off a stalk, froze a trail point above it (named).
                 if (!_nodeSlots && hit.M.Kind == FiberMember.Shape && _world.Geometry(hit.M.Object, hit.M.Shape, out ShapeGeometry g)
                     && (g.Kind == ShapeKind.Sphere || g.Kind == ShapeKind.Capsule) && g.Radius + _radius <= Piece(0))
-                {
-                    Double3 gc = g.Center, ge = default;
-                    if (g.Kind == ShapeKind.Capsule)
-                    {
-                        double along = Double3.Dot(x - g.Center, g.AxisY);
-                        if (along > g.HalfLength) gc = g.Center + g.AxisY * g.HalfLength;
-                        else if (along < -g.HalfLength) gc = g.Center - g.AxisY * g.HalfLength;
-                        else
-                        {
-                            gc = g.Center + g.AxisY * along;
-                            ge = g.AxisY;
-                        }
-                    }
-                    double rho = g.Radius + _radius, need = Corner(x, s.Normal, (x - gc).Length(), gc, ge, rho, Piece(0));
                     c.Thin = true;
-                    if (need > rho) c.Point = c.Point + s.Normal * (need - rho);
-                }
                 c.Gap = Double3.Dot(c.Normal, x - c.Point);
                 return true;
             }
@@ -1234,8 +1237,10 @@ namespace Fpv450.Sim.Tether
             c.Normal = nrm;
             c.Point = core + nrm * (hit.M.Radius + _radius);
             c.Gap = dist - hit.M.Radius - _radius;
-            // Design 21: a rigid round member (a twig, a record, a conductor) holds the node at its segments' corner.
-            if (!_nodeSlots && (hit.M.Kind == FiberMember.Twig || hit.M.Kind == FiberMember.Snag || hit.M.Kind == FiberMember.Wire))
+            // Design 21: a thin rigid round member (a twig, a conductor) holds the node at its segments' corner. Not a snag record:
+            // its barbs lock the touch along the record and the coil's loops overlap, so a corner moving under a locked node pushed
+            // the line to 7–29 N on the coil run (named, not built).
+            if (!_nodeSlots && (hit.M.Kind == FiberMember.Twig || hit.M.Kind == FiberMember.Wire))
             {
                 c.Thin = true;
                 double rho = hit.M.Radius + _radius;
@@ -1243,6 +1248,9 @@ namespace Fpv450.Sim.Tether
                 double need = Corner(x, nrm, dist, core, axis, rho, Piece(hit.Radius));
                 if (need > rho)
                 {
+                    c.Cornered = true;
+                    c.PlainPoint = c.Point;
+                    c.PlainGap = c.Gap;
                     c.Point = core + nrm * need;
                     c.Gap = dist - need;
                 }
@@ -1357,12 +1365,14 @@ namespace Fpv450.Sim.Tether
             // motion's (design 21): a split put the node on a chord that cut the member, or the node was already that side of the
             // member's plane a step ago, relative to the member (a slot lost and taken again as the hits passed between two
             // nodes, or as a third member took it for a step): thrown out, 1e4 N/m on a few millimetres, it stretched the pieces
-            // beside it to Newtons while the line beyond lay slack. A thin round member (the corner's) and a drone part still push:
-            // near a thin member's axis a node has no plane to keep (its corner keeps the chords off it), and a part moves.
+            // beside it to Newtons while the line beyond lay slack. Only a rigid shape keeps it: a thin round member (the corner's)
+            // and a drone part still push (near a thin member's axis a node has no plane to keep, its corner keeping the chords off
+            // it; a part moves), and so do the ground, a layer, a hook and a stem, whose depth is their give (kept, the straw mat's
+            // lie made 9582 TetherWedges).
             if (!kept)
             {
                 double before = depth - _dt * Double3.Dot(c.Normal, node.Velocity - velocity);
-                sunk = !c.Thin && (placed || !_nodeSlots && before < 0) ? depth : 0;
+                sunk = c.M.Kind == FiberMember.Shape && !c.Thin && (placed || !_nodeSlots && before < 0) ? depth : 0;
             }
             else
             {
@@ -1374,6 +1384,11 @@ namespace Fpv450.Sim.Tether
                 if (before > 0) before = 0;
                 sunk = slot.Sunk;
                 if ((c.Point - carried).Length() > SinkJump && inside < before - SinkTolerance) sunk += inside - before;
+                if (!_nodeSlots && m.Kind == FiberMember.Shape && sunk < 0)
+                {
+                    sunk += SinkRelax * _dt;
+                    if (sunk > 0) sunk = 0;
+                }
                 if (sunk < depth) sunk = depth; // the node has risen out of the overlap by its own loads
             }
             if (!kept)
@@ -1735,6 +1750,10 @@ namespace Fpv450.Sim.Tether
             // overlap never kept (kept on a 2 mm twig, a node 0.4–0.7 mm from the axis made TetherWedges, its plane turning round
             // with it; kept in a part, the line rode inside the drone's legs and coil and was dragged to its discs).
             public bool Thin;
+            // Design 21: the corner moved this candidate's plane; its plane at ρ, where a line lying on the ground or a layer takes it.
+            public bool Cornered;
+            public Double3 PlainPoint;
+            public double PlainGap;
         }
     }
 

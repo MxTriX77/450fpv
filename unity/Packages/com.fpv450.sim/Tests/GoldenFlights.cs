@@ -1444,11 +1444,12 @@ namespace Fpv450.Sim.Tests
         // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s); every kept audit of an older line flies the one-scale field
         // and keeps its pin. The same records for the first 215 steps, then at most 21.4 mm and 0.79° apart (the contact golden's
         // flight), the same 3 impacts, the line whole, 0.418 m paid out against 0.396.
-        // p7d-tether design 21 (the line on a member, on model 100): re-recorded, 0xE894679040B2BDC3. Audited: with the line
-        // before it (FlightSetup.TetherBeforeDesign21) it is model 100's pin, 0xF2B1187D0BC04B77 (Model100TetherHash), every record
-        // and event (GoldenFlightTests.WithTheLineBeforeDesign21TheTetherGoldenIsModel100s); every kept audit of an older line
-        // flies it (FlyContact's beforeDesign21, on for every flight other than the tether golden's own) and keeps its pin.
-        public const ulong TetherHash = 0xE894679040B2BDC3UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+        // p7d-tether design 21 (the line on a member, on model 100): no pin moved. The tether golden's line meets no thin member, no
+        // overlap a fresh slot keeps, no stretched run and no abrasive change, so with the line before it
+        // (FlightSetup.TetherBeforeDesign21) and without it the flight is model 100's pin, every record and event
+        // (GoldenFlightTests.WithTheLineBeforeDesign21TheTetherGoldenIsModel100s); every kept audit of an older line flies the
+        // known-wrong (FlyContact's beforeDesign21, on for every flight other than the tether golden's own) and keeps its pin.
+        public const ulong TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
             Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin

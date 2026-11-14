@@ -1393,7 +1393,7 @@ namespace Fpv450.Sim.Tether
             double tIn = _capT[first - 1], tOut = _capT[last];
             bool outward = tOut >= tIn; // material flows toward the high side
             double hi = outward ? tOut : tIn, lo = outward ? tIn : tOut;
-            if (!(hi > 0 && hi > DetMath.Exp(holdIn) * lo) && (RunEndsOnly || !Overheld(first, last, tIn, tOut, holdIn))) return;
+            if (!(hi > 0 && hi > DetMath.Exp(holdIn) * lo) && (RunEndsOnly || HeldOtherwise(first, last) || !Overheld(first, last, tIn, tOut, holdIn))) return;
 
             // The profile from the low side: segment j carries t·f_j, f_j = e^(μk·θ) accumulated from the low end.
             _capExp[first - 1] = 0;
@@ -1493,6 +1493,22 @@ namespace Fpv450.Sim.Tether
         // hold it to, T_j > min(T_in·e^(μs·θ in to j), T_out·e^(μs·θ j to out)), by more than the solve's own tension error
         // (NewtonTolerance): no wrap holds that, so material slides into it (the run's profile). Without it a piece between two
         // nodes on one member stayed stretched while both ends were slack, its nodes' holds along the line carrying the pull.
+        // Whether a node of the run holds the line by a law of its own: a gliding member (a drone part: the contacts' predictive
+        // Coulomb rule, CableContact.Glide), a barb's notch (its lock) or a member that lets go (a hook's release, a stem's
+        // buckling: CableContact.Cap). Such a run's inner pieces are left to it (the skid's wrap, 1.7; the coil run and the straw's
+        // hooks, 1.8).
+        bool HeldOtherwise(int first, int last)
+        {
+            for (int i = first; i <= last; i++)
+            {
+                ref CableNode a = ref _nodes[i];
+                if (Own(ref a.Contact0) || Own(ref a.Contact1)) return true;
+            }
+            return false;
+        }
+
+        static bool Own(ref CableContact c) => c.Active && (c.Glide || c.Notch || c.Cap > 0);
+
         bool Overheld(int first, int last, double tIn, double tOut, double hold)
         {
             for (int j = first; j < last; j++)
