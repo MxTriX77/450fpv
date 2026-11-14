@@ -23,7 +23,7 @@ Branch `unity/physics/physics-integration-2--w15-player`, cut from `--w3-preview
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the spec scenarios: the player's flight equal to the headless one bit for bit; the legs' draw in a player's flight; the summary naming the cuts; Unity's EditMode suite green and its 0 B checks honest; the player built with `tools/build_latest.ps1 -PlanFile <a plan naming this branch> -Out <a scratch folder>` and its smoke PASS; nothing of the friend's world pushed.
+- [x] 2.1 [qa-engineer] Review against the spec scenarios: the player's flight equal to the headless one bit for bit; the legs' draw in a player's flight; the summary naming the cuts; Unity's EditMode suite green and its 0 B checks honest; the player built with `tools/build_latest.ps1 -PlanFile <a plan naming this branch> -Out <a scratch folder>` and its smoke PASS; nothing of the friend's world pushed.
 
 ## 3. The build
 

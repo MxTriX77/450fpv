@@ -4,7 +4,9 @@
 
 ## Verdict
 
-**No blocking finding. Approve for the pilot's build, with two checks still pending** (the Mono side of my own-seed flight, and the trial build's smoke, both run by the orchestrator when the machine is free). 2.1 stays unticked until those two are in.
+**Approve. No blocking finding.** The two checks that were pending at the first hand-back are in and pass (run by the orchestrator, read by me): the Mono side of my own-seed flight is bit for bit with .NET, and the trial build of the reviewed tree built with no error and its smoke PASSES (see "Closing the pending checks"). 2.1 is ticked.
+
+**Scope:** this verdict covers `a1bb5b07..10805b91` at **model 99**. The branch has since taken the wind field's turbulence by height (`p7c-wind` 1.5e) as **model 100** (ebfe40be, merged at 8801cbf3, at the pilot's word, D-113); that is not reviewed here. The pinned Windy hash in the Unity and input tests (the developer's `SessionFlightRecords` = 0x2BCFA28885EDA4CE in `AFlightIsTheSameInUnityAndHeadless`) is **not re-pinned for model 100**, and a Windy flight's records are expected to move with it, so that test may fail at 8801cbf3 until its re-pin is audited as a golden's is. My own test pins no hash (it asserts the replay's match and the model number only).
 
 Unity Hub quit as the review started (my one Unity run ended on "No valid Unity Editor license found"), and at 13:14 the PC was restarted; after that no Unity run was allowed (the pilot's own GPU test, under 2 GB of RAM free). So everything below that needs Unity reads the game developer's two EditMode runs on disk, re-checked against the .NET side I ran myself.
 
@@ -19,7 +21,7 @@ Unity Hub quit as the review started (my one Unity run ended on "No valid Unity 
 - `LegShots.cs` changes the smoke's four leg-shot cases (re-found at model 99 with the legs drawn). It is the smoke's review shots, not a player's flight; within the task.
 - The code itself: `SessionSetup.Build` adds one line, `contacts.Legs?.DrawStiffness()`, as `tools/replay/ScriptedFlight.cs` does; `PostFlight` reads `StemEpisode` events only; `FlightFeedSignals` passes the four stem signals through as the sim gives them. No number of the sim is touched.
 
-### 2. Bit for bit, my own seed: .NET side met, Mono side pending
+### 2. Bit for bit, my own seed: met (.NET here, Mono below in "Closing the pending checks")
 
 My test `SessionTests.AnotherSeedsFlightOverTheFarmlandReplaysHeadless` (committed with this review): a session's flight on the **farmland** (its ground, stems and line, legs on, 1 kg, **Windy**), seed **0xC0A79E11**, sticks of my own (lift, pitch forward, hold, pitch back, let down, cut): 6 s. It replays in-process and keeps a copy of its log for `tools/replay`.
 
@@ -43,7 +45,7 @@ dotnet run -c Release --project tools/replay -- %TEMP%\fpv450-qa\w15-session-c0a
 ```
 
 - **Cross-runtime on the developer's seed:** my .NET run gives 0x2BCFA28885EDA4CE, the value the developer's Unity run recorded on Mono 6.13 (`unity/Logs/editmode.xml`, "records 0x2BCFA28885EDA4CE (Mono 6.13.0 …)"). That is two runtimes, two runs, two people: the same records.
-- **Pending, Mono on my seed:** the Unity run of my test (command in "Pending" below). Expected: the records 0xFB41DAB6EF7695F8 and "match: 6041 steps and 63 events", then `tools/replay` on the Mono log: match.
+- **Mono on my seed:** the same records, 0xFB41DAB6EF7695F8, and `tools/replay` on the Mono log matches (see "Closing the pending checks").
 
 ### 3. Hygiene and licences: met
 
@@ -67,14 +69,14 @@ Unity's run after the change (`unity/Logs/editmode.xml`, copied to my outputs as
 
 | Scenario | Verdict | Evidence |
 |---|---|---|
-| The same flight in Unity and headless | **Passed on the developer's seed (Mono and .NET); passed on .NET for my seed; Mono for my seed pending** | above, §2 |
+| The same flight in Unity and headless | **Passed** on the developer's seed and on mine, Mono and .NET: the same records, replay match | §2 and "Closing the pending checks" |
 | The legs as the pilot's hands made them | **Passed** | Unity (developer's run) and .NET (my re-run): seeds 0x1E65 → 0.9779, 0.9701, 1.0262, 0.9596; 0x1E66 → 0.9861, 1.0271, 0.9543, 0.9224; legs off: no `leg.stiffness` draw. My own seed 0xC0A79E11's header: σ 3 %, bound ±10 %, draws rr +0.0276, fr −0.0436, rl −0.0719, fl +0.0059 |
 | A landing in straw | **Passed** | Unity and .NET, the same four lines (rear right 729 stems of dry culm for 98.62 J …), the log's episodes, replay match 2691 steps and 78 events |
 | A flight that cuts nothing | **Passed** | the floor flight in the same test: no `StemEpisode`, no "stems" line |
 | (and on my seed) | **Passed (.NET)** | the farmland start's grass: front right 5 stems, front left 8 + 1 over 2 episodes, the summary says 5 and 9 "over 2 episodes", as the log's episode ends sum |
 | The EditMode suite | **Partly met** | 1737 of 1766 pass; the 2 failures are sim-owned (§4). No 0 B check reads the raw counter: `FpvCameraTests`, `FiberViewTests` read Unity's recorder, `FlightOsdTests` the probe on .NET and the recorder on Mono |
 
-**Requirements:** LOG-01, PLT-02 met on the developer's seed, pending Mono on mine; PHY-03, PHY-24 (the legs' draw) met; PHY-05, APP-04 (the summary names the cut) met; PHY-25 (the feed gets the stems' signals) met as a pass-through, nothing draws them yet (2.5, a non-goal).
+**Requirements:** LOG-01, PLT-02 met on both seeds, Mono and .NET, and in the built player (the smoke's flight replays bit for bit); PHY-03, PHY-24 (the legs' draw) met; PHY-05, APP-04 (the summary names the cut) met; PHY-25 (the feed gets the stems' signals) met as a pass-through, nothing draws them yet (2.5, a non-goal).
 
 ```
 dotnet test tools/inputtests -c Release --filter "…EachFlightDrawsItsLegsFromItsSeed|…ALandingInStrawNamesTheCutStems|…TheFeedPassesOnTheStemsCuts|…TheSummaryNamesTheDamage"
@@ -96,16 +98,30 @@ dotnet test tools/inputtests -c Release --filter "…EachFlightDrawsItsLegsFromI
 3. The two sim-owned EditMode failures (§4).
 4. The summary's clock floors: an episode that starts at 0.064 s reads "stems at 0:00.0". Correct to the format; noted only.
 
-## Pending (for the orchestrator)
+## Closing the pending checks
 
-1. **The Mono side of §2** (Unity Hub running, the pilot's machine free; `-nographics`, no GPU):
+Both were run by the orchestrator while Unity was free (the PC had been restarted and Unity Hub was down during my pass); I read their outputs.
+
+1. **The Mono side of §2: met.** My exact command (14:15–14:18):
    ```powershell
-   cd C:\.dev\450fpv\.claude\worktrees\w9-levels
    & $env:UNITY -batchmode -nographics -projectPath unity -runTests -testPlatform EditMode -testFilter "Fpv450.Tests.Session.SessionTests.AnotherSeedsFlightOverTheFarmlandReplaysHeadless" -testResults Logs/qa-w15.xml -logFile - | Out-Host
    dotnet run -c Release --project tools/replay -- "$env:TEMP\fpv450-qa\w15-session-c0a79e11-mono.flightlog"
    ```
-   Expected: the test passes, its output reads `records 0xFB41DAB6EF7695F8 (Mono 6.13.0 …)` and `replay: match: 6041 steps and 63 events, bit for bit`; `tools/replay` on the Mono log exits 0 with the same line. Any other hash is a cross-runtime divergence and blocks the build.
-2. **The trial build** (step 5 of the brief): its `build.log` with no error, the smoke PASS, `BUILD-INFO.txt` naming the tree. Not in `scratchpad/build-98/trial/` when this review was written.
+   ```
+   test-run total=1 passed=1 failed=0
+   QA's session flight: 6041 steps, model 99, records 0xFB41DAB6EF7695F8 (Mono 6.13.0 (Visual Studio built mono) X64)
+   replay: match: 6041 steps and 63 events, bit for bit
+   unity exit 0
+   tools/replay on the Mono log:  match: 6041 steps and 63 events, bit for bit
+     replayed on .NET 10.0.9 X64, isa x64 sse2 sse4.1 avx avx2 fma; exit 0 (Match)
+   ```
+   The records are the value .NET flew (0xFB41DAB6EF7695F8), and the summary's lines are the same word for word (5 stems front right; 9 front left over 2 episodes). The same session flight on my seed is bit for bit in Unity's Mono, in .NET and through `tools/replay`.
+2. **The trial build (the brief's step 5): met.** `tools/build_latest.ps1 -PlanFile … -Out scratchpad/build-98/trial -KeepWorktree`, exit 0 (47.6 min; the shaders compiled from scratch; no timing counts).
+   - `BUILD-INFO.txt`: `tree 10805b91` (the reviewed tree, model 99), `method Fpv450.Build.Windows`. Its `base … @ 8801cbf3` line is the branch's head when the file was written, not what was built: a cosmetic mislabel of the script, noted as minor 5.
+   - `build.log`: 0 `error CS` lines, no failed build; "Exiting batchmode successfully now!", return code 0.
+   - `smoke.log`: every check `ok`, ending `[Smoke] PASS: 0 checks failed, 0 errors logged`; the smoke's own flight over House, flown in the built player, "replays bit for bit: match: 4521 steps and 31 events".
+
+**Minor 5 (tools):** `build_latest.ps1` writes `BUILD-INFO.txt`'s base line from the branch's head at write time, so a branch that moves during the build is mislabelled (here 8801cbf3 against the built 10805b91). The tree line is right. A tools task for the orchestrator.
 
 ## Outputs
 The session's scratchpad, `build-98/qa/` (local only): the developer's after XML, my Unity log of the failed licence, the .NET scenario run.
