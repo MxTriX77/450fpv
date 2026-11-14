@@ -41,7 +41,18 @@ namespace Fpv450.FlightBench
             string source = "unknown source";
             if (GetSystemPowerStatus(out SystemPowerStatus status))
                 source = status.ACLineStatus switch { 0 => "battery, not evidence (PLT-07)", 1 => "AC", _ => source };
-            return $"{source}, {Plan()} plan, {Mode()} mode, {Clock()}";
+            return $"{source}, {Plan()} plan, {Mode()} mode, {Clock()}, {Share()}";
+        }
+
+        // This process's priority and the logical processors it may use: a run at idle priority or on part of the machine (a
+        // shared one) is not evidence either.
+        static string Share()
+        {
+            if (!OperatingSystem.IsWindows()) return "process share unknown";
+            using var p = Process.GetCurrentProcess();
+            int cpus = 0;
+            for (long mask = (long)p.ProcessorAffinity; mask != 0; mask &= mask - 1) cpus++;
+            return $"process {p.PriorityClass} priority on {cpus}/{Environment.ProcessorCount} logical processors";
         }
 
         static string Plan()
