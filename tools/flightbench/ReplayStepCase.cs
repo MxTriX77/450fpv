@@ -14,7 +14,10 @@ namespace Fpv450.FlightBench
     // step record compared with the log's bit for bit (so every time is the pilot's flight, not a re-flight), and a window of it
     // timed twice. The first pass times the step alone (no timer inside it); the second wraps the world in TimedQuery for the
     // world queries' time in each step (its clock reads cost tens of ns a call, so its step is not the step). The window's
-    // p50, p99 and maximum of both, and what the step allocated in it, are printed against PLT-04's 300 µs and 60 µs lines.
+    // p50, p99 and maximum of both, the steps' share over 1 ms, and what the step allocated in it, are printed against PLT-04's
+    // 300 µs and 60 µs lines, with the recording host's own step times (the log's end block: the pilot's player for a pilot's
+    // log) and this machine's conditions (Power: a shared machine, or this process at idle priority, makes no evidence). The
+    // pilot's worst stretch so far is the laid line over the ruin (w9 step budget): the model 100 log 86cdca27 from 19.4 s.
     // A log of an older QueryVersion is replayed with a note: a query answer that changed would show as a diverging record.
     internal static class ReplayStepCase
     {
@@ -32,11 +35,13 @@ namespace Fpv450.FlightBench
             Array.Sort(steps, 0, n);
             Array.Sort(queries, 0, nq);
             double p99 = steps[n * 99 / 100] * us, q99 = queries[nq * 99 / 100] * us;
+            int over = 0;
+            for (int i = 0; i < n; i++) over += steps[i] * us > 1000 ? 1 : 0;
             bool ok = p99 <= 300 && q99 < 60 && allocated == 0;
             Console.WriteLine($"  {note}");
-            Console.WriteLine($"  the window's {n} steps: the step p50 {steps[n / 2] * us:F1} µs, p99 {p99:F1} µs, max {steps[n - 1] * us:F1} µs; "
-                + $"its world queries p50 {queries[nq / 2] * us:F1} µs, p99 {q99:F1} µs, max {queries[nq - 1] * us:F1} µs; allocated {allocated} B: "
-                + (ok ? "PASS" : "FAIL") + " (PLT-04: the step's p99 ≤ 300 µs, its world queries < 60 µs at p99, 0 B)");
+            Console.WriteLine($"  the window's {n} steps: the step p50 {steps[n / 2] * us:F1} µs, p99 {p99:F1} µs, max {steps[n - 1] * us:F1} µs, "
+                + $"{100.0 * over / n:F1} % over 1 ms; its world queries p50 {queries[nq / 2] * us:F1} µs, p99 {q99:F1} µs, max {queries[nq - 1] * us:F1} µs; "
+                + $"allocated {allocated} B: " + (ok ? "PASS" : "FAIL") + " (PLT-04: the step's p99 ≤ 300 µs, its world queries < 60 µs at p99, 0 B)");
             return ok;
         }
 
@@ -98,6 +103,8 @@ namespace Fpv450.FlightBench
                 allocated += b - a;
             }
             note += $"; {records} step records equal the log's bit for bit";
+            // The flight's own step times as its host measured them (the end block, the whole flight), beside this host's window.
+            if (log.Complete && log.End.Times.Count > 0) note += $"; the recording host's: {log.End.Times}";
             return true;
         }
     }
