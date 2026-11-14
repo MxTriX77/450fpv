@@ -992,8 +992,21 @@ namespace Fpv450.Sim.Log
         ///    wind preset names height_scaled and its two coefficients. Every golden flown in a level's wind moved and
         ///    is re-pinned; WindSetup.OneScale (WindPreset.OneScale(), restored by a replay) flies 99's field for the
         ///    kept audits. A flight in still air steps as 99 did.
+        /// 101: parts no longer pass a wire's cable (w9-village-physics 2.6d, on 100;
+        ///    unity/physics/physics-integration-2--w9-cable-tunnel): three contact faults the wire band's flights showed.
+        ///    A latched pair on a round member (a sphere, a capsule, a wire chain, a cylinder's side) kept its tangent
+        ///    plane after the part's core had passed the member's axis and left its side, so an arm 34–98 mm clear of a
+        ///    9 mm conductor was pressed with 200–390 N and logged a tunnel, and a hanging half was dragged along the
+        ///    phantom plane: now the depth is the member's own surface along the latched normal, and a part off its side
+        ///    has rolled off (ContactSpec.RollOff, RoundMember). A sphere carries a capsule's touch only by its own depth,
+        ///    never by a hanging half's give (ContactSpec.SupportByDepth). A touch inside a leg's clamp jaws meets the
+        ///    clamp's mount (1.172 MN/m in the arm's plane, 67.6 kN/m out of it), never the free tube's 6.6 kN/m
+        ///    (ContactSpec.ClampedTube). The three switches are logged in the header's entry 33; a log without it flies
+        ///    all three off, 100's contacts. No golden pin moved; crash and tip rows of the contact and landing benches
+        ///    moved by a few per cent, each traced to its law. A flight that meets no round member, no hanging half and
+        ///    no clamp's jaws steps as 100 did.
         /// </summary>
-        public const int ModelVersion = 100;
+        public const int ModelVersion = 101;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
