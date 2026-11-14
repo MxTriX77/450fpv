@@ -59,24 +59,49 @@ def test_the_ruins_keep_their_walls_openings_and_floor(repo_root):
     assert not any(c["part"] in ("roof", "ceiling") for c in walls["collision"]), "the roofless ruin keeps no roof"
 
 
-def test_a_broken_wall_is_its_two_skins_open_between_them(repo_root):
+def _parts_at(data, p):
+    out = []
+    for c in data["collision"]:
+        lo = [c["center"][k] - c["size"][k] / 2 for k in range(3)]
+        hi = [c["center"][k] + c["size"][k] / 2 for k in range(3)]
+        if c["rotation"] == [0.0, 0.0, 0.0, 1.0] and all(lo[k] <= p[k] <= hi[k] for k in range(3)):
+            out.append((c["part"], c["material"]))
+    return out
+
+
+def test_a_broken_wall_is_solid_between_its_two_faces(repo_root):
     # the back wall of the collapsed-roof ruin at x -3.0, 1.5 m up (the sim test's crash point): the siding's face at
-    # z -4.552 and the plaster's at -4.352, the outside reaching the space between them through the broken tops
+    # z -4.552 and the plaster's at -4.352, the outside reaching the space between them through the broken tops. Since
+    # w9-village-physics 2.15 the plaster is the 2 cm lining of the wall's core, never a free skin (1.2 left the two
+    # skins open between them)
     data, _ = load(repo_root, "N01", "Ruin_RoofCollapsed")
+    for z in (-4.545, -4.52, -4.45, -4.38):
+        assert _parts_at(data, (-3.0, 1.51, z)) == [("wall_back", "timber")], f"the core at z {z}"
+    assert _parts_at(data, (-3.0, 1.51, -4.36)) == [("wall_back", "masonry")], "the plaster's lining"
 
-    def parts_at(z):
-        out = []
-        for c in data["collision"]:
-            lo = [c["center"][k] - c["size"][k] / 2 for k in range(3)]
-            hi = [c["center"][k] + c["size"][k] / 2 for k in range(3)]
-            if c["rotation"] == [0.0, 0.0, 0.0, 1.0] and all(lo[k] <= p <= hi[k] for k, p in enumerate((-3.0, 1.51, z))):
-                out.append((c["part"], c["material"]))
-        return out
 
-    assert parts_at(-4.545) == [("wall_back", "timber")], "the siding"
-    assert parts_at(-4.36) == [("wall_back", "masonry")], "the plaster"
-    for z in (-4.52, -4.45, -4.38):
-        assert parts_at(z) == [], f"open between the skins at z {z}"
+# QA's forensics of the pilot's model 100 flights (w9-village-physics 2.15): masonry boxes 2 cm thick with air behind
+# them, each now the lining of its wall: (variant, the 1.2 shape's index, its wall's two faces along its normal, the
+# point on the wall's face, the axis across it, the materials from the plaster's face to the other face)
+FORENSIC_SHEETS = (
+    ("Ruin_Stump", 766, (4.705, 0.525, None), 2, 3.077, 3.277, ("masonry", "timber")),
+    ("Ruin_Stump", 469, (4.835, 1.57, None), 2, -4.3515, -4.5518, ("masonry", "timber")),
+    ("Ruin_Stump", 467, (4.7425, 1.295, None), 2, -4.3515, -4.5518, ("masonry", "timber")),
+    ("Ruin_Stump", 1032, (None, 0.6725, 2.88), 0, 6.7185, 6.9187, ("masonry", "timber")),
+    ("Ruin_RoofCollapsed", 985, (1.255, 1.445, None), 2, 3.077, 3.265, ("masonry", "masonry")),  # plaster both sides
+)
+
+
+@pytest.mark.parametrize("variant,shape,at,axis,plaster,other,materials", FORENSIC_SHEETS)
+def test_the_forensics_thin_masonry_is_its_walls_lining(repo_root, variant, shape, at, axis, plaster, other, materials):
+    data, _ = load(repo_root, "N01", variant)
+    for t in (0.005, 0.015, 0.05, 0.1, 0.15, 0.18):
+        p = list(at)
+        p[axis] = plaster + (other - plaster) * t / abs(other - plaster)
+        found = _parts_at(data, p)
+        assert len(found) >= 1, f"{variant} shape {shape}: open air {t * 1000:.0f} mm behind the plaster at {p}"
+        want = materials[0] if t < 0.02 else materials[1]
+        assert {m for _, m in found} == {want}, f"{variant} shape {shape}: {found} {t * 1000:.0f} mm behind the plaster"
 
 
 def test_the_mirrored_ruin_is_the_ruin_mirrored(repo_root):

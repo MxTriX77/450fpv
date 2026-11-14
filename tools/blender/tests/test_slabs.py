@@ -148,19 +148,78 @@ def caps(x0, x1, part):
 
 
 def test_two_skins_the_outside_reaches_between_are_two_sheets_open_between_them():
-    parts = [slabs.Part("wall", "timber"), slabs.Part("wall", "masonry", layer_m=0.02)]
+    parts = [slabs.Part("boarding", "timber"), slabs.Part("boarding", "timber")]
     tris = wall_face(0.2, (1, 0, 0), 0) + wall_face(0.0, (-1, 0, 0), 1)
     out = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))
     boxes = out["boxes"]
     assert not covers(boxes, (0.1, 1.5, 0.5)), "open between the skins"
     for p in ((0.01, 1.5, 0.5), (0.19, 1.5, 0.5), (0.01, 2.9, 3.9), (0.19, 0.1, 0.1)):
         assert covers(boxes, p)
-    assert sorted({(round(b["lo"], 9), round(b["hi"], 9), parts[b["part"]].physics) for b in boxes}) == [
-        (0.0, 0.02, "masonry"), (0.18, 0.2, "timber")]
+    assert sorted({(round(b["lo"], 9), round(b["hi"], 9)) for b in boxes}) == [(0.0, 0.02), (0.18, 0.2)]
     volume = sum(b["size"][0] * b["size"][1] * b["size"][2] for b in boxes)
     assert volume == pytest.approx(2 * 0.02 * (12 - 1), rel=1e-6)
     shape = {k for region in out["regions"] for k in region}
-    assert sorted((round(lo, 9), round(hi, 9), pi) for lo, hi, pi in shape) == [(0.0, 0.02, 1), (0.02, 0.2, 0)],         "the wall's shape still spans both skins"
+    assert sorted((round(lo, 9), round(hi, 9)) for lo, hi, pi in shape) == [(0.0, 0.2)], \
+        "the wall's shape still spans both skins"
+
+
+def test_a_lined_wall_the_outside_reaches_between_stays_solid():
+    # w9-village-physics 2.15: plaster is the face of its wall's core, never a free 2 cm skin, so the mesh's two faces
+    # of a broken lined wall (its top open, the outside reaching between them) bound a solid wall: lining and core
+    parts = [slabs.Part("wall", "timber"), slabs.Part("wall", "masonry", layer_m=0.02)]
+    tris = wall_face(0.2, (1, 0, 0), 0) + wall_face(0.0, (-1, 0, 0), 1)
+    out = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))
+    boxes = out["boxes"]
+    for p in ((0.01, 1.5, 0.5), (0.1, 1.5, 0.5), (0.19, 1.5, 0.5), (0.1, 2.9, 3.9)):
+        assert covers(boxes, p)
+    assert not covers(boxes, (0.1, 1.5, 2.0)), "the window stays clear"
+    assert sorted({(round(b["lo"], 9), round(b["hi"], 9), parts[b["part"]].physics) for b in boxes}) == [
+        (0.0, 0.02, "masonry"), (0.02, 0.2, "timber")]
+    volume = sum(b["size"][0] * b["size"][1] * b["size"][2] for b in boxes)
+    assert volume == pytest.approx(0.2 * (12 - 1), rel=1e-6)
+
+
+def test_a_linings_lone_face_is_backed_to_its_walls_other_face():
+    # the plaster stands 1 m above the siding's broken top: the wall's core stands to the plaster's top (the mesh draws
+    # the wall 0.2 m thick where both faces stand), never a free 2 cm sheet
+    parts = [slabs.Part("wall", "timber"), slabs.Part("wall", "masonry", layer_m=0.02)]
+    siding = quad((0.2, 0, 0), (0.2, 0, 4), (0.2, 2, 4), (0.2, 2, 0), (1, 0, 0), 0)
+    plaster = quad((0.0, 0, 0), (0.0, 0, 4), (0.0, 3, 4), (0.0, 3, 0), (-1, 0, 0), 1)
+    tris = siding + plaster
+    boxes = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))["boxes"]
+    for y in (1.0, 2.5):
+        assert covers(boxes, (0.1, y, 2.0)), f"solid at {y} m"
+        assert [parts[b["part"]].physics for b in boxes if slabs._inside((0.01, y, 2.0), slabs._frame(b), 1e-9)] == \
+            ["masonry"], "the plaster's lining"
+    assert sorted({(round(b["lo"], 9), round(b["hi"], 9), parts[b["part"]].physics) for b in boxes}) == [
+        (0.0, 0.02, "masonry"), (0.02, 0.2, "timber")], "the same layers above the siding as below it"
+    assert not covers(boxes, (0.1, 3.05, 2.0))
+
+
+def test_a_linings_lone_face_takes_its_wall_from_the_intact_house_when_the_ruin_lost_the_other_face_whole():
+    parts = [slabs.Part("partition", "masonry", layer_m=0.02)]
+    plaster = quad((0.0, 0, 0), (0.0, 0, 4), (0.0, 1, 4), (0.0, 1, 0), (-1, 0, 0), 0)  # its +x face is gone whole
+    alone = slabs.decompose(plaster, parts, SETTINGS)["boxes"]
+    assert {(round(b["lo"], 9), round(b["hi"], 9)) for b in alone} == {(0.0, 0.02)}, "nothing to back it: its sheet"
+    intact = slabs.decompose(plaster + quad((0.143, 0, 0), (0.143, 3, 0), (0.143, 3, 4), (0.143, 0, 4), (1, 0, 0), 0),
+                             parts, SETTINGS)
+    walls = {f.key: [(p.side, p.offset, tuple(p.parts)) for p in f.planes] for f in intact["families"]}
+    seed = [f.n for f in intact["families"]]
+    boxes = slabs.decompose(plaster, parts, SETTINGS, seed, walls=walls)["boxes"]
+    assert {(round(b["lo"], 9), round(b["hi"], 9)) for b in boxes} == {(0.0, 0.143)}, "the house's 0.143 m partition"
+    assert not any(b["lo"] < 0.0 or b["hi"] > 0.143 + 1e-9 for b in boxes)
+
+
+def test_a_lone_lining_with_no_other_face_is_its_sheet_on_its_core():
+    # a plastered ceiling the mesh draws as its underside only: the plaster's layer on its boards (core), to sheet_m
+    parts = [slabs.Part("ceiling", "masonry", layer_m=0.02, sheet_m=0.045, core=1), slabs.Part("ceiling", "timber")]
+    tris = quad((0, 3.9, 0), (0, 3.9, 2), (2, 3.9, 2), (2, 3.9, 0), (0, -1, 0), 0)
+    boxes = slabs.decompose(tris, parts, SETTINGS, air=air.Air(tris, 0.02))["boxes"]
+    assert sorted((round(b["lo"], 9), round(b["hi"], 9), parts[b["part"]].physics) for b in boxes) == [
+        (3.9, 3.92, "masonry"), (3.92, 3.945, "timber")]
+    plain = [slabs.Part("ceiling", "masonry", layer_m=0.02)]  # no core: its plain sheet, as before
+    (box,) = slabs.decompose(tris, plain, SETTINGS)["boxes"]
+    assert (round(box["lo"], 9), round(box["hi"], 9)) == (3.9, 3.92)
 
 
 def test_two_skins_closed_all_round_stay_one_solid_wall():

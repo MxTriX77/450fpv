@@ -20,8 +20,12 @@ metres.
   pixel left unpaired is a sheet: a slab of its part's `sheet_m` behind the face. A slab between two parts with
   different materials is layered: a part with `layer_m` (a lining: plaster on a log wall) takes that much from its
   face, the other part the rest. With the air round the mesh (lib.air), a pair whose space is no closed cavity of its
-  own (a broken wall's siding and plaster, the outside reaching between them over the break) is two sheets instead,
-  open between them.
+  own (two boards, the outside reaching between them over the break) is two sheets instead, open between them; never
+  a pair with a lining's face (w9-village-physics 2.15): plaster or render is the face of its wall's core, never a
+  free skin, so the mesh's two faces of a broken wall bound its core. A lining's unpaired pixel is backed the same
+  way: to its wall's other face (the nearest plane across its solid side within `max_thickness_m` holding a face of
+  its part's name: the wall the mesh draws there elsewhere), or, with none, to its part's `sheet_m` on its `core`
+  (a ceiling's plaster on its boards).
 - Cover: families run in order of area. Before an axis-aligned family pairs, the pixels of its planes that lie on or
   inside a box already made by an axis-aligned family (within `cover_tol_m`) are dropped: a sill's top is the wall's
   box, not a second slab.
@@ -38,11 +42,14 @@ AXES = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
 
 class Part:
     """A rule's physics: its name, physics material, lining layer (None or metres), sheet thickness, landable flag,
-    snag edge radius and its own rectangle merge tolerance (None: the settings')."""
+    snag edge radius, its own rectangle merge tolerance (None: the settings') and, for a lining, its core (a part
+    index, or None): what backs it where the mesh draws no other face of its wall."""
 
-    def __init__(self, name, physics, layer_m=None, sheet_m=0.02, landable=False, edge_radius_m=0.002, merge_tol_m=None):
+    def __init__(self, name, physics, layer_m=None, sheet_m=0.02, landable=False, edge_radius_m=0.002, merge_tol_m=None,
+                 core=None):
         self.name, self.physics, self.layer_m, self.sheet_m = name, physics, layer_m, sheet_m
         self.landable, self.edge_radius_m, self.merge_tol_m = landable, edge_radius_m, merge_tol_m
+        self.core = core
 
 
 class Family:
@@ -139,12 +146,14 @@ def _nearest(normals, n):
     return max(range(len(normals)), key=lambda k: (abs(_dot(normals[k], n)), -k))
 
 
-def decompose(triangles, parts, settings, seed_families=None, air=None):
+def decompose(triangles, parts, settings, seed_families=None, air=None, walls=None):
     """Boxes for `triangles` [(tri, outward normal, part index)]: a dict with "boxes" [{"center", "size",
     "rotation", "part", "family", "lo", "hi"}], "families" (the Family objects, rastered) and "regions" (per family,
     the slab regions {(lo, hi, part): {row: bits}} before rectangles, which the wind volumes and gaps read: every
     pair solid, the open ones too, so a wall's band spans both its skins). With `air` (lib.air.Air), a pair whose
-    space is no closed cavity of its own is two skins, each a sheet of its part behind its face, open between them."""
+    space is no closed cavity of its own is two skins, each a sheet of its part behind its face, open between them.
+    `walls` ({family key: [(side, offset, part indices)]}, another decomposition's planes: the intact house a ruin was
+    cut from) gives a lining's lone face its wall's other face where this mesh has lost it whole."""
     r = settings["raster_m"]
     fams = families(triangles, settings["angle_tol_deg"], seed_families, settings.get("axis_dev_m", 0.0),
                     settings.get("axis_angle_deg"))
@@ -158,7 +167,7 @@ def decompose(triangles, parts, settings, seed_families=None, air=None):
         _resolve_overlaps(fam, parts)
         if fam.axis is not None:
             _drop_covered(fam, axis_boxes, r, settings["cover_tol_m"])
-        slabs, shape = _pair(fam, parts, settings["max_thickness_m"], air, r)
+        slabs, shape = _pair(fam, parts, settings["max_thickness_m"], air, r, (walls or {}).get(fam.key, ()))
         regions.append(shape)
         for (lo, hi, pi), rows in slabs.items():
             tol = parts[pi].merge_tol_m if parts[pi].merge_tol_m is not None else settings["merge_tol_m"]
@@ -258,24 +267,29 @@ def _drop_covered(fam, boxes, r, tol):
                             rows[j] &= mask
 
 
-def _pair(fam, parts, t_max, air=None, r=None):
+def _pair(fam, parts, t_max, air=None, r=None, walls=()):
     """The slab regions {(lo, hi, part): rows} of a family, for the boxes and for the shape: back-front pairs per
     pixel, layered by material, then the unpaired pixels as sheets behind their face. With `air`, a pair that leaves
     at least an air cell between the two faces' sheets is, at the pixels where the space between them is no closed
     cavity of its own (lib.air.Air.open_bits), a sheet behind each face for the boxes, and still the pair for the
     shape; a narrower one stays whole (a door leaf's open end: what is left between its sheets is no space the air
-    resolves)."""
+    resolves). A pixel with a lining on either face never opens (a lining is no free skin), nor counts in the sheets
+    the air must leave room for. A lining's unpaired pixel is backed (_backing) for the boxes; the shape keeps its
+    sheet."""
     slabs, shape = {}, {}
     backs = [p for p in fam.planes if p.side < 0]
     fronts = [p for p in fam.planes if p.side > 0]
+
+    def skin(plane):
+        return max((parts[pi].sheet_m for pi in plane.parts if not parts[pi].layer_m), default=0.0)
+
     for B in backs:
         for F in fronts:
             if F.offset <= B.offset:
                 continue
             if F.offset - B.offset > t_max:
                 break
-            hollow = air is not None and F.offset - B.offset >= (max(parts[pi].sheet_m for pi in B.parts)
-                                                                 + max(parts[pi].sheet_m for pi in F.parts) + air.cell)
+            hollow = air is not None and F.offset - B.offset >= skin(B) + skin(F) + air.cell
             for j in list(B.rem):
                 m = B.rem[j] & F.rem.get(j, 0)
                 if not m:
@@ -283,6 +297,11 @@ def _pair(fam, parts, t_max, air=None, r=None):
                 B.rem[j] &= ~m
                 F.rem[j] &= ~m
                 opened = air.open_bits(fam, j, m, B.offset, F.offset, r) if hollow else 0
+                if opened:
+                    for P in (B, F):
+                        for pi, rows_p in P.parts.items():
+                            if parts[pi].layer_m:
+                                opened &= ~rows_p.get(j, 0)
                 for pb, rows_b in B.parts.items():
                     mb = m & rows_b.get(j, 0)
                     if not mb:
@@ -304,12 +323,38 @@ def _pair(fam, parts, t_max, air=None, r=None):
         for pi, rows in P.parts.items():
             t = parts[pi].sheet_m
             lo, hi = (P.offset, P.offset + t) if P.side < 0 else (P.offset - t, P.offset)
+            boxes = (parts[pi].layer_m and _backing(fam, P, pi, parts, t_max, walls)) or [(lo, hi, pi)]
             for j, bits in rows.items():
                 m = bits & P.rem.get(j, 0)
                 if m:
-                    _add(slabs, (lo, hi, pi), j, m)
+                    for key in boxes:
+                        _add(slabs, key, j, m)
                     _add(shape, (lo, hi, pi), j, m)
     return slabs, shape
+
+
+def _backing(fam, P, pi, parts, t_max, walls=()):
+    """The layers behind an unpaired pixel of lining `pi` on plane P: from P to its wall's other face, the nearest
+    plane across P's solid side, farther than the part's sheet_m and within t_max, holding a face of the same part name
+    (the thickness the mesh draws for that wall where both faces stand), first among the family's own planes, then
+    among `walls` [(side, offset, part indices)] (the intact house's, where the ruin lost that face whole), layered
+    with that plane's part (its core where it has one, else the lining's own: a partition plastered both sides is one
+    slab, as its pairs are); with no such plane, the part's sheet_m on its core; None when it has neither (a plain
+    sheet)."""
+    name, back, t = parts[pi].name, P.side < 0, parts[pi].sheet_m
+    sign = 1 if back else -1
+    for planes in ([(Q.side, Q.offset, Q.parts) for Q in fam.planes], walls):
+        across = [(offset, ks) for side, offset, ks in planes if side == -P.side
+                  and t < (offset - P.offset) * sign <= t_max and any(parts[k].name == name for k in ks)]
+        if across:
+            offset, ks = min(across, key=lambda a: abs(a[0] - P.offset))
+            same = sorted(k for k in ks if parts[k].name == name)
+            q = next((k for k in same if parts[k].physics != parts[pi].physics), same[0])
+            return _layers(P.offset, offset, pi, q, parts) if back else _layers(offset, P.offset, q, pi, parts)
+    core = parts[pi].core
+    if core is None or t <= parts[pi].layer_m:
+        return None
+    return _layers(P.offset, P.offset + t, pi, core, parts) if back else _layers(P.offset - t, P.offset, core, pi, parts)
 
 
 def _layers(lo, hi, pb, pf, parts):
