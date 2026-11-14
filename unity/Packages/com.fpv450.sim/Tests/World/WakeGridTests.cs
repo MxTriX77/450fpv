@@ -8,7 +8,7 @@ namespace Fpv450.Sim.Tests
     // the obstacle grid follows K§10.3; the belt's deficit is Perera's and its turbulence about 2× from 5 to 15 H in a
     // wake 2–3 H tall (K§6.7, K§8.2); the solid house recirculates within 2–3 H and the porous belt nowhere; a jet runs
     // through the belt's gap; the grid's bits depend only on the obstacles and the direction, the worker hands over at
-    // fixed steps, and sampling allocates nothing.
+    // fixed steps, its helpers rebuild with the same bits, and sampling allocates nothing.
     public sealed class WakeGridTests
     {
         const double H = WakeGridFixture.MapleTop;
@@ -315,6 +315,25 @@ namespace Fpv450.Sim.Tests
             Assert.That(worker.Fading, Is.Null);
             Assert.That(worker.Active.FromDeg, Is.EqualTo(10));
             Assert.That(worker.Builds, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TheHelpersRebuildWithTheOneThreadBits()
+        {
+            // The rebuild shared by the worker and its helpers (w9 step budget) hands over the direct build's grid, whatever
+            // the helpers: rows on any thread, each with its own lane, the same bits.
+            foreach (int helpers in new[] { 0, 1, 3 })
+                foreach (double deg in new[] { 10.0, 37, 215.5 })
+                {
+                    using var worker = new WakeGridWorker(WakeGrid.Build(Obstacles(), 0), helpers);
+                    long takeover = WakeGridWorker.LatencySteps;
+                    for (long s = 0; s <= takeover; s++) worker.Step(s, deg);
+                    Assert.That(worker.Fading, Is.Not.Null, $"{helpers} helpers, {deg} deg");
+                    Assert.That(worker.Fading.Hash(), Is.EqualTo(WakeGrid.Build(Obstacles(), deg).Hash()), $"{helpers} helpers, {deg} deg");
+                }
+            // Disposed while its helpers rebuild: it stops (a stop never strands the worker waiting for a helper).
+            using (var busy = new WakeGridWorker(WakeGrid.Build(Obstacles(), 0), 3))
+                busy.Step(0, 40);
         }
 
         [Test]
