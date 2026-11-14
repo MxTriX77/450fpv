@@ -159,6 +159,15 @@ namespace Fpv450.Sim.Flight
         /// pilot's flight.</summary>
         public bool TetherAirlessTrail;
 
+        /// <summary>The known-wrong line before p7d-tether design 21 (model 100's): a slot on a round member holds its node alone
+        /// at the member's surface, so a segment beside it may cut the member, through its axis at a turn near 180°; a node the
+        /// contacts put on a chord inside a member is thrown out by its fresh slot; a capstan run slides only on its two outer
+        /// tensions, so a piece inside it stays stretched between slack ends; and the wear reads the member's spring, not the
+        /// line's own press, and sums a section's rubs at different points as one. TetherAirlessTrail, TetherWakeReach4R,
+        /// TetherBeforeDesign18 and TetherDesign4Air imply it (every kept audit of an older line). The audit against model 100
+        /// and the known-wrong for the line on a twig and on a ruin, never a pilot's flight.</summary>
+        public bool TetherBeforeDesign21;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the

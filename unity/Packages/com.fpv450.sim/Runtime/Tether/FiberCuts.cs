@@ -121,7 +121,7 @@ namespace Fpv450.Sim.Tether
         readonly double _sectionLength, _flawChance, _lipRadius, _lipWear, _mouthRadius, _freeAngle, _lipFriction;
         readonly double[] _span, _flaw, _intact, _abraded;
         readonly double _macroA, _macroRadiusA, _macroDecay, _microSmooth, _microRough;
-        readonly bool _oneStrength, _capstanLip;
+        readonly bool _oneStrength, _capstanLip, _beforeDesign21;
         SeedStream _sections;
 
         // The section table: open addressing on k, never emptied (the flight's).
@@ -133,12 +133,24 @@ namespace Fpv450.Sim.Tether
         int _count, _wornCount;
         bool _full;
 
+        // Design 21: a contact's direct rubs wear the point of the line it rubs, not its whole section: they are kept by the
+        // point's place along the line in PointLength bins (numerical: the least piece between two contact nodes, so two
+        // contacts never share a bin), in their own open-addressed table of PointCapacity (numerical: twice the sections').
+        // A section's depth at a contact is its point's direct work plus the passes over the section's swept range.
+        public const double PointLength = 0.005;
+        const int PointCapacity = 2 * Capacity;
+        readonly long[] _pointKey = new long[PointCapacity];
+        readonly bool[] _pointUsed = new bool[PointCapacity];
+        readonly double[] _pointWork = new double[PointCapacity];
+        int _pointCount;
+
         readonly FiberBend[] _bends = new FiberBend[MaxBends];
         readonly int[] _open = new int[2], _next = new int[2];
         int _bendCount;
 
-        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false, bool capstanLip = false)
+        public FiberCuts(TetherTable table, FlightRandom random, bool oneStrength = false, bool capstanLip = false, bool beforeDesign21 = false)
         {
+            _beforeDesign21 = beforeDesign21;
             _youngs = table.Number("fiber.youngs_modulus_pa");
             _glassRadius = table.Number("fiber.glass_diameter_m") / 2;
             _glassArea = table.Number("fiber.glass_area_m2");
@@ -226,6 +238,24 @@ namespace Fpv450.Sim.Tether
         {
             int slot = Find(k);
             return slot >= 0 ? Depth(slot, 0) : 0;
+        }
+
+        /// <summary>The wear's depth at the line's point s, m: its section's (the passes over the section's swept range and the
+        /// section's own direct rubs) and, since design 21, the direct rubs of the point's own bin (PointLength).</summary>
+        public double WearAt(double s)
+        {
+            int slot = Find(Section(s));
+            double depth = slot >= 0 ? Depth(slot, 0) : 0;
+            if (_beforeDesign21) return depth;
+            long k = s > 0 ? (long)(s / PointLength) : 0;
+            int h = (int)(FlightRandom.Mix64((ulong)k) & (PointCapacity - 1));
+            for (int probe = 0; probe < PointCapacity; probe++)
+            {
+                int i = (h + probe) & (PointCapacity - 1);
+                if (!_pointUsed[i]) break;
+                if (_pointKey[i] == k) return depth + _pointWork[i] / _hardness;
+            }
+            return depth;
         }
 
         /// <summary>Whether section k is worn through its coating.</summary>
@@ -494,30 +524,56 @@ namespace Fpv450.Sim.Tether
                     double to = a.Material + c.Rubbed;
                     double dx = across.Length() * dt, ds = DetMath.Abs(to - from);
                     if (!(dx > 0) && !(ds > 0)) continue;
+                    // Design 21: the press that wears is the line's own there, the pull of its two tensions toward its neighbours
+                    // and its weight along the member's normal (a line of 0.07 g/m has no inertia to speak of against them); the
+                    // member's spring pushing harder is answering an overlap the contacts made (a wedge between two members, a
+                    // plane that moved under its node, a chord), not a load the line puts on the member.
+                    double press = c.NormalForce;
+                    if (!_beforeDesign21)
+                    {
+                        Double3 ua = chain[i - 1].Position - a.Position, ub = chain[i + 1].Position - a.Position;
+                        double la = ua.Length(), lb = ub.Length();
+                        Double3 pull = chain.Gravity * a.Mass;
+                        if (la > 0) pull = pull + ua * (chain.Tension(i - 1) / la);
+                        if (lb > 0) pull = pull + ub * (chain.Tension(i) / lb);
+                        double own = -Double3.Dot(c.Normal, pull);
+                        if (own < press) press = own;
+                        if (!(press > 0)) continue;
+                    }
                     // Hertz: crossed cylinders, the line's coating on the arris (a point edge as the coating's own radius); past the
                     // coating's hardness the contact is plastic, its area F/H (the pressure is never above H).
                     double r2 = c.Edge > _coating ? c.Edge : _coating, radius = DetMath.Sqrt(_lineRadius * r2);
-                    double contact = DetMath.Cbrt(3 * c.NormalForce * radius / (4 * _reduced));
-                    double p = c.NormalForce / (Pi * contact * contact);
+                    double contact = DetMath.Cbrt(3 * press * radius / (4 * _reduced));
+                    double p = press / (Pi * contact * contact);
                     if (p > _hardness)
                     {
                         p = _hardness;
-                        contact = DetMath.Sqrt(c.NormalForce / (Pi * _hardness));
+                        contact = DetMath.Sqrt(press / (Pi * _hardness));
                     }
                     // Archard's k by the member: abrasive (a rough row, a snag record, a metal arris of 1 mm or less) or smooth.
-                    bool abrasive = c.Rough || c.MemberKind == (byte)FiberMember.Snag
-                        || c.MemberKind == (byte)FiberMember.Shape && c.Edge <= AbrasiveEdge;
+                    // Before design 21 every rough row, record and sharp arris abraded; since, those harder than the coating
+                    // (CableContact.Abrasive, FiberContacts.AbrasiveOf).
+                    bool abrasive = _beforeDesign21 ? c.Rough || c.MemberKind == (byte)FiberMember.Snag
+                        || c.MemberKind == (byte)FiberMember.Shape && c.Edge <= AbrasiveEdge : c.Abrasive;
                     double wk = abrasive ? _severe : _mild;
                     long sec = Section(to);
                     int slot = Slot(sec, events, a.Position);
                     if (slot < 0) continue;
-                    _direct[slot] += wk * p * dx;
+                    double point = 0;
+                    int at = _beforeDesign21 ? -1 : PointSlot(to > 0 ? (long)(to / PointLength) : 0);
+                    if (at >= 0)
+                    {
+                        _pointWork[at] += wk * p * dx;
+                        point = _pointWork[at];
+                    }
+                    else _direct[slot] += wk * p * dx; // before design 21, or the points' table full: the section's
                     _passes[slot] += wk * p * 2 * contact * ds;
                     double lo = to < from ? to : from, hi = to < from ? from : to;
                     if (lo < _lo[slot]) _lo[slot] = lo;
                     if (hi > _hi[slot]) _hi[slot] = hi;
                     if (_worn[slot]) continue;
                     double depth = Depth(slot, 2 * contact);
+                    if (at >= 0) depth += point / _hardness;
                     if (!(depth >= _coating)) continue;
                     _worn[slot] = true;
                     _wornStrength[slot] = AbradedDraw(sec);
@@ -789,6 +845,27 @@ namespace Fpv450.Sim.Tether
         }
 
         // Section k's slot, made on first use; −1 when the table is full (a WorldBug, once).
+        // The point table's slot of bin k, taken if new; -1 at the table's load factor (numerical, as Slot's).
+        int PointSlot(long k)
+        {
+            int h = (int)(FlightRandom.Mix64((ulong)k) & (PointCapacity - 1));
+            for (int probe = 0; probe < PointCapacity; probe++)
+            {
+                int i = (h + probe) & (PointCapacity - 1);
+                if (_pointUsed[i])
+                {
+                    if (_pointKey[i] == k) return i;
+                    continue;
+                }
+                if (_pointCount >= PointCapacity * 3 / 4) return -1;
+                _pointUsed[i] = true;
+                _pointKey[i] = k;
+                _pointCount++;
+                return i;
+            }
+            return -1;
+        }
+
         int Slot(long k, StepEvents events, Double3 point)
         {
             int h = (int)(FlightRandom.Mix64((ulong)k) & (Capacity - 1));

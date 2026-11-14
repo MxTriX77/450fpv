@@ -121,6 +121,7 @@ namespace Fpv450.Sim.Log
             "TetherBeforeDesign18",
             "TetherWakeReach4R",
             "TetherAirlessTrail",
+            "TetherBeforeDesign21",
             "StemAir", "StemWash",
         };
 
@@ -379,6 +380,7 @@ namespace Fpv450.Sim.Log
         public bool TetherBeforeDesign18;
         public bool TetherWakeReach4R;
         public bool TetherAirlessTrail;
+        public bool TetherBeforeDesign21;
 
         /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
         /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
@@ -482,6 +484,7 @@ namespace Fpv450.Sim.Log
                 TetherBeforeDesign18 = setup.TetherBeforeDesign18,
                 TetherWakeReach4R = setup.TetherWakeReach4R,
                 TetherAirlessTrail = setup.TetherAirlessTrail,
+                TetherBeforeDesign21 = setup.TetherBeforeDesign21,
                 StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
                 StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
@@ -622,6 +625,7 @@ namespace Fpv450.Sim.Log
                 TetherBeforeDesign18 = TetherBeforeDesign18,
                 TetherWakeReach4R = TetherWakeReach4R,
                 TetherAirlessTrail = TetherAirlessTrail,
+                TetherBeforeDesign21 = TetherBeforeDesign21,
                 StemAir = StemAir,
                 StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
@@ -1197,14 +1201,17 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherWakeReach4R);
                 e.Write(TetherAirlessTrail);
                 e.Write(TetherLayout != null);
-                if (TetherLayout == null) return;
-                e.Write((ushort)TetherLayout.Length);
-                foreach (Double3 p in TetherLayout)
+                if (TetherLayout != null)
                 {
-                    e.Write(p.X);
-                    e.Write(p.Y);
-                    e.Write(p.Z);
+                    e.Write((ushort)TetherLayout.Length);
+                    foreach (Double3 p in TetherLayout)
+                    {
+                        e.Write(p.X);
+                        e.Write(p.Y);
+                        e.Write(p.Z);
+                    }
                 }
+                e.Write(TetherBeforeDesign21); // p7d-tether design 21: last, so a log without it reads as the slots before it
             });
             Entry(w, TagRuntimeObjects, e =>
             {
@@ -1914,6 +1921,8 @@ namespace Fpv450.Sim.Log
                             for (int i = 0; i < TetherLayout.Length; i++)
                                 TetherLayout[i] = new Double3(r.ReadDouble(), r.ReadDouble(), r.ReadDouble());
                         }
+                        // Before p7d-tether design 21 (model 100 and older) a slot held its node alone.
+                        TetherBeforeDesign21 = r.BaseStream.Position >= end || r.ReadBoolean();
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];
