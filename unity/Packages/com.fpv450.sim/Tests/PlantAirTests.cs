@@ -122,10 +122,33 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // The gust as the wash grid steps a stand: the air held over each 40 ms tick, PlantWash.SubSteps steps in it, sampled at the
+        // first sub-step's end at or after each time (up to 10 ms late).
+        static void GustTicked(in PlantMechanics m, double u0, double u1, double[] lean, double[] rate)
+        {
+            const double tick = 0.04;
+            double dt = tick / PlantWash.SubSteps;
+            var s = new PlantState();
+            for (int k = 0; k < (int)(20 / dt); k++) PlantLaw.Step(m, ref s, 0, 0, new Double3(u0, 0, 0), dt);
+            int next = 0;
+            for (long k = 0; next < GustTimes.Length; k++)
+            {
+                double t = k * dt;
+                if (t >= GustTimes[next] - 1e-9)
+                {
+                    lean[next] = s.X;
+                    rate[next] = s.RateX;
+                    next++;
+                }
+                double held = (k / PlantWash.SubSteps) * tick; // the tick's start
+                PlantLaw.Step(m, ref s, 0, 0, new Double3(held < 1 - 1e-9 ? u1 : u0, 0, 0), dt);
+            }
+        }
+
         // A short gust bends a culm and a branch, and they return as the hand calculation's full law has it: the law's step at
         // 1 ms within 0.02 rad of the lean and 0.25 rad/s of the rate (its air damping linearised in the stem's own motion, the
         // hand's relative-velocity drag not), the culm in 5 m/s creeping back with one shallow dip, in 2 m/s and the branch
-        // swinging back past rest. At the grid's 20 ms the same within 0.03 rad.
+        // swinging back past rest. As the wash grid steps it (40 ms ticks, 20 ms sub-steps) within 0.05 rad.
         [Test]
         public void AGustBendsAndTheyReturnAsTheHandCalculation()
         {
@@ -135,19 +158,19 @@ namespace Fpv450.Sim.Tests
                 double[] lean = new double[GustTimes.Length], rate = new double[GustTimes.Length];
                 double[] coarse = new double[GustTimes.Length], coarseRate = new double[GustTimes.Length];
                 Gust(m, g.U0, g.U1, 0.001, lean, rate);
-                Gust(m, g.U0, g.U1, 0.02, coarse, coarseRate);
+                GustTicked(m, g.U0, g.U1, coarse, coarseRate);
                 double worst = 0, worstRate = 0, worstCoarse = 0;
                 for (int i = 0; i < GustTimes.Length; i++)
                 {
-                    Print($"  {g.Name}, t {GustTimes[i]:F2} s: {lean[i]:F5} rad ({rate[i]:F4} rad/s), at 20 ms {coarse[i]:F5}; hand {g.Lean[i]:F5} ({g.Rate[i]:F4})");
+                    Print($"  {g.Name}, t {GustTimes[i]:F2} s: {lean[i]:F5} rad ({rate[i]:F4} rad/s), at 40 ms {coarse[i]:F5}; hand {g.Lean[i]:F5} ({g.Rate[i]:F4})");
                     worst = Math.Max(worst, Math.Abs(lean[i] - g.Lean[i]));
                     worstRate = Math.Max(worstRate, Math.Abs(rate[i] - g.Rate[i]));
                     worstCoarse = Math.Max(worstCoarse, Math.Abs(coarse[i] - g.Lean[i]));
                 }
-                Print($"{g.Name}: the worst lean {worst:F4} rad, rate {worstRate:F3} rad/s; at 20 ms {worstCoarse:F4} rad");
+                Print($"{g.Name}: the worst lean {worst:F4} rad, rate {worstRate:F3} rad/s; at 40 ms {worstCoarse:F4} rad");
                 Assert.That(worst, Is.LessThan(0.001), g.Name + ": the lean");
                 Assert.That(worstRate, Is.LessThan(0.01), g.Name + ": the rate");
-                Assert.That(worstCoarse, Is.LessThan(0.025), g.Name + ": the lean at the grid's 20 ms");
+                Assert.That(worstCoarse, Is.LessThan(0.05), g.Name + ": the lean at the grid's 40 ms");
             }
         }
 

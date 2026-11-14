@@ -1,3 +1,5 @@
+using Fpv450.Sim.Flight;
+
 namespace Fpv450.Sim.Wind
 {
     /// <summary>
@@ -43,40 +45,91 @@ namespace Fpv450.Sim.Wind
         /// A plant's bend in the wind at the frame: its base (world m) over the ground under it (m); the wind taken at its load
         /// point on its base's vertical (PlantMechanics.LoadPoint).
         /// </summary>
-        public void Wind(in PlantMechanics m, in Double3 basePoint, double ground, out PlantBend bend) => Respond(m, basePoint, ground, default, out bend);
+        public void Wind(in PlantMechanics m, in Double3 basePoint, double ground, out PlantBend bend) =>
+            Respond(m, basePoint, ground, default, default, default, out bend);
+
+        /// <summary>
+        /// A plant's bend in the wind and the props' wash at the frame. A stand the wash grid integrates (band ≥ 0, its base on the
+        /// grid's ground) takes the grid's bend, its motion through the wash in full, over the wind's mean lean, and the wind's
+        /// gusts linearised about that whole lean in the wind and the wash at its load point (so the wash's own damping holds
+        /// them). Any other plant (a twig in a crown, a stand outside the window, band −1) takes the wash at its load point as a
+        /// steady air on its mean (quasi-static: its mode is fast beside the wash's changes at a creep, design.md §4.5). Without a
+        /// wash (null), Wind's.
+        /// </summary>
+        public void Sample(in PlantMechanics m, int band, PlantWash wash, in Double3 basePoint, double ground, out PlantBend bend)
+        {
+            if (wash == null || wash.LastTick < 0)
+            {
+                Respond(m, basePoint, ground, default, default, default, out bend);
+                return;
+            }
+            double last = wash.LastTick * FlightCore.Dt, fraction = (_t - (last - wash.Tick)) / wash.Tick;
+            fraction = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
+            if (band >= 0 && wash.Bend(band, basePoint.X, basePoint.Z, fraction, out PlantBend grid, out Double3 washAir))
+            {
+                Respond(m, basePoint, ground, default, washAir, grid, out bend);
+                return;
+            }
+            var load = new Double3(basePoint.X, basePoint.Y + m.LoadPoint, basePoint.Z);
+            Double3 steady = wash.Rotors.At(load, ground, out _);
+            Respond(m, basePoint, ground, steady, default, default, out bend);
+        }
 
         /// <summary>The field's air at a point over its ground at the frame, world m/s, as the plants read it (its mean and every
         /// mode, unfiltered): the flight's field (WindField.At) but for a cut's cavity and a step's lip (design.md §3.4).</summary>
-        public Double3 Air(in Double3 point, double ground)
+        public Double3 Air(in Double3 point, double ground) => AirAt(point, ground, _mean, _drift, _t);
+
+        /// <summary>The same at any time t, s (the frame left as it is).</summary>
+        internal Double3 AirAt(in Double3 point, double ground, double t)
         {
-            _wind.PlantParts(point, ground, _t, _mean, out PlantParts parts);
+            _wind.PlantFrame(t, out Double3 mean, out Double3 drift);
+            return AirAt(point, ground, mean, drift, t);
+        }
+
+        Double3 AirAt(in Double3 point, double ground, in Double3 mean, in Double3 drift, double t)
+        {
+            _wind.PlantParts(point, ground, t, mean, out PlantParts parts);
             var sum = new Sum();
-            _wind.PlantModes(point, parts, _drift, _mean, ref sum);
+            _wind.PlantModes(point, parts, drift, mean, ref sum);
             return parts.Mean + sum.Air;
         }
 
-        /// <summary>The same with a steady air added at the load point (world m/s: the props' wash, quasi-static).</summary>
-        internal void Respond(in PlantMechanics m, in Double3 basePoint, double ground, in Double3 added, out PlantBend bend)
+        /// <summary>
+        /// The bend from the wind's mean lean in the wind and a steady air (meanAdded, world m/s at the load point), plus a lean
+        /// already made (made: rad and rad/s, world X and Z: the wash grid's), with the gusts' response linearised about the whole
+        /// lean in the wind, the steady air and a further air (linearAdded: the wash at the load point).
+        /// </summary>
+        internal void Respond(in PlantMechanics m, in Double3 basePoint, double ground, in Double3 meanAdded, in Double3 linearAdded,
+            in PlantBend made, out PlantBend bend)
         {
             var load = new Double3(basePoint.X, basePoint.Y + m.LoadPoint, basePoint.Z);
             _wind.PlantParts(load, ground, _t, _mean, out PlantParts parts);
-            Double3 mean = parts.Mean + added;
-            double horizontal = DetMath.Sqrt(mean.X * mean.X + mean.Z * mean.Z), ex = 1, ez = 0;
+            Double3 mean = parts.Mean + meanAdded;
+            double horizontal = DetMath.Sqrt(mean.X * mean.X + mean.Z * mean.Z), mx = 1, mz = 0;
             if (horizontal > 0)
             {
-                ex = mean.X / horizontal;
-                ez = mean.Z / horizontal;
+                mx = mean.X / horizontal;
+                mz = mean.Z / horizontal;
             }
 
-            // The fluctuation's spread along the mean and up, from the modes.
-            var spread = new Spread { Ex = ex, Ez = ez };
+            // The fluctuation's covariance at the load point, from the modes.
+            var spread = new Spread();
             _wind.PlantModes(load, parts, _drift, _mean, ref spread);
 
-            // The mean lean in the plane of the mean wind.
-            var moment = new Expected(m, horizontal, mean.Y, spread.Along, spread.Up, spread.Cross);
-            double phi = PlantLaw.Settle(ref moment, 0);
+            // The mean lean in the plane of the mean air.
+            var meanMoment = new Expected(m, horizontal, mean.Y, spread.Along(mx, mz), spread.YY, spread.Covariance(mx, mz));
+            double lean = PlantLaw.Settle(ref meanMoment, 0);
 
-            // The linear link about it.
+            // The whole lean, and the air the gusts are linearised in.
+            double bx = lean * mx + made.X, bz = lean * mz + made.Z, phi = DetMath.Sqrt(bx * bx + bz * bz), ex = mx, ez = mz;
+            if (phi > 1e-9)
+            {
+                ex = bx / phi;
+                ez = bz / phi;
+            }
+            if (phi > PlantLaw.HalfPi) phi = PlantLaw.HalfPi;
+            Double3 air = mean + linearAdded;
+            var moment = new Expected(m, air.X * ex + air.Z * ez, air.Y, spread.Along(ex, ez), spread.YY, spread.Covariance(ex, ez));
             DetMath.SinCos(phi, out double s, out double c);
             double k = m.Stiffness, ratio = PlantLaw.SinOver(phi, s);
             const double h = 1e-4;
@@ -95,22 +148,36 @@ namespace Fpv450.Sim.Wind
             double a = phi + response.Along, p = response.Across;
             bend.X = a * ex - p * ez;
             bend.Z = a * ez + p * ex;
-            bend.RateX = response.RateAlong * ex - response.RateAcross * ez;
-            bend.RateZ = response.RateAlong * ez + response.RateAcross * ex;
+            bend.RateX = made.RateX + response.RateAlong * ex - response.RateAcross * ez;
+            bend.RateZ = made.RateZ + response.RateAlong * ez + response.RateAcross * ex;
+            double total = DetMath.Sqrt(bend.X * bend.X + bend.Z * bend.Z);
+            if (total > PlantLaw.HalfPi)
+            {
+                // No plant bends through the ground.
+                bend.X *= PlantLaw.HalfPi / total;
+                bend.Z *= PlantLaw.HalfPi / total;
+            }
         }
 
-        // The modes' variance along the mean's horizontal way, up, and their covariance (each mode a·cos: a²/2).
+        // The modes' covariance (each mode a·cos θ: aᵢaⱼ/2), horizontal and vertical.
         struct Spread : IModeSink
         {
-            public double Ex, Ez, Along, Up, Cross;
+            public double XX, XZ, ZZ, YY, XY, ZY;
 
             public void Mode(in Double3 amplitude, double phase, double rate)
             {
-                double a = amplitude.X * Ex + amplitude.Z * Ez;
-                Along += 0.5 * a * a;
-                Up += 0.5 * amplitude.Y * amplitude.Y;
-                Cross += 0.5 * a * amplitude.Y;
+                double x = amplitude.X, y = amplitude.Y, z = amplitude.Z;
+                XX += 0.5 * x * x;
+                XZ += 0.5 * x * z;
+                ZZ += 0.5 * z * z;
+                YY += 0.5 * y * y;
+                XY += 0.5 * x * y;
+                ZY += 0.5 * z * y;
             }
+
+            // The variance along a horizontal way, and its covariance with the vertical.
+            public readonly double Along(double ex, double ez) => ex * ex * XX + 2 * ex * ez * XZ + ez * ez * ZZ;
+            public readonly double Covariance(double ex, double ez) => ex * XY + ez * ZY;
         }
 
         // Each mode's steady response on the two axes: F·(P·cos θ − cΩ·sin θ)/(P² + c²Ω²), P = K − IΩ², and its rate

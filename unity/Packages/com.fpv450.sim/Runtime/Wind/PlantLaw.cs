@@ -163,7 +163,7 @@ namespace Fpv450.Sim.Wind
     ///   along ∫ s²·|v|·(c + c'·n_∥²) ds, across (sin φ/φ)²·∫ s²·|v|·(c + c'·n_⊥²) ds, c' = c + FoliageDrag·α·R.
     /// - The motion: I·b̈ + c_s·ḃ + k·(b − b₀) − W·sin φ·ê = Q(b, ḃ). One step of dt holds the air (zero-order hold) and
     ///   integrates each axis exactly, linearised at the step's start: along with the tangent stiffness k − W·cos φ − ∂Q_∥/∂φ
-    ///   (by a central difference), across with k − W·sin φ/φ (the drag's is nil to first order), the drag's rate slope with
+    ///   (by a forward difference of 10⁻⁴ rad), across with k − W·sin φ/φ (the drag's is nil to first order), the drag's rate slope with
     ///   c_s, each toward its Newton target; the link cannot pass lying flat (|b| ≤ π/2, the ground).
     /// </summary>
     public static class PlantLaw
@@ -206,7 +206,7 @@ namespace Fpv450.Sim.Wind
         /// species 4–8 (assumed), each leaf at its own phase.</summary>
         public const double LeafFlutter = 6;
 
-        /// <summary>The tangent's central difference, rad (numerical).</summary>
+        /// <summary>The tangent's forward difference, rad (numerical).</summary>
         const double Tangent = 1e-4;
 
         /// <summary>A tangent stiffness is floored at this share of k (numerical: a link whose weight passes its stiffness runs
@@ -402,13 +402,12 @@ namespace Fpv450.Sim.Wind
             double va = st.RateX * ex + st.RateZ * ez, vp = st.RateZ * ex - st.RateX * ez;
             Load(m, phi, ex, ez, uniform, heights, air, count, va, vp, out Forces f);
             Load(m, phi + Tangent, ex, ez, uniform, heights, air, count, va, vp, out Forces up);
-            Load(m, phi - Tangent, ex, ez, uniform, heights, air, count, va, vp, out Forces down);
             DetMath.SinCos(phi, out double s, out double c);
             double k = m.Stiffness, w = m.Weight, ratio = SinOver(phi, s);
             double b0a = nx * ex + nz * ez, b0p = nz * ex - nx * ez;
             // Q(b, ḃ) ≈ Q₀ − D·(ḃ − ḃ₀): the slope D joins c_s, D·ḃ₀ the held force.
             double ra = f.Along + f.DampAlong * va + w * s - k * (phi - b0a), rp = f.Across + f.DampAcross * vp + k * b0p;
-            double ka = k - w * c - (up.Along - down.Along) / (2 * Tangent), kp = k - w * ratio;
+            double ka = k - w * c - (up.Along - f.Along) / Tangent, kp = k - w * ratio;
             if (ka < Floor * k) ka = Floor * k;
             if (kp < Floor * k) kp = Floor * k;
             double ta = phi + ra / ka, tp = rp / kp;
