@@ -638,6 +638,40 @@ Below, the depth along n is the member's own surface, not its tangent plane. The
 - **Known-wrongs on the band:** `RollOff` off logs fault 2's tunnel (seed 3, 5.58 m) and fault 1's (0x450F, 5.40 m); `SupportByDepth` off logs the bark's (seed 1, 5.42 m), if its path still reaches it; `ClampedTube` off logs the jaws' (seed 3, 5.58 m).
 - **A touch in the jaws** (made state): the tube pressed 1 mm in its jaws carries StubStiffness × 1 mm, under them its own 6.6 N, the known-wrong 6.6 N in the jaws.
 
+### 6. As built
+
+- **Code** (`Runtime/Contact/`, the header in `Runtime/Log/`):
+  - `RoundMember` (new): the depth along a latched normal on a sphere, a capsule, a wire's chain and a cylinder's side, or `Beside`, or `Face` (the plane stays);
+  - `ContactModel.Member`, called after each pair's plane depth in `Update`: on a latched pair on a rigid round member it takes the member's depth and point, and a part beside it is let go (`Pair.Beside`, unlatched, so `Hung` keeps it no more);
+  - `SameSupport` reads a sphere's own depth;
+  - `ContactModel.InJaws` gives a jaws touch the stub's spring and no moment arm;
+  - `ContactSpec.RollOff`, `SupportByDepth`, `ClampedTube` (on for every flight) in header entry 33 (`TagMembers`). `LogFormat.ModelVersion` is not set here (the orchestrator's, at the merge).
+- **The band** (Severe, the field by height, 27 heights each), every flight judged:
+
+  | Draw | Cable reached | Tunnels, model 100 | Tunnels now | Lost |
+  |---|---|---|---|---|
+  | 0x450F (the test's) | 20 of 27 | 2 (5.40, 5.43 m) | 0 | 0 |
+  | seed 1 | 15 | 1 (5.42 m, the bark) | 0 | 0 |
+  | seed 2 | 27 | 0 | 0 | 0 |
+  | seed 3 | 18 | 2 (5.58 m, arm_fr_b and _a) | 0 | 0 |
+  | seed 4 | 18 | 1 (5.36 m) | 0 | 0 |
+  | one-scale 0x450F, 1, 2 | 27, 15, 27 | 3 on seed 1 (1.5e's follow-up) | 0 | 0 |
+
+- **Each law closes its own tunnel** on the flight that found it, flown in model 100's contacts and with that law alone added (`OnTheWiresBandEachLawClosesItsTunnel`):
+  - `RollOff` on 0x450F 5.40 m, seed 4 5.36 m and seed 3 5.58 m. On the last it unmasks leg_fl's tube through the cable, which `ClampedTube` closes; with it the conductor meets leg_fl's jaws hard enough that the tube slips out of them (`ClampSlip`, 1185 N along it past 432), the crash is by acceleration, and no part passes.
+  - `SupportByDepth` on seed 1 5.42 m.
+  - Flown with all three on, seed 1's 5.42 m path changes at 14480: leg_fl slips out of its jaws (`ClampSlip`, 815 N along the tube past 715), where model 100 broke it at 14482. The bark case is not met there. Its mechanism still shows with `SupportByDepth` off on the new path: at 14579 the right half's give collapses in a step (9.55° → 0.06°, 116 → 5.9 mm) as its chain reads a clear support.
+- **Made states** (`CableTunnelTests`):
+  - the law by hand on four member kinds, to 1e-12 m;
+  - the cylinder's rim and cap;
+  - the arm under a capsule and under L03's own conductor: 540.0 N by hand (2 × 18 kN/m × 15 mm) while the conductor crosses it, 0 N beside, two breaks, no Tunnel, 0 B a step. The known-wrong presses 560.8 N with the conductor 10 mm and more clear, and logs two Tunnels;
+  - the jaws: 1172.00 N on 1 mm against 6.600 under them and in the known-wrong;
+  - the header, on and off.
+- **What a thin rigid member met faster than its thickness a step needs:** as §3. The query's sweep and P1's latch already meet it: every pass on the band was met within its step, at `Time` 0.02–0.94 or 0. What was missing is the member's extent across the latched normal, so a part off its side is let go and one through it along n is a Tunnel.
+- **The tube in its jaws, against model 100:**
+  - The jaws' spring is the plate arm's in its plane (1.172 MN/m, derived). By hand, a rigid 9 mm conductor met there at 10 m/s stops a 4.7 kg drone within v·√(m/k) ≈ 20 mm. The flight logs a crash by acceleration (leg_fl on L03), and the tube slips out of the jaws on the way.
+  - Neither the clamp block's own failure nor the conductor's span compliance is modelled. A taut span gives about 4T/L across at midspan (derived; physics_materials.json's `cable` row names it, T = w·L²/(8·sag)), tens to hundreds of N/m, so the line travels far further than the frame gives. Both would soften the stop in truth. Named, not built.
+
 ## 2.7 The crown twig's repeated break (G5)
 
 **Reproduced** (measured, `ObjectContactTests.AHoverInACrownBreaksNoBladeTwice`, model 85): the drone starts 1.24 m over the ground at (525.79, 612.74), inside GreenBush_Dry's crown, and the pilot holds that point for 25 s with surfaces.json. 150,239 `BladeDamaged` Break events, all with 0 kg lost, 150,231 at a station the blade had already broken at; 8 in every step. **No twig was cut** (0 `BladeStrike` on twig): the candidate, `PropStrikes.Twig`, never ran.
