@@ -322,6 +322,8 @@ Each frame:
 
 `PlantBend` is the bend from the drawn rest (rad, world X and Z: the top's way times the angle) and its rate (rad/s). It never passes π/2.
 
+**Threads.** A grid's `Advance` and the samples that read it run on one thread. A helper that ticks the grid while the render thread samples it needs its own double buffer (1.3's). `PlantAir` itself holds only the frame's time, mean and drift.
+
 **Mechanics** come from `PlantMechanics.Stem(kind, length, coverSet, airDensity)`, `.Woody(...)` or `.Tree(...)`. The drawn side buckets each class's sizes: f₁ scales as L^−1.35 for culms.
 
 **The cost on this shared machine** (idle priority, half the CPUs, not on AC power, so indicative only):
