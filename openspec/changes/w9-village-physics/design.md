@@ -1792,3 +1792,151 @@ To be written by task 2.10.
 ## 2.5 Cut bits on camera
 
 To be written by task 2.5.
+
+## 2.15 The ruins' thin masonry
+
+QA's forensics of the pilot's model 100 flights found masonry boxes 2 cm thick in the farmland's ruins (`Ruin_Stump`
+766, 469, 467, 1032; `Ruin_RoofCollapsed` 985). The ruins' collision is made by `tools/blender/vendor_build.py N01`
+(`generators/vendor_ruin.py`, `lib/slabs.py`, `lib/air.py`; w4b-farmland-ruins' design §3) from the friend's mesh in
+the local store; the map package only places the ruins, and the sim loads their metadata
+(`unity/Assets/_Project/Art/Models/ruins/N01/<variant>.assetmeta.json`).
+
+### What was wrong, and why (measured on the mesh)
+
+- **The five shapes are the walls' plaster cut loose.** The pack's house is a shell: each wall is two faces, the
+  plaster (`OldHouseMapIndoorWall01`, masonry, a 2 cm lining) inside and the boards (`OldHouseMapWood01`, timber)
+  outside, 0.19–0.20 m apart. 766: plaster z 3.077, boards 3.277; 469 and 467: −4.3515 and −4.5518; 1032: x 6.7185
+  and 6.9187; 985: plaster both sides, 3.077 and 3.265 (the wall between the house and its porch).
+- **The rule that made them:** w4b 1.2's air rule makes a pair two sheets, each 2 cm behind its face and open between
+  them, wherever the outside air reaches the space between the faces. In a ruin it reaches every wall's cavity, through
+  the broken tops and, in the roofed ruin, through the reveals of the openings: 985 is an unbroken wall 2.93 m tall. So
+  every lined wall was a 2 cm masonry sheet and a 2 cm timber sheet with 15–16 cm of air between, 2,534 masonry boxes
+  and 726 m² over the five ruins. REAL-05 asks for walls with their real depth; no plaster stands free of its wall.
+- **The same 2 cm sheet stood where the mesh draws the plaster alone:** above a siding broken lower (`Ruin_Stump`'s
+  back wall: plaster to 0.9 m, boards to 0.3 m), a partition whose other face the ruin lost whole (`Ruin_Stump`'s at
+  x 2.425, 3.9 m long; the house's is 0.143 m thick), the plastered ceiling (its underside only: 76 m² in the roofed
+  ruin), and the stove and the chimney (closed bodies, 2.55 × 3.65 × 1.16 m and 0.9 × 0.95 m, drawn as their faces:
+  2 cm shells).
+- **Material rows** (every rule's faces by slot, normal and texture region): the floor's boards under the stove
+  (3.33 m², `Wood02`) and a 2 cm wood strip at its corner (0.11 m²) were stove masonry, the stove's rule taking any
+  slot in its box; the chimney cap's brick faces (the atlas' brick patch) were roof slate (sloped, 0.13 m²) and roof
+  frame timber (down, 0.11 m²). The rest read right: the skirting (`plitus`) is a painted board, the roofs' slate is
+  the atlas' slate.
+
+### The rule now
+
+1. **A lining is never a free skin** (`lib.slabs._pair`): a pixel with a lining (a rule with `layer_m`: the walls',
+   partitions' and ceiling's plaster) on either face never opens, so the mesh's two faces bound the wall's core: the
+   2 cm lining on its timber core, or masonry through where both faces are plaster, as the intact house's walls always
+   were. Timber boards, frames, doors and the slate keep 1.2's rule: two boards the air reaches between are two
+   sheets.
+2. **A lining's lone face is backed to its wall's other face** (`lib.slabs._backing`): the nearest plane across its
+   solid side, farther than its sheet and within `max_thickness_m` (0.35 m), holding a face of the same part, first in
+   the ruin's own family, then in the intact house's (`decompose`'s `walls`, where the ruin lost that face whole);
+   layered with that plane's part. The thickness is the mesh's own.
+3. **With no other face drawn** (the ceiling), the lining's `sheet_m` on its `core` (a new rule key, a physics id; its
+   part's rule of that physics, or one made for it): 20 mm of plaster on 25 mm of boards, 0.045 m. **Assumed** (lime
+   plaster on a board ceiling; the joists and fill above are not drawn and not built).
+4. **The stove and the chimney are brick shells**, `sheet_m` 0.12 m: a standard brick's 120 mm width (**published**,
+   250 × 120 × 65 mm), a stove's and a stack's walls laid half a brick thick round the firebox and flues
+   (**assumed**). They are not linings, so a pair round a closed hollow still opens into two 12 cm shells.
+5. **The rows:** the stove's rule takes its plaster slot only; the chimney's faces above 6.8 m, any normal, are the
+   chimney's (its cap).
+
+The wall's *shape* (the bands the gaps, broken tops and wind volumes read) is as before: a lone face's sheet.
+
+### The audit: every masonry box under 5 cm, before → after
+
+Each kept box of every variant of N01 and N02 (a scratch script, not committed, run on the generator's own boxes,
+before its shapes are written): its thickness
+along its slab's normal, and behind its back face either another box (a lining) or the mesh (the nearest plane across
+within 0.4 m, its distance and parts). A box at least 5 cm thick is a slab. Free means nothing behind it.
+
+| Part | Free masonry boxes < 5 cm, before | After |
+|---|---|---|
+| partition | 426 (248.7 m²) | 89 (0.23 m²) |
+| stove | 1,042 (90.7 m²) | 0 |
+| wall_back | 214 (77.8 m²) | 1 (0.05 m²) |
+| wall_front | 331 (76.2 m²) | 23 (0.04 m²) |
+| ceiling | 86 (76.1 m²) | 3 (0.02 m²) |
+| wall_far_end | 61 (61.9 m²) | 0 |
+| porch_wall | 326 (58.7 m²) | 54 (2.74 m²) |
+| wall_stove_end | 21 (33.3 m²) | 4 (0.10 m²) |
+| chimney | 27 (2.8 m²) | 0 |
+| **all five ruins** | **2,534 (726 m²)** | **174 (3.2 m²)** |
+
+Per ruin, free before → after: `Ruin_RoofCollapsed` 613 (268 m²) → 43 (0.99 m²), `Ruin_Walls` 463 (124 m²) → 33
+(0.88 m²), its mirror 460 → 35 (0.88 m²), `Ruin_Burnt` 594 (155 m²) → 38 (0.33 m²), `Ruin_Stump` 404 (56 m²) → 25
+(0.10 m²). The masonry under 5 cm left is a 2 cm lining on its core (1,090 boxes, 437 m²) or one of these:
+- **Kept, raster slivers at the doors' feet:** 117 boxes, 0.28 m², each at most 10 cm, below 0.5 m where a jamb's
+  plaster meets the threshold; and 19 other slivers under 50 cm² (0.04 m²).
+- **Kept, the porch windows' reveals:** 8 faces 0.2 m wide and 1.0–1.4 m tall (1.9 m² in all): plaster with the
+  window's frame 6–11 cm behind and no face of the porch wall across, so the mesh gives no thickness. Not built: a
+  rule that backed them to any part across would also fill openings. And 30 smaller pieces at corners and beside
+  those reveals, most of them strips 1.5–5 cm wide (1.0 m²).
+- **The roof and the debris' slate** (asbestos-cement, 2 cm sheets: `Ruin_RoofCollapsed`'s roof 699 boxes, the eight
+  roof-sheet debris 334) are real thin pieces: corrugated slate is 5.8 mm. Kept, unchanged. So are every timber
+  board and batten.
+
+### What else moved, each traced
+
+- **Gaps:** all 193 ids kept. `partition_door3`'s plane moves 18 mm in three ruins (the 2 cm wood strip at the stove's
+  corner is now the partition's, widening its band). `Ruin_Burnt`'s `porch_wall_window17` head moves up 20 mm, to the
+  backed core's face (the drawn head is 5.6 mm above it), narrowest 0.33 → 0.35 m.
+- **Wind volumes:** 0.02–0.44 m³ less solid per ruin (of 13–64 m³), where a partition meets the stove or another
+  partition: a thicker box made by an earlier family covers the later family's faces there (`lib.slabs`' cover step),
+  and the chimney's band is 12 cm.
+- **Snags:** broken tops' ends at the same junctions (0–9 records a ruin).
+- **Boxes:** 7,016 → 7,003, 2,690 → 2,810, 2,710 → 2,831, 3,665 → 3,836 and 2,033 → 2,139.
+- **The debris (N02)** rebuild byte for byte. The map package is untouched; the farmland's content hash moves (each
+  metadata file is in it), so logs flown on model 100 no longer replay on this map.
+
+### The collision audit (`lib.audit`, AST-05), and what it costs
+
+`python tools/blender/vendor_build.py Ruin_Stump --check --audit` (431 s), against task 1.3's run (w4b design §8.1):
+boxes over 50 mm off the mesh 15 (worst 63 mm) → 445 (worst 202 mm); boxes within 50 mm but over 20 mm in a zone
+1,223 → 1,106; the mesh's worst distance to the collision 34 → 90 mm; problems 1,263 → 1,777. The audit reports, the
+build does not refuse on it. The new findings, each read:
+- **181, the stove's shells** (75–147 mm): the inner faces of its 12 cm walls, inside the closed body the mesh draws.
+  Never seen, never reached.
+- **About 210, the walls' cores** (50–139 mm): the core's top between the two skins at a broken top, and its ends at a
+  wall's broken side. The mesh draws no top there (the friend's cut deleted faces, it built no broken core): the top
+  of a 0.2 m wall is up to 0.1 m from either skin. 1.2 removed these by opening the walls; this task puts them back,
+  as REAL-05's walls with their real depth ask.
+- **35, the cores' faces where the boards are off** (150–202 mm): the plaster stands above the boards' broken top
+  (`Ruin_Stump`'s back wall: plaster to 0.9 m, boards to 0.3 m), and the core stands with it, to the boards' plane.
+  The friend's house materials draw both sides of a face (`_Cull` 0), so from outside one sees the plaster's back
+  there, up to 0.2 m behind the core's face: a collision the mesh does not draw. The alternative is what QA found,
+  a 2 cm masonry sheet with nothing behind it (469 and 1032 are such plaster).
+- **The mesh's 90 mm** is a board face behind a window's casing (`WindowsMat01`, 10 cm proud of the boards at
+  x 6.16–6.34): the pair from the casing's face to the plaster, which 1.2 opened, is now one block, and the hidden
+  board lies 90 mm inside it.
+- The rest are 1.3's (the floor's tilted faces, the frames).
+
+**No new hole:** every drawn polygon's centroid and its corners pulled 2 cm in (6,740 to 24,452 points a ruin), each
+point's distance outside the collision, old against new: none over 50 mm in either (worst 37 → 38 mm); over 20 mm
+2 → 2, 10 → 11, 10 → 10, 10 → 12 and 30 → 32 (`Ruin_Stump`, `Ruin_Walls`, its mirror, `Ruin_Burnt`,
+`Ruin_RoofCollapsed`). The points newly over 20 mm (2–4 a ruin, 25–38 mm) are window sashes' faces inside a wall's
+thickness, which a core now covers within the cover step's 15 mm, and a board's edge in `Ruin_Burnt`.
+
+### Goldens, audited case by case
+
+`worldbench --golden`, the same build with the five files at 5044ce33's: all 57 cases pass. With this branch's, 10
+move, all in `farmland` and `farmland-shelter`, all from the ruins' metadata (not re-recorded here: the stamps and the
+re-record are the merge's):
+
+| Case | Golden → now | Why |
+|---|---|---|
+| `content_hash` | 5d305d09f5d09021 → 2955a6abf5895206 | the five files are in it |
+| `farmland.contacts` | e2282f124eb7dd10 → ca7cf3e949686a19 | the same 2,861 capsules touch; object contacts 398 → 429, Time < 1 1,036 → 1,062: the village plots' capsules meet the walls' cores between the skins |
+| `farmland.rays` | 50fb2d77fdd458c8 → 45ac5985400f6c05 | rays meeting an object first 239 → 238; the ground's 3,720 and the steps' 182 kept |
+| `farmland.objects` | 100c4b6f40df8a17 → 4afd62e7b2095911 | 258,904 → 259,409 shapes |
+| `farmland.wind` | d3a5e2534892ab26 → 19d3c1c2316fe6d8 | 2,589 → 2,585 wind volumes (above) |
+| `farmland.object_contacts` | ba7e8182a1749a59 → 44db9f069efeef9e | the draws pick a shape by index, so they move with the counts: 7,734 → 7,726 capsules, 28,784 → 28,779 contacts, 0 over 64 |
+| `farmland.object_rays` | 7a7ee365b220a523 → c183aa4c5582b05e | 3,991 → 3,983 rays on an object, 1,537 → 1,533 on the ground; batched equals one by one |
+| `farmland.snags` | 03d484e754d641c2 → d1fb13475ede2076 | 1,327,999 → 1,328,161 segments; at most 2,526 in one, as before |
+| `farmland_shelter.grids` | 2f82ac2bc273b50d → 9e1a8a74226f8f46 | 2,589 → 2,585 volumes; the same 210,214 cells in a wake, 85,074 overlaid |
+| `farmland_shelter.village` | a8486032afccccf1 → 86c596397d65b34d | frontal porosity across the middle third (version 1's rule in brackets): `Ruin_Burnt` from the north 0.257 (0.262) → 0.280 (0.272), from the west (0.131) → (0.137); its mirror from the north (0.242) → (0.264), from the west (0.197) → (0.199); `Ruin_Walls` from the west (0.139) → (0.135); the rest kept |
+
+The terrain's, the probes', the steps', the stems' and every other world's cases do not move. `QueryVersion` is
+unchanged (no query changed).
