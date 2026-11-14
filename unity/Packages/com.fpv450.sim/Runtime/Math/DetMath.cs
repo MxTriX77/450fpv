@@ -84,7 +84,14 @@ namespace Fpv450.Sim
             while (m >= 8) { m *= 0.125; scale *= 2; }
             while (m < 1) { m *= 8; scale *= 0.5; }
             double y = 1.5;
-            for (int i = 0; i < 8; i++) y += (m / (y * y) - y) / 3;
+            for (int i = 0; i < 8; i++)
+            {
+                // A step that leaves y as it is reached a fixed point: every later step gives y again, so stopping there is
+                // the same bits (w9 step budget, second pass: about 6 steps instead of 8).
+                double next = y + (m / (y * y) - y) / 3;
+                if (next == y) break;
+                y = next;
+            }
             return y * scale;
         }
 

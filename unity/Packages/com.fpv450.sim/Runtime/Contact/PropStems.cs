@@ -710,7 +710,10 @@ namespace Fpv450.Sim.Contact
                     {
                         double A = q * k.T.Kappa0 * l3, beta = q > 0 ? _sSwirl[s] : 0;
                         // m(φ) = (φ − φ₀) − A·sin(φ + β)·|sin(φ + β)| − G·sin φ: the jet tilted β in the stem's plane, its normal share.
-                        DetMath.SinCos(phi + beta, out double sj, out double cj);
+                        // Without a tilt φ + β is φ (or +0 for −0, whose sine and cosine are +0's), whose sine and cosine are kept
+                        // with it: the same bits, one SinCos less for every stem out of the jet (w9 step budget, second pass).
+                        double sj = sp, cj = cp;
+                        if (beta != 0) DetMath.SinCos(phi + beta, out sj, out cj);
                         double aj = DetMath.Abs(sj);
                         m = phi - k.Phi0 - A * sj * aj - G * sp;
                         slope = 1 - 2 * A * aj * cj - G * cp;
