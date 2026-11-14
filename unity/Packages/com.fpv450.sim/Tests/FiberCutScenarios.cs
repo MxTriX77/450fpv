@@ -1160,7 +1160,7 @@ namespace Fpv450.Sim.Tests
         /// 1.4 m (1.2 until model 64) flies past it and orbits it once at 1 m radius, so its line from 3 m behind wraps the twig a turn and more, then
         /// hovers beside it in wind for the rest of seconds.
         /// </summary>
-        public static Dip AroundATwig(DroneSpec spec, ulong seed, WindLevel wind, double seconds = 30)
+        public static Dip AroundATwig(DroneSpec spec, ulong seed, WindLevel wind, double seconds = 30, Action<FlightSetup> edit = null)
         {
             var twig = new MicroElement
             {
@@ -1169,6 +1169,7 @@ namespace Fpv450.Sim.Tests
             };
             FlightSetup setup = TetherScenarios.Setup(spec, wind, seed: seed, cuts: true);
             setup.World = new FlightWorld(new ElementWorld(new[] { twig }));
+            edit?.Invoke(setup);
             double stand = TetherScenarios.Stand(setup);
             setup.StartPosition = new Double3(1, stand, 0);
             setup.TetherLayout = new[] { new Double3(1, 0, -3), new Double3(1, 0, -0.5) };
