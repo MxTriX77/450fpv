@@ -747,7 +747,10 @@ namespace Fpv450.Sim.Tests
         // too (GoldenFlights.WithoutTheBells): the crown's twigs meet a turning motor's band before the legs part, so with them on the
         // flight leaves 50's path there. Since w9-village-physics 2.3 the crown's twigs as model 89's shells too
         // (GoldenFlights.WithoutTheCrowns): with the twigs' law the drone keeps its speed through V01_L's shells and logs no tunnel.
-        // Since p7b-airframe design 3h model 94's clipped descent branch too (Propulsion.ClippedDescentBranch).
+        // Since p7b-airframe design 3h model 94's clipped descent branch too (Propulsion.ClippedDescentBranch). Since w9-village-physics
+        // 2.6d model 100's contacts too (RollOff, SupportByDepth and ClampedTube off): with them on leg_fl breaks at 10926 (10916 on
+        // model 100's) and leg_rl slips out of its jaws at 10970 (ClampSlip, 1618 N past 391) as the half reaches the bark, so the
+        // flight leaves 50's path and logs no tunnel.
         [Test]
         public void WithoutTheHangingGiveTheWindyCrownIsModel50s()
         {
@@ -756,7 +759,7 @@ namespace Fpv450.Sim.Tests
             // Since model 64 on model 63's drone (the old coil, Model63Drone), as every kept audit.
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Model63Drone.Spec(), m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
                 a.Height, a.Speed, core => { GoldenFlights.WithoutTheReach(core); core.Propulsion.ClippedDescentBranch = true; return RangeScenarios.Placed(a.Variant, a.Occurrence); }, null, a.ClimbSteps, a.ClimbRate,
-                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); s.Wind.OneScale = true; }); // since p7c-wind design 16 the one-scale field (model 98's), since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's), since 86 without the anchors' reach
+                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); s.Wind.OneScale = true; s.Contacts.RollOff = s.Contacts.SupportByDepth = s.Contacts.ClampedTube = false; }); // since w9 2.6d model 100's members, supports and tubes, since p7c-wind design 16 the one-scale field (model 98's), since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's), since 86 without the anchors' reach
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             // Since w9 2.6 (the legs on their section's yield and kink) the flight leaves model 50's path at leg_fr's break (step
             // 10339, 3.87 N·m past its kink, 3.59; model 50 cracked it at 2.20 and let it set): each half that then hangs passes the bark
