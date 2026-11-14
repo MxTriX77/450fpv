@@ -481,6 +481,72 @@ namespace Fpv450.Tests.Session
         /// <summary>The straw landing's throttle stick (under the hover at 1 kg).</summary>
         const double StrawThrottle = 0.45;
 
+        // "The same flight in Unity and headless": a session's flight on the test range as the player flies it (its ground, its
+        // line, legs on, 1 kg, Windy) on a fixed seed and scripted sticks: lifted, pitched forward, levelled, let down. Its records
+        // (every step, event and loose-piece block: the header names the host, its runtime and build) hash to the value pinned
+        // here on .NET (tools/inputtests) and on Unity's Mono (EditMode) alike, the log carries the line's model, and it replays
+        // bit for bit (FlightReplay, the replay tools/replay runs).
+        [Test]
+        public void AFlightIsTheSameInUnityAndHeadless()
+        {
+            FlightWorldChoice range = FlightWorlds.TestRange(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                range.ApplyTo(i);
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Payload = 1.0, Wind = WindLevel.Windy };
+                i.NewSeed = () => 0x450F;
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            for (int ms = 0; ms < 3000; ms += 10)
+            {
+                rig.Radio.Throttle = ms < 600 ? 0.62 : ms < 1400 ? 0.53 : ms < 2200 ? 0.5 : 0.42;
+                rig.Radio.Pitch = ms >= 600 && ms < 1000 ? 0.25 : ms >= 1400 && ms < 1800 ? -0.25 : 0;
+                rig.Run(10);
+            }
+            rig.Session.EndFlight();
+            Assert.That(rig.Session.ReadSummary().Log.Complete, "the log closed");
+            ulong records = RecordsHash(rig.Session.LogPath, out LogHeader h, out long steps);
+            TestContext.WriteLine("the session's flight: " + steps + " steps, model " + h.ModelVersion + ", records 0x" + records.ToString("X16") + " (" + h.Runtime + ")");
+            Assert.That(h.ModelVersion, Is.EqualTo(LogFormat.ModelVersion), "the line's model");
+            Assert.That(records, Is.EqualTo(SessionFlightRecords), "the records as .NET and Mono both fly them");
+
+            ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+            ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+            ReplayResult replay;
+            using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            rig.Session.Dispose();
+        }
+
+        /// <summary>AFlightIsTheSameInUnityAndHeadless's records at model 99: re-pin it only with the physics or the session's
+        /// setup changed, audited as a golden is.</summary>
+        const ulong SessionFlightRecords = 0x2BCFA28885EDA4CE;
+
+        // FNV-1a 64 over every record block of a log after its header, its kind and its bytes.
+        static ulong RecordsHash(string path, out LogHeader header, out long steps)
+        {
+            ulong h = 0xCBF29CE484222325UL;
+            steps = 0;
+            using (FlightLogReader reader = FlightLogReader.Open(path))
+            {
+                header = reader.Header;
+                while (reader.Next())
+                {
+                    if (reader.Kind == LogFormat.StepBlock) steps++;
+                    h = unchecked((h ^ (byte)reader.Kind) * 0x100000001B3UL);
+                    h = unchecked((h ^ (byte)(reader.Kind >> 8)) * 0x100000001B3UL);
+                    foreach (byte b in reader.Payload) h = unchecked((h ^ b) * 0x100000001B3UL);
+                }
+            }
+            return h;
+        }
+
         // ---- Arm and disarm ---------------------------------------------------------------------------------------------
 
         [Test]
