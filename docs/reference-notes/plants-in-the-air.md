@@ -234,6 +234,7 @@ u* = u_m·√(c_f/2) with [16]'s smooth-wall c_f, and on a rough wall u* = u_m /
   **A twig pushes back about 900 times as hard as a green culm, 90 times a dry one and 4–7 times a weed stalk** (EI ∝ d⁴, over L³). The pilot's "more heavily" for twigs and leaves is this ratio, computed.
 - **Grass in numbers:** at about 400 standing culms per m² (stem-properties.md §3), a body 0.25 m wide skimming 0.1 m deep for 0.3 m bends about 30 culms: about 0.03 N if green, 0.26 N if dry. One weed stalk in the way is as much again; a few twigs several times more.
 - **Leaves as drag:** the foliage swept by the body resists as ½ρU²·C_d·a·V. With C_d 0.1–0.5 [20], a 0.9–1.5 m²/m³ (the drawn crowns) and V the volume in contact (0.06 m² frontal × 0.3 m deep, assumed): **0.04–0.2 N at 5 m/s, 0.16–0.8 N at 10 m/s**. The leaves' own mass set moving (0.2 kg/m² fresh × a, so 0.2–0.3 kg/m³) bounds a further m″U²A of about 0.3–0.45 N at 5 m/s, if every leaf in the path were brought to the body's speed (an upper bound: attached leaves bend instead).
+- **How many twigs at once:** w9-village-physics design 2.3 already counts them by stereology (a part pushed a distance z meets L_V·p·z/4 twigs, p its silhouette's perimeter, L_V 2.0 m/m³ assumed) and breaks each at 0.115 J; the bending forces above are what each twig holds before it breaks or slips off.
 - **Damping in contact:** the stems' ζ_s 0.08–0.1 (§3.2) for the bending, plus the air's ζ_a; a stem released by the body springs back at its own f₁ (a culm creeps back, a twig rings).
 
 ## 7. Gaps, and the assumption each would take
@@ -252,7 +253,7 @@ u* = u_m·√(c_f/2) with [16]'s smooth-wall c_f, and on a rough wall u* = u_m /
 | The wall jet's friction on a real field | the smooth-to-rough band of §5.2 (up to 2×) | the soil's roughness k_s is not measured |
 | Burnt stems' stiffness | the dry culm's, wall halved (stem-properties.md) | no source |
 | Forces on a drone in foliage | §6.2's element sums | nothing measured was found |
-| The crowns' twig count per volume | to measure from the store's meshes as w9-village-physics 2.8 measured the leaves | the drawn twig cards and the collision's 1.5 m twig spheres do not give it |
+| The crowns' twig count per volume | the twig length density L_V 2.0 m/m³ that w9-village-physics design 2.3 carries (assumed, checked there by the pipe model), until it is measured from the store's meshes as 2.8 measured the leaves | the drawn twig cards and the collision's 1.5 m twig spheres do not give it |
 
 ## 8. What 1.2 needs first
 
