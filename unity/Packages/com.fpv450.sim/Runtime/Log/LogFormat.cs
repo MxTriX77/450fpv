@@ -1019,8 +1019,18 @@ namespace Fpv450.Sim.Log
         ///    at the end of the header's tether entry, read only if present) flies 101's line for the kept audits. No
         ///    golden pin moved; the tether harness's tree snag no longer parts at the crown by wear or a pulled-apart
         ///    span (the discs cut it). A flight without the line steps as 101 did.
+        /// 103: the ruins' walls with their depth (w9-village-physics 2.15, on 102;
+        ///    unity/physics/physics-integration-2--w9-thin-masonry): the farmland's ruins are rebuilt by their generator
+        ///    with walls solid between their two drawn faces (a 2 cm plaster lining on its timber core, or masonry all
+        ///    through), the plastered ceiling on its boards, the stove and chimney as half-brick shells, and the stove's
+        ///    and the chimney cap's material rows right. To 102 every wall the outside air reached between its faces was
+        ///    two free 2 cm sheets: 2,534 thin masonry boxes with nothing behind them (726 m²), which the fiber's contact
+        ///    fault met first in the pilot's flights. Plaster the mesh draws alone (above its boards' broken top, or with
+        ///    no other face) stays its 2 cm sheet, so the collision follows what is drawn. The map's content hash moves:
+        ///    a log of an older map does not replay on it. The farmland's world goldens are re-recorded, audited case by
+        ///    case (design 2.15); no flight golden moved. A flight that meets no ruin steps as 102 did.
         /// </summary>
-        public const int ModelVersion = 102;
+        public const int ModelVersion = 103;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
