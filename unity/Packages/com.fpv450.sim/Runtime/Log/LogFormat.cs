@@ -1005,8 +1005,22 @@ namespace Fpv450.Sim.Log
         ///    all three off, 100's contacts. No golden pin moved; crash and tip rows of the contact and landing benches
         ///    moved by a few per cent, each traced to its law. A flight that meets no round member, no hanging half and
         ///    no clamp's jaws steps as 100 did.
+        /// 102: the line on a member (p7d-tether 1.11d, design 21, on 101;
+        ///    unity/physics/physics-integration-2--w9-twig-line): the faults that broke the pilot's line in 8 of their
+        ///    10 breaks on model 100 (D-114). A split put a node on a chord already inside a thin board or slab, and its
+        ///    fresh slot threw it out at full stiffness (2–54 N): now on a rigid world shape an overlap a split made, or
+        ///    a node already there a step before, is kept and let out at 10 mm/s. On an element twig or a conductor the
+        ///    node is held where its segments' tangents to the member meet, and a node is put at the tangent point. A
+        ///    piece inside a wrap on world members slides when it carries more than friction from either end can hold
+        ///    (a capstan run slid only on its two outer tensions). The wear reads the line's own press at the rubbed
+        ///    point, in 5 mm bins (it read the member's spring force over a 0.1 m section), and the severe abrasive band
+        ///    applies only where the counterface is at least 1.2 times harder than the coating (masonry, concrete,
+        ///    metals); timber, bark, twigs, fabric and sandbags wear mildly. FlightSetup.TetherBeforeDesign21 (appended
+        ///    at the end of the header's tether entry, read only if present) flies 101's line for the kept audits. No
+        ///    golden pin moved; the tether harness's tree snag no longer parts at the crown by wear or a pulled-apart
+        ///    span (the discs cut it). A flight without the line steps as 101 did.
         /// </summary>
-        public const int ModelVersion = 101;
+        public const int ModelVersion = 102;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 
