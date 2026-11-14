@@ -81,13 +81,16 @@ def test_a_broken_wall_is_solid_between_its_two_faces(repo_root):
 
 
 # QA's forensics of the pilot's model 100 flights (w9-village-physics 2.15): masonry boxes 2 cm thick with air behind
-# them, each now the lining of its wall: (variant, the 1.2 shape's index, its wall's two faces along its normal, the
-# point on the wall's face, the axis across it, the materials from the plaster's face to the other face)
+# them: (variant, the 1.2 shape's index, the point on the wall's face, the axis across it, the plaster's face and the
+# wall's other face along it, the materials from the plaster's face to the other face, or None where the mesh draws the
+# plaster alone: it stands above its boards' broken top, drawn on both sides, and stays its 2 cm sheet (REAL-05: no
+# wall nobody sees; the orchestrator's call, 2026-11-14))
 FORENSIC_SHEETS = (
     ("Ruin_Stump", 766, (4.705, 0.525, None), 2, 3.077, 3.277, ("masonry", "timber")),
-    ("Ruin_Stump", 469, (4.835, 1.57, None), 2, -4.3515, -4.5518, ("masonry", "timber")),
+    ("Ruin_Stump", 469, (4.835, 1.57, None), 2, -4.3515, -4.5518, None),  # the boards stop at 1.5 m here
+    ("Ruin_Stump", 469, (4.835, 1.42, None), 2, -4.3515, -4.5518, ("masonry", "timber")),  # its foot, below them
     ("Ruin_Stump", 467, (4.7425, 1.295, None), 2, -4.3515, -4.5518, ("masonry", "timber")),
-    ("Ruin_Stump", 1032, (None, 0.6725, 2.88), 0, 6.7185, 6.9187, ("masonry", "timber")),
+    ("Ruin_Stump", 1032, (None, 0.6725, 2.88), 0, 6.7185, 6.9187, None),  # the boards stop at 0.6 m here
     ("Ruin_RoofCollapsed", 985, (1.255, 1.445, None), 2, 3.077, 3.265, ("masonry", "masonry")),  # plaster both sides
 )
 
@@ -98,10 +101,12 @@ def test_the_forensics_thin_masonry_is_its_walls_lining(repo_root, variant, shap
     for t in (0.005, 0.015, 0.05, 0.1, 0.15, 0.18):
         p = list(at)
         p[axis] = plaster + (other - plaster) * t / abs(other - plaster)
-        found = _parts_at(data, p)
-        assert len(found) >= 1, f"{variant} shape {shape}: open air {t * 1000:.0f} mm behind the plaster at {p}"
-        want = materials[0] if t < 0.02 else materials[1]
-        assert {m for _, m in found} == {want}, f"{variant} shape {shape}: {found} {t * 1000:.0f} mm behind the plaster"
+        found = {m for _, m in _parts_at(data, p)}
+        if materials is None:
+            assert found == ({"masonry"} if t < 0.02 else set()), f"{variant} shape {shape}: {found} at {t * 1000:.0f} mm"
+        else:
+            want = materials[0] if t < 0.02 else materials[1]
+            assert found == {want}, f"{variant} shape {shape}: {found} {t * 1000:.0f} mm behind the plaster"
 
 
 def test_the_mirrored_ruin_is_the_ruin_mirrored(repo_root):

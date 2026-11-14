@@ -318,6 +318,50 @@
     {
       "shape": "box",
       "center": [
+        -3.57,
+        1.069793,
+        -4.565
+      ],
+      "size": [
+        1.06,
+        0.02,
+        0.03
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "trim"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.31,
+        1.069793,
+        -4.565
+      ],
+      "size": [
+        1.06,
+        0.02,
+        0.03
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "trim"
+    },
+    {
+      "shape": "box",
+      "center": [
         -4.43,
         1.069793,
         -4.5775
@@ -920,6 +964,72 @@
         4.95,
         0.02,
         0.035
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "trim"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.57,
+        1.114838,
+        -4.565
+      ],
+      "size": [
+        1.06,
+        0.02,
+        0.03
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "trim"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.85,
+        1.114838,
+        -4.565
+      ],
+      "size": [
+        1.06,
+        0.02,
+        0.03
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "trim"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.31,
+        1.114838,
+        -4.565
+      ],
+      "size": [
+        1.06,
+        0.02,
+        0.03
       ],
       "rotation": [
         0.0,
@@ -14860,28 +14970,6 @@
     {
       "shape": "box",
       "center": [
-        0.7975,
-        1.13,
-        -4.511268
-      ],
-      "size": [
-        0.015,
-        0.02,
-        0.279509
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "window_frame"
-    },
-    {
-      "shape": "box",
-      "center": [
         -2.97,
         1.21,
         -4.511268
@@ -17104,13 +17192,13 @@
     {
       "shape": "box",
       "center": [
-        5.3025,
-        0.62,
+        5.31,
+        0.595,
         -4.461738
       ],
       "size": [
-        2.765,
-        1.28,
+        2.78,
+        1.23,
         0.180449
       ],
       "rotation": [
@@ -17126,13 +17214,35 @@
     {
       "shape": "box",
       "center": [
-        -4.5025,
+        -6.3625,
         0.46,
         -4.461738
       ],
       "size": [
-        3.845,
+        0.125,
         0.04,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.215,
+        0.525,
+        -4.461738
+      ],
+      "size": [
+        3.27,
+        0.17,
         0.180449
       ],
       "rotation": [
@@ -17149,12 +17259,12 @@
       "shape": "box",
       "center": [
         0.66,
-        0.765,
+        0.74,
         -4.461738
       ],
       "size": [
         6.18,
-        0.65,
+        0.6,
         0.180449
       ],
       "rotation": [
@@ -17170,12 +17280,12 @@
     {
       "shape": "box",
       "center": [
-        -4.4825,
+        -6.3425,
         0.5,
         -4.461738
       ],
       "size": [
-        3.805,
+        0.085,
         0.04,
         0.180449
       ],
@@ -17192,12 +17302,12 @@
     {
       "shape": "box",
       "center": [
-        -4.4625,
+        -6.3225,
         0.54,
         -4.461738
       ],
       "size": [
-        3.765,
+        0.045,
         0.04,
         0.180449
       ],
@@ -17214,12 +17324,78 @@
     {
       "shape": "box",
       "center": [
-        -4.445,
-        0.585,
+        -6.3075,
+        0.57,
         -4.461738
       ],
       "size": [
-        3.73,
+        0.015,
+        0.02,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -3.61,
+        0.825,
+        -4.461738
+      ],
+      "size": [
+        2.06,
+        0.43,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.285,
+        1.27,
+        -4.461738
+      ],
+      "size": [
+        0.43,
+        0.46,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.82,
+        1.065,
+        -4.461738
+      ],
+      "size": [
+        0.48,
         0.05,
         0.180449
       ],
@@ -17236,189 +17412,13 @@
     {
       "shape": "box",
       "center": [
-        -4.5875,
-        0.64,
-        -4.461738
-      ],
-      "size": [
-        4.015,
-        0.06,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.5675,
-        0.705,
-        -4.461738
-      ],
-      "size": [
-        3.975,
-        0.07,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.5475,
-        0.77,
-        -4.461738
-      ],
-      "size": [
-        3.935,
-        0.06,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.5275,
-        0.835,
-        -4.461738
-      ],
-      "size": [
-        3.895,
-        0.07,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.5125,
-        0.885,
-        -4.461738
-      ],
-      "size": [
-        3.865,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -6.3575,
-        0.935,
-        -4.461738
-      ],
-      "size": [
-        0.115,
-        0.07,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -3.995,
-        0.995,
-        -4.461738
-      ],
-      "size": [
-        2.83,
-        0.19,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -6.3375,
-        1.0,
-        -4.461738
-      ],
-      "size": [
-        0.075,
-        0.06,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -6.3175,
+        -1.885,
         1.065,
         -4.461738
       ],
       "size": [
-        0.035,
-        0.07,
+        1.09,
+        0.05,
         0.180449
       ],
       "rotation": [
@@ -17434,13 +17434,13 @@
     {
       "shape": "box",
       "center": [
-        -5.035,
-        1.105,
+        0.23,
+        1.065,
         -4.461738
       ],
       "size": [
-        0.75,
-        0.03,
+        1.18,
+        0.05,
         0.180449
       ],
       "rotation": [
@@ -17456,13 +17456,13 @@
     {
       "shape": "box",
       "center": [
-        -3.7725,
-        1.1,
+        2.785,
+        1.065,
         -4.461738
       ],
       "size": [
-        1.475,
-        0.02,
+        1.93,
+        0.05,
         0.180449
       ],
       "rotation": [
@@ -17500,12 +17500,78 @@
     {
       "shape": "box",
       "center": [
+        -1.3525,
+        1.175,
+        -4.461738
+      ],
+      "size": [
+        0.025,
+        0.17,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.3425,
+        1.11,
+        -4.461738
+      ],
+      "size": [
+        0.035,
+        0.04,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
         0.235,
         1.1,
         -4.461738
       ],
       "size": [
         0.88,
+        0.02,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        0.7975,
+        1.1,
+        -4.461738
+      ],
+      "size": [
+        0.045,
         0.02,
         0.180449
       ],
@@ -17544,13 +17610,13 @@
     {
       "shape": "box",
       "center": [
-        1.25,
-        1.115,
+        0.7375,
+        1.135,
         -4.461738
       ],
       "size": [
-        1.16,
-        0.01,
+        0.135,
+        0.05,
         0.180449
       ],
       "rotation": [
@@ -17588,35 +17654,13 @@
     {
       "shape": "box",
       "center": [
-        -4.2375,
-        1.13,
+        -2.9875,
+        1.14,
         -4.461738
       ],
       "size": [
-        2.345,
-        0.02,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.985,
-        1.13,
-        -4.461738
-      ],
-      "size": [
-        0.13,
-        0.02,
+        0.135,
+        0.04,
         0.180449
       ],
       "rotation": [
@@ -17698,12 +17742,12 @@
     {
       "shape": "box",
       "center": [
-        1.31,
+        0.8125,
         1.13,
         -4.461738
       ],
       "size": [
-        1.01,
+        0.015,
         0.02,
         0.180449
       ],
@@ -17721,12 +17765,12 @@
       "shape": "box",
       "center": [
         -1.9775,
-        1.615,
+        1.465,
         -4.461738
       ],
       "size": [
         0.905,
-        0.97,
+        0.67,
         0.180449
       ],
       "rotation": [
@@ -17742,12 +17786,12 @@
     {
       "shape": "box",
       "center": [
-        -0.8525,
+        -0.3525,
         1.195,
         -4.461738
       ],
       "size": [
-        1.015,
+        0.015,
         0.13,
         0.180449
       ],
@@ -17765,12 +17809,12 @@
       "shape": "box",
       "center": [
         2.8725,
-        1.615,
+        1.17,
         -4.461738
       ],
       "size": [
         1.755,
-        0.97,
+        0.08,
         0.180449
       ],
       "rotation": [
@@ -17786,342 +17830,12 @@
     {
       "shape": "box",
       "center": [
-        -4.165,
-        1.15,
+        1.825,
+        1.2,
         -4.461738
       ],
       "size": [
-        2.49,
-        0.02,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        1.25,
-        1.15,
-        -4.461738
-      ],
-      "size": [
-        1.16,
-        0.02,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.23,
-        1.185,
-        -4.461738
-      ],
-      "size": [
-        2.36,
-        0.05,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        1.31,
-        1.21,
-        -4.461738
-      ],
-      "size": [
-        1.04,
-        0.1,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.0675,
-        1.23,
-        -4.461738
-      ],
-      "size": [
-        2.035,
-        0.04,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.08,
-        1.255,
-        -4.461738
-      ],
-      "size": [
-        2.06,
         0.01,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.6075,
-        1.285,
-        -4.461738
-      ],
-      "size": [
-        1.055,
-        0.05,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.285,
-        1.27,
-        -4.461738
-      ],
-      "size": [
-        2.73,
-        0.02,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.2625,
-        1.295,
-        -4.461738
-      ],
-      "size": [
-        2.685,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.6175,
-        1.405,
-        -4.461738
-      ],
-      "size": [
-        1.095,
-        0.19,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.2375,
-        1.325,
-        -4.461738
-      ],
-      "size": [
-        2.635,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.2125,
-        1.355,
-        -4.461738
-      ],
-      "size": [
-        2.585,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.1875,
-        1.385,
-        -4.461738
-      ],
-      "size": [
-        2.535,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.1625,
-        1.415,
-        -4.461738
-      ],
-      "size": [
-        2.485,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.1375,
-        1.445,
-        -4.461738
-      ],
-      "size": [
-        2.435,
-        0.03,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.115,
-        1.52,
-        -4.461738
-      ],
-      "size": [
-        2.39,
         0.12,
         0.180449
       ],
@@ -18138,13 +17852,13 @@
     {
       "shape": "box",
       "center": [
-        -4.28,
-        1.65,
+        -3.055,
+        1.21,
         -4.461738
       ],
       "size": [
-        0.44,
-        0.3,
+        0.01,
+        0.1,
         0.180449
       ],
       "rotation": [
@@ -18160,12 +17874,210 @@
     {
       "shape": "box",
       "center": [
-        4.385,
-        1.59,
+        0.805,
+        1.21,
         -4.461738
       ],
       "size": [
-        0.93,
+        0.03,
+        0.1,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.545,
+        1.215,
+        -4.461738
+      ],
+      "size": [
+        1.09,
+        0.01,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.45,
+        1.355,
+        -4.461738
+      ],
+      "size": [
+        0.6,
+        0.29,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.93,
+        1.355,
+        -4.461738
+      ],
+      "size": [
+        0.02,
+        0.29,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.8125,
+        1.235,
+        -4.461738
+      ],
+      "size": [
+        1.745,
+        0.05,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.49,
+        1.225,
+        -4.461738
+      ],
+      "size": [
+        0.98,
+        0.01,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.44,
+        1.235,
+        -4.461738
+      ],
+      "size": [
+        0.88,
+        0.01,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.39,
+        1.245,
+        -4.461738
+      ],
+      "size": [
+        0.78,
+        0.01,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.355,
+        1.525,
+        -4.461738
+      ],
+      "size": [
+        0.71,
+        0.55,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.795,
+        1.27,
+        -4.461738
+      ],
+      "size": [
+        1.71,
         0.02,
         0.180449
       ],
@@ -18182,13 +18094,13 @@
     {
       "shape": "box",
       "center": [
-        5.585,
-        1.585,
+        5.7725,
+        1.295,
         -4.461738
       ],
       "size": [
-        1.45,
-        0.01,
+        1.665,
+        0.03,
         0.180449
       ],
       "rotation": [
@@ -18204,13 +18116,145 @@
     {
       "shape": "box",
       "center": [
-        5.385,
-        1.595,
+        5.7475,
+        1.325,
         -4.461738
       ],
       "size": [
-        1.03,
-        0.01,
+        1.615,
+        0.03,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.7225,
+        1.355,
+        -4.461738
+      ],
+      "size": [
+        1.565,
+        0.03,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.6975,
+        1.385,
+        -4.461738
+      ],
+      "size": [
+        1.515,
+        0.03,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.6725,
+        1.415,
+        -4.461738
+      ],
+      "size": [
+        1.465,
+        0.03,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.6475,
+        1.445,
+        -4.461738
+      ],
+      "size": [
+        1.415,
+        0.03,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        5.625,
+        1.48,
+        -4.461738
+      ],
+      "size": [
+        1.37,
+        0.04,
+        0.180449
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_back"
+    },
+    {
+      "shape": "box",
+      "center": [
+        6.075,
+        1.545,
+        -4.461738
+      ],
+      "size": [
+        0.47,
+        0.09,
         0.180449
       ],
       "rotation": [
@@ -18248,79 +18292,13 @@
     {
       "shape": "box",
       "center": [
-        4.315,
-        1.7,
-        -4.461738
-      ],
-      "size": [
-        0.79,
-        0.2,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.32,
-        1.61,
-        -4.461738
-      ],
-      "size": [
-        0.89,
-        0.02,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.59,
+        6.075,
         1.645,
         -4.461738
       ],
       "size": [
-        1.44,
+        0.47,
         0.05,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.32,
-        1.71,
-        -4.461738
-      ],
-      "size": [
-        0.9,
-        0.08,
         0.180449
       ],
       "rotation": [
@@ -18358,34 +18336,12 @@
     {
       "shape": "box",
       "center": [
-        -4.225,
+        -1.89,
         1.95,
         -4.461738
       ],
       "size": [
-        0.33,
-        0.3,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.83,
-        1.95,
-        -4.461738
-      ],
-      "size": [
-        0.5,
+        0.72,
         0.3,
         0.180449
       ],
@@ -18424,57 +18380,13 @@
     {
       "shape": "box",
       "center": [
-        4.375,
+        2.125,
         1.95,
         -4.461738
       ],
       "size": [
-        0.65,
+        0.25,
         0.3,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        5.8,
-        1.965,
-        -4.461738
-      ],
-      "size": [
-        0.1,
-        0.27,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.11,
-        2.255,
-        -4.461738
-      ],
-      "size": [
-        0.64,
-        0.31,
         0.180449
       ],
       "rotation": [
@@ -18497,50 +18409,6 @@
       "size": [
         0.43,
         0.31,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.7,
-        2.255,
-        -4.461738
-      ],
-      "size": [
-        1.8,
-        0.31,
-        0.180449
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_back"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.3375,
-        2.56,
-        -4.461738
-      ],
-      "size": [
-        0.185,
-        0.3,
         0.180449
       ],
       "rotation": [
@@ -20976,12 +20844,12 @@
     {
       "shape": "box",
       "center": [
-        2.775,
+        2.87,
         0.97,
         -0.929404
       ],
       "size": [
-        1.93,
+        1.74,
         1.06,
         0.16807
       ],
@@ -20998,13 +20866,13 @@
     {
       "shape": "box",
       "center": [
-        2.26,
-        1.8,
+        2.355,
+        1.65,
         -0.929404
       ],
       "size": [
-        0.9,
-        0.6,
+        0.71,
+        0.3,
         0.16807
       ],
       "rotation": [
@@ -21028,6 +20896,50 @@
         0.12,
         0.3,
         0.16807
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.125125,
+        1.949875,
+        -0.929279
+      ],
+      "size": [
+        0.25025,
+        0.30025,
+        0.16832
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        2.704875,
+        1.949875,
+        -0.929279
+      ],
+      "size": [
+        0.01025,
+        0.30025,
+        0.16832
       ],
       "rotation": [
         0.0,
@@ -21174,6 +21086,28 @@
     {
       "shape": "box",
       "center": [
+        1.795,
+        0.16,
+        -0.20799
+      ],
+      "size": [
+        0.01,
+        0.36,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
         -0.525,
         1.095,
         -0.20799
@@ -21218,14 +21152,58 @@
     {
       "shape": "box",
       "center": [
-        -2.42,
-        1.12,
-        -0.30898
+        1.795,
+        0.945,
+        -0.20799
       ],
       "size": [
-        0.02,
-        1.36,
-        0.221981
+        0.01,
+        1.11,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.495,
+        0.97,
+        -0.20799
+      ],
+      "size": [
+        0.13,
+        1.06,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -0.71,
+        1.95,
+        -0.20799
+      ],
+      "size": [
+        0.38,
+        0.3,
+        0.02
       ],
       "rotation": [
         0.0,
@@ -21504,12 +21482,12 @@
     {
       "shape": "box",
       "center": [
-        1.41,
+        1.405,
         0.16,
         -0.290953
       ],
       "size": [
-        0.78,
+        0.77,
         0.36,
         0.185927
       ],
@@ -21527,12 +21505,12 @@
       "shape": "box",
       "center": [
         -1.26,
-        0.415,
+        0.945,
         -0.290953
       ],
       "size": [
         1.46,
-        0.05,
+        1.11,
         0.185927
       ],
       "rotation": [
@@ -21549,12 +21527,12 @@
       "shape": "box",
       "center": [
         1.41,
-        1.245,
+        0.945,
         -0.290953
       ],
       "size": [
-        0.77,
-        1.71,
+        0.76,
+        1.11,
         0.185927
       ],
       "rotation": [
@@ -21570,13 +21548,13 @@
     {
       "shape": "box",
       "center": [
-        -2.495,
-        0.905,
+        -2.295,
+        0.97,
         -0.290953
       ],
       "size": [
-        0.13,
-        0.93,
+        0.25,
+        1.06,
         0.185927
       ],
       "rotation": [
@@ -21592,78 +21570,12 @@
     {
       "shape": "box",
       "center": [
-        -1.4725,
-        0.905,
-        -0.290953
-      ],
-      "size": [
-        1.885,
-        0.93,
-        0.185927
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "masonry",
-      "landable": false,
-      "part": "partition"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -1.545,
-        1.435,
-        -0.290953
-      ],
-      "size": [
-        2.03,
-        0.13,
-        0.185927
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "masonry",
-      "landable": false,
-      "part": "partition"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -1.48,
-        1.65,
-        -0.290953
-      ],
-      "size": [
-        1.9,
-        0.3,
-        0.185927
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "masonry",
-      "landable": false,
-      "part": "partition"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -1.575125,
-        1.949875,
+        -1.165125,
+        1.650125,
         -0.291078
       ],
       "size": [
-        0.45025,
+        1.27025,
         0.30025,
         0.186177
       ],
@@ -21680,14 +21592,36 @@
     {
       "shape": "box",
       "center": [
-        -0.71,
-        1.95,
+        1.19,
+        1.65,
         -0.290953
       ],
       "size": [
-        0.38,
+        0.34,
         0.3,
         0.185927
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.08,
+        0.97,
+        -0.373917
+      ],
+      "size": [
+        0.18,
+        1.06,
+        0.02
       ],
       "rotation": [
         0.0,
@@ -21731,6 +21665,94 @@
       "size": [
         0.01,
         1.06,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.114875,
+        1.650125,
+        -0.374042
+      ],
+      "size": [
+        0.63025,
+        0.30025,
+        0.02025
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.575,
+        1.65,
+        -0.373917
+      ],
+      "size": [
+        0.43,
+        0.3,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.575125,
+        1.949875,
+        -0.374042
+      ],
+      "size": [
+        0.45025,
+        0.30025,
+        0.02025
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.405,
+        1.95,
+        -0.373917
+      ],
+      "size": [
+        0.77,
+        0.3,
         0.02
       ],
       "rotation": [
@@ -26454,12 +26476,12 @@
     {
       "shape": "box",
       "center": [
-        1.895,
+        1.985,
         0.16,
         3.164989
       ],
       "size": [
-        0.19,
+        0.01,
         0.36,
         0.176019
       ],
@@ -26476,79 +26498,13 @@
     {
       "shape": "box",
       "center": [
-        1.895,
-        0.945,
+        1.985,
+        1.095,
         3.164989
       ],
       "size": [
-        0.19,
-        1.11,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -1.675,
-        1.8,
-        3.164989
-      ],
-      "size": [
-        0.63,
-        0.6,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        1.675,
-        1.65,
-        3.164989
-      ],
-      "size": [
-        0.63,
-        0.3,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        1.4125,
-        2.105,
-        3.164989
-      ],
-      "size": [
-        0.775,
-        0.61,
+        0.01,
+        1.41,
         0.176019
       ],
       "rotation": [
@@ -27158,13 +27114,79 @@
     {
       "shape": "box",
       "center": [
-        -4.445,
-        0.765,
+        -4.455,
+        0.74,
         3.184989
       ],
       "size": [
-        4.53,
-        0.65,
+        4.51,
+        0.6,
+        0.176019
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_front"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -6.395,
+        1.065,
+        3.184989
+      ],
+      "size": [
+        0.63,
+        0.05,
+        0.176019
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_front"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.545,
+        1.065,
+        3.184989
+      ],
+      "size": [
+        1.03,
+        0.05,
+        0.176019
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_front"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.605,
+        1.065,
+        3.184989
+      ],
+      "size": [
+        0.81,
+        0.05,
         0.176019
       ],
       "rotation": [
@@ -27202,12 +27224,34 @@
     {
       "shape": "box",
       "center": [
-        -5.57,
+        -6.0925,
         1.1,
         3.184989
       ],
       "size": [
-        1.07,
+        0.025,
+        0.02,
+        0.176019
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_front"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -5.0475,
+        1.1,
+        3.184989
+      ],
+      "size": [
+        0.025,
         0.02,
         0.176019
       ],
@@ -27246,57 +27290,13 @@
     {
       "shape": "box",
       "center": [
-        -3.52,
-        1.11,
-        3.184989
-      ],
-      "size": [
-        1.05,
-        0.04,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.5275,
+        -2.5375,
         1.1,
         3.184989
       ],
       "size": [
-        0.695,
+        0.675,
         0.02,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -5.575,
-        1.115,
-        3.184989
-      ],
-      "size": [
-        1.29,
-        0.01,
         0.176019
       ],
       "rotation": [
@@ -27334,35 +27334,13 @@
     {
       "shape": "box",
       "center": [
-        -2.585,
+        -2.595,
         1.115,
         3.184989
       ],
       "size": [
-        0.81,
+        0.79,
         0.01,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -5.57,
-        1.13,
-        3.184989
-      ],
-      "size": [
-        1.01,
-        0.02,
         0.176019
       ],
       "rotation": [
@@ -27400,12 +27378,12 @@
     {
       "shape": "box",
       "center": [
-        -2.5125,
+        -2.5225,
         1.13,
         3.184989
       ],
       "size": [
-        0.665,
+        0.645,
         0.02,
         0.176019
       ],
@@ -27444,34 +27422,12 @@
     {
       "shape": "box",
       "center": [
-        -3.52,
-        1.135,
-        3.184989
-      ],
-      "size": [
-        1.0,
-        0.01,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.4375,
+        -6.3875,
         1.16,
         3.184989
       ],
       "size": [
-        4.515,
+        0.615,
         0.04,
         0.176019
       ],
@@ -27488,12 +27444,56 @@
     {
       "shape": "box",
       "center": [
-        -4.41,
+        -4.545,
+        1.2,
+        3.184989
+      ],
+      "size": [
+        1.03,
+        0.12,
+        0.176019
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_front"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.605,
+        1.2,
+        3.184989
+      ],
+      "size": [
+        0.81,
+        0.12,
+        0.176019
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_front"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -6.36,
         1.185,
         3.184989
       ],
       "size": [
-        4.46,
+        0.56,
         0.01,
         0.176019
       ],
@@ -27510,12 +27510,12 @@
     {
       "shape": "box",
       "center": [
-        -4.3975,
+        -6.3475,
         1.225,
         3.184989
       ],
       "size": [
-        4.435,
+        0.535,
         0.07,
         0.176019
       ],
@@ -27576,12 +27576,12 @@
     {
       "shape": "box",
       "center": [
-        -2.52,
+        -2.53,
         1.305,
         3.184989
       ],
       "size": [
-        0.68,
+        0.66,
         0.09,
         0.176019
       ],
@@ -27605,28 +27605,6 @@
       "size": [
         0.47,
         0.04,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -5.625,
-        1.325,
-        3.184989
-      ],
-      "size": [
-        0.39,
-        0.03,
         0.176019
       ],
       "rotation": [
@@ -27686,12 +27664,12 @@
     {
       "shape": "box",
       "center": [
-        -2.57,
+        -2.58,
         1.575,
         3.184989
       ],
       "size": [
-        0.78,
+        0.76,
         0.45,
         0.176019
       ],
@@ -27709,12 +27687,12 @@
       "shape": "box",
       "center": [
         -4.545,
-        1.735,
+        1.585,
         3.184989
       ],
       "size": [
         0.93,
-        0.73,
+        0.43,
         0.176019
       ],
       "rotation": [
@@ -27730,12 +27708,12 @@
     {
       "shape": "box",
       "center": [
-        -6.485,
+        -4.78,
         1.95,
         3.184989
       ],
       "size": [
-        0.45,
+        0.46,
         0.3,
         0.176019
       ],
@@ -27752,12 +27730,12 @@
     {
       "shape": "box",
       "center": [
-        -6.105,
+        -4.29,
         1.95,
         3.184989
       ],
       "size": [
-        0.05,
+        0.42,
         0.3,
         0.176019
       ],
@@ -27796,12 +27774,12 @@
     {
       "shape": "box",
       "center": [
-        -6.395,
+        -6.07,
         2.255,
         3.184989
       ],
       "size": [
-        0.63,
+        0.02,
         0.31,
         0.176019
       ],
@@ -27813,117 +27791,7 @@
       ],
       "material": "timber",
       "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -5.035,
-        2.255,
-        3.184989
-      ],
-      "size": [
-        0.05,
-        0.31,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.545,
-        2.255,
-        3.184989
-      ],
-      "size": [
-        0.69,
-        0.31,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.055,
-        2.255,
-        3.184989
-      ],
-      "size": [
-        0.05,
-        0.31,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.865,
-        2.255,
-        3.184989
-      ],
-      "size": [
-        0.33,
-        0.31,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -4.695,
-        2.56,
-        3.184989
-      ],
-      "size": [
-        0.39,
-        0.3,
-        0.176019
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
+      "part": "window_frame"
     },
     {
       "shape": "box",
@@ -28039,6 +27907,28 @@
       "shape": "box",
       "center": [
         -4.975,
+        1.115,
+        3.236749
+      ],
+      "size": [
+        0.13,
+        0.02,
+        0.279539
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -4.095,
         1.115,
         3.236749
       ],
@@ -28221,6 +28111,28 @@
       "size": [
         0.02,
         0.75,
+        0.279539
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -5.07,
+        1.88,
+        3.236749
+      ],
+      "size": [
+        0.02,
+        1.06,
         0.279539
       ],
       "rotation": [
@@ -31272,14 +31184,14 @@
     {
       "shape": "box",
       "center": [
-        1.445,
-        1.8,
-        6.100398
+        1.654875,
+        1.799875,
+        6.100523
       ],
       "size": [
-        1.03,
-        0.6,
-        0.180092
+        0.61025,
+        0.60025,
+        0.180342
       ],
       "rotation": [
         0.0,
@@ -31294,35 +31206,13 @@
     {
       "shape": "box",
       "center": [
-        -0.62,
+        -0.625,
         2.255,
         6.100398
       ],
       "size": [
-        0.38,
+        0.37,
         0.31,
-        0.180092
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        1.145,
-        2.405,
-        6.100398
-      ],
-      "size": [
-        0.43,
-        0.61,
         0.180092
       ],
       "rotation": [
@@ -32962,6 +32852,28 @@
       "material": "masonry",
       "landable": false,
       "part": "stove"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.425,
+        1.65,
+        -0.409971
+      ],
+      "size": [
+        0.01,
+        0.3,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
     },
     {
       "shape": "box",
@@ -34661,12 +34573,12 @@
       "shape": "box",
       "center": [
         -6.827227,
-        0.67,
+        0.525,
         -3.97
       ],
       "size": [
         0.17758,
-        0.46,
+        0.17,
         0.76
       ],
       "rotation": [
@@ -34683,34 +34595,12 @@
       "shape": "box",
       "center": [
         -6.827227,
-        0.905,
-        -3.745
-      ],
-      "size": [
-        0.17758,
-        0.01,
-        0.31
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_far_end"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -6.827227,
-        1.655,
+        1.505,
         0.175
       ],
       "size": [
         0.17758,
-        0.89,
+        0.59,
         5.77
       ],
       "rotation": [
@@ -34727,13 +34617,13 @@
       "shape": "box",
       "center": [
         -6.827227,
-        2.255,
-        2.88
+        1.935,
+        2.25
       ],
       "size": [
         0.17758,
-        0.31,
-        0.36
+        0.27,
+        0.92
       ],
       "rotation": [
         0.0,
@@ -34749,13 +34639,13 @@
       "shape": "box",
       "center": [
         -6.827227,
-        2.255,
-        1.12
+        1.935,
+        -0.445
       ],
       "size": [
         0.17758,
-        0.31,
-        1.36
+        0.27,
+        3.61
       ],
       "rotation": [
         0.0,
@@ -34771,12 +34661,34 @@
       "shape": "box",
       "center": [
         -6.827227,
-        2.255,
-        -1.345
+        2.085,
+        2.02
       ],
       "size": [
         0.17758,
-        0.31,
+        0.03,
+        0.46
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_far_end"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -6.827227,
+        2.085,
+        -0.455
+      ],
+      "size": [
+        0.17758,
+        0.03,
         1.81
       ],
       "rotation": [
@@ -34793,13 +34705,57 @@
       "shape": "box",
       "center": [
         -6.827227,
-        2.56,
-        -0.67
+        2.235,
+        -2.02
+      ],
+      "size": [
+        0.17758,
+        0.33,
+        0.46
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_far_end"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -6.827227,
+        2.25,
+        0.445
       ],
       "size": [
         0.17758,
         0.3,
-        0.46
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "wall_far_end"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -6.827227,
+        2.25,
+        -0.9
+      ],
+      "size": [
+        0.17758,
+        0.3,
+        0.92
       ],
       "rotation": [
         0.0,
@@ -34990,7 +34946,7 @@
     {
       "shape": "box",
       "center": [
-        -2.461098,
+        -2.532508,
         1.27,
         -4.335
       ],
@@ -35007,19 +34963,19 @@
       ],
       "material": "masonry",
       "landable": false,
-      "part": "partition"
+      "part": "wall_back"
     },
     {
       "shape": "box",
       "center": [
         -2.496803,
-        0.98,
-        -2.365
+        0.97,
+        -2.38
       ],
       "size": [
         0.142821,
-        1.08,
-        3.93
+        1.06,
+        3.9
       ],
       "rotation": [
         0.0,
@@ -35035,35 +34991,13 @@
       "shape": "box",
       "center": [
         -2.496803,
-        1.66,
-        -2.27
-      ],
-      "size": [
-        0.142821,
-        0.28,
-        4.12
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "masonry",
-      "landable": false,
-      "part": "partition"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.496803,
-        1.95,
-        -2.61
+        1.65,
+        -0.895
       ],
       "size": [
         0.142821,
         0.3,
-        3.44
+        0.93
       ],
       "rotation": [
         0.0,
@@ -35078,36 +35012,14 @@
     {
       "shape": "box",
       "center": [
-        -2.496803,
-        2.255,
-        -2.475
-      ],
-      "size": [
-        0.142821,
-        0.31,
-        1.37
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "masonry",
-      "landable": false,
-      "part": "partition"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.496678,
-        2.254875,
-        -4.194875
+        -2.496928,
+        1.649875,
+        -4.189875
       ],
       "size": [
         0.143071,
-        0.31025,
-        0.29025
+        0.30025,
+        0.28025
       ],
       "rotation": [
         0.0,
@@ -36245,28 +36157,6 @@
       "shape": "box",
       "center": [
         -2.092799,
-        0.715,
-        3.295
-      ],
-      "size": [
-        0.176432,
-        0.65,
-        0.01
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.092799,
         1.3,
         3.3225
       ],
@@ -36421,72 +36311,6 @@
       "shape": "box",
       "center": [
         -2.092799,
-        2.155,
-        3.325
-      ],
-      "size": [
-        0.176432,
-        0.11,
-        0.08
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.092799,
-        2.275,
-        3.3025
-      ],
-      "size": [
-        0.176432,
-        0.13,
-        0.045
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.092799,
-        2.375,
-        3.2875
-      ],
-      "size": [
-        0.176432,
-        0.07,
-        0.015
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.092799,
         0.16,
         4.64
       ],
@@ -36509,13 +36333,35 @@
       "shape": "box",
       "center": [
         -2.092799,
-        0.82,
-        4.6375
+        0.715,
+        4.64
       ],
       "size": [
         0.176432,
-        0.86,
-        2.685
+        0.65,
+        2.68
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "porch_wall"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.092799,
+        1.145,
+        4.66
+      ],
+      "size": [
+        0.176432,
+        0.21,
+        2.64
       ],
       "rotation": [
         0.0,
@@ -36750,80 +36596,14 @@
     {
       "shape": "box",
       "center": [
-        -2.092799,
-        2.155,
-        3.4725
-      ],
-      "size": [
-        0.176432,
-        0.11,
-        0.215
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.092799,
-        2.275,
-        3.4525
-      ],
-      "size": [
-        0.176432,
-        0.13,
-        0.255
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.092799,
-        2.375,
-        3.4375
-      ],
-      "size": [
-        0.176432,
-        0.07,
-        0.285
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
         -2.082799,
         0.16,
-        2.59
+        2.6
       ],
       "size": [
         0.196432,
         0.36,
-        0.94
+        0.92
       ],
       "rotation": [
         0.0,
@@ -36905,12 +36685,12 @@
       "shape": "box",
       "center": [
         -2.082799,
-        1.145,
+        0.995,
         2.6
       ],
       "size": [
         0.196432,
-        1.31,
+        1.01,
         0.92
       ],
       "rotation": [
@@ -36927,12 +36707,12 @@
       "shape": "box",
       "center": [
         -2.082799,
-        0.995,
+        0.85,
         0.185
       ],
       "size": [
         0.196432,
-        1.01,
+        0.72,
         0.73
       ],
       "rotation": [
@@ -36949,13 +36729,13 @@
       "shape": "box",
       "center": [
         -2.082799,
-        1.8,
-        0.5025
+        1.355,
+        0.495
       ],
       "size": [
         0.196432,
-        0.6,
-        0.125
+        0.29,
+        0.11
       ],
       "rotation": [
         0.0,
@@ -36971,12 +36751,12 @@
       "shape": "box",
       "center": [
         -2.082674,
-        1.950125,
+        1.799875,
         2.882375
       ],
       "size": [
         0.196682,
-        0.30025,
+        0.60025,
         0.36525
       ],
       "rotation": [
@@ -37368,12 +37148,12 @@
       "center": [
         1.806511,
         1.27,
-        -0.615
+        -0.7
       ],
       "size": [
         0.02,
         1.66,
-        0.43
+        0.6
       ],
       "rotation": [
         0.0,
@@ -37698,12 +37478,34 @@
       "center": [
         1.90066,
         1.27,
-        -0.615
+        -0.62
       ],
       "size": [
         0.168297,
         1.66,
-        0.43
+        0.44
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.90066,
+        0.47,
+        2.625
+      ],
+      "size": [
+        0.168297,
+        0.04,
+        0.87
       ],
       "rotation": [
         0.0,
@@ -38269,12 +38071,12 @@
       "shape": "box",
       "center": [
         2.096901,
-        0.725,
+        0.72,
         4.63
       ],
       "size": [
         0.175408,
-        0.67,
+        0.66,
         2.68
       ],
       "rotation": [
@@ -38291,13 +38093,13 @@
       "shape": "box",
       "center": [
         2.096901,
-        1.085,
-        3.31
+        1.605,
+        5.855
       ],
       "size": [
         0.175408,
-        0.05,
-        0.04
+        0.99,
+        0.23
       ],
       "rotation": [
         0.0,
@@ -38313,101 +38115,13 @@
       "shape": "box",
       "center": [
         2.096901,
-        1.17,
-        4.6375
+        1.185,
+        4.64
       ],
       "size": [
         0.175408,
-        0.12,
-        2.665
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.245,
-        4.655
-      ],
-      "size": [
-        0.175408,
-        0.03,
-        2.63
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.315,
-        5.8375
-      ],
-      "size": [
-        0.175408,
-        0.11,
-        0.265
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.28,
-        3.4725
-      ],
-      "size": [
-        0.175408,
-        0.04,
-        0.195
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.32,
-        3.495
-      ],
-      "size": [
-        0.175408,
-        0.04,
-        0.16
+        0.15,
+        2.1
       ],
       "rotation": [
         0.0,
@@ -38430,94 +38144,6 @@
         0.175408,
         0.03,
         0.39
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.355,
-        3.5175
-      ],
-      "size": [
-        0.175408,
-        0.03,
-        0.125
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.735,
-        5.81
-      ],
-      "size": [
-        0.175408,
-        0.73,
-        0.32
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.39,
-        3.5375
-      ],
-      "size": [
-        0.175408,
-        0.04,
-        0.085
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "porch_wall"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.43,
-        3.5575
-      ],
-      "size": [
-        0.175408,
-        0.04,
-        0.045
       ],
       "rotation": [
         0.0,
@@ -38687,12 +38313,12 @@
       "shape": "box",
       "center": [
         3.834488,
-        0.89,
+        0.595,
         -2.71
       ],
       "size": [
         0.182623,
-        1.82,
+        1.23,
         3.26
       ],
       "rotation": [
@@ -38709,13 +38335,35 @@
       "shape": "box",
       "center": [
         3.834488,
-        1.81,
-        -1.22
+        1.355,
+        -2.845
       ],
       "size": [
         0.182623,
-        0.02,
-        0.28
+        0.29,
+        2.99
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.834488,
+        1.65,
+        -3.52
+      ],
+      "size": [
+        0.182623,
+        0.3,
+        1.64
       ],
       "rotation": [
         0.0,
@@ -38732,12 +38380,12 @@
       "center": [
         3.834488,
         1.95,
-        -3.065
+        -3.15
       ],
       "size": [
         0.182623,
         0.3,
-        2.55
+        0.9
       ],
       "rotation": [
         0.0,
@@ -38753,13 +38401,13 @@
       "shape": "box",
       "center": [
         3.834488,
-        1.96,
-        -1.2
+        1.95,
+        -4.195
       ],
       "size": [
         0.182623,
-        0.28,
-        0.32
+        0.3,
+        0.29
       ],
       "rotation": [
         0.0,
@@ -40776,6 +40424,116 @@
     {
       "shape": "box",
       "center": [
+        -2.558213,
+        1.12,
+        -0.325
+      ],
+      "size": [
+        0.02,
+        1.36,
+        0.21
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.435392,
+        1.65,
+        -2.705
+      ],
+      "size": [
+        0.02,
+        0.3,
+        2.69
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.435392,
+        1.95,
+        -2.61
+      ],
+      "size": [
+        0.02,
+        0.3,
+        3.44
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.435392,
+        2.255,
+        -2.475
+      ],
+      "size": [
+        0.02,
+        0.31,
+        1.37
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.435267,
+        2.254875,
+        -4.194875
+      ],
+      "size": [
+        0.02025,
+        0.31025,
+        0.29025
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
         -2.242512,
         1.28,
         4.61
@@ -40865,12 +40623,12 @@
       "shape": "box",
       "center": [
         -2.171015,
-        0.2,
+        0.51,
         3.2825
       ],
       "size": [
         0.02,
-        0.44,
+        1.06,
         0.025
       ],
       "rotation": [
@@ -40887,12 +40645,12 @@
       "shape": "box",
       "center": [
         -2.171015,
-        1.96,
+        1.675,
         3.28
       ],
       "size": [
         0.02,
-        0.28,
+        0.85,
         0.02
       ],
       "rotation": [
@@ -41128,6 +40886,116 @@
     {
       "shape": "box",
       "center": [
+        -2.171015,
+        1.355,
+        0.13
+      ],
+      "size": [
+        0.02,
+        0.29,
+        0.62
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.171015,
+        1.65,
+        2.42
+      ],
+      "size": [
+        0.02,
+        0.3,
+        0.56
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -2.171015,
+        1.8,
+        0.5025
+      ],
+      "size": [
+        0.02,
+        0.6,
+        0.125
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.994583,
+        0.16,
+        2.13
+      ],
+      "size": [
+        0.02,
+        0.36,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        -1.994583,
+        1.81,
+        3.075
+      ],
+      "size": [
+        0.02,
+        0.58,
+        0.01
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
         -1.831478,
         1.255,
         4.65
@@ -41194,13 +41062,13 @@
     {
       "shape": "box",
       "center": [
-        -0.6876,
-        0.415,
-        5.97
+        -0.81291,
+        1.355,
+        6.15
       ],
       "size": [
-        0.27062,
-        0.05,
+        0.02,
+        0.01,
         0.02
       ],
       "rotation": [
@@ -41216,13 +41084,13 @@
     {
       "shape": "box",
       "center": [
-        -0.6876,
-        1.355,
-        6.15
+        -0.56229,
+        0.415,
+        5.97
       ],
       "size": [
-        0.27062,
-        0.01,
+        0.02,
+        0.05,
         0.02
       ],
       "rotation": [
@@ -42317,6 +42185,28 @@
       "shape": "box",
       "center": [
         1.01955,
+        2.2,
+        6.2
+      ],
+      "size": [
+        0.02,
+        1.02,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.01955,
         2.825,
         5.995
       ],
@@ -42334,6 +42224,28 @@
       "material": "timber",
       "landable": false,
       "part": "window_frame"
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.01955,
+        1.975,
+        6.19
+      ],
+      "size": [
+        0.02,
+        0.91,
+        0.02
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "timber",
+      "landable": false,
+      "part": "porch_wall"
     },
     {
       "shape": "box",
@@ -42582,12 +42494,12 @@
       "center": [
         1.974808,
         0.415,
-        -0.51
+        -0.515
       ],
       "size": [
         0.02,
         0.05,
-        0.66
+        0.67
       ],
       "rotation": [
         0.0,
@@ -42882,160 +42794,6 @@
         1.0
       ],
       "material": "masonry",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.3575,
-        3.31
-      ],
-      "size": [
-        0.175408,
-        0.285,
-        0.04
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.3775,
-        3.35
-      ],
-      "size": [
-        0.175408,
-        0.245,
-        0.04
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.3975,
-        3.39
-      ],
-      "size": [
-        0.175408,
-        0.205,
-        0.04
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.4175,
-        3.435
-      ],
-      "size": [
-        0.175408,
-        0.165,
-        0.05
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.4375,
-        3.48
-      ],
-      "size": [
-        0.175408,
-        0.125,
-        0.04
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.4575,
-        3.52
-      ],
-      "size": [
-        0.175408,
-        0.085,
-        0.04
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
-      "landable": false,
-      "part": "wall_front"
-    },
-    {
-      "shape": "box",
-      "center": [
-        2.096901,
-        1.4775,
-        3.56
-      ],
-      "size": [
-        0.175408,
-        0.045,
-        0.04
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "material": "timber",
       "landable": false,
       "part": "wall_front"
     },
@@ -43566,6 +43324,138 @@
       "material": "masonry",
       "landable": false,
       "part": "stove"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9158,
+        1.355,
+        -1.215
+      ],
+      "size": [
+        0.02,
+        0.29,
+        0.27
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9158,
+        1.65,
+        -1.89
+      ],
+      "size": [
+        0.02,
+        0.3,
+        1.62
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9158,
+        1.81,
+        -1.22
+      ],
+      "size": [
+        0.02,
+        0.02,
+        0.28
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9158,
+        1.95,
+        -2.245
+      ],
+      "size": [
+        0.02,
+        0.3,
+        0.91
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9158,
+        1.95,
+        -3.825
+      ],
+      "size": [
+        0.02,
+        0.3,
+        0.45
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
+    },
+    {
+      "shape": "box",
+      "center": [
+        3.9158,
+        1.96,
+        -1.2
+      ],
+      "size": [
+        0.02,
+        0.28,
+        0.32
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "material": "masonry",
+      "landable": false,
+      "part": "partition"
     },
     {
       "shape": "box",
@@ -59080,13 +58970,13 @@
     {
       "shape": "box",
       "center": [
-        1.983637,
-        0.406552,
-        3.035515
+        1.960873,
+        0.404644,
+        3.082453
       ],
       "size": [
         0.05,
-        0.09,
+        0.04,
         0.02
       ],
       "rotation": [
@@ -64705,32 +64595,12 @@
       "shape": "box",
       "center": [
         -2.4968,
-        1.0,
-        -2.375
-      ],
-      "size": [
-        0.1428,
-        1.0,
-        3.75
-      ],
-      "rotation": [
-        0.0,
-        0.0,
-        0.0,
-        1.0
-      ],
-      "porosity": 0.0
-    },
-    {
-      "shape": "box",
-      "center": [
-        -2.4968,
-        1.625,
+        1.125,
         -2.25
       ],
       "size": [
         0.1428,
-        0.25,
+        1.25,
         4.0
       ],
       "rotation": [
@@ -65085,12 +64955,12 @@
       "shape": "box",
       "center": [
         1.8888,
-        1.0,
+        0.25,
         -0.125
       ],
       "size": [
         0.2672,
-        2.0,
+        0.5,
         1.25
       ],
       "rotation": [
@@ -65125,6 +64995,26 @@
       "shape": "box",
       "center": [
         1.8888,
+        1.25,
+        -0.25
+      ],
+      "size": [
+        0.2672,
+        1.5,
+        1.5
+      ],
+      "rotation": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "porosity": 0.0
+    },
+    {
+      "shape": "box",
+      "center": [
+        1.8888,
         1.75,
         2.375
       ],
@@ -65146,12 +65036,12 @@
       "center": [
         1.8888,
         2.125,
-        -0.5
+        -0.625
       ],
       "size": [
         0.2672,
         0.25,
-        0.5
+        0.75
       ],
       "rotation": [
         0.0,
@@ -69410,7 +69300,7 @@
         [
           -2.5682,
           1.8,
-          -0.4
+          -0.23
         ],
         [
           -2.5682,
@@ -69467,7 +69357,7 @@
         [
           -2.4254,
           1.8,
-          -0.4
+          -0.23
         ],
         [
           -2.4254,
@@ -69558,7 +69448,7 @@
         [
           1.9892,
           1.11,
-          6.21
+          6.22
         ],
         [
           1.9892,
@@ -69915,7 +69805,7 @@
         [
           2.2512,
           1.11,
-          6.21
+          6.22
         ],
         [
           2.2512,

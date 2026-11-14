@@ -17,9 +17,9 @@ Params (assets-src/ruins/<variant>.json):
   in the source mesh's frame before the prefab moves it. Each rule's layer_m (a lining's share of a layered slab),
   sheet_m (a single-sided face's slab), landable, edge_radius_m (its snag records' arris) and merge_tol_m (its
   rectangles' merge tolerance, where its diagonal edges allow a coarser staircase: a roof's hips). A lining (one with
-  layer_m) is never a free skin (lib.slabs, w9-village-physics 2.15); its core, a physics id, is what backs it to its
-  sheet_m where the mesh draws no other face of its part (a ceiling's boards): the rule of its part with that
-  physics, or one made for it.
+  layer_m) is never a free skin where the mesh draws its wall's other face (lib.slabs, w9-village-physics 2.15); its
+  core, a physics id, is what backs it to its sheet_m where the mesh draws no other face of its part (a ceiling's
+  boards): the rule of its part with that physics, or one made for it.
 - slabs: lib.slabs' settings.
 - gaps: the parts whose slabs are walls (their enclosed clear regions in the intact house are the openings), the skin
   parts (roof, ceiling: what the ruin lost of them are holes), the smallest gap, the band past a wall's faces that
@@ -201,9 +201,7 @@ def build(params):
             named = _intact_openings(intact_out, parts, params)
     else:
         seed = None
-    walls = None if intact_out is None else {  # a lining whose wall's other face the ruin lost whole: the house's
-        f.key: [(p.side, p.offset, tuple(sorted(p.parts))) for p in f.planes] for f in intact_out["families"]}
-    out = slabs.decompose(ruin_tris, parts, settings, seed, air.Air(ruin_tris, settings["air_cell_m"]), walls)
+    out = slabs.decompose(ruin_tris, parts, settings, seed, air.Air(ruin_tris, settings["air_cell_m"]))
     made = len(out["boxes"])
     kept = slabs.prune(out["boxes"], lambda b: parts[b["part"]].physics, params["prune"]["tol_m"])
 
