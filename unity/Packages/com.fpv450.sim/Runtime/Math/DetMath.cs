@@ -43,6 +43,8 @@
 // - Euler angles exist only for logging and the simulated pilot: ZYX yaw-pitch-roll,
 //   with the wind study's tracker definitions (reference-notes/wind.md section 6.2).
 
+using System.Runtime.CompilerServices;
+
 namespace Fpv450.Sim
 {
     public static class DetMath
@@ -51,18 +53,22 @@ namespace Fpv450.Sim
         /// Square root. IEEE 754 requires sqrt to be correctly rounded, so this gives
         /// the same bits on every runtime.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Sqrt(double x) => System.Math.Sqrt(x);
 
         /// <summary>|x|: exact (the sign bit cleared) on every runtime.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Abs(double x) => System.Math.Abs(x);
 
         /// <summary>
         /// The smaller of a and b: a unless b &lt; a. Plain comparisons, so a NaN or a
         /// signed zero gives the same bits on every runtime (System.Math.Min has not).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Min(double a, double b) => b < a ? b : a;
 
         /// <summary>The larger of a and b: a unless b &gt; a (the rule of Min).</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static double Max(double a, double b) => b > a ? b : a;
 
         /// <summary>
