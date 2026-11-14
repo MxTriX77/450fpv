@@ -124,3 +124,170 @@ What the friend's world places (`maps/farmland/placements.json`, its grass layer
 - **Reconfiguration caps the load:** grass and leaves past a Cauchy number of about 1 take drag ∝ U^(4/3) (plates, filaments) or ∝ U (cones, dense crowns), not U².
 - **Leaves flutter by themselves** at a frequency nearly independent of the wind (a cherry leaf 6 ± 1 Hz), riding on the branch's slower sway; in stronger wind the branch's buffeting takes over [11].
 - **Season:** a leafless broadleaf sways 18 % faster with half the damping [1]; the farmland's `_Dry` variants are the late-season look, not leafless.
+
+## 4. The rotors' wash on plants
+
+### 4.1 Published
+
+| Finding | Value | Conditions | Source | Read |
+|---|---|---|---|---|
+| A crop's deformation follows the wash's **peak speed** at the canopy; **under 3 m/s no visible change** in the plants | — | heading-stage rice under a multirotor at 1.5–5 m, 1–5 m/s, payload 0–20 kg | [21] | abstract (search excerpt; its journal record could not be read) |
+| The deformed area in forward flight is **horseshoe-shaped**; payload (thrust) matters most, then flight speed, then height | — | the same | [21] | the same |
+| Hovering higher (2 → 8 m), the speed at the canopy falls and its turbulence intensity rises | — | the same | [21] | the same |
+| Over about **3.5 m/s** of flight speed or **3.5 m** of height the wash hardly forms a vortex in the canopy | — | rice, a heavier multirotor | [22] | abstract (search excerpt) |
+| The **outwash peaks at 1.8–1.95 v_h** at r/R 1.6–1.8, whatever the height, in a layer about 0.15 R deep, 0.02–0.08 R above the ground | — | a rotor at z/R 0.87–2.09 | [23] | full, as design 19 reads it |
+| The radial wall jet's peak speed falls as **r^−1.1**, its half-height δ = 0.098·r·(r/H)^−0.1; its profile (Verhoff) has its peak at 0.165 δ, half the peak at δ, 9 % at 2 δ, 0.7 % at 3 δ | — | a round jet landing normally | [24], design 19 | restated (design 19, [16]) |
+
+### 4.2 This drone, from the sim's own law (derived)
+
+The hover's v_h is 10.1 m/s and the contracted near wake 2v_h ≈ 20 m/s (p7d design 19). Its landing numbers at 2 m and 4 m are interpolated (log-linear) from design 19's table at 1.5 / 3 / 6 m. A culm's lean is §3's: a green 0.6 m culm lies over (tip past L under a full-height load) from about **5 m/s**, leans a third of its height at 3 m/s and a tenth at 1.5 m/s; a dry culm needs about **10 m/s** to lie over.
+
+| Hub height | What lands | Flattened (≥ 5 m/s over the plant's height) | Leaning and rippling ring (3 → 1.5 m/s) |
+|---|---|---|---|
+| **0.5 m** (below l = 0.45 m … 2.5 l = 1.13 m, mostly the near wake) | four columns at about 20 m/s, a wall jet from each at up to 18–20 m/s at 0.20–0.23 m from its hub [23] | **under the four discs and between them**, dry culms too (≥ 10 m/s): a patch about the drone's span (0.6–0.8 m) | the outwash falls as r^−1.1 to about 3.8 m/s at 1 m and 1.8 m/s at 2 m from a hub: **visible lean out to about 1–1.2 m, ripples to about 2 m** |
+| **1 m** (between the near wake and the merged jet: decision 19's blend) | the columns merging | as at 0.5 m with lower speeds; dry culms only under the discs | as above |
+| **2 m** | the merged jet at about **9.8 m/s**, its landing zone r_i ≈ 0.77 m | the landing zone, r ≲ 0.8 m: green and most dry culms down | the wall jet is 3 m/s at about 2.3 m, but **only 0.1–0.3 m deep** there (δ ≈ 0.1 r): a tall culm takes it on its lowest quarter, so it leans and flickers rather than lies |
+| **4 m** | about **6.9 m/s**, r_i ≈ 1.1 m | green culms within about 1.1 m; dry culms lean (0.4 L), not down | 3 m/s at about 2.3 m, as at 2 m: **the moving ring's reach barely changes with the height** (the outwash beyond r_i carries the jet's momentum flux, design 19) |
+| **≥ 8 m** | under 5 m/s at the ground | none | a breeze-like ring, under the 3 m/s of visible change past 1–2 m |
+
+So, for 1.2's check of the spec's hover at 0.5, 1, 2 and 4 m: **the flattened patch is the drone's span low down, the landing zone (0.8 → 1.1 m) higher up, and its force falls with height** (dry culms stop lying flat from about 2–3 m, green ones from about 6–8 m); the leaning ring reaches about 2 m from almost any height; tall grass only feels the outwash near its base. In forward flight the patch trails as the horseshoe of [21], behind the camera (A).
+
+**Against clip H** (rotors 0.3–0.6 m up, the near wake): mats pressed flat under the drone, standing stalks within about 1 m fluttering, nothing visibly moving past 1.5–2 m, and dead leaves thrown out at 3–8 m/s (§1) all fit the outwash's 18–20 m/s at the discs falling to about 4 m/s at 1 m and 2 m/s at 2 m.
+
+## 5. The dust the wash lifts
+
+### 5.1 Published
+
+| Finding | Value | Conditions | Source | Read |
+|---|---|---|---|---|
+| **Threshold friction velocity** to start grains moving (Shao and Lu 2000): u*_t = A_N·√((ρ_p/ρ_a)·g·D + γ/(ρ_a·D)) | A_N 0.111; γ 1.65–5.0 × 10⁻⁴ N/m for dry loose soil (2.9 × 10⁻⁴ fitted by Kok and Renno 2006) | loose, dry grains on a flat bed | [14] | full |
+| Its minimum | at grains of about **75–100 µm**; derived from the law: **0.21–0.27 m/s** at 80–140 µm | — | [14]; derived | full |
+| **Dust is not lifted directly** (a 10 µm grain needs 0.4–0.7 m/s, a 2 µm one 0.9–1.6 m/s, derived from the law): it is knocked out by **saltating sand-sized grains**, so the dust threshold is the saltation threshold | — | — | [14] | full |
+| **Moisture** raises it (Fécan et al.): u*_wet / u*_dry = 1 for w ≤ w′, √(1 + 1.21·(w − w′)^0.68) above, w′ = 0.0014·c² + 0.17·c (w gravimetric water %, c clay %) | **× 1.5–2.5 at 5–10 % water, × 2.7–3.3 at 15–25 %** (derived, clay 10–30 %) | all soil types | [14], [15] | full ([14]); abstract ([15]) |
+| **Crusts and cover** raise it: roughness elements (stones, plants) take the wind's stress off the bare soil between them | — | — | [14] | full |
+| Loose agricultural soils, wind tunnel | sandy loam **0.139 m/s**; four silt loams **0.189–0.252 m/s**; a silt loam fallow field in place **0.35–0.40 m/s** | soils from cropped fields | [17] | abstract (search excerpt) |
+| Desert crusts | bare sand **0.16 m/s**; crusts disturbed 1, 5–10 years before **0.46, 0.87 m/s**; crusts undisturbed for 20 years **3.76 m/s** | sandy soil, portable wind tunnel | [18] | abstract (search excerpt) |
+| Volcanic ash on the ground (no burnt-field ash number found) | **0.13–0.38 m/s**; fine ash's threshold doubles with humidity | field and laboratory | [19] | abstract (search excerpt; the units read as m/s) |
+| Radial wall jet's skin friction (Poreh et al. 1967): c_f = τ_w / (½ρu_m²) = 0.06·(u_m·δ/ν)^−0.3·(r/H)^−0.16 | c_f 0.0021–0.0029 here (derived) | smooth wall | [16] | full (restating Poreh) |
+| Under a rotor, the wake's vortices hitting the ground give **large, brief excursions of wall shear and an upwash** that lifts and holds sediment; models built on a steady threshold miss them | — | rotorcraft brownout, model rotor over a mobile bed | [25] | record and search excerpt |
+
+### 5.2 The wash's friction velocity on the ground (derived)
+
+u* = u_m·√(c_f/2) with [16]'s smooth-wall c_f, and on a rough wall u* = u_m / (5.75·log₁₀(y_m/k_s) + 8.5) at the jet's peak height y_m = 0.165 δ (Nikuradse's fully rough law, p7d design 20), for k_s 2 mm (rolled soil, a track). The jet's numbers are design 19's for this drone.
+
+| Where | u_m (m/s) | u* smooth | u* rough (k_s 2 mm) |
+|---|---|---|---|
+| 10 m hover, at the landing zone's edge (r_i 2.07 m) | 3.7 | 0.14 | 0.23 |
+| 6 m, r_i 1.41 m | 5.4 | 0.20 | 0.36 |
+| 3 m, r_i 0.92 m | 8.2 | 0.30 | 0.59 |
+| 1.5 m, r_i 0.68 m | 11.2 | 0.40 | 0.86 |
+| 1.5 m, at 2 m out | 3.4 | 0.11 | 0.22 |
+| 1.5 m, at 4 m out | 1.6 | 0.05 | 0.09 |
+| rotors 0.3–0.5 m up, at the outwash's peak | 19 | 0.72 | about 2 |
+
+**The friction velocity under the drone doubles from 10 m to 3 m and doubles again by 0.5 m**, and it falls fast outward (r^−1.1 and a thickening layer). The smooth and rough laws differ by up to 2×: that is the band.
+
+### 5.3 Per surface (the surface table's `dry` sets)
+
+"Dust from" is the hover height at which the landing zone's u* passes the surface's threshold, from §5.2's smooth to rough columns (derived; the threshold labelled as given).
+
+| Surface | Threshold u*_t, dry | Label | Dust from | Look |
+|---|---|---|---|---|
+| `crater_spoil` (loose churned spoil) | 0.14–0.25 m/s | published range of loose loams [17] | **about 6–10 m** | the soil's colour; plenty of supply |
+| `dirt_track` (compacted silt loam, a loose film) | 0.19–0.25 | published, loose silt loams [17] | about 5–10 m, but a thin film: **short whiffs**, then the compacted body | the track's dust |
+| `belt_bare` (firm bare loam, loose top; F's dust) | 0.20–0.35 | assumed, between loose loam and a fallow field [17] | about 3–6 m; dense at 0.5–1 m (F) | ochre (F) |
+| `burnt_field` (ash on crusted loam) | 0.13–0.38 (the ash) | published for volcanic ash [19]; no burnt-ground value | about 3–10 m; a light ash puffs first | dark grey to black |
+| `tilled` (loose tilled loam, clods) | 0.35–0.40 | published, fallow silt loam in place [17] | about 1.5–4 m | the soil's colour |
+| `dry_crust` (crusted silty field) | 0.5–1.0 | assumed, between disturbed crusts 0.46–0.87 and loose loam [18]; intact old crusts reach 3.76 | **about 1–3 m, growing lower**: the pilot's "dust whiffs as you land closer to the ground" | sparse, as the crust abrades |
+| `rubble` (brick and mortar) | 0.25–0.5 | assumed (a fine fraction among coarse debris) | about 1.5–5 m, supply-limited | red-grey brick dust |
+| `asphalt`, `concrete_slab` | 0.2–0.3 for the film on them | assumed | from 5–10 m, one short whiff, then clean | grey |
+| `meadow_sod`, `weeds`, `belt_straw`, `yard_litter` | the cover shelters the soil [14] | published in kind | **no soil dust**; chaff and litter pieces lift instead (H's straw mat) | straw and leaf bits |
+| any surface **wet** | × 1.5–3.3 by water content | published [14], [15] | wet loam (15–25 % water) needs 0.5–1 m/s: **only under about 1 m, or none** (H's dark soil) | — |
+| **saturated** | — | assumed: no loose grains | **none** | — |
+
+**What a whiff looks like** (derived): the fines (under 20 µm) settle at under 3 cm/s (Stokes), so the dust hangs and drifts with the wind and the wake's recirculation for many seconds; the sand-sized grains that knock it loose (about 100 µm) hop and fall back within a second. The unsteady wake (its vortices landing, [25]) makes the lift come in puffs at first; low and long over loose dry ground it becomes F's continuous veil.
+
+## 6. The drone in what it flies through
+
+### 6.1 Published
+
+| Finding | Value | Conditions | Source | Read |
+|---|---|---|---|---|
+| A canopy's drag on the air: ½ρC_d·a·U² per volume, a the one-sided leaf area per volume | C_d **0.1–0.5** (Katul et al. 2004, Endalew et al. 2009) | canopy flow models | [20] | search excerpt |
+| The drag length ℓ_d = 1/(a·C_d) | field medians **21 m for trees, 0.7 m for low vegetation such as crops** | review of field experiments; 168 large-eddy simulations | [10] | abstract |
+| A wheat plant's drag coefficient | about **1** | portable wind tunnel over the field | [5] | abstract |
+| Whole crowns at 20 m/s | C_d 0.22–0.47 (conifers) | wind tunnel, crowns 4–20 m/s | [8] | abstract (search excerpt) |
+| The drawn crowns' leaf area density | **0.88 m²/m³** (IslandTree; 0.60 dry), 0.95–1.13 (the leafy bushes), 0.21–2.09 (the pines' needles) | measured from the store's meshes | `assets-src/vendor_plant_numbers.json` | measured |
+| A force on a small aircraft pushed through foliage | **none found** | — | — | — |
+
+### 6.2 What it gives the drone (derived)
+
+- **Each element pushed aside** is a cantilever: F = 3EI·δ/L³ at a deflection δ at its tip. At δ = 0.1 m:
+
+  | Element | Stiffness at the tip | Force at 0.1 m |
+  |---|---|---|
+  | green grass culm, 0.6 m | 0.008 N/m | **0.8 mN** |
+  | dry culm, 0.9 m | 0.085 N/m | 8.5 mN |
+  | weed stalk 5 mm × 0.5 m / 8 mm × 1 m / 13 mm × 0.85 m (E 2 GPa) | 1.3 / 1.0 / 12 N/m | **0.13 / 0.10 / 1.2 N** |
+  | twig 3 mm × 0.3 m / 5 mm × 0.5 m / 10 mm × 1 m (E 10 GPa) | 4.4 / 7.4 / 15 N/m | **0.44 / 0.74 / 1.5 N** |
+
+  **A twig pushes back about 900 times as hard as a green culm, 90 times a dry one and 4–7 times a weed stalk** (EI ∝ d⁴, over L³). The pilot's "more heavily" for twigs and leaves is this ratio, computed.
+- **Grass in numbers:** at about 400 standing culms per m² (stem-properties.md §3), a body 0.25 m wide skimming 0.1 m deep for 0.3 m bends about 30 culms: about 0.03 N if green, 0.26 N if dry. One weed stalk in the way is as much again; a few twigs several times more.
+- **Leaves as drag:** the foliage swept by the body resists as ½ρU²·C_d·a·V. With C_d 0.1–0.5 [20], a 0.9–1.5 m²/m³ (the drawn crowns) and V the volume in contact (0.06 m² frontal × 0.3 m deep, assumed): **0.04–0.2 N at 5 m/s, 0.16–0.8 N at 10 m/s**. The leaves' own mass set moving (0.2 kg/m² fresh × a, so 0.2–0.3 kg/m³) bounds a further m″U²A of about 0.3–0.45 N at 5 m/s, if every leaf in the path were brought to the body's speed (an upper bound: attached leaves bend instead).
+- **Damping in contact:** the stems' ζ_s 0.08–0.1 (§3.2) for the bending, plus the air's ζ_a; a stem released by the body springs back at its own f₁ (a culm creeps back, a twig rings).
+
+## 7. Gaps, and the assumption each would take
+
+| Gap | Assumption proposed | Why |
+|---|---|---|
+| A grass culm's own natural frequency and damping | f₁ from the section (§3.2); ζ_s 0.08, the wheat shoot's [5] | the only measured herbaceous shoot damping read; grass is overdamped by the air anyway (ζ_a ≫ ζ_s in any wind) |
+| A wheat shoot's natural frequency (the value) | the derived 1.0–1.9 Hz with an ear | [5] says it varies with season and wetting, but its number was not read |
+| A broadleaf tree's f₀ at the IslandTree's size | 0.3–0.6 Hz in leaf | [2]'s pendulum fit and open-grown offset, [1]'s modelled sycamore 0.26 Hz; no measured value for a 13 m open-grown broadleaf was read |
+| The restated pine regression's constants [7] | used as given, the pine term negative | read in a search excerpt, the sign inferred from [6]'s finding that pines sway slower |
+| Leaf flutter's frequency for the belts' species (locust, ash, maple) | 4–8 Hz, around the cherry's 6 ± 1 Hz [11], each leaf with its own phase | no other species' value found |
+| The Vogel exponents of whole broadleaf crowns | −1 for a dense crown [3] and −2/3 for single blades | the conifer table in [3] could not be read; the hardwoods' streamlining [9] fits a strong reduction |
+| The crop downwash studies' full texts [21], [22] | used only for the 3 m/s visible-change threshold and the horseshoe | their journals' pages could not be read |
+| A dust threshold for ash on burnt farmland | 0.13–0.38 m/s (volcanic ash, [19]) | no post-fire ash value was found |
+| The crusted field's threshold | 0.5–1.0 m/s | between disturbed crusts and loose loam [18], [17]; a physical (rain) crust, not a biological one |
+| The wall jet's friction on a real field | the smooth-to-rough band of §5.2 (up to 2×) | the soil's roughness k_s is not measured |
+| Burnt stems' stiffness | the dry culm's, wall halved (stem-properties.md) | no source |
+| Forces on a drone in foliage | §6.2's element sums | nothing measured was found |
+| The crowns' twig count per volume | to measure from the store's meshes as w9-village-physics 2.8 measured the leaves | the drawn twig cards and the collision's 1.5 m twig spheres do not give it |
+
+## 8. What 1.2 needs first
+
+1. **Two regimes:** grass culms overdamped by the air (lag τ ≈ ζ/(πf₁)), everything thicker a damped oscillator with ζ_s 0.04–0.1 plus ζ_a (§3.1, §3.3). One law covers both: modal mass, f₁ from the section, ζ = ζ_s + ζ_a(U).
+2. **The drag reconfigures** past a Cauchy number of about 1: U^(4/3) for blades and culms, U for leaves rolled into cones and dense crowns (§3.2).
+3. **The wash's load is the air at the plant's height:** the near columns flatten under the discs, the merged jet's landing zone presses down, and beyond it the wall jet is thin (δ ≈ 0.1 r), so tall grass takes it near its base only (§4.2).
+4. **Dust** is a threshold on u* from the wall jet's speed, with §5.3's thresholds and the wet factor; the onset heights in §5.3 are the check.
+5. **Clip H's targets** (§1.5): flutter within about 1 m at a 0.3–0.6 m creep, pieces thrown at 1–8 m/s, no dust from damp soil; and clip F's veil.
+
+## References
+
+1. Jackson T., Shenkin A., Moore J., Bunce A., van Emmerik T., Kane B., Burcham D., James K., Selker J., Calders K., Origo N., Disney M., Burt A., Wilkes P., Raumonen P., Gonzalez de Tanago Menaca J., Lau A., Herold M., Goodman R.C., Fourcaud T., Malhi Y. (2019). An architectural understanding of natural sway frequencies in trees. *J. R. Soc. Interface* 16(155), doi:10.1098/rsif.2019.0116. Accepted manuscript: https://discovery.ucl.ac.uk/10078184/ (full).
+2. Jackson T.D. et al. (2021). The motion of trees in the wind: a data synthesis. *Biogeosciences* 18: 4059–4072. https://bg.copernicus.org/articles/18/4059/2021/ (full).
+3. Gosselin F.P. (2019). Mechanics of a plant in fluid flow. *J. Exp. Bot.*, preprint arXiv:1905.08055 (full; its exponents' symbols confirmed by a search excerpt), restating Vogel S. (1989), Drag and reconfiguration of broad leaves in high winds, *J. Exp. Bot.* 40: 941–948, Gosselin F.P. & de Langre E. (2011), Drag reduction by reconfiguration of a poroelastic system, *J. Fluids Struct.* 27: 1111–1123. https://arxiv.org/abs/1905.08055
+4. Berry P.M., Sterling M., Baker C.J., Spink J., Sparkes D.L. (2003). A calibrated model of wheat lodging compared with field measurements. *Agric. For. Meteorol.* 119: 167–180. doi:10.1016/S0168-1923(03)00139-4. https://research.birmingham.ac.uk/en/publications/a-calibrated-model-of-wheat-lodging-compared-with-field-measureme/ (abstract: accurate drag and damping values lowered the predicted failure wind speeds by 44 %).
+5. Sterling M., Baker C.J., Berry P.M., Wade A. (2003). An experimental investigation of the lodging of wheat. *Agric. For. Meteorol.* 119: 149–165. doi:10.1016/S0168-1923(03)00140-0. https://research.birmingham.ac.uk/en/publications/an-experimental-investigation-of-the-lodging-of-wheat (abstract).
+6. Moore J.R., Maguire D.A. (2004). Natural sway frequencies and damping ratios of trees: concepts, review and synthesis of previous studies. *Trees* 18: 195–203. doi:10.1007/s00468-003-0295-6. https://napier-repository.worktribe.com/output/259422/ (abstract, search excerpt).
+7. The regression of [6] as restated in *Forests* 11(9): 915 (2020), doi:10.3390/f11090915 (search excerpt; the page refused automated reads).
+8. Rudnicki M., Mitchell S.J., Novak M.D. (2004). Wind tunnel measurements of crown streamlining and drag relationships for three conifer species. *Can. J. For. Res.* 34: 666–676. doi:10.1139/x03-233 (abstract, search excerpt).
+9. Vollsinger S., Mitchell S.J., Byrne K.E., Novak M.D., Rudnicki M. (2005). Wind tunnel measurements of crown streamlining and drag relationships for several hardwood species. *Can. J. For. Res.* 35: 1238–1249. doi:10.1139/x05-051 (abstract, search excerpt).
+10. Majumdar D., Vita G., Ramponi R., Glover N., van Reeuwijk M. (2024). The drag length is key to quantifying tree canopy drag. arXiv:2411.01570. https://arxiv.org/abs/2411.01570 (abstract).
+11. Tadrist L., Saudreau M., Hémon P., Amandolese X., Marquier A., Leclercq T., de Langre E. (2018). Foliage motion under wind, from leaf flutter to branch buffeting. *J. R. Soc. Interface* 15: 20180010. PMC6000177 (abstract and a search excerpt of the text for the 6 ± 1 Hz).
+12. Tadrist L., Saudreau M., de Langre E. (2015). Leaf flutter by torsional galloping: experiments and model. *J. Fluids Struct.* 56. https://hal-polytechnique.archives-ouvertes.fr/hal-01187713 (abstract, search excerpt).
+13. Spatz H.-C., Brüchert F., Pfisterer J. (2007). Multiple resonance damping or how do trees escape dangerously large oscillations? *Am. J. Bot.* 94: 1603–1611. doi:10.3732/ajb.94.10.1603 (abstract, search excerpt).
+14. Kok J.F., Parteli E.J.R., Michaels T.I., Bou Karam D. (2012). The physics of wind-blown sand and dust. *Rep. Prog. Phys.* 75: 106901; arXiv:1201.4353 (full: §2.1.1 restating Shao Y. & Lu H. (2000), *J. Geophys. Res.* 105, and §4.1.1 restating Fécan et al.). https://arxiv.org/abs/1201.4353
+15. Fécan F., Marticorena B., Bergametti G. (1999). Parametrization of the increase of the aeolian erosion threshold wind friction velocity due to soil moisture for arid and semi-arid areas. *Ann. Geophys.* 17. doi:10.1007/s00585-999-0149-7 (abstract, OpenAlex).
+16. Mahoney et al., A Colebrook equation for impinging radial wall jets, *J. Fluid Mech.* 1008, doi:10.1017/jfm.2022.1095; accepted manuscript https://www.osti.gov/biblio/2587227 (full; restating Poreh, Tsuei & Cermak 1967's c_f).
+17. Sharratt B., Vaddella V. (2012). Threshold friction velocity of soils within the Columbia Plateau. *Aeolian Research*. doi:10.1016/j.aeolia.2012.06.002 (abstract, search excerpt).
+18. Belnap J., Gillette D.A. (1997). Disturbance of biological soil crusts: impacts on potential wind erodibility of sandy desert soils. Record: https://archive.jornada.nmsu.edu/biblio/disturbance-biological-soil-crusts-impacts-potential-wind-erodibility-sandy-desert-soils (abstract, search excerpt; the site did not resolve for a direct read).
+19. Field-based measurements of volcanic ash resuspension by wind. https://www.earth-prints.org/handle/2122/14271 (abstract, search excerpt); and Experimental simulations of volcanic ash resuspension by wind under the effects of atmospheric humidity, PMC6162286 (abstract, search excerpt).
+20. RANS solver for microscale pollution dispersion problems in areas with vegetation: development and validation, arXiv:1609.03427 (search excerpt), restating Katul G.G. et al. (2004), *Boundary-Layer Meteorol.* 113, and Endalew A.M. et al. (2009).
+21. A field study of a multirotor's wake on heading-stage rice, indexed at https://www.x-mol.com/paper/1352747997662638080 (abstract, search excerpt; its journal record could not be read).
+22. *Agriculture* 13(4): 892 (2023), on the wake's vortex in a rice canopy by flight speed and height. https://www.mdpi.com/2077-0472/13/4/892 (search excerpt).
+23. Tanner P.E., Overmeyer A.D., Jenkins L.N., Yao C.-S., Bartram S.M. (2015). Experimental investigation of rotorcraft outwash in ground effect. AHS 71st Forum, NASA NTRS 20160006428 (full, as `openspec/changes/p7d-tether/design.md` decision 19 reads it).
+24. Poreh M., Tsuei Y.G., Cermak J.E. (1967). Investigation of a turbulent radial wall jet. *J. Appl. Mech.* 34; Verhoff A. (1963), the wall jet's profile (both as decision 19 reads them).
+25. Rotorcraft brownout research on a model rotor over a mobile bed (University of Maryland theses: https://drum.lib.umd.edu/handle/1903/12357 and https://drum.lib.umd.edu/bitstream/1903/15914/1/Mulinti_umd_0117E_15592.pdf; record and search excerpt).
+
+Companion references used through the companions: stem-properties.md (the stems' sections, moduli, cutting and stand densities), p7d-tether design 19 and 20 (the wash's law and the wall's roughness law), Niklas K.J. (1995), *Ann. Bot.* 75: 133–142 (the stems' height–diameter allometry, through `assets-src/surfaces.json`).
