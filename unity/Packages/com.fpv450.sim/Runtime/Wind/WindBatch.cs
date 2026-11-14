@@ -6,7 +6,8 @@
 //   the next index) published. The worker, woken, and the flight thread both take points in order by compare-and-swap on
 //   the claim word, so each point is evaluated exactly once by whichever thread gets it. The flight thread asking for a
 //   point (At, TryAt) first takes every point up to it the worker has not, then waits only for those the worker holds (one
-//   at most): it never waits for a worker that has not woken, at worst evaluating every point itself, as without the batch.
+//   at most), taking the next point no thread has taken while it waits: it never waits for a worker that has not woken, at
+//   worst evaluating every point itself, as without the batch.
 // - Join (the flight thread, before the next Begin): takes what is left and waits for what the worker holds. After it
 //   nothing runs on the worker until the next Post, so Begin never changes the frame under a running evaluation and a
 //   batch never outlives its step.
@@ -126,23 +127,30 @@ namespace Fpv450.Sim.Wind
             && BitConverter.DoubleToInt64Bits(a.Z) == BitConverter.DoubleToInt64Bits(b.Z);
 
         // Every point below `end` evaluated: those the worker has not taken here, then a wait for those it holds (a few µs:
-        // spinning, yielding now and then in case it shares this core; never Sleep(1)).
+        // spinning, yielding now and then in case it shares this core; never Sleep(1)). While it holds one, the next point
+        // no thread has taken is evaluated here instead of waiting (w9 step budget, second pass): a point is evaluated once,
+        // by whichever thread claims it, so the bits are the same, and the step waits less for the batch.
         void Ready(int end)
         {
             ByCaller += Take(end);
             for (int i = 0; i < end; i++)
                 for (int k = 1; Volatile.Read(ref _done[i]) != _stamp; k++)
                 {
+                    if (Take(int.MaxValue, 1) > 0)
+                    {
+                        ByCaller++;
+                        continue;
+                    }
                     if ((k & 63) == 0) Thread.Yield();
                     else Thread.SpinWait(20);
                 }
         }
 
-        // Takes points of the current generation in order while the next is below `end`; the count taken.
-        int Take(int end)
+        // Takes points of the current generation in order while the next is below `end`, at most `most`; the count taken.
+        int Take(int end, int most = int.MaxValue)
         {
             int taken = 0;
-            while (true)
+            while (taken < most)
             {
                 long c = Volatile.Read(ref _claim);
                 int i = (int)(c & Mask), n = (int)((c >> Bits) & Mask);
@@ -154,6 +162,7 @@ namespace Fpv450.Sim.Wind
                 Volatile.Write(ref _done[i], stamp);
                 taken++;
             }
+            return taken;
         }
 
         // The worker: takes points while there are any, else spins (Thread.SpinWait, the pause instruction) for the next
