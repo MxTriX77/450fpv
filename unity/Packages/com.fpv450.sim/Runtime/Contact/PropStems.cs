@@ -166,14 +166,19 @@ namespace Fpv450.Sim.Contact
         readonly bool[] _stemNear = new bool[4];
         readonly double[] _slotCuts = new double[8];
 
-        // The stems' states, shared by every disc: key (0 empty), lean, length, the jet on it and its lag, its top over its base,
-        // the steps they were last loaded, advanced and seen; the lean's sine and cosine, kept with it (2.13: taken once a lean).
-        readonly ulong[] _sKey = new ulong[StateSlots];
-        readonly double[] _sSin = new double[StateSlots], _sCos = new double[StateSlots];
-        readonly double[] _sPhi = new double[StateSlots], _sLen = new double[StateSlots], _sQ = new double[StateSlots], _sQLag = new double[StateSlots],
-            _sTop = new double[StateSlots], _sSwirl = new double[StateSlots];
-        readonly bool[] _sRest = new bool[StateSlots];
-        readonly long[] _sLoaded = new long[StateSlots], _sAdvanced = new long[StateSlots], _sSeen = new long[StateSlots];
+        // The stems' states, shared by every disc: key (0 empty), the steps they were last loaded, advanced and seen, lean, its sine
+        // and cosine kept with it (2.13: taken once a lean), length, the jet on it and its lag, its top over its base, the jet's
+        // swirl in its plane, at rest. One record a stem (w9 step budget, second pass): a step's few hundred stems, at slots spread
+        // by their hashes, read a cache line or two each, not one in each of thirteen arrays.
+        struct StemState
+        {
+            public ulong Key;
+            public long Loaded, Advanced, Seen;
+            public double Phi, Sin, Cos, Len, Q, QLag, Top, Swirl;
+            public bool Rest;
+        }
+
+        readonly StemState[] _st = new StemState[StateSlots];
 
         // The field's squares: key, the ground's height and normal at the centre, the stems per m² reaching h_ref per layer.
         readonly long[] _qKey = new long[SquareSlots];
@@ -274,23 +279,24 @@ namespace Fpv450.Sim.Contact
             for (int p = 0; p < StateProbe; p++)
             {
                 int i = (home + p) & (StateSlots - 1);
-                if (_sKey[i] == id) return i;
-                if (_sKey[i] == 0)
+                if (_st[i].Key == id) return i;
+                if (_st[i].Key == 0)
                 {
                     oldest = i;
                     break;
                 }
-                if (_sSeen[i] < _sSeen[oldest]) oldest = i;
+                if (_st[i].Seen < _st[oldest].Seen) oldest = i;
             }
-            _sKey[oldest] = id;
-            _sPhi[oldest] = phi0;
-            DetMath.SinCos(phi0, out _sSin[oldest], out _sCos[oldest]);
-            _sLen[oldest] = length;
-            _sQ[oldest] = _sQLag[oldest] = _sSwirl[oldest] = 0;
-            _sRest[oldest] = false;
-            _sTop[oldest] = double.NaN;
-            _sLoaded[oldest] = _sAdvanced[oldest] = -1;
-            _sSeen[oldest] = step;
+            ref StemState t = ref _st[oldest];
+            t.Key = id;
+            t.Phi = phi0;
+            DetMath.SinCos(phi0, out t.Sin, out t.Cos);
+            t.Len = length;
+            t.Q = t.QLag = t.Swirl = 0;
+            t.Rest = false;
+            t.Top = double.NaN;
+            t.Loaded = t.Advanced = -1;
+            t.Seen = step;
             if (_sAir != null) _sAir[oldest] = -1;
             return oldest;
         }
@@ -298,8 +304,8 @@ namespace Fpv450.Sim.Contact
         // A cached stem's slot, found again if another stem took it over.
         int SlotOf(ref Stalk k, long step)
         {
-            if (_sKey[k.Slot] != k.Id) k.Slot = State(k.Id, k.Length, k.Phi0, step);
-            _sSeen[k.Slot] = step;
+            if (_st[k.Slot].Key != k.Id) k.Slot = State(k.Id, k.Length, k.Phi0, step);
+            _st[k.Slot].Seen = step;
             return k.Slot;
         }
 
@@ -492,8 +498,9 @@ namespace Fpv450.Sim.Contact
         // A stem's top over its base: leaning, L·cos φ (its drawn shape's rise at most); folded by a jet, its arch's crest.
         double TopOf(in Stalk k, int s)
         {
-            double len = _sLen[s], cp = _sCos[s];
-            double rise = k.Rise * (len / k.Length), top = DetMath.Min(rise, len * cp), q = _sQLag[s];
+            ref readonly StemState t = ref _st[s];
+            double len = t.Len, cp = t.Cos;
+            double rise = k.Rise * (len / k.Length), top = DetMath.Min(rise, len * cp), q = t.QLag;
             // A stem standing to its natural lean's top or higher stands over any crest (the crest is at most that): no root.
             if (q > 0 && top < DetMath.Min(rise, len * k.CosPhi0))
             {
@@ -506,7 +513,7 @@ namespace Fpv450.Sim.Contact
         // A stem under a disc in its record: standing or folded past 45°, and among the tall (drawn 1 m or longer).
         void Count(ref StemRecord rec, in Stalk k, int s)
         {
-            bool folded = _sPhi[s] > Pi / 4, tall = !(k.Length < 1);
+            bool folded = _st[s].Phi > Pi / 4, tall = !(k.Length < 1);
             rec.Under++;
             if (folded) rec.Folded++;
             if (!tall) return;
@@ -553,8 +560,8 @@ namespace Fpv450.Sim.Contact
             if (!(last >= 0 && step - last < StemAirRefresh && (step + s) % StemAirRefresh != 0))
             {
                 _sAir[s] = step;
-                double cp = _sCos[s];
-                var p = new Double3(k.Base.X, k.Base.Y + 2.0 / 3 * _sLen[s] * cp, k.Base.Z);
+                double cp = _st[s].Cos;
+                var p = new Double3(k.Base.X, k.Base.Y + 2.0 / 3 * _st[s].Len * cp, k.Base.Z);
                 Double3 u = _air.At(p, k.Base.Y, out _);
                 // A near column turns with its rotor (2.12): tan β = Q/(2·T·r̄) times the column's speed, along the turning.
                 for (int j = 0; j < 4; j++)
@@ -637,15 +644,16 @@ namespace Fpv450.Sim.Contact
                     {
                         ref Stalk k = ref _stalks[c * StemCacheSize + e];
                         int s = SlotOf(ref k, step);
-                        if (_sLoaded[s] != step)
+                        ref StemState t = ref _st[s];
+                        if (t.Loaded != step)
                         {
-                            _sLoaded[s] = step;
-                            _sQ[s] = StemLean ? StemAir(k, s, step) : 0; // the known-wrong folds nothing, as 2.12's
+                            t.Loaded = step;
+                            t.Q = StemLean ? StemAir(k, s, step) : 0; // the known-wrong folds nothing, as 2.12's
                         }
                         Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
                         if (!(Double3.Dot(flat, flat) <= R * R)) continue;
                         Count(ref StemLast[c], k, s);
-                        load += _sQ[s];
+                        load += t.Q;
                     }
                     StemLast[c].Load = StemLast[c].Under > 0 ? load / StemLast[c].Under : 0;
                     continue;
@@ -661,20 +669,21 @@ namespace Fpv450.Sim.Contact
                 {
                     ref Stalk k = ref _stalks[c * StemCacheSize + e];
                     int s = SlotOf(ref k, step);
-                    if (_sLoaded[s] != step)
+                    ref StemState t = ref _st[s];
+                    if (t.Loaded != step)
                     {
-                        _sLoaded[s] = step;
-                        _sQ[s] = 0;
+                        t.Loaded = step;
+                        t.Q = 0;
                     }
                     Double3 rel = k.Base - hub, flat = rel - axis * Double3.Dot(rel, axis);
                     double r2 = Double3.Dot(flat, flat);
                     if (r2 <= R * R) Count(ref StemLast[c], k, s);
-                    if (!(q > _sQ[s])) continue;
+                    if (!(q > t.Q)) continue;
                     if (!(r2 <= R * R)) continue;
-                    _sQ[s] = q;
+                    t.Q = q;
                     // The swirl's tilt in the stem's own plane of lean: tan β times the wake's turning direction along its lean.
                     Double3 turning = r2 > 0 ? Double3.Cross(axis, flat) * (-spin / DetMath.Sqrt(r2)) : default;
-                    _sSwirl[s] = swirl * Double3.Dot(turning, k.Lean);
+                    t.Swirl = swirl * Double3.Dot(turning, k.Lean);
                 }
             }
             // Each stem's lean once a step: φ' = −m(φ)/τ, semi-implicit in its slope; its jet's lag over τ for the arch.
@@ -685,13 +694,14 @@ namespace Fpv450.Sim.Contact
                 {
                     ref Stalk k = ref _stalks[c * StemCacheSize + e];
                     int s = k.Slot;
-                    if (_sAdvanced[s] == step) continue;
-                    _sAdvanced[s] = step;
-                    double q = _sLoaded[s] == step ? _sQ[s] : 0, phi = _sPhi[s];
-                    if (!(q > 0) && !(_sQLag[s] > 0) && _sRest[s]) continue; // at rest, its top known
-                    double len = _sLen[s], l3 = len * len * len, tau = len * len * k.Tau0;
+                    ref StemState t = ref _st[s];
+                    if (t.Advanced == step) continue;
+                    t.Advanced = step;
+                    double q = t.Loaded == step ? t.Q : 0, phi = t.Phi;
+                    if (!(q > 0) && !(t.QLag > 0) && t.Rest) continue; // at rest, its top known
+                    double len = t.Len, l3 = len * len * len, tau = len * len * k.Tau0;
                     double G = k.MuG8 * l3, m, slope, rate = dt / tau;
-                    double sp = _sSin[s], cp = _sCos[s];
+                    double sp = t.Sin, cp = t.Cos;
                     if (_air != null)
                     {
                         // 2.13: the held air in the stem's plane of lean, u_φ = u·ê_φ along the lean's growth and u·â along the
@@ -708,20 +718,23 @@ namespace Fpv450.Sim.Contact
                     }
                     else
                     {
-                        double A = q * k.T.Kappa0 * l3, beta = q > 0 ? _sSwirl[s] : 0;
+                        double A = q * k.T.Kappa0 * l3, beta = q > 0 ? t.Swirl : 0;
                         // m(φ) = (φ − φ₀) − A·sin(φ + β)·|sin(φ + β)| − G·sin φ: the jet tilted β in the stem's plane, its normal share.
-                        DetMath.SinCos(phi + beta, out double sj, out double cj);
+                        // Without a tilt φ + β is φ (or +0 for −0, whose sine and cosine are +0's), whose sine and cosine are kept
+                        // with it: the same bits, one SinCos less for every stem out of the jet (w9 step budget, second pass).
+                        double sj = sp, cj = cp;
+                        if (beta != 0) DetMath.SinCos(phi + beta, out sj, out cj);
                         double aj = DetMath.Abs(sj);
                         m = phi - k.Phi0 - A * sj * aj - G * sp;
                         slope = 1 - 2 * A * aj * cj - G * cp;
                     }
                     double next = DetMath.Min(Pi / 2, DetMath.Max(-Pi / 2, phi - m * rate / (1 + DetMath.Max(0, slope) * rate)));
-                    _sRest[s] = !(q > 0) && DetMath.Abs(next - phi) < 1e-12;
-                    _sPhi[s] = next;
-                    DetMath.SinCos(next, out _sSin[s], out _sCos[s]);
-                    double lag = _sQLag[s] + (q - _sQLag[s]) * (dt / (tau + dt));
-                    _sQLag[s] = lag > 1e-9 ? lag : 0;
-                    _sTop[s] = TopOf(k, s);
+                    t.Rest = !(q > 0) && DetMath.Abs(next - phi) < 1e-12;
+                    t.Phi = next;
+                    DetMath.SinCos(next, out t.Sin, out t.Cos);
+                    double lag = t.QLag + (q - t.QLag) * (dt / (tau + dt));
+                    t.QLag = lag > 1e-9 ? lag : 0;
+                    t.Top = TopOf(k, s);
                 }
             }
         }
@@ -747,13 +760,14 @@ namespace Fpv450.Sim.Contact
                 double r2 = Double3.Dot(flat, flat);
                 if (r2 > rtip * rtip || r2 < rroot * rroot) continue;
                 int slot = k.Slot;
-                double plane = hub.Y - (axis.X * rel.X + axis.Z * rel.Z) / axis.Y, top = k.Base.Y + _sTop[slot];
+                ref StemState t = ref _st[slot];
+                double plane = hub.Y - (axis.X * rel.X + axis.Z * rel.Z) / axis.Y, top = k.Base.Y + t.Top;
                 if (!(top > plane) || !(k.Base.Y < plane)) continue;
                 rec.Over++;
                 double r = DetMath.Sqrt(r2);
                 Double3 dir = flat * (1 / r);
                 // The blade's speed across the stem's axis: ω·r·√(1 − (t̂·â)²), t̂ the blade's motion there, â the stem's axis.
-                double sp = _sSin[slot], cp = _sCos[slot];
+                double sp = t.Sin, cp = t.Cos;
                 Double3 motion = Double3.Cross(axis, dir) * -s, stem = new Double3(k.Lean.X * sp, cp, k.Lean.Z * sp);
                 double along = Double3.Dot(motion, stem), across = omega * r * DetMath.Sqrt(DetMath.Max(0, 1 - along * along));
                 if (StemCritical && !(across >= k.T.Vc)) continue; // pushed aside
@@ -766,13 +780,13 @@ namespace Fpv450.Sim.Contact
                 }
                 if (by < 0) continue;
                 // Fresh if never cut; else a stub sliced by the drop over the plane. The cut leaves it to the plane along its leg.
-                double len = _sLen[slot], drop = top - plane, rise = plane - k.Base.Y, leg = DetMath.Max(cp, StemStubCos);
+                double len = t.Len, drop = top - plane, rise = plane - k.Base.Y, leg = DetMath.Max(cp, StemStubCos);
                 bool fresh = !(len < k.Length);
                 double slice = fresh ? 0 : DetMath.Min(1, drop / k.T.D), piece = fresh ? DetMath.Max(0, len - rise / leg) : drop, was = work;
                 changed |= Part(i, d, c, by, ref now, body, hub, axis, psi, r, k.T, fresh ? 1 : 0, slice, fresh ? 0 : drop, 1, piece, events,
                     ref impulse, ref angular, ref work, ref inPlane, ref axial);
-                _sLen[slot] = DetMath.Min(len, rise / leg);
-                _sTop[slot] = TopOf(k, slot);
+                t.Len = DetMath.Min(len, rise / leg);
+                t.Top = TopOf(k, slot);
                 if (fresh)
                 {
                     rec.Fresh += 1;

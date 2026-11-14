@@ -3954,6 +3954,7 @@ namespace Fpv450.Sim.Contact
                 if (!_terrain) Transition(ref g, i, now, events, false); // on a terrain its own sweep finishes it (TerrainGround)
             }
 
+            bool clear = Clear(was, now);
             for (int o = 0; o < _order.Length; o++)
             {
                 int i = _order[o];
@@ -3970,13 +3971,50 @@ namespace Fpv450.Sim.Contact
                 _wasA[i] = shape.A;
                 _wasB[i] = shape.B;
                 // A skid's ground is its nodes' (the samples and the supports'): on a terrain its sweep leaves the ground out, which
-                // Update would only drop; a support takes its ground from its own sweep (TerrainGround).
-                int found = _world.StaticContacts(before, after, _spec.Margin, _buf,
-                    _terrain && shape.Role == ContactRole.Skid ? QueryFilter.NoGround : QueryFilter.None);
+                // Update would only drop; a support takes its ground from its own sweep (TerrainGround). Clear of the world's
+                // shapes (Clear), a sweep's contacts are its ground's alone.
+                QueryFilter filter = _terrain && shape.Role == ContactRole.Skid ? QueryFilter.NoGround : QueryFilter.None;
+                int found = !clear ? _world.StaticContacts(before, after, _spec.Margin, _buf, filter)
+                    : filter == QueryFilter.NoGround ? 0 : _world.StaticContacts(before, after, _spec.Margin, _buf, QueryFilter.GroundOnly);
                 if (found > Buffer) Lost(events, i, found - Buffer);
                 if (_terrain && shape.Role == ContactRole.Support) TerrainGround(i, found < Buffer ? found : Buffer, after, now, events);
                 Update(i, found < Buffer ? found : Buffer, after, now, events);
             }
+        }
+
+        /// <summary>The slack on Clear's sphere and margin, m (numerical: far above the rounding of coordinates a kilometre out, far
+        /// below the drone's shapes).</summary>
+        const double ClearSlack = 1e-3;
+
+        // Whether no shape, wire or runtime piece of the world is near any of the body's non-disc shapes in this step's sweeps (w9
+        // step budget, second pass): one query, the ground left out (NoGround), of a sphere about the origin holding every such
+        // shape at both poses, its margin grown by the farthest a point of them moves in the step. Each shape lies inside the
+        // sphere at every point of the sweep (both are swept linearly), and a shape's touch during the sweep is at most that move
+        // from its current pose, so whatever a shape's own query would meet lies within the grown margin of the sphere's current
+        // pose and its query meets it too (every sweep answers a current pose within its margin). When it meets nothing, each
+        // shape's contacts are its ground's alone (Sense): the same contacts, in the same order, with the same bits. A set moved
+        // since the last Sense (a leg's, p7g-legs 1.3) sweeps from elsewhere: not clear.
+        bool Clear(in FlightState was, in FlightState now)
+        {
+            double far = 0, thick = 0; // the farthest core end's square and the thickest radius: their sum bounds every shape
+            for (int o = 0; o < _order.Length; o++)
+            {
+                int i = _order[o];
+                if (_off[i] || _shapes[i].Role == ContactRole.Disc) continue;
+                ref readonly ContactShape shape = ref _shapes[i];
+                if (!Same(_wasA[i], shape.A) || !Same(_wasB[i], shape.B)) return false;
+                far = DetMath.Max(far, DetMath.Max(Double3.Dot(shape.A, shape.A), Double3.Dot(shape.B, shape.B)));
+                thick = DetMath.Max(thick, shape.Radius);
+            }
+            double reach = DetMath.Sqrt(far) + thick;
+            // A body point p moves by the origin's move and by at most π·|q₁ − q₂|·|p| for the turn between two unit quaternions
+            // (the turn's angle is at most twice their angle apart, which is at most π/2·|q₁ − q₂|); 4 for π.
+            Quat a = was.Attitude, b = now.Attitude;
+            double dx = b.X - a.X, dy = b.Y - a.Y, dz = b.Z - a.Z, dw = b.W - a.W;
+            double move = (now.Position - was.Position).Length() + 4 * DetMath.Sqrt(dx * dx + dy * dy + dz * dz + dw * dw) * reach;
+            double r = reach + ClearSlack;
+            return _world.StaticContacts(new Capsule(was.Position, was.Position, r), new Capsule(now.Position, now.Position, r),
+                _spec.Margin + move + ClearSlack, _buf, QueryFilter.NoGround) == 0;
         }
 
         // A support's overlap of the sample's facet along its normal: r − n·(c − P), P the facet's point under the core, so
