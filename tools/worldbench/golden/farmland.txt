@@ -1,17 +1,17 @@
 # worldbench golden: the farmland's terrain and objects (w3-farmland-ground 1.1, 1.2) and its stem field (w9-village-physics 2.1). FNV-1a 64 over every result field's bits.
 # Re-record only with a QueryVersion bump, audited case by case: dotnet run --project tools/worldbench -- --golden --record
 query_version 9
-content_hash 5d305d09f5d09021
+content_hash e14c3bafb289c8f9
 farmland.probes 4a1198988a929fae
 farmland.steps 68109475c275a8ee
 farmland.ground a9e87023a54b9bff
-farmland.contacts e2282f124eb7dd10
-farmland.rays 50fb2d77fdd458c8
-farmland.objects 100c4b6f40df8a17
-farmland.wind d3a5e2534892ab26
-farmland.object_contacts ba7e8182a1749a59
-farmland.object_rays 7a7ee365b220a523
-farmland.snags 03d484e754d641c2
+farmland.contacts 96caa4c743a48e00
+farmland.rays b1efb49141575d12
+farmland.objects 2e6c9d6bc9a6ddc6
+farmland.wind 72151e68b4029f11
+farmland.object_contacts 5c5a4080a4c3bbf3
+farmland.object_rays eddcd98943b14912
+farmland.snags f163e6affa3f869b
 farmland.stems.cells bcc070f45541511d
 farmland.stems.random 3f64b07c1232ec16
 farmland.stems.field b420e8f5f729d433
