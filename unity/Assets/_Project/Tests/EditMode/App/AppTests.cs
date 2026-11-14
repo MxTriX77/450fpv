@@ -24,8 +24,9 @@ namespace Fpv450.Tests.App
     public sealed class AppTests
     {
         /// <summary>physics_materials.json's hash at the physics integration 2 with p7f-damage (model 40): both sides' fields on
-        /// every row (p7f-damage 1.3's integration note).</summary>
-        const ulong MergedMaterialsHash = 0x2932AC6166D91022UL;
+        /// every row (p7f-damage 1.3's integration note); since model 91 (w9-village-physics 2.3) with the crowns' leaf_cell_m at
+        /// 0.025 m (0x2932AC6166D91022 before).</summary>
+        const ulong MergedMaterialsHash = 0x795F8E046220352CUL;
 
         // The player's copies alone (AppData.PlayerFiles under a folder of their own, as Fpv450.Build copies them) give the
         // drone, the farmland's map package with its objects (w3-farmland-ground 3.1 and 1.2: placements.json, the vendor lists

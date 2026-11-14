@@ -113,8 +113,10 @@ namespace Fpv450.Tests.Session
 
         // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
         // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
-        // choices, and the line, which the golden does not fly (TheFlightCarriesTheGroundTheCutsAndTheLine). A field
-        // FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        // choices, and the line, which the golden does not fly (TheFlightCarriesTheGroundTheCutsAndTheLine), and the stems'
+        // table for their wash with distance (StemAir, w9-village-physics 2.13), a bench's option that neither flies (D-111:
+        // StemWash off, compared below). A field FlightSetup gains is compared too, so an effect the golden flies and the app
+        // does not fails here.
         // The build's placement (D-066) is a pilot's flight's, as the replay's pilot flies it (ScriptedFlight); the golden
         // keeps the file's exact build, so the app's is compared with drone.json's own.
         [Test]
@@ -122,7 +124,7 @@ namespace Fpv450.Tests.Session
         {
             var choices = new HashSet<string> { "Seed", "Settings", "World", "Mass", "Wind", "Rain", "Contacts", "RuntimeObjects",
                 "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge",
-                "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass", "TetherTwoWay" };
+                "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass", "TetherTwoWay", "StemAir" };
             foreach (bool legs in new[] { true, false })
             {
                 Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
