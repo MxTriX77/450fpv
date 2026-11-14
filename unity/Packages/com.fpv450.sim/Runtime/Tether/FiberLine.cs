@@ -256,6 +256,11 @@ namespace Fpv450.Sim.Tether
         readonly int[] _discShape = { -1, -1, -1, -1 }, _discPart = { -1, -1, -1, -1 };
         bool _attached = true;
 
+        /// <summary>Whether a flight's line keeps model 100's contacts and wear (p7d-tether design 21's known-wrong,
+        /// FlightSetup.TetherBeforeDesign21, implied by every older line's switch).</summary>
+        internal static bool BeforeDesign21(FlightSetup setup) => setup.TetherBeforeDesign21 || setup.TetherAirlessTrail || setup.TetherWakeReach4R
+            || setup.TetherBeforeDesign18 || setup.TetherDesign4Air;
+
         public FiberLine(TetherTable table, FlightSetup setup, MassModel mass, FlightRandom random, in FlightState start, double dt,
             ContactModel parts = null, Propulsion propulsion = null)
         {
@@ -330,7 +335,7 @@ namespace Fpv450.Sim.Tether
             _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
-                KeepSlideStretch = setup.TetherBeforeDesign18,
+                KeepSlideStretch = setup.TetherBeforeDesign18, RunEndsOnly = BeforeDesign21(setup),
             };
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
@@ -376,7 +381,7 @@ namespace Fpv450.Sim.Tether
             // The cuts (1.8): the strengths' draws after the spool's; the rotors' discs for the prop check.
             if (!setup.TetherWithoutCuts)
             {
-                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18);
+                _cuts = new FiberCuts(table, random, setup.TetherOneStrength, setup.TetherBeforeDesign18, BeforeDesign21(setup));
                 _link = new FiberLink(table);
             }
             _propulsion = propulsion;

@@ -157,7 +157,7 @@ namespace Fpv450.FlightBench
                 ulong p98 = GoldenFlights.FlyPowered(Drone(), out _, heightScaled: false),
                     r98 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, heightScaled: false),
                     c98 = GoldenFlights.FlyContact(Drone(), out _, heightScaled: false), g98 = GoldenFlights.FlyRange(Drone(), out _, heightScaled: false),
-                    t98 = GoldenFlights.FlyContact(Drone(), out _, tether: true, heightScaled: false);
+                    t98 = GoldenFlights.FlyContact(Drone(), out _, tether: true, heightScaled: false, beforeDesign21: true); // p7d-tether design 21's line is newer
                 bool ok98 = p98 == GoldenFlights.Model98PoweredHash && r98 == GoldenFlights.Model98RainPoweredHash && c98 == GoldenFlights.Model98ContactHash
                     && g98 == GoldenFlights.Model98RangeHash && t98 == GoldenFlights.Model98TetherHash;
                 rangeOk &= ok98;

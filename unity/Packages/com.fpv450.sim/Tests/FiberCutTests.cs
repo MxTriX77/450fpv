@@ -401,7 +401,7 @@ namespace Fpv450.Sim.Tests
         }
 
         // fiber-tether: "A snag dips the link".
-        // Red since p7c-wind 1.5e (the field's turbulence by height) on a fault in the line's contacts, not the air (its follow-up,
+        // Red from p7c-wind 1.5e (the field's turbulence by height) on a fault in the line's contacts, not the air (its follow-up,
         // p7c-wind tasks.md): a segment passes through the 2 mm twig beside a node that holds the twig's slot. FiberContacts puts a
         // contact node in a segment only farther than its least piece (5 mm) from both ends, and a node's slot keeps that node off
         // the member, not its segments; the twig's half circumference is 3.1 mm, so no second node sits on it either. Traced
@@ -409,9 +409,11 @@ namespace Fpv450.Sim.Tests
         // Windy's one-scale field (model 98's), and on 4 of 6 in Windy by height: in Calm at the wrap's half turn, the node pressing
         // and its segment through the twig's axis; in Windy by height on seeds 1, 2, 3 and 5 at the first pass, a node 3–4 mm from
         // the axis (or inside the twig) and its segment swept through in the gusts, so the line never wraps (seed 5: 44 steps, 4°
-        // at most). Until the line cannot pass
-        // a twig it stays red; then the scenario's own brittleness (one orbit's catch: 0–18 535 steps over seeds 1–6 in Calm) is
-        // restated over a seed set.
+        // at most). Green again with p7d-tether design 21 (a slot holds its node at the corner of its segments' tangents to a thin
+        // member): seed 5 in Windy wraps the twig 16 086 steps, 20.5 dB of bend loss at most, 2 dips naming it. The line crosses the
+        // twig's axis on 3 flights of 12 (seeds 1–6, Calm and Windy) against 10 before: at the twig's foot by a segment lying on the
+        // ground (Calm and Windy seed 4) and, in Windy seed 1, by a node already inside the twig with no slot (not traced). The
+        // scenario's brittleness (one orbit's catch) is still to restate over a seed set.
         [Test]
         public void ASnagDipsTheLink()
         {
@@ -428,19 +430,25 @@ namespace Fpv450.Sim.Tests
         // The replay of the fault above: AroundATwig flown with the line's winding round the twig's axis read each step (the sum over
         // its segments of the angle each subtends at the axis, in plan); a jump of a full turn is a segment crossing the axis, and
         // below the twig's tip (1.6 m) that is the line through the twig. Prints each crossing with the nodes within 0.3 m of the
-        // axis (r mm, bearing °, height, slots). FIBER_SEEDS (1–6), FIBER_LEVEL (Windy), FIBER_FIELD=one-scale for model 98's field.
+        // axis (r mm, bearing °, height, slots), and each TetherWedge. FIBER_SEEDS (1–6), FIBER_LEVEL (Windy), FIBER_FIELD=one-scale
+        // for model 98's field, FIBER_SLOTS=node for the line before design 21 (model 100's), FIBER_TRACE=from,to (steps) for those
+        // nodes every step.
         [Test, Explicit("a probe: the line through the twig, printed")]
         public void ProbeTheLineThroughTheTwig()
         {
             string seeds = Environment.GetEnvironmentVariable("FIBER_SEEDS") ?? "1,2,3,4,5,6";
             WindLevel level = (WindLevel)Enum.Parse(typeof(WindLevel), Environment.GetEnvironmentVariable("FIBER_LEVEL") ?? "Windy");
             bool one = Environment.GetEnvironmentVariable("FIBER_FIELD") == "one-scale";
+            bool old = Environment.GetEnvironmentVariable("FIBER_SLOTS") == "node";
+            string[] window = (Environment.GetEnvironmentVariable("FIBER_TRACE") ?? "").Split(',');
+            long traceFrom = window.Length == 2 ? long.Parse(window[0]) : long.MaxValue, traceTo = window.Length == 2 ? long.Parse(window[1]) : 0;
             const double tip = 1.6, axisZ = 4, turn = 2 * 3.141592653589793;
             foreach (string s in seeds.Split(','))
             {
                 ulong seed = ulong.Parse(s);
                 double last = double.NaN;
                 int through = 0, count = 0;
+                long wedges = 0;
                 string before = "";
                 FiberCutScenarios.Each = core =>
                 {
@@ -459,6 +467,14 @@ namespace Fpv450.Sim.Tests
                         y = a.Y + u * (b.Y - a.Y);
                     }
                     string near = Near(c, axisZ);
+                    if (c.Wedges != wedges)
+                    {
+                        wedges = c.Wedges;
+                        CableWedge e = c.LastWedge;
+                        Print($"seed {seed} step {core.State.Step}: a wedge (node {e.Node}, non-finite {e.NonFinite}, excess {e.Excess:E2} J, deficit {e.Deficit:E2}, removable {e.Removable:E2}); {near}");
+                    }
+                    if (core.State.Step >= traceFrom && core.State.Step <= traceTo)
+                        Print($"seed {seed} step {core.State.Step}: {c.Count} nodes, {c.Splits} splits, {c.Merges} merges, {core.Tether.Contacts.Inserted} put, {core.Tether.Contacts.Refused} refused; {near}");
                     if (!double.IsNaN(last) && Math.Abs(w - last) > turn / 2)
                     {
                         // A segment sweeping across the axis keeps the node count; a remesh (nodes merged or split) that jumps the
@@ -476,7 +492,11 @@ namespace Fpv450.Sim.Tests
                 FiberCutScenarios.Dip d;
                 try
                 {
-                    d = FiberCutScenarios.AroundATwig(Spec, seed, level, edit: one ? x => x.Wind.OneScale = true : null);
+                    d = FiberCutScenarios.AroundATwig(Spec, seed, level, edit: x =>
+                    {
+                        x.Wind.OneScale = one;
+                        x.TetherBeforeDesign21 = old;
+                    });
                 }
                 finally
                 {
@@ -499,7 +519,45 @@ namespace Fpv450.Sim.Tests
             return s;
         }
 
-        static string Slot(in CableContact q) => q.Active ? $"{(FiberMember)q.MemberKind} {q.NormalForce:F3} N" : "-";
+        static string Slot(in CableContact q) => q.Active ? $"{(FiberMember)q.MemberKind} {q.NormalForce:F3} N{(q.Sunk < 0 ? $" sunk {q.Sunk * 1e3:F2} mm" : "")}" : "-";
+
+        // p7d-tether design 21 (QA's regressions of the pilot's flights of 2026-11-14, where a node put inside a 2 cm board was thrown
+        // out at 2–54 N and pulled the span apart or wore the coating through): AroundATwig's orbit round the 2 cm end of a timber
+        // board, in Calm, its line wrapping the end while it pays out at the pack's 0.05–0.2 N. Nothing wears through, and no piece
+        // nears the span's strength: the known-wrong (model 100's line, flown beside it and printed) wears through on seed 2 and pulls
+        // the span apart on seed 1 at 26 N, as the pilot's flights did. QA's bound was 1 N; on seed 2 at 18.7 s the line's run over
+        // the drone's own parts (their slots holding 1.1 N while pressing 0–0.14 N: 1.8's finding 2, the parts' hold, not this
+        // change's) lifts the exit's 0.15 N to 1.25 N between the parts and the board, so the bound is 2 N, the board never the cause.
+        [Test]
+        public void ALineRoundABoardsEndPaysOutUnharmed()
+        {
+            for (ulong seed = 1; seed <= 3; seed++)
+            {
+                FiberCutScenarios.OnTimber now = FiberCutScenarios.RoundABoard(Spec, seed, false), old = FiberCutScenarios.RoundABoard(Spec, seed, true);
+                Print($"seed {seed}: on the board {now.Touching} steps, the most tension {now.MostTension:F3} N (at {now.MostAt:F3} s, {now.MostWhere}), {now.WornThrough} worn through, "
+                    + $"the deepest wear there {now.DeepestWear * 1e6:F1} µm; {now.O}");
+                Print($"  model 100's line: on the board {old.Touching} steps, the most tension {old.MostTension:F3} N, {old.WornThrough} worn through, "
+                    + $"the deepest wear there {old.DeepestWear * 1e6:F1} µm; {old.O}");
+                Assert.That(now.Touching, Is.GreaterThan(1000), "the line lies round the board's end");
+                Assert.That(now.MostTension, Is.LessThan(2), "no piece near the span's strength");
+                Assert.That(now.WornThrough, Is.EqualTo(0), "nothing worn through");
+                Assert.That(now.O.Wedges, Is.EqualTo(0));
+            }
+        }
+
+        // p7d-tether design 21 (QA's regression): a line laid across a timber batten on the ground, the drone holding 3 m beyond it in
+        // Severe wind for a minute. Timber is softer than the coating, so it wears it on the mild band, and the line's press there
+        // is its own: nothing wears through. The known-wrong (model 100's line) is flown beside it and printed.
+        [Test]
+        public void ALineOnABattenInSevereWindKeepsItsCoating()
+        {
+            FiberCutScenarios.OnTimber now = FiberCutScenarios.OnABatten(Spec, 1, false), old = FiberCutScenarios.OnABatten(Spec, 1, true);
+            Print($"on the batten {now.Touching} steps, the most tension {now.MostTension:F3} N, {now.WornThrough} worn through, the deepest wear there {now.DeepestWear * 1e6:F2} µm; {now.O}");
+            Print($"model 100's line: on the batten {old.Touching} steps, the most tension {old.MostTension:F3} N, {old.WornThrough} worn through, the deepest wear there {old.DeepestWear * 1e6:F2} µm; {old.O}");
+            Assert.That(now.Touching, Is.GreaterThan(30000), "the line rests on the batten");
+            Assert.That(now.WornThrough, Is.EqualTo(0), "nothing worn through");
+            Assert.That(now.O.Wedges, Is.EqualTo(0));
+        }
 
         // fiber-tether: "A free line costs only its length and its lip".
         [Test]
