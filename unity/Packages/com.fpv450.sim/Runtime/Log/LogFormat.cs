@@ -981,8 +981,19 @@ namespace Fpv450.Sim.Log
         ///    yields to a rigid one, the half follows its holder's set in the same step and is caught where it lay when
         ///    it starts to hang. No golden flight breaks a leg, so no pin moved; ContactSpec.HangingDepth (a header
         ///    entry of its own) off flies 98's placement for the kept audits.
+        /// 100: the wind field's turbulence by height (p7c-wind 1.5e, design 16, on 99;
+        ///    unity/physics/physics-integration-2--w9-field-scale): the field's gusts take the surface layer's own
+        ///    scales at each point's height. To 99 the field held one length scale at every height, the handbook's at
+        ///    35 m, so below 10 m its vertical gusts were too slow (1.2–2.4 times the published below 0.5 Hz, 0.53–0.81
+        ///    of it at 1–4 Hz). Now σ_u = σ_v = 2.4 u* and σ_w = 1.25 u* at every height, with von Kármán's scales that
+        ///    give Kaimal et al. (1972)'s inertial range, L_h = 3.132·(z − d) and L_w = 0.470·(z − d), held above the
+        ///    profile's top and floored in the cover's roughness sublayer. The modes are 99's (draws, wave vectors,
+        ///    polarizations, phases); each mode's amplitude is read off one table at the point's scale. The header's
+        ///    wind preset names height_scaled and its two coefficients. Every golden flown in a level's wind moved and
+        ///    is re-pinned; WindSetup.OneScale (WindPreset.OneScale(), restored by a replay) flies 99's field for the
+        ///    kept audits. A flight in still air steps as 99 did.
         /// </summary>
-        public const int ModelVersion = 99;
+        public const int ModelVersion = 100;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

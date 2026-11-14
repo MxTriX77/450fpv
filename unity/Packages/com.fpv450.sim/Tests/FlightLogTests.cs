@@ -786,7 +786,16 @@ namespace Fpv450.Sim.Tests
             }
             Assert.That((back.WindModel, back.Wind), Is.EqualTo(("field", setup.Wind)));
             Assert.That(back.WindParameters, Is.EqualTo(LogHeader.PresetOf(WindLevel.Windy)));
-            Assert.That(back.WindParameters.Length, Is.EqualTo(37), "every field of the preset but its level");
+            Assert.That(back.WindParameters.Length, Is.EqualTo(40), "every field of the preset but its level");
+            Assert.That(back.Wind.OneScale, Is.False, "the field by height (p7c-wind design 16)");
+
+            // The one-scale field (design 16's known-wrong) is named in the preset and restored by a replay.
+            FlightSetup oneScale = Setup(spec);
+            oneScale.Wind.OneScale = true;
+            LogHeader wrong = LogHeader.Read(new MemoryStream(LogHeader.For(oneScale, new FlightCore(oneScale)).Encode()));
+            Assert.That(wrong.Wind.OneScale, Is.True);
+            Assert.That(wrong.WindParameters, Is.EqualTo(LogHeader.PresetOf(WindLevel.Windy, true)));
+            Assert.That(wrong.ToSetup(oneScale.World, new List<string>()).Wind.OneScale, Is.True, "a replay flies the one-scale field");
 
             var problems = new List<string>();
             back.ReadSettings(out FcSettings read, problems);

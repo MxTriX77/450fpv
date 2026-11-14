@@ -585,8 +585,6 @@ namespace Fpv450.Sim.Tests
         [TestCase("crown", 10.0, WindLevel.Calm, 0)]
         [TestCase("crown", 10.0, WindLevel.Windy, 0)]
         [TestCase("crown", 10.0, WindLevel.Severe, 0)]
-        [TestCase("wire", 5.47, WindLevel.Severe, 0)]
-        [TestCase("wire", 5.475, WindLevel.Severe, 0)]
         [TestCase("wire", 5.51, WindLevel.Severe, 0)]
         [TestCase("wire", 5.52, WindLevel.Severe, 0)]
         [TestCase("wire", 5.475, WindLevel.Windy, 0)]
@@ -604,6 +602,85 @@ namespace Fpv450.Sim.Tests
             Assert.That(p.Lost, Is.EqualTo(0));
             Assert.That(p.Tunnels, Is.EqualTo(legTunnels));
             Assert.That(p.ThroughBroken, Is.EqualTo(p.Tunnels), "each through a broken leg's part, which 1.3 parts from the drone");
+        }
+
+        // The wire's Severe cases at 5.47 and 5.475 m (above, to p7c-wind 1.5e) hung on one flight's path: the 1 cm of held height
+        // where the front rims met L03's cable first, found by a scan on model 22's flight. With the field's turbulence by height
+        // (1.5e, design 16) Severe's gusts at 5.5 m drift the same approach 0.9 m across (0.72 with the one-scale field), and at
+        // 5.44–5.50 m prop_fr meets V01_M's crown first: no tunnel, but the case no longer reaches the cable it tests. Restated as
+        // the band, 27 heights 5.36–5.62 m in 1 cm steps, where a skid, a leg, the payload, a front rim and a motor each meet the
+        // cable first somewhere. The claim is judged on every flight (a tunnel through anything rigid, the cable or a crown's bark,
+        // is a bug, never a rate), the premise on the band: the cable reached (15–27 of the 27 on five Severe draws by height and
+        // three with the one-scale field). The rim-first case without wind stays above (5.475 m, Still). Red since the merge with
+        // the line at model 99: at 5.40 and 5.43 m a hanging skid half passes the cable (w9-village-physics 2.6b's depth by its
+        // force; none with ContactSpec.HangingDepth off), a fault in the contacts reported in p7c-wind tasks.md (1.5e's follow-up).
+        [Test]
+        public void InSeveresFieldNoTunnelOnTheWiresBand()
+        {
+            WireBand band = FlyTheWiresBand(WindSetup.Of(WindLevel.Severe), null);
+            Assert.That(band.Lost, Is.Empty, "no contact lost");
+            Assert.That(band.Tunnels, Is.Empty, "no tunnel through a rigid shape at any height of the band");
+            Assert.That(band.Reached, Is.GreaterThan(0), "the premise: the band reaches L03's cable");
+        }
+
+        public struct WireBand
+        {
+            public int Flights, Reached;
+            public System.Collections.Generic.List<string> Tunnels, Lost;
+        }
+
+        /// <summary>The wire's approach in a wind held at each height of 5.36–5.62 m in 1 cm steps: the flights, those whose parts
+        /// touch L03's cable, and each flight's tunnels and lost contacts (its height, the part, the shape and the object), printed.
+        /// seed null is the contact scenarios' own draw (0x450F); hangingDepth false flies w9-village-physics 2.6b's model 98
+        /// placement of a hanging half (ContactSpec.HangingDepth).</summary>
+        public static WireBand FlyTheWiresBand(WindSetup wind, ulong? seed, bool hangingDepth = true, int fromCm = 536, int toCm = 562)
+        {
+            MaterialRow[] m = Materials(out ulong h);
+            RangeScenarios.Approach a = RangeScenarios.Find("wire");
+            var band = new WireBand { Tunnels = new System.Collections.Generic.List<string>(), Lost = new System.Collections.Generic.List<string>() };
+            for (int cm = fromCm; cm <= toCm; cm++)
+            {
+                double height = cm / 100.0;
+                ContactScenarios.PoleStrike p = ContactScenarios.Into(Spec, m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), wind),
+                    height, a.Speed, _ => RangeScenarios.Placed(a.Variant, a.Occurrence), null, a.ClimbSteps, a.ClimbRate,
+                    edit: s =>
+                    {
+                        if (seed.HasValue) s.Seed = seed.Value;
+                        s.Contacts.HangingDepth = hangingDepth;
+                    });
+                band.Flights++;
+                if (p.Touched.Count > 0) band.Reached++;
+                string at = $"{height:F2} m";
+                TestContext.Out.WriteLine($"{at}: first {p.FirstPart} on {p.FirstObject} ({p.FirstMaterial}) at {p.First.A:F2} m/s; the cable {(p.Touched.Count > 0 ? "by " + p.Touched[0] : "not reached")}; "
+                    + $"crash ({p.Cause}) by {p.Part} on {p.Object}; {p.Tunnels} tunnels, {p.Lost} lost");
+                foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line); // the tunnels and the legs' events, in order
+                foreach (string through in p.TunnelThrough) band.Tunnels.Add($"{at}: {through}");
+                if (p.Lost > 0) band.Lost.Add($"{at}: {p.Lost} lost");
+            }
+            TestContext.Out.WriteLine($"{band.Reached} of {band.Flights} heights reach the cable; {band.Tunnels.Count} tunnels, {band.Lost.Count} flights losing contacts");
+            return band;
+        }
+
+        // The band on another draw or field, printed (WIRE_SEEDS a comma list, 0 the scenarios' own; WIRE_FIELD one-scale for
+        // model 98's field; WIRE_HANGING 0 for model 98's hanging half; WIRE_FROM_CM and WIRE_TO_CM): the replay of 1.5e's
+        // follow-up's tunnels (p7c-wind tasks.md).
+        [Test, Explicit("a probe: the wire's band on other draws, printed")]
+        public void ProbeTheWiresBand()
+        {
+            string seeds = System.Environment.GetEnvironmentVariable("WIRE_SEEDS") ?? "0";
+            bool one = System.Environment.GetEnvironmentVariable("WIRE_FIELD") == "one-scale";
+            bool hanging = System.Environment.GetEnvironmentVariable("WIRE_HANGING") != "0";
+            int from = int.TryParse(System.Environment.GetEnvironmentVariable("WIRE_FROM_CM"), out int f) ? f : 536;
+            int to = int.TryParse(System.Environment.GetEnvironmentVariable("WIRE_TO_CM"), out int t) ? t : 562;
+            foreach (string s in seeds.Split(','))
+            {
+                ulong seed = ulong.Parse(s);
+                WindSetup wind = WindSetup.Of(WindLevel.Severe);
+                wind.OneScale = one;
+                TestContext.Progress.WriteLine($"seed {(seed == 0 ? "0x450F" : s)}, {(one ? "the one-scale field" : "the field by height")}, the hanging half {(hanging ? "by its force" : "as model 98")}:");
+                WireBand band = FlyTheWiresBand(wind, seed == 0 ? null : seed, hanging, from, to);
+                TestContext.Progress.WriteLine($"  {band.Reached} of {band.Flights} reach the cable; tunnels: {(band.Tunnels.Count == 0 ? "none" : string.Join("; ", band.Tunnels))}");
+            }
         }
 
         // Model 51's audit and known-wrong (the hanging half's whole give and the stub's spring, p7g-legs on the line): with both
@@ -626,7 +703,7 @@ namespace Fpv450.Sim.Tests
             // Since model 64 on model 63's drone (the old coil, Model63Drone), as every kept audit.
             ContactScenarios.PoleStrike p = ContactScenarios.Into(Model63Drone.Spec(), m, h, InTheAir(RangeScenarios.At(a.Foot, a.HeadingDeg), WindSetup.Of(WindLevel.Windy)),
                 a.Height, a.Speed, core => { GoldenFlights.WithoutTheReach(core); core.Propulsion.ClippedDescentBranch = true; return RangeScenarios.Placed(a.Variant, a.Occurrence); }, null, a.ClimbSteps, a.ClimbRate,
-                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); }); // since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's), since 86 without the anchors' reach
+                edit: s => { GoldenFlights.WithoutTheFrame(s); GoldenFlights.WithoutTheHangingGive(s); GoldenFlights.WithoutTheRest(s); GoldenFlights.WithoutTheBells(s); s.Contacts.BladeRoot = false; s.Settings.airmode = true; GoldenFlights.CleanSensors(s); GoldenFlights.Edgewise(s, false, LogFormat.StepSize, false); s.Wind.OneScale = true; }); // since p7c-wind design 16 the one-scale field (model 98's), since model 60 without the skid's frame, since 63 the bells, since 64 a blade at any radius (ContactSpec.BladeRoot off: a blade meets the bark at its hub on the way), since 69 airmode on (D-086), since 72 the clean sensors, since 79 without the edgewise thrust (76's), since 86 without the anchors' reach
             foreach (string line in p.Order) TestContext.Out.WriteLine("  " + line);
             // Since w9 2.6 (the legs on their section's yield and kink) the flight leaves model 50's path at leg_fr's break (step
             // 10339, 3.87 N·m past its kink, 3.59; model 50 cracked it at 2.20 and let it set): each half that then hangs passes the bark

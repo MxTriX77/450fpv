@@ -149,6 +149,21 @@ namespace Fpv450.FlightBench
                 Console.WriteLine($"with model 94's clipped descent branch: powered 0x{p94:X16}, rain 0x{r94:X16}, contact 0x{c94:X16}, range 0x{g94:X16}, tether 0x{t94:X16} "
                     + $"({(ok94 ? "model 94's, bit for bit" : "NOT model 94's")}): {(ok94 ? "PASS" : "FAIL")}");
             }
+            // p7c-wind design 16's audit (the field's turbulence by height): with the one-scale field (WindSetup.OneScale) each
+            // golden flown in a level's wind is its model 98 pin, every record and event
+            // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p98 = GoldenFlights.FlyPowered(Drone(), out _, heightScaled: false),
+                    r98 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, heightScaled: false),
+                    c98 = GoldenFlights.FlyContact(Drone(), out _, heightScaled: false), g98 = GoldenFlights.FlyRange(Drone(), out _, heightScaled: false),
+                    t98 = GoldenFlights.FlyContact(Drone(), out _, tether: true, heightScaled: false);
+                bool ok98 = p98 == GoldenFlights.Model98PoweredHash && r98 == GoldenFlights.Model98RainPoweredHash && c98 == GoldenFlights.Model98ContactHash
+                    && g98 == GoldenFlights.Model98RangeHash && t98 == GoldenFlights.Model98TetherHash;
+                rangeOk &= ok98;
+                Console.WriteLine($"with the one-scale field: powered 0x{p98:X16}, rain 0x{r98:X16}, contact 0x{c98:X16}, range 0x{g98:X16}, tether 0x{t98:X16} "
+                    + $"({(ok98 ? "model 98's, bit for bit" : "NOT model 98's")}): {(ok98 ? "PASS" : "FAIL")}");
+            }
             // p7a-ground 1.12's audit (model 33), restated at the physics integration 2 (model 34): without the layers' area laws
             // the range flight is p7d-tether's model 31 flight over the whole record, and model 32's over model 28's 1904 bytes,
             // dry and in Rain.

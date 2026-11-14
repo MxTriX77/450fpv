@@ -356,7 +356,11 @@ namespace Fpv450.Sim.Tests
         // from step 25, at most 0.17 m and 0.37° apart, ends 143.5458 m up against 143.3913.
         // p7b-airframe design 3h (the props' held descent branch both ways, on model 94): re-recorded (model 94's clipped branch (Propulsion.ClippedDescentBranch): model 94's pin, every record and event, GoldenFlightTests.WithTheClippedDescentBranchEachGoldenIsModel94s);
         // from step 50, at most 0.21 m and 0.26° apart, ends 143.7578 m up against 143.5458.
-        public const ulong PoweredHash = 0xB55BD5DCB5C7C252UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL, Model94PoweredHash = 0x71571798E9C97719UL;
+        // p7c-wind design 16 (the field's turbulence by height, on model 98): re-recorded. Audited case by case: with the one-scale field
+        // (WindSetup.OneScale) model 98's pin, 0xB55BD5DCB5C7C252 (Model98PoweredHash), every record and event
+        // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s). The Windy air moves from step 0: 0.1° and 0.03 m by 2 s,
+        // at most 0.23 m and 0.72° apart, the largest body rate 313 °/s against 315, ends 143.9049 m up against 143.7578, 0.21 m apart.
+        public const ulong PoweredHash = 0xD2EC471719F8265BUL, Model98PoweredHash = 0xB55BD5DCB5C7C252UL, Model90PoweredHash = 0x8106C2D393DFAA8DUL, Model92PoweredHash = 0xC26EFDA0A6C746DFUL, Model94PoweredHash = 0x71571798E9C97719UL;
 
         // The powered golden in Calm air and Severe rain (p7c-wind 1.7, first recorded with ModelVersion 9): the drops'
         // drag and film on top of the Calm flight, which it leaves from step 1 (the drops' force at rest).
@@ -473,7 +477,9 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe design 3g (model 94): re-recorded, audited as the powered flight (model 92's level: model 93's pin); from step 22,
         // at most 0.14 m and 0.36° apart, ends 142.2130 m up against 142.2366.
         // p7b-airframe design 3h: re-recorded, audited as the powered flight (model 94's clipped branch: model 94's pin); from step 21, at most 60 mm and 0.13°, ends 142.2677 m up against 142.2130.
-        public const ulong RainPoweredHash = 0xB99BBA8B544EE74BUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL, Model94RainPoweredHash = 0x78EC41F77E2DC817UL;
+        // p7c-wind design 16: re-recorded, audited as the powered flight (the one-scale field: model 98's pin, 0xB99BBA8B544EE74B); the
+        // Calm air moves from step 0, at most 86 mm and 0.21° apart, ends 142.3443 m up against 142.2677.
+        public const ulong RainPoweredHash = 0xA90B2AC7DB9DE1DFUL, Model98RainPoweredHash = 0xB99BBA8B544EE74BUL, Model90RainPoweredHash = 0x94CF8CDFA5E5E538UL, Model92RainPoweredHash = 0x1E65DE44C92861ECUL, Model94RainPoweredHash = 0x78EC41F77E2DC817UL;
 
         /// <summary>The merge's audit against unity/main (GoldenFlightTests.InStillAirTheGoldenFlightsAreModel15s): main's
         /// model 15 in still air over its 1656-byte layout, the powered golden (pinned from main's code with its air set still,
@@ -1085,7 +1091,11 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 29.8 mm and 1.15°, 3 impacts
         // as before, at rest 6.9 mm from 93's end.
         // p7b-airframe design 3h: re-recorded (model 94's clipped branch: model 94's pin); from step 9, at most 2.2 mm and 0.17°, the same 3 impacts, at rest 0.7 mm from 94's end.
-        public const ulong ContactHash = 0x0272A8D23EE8C1B8UL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL, Model94ContactHash = 0x043EEB284B4A8E0AUL;
+        // p7c-wind design 16: re-recorded (the one-scale field: model 98's pin, 0x0272A8D23EE8C1B8); the same records for the first 216
+        // steps (every point under the cover's 0.3 m still layer until the climb), then at most 21.4 mm and 0.79° apart, the largest
+        // body rate 107 °/s against 87 (the Calm gusts near the ground at the touchdown's bounce), the same 3 impacts, at rest 0.2491 m
+        // up on 4 pairs, 18.2 mm from 98's end.
+        public const ulong ContactHash = 0x6E2473430C3C1DA3UL, Model98ContactHash = 0x0272A8D23EE8C1B8UL, Model90ContactHash = 0x461C89E4B98BAA7AUL, Model92ContactHash = 0x4B87B519E3D8548BUL, Model94ContactHash = 0x043EEB284B4A8E0AUL;
 
         /// <summary>The pins at model 59 (the cuts on the props at rest), which every golden flown without the skid's frame keeps
         /// bit for bit over the whole record, every record and event (GoldenFlightTests.WithoutTheFrameEachGoldenIsModel59s).</summary>
@@ -1429,7 +1439,12 @@ namespace Fpv450.Sim.Tests
         // airless trail (FlightSetup.TetherAirlessTrail) it is model 97's pin, 0xF6ADE19C0945D137 (Model97TetherHash), every record
         // and event (GoldenFlightTests.WithTheAirlessTrailTheTetherGoldenIsModel97s). Every kept audit of an older line flies the
         // airless trail (FlyContact's airlessTrail, on for every flight other than the tether golden's own) and keeps its pin.
-        public const ulong TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+        // p7c-wind design 16 (the field's turbulence by height, on model 98): re-recorded. Audited: with the one-scale field
+        // (WindSetup.OneScale) it is model 98's pin, 0xB90A040EEF9F938A (Model98TetherHash), every record and event
+        // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s); every kept audit of an older line flies the one-scale field
+        // and keeps its pin. The same records for the first 215 steps, then at most 21.4 mm and 0.79° apart (the contact golden's
+        // flight), the same 3 impacts, the line whole, 0.418 m paid out against 0.396.
+        public const ulong TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
             Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin
@@ -1831,7 +1846,10 @@ namespace Fpv450.Sim.Tests
         // p7b-airframe design 3g (model 94): re-recorded (model 92's level: model 93's pin); from step 10, at most 34.9 mm and 0.40°, 3 impacts
         // against 4 (one light touch no longer happens), at rest 10.1 mm from 93's end.
         // p7b-airframe design 3h: re-recorded (model 94's clipped branch: model 94's pin); from step 9, at most 4.9 mm and 0.07°, the same 3 impacts, at rest 0.7 mm from 94's end.
-        public const ulong RangeHash = 0x1DE9E944CF5F3D89UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL, Model94RangeHash = 0x9A6EE9908AA9E2F0UL;
+        // p7c-wind design 16: re-recorded (the one-scale field: model 98's pin, 0x1DE9E944CF5F3D89); the same records for the first 174
+        // steps, then at most 23.7 mm and 0.55° apart in the map's Calm, the largest body rate 53 °/s against 30, 4 impacts against 3
+        // (one more light touch on the straw), at rest 0.2452 m up on 8 pairs, 8.6 mm from 98's end.
+        public const ulong RangeHash = 0xDD454936B339DBE3UL, Model98RangeHash = 0x1DE9E944CF5F3D89UL, Model90RangeHash = 0x9731F9263E4E25B1UL, Model92RangeHash = 0x10E64598977FA0CDUL, Model94RangeHash = 0x9A6EE9908AA9E2F0UL;
 
         /// <summary>Model 76's range golden, which models 76–86 kept (the pin before w7-farmland-wind 1.2's wake grid).</summary>
         public const ulong Model76RangeHash = 0xAF745CC52447E017UL;
@@ -2090,7 +2108,7 @@ namespace Fpv450.Sim.Tests
             bool asymmetry = true, bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null,
             Action<byte[]> onRecord = null, RainLevel rain = RainLevel.Sunny, bool interference = true, bool wake = true, bool motors = true,
             int layout = LogFormat.StepSize, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null, bool? hull = null)
+            bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null, bool? hull = null, bool? heightScaled = null)
         {
             FlightSetup setup = PoweredSetup(spec);
             if (!interference) setup.Interference = null;
@@ -2108,6 +2126,7 @@ namespace Fpv450.Sim.Tests
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
             WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false);
+            Scales(setup, heightScaled ?? descentBranch ?? wakeLevel ?? ownWake ?? (!airmode && edgewise != false && layout >= LogFormat.StepSize));
             edit?.Invoke(setup);
             Hull(setup, hull);
             core = new FlightCore(setup);
@@ -2215,7 +2234,7 @@ namespace Fpv450.Sim.Tests
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
             bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null,
-            bool? wakeReach4R = null, bool? airlessTrail = null)
+            bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2274,6 +2293,9 @@ namespace Fpv450.Sim.Tests
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
             WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
+            // p7c-wind design 16: every kept audit of an older line flies the one-scale field too (an older trail, cut-off or exit).
+            bool olderLine = airlessTrail == true || wakeReach4R == true || beforeDesign18 == true || slidingTrail == true || linearStep == true;
+            Scales(setup, heightScaled ?? (olderLine ? false : descentBranch ?? wakeLevel ?? ownWake ?? (!airmode && edgewise != false && layout >= LogFormat.StepSize)));
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false || linearStep == true || slidingTrail == true);
@@ -2338,7 +2360,7 @@ namespace Fpv450.Sim.Tests
             bool ring = true, bool ground = true, bool flapping = true, bool modes = true, WindSetup? wind = null, Action<byte[]> onRecord = null,
             bool interference = true, bool wake = true, bool motors = true, int layout = LogFormat.StepSize, RainLevel rain = RainLevel.Sunny,
             SurfaceTable table = null, MaterialRow[] materials = null, bool yawI = true, Action<FlightSetup> edit = null, bool? heat = null, bool airmode = false, bool? edgewise = null,
-            bool? wakes2 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null)
+            bool? wakes2 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null, bool? heightScaled = null)
         {
             materials ??= ContactScenarios.RepositoryMaterials(out _);
             ContactScenarios.RepositoryMaterials(out ulong mh);
@@ -2364,6 +2386,7 @@ namespace Fpv450.Sim.Tests
             if (layout < LogFormat.StepSize) CleanSensors(setup);
             Edgewise(setup, edgewise, layout, airmode);
             WakeLevel(setup, wakeLevel, ownWake, layout, airmode, edgewise == false);
+            Scales(setup, heightScaled ?? (wakes2 == false ? false : descentBranch ?? wakeLevel ?? ownWake ?? (!airmode && edgewise != false && layout >= LogFormat.StepSize)));
             edit?.Invoke(setup);
             core = new FlightCore(setup);
             OwnWake(core, ownWake, layout, airmode, edgewise == false);
@@ -2527,6 +2550,16 @@ namespace Fpv450.Sim.Tests
         public static void Hull(FlightSetup setup, bool? hull)
         {
             if (hull == true && setup.Aero != null) setup.Aero = WithTheHull(setup.Aero);
+        }
+
+        /// <summary>The field's turbulence by height (p7c-wind design 16) in a golden flight: on for the current pins, and off
+        /// (WindSetup.OneScale, model 98's one-scale field) for every kept audit of an older model: the same flights DescentBranch
+        /// gives model 95's branch (one flown with airmode on, over an older record, with an older model's switch, or an audit
+        /// that says descentBranch, wakeLevel or ownWake false), and every older line's or wake grid's. The audit of design 16
+        /// against model 98 is GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s.</summary>
+        public static void Scales(FlightSetup setup, bool scaled)
+        {
+            if (!scaled) setup.Wind.OneScale = true;
         }
 
         /// <summary>The airframe's drag with the hull's moment flown (AeroSpec.HullOn).</summary>
