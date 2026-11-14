@@ -255,23 +255,26 @@ The leaning ring reaches as far from almost any height, because the wall jet car
 - the merged jet's, δ = c·R·(R/H)^e, R = max(r, r_i) (RotorAir's own law and rows), where the merged jet carries the landing;
 - elsewhere the near jets' top-hat, its thickness taken as δ (assumed).
 
-**Wet ground:**
-- it raises the threshold by Fécan et al.'s √(1 + 1.21·(w − w′)^0.68) (published), with w the wet set's 25 % water by volume over the surface's dry bulk density, and the clay share assumed per surface;
-- saturated ground lifts none (assumed);
-- covered surfaces lift none (published in kind): their chaff is 1.4's.
+**Wet ground lifts no dust (derived; the orchestrator's decision, 2026-11-14).**
+- **What the sim calls wet.** The flight's rain sets the moisture (`SurfaceTable.MoistureOf`): Rain gives the wet sets, Severe rain the saturated ones. No surface carries a moisture of its own.
+- **How wet that is.** The wet set holds a loam's field capacity: 25 % water by volume (`water_content_wet`, assumed there; Saxton and Rawls 2006's 0.2–0.35). Over the surfaces' dry bulk densities that is 15.6–23.8 % by mass.
+- **Why no grain moves.** At field capacity the topsoil's grains are bound in its cohesion. The sim's own wet sets carry 0.6–18 kPa (`cohesion_pa`: crater_spoil 0.6, tilled 1.2, belt_bare 3.6, dry_crust 12, dirt_track 18), and the saturated sets 0.3–9 kPa. The wash's shear on the ground is ρu*² ≤ 7.6 Pa: u* reaches 2.49 m/s at most, 0.25–0.3 m up. That is 40 to 2400 times below what would part the grains.
+- **Where Fécan's factor still applies.** Fécan et al.'s √(1 + 1.21·(w − w′)^0.68) (published) is kept only up to 10 % water by mass (`DustLaw.FecanMaximum`, assumed: the band the reference note reads the law over, ×1.5–2.5 at 5–10 %). Past it, no dust. Every wet set of the sim lies past it, so in a flight Rain and Severe rain lift none.
+- **Covered surfaces** lift none (published in kind): their chaff is 1.4's.
+- **u\* is still reported everywhere the wash blows** (`DustSample.Friction`); only the flux needs a finite threshold.
 
 **The flux:** past the threshold it is White's Q = 2.61·(ρ/g)·u*³·(1 − r²)·(1 + r) (White 1979, recalled).
 
 | Surface | u*_t dry (label) | Dust from, dry | Dust from, wet | Note §5.3's band |
 |---|---|---|---|---|
-| crater_spoil | 0.19 (published band) | 10 m | 2 m | 6–10 m |
-| dirt_track (film) | 0.22 (published band) | 8 m | 2 m | 5–10 m |
-| belt_bare | 0.27 (assumed) | 6 m | 1.5 m | 3–6 m |
-| burnt_field | 0.25 (published, ash) | 8 m | 1.5 m | 3–10 m |
-| tilled | 0.375 (published) | 4 m | 0.75 m | 1.5–4 m |
-| dry_crust | 0.75 (assumed) | 1.5 m | 0.5 m | 1–3 m |
-| rubble (film) | 0.37 (assumed) | 4 m | 0.75 m | 1.5–5 m |
-| asphalt, concrete_slab (film) | 0.25 (assumed) | 6 m | 0.75 m | 5–10 m |
+| crater_spoil | 0.19 (published band) | 10 m | none | 6–10 m |
+| dirt_track (film) | 0.22 (published band) | 8 m | none | 5–10 m |
+| belt_bare | 0.27 (assumed) | 6 m | none | 3–6 m |
+| burnt_field | 0.25 (published, ash) | 8 m | none | 3–10 m |
+| tilled | 0.375 (published) | 4 m | none | 1.5–4 m |
+| dry_crust | 0.75 (assumed) | 1.5 m | none | 1–3 m |
+| rubble (film) | 0.37 (assumed) | 4 m | none | 1.5–5 m |
+| asphalt, concrete_slab (film) | 0.25 (assumed) | 6 m | none | 5–10 m |
 | meadow_sod, weeds, belt_straw, yard_litter | — | none | none | none |
 
 **Notes on the table:**
@@ -279,14 +282,11 @@ The leaning ring reaches as far from almost any height, because the wall jet car
 - **A paved film's bulk density:** 1300 kg/m³ (assumed).
 - **Supply is not modelled.** A film surface's loose layer runs out in reality ("short whiffs, then clean"); the law flags it (`DustSample.Film`).
 - **The grid matches the hand.** `DustRisesAsTheDroneComesLower` gives the same onset heights as the hand, over the grid's own nodes, for every surface, dry and wet.
+- **The rain check, in the same test:** a hover 0.25 m over bare loam (belt_bare) lifts dust at 656 nodes dry and at none in Rain or Severe rain, with u* up to 2.49 m/s in each.
 
-**Not met (traced; for the orchestrator):** clip H's damp dark soil and the spec's "a landing … in rain … no dust".
-- **What the law does at a creep.** At 0.3–0.6 m the wash's u* reaches 1.8–2.5 m/s (the rough law). Fécan's factor lifts belt_bare's threshold only to 0.79 m/s, so wet bare loam lifts dust below 1.5 m by the law.
-- **Two candidate causes:**
-  - The wet set's water (25 % by volume, about 18 % by mass) lies past the range Fécan's fit was made on. The note labels its ×2.7–3.3 at 15–25 % as derived.
-  - The rough-wall u* at k_s 2 mm (assumed) doubles the smooth wall's.
-- **Physically,** a loam's topsoil at field capacity is bound by its capillary cohesion. That cohesion is of the kPa order (the sim's own `cohesion_wet`), and the wash's shear ρu*² is ≤ 8 Pa.
-- **The choice is not mine to make silently.** Either the wet set lifts no dust (assumed: no loose dry grains on a wet topsoil), or the law stands. It changes no flight; it changes what 1.4 draws.
+**Clip H's damp dark soil and the spec's "a landing … in rain … no dust": met.**
+- In a flight with rain, the wet topsoil lifts nothing at any height.
+- Clip H's soil looks damp on a dry day, which the sim does not represent: the sim's moisture follows the rain alone. If the pilot flies H's scene with Sunny, its bare loam lifts dust from 6 m. That is the dry case, F's veil.
 
 ### 6. One law with the props' stems (`PropStems`)
 
@@ -378,7 +378,7 @@ Each frame:
 ### 10. Still not met, and for whom
 
 - **Clip H's flutter within about 1 m at a creep:** the wash's near field (§4.3). For w9-village-physics 2.14.
-- **Clip H's damp soil and the spec's "no dust in rain":** wet bare loam lifts dust below 0.5–2 m by the law (§5). For the orchestrator.
+- **Damp ground on a dry day** (clip H's soil) is not a state the sim has: its moisture follows the rain alone (§5).
 - **Supply depletion on films:** short whiffs (§5). For 1.4 to draw, or a later law.
 - **Leaf flutter's amplitude:** no published law was read (note §7). It is assumed nowhere: 1.3 needs one.
 - **A tree's sway amplitude:** derived from the drawn trunk, unchecked.
