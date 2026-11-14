@@ -330,8 +330,40 @@ namespace Fpv450.Sim.World
             return hi;
         }
 
+        /// <summary>
+        /// Whether core segment a–b can come within `grow` of `box`: the segment clipped by the box grown by `grow` on every
+        /// side (Liang–Barsky), a box that holds every point within `grow` of it, keeps a part. A box it misses lies farther
+        /// than `grow` from the whole segment. Comparisons and basic operations only; false for a NaN.
+        /// </summary>
+        internal static bool SegmentMeets(Double3 a, Double3 b, in Bounds box, double grow)
+        {
+            double t0 = 0, t1 = 1;
+            return Clip(a.X, b.X - a.X, box.Min.X - grow, box.Max.X + grow, ref t0, ref t1)
+                && Clip(a.Y, b.Y - a.Y, box.Min.Y - grow, box.Max.Y + grow, ref t0, ref t1)
+                && Clip(a.Z, b.Z - a.Z, box.Min.Z - grow, box.Max.Z + grow, ref t0, ref t1);
+        }
+
+        /// <summary>One axis of SegmentMeets: [t0, t1] narrowed to where p + t·d lies in [lo, hi]; false once it is empty.</summary>
+        private static bool Clip(double p, double d, double lo, double hi, ref double t0, ref double t1)
+        {
+            if (d == 0)
+                return p >= lo && p <= hi;
+            double u = (lo - p) / d, v = (hi - p) / d;
+            if (u > v)
+            {
+                double w = u;
+                u = v;
+                v = w;
+            }
+            if (u > t0)
+                t0 = u;
+            if (v < t1)
+                t1 = v;
+            return t0 <= t1;
+        }
+
         /// <summary>Whether two poses of a capsule core are the same (==, so a signed zero's two signs are one).</summary>
-        private static bool Still(in Capsule previous, in Capsule current) =>
+        internal static bool Still(in Capsule previous, in Capsule current) =>
             previous.A.X == current.A.X && previous.A.Y == current.A.Y && previous.A.Z == current.A.Z
             && previous.B.X == current.B.X && previous.B.Y == current.B.Y && previous.B.Z == current.B.Z;
 
