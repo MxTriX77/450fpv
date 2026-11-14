@@ -68,3 +68,59 @@ python tools/reference/extract_frames.py <clip F under reference/> --letter F --
 ```
 
 ffmpeg decoded on the CPU (no hardware acceleration). The crops, the tone statistics of 20.0–20.94 s (luma percentiles, saturation, fine detail) and the forward term's segment medians from H's `motion.csv` (ground-micro-motion.md §6) used throwaway scripts kept outside the repo; their outputs are local only.
+
+## 2. The plant classes the farmland draws
+
+What the friend's world places (`maps/farmland/placements.json`, its grass layers in `maps/farmland/map.json`), with the sizes as drawn: the meshes' bounds and collision capsules in `unity/Assets/_Project/Art/Models/vegetation/VF*/*.assetmeta.json`, and the stems and leaf areas measured from the local store in `assets-src/vendor_plant_numbers.json` (all **measured** from the assets, w9-village-physics 2.8). The sim's own stem numbers are in `assets-src/surfaces.json`'s `cover` table (w9-village-physics 2.11 and 2.12, from stem-properties.md). Placement scales run 0.5–1.5 of the drawn size.
+
+| Class | What the farmland draws | The sim's numbers today | Proxy species for the published numbers |
+|---|---|---|---|
+| **Grass blades and green culms** | Grass_A (225 stems an instance), Grass_B, _C, _D clumps (566–2,050): 0.45–0.97 m tall (p10–p90), a tall layer of Grass_A to 1.34 m; drawn widths 1.1–25 mm (blade cards) | `grass_blade`: d 1.81 mm for a 1 m culm, d ∝ L^(1/1.53) (Niklas 1995); wall 0.125 d; E 6.4 GPa (derived: the least that lets the tallest drawn culm stand); 1000 kg/m³; ζ 0.1 (assumed) | meadow grasses (*Dactylis*, *Arrhenatherum*, *Elymus*: stem-properties.md [1]) |
+| **Dry culms and straw** | GrassDry_A, _B, _C (110–210 stems): 0.59–0.95 m; tall layers 1.17–1.77 m | `dry_culm`: d 4.49 mm for a 1 m culm; wall 0.125 d; E 2 GPa (assumed); 400 kg/m³; `straw`: E 4.8–6.6 GPa (published, O'Dogherty et al. 1995) | wheat and barley straw (stem-properties.md §1.4) |
+| **Burnt culms** | GrassBurnt_A, _B, _C: 0.44–1.15 m; tall 1.22–1.77 m | `burnt_culm`: the dry culm's with half the wall, 300 kg/m³ (assumed, no source) | none found |
+| **Weed stalks** | the `weeds` ground class (34 % of the map) under GrassDry; no separate weed mesh | `stem`: wall 0.2 d, E 1–4 GPa, 800 kg/m³ (assumed); stem-properties.md: 5–15 mm, 0.5–1.5 m | ragweed, mugwort, goldenrod (stem-properties.md §1.3) |
+| **Hedge shrubs** | GreenBush (579 + 190 dry): 2.0 m tall, 3.3 m wide, leaf area density 0.98 m²/m³; LeafyBush_P2 (300 + 73): 3.2 × 5.3 m, twigs 9–18 mm at the base, 0.95 m²/m³; RedBush_Dry (40): 1.8 × 3.5 m, 1.13 m²/m³; SmallBushDry_A, _B (102): 1.6–1.8 m, twigs only; DeadBush_4, _6 (68): 3.4–5.0 m, dead twigs 10–44 mm at the base | `twig`: E 7–12.8 GPa (published, Wood Handbook; black locust 12.8), 950 kg/m³; `leaf`: 0.06 kg/m² dry, 0.2 fresh | the belts' shrubs: elder, blackthorn, privet, lilac (object-sheets/vegetation.md) |
+| **Broadleaf trees** | IslandTree (154 + 48 dry): 13.0 m tall, crown 12.8 m wide, trunk about 1.1 m across at breast height as drawn, leaf area density 0.88 m²/m³ (0.60 dry) | the crown shell's twigs and leaves as above | the belts' black locust, ash, maple, elm (object-sheets/vegetation.md V01–V04) |
+| **Pines** | Pine006_01, _02 (56): 6.5–7.9 m, dbh about 11 cm; Pine002_S2, _M, _L (20): 5.1–15.6 m, dbh 11–60 cm; Pine004_1, _3 (11): 20–21 m; PineDead_02 (5): 12 m, no needles. Needle area density 0.21–2.09 m²/m³ | as above | Scots pine (*Pinus sylvestris*) |
+
+## 3. Bending, damping, drag and flutter
+
+### 3.1 The laws (derived from beam theory; the inputs are the sim's and §2's)
+
+- **First bending mode of a stem, twig or branch** (a uniform cantilever): f₁ = (1.875² / 2π)·√(EI / μL⁴), μ the mass per length. A tip mass M (an ear, a seed head) lowers it to f = (1/2π)·√((3EI/L³) / (M + 0.243 μL)). Both are the textbook beam (Rayleigh's tip-mass form). For a solid section they reduce to f₁ ∝ (d/L²)·√(E/ρ): **thicker raises it, longer lowers it by the square**, the scaling the tree literature fits (§3.2).
+- **Damping:** the structural ratio ζ_s (published per class below) plus the **air's own damping** of a stem in a mean flow U: the drag on a stem moving at v in that flow is ½ρC_d d(U − v)², whose slope gives c = ρC_d dU per length, so ζ_a = ρC_d dU / (2μ·2πf) (quasi-steady drag, derived). It grows with the wind and falls with the stem's mass: **a thin grass culm is overdamped in any breeze, a thick stalk or a twig rings** (table below).
+- **What a short gust leaves behind** (an impulse on a damped oscillator): the stem swings past its rest and each later swing is e^(−2πζ/√(1−ζ²)) of the one before; it is within 5 % of rest after ln 20 / (2πζ) cycles:
+
+  | ζ | each swing of the last | cycles to 5 % |
+  |---|---|---|
+  | 0.04 (a leafless tree, §3.2) | 0.78 | 11.9 |
+  | 0.08 (a wheat shoot; a tree in leaf 0.086) | 0.60 | 6.0 |
+  | 0.2 | 0.28 | 2.4 |
+  | 0.36 | 0.09 | 1.3 |
+  | ≥ 1 | no swing past rest: it creeps back | — |
+
+- **A steady wind** leans a stem by its drag over its stiffness: the tip moves q·C_d·d·L⁴ / (8EI) for a uniform load (linear while under about 0.3 L). Past that the stem reconfigures (§3.2's Vogel exponents): its drag grows slower than U².
+- **The Cauchy number** ρU²dL³/EI tells which: under about 1 the stem is a rigid bluff body, over it reconfiguration sets in, and far over it the original length drops out of the drag (Gosselin 2019 [3]).
+
+### 3.2 Per class
+
+**Read the table this way:** the frequency is derived from the class's own section (§2) unless it names a source; the ζ_a columns are at a wind of 2 / 5 / 10 m/s (C_d 1.15, stem-properties.md §2.4).
+
+| Class | First mode f₁ | Structural damping ζ_s | Air damping ζ_a at 2 / 5 / 10 m/s | Drag and reconfiguration | Flutter | Scaling |
+|---|---|---|---|---|---|---|
+| **Green grass culm** 0.45 / 0.67 / 0.97 / 1.34 m (d 1.1–2.2 mm, EI 2.9e-4 – 5.0e-3 N·m²) | 2.4 / 1.4 / 0.8 / 0.5 Hz bare; 0.8 / 0.7 / 0.6 / 0.4 Hz with a 0.3 g seed head (assumed) | 0.08 (published for a wheat shoot [5]; no grass value found) | 0.27–0.59 / 0.67–1.5 / 1.3–3.0: **overdamped from about 3 m/s** | C_d ≈ 1 upright (wheat plants about unity [5]); Cauchy number past 1 from about 1.5 m/s for a 0.67 m culm (derived), then the Vogel exponent of a filament or plate, **−2/3** (drag ∝ U^(4/3), [3]) | the blades (leaves on the culm) flutter in any wind: no frequency found | f₁ ∝ d/L², d ∝ L^0.65, so f₁ ∝ L^−1.35 (derived) |
+| **Dry culm and straw** 0.2 / 0.6 / 0.9 / 1.6 m (d 1.6–6.1 mm) | 15 / 3.5 / 2.0 / 0.9 Hz at E 2 GPa; with a 1.5 g ear (assumed) 1.2 Hz (0.6 m) and 1.0 Hz (0.9 m), 1.6–1.9 Hz at straw's 4.8 GPa | 0.08 [5] | 0.07–0.28 / 0.17–0.70 / 0.33–1.4: a standing straw rings 1–3 swings | wheat plant C_d about unity [5]; **stubble (0.2 m) is stiff: 15 Hz, barely moves** | ears and loose leaves flutter | as above, d ∝ L^0.65 |
+| **Weed stalk** 5 / 8 / 13 mm, 0.5–1.0 m (EI 0.03–4.9 N·m²) | 1.0 m: 0.6–1.3 / 1.0–2.1 / 1.7–3.4 Hz; 0.5 m: 2.6–5.2 / 4.1–8.3 / 6.7–13 Hz (E 1–4 GPa, the leaves doubling μ, assumed) | 0.08–0.1 (assumed: the wheat shoot's [5] and the sim's 0.1) | 0.003–0.09 / 0.008–0.21 / 0.016–0.42: **rings**, light stalks damp more | rigid cylinder C_d 1.0–1.3 until its leaves fold (stem-properties.md §2.4) | its leaves flutter | f₁ ∝ d/L² |
+| **Twig with leaves** 3–10 mm, 0.3–1 m (solid wood, E 10 GPa) | 3 mm × 0.3 m: 15 Hz bare, 9.6 leafy; 5 mm × 0.5 m: 9.1 / 6.3; 10 mm × 1 m: 4.5 / 3.5 (leaf load 10–50 g/m, assumed) | part of the crown's (next rows) | small next to its leaves' drag | a broad leaf **rolls into a cone**, its drag rising about linearly with U (Vogel exponent about **−1**, the tulip tree, Vogel 1989 as [3] restates it); white oak leaves flutter and tear instead ([3]) | **leaf flutter: a cherry leaf's torsional mode 6 ± 1 Hz** [11]; flutter dominates the foliage's motion in light wind and depends only weakly on the wind's speed [11]; its onset depends on the leaf's angle to the wind and the wind's speed [12] | f₁ ∝ d/L² |
+| **Branch** 30–50 mm, 3–4 m | 1.5 / 1.4 Hz bare, 1.1 / 1.0 leafy (derived) | branches are tuned near the tree's own sway and take its energy (multiple resonance damping, [13]) | included in the tree's | as the crown | — | f₁ ∝ d/L² |
+| **Broadleaf tree** (IslandTree, 13 m) | **not the cantilever's:** broadleaves follow a pendulum, f₀ ∝ 1/√H, best fit R² 0.61–0.67; open-grown ones sway about 0.5 Hz faster than forest ones of their height [2]; a 3D-modelled sycamore 0.26 Hz [1]. Assumed for IslandTree: **0.3–0.6 Hz in leaf** | **0.086 ± 0.022 in leaf, 0.039 ± 0.013 leafless**, the leaves adding 0.047 (pull-and-release, sycamore, ash, birch [1]) | in the ζ_s (the leaves are most of it) | crowns streamline: at 20 m/s the frontal area falls to 20–37 % of still air (cottonwood, alder, birch, [9]); a dense poroelastic crown tends to a Vogel exponent of **−1** [3] | leaves flutter (as the twig row) | **leafless f₀ is 1.18 ± 0.12 × in leaf (+19 %)** [1]; leaves lower both f₀ and ζ [1] |
+| **Pine** (Pine002, 004, 006, PineDead) | f₀ grows linearly with dbh/H² (602 trees, 8 species, [6]); restated as f₀ = 0.0948 + 3.4317·D/H² − 0.7765·I_P·D/H² Hz (D cm, H m, I_P 1 for pines) [7]: **Pine006 0.6–0.8 Hz, Pine002_S2 1.3, Pine002_M 0.6, PineDead 0.65, Pine002_L 0.75, Pine004 0.42 Hz** (derived from the drawn sizes); the uniform cantilever with √(E/ρ) 2,900 m/s gives 0.5–1.8 Hz | **internal under 0.05**, not tied to diameter; the external damping is the foliage's drag and the crowns hitting their neighbours [6] | in the external damping [6] | conifers at 20 m/s: C_d 0.22–0.47, frontal area down 36–54 % (redcedar, hemlock, lodgepole pine, [8]) | needles: none found | pines sway slower than spruce and fir of the same dbh/H² [6] |
+
+**Checks:** the derived wheat-like straw with an ear (1.0–1.9 Hz) sits where the lodging literature puts a shoot's natural frequency, which varies over the season and with wetting [5] (its value was not read). The derived pines (0.4–1.3 Hz) and the restated regression agree within 30 % (the cantilever reads high, as a uniform cylinder ignores the crown's mass). The tree spectra stay of one slope from 3–4 m/s up to high winds, so **no extra damping or amplification switches on in strong wind** [2].
+
+### 3.3 What 1.2 should take from it
+
+- **Two kinds of motion.** Grass culms and blades are overdamped in any wind above 2–3 m/s (ζ_a ≥ 0.4–1): they **follow the gust with a lag** τ ≈ ζ/(πf₁) (for ζ > 1: 0.2–0.5 s for a 0.67 m culm at 5–10 m/s, 0.9–1.8 s for a 1.34 m one, derived) and creep back without overshoot; in calm air (ζ ≈ 0.08) a flicked culm swings 5–6 times. Straw, weed stalks, twigs, branches and trees ring: **a short gust leaves 2–6 decaying swings** at their own f₁ (ζ 0.04–0.2).
+- **Reconfiguration caps the load:** grass and leaves past a Cauchy number of about 1 take drag ∝ U^(4/3) (plates, filaments) or ∝ U (cones, dense crowns), not U².
+- **Leaves flutter by themselves** at a frequency nearly independent of the wind (a cherry leaf 6 ± 1 Hz), riding on the branch's slower sway; in stronger wind the branch's buffeting takes over [11].
+- **Season:** a leafless broadleaf sways 18 % faster with half the damping [1]; the farmland's `_Dry` variants are the late-season look, not leafless.
