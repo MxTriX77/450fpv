@@ -546,6 +546,98 @@ The 15–20° slides that move (#432, #434, #436, #437, #438, #446, #448) ended 
 - **Assumed** (named): k_t 6600 N/m (model 26's penetration spring; a 10/8 mm ring's own is ~180 kN/m); the bore's P·Δ left out; `SecondFace` cos 30°; the soil met as rigid by a hanging half (1.6–3.5 mm dry by hand, about twice wet).
 - **The fold's cap stays at the bores' distance** (2.6's σ_y·S/a). With the cantilever now at its points' levers, a tip load at 0.3225 m folds the skid at a moment 1.57 × its yield. This is the plastic law's, for the next legs task. A moment cap was tried and moves no row of the drifting touch.
 
+## 2.6d Parts through a wire's cable at speed
+
+**Owner:** physics-engineer · **Requirements:** PHY-22, PHY-23, PHY-04 · **Branch:** `unity/physics/physics-integration-2--w9-cable-tunnel` (the line at model 100, 05ca5180) · Found by `p7c-wind` 1.5e's wire band (`RangeContactTests.InSeveresFieldNoTunnelOnTheWiresBand`, red at model 99 and 100).
+
+Labels as in 2.6. The traces are the session's scratch probe (`CablePassProbe`, not committed): it flies the band's flight with `ContactScenarios.Into`'s read-only `observe` hook and prints, each step, every pair a part holds on a rigid object (its latch, its depth against its plane, its force from the impulse, its normal against its entry) and the query's own distance and normal at the part's pose now, so the core's side of the member is read without the latch. L03_medium's conductor: 9.0 mm across (R 4.5 mm, `assets-src/lines/L03_medium.json`, measured). The arms' edge capsules r 3 mm, 18 kN/m out of their plane (3EI/a³ at the motor, derived); the supports and skids r 5 mm (measured).
+
+### 1. What the traces show (measured)
+
+**Fault 2, seed 3, 5.58 m: an intact arm** (`arm_fr_b`, then `arm_fr_a`). The cable is not missed inside a step:
+- 11673: the first touch, `Time` 0.491, under the conductor (n = (0, −0.98, −0.18)), closing 2.6 m/s along n while the drone slides 9.6 m/s along it (prop_fr struck the conductor at 6.80 m/s and the drone pitches up).
+- 11673–11681: the depth against the latched plane 1.3, 3.8, 6.0, 7.9, 9.4, 10.6, 11.8, 14.1, 16.4 mm at 100–321 N. The arm out of its plane gives 18.7 kN/m; the part's core reaches the conductor's axis at ρ = 3 + 4.5 = 7.5 mm (11676, the query's `Time` 0: the normals disagree) and is 8.8 mm past it at 11681. That is the arm bent 16 mm, and the latch (P1) rightly keeps the entry plane through it.
+- From 11682 the conductor passes `arm_fr_b`'s root end: the arm's nearest core point is its end, and it moves off the conductor's side: 3.8 mm clear at 11685, 34 mm at 11690, 98 mm at 11700. **The latched plane is infinite:** it reads 17.7 → 9.7 mm and presses the arm with 200–390 N (peak 388.6 N) while the arm touches nothing.
+- 11701: the conductor leaves the 0.1 m margin and the pair, flipped and latched, "12 mm deep", is a Tunnel (`arm_fr_a` at 11703, 8 mm). This is p6's model-21 tunnel (`arm_fl_a`, 5.52 m in Severe), whose handoff named "a latch that tells rolling off from passing through", never built.
+
+**Fault 1, the conductor (5.40 and 5.43 m on 0x450F, 5.36 m on seed 4): the same mechanism, then the depth law follows it.**
+- 5.40 m: `support_fl_end` meets conductor #2 at 9.79 m/s closing (11821, `Time` 0.84), n = (0, −0.37, −0.93), 22° under its equator. At 10 mm a step against ρ = 9.5 mm the core is at the axis at 11825 (`Time` 0) and 4.8 mm clear past it at 11826, the leg cracked and set (11822). Leg fl breaks at 11827, and its half hangs from leg rl's T-joint while its end is already 16.3 mm clear, under and behind the conductor (n·entry −0.87, then −0.04).
+- From 11827 the flipped plane holds 36 steps. The depth law (2.6b) reads the half's overlap without its give, 22 → 383 mm (the drone's 9.3 mm a step along n), and moves the half's shapes out along n by all of it but F/k_t: the move 31 → 390 mm at 5–10 N (the half's 78 N/m chain). At 11863 the conductor leaves the margin: a Tunnel, 11 mm.
+- 5.43 m: `support_fr_end`, the same: at the axis one step after its touch (11823, `Time` 0), 4.3 mm clear past it at 11824 with its leg intact (cracked 11826, broken 11829), the plane held 28 steps, the move to 258 mm, Tunnel at 11850. Seed 4, 5.36 m: `Time` 0.020 at 10.45 m/s, 2.9 mm past at the next step, the plane held 38 steps.
+- **"Within 21–36 ms of the break" is when the pair left the margin.** The part's core passed the axis 1–5 ms before or at the break.
+- **With `HangingDepth` off** (5.40 m): the same flipped plane, the move 62 → 129 mm. Leg rl then breaks (11837) and the whole left skid parts, taking the pair with it. No Tunnel by the path, not by the law.
+
+**Fault 1, the bark (seed 1, 5.42 m): a second mechanism, SameSupport and the half's give.**
+- V01_M's limb #158 (bark, a capsule). The hanging left half (leg fl broke at 14482) lies on it by `skid_fl` from 14561. The depth law holds that pair at 9.4–9.5 mm (3–8 N, n1 = (−0.78, 0.63, 0.06)) while its give grows with the drone's travel: turn 1.9 → 13.5°, move 0.7 → 26.5 mm, overlap without the give 2 → 98 mm. That is the legitimate chain of a half held by a limb.
+- 14573: the half's end sphere `support_fl_end` meets the same limb 11.1 mm clear, but touching through `Hung` (its overlap without the give is positive). `SameSupport` (P3) then hands `skid_fl`'s pressed pair to that sphere: the capsule's contact lies within two radii of a "touching" sphere's on the same part. The pair is suppressed and dropped.
+- 14574: the chain reads the sphere's pair, n2 = (0.27, 0.46, −0.85), 88° from n1. The give along n1 is gone (turn 13.5 → 0.03°, move 26.5 → 1.7 mm), and `skid_fl` goes back 110 mm through the limb in one step (`Time` 0, its core 92.7 mm past the limb's far side). At 14575 the give is back along n1, but the core is past the axis: flipped, latched, a Tunnel at 14584 (89 mm at 10.89 m/s).
+
+### 2. The causes
+
+1. **A latched pair on a round member keeps its tangent plane after the part leaves the member's side** (faults 2 and 1 on the conductor). P1's latch is right while the core is past the axis. A plane, though, is a face, and a round member has none: its surface leaves the tangent plane at once, and on a member thinner than the part's give the core rolls off its side while still "deep" against the plane. The plane then presses a part that touches nothing (fault 2's 390 N at 34–98 mm clear). It drags a hanging half's shapes with the drone's travel (fault 1's 0.39 m), and turns its exit from the query's margin into a Tunnel.
+2. **A sphere lifted clear by a hanging half's give carries a skid capsule's pressed touch** (fault 1 on the bark). `Hung` keeps a half's pair touching through its give (2.6's limit cycle), and `SameSupport` reads `Touching` as the sphere being on that face. The capsule's real contact is dropped, and the chain then reads a clear point along another normal, so the half's placement jumps.
+
+Neither is the query. Every pass was met within its step: `Time` 0.491, 0.84, 0.777, 0.891 and 0.020 at the first touch, and `Time` 0 (the start's contact) when the core went through within a step.
+
+3. **A touch on an intact leg's tube in its clamp's jaws meets the tube's own penetration spring** (found on fault 2's flight once its arm was let go; measured). With the arm's phantom gone, seed 3's 5.58 m flight keeps leg_fl's tube on:
+   - the conductor meets the tube at 10.3 m/s (11676, `Time` 0.935), n = (0, 0.11, −0.99), its core 11–21 mm under the tube's top, inside the clamp_fl block (16.5 mm high, its bottom edge 11.5 mm under the tube's top end);
+   - on the tube's 6.6 kN/m (assumed, model 26's penetration spring) the core passes the axis within the step (`Time` 0) and goes on through along n, w ≈ 0 (n·entry −1.00): 10.8 → 118.6 mm at 368 → 949 N, a pass through the member, not a roll-off;
+   - the legs' law bends no tube there (the touch is above the clamp's edge), so nothing breaks it;
+   - 11692: it leaves the margin, a Tunnel, 123 mm at 4.67 m/s.
+   - On the base the arm's phantom drag broke leg_fl at 11687 (8.22 N·m) and its tube left with the break; this pass was masked, not absent.
+   - A broken leg's stub in the same jaws already meets the clamp's mount (`LegDamageSpec.StubStiffness`, p7g-legs model 51: "the stub is no free tube"). The intact tube's clamped length is the same section in the same jaws.
+
+### 3. What a thin rigid member met faster than its thickness a step needs
+
+**Nothing more of the sweep.** A body part's capsule is swept by the query itself, which reports the first touch within the step or the start's contact when the part went through. 2.6's blade crossing (`BladeCut.Crossing`) had to add the slab's own sweep because a disc's ring capsules never swept the slab's inside; no body shape has that gap.
+
+**What it needs is the member's extent across the latched normal:**
+- a part whose core leaves the member's side has rolled off it: an ordinary break, its give let go;
+- a part whose core leaves the query's reach still in the member's shadow along n has gone through it: a Tunnel, a bug.
+
+Below, the depth along n is the member's own surface, not its tangent plane. The plane over-reads by ρ − √(ρ² − w²) (w the core's offset across n) and never ends.
+
+### 4. The laws
+
+**The round member's latch** (`ContactSpec.RollOff`, `RoundMember`). A latched pair (P1) on a sphere, a capsule, a wire or a cylinder's side reads the member grown by the part's radius r, a set within ρ = R + r of its core:
+- the core is the sphere's centre, the capsule's or cylinder's axis segment, or the wire's chain segments near the part;
+- c is the part's core point nearest it;
+- the line c + s·n (n the latched normal) meets that set over [s_in, s_out];
+- the depth is s_out, the part's give along n (above 0 pressed, below it clear along n), and the contact point is c + n·(s_out − r).
+- **Where the line misses the set, the part's core is beside the member:** the pair is not pressed (an ordinary `ContactBroken`), its latch is let go, and the next query meets it afresh.
+- A Tunnel stays what it was, a pair the query no longer reports while it is latched and in the member's shadow with its depth above 0.
+
+**Checks of the law:**
+- At the first touch s_out = 0. Pressed straight in (w = 0), s_out = ρ − h, the plane's, through the axis and past it. Across, √(ρ² − w²) − h.
+- **The cylinder's side.** A side pair's n is square to the axis, so the line keeps its axial place y: ρ = R + r for |y| ≤ H, R + √(r² − (|y| − H)²) over the rim's quarter circle to H + r, and beside past it (exact for a line square to the axis).
+- A pair latched on a cap or rim (n not square to the axis, beyond 1e-6) keeps the plane: a cap is flat, as a box's face.
+- **Boxes keep the plane.** A box's face is its latched plane out to its edges. Past an edge is not traced here, and nothing on the band meets one.
+- The known-wrong: `RollOff` false, model 100's infinite tangent plane.
+
+**A support carries a skid's touch by its own depth** (`ContactSpec.SupportByDepth`, `SameSupport`):
+- a sphere's pair carries a capsule's contact as the face's one point only while the sphere touches by its own depth (above 0);
+- one held touching by a hanging half's give alone (`Hung`) is pressed through the chain, not on that face, so the capsule's contact is its own pair;
+- for every other part `Touching` is its depth above 0, so only hanging halves change.
+- The known-wrong: `SupportByDepth` false, model 100's rule.
+
+**A touch in a leg's jaws meets the clamp's mount** (`ContactSpec.ClampedTube`, `ContactModel.InJaws`):
+- an intact leg's tube pair whose core point lies above the clamp's bottom edge along the legs' axis is held by the jaws;
+- its spring is the clamp's mount across n, as the stub's: the plate arm under the clamp, 1.172 MN/m in its plane and 67.6 kN/m out of it (derived, drone.json `legs.clamp`), 1/(n_y²/k_up + (1 − n_y²)/k);
+- it bends no free tube at the edge (its height there is 0); its force along the tube still loads the jaws' grip (the clamp's slip);
+- under the edge the tube's own 6.6 kN/m and its moment stay as they were.
+- The known-wrong: `ClampedTube` false, the tube's own spring in its jaws (model 100's).
+
+**The log.** The three switches are in one header entry of their own (tag 33, `TagMembers`; no format change), as `HangingDepth`'s. A log without it flew all three off, model 100's. No switch adds an event kind or a record field.
+
+### 5. The claim and its tests
+
+- **The claim on every flight of the band:** no tunnel through anything rigid, no contact lost (`InSeveresFieldNoTunnelOnTheWiresBand`, and the band on its five draws by height: 0x450F, 1, 2, 3, 4).
+- **Made states** (`RoundMemberTests`):
+  - the law by hand on a sphere, a capsule, a cylinder's side and rim, and a wire chain: at the touch, through the axis, across it, beside it;
+  - fault 2's arm under a conductor through the contact model: pressed past the axis, then slid until the conductor leaves the arm's root ends. Its pairs end as breaks with no Tunnel and carry nothing beside it; the known-wrong presses while clear and logs the Tunnel.
+- **Known-wrongs on the band:** `RollOff` off logs fault 2's tunnel (seed 3, 5.58 m) and fault 1's (0x450F, 5.40 m); `SupportByDepth` off logs the bark's (seed 1, 5.42 m), if its path still reaches it; `ClampedTube` off logs the jaws' (seed 3, 5.58 m).
+- **A touch in the jaws** (made state): the tube pressed 1 mm in its jaws carries StubStiffness × 1 mm, under them its own 6.6 N, the known-wrong 6.6 N in the jaws.
+
 ## 2.7 The crown twig's repeated break (G5)
 
 **Reproduced** (measured, `ObjectContactTests.AHoverInACrownBreaksNoBladeTwice`, model 85): the drone starts 1.24 m over the ground at (525.79, 612.74), inside GreenBush_Dry's crown, and the pilot holds that point for 25 s with surfaces.json. 150,239 `BladeDamaged` Break events, all with 0 kg lost, 150,231 at a station the blade had already broken at; 8 in every step. **No twig was cut** (0 `BladeStrike` on twig): the candidate, `PropStrikes.Twig`, never ran.
