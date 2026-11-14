@@ -1246,6 +1246,126 @@ namespace Fpv450.Sim.Tests
             return res;
         }
 
+        // ---- p7d-tether design 21: the line on a board and on a batten (QA's regressions of the pilot's flights of 2026-11-14) ----
+
+        public struct OnTimber
+        {
+            public Outcome O;
+            /// <summary>The most tension of any segment over the flight, N; the steps a node pressed the timber; the sections worn
+            /// through; the deepest wear at a node pressing the timber, m.</summary>
+            public double MostTension, DeepestWear;
+            public long Touching;
+            public int WornThrough;
+            /// <summary>Where the most tension was: the time, s, and the segment's place (its index, length, rest length and its
+            /// ends' slots).</summary>
+            public double MostAt;
+            public string MostWhere;
+        }
+
+        static RuntimeObject Timber(FlightWorld world, string name, Double3 centre, Double3 half) => new RuntimeObject(name, new[]
+        {
+            new ShapeGeometry
+            {
+                Kind = ShapeKind.Box, Center = centre, AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1),
+                HalfExtents = half, Material = world.Query.MaterialId("timber"),
+            },
+        });
+
+        static string Slots(in CableNode a) =>
+            (a.Contact0.Active ? $"{(FiberMember)a.Contact0.MemberKind} {a.Contact0.NormalForce:F3} N" : "-") + ", "
+            + (a.Contact1.Active ? $"{(FiberMember)a.Contact1.MemberKind} {a.Contact1.NormalForce:F3} N" : "-");
+
+        static OnTimber Fly(FlightSetup setup, double seconds, Func<double, double, Double3> target)
+        {
+            var res = new OnTimber();
+            var w = new Watch(setup);
+            var core = new FlightCore(setup);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            int steps = (int)(seconds * 1000);
+            for (int k = 0; k < steps; k++)
+            {
+                double t = k * Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    pilot.HoldVelocity = false;
+                    pilot.Target = target(t, setup.StartPosition.Y);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                }
+                core.Advance(stick);
+                w.Step(core);
+                for (int i = 0; i < core.Events.Count; i++)
+                    if (core.Events[i].Kind == EventKind.FiberSection && (core.Events[i].Index & 0x40) != 0) res.WornThrough++;
+                FiberLine f = core.Tether;
+                if (f.Broken) break;
+                CableChain c = f.Chain;
+                bool touch = false;
+                for (int j = 0; j + 1 < c.Count; j++)
+                {
+                    if (!(c.Tension(j) > res.MostTension)) continue;
+                    res.MostTension = c.Tension(j);
+                    res.MostAt = t;
+                    string tensions = "";
+                    for (int q = j; q + 1 < c.Count; q++) tensions += $" {c.Tension(q):F2}{(c[q + 1].Contact0.Active || c[q + 1].Contact1.Active ? "[" + Slots(c[q + 1]) + "]" : "")}";
+                    res.MostWhere = $"segment {j} of {c.Count}, {(c[j + 1].Position - c[j].Position).Length() * 1e3:F1} mm long, rest {(c[j + 1].Material - c[j].Material) * 1e3:F1} mm, its ends' slots {Slots(c[j])} / {Slots(c[j + 1])}; on to the exit:{tensions}";
+                }
+                for (int i = 1; i + 1 < c.Count; i++)
+                {
+                    ref CableNode a = ref c[i];
+                    bool on = a.Contact0.Active && a.Contact0.MemberKind == (byte)FiberMember.Shape && a.Contact0.NormalForce > 0
+                        || a.Contact1.Active && a.Contact1.MemberKind == (byte)FiberMember.Shape && a.Contact1.NormalForce > 0;
+                    if (!on) continue;
+                    touch = true;
+                    res.DeepestWear = Math.Max(res.DeepestWear, f.Cuts.WearAt(a.Material));
+                }
+                if (touch) res.Touching++;
+            }
+            res.O = w.O;
+            return res;
+        }
+
+        /// <summary>
+        /// AroundATwig's flight round the end of a 2 cm timber board instead of a twig, in Calm: the board stands on the stub's floor
+        /// at z 4, 0.3 m wide (x −0.3 to 0) and 1.6 m tall, its 2 cm end at x 0 where the twig stood; the drone at 1.4 m passes it on
+        /// its +x side and orbits its end once at 1 m, so its line wraps the board's end and pays out at the pack's 0.05–0.2 N.
+        /// </summary>
+        public static OnTimber RoundABoard(DroneSpec spec, ulong seed, bool beforeDesign21, double seconds = 20)
+        {
+            FlightSetup setup = TetherScenarios.Setup(spec, WindLevel.Calm, seed: seed, cuts: true);
+            setup.World = FlightWorld.Floor();
+            setup.RuntimeObjects = new[] { Timber(setup.World, "board", new Double3(-0.15, 0.8, 4), new Double3(0.15, 0.8, 0.01)) };
+            setup.TetherBeforeDesign21 = beforeDesign21;
+            double stand = TetherScenarios.Stand(setup);
+            setup.StartPosition = new Double3(1, stand, 0);
+            setup.TetherLayout = new[] { new Double3(1, 0, -3), new Double3(1, 0, -0.5) };
+            return Fly(setup, seconds, (t, y0) =>
+            {
+                double y = y0 + DetMath.Min(1.4, 1.0 * t);
+                if (t < 2) return new Double3(1, y, 0);
+                if (t < 6) return new Double3(1, y, t - 2);
+                double phi = DetMath.Min(2.25 * Pi, 0.5 * (t - 6));
+                return new Double3(Math.Cos(phi), y, 4 + Math.Sin(phi));
+            });
+        }
+
+        /// <summary>
+        /// A timber batten 2 m long, 5 cm wide and 2 cm high lying across the line's path on the stub's floor at z 2: the drone climbs
+        /// to 1.5 m, flies 5 m forward over it at 1 m/s, so its line is laid across the batten, and holds there in Severe wind for
+        /// the rest of seconds.
+        /// </summary>
+        public static OnTimber OnABatten(DroneSpec spec, ulong seed, bool beforeDesign21, double seconds = 66)
+        {
+            FlightSetup setup = TetherScenarios.Setup(spec, WindLevel.Severe, seed: seed, cuts: true);
+            setup.World = FlightWorld.Floor();
+            setup.RuntimeObjects = new[] { Timber(setup.World, "batten", new Double3(0, 0.01, 2), new Double3(1, 0.01, 0.025)) };
+            setup.TetherBeforeDesign21 = beforeDesign21;
+            double stand = TetherScenarios.Stand(setup);
+            setup.StartPosition = new Double3(0, stand, 0);
+            setup.TetherLayout = new[] { new Double3(0, 0, -3), new Double3(0, 0, -0.5) };
+            return Fly(setup, seconds, (t, y0) => new Double3(0, y0 + DetMath.Min(1.5, 1.0 * t), t < 2 ? 0 : DetMath.Min(5, t - 2)));
+        }
+
         // ---- "A free line costs only its length and its lip" ----
 
         public struct FreeLine

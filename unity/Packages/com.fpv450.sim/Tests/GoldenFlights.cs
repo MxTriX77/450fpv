@@ -1444,7 +1444,11 @@ namespace Fpv450.Sim.Tests
         // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s); every kept audit of an older line flies the one-scale field
         // and keeps its pin. The same records for the first 215 steps, then at most 21.4 mm and 0.79° apart (the contact golden's
         // flight), the same 3 impacts, the line whole, 0.418 m paid out against 0.396.
-        public const ulong TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+        // p7d-tether design 21 (the line on a member, on model 100): re-recorded, 0xE894679040B2BDC3. Audited: with the line
+        // before it (FlightSetup.TetherBeforeDesign21) it is model 100's pin, 0xF2B1187D0BC04B77 (Model100TetherHash), every record
+        // and event (GoldenFlightTests.WithTheLineBeforeDesign21TheTetherGoldenIsModel100s); every kept audit of an older line
+        // flies it (FlyContact's beforeDesign21, on for every flight other than the tether golden's own) and keeps its pin.
+        public const ulong TetherHash = 0xE894679040B2BDC3UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
             Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin
@@ -2234,7 +2238,7 @@ namespace Fpv450.Sim.Tests
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
             bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null,
-            bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null)
+            bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null, bool? beforeDesign21 = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2288,6 +2292,10 @@ namespace Fpv450.Sim.Tests
                 // TetherAirlessTrail), so every kept audit flies it (the cut-off implies it), model 94's clipped descent branch's too;
                 // airlessTrail says so outright.
                 setup.TetherAirlessTrail = airlessTrail ?? !(golden && slidingTrail != true && ownWake != false && wakeLevel != false && descentBranch != false);
+                // p7d-tether design 21: every line before it held its slots on their nodes alone, threw out any overlap a fresh slot
+                // found, judged a wrap on its ends and wore by the slot's force (FlightSetup.TetherBeforeDesign21), so every kept
+                // audit flies it (the airless trail implies it); beforeDesign21 says so outright.
+                setup.TetherBeforeDesign21 = beforeDesign21 ?? !(golden && slidingTrail != true && ownWake != false && wakeLevel != false && descentBranch != false);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

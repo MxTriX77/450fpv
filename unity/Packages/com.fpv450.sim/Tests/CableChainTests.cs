@@ -397,6 +397,43 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain.Wedges, Is.EqualTo(0));
         }
 
+        // p7d-tether design 21 (finding 3): the line over two rods 2 m apart, the piece between them stretched to 2 N while the line
+        // beyond both is slack (as a node put on a chord and thrown out left a piece on a ruin and a pine). No wrap holds a pull
+        // with nothing beyond it, so the run of the two capstan nodes slides it slack; the known-wrong (RunEndsOnly, model 100's
+        // run, judged on its two outer tensions) keeps it, the nodes' holds along the line carrying it and pressing them on the rods.
+        [Test]
+        public void APieceStretchedBetweenSlackEndsSlidesSlack()
+        {
+            const double radius = 0.02, half = 0.15;
+            Double3 left = new Double3(-1, 0, 0), right = new Double3(1, 0, 0);
+            Double3 na = new Double3(-Math.Sin(half), Math.Cos(half), 0), nb = new Double3(Math.Sin(half), Math.Cos(half), 0);
+            Double3 a = left + na * radius, b = right + nb * radius;
+            foreach (bool endsOnly in new[] { false, true })
+            {
+                var x = new[] { new Double3(-1.5, -0.3, 0), a, b, new Double3(1.5, -0.3, 0) };
+                var s = new double[4];
+                s[1] = (x[1] - x[0]).Length() + 0.05;
+                s[2] = s[1] + (b - a).Length() / (1 + 2.0 / FiberStiffness);
+                s[3] = s[2] + (x[3] - x[2]).Length() + 0.05;
+                var chain = new CableChain(4, FiberMass, FiberStiffness) { RunEndsOnly = endsOnly };
+                chain.Reset(x, s, 4);
+                chain[1].Contact0 = CableContact.On(a, na, default, 1e4, 0, 1e4, 0.30, 0.25, true);
+                chain[2].Contact0 = CableContact.On(b, nb, default, 1e4, 0, 1e4, 0.30, 0.25, true);
+                double before = chain.Tension(1), most = 0;
+                for (int step = 1; step <= 20; step++)
+                {
+                    chain.Step(Dt);
+                    if (step > 1) most = Math.Max(most, chain.Tension(1));
+                }
+                TestContext.WriteLine($"{(endsOnly ? "model 100's run" : "design 21")}: the piece {before:F3} N, after the first step at most {most:F4} N; "
+                    + $"the ends {chain.Tension(0):F4} and {chain.Tension(2):F4} N; slides {chain.Slides}, wedges {chain.Wedges}");
+                Assert.That(before, Is.EqualTo(2.0).Within(0.01));
+                Assert.That(chain.Wedges, Is.EqualTo(0));
+                if (endsOnly) Assert.That(most, Is.GreaterThan(1.5), "the known-wrong keeps the pull its ends cannot hold");
+                else Assert.That(most, Is.LessThan(0.01), "the piece slides slack");
+            }
+        }
+
         // ---- the drone's parts (p7d-tether 1.7's gliding slots) ----
 
         /// <summary>What "A line in a crotch of the drone's parts" measured.</summary>
