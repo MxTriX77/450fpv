@@ -12,6 +12,8 @@ QA's recall of everything asked, said or decided about the drone's physics, with
 | §1 the pilot's 48 statements | 13 | 5 | 21 | 2 | **7** | — |
 | §2 the 50 requirements | 17 | 2 | 27 | 1 | **2** | 1 |
 
+2026-11-14: §1.7 adds the pilot's seven statements after flying model 100 (3 contradicted, 1 partly, 3 missing); the counts above are as of §0's runs.
+
 The seven contradictions: a leg never sticks alone at liftoff (P1); slope landings tumble (P9); straw landings cut and shake nothing, always lie flat, and the stalks are too thin (P12, P12a, P12c); two of the four fiber causes never cut, and no cut is at the hole's edge (P36, P37).
 
 ## Status words
@@ -132,6 +134,20 @@ Quoted only from the repository's files. Sources: **V** `VISION.md` §2 (point n
 | P44 | "if for example i test and i fuck up my drone - i must know what actually happened in terms of physics to be sure it's not a bug" | V §4 | LOG-01…03 | `Log/FlightRecorder`, `FlightReplay`, `tools/replay`, `PostFlight` | `FlightLogTests` (26), the goldens' bit-for-bit replays. No tool gives LOG-03's verdict ("physics bug, or pilot error") | **partly** |
 | P45 | "no more fix, test, fix, and the sluggishness back again" (a gate before any beta) | D-091 | TST, PLT-04 | Phase A (not started) | none | **missing** |
 | P46 | "we must have top-notch realistic physics no one implemented in any FPV sim out there yet" | PR-3 | all | — | this ledger | — |
+
+### 1.7 After flying the model 100 build (2026-11-14)
+
+The pilot's 14 flights (Village, Severe, 2 kg, legs on) and their forensics are summed up in D-114. The rows are as of that day; the fixes are in work.
+
+| # | The pilot's words | Source | Req | Where it is built | Proven by | Status |
+|---|---|---|---|---|---|---|
+| P47 | "the very last test flight ive made on the build - sluggishness happened and then i lost control and my drone fell" (P45's sluggishness, back) | D-114 | PLT-04, PHY-21 | the laid line's world queries (`World/MapWorld`), the wake grid's in-flight rebuild (`Wind/WakeGrid`), the player's Mono runtime | the log: 9.3 s dropped at half speed while the line lay on a 7,016-box ruin; freezes of 76 ms to 1.4 s on wake-grid rebuilds; Mono 3–5× .NET. Two fixes merged on the line (7667e6e0, results unchanged); IL2CPP trial pending | **contradicted** |
+| P48 | "fiber cut mechanism is too harsh at the moment - look my test flights where i fly inside the house - i didn't make anything extreme, but it still cut." | D-114 | PHY-19, PHY-21 | `Tether/FiberContacts.cs` (a node split inside a thin board thrown out), `Tether/FiberCuts.cs` (wear classes) | QA's forensics: 8 of 10 breaks one contact fault, 1 the wear law on timber at mN loads; `p7d-tether` 1.11d in work | **contradicted** |
+| P49 | "also when just flying around i got cut a few times although i wasnt too rough" | D-114 | PHY-19 | `tether.json` `spool.peel_energy_j_m` | the two prop cuts came after full-stick turn-arounds and only with the peel band's heavy draws; `p7d-tether` 1.11e | **contradicted** |
+| P50 | "grass still doesn't get affected by propwash, neither do leaves and twigs. they should. and there's not effect of cutting grass straws leaves when props cut them." | D-114 | AST-09, VIS-05, VIS-06, PHY-05 | the drawn plants move by their shaders' own wind; the cuts only in the physics and the log | `w16-plants-in-the-air` proposed | **missing** |
+| P51 | "the drone is not affected by grass, and it should be affected even more heavily when thicker stuff (like twigs and tree leaves)." | D-114 | PHY-05 | stems on the props (`Contact/PropStems`), a crown's twigs on parts; not the stems on the legs or the body (W9 2.10) | `w16-plants-in-the-air` 1.5 | **partly** |
+| P52 | "let's do that sway matches real wind behavior real time" and "they are flexible, so they should flexibly get back to their default position if a gust is short etc., again - calculate and make it realistic" | D-114 | VIS-05, AST-09, PHY-13 | not built | `w16-plants-in-the-air` 1.1 to 1.3 | **missing** |
+| P53 | "dusts whiffs as you land closer to the ground" (clip H's ending as the example) | D-114 | VIS-06 | not built | `w16-plants-in-the-air` 1.4 | **missing** |
 
 ## 2. Every physics requirement
 

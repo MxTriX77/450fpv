@@ -15,7 +15,7 @@ The pinned toolchain for the Unity restart, as installed and checked in phase 0 
 | Tool | Version | Path or command | Installed by |
 |---|---|---|---|
 | Unity editor | **6000.3.26f1** (changeset `de8167e7440c`, the newest Unity 6 LTS on 2026-10-17) | `$env:UNITY` = `C:\Program Files\Unity\Hub\Editor\6000.3.26f1\Editor\Unity.exe` | official installer from Unity's release API, MD5-checked |
-| Unity modules | Windows x64 Mono player (built in) | — | IL2CPP is not installed; add it only if profiling asks for it |
+| Unity modules | Windows x64 Mono player (built in); Windows Build Support (IL2CPP), added 2026-11-14 | — | IL2CPP added after profiling showed Mono 3–5× slower than .NET on the sim core (D-114), for a trial; the player stays on Mono until the trial proves bit-for-bit replays. Added with the Hub's CLI: `unity editor module refresh 6000.3.26f1`, then `unity editors module add 6000.3.26f1 --module windows-il2cpp` |
 | Unity Hub | 3.22.3 | MSIX package `UnityTechnologies.UnityHub` | winget `Unity.UnityHub` |
 | Unity licence | Personal | activated by the pilot in Unity Hub | — |
 | Blender | **5.2.2 LTS** | `$env:BLENDER` = `C:\Program Files\Blender Foundation\Blender 5.2\blender.exe` (not on PATH) | winget `BlenderFoundation.Blender` |
