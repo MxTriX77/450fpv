@@ -2,8 +2,10 @@ using System;
 using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Log;
 using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
+using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Tests
 {
@@ -32,7 +34,7 @@ namespace Fpv450.Sim.Tests
             if (coilLeft >= 0) loadout.CoilPaidOut = spec.Coil.FiberLength - coilLeft;
             ContactSpec contacts = spec.BuildContacts(loadout, materials, mh);
             double stand = ContactScenarios.Standing(contacts);
-            return new FlightSetup
+            var setup = new FlightSetup
             {
                 Seed = seed, World = FlightWorld.Floor(), Mass = spec.BuildMass(loadout), Propulsion = spec.BuildPropulsion(), Aero = spec.BuildAero(),
                 Contacts = contacts, StartPosition = new Double3(0, stand, 0), StartPackCharge = 0.9, CameraPosition = spec.CameraPosition,
@@ -42,6 +44,17 @@ namespace Fpv450.Sim.Tests
                 // scenarios fly them on (cuts).
                 TetherWithoutCuts = !cuts,
             };
+            // FIBER_LIPLAW (design 18's audit of the scenarios): "capstan" flies models 74–88's lip, μ and peel band (the known-wrong
+            // capstan lip on GoldenFlights.Model88Tether); "peel88" models 74–88's peel band alone; "mu03" their μ 0.3 alone.
+            string law = System.Environment.GetEnvironmentVariable("FIBER_LIPLAW");
+            if (law == "capstan")
+            {
+                setup.TetherBeforeDesign18 = true;
+                setup.Tether = GoldenFlights.Model88Tether(setup.Tether);
+            }
+            else if (law == "peel88") setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
+            else if (law == "mu03") setup.Tether = FiberCutScenarios.With(setup.Tether, "spool.lip_friction", 0.3);
+            return setup;
         }
 
         /// <summary>The height of the body origin standing legs-on on the floor.</summary>
@@ -129,7 +142,7 @@ namespace Fpv450.Sim.Tests
                 if (core.State.Step * FlightCore.Dt > climb + cruise - 5)
                 {
                     exit += tr.ExitTension;
-                    lipIrr += DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * tr.Irregularity;
+                    lipIrr += f.Lip * tr.Irregularity;
                     rate += tr.PayoutSpeed;
                     ground += DetMath.Sqrt(core.State.Velocity.X * core.State.Velocity.X + core.State.Velocity.Z * core.State.Velocity.Z);
                     n++;
@@ -209,7 +222,7 @@ namespace Fpv450.Sim.Tests
                 if (core.State.Step == (long)(turn * 1000))
                 {
                     r.AtTurn = tr.PaidOut;
-                    r.Hold = DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * f.PeelEnergy * tr.Irregularity;
+                    r.Hold = f.Lip * f.PeelEnergy * tr.Irregularity;
                     r.TrailAtTurn = tr.Trail;
                 }
                 if (t > turn && tr.PaidOut < r.LeastAfterTurn) r.LeastAfterTurn = tr.PaidOut;
@@ -314,12 +327,20 @@ namespace Fpv450.Sim.Tests
         /// pull's own payout still with 2), which model 68's 1 µm caught as the payout.</summary>
         public const double PayoutThreshold = 1e-3;
 
+        /// <summary>FIBER_PULLPROBE=1 prints the pulled trail's exit every 20 steps from the pull to its payout (forensics).</summary>
+        static readonly bool PullProbe = System.Environment.GetEnvironmentVariable("FIBER_PULLPROBE") == "1";
+
         public static PulledTrail PullTrail(DroneSpec spec)
         {
             var layout = new Double3[6];
             for (int i = 0; i < 6; i++) layout[i] = new Double3(i % 2 == 0 ? 0 : 6, 0, -50 + 10 * i);
             layout[5] = new Double3(0, 0, -0.1);
             FlightSetup setup = Setup(spec, layout: layout);
+            // The claim's pack holds more than the laid line's last corners: G₀ over models 74–88's 2–10 g (p7d-tether design 18).
+            // A lightly bonded pack (0.01–2 g, half the flights since design 18) lets line out before the zigzag's last corners
+            // lift (traced, FIBER_PULLPROBE: on the new band this seed's hold is 0.016 N against 0.054 N on the old, and the payout begins with 3 points still frozen), which is the
+            // pack's physics, not the trail's.
+            setup.Tether = FiberCutScenarios.WithBand(setup.Tether, "spool.peel_energy_j_m", 0.0196, 0.0981);
             double stand = Stand(setup);
             var r = new PulledTrail { Fewest = int.MaxValue, TrailAtPayout = -1 };
             bool lifting = false;
@@ -354,18 +375,162 @@ namespace Fpv450.Sim.Tests
                     if (tr.Trail < r.Fewest) r.Fewest = tr.Trail;
                 }
                 lastTrail = tr.Trail;
+                if (PullProbe && t > 2 && r.TrailAtPayout < 0 && core.State.Step % 20 == 0)
+                    Console.WriteLine($"t {t:F3} trail {tr.Trail} paid {(tr.PaidOut - r.PaidBeforePull) * 1e3:F3} mm exitT {tr.ExitTension:F4} hold {f.Lip * f.PeelEnergy * tr.Irregularity:F4} lip {tr.LipAngle * 180 / Math.PI:F1}° factor {f.Lip:F4} sdot {tr.PayoutSpeed:F4}");
                 if (t <= 2) r.PaidBeforePull = tr.PaidOut;
                 if (r.TrailAtPayout < 0 && tr.PaidOut - r.PaidBeforePull > PayoutThreshold && t > 2)
                 {
                     CableChain line = f.Chain;
                     r.TrailAtPayout = tr.Trail;
-                    double hold = DetMath.Exp(Table().Number("spool.lip_friction") * tr.LipAngle) * f.PeelEnergy * tr.Irregularity;
+                    double hold = f.Lip * f.PeelEnergy * tr.Irregularity;
                     r.TensionOverHold = tr.ExitTension / hold;
                     r.LineOverChord = (line[line.Count - 1].Material - f.TrailMaterial(0)) / (line[line.Count - 1].Position - f.Trail[0]).Length();
                 }
             });
             r.Paid = c.Tether.PaidOut;
             r.Wedges = c.Tether.Chain.Wedges;
+            return r;
+        }
+
+        // ---- "A frozen line in the wash moves where its margin says" (p7d-tether design 20) ----
+
+        public struct WashedTrail
+        {
+            /// <summary>The trail's points when the drone arms, and the fewest it came down to after.</summary>
+            public int Frozen, Fewest;
+            /// <summary>The lowest trail index ever over its margin while frozen (-1: none), its depth from the trail's end then,
+            /// the largest D/max(H, D_f) a frozen point bore, and the longest a frozen point stayed over its margin, s.</summary>
+            public int DeepestOver, DepthOver;
+            public double MostMargin, LongestOver;
+            /// <summary>Every trail point below Fewest is where it froze, bit for bit.</summary>
+            public bool KeptExact;
+            /// <summary>The laid line's largest distance at the end from where it was laid (the chain's nodes, and the points
+            /// refrozen since, whose material the trail held at the arming, against the frozen polyline at the same material), m;
+            /// the most of it that lies 1 mm or more over the ground, m.</summary>
+            public double Moved, Lifted;
+            /// <summary>The window's thaws and the points they gave back (FiberLine.Thaws, Thawed).</summary>
+            public long Thaws, Thawed;
+            /// <summary>Bytes allocated in the steps from the arming; the wedges; the flight's log.</summary>
+            public long Allocated, Wedges;
+            public byte[] Log;
+        }
+
+        /// <summary>
+        /// A low pass back beside line laid before (the case design 20 closes): from the launch the drone climbs to 1.25 m (its
+        /// rotors 1.5 m up), flies 15 m along +z at 1.5 m/s laying its line, turns through a half circle of 1 m radius to x = 2 m,
+        /// flies back 13 m and hovers at (2, 2) to 27 s, its own outbound line 2 m to its side, deeper in the trail than the line
+        /// it laid on the way back. From the turn (11 s) every frozen point but the anchor is judged each step by FiberLine.Moves at
+        /// the rotors' air there, and the laid line then is the one the end is held against; the known-wrong is the airless trail.
+        /// </summary>
+        public static WashedTrail WashTrail(DroneSpec spec, bool airless)
+        {
+            FlightSetup setup = Setup(spec, layout: new[] { new Double3(0, 0, -15) });
+            setup.TetherAirlessTrail = airless;
+            double stand = Stand(setup);
+            var core = new FlightCore(setup);
+            LogHeader h = LogHeader.For(setup, core);
+            h.Build = "simtests";
+            h.Isa = "test";
+            h.WorldId = "floor";
+            h.SetDrone(spec, spec.Nominal);
+            var log = new System.IO.MemoryStream();
+            var recorder = new FlightRecorder(log, h, FlightRecorder.DefaultCapacity, ownsStream: false);
+            var pilot = new SimPilot(core.Controller, setup.StartPosition);
+            FiberLine f = core.Tether;
+            var r = new WashedTrail { DeepestOver = -1, Fewest = int.MaxValue };
+            Double3[] laid = null;
+            double[] laidMaterial = null;
+            var over = new double[f.Trail.Length];
+            var at = new XZ[1];
+            var ground = new GroundSample[1];
+            const int Arm = 11000; // the turn: from here the frozen points are judged and the steps' bytes counted
+            for (int k = 0; k < 27000; k++)
+            {
+                double t = k * FlightCore.Dt;
+                StickSample stick;
+                if (k < 20) stick = new StickSample { HostUs = k * FlightCore.StepUs, Arm = k >= 10 };
+                else
+                {
+                    pilot.HoldVelocity = false;
+                    double y = stand + DetMath.Min(1.25, 2 * t), x, z;
+                    if (t < 1) (x, z) = (0, 0);
+                    else if (t < 11) (x, z) = (0, 1.5 * (t - 1));
+                    else if (t < 13)
+                    {
+                        DetMath.SinCos(1.5707963267948966 * (t - 11), out double sin, out double cos);
+                        (x, z) = (1 - cos, 15 + sin);
+                    }
+                    else (x, z) = (2, DetMath.Max(2, 15 - 1.5 * (t - 13)));
+                    pilot.Target = new Double3(x, y, z);
+                    stick = pilot.Sticks(core, k * FlightCore.StepUs);
+                }
+                long before = AllocProbe.Before();
+                core.Advance(stick);
+                if (k >= Arm) r.Allocated += AllocProbe.After(before);
+                recorder.RecordStep(core.State, stick, core.Trace, core.Events);
+                if (k == Arm - 1)
+                {
+                    r.Frozen = f.TrailCount;
+                    laid = new Double3[f.TrailCount];
+                    laidMaterial = new double[f.TrailCount];
+                    for (int i = 0; i < laid.Length; i++)
+                    {
+                        laid[i] = f.Trail[i];
+                        laidMaterial[i] = f.TrailMaterial(i);
+                    }
+                }
+                if (k < Arm) continue;
+                int c = f.TrailCount;
+                if (c < r.Fewest) r.Fewest = c;
+                for (int i = c; i < over.Length && over[i] != 0; i++) over[i] = 0; // given back
+                for (int i = 1; i < c; i++)
+                {
+                    Double3 p = f.Trail[i];
+                    at[0] = new XZ(p.X, p.Z);
+                    f.World.SampleGround(at, ground);
+                    bool known = (ground[0].Flags & GroundFlags.Hole) == 0;
+                    bool moves = f.Moves(i, f.Rotors.At(p, ground[0].Height, out _), ground[0].Height, ground[0].Surface, known, out double push, out double hold);
+                    double held = DetMath.Max(hold, f.TrailAir(i));
+                    if (held > 0 && push / held > r.MostMargin) r.MostMargin = push / held;
+                    if (!moves)
+                    {
+                        over[i] = 0;
+                        continue;
+                    }
+                    over[i] += FlightCore.Dt;
+                    if (over[i] > r.LongestOver) r.LongestOver = over[i];
+                    if (r.DeepestOver < 0 || i < r.DeepestOver)
+                    {
+                        r.DeepestOver = i;
+                        r.DepthOver = c - 1 - i;
+                    }
+                }
+            }
+            recorder.Close();
+            r.Log = log.ToArray();
+            r.Wedges = f.Chain.Wedges;
+            r.Thaws = f.Thaws;
+            r.Thawed = f.Thawed;
+            r.KeptExact = true;
+            for (int i = 0; i < r.Fewest && i < laid.Length; i++)
+                if (!(f.Trail[i].X == laid[i].X && f.Trail[i].Y == laid[i].Y && f.Trail[i].Z == laid[i].Z)) r.KeptExact = false;
+            // Where the laid line is now against where it was laid, at the same material: the chain's nodes and the trail's points
+            // past the fewest (refrozen since) whose material the trail held at the arming.
+            CableChain line = f.Chain;
+            double top = laidMaterial[laidMaterial.Length - 1];
+            void Judge(Double3 x, double s)
+            {
+                if (!(s <= top)) return;
+                int j = 1;
+                while (j < laidMaterial.Length - 1 && laidMaterial[j] < s) j++;
+                double span = laidMaterial[j] - laidMaterial[j - 1], u = span > 0 ? (s - laidMaterial[j - 1]) / span : 0;
+                Double3 was = laid[j - 1] + (laid[j] - laid[j - 1]) * u;
+                double d = (x - was).Length();
+                if (d > r.Moved) r.Moved = d;
+                if (x.Y - f.Diameter / 2 > 1e-3 && d > r.Lifted) r.Lifted = d;
+            }
+            for (int i = 0; i < line.Count; i++) Judge(line[i].Position, line[i].Material);
+            for (int i = r.Fewest; i < f.TrailCount; i++) Judge(f.Trail[i], f.TrailMaterial(i));
             return r;
         }
 
@@ -582,6 +747,18 @@ namespace Fpv450.Sim.Tests
             Double3 sum = default;
             bool inColumn = false;
             var below = new bool[4];
+            // Design 19, written apart: the merged jet from the hubs' centre along the wakes' mean direction, its share
+            // w(s) = (s/l − 1)/1.5 clamped; the near columns weighted 1 − w(s), their landings 1 − w(s_g) (RotorAir.NearShare).
+            Double3 centre = default, axis = default;
+            for (int m = 0; m < 4; m++)
+            {
+                centre = centre + (s.Position + s.Attitude.Rotate(core.Propulsion.Hub(m))) * 0.25;
+                axis = axis + air.Wake(m);
+            }
+            axis = axis * (1 / axis.Length());
+            double l = air.MotorDistance, along = Double3.Dot(p - centre, axis);
+            double Share(double d) => Math.Min(1, Math.Max(0, (d / l - 1) / 1.5));
+            double columnShare = 1 - Share(along), near = air.NearShare;
             for (int m = 0; m < 4; m++)
             {
                 double vi = air.Induced(m);
@@ -599,9 +776,9 @@ namespace Fpv450.Sim.Tests
                 }
                 Double3 w = air.Wake(m);
                 double h = Double3.Dot(q, w);
-                if (h > 0 && (q - w * h).Length() < wakeRadius && (!air.Lands(m) || p.Y > 0))
+                if (h > 0 && (q - w * h).Length() < wakeRadius && (!air.Lands(m) || p.Y > 0) && columnShare > 0)
                 {
-                    sum = sum - n * (2 * vi);
+                    sum = sum - n * (2 * vi * columnShare);
                     inColumn = true;
                     continue;
                 }
@@ -609,14 +786,47 @@ namespace Fpv450.Sim.Tests
                 Double3 land = air.Landing(m);
                 double dx = p.X - land.X, dz = p.Z - land.Z, r = Math.Sqrt(dx * dx + dz * dz);
                 if (!(r > wakeRadius)) continue;
-                double u = Math.PI * radius * radius * vi / (2 * Math.PI * r * jet);
+                double u = Math.PI * radius * radius * vi / (2 * Math.PI * r * jet) * near;
                 sum = sum + new Double3(dx / r * u, 0, dz / r * u);
             }
+            // The merged jet: Bauersfeld et al.'s U_C and r½ on the Tollmien profile, falling linearly over r_i/2 above the floor
+            // where it lands; its wall jet u_m = U_g·r/r_i inside r_i, U_g·(r_i/r)^1.1 beyond, Verhoff's profile on
+            // δ = 0.098·R·(R/H)^−0.1, H = s_g + 5.817·l (the floor at 0).
+            double sj = Share(along);
+            if (sj > 0)
+            {
+                double x = along / l + 5.817, half = 0.07668 * x * l, off = (p - centre - axis * along).Length();
+                double u = air.FarSpeed * 10.11 / x / Math.Pow(1 + (Math.Sqrt(2) - 1) * off * off / (half * half), 2) * sj;
+                if (air.FarLands && p.Y < 0.5 * air.FarStart) u = p.Y > 0 ? u * p.Y / (0.5 * air.FarStart) : 0;
+                sum = sum + axis * u;
+            }
+            if (air.FarLands && p.Y > 0)
+            {
+                double dx = p.X - air.FarLanding.X, dz = p.Z - air.FarLanding.Z, r = Math.Sqrt(dx * dx + dz * dz);
+                double ri = air.FarStart, big = Math.Max(r, ri), sg = centre.Y / -axis.Y, hv = sg + 5.817 * l;
+                double um = r < ri ? air.FarGroundSpeed * r / ri : air.FarGroundSpeed * Math.Pow(ri / r, 1.1);
+                double eta = p.Y / (0.098 * big * Math.Pow(big / hv, -0.1));
+                double u = um * 1.48 * Math.Pow(eta, 1.0 / 7) * (1 - Erf(0.68 * eta)) * air.FarLandingShare;
+                if (r > 0) sum = sum + new Double3(dx / r * u, 0, dz / r * u);
+            }
             if (!air.Recirculation) return sum;
-            if (!inColumn) sum = sum + new Double3(0, ExpectedFountain(air, table, p, 0, below), 0); // the floor at 0
+            if (!inColumn) sum = sum + new Double3(0, ExpectedFountain(air, table, p, 0, below) * near, 0); // the floor at 0
             for (int m = 0; m < 4; m++)
                 sum = sum + ExpectedVortex(air, p, m, 0);
             return sum;
+        }
+
+        // erf by its series (the test's own; erfc(5) = 1.5e-12).
+        static double Erf(double x)
+        {
+            if (x > 5) return 1;
+            double sum = 0, term = x;
+            for (int k = 0; k < 200; k++)
+            {
+                sum += term / (2 * k + 1);
+                term *= -x * x / (k + 1);
+            }
+            return 2 / Math.Sqrt(Math.PI) * sum;
         }
 
         /// <summary>

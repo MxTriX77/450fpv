@@ -17,8 +17,8 @@ namespace Fpv450.FlightBench
         static bool _ok = true;
 
         /// <summary>The seeds the shake's ringless known-wrong is judged on, each of the six arrested descents (a rate; QA's
-        /// integration review, N2): bootstrapped from 520 seeds' flights at model 26, a fresh 40 fails it spuriously about
-        /// 0.6 % of the time (0.57 % of 20 000 draws), 20 about 3.3 %.</summary>
+        /// integration review, N2): on the excess over the hover (design 3i) the ringless count past the kick is 0.41 of the
+        /// ringed one on seeds 1–200, and bootstrapped from them a fresh 40's ratio reaches two thirds under 0.1 % of the time.</summary>
         const ulong RinglessSeeds = 40;
 
         static void Row(string name, bool pass, string detail, bool knownWrong = false)
@@ -352,9 +352,9 @@ namespace Fpv450.FlightBench
                         ShakeScenario.HoldsTheLimit(prot) && prot.ArrestedAfter > sharp.ArrestedAfter && prot.TiltMax > sharp.TiltMax,
                         $"tilt {prot.TiltMax:F2}° against the drone's {sharp.TiltMax:F2}°; " + ShakeScenario.Describe(prot));
                 }
-            Row($"known-wrong: no ring (the rotors never re-ingest their wash), the six arrested descents on seeds 1-{RinglessSeeds}: most full punches' shake weaker, "
-                + "lasting past the kick on at most half as many",
-                !(ringlessWeaker >= ShakeScenario.Most * punches && 2 * ringlessLasts <= ringedLasts),
+            Row($"known-wrong: no ring (the rotors never re-ingest their wash), the six arrested descents on seeds 1-{RinglessSeeds}: "
+                + "the shake lasting past the kick on at most two thirds as many",
+                !ShakeScenario.RingCarriesIt(ringedLasts, ringlessLasts),
                 $"weaker {ringlessWeaker}/{punches}; past the kick ({ShakeScenario.KickSeconds:F1} s) on {ringlessLasts}/{punches} against {ringedLasts}", knownWrong: true);
             ShakeScenario.Result stiff = ShakeScenario.Fly(ShakeScenario.Setup(spec, 2, 1, false), 0.6, false);
             Row("a rigid airframe keeps the visible shake (the rigid body's)", ShakeScenario.EndsWithTheArrest(stiff) && stiff.Peak / heavy.Peak >= 0.8
@@ -386,11 +386,14 @@ namespace Fpv450.FlightBench
             stillRain.Rain = RainLevel.SevereRain;
             var atRest = new FlightCore(stillRain);
             atRest.Advance(new StickSample());
+            // The coil's top silhouette is its housing's cylinder seen from above, L·D·√(1 − a_y²) + (π/4)·D²·|a_y| for its axis a
+            // (the canister tilts rear-down, D01's; the old coil's L·D held only for a level axis).
             DronePart coil = stillRain.Mass.Part(stillRain.Aero.CoilPart);
-            double top = stillRain.Aero.BodyArea.Y + coil.Length * coil.Diameter;
+            double ay = coil.Axis.Y;
+            double top = stillRain.Aero.BodyArea.Y + coil.Length * coil.Diameter * Math.Sqrt(1 - ay * ay) + Math.PI / 4 * coil.Diameter * coil.Diameter * Math.Abs(ay);
             double hover = RainPreset.WaterDensity * atRest.Rain.RateMmPerHour * RainPreset.MmPerHour * atRest.Rain.FallSpeed * top;
             Row("at rest in still air: ρ_w·R·V on the top silhouettes, down", Math.Abs(-atRest.Trace.RainForce.Y - hover) <= 0.01 * hover,
-                $"{-atRest.Trace.RainForce.Y * 1000:F3} mN against {hover * 1000:F3} mN");
+                $"{-atRest.Trace.RainForce.Y * 1000:F3} mN against {hover * 1000:F3} mN (the housing's axis {Math.Asin(Math.Abs(ay)) * 180 / Math.PI:F2}° off level)");
             Row("known-wrong: rain as denser air", Math.Abs(0 - hover) <= 0.01 * hover, "0 mN at rest", knownWrong: true);
 
             return _ok;

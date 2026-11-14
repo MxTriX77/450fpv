@@ -118,6 +118,10 @@ namespace Fpv450.Sim.Log
             "TetherZeroForceHold", "GyroRange",
             "TetherLinearStep",
             "TetherSlidingTrail",
+            "TetherBeforeDesign18",
+            "TetherWakeReach4R",
+            "TetherAirlessTrail",
+            "StemAir", "StemWash",
         };
 
         /// <summary>The tether table's fields the header records (its rows whole, and the file's hash), checked by the suite.</summary>
@@ -129,7 +133,7 @@ namespace Fpv450.Sim.Log
         {
             "ArmModulus", "ArmWidth", "ArmThickness", "ArmLength", "ArmTipShare", "ArmDamping", "MountStiffness", "MountDamping",
             "Camera", "TipMass", "PayloadPart", "CoilPart", "CoilHousingPart", "ArmInPlane", "ArmShearModulus", "ArmFlexuralStrength",
-            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia",
+            "ArmShearStrength", "HubHeight", "TwistMoment", "TwistInertia", "StrikeLoad",
         };
 
         /// <summary>The ground effect's fields the header records, checked against GroundEffectSpec by the suite.</summary>
@@ -169,7 +173,7 @@ namespace Fpv450.Sim.Log
             "BladeRest", "BladeRestSpeed",
             "LegFrameSideStiffness", "LegFrameSwayLoad", "LegFrameLeverLength",
             "MotorBell", "Motors", "BellRubFriction", "BellWearCoefficient", "MagnetHardness", "StatorHardness", "BellDentArc",
-            "BladeRoot",
+            "BladeRoot", "Stems", "AnchorReach", "HangingDepth",
             "MotorShaft", "ShaftHingeShare", "BearingFriction", "BearingDentDrag",
             "MotorHeat", "AirTemperature", "CopperSpecificHeat", "CopperTemperatureCoefficient", "IronSpecificHeat", "AirConductivity",
             "AirViscosity", "AirPrandtl", "ArmConductance", "WindingTimeConstant", "ScrapeWearCoefficient",
@@ -182,7 +186,7 @@ namespace Fpv450.Sim.Log
             "BoltDiameter", "GripLength", "ScrewDiameter", "SocketDiameter", "YieldStress", "Elongation", "EdgeFactor", "ClampTorque", "NutFactor",
             "Friction", "TJointTorque", "Interlayer",
             "SkidParts", "Sibling", "Bore", "AirDensity", "LooseDrag", "RestSpeed", "RestRate", "RestSteps", "StubStiffness", "StubStiffnessUp",
-            "FrameTopShare", "FrameJointShare", "FrameSelfStiffness",
+            "FrameTopShare", "FrameJointShare", "FrameSelfStiffness", "StiffnessSigma", "StiffnessBound",
         };
         public static readonly string[] ContactShapeFieldsLogged =
             { "Name", "Part", "Role", "Corner", "Material", "A", "B", "Radius", "HalfThickness", "Stiffness", "StiffnessUp", "DampingRatio" };
@@ -190,7 +194,7 @@ namespace Fpv450.Sim.Log
         {
             "Name", "StaticFriction", "KineticFriction", "Stiffness", "DampingRatio", "AreaLaw", "AreaReferenceDepth", "ElasticModulus", "HasWet",
             "WetStiffnessRatio", "WetStiffness", "WetStaticFriction", "WetKineticFriction", "WetAdhesion", "WetAdhesionRelease", "Hardness",
-            "CrushStrength", "Density", "EdgeRadius",
+            "CrushStrength", "Density", "EdgeRadius", "Crown", // Crown in its own entry, TagCrown (w9-village-physics 2.3)
         };
 
         /// <summary>surfaces.json's table as the contacts entry records it (p7a-ground 1.1), checked against the types by the suite.</summary>
@@ -207,7 +211,7 @@ namespace Fpv450.Sim.Log
         public static readonly string[] CoverSetFieldsLogged =
         {
             "ModulusMin", "ModulusMax", "WallShare", "Density", "DryMassPerArea", "DryMatterContent", "MassPerArea", "PetioleDiameter",
-            "HookReleaseMin", "HookReleaseMax", "CutEnergy", "RollFriction", "DampingRatio",
+            "HookReleaseMin", "HookReleaseMax", "CutEnergy", "RollFriction", "DampingRatio", "Diameter",
         };
         public static readonly string[] WettingFieldsLogged =
         {
@@ -237,9 +241,10 @@ namespace Fpv450.Sim.Log
             "Diameter", "Blades", "Pitch", "ThrustCoefficient", "TorqueRatio", "ReferenceRpm", "StaticRpm", "StaticThrustRatio",
             "StaticTorqueRatio", "InflowAdvanceRatio", "InflowThrustRatio", "InflowTorqueRatio", "HForce",
         };
-        public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart" };
-        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts" };
-        public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes" };
+        public static readonly string[] AeroFieldsLogged = { "AirDensity", "BodyArea", "BodyCenterOfPressure", "DragCoefficient", "CoilPart",
+            "HullFrontalArea", "HullSize", "HullRatios", "HullAngles", "HullMoments", "HullAddedVolume", "HullPotential", "HullOn" }; // the hull's in its own entry, TagHull (p7c-wind design 12)
+        public static readonly string[] WindFieldsLogged = { "Level", "SteadySpeed", "SteadyFromDeg", "SteadyOnsetSeconds", "StartSecond", "Wakes", "Front", "Canopies", "Cuts", "OneScale" }; // OneScale as the preset's height_scaled
+        public static readonly string[] WakeFieldsLogged = { "OriginX", "OriginZ", "NX", "NZ", "Volumes", "Version" };
         public static readonly string[] VolumeFieldsLogged = { "Kind", "X", "Z", "BaseM", "TopM", "HalfX", "HalfZ", "Radius", "Yaw", "Porosity" };
         public static readonly string[] FrontFieldsLogged = { "Start", "Normal", "Delta", "Speed", "Width", "Uniform" };
         public static readonly string[] CanopyFieldsLogged = { "CentreX", "CentreZ", "AxisDeg", "Length", "Width", "Height", "FrontalAreaIndex" };
@@ -281,7 +286,8 @@ namespace Fpv450.Sim.Log
         const ushort TagFlight = 1, TagHost = 2, TagWorld = 3, TagDrone = 4, TagBody = 5, TagSettings = 6,
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
-            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26;
+            TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -370,6 +376,15 @@ namespace Fpv450.Sim.Log
         public bool TetherZeroForceHold;
         public bool TetherLinearStep;
         public bool TetherSlidingTrail;
+        public bool TetherBeforeDesign18;
+        public bool TetherWakeReach4R;
+        public bool TetherAirlessTrail;
+
+        /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
+        /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
+        /// they read without the line (FlightSetup.StemAir; null with the line, or without the wash).</summary>
+        public TetherTable StemAir;
+        public bool StemWash;
 
         /// <summary>The runtime objects the flight placed, in order, and the world's object id each got.</summary>
         public RuntimeObject[] RuntimeObjects = new RuntimeObject[0];
@@ -438,7 +453,7 @@ namespace Fpv450.Sim.Log
                 GyroRange = setup.GyroRange,
                 Aero = setup.Aero?.Clone(),
                 Wind = setup.Wind,
-                WindParameters = PresetOf(setup.Wind.Level),
+                WindParameters = PresetOf(setup.Wind.Level, setup.Wind.OneScale),
                 Rain = setup.Rain,
                 RainParameters = RainPreset.Named(setup.Rain),
                 CameraPosition = setup.CameraPosition,
@@ -464,6 +479,11 @@ namespace Fpv450.Sim.Log
                 TetherZeroForceHold = setup.TetherZeroForceHold,
                 TetherLinearStep = setup.TetherLinearStep,
                 TetherSlidingTrail = setup.TetherSlidingTrail,
+                TetherBeforeDesign18 = setup.TetherBeforeDesign18,
+                TetherWakeReach4R = setup.TetherWakeReach4R,
+                TetherAirlessTrail = setup.TetherAirlessTrail,
+                StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
+                StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
                 RuntimeIds = (int[])core.RuntimeIds.Clone(),
             };
@@ -494,10 +514,14 @@ namespace Fpv450.Sim.Log
         }
 
         /// <summary>A pilot's level's preset by name, as the header records it; none for still or steady air.</summary>
-        public static NamedValue[] PresetOf(WindLevel level)
+        public static NamedValue[] PresetOf(WindLevel level) => PresetOf(level, false);
+
+        /// <summary>The same for the field a flight flies: the level's, or its one-scale field (WindSetup.OneScale, p7c-wind
+        /// design 16's known-wrong), named by height_scaled.</summary>
+        public static NamedValue[] PresetOf(WindLevel level, bool oneScale)
         {
             if (level == WindLevel.Still || level == WindLevel.Steady) return new NamedValue[0];
-            WindPreset p = WindPreset.Of(level);
+            WindPreset p = oneScale ? WindPreset.Of(level).OneScale() : WindPreset.Of(level);
             return new[]
             {
                 new NamedValue("mean_lo_m_s", p.MeanLo), new NamedValue("mean_hi_m_s", p.MeanHi),
@@ -506,6 +530,8 @@ namespace Fpv450.Sim.Log
                 new NamedValue("profile_top_m", p.ProfileTop), new NamedValue("taper_height_m", p.TaperHeight),
                 new NamedValue("intensity_sigma_over_u", p.Intensity), new NamedValue("vertical_over_horizontal_sigma", p.VerticalRatio),
                 new NamedValue("horizontal_scale_m", p.HorizontalScale), new NamedValue("vertical_scale_m", p.VerticalScale),
+                new NamedValue(HeightScaledName, p.HeightScaled ? 1 : 0), new NamedValue("horizontal_scale_over_height", p.HorizontalScaleOverHeight),
+                new NamedValue("vertical_scale_over_height", p.VerticalScaleOverHeight),
                 new NamedValue("modes", p.Modes), new NamedValue("shortest_wavelength_m", p.ShortestWavelength),
                 new NamedValue("longest_over_knee", p.LongestFraction),
                 new NamedValue("wake_eddy_min_over_h", p.WakeEddyMin), new NamedValue("wake_eddy_max_over_h", p.WakeEddyMax),
@@ -520,6 +546,18 @@ namespace Fpv450.Sim.Log
                 new NamedValue("shift_lo_deg", p.ShiftLoDeg), new NamedValue("shift_hi_deg", p.ShiftHiDeg),
                 new NamedValue("ramp_lo_s", p.RampLo), new NamedValue("ramp_hi_s", p.RampHi), new NamedValue("horizon_s", p.Horizon),
             };
+        }
+
+        /// <summary>The preset's name for its scales by height (p7c-wind design 16): 1 the level's field, 0 its one-scale field.</summary>
+        public const string HeightScaledName = "height_scaled";
+
+        // Whether a log's preset flew the scales by height: a log without the name flew the one-scale field (every model
+        // before design 16).
+        static bool HeightScaledIn(NamedValue[] preset)
+        {
+            foreach (NamedValue v in preset)
+                if (v.Name == HeightScaledName) return v.Value != 0;
+            return false;
         }
 
         /// <summary>This process's runtime and architecture, as the header records them (".NET 10.0.x X64", "Mono …").</summary>
@@ -581,6 +619,11 @@ namespace Fpv450.Sim.Log
                 TetherZeroForceHold = TetherZeroForceHold,
                 TetherLinearStep = TetherLinearStep,
                 TetherSlidingTrail = TetherSlidingTrail,
+                TetherBeforeDesign18 = TetherBeforeDesign18,
+                TetherWakeReach4R = TetherWakeReach4R,
+                TetherAirlessTrail = TetherAirlessTrail,
+                StemAir = StemAir,
+                StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
             };
         }
@@ -811,12 +854,13 @@ namespace Fpv450.Sim.Log
                     Text(e, v.Name);
                     e.Write(v.Value);
                 }
-                // The wakes' obstacles (p7c-wind 1.5) with the wake grid's version, and the gust front (1.4), each after a flag.
+                // The wakes' obstacles (p7c-wind 1.5) with the wake grid's version they fly (WakeLayout.Version), and the gust front
+                // (1.4), each after a flag.
                 WakeLayout b = Wind.Wakes;
                 e.Write(b != null);
                 if (b != null)
                 {
-                    e.Write(WakeGrid.Version);
+                    e.Write(b.Version);
                     e.Write(b.OriginX);
                     e.Write(b.OriginZ);
                     e.Write(b.NX);
@@ -1149,6 +1193,9 @@ namespace Fpv450.Sim.Log
                 e.Write(TetherZeroForceHold);
                 e.Write(TetherLinearStep);
                 e.Write(TetherSlidingTrail);
+                e.Write(TetherBeforeDesign18);
+                e.Write(TetherWakeReach4R);
+                e.Write(TetherAirlessTrail);
                 e.Write(TetherLayout != null);
                 if (TetherLayout == null) return;
                 e.Write((ushort)TetherLayout.Length);
@@ -1253,6 +1300,111 @@ namespace Fpv450.Sim.Log
                 Spread(e, l.FirstStep);
                 Spread(e, l.Motor);
             });
+            // The stems on the props (w9-village-physics 2.2), an entry of its own so the earlier entries keep their layouts: the
+            // contacts' switch and each cover row's stem diameter, dry and wet, then the modes' strike load (G8). A log without it
+            // (format 72 and 69, and every earlier build's) flew neither.
+            Entry(w, TagStems, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts != null)
+                {
+                    e.Write(Contacts.Stems);
+                    CoverRow[] cover = Contacts.Surfaces?.Cover ?? new CoverRow[0];
+                    e.Write((byte)cover.Length);
+                    foreach (CoverRow k in cover)
+                    {
+                        e.Write(k.Dry.Diameter);
+                        e.Write(k.Wet.Diameter);
+                    }
+                }
+                e.Write(Modes != null);
+                if (Modes != null) e.Write(Modes.StrikeLoad);
+            });
+            // The ground's and the legs' switches since w9-village-physics 2.9, an entry of its own as the stems' (no format
+            // change): the anchors' reach (2.4) and the legs' stiffness spread (leg.stiffness). A log without it flew the reach
+            // from model 86 and no spread.
+            Entry(w, TagGround, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts == null) return;
+                e.Write(Contacts.AnchorReach);
+                e.Write(Contacts.Legs != null);
+                if (Contacts.Legs == null) return;
+                e.Write(Contacts.Legs.StiffnessSigma);
+                e.Write(Contacts.Legs.StiffnessBound);
+            });
+            // The crowns' twigs and leaves since w9-village-physics 2.3, an entry of its own as the stems' (no format change):
+            // each material row's crown block, in the rows' order. A log without it flew model 89's twig shells.
+            Entry(w, TagCrown, e =>
+            {
+                MaterialRow[] rows = Contacts?.Materials ?? new MaterialRow[0];
+                e.Write((ushort)rows.Length);
+                foreach (MaterialRow m in rows)
+                {
+                    CrownRow k = m.Crown;
+                    e.Write(k != null);
+                    if (k == null) continue;
+                    foreach (double x in new[] { k.TwigLength, k.TwigDiameter, k.TwigFreeLength, k.TwigRupture, k.TwigModulus, k.LeafMassPerArea, k.LeafDryMatter,
+                        k.LeafWork, k.LeafCriticalSpeed, k.LeafCell })
+                        e.Write(x);
+                    e.Write((ushort)k.Variants.Length);
+                    for (int i = 0; i < k.Variants.Length; i++)
+                    {
+                        Text(e, k.Variants[i]);
+                        e.Write(k.LeafAreaDensity[i]);
+                    }
+                }
+            });
+            // The hull's moment since p7c-wind design 12, an entry of its own as the crowns' (no format change). A log without it
+            // flew no hull moment.
+            Entry(w, TagHull, e =>
+            {
+                e.Write(Aero != null);
+                if (Aero == null) return;
+                e.Write(Aero.HullFrontalArea);
+                V3(e, Aero.HullSize);
+                S3(e, Aero.HullAddedVolume);
+                e.Write(Aero.HullPotential);
+                e.Write(Aero.HullOn);
+                double[] ratios = Aero.HullRatios ?? new double[0];
+                e.Write((ushort)ratios.Length);
+                for (int i = 0; i < ratios.Length; i++)
+                {
+                    e.Write(ratios[i]);
+                    e.Write((ushort)Aero.HullAngles[i].Length);
+                    for (int k = 0; k < Aero.HullAngles[i].Length; k++)
+                    {
+                        e.Write(Aero.HullAngles[i][k]);
+                        e.Write(Aero.HullMoments[i][k]);
+                    }
+                }
+            });
+            // The stems' air since w9-village-physics 2.13, an entry of its own as the stems' (no format change): the wash's
+            // switch, then tether.json's rows and hash when the stems read them without the line. A log without it flew 2.12's
+            // column.
+            Entry(w, TagStemAir, e =>
+            {
+                e.Write(StemWash);
+                e.Write(StemAir != null);
+                if (StemAir == null) return;
+                e.Write(StemAir.ContentHash);
+                e.Write((ushort)StemAir.Rows.Length);
+                foreach (TetherRow row in StemAir.Rows)
+                {
+                    Text(e, row.Name);
+                    e.Write(row.Label);
+                    e.Write((byte)row.Kind);
+                    e.Write((ushort)row.Values.Length);
+                    foreach (double x in row.Values) e.Write(x);
+                }
+            });
+            // The hanging half's depth law since w9-village-physics 2.6b, an entry of its own as the ground's (no format change). A
+            // log without it flew model 98's placement.
+            Entry(w, TagHanging, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts != null) e.Write(Contacts.HangingDepth);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1308,7 +1460,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1370,6 +1522,127 @@ namespace Fpv450.Sim.Log
                     case TagPropulsion:
                         Propulsion = r.ReadBoolean() ? ReadPropulsion(r) : null;
                         break;
+                    case TagStems:
+                        sawStems = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool stems = r.ReadBoolean();
+                            if (Contacts != null) Contacts.Stems = stems;
+                            int coverRows = r.ReadByte();
+                            for (int i = 0; i < coverRows; i++)
+                            {
+                                double dry = r.ReadDouble(), wet = r.ReadDouble();
+                                if (Contacts?.Surfaces == null || i >= Contacts.Surfaces.Cover.Length) continue;
+                                CoverRow k = Contacts.Surfaces.Cover[i];
+                                k.Dry.Diameter = dry;
+                                k.Wet.Diameter = wet;
+                                Contacts.Surfaces.Cover[i] = k;
+                            }
+                        }
+                        if (r.ReadBoolean())
+                        {
+                            bool load = r.ReadBoolean();
+                            if (Modes != null) Modes.StrikeLoad = load;
+                        }
+                        break;
+                    case TagGround:
+                        sawGround = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool reach = r.ReadBoolean();
+                            if (Contacts != null) Contacts.AnchorReach = reach;
+                            if (r.ReadBoolean())
+                            {
+                                double sigma = r.ReadDouble(), bound = r.ReadDouble();
+                                if (Contacts?.Legs != null)
+                                {
+                                    Contacts.Legs.StiffnessSigma = sigma;
+                                    Contacts.Legs.StiffnessBound = bound;
+                                }
+                            }
+                        }
+                        break;
+                    case TagStemAir:
+                        sawStemAir = true;
+                        StemWash = r.ReadBoolean();
+                        StemAir = null;
+                        if (!r.ReadBoolean()) break;
+                        ulong airHash = r.ReadUInt64();
+                        var airRows = new TetherRow[r.ReadUInt16()];
+                        for (int i = 0; i < airRows.Length; i++)
+                        {
+                            airRows[i] = new TetherRow { Name = Text(r), Label = r.ReadByte(), Kind = (TetherValueKind)r.ReadByte() };
+                            airRows[i].Values = new double[r.ReadUInt16()];
+                            for (int k = 0; k < airRows[i].Values.Length; k++) airRows[i].Values[k] = r.ReadDouble();
+                        }
+                        StemAir = new TetherTable(airRows, airHash);
+                        break;
+                    case TagHanging:
+                        sawHanging = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool depth = r.ReadBoolean();
+                            if (Contacts != null) Contacts.HangingDepth = depth;
+                        }
+                        break;
+                    case TagHull:
+                        if (r.ReadBoolean())
+                        {
+                            double area = r.ReadDouble();
+                            Double3 hullSize = V3(r);
+                            Sym3 added = S3(r);
+                            bool potential = r.ReadBoolean(), on = r.ReadBoolean();
+                            int curves = r.ReadUInt16();
+                            double[] ratios = curves > 0 ? new double[curves] : null;
+                            double[][] angles = curves > 0 ? new double[curves][] : null, moments = curves > 0 ? new double[curves][] : null;
+                            for (int i = 0; i < curves; i++)
+                            {
+                                ratios[i] = r.ReadDouble();
+                                int points = r.ReadUInt16();
+                                angles[i] = new double[points];
+                                moments[i] = new double[points];
+                                for (int k = 0; k < points; k++)
+                                {
+                                    angles[i][k] = r.ReadDouble();
+                                    moments[i][k] = r.ReadDouble();
+                                }
+                            }
+                            if (Aero != null)
+                            {
+                                Aero.HullFrontalArea = area;
+                                Aero.HullSize = hullSize;
+                                Aero.HullAddedVolume = added;
+                                Aero.HullPotential = potential;
+                                Aero.HullOn = on;
+                                Aero.HullRatios = ratios;
+                                Aero.HullAngles = angles;
+                                Aero.HullMoments = moments;
+                            }
+                        }
+                        break;
+                    case TagCrown:
+                    {
+                        int crownRows = r.ReadUInt16();
+                        for (int i = 0; i < crownRows; i++)
+                        {
+                            if (!r.ReadBoolean()) continue;
+                            var k = new CrownRow
+                            {
+                                TwigLength = r.ReadDouble(), TwigDiameter = r.ReadDouble(), TwigFreeLength = r.ReadDouble(), TwigRupture = r.ReadDouble(),
+                                TwigModulus = r.ReadDouble(), LeafMassPerArea = r.ReadDouble(), LeafDryMatter = r.ReadDouble(), LeafWork = r.ReadDouble(),
+                                LeafCriticalSpeed = r.ReadDouble(), LeafCell = r.ReadDouble(),
+                            };
+                            k.Variants = new string[r.ReadUInt16()];
+                            k.LeafAreaDensity = new double[k.Variants.Length];
+                            for (int j = 0; j < k.Variants.Length; j++)
+                            {
+                                k.Variants[j] = Text(r);
+                                k.LeafAreaDensity[j] = r.ReadDouble();
+                            }
+                            if (Contacts?.Materials != null && i < Contacts.Materials.Length) Contacts.Materials[i].Crown = k;
+                        }
+                        break;
+                    }
                     case TagDroneInternals:
                         tablesHash = r.ReadUInt64();
                         sawTables = true;
@@ -1394,12 +1667,13 @@ namespace Fpv450.Sim.Log
                         };
                         WindParameters = new NamedValue[r.ReadUInt16()];
                         for (int i = 0; i < WindParameters.Length; i++) WindParameters[i] = new NamedValue(Text(r), r.ReadDouble());
+                        Wind.OneScale = Wind.Level != WindLevel.Still && Wind.Level != WindLevel.Steady && !HeightScaledIn(WindParameters);
                         if (r.ReadBoolean())
                         {
                             int wakeVersion = r.ReadInt32();
-                            if (wakeVersion != WakeGrid.Version)
-                                throw new FlightLogException("the log's wake grid is version " + wakeVersion + "; this build's is " + WakeGrid.Version);
-                            Wind.Wakes = new WakeLayout { OriginX = r.ReadDouble(), OriginZ = r.ReadDouble(), NX = r.ReadInt32(), NZ = r.ReadInt32() };
+                            if (wakeVersion < 1 || wakeVersion > WakeGrid.Version)
+                                throw new FlightLogException("the log's wake grid is version " + wakeVersion + "; this build's are 1 to " + WakeGrid.Version);
+                            Wind.Wakes = new WakeLayout { OriginX = r.ReadDouble(), OriginZ = r.ReadDouble(), NX = r.ReadInt32(), NZ = r.ReadInt32(), Version = wakeVersion };
                             Wind.Wakes.Volumes = new WindVolume[r.ReadInt32()];
                             for (int i = 0; i < Wind.Wakes.Volumes.Length; i++)
                                 Wind.Wakes.Volumes[i] = new WindVolume
@@ -1607,6 +1881,9 @@ namespace Fpv450.Sim.Log
                         TetherZeroForceHold = r.ReadBoolean();
                         TetherLinearStep = r.ReadBoolean();
                         TetherSlidingTrail = r.ReadBoolean();
+                        TetherBeforeDesign18 = r.ReadBoolean();
+                        TetherWakeReach4R = r.ReadBoolean();
+                        TetherAirlessTrail = r.ReadBoolean();
                         TetherLayout = null;
                         if (r.ReadBoolean())
                         {
@@ -1693,6 +1970,26 @@ namespace Fpv450.Sim.Log
                 r.BaseStream.Position = end;
             }
             if (!sawLayouts) throw new FlightLogException("the header has no record layouts");
+            if (!sawStems)
+            {
+                // Before w9-village-physics 2.2 no flight met stems or loaded an arm at its tip from a strike.
+                if (Contacts != null) Contacts.Stems = false;
+                if (Modes != null) Modes.StrikeLoad = false;
+            }
+            if (!sawStemAir)
+            {
+                // Before w9-village-physics 2.13 the stems flew 2.12's column.
+                StemWash = false;
+                StemAir = null;
+            }
+            if (!sawGround && Contacts != null)
+            {
+                // Before w9-village-physics 2.9: the reach flew from model 86 (unlogged), and no leg drew its stiffness.
+                Contacts.AnchorReach = ModelVersion >= 86;
+                if (Contacts.Legs != null) Contacts.Legs.StiffnessSigma = Contacts.Legs.StiffnessBound = 0;
+            }
+            // Before w9-village-physics 2.6b a hanging half lay where model 98's give put it.
+            if (!sawHanging && Contacts != null) Contacts.HangingDepth = false;
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
                     + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));

@@ -268,6 +268,159 @@ namespace Fpv450.Sim.Tests
             Assert.That(hi - lo, Is.GreaterThan(20), "the direction moves");
         }
 
+        // p7c-wind design 16: the field's w along the harness's course (Severe, the wind abeam from the left at the cruise's
+        // ground speed) at 2, 5, 10, 20 and 35 m, 10 seeds × 120 s at the camera's rate, band by band (Welch, WindLevelsProbe.
+        // Bands) against Kaimal et al. (1972)'s neutral w at the speed the path crosses the frozen field and the field's u*:
+        // within 0.8–1.25 at 0.5–4 Hz and 0.8–1.6 at 0.23–0.5 Hz (the windows' leakage from below; the bounds are design 16's,
+        // set before the build). The known-wrong, the one-scale field (model 98's), fails at every height below 35 m, where it
+        // is the handbook's own and passes.
+        [Test]
+        public void TheVerticalGustsScaleWithHeight()
+        {
+            double[] lo = { 0.23, 0.5, 1, 2 }, hi = { 0.5, 1, 2, 4 }, min = { 0.8, 0.8, 0.8, 0.8 }, max = { 1.6, 1.25, 1.25, 1.25 };
+            foreach (double z in new[] { 2.0, 5, 10, 20, 35 })
+            {
+                double[] law = VerticalBandsOverKaimal(z, false, lo, hi), wrong = VerticalBandsOverKaimal(z, true, lo, hi);
+                bool Passes(double[] r)
+                {
+                    for (int k = 0; k < r.Length; k++) if (!(r[k] >= min[k] && r[k] <= max[k])) return false;
+                    return true;
+                }
+                string Row(double[] r) => string.Join(" / ", Array.ConvertAll(r, x => F(x, "0.00")));
+                TestContext.Out.WriteLine($"{z} m, w over Kaimal's in 0.23–0.5 / 0.5–1 / 1–2 / 2–4 Hz: the law {Row(law)}; the one-scale field {Row(wrong)}");
+                Assert.That(Passes(law), Is.True, $"{z} m: {Row(law)}");
+                if (z < 35) Assert.That(Passes(wrong), Is.False, $"the one-scale field fails at {z} m: {Row(wrong)}");
+                else Assert.That(Passes(wrong), Is.True, $"at 35 m the one-scale field is the handbook's own: {Row(wrong)}");
+            }
+        }
+
+        static double[] VerticalBandsOverKaimal(double z, bool oneScale, double[] lo, double[] hi)
+        {
+            const double fps = HarnessPilot.CameraHz, seconds = 120, degToRad = 0.017453292519943295;
+            const int seeds = 10;
+            WindPreset p = WindPreset.Of(WindLevel.Severe);
+            var field = new double[lo.Length];
+            var kaimal = new double[lo.Length];
+            for (ulong seed = 1; seed <= seeds; seed++)
+            {
+                var wind = new WindField(new WindSetup { Level = WindLevel.Severe, OneScale = oneScale }, new FlightRandom(seed));
+                DetMath.SinCos((wind.FromDeg + 90) % 360 * degToRad, out double sin, out double cos);
+                var along = new Double3(sin, 0, cos);
+                int n = (int)(seconds * fps);
+                var w = new double[n];
+                double speed = 0;
+                for (int i = 0; i < n; i++)
+                {
+                    long step = (long)(i * 1000 / fps);
+                    Double3 at = along * (WindHarness.GroundSpeed * step * 0.001) + new Double3(0, z, 0);
+                    wind.Begin(step, at, 0);
+                    w[i] = wind.At(at, 0).Y;
+                    speed += (along * WindHarness.GroundSpeed - wind.Mean).Length() / n; // the path through the frozen field
+                }
+                double[] b = WindLevelsProbe.Bands(w, fps, lo, hi);
+                double ustar = WindPreset.Karman * wind.MeanSpeed / Math.Log((p.ReferenceHeight - p.Displacement) / p.Roughness);
+                for (int k = 0; k < lo.Length; k++)
+                {
+                    field[k] += b[k] * b[k] / seeds;
+                    double sum = 0;
+                    const int m = 200;
+                    for (int j = 0; j < m; j++)
+                    {
+                        double hz = lo[k] * Math.Exp(Math.Log(hi[k] / lo[k]) * (j + 0.5) / m), f = hz * (z - p.Displacement) / speed;
+                        sum += 2.1 * f / (1 + 5.3 * Math.Pow(f, 5.0 / 3)) * Math.Log(hi[k] / lo[k]) / m;
+                    }
+                    kaimal[k] += sum * ustar * ustar / seeds;
+                }
+            }
+            var r = new double[lo.Length];
+            for (int k = 0; k < r.Length; k++) r[k] = Math.Sqrt(field[k] / kaimal[k]);
+            return r;
+        }
+
+        // p7c-wind design 16: the law's numbers. The coefficients are von Kármán's scales for the surface layer's σ and Kaimal's
+        // inertial range (L ∝ σ³/ε); the scales hold above the profile's top and the canopy top's floor them in the cover's
+        // roughness sublayer; σ_w/σ_u is the surface layer's; the taper is the sublayer's depth; the one-scale preset is
+        // model 98's.
+        [Test]
+        public void TheScalesFollowTheSurfaceLayer()
+        {
+            double Coefficient(double sigma, double a, double form) => Math.Pow(a / (sigma * sigma * form * Math.Pow(1.339, -5.0 / 3)), -1.5) / (2 * Math.PI);
+            WindPreset p = WindPreset.Of(WindLevel.Windy);
+            Assert.That(p.HeightScaled, Is.True);
+            Assert.That(p.HorizontalScaleOverHeight, Is.EqualTo(Coefficient(2.4, 105 / Math.Pow(33, 5.0 / 3), 2 / Math.PI)).Within(1e-3), "u's: Kaimal's 0.309");
+            Assert.That(p.VerticalScaleOverHeight, Is.EqualTo(Coefficient(1.25, 2.1 / 5.3, 8 / (3 * Math.PI))).Within(1e-3), "w's: Kaimal's 0.396");
+            Assert.That(p.VerticalRatio, Is.EqualTo(1.25 / 2.4).Within(1e-15));
+            Assert.That(p.TaperHeight, Is.EqualTo(2 * (0.3 - 0.201)).Within(1e-12), "Raupach's roughness sublayer over the cover");
+            double d = p.Displacement;
+            foreach (double z in new[] { 0.3, 0.35, 0.5, 0.58, 2, 10, 35, 100 })
+            {
+                Assert.That(p.HorizontalScaleAt(z), Is.EqualTo(Math.Max(3.132 * (z - d), 0.3)).Within(1e-12), "L_h at " + z);
+                Assert.That(p.VerticalScaleAt(z), Is.EqualTo(Math.Max(0.470 * (z - d), 0.18)).Within(1e-12), "L_w at " + z);
+            }
+            Assert.That(p.HorizontalScaleAt(400), Is.EqualTo(p.HorizontalScaleAt(100)), "held above the top");
+            Assert.That(p.VerticalScaleAt(35), Is.EqualTo(16.35).Within(0.01));
+            WindPreset old = p.OneScale();
+            Assert.That((old.HeightScaled, old.VerticalRatio, old.TaperHeight, old.HorizontalScale, old.VerticalScale), Is.EqualTo((false, 0.594, 1.0, 167.0, 35.0)));
+            Assert.That((old.HorizontalScaleAt(2), old.VerticalScaleAt(2)), Is.EqualTo((167.0, 35.0)), "one scale at every height");
+        }
+
+        // p7c-wind design 16: the table is the band energy. At each height the field by height is, mode for mode, the one-scale
+        // field built at that height's own scales (the same draws and wave vectors: its longest wavenumber held by the
+        // longest-scale fraction), within the table's linear interpolation; above the profile's top it holds.
+        [Test]
+        public void TheScaledModesAreTheBandEnergyAtEachHeight()
+        {
+            foreach (double z in new[] { 0.35, 0.7, 1.25, 3, 10, 35, 80, 150 })
+            {
+                var scaled = new WindField(WindSetup.Of(WindLevel.Windy), new FlightRandom(21));
+                WindPreset p = scaled.Preset, exact = p.OneScale();
+                exact.VerticalRatio = p.VerticalRatio;
+                exact.HorizontalScale = p.HorizontalScaleAt(z);
+                exact.VerticalScale = p.VerticalScaleAt(z);
+                exact.LongestFraction = p.LongestFraction * exact.HorizontalScale / p.HorizontalScale;
+                var one = new WindField(WindSetup.Of(WindLevel.Windy), new FlightRandom(21), exact);
+                double worst = 0, rms = 0;
+                const int n = 400;
+                for (int i = 0; i < n; i++)
+                {
+                    var at = new Double3(1.7 * i, z, -0.9 * i);
+                    scaled.Begin(i * 37L, at, 0);
+                    one.Begin(i * 37L, at, 0);
+                    Double3 a = scaled.Turbulence(at), b = one.Turbulence(at);
+                    worst = Math.Max(worst, (a - b).Length());
+                    rms += b.Length() * b.Length() / n;
+                }
+                rms = Math.Sqrt(rms);
+                TestContext.Out.WriteLine($"{z} m: scales {F(p.HorizontalScaleAt(z), "0.00")} / {F(p.VerticalScaleAt(z), "0.000")} m, at most {F(worst / rms, "0.00000")} of the RMS apart");
+                Assert.That(worst, Is.LessThan(0.005 * rms), z + " m");
+            }
+        }
+
+        // p7c-wind design 16's cost (Explicit; a timing, so on AC power only): the open field's At per sample, the one-scale field
+        // and the field by height, at 1.25 and 35 m, best of five passes of 200 000 samples.
+        [Test, Explicit]
+        public void TheFieldsCostPerSample()
+        {
+            foreach (bool oneScale in new[] { true, false })
+                foreach (double z in new[] { 1.25, 35 })
+                {
+                    var wind = new WindField(new WindSetup { Level = WindLevel.Severe, OneScale = oneScale }, new FlightRandom(3));
+                    double best = double.MaxValue, sink = 0;
+                    for (int pass = 0; pass < 5; pass++)
+                    {
+                        var clock = System.Diagnostics.Stopwatch.StartNew();
+                        for (int i = 0; i < 200000; i++)
+                        {
+                            var at = new Double3(0.01 * i, z, 0.02 * i);
+                            if (i % 4 == 0) wind.Begin(i / 4, at, 0);
+                            sink += wind.At(at, 0).Y;
+                        }
+                        best = Math.Min(best, clock.Elapsed.TotalMilliseconds * 1e6 / 200000);
+                    }
+                    TestContext.Out.WriteLine($"{(oneScale ? "one-scale" : "by height")} at {z} m: {F(best, "0")} ns a sample (checksum {F(sink, "0.0")})");
+                }
+        }
+
         // The levels' bands never overlap (K§8.6).
         [Test]
         public void TheLevelsDoNotOverlap()

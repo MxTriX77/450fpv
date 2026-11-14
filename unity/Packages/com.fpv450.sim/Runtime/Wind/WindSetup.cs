@@ -44,6 +44,11 @@ namespace Fpv450.Sim.Wind
         /// A pilot's level only: Still and Steady air never read the ground.</summary>
         public CutSpec[] Cuts;
 
+        /// <summary>A pilot's level only: the one-scale field (p7c-wind design 16's known-wrong, WindPreset.OneScale: model 98's
+        /// turbulence, the handbook's scales at 35 m at every height) in place of the scales by height. The header's preset
+        /// records it (height_scaled); the kept audits of older models fly it.</summary>
+        public bool OneScale;
+
         public static WindSetup Of(WindLevel level) => new WindSetup { Level = level };
 
         /// <summary>
@@ -74,7 +79,7 @@ namespace Fpv450.Sim.Wind
     /// The obstacles of a flight's wakes (p7c-wind 1.5, design 4): the wake grid's obstacle grid (K§10.3) over its origin
     /// (world X, Z of its south-west corner, m) and its 2 m cells, from the placed wind volumes. The field builds its
     /// WakeGridWorker from it at the flight's start; the log header records every value, so a replay rebuilds the same
-    /// grid (WakeGrid.Version with it). The replay's fixture row (--wakes) is one.
+    /// grid (its Version with it). The replay's fixture row (--wakes) is one.
     /// </summary>
     public sealed class WakeLayout
     {
@@ -82,12 +87,18 @@ namespace Fpv450.Sim.Wind
         public int NX, NZ;
         public WindVolume[] Volumes;
 
+        /// <summary>The wake grid's rules this layout is built by: WakeGrid.Version, or 1 (each cell's porosity by K§10.3's
+        /// covered fraction, the nearest wake alone, a porosity-free turbulence boost) for a log of version 1 and the kept
+        /// audits of older models (GoldenFlights).</summary>
+        public int Version = WakeGrid.Version;
+
         /// <summary>The obstacle grid (K§10.3).</summary>
-        public WakeObstacles Obstacles() => new WakeObstacles(OriginX, OriginZ, NX, NZ, Volumes);
+        public WakeObstacles Obstacles() => new WakeObstacles(OriginX, OriginZ, NX, NZ, Volumes, Version);
 
         internal WakeLayout Checked()
         {
-            if (NX < 1 || NZ < 1 || NX > 4096 || NZ > 4096 || Volumes == null || !(DetMath.Abs(OriginX) < 1e7) || !(DetMath.Abs(OriginZ) < 1e7))
+            if (NX < 1 || NZ < 1 || NX > 4096 || NZ > 4096 || Volumes == null || !(DetMath.Abs(OriginX) < 1e7) || !(DetMath.Abs(OriginZ) < 1e7)
+                || Version < 1 || Version > WakeGrid.Version)
                 throw new ArgumentException("the wake layout is out of its bounds");
             return this;
         }

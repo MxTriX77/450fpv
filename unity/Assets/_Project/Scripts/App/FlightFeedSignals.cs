@@ -9,7 +9,8 @@ namespace Fpv450.App
 {
     /// <summary>
     /// The feed's signals in a flight (FEED-03, D-008): every signal the physics publishes (PosePair.Signals, its Live
-    /// bits) from the physics, labelled so, narrowed to float; every other one the feed's labelled stub. The OSD is the
+    /// bits) from the physics, labelled so, narrowed to float; every other one the feed's labelled stub; the props' cut stems,
+    /// which carry no Live bit, as the physics gives them (StemCuts). The OSD is the
     /// content model (FlightOsd, p4-feed 1.5): the arm state, the altitude, the distance and the timer from the flight,
     /// the pack and the current from these signals; its source is the pack's.
     /// </summary>
@@ -67,6 +68,18 @@ namespace Fpv450.App
         public void BuildOsd(int field) => Osd.Build(field, LinkMarginDb);
         /// <summary>X's stick overlay (D-084) at the latest step's sticks, which the rig takes once a field.</summary>
         public FeedSticks OsdSticks => Osd.Overlay;
+
+        /// <summary>
+        /// The props' cut stems per rotor (0–3, Corners order) over the latest whole field (w9-village-physics 2.2): the stems
+        /// cut (the mean count), their pieces' mean length (m), the cuts' mean radius on the blade (m) and the rotor's angle at
+        /// its last cut (rad). The physics publishes them with no Live bit (FeedSignals.StemCuts…, outputs the feed reads as it
+        /// chooses, as the sticks), so they pass on as they are, 0 for a rotor that cut none and before a flight; no stub has
+        /// them, and nothing draws them yet (the cut bits on camera, w9-village-physics 2.5).
+        /// </summary>
+        public float StemCuts(int rotor) => (float)_s.StemCuts[rotor];
+        public float StemPieceLengthM(int rotor) => (float)_s.StemPieceLength[rotor];
+        public float StemCutRadiusM(int rotor) => (float)_s.StemCutRadius[rotor];
+        public float StemBladeAngle(int rotor) => (float)_s.StemBladeAngle[rotor];
 
         static Num.Vector3 V(in Double3 v) => new Num.Vector3((float)v.X, (float)v.Y, (float)v.Z);
 

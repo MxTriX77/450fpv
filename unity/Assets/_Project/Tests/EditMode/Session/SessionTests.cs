@@ -113,8 +113,10 @@ namespace Fpv450.Tests.Session
 
         // The airframe's effects: the app's flight sets every FlightSetup field the powered golden flies
         // (GoldenFlights.PoweredSetup), value for value, built alike from drone.json. The fields left out are the flight's own
-        // choices, and the line, which the golden does not fly (TheFlightCarriesTheGroundTheCutsAndTheLine). A field
-        // FlightSetup gains is compared too, so an effect the golden flies and the app does not fails here.
+        // choices, and the line, which the golden does not fly (TheFlightCarriesTheGroundTheCutsAndTheLine), and the stems'
+        // table for their wash with distance (StemAir, w9-village-physics 2.13), a bench's option that neither flies (D-111:
+        // StemWash off, compared below). A field FlightSetup gains is compared too, so an effect the golden flies and the app
+        // does not fails here.
         // The build's placement (D-066) is a pilot's flight's, as the replay's pilot flies it (ScriptedFlight); the golden
         // keeps the file's exact build, so the app's is compared with drone.json's own.
         [Test]
@@ -122,7 +124,7 @@ namespace Fpv450.Tests.Session
         {
             var choices = new HashSet<string> { "Seed", "Settings", "World", "Mass", "Wind", "Rain", "Contacts", "RuntimeObjects",
                 "StartPosition", "StartAttitude", "StartVelocity", "StartBodyRate", "StartPackCharge",
-                "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass", "TetherTwoWay" };
+                "Tether", "TetherLayout", "TetherCoilPart", "TetherSpoolMass", "TetherTwoWay", "StemAir" };
             foreach (bool legs in new[] { true, false })
             {
                 Rig rig = Make(i => i.Choices = new FlightChoices { Legs = legs, Wind = WindLevel.Calm });
@@ -328,6 +330,272 @@ namespace Fpv450.Tests.Session
                 Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), where + ": " + replay.Message);
                 rig.Session.Dispose();
             }
+        }
+
+        // ---- The physics line in the player (w15-player-physics 1.1) ---------------------------------------------------
+
+        // "The legs as the pilot's hands made them": legs on, the session's setup draws each leg's stiffness from the flight's
+        // seed (LegDamageSpec.DrawStiffness, as the replay's pilot flies them), the log's header records the spread and the
+        // four draws, each leg flies its own, and two seeds draw differently; legs off, nothing is drawn.
+        [Test]
+        public void EachFlightDrawsItsLegsFromItsSeed()
+        {
+            var drawn = new List<double[]>();
+            foreach (ulong seed in new ulong[] { 0x1E65, 0x1E66 })
+            {
+                Rig rig = Make(i =>
+                {
+                    i.NewSeed = () => seed;
+                    i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm };
+                });
+                rig.Session.Start();
+                FlightCore core = rig.Session.Core;
+                Assert.That((rig.Session.Setup.Contacts.Legs.StiffnessSigma, rig.Session.Setup.Contacts.Legs.StiffnessBound),
+                    Is.EqualTo((LegDamageSpec.DrawnSigma, LegDamageSpec.DrawnBound)), "the build drawn");
+                rig.Run(200);
+                rig.Session.EndFlight();
+                LogHeader h = rig.Session.ReadSummary().Log.Header;
+                Assert.That((h.Seed, h.Contacts.Legs.StiffnessSigma, h.Contacts.Legs.StiffnessBound), Is.EqualTo((seed, LegDamageSpec.DrawnSigma, LegDamageSpec.DrawnBound)),
+                    "the header records the spread");
+                var draws = new List<double>();
+                foreach (ParameterDraw d in h.Draws)
+                {
+                    if (d.Stream != "leg.stiffness") continue;
+                    Assert.That(d.Parameter, Is.EqualTo("leg.stiffness." + LegDamage.Names[draws.Count]));
+                    Assert.That((d.Lo, d.Hi), Is.EqualTo((-LegDamageSpec.DrawnBound, LegDamageSpec.DrawnBound)), d.Parameter);
+                    Assert.That(core.Contacts.Legs.Modulus(draws.Count), Is.EqualTo(1 + d.Value), d.Parameter + ": the leg flies its draw");
+                    draws.Add(d.Value);
+                }
+                TestContext.WriteLine("seed 0x" + seed.ToString("X") + ": the legs' stiffness " + string.Join(", ", draws.ConvertAll(v => (1 + v).ToString("0.0000"))));
+                Assert.That(draws.Count, Is.EqualTo(4), "four draws a flight, in the header");
+                drawn.Add(draws.ToArray());
+                rig.Session.Dispose();
+            }
+            Assert.That(drawn[0], Is.Not.EqualTo(drawn[1]), "each seed its own legs");
+
+            Rig off = Make(i => i.Choices = new FlightChoices { Legs = false, Wind = WindLevel.Calm });
+            off.Session.Start();
+            Assert.That(off.Session.Setup.Contacts.Legs, Is.Null, "legs off: no legs to draw");
+            off.Run(200);
+            off.Session.EndFlight();
+            LogHeader none = off.Session.ReadSummary().Log.Header;
+            Assert.That(Array.Exists(none.Draws, d => d.Stream == "leg.stiffness"), Is.False, "legs off: no leg drawn");
+            off.Session.Dispose();
+        }
+
+        // "A landing in straw" and "A flight that cuts nothing": a session's flight on the farmland as the player flies it (its
+        // ground, its line, legs on, 1 kg, Calm) from a hover with the hubs 1.9 m over the densest tall straw (StemScenarios.Dense,
+        // its tops at 1.77 m), let down under the hover's throttle; on the ground the throttle is cut, and the flight is ended
+        // 1.5 s later. The props cut stems: the log holds each rotor's episodes (StemEpisode, a start and an end each), and the
+        // summary has a line for each rotor that cut, its stems and work the episodes' ends' own. The flight replays bit for
+        // bit. A flight on the floor meets no stem, and its summary has no such line.
+        [Test]
+        public void ALandingInStrawNamesTheCutStems()
+        {
+            FlightWorldChoice farmland = FlightWorlds.Farmland(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                farmland.ApplyTo(i);
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Payload = 1.0, Wind = WindLevel.Calm };
+                i.Adjust = s =>
+                {
+                    var under = new GroundSample[1];
+                    s.World.SampleGround(new[] { StemScenarios.Dense }, under);
+                    s.StartPosition = new Double3(StemScenarios.Dense.X, under[0].Height + 1.9 - StemScenarios.HubOverOrigin, StemScenarios.Dense.Z);
+                };
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            FlightCore core = rig.Session.Core;
+            rig.Radio.Throttle = StrawThrottle; // under the hover: down into the straw
+            int ms = 0;
+            for (; ms < 5000 && core.Trace.ContactsTouching == 0; ms += 10) rig.Run(10);
+            Assert.That(core.Trace.ContactsTouching, Is.GreaterThan(0), "down on the ground");
+            rig.Radio.Throttle = 0;
+            rig.Run(1500);
+            TestContext.WriteLine("on the ground " + ms + " ms after the arming, at " + core.State.Position.ToString());
+            rig.Session.EndFlight();
+
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, p.Log.CutReason);
+            var starts = new int[4];
+            var ends = new double[4];
+            int endCount = 0;
+            foreach (LoggedEvent e in p.Log.Events)
+            {
+                if (e.Event.Kind != EventKind.StemEpisode) continue;
+                if ((e.Event.Index & 0x80) == 0) starts[e.Event.Index]++;
+                else
+                {
+                    ends[e.Event.Index & 0x7F] += e.Event.B;
+                    endCount++;
+                }
+            }
+            Assert.That(endCount, Is.GreaterThan(0), "the log holds the stems' episodes");
+            Assert.That(endCount, Is.EqualTo(starts[0] + starts[1] + starts[2] + starts[3]), "each episode ended once the props stopped");
+            Assert.That(p.Stems, Is.Not.Empty, "the summary names the cut");
+            int last = -1;
+            foreach (CutStems s in p.Stems)
+            {
+                Assert.That(s.Corner, Is.GreaterThan(last), "in Corners order");
+                last = s.Corner;
+                Assert.That((s.First.Event.Kind, s.First.Event.Index), Is.EqualTo((EventKind.StemEpisode, (byte)s.Corner)), "from its first episode's start");
+                Assert.That(s.Episodes, Is.EqualTo(starts[s.Corner]));
+                Assert.That(s.Count, Is.EqualTo(ends[s.Corner]), "its stems, the episodes' ends' own");
+                Assert.That((s.Count >= 1, s.Energy > 0), Is.EqualTo((true, true)), "a whole stem at least, and its work");
+                string line = p.Describe(s);
+                Assert.That(p.Lines(), Has.Member(line));
+                StringAssert.StartsWith("stems at ", line);
+                StringAssert.Contains(": rotor " + new[] { "rear right", "front right", "rear left", "front left" }[s.Corner] + " cut ", line);
+            }
+            for (int c = 0; c < 4; c++)
+                Assert.That(p.Stems.Exists(s => s.Corner == c), Is.EqualTo(starts[c] > 0), "a line for rotor " + c + " only if it cut");
+
+            ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+            ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+            ReplayResult replay;
+            using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                replay = FlightReplay.Run(f, id => id == farmland.Id ? farmland.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            rig.Session.Dispose();
+
+            // A flight that cuts nothing: up off the floor, no stem there.
+            Rig floor = Make(i => i.Choices = new FlightChoices { Legs = true, Wind = WindLevel.Calm });
+            floor.Session.Start();
+            floor.ArmCycle();
+            floor.Radio.Throttle = 0.62;
+            floor.Run(800);
+            floor.Session.EndFlight();
+            PostFlight none = floor.Session.ReadSummary();
+            Assert.That(none.Log.Count(EventKind.StemEpisode), Is.Zero);
+            Assert.That(none.Stems, Is.Empty);
+            Assert.That(none.Lines().Exists(l => l.StartsWith("stems", StringComparison.Ordinal)), Is.False, "no stems' line");
+            floor.Session.Dispose();
+        }
+
+        /// <summary>The straw landing's throttle stick (under the hover at 1 kg).</summary>
+        const double StrawThrottle = 0.45;
+
+        // "The same flight in Unity and headless": a session's flight on the test range as the player flies it (its ground, its
+        // line, legs on, 1 kg, Windy) on a fixed seed and scripted sticks: lifted, pitched forward, levelled, let down. Its records
+        // (every step, event and loose-piece block: the header names the host, its runtime and build) hash to the value pinned
+        // here on .NET (tools/inputtests) and on Unity's Mono (EditMode) alike, the log carries the line's model, and it replays
+        // bit for bit (FlightReplay, the replay tools/replay runs).
+        [Test]
+        public void AFlightIsTheSameInUnityAndHeadless()
+        {
+            FlightWorldChoice range = FlightWorlds.TestRange(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                range.ApplyTo(i);
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Payload = 1.0, Wind = WindLevel.Windy };
+                i.NewSeed = () => 0x450F;
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            for (int ms = 0; ms < 3000; ms += 10)
+            {
+                rig.Radio.Throttle = ms < 600 ? 0.62 : ms < 1400 ? 0.53 : ms < 2200 ? 0.5 : 0.42;
+                rig.Radio.Pitch = ms >= 600 && ms < 1000 ? 0.25 : ms >= 1400 && ms < 1800 ? -0.25 : 0;
+                rig.Run(10);
+            }
+            rig.Session.EndFlight();
+            Assert.That(rig.Session.ReadSummary().Log.Complete, "the log closed");
+            ulong records = RecordsHash(rig.Session.LogPath, out LogHeader h, out long steps);
+            TestContext.WriteLine("the session's flight: " + steps + " steps, model " + h.ModelVersion + ", records 0x" + records.ToString("X16") + " (" + h.Runtime + ")");
+            Assert.That(h.ModelVersion, Is.EqualTo(LogFormat.ModelVersion), "the line's model");
+            Assert.That(records, Is.EqualTo(SessionFlightRecords), "the records as .NET and Mono both fly them");
+
+            ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+            ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+            ReplayResult replay;
+            using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                replay = FlightReplay.Run(f, id => id == range.Id ? range.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            rig.Session.Dispose();
+        }
+
+        // QA's own case of "The same flight in Unity and headless" (w15-player-physics 2.1): another seed, other sticks and the
+        // farmland (its ground, its stems, its line, legs on, 1 kg, Windy): lifted, pitched forward and back, let down and cut.
+        // It replays bit for bit in-process, and a copy of the log is kept in the temp folder's fpv450-qa/ (by runtime) for
+        // tools/replay to re-fly on .NET; the records' hash is printed so Mono's and .NET's own flights can be compared.
+        [Test]
+        public void AnotherSeedsFlightOverTheFarmlandReplaysHeadless()
+        {
+            const ulong seed = 0xC0A7_9E11;
+            FlightWorldChoice farmland = FlightWorlds.Farmland(RepositoryRoot());
+            Rig rig = Make(i =>
+            {
+                farmland.ApplyTo(i);
+                i.Surfaces = _surfaces;
+                i.Tether = _tether;
+                i.Choices = new FlightChoices { Legs = true, Payload = 1.0, Wind = WindLevel.Windy };
+                i.NewSeed = () => seed;
+            });
+            rig.Session.Start();
+            rig.ArmCycle();
+            for (int ms = 0; ms < 6000 && rig.Session.State == SessionState.Flying; ms += 10)
+            {
+                rig.Radio.Throttle = ms < 900 ? 0.64 : ms < 2600 ? 0.55 : ms < 4600 ? 0.47 : ms < 5200 ? 0.40 : 0;
+                rig.Radio.Pitch = ms >= 900 && ms < 1500 ? 0.3 : ms >= 2600 && ms < 3300 ? -0.3 : 0;
+                rig.Run(10);
+            }
+            rig.Session.EndFlight();
+            PostFlight p = rig.Session.ReadSummary();
+            TestContext.WriteLine(string.Join("\n", p.Lines()));
+            Assert.That(p.Log.Complete, "the log closed");
+            ulong records = RecordsHash(rig.Session.LogPath, out LogHeader h, out long steps);
+            TestContext.WriteLine("QA's session flight: " + steps + " steps, model " + h.ModelVersion + ", records 0x" + records.ToString("X16") + " (" + h.Runtime + ")");
+            Assert.That(h.ModelVersion, Is.EqualTo(LogFormat.ModelVersion), "the line's model");
+            string kept = Path.Combine(Path.GetTempPath(), "fpv450-qa",
+                "w15-session-" + seed.ToString("x") + "-" + (Type.GetType("Mono.Runtime") != null ? "mono" : "net") + ".flightlog");
+            Directory.CreateDirectory(Path.GetDirectoryName(kept));
+            using (var from = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var to = new FileStream(kept, FileMode.Create, FileAccess.Write))
+                from.CopyTo(to);
+            TestContext.WriteLine("kept " + kept);
+
+            ulong surfacesFile = SurfaceTable.Parse(File.ReadAllText(RepositoryFile(SurfaceTable.RelativePath))).Hash;
+            ulong tetherFile = TetherTable.Parse(File.ReadAllText(RepositoryFile(TetherTable.RelativePath))).ContentHash;
+            ReplayResult replay;
+            using (var f = new FileStream(rig.Session.LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                replay = FlightReplay.Run(f, id => id == farmland.Id ? farmland.Open() : null, _spec.ContentHash, surfacesHash: surfacesFile, tetherHash: tetherFile,
+                    materialsHash: _materialsHash);
+            TestContext.WriteLine("replay: " + replay.Message);
+            Assert.That(replay.Outcome, Is.EqualTo(ReplayOutcome.Match), replay.Message);
+            rig.Session.Dispose();
+        }
+
+        /// <summary>AFlightIsTheSameInUnityAndHeadless's records at model 99: re-pin it only with the physics or the session's
+        /// setup changed, audited as a golden is.</summary>
+        const ulong SessionFlightRecords = 0x2BCFA28885EDA4CE;
+
+        // FNV-1a 64 over every record block of a log after its header, its kind and its bytes.
+        static ulong RecordsHash(string path, out LogHeader header, out long steps)
+        {
+            ulong h = 0xCBF29CE484222325UL;
+            steps = 0;
+            using (FlightLogReader reader = FlightLogReader.Open(path))
+            {
+                header = reader.Header;
+                while (reader.Next())
+                {
+                    if (reader.Kind == LogFormat.StepBlock) steps++;
+                    h = unchecked((h ^ (byte)reader.Kind) * 0x100000001B3UL);
+                    h = unchecked((h ^ (byte)(reader.Kind >> 8)) * 0x100000001B3UL);
+                    foreach (byte b in reader.Payload) h = unchecked((h ^ b) * 0x100000001B3UL);
+                }
+            }
+            return h;
         }
 
         // ---- Arm and disarm ---------------------------------------------------------------------------------------------
@@ -1312,9 +1580,10 @@ namespace Fpv450.Tests.Session
             rig.Session.Dispose();
         }
 
-        // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.5 m/s, disarmed, from 10 mm over its
-        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 14's leg strengths; seed 3's until model 50, where
-        // its rear left holds). The rear-left foot meets the kerb first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
+        // p7g-legs 1.5, "The summary names the damage": the drone dropped level at 1.4 m/s, disarmed, from 10 mm over its
+        // stand, with a steel kerb 8 mm tall under the rear-left foot (seed 38's leg strengths and stiffness; seed 3's until
+        // model 50, where its rear left holds; seed 14's at 1.5 m/s until model 99 with the legs drawn (w15-player-physics 1.1),
+        // where all four legs crack or part; of seeds 10–39 at 1.0–1.5 m/s only this one leaves the two below). The rear-left foot meets the kerb first and the drone pivots onto the front-right leg, which lands on the ground, cracks and keeps a set; rocking back,
         // the rear left parts at its clamp's edge on the kerb. That ends nothing; the summary lists both legs with their state,
         // the landing or the object, and the speed, worded from the log. R's restart (the drone standing, as a flight starts)
         // has four intact legs on its own draws.
@@ -1322,8 +1591,8 @@ namespace Fpv450.Tests.Session
         public void TheSummaryNamesTheDamage()
         {
             const int rr = 0, fr = 1, rl = 2, fl = 3; // Corners order
-            const double kerb = 0.008;
-            ulong seed = 14;
+            const double kerb = 0.008, drop = 1.4;
+            ulong seed = 38;
             bool first = true;
             Rig rig = Make(i =>
             {
@@ -1334,7 +1603,7 @@ namespace Fpv450.Tests.Session
                     first = false;
                     Double3 foot = s.Contacts.Legs.Foot[rl];
                     s.StartPosition = s.StartPosition + new Double3(0, kerb + 0.002, 0);
-                    s.StartVelocity = new Double3(0, -1.5, 0);
+                    s.StartVelocity = new Double3(0, -drop, 0);
                     ShapeGeometry box = Box(new Double3(s.StartPosition.X + foot.X, kerb / 2, s.StartPosition.Z + foot.Z), new Double3(0.05, kerb / 2, 0.015),
                         s.World.Query.MaterialId("steel"));
                     s.RuntimeObjects = new List<RuntimeObject>(s.RuntimeObjects) { new RuntimeObject("kerb", new[] { box }) }.ToArray();
@@ -1374,7 +1643,7 @@ namespace Fpv450.Tests.Session
             Assert.That(rig.Session.Restart(), Is.True);
             FlightCore again = rig.Session.Core;
             Assert.That(again, Is.Not.SameAs(core));
-            Assert.That(rig.Session.Seed, Is.EqualTo(15UL), "the next flight's own seed");
+            Assert.That(rig.Session.Seed, Is.EqualTo(39UL), "the next flight's own seed");
             rig.Run(500);
             ref readonly PosePair pair = ref rig.Session.Poses.Read();
             for (int c = rr; c <= fl; c++)
@@ -1411,7 +1680,9 @@ namespace Fpv450.Tests.Session
         // met the bumper at 101°, 103° and 105°; from model 64 0.51 meets the body's sheet metal at 103° and 105°, and 0.52
         // meets the bumper with the canister at 103°, 105° and 107°, 8.5–9.0 m/s, while 0.50 and 0.48 fly past or low; from
         // model 76, the rotors' edgewise flow, 0.52 meets the body's sheet metal, and at model 79 0.53 meets the bumper with the
-        // canister at 103°, 105° and 107°, 9.0–9.6 m/s, while 0.52 meets the sheet metal and 0.54 the glass or flies past). The summary names the placed car by MapWorld.ObjectName, through the
+        // canister at 103°, 105° and 107°, 9.0–9.6 m/s, while 0.52 meets the sheet metal and 0.54 the glass or flies past; at
+        // model 99 with the legs drawn (w15-player-physics 1.1) 0.525 meets the bumper with the payload at 103°, 105° and 107°,
+        // 7.0–10.4 m/s, while 0.52 and mostly 0.53 meet the sheet metal). The summary names the placed car by MapWorld.ObjectName, through the
         // log's world id and hash; without the world, or with another, it is "object N".
         [Test]
         public void ACrashIntoTheRangesCarNamesIt()
@@ -1432,7 +1703,7 @@ namespace Fpv450.Tests.Session
             FlightCore core = rig.Session.Core;
             for (int ms = 0; ms < 6000 && !core.State.Crashed; ms += 10)
             {
-                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.53; // lift, then low and level
+                rig.Radio.Throttle = ms < 350 ? 0.62 : ms < 1000 ? 0.43 : 0.525; // lift, then low and level
                 rig.Radio.Pitch = ms >= 350 && ms < 1000 ? 0.35 : 0; // forward, then held there (acro)
                 rig.Run(10);
             }

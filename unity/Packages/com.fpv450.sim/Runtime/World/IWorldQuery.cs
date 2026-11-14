@@ -132,6 +132,10 @@
 // the centre to it is at most radius + its record's radius_m (+ − × ÷ only), its points placed in world space first,
 // so the test is of the points returned. It feeds the fiber's 40 Hz caches and never runs in the step (the reading §7);
 // the map compiler holds the segments meeting any 2 m cube to 2048 (tools/map), which sizes those caches.
+//
+// The stem field (w9-village-physics 2.1, its design.md "## 2.1"; QueryVersion 9). StemsNear gives the props, the legs and the
+// fiber a map's drawn grass per cell and layer (MapWorldStems.cs): derived at load from the package's grass counts and the
+// plants' measured stems per instance, never painted. The map only: the surround's grass is not exported.
 
 using System;
 
@@ -209,6 +213,15 @@ namespace Fpv450.Sim.World
         /// results.Length on overflow; the buffer then holds the first elements in canonical order.
         /// </summary>
         int MicroDetailNear(Double3 centre, double radius, MicroKind kinds, Span<MicroElement> results);
+
+        /// <summary>
+        /// The map's standing grass under the circle at `centre` of `radius` (m) in x–z (above): every (cell, layer) of its
+        /// stem field whose stems reach `height` (m above the ground; 0 or less counts every stem) and whose cell the circle
+        /// overlaps with positive area, in canonical order (row north to south, column west to east, layer). Returns the
+        /// true count, which exceeds results.Length on overflow; the buffer then holds the first in canonical order. A
+        /// world without a stem field (the floor, the test range, off the map) returns 0.
+        /// </summary>
+        int StemsNear(XZ centre, double radius, double height, Span<StemPatch> results);
 
         /// <summary>The ground feature (a pitfall) a placed object's shape belongs to; false for a shape of none.</summary>
         bool Feature(int obj, int shape, out GroundFeature feature);

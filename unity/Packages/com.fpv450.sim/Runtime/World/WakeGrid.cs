@@ -3,11 +3,24 @@
 // Built (Build, any thread, deterministic: the same obstacles and direction give the same bits) by marching upwind from
 // every cell centre, in 1 m steps, to the nearest obstacle whose wake reaches the cell (x ≤ 30 H, capped at 300 m,
 // K§6.7). The march crosses the obstacle to read its height H (the highest top on the path), its base B (the lowest
-// base), its along-wind depth L and its path porosity β = Π β_cell over the path (K§10.3; each 1 m step takes
-// √β_cell, half a 2 m path). A cell inside an obstacle reads the path from the obstacle's windward edge to itself, at
+// base) and its along-wind depth L; its porosity β is its frontal porosity across the cell's 2 m lane, from its
+// volumes' own geometry (WakeObstacles.Transmission, w7-farmland-wind 1.2: solids opaque however thin, porous parts by
+// Beer–Lambert over their chord, parts at different heights side by side), and an obstacle the lane misses is no
+// obstacle there. A cell inside an obstacle reads the lane from the obstacle's windward edge to its own centre, at
 // x = 0. Where the cell's own path is clear but an obstacle lies within 16 m to a side (the side probes, every 2 m of
 // the march), that obstacle's wake spreads in sideways, and with obstacles on both sides the path runs through a gap.
-// Each cell then holds its wake's coefficients; Sample evaluates them at a height and interpolates the four nearest
+// The overlying wake (w7-farmland-wind 1.2, design 5): past that nearest obstacle the march goes on, on the cell's own
+// path, to the nearest obstacle taller than it whose wake reaches the cell. A lower obstacle never hides the wake of a
+// taller one upwind (a hedge 15 m behind a 12 m tree stands in the tree's wake, and the tree's wake goes on over it).
+// The two wakes compose as each obstacle's wake relative to the flow that reaches it (derived, as porosities multiply
+// along a path, K§10.3): the speeds multiply (but in the overlying obstacle's reverse flow, which the nearer one cannot
+// turn, that reverse flow), and the turbulence's excess variances add (independent eddies), the eddies at the height of
+// the obstacle carrying the larger excess. Not composed (a truncation, its size measured in w7-farmland-wind's design):
+// a third obstacle, and a farther one no taller than the nearest.
+// Version 1's rules (WakeObstacles.Version 1: each cell's porosity by K§10.3's covered fraction, the path's β the product of
+// √β_cell over its 1 m steps, the nearest wake alone, a porosity-free boost) are kept bit for bit for its logs and the kept
+// audits of older models.
+// Each cell then holds its wakes' coefficients; Sample evaluates them at a height and interpolates the four nearest
 // cell centres bilinearly. An obstacle outside the grid is not seen: the grid must reach 300 m upwind of the flying.
 //
 // The wake at a point x behind the obstacle's leeward edge, at height z, with X = x/H, Z = z/H (every function and
@@ -37,12 +50,16 @@
 //   sides' height, gone by 1.5 of it, w the gap's width (assumed: gaps run faster than the open field, Heisler and
 //   DeWalle 1988's review, recalled).
 // - The turbulence: σ/σ_open = 1 + A·φ·g(X)·v, g(X) = (X/X_p)²·exp(2·(1 − X/X_p)), one at its peak X_p; for a porous
-//   obstacle X_p = 9 and A = 1.15, which makes the mean over 5–15 H 2.0 (fitted: the shelterbelt literature's about
-//   2× from 5 to 15 H, K§8.2); for a bluff body X_p = 4 and A = 2.0 (assumed), blended by the recirculation's step;
+//   obstacle X_p = 9 and A = 1.15·(1 − β)/(1 − 0.45), which makes the mean over 5–15 H 2.0 behind the fixture's belt of
+//   porosity 0.45 (fitted: the shelterbelt literature's about 2× from 5 to 15 H, K§8.2) and falls with the obstacle's
+//   deficit to none at β = 1 (derived, w7-farmland-wind 1.2: the wake's excess turbulence is made by its momentum
+//   deficit, (1 − β) as Perera's; denser belts make more, Brandle et al. 2002, read; before 1.2 a crown's grazed edge,
+//   β 0.99, boosted as much as the belt); for a bluff body X_p = 4 and A = 2.0 (assumed), blended by the recirculation's step;
 //   v = 1 to η = 1.5 and 0 from η = 3 (smooth step), with η from the far wake's scale held at X ≥ 5 (assumed: the
 //   wake 2–3 H tall, K§8.2). g(0) = 0: a quiet zone behind the obstacle and inside it (McNaughton 1988's quiet zone).
 // - The approach roughness z0 = 0.03 m (published: Wieringa's class of open flat land with low crops, as stubble).
-// Not modelled (task 1.3's handoff): the slow-down upwind of an obstacle, a second wake under a nearer one, terrain.
+// Not modelled (task 1.3's handoff): the slow-down upwind of an obstacle, terrain (the wind field reads each point's
+// height over its own ground, and HillFlow the hills).
 
 using System;
 using System.Threading.Tasks;
@@ -67,8 +84,9 @@ namespace Fpv450.Sim.World
     public sealed class WakeGrid
     {
         /// <summary>The version of the wake math: raised with every change that alters a grid for the same obstacles,
-        /// logged beside the grid's hash (as WorldHash.QueryVersion is for the queries). 1: p7c-wind 1.3.</summary>
-        public const int Version = 1;
+        /// logged beside the grid's hash (as WorldHash.QueryVersion is for the queries). 1: p7c-wind 1.3. 2: w7-farmland-wind
+        /// 1.2, the obstacles' frontal porosity per lane and the overlying wake.</summary>
+        public const int Version = 2;
 
         // ---- The labelled constants ----------------------------------------------------------------------------------
 
@@ -125,6 +143,9 @@ namespace Fpv450.Sim.World
         public const double TurbPeakPorous = 9, TurbAmpPorous = 1.15, TurbPeakBluff = 4, TurbAmpBluff = 2.0,
             TurbEtaFull = 1.5, TurbEtaGone = 3;
 
+        /// <summary>The porosity the porous amplitude was fitted at: WakeGridFixture's belt of maple crowns (porosity 0.45).</summary>
+        public const double TurbFitPorosity = 0.45;
+
         // ---- The grid --------------------------------------------------------------------------------------------------
 
         /// <summary>One cell's wake coefficients for this direction (H = 0: open).</summary>
@@ -153,16 +174,20 @@ namespace Fpv450.Sim.World
         public double AcrossX { get; private set; }
         public double AcrossZ { get; private set; }
 
-        // The cells, and each group's crosswind extent for this direction: kept, so a rebuild (the worker's) allocates nothing.
-        readonly Cell[] _cells;
+        // The cells (each one's nearest wake and its overlying wake), each group's crosswind extent for this direction, and
+        // the lane's working memory: kept, so a rebuild (the worker's) allocates nothing.
+        readonly Cell[] _cells, _over;
         readonly double[] _y0, _y1;
+        readonly WakeObstacles.Lane _lane;
 
         WakeGrid(WakeObstacles obstacles)
         {
             Obstacles = obstacles;
             _cells = new Cell[obstacles.NX * obstacles.NZ];
+            _over = new Cell[obstacles.NX * obstacles.NZ];
             _y0 = new double[obstacles.Groups];
             _y1 = new double[obstacles.Groups];
+            _lane = obstacles.NewLane();
         }
 
         /// <summary>How many cells have a wake (H > 0) for this direction.</summary>
@@ -176,12 +201,24 @@ namespace Fpv450.Sim.World
             }
         }
 
+        /// <summary>How many cells have an overlying wake for this direction.</summary>
+        public int OverlyingCells
+        {
+            get
+            {
+                int n = 0;
+                for (int k = 0; k < _over.Length; k++) n += _over[k].H > 0 ? 1 : 0;
+                return n;
+            }
+        }
+
         // ---- Build -----------------------------------------------------------------------------------------------------
 
-        /// <summary>One obstacle crossed by a path: its leeward edge's distance, height, base, depth, porosity, group.</summary>
+        /// <summary>One obstacle crossed by a path: its leeward edge's distance, height, base, depth, porosity, group, and
+        /// the point its lane is centred on.</summary>
         struct Hit
         {
-            public double X, H, B, L, Beta;
+            public double X, H, B, L, Beta, PX, PZ;
             public int Group;
         }
 
@@ -197,12 +234,16 @@ namespace Fpv450.Sim.World
             var grid = new WakeGrid(obstacles);
             grid.Direction(fromDeg);
             int steps = grid.Extents();
-            Parallel.For(0, obstacles.NZ, j =>
+            Parallel.For(0, obstacles.NZ, obstacles.NewLane, (j, _, lane) =>
             {
-                for (int k = j * obstacles.NX, end = k + obstacles.NX; k < end; k++) grid.FillCell(k, steps);
-            });
+                for (int k = j * obstacles.NX, end = k + obstacles.NX; k < end; k++) grid.FillCell(k, steps, lane);
+                return lane;
+            }, grid.Release);
             return grid;
         }
+
+        // A build's thread is done with its lane memory (Parallel.For's last call per thread): nothing to give back.
+        void Release(WakeObstacles.Lane lane) { }
 
         /// <summary>A grid of these obstacles with nothing built (the worker's spare, which only a Rebuild fills before it
         /// is read): allocates.</summary>
@@ -215,6 +256,7 @@ namespace Fpv450.Sim.World
             var copy = new WakeGrid(Obstacles);
             copy.Direction(FromDeg);
             Array.Copy(_cells, copy._cells, _cells.Length);
+            Array.Copy(_over, copy._over, _over.Length);
             Array.Copy(_y0, copy._y0, _y0.Length);
             Array.Copy(_y1, copy._y1, _y1.Length);
             return copy;
@@ -226,7 +268,7 @@ namespace Fpv450.Sim.World
         {
             Direction(fromDeg);
             int steps = Extents();
-            for (int k = 0, n = _cells.Length; k < n; k++) FillCell(k, steps);
+            for (int k = 0, n = _cells.Length; k < n; k++) FillCell(k, steps, _lane);
         }
 
         void Direction(double fromDeg)
@@ -246,6 +288,7 @@ namespace Fpv450.Sim.World
             WakeObstacles o = Obstacles;
             int nCells = o.NX * o.NZ;
             Array.Clear(_cells, 0, _cells.Length);
+            Array.Clear(_over, 0, _over.Length);
 
             // Each group's crosswind extent for this direction: its cells' centres ± half a cell's projection.
             double[] y0 = _y0, y1 = _y1;
@@ -265,8 +308,9 @@ namespace Fpv450.Sim.World
             return (int)(reach / MarchStep);
         }
 
-        // Cell k's coefficients: reads the obstacles, the direction and the extents, writes cell k alone.
-        void FillCell(int k, int steps)
+        // Cell k's coefficients: reads the obstacles, the direction and the extents, writes cell k alone (its nearest wake
+        // and its overlying one), with this thread's lane memory.
+        void FillCell(int k, int steps, WakeObstacles.Lane lane)
         {
             WakeObstacles o = Obstacles;
             double[] y0 = _y0, y1 = _y1;
@@ -274,18 +318,22 @@ namespace Fpv450.Sim.World
             double yc = cx * AcrossX + cz * AcrossZ;
             if (o.IsObstacle(k))
             {
-                // Inside: the path from the obstacle's windward edge to this cell, at X = 0, this cell's own top and base.
+                // Inside: the lane from the obstacle's windward edge to this cell's centre, at X = 0, this cell's own top and
+                // base; then the overlying wake past the obstacle's windward edge.
                 Through(cx, cz, 0, out Hit inside);
                 inside.X = 0;
                 inside.H = o.Top(k);
                 inside.B = o.Base(k);
-                _cells[k] = Coefficients(inside, 1, 0, 0);
+                Porosity(ref inside, lane, 0);
+                _cells[k] = Coefficients(inside, 1, 0, 0, Obstacles.Version);
+                Overlying(k, cx, cz, yc, (int)(inside.L / MarchStep), inside.H, steps, lane);
                 return;
             }
 
             Hit direct = default, side = default;
             bool haveDirect = false, haveSide = false;
             double sideWeight = 0, gapJet = 0;
+            int stop = 0;
             for (int s = 1; s <= steps; s++)
             {
                 double d = s * MarchStep, px = cx + d * UpX, pz = cz + d * UpZ;
@@ -294,13 +342,14 @@ namespace Fpv450.Sim.World
                 if (o.IsObstacle(q))
                 {
                     Through(px, pz, d - 0.5 * MarchStep, out Hit hit);
-                    if (hit.X <= ReachHeights * hit.H)
+                    if (hit.X <= ReachHeights * hit.H && Porosity(ref hit, lane, double.NegativeInfinity))
                     {
                         direct = hit;
                         haveDirect = true;
+                        stop = s + (int)(hit.L / MarchStep);
                         break;
                     }
-                    s += (int)(hit.L / MarchStep); // past this obstacle: its wake does not reach
+                    s += (int)(hit.L / MarchStep); // past this obstacle: its wake does not reach, or its lane is clear
                     continue;
                 }
                 if ((s & 1) != 0 || !o.IsNear(q)) continue;
@@ -322,9 +371,11 @@ namespace Fpv450.Sim.World
                 }
                 bool gap = left > 0 && right > 0 && hl.X <= ReachHeights * hl.H && hr.X <= ReachHeights * hr.H;
                 if (!gap && phiL < SideMinWeight && phiR < SideMinWeight) continue;
-                haveSide = true;
                 bool useLeft = left > 0 && (right == 0 || phiL >= phiR);
                 side = useLeft ? hl : hr;
+                if (!Porosity(ref side, lane, double.NegativeInfinity)) continue; // its lane is clear: no obstacle there
+                haveSide = true;
+                stop = s + 1;
                 sideWeight = DetMath.Min(1, phiL + phiR);
                 if (gap)
                 {
@@ -335,9 +386,44 @@ namespace Fpv450.Sim.World
             }
 
             if (haveSide)
-                _cells[k] = Coefficients(side, sideWeight, gapJet, 0);
+                _cells[k] = Coefficients(side, sideWeight, gapJet, 0, Obstacles.Version);
             else if (haveDirect)
-                _cells[k] = Coefficients(direct, Spread(yc, direct, y0, y1), 0, Width(direct, y0, y1));
+                _cells[k] = Coefficients(direct, Spread(yc, direct, y0, y1), 0, Width(direct, y0, y1), Obstacles.Version);
+            else return;
+            Overlying(k, cx, cz, yc, stop, haveSide ? side.H : direct.H, steps, lane);
+        }
+
+        /// <summary>
+        /// Cell k's overlying wake (see the header): on the cell's own path from step `start` on, the nearest obstacle
+        /// taller than `below` m whose wake reaches the cell and whose lane is not clear.
+        /// </summary>
+        void Overlying(int k, double cx, double cz, double yc, int start, double below, int steps, WakeObstacles.Lane lane)
+        {
+            WakeObstacles o = Obstacles;
+            if (o.Version == 1) return; // version 1: the nearest wake alone
+            for (int s = start < 1 ? 1 : start; s <= steps; s++)
+            {
+                double d = s * MarchStep, px = cx + d * UpX, pz = cz + d * UpZ;
+                int q = o.CellAt(px, pz);
+                if (q < 0) return;
+                if (!o.IsObstacle(q)) continue;
+                Through(px, pz, d - 0.5 * MarchStep, out Hit hit);
+                if (hit.H > below && hit.X <= ReachHeights * hit.H && Porosity(ref hit, lane, double.NegativeInfinity))
+                {
+                    _over[k] = Coefficients(hit, Spread(yc, hit, _y0, _y1), 0, Width(hit, _y0, _y1), Obstacles.Version);
+                    return;
+                }
+                s += (int)(hit.L / MarchStep);
+            }
+        }
+
+        /// <summary>Sets the hit's porosity β to its obstacle's frontal porosity across the lane centred on the hit's point
+        /// (WakeObstacles.Transmission), chords from `from` m upwind of it; false when the lane is clear (β = 1).</summary>
+        bool Porosity(ref Hit hit, WakeObstacles.Lane lane, double from)
+        {
+            if (Obstacles.Version == 1) return true; // version 1: the path's product of its cells' porosities (Through's)
+            hit.Beta = Obstacles.Transmission(lane, hit.PX, hit.PZ, UpX, UpZ, AcrossX, AcrossZ, from, hit.B, hit.H);
+            return hit.Beta < 1;
         }
 
         /// <summary>The obstacle's crosswind width, m (its group's extent).</summary>
@@ -352,13 +438,13 @@ namespace Fpv450.Sim.World
 
         /// <summary>
         /// Marches upwind from a point inside an obstacle (its x from the sample being `x`) through it: the highest top,
-        /// the lowest base, the depth and the path porosity. Hit.X is the distance x, in metres here (Coefficients takes
-        /// it as metres too).
+        /// the lowest base and the depth; its porosity is Porosity's (β 1 until then). Hit.X is the distance x, in metres
+        /// here (Coefficients takes it as metres too).
         /// </summary>
         void Through(double px, double pz, double x, out Hit hit)
         {
             WakeObstacles o = Obstacles;
-            hit = new Hit { X = x, H = 0, B = double.PositiveInfinity, L = 0, Beta = 1, Group = -1 };
+            hit = new Hit { X = x, H = 0, B = double.PositiveInfinity, L = 0, Beta = 1, PX = px, PZ = pz, Group = -1 };
             for (int s = 0; ; s++)
             {
                 double d = s * MarchStep;
@@ -367,7 +453,7 @@ namespace Fpv450.Sim.World
                 if (hit.Group < 0) hit.Group = o.Group(q);
                 if (o.Top(q) > hit.H) hit.H = o.Top(q);
                 if (o.Base(q) < hit.B) hit.B = o.Base(q);
-                hit.Beta *= DetMath.Sqrt(o.Porosity(q));
+                if (o.Version == 1) hit.Beta *= DetMath.Sqrt(o.CellPorosity(q));
                 hit.L += MarchStep;
             }
             if (hit.Group < 0) { hit.B = 0; return; }
@@ -390,7 +476,7 @@ namespace Fpv450.Sim.World
 
         /// <summary>A cell's coefficients from its obstacle (x in metres), the spread weight, the gap jet and, for a
         /// direct hit, the obstacle's crosswind width (0: none).</summary>
-        static Cell Coefficients(in Hit hit, double phi, double gapJet, double width)
+        static Cell Coefficients(in Hit hit, double phi, double gapJet, double width, int version)
         {
             double h = hit.H;
             if (!(h > 0) || (!(phi > 0) && gapJet == 0)) return default;
@@ -415,7 +501,8 @@ namespace Fpv450.Sim.World
                 GapJet = gapJet,
             };
             double xp = TurbPeakPorous + bluff * (TurbPeakBluff - TurbPeakPorous);
-            double amp = TurbAmpPorous + bluff * (TurbAmpBluff - TurbAmpPorous);
+            double porous = version == 1 ? TurbAmpPorous : TurbAmpPorous * open / (1 - TurbFitPorosity);
+            double amp = porous + bluff * (TurbAmpBluff - porous);
             double r = x / xp;
             c.TurbAmp = amp * phi * r * r * WakeGridMath.Exp(2 * (1 - r));
             if (bluff > 0 && width > 0)
@@ -463,12 +550,20 @@ namespace Fpv450.Sim.World
             sample.ObstacleHeight = hm;
         }
 
+        // A cell centre's wake at a height: its nearest wake, and over it its overlying wake (the header's composition).
         void Corner(int i, int j, double height, out double speed, out double turbulence, out double obstacle)
         {
             WakeObstacles o = Obstacles;
             if (i < 0 || j < 0 || i >= o.NX || j >= o.NZ) { speed = 1; turbulence = 1; obstacle = 0; return; }
-            Evaluate(_cells[j * o.NX + i], height, out speed, out turbulence);
-            obstacle = _cells[j * o.NX + i].H;
+            int k = j * o.NX + i;
+            Evaluate(_cells[k], height, out speed, out turbulence);
+            obstacle = _cells[k].H;
+            if (!(_over[k].H > 0)) return;
+            Evaluate(_over[k], height, out double over, out double t2);
+            speed = over > 0 ? speed * over : over;
+            double e1 = turbulence * turbulence - 1, e2 = t2 * t2 - 1;
+            turbulence = DetMath.Sqrt(1 + e1 + e2);
+            if (e2 > e1) obstacle = _over[k].H;
         }
 
         static void Evaluate(in Cell c, double height, out double speed, out double turbulence)
@@ -506,24 +601,52 @@ namespace Fpv450.Sim.World
             cavityZ = c.CavityZ;
         }
 
+        /// <summary>The overlying obstacle of cell (i, j) for this direction (for tests and the bench): x/H, H (m, 0 for none),
+        /// β and φ.</summary>
+        public void DescribeOver(int i, int j, out double x, out double height, out double beta, out double phi)
+        {
+            Cell c = _over[j * Obstacles.NX + i];
+            x = c.X;
+            height = c.H;
+            beta = c.Beta;
+            phi = c.Phi;
+        }
+
         /// <summary>The wake of cell (i, j)'s centre at a height (no interpolation): for tests and the bench.</summary>
         public void SampleCell(int i, int j, double heightAboveGround, out WakeSample sample)
         {
             Corner(i, j, heightAboveGround, out sample.Speed, out sample.Turbulence, out sample.ObstacleHeight);
         }
 
-        /// <summary>The FNV-1a 64 hash of every cell's coefficients' bits, in cell order: the grid's identity.</summary>
+        /// <summary>The nearest wake alone at cell (i, j)'s centre, without the overlying one (version 1's rule): the known-wrong
+        /// of the farmland's shelter rows, for tests and the bench.</summary>
+        public void SampleNearest(int i, int j, double heightAboveGround, out WakeSample sample)
+        {
+            WakeObstacles o = Obstacles;
+            if (i < 0 || j < 0 || i >= o.NX || j >= o.NZ) { sample = new WakeSample { Speed = 1, Turbulence = 1 }; return; }
+            Evaluate(_cells[j * o.NX + i], heightAboveGround, out sample.Speed, out sample.Turbulence);
+            sample.ObstacleHeight = _cells[j * o.NX + i].H;
+        }
+
+        /// <summary>The FNV-1a 64 hash of every cell's coefficients' bits, in cell order (each cell's nearest wake, then its
+        /// overlying one): the grid's identity.</summary>
         public ulong Hash()
         {
             ulong hash = WorldHash.Offset;
             for (int k = 0; k < _cells.Length; k++)
             {
-                Cell c = _cells[k];
-                hash = Mix(hash, c.X); hash = Mix(hash, c.Beta); hash = Mix(hash, c.Phi); hash = Mix(hash, c.H); hash = Mix(hash, c.InvH); hash = Mix(hash, c.ZBase); hash = Mix(hash, c.Bleed);
-                hash = Mix(hash, c.FarAmp); hash = Mix(hash, c.InvS); hash = Mix(hash, c.SpeedUp); hash = Mix(hash, c.UnderJet);
-                hash = Mix(hash, c.CavityZ); hash = Mix(hash, c.CavityRev); hash = Mix(hash, c.CavityW);
-                hash = Mix(hash, c.GapJet); hash = Mix(hash, c.TurbAmp);
+                hash = Mix(hash, _cells[k]);
+                if (Obstacles.Version > 1) hash = Mix(hash, _over[k]);
             }
+            return hash;
+        }
+
+        static ulong Mix(ulong hash, in Cell c)
+        {
+            hash = Mix(hash, c.X); hash = Mix(hash, c.Beta); hash = Mix(hash, c.Phi); hash = Mix(hash, c.H); hash = Mix(hash, c.InvH); hash = Mix(hash, c.ZBase); hash = Mix(hash, c.Bleed);
+            hash = Mix(hash, c.FarAmp); hash = Mix(hash, c.InvS); hash = Mix(hash, c.SpeedUp); hash = Mix(hash, c.UnderJet);
+            hash = Mix(hash, c.CavityZ); hash = Mix(hash, c.CavityRev); hash = Mix(hash, c.CavityW);
+            hash = Mix(hash, c.GapJet); hash = Mix(hash, c.TurbAmp);
             return hash;
         }
 

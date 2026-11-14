@@ -67,8 +67,10 @@ namespace Fpv450.Sim.Contact
     /// - Randomness: each blade's flexural, crush and fracture strengths × (1 + δ), δ from "prop.blade_strength" (nearly normal,
     ///   ContactSpec.StrengthSigma, clamped ±StrengthBound), drawn at the flight's start and logged. Nothing about a strike is
     ///   drawn.
+    /// - Standing stems (w9-village-physics 2.2): PropStems.cs, each turning disc's before its pairs; every corner's strikes'
+    ///   impulse along its rotor's axis is TipImpulse, which loads its arm (AirframeModes.Strike, G8).
     /// </summary>
-    public sealed class PropStrikes
+    public sealed partial class PropStrikes
     {
         const double Pi = 3.141592653589793, TwoPi = 6.283185307179586;
 
@@ -90,7 +92,7 @@ namespace Fpv450.Sim.Contact
         readonly int[] _discs;
         readonly MaterialRow[] _rows;
         readonly bool[] _known;
-        readonly bool[] _crown; // world material id → a crown's twig shell (CrownRows)
+        readonly CrownRow[] _crown; // world material id → a crown's twig shell's twigs and leaves (CrownRows with a crown block), or null
         readonly MaterialRow[] _surfaces; // world surface id → what a blade meets there (Name null: none, a Glance)
         readonly CoverSet _twig;            // surfaces.json's twig at the flight's moisture: a crown's twigs' tissue (CutEnergy 0 without it)
         readonly double[] _twigDue = new double[4]; // each rotor's crown twigs swept and not yet met (Twigs): below 1
@@ -184,7 +186,7 @@ namespace Fpv450.Sim.Contact
                 if (q.MaterialName((ushort)id) != null) top = id;
             _rows = new MaterialRow[top + 1];
             _known = new bool[top + 1];
-            _crown = new bool[top + 1];
+            _crown = new CrownRow[top + 1];
             for (int id = 1; id <= top; id++)
             {
                 string name = q.MaterialName((ushort)id);
@@ -192,7 +194,7 @@ namespace Fpv450.Sim.Contact
                 {
                     _rows[id] = r;
                     _known[id] = true;
-                    _crown[id] = Array.IndexOf(CrownRows, name) >= 0;
+                    _crown[id] = Array.IndexOf(CrownRows, name) >= 0 ? r.Crown : null;
                 }
             }
 
@@ -259,6 +261,8 @@ namespace Fpv450.Sim.Contact
             for (int i = 0; i < 4; i++)
                 for (int b = 0; b < _blades; b++)
                     _strength[i * _blades + b] = 1 + random.DrawNormal(ref stream, "prop.blade_strength." + CornerIds[i] + "." + b, _spec.StrengthSigma, _spec.StrengthBound);
+            InitStems();
+            InitLeaves(q);
         }
 
         /// <summary>A blade's strength factor, 1 + δ.</summary>
@@ -267,12 +271,14 @@ namespace Fpv450.Sim.Contact
         /// <summary>
         /// The step's passes, after Sense: each disc's pairs at the pose now, the rotors' sweep over the step from their angles
         /// at its start (from, before the propulsion's sub-steps turned them) to now's; the rotors' speeds and angles, the body's
-        /// velocity and rate, BladeStrikes and the blades change; the damaged rotors are rebuilt.
+        /// velocity and rate, BladeStrikes and the blades change; the damaged rotors are rebuilt. thrust is each rotor's mean
+        /// thrust over the step (FlightCore's), which the stems' air reads (UseWash, w9-village-physics 2.13).
         /// </summary>
-        public void Apply(in Corners from, ref FlightState now, in MassProperties body, StepEvents events)
+        public void Apply(in Corners from, ref FlightState now, in MassProperties body, StepEvents events, in Corners thrust = default)
         {
             Double3 axis = now.Attitude.Rotate(Up), impulse = default, angular = default;
             int changed = 0, passed = 0;
+            StemsBegin(now, thrust);
             for (int n = 0; n < _discs.Length; n++)
             {
                 int i = _discs[n];
@@ -284,15 +290,19 @@ namespace Fpv450.Sim.Contact
                     Immerse(c, double.PositiveInfinity);
                     continue;
                 }
+                Double3 before = impulse;
+                double start = from[c], sweep = now.RotorAngle[c] - start;
+                if (sweep < 0) sweep += TwoPi;
+                // The stems the disc turns in (PropStems), before its pairs.
+                if (Stems(i, d, c, ref now, body, axis, start, sweep, events, ref impulse, ref angular)) changed |= 1 << c;
                 if (pairs == 0)
                 {
                     if (_pending[c].Active && Finish(i, d, ref _pending[c], events)) changed |= 1 << c;
                     Immerse(c, double.PositiveInfinity);
+                    _tip[c] = Double3.Dot(impulse - before, axis);
                     continue;
                 }
                 Double3 hub = now.Position + now.Attitude.Rotate(d.A);
-                double start = from[c], sweep = now.RotorAngle[c] - start;
-                if (sweep < 0) sweep += TwoPi;
                 int skipObject = int.MinValue, skipShape = 0, skipBlade = -1;
                 if (_pending[c].Active)
                 {
@@ -309,7 +319,16 @@ namespace Fpv450.Sim.Contact
                 {
                     _contacts.DiscPair(i, k, out int obj, out int shape, out ushort material, out byte surface);
                     if (!Geometry(i, k, obj, shape, surface, hub, d, out ShapeGeometry g, out ReadOnlySpan<Double3> chain)) continue;
-                    if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m)) continue;
+                    // The slab now, or the slab's own sweep over the step for a shape it passed through between (BladeCut.Crossing:
+                    // a thin branch or wire met along the axis): the blades meet it at the hub where the slab held it, while it did.
+                    Double3 at = hub;
+                    double lo = 0, hi = 1;
+                    bool crossed = false;
+                    if (!BladeCut.Nearest(g, chain, hub, axis, d.HalfThickness, d.Radius, out BladeCut.Meeting m))
+                    {
+                        if (!BladeCut.Crossing(g, chain, _contacts.DiscFrom(i), hub, axis, d.HalfThickness, d.Radius, out m, out at, out lo, out hi)) continue;
+                        crossed = true;
+                    }
                     if (Crown(surface, material))
                     {
                         // A crown's twig shell: its twigs (Twigs, below), once for the shells' union, never a glance per shell.
@@ -322,7 +341,7 @@ namespace Fpv450.Sim.Contact
                         }
                         continue;
                     }
-                    if (_spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
+                    if (!crossed && _spec.TipSlide && m.Radius < chord && Face(obj, material, surface, out MaterialRow row) && !(row.Hardness > _b.Hardness))
                     {
                         // A softer face that holds the radial line past the rim (the soil, a trunk's face): a segment of the disc.
                         BladeCut.Along(g, chain, hub, axis, m.Direction, d.HalfThickness, _radius, out _, out double rout, out _, out _);
@@ -334,9 +353,9 @@ namespace Fpv450.Sim.Contact
                     {
                         if (obj == skipObject && shape == skipShape && b == skipBlade) continue;
                         double ahead = Wrap(psi - (start + TwoPi * b / _blades));
-                        if (!(ahead > 0 && ahead <= sweep)) continue;
+                        if (!(ahead > sweep * lo && ahead <= sweep * hi)) continue;
                         passed |= 1 << c;
-                        if (Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, hub, axis, m, psi, events, ref impulse, ref angular))
+                        if (Pass(i, d, c, b, ref now, body, obj, shape, material, surface, g, chain, at, axis, m, psi, events, ref impulse, ref angular))
                             changed |= 1 << c;
                     }
                 }
@@ -345,9 +364,12 @@ namespace Fpv450.Sim.Contact
                     passed |= 1 << c;
                     if (Twigs(i, d, c, ref now, body, hub, axis, crown, crownObj, crownShape, crownMaterial, events, ref impulse, ref angular))
                         changed |= 1 << c;
+                    if (now.RotorSpeed[c] > 0) Leaves(i, d, c, ref now, body, hub, axis, crown, crownObj, crownShape, crownMaterial, events, ref impulse, ref angular);
                 }
                 Immerse(c, chord);
+                _tip[c] = Double3.Dot(impulse - before, axis); // every strike's push along the rotor's axis on its arm (G8)
             }
+            StemsEnd(now, events);
             if (impulse.X != 0 || impulse.Y != 0 || impulse.Z != 0 || angular.X != 0 || angular.Y != 0 || angular.Z != 0)
             {
                 now.Velocity = now.Velocity + impulse * body.InverseMass;
@@ -398,7 +420,10 @@ namespace Fpv450.Sim.Contact
                     ContactModel.RestLoad l = _contacts.RestLoadOf(c * _blades + b);
                     if (!l.Loaded) continue;
                     BladeState blade = _propulsion.Rotor(c).Blade(b);
-                    double f = _strength[c * _blades + b], rc = l.Radius, ff = DetMath.Abs(l.Flat), fe = DetMath.Abs(l.Edge);
+                    // The load acts on the blade's material, so at its tip at most: a pair deep in a face (a blade inside a crown's
+                    // twig shell) has its point on the face's plane, up to the shell's depth past the tip (w9-village-physics 2.7).
+                    double f = _strength[c * _blades + b], rc = DetMath.Min(l.Radius, blade.TipRadius * _radius), ff = DetMath.Abs(l.Flat),
+                        fe = DetMath.Abs(l.Edge);
                     int broke = Breaks(blade, f, rc, rc, fe, ff, out double moment, out double margin);
                     var rec = new RestRecord { Corner = c, Blade = b, Flat = l.Flat, Edge = l.Edge, Radius = rc, Moment = moment, Margin = margin, Station = broke };
                     double before = Mass(blade);
@@ -1062,21 +1087,17 @@ namespace Fpv450.Sim.Contact
         // (the ground and the soil without surfaces.json, a thin compliant row without crush strength, a material the table lacks).
         // ---- A crown's twigs (w3-farmland-ground 2.7) --------------------------------------------------------------------
 
-        /// <summary>The twigs a crown's twig shell stands for (physics_materials.json's twig row: "the crown contact shell over
-        /// the 5–10 mm twig cards"): their length per volume of the shell, m/m³ (assumed: about one 0.5 m axis of 5–10 mm per
-        /// foliage spray, the sprays a card's half depth apart, 0.2–0.3 m³ each; of the order of published crown fine-wood loads,
-        /// design.md 2.7), and their diameter, m (assumed: the middle of the shell's 5–10 mm).</summary>
-        public const double CrownTwigLength = 2.0, CrownTwigDiameter = 0.0075;
-
-        /// <summary>The rows whose shells stand for a crown's twigs (PhysicsMaterials' name lists' way).</summary>
+        /// <summary>The rows whose shells stand for a crown's twigs (PhysicsMaterials' name lists' way): their twigs' length per
+        /// volume and diameter, and their leaves, are the row's crown block (physics_materials.json's twig.crown, each value labelled
+        /// there; w9-village-physics 2.3, which moved 2.7's CrownTwigLength 2.0 m/m³ and CrownTwigDiameter 7.5 mm there).</summary>
         public static readonly string[] CrownRows = { "twig" };
 
         // A crown's twig shell, with the twigs' tissue to cut (surfaces.json): its twigs are met (Twigs); without the table a glance.
-        bool Crown(byte surface, ushort material) => surface == WorldIds.NoSurface && material < _crown.Length && _crown[material] && _twig.CutEnergy > 0;
+        bool Crown(byte surface, ushort material) => surface == WorldIds.NoSurface && material < _crown.Length && _crown[material] != null && _twig.CutEnergy > 0;
 
         /// <summary>
-        /// A rotor turning in a crown's twigs (w3-farmland-ground 2.7): the shells stand for twigs of CrownTwigDiameter at
-        /// CrownTwigLength per m³, crossing the disc's plane at n_A = L_V/2 a square metre (isotropic lines: stereology's
+        /// A rotor turning in a crown's twigs (w3-farmland-ground 2.7): the shells stand for twigs of the crown block's diameter at
+        /// its length per m³, crossing the disc's plane at n_A = L_V/2 a square metre (isotropic lines: stereology's
         /// P_A = L_V/2). A blade cuts each crossing it meets, and the cut twig no longer crosses there, so a pass meets only what
         /// the disc's motion through the crown brought in since the last: across the plane, the immersed region's width times
         /// its move (the chord's into the shell, the segment's height along it; the disc's diameter with the hub inside), and
@@ -1117,8 +1138,9 @@ namespace Fpv450.Sim.Contact
                 rc = 2 * rtip / 3;
                 along = width * across.Length();
             }
-            double omega = now.RotorSpeed[c], passes = omega * _blades * FlightCore.Dt / TwoPi, nA = 0.5 * CrownTwigLength;
-            double swept = nA * (along * FlightCore.Dt + 0.5 * area * DetMath.Min(passes, DetMath.Abs(va) * FlightCore.Dt / CrownTwigDiameter));
+            CrownRow k = _crown[material];
+            double omega = now.RotorSpeed[c], passes = omega * _blades * FlightCore.Dt / TwoPi, nA = 0.5 * k.TwigLength;
+            double swept = nA * (along * FlightCore.Dt + 0.5 * area * DetMath.Min(passes, DetMath.Abs(va) * FlightCore.Dt / k.TwigDiameter));
             _twigDue[c] += DetMath.Min(swept, nA * area * passes);
             bool changed = false;
             while (_twigDue[c] >= 1 && now.RotorSpeed[c] > 0)
@@ -1141,9 +1163,9 @@ namespace Fpv450.Sim.Contact
             if (!(rc < rtip)) rc = 0.5 * (rm + rtip);
             double omega = now.RotorSpeed[c], J = _propulsion.Inertia(c), s = _spin[c], f = _strength[c * _blades + b];
             int k = Station(rc / R);
-            double section = Pi * CrownTwigDiameter * CrownTwigDiameter / 4, chord = _b.Chord[k] * blade.ChordShare[k];
+            double twig = _crown[material].TwigDiameter, section = Pi * twig * twig / 4, chord = _b.Chord[k] * blade.ChordShare[k];
             double cut = _twig.CutEnergy * section, speed = omega * rc, fling = _twig.Density * section * chord * speed * speed;
-            double force = cut / CrownTwigDiameter, work = cut + fling;
+            double force = cut / twig, work = cut + fling;
             int broke = Breaks(blade, f, rc, rc, force, 0, out double moment, out double margin);
             double newTip = tip;
             if (broke >= 0)
@@ -1175,7 +1197,7 @@ namespace Fpv450.Sim.Contact
             }
             var rec = new PassRecord
             {
-                Corner = c, Blade = b, Mode = broke >= 0 ? StrikeMode.Break : StrikeMode.Carve, Radius = rc, Exit = CrownTwigDiameter, Work = work, Used = used,
+                Corner = c, Blade = b, Mode = broke >= 0 ? StrikeMode.Break : StrikeMode.Carve, Radius = rc, Exit = twig, Work = work, Used = used,
                 SpeedBefore = omega, SpeedAfter = after, Inertia = J, TipBefore = tip, TipAfter = blade.TipRadius, SpeedIn = speed, Fling = fling,
                 PeakForce = force, PeakMoment = moment, Margin = margin, Station = broke, Jammed = jam, Impulse = external, Reaction = reaction, Point = point,
                 Normal = -dir, Motion = motion,
@@ -1194,13 +1216,176 @@ namespace Fpv450.Sim.Contact
             if (slot < BladeStrikes.Slots)
             {
                 BladeStrike strike = now.BladeStrikes[slot];
-                strike.Add(StrikeKind.Element, material, used, external.Length(), CrownTwigDiameter, cut, rc);
+                strike.Add(StrikeKind.Element, material, used, external.Length(), twig, cut, rc);
                 now.BladeStrikes[slot] = strike;
             }
             Last = rec;
             Record?.Add(rec);
             Passes++;
             return damaged;
+        }
+
+        // ---- A crown's leaves (w9-village-physics 2.3, design.md 2.3 §4) --------------------------------------------------------
+
+        /// <summary>The cleared cells' store: a crown's cubes (the crown block's leaf_cell_m) a disc's plane has passed, keyed by
+        /// (crown, cube) (numerical: 16,384 slots, probed 8 deep, the home slot overwritten when full, as 2.12's stems' store).</summary>
+        public const int LeafSlots = 16384, LeafProbe = 8;
+
+        ulong[] _leafCells;            // the cleared cubes' keys (0: empty)
+        double[] _leafX, _leafZ;       // the disc's samples, body x and z about the hub: a grid at the cell's spacing within R, then its rim
+        double _leafArea;              // the disc's area each sample stands for: the cell's square, m²
+        double[] _lad;                 // each placed object's leaf area density (its variant's), m²/m³; 0 past the placed ones
+        readonly int[] _leafBlade = new int[4]; // the blade each rotor meets its next leaf cell with
+        ushort _foliage;               // the world's foliage material (the leaves' strikes are logged on it), or the twig's
+
+        /// <summary>The leaves met so far: the fresh cells, their work (J), and the work's cut share (J).</summary>
+        public long LeafCells { get; private set; }
+
+        public double LeafWork { get; private set; }
+
+        public double LeafCutWork { get; private set; }
+
+        readonly double[] _leafWork = new double[4];
+
+        /// <summary>The leaves' work so far on rotor c, J.</summary>
+        public double LeafWorkOn(int corner) => _leafWork[corner];
+
+        void InitLeaves(IWorldQuery q)
+        {
+            CrownRow any = null;
+            foreach (CrownRow k in _crown)
+                if (k != null) any = k;
+            if (any == null) return;
+            _leafCells = new ulong[LeafSlots];
+            // The samples: the plane every cell within R (what a disc moving along its axis meets), and its rim every cell of arc
+            // (where a disc moving in its plane meets its fresh leaves: they enter it there and the tips take them), so the grid's
+            // own points trail in cubes the rim has cleared.
+            double h = any.LeafCell;
+            _leafArea = h * h;
+            int n = 0, side = (int)(_radius / h), rim = (int)(2 * Pi * _radius / h) + 1;
+            for (int a = -side; a <= side; a++)
+                for (int b = -side; b <= side; b++)
+                    if ((a * a + b * b) * h * h < _radius * _radius) n++;
+            _leafX = new double[n + rim];
+            _leafZ = new double[n + rim];
+            n = 0;
+            for (int a = -side; a <= side; a++)
+                for (int b = -side; b <= side; b++)
+                    if ((a * a + b * b) * h * h < _radius * _radius)
+                    {
+                        _leafX[n] = a * h;
+                        _leafZ[n++] = b * h;
+                    }
+            for (int j = 0; j < rim; j++)
+            {
+                DetMath.SinCos(2 * Pi * j / rim, out double sj, out double cj);
+                _leafX[n] = _radius * cj;
+                _leafZ[n++] = _radius * sj;
+            }
+            int objects = 0;
+            while (q.ObjectName(objects) != null) objects++;
+            _lad = new double[objects];
+            for (int o = 0; o < objects; o++) _lad[o] = any.LeafAreaDensityOf(q.ObjectName(o));
+            _foliage = q.MaterialId("foliage");
+        }
+
+        // A cube of the crown, cleared now: true when no disc had passed it (it is then kept).
+        bool Fresh(int obj, long x, long y, long z)
+        {
+            ulong key = (ulong)FlightRandom.Mix64((ulong)(uint)obj ^ ((ulong)x * 0x9E3779B97F4A7C15UL) ^ ((ulong)y * 0xC2B2AE3D27D4EB4FUL)
+                ^ ((ulong)z * 0x165667B19E3779F9UL)) | 1;
+            int home = (int)(key % LeafSlots);
+            for (int j = 0; j < LeafProbe; j++)
+            {
+                int at = (home + j) % LeafSlots;
+                if (_leafCells[at] == key) return false;
+                if (_leafCells[at] == 0)
+                {
+                    _leafCells[at] = key;
+                    return true;
+                }
+            }
+            _leafCells[home] = key;
+            return true;
+        }
+
+        /// <summary>
+        /// A rotor turning in a crown's leaves (design.md 2.3 §4): each disc sample in the immersed region (past the deepest shell's
+        /// chord, Twigs') lies in a world cube of the crown block's cell; a cube no disc had passed is fresh, met now and kept
+        /// cleared. Its leaves at the sample's radius r, the blade's speed u = ω·r: the blade's section strikes the leaf area
+        /// LAD·A_c·t (A_c the sample's share of the disc, t its swept slab: the frontal height h_f moving in the plane, the cube
+        /// moving along the axis, t = h_f + (s − h_f)·|v̂·â|), flinging its fresh mass to u (m_A·LAD·A_c·t·u²) and, where u reaches
+        /// the leaves' critical speed, cutting it at the work to shear over its trace, (π/4)·LAD·A_c a slab, t/h_f slabs
+        /// (stereology). The rotor pays it, the body takes the in-plane impulse and the reaction at the sample (Twig's accounting),
+        /// each cube by the next blade in turn; one BladeStrike a step for the rotor's leaves, on the shell with the world's foliage.
+        /// </summary>
+        void Leaves(int i, in ContactShape d, int c, ref FlightState now, in MassProperties body, Double3 hub, Double3 axis, in BladeCut.Meeting m,
+            int obj, int shape, ushort material, StepEvents events, ref Double3 impulse, ref Double3 angular)
+        {
+            if (_leafCells == null || obj < 0 || obj >= _lad.Length || !(_lad[obj] > 0)) return;
+            CrownRow k = _crown[material];
+            if (k == null) return;
+            double lad = _lad[obj], cell = k.LeafCell, area = _leafArea, mass = k.LeafFreshMass, rm = m.Radius;
+            Double3 v = PointVelocity(now, hub);
+            double speed = v.Length(), along = speed > 0 ? DetMath.Abs(Double3.Dot(v, axis)) / speed : 0;
+            double J = _propulsion.Inertia(c), s = _spin[c], used = 0, cutWork = 0, weighted = 0;
+            Double3 sumImpulse = default;
+            int met = 0, last = -1;
+            for (int j = 0; j < _leafX.Length && now.RotorSpeed[c] > 0; j++)
+            {
+                Double3 offset = now.Attitude.Rotate(new Double3(_leafX[j], 0, _leafZ[j]));
+                double r = DetMath.Sqrt(_leafX[j] * _leafX[j] + _leafZ[j] * _leafZ[j]);
+                if (Double3.Dot(offset, m.Direction) < rm) continue; // short of the crown's chord
+                Double3 at = hub + offset;
+                if (!Fresh(obj, Floor(at.X / cell), Floor(at.Y / cell), Floor(at.Z / cell))) continue;
+                int b = _leafBlade[c];
+                _leafBlade[c] = (b + 1) % _blades;
+                BladeState blade = _propulsion.Rotor(c).Blade(b);
+                double rr = DetMath.Max(r, (_b.Stations[0] - 0.5 * _span) * _radius); // the hub's centre sample: at the blade's root
+                if (rr > blade.TipRadius * _radius) continue; // this blade, cut back, no longer reaches it
+                int st = Station(rr / _radius);
+                DetMath.SinCos(_b.SectionAngle[st] + blade.FactoryPitch + blade.PitchSet[st], out double sa, out double ca);
+                double hf = _b.Chord[st] * blade.ChordShare[st] * sa + _b.Thickness[st] * ca, t = hf + (cell - hf) * along;
+                double omega = now.RotorSpeed[c], u = omega * rr, leaf = lad * area * t;
+                double cut = u >= k.LeafCriticalSpeed ? k.LeafWork * 0.7853981633974483 * lad * area * (t / hf) : 0;
+                double work = mass * leaf * u * u + cut, energy = 0.5 * J * omega * omega;
+                double after = work < energy ? DetMath.Sqrt(omega * omega - 2 * work / J) : 0, lost = J * (omega - after);
+                now.RotorSpeed[c] = after;
+                Double3 dir = offset * (1 / DetMath.Max(r, 1e-9)), motion = Double3.Cross(axis, dir) * -s, point = hub + offset;
+                Double3 external = motion * -(lost / rr), reaction = new Double3(0, -s * lost, 0);
+                impulse = impulse + external;
+                angular = angular + reaction + Double3.Cross(now.Attitude.InverseRotate(point - now.Position) - body.CenterOfMass, now.Attitude.InverseRotate(external));
+                double paid = work < energy ? work : energy;
+                used += paid;
+                cutWork += work < energy ? cut : cut * energy / work;
+                weighted += paid * rr;
+                sumImpulse = sumImpulse + external;
+                met++;
+                last = b;
+                int slot = BladeStrikes.Slot(c, b);
+                if (slot < BladeStrikes.Slots)
+                {
+                    BladeStrike strike = now.BladeStrikes[slot];
+                    strike.Add(StrikeKind.Element, _foliage != WorldIds.NoMaterial ? _foliage : material, paid, external.Length(), 0, cut, rr);
+                    now.BladeStrikes[slot] = strike;
+                }
+            }
+            if (met == 0) return;
+            LeafCells += met;
+            LeafWork += used;
+            _leafWork[c] += used;
+            LeafCutWork += cutWork;
+            double rc = used > 0 ? weighted / used : 0;
+            var rec = new PassRecord
+            {
+                Corner = c, Blade = last, Mode = StrikeMode.Carve, Radius = rc, Exit = 0, Work = used, Used = used, SpeedAfter = now.RotorSpeed[c],
+                Inertia = J, SpeedIn = now.RotorSpeed[c] * rc, Impulse = sumImpulse, Point = hub + m.Direction * rc, Normal = -m.Direction, Fling = used - cutWork,
+                Station = -1,
+            };
+            Strike(i, d, last, obj, shape, _foliage != WorldIds.NoMaterial ? _foliage : material, WorldIds.NoSurface, rec, events);
+            Last = rec;
+            Record?.Add(rec);
+            Passes++;
         }
 
         bool Face(int obj, ushort material, byte surface, out MaterialRow row)
@@ -1283,7 +1468,8 @@ namespace Fpv450.Sim.Contact
             for (int k = _stations - 1; k >= 0; k--)
             {
                 double x = _b.Stations[k] * _radius;
-                if (!(x < rm) || !(blade.Inside(_b.Stations[k], _span) > 0)) continue;
+                // A station at the blade's tip (a break leaves the tip at its station) holds nothing beyond it: no break there.
+                if (!(x < rm) || !(_b.Stations[k] < blade.TipRadius)) continue;
                 double chi = blade.ChordShare[k], arm = rc - x;
                 double me = _edge[k] * f * chi * chi, mf = _flat[k] * f * chi;
                 double share = DetMath.Max(me > 0 ? fe * arm / me : 0, mf > 0 ? ff * arm / mf : 0);

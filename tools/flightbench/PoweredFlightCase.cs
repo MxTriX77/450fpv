@@ -98,6 +98,72 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"range-flight: the test range 0x{content:X16} ({(content == GoldenFlights.RangeContent ? "as recorded" : $"recorded on 0x{GoldenFlights.RangeContent:X16}: the map moved")}), "
                 + $"{GoldenFlights.RangeSteps} steps on S04's straw, hash 0x{range:X16} ({(range == GoldenFlights.RangeHash ? "matches" : $"golden 0x{GoldenFlights.RangeHash:X16}")}), "
                 + $"{g.Contacts.ImpactCount} impacts, ends {g.State.Position.Y:F4} m up on {g.Trace.ContactsTouching} touching pairs: {(rangeOk ? "PASS" : "FAIL")}");
+            // w7-farmland-wind 1.2's audit (model 88): with the wake grid's version 1 the range flight is model 76's pin, every
+            // record and event (GoldenFlightTests.WithVersion1WakesTheRangeGoldenIsModel76s); the edgewise audits below fly version 1 too.
+            ulong v1 = GoldenFlights.FlyRange(Drone(), out _, wakes2: false, ownWake: false);
+            bool v1ok = v1 == GoldenFlights.Model76RangeHash;
+            rangeOk &= v1ok;
+            Console.WriteLine($"range-flight with the wake grid's version 1: 0x{v1:X16} ({(v1ok ? "model 76's, bit for bit" : "NOT model 76's")}): {(v1ok ? "PASS" : "FAIL")}");
+            // p7b-airframe design 3f's audit (the own wake by flight state): with model 90's own-wake law (Propulsion.HoverWakeLaw)
+            // each golden that flies the own wake is its model 90 pin, every record and event
+            // (GoldenFlightTests.WithModel90sOwnWakeEachGoldenIsModel90s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p90 = GoldenFlights.FlyPowered(Drone(), out _, ownWake: false),
+                    r90 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, ownWake: false),
+                    c90 = GoldenFlights.FlyContact(Drone(), out _, ownWake: false), g90 = GoldenFlights.FlyRange(Drone(), out _, ownWake: false),
+                    t90 = GoldenFlights.FlyContact(Drone(), out _, tether: true, ownWake: false);
+                bool ok90 = p90 == GoldenFlights.Model90PoweredHash && r90 == GoldenFlights.Model90RainPoweredHash && c90 == GoldenFlights.Model90ContactHash
+                    && g90 == GoldenFlights.Model90RangeHash && t90 == GoldenFlights.Model90TetherHash;
+                rangeOk &= ok90;
+                Console.WriteLine($"with model 90's own wake: powered 0x{p90:X16}, rain 0x{r90:X16}, contact 0x{c90:X16}, range 0x{g90:X16}, tether 0x{t90:X16} "
+                    + $"({(ok90 ? "model 90's, bit for bit" : "NOT model 90's")}): {(ok90 ? "PASS" : "FAIL")}");
+            }
+            // p7b-airframe design 3g's audit (the own wake's level read off its record): with model 92's level and bound
+            // (GoldenFlights.Model92WakeLevel) each golden that flies the own wake is its model 92 pin, every record and event
+            // (GoldenFlightTests.WithModel92sWakeLevelEachGoldenIsModel93s; the tether's is design 18's, model 93's).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p92 = GoldenFlights.FlyPowered(Drone(), out _, wakeLevel: false),
+                    r92 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, wakeLevel: false),
+                    c92 = GoldenFlights.FlyContact(Drone(), out _, wakeLevel: false), g92 = GoldenFlights.FlyRange(Drone(), out _, wakeLevel: false),
+                    t92 = GoldenFlights.FlyContact(Drone(), out _, tether: true, wakeLevel: false);
+                bool ok92 = p92 == GoldenFlights.Model92PoweredHash && r92 == GoldenFlights.Model92RainPoweredHash && c92 == GoldenFlights.Model92ContactHash
+                    && g92 == GoldenFlights.Model92RangeHash && t92 == GoldenFlights.Model93TetherHash;
+                rangeOk &= ok92;
+                Console.WriteLine($"with model 92's own-wake level: powered 0x{p92:X16}, rain 0x{r92:X16}, contact 0x{c92:X16}, range 0x{g92:X16}, tether 0x{t92:X16} "
+                    + $"({(ok92 ? "model 93's, bit for bit" : "NOT model 93's")}): {(ok92 ? "PASS" : "FAIL")}");
+            }
+            // p7b-airframe design 3h's audit (the props' held descent branch both ways): with model 94's clipped branch
+            // (Propulsion.ClippedDescentBranch) each golden is its model 94 pin, every record and event
+            // (GoldenFlightTests.WithTheClippedDescentBranchEachGoldenIsModel94s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p94 = GoldenFlights.FlyPowered(Drone(), out _, descentBranch: false),
+                    r94 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, descentBranch: false),
+                    c94 = GoldenFlights.FlyContact(Drone(), out _, descentBranch: false), g94 = GoldenFlights.FlyRange(Drone(), out _, descentBranch: false),
+                    t94 = GoldenFlights.FlyContact(Drone(), out _, tether: true, descentBranch: false);
+                bool ok94 = p94 == GoldenFlights.Model94PoweredHash && r94 == GoldenFlights.Model94RainPoweredHash && c94 == GoldenFlights.Model94ContactHash
+                    && g94 == GoldenFlights.Model94RangeHash && t94 == GoldenFlights.Model94TetherHash;
+                rangeOk &= ok94;
+                Console.WriteLine($"with model 94's clipped descent branch: powered 0x{p94:X16}, rain 0x{r94:X16}, contact 0x{c94:X16}, range 0x{g94:X16}, tether 0x{t94:X16} "
+                    + $"({(ok94 ? "model 94's, bit for bit" : "NOT model 94's")}): {(ok94 ? "PASS" : "FAIL")}");
+            }
+            // p7c-wind design 16's audit (the field's turbulence by height): with the one-scale field (WindSetup.OneScale) each
+            // golden flown in a level's wind is its model 98 pin, every record and event
+            // (GoldenFlightTests.WithTheOneScaleFieldEachGoldenIsModel98s).
+            {
+                WindSetup calm = WindSetup.Of(WindLevel.Calm);
+                ulong p98 = GoldenFlights.FlyPowered(Drone(), out _, heightScaled: false),
+                    r98 = GoldenFlights.FlyPowered(Drone(), out _, wind: calm, rain: RainLevel.SevereRain, heightScaled: false),
+                    c98 = GoldenFlights.FlyContact(Drone(), out _, heightScaled: false), g98 = GoldenFlights.FlyRange(Drone(), out _, heightScaled: false),
+                    t98 = GoldenFlights.FlyContact(Drone(), out _, tether: true, heightScaled: false);
+                bool ok98 = p98 == GoldenFlights.Model98PoweredHash && r98 == GoldenFlights.Model98RainPoweredHash && c98 == GoldenFlights.Model98ContactHash
+                    && g98 == GoldenFlights.Model98RangeHash && t98 == GoldenFlights.Model98TetherHash;
+                rangeOk &= ok98;
+                Console.WriteLine($"with the one-scale field: powered 0x{p98:X16}, rain 0x{r98:X16}, contact 0x{c98:X16}, range 0x{g98:X16}, tether 0x{t98:X16} "
+                    + $"({(ok98 ? "model 98's, bit for bit" : "NOT model 98's")}): {(ok98 ? "PASS" : "FAIL")}");
+            }
             // p7a-ground 1.12's audit (model 33), restated at the physics integration 2 (model 34): without the layers' area laws
             // the range flight is p7d-tether's model 31 flight over the whole record, and model 32's over model 28's 1904 bytes,
             // dry and in Rain.
@@ -557,7 +623,7 @@ namespace Fpv450.FlightBench
                 l41c = GoldenFlights.FlyContact(legsNow, out _, m28, legSkip, layout: m46, onRecord: LineBlocks, soil: false, yawI: false, edit: noLever, airmode: true),
                 l41g = GoldenFlights.FlyRange(legsNow, out _, m28, legSkip, layout: m46, onRecord: LineBlocks, materials: layerless, yawI: false, edit: noLever, airmode: true),
                 l41t = GoldenFlights.FlyTumble(legsNow, out _, out _, m28, legSkip, m46);
-            bool k41 = l41p == GoldenFlights.Model41PoweredHash && l41r == GoldenFlights.Model41RainPoweredHash && l41c == GoldenFlights.Model41ContactHash
+            bool k41 = l41p == GoldenFlights.Model41PoweredHash && l41r == GoldenFlights.Model41RainPoweredHash && l41c == GoldenFlights.Model41ContactOnTheSectionsYieldHash
                 && l41g == GoldenFlights.Model41RangeHash && l41t == GoldenFlights.Model41TumbleHash && lineBlocks == 0;
             Console.WriteLine($"without the line's mechanisms, over p7g-legs' record: powered 0x{l41p:X16}, rain 0x{l41r:X16}, contact 0x{l41c:X16}, "
                 + $"range 0x{l41g:X16}, tumble 0x{l41t:X16} ({(k41 ? "p7g-legs' model 41, bit for bit" : "NOT model 41's")}), {lineBlocks} non-zero bytes in the fiber's "
@@ -678,13 +744,14 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"with airmode on and without the motors' heat, over model 72's bytes (the heat's 192 skipped): powered 0x{a72p:X16}, rain 0x{a72r:X16}, "
                 + $"contact 0x{a72c:X16}, range 0x{a72g:X16}, tether 0x{a72l:X16}, tumble 0x{a72t:X16} ({(k72 ? "model 72's, bit for bit" : "NOT model 72's")}): {(k72 ? "PASS" : "FAIL")}");
             // The climb after a pitch-back (model 76, D-087), its audit against model 75: without the edgewise flow's thrust and torque
-            // (RotorFlappingSpec.EdgewiseThrust off) every golden is model 75's pin (WithoutTheEdgewiseFlowEachGoldenIsModel75s).
+            // (RotorFlappingSpec.EdgewiseThrust off) every golden is model 75's pin (WithoutTheEdgewiseFlowEachGoldenIsModel75s), the range
+            // on the wake grid's version 1, which 75 flew.
             // Since model 79 (76 merged onto 78) the tether flies 75's line: model 70's drone.json with its exit, lip and peel and the
             // linear step (with the edgewise flow, model 76's tether pin).
             DroneSpec d76 = Drone();
             ulong e75p = GoldenFlights.FlyPowered(d76, out _, edgewise: false),
                 e75r = GoldenFlights.FlyPowered(d76, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edgewise: false),
-                e75c = GoldenFlights.FlyContact(d76, out _, edgewise: false), e75g = GoldenFlights.FlyRange(d76, out _, edgewise: false),
+                e75c = GoldenFlights.FlyContact(d76, out _, edgewise: false), e75g = GoldenFlights.FlyRange(d76, out _, edgewise: false, wakes2: false),
                 e75l = GoldenFlights.FlyContact(M70(), out _, tether: true, linearStep: true, edgewise: false);
             bool k75 = e75p == GoldenFlights.Model75PoweredHash && e75r == GoldenFlights.Model75RainPoweredHash && e75c == GoldenFlights.Model75ContactHash
                 && e75g == GoldenFlights.Model75RangeHash && e75l == GoldenFlights.Model75TetherHash;
@@ -735,7 +802,7 @@ namespace Fpv450.FlightBench
             DroneSpec d79 = Drone();
             ulong w78p = GoldenFlights.FlyPowered(d79, out _, edgewise: false),
                 w78r = GoldenFlights.FlyPowered(d79, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain, edgewise: false),
-                w78c = GoldenFlights.FlyContact(d79, out _, edgewise: false), w78g = GoldenFlights.FlyRange(d79, out _, edgewise: false),
+                w78c = GoldenFlights.FlyContact(d79, out _, edgewise: false), w78g = GoldenFlights.FlyRange(d79, out _, edgewise: false, wakes2: false),
                 w78l = GoldenFlights.FlyContact(d79, out FlightCore l78w, tether: true, edgewise: false);
             bool k78w = w78p == GoldenFlights.Model75PoweredHash && w78r == GoldenFlights.Model75RainPoweredHash && w78c == GoldenFlights.Model75ContactHash
                 && w78g == GoldenFlights.Model75RangeHash && w78l == GoldenFlights.Model78TetherHash;
@@ -760,7 +827,7 @@ namespace Fpv450.FlightBench
             var times = new long[steps];
             for (int k = 0; k < warmup; k++) core.Advance(sticks[k]);
 
-            long allocated = GC.GetAllocatedBytesForCurrentThread();
+            long allocated = AllocProbe.Before();
             for (int k = 0; k < steps; k++)
             {
                 StickSample stick = sticks[(warmup + k) % sticks.Length];
@@ -769,7 +836,7 @@ namespace Fpv450.FlightBench
                 core.Advance(stick);
                 times[k] = Stopwatch.GetTimestamp() - t0;
             }
-            allocated = GC.GetAllocatedBytesForCurrentThread() - allocated;
+            allocated = AllocProbe.After(allocated);
 
             Array.Sort(times);
             double us = 1e6 / Stopwatch.Frequency;

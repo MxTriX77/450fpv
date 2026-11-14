@@ -91,6 +91,12 @@ namespace Fpv450.Sim.Tether
         // A member already on a slot keeps it to twice that (numerical hysteresis: a slot does not flicker at the edge).
         public const double KeepGap = 2 * InsertGap;
         const double LeastPiece = 0.005;
+        // A kept slot's plane moving under its node deeper than this (m) is an overlap the node did not make (numerical: 1 N on a
+        // fixed member's spring, far above a pressed node's step-to-step change).
+        const double SinkTolerance = 1e-4;
+        // A kept slot's point moving this far over the member in a step (m) has jumped, not slid (numerical: a thin member's
+        // radius; the coil's switch was 29.6 mm, a node's slide in a step at 2 m/s 2 mm).
+        const double SinkJump = 0.005;
         const double CellSize = 0.25;
         // A box test's slack, m (numerical: far above the rounding of a closest approach's points a kilometre out, 1e-13 m).
         const double BoxSlack = 1e-9;
@@ -117,6 +123,7 @@ namespace Fpv450.Sim.Tether
         readonly double _youngs, _glassRadius, _coating, _bending, _glassArea;
         readonly long _swap;
         readonly double _dt;
+        readonly bool _thrown; // FlightSetup.TetherBeforeDesign18: an overlap a slot's new plane makes is thrown out (no Sunk)
         readonly double _polymerStatic, _polymerKinetic, _aluminiumStatic, _aluminiumKinetic;
 
         // The world's materials and surfaces by id: μs, μk, the arris, skipped (a homogenised shell), a layer.
@@ -200,6 +207,7 @@ namespace Fpv450.Sim.Tether
             double groundPerMetre, double groundHold, double dt)
         {
             _dt = dt;
+            _thrown = setup.TetherBeforeDesign18;
             _world = world;
             _parts = parts;
             _coilPart = setup.TetherCoilPart;
@@ -356,6 +364,10 @@ namespace Fpv450.Sim.Tether
         }
 
         // ---- what the tests and the log read ----
+
+        /// <summary>The line's static friction on a ground surface (SampleGround's id) at the flight's moisture: its set's, else the
+        /// polymer pair (p7d-tether design 20: what holds a laid point).</summary>
+        public double GroundStatic(byte surface) => _surfStatic[surface];
 
         /// <summary>The least bend radius over the line's pressing contacts after the last step (FiberMinBendRadius), m; +∞ for
         /// none. Its node, its member's kind and the bend's θ, T and σ there.</summary>
@@ -1236,6 +1248,26 @@ namespace Fpv450.Sim.Tether
                     remesh = false;
                     break;
             }
+            // An overlap the slot's new plane puts the node in, not reached by its own motion (CableContact.Sunk): on a fresh slot
+            // any depth inside; on a kept one the depth past where the old plane had it, beyond SinkTolerance; it follows the node
+            // out as the node rises.
+            double depth = Double3.Dot(c.Normal, node.Position - c.Point);
+            if (depth > 0) depth = 0;
+            double inside = depth;
+            double sunk;
+            if (!kept) sunk = 0; // a fresh slot pushes a node it finds inside out: the member is solid
+            else
+            {
+                // A kept slot leaves an overlap only where its point jumped across the member (the record's closest segment
+                // switching), past the member's own motion over the step by more than SinkJump: a plane that turns or drifts with
+                // the node, or a drone part that sweeps into the line, pushes it as ever.
+                Double3 carried = slot.Point + slot.Velocity * _dt;
+                double before = Double3.Dot(slot.Normal, node.Position - carried);
+                if (before > 0) before = 0;
+                sunk = slot.Sunk;
+                if ((c.Point - carried).Length() > SinkJump && inside < before - SinkTolerance) sunk += inside - before;
+                if (sunk < depth) sunk = depth; // the node has risen out of the overlap by its own loads
+            }
             if (!kept)
             {
                 slot = CableContact.On(c.Point, c.Normal, velocity, stiffness, damping, hold, m.Static, m.Kinetic, capstan);
@@ -1264,6 +1296,7 @@ namespace Fpv450.Sim.Tether
             slot.Cap = cap;
             slot.Slide = slide;
             slot.Through = node.Material;
+            slot.Sunk = _thrown ? 0 : sunk;
         }
 
         // ---- after the step ----

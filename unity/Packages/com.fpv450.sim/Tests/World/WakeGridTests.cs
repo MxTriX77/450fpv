@@ -47,16 +47,24 @@ namespace Fpv450.Sim.Tests
         public void TheObstacleGridFollowsK10_3()
         {
             WakeObstacles o = Obstacles();
-            // A cell well inside a maple's crown: β_cell = 0.45^(2 m / 6.2 m), top 8.4 m, base 2.2 m.
+            WakeObstacles.Lane lane = o.NewLane();
+            // A cell well inside a maple's crown: top 8.4 m, base 2.2 m. A lane through the westmost maple's centre, the wind
+            // from the north: each line passes 0.45^(chord / 6.2 m), its chord 2·√(r² − y²) (w7-farmland-wind 1.2).
             int k = o.CellAt(-147.5 + 0.5, 0.5);
-            Assert.That(o.Porosity(k), Is.EqualTo(Math.Pow(0.45, 2 / 6.2)).Within(1e-12));
             Assert.That(o.Top(k), Is.EqualTo(8.4));
             Assert.That(o.Base(k), Is.EqualTo(2.2));
-            // The house is solid: its cells' porosity is 0, from the ground to 5 m.
+            double expected = 0;
+            for (int l = 0; l < WakeObstacles.LaneLines; l++)
+            {
+                double y = ((l + 0.5) / WakeObstacles.LaneLines - 0.5) * WakeObstacles.Cell;
+                expected += Math.Pow(0.45, 2 * Math.Sqrt(3.1 * 3.1 - y * y) / 6.2) / WakeObstacles.LaneLines;
+            }
+            Assert.That(o.Transmission(lane, -147.5, -3, 0, 1, 1, 0, double.NegativeInfinity, 2.2, 8.4), Is.EqualTo(expected).Within(1e-12));
+            // The house is solid: a lane through it passes nothing, from the ground to 5 m.
             k = o.CellAt(WakeGridFixture.HouseX, WakeGridFixture.HouseZ);
-            Assert.That(o.Porosity(k), Is.EqualTo(0));
             Assert.That(o.Top(k), Is.EqualTo(5));
             Assert.That(o.Base(k), Is.EqualTo(0));
+            Assert.That(o.Transmission(lane, WakeGridFixture.HouseX, WakeGridFixture.HouseZ - 2.5, 0, 1, 1, 0, double.NegativeInfinity, 0, 5), Is.EqualTo(0));
             // Groups: the belt's two segments either side of the gap, and the house.
             Assert.That(o.Groups, Is.EqualTo(3));
             Assert.That(o.Group(o.CellAt(0, 0)), Is.Not.EqualTo(o.Group(o.CellAt(100, 0))));
@@ -64,6 +72,64 @@ namespace Fpv450.Sim.Tests
             // A path across a crown keeps about the volume's own porosity (the K§10.3 rule's intent).
             North().Describe(Cell(-60), RowBehindBelt(-60, 5), out _, out _, out _, out double beta, out _, out _, out _);
             Assert.That(beta, Is.InRange(0.40, 0.50));
+        }
+
+        [Test]
+        public void AThinWallBlocksItsLaneAndAPartUnderACrownStandsBesideIt()
+        {
+            // w7-farmland-wind 1.2: a solid wall 0.24 m thick between the old rule's 4 × 4 samples (z 0.28–0.52 in its cell),
+            // 10 m along X, 3 m tall; a trunk 0.3 m square, 0–2 m, under a crown box 4 m square, 2–6 m, porosity 0.5.
+            var volumes = new[]
+            {
+                new WindVolume { Kind = WindVolumeKind.Box, X = 0, Z = 0.40, BaseM = 0, TopM = 3, HalfX = 5, HalfZ = 0.12, Porosity = 0 },
+                new WindVolume { Kind = WindVolumeKind.Box, X = 31, Z = 31, BaseM = 0, TopM = 2, HalfX = 0.15, HalfZ = 0.15, Porosity = 0 },
+                new WindVolume { Kind = WindVolumeKind.Box, X = 31, Z = 31, BaseM = 2, TopM = 6, HalfX = 2, HalfZ = 2, Porosity = 0.5 },
+            };
+            var o = new WakeObstacles(-50, -50, 50, 50, volumes);
+            WakeObstacles.Lane lane = o.NewLane();
+            int wall = o.CellAt(0, 0.4);
+            Assert.That(o.IsObstacle(wall), Is.True, "the thin wall is never lost between samples");
+            // Across it (the wind from the north) the lane is opaque; along it (from the east) one line in eight meets it.
+            Assert.That(o.Transmission(lane, 0, 1, 0, 1, 1, 0, double.NegativeInfinity, 0, 3), Is.EqualTo(0));
+            Assert.That(o.Transmission(lane, 1, 1, 1, 0, 0, -1, double.NegativeInfinity, 0, 3), Is.EqualTo(7.0 / 8).Within(1e-15));
+            // The trunk blocks 2 lines of 8 below the crown; the crown passes 0.5^(4 m / D), D = 16 m / π, on every line above:
+            // the two heights stand side by side, never in series.
+            double crown = Math.Pow(0.5, 4 / (16 / Math.PI));
+            double expected = (2 * (6.0 / 8) + 4 * crown) / 6;
+            Assert.That(o.Transmission(lane, 31, 29.5, 0, 1, 1, 0, double.NegativeInfinity, 0, 6), Is.EqualTo(expected).Within(1e-12));
+            Assert.That(expected, Is.GreaterThan(crown * 6.0 / 8 + 0.1), "more open than trunk and crown in series");
+        }
+
+        [Test]
+        public void ATallerObstaclesWakeGoesOnOverALowerOneBehindIt()
+        {
+            // w7-farmland-wind 1.2: a row of crowns 10 m tall (box 40 × 6 m, porosity 0.1 over its mean width, so a lane across it
+            // passes 0.1^(6 / 29.3) = 0.62) and a hedge 2 m tall 15 m behind it, the wind from the north. Behind the hedge its wake
+            // is the nearest; the row's goes on over it.
+            WindVolume row = new WindVolume { Kind = WindVolumeKind.Box, X = 0, Z = 40, BaseM = 0, TopM = 10, HalfX = 20, HalfZ = 3, Porosity = 0.1 };
+            WindVolume hedge = new WindVolume { Kind = WindVolumeKind.Box, X = 0, Z = 22, BaseM = 0, TopM = 2, HalfX = 20, HalfZ = 1, Porosity = 0.5 };
+            WakeGrid both = WakeGrid.Build(new WakeObstacles(-100, -100, 100, 100, new[] { row, hedge }), 0);
+            WakeGrid alone = WakeGrid.Build(new WakeObstacles(-100, -100, 100, 100, new[] { row }), 0);
+            int i = 50, j = 50; // the cell (0..2, 0..2): 20 m behind the hedge, 34 m behind the row
+            both.Describe(i, j, out _, out double near, out _, out _, out _, out _, out _);
+            both.DescribeOver(i, j, out double x2, out double over, out _, out _);
+            Assert.That(near, Is.EqualTo(2), "the hedge's wake is the nearest");
+            Assert.That(over, Is.EqualTo(10), "the row's goes on over it");
+            alone.Describe(i, j, out double x1, out _, out _, out _, out _, out _, out _);
+            Assert.That(x2, Is.EqualTo(x1), "at the row's own distance");
+            foreach (double z in new[] { 1.0, 3, 6, 9, 14 })
+            {
+                both.SampleCell(i, j, z, out WakeSample s);
+                both.SampleNearest(i, j, z, out WakeSample n);
+                alone.SampleCell(i, j, z, out WakeSample r);
+                Assert.That(s.Speed, Is.EqualTo(n.Speed * r.Speed), $"the speeds multiply at {z} m");
+                double excess = (n.Turbulence * n.Turbulence - 1) + (r.Turbulence * r.Turbulence - 1);
+                Assert.That(s.Turbulence * s.Turbulence - 1, Is.EqualTo(excess).Within(1e-12), $"the excess variances add at {z} m");
+            }
+            both.SampleCell(i, j, 6, out WakeSample at6);
+            both.SampleNearest(i, j, 6, out WakeSample hedgeAlone);
+            Assert.That(hedgeAlone.Speed, Is.GreaterThan(0.99), "the known-wrong: the hedge's wake alone is gone by 3 of its heights");
+            Assert.That(at6.Speed, Is.LessThan(0.8), "the row's shelter at 6 m");
         }
 
         [Test]
@@ -266,7 +332,7 @@ namespace Fpv450.Sim.Tests
             // Each step's Step and samples, measured step by step (the counter read after the step's last sample), so
             // the loop's own exit (the runtime's tiering) is not counted; a request, the stall and the fade are inside.
             long allocated = 0, firstAlloc = -1;
-            long before = GC.GetAllocatedBytesForCurrentThread();
+            long before = AllocProbe.Before();
             for (long step = 6000; step < 12000; step++)
             {
                 worker.Step(step, step < 6010 ? 12 : 24);
@@ -275,10 +341,10 @@ namespace Fpv450.Sim.Tests
                     worker.Sample(-80 + 0.013 * step + 0.2 * p, -30, 3 + p, out s);
                     sum += s.Speed;
                 }
-                long now = GC.GetAllocatedBytesForCurrentThread();
-                if (now != before && firstAlloc < 0) { firstAlloc = step; allocated = now - before; }
+                long now = AllocProbe.After(before);
+                if (now != 0 && firstAlloc < 0) { firstAlloc = step; allocated = now; }
             }
-            Assert.That(allocated, Is.EqualTo(0), "first at step " + firstAlloc);
+            Assert.That(allocated, Is.Zero, "first at step " + firstAlloc + AllocProbe.Report());
             Assert.That(worker.Builds, Is.EqualTo(2));
             Assert.That(sum, Is.Not.NaN);
         }

@@ -13,6 +13,8 @@ namespace Fpv450.Feed.Tests
     {
         static FeedSettings Asset => AssetDatabase.LoadAssetAtPath<FeedSettings>(FeedSetup.SettingsPath);
 
+        internal static object sink; // the recorder's known-wrong's one object
+
         /// FEED-02's pinned intrinsics: f ≈ 1.005 half-widths before k1 ≈ 0.33, about 106° across, 16:9.
         [Test]
         public void TheSettingsAreThePinnedIntrinsics()
@@ -241,12 +243,12 @@ namespace Fpv450.Feed.Tests
                     rig.Step(field);
                     Assert.That(rig.Feed.Sticks, Is.EqualTo(sample), "another frame in field " + field + " keeps its field's");
                 }
-                long before = System.GC.GetAllocatedBytesForCurrentThread();
-                for (int frame = 0; frame < 1000; frame++)
-                    rig.Step(50);
-                long bytes = System.GC.GetAllocatedBytesForCurrentThread() - before;
-                TestContext.WriteLine($"{bytes} B over 1000 frames in one field");
-                Assert.That(bytes, Is.EqualTo(0));
+                // 0 B a frame, read by the test framework's GC.Alloc recorder: on Unity's Mono the per-thread counter misses small
+                // allocations (the sim's probe reads 0 B for a 24 B object there, AllocProbeTests' known-wrong), so neither it nor
+                // the probe can show 0 B here. The recorder itself is seen to see one object first.
+                Assert.That(() => { sink = new object(); }, new UnityEngine.TestTools.Constraints.AllocatingGCMemoryConstraint(), "the recorder sees one object");
+                Assert.That(() => { for (int frame = 0; frame < 1000; frame++) rig.Step(50); },
+                    new NUnit.Framework.Constraints.NotConstraint(new UnityEngine.TestTools.Constraints.AllocatingGCMemoryConstraint()), "0 B over 1000 frames in one field");
                 rig.End();
             }
             finally

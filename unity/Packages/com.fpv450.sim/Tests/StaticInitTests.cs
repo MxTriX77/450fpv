@@ -61,7 +61,7 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Log.LogFormat", "TetherTraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogFormat", "TraceFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader+<>c", "<>9", "the lambda cache of LogHeader.SettingsFields, the header's write (setup)" },
-            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__145_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup)" },
+            { "Fpv450.Sim.Log.LogHeader+<>c", "<>9__159_0", "LogHeader.SettingsFields' sort comparison, the header's write (setup; 159 since p7c-wind design 12's hull entry, w9-village-physics 2.13's stems' air entry and 2.6b's hanging entry, lambdas before it, and p7d-tether design 19's TetherWakeReach4R, design 20's TetherAirlessTrail, 2.13's StemAir and StemWash, and p7c-wind design 16's preset of the one-scale field, members before it)" },
             { "Fpv450.Sim.Log.LogHeader", "AeroFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "AsymmetryFieldsLogged", "read only by the suite's log-coverage tests" },
             { "Fpv450.Sim.Log.LogHeader", "BladeFieldsLogged", "read only by the suite's log-coverage tests" },
@@ -111,7 +111,6 @@ namespace Fpv450.Sim.Tests
             { "Fpv450.Sim.Wind.MapWind+<>c", "<>9__7_0", "MapWind.Strips' conversion, read by WindSetup (setup)" },
             { "Fpv450.Sim.World.MapWorld", "MicroKindNames", "ParseElements, the micro-detail sidecars' reader (map load)" },
             { "Fpv450.Sim.World.MapWorld", "SurfaceIds", "the map's load, SurfaceTable.Parse and AddObject's shape check (the FlightCore constructor)" },
-            { "Fpv450.Sim.World.MapWorld", "_region", "[ThreadStatic], no type init: the loading thread's is made at the map's load, another thread's (the flight thread's) at its first small StaticContacts or Raycast, the first step; never after" },
         };
 
         [Test]

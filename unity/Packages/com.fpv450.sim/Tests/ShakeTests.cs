@@ -35,7 +35,8 @@ namespace Fpv450.Sim.Tests
         // the class's, which senses no current (D-066). The spec's three scenarios (D-049, D-051, D-053, D-066): "Shake only
         // when its causes meet", "The shake lasts as long as the arrest", "The visible shake is the rigid body's". What they
         // state of every flight is checked on each flight here; what they state of nearly every one, or of the median, is a
-        // rate, checked on 40 seeds a cell by flightbench --shake, which fails when one misses (QA's re-review, B1).
+        // rate, checked on 120 seeds a cell by flightbench --shake, which fails when one misses (QA's re-review, B1). The shake
+        // shows where it exceeds the same flight's hover by ShakeScenario.Margin and the visible line (design 3i, D-106).
         [Test]
         public void ShakeOnlyWhenItsCausesMeet()
         {
@@ -76,11 +77,11 @@ namespace Fpv450.Sim.Tests
                                 continue;
                             }
                             // Arresting a descent sharply rings the frame's band (that it shows is a rate below 9 m/s: a weak arrest
-                            // stays under the visible line).
+                            // stays under what shows).
                             Assert.That(r.VibrationPeak.Y, Is.GreaterThan(ShakeScenario.Rings), "the frame's band rings: " + at);
                             if (stick < 1) continue;
                             // A full punch's shake ends with its arrest, within the loop's settling (that it shows from 9 m/s is
-                            // a rate, nearly every one: a heavy one can stay just under the visible line).
+                            // a rate: nearly every empty one, most at 2 kg).
                             Assert.That(ShakeScenario.EndsWithTheArrest(r), Is.True, "a full punch's shake ends with its arrest: " + at);
                             if (payload > 0 && drop == 0.6) heavyPunch[s] = r;
                         }
@@ -127,40 +128,46 @@ namespace Fpv450.Sim.Tests
             Assert.That(flights, Is.EqualTo(74));
         }
 
-        // The empty drone's full punch from 9 m/s (a sudden drop) on seeds 1–10, the pilot's PR-1: the shake lasts 0.3–0.7 s
-        // on most, at least 7 of 10 (ShakeScenario.Most), its median in it.
-        // The known-wrong ringless rotors cannot be told from it in that cell (QA's integration review, B2): D-064's motor
-        // spreads, which no current limit trims (D-066), shake a fast arrest without the wash too, inside the band on 272 of
-        // 520 seeds (1–40, 301–500, 701–740, 1001–1200, 1301–1340), so ten seeds pass the band about 21 % of the time and
-        // forty about 1.8 %. So the known-wrong is judged as flightbench --shake judges it, the wash as the main cause: on
-        // seeds 1–40 of the six arrested descents (both payloads, 2.5, 5.3 and 9 m/s) the ringless shake is weaker on most
-        // and lasts past the kick on at most half as many. Bootstrapped from the same 520 seeds' flights, a fresh 40 fails
-        // that about 0.6 % of the time (0.57 % of 20 000 draws). 480 flights, each on its own seed and independent, in parallel.
+        // The empty drone's full punch from 9 m/s (a sudden drop), the pilot's PR-1, on seeds 1–120: the shake lasts 0.3–0.7 s
+        // on most, at least 70 % (ShakeScenario.Most), and the median does. On the excess over the hover (design 3i) it holds
+        // on 160 of 200 seeds (the median 0.42 s); bootstrapped from them a fresh 120 fails it 0.4 % of the time, 40 4.4 %
+        // and 10 12 % (D-070), so the band is judged on 120.
+        // Known-wrong, rings that never re-ingest their wash: on seeds 1–40 of the six arrested descents (both payloads, 2.5,
+        // 5.3 and 9 m/s) the shake lasts past the kick on at most two thirds as many as the ringed rotors' (on 200 seeds 107
+        // of 1200 against 258, 0.41; a fresh 40's ratio reaches 0.58 at its 99th percentile and 0.65 at its 99.9th).
+        // 600 flights, each on its own seed and independent, in parallel.
         [Test]
         public void TheShakeLastsAboutTheArrest()
         {
             DroneSpec spec = RepositoryDrone.Spec();
             double[] payloads = { 0, 2 }, drops = { 0.3, 0.6, 1.0 };
-            const int Seeds = 40;
+            const int Seeds = 40, BandSeeds = 120;
             var runs = new ShakeScenario.Result[2, payloads.Length * drops.Length, Seeds]; // [ring off, cell, seed]
-            System.Threading.Tasks.Parallel.For(0, runs.Length, j =>
+            var band = new ShakeScenario.Result[BandSeeds - Seeds];
+            System.Threading.Tasks.Parallel.For(0, runs.Length + band.Length, j =>
             {
+                if (j >= runs.Length)
+                {
+                    int b = j - runs.Length;
+                    band[b] = ShakeScenario.Fly(ShakeScenario.Setup(spec, 0, (ulong)(Seeds + b + 1)), 1.0, false);
+                    return;
+                }
                 int ringless = j / (runs.GetLength(1) * Seeds), cell = j / Seeds % runs.GetLength(1), s = j % Seeds;
                 FlightSetup setup = ShakeScenario.Setup(spec, payloads[cell / drops.Length], (ulong)(s + 1));
                 if (ringless == 1) setup.VortexRing = null;
                 runs[ringless, cell, s] = ShakeScenario.Fly(setup, drops[cell % drops.Length], false);
             });
 
-            var lengths = new double[10];
+            var lengths = new double[BandSeeds];
             int inside = 0, pilots = drops.Length - 1; // the empty drone from 9 m/s
             for (int s = 0; s < lengths.Length; s++)
             {
-                lengths[s] = runs[0, pilots, s].Duration;
+                lengths[s] = s < Seeds ? runs[0, pilots, s].Duration : band[s - Seeds].Duration;
                 if (ShakeScenario.LastsInTenths(lengths[s], 0.3, 0.7)) inside++;
             }
             System.Array.Sort(lengths);
-            double median = (lengths[4] + lengths[5]) / 2;
-            string at = $"from 9 m/s: {inside} of 10 in 0.3–0.7 s, {lengths[0]:F2}–{lengths[9]:F2} s, median {median:F2} s";
+            double median = (lengths[BandSeeds / 2 - 1] + lengths[BandSeeds / 2]) / 2;
+            string at = $"from 9 m/s: {inside} of {BandSeeds} in 0.3–0.7 s, {lengths[0]:F2}–{lengths[BandSeeds - 1]:F2} s, median {median:F2} s";
             TestContext.WriteLine(at);
             Assert.That(ShakeScenario.PilotBand(inside, lengths.Length, median), Is.True, at);
 
@@ -174,16 +181,10 @@ namespace Fpv450.Sim.Tests
                     if (ShakeScenario.PastTheKick(ringed)) ringedLasts++;
                     if (ShakeScenario.PastTheKick(noRing)) ringlessLasts++;
                 }
-            string wrong = $"no ring, seeds 1–{Seeds} of the six descents: weaker {weaker}/{punches}; past the kick ({ShakeScenario.KickSeconds:F1} s) on "
-                + $"{ringlessLasts}/{punches} against {ringedLasts}";
+            string wrong = $"no ring, seeds 1–{Seeds} of the six descents: past the kick ({ShakeScenario.KickSeconds:F1} s) on {ringlessLasts}/{punches} against "
+                + $"{ringedLasts}; its peak weaker on {weaker}/{punches}";
             TestContext.WriteLine(wrong);
-            // Since model 64 the ring is no longer the only long shake: the canister's pack and body ride forward and put the CoM
-            // 2–9 mm ahead of the hubs' centre (3.2 % more on the front motors at L4), and a hard arrest drives the front pair into
-            // their ESCs' limit first, a pitch wobble of its own. Without the ring the shake lasts past the kick on 102 of 240
-            // (the ring's 126; on the old coil 38 against 108); with the canister's pack and body at the centre fore and aft (a
-            // probe, not kept) 28 against 89, so the imbalance, not the ring, is the rest. The known-wrong still fails: weaker
-            // peaks on most, and fewer long shakes than the ring's.
-            Assert.That(weaker >= ShakeScenario.Most * punches && ringlessLasts < ringedLasts, Is.True, "the known-wrong fails: " + wrong);
+            Assert.That(ShakeScenario.RingCarriesIt(ringedLasts, ringlessLasts), Is.True, "the known-wrong fails: " + wrong);
         }
 
         [Test]
