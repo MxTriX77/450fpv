@@ -644,11 +644,12 @@ namespace Fpv450.Sim.Tether
             // 5–8. The step on these models, and the check. A rise the clip cannot take back is solved again from the
             //      start on majorizing models (every term above its true energy, so none can be gained): over-stiff across
             //      the line for that one step (labelled numerical damping). Only what still rises, or is not finite, is a
-            //      TetherWedge. So is a step that spent its Newton solves with a segment still off (design 23): its last solve
-            //      is not backward Euler's solution, and a segment it modelled slack ends stretched by its nodes' free parting,
-            //      a tension no force in the step made (the energy check is global and may keep it). On the majorizing models
-            //      each segment's force at the end is at least its true tension there (a taut one's |T₀·d₀ + k·Δ| = k·|L₁ − ℓ·d₀|,
-            //      a slack one's k·|L₁ − L₀|, each at least k·(|L₁| − ℓ)), so the cuts read no more than the step applied.
+            //      TetherWedge. A step that spent its Newton solves with a segment still off is solved again on them too
+            //      (design 23): its last solve is not backward Euler's solution, and a segment it modelled slack ends stretched
+            //      by its nodes' free parting, a tension no force in the step made (the energy check is global and may keep
+            //      it). On the majorizing models each segment's force at the end is at least its true tension there (a taut
+            //      one's |T₀·d₀ + k·Δ| = k·|L₁ − ℓ·d₀|, a slack one's k·|L₁ − L₀|, each at least k·(|L₁| − ℓ)), so the cuts read
+            //      no more than the step applied.
             CableGuard verdict = Run(dt, e0, startMagnitude, false, out double e1, out double excess, out double deficit, out double removable, out int bad);
             if (verdict == CableGuard.Wedge || _unconverged && !KeepUnconverged)
             {
