@@ -1158,6 +1158,18 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model100TetherHash, GoldenFlights.TetherHash, "the line before design 21");
         }
 
+        // p7d-tether design 22's audit (the spool's peel band, on model 103): with models 89–103's band (GoldenFlights.Model103Peel:
+        // G₀ over 0.01–2 g on half the flights and 2–10 g on the other) the tether golden is model 103's pin, every record and
+        // event; every kept audit of an older line flies it and keeps its pin; every golden without the line keeps its pin. So the
+        // band is the whole of the move.
+        [Test]
+        public void WithTheOldPeelBandTheTetherGoldenIsModel103s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "model 103", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, peelBeforeDesign22: old), c),
+                GoldenFlights.Model103TetherHash, GoldenFlights.TetherHash, "the peel band before design 22");
+        }
+
         // p7c-wind design 16's audit (the field's turbulence by height, on model 98): with the one-scale field (WindSetup.OneScale,
         // WindPreset.OneScale: the handbook's scales at 35 m at every height, model 98's) each golden flown in a level's wind is
         // its model 98 pin, every record and event; with the scales by height it is its new pin. So the field is the whole move.

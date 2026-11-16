@@ -1449,7 +1449,15 @@ namespace Fpv450.Sim.Tests
         // (FlightSetup.TetherBeforeDesign21) and without it the flight is model 100's pin, every record and event
         // (GoldenFlightTests.WithTheLineBeforeDesign21TheTetherGoldenIsModel100s); every kept audit of an older line flies the
         // known-wrong (FlyContact's beforeDesign21, on for every flight other than the tether golden's own) and keeps its pin.
-        public const ulong TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
+        // p7d-tether design 22 (the spool's peel band restated from the published payout of reduced-adhesive and drone packs,
+        // 0.01–2 g, on model 103): re-recorded, 0x86F63CCC975F747E. Audited: with models 89–103's band (Model103Peel) it is model
+        // 103's pin, 0xF2B1187D0BC04B77 (Model103TetherHash), every record and event (GoldenFlightTests.
+        // WithTheOldPeelBandTheTetherGoldenIsModel103s); every kept audit of an older line flies the old band (FlyContact's
+        // peelBeforeDesign22, on for every flight other than the tether golden's own) and keeps its pin. The flight's G₀ is the
+        // same quantile of the new band, 0.15 g → 0.08 g, and enters the line's first step, so the records differ from step 1: at
+        // most 0.6 mm and 0.13° apart, the ends 0.4 mm apart, 0.2491 m up, the same 3 impacts, the line whole, 0.910 m paid out
+        // against 0.418 (the lighter pack lets the liftoff and the landing draw more line at a lower pull).
+        public const ulong TetherHash = 0x86F63CCC975F747EUL, Model103TetherHash = 0xF2B1187D0BC04B77UL, Model100TetherHash = 0xF2B1187D0BC04B77UL, Model98TetherHash = 0xB90A040EEF9F938AUL, Model90TetherHash = 0xF74FECF3FEF4F329UL, Model93TetherHash = 0x7FE2C30025663025UL,
             Model94TetherHash = 0x99C789A0CB2EC6B2UL, Model96TetherHash = 0x436638D62911D1A6UL, Model97TetherHash = 0xF6ADE19C0945D137UL;
 
         /// <summary>The tether golden with p7d-tether design 19's wash on model 94's clipped descent branch (the wash branch's pin
@@ -2211,6 +2219,19 @@ namespace Fpv450.Sim.Tests
             return new Tether.TetherTable(rows, table.ContentHash);
         }
 
+        /// <summary>
+        /// tether.json's peel band as models 89–103 drew it (p7d-tether design 18, before design 22): G₀ over the light pack's 0.01–2 g on
+        /// half the flights and the conventional 2–10 g on the other half; every other row the file's (design 22 changed only this
+        /// row). With it the tether golden is model 103's pin (GoldenFlightTests.WithTheOldPeelBandTheTetherGoldenIsModel103s).
+        /// </summary>
+        public static Tether.TetherTable Model103Peel(Tether.TetherTable table)
+        {
+            var rows = (Tether.TetherRow[])table.Rows.Clone();
+            for (int i = 0; i < rows.Length; i++)
+                if (rows[i].Name == "spool.peel_energy_j_m") rows[i].Values = new[] { 0, 9.81e-5, 0.5, 0.0196, 1, 0.0981 };
+            return new Tether.TetherTable(rows, table.ContentHash);
+        }
+
         /// <summary>The tether table a drone flies: model 63's for model 63's drone (no housing), model 70's for model 70's (its
         /// nozzle straight on the canister's 15°: Model70Drone), else the file's.</summary>
         public static Tether.TetherTable TetherFor(DroneSpec spec, Tether.TetherTable table) =>
@@ -2239,7 +2260,7 @@ namespace Fpv450.Sim.Tests
             bool soil = true, RainLevel rain = RainLevel.Sunny, SurfaceTable table = null, bool tether = false, bool yawI = true, Action<FlightSetup> edit = null,
             bool recirculation = true, bool fiberContacts = true, bool cuts = true, bool body = true, bool coulomb = true, bool? heat = null, bool airmode = false,
             bool? linearStep = null, bool? edgewise = null, bool? slidingTrail = null, bool? beforeDesign18 = null, bool? ownWake = null, bool? wakeLevel = null, bool? descentBranch = null,
-            bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null, bool? beforeDesign21 = null)
+            bool? wakeReach4R = null, bool? airlessTrail = null, bool? heightScaled = null, bool? beforeDesign21 = null, bool? peelBeforeDesign22 = null)
         {
             MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
             ContactSpec contacts = spec.BuildContacts(spec.Nominal, materials, mh);
@@ -2297,6 +2318,11 @@ namespace Fpv450.Sim.Tests
                 // found, judged a wrap on its ends and wore by the slot's force (FlightSetup.TetherBeforeDesign21), so every kept
                 // audit flies it (the airless trail implies it); beforeDesign21 says so outright.
                 setup.TetherBeforeDesign21 = beforeDesign21 ?? !(golden && slidingTrail != true && ownWake != false && wakeLevel != false && descentBranch != false);
+                // p7d-tether design 22: every line before it drew G₀ from models 89–103's band (Model103Peel), so every kept audit
+                // flies it (every older line's switch implies it, as FiberLine.BeforeDesign21 reads them); the line before design 18
+                // keeps models 74–88's band (Model88Tether); peelBeforeDesign22 says so outright.
+                bool olderPeel = setup.TetherBeforeDesign21 || setup.TetherAirlessTrail || setup.TetherWakeReach4R || setup.TetherDesign4Air;
+                if ((peelBeforeDesign22 ?? olderPeel) && !setup.TetherBeforeDesign18) setup.Tether = Model103Peel(setup.Tether);
             }
             Heat(setup, heat, layout);
             if (layout < LogFormat.StepSize) CleanSensors(setup);

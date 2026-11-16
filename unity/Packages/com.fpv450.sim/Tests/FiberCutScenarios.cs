@@ -580,7 +580,7 @@ namespace Fpv450.Sim.Tests
             var bands = new[]
             {
                 new[] { t.Row("strength.span_pa").Values[1], t.Row("strength.span_pa").Values[3] },
-                new[] { t.Row("spool.peel_energy_j_m").Values[1], t.Row("spool.peel_energy_j_m").Values[5] },
+                new[] { t.Row("spool.peel_energy_j_m").Values[1], t.Row("spool.peel_energy_j_m").Values[t.Row("spool.peel_energy_j_m").Values.Length - 1] },
                 t.Row("spool.irregularity").Values,
                 new[] { t.Row("strength.intact_pa").Values[1], t.Row("strength.intact_pa").Values[3] },
                 new[] { t.Row("strength.flaw_pa").Values[1], t.Row("strength.flaw_pa").Values[3] },
