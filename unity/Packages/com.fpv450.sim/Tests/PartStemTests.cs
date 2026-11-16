@@ -429,7 +429,9 @@ namespace Fpv450.Sim.Tests
             {
                 var with = new System.Collections.Generic.List<long>(4096);
                 var without = new System.Collections.Generic.List<long>(4096);
-                run(false, without); // warm
+                run(true, with); // both warmed (the JIT's tiers), then each measured
+                run(false, without);
+                with.Clear();
                 without.Clear();
                 run(true, with);
                 run(false, without);
