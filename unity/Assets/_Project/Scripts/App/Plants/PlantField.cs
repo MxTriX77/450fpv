@@ -16,7 +16,7 @@ namespace Fpv450.App
     /// The plants' bend field (w16-plants-in-the-air 1.3, design.md §7.1): each drawn frame, at the frame's flight time, every band's
     /// bend in the flight's air on five levels round the camera and the drone, which the plants' shaders read (PlantBend.hlsl).
     /// - **The wind** (PlantAir, 1.2's closed form): its mean at a plant (PlantAir.Mean: the mean air at the load point, the
-    ///   fluctuation's covariance, the mean lean) on three coarse grids on a helper thread, for flight times ahead of the frame;
+    ///   fluctuation's covariance, the mean lean) on four coarse grids on a helper thread, for flight times ahead of the frame;
     ///   the GPU interpolates them in space and time and sums the modes per texel (PlantField.compute), at the frame's time,
     ///   statelessly: the gusts reach each plant when the field brings them there. The wake eddies' scale is the wake grid's own
     ///   obstacle height at each texel near the camera (their phase is anchored at the world's origin, so an interpolated height

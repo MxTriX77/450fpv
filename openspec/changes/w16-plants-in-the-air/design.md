@@ -444,7 +444,8 @@ Respond's two halves, split where §7.1 says:
   - The phases are reduced on the CPU in double about an origin by the camera. The tangent's difference is 10⁻³ rad (PlantAir's 10⁻⁴ in double loses digits in float; the truncation at 10⁻³ is about 10⁻⁶ of it).
 - **The wash (`PlantWash`).** A fine (24 × 5 cm) and a coarse (32 × 15 cm) grid integrate each class's middle culm (bands 1, 4, 7), ticked at 25 Hz from the published poses on a second helper thread.
   - Each tick's stands go to the GPU, whose wash levels' texels are the nodes: the bend now and at the tick before, and the wash's air at the load point.
-  - The other culms, and every plant beyond the grids, take the line's law as `PlantAir.Sample` does for a band no grid holds: `RotorAir.At` from the fine grid's own instance. It is sampled each tick on a polar grid round the drone at the first twelve bands' load heights: 33 rings from 0.1 m, each 1.2 times the last, to 33 m, and 16 angles.
+  - The other culms take the line's law as `PlantAir.Sample` does for a band no grid holds: `RotorAir.At` from the fine grid's own instance, at each wash node and each culm's load height (exported with the stands).
+  - Every plant beyond the grids takes it from a polar grid sampled each tick round the drone at the first twelve bands' load heights: 33 rings from 0.1 m, each 1.2 times the last, to 33 m, and 16 angles.
   - A plant takes it where it passes 0.005 m/s for a culm (under which its lean moves under 0.01 rad) or 0.3 m/s for a twig or a branch (under which a twig's moves under 10⁻⁴ rad, derived from 1.2's twig).
   - Nine integrated culms took the helpers past a whole core in the Mono player; three keep each class's dynamics (the spring back) and leave the shortest and the tallest quasi-static under the drone.
 - **The levels** (texel centres on whole cells, so a grid's nodes are texels):
@@ -465,11 +466,11 @@ Over the farmland in Windy, a hover 1 m over the fields south of the village for
 
 | Check | Texels | Result |
 |---|---|---|
-| The port: each texel against `PlantAir.Bend` on the mean the kernel interpolates there, with the wash grid's node and the steady air as the kernel takes them, settled again by `PlantAir.Settle` | 6176 | within 1.5·10⁻³ rad (float against double; the float Settle's last bits) |
-| A plant on a grid's node at a snapshot's time, out of the wash, against `PlantAir.Wind` | 1225 | within 6.7·10⁻⁵ rad |
-| A plant within the steady air's 33 m against `PlantAir.Sample` | 1900 | median 2.2·10⁻⁴, 95th percentile 3.9·10⁻³, worst 0.051 rad |
-| A plant on the wash's levels against `PlantAir.Sample` | 776 | median 2.3·10⁻⁴, 95th percentile 0.026, worst 1.54 rad: a culm the grids do not integrate, at the near columns, where the polar grid's 16 angles do not resolve an 18 cm column (§7) |
-| Every plant round the camera against `PlantAir.Sample` | 5366 | median 5.5·10⁻⁴, 95th percentile 0.018, worst 0.51 rad: the 1.3 m green culm 100 m out, whose mean lean, interpolated over 8 m, differs from its own (§7) |
+| The port: each texel against `PlantAir.Bend` on the mean the kernel interpolates there, with the wash grid's node and the steady air as the kernel takes them, settled again by `PlantAir.Settle` | 6176 | within 1.6·10⁻⁴ rad (float against double). A texel past 2·10⁻³ would pass only at a fold of the CPU's own answer (its steady air nudged by 10⁻⁵ moves it by a tenth of the gap): none |
+| A plant on a grid's node at a snapshot's time, out of the wash, against `PlantAir.Wind` | 1225 | within 6.5·10⁻⁵ rad |
+| A plant within the steady air's 33 m against `PlantAir.Sample` | 1900 | median 1.8·10⁻⁴, 95th percentile 2.7·10⁻³, worst 0.051 rad |
+| A plant on the wash's levels against `PlantAir.Sample` | 776 | median 4.5·10⁻⁵, 95th percentile 1.4·10⁻³, worst 3.6·10⁻³ rad |
+| Every plant round the camera against `PlantAir.Sample` | 5366 | median 4.7·10⁻⁴, 95th percentile 0.018, worst 0.51 rad: the 1.3 m green culm 100 m out, whose mean lean, interpolated over 8 m, differs from its own (§7) |
 
 - `PlantsLeaveTheFlightTests`: the same headless flight over the farmland in Windy (seed, keys, clock), alone and with the plants' CPU side reading it on two threads all the while (the wash grids from its poses, the wind's mean round the drone). The two logs are the same byte for byte.
 - `FarmlandPlantDrawingTests`: every plant material the terrain draws is on the project's shaders with the friend's textures and settings, and nothing draws his wind. His assets and the store's terrain data are untouched, and the grass keeps every instance he painted.
@@ -490,7 +491,7 @@ The captures (the hovers through the feed and from behind, the pass, the belt in
 ### 7. Left out, and for whom
 
 - **The wash's steady air beyond 33 m** (the polar grid's reach): 1.2's law still leans the barely standing 1.3 m green culm there (0.22 rad at 45 m from a 1 m hover in the suite, under 0.1 m/s). The other culms move under 0.01 rad.
-- **The columns at the polar grid's resolution:** a culm the wash grids do not integrate takes the steady air from 16 angles, which blurs the 18 cm near columns (worst 1.54 rad against `Sample` at a column's edge). The next step (uncommitted): the wash grids' own node samples at each band's height (a read-only `PlantWash.AirAt`).
+
 - **The softest culm's mean lean** between the 8 m nodes (worst 0.51 rad 100 m out). Settling every grass texel's lean on the GPU from the interpolated air removes it, at about 0.2 ms of GPU a frame; not taken until the frame rate's A/B says there is room.
 - **The crowns in the wash:** a twig or a branch takes the wash quasi-statically (1.2's §4.5) on its band's fixed elevation (6 m, 4 m, 1 m), so a crown's leaves above or below that height take the wash there.
 - **Leaf flutter's own amplitude:** not assumed (the twig's mode carries the flutter); a law is still not read (§10).
