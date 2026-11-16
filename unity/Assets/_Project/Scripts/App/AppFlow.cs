@@ -45,7 +45,7 @@ namespace Fpv450.App
     /// <c>-terrainab</c> its cruise also times the near terrain rule against the scene's own errors, on and off by turns
     /// (TerrainCost, 3.2; with <c>-vsync 0</c> in a development build).
     /// </remarks>
-    public sealed class AppFlow : MonoBehaviour
+    public sealed partial class AppFlow : MonoBehaviour
     {
         public const string BootScene = "Boot";
 
@@ -91,6 +91,8 @@ namespace Fpv450.App
                       + "); data under " + AppData.Root + "; profile folder " + Application.persistentDataPath);
             if (Array.IndexOf(Environment.GetCommandLineArgs(), "-smoketest") >= 0) StartCoroutine(Smoke());
             else if (AppData.Review && Array.IndexOf(Environment.GetCommandLineArgs(), "-farmbench") >= 0) StartCoroutine(Bench());
+            else if (AppData.Review && Array.IndexOf(Environment.GetCommandLineArgs(), "-plantbench") is int plants && plants >= 0 && plants + 1 < Environment.GetCommandLineArgs().Length)
+                StartCoroutine(PlantBench(Environment.GetCommandLineArgs()[plants + 1])); // w16-plants-in-the-air 1.3
         }
 
         // w6-farmland-look 1.2: the farmland's benchmark (FarmlandBench), from Explore pressed as the menu does.
