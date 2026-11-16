@@ -1,0 +1,330 @@
+// The plants' bend field (w16-plants-in-the-air 1.3): 1.2's closed form (Fpv450.Sim.Wind.PlantAir.Respond) ported to the GPU,
+// one thread a texel and a band. Respond's first half, the wind's mean at a plant (PlantAir.Mean: the mean air at the load point,
+// the fluctuation's covariance, the mean lean by Settle), comes from the CPU on a coarse grid at a low rate and is interpolated
+// here in space and time (design.md §7.1); the rest is PlantAir's own arithmetic in float: the gusts' linearisation about the
+// whole lean (the wind's mean lean plus the wash grid's bend) in the mean air plus the wash's air, Borgman's closed form for a bare
+// stem and 12-point Gauss-Hermite with foliage, then each mode's steady response F(P cos θ - cΩ sin θ)/(P² + c²Ω²) summed.
+// The CPU path (PlantAir.Sample) is the reference the EditMode suite checks this against.
+#pragma kernel Bend
+
+#define PI 3.14159265358979
+#define HALF_PI 1.5707963267949
+
+// A band's mechanics (PlantMechanics) and its place: the base's height over the ground.
+struct Band
+{
+    float stiffness, inertia, weight, damping;
+    float stemDrag, foliageDrag, reconfigure, vogel;
+    float dragFrom, dragTo, loadPoint, elevation;
+};
+StructuredBuffer<Band> _Bands;
+
+// The level: its texels' world origin (x, z of texel 0's corner), its cell (m) and size; the bands it holds (global band ids).
+float2 _LevelOrigin;
+float _LevelCell;
+int _LevelSize;
+StructuredBuffer<int> _LevelBands;
+RWTexture2DArray<float4> _Out; // x, z: the bend (rad, world); z: 1 where the texel holds a bend
+
+// The modes at the frame. Their phase at a point p is κ·(p - O) + Φ, O the frame's origin (_Origin), Φ the CPU's reduced phase.
+float3 _Origin;
+int _OpenCount, _StripModes, _WakeCount;
+StructuredBuffer<float4> _OpenWave;  // κ.xyz, Φ
+StructuredBuffer<float> _OpenRate;   // Ω = κ·V
+StructuredBuffer<float4> _OpenAmp;   // [band * _OpenCount + m]: the amplitude at the band's load height, share 1
+StructuredBuffer<float4> _StripWave; // [strip * _StripModes + m]: κ.xyz, Φ (the convection's share of the drift)
+StructuredBuffer<float4> _StripAmp;  // amplitude.xyz, Ω
+StructuredBuffer<float4> _WakeWave;  // the unit direction, 2π over the eddy's size in obstacle heights
+StructuredBuffer<float4> _WakeAmp;   // amplitude.xyz, φ
+StructuredBuffer<float2> _WakeFrame; // k̂·(O - drift) (m), k̂·V (m/s)
+
+// The wind's mean on the CPU's grid, two snapshots in time: [snapshot][slot][node][5] float4s (PlantField.cs's packing).
+StructuredBuffer<float4> _Means;
+float4 _MeanGrid[2];   // per snapshot: origin x, z (node 0's centre), spacing, size
+int _MeanSlots;        // the grid's slots (bands) per snapshot
+StructuredBuffer<int> _MeanSlot; // [global band]: the band's slot on this grid, -1 none
+float _MeanBlend;      // 0: snapshot 0, 1: snapshot 1
+
+// The wash grid (PlantWash) this level is: its nodes are the texels. [node][band][2] float4s: (was x, z, now x, z), (wash air
+// at the band's load point xyz, the node's ground); a node outside the window has its ground at -1e30.
+int _Wash;             // 1 on a wash level
+int _WashBands;
+StructuredBuffer<float4> _WashNodes;
+float _WashFraction;   // between the last two ticks
+
+// ---- 1.2's law (PlantLaw, PlantAir), in float ----
+
+void Coefficient(Band m, float v, out float c, out float slope)
+{
+    float r = 1;
+    if (m.foliageDrag > 0 && v > m.reconfigure) r = exp(m.vogel * log(v / m.reconfigure));
+    float foliage = m.foliageDrag * r;
+    c = m.stemDrag + foliage;
+    slope = c + (v > m.reconfigure ? foliage * m.vogel : 0);
+}
+
+void Term(Band m, float v, float weight, inout float drag, inout float along, inout float across)
+{
+    float a = abs(v), c, slope;
+    Coefficient(m, a, c, slope);
+    drag += weight * c * a * v;
+    along += weight * (c + slope) * a;
+    across += weight * c * a;
+}
+
+// Abramowitz and Stegun 7.1.26, odd (PlantAir.Erf).
+float Erf(float x)
+{
+    float a = abs(x), t = 1 / (1 + 0.3275911 * a);
+    float poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    float r = 1 - poly * exp(-a * a);
+    return x < 0 ? -r : r;
+}
+
+static const float HermiteNode[6] = { 0.31424037625435913, 0.9477883912401638, 1.5976826351526048, 2.2795070805010598, 3.0206370251208896, 3.889724897869782 };
+static const float HermiteWeight[6] = { 0.5701352362624795, 0.26049231026416114, 0.05160798561588393, 0.0039053905846290616, 8.573687043587859e-05, 2.658551684356302e-07 };
+
+// E[c|v|v], E[(c + c')|v|], E[c|v|] for v normal of mean mu and spread sigma (PlantAir.Expect).
+void Expect(Band m, float mu, float sigma, out float drag, out float along, out float across)
+{
+    drag = 0; along = 0; across = 0;
+    if (!(sigma > 0))
+    {
+        Term(m, mu, 1, drag, along, across);
+        return;
+    }
+    if (!(m.foliageDrag > 0))
+    {
+        float z = mu / (1.4142135623730951 * sigma), e = exp(-z * z), erf = Erf(z), root = 0.7978845608028654 * sigma * e;
+        float absolute = mu * erf + root;
+        drag = m.stemDrag * ((mu * mu + sigma * sigma) * erf + mu * root);
+        along = 2 * m.stemDrag * absolute;
+        across = m.stemDrag * absolute;
+        return;
+    }
+    float spread = 1.4142135623730951 * sigma;
+    [unroll] for (int i = 0; i < 6; i++)
+    {
+        float w = HermiteWeight[i] / 1.7724538509055159, x = spread * HermiteNode[i];
+        Term(m, mu + x, w, drag, along, across);
+        Term(m, mu - x, w, drag, along, across);
+    }
+}
+
+// The normal air's mean and spread at a lean (PlantAir.Expected.Normal).
+void Normal(float u, float w, float alongVar, float upVar, float cross, float phi, out float mu, out float sigma)
+{
+    float s, c;
+    sincos(phi, s, c);
+    mu = u * c - w * s;
+    float v = alongVar * c * c + upVar * s * s - 2 * cross * c * s;
+    sigma = v > 0 ? sqrt(v) : 0;
+}
+
+float Moment(Band m, float u, float w, float alongVar, float upVar, float cross, float phi)
+{
+    float mu, sigma, drag, a, b;
+    Normal(u, w, alongVar, upVar, cross, phi, mu, sigma);
+    Expect(m, mu, sigma, drag, a, b);
+    return 0.5 * (m.dragTo * m.dragTo - m.dragFrom * m.dragFrom) * drag;
+}
+
+// ---- the wind's mean, interpolated ----
+
+struct Mean
+{
+    float3 air;
+    float loadY;
+    float2 lean, way;   // lean·way (rad) and the way
+    float xx, xz, zz, yy, xy, zy;
+    float open, stripShare, wake, wakeInverse;
+    int strip;
+    float valid;
+};
+
+float4 MeanRaw(int snap, int slot, int node, int k)
+{
+    return _Means[(((snap * _MeanSlots) + slot) * (int)_MeanGrid[snap].w * (int)_MeanGrid[snap].w + node) * 5 + k];
+}
+
+// One snapshot's mean at (x, z): bilinear between the four nodes about it (each a node's PlantAir.Mean), the nodes without
+// ground left out; the strip the nearest node's; a wake's scale weighted by its share.
+void MeanAt(int snap, int slot, float2 xz, inout Mean r, float weight)
+{
+    float4 g = _MeanGrid[snap];
+    int n = (int)g.w;
+    float2 uv = (xz - g.xy) / g.z;
+    uv = clamp(uv, 0, n - 1);
+    int2 i0 = min((int2)floor(uv), n - 2);
+    float2 f = uv - i0;
+    float total = 0, wakeWeight = 0, best = -1;
+    Mean s = (Mean)0;
+    [unroll] for (int c = 0; c < 4; c++)
+    {
+        int2 ij = i0 + int2(c & 1, c >> 1);
+        float w = ((c & 1) == 0 ? 1 - f.x : f.x) * ((c >> 1) == 0 ? 1 - f.y : f.y);
+        int node = ij.x + n * ij.y;
+        float4 f4 = MeanRaw(snap, slot, node, 4);
+        if (f4.w <= 0) continue;
+        float4 f0 = MeanRaw(snap, slot, node, 0), f1 = MeanRaw(snap, slot, node, 1);
+        float4 f2 = MeanRaw(snap, slot, node, 2), f3 = MeanRaw(snap, slot, node, 3);
+        total += w;
+        s.air += w * f0.xyz;
+        s.loadY += w * f0.w;
+        s.lean += w * f1.xy;
+        s.way += w * f1.zw;
+        s.xx += w * f2.x; s.xz += w * f2.y; s.zz += w * f2.z; s.yy += w * f2.w;
+        s.xy += w * f3.x; s.zy += w * f3.y; s.open += w * f3.z; s.stripShare += w * f3.w;
+        s.wake += w * f4.x;
+        s.wakeInverse += w * f4.x * f4.y;
+        wakeWeight += w * f4.x;
+        if (w > best) { best = w; s.strip = (int)f4.z; }
+    }
+    if (!(total > 0)) return;
+    float k = weight / total;
+    r.air += k * s.air; r.loadY += k * s.loadY; r.lean += k * s.lean; r.way += k * s.way;
+    r.xx += k * s.xx; r.xz += k * s.xz; r.zz += k * s.zz; r.yy += k * s.yy; r.xy += k * s.xy; r.zy += k * s.zy;
+    r.open += k * s.open; r.stripShare += k * s.stripShare; r.wake += k * s.wake;
+    r.wakeInverse += weight * (wakeWeight > 0 ? s.wakeInverse / wakeWeight : 0);
+    if (weight >= 0.5) r.strip = s.strip;
+    r.valid += weight;
+}
+
+// ---- the kernel ----
+
+[numthreads(8, 8, 1)]
+void Bend(uint3 id : SV_DispatchThreadID)
+{
+    if ((int)id.x >= _LevelSize || (int)id.y >= _LevelSize) return;
+    int band = _LevelBands[id.z];
+    Band m = _Bands[band];
+    float2 xz = _LevelOrigin + ((float2)id.xy + 0.5) * _LevelCell;
+
+    // The wash grid's bend and air at its node (PlantWash.Bend at the node's centre, which holds one only where its four nodes
+    // are in the window; the helper marks the others with their ground at -1e30).
+    float2 made = 0;
+    float3 washAir = 0;
+    float washGround = 0;
+    if (_Wash != 0)
+    {
+        int at = ((int)id.x + _LevelSize * (int)id.y) * _WashBands + band;
+        float4 bends = _WashNodes[at * 2], air = _WashNodes[at * 2 + 1];
+        if (air.w < -1e29)
+        {
+            _Out[id] = 0;
+            return;
+        }
+        made = bends.xy + (bends.zw - bends.xy) * _WashFraction;
+        washAir = air.xyz;
+        washGround = air.w;
+    }
+
+    int slot = _MeanSlot[band];
+    Mean mean = (Mean)0;
+    mean.strip = -1;
+    MeanAt(0, slot, xz, mean, 1 - _MeanBlend);
+    MeanAt(1, slot, xz, mean, _MeanBlend);
+    if (!(mean.valid > 0.5))
+    {
+        _Out[id] = 0;
+        return;
+    }
+    float inv = 1 / mean.valid;
+    mean.air *= inv; mean.loadY *= inv; mean.lean *= inv; mean.way *= inv;
+    mean.xx *= inv; mean.xz *= inv; mean.zz *= inv; mean.yy *= inv; mean.xy *= inv; mean.zy *= inv;
+    mean.open *= inv; mean.stripShare *= inv; mean.wake *= inv; mean.wakeInverse *= inv;
+    if (_Wash != 0) mean.loadY = washGround + m.elevation + m.loadPoint;
+
+    // The whole lean, and the air the gusts are linearised in (PlantAir.Linearise).
+    float2 b = mean.lean + made;
+    float phi = length(b);
+    float2 e = length(mean.way) > 0 ? normalize(mean.way) : float2(1, 0);
+    if (phi > 1e-9) e = b / phi;
+    phi = min(phi, HALF_PI);
+    float3 air = mean.air + washAir;
+    float u = air.x * e.x + air.z * e.y, w = air.y;
+    float alongVar = e.x * e.x * mean.xx + 2 * e.x * e.y * mean.xz + e.y * e.y * mean.zz;
+    float cross = e.x * mean.xy + e.y * mean.zy;
+    float s, c;
+    sincos(phi, s, c);
+    float k = m.stiffness, ratio = abs(phi) > 1e-6 ? s / phi : 1 - phi * phi / 6;
+    const float h = 1e-4;
+    float ka = k - m.weight * c - (Moment(m, u, w, alongVar, mean.yy, cross, phi + h) - Moment(m, u, w, alongVar, mean.yy, cross, phi - h)) / (2 * h);
+    float kp = k - m.weight * ratio;
+    ka = max(ka, 0.01 * k);
+    kp = max(kp, 0.01 * k);
+    float mu, sigma, drag, slopeAlong, slopeAcross;
+    Normal(u, w, alongVar, mean.yy, cross, phi, mu, sigma);
+    Expect(m, mu, sigma, drag, slopeAlong, slopeAcross);
+    float s0 = m.dragFrom, s1 = m.dragTo, a2 = 0.5 * (s1 * s1 - s0 * s0), a3 = (s1 * s1 * s1 - s0 * s0 * s0) / 3;
+    float3 nAlong = float3(c * e.x, -s, c * e.y);
+    float2 nAcross = float2(-e.y, e.x);
+    float gainAlong = a2 * slopeAlong, gainAcross = a2 * ratio * slopeAcross;
+    float dampAlong = m.damping + a3 * slopeAlong, dampAcross = m.damping + a3 * ratio * ratio * slopeAcross;
+
+    // Each mode's steady response (PlantAir.Response), summed.
+    float3 p = float3(xz.x, mean.loadY, xz.y) - _Origin;
+    float along = 0, acrossSum = 0;
+    float inertia = m.inertia;
+    if (mean.open > 0)
+    {
+        int ab = band * _OpenCount;
+        for (int i = 0; i < _OpenCount; i++)
+        {
+            float4 wave = _OpenWave[i];
+            float3 amp = _OpenAmp[ab + i].xyz * mean.open;
+            float rate = _OpenRate[i];
+            float sn, cs;
+            sincos(dot(wave.xyz, p) + wave.w, sn, cs);
+            float i2 = inertia * rate * rate;
+            float pa = ka - i2, ca = dampAlong * rate, na = pa * pa + ca * ca;
+            float pp = kp - i2, cp = dampAcross * rate, np = pp * pp + cp * cp;
+            float fa = gainAlong * dot(amp, nAlong), fp = gainAcross * (amp.x * nAcross.x + amp.z * nAcross.y);
+            if (na > 0) along += fa / na * (pa * cs - ca * sn);
+            if (np > 0) acrossSum += fp / np * (pp * cs - cp * sn);
+        }
+    }
+    if (mean.strip >= 0 && mean.stripShare > 0)
+    {
+        int sb = mean.strip * _StripModes;
+        for (int i = 0; i < _StripModes; i++)
+        {
+            float4 wave = _StripWave[sb + i], a4 = _StripAmp[sb + i];
+            float3 amp = a4.xyz * mean.stripShare;
+            float rate = a4.w;
+            float sn, cs;
+            sincos(dot(wave.xyz, p) + wave.w, sn, cs);
+            float i2 = inertia * rate * rate;
+            float pa = ka - i2, ca = dampAlong * rate, na = pa * pa + ca * ca;
+            float pp = kp - i2, cp = dampAcross * rate, np = pp * pp + cp * cp;
+            float fa = gainAlong * dot(amp, nAlong), fp = gainAcross * (amp.x * nAcross.x + amp.z * nAcross.y);
+            if (na > 0) along += fa / na * (pa * cs - ca * sn);
+            if (np > 0) acrossSum += fp / np * (pp * cs - cp * sn);
+        }
+    }
+    if (mean.wake > 0)
+    {
+        for (int i = 0; i < _WakeCount; i++)
+        {
+            float4 dir = _WakeWave[i], a4 = _WakeAmp[i];
+            float2 frame = _WakeFrame[i];
+            float scale = dir.w * mean.wakeInverse;
+            float3 amp = a4.xyz * mean.wake;
+            float rate = frame.y * scale;
+            float sn, cs;
+            sincos((dot(dir.xyz, p) + frame.x) * scale + a4.w, sn, cs);
+            float i2 = inertia * rate * rate;
+            float pa = ka - i2, ca = dampAlong * rate, na = pa * pa + ca * ca;
+            float pp = kp - i2, cp = dampAcross * rate, np = pp * pp + cp * cp;
+            float fa = gainAlong * dot(amp, nAlong), fp = gainAcross * (amp.x * nAcross.x + amp.z * nAcross.y);
+            if (na > 0) along += fa / na * (pa * cs - ca * sn);
+            if (np > 0) acrossSum += fp / np * (pp * cs - cp * sn);
+        }
+    }
+
+    float a = phi + along;
+    float2 bend = float2(a * e.x - acrossSum * e.y, a * e.y + acrossSum * e.x);
+    float total = length(bend);
+    if (total > HALF_PI) bend *= HALF_PI / total; // no plant bends through the ground
+    _Out[id] = float4(bend, 1, 0);
+}
