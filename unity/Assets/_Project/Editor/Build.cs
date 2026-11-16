@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
 
@@ -84,12 +85,25 @@ namespace Fpv450
             string product = PlayerSettings.productName;
             FullScreenMode mode = PlayerSettings.fullScreenMode;
             bool native = PlayerSettings.defaultIsNativeResolution;
+            ScriptingImplementation backend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone);
+            ManagedStrippingLevel stripping = PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone);
             bool built;
             try
             {
                 PlayerSettings.productName = productName;
                 PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;
                 PlayerSettings.defaultIsNativeResolution = true;
+                if (Il2cpp)
+                {
+                    PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, ScriptingImplementation.IL2CPP);
+                    PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Minimal);
+                }
+                Debug.Log($"[Build] {name}: {PlayerSettings.GetScriptingBackend(NamedBuildTarget.Standalone)}, managed stripping " +
+                          $"{PlayerSettings.GetManagedStrippingLevel(NamedBuildTarget.Standalone)}" + (Il2cpp
+                              ? $", IL2CPP {PlayerSettings.GetIl2CppCompilerConfiguration(NamedBuildTarget.Standalone)} configuration, " +
+                                $"{PlayerSettings.GetIl2CppCodeGeneration(NamedBuildTarget.Standalone)} code generation, " +
+                                $"extra arguments '{PlayerSettings.GetAdditionalIl2CppArgs()}'"
+                              : ""));
                 built = Player(name, scenes, path) && (!data || CopyData(path));
             }
             finally
@@ -97,6 +111,8 @@ namespace Fpv450
                 PlayerSettings.productName = product;
                 PlayerSettings.fullScreenMode = mode;
                 PlayerSettings.defaultIsNativeResolution = native;
+                PlayerSettings.SetScriptingBackend(NamedBuildTarget.Standalone, backend);
+                PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, stripping);
             }
             if (!built)
                 EditorApplication.Exit(1);
@@ -106,8 +122,24 @@ namespace Fpv450
         /// feed's <c>-feedcost</c>), in its own folder: the release folder's name with "-Development".
         static readonly bool Development = Array.IndexOf(Environment.GetCommandLineArgs(), "-developmentBuild") >= 0;
 
+        /// <summary>
+        /// <c>-il2cpp</c> builds the player on IL2CPP instead of Mono, still the default (the IL2CPP trial: the player's Mono
+        /// ran the sim core 3 to 5 times slower than .NET, PLT-02, PLT-04), in its own folder: the release folder's name
+        /// with "-IL2CPP" (before any "-Development"), so neither backend's files are left in the other's. The backend is
+        /// set for this build only and put back after, as the product name is. Its managed stripping is Minimal, IL2CPP's
+        /// least (Mono's Disabled is not offered on IL2CPP): only the class libraries and UnityEngine are stripped, never
+        /// the project's assemblies, so their reflection (FcSettings' fields, the farmland's grass culler) finds what it
+        /// reads. The C++ compiles at IL2CPP's own MSVC flags, which the sim's determinism needs nothing added to: no
+        /// <c>/fp:</c> option, so MSVC's default /fp:precise (which contracts nothing since VS 2022), and no <c>/arch:</c>,
+        /// so SSE2 code. The trial's GameAssembly.dll has fused multiply-adds only in the static C runtime's sin, exp, pow
+        /// and kin (their FMA3 paths), which the sim core never calls (DetMath), and its flights replay on .NET bit for bit.
+        /// </summary>
+        static readonly bool Il2cpp = Array.IndexOf(Environment.GetCommandLineArgs(), "-il2cpp") >= 0;
+
         static string Located(string path) =>
-            Development ? Path.Combine(Path.GetDirectoryName(path) + "-Development", Path.GetFileName(path)) : path;
+            Il2cpp || Development
+                ? Path.Combine(Path.GetDirectoryName(path) + (Il2cpp ? "-IL2CPP" : "") + (Development ? "-Development" : ""), Path.GetFileName(path))
+                : path;
 
         static bool Player(string name, string[] scenes, string path)
         {
