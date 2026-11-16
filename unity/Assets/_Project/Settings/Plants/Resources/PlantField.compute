@@ -16,14 +16,16 @@ struct Band
     float stiffness, inertia, weight, damping;
     float stemDrag, foliageDrag, reconfigure, vogel;
     float dragFrom, dragTo, loadPoint, elevation;
+    float wakeFactor; // the wake eddies' share over sqrt(T² - 1) at the load height, outside a strip (σ_u times the profile's taper)
 };
 StructuredBuffer<Band> _Bands;
 
-// The level: its texels' world origin (x, z of texel 0's corner), its cell (m) and size; the bands it holds (global band ids).
+// The level: its texels' world origin (x, z of texel 0's corner), its cell (m) and size; the bands this dispatch computes, each
+// with its slice in the level (global band id, slice).
 float2 _LevelOrigin;
 float _LevelCell;
 int _LevelSize;
-StructuredBuffer<int> _LevelBands;
+StructuredBuffer<int2> _DispatchBands;
 RWTexture2DArray<float4> _Out; // x, z: the bend (rad, world); z: 1 where the texel holds a bend
 
 // The modes at the frame. Their phase at a point p is κ·(p - O) + Φ, O the frame's origin (_Origin), Φ the CPU's reduced phase.
@@ -44,6 +46,14 @@ float4 _MeanGrid[2];   // per snapshot: origin x, z (node 0's centre), spacing, 
 int _MeanSlots;        // the grid's slots (bands) per snapshot
 StructuredBuffer<int> _MeanSlot; // [global band]: the band's slot on this grid, -1 none
 float _MeanBlend;      // 0: snapshot 0, 1: snapshot 1
+
+// The wake grid's cells' obstacle heights at each slot's load height, a window of _WakeN² cells per snapshot and slot
+// ([snapshot][slot][cell]); _WakeGrid per snapshot: the wake grid's origin x, z and the window's first cell (i, j). Where they are
+// read the wake eddies take their scale from them as WakeGrid.Sample does (the most of the four cells about the point); elsewhere
+// from the nearest node.
+int _WakeCellsOn, _WakeN;
+StructuredBuffer<float2> _WakeCells; // the obstacle height, the turbulence
+float4 _WakeGrid[2];
 
 // The wash grid (PlantWash) this level is: its nodes are the texels. [node][band][2] float4s: (was x, z, now x, z), (wash air
 // at the band's load point xyz, the node's ground); a node outside the window has its ground at -1e30.
@@ -157,7 +167,7 @@ void MeanAt(int snap, int slot, float2 xz, inout Mean r, float weight)
     uv = clamp(uv, 0, n - 1);
     int2 i0 = min((int2)floor(uv), n - 2);
     float2 f = uv - i0;
-    float total = 0, wakeWeight = 0, best = -1;
+    float total = 0, best = -1;
     Mean s = (Mean)0;
     [unroll] for (int c = 0; c < 4; c++)
     {
@@ -176,18 +186,35 @@ void MeanAt(int snap, int slot, float2 xz, inout Mean r, float weight)
         s.xx += w * f2.x; s.xz += w * f2.y; s.zz += w * f2.z; s.yy += w * f2.w;
         s.xy += w * f3.x; s.zy += w * f3.y; s.open += w * f3.z; s.stripShare += w * f3.w;
         s.wake += w * f4.x;
-        s.wakeInverse += w * f4.x * f4.y;
-        wakeWeight += w * f4.x;
-        if (w > best) { best = w; s.strip = (int)f4.z; }
+        if (w > best) { best = w; s.strip = (int)f4.z; s.wakeInverse = f4.y; }
     }
     if (!(total > 0)) return;
     float k = weight / total;
     r.air += k * s.air; r.loadY += k * s.loadY; r.lean += k * s.lean; r.way += k * s.way;
     r.xx += k * s.xx; r.xz += k * s.xz; r.zz += k * s.zz; r.yy += k * s.yy; r.xy += k * s.xy; r.zy += k * s.zy;
     r.open += k * s.open; r.stripShare += k * s.stripShare; r.wake += k * s.wake;
-    r.wakeInverse += weight * (wakeWeight > 0 ? s.wakeInverse / wakeWeight : 0);
-    if (weight >= 0.5) r.strip = s.strip;
+    if (weight >= 0.5) { r.strip = s.strip; r.wakeInverse = s.wakeInverse; }
     r.valid += weight;
+}
+
+// The wake at a point from the wake grid's cells, as WakeGrid.Sample reads them: the obstacle height the most of the four nearest
+// cells', the turbulence bilinear between them; false where the snapshot's window does not hold them.
+bool WakeAt(int snap, int slot, float2 xz, out float height, out float turbulence)
+{
+    float4 g = _WakeGrid[snap];
+    float2 f = (xz - g.xy) / 2.0 - 0.5;
+    int2 i = (int2)floor(f);
+    float2 t = f - i;
+    int2 c = i - (int2)g.zw;
+    height = 0;
+    turbulence = 1;
+    if (any(c < 0) || any(c + 1 >= _WakeN)) return false;
+    int base = (snap * _MeanSlots + slot) * _WakeN * _WakeN;
+    float2 c00 = _WakeCells[base + c.y * _WakeN + c.x], c10 = _WakeCells[base + c.y * _WakeN + c.x + 1];
+    float2 c01 = _WakeCells[base + (c.y + 1) * _WakeN + c.x], c11 = _WakeCells[base + (c.y + 1) * _WakeN + c.x + 1];
+    height = max(max(c00.x, c10.x), max(c01.x, c11.x));
+    turbulence = (1 - t.x) * (1 - t.y) * c00.y + t.x * (1 - t.y) * c10.y + (1 - t.x) * t.y * c01.y + t.x * t.y * c11.y;
+    return true;
 }
 
 // ---- the kernel ----
@@ -196,7 +223,8 @@ void MeanAt(int snap, int slot, float2 xz, inout Mean r, float weight)
 void Bend(uint3 id : SV_DispatchThreadID)
 {
     if ((int)id.x >= _LevelSize || (int)id.y >= _LevelSize) return;
-    int band = _LevelBands[id.z];
+    int band = _DispatchBands[id.z].x;
+    uint3 at3 = uint3(id.xy, _DispatchBands[id.z].y);
     Band m = _Bands[band];
     float2 xz = _LevelOrigin + ((float2)id.xy + 0.5) * _LevelCell;
 
@@ -211,7 +239,7 @@ void Bend(uint3 id : SV_DispatchThreadID)
         float4 bends = _WashNodes[at * 2], air = _WashNodes[at * 2 + 1];
         if (air.w < -1e29)
         {
-            _Out[id] = 0;
+            _Out[at3] = 0;
             return;
         }
         made = bends.xy + (bends.zw - bends.xy) * _WashFraction;
@@ -226,14 +254,23 @@ void Bend(uint3 id : SV_DispatchThreadID)
     MeanAt(1, slot, xz, mean, _MeanBlend);
     if (!(mean.valid > 0.5))
     {
-        _Out[id] = 0;
+        _Out[at3] = 0;
         return;
     }
     float inv = 1 / mean.valid;
     mean.air *= inv; mean.loadY *= inv; mean.lean *= inv; mean.way *= inv;
     mean.xx *= inv; mean.xz *= inv; mean.zz *= inv; mean.yy *= inv; mean.xy *= inv; mean.zy *= inv;
-    mean.open *= inv; mean.stripShare *= inv; mean.wake *= inv; mean.wakeInverse *= inv;
+    mean.open *= inv; mean.stripShare *= inv; mean.wake *= inv;
     if (_Wash != 0) mean.loadY = washGround + m.elevation + m.loadPoint;
+    // The wake eddies where the wake grid's cells are read: their share and scale at the point itself (WindField.PlantOpen's,
+    // outside a strip); elsewhere the mean's.
+    float wakeHeight, turbulence;
+    if (_WakeCellsOn != 0 && !(mean.stripShare > 0) && WakeAt(_MeanBlend < 0.5 ? 0 : 1, slot, xz, wakeHeight, turbulence))
+    {
+        float t2 = turbulence * turbulence - 1;
+        mean.wake = t2 > 0 && wakeHeight > 0 ? sqrt(t2) * m.wakeFactor : 0;
+        mean.wakeInverse = wakeHeight > 0 ? 1 / wakeHeight : 0;
+    }
 
     // The whole lean, and the air the gusts are linearised in (PlantAir.Linearise).
     float2 b = mean.lean + made;
@@ -248,7 +285,7 @@ void Bend(uint3 id : SV_DispatchThreadID)
     float s, c;
     sincos(phi, s, c);
     float k = m.stiffness, ratio = abs(phi) > 1e-6 ? s / phi : 1 - phi * phi / 6;
-    const float h = 1e-4;
+    const float h = 1e-3; // PlantAir's 1e-4 in double; in float its difference loses digits, the truncation at 1e-3 is ~1e-6 of it
     float ka = k - m.weight * c - (Moment(m, u, w, alongVar, mean.yy, cross, phi + h) - Moment(m, u, w, alongVar, mean.yy, cross, phi - h)) / (2 * h);
     float kp = k - m.weight * ratio;
     ka = max(ka, 0.01 * k);
@@ -326,5 +363,5 @@ void Bend(uint3 id : SV_DispatchThreadID)
     float2 bend = float2(a * e.x - acrossSum * e.y, a * e.y + acrossSum * e.x);
     float total = length(bend);
     if (total > HALF_PI) bend *= HALF_PI / total; // no plant bends through the ground
-    _Out[id] = float4(bend, 1, 0);
+    _Out[at3] = float4(bend, 1, 0);
 }

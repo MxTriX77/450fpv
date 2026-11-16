@@ -65,7 +65,7 @@ namespace Fpv450.App
             if (camera == null || !camera.enabled) return; // a held field: nothing is drawn this frame
             bool drawing = _field.Draw(_flight.DrawnStep * FlightCore.Dt, eye.position);
             if (drawing && !_drawing)
-                Debug.Log($"[Plants] the plants move in the flight's air: the wind's mean in {_field.MeanSnapshotMs:0} ms a snapshot, the wash in {_field.WashTickMs:0.0} ms a tick");
+                Debug.Log($"[Plants] the plants move in the flight's air: the wind's mean {_field.MeanMsPerSecond:0} ms a second of flight, the wash in {_field.WashTickMs:0.0} ms a tick");
             _drawing = drawing;
         }
 

@@ -15,9 +15,11 @@ namespace Fpv450.App
     /// The plants' bend field (w16-plants-in-the-air 1.3, design.md §7.1): each drawn frame, at the frame's flight time, every band's
     /// bend in the flight's air on five levels round the camera and the drone, which the plants' shaders read (PlantBend.hlsl).
     /// - **The wind** (PlantAir, 1.2's closed form): its mean at a plant (PlantAir.Mean: the mean air at the load point, the
-    ///   fluctuation's covariance, the mean lean) on two coarse grids on a helper thread, for flight times a second apart and ahead
-    ///   of the frame; the GPU interpolates them in space and time and sums the modes per texel (PlantField.compute), at the
-    ///   frame's time, statelessly: the gusts reach each plant when the field brings them there.
+    ///   fluctuation's covariance, the mean lean) on three coarse grids on a helper thread, for flight times ahead of the frame;
+    ///   the GPU interpolates them in space and time and sums the modes per texel (PlantField.compute), at the frame's time,
+    ///   statelessly: the gusts reach each plant when the field brings them there. The wake eddies' scale is the wake grid's own
+    ///   obstacle height at each texel near the camera (their phase is anchored at the world's origin, so an interpolated height
+    ///   would scramble it).
     /// - **The wash** (PlantWash, 1.2's grids): a fine (32 × 5 cm) and a coarse (32 × 15 cm) grid round the drone for the grass
     ///   bands, ticked from the published poses on a second helper thread; each tick's stands go to the GPU, whose texels are the
     ///   nodes, and the gusts are linearised about the wash's bend in the wash's air (PlantAir.Sample's arithmetic).
@@ -40,20 +42,50 @@ namespace Fpv450.App
             Range(PlantBands.Branch, PlantBands.Count),
         };
 
-        /// <summary>The wind's mean grids: A for the wash, near and mid levels (32 × 8 m), B for the far level (24 × 32 m); the
-        /// snapshots a second of flight time apart, computed up to 1.5 s ahead of the frame (numerical: the mean air at a plant
-        /// moves with the direction's meander, whose time constant is 120 s, and the mean is smooth over metres, design.md §7.1).</summary>
-        const int GridASize = 32, GridBSize = 24;
-        const double GridASpacing = 8, GridBSpacing = 32, SnapshotStep = 1, Lead = 1.5;
+        /// <summary>
+        /// The wind's mean grids (numerical): the grass's near the camera (32 × 2 m, a snapshot every 2 s of flight time; the
+        /// tallest culms barely stand, W/k up to 0.93, so their lean follows a wake's mean within metres) and out to the mid
+        /// level (32 × 8 m, every 4 s), the crowns' twigs and branches (26 × 8 m, every 2 s) and the far level's whole plants and
+        /// branches (18 × 32 m, every 4 s), each over its levels and computed up to
+        /// Lead ahead of the frame and centred where the camera will be. The mean air at a plant moves with the direction's
+        /// meander (τ 120 s) and is smooth over metres (design.md §7.1); the wake eddies' scale, which is not, is read from the wake
+        /// grid's cells on the first two (WakeCells).
+        /// </summary>
+        public static readonly (int Size, double Spacing, double Step, int[] Bands, bool WakeCells)[] Grids =
+        {
+            (32, 2, 2, Range(0, PlantBands.Grass), true),
+            (32, 8, 4, Range(0, PlantBands.Grass), true),
+            (26, 8, 2, Range(PlantBands.TreeTwig, PlantBands.Branch + 1), true),
+            (18, 32, 4, Range(PlantBands.Branch, PlantBands.Count), false),
+        };
+
+        const double Lead = 1.5;
+
+        /// <summary>The dispatches each frame: a level, the grid its bands' means come from, and those bands.</summary>
+        public static readonly (int Level, int Grid, int[] Bands)[] Dispatches =
+        {
+            (0, 0, Range(0, PlantBands.Grass)), (1, 0, Range(0, PlantBands.Grass)),
+            (2, 0, Range(0, PlantBands.Grass)), (2, 2, Range(PlantBands.TreeTwig, PlantBands.Branch)),
+            (3, 1, Range(0, PlantBands.Grass)), (3, 2, Range(PlantBands.TreeTwig, PlantBands.Branch + 1)),
+            (4, 3, Range(PlantBands.Branch, PlantBands.Count)),
+        };
+
+        /// <summary>A band's mean grid on a level.</summary>
+        public static int GridOf(int level, int band)
+        {
+            foreach ((int l, int g, int[] bands) in Dispatches)
+                if (l == level && Array.IndexOf(bands, band) >= 0) return g;
+            return -1;
+        }
 
         public const int ThreadGroup = 8;
 
         readonly PlantMechanics[] _m;
         readonly PlantAir _frame, _meanAir;
+        readonly WindField _wind;
         readonly PlantWash _fine, _coarse;
         readonly PoseBuffer _poses;
         readonly IWorldQuery _world;
-        readonly Grid _gridA, _gridB;
         readonly Grid[] _grids;
         readonly Wash _washFine, _washCoarse;
 
@@ -70,14 +102,18 @@ namespace Fpv450.App
         readonly ComputeShader _cs;
         readonly int _kernel;
         readonly ComputeBuffer _noWash, _bandBuf, _openWave, _openRate, _openAmp, _stripWave, _stripAmp, _wakeWave, _wakeAmp, _wakeFrame;
-        readonly ComputeBuffer[] _levelBands = new ComputeBuffer[Levels];
+        readonly ComputeBuffer[] _dispatchBands = new ComputeBuffer[Dispatches.Length];
         readonly RenderTexture[] _out = new RenderTexture[Levels];
         readonly Vector4[] _boxes = new Vector4[Levels];
 
-        // The helpers.
+        // The helpers, and the camera they centre on.
         readonly Thread _meanThread, _washThread;
+        readonly bool _threads;
         volatile bool _stop;
-        long _nowBits, _cameraXBits, _cameraZBits;
+        long _nowBits, _cameraXBits, _cameraZBits, _velocityXBits, _velocityZBits;
+        long _washLast = -1;
+        double _lastT = double.NaN;
+        Vector3 _lastCamera, _velocity;
 
         /// <param name="threads">False: no helper threads; each Draw computes the snapshots its time needs and ticks the wash itself
         /// first (the EditMode suite's port check, frame by frame).</param>
@@ -86,6 +122,7 @@ namespace Fpv450.App
         {
             _threads = threads;
             _m = mechanics;
+            _wind = wind;
             _frame = new PlantAir(wind);
             _meanAir = new PlantAir(wind);
             _world = world;
@@ -95,9 +132,9 @@ namespace Fpv450.App
             _cs = shader;
             _kernel = shader.FindKernel("Bend");
 
-            _gridA = new Grid(GridASize, GridASpacing, Range(0, PlantBands.Branch + 1));
-            _gridB = new Grid(GridBSize, GridBSpacing, Range(PlantBands.Branch, PlantBands.Count));
-            _grids = new[] { _gridA, _gridB };
+            _grids = new Grid[Grids.Length];
+            for (int g = 0; g < Grids.Length; g++)
+                _grids[g] = new Grid(Grids[g].Size, Grids[g].Spacing, Grids[g].Step, Grids[g].Bands, Grids[g].WakeCells && wind.Wakes != null);
             if (fine != null) _washFine = new Wash(fine, LevelSize[0], LevelCell[0]);
             if (coarse != null) _washCoarse = new Wash(coarse, LevelSize[1], LevelCell[1]);
 
@@ -134,14 +171,18 @@ namespace Fpv450.App
             }
 
             _noWash = new ComputeBuffer(1, 16);
-            _bandBuf = new ComputeBuffer(PlantBands.Count, 12 * sizeof(float));
-            var bands = new float[PlantBands.Count * 12];
+            _bandBuf = new ComputeBuffer(PlantBands.Count, 13 * sizeof(float));
+            var bands = new float[PlantBands.Count * 13];
             for (int b = 0; b < PlantBands.Count; b++)
             {
                 PlantMechanics m = mechanics[b];
+                // The wake eddies' share over √(T² − 1) at the band's load height, outside a strip: σ_u times the profile's taper
+                // there (WindField.PlantOpen's).
+                double h = PlantBands.Elevation(b) + m.LoadPoint, wake = wind.HasProfile && h - wind.Preset.Displacement > wind.Preset.Roughness
+                    ? wind.SigmaH * Math.Min(1, (h - wind.Preset.Displacement) / wind.Preset.TaperHeight) : 0;
                 double[] row = { m.Stiffness, m.Inertia, m.Weight, m.Damping, m.StemDrag, m.FoliageDrag, m.Reconfigure, m.Vogel,
-                    m.DragFrom, m.DragTo, m.LoadPoint, PlantBands.Elevation(b) };
-                for (int k = 0; k < 12; k++) bands[b * 12 + k] = (float)row[k];
+                    m.DragFrom, m.DragTo, m.LoadPoint, PlantBands.Elevation(b), Math.Max(0, wake) };
+                for (int k = 0; k < 13; k++) bands[b * 13 + k] = (float)row[k];
             }
             _bandBuf.SetData(bands);
             _openWave = new ComputeBuffer(_openWaveData.Length, 16);
@@ -155,10 +196,21 @@ namespace Fpv450.App
             _wakeAmp = new ComputeBuffer(_wakeAmpData.Length, 16);
             _wakeAmp.SetData(_wakeAmpData);
             _wakeFrame = new ComputeBuffer(_wakeFrameData.Length, 8);
+            for (int d = 0; d < Dispatches.Length; d++)
+            {
+                // Each dispatched band and its slice on its level.
+                (int level, _, int[] list) = Dispatches[d];
+                var pairs = new int[list.Length * 2];
+                for (int i = 0; i < list.Length; i++)
+                {
+                    pairs[2 * i] = list[i];
+                    pairs[2 * i + 1] = Array.IndexOf(LevelBands[level], list[i]);
+                }
+                _dispatchBands[d] = new ComputeBuffer(list.Length, 8);
+                _dispatchBands[d].SetData(pairs);
+            }
             for (int l = 0; l < Levels; l++)
             {
-                _levelBands[l] = new ComputeBuffer(LevelBands[l].Length, 4);
-                _levelBands[l].SetData(LevelBands[l]);
                 _out[l] = new RenderTexture(LevelSize[l], LevelSize[l], 0, RenderTextureFormat.ARGBFloat)
                 {
                     dimension = TextureDimension.Tex2DArray, volumeDepth = LevelBands[l].Length, enableRandomWrite = true,
@@ -174,16 +226,13 @@ namespace Fpv450.App
             if (_washFine != null || _washCoarse != null) _washThread.Start();
         }
 
-        readonly bool _threads;
-        long _washLast = -1;
-
         /// <summary>The level's bend texture (a texture array, a slice per band in LevelBands' order) and its box (texel 0's
         /// corner x, z, the cell, the size; size 0 while it holds nothing).</summary>
         public RenderTexture Level(int level) => _out[level];
         public Vector4 Box(int level) => _boxes[level];
 
-        /// <summary>The last frame's wind means: a grid's (0 the near ones', 1 the far level's) two snapshots' boxes (node 0's centre x,
-        /// z, the spacing, the size), their flight times and the blend between them; a wash level's fraction between its ticks.</summary>
+        /// <summary>The last frame's wind means: a grid's two snapshots' boxes (node 0's centre x, z, the spacing, the size), their
+        /// flight times and the blend between them; a wash level's fraction between its ticks and its window's first node.</summary>
         public Vector4 MeanBox(int grid, int snapshot) => _grids[grid].Boxes[snapshot];
         public double MeanTime(int grid, int snapshot) => _grids[grid].Times[snapshot];
         public float MeanBlend(int grid) => _blends[grid];
@@ -192,13 +241,25 @@ namespace Fpv450.App
         /// <summary>A wash level's window: its first node's world cell (x, z); its node (a, b) is at ((i + a + 0.5)·cell, (j + b + 0.5)·cell).</summary>
         public (long I, long J) WashStart(int level) => _starts[level];
 
-        readonly (long, long)[] _starts = new (long, long)[2];
+        /// <summary>Whether a grid reads the wake eddies' scale from the wake grid's cells, and that wake grid.</summary>
+        public bool WakeCells(int grid) => _grids[grid].Cells;
+        public WakeGrid WakeGridOf(int grid, int snapshot) => _grids[grid].WakeGrids[snapshot];
 
-        readonly float[] _blends = new float[2];
+        readonly (long, long)[] _starts = new (long, long)[2];
+        readonly float[] _blends = new float[4];
         readonly double[] _fractions = new double[2];
 
-        /// <summary>The CPU time the helpers spent on their last snapshot or tick, ms.</summary>
-        public double MeanSnapshotMs => _gridA.LastMs + _gridB.LastMs;
+        /// <summary>The helpers' CPU: the wind's mean, ms a second of flight (each grid's last snapshot over its step); a wash tick, ms.</summary>
+        public double MeanMsPerSecond
+        {
+            get
+            {
+                double ms = 0;
+                foreach (Grid g in _grids) ms += g.LastMs / g.Step;
+                return ms;
+            }
+        }
+
         public double WashTickMs => (_washFine?.LastMs ?? 0) + (_washCoarse?.LastMs ?? 0);
 
         /// <summary>
@@ -208,24 +269,31 @@ namespace Fpv450.App
         /// </summary>
         public bool Draw(double t, Vector3 camera)
         {
+            // The camera's velocity over flight time, smoothed, so the helper centres a snapshot where the camera will be.
+            if (!double.IsNaN(_lastT) && t > _lastT)
+                _velocity = Vector3.Lerp(_velocity, (camera - _lastCamera) / (float)(t - _lastT), 0.1f);
+            _lastT = t;
+            _lastCamera = camera;
             Interlocked.Exchange(ref _nowBits, BitConverter.DoubleToInt64Bits(t));
             Interlocked.Exchange(ref _cameraXBits, BitConverter.DoubleToInt64Bits(camera.x));
             Interlocked.Exchange(ref _cameraZBits, BitConverter.DoubleToInt64Bits(camera.z));
+            Interlocked.Exchange(ref _velocityXBits, BitConverter.DoubleToInt64Bits(_velocity.x));
+            Interlocked.Exchange(ref _velocityZBits, BitConverter.DoubleToInt64Bits(_velocity.z));
             if (!_threads)
             {
                 while (MeanStep()) { }
                 WashStep(ref _washLast);
             }
 
-            if (!_gridA.Pick(t, out Snapshot a0, out Snapshot a1, out float blendA) || !_gridB.Pick(t, out Snapshot b0, out Snapshot b1, out float blendB))
+            for (int g = 0; g < _grids.Length; g++)
             {
-                Unbind();
-                return false;
+                if (!_grids[g].Pick(t, out Snapshot s0, out Snapshot s1, out _blends[g]))
+                {
+                    Unbind();
+                    return false;
+                }
+                _grids[g].Upload(s0, s1);
             }
-            _gridA.Upload(a0, a1);
-            _gridB.Upload(b0, b1);
-            _blends[0] = blendA;
-            _blends[1] = blendB;
 
             // The frame's modes: each phase relative to an origin by the camera (κ·(p − O) + Φ, Φ reduced in double).
             _frame.Begin(t);
@@ -274,36 +342,37 @@ namespace Fpv450.App
             Bind("_WakeAmp", _wakeAmp);
             Bind("_WakeFrame", _wakeFrame);
 
-            // The wash levels: the newest tick's nodes, between its last two ticks (another level binds a stand-in: the kernel reads
-            // the wash only on a wash level).
-            Bind("_WashNodes", _noWash);
+            // The levels' boxes: the wash's from its newest tick (none before the first), the others round the camera with their
+            // texel centres on whole cells, so the mean grids' nodes (their spacing's half-cells) are texels.
+            var washes = new WashSnapshot[2];
             for (int l = 0; l < 2; l++)
             {
                 Wash w = l == 0 ? _washFine : _washCoarse;
-                WashSnapshot ws = w?.Take();
-                if (ws == null)
+                washes[l] = w?.Take();
+                if (washes[l] == null)
                 {
                     _boxes[l] = Vector4.zero;
                     continue;
                 }
-                double fraction = (t - (ws.Tick * FlightCore.Dt - ws.TickSeconds)) / ws.TickSeconds;
-                fraction = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
-                _fractions[l] = fraction;
-                _starts[l] = (ws.StartI, ws.StartJ);
-                _boxes[l] = new Vector4((float)(ws.StartI * LevelCell[l]), (float)(ws.StartJ * LevelCell[l]), (float)LevelCell[l], LevelSize[l]);
-                Bind("_WashNodes", w.Buffer);
-                _cs.SetFloat("_WashFraction", (float)fraction);
-                Dispatch(l, _gridA, blendA, true);
+                double fraction = (t - (washes[l].Tick * FlightCore.Dt - washes[l].TickSeconds)) / washes[l].TickSeconds;
+                _fractions[l] = fraction < 0 ? 0 : fraction > 1 ? 1 : fraction;
+                _starts[l] = (washes[l].StartI, washes[l].StartJ);
+                _boxes[l] = new Vector4((float)(washes[l].StartI * LevelCell[l]), (float)(washes[l].StartJ * LevelCell[l]), (float)LevelCell[l], LevelSize[l]);
             }
-            if (_washFine == null) Bind("_WashNodes", _bandBuf); // a buffer must be bound; the kernel reads it only on a wash level
             for (int l = 2; l < Levels; l++)
             {
-                // Texel centres on whole cells, so the mean grids' nodes (their spacing's half-cells) are texels.
-                double cell = LevelCell[l];
-                double half = LevelSize[l] / 2 + 0.5;
+                double cell = LevelCell[l], half = LevelSize[l] / 2 + 0.5;
                 _boxes[l] = new Vector4((float)((Math.Floor(camera.x / cell) - half) * cell), (float)((Math.Floor(camera.z / cell) - half) * cell),
                     (float)cell, LevelSize[l]);
-                Dispatch(l, l < 4 ? _gridA : _gridB, l < 4 ? blendA : blendB, false);
+            }
+            for (int i = 0; i < Dispatches.Length; i++)
+            {
+                (int level, int grid, int[] list) = Dispatches[i];
+                if (_boxes[level].w <= 0) continue;
+                bool wash = level < 2;
+                Bind("_WashNodes", wash ? (level == 0 ? _washFine : _washCoarse).Buffer : _noWash);
+                _cs.SetFloat("_WashFraction", wash ? (float)_fractions[level] : 0);
+                Dispatch(level, _grids[grid], _blends[grid], wash, _dispatchBands[i], list.Length);
             }
             for (int l = 0; l < Levels; l++) Shader.SetGlobalTexture(LevelIds[l], _out[l]);
             Shader.SetGlobalVectorArray(BoxId, _boxes);
@@ -329,21 +398,25 @@ namespace Fpv450.App
             Shader.SetGlobalVectorArray(BoxId, new Vector4[Levels]);
         }
 
-        void Dispatch(int level, Grid grid, float blend, bool wash)
+        void Dispatch(int level, Grid grid, float blend, bool wash, ComputeBuffer bands, int count)
         {
             _cs.SetInt("_Wash", wash ? 1 : 0);
             _cs.SetVector("_LevelOrigin", new Vector4(_boxes[level].x, _boxes[level].y, 0, 0));
             _cs.SetFloat("_LevelCell", (float)LevelCell[level]);
             _cs.SetInt("_LevelSize", LevelSize[level]);
-            Bind("_LevelBands", _levelBands[level]);
+            Bind("_DispatchBands", bands);
             Bind("_Means", grid.Buffer);
             Bind("_MeanSlot", grid.SlotBuffer);
             _cs.SetInt("_MeanSlots", grid.Bands.Length);
             _cs.SetVectorArray("_MeanGrid", grid.Boxes);
             _cs.SetFloat("_MeanBlend", blend);
+            Bind("_WakeCells", grid.CellBuffer);
+            _cs.SetInt("_WakeCellsOn", grid.Cells ? 1 : 0);
+            _cs.SetInt("_WakeN", grid.CellCount);
+            _cs.SetVectorArray("_WakeGrid", grid.CellBoxes);
             _cs.SetTexture(_kernel, "_Out", _out[level]);
             int groups = (LevelSize[level] + ThreadGroup - 1) / ThreadGroup;
-            _cs.Dispatch(_kernel, groups, groups, LevelBands[level].Length);
+            _cs.Dispatch(_kernel, groups, groups, count);
         }
 
         void Bind(string name, ComputeBuffer buffer) => _cs.SetBuffer(_kernel, name, buffer);
@@ -351,35 +424,46 @@ namespace Fpv450.App
         // ---- the wind's mean, on the helper ----
 
         // One grid's snapshot: its flight time, node 0's centre, and per slot (band) and node PlantField.compute's five float4s:
-        // (air, load y), (lean·way, way), (xx, xz, zz, yy), (xy, zy, open, strip share), (wake, 1/H, strip, valid).
+        // (air, load y), (lean·way, way), (xx, xz, zz, yy), (xy, zy, open, strip share), (wake, 1/H, strip, valid); and, on a grid
+        // that reads them, the wake grid's cells' obstacle heights at each slot's load height over a window of cells.
         sealed class Snapshot
         {
             public long K = -1;
             public double X0, Z0;
-            public float[] Data;
+            public float[] Data, Cells;
+            public long CellI0, CellJ0;
+            public WakeGrid Wake;
             public volatile bool Ready;
         }
 
         sealed class Grid
         {
-            public readonly int Size;
-            public readonly double Spacing;
+            public readonly int Size, CellCount;
+            public readonly double Spacing, Step;
             public readonly int[] Bands;
+            public readonly bool Cells;
             public readonly Snapshot[] Ring = new Snapshot[4];
-            public readonly ComputeBuffer Buffer, SlotBuffer;
-            public readonly Vector4[] Boxes = new Vector4[2];
+            public readonly ComputeBuffer Buffer, SlotBuffer, CellBuffer;
+            public readonly Vector4[] Boxes = new Vector4[2], CellBoxes = new Vector4[2];
             public readonly double[] Times = new double[2];
+            public readonly WakeGrid[] WakeGrids = new WakeGrid[2];
             public long NextK;
             public double LastMs;
             readonly long[] _uploaded = { -1, -1 };
 
-            public Grid(int size, double spacing, int[] bands)
+            public Grid(int size, double spacing, double step, int[] bands, bool cells)
             {
                 Size = size;
                 Spacing = spacing;
+                Step = step;
                 Bands = bands;
-                for (int i = 0; i < Ring.Length; i++) Ring[i] = new Snapshot { Data = new float[bands.Length * size * size * 20] };
+                Cells = cells;
+                // The cells under the grid's nodes and a node beyond each side (WakeObstacles.Cell: 2 m).
+                CellCount = cells ? (int)Math.Ceiling((size + 2) * spacing / WakeObstacles.Cell) + 2 : 1;
+                for (int i = 0; i < Ring.Length; i++)
+                    Ring[i] = new Snapshot { Data = new float[bands.Length * size * size * 20], Cells = new float[cells ? 2 * bands.Length * CellCount * CellCount : 2] };
                 Buffer = new ComputeBuffer(2 * bands.Length * size * size * 5, 16);
+                CellBuffer = new ComputeBuffer(Ring[0].Cells.Length, 8);
                 SlotBuffer = new ComputeBuffer(PlantBands.Count, 4);
                 var slots = new int[PlantBands.Count];
                 for (int b = 0; b < slots.Length; b++) slots[b] = Array.IndexOf(bands, b);
@@ -393,7 +477,7 @@ namespace Fpv450.App
                 a = b = null;
                 blend = 0;
                 foreach (Snapshot s in Ring)
-                    if (s.Ready && s.K * SnapshotStep <= t + 1e-9 && (a == null || s.K > a.K)) a = s;
+                    if (s.Ready && s.K * Step <= t + 1e-9 && (a == null || s.K > a.K)) a = s;
                 if (a == null)
                     foreach (Snapshot s in Ring)
                         if (s.Ready && (a == null || s.K < a.K)) a = s; // a frame before the first snapshot's time holds it
@@ -401,24 +485,41 @@ namespace Fpv450.App
                 foreach (Snapshot s in Ring)
                     if (s.Ready && s.K == a.K + 1) b = s;
                 if (b == null) b = a;
-                else blend = (float)Math.Min(1, Math.Max(0, (t - a.K * SnapshotStep) / SnapshotStep));
+                else blend = (float)Math.Min(1, Math.Max(0, (t - a.K * Step) / Step));
                 return true;
             }
 
             public void Upload(Snapshot a, Snapshot b)
             {
-                int n = Bands.Length * Size * Size * 5;
-                if (_uploaded[0] != a.K) { Buffer.SetData(a.Data, 0, 0, n * 4); _uploaded[0] = a.K; }
-                if (_uploaded[1] != b.K) { Buffer.SetData(b.Data, 0, n * 4, n * 4); _uploaded[1] = b.K; }
-                Boxes[0] = new Vector4((float)a.X0, (float)a.Z0, (float)Spacing, Size);
-                Boxes[1] = new Vector4((float)b.X0, (float)b.Z0, (float)Spacing, Size);
-                Times[0] = a.K * SnapshotStep;
-                Times[1] = b.K * SnapshotStep;
+                int n = Bands.Length * Size * Size * 5, c = a.Cells.Length;
+                if (_uploaded[0] != a.K)
+                {
+                    Buffer.SetData(a.Data, 0, 0, n * 4);
+                    CellBuffer.SetData(a.Cells, 0, 0, c);
+                    _uploaded[0] = a.K;
+                }
+                if (_uploaded[1] != b.K)
+                {
+                    Buffer.SetData(b.Data, 0, n * 4, n * 4);
+                    CellBuffer.SetData(b.Cells, 0, c, c);
+                    _uploaded[1] = b.K;
+                }
+                int k = 0;
+                foreach (Snapshot s in new[] { a, b })
+                {
+                    Boxes[k] = new Vector4((float)s.X0, (float)s.Z0, (float)Spacing, Size);
+                    Times[k] = s.K * Step;
+                    WakeGrids[k] = s.Wake;
+                    CellBoxes[k] = s.Wake != null
+                        ? new Vector4((float)s.Wake.Obstacles.OriginX, (float)s.Wake.Obstacles.OriginZ, s.CellI0, s.CellJ0)
+                        : new Vector4(0, 0, 0, -1);
+                    k++;
+                }
             }
         }
 
-        readonly XZ[] _meanXz = new XZ[GridASize];
-        readonly GroundSample[] _meanGround = new GroundSample[GridASize];
+        readonly XZ[] _meanXz = new XZ[64];
+        readonly GroundSample[] _meanGround = new GroundSample[64];
 
         // One snapshot that is due (the next of a grid from the frame's step to Lead ahead); false when none is.
         bool MeanStep()
@@ -426,10 +527,10 @@ namespace Fpv450.App
             double now = BitConverter.Int64BitsToDouble(Interlocked.Read(ref _nowBits));
             foreach (Grid g in _grids)
             {
-                long target = (long)Math.Floor((now + Lead) / SnapshotStep);
-                long k = Math.Max(g.NextK, (long)Math.Floor(now / SnapshotStep));
+                long target = (long)Math.Floor((now + Lead) / g.Step);
+                long k = Math.Max(g.NextK, (long)Math.Floor(now / g.Step));
                 if (k > target) continue;
-                Compute(g, k, _meanXz, _meanGround);
+                Compute(g, k, now);
                 g.NextK = k + 1;
                 return true;
             }
@@ -449,19 +550,22 @@ namespace Fpv450.App
             }
         }
 
-        // A snapshot of a grid at step k's time, centred on the camera now.
-        void Compute(Grid g, long k, XZ[] xz, GroundSample[] ground)
+        // A snapshot of a grid at step k's time, centred where the camera will be then (its velocity held, at most 3 s ahead).
+        void Compute(Grid g, long k, double now)
         {
             var clock = Stopwatch.StartNew();
             Snapshot s = g.Ring[k % g.Ring.Length];
             s.Ready = false;
-            double cx = BitConverter.Int64BitsToDouble(Interlocked.Read(ref _cameraXBits));
-            double cz = BitConverter.Int64BitsToDouble(Interlocked.Read(ref _cameraZBits));
+            double ahead = Math.Min(3, Math.Max(0, k * g.Step - now));
+            double cx = BitConverter.Int64BitsToDouble(Interlocked.Read(ref _cameraXBits)) + ahead * BitConverter.Int64BitsToDouble(Interlocked.Read(ref _velocityXBits));
+            double cz = BitConverter.Int64BitsToDouble(Interlocked.Read(ref _cameraZBits)) + ahead * BitConverter.Int64BitsToDouble(Interlocked.Read(ref _velocityZBits));
             long i0 = (long)Math.Floor(cx / g.Spacing) - g.Size / 2, j0 = (long)Math.Floor(cz / g.Spacing) - g.Size / 2;
             s.X0 = (i0 + 0.5) * g.Spacing;
             s.Z0 = (j0 + 0.5) * g.Spacing;
-            _meanAir.Begin(k * SnapshotStep);
+            _meanAir.Begin(k * g.Step);
             int nodes = g.Size * g.Size;
+            XZ[] xz = _meanXz;
+            GroundSample[] ground = _meanGround;
             for (int j = 0; j < g.Size; j++)
             {
                 for (int i = 0; i < g.Size; i++) xz[i] = new XZ(s.X0 + i * g.Spacing, s.Z0 + j * g.Spacing);
@@ -484,6 +588,31 @@ namespace Fpv450.App
                     }
                 }
             }
+            // The wake grid's cells under the grid at each slot's load height (WakeGrid.SampleCell: the obstacle height the wake
+            // eddies take their scale from, the cell's or its overlying wake's, and the turbulence), as WakeGrid.Sample reads them.
+            s.Wake = null;
+            if (g.Cells)
+            {
+                WakeGrid wake = _wind.Wakes.Active;
+                WakeObstacles o = wake.Obstacles;
+                s.CellI0 = (long)Math.Floor((s.X0 - g.Spacing - o.OriginX) / WakeObstacles.Cell) - 1;
+                s.CellJ0 = (long)Math.Floor((s.Z0 - g.Spacing - o.OriginZ) / WakeObstacles.Cell) - 1;
+                int n = g.CellCount;
+                for (int slot = 0; slot < g.Bands.Length; slot++)
+                {
+                    int band = g.Bands[slot];
+                    double height = PlantBands.Elevation(band) + _m[band].LoadPoint;
+                    for (int cj = 0; cj < n; cj++)
+                        for (int ci = 0; ci < n; ci++)
+                        {
+                            wake.SampleCell((int)(s.CellI0 + ci), (int)(s.CellJ0 + cj), height, out WakeSample cell);
+                            int at = ((slot * n + cj) * n + ci) * 2;
+                            s.Cells[at] = (float)cell.ObstacleHeight;
+                            s.Cells[at + 1] = (float)cell.Turbulence;
+                        }
+                }
+                s.Wake = wake;
+            }
             s.K = k;
             s.Ready = true;
             g.LastMs = clock.Elapsed.TotalMilliseconds;
@@ -492,15 +621,26 @@ namespace Fpv450.App
         /// <summary>A mean as PlantField.compute reads it (five float4s).</summary>
         public static void Pack(float[] data, int at, in PlantMean m, int strip)
         {
-            float[] v =
-            {
-                (float)m.Air.X, (float)m.Air.Y, (float)m.Air.Z, (float)m.LoadY,
-                (float)(m.Lean * m.WayX), (float)(m.Lean * m.WayZ), (float)m.WayX, (float)m.WayZ,
-                (float)m.XX, (float)m.XZ, (float)m.ZZ, (float)m.YY,
-                (float)m.XY, (float)m.ZY, (float)m.Open, (float)m.StripShare,
-                (float)m.Wake, (float)m.WakeInverse, strip, 1,
-            };
-            Array.Copy(v, 0, data, at, 20);
+            data[at] = (float)m.Air.X;
+            data[at + 1] = (float)m.Air.Y;
+            data[at + 2] = (float)m.Air.Z;
+            data[at + 3] = (float)m.LoadY;
+            data[at + 4] = (float)(m.Lean * m.WayX);
+            data[at + 5] = (float)(m.Lean * m.WayZ);
+            data[at + 6] = (float)m.WayX;
+            data[at + 7] = (float)m.WayZ;
+            data[at + 8] = (float)m.XX;
+            data[at + 9] = (float)m.XZ;
+            data[at + 10] = (float)m.ZZ;
+            data[at + 11] = (float)m.YY;
+            data[at + 12] = (float)m.XY;
+            data[at + 13] = (float)m.ZY;
+            data[at + 14] = (float)m.Open;
+            data[at + 15] = (float)m.StripShare;
+            data[at + 16] = (float)m.Wake;
+            data[at + 17] = (float)m.WakeInverse;
+            data[at + 18] = strip;
+            data[at + 19] = 1;
         }
 
         // ---- the wash, on its helper ----
@@ -652,9 +792,15 @@ namespace Fpv450.App
             if (_washThread.IsAlive) _washThread.Join();
             Unbind();
             foreach (ComputeBuffer b in new[] { _noWash, _bandBuf, _openWave, _openRate, _openAmp, _stripWave, _stripAmp, _wakeWave, _wakeAmp, _wakeFrame,
-                _gridA.Buffer, _gridA.SlotBuffer, _gridB.Buffer, _gridB.SlotBuffer, _washFine?.Buffer, _washCoarse?.Buffer })
+                _washFine?.Buffer, _washCoarse?.Buffer })
                 b?.Release();
-            foreach (ComputeBuffer b in _levelBands) b?.Release();
+            foreach (Grid g in _grids)
+            {
+                g.Buffer.Release();
+                g.SlotBuffer.Release();
+                g.CellBuffer.Release();
+            }
+            foreach (ComputeBuffer b in _dispatchBands) b?.Release();
             foreach (RenderTexture rt in _out)
                 if (rt != null) rt.Release();
         }
