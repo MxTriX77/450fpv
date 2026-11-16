@@ -52,13 +52,10 @@ float _MeanBlend;      // 0: snapshot 0, 1: snapshot 1
 // read the wake eddies take their scale from them as WakeGrid.Sample does (the most of the four cells about the point); elsewhere
 // from the nearest node.
 // The wash's steady air where no wash grid holds the plant (PlantAir.Sample's: the line's law at the load point), on a polar grid
-// round the drone at each of the first STEADY_BANDS bands' load height ([band][ring][angle]; PlantField.Steady's).
-#define STEADY_BANDS 12
-#define STEADY_RINGS 28
-#define STEADY_ANGLES 32
-#define STEADY_R0 0.25
-#define STEADY_GROWTH 1.2
-int _SteadyOn;
+// round the drone at each of the first _SteadyBands bands' load height ([band][ring][angle]; PlantField.Steady's): its rings from
+// _SteadyGrid.x m, each _SteadyGrid.y times the last, _SteadyGrid.z of them, _SteadyGrid.w angles.
+int _SteadyOn, _SteadyBands;
+float4 _SteadyGrid;
 float2 _SteadyCentre;
 StructuredBuffer<float4> _Steady;
 
@@ -232,20 +229,21 @@ bool WakeAt(int snap, int slot, float2 xz, out float height, out float turbulenc
 bool SteadyAt(int band, float2 xz, out float3 air)
 {
     air = 0;
-    if (_SteadyOn == 0 || band >= STEADY_BANDS) return false;
+    if (_SteadyOn == 0 || band >= _SteadyBands) return false;
+    int rings = (int)_SteadyGrid.z, angles = (int)_SteadyGrid.w;
     float2 d = xz - _SteadyCentre;
     float r = length(d);
-    if (r > STEADY_R0 * pow(STEADY_GROWTH, STEADY_RINGS - 1)) return false;
-    float ring = log(max(r, STEADY_R0) / STEADY_R0) / log(STEADY_GROWTH);
-    float angle = atan2(d.y, d.x) / (2 * PI) * STEADY_ANGLES;
-    if (angle < 0) angle += STEADY_ANGLES;
-    int r0 = min((int)floor(ring), STEADY_RINGS - 2), a0 = min((int)floor(angle), STEADY_ANGLES - 1), a1 = a0 + 1 < STEADY_ANGLES ? a0 + 1 : 0;
+    if (r > _SteadyGrid.x * exp(log(_SteadyGrid.y) * (rings - 1))) return false;
+    float ring = log(max(r, _SteadyGrid.x) / _SteadyGrid.x) / log(_SteadyGrid.y);
+    float angle = atan2(d.y, d.x) / (2 * PI) * angles;
+    if (angle < 0) angle += angles;
+    int r0 = min((int)floor(ring), rings - 2), a0 = min((int)floor(angle), angles - 1), a1 = a0 + 1 < angles ? a0 + 1 : 0;
     float fr = ring - r0, fa = angle - floor(angle);
     [unroll] for (int c = 0; c < 4; c++)
     {
         int ri = r0 + (c >> 1), ai = (c & 1) == 0 ? a0 : a1;
         float w = ((c >> 1) == 0 ? 1 - fr : fr) * ((c & 1) == 0 ? 1 - fa : fa);
-        air += w * _Steady[(band * STEADY_RINGS + ri) * STEADY_ANGLES + ai].xyz;
+        air += w * _Steady[(band * rings + ri) * angles + ai].xyz;
     }
     return true;
 }
@@ -295,23 +293,30 @@ void Bend(uint3 id : SV_DispatchThreadID)
     float2 xz = _LevelOrigin + ((float2)id.xy + 0.5) * _LevelCell;
 
     // The wash grid's bend and air at its node (PlantWash.Bend at the node's centre, which holds one only where its four nodes
-    // are in the window; the helper marks the others with their ground at -1e30).
+    // are in the window; the helper marks the others with their ground at -1e30). The grids integrate each class's middle culm
+    // (PlantBands.Washed: bands 1, 4, 7); another culm at the node takes the wash's steady air (below), at the node's ground.
+    int washIndex = band == 1 ? 0 : band == 4 ? 1 : band == 7 ? 2 : -1;
     float2 made = 0;
     float3 washAir = 0;
     float washGround = 0;
     if (_Wash != 0)
     {
-        int at = ((int)id.x + _LevelSize * (int)id.y) * _WashBands + band;
-        float4 bends = _WashNodes[at * 2], air = _WashNodes[at * 2 + 1];
+        int node = ((int)id.x + _LevelSize * (int)id.y) * _WashBands;
+        float4 air = _WashNodes[(node + max(washIndex, 0)) * 2 + 1];
         if (air.w < -1e29)
         {
             _Out[at3] = 0;
             return;
         }
-        made = bends.xy + (bends.zw - bends.xy) * _WashFraction;
-        washAir = air.xyz;
         washGround = air.w;
+        if (washIndex >= 0)
+        {
+            float4 bends = _WashNodes[(node + washIndex) * 2];
+            made = bends.xy + (bends.zw - bends.xy) * _WashFraction;
+            washAir = air.xyz;
+        }
     }
+    bool gridded = _Wash != 0 && washIndex >= 0;
 
     int slot = _MeanSlot[band];
     Mean mean = (Mean)0;
@@ -341,7 +346,7 @@ void Bend(uint3 id : SV_DispatchThreadID)
     // Where no wash grid holds the plant, the wash's steady air at its load point joins the mean and the lean is settled again
     // in it (PlantAir.Sample's quasi-static path, PlantAir.Settle).
     float3 steady;
-    if (_Wash == 0 && SteadyAt(band, xz, steady) && length(steady) > (band < 9 ? 0.005 : 0.3))
+    if (!gridded && SteadyAt(band, xz, steady) && length(steady) > (band < 9 ? 0.005 : 0.3))
     {
         mean.air += steady;
         float horizontal = length(mean.air.xz);

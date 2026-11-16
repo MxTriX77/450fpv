@@ -21,6 +21,14 @@ namespace Fpv450.App
 
         public static readonly double[] GrassLength = { 0.5, 0.8, 1.3, 0.6, 1.0, 1.7, 0.6, 1.0, 1.7 };
 
+        /// <summary>The culms the wash grids integrate (PlantWash's bands, in this order): each class's middle one. The others take
+        /// the wash's steady air at their load point (PlantAir.Sample's path for a band no grid holds, design.md §4.5): a grid band
+        /// costs 1.2 ms a 32² tick (design.md §7.1), and nine of them at 25 Hz took the helpers past a core.</summary>
+        public static readonly int[] Washed = { 1, 4, 7 };
+
+        /// <summary>A band's index in the wash grids, −1 for a band they do not integrate.</summary>
+        public static int WashIndex(int band) => Array.IndexOf(Washed, band);
+
         static readonly PlantKind[] GrassKind = { PlantKind.GreenCulm, PlantKind.DryCulm, PlantKind.BurntCulm };
         static readonly CoverKind[] GrassCover = { CoverKind.GrassBlade, CoverKind.DryCulm, CoverKind.BurntCulm };
 

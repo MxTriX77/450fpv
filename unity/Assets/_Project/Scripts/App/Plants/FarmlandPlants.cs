@@ -86,8 +86,7 @@ namespace Fpv450.App
                 var motors = new Double3[4];
                 for (int i = 0; i < 4; i++) motors[i] = setup.Propulsion.Motors[i].Position;
                 double radius = setup.Propulsion.Props.Diameter / 2;
-                var grass = new PlantMechanics[PlantBands.Grass];
-                Array.Copy(bands, grass, grass.Length);
+                var grass = Array.ConvertAll(PlantBands.Washed, b => bands[b]);
                 Moisture moisture = SurfaceTable.MoistureOf(setup.Rain);
                 var washAir = new PlantAir(core.Wind);
                 fine = new PlantWash(table, radius, motors, core.World.Query, washAir, grass, surfaces, moisture,

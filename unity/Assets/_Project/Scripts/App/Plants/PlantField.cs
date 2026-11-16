@@ -21,8 +21,8 @@ namespace Fpv450.App
     ///   statelessly: the gusts reach each plant when the field brings them there. The wake eddies' scale is the wake grid's own
     ///   obstacle height at each texel near the camera (their phase is anchored at the world's origin, so an interpolated height
     ///   would scramble it).
-    /// - **The wash** (PlantWash, 1.2's grids): a fine (32 × 5 cm) and a coarse (32 × 15 cm) grid round the drone for the grass
-    ///   bands, ticked from the published poses on a second helper thread; each tick's stands go to the GPU, whose texels are the
+    /// - **The wash** (PlantWash, 1.2's grids): a fine (24 × 5 cm) and a coarse (32 × 15 cm) grid round the drone for the grass
+    ///   classes' middle culms, ticked from the published poses on a second helper thread; each tick's stands go to the GPU, whose texels are the
     ///   nodes, and the gusts are linearised about the wash's bend in the wash's air (PlantAir.Sample's arithmetic).
     /// - **The levels**, finest first: the two wash grids, near (96 × 0.5 m), mid (96 × 2 m) and far (64 × 8 m) round the camera.
     /// Nothing here touches the flight: the helpers read the flight's wind field (its immutable layers and its wake grid, as
@@ -32,8 +32,10 @@ namespace Fpv450.App
     {
         public const int Levels = 5;
 
-        /// <summary>The levels: texels a side and their cell, m (the wash grids': PlantWash's defaults, design.md §4.4).</summary>
-        public static readonly int[] LevelSize = { 32, 32, 96, 96, 64 };
+        /// <summary>The levels: texels a side and their cell, m. The wash grids': PlantWash's coarse default, and a fine one of 24 ×
+        /// 5 cm (design.md §4.4's 32–48 cut to 24 for the helper's CPU: the columns' footprints lie within 0.25 m of the centre, the
+        /// level's full weight within 0.35 m).</summary>
+        public static readonly int[] LevelSize = { 24, 32, 96, 96, 64 };
         public static readonly double[] LevelCell = { 0.05, 0.15, 0.5, 2, 8 };
 
         /// <summary>The bands each level holds, in its slices' order (PlantBend.hlsl's PlantBandLevels and slices).</summary>
@@ -44,20 +46,20 @@ namespace Fpv450.App
         };
 
         /// <summary>
-        /// The wind's mean grids (numerical): the grass's near the camera (32 × 2 m, a snapshot every 2 s of flight time; the
+        /// The wind's mean grids (numerical): the grass's near the camera (26 × 2 m, a snapshot every 4 s of flight time; the
         /// tallest culms barely stand, W/k up to 0.93, so their lean follows a wake's mean within metres) and out to the mid
-        /// level (32 × 8 m, every 4 s), the crowns' twigs and branches (26 × 8 m, every 2 s) and the far level's whole plants and
-        /// branches (18 × 32 m, every 4 s), each over its levels and computed up to
+        /// level (24 × 8 m, every 8 s), the crowns' twigs and branches (24 × 8 m, every 4 s) and the far level's whole plants and
+        /// branches (12 × 48 m, every 8 s): the helper's CPU in the player, each over its levels and computed up to
         /// Lead ahead of the frame and centred where the camera will be. The mean air at a plant moves with the direction's
         /// meander (τ 120 s) and is smooth over metres (design.md §7.1); the wake eddies' scale, which is not, is read from the wake
         /// grid's cells on the first two (WakeCells).
         /// </summary>
         public static readonly (int Size, double Spacing, double Step, int[] Bands, bool WakeCells)[] Grids =
         {
-            (32, 2, 2, Range(0, PlantBands.Grass), true),
-            (32, 8, 4, Range(0, PlantBands.Grass), true),
-            (26, 8, 2, Range(PlantBands.TreeTwig, PlantBands.Branch + 1), true),
-            (18, 32, 4, Range(PlantBands.Branch, PlantBands.Count), false),
+            (26, 2, 4, Range(0, PlantBands.Grass), true),
+            (24, 8, 8, Range(0, PlantBands.Grass), true),
+            (24, 8, 4, Range(PlantBands.TreeTwig, PlantBands.Branch + 1), true),
+            (12, 48, 8, Range(PlantBands.Branch, PlantBands.Count), false),
         };
 
         const double Lead = 1.5;
@@ -65,12 +67,12 @@ namespace Fpv450.App
         /// <summary>
         /// The wash's steady air where no wash grid holds a plant (PlantAir.Sample: the line's law at its load point, quasi-static,
         /// design.md §4.5): RotorAir.At on a polar grid round the drone each tick, at each of the first SteadyBands bands' load
-        /// height over the ground: SteadyRings rings from SteadyR0 m, each SteadyGrowth times the last (to 35 m), SteadyAngles
+        /// height over the ground: SteadyRings rings from SteadyR0 m, each SteadyGrowth times the last (to 33 m), SteadyAngles
         /// angles (numerical). A plant takes it where it passes SteadyMin (m/s: a grass culm's, under which its lean moves under
         /// 0.01 rad; a crown's twigs and branches, 0.3 m/s, under which a twig's moves under 1e-4 rad, derived from 1.2's twig).
         /// </summary>
-        public const int SteadyBands = PlantBands.Branch + 1, SteadyRings = 28, SteadyAngles = 32;
-        public const double SteadyR0 = 0.25, SteadyGrowth = 1.2;
+        public const int SteadyBands = PlantBands.Branch + 1, SteadyRings = 33, SteadyAngles = 16;
+        public const double SteadyR0 = 0.1, SteadyGrowth = 1.2;
         public static double SteadyMin(int band) => band < PlantBands.Grass ? 0.005 : 0.3;
 
         /// <summary>The dispatches each frame: a level, the grid its bands' means come from, and those bands.</summary>
@@ -350,7 +352,7 @@ namespace Fpv450.App
             _cs.SetInt("_OpenCount", _open.Length);
             _cs.SetInt("_StripModes", _stripModes);
             _cs.SetInt("_WakeCount", _wakes.Length);
-            _cs.SetInt("_WashBands", PlantBands.Grass);
+            _cs.SetInt("_WashBands", PlantBands.Washed.Length);
             Bind("_Bands", _bandBuf);
             Bind("_OpenWave", _openWave);
             Bind("_OpenRate", _openRate);
@@ -388,6 +390,8 @@ namespace Fpv450.App
             SteadySnapshot steady = _steady?.Take();
             _steadyShown = steady;
             _cs.SetInt("_SteadyOn", steady != null ? 1 : 0);
+            _cs.SetInt("_SteadyBands", SteadyBands);
+            _cs.SetVector("_SteadyGrid", new Vector4((float)SteadyR0, (float)SteadyGrowth, SteadyRings, SteadyAngles));
             _cs.SetVector("_SteadyCentre", steady != null ? new Vector4((float)steady.X, (float)steady.Z, 0, 0) : Vector4.zero);
             Bind("_Steady", steady != null ? _steady.Buffer : _noWash);
             for (int i = 0; i < Dispatches.Length; i++)
@@ -670,8 +674,8 @@ namespace Fpv450.App
 
         // ---- the wash, on its helper ----
 
-        // One wash grid's tick as the GPU reads it: per node (window order) and band, (was x, z, now x, z) and (the wash's air at the
-        // band's load point, the node's ground), the ground −1e30 where PlantWash.Bend holds no bend at the node.
+        // One wash grid's tick as the GPU reads it: per node (window order) and grid band (PlantBands.Washed), (was x, z, now x, z) and
+        // (the wash's air at the band's load point, the node's ground), the ground −1e30 where PlantWash.Bend holds no bend at the node.
         sealed class WashSnapshot
         {
             public long Tick;
@@ -698,8 +702,8 @@ namespace Fpv450.App
                 Grid = grid;
                 Size = size;
                 Cell = cell;
-                Buffer = new ComputeBuffer(size * size * PlantBands.Grass * 2, 16);
-                int length = size * size * PlantBands.Grass * 8;
+                Buffer = new ComputeBuffer(size * size * PlantBands.Washed.Length * 2, 16);
+                int length = size * size * PlantBands.Washed.Length * 8;
                 _back = new WashSnapshot { Data = new float[length] };
                 _ready = new WashSnapshot { Data = new float[length] };
                 _front = new WashSnapshot { Data = new float[length] };
@@ -722,9 +726,9 @@ namespace Fpv450.App
                     for (int a = 0; a < Size; a++) _xz[a] = new XZ((s.StartI + a + 0.5) * Cell, (s.StartJ + b + 0.5) * Cell);
                     world.SampleGround(_xz, _ground);
                     for (int a = 0; a < Size; a++)
-                        for (int band = 0; band < PlantBands.Grass; band++)
+                        for (int band = 0; band < PlantBands.Washed.Length; band++) // the grid's own bands (PlantBands.Washed)
                         {
-                            int at = ((a + Size * b) * PlantBands.Grass + band) * 8;
+                            int at = ((a + Size * b) * PlantBands.Washed.Length + band) * 8;
                             // The window's last row and column hold no bend (PlantWash.Bend needs the node beyond; at a node's centre
                             // its answer there would turn on the coordinates' last bit).
                             if (a == Size - 1 || b == Size - 1 || !Grid.Bend(band, _xz[a].X, _xz[a].Z, 0, out PlantBend was, out Double3 air)
