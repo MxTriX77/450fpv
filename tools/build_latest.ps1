@@ -126,7 +126,9 @@ Step "Copy to $OutRoot"
 $built = Join-Path $Worktree "unity\$($plan.output_dir)"
 if (-not (Test-Path (Join-Path $built $plan.exe))) { Fail "no $($plan.exe) in $built" }
 if (Test-Path $OutRoot) { Remove-Item -Recurse -Force $OutRoot }
-Copy-Item -Recurse $built $OutRoot
+# IL2CPP writes its PDBs and generated C++ beside the player (*_BackUpThisFolder_ButDontShipItWithYourGame, ~1 GB): not copied.
+robocopy $built $OutRoot /E /XD "*_BackUpThisFolder_ButDontShipItWithYourGame" /NFL /NDL /NJH /NJS /NP | Out-Null
+if ($LASTEXITCODE -ge 8) { Fail "copying $built to $OutRoot failed (robocopy $LASTEXITCODE)" }
 Copy-Item $UnityLog (Join-Path $OutRoot "build.log")
 $info = @("built $($started.ToString('yyyy-MM-dd HH:mm'))", "base $($plan.base) @ $(& git -C $Repo rev-parse --short origin/$($plan.base))") +
     @($plan.merge | ForEach-Object { "merge $_ @ $(& git -C $Repo rev-parse --short origin/$_)" }) +
