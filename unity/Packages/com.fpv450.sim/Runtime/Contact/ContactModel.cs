@@ -2168,6 +2168,13 @@ namespace Fpv450.Sim.Contact
                 if (rest < 0) rest = 0;
                 share = turn / (turn + rest); // the turn's share of a unit move at the deepest point along n
             }
+            // A give out of a compliant row (the half deepest in a layer past its stroke, or in a crown's twigs, with no rigid pair
+            // pressed) is bounded by every rigid face it closes, its turn's share too: the row yields before the half is driven into
+            // the solid beside it, as LegTrials' rule has it once that solid is pressed. Without it the give out of S04's straw tile's
+            // side (108 mm in, latched to the side) turned the half's end 9 mm into the soil box under it, and once the box's own
+            // overlap passed 0 the corner read the box and that give went in one step (range #61 Slide, steps 6895–6897: 93 mm → 0.3
+            // mm, the end 7.9 → 1.9 mm in the box).
+            bool yielding = !RowOf(d).Rigid;
             for (int i = 0; i < _shapes.Length; i++)
             {
                 ContactRole role = _shapes[i].Role;
@@ -2178,10 +2185,10 @@ namespace Fpv450.Sim.Contact
                     if (k < 0 ? role != ContactRole.Support : p.Suppressed) continue;
                     if (!RowOf(p).Rigid) continue;
                     Double3 nj = s.Attitude.InverseRotate(p.N), rj = back.Rotate(s.Attitude.InverseRotate(p.Point - bore));
-                    // Only a face that faces the move (FacingAway, more than 120° from n): a side face the half moves along is no stop
-                    // (range #429 Slide: a soil box's side 88° from the top it lies in, met by the turn's sideways share, held the half
-                    // 57 mm in the top).
-                    if (Double3.Dot(n, nj) > FacingAway) continue;
+                    // Out of a rigid row, only a face that faces the move (FacingAway, more than 120° from n): a side face the half moves
+                    // along is no stop (range #429 Slide: a soil box's side 88° from the top it lies in, met by the turn's sideways share,
+                    // held the half 57 mm in the top).
+                    if (!yielding && Double3.Dot(n, nj) > FacingAway) continue;
                     double closing = -(1 - share) * Double3.Dot(n, nj) - (share > 0 ? share / a2 * Double3.Dot(Double3.Cross(axis, rj), nj) : 0);
                     double gap = -(p.Depth + Unturned(c, p, s, placed));
                     if (!(closing > 0) || !(gap >= 0)) continue; // a pressed pair bears in the chain itself (its share of Trial's push)
