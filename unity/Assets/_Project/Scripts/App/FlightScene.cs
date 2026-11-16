@@ -90,6 +90,10 @@ namespace Fpv450.App
         public PoseFrame RestPose;
         public int ShownFlight { get; private set; }
 
+        /// <summary>The flight step the scene is drawn at this frame (the PAL field's reference instant in the FPV view, else the
+        /// interpolated pose's), −1 before this flight's first pose: the plants' air is taken then (w16-plants-in-the-air 1.3).</summary>
+        public long DrawnStep { get; private set; } = -1;
+
         /// <summary>The current flight's drawn bottle (D01_bottle on the drone) and stand (D02); null when it has none.</summary>
         public Transform Bottle { get; private set; }
         public Transform Stand => _stand != null ? _stand.transform : null;
@@ -176,6 +180,7 @@ namespace Fpv450.App
                 flight._camera.GetUniversalAdditionalCameraData().renderPostProcessing = theirs.renderPostProcessing;
                 flight._camera.farClipPlane = own.farClipPlane;
                 flight._camera.gameObject.AddComponent<FarmlandFeedDetail>(); // w6-farmland-look 1.2: less of what the PAL feed can't show, as Explore
+                if (scene.name == FarmlandExplore.Scene) go.AddComponent<FarmlandPlants>(); // w16-plants-in-the-air 1.3: the plants in the flight's air
                 own.gameObject.SetActive(false);
                 Debug.Log("[Flight] the scene's camera '" + own.name + "' off; the flight's draws its look: post-processing " +
                           (theirs.renderPostProcessing ? "on" : "off") + ", far plane " + own.farClipPlane + " m");
@@ -296,9 +301,11 @@ namespace Fpv450.App
             // The buffer is reused by every flight: a pair from before this flight's step 0 is the last flight's.
             ref readonly PosePair pair = ref session.Poses.Read();
             bool thisFlight = pair.StartUs >= session.StartUs;
+            DrawnStep = -1;
             if (thisFlight)
             {
                 pair.Interpolate(HostClock.Instance.NowUs(), out Pose);
+                DrawnStep = Pose.Step;
                 _body.SetPositionAndRotation(V(Pose.Position), Q(Pose.Attitude));
                 _fiber.Draw(Pose);
                 _legs.Draw(Pose);
@@ -389,6 +396,7 @@ namespace Fpv450.App
             // The camera renders at the mount on the rigid body; the frame's elastic turn, the reference row's included,
             // is in the track, so the camera's transform stays the lens's (D-055) and the read turns the picture.
             _body.SetPositionAndRotation(V(at.Position), Q(at.Attitude));
+            DrawnStep = at.Step;
             _fiber.Draw(at); // the line at the field's instant, as the body
             _legs.Draw(at);
             FillSamples(session.Poses, start, at.Attitude);
