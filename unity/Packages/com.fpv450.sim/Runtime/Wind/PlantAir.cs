@@ -146,27 +146,43 @@ namespace Fpv450.Sim.Wind
         {
             var load = new Double3(basePoint.X, basePoint.Y + m.LoadPoint, basePoint.Z);
             _wind.PlantParts(load, ground, _t, _mean, out PlantParts parts);
-            Double3 mean = parts.Mean + meanAdded;
+
+            // The fluctuation's covariance at the load point, from the modes.
+            var spread = new Spread();
+            _wind.PlantModes(load, parts, _drift, _mean, ref spread);
+            result = new PlantMean
+            {
+                Air = parts.Mean + meanAdded, LoadY = load.Y,
+                XX = spread.XX, XZ = spread.XZ, ZZ = spread.ZZ, YY = spread.YY, XY = spread.XY, ZY = spread.ZY,
+                Parts = parts,
+            };
+            Lean(m, ref result);
+        }
+
+        // The mean lean in the plane of a mean's air (its horizontal way), over the normal air's spread (Settle from upright).
+        static void Lean(in PlantMechanics m, ref PlantMean result)
+        {
+            Double3 mean = result.Air;
             double horizontal = DetMath.Sqrt(mean.X * mean.X + mean.Z * mean.Z), mx = 1, mz = 0;
             if (horizontal > 0)
             {
                 mx = mean.X / horizontal;
                 mz = mean.Z / horizontal;
             }
-
-            // The fluctuation's covariance at the load point, from the modes.
-            var spread = new Spread();
-            _wind.PlantModes(load, parts, _drift, _mean, ref spread);
-
-            // The mean lean in the plane of the mean air.
+            var spread = new Spread { XX = result.XX, XZ = result.XZ, ZZ = result.ZZ, YY = result.YY, XY = result.XY, ZY = result.ZY };
             var meanMoment = new Expected(m, horizontal, mean.Y, spread.Along(mx, mz), spread.YY, spread.Covariance(mx, mz));
-            double lean = PlantLaw.Settle(ref meanMoment, 0);
-            result = new PlantMean
-            {
-                Air = mean, Lean = lean, WayX = mx, WayZ = mz, LoadY = load.Y,
-                XX = spread.XX, XZ = spread.XZ, ZZ = spread.ZZ, YY = spread.YY, XY = spread.XY, ZY = spread.ZY,
-                Parts = parts,
-            };
+            result.Lean = PlantLaw.Settle(ref meanMoment, 0);
+            result.WayX = mx;
+            result.WayZ = mz;
+        }
+
+        /// <summary>A mean with a steady air added at its load point (world m/s: the wash's where no wash grid holds the plant,
+        /// Sample's), its lean settled again (the drawn side's GPU port does this from an interpolated mean, w16-plants-in-the-air
+        /// 1.3).</summary>
+        public static void Settle(in PlantMechanics m, ref PlantMean mean, in Double3 added)
+        {
+            mean.Air = mean.Air + added;
+            Lean(m, ref mean);
         }
 
         // The gusts' linear response's coefficients about the whole lean (the wind's mean lean and a lean already made) in the mean
