@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading;
 using Fpv450.Sim;
 using Fpv450.Sim.Flight;
+using Fpv450.Sim.Tether;
 using Fpv450.Sim.Wind;
 using Fpv450.Sim.World;
 using UnityEngine;
@@ -61,6 +62,17 @@ namespace Fpv450.App
 
         const double Lead = 1.5;
 
+        /// <summary>
+        /// The wash's steady air where no wash grid holds a plant (PlantAir.Sample: the line's law at its load point, quasi-static,
+        /// design.md §4.5): RotorAir.At on a polar grid round the drone each tick, at each of the first SteadyBands bands' load
+        /// height over the ground: SteadyRings rings from SteadyR0 m, each SteadyGrowth times the last (to 35 m), SteadyAngles
+        /// angles (numerical). A plant takes it where it passes SteadyMin (m/s: a grass culm's, under which its lean moves under
+        /// 0.01 rad; a crown's twigs and branches, 0.3 m/s, under which a twig's moves under 1e-4 rad, derived from 1.2's twig).
+        /// </summary>
+        public const int SteadyBands = PlantBands.Branch + 1, SteadyRings = 28, SteadyAngles = 32;
+        public const double SteadyR0 = 0.25, SteadyGrowth = 1.2;
+        public static double SteadyMin(int band) => band < PlantBands.Grass ? 0.005 : 0.3;
+
         /// <summary>The dispatches each frame: a level, the grid its bands' means come from, and those bands.</summary>
         public static readonly (int Level, int Grid, int[] Bands)[] Dispatches =
         {
@@ -88,6 +100,7 @@ namespace Fpv450.App
         readonly IWorldQuery _world;
         readonly Grid[] _grids;
         readonly Wash _washFine, _washCoarse;
+        readonly Steady _steady;
 
         // The modes' tables (static for the flight) and the frame's data.
         readonly PlantMode[] _open, _wakes;
@@ -137,6 +150,7 @@ namespace Fpv450.App
                 _grids[g] = new Grid(Grids[g].Size, Grids[g].Spacing, Grids[g].Step, Grids[g].Bands, Grids[g].WakeCells && wind.Wakes != null);
             if (fine != null) _washFine = new Wash(fine, LevelSize[0], LevelCell[0]);
             if (coarse != null) _washCoarse = new Wash(coarse, LevelSize[1], LevelCell[1]);
+            if (fine != null || coarse != null) _steady = new Steady(fine ?? coarse, mechanics);
 
             // The modes' tables: each band's open modes at its load point's height, the strips' eddies, the wake eddies.
             _open = new PlantMode[_frame.OpenModeCount];
@@ -246,6 +260,11 @@ namespace Fpv450.App
         public WakeGrid WakeGridOf(int grid, int snapshot) => _grids[grid].WakeGrids[snapshot];
 
         readonly (long, long)[] _starts = new (long, long)[2];
+        SteadySnapshot _steadyShown;
+
+        /// <summary>The wash's steady air the last frame drew with, at a band's load point over (x, z), as the kernel interpolates
+        /// it (bilinear in the log of the radius and the angle); false where it holds none.</summary>
+        public bool SteadyAt(int band, double x, double z, out Double3 air) => Steady.At(_steadyShown, band, x, z, out air);
         readonly float[] _blends = new float[4];
         readonly double[] _fractions = new double[2];
 
@@ -365,6 +384,12 @@ namespace Fpv450.App
                 _boxes[l] = new Vector4((float)((Math.Floor(camera.x / cell) - half) * cell), (float)((Math.Floor(camera.z / cell) - half) * cell),
                     (float)cell, LevelSize[l]);
             }
+            // The wash's steady air beyond its grids, the newest tick's.
+            SteadySnapshot steady = _steady?.Take();
+            _steadyShown = steady;
+            _cs.SetInt("_SteadyOn", steady != null ? 1 : 0);
+            _cs.SetVector("_SteadyCentre", steady != null ? new Vector4((float)steady.X, (float)steady.Z, 0, 0) : Vector4.zero);
+            Bind("_Steady", steady != null ? _steady.Buffer : _noWash);
             for (int i = 0; i < Dispatches.Length; i++)
             {
                 (int level, int grid, int[] list) = Dispatches[i];
@@ -755,6 +780,112 @@ namespace Fpv450.App
             }
         }
 
+        // The wash's steady air on its polar grid at a tick: the drone's place then, per band, ring and angle the air (world m/s).
+        sealed class SteadySnapshot
+        {
+            public double X, Z;
+            public float[] Data;
+        }
+
+        sealed class Steady
+        {
+            readonly PlantWash _grid;
+            readonly double[] _heights = new double[SteadyBands];
+            readonly XZ[] _xz = new XZ[SteadyRings * SteadyAngles];
+            readonly GroundSample[] _ground = new GroundSample[SteadyRings * SteadyAngles];
+            public readonly ComputeBuffer Buffer;
+            SteadySnapshot _back, _ready, _front;
+            bool _fresh, _shown;
+            readonly object _lock = new object();
+
+            public Steady(PlantWash grid, PlantMechanics[] bands)
+            {
+                _grid = grid;
+                for (int b = 0; b < SteadyBands; b++) _heights[b] = PlantBands.Elevation(b) + bands[b].LoadPoint;
+                int n = SteadyBands * SteadyRings * SteadyAngles;
+                Buffer = new ComputeBuffer(n, 16);
+                _back = new SteadySnapshot { Data = new float[n * 4] };
+                _ready = new SteadySnapshot { Data = new float[n * 4] };
+                _front = new SteadySnapshot { Data = new float[n * 4] };
+            }
+
+            public static double Radius(int ring) => SteadyR0 * Math.Pow(SteadyGrowth, ring);
+
+            // The helper, after a tick: RotorAir.At (the grid's own instance, begun at the tick) at each point's load heights.
+            public void Export(PoseBuffer poses, IWorldQuery world)
+            {
+                if (!poses.TryRead(_grid.LastTick, out PoseFrame pose)) return;
+                SteadySnapshot s = _back;
+                s.X = pose.Position.X;
+                s.Z = pose.Position.Z;
+                for (int r = 0; r < SteadyRings; r++)
+                    for (int a = 0; a < SteadyAngles; a++)
+                    {
+                        double angle = 2 * Math.PI * a / SteadyAngles, radius = Radius(r);
+                        _xz[r * SteadyAngles + a] = new XZ(s.X + radius * Math.Cos(angle), s.Z + radius * Math.Sin(angle));
+                    }
+                world.SampleGround(_xz, _ground);
+                RotorAir air = _grid.Rotors;
+                for (int b = 0; b < SteadyBands; b++)
+                    for (int k = 0; k < _xz.Length; k++)
+                    {
+                        int at = (b * _xz.Length + k) * 4;
+                        double g = _ground[k].Height;
+                        Double3 u = g > double.NegativeInfinity ? air.At(new Double3(_xz[k].X, g + _heights[b], _xz[k].Z), g, out _) : default;
+                        s.Data[at] = (float)u.X;
+                        s.Data[at + 1] = (float)u.Y;
+                        s.Data[at + 2] = (float)u.Z;
+                        s.Data[at + 3] = 0;
+                    }
+                lock (_lock)
+                {
+                    (_back, _ready) = (_ready, _back);
+                    _fresh = true;
+                }
+            }
+
+            public SteadySnapshot Take()
+            {
+                bool changed = false;
+                lock (_lock)
+                {
+                    if (_fresh)
+                    {
+                        (_ready, _front) = (_front, _ready);
+                        _fresh = false;
+                        changed = true;
+                    }
+                }
+                if (changed)
+                {
+                    Buffer.SetData(_front.Data);
+                    _shown = true;
+                }
+                return _shown ? _front : null;
+            }
+
+            // The kernel's SteadyAt in double.
+            public static bool At(SteadySnapshot s, int band, double x, double z, out Double3 air)
+            {
+                air = default;
+                if (s == null || band >= SteadyBands) return false;
+                double dx = x - s.X, dz = z - s.Z, r = Math.Sqrt(dx * dx + dz * dz);
+                if (r > Radius(SteadyRings - 1)) return false;
+                double ring = Math.Log(Math.Max(r, SteadyR0) / SteadyR0) / Math.Log(SteadyGrowth), angle = Math.Atan2(dz, dx) / (2 * Math.PI) * SteadyAngles;
+                if (angle < 0) angle += SteadyAngles;
+                int r0 = Math.Min((int)Math.Floor(ring), SteadyRings - 2), a0 = Math.Min((int)Math.Floor(angle), SteadyAngles - 1), a1 = a0 + 1 < SteadyAngles ? a0 + 1 : 0;
+                double fr = ring - r0, fa = angle - Math.Floor(angle);
+                for (int c = 0; c < 4; c++)
+                {
+                    int ri = r0 + (c >> 1), ai = (c & 1) == 0 ? a0 : a1;
+                    double w = ((c >> 1) == 0 ? 1 - fr : fr) * ((c & 1) == 0 ? 1 - fa : fa);
+                    int at = ((band * SteadyRings + ri) * SteadyAngles + ai) * 4;
+                    air = air + new Double3(s.Data[at], s.Data[at + 1], s.Data[at + 2]) * w;
+                }
+                return true;
+            }
+        }
+
         // The wash grids ticked to the newest published step, and a new tick's stands exported.
         void WashStep(ref long last)
         {
@@ -765,6 +896,7 @@ namespace Fpv450.App
             if (tick == last || tick < 0) return;
             _washFine?.Export(_poses, _world);
             _washCoarse?.Export(_poses, _world);
+            _steady?.Export(_poses, _world);
             last = tick;
         }
 
@@ -792,7 +924,7 @@ namespace Fpv450.App
             if (_washThread.IsAlive) _washThread.Join();
             Unbind();
             foreach (ComputeBuffer b in new[] { _noWash, _bandBuf, _openWave, _openRate, _openAmp, _stripWave, _stripAmp, _wakeWave, _wakeAmp, _wakeFrame,
-                _washFine?.Buffer, _washCoarse?.Buffer })
+                _washFine?.Buffer, _washCoarse?.Buffer, _steady?.Buffer })
                 b?.Release();
             foreach (Grid g in _grids)
             {

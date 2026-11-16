@@ -154,9 +154,10 @@ namespace Fpv450.Tests.App
                             reference.Sample(bands[band], band < PlantBands.Grass ? band : -1, fine, coarse, basePoint, ground, out PlantBend sample);
                             double toWind = Math.Max(Math.Abs(g.r - windOnly.X), Math.Abs(g.g - windOnly.Z));
                             double toSample = Math.Max(Math.Abs(g.r - sample.X), Math.Abs(g.g - sample.Z));
-                            if (level >= 2 && atNode && Math.Abs(t / field.MeanTime(grid, 0) - 1) < 1e-12)
+                            bool stillAir = !field.SteadyAt(band, x, z, out Double3 wash) || !(wash.Length() > PlantField.SteadyMin(band));
+                            if (level >= 2 && atNode && stillAir && Math.Abs(t / field.MeanTime(grid, 0) - 1) < 1e-12)
                             {
-                                // At a node and a snapshot's time the drawn bend is the wind's at that plant.
+                                // At a node, a snapshot's time and out of the wash the drawn bend is the wind's at that plant.
                                 nodeWorst = Math.Max(nodeWorst, toWind);
                                 nodes++;
                                 Assert.That(toWind, Is.LessThan(2e-3), $"a node's plant at level {level} band {band} ({x:0.00}, {z:0.00}): GPU ({g.r:F5}, {g.g:F5}) Wind ({windOnly.X:F5}, {windOnly.Z:F5})");
@@ -166,13 +167,13 @@ namespace Fpv450.Tests.App
                             if (level < 2) washed.Add(toSample);
                             else
                             {
-                                between.Add(toWind);
-                                if (band < PlantBands.Grass) steady.Add(Math.Max(Math.Abs(sample.X - windOnly.X), Math.Abs(sample.Z - windOnly.Z)));
-                                if (toWind > betweenWorst)
+                                between.Add(toSample);
+                                if (!stillAir) steady.Add(toSample);
+                                if (toSample > betweenWorst)
                                 {
-                                    betweenWorst = toWind;
+                                    betweenWorst = toSample;
                                     worstAt = $"level {level} band {band} ({x:0.00}, {z:0.00}), {Math.Sqrt((x - body.X) * (x - body.X) + (z - body.Z) * (z - body.Z)):0.0} m from the drone, " +
-                                              $"t {t}: GPU ({g.r:F4}, {g.g:F4}), Wind ({windOnly.X:F4}, {windOnly.Z:F4})";
+                                              $"t {t}: GPU ({g.r:F4}, {g.g:F4}), Sample ({sample.X:F4}, {sample.Z:F4}), Wind ({windOnly.X:F4}, {windOnly.Z:F4})";
                                 }
                             }
                         }
@@ -183,9 +184,9 @@ namespace Fpv450.Tests.App
             foreach (string l in lines) TestContext.WriteLine(l);
             TestContext.WriteLine($"the port: {ported} texels within {portWorst:E2} rad of PlantAir.Bend on the kernel's mean");
             TestContext.WriteLine($"the plants at the means' nodes at a snapshot's time: {nodes} within {nodeWorst:E2} rad of PlantAir.Wind");
-            TestContext.WriteLine("the plants between nodes and snapshots, against PlantAir.Wind (the mean's interpolation): " + Stats(between) + "; the worst " + worstAt);
             TestContext.WriteLine("the plants on the wash's grids, against PlantAir.Sample: " + Stats(washed));
-            TestContext.WriteLine("left out, the wash's steady air on the grass beyond its grids (PlantAir.Sample less PlantAir.Wind there): " + Stats(steady));
+            TestContext.WriteLine("the plants round the camera, against PlantAir.Sample (the mean interpolated between nodes and snapshots, the wash's steady " +
+                                  "air on its polar grid): " + Stats(between) + "; where the steady air is taken: " + Stats(steady) + "; the worst " + worstAt);
             Assert.That(nodes, Is.GreaterThan(20), "texels on the means' nodes were checked");
             Assert.That(ported, Is.GreaterThan(1000));
         }
@@ -264,6 +265,9 @@ namespace Fpv450.Tests.App
                 interpolated.Wake = here.Wake;
                 interpolated.WakeInverse = here.WakeInverse;
             }
+            // Beyond the wash's grids its steady air at the load point, as the kernel interpolates it, the lean settled again in it.
+            if (level >= 2 && field.SteadyAt(band, x, z, out Double3 steady) && steady.Length() > PlantField.SteadyMin(band))
+                PlantAir.Settle(m, ref interpolated, steady);
             Double3 washAir = default;
             PlantBend made = default;
             if (level < 2)

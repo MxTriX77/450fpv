@@ -51,6 +51,17 @@ float _MeanBlend;      // 0: snapshot 0, 1: snapshot 1
 // ([snapshot][slot][cell]); _WakeGrid per snapshot: the wake grid's origin x, z and the window's first cell (i, j). Where they are
 // read the wake eddies take their scale from them as WakeGrid.Sample does (the most of the four cells about the point); elsewhere
 // from the nearest node.
+// The wash's steady air where no wash grid holds the plant (PlantAir.Sample's: the line's law at the load point), on a polar grid
+// round the drone at each of the first STEADY_BANDS bands' load height ([band][ring][angle]; PlantField.Steady's).
+#define STEADY_BANDS 12
+#define STEADY_RINGS 28
+#define STEADY_ANGLES 32
+#define STEADY_R0 0.25
+#define STEADY_GROWTH 1.2
+int _SteadyOn;
+float2 _SteadyCentre;
+StructuredBuffer<float4> _Steady;
+
 int _WakeCellsOn, _WakeN;
 StructuredBuffer<float2> _WakeCells; // the obstacle height, the turbulence
 float4 _WakeGrid[2];
@@ -217,6 +228,61 @@ bool WakeAt(int snap, int slot, float2 xz, out float height, out float turbulenc
     return true;
 }
 
+// The steady air at a band's load point over xz (bilinear in the log of the radius and the angle); false beyond the grid.
+bool SteadyAt(int band, float2 xz, out float3 air)
+{
+    air = 0;
+    if (_SteadyOn == 0 || band >= STEADY_BANDS) return false;
+    float2 d = xz - _SteadyCentre;
+    float r = length(d);
+    if (r > STEADY_R0 * pow(STEADY_GROWTH, STEADY_RINGS - 1)) return false;
+    float ring = log(max(r, STEADY_R0) / STEADY_R0) / log(STEADY_GROWTH);
+    float angle = atan2(d.y, d.x) / (2 * PI) * STEADY_ANGLES;
+    if (angle < 0) angle += STEADY_ANGLES;
+    int r0 = min((int)floor(ring), STEADY_RINGS - 2), a0 = min((int)floor(angle), STEADY_ANGLES - 1), a1 = a0 + 1 < STEADY_ANGLES ? a0 + 1 : 0;
+    float fr = ring - r0, fa = angle - floor(angle);
+    [unroll] for (int c = 0; c < 4; c++)
+    {
+        int ri = r0 + (c >> 1), ai = (c & 1) == 0 ? a0 : a1;
+        float w = ((c >> 1) == 0 ? 1 - fr : fr) * ((c & 1) == 0 ? 1 - fa : fa);
+        air += w * _Steady[(band * STEADY_RINGS + ri) * STEADY_ANGLES + ai].xyz;
+    }
+    return true;
+}
+
+// The mean lean in the plane of an air's horizontal way (PlantLaw.Settle from upright: a scan of 0.05 rad, then halvings; float
+// has its last bit by the 30th of PlantLaw's 50).
+float Net(Band m, float u, float w, float alongVar, float upVar, float cross, float phi)
+{
+    return Moment(m, u, w, alongVar, upVar, cross, phi) + m.weight * sin(phi) - m.stiffness * phi;
+}
+
+float Settle(Band m, float u, float w, float alongVar, float upVar, float cross)
+{
+    float f0 = Net(m, u, w, alongVar, upVar, cross, 0);
+    if (f0 == 0) return 0;
+    float d = f0 > 0 ? 1 : -1, a = 0, b = 0;
+    [loop] for (int k = 0; k < 40; k++)
+    {
+        b = a + d * 0.05;
+        if (d * b >= HALF_PI)
+        {
+            b = d * HALF_PI;
+            if (Net(m, u, w, alongVar, upVar, cross, b) * d > 0) return b;
+            break;
+        }
+        if (Net(m, u, w, alongVar, upVar, cross, b) * d <= 0) break;
+        a = b;
+    }
+    [loop] for (int i = 0; i < 30; i++)
+    {
+        float mid = 0.5 * (a + b);
+        if (Net(m, u, w, alongVar, upVar, cross, mid) * d > 0) a = mid;
+        else b = mid;
+    }
+    return 0.5 * (a + b);
+}
+
 // ---- the kernel ----
 
 [numthreads(8, 8, 1)]
@@ -270,6 +336,20 @@ void Bend(uint3 id : SV_DispatchThreadID)
         float t2 = turbulence * turbulence - 1;
         mean.wake = t2 > 0 && wakeHeight > 0 ? sqrt(t2) * m.wakeFactor : 0;
         mean.wakeInverse = wakeHeight > 0 ? 1 / wakeHeight : 0;
+    }
+
+    // Where no wash grid holds the plant, the wash's steady air at its load point joins the mean and the lean is settled again
+    // in it (PlantAir.Sample's quasi-static path, PlantAir.Settle).
+    float3 steady;
+    if (_Wash == 0 && SteadyAt(band, xz, steady) && length(steady) > (band < 9 ? 0.005 : 0.3))
+    {
+        mean.air += steady;
+        float horizontal = length(mean.air.xz);
+        float2 way = horizontal > 0 ? mean.air.xz / horizontal : float2(1, 0);
+        float av = way.x * way.x * mean.xx + 2 * way.x * way.y * mean.xz + way.y * way.y * mean.zz;
+        float cr = way.x * mean.xy + way.y * mean.zy;
+        mean.lean = Settle(m, horizontal, mean.air.y, av, mean.yy, cr) * way;
+        mean.way = way;
     }
 
     // The whole lean, and the air the gusts are linearised in (PlantAir.Linearise).
