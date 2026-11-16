@@ -926,3 +926,12 @@ The pilot, 2026-11-14: "As discussed now with h-ai-senberg, their project goes f
 - **Halted, in this order:** the three running tasks (the ruins' masonry, the plants' law, the second speed pass) finish on the CPU at idle priority and merge when green; nothing new starts, and the spool's payout tension (`p7d-tether` 1.11e) waits.
 - **Waiting for the pilot's GPU word:** the IL2CPP trial (the module is installed), the next build with models 101 and 102, the performance baseline (the frame rate and the player's step), and the plants' drawn side.
 - **Merged often from now on:** each branch the turn it goes green, each decision on the trunk right away.
+
+## D-116 The player is built on IL2CPP · Accepted
+The orchestrator, 2026-11-16, on the game developer's trial (the pilot approved the module on 2026-11-14; D-114). The backend decision ("Mono for now … IL2CPP only if profiling shows the need") is closed: profiling showed the need (Mono ran the core 2.5–5× slower than .NET), and the trial met every condition set for the switch.
+- **Bit for bit:** all 12 flights the IL2CPP player recorded replay on .NET with `tools/replay` (exit 0, Match). MSVC builds the generated C++ at its default /fp:precise with no `/arch` flag: no fused multiply-add in any code generated from ours (the 317 in the binary are the C runtime's own transcendental paths, which the core never calls: DetMath).
+- **Faster:** the physics step's median is 1.6–1.8× faster than Mono's on the same flight, and the 146–229 ms stall at the start of every Mono flight (the JIT) is gone (worst 4.6–11.5 ms). The p99 in the trial followed the machine's load in both backends, so PLT-04 is judged on a quiet machine, not here.
+- **Smoke:** PASS on all four IL2CPP runs; reflection still finds the settings and the grass culler.
+- **How:** `Fpv450.Build.Windows -il2cpp` (Mono stays the build method's default), managed stripping Minimal (it strips only the class libraries and UnityEngine), output `Builds/Windows-Review-IL2CPP`; the build pointer passes `-il2cpp`, and `tools/build_latest.ps1` leaves IL2CPP's 1 GB `*_BackUpThisFolder_ButDontShipItWithYourGame` out of `unity\Builds\Latest`.
+- **Costs:** the build takes about 7 minutes (Mono's 1); the shipped player is the same size (999 against 989 MB).
+- **Not yet measured:** the query-heavy case (the laid line on a ruin, where Mono was 4.5–5× slower); the pilot's flights and the performance baseline on a quiet machine on AC will show it.
