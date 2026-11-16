@@ -63,10 +63,11 @@ int _WakeCellsOn, _WakeN;
 StructuredBuffer<float2> _WakeCells; // the obstacle height, the turbulence
 float4 _WakeGrid[2];
 
-// The wash grid (PlantWash) this level is: its nodes are the texels. [node][band][2] float4s: (was x, z, now x, z), (wash air
-// at the band's load point xyz, the node's ground); a node outside the window has its ground at -1e30.
+// The wash grid (PlantWash) this level is: its nodes are the texels, _WashStride float4s a node (PlantField.WashStride): per
+// grid band (bands 1, 4, 7) (was x, z, now x, z) and (the wash's air at its load point, the node's ground; -1e30 outside the
+// window), then per grass band the line's air at its load point (RotorAir.At: the steady air of a band the grids do not integrate).
 int _Wash;             // 1 on a wash level
-int _WashBands;
+int _WashStride;
 StructuredBuffer<float4> _WashNodes;
 float _WashFraction;   // between the last two ticks
 
@@ -299,10 +300,11 @@ void Bend(uint3 id : SV_DispatchThreadID)
     float2 made = 0;
     float3 washAir = 0;
     float washGround = 0;
+    float3 nodeAir = 0;
     if (_Wash != 0)
     {
-        int node = ((int)id.x + _LevelSize * (int)id.y) * _WashBands;
-        float4 air = _WashNodes[(node + max(washIndex, 0)) * 2 + 1];
+        int node = ((int)id.x + _LevelSize * (int)id.y) * _WashStride;
+        float4 air = _WashNodes[node + 2 * max(washIndex, 0) + 1];
         if (air.w < -1e29)
         {
             _Out[at3] = 0;
@@ -311,10 +313,11 @@ void Bend(uint3 id : SV_DispatchThreadID)
         washGround = air.w;
         if (washIndex >= 0)
         {
-            float4 bends = _WashNodes[(node + washIndex) * 2];
+            float4 bends = _WashNodes[node + 2 * washIndex];
             made = bends.xy + (bends.zw - bends.xy) * _WashFraction;
             washAir = air.xyz;
         }
+        else nodeAir = _WashNodes[node + 6 + band].xyz;
     }
     bool gridded = _Wash != 0 && washIndex >= 0;
 
@@ -345,8 +348,12 @@ void Bend(uint3 id : SV_DispatchThreadID)
 
     // Where no wash grid holds the plant, the wash's steady air at its load point joins the mean and the lean is settled again
     // in it (PlantAir.Sample's quasi-static path, PlantAir.Settle).
-    float3 steady;
-    if (!gridded && SteadyAt(band, xz, steady) && length(steady) > (band < 9 ? 0.005 : 0.3))
+    // On a wash level the node's own, beyond it the polar grid's (an if: HLSL's ?: evaluates both sides, out parameters too).
+    float3 steady = nodeAir;
+    bool hasSteady;
+    if (_Wash != 0) hasSteady = !gridded;
+    else hasSteady = SteadyAt(band, xz, steady);
+    if (hasSteady && length(steady) > (band < 9 ? 0.005 : 0.3))
     {
         mean.air += steady;
         float horizontal = length(mean.air.xz);

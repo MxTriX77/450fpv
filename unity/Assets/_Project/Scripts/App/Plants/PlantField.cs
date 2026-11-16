@@ -150,8 +150,8 @@ namespace Fpv450.App
             _grids = new Grid[Grids.Length];
             for (int g = 0; g < Grids.Length; g++)
                 _grids[g] = new Grid(Grids[g].Size, Grids[g].Spacing, Grids[g].Step, Grids[g].Bands, Grids[g].WakeCells && wind.Wakes != null);
-            if (fine != null) _washFine = new Wash(fine, LevelSize[0], LevelCell[0]);
-            if (coarse != null) _washCoarse = new Wash(coarse, LevelSize[1], LevelCell[1]);
+            if (fine != null) _washFine = new Wash(fine, LevelSize[0], LevelCell[0], mechanics);
+            if (coarse != null) _washCoarse = new Wash(coarse, LevelSize[1], LevelCell[1], mechanics);
             if (fine != null || coarse != null) _steady = new Steady(fine ?? coarse, mechanics);
 
             // The modes' tables: each band's open modes at its load point's height, the strips' eddies, the wake eddies.
@@ -254,6 +254,15 @@ namespace Fpv450.App
         public float MeanBlend(int grid) => _blends[grid];
         public double WashFraction(int level) => _fractions[level];
 
+        /// <summary>The line's air a wash level's node holds for a grass band, as the last frame uploaded it (world m/s).</summary>
+        public Vector3 WashNodeAir(int level, int a, int b, int band)
+        {
+            Wash w = level == 0 ? _washFine : _washCoarse;
+            int at = ((a + w.Size * b) * WashStride + 6 + band) * 4;
+            float[] d = w.Shown.Data;
+            return new Vector3(d[at], d[at + 1], d[at + 2]);
+        }
+
         /// <summary>A wash level's window: its first node's world cell (x, z); its node (a, b) is at ((i + a + 0.5)·cell, (j + b + 0.5)·cell).</summary>
         public (long I, long J) WashStart(int level) => _starts[level];
 
@@ -352,7 +361,7 @@ namespace Fpv450.App
             _cs.SetInt("_OpenCount", _open.Length);
             _cs.SetInt("_StripModes", _stripModes);
             _cs.SetInt("_WakeCount", _wakes.Length);
-            _cs.SetInt("_WashBands", PlantBands.Washed.Length);
+            _cs.SetInt("_WashStride", WashStride);
             Bind("_Bands", _bandBuf);
             Bind("_OpenWave", _openWave);
             Bind("_OpenRate", _openRate);
@@ -556,7 +565,7 @@ namespace Fpv450.App
             double now = BitConverter.Int64BitsToDouble(Interlocked.Read(ref _nowBits));
             foreach (Grid g in _grids)
             {
-                long target = (long)Math.Floor((now + Lead) / g.Step);
+                long target = (long)Math.Floor((now + g.Step + Lead) / g.Step); // the next step's ready before the frame reaches it
                 long k = Math.Max(g.NextK, (long)Math.Floor(now / g.Step));
                 if (k > target) continue;
                 Compute(g, k, now);
@@ -674,8 +683,12 @@ namespace Fpv450.App
 
         // ---- the wash, on its helper ----
 
-        // One wash grid's tick as the GPU reads it: per node (window order) and grid band (PlantBands.Washed), (was x, z, now x, z) and
-        // (the wash's air at the band's load point, the node's ground), the ground −1e30 where PlantWash.Bend holds no bend at the node.
+        // One wash grid's tick as the GPU reads it, WashStride float4s a node (window order): per grid band (PlantBands.Washed),
+        // (was x, z, now x, z) and (the wash's air at the band's load point, the node's ground), the ground −1e30 where PlantWash.Bend
+        // holds no bend at the node; then per grass band the line's air at its load point (RotorAir.At, the steady air PlantAir.Sample
+        // gives a band the grids do not integrate).
+        public const int WashStride = 2 * 3 + PlantBands.Grass;
+
         sealed class WashSnapshot
         {
             public long Tick;
@@ -693,17 +706,21 @@ namespace Fpv450.App
             public double LastMs;
             WashSnapshot _back, _ready, _front;
             bool _fresh, _shown;
+            public WashSnapshot Shown => _front;
             readonly object _lock = new object();
             readonly XZ[] _xz;
             readonly GroundSample[] _ground;
+            readonly double[] _heights;
 
-            public Wash(PlantWash grid, int size, double cell)
+            public Wash(PlantWash grid, int size, double cell, PlantMechanics[] bands)
             {
                 Grid = grid;
                 Size = size;
                 Cell = cell;
-                Buffer = new ComputeBuffer(size * size * PlantBands.Washed.Length * 2, 16);
-                int length = size * size * PlantBands.Washed.Length * 8;
+                _heights = new double[PlantBands.Grass];
+                for (int b = 0; b < _heights.Length; b++) _heights[b] = PlantBands.Elevation(b) + bands[b].LoadPoint;
+                Buffer = new ComputeBuffer(size * size * WashStride, 16);
+                int length = size * size * WashStride * 4;
                 _back = new WashSnapshot { Data = new float[length] };
                 _ready = new WashSnapshot { Data = new float[length] };
                 _front = new WashSnapshot { Data = new float[length] };
@@ -711,8 +728,9 @@ namespace Fpv450.App
                 _ground = new GroundSample[size];
             }
 
-            // The helper: the tick's stands to the back snapshot, then swapped in.
-            public void Export(PoseBuffer poses, IWorldQuery world)
+            // The helper: the tick's stands and the line's air at the nodes to the back snapshot, then swapped in. The air is the
+            // instance PlantAir.Sample reads (the fine grid's).
+            public void Export(PoseBuffer poses, IWorldQuery world, RotorAir line)
             {
                 if (!poses.TryRead(Grid.LastTick, out PoseFrame pose)) return;
                 var clock = Stopwatch.StartNew();
@@ -726,9 +744,12 @@ namespace Fpv450.App
                     for (int a = 0; a < Size; a++) _xz[a] = new XZ((s.StartI + a + 0.5) * Cell, (s.StartJ + b + 0.5) * Cell);
                     world.SampleGround(_xz, _ground);
                     for (int a = 0; a < Size; a++)
+                    {
+                        int node = (a + Size * b) * WashStride * 4;
+                        bool held = true;
                         for (int band = 0; band < PlantBands.Washed.Length; band++) // the grid's own bands (PlantBands.Washed)
                         {
-                            int at = ((a + Size * b) * PlantBands.Washed.Length + band) * 8;
+                            int at = node + band * 8;
                             // The window's last row and column hold no bend (PlantWash.Bend needs the node beyond; at a node's centre
                             // its answer there would turn on the coordinates' last bit).
                             if (a == Size - 1 || b == Size - 1 || !Grid.Bend(band, _xz[a].X, _xz[a].Z, 0, out PlantBend was, out Double3 air)
@@ -736,6 +757,7 @@ namespace Fpv450.App
                             {
                                 Array.Clear(s.Data, at, 8);
                                 s.Data[at + 7] = -1e30f;
+                                held = false;
                                 continue;
                             }
                             s.Data[at] = (float)was.X;
@@ -747,6 +769,17 @@ namespace Fpv450.App
                             s.Data[at + 6] = (float)air.Z;
                             s.Data[at + 7] = (float)_ground[a].Height;
                         }
+                        for (int band = 0; band < PlantBands.Grass; band++)
+                        {
+                            int at = node + (6 + band) * 4;
+                            double g = _ground[a].Height;
+                            Double3 u = held && PlantBands.WashIndex(band) < 0 ? line.At(new Double3(_xz[a].X, g + _heights[band], _xz[a].Z), g, out _) : default;
+                            s.Data[at] = (float)u.X;
+                            s.Data[at + 1] = (float)u.Y;
+                            s.Data[at + 2] = (float)u.Z;
+                            s.Data[at + 3] = 0;
+                        }
+                    }
                 }
                 lock (_lock)
                 {
@@ -898,8 +931,9 @@ namespace Fpv450.App
             _coarse?.Advance(_poses);
             long tick = (_fine ?? _coarse).LastTick;
             if (tick == last || tick < 0) return;
-            _washFine?.Export(_poses, _world);
-            _washCoarse?.Export(_poses, _world);
+            RotorAir line = (_fine ?? _coarse).Rotors;
+            _washFine?.Export(_poses, _world, line);
+            _washCoarse?.Export(_poses, _world, line);
             _steady?.Export(_poses, _world);
             last = tick;
         }
