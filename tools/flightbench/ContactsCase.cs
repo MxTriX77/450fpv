@@ -343,7 +343,10 @@ namespace Fpv450.FlightBench
                 double roll = Roll(core.State);
                 Row(rain.ToString(), Math.Abs(roll) < 2 && !core.State.Crashed, $"0x{h:X16}, rests rolled {roll:F3}°, {core.Contacts.ImpactCount} impacts");
             }
-            ulong hw = GoldenFlights.FlyRange(spec, out FlightCore wrong, rain: RainLevel.Rain, table: table, materials: without);
+            // The known-wrong differs from the model by the area law alone: S04's standing stems' push on the parts (w16 1.5) held off,
+            // which with it prop even the reference foot's drone near level (LayerTests.TheRangeFlightInRainRestsLevelOnWetStraw).
+            ulong hw = GoldenFlights.FlyRange(spec, out FlightCore wrong, rain: RainLevel.Rain, table: table, materials: without,
+                edit: s => s.Contacts.PartStems = false);
             Row("known-wrong: Rain, the straw row without its area law", Math.Abs(Roll(wrong.State)) < 2, $"0x{hw:X16}, rests rolled {Roll(wrong.State):F3}°",
                 knownWrong: true);
         }

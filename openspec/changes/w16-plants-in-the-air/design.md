@@ -488,7 +488,7 @@ The pass's own phases, counted inside it (a temporary probe, not committed) over
 
 - **`flightbench --golden`:** 6 golden cases, 66 PASS, 0 FAIL: **no pin moved.** No golden flies a part through the field's stems or a crown; the range golden lands on S04's straw mat and its standing stems do not reach its parts (0xDD454936B339DBE3, matches).
 - **`--landing`, `--legs`:** PASS, no row failed.
-- **`--contacts`:** one row fails, a known-wrong: S04's wet straw without its area law (`FlyRange` in Rain) now rests rolled 1.675°, under the 2° target it must miss (earlier models: 2.95°, 5.5°). S04 draws standing stems (60 a m², 0.5–1.2 m); being traced (the same flight with `PartStems` off). Every crown row passes, the two post-crash tunnels of 2.3 among them.
+- **`--contacts`:** one row failed, a known-wrong: S04's wet straw without its area law (`FlyRange` in Rain) rested rolled 1.675°, under the 2° target it must miss. **Traced:** S04 draws standing stems (60 a m², 0.5–1.2 m), and with the parts' push 9 of them under the resting drone prop even the reference foot's mat near level; with it off the same flight rolls −10.6°. The row tests the mat's area law, so its known-wrong now differs from the model by that law alone (the push held off, in the bench and in `LayerTests.TheRangeFlightInRainRestsLevelOnWetStraw`, which asserts the same): −10.6°, failing as it must. The model's rows fly the world (the push on): 0.517° in Rain, −0.077° dry. Every crown row passes, the two post-crash tunnels of 2.3 among them.
 
 ### 7. Not built, and for whom
 
