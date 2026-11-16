@@ -51,7 +51,7 @@ namespace Fpv450.Tests.App
             DroneSpec spec = DroneSpec.Parse(File.ReadAllText(AppData.File(AppData.DroneFile)));
             double air = table.Number("fiber.air_density_kg_m3");
             PlantMechanics[] bands = PlantBands.Mechanics(k => surfaces.Cover[(int)k].Set(Moisture.Dry), air);
-            var grass = bands.Take(PlantBands.Grass).ToArray();
+            var grass = PlantBands.Washed.Select(b => bands[b]).ToArray();
             var motors = new Double3[4];
             PropulsionSpec propulsion = spec.BuildPropulsion();
             for (int i = 0; i < 4; i++) motors[i] = propulsion.Motors[i].Position;
@@ -147,11 +147,11 @@ namespace Fpv450.Tests.App
                             double port = Math.Max(Math.Abs(g.r - cpu.X), Math.Abs(g.g - cpu.Z));
                             portWorst = Math.Max(portWorst, port);
                             ported++;
-                            Assert.That(port, Is.LessThan(2e-3), $"the port at level {level} band {band} ({x:0.00}, {z:0.00}), t {t}: GPU ({g.r:F5}, {g.g:F5}) CPU ({cpu.X:F5}, {cpu.Z:F5})");
+                            Assert.That(port, Is.LessThan(2e-3), $"the port at level {level} band {band} ({x:0.00}, {z:0.00}), t {t}: GPU ({g.r:F5}, {g.g:F5}) CPU ({cpu.X:F5}, {cpu.Z:F5}); steady {(field.SteadyAt(band, x, z, out Double3 sa) ? sa.ToString() : "none")}, the mean used: lean {used.Lean:F5} way ({used.WayX:F3}, {used.WayZ:F3}) air {used.Air} xx {used.XX:F4} yy {used.YY:F4}");
                             // The plant: PlantAir.Wind (the wind alone) and PlantAir.Sample (the wind and the wash) at its base.
                             var basePoint = new Double3(x, ground + PlantBands.Elevation(band), z);
                             reference.Wind(bands[band], basePoint, ground, out PlantBend windOnly);
-                            reference.Sample(bands[band], band < PlantBands.Grass ? band : -1, fine, coarse, basePoint, ground, out PlantBend sample);
+                            reference.Sample(bands[band], PlantBands.WashIndex(band), fine, coarse, basePoint, ground, out PlantBend sample);
                             double toWind = Math.Max(Math.Abs(g.r - windOnly.X), Math.Abs(g.g - windOnly.Z));
                             double toSample = Math.Max(Math.Abs(g.r - sample.X), Math.Abs(g.g - sample.Z));
                             bool stillAir = !field.SteadyAt(band, x, z, out Double3 wash) || !(wash.Length() > PlantField.SteadyMin(band));
@@ -265,19 +265,29 @@ namespace Fpv450.Tests.App
                 interpolated.Wake = here.Wake;
                 interpolated.WakeInverse = here.WakeInverse;
             }
-            // Beyond the wash's grids its steady air at the load point, as the kernel interpolates it, the lean settled again in it.
-            if (level >= 2 && field.SteadyAt(band, x, z, out Double3 steady) && steady.Length() > PlantField.SteadyMin(band))
-                PlantAir.Settle(m, ref interpolated, steady);
+            // A wash level's node holds a bend where its grid's middle culm has one (the window's last row and column none); a culm
+            // the grids integrate takes their bend and air there, any other the wash's steady air (as beyond the grids).
+            int washIndex = PlantBands.WashIndex(band);
+            bool gridded = level < 2 && washIndex >= 0;
             Double3 washAir = default;
             PlantBend made = default;
             if (level < 2)
             {
                 PlantWash w = level == 0 ? fine : coarse;
-                if (!w.Bend(band, x, z, 0, out PlantBend was, out washAir) || !w.Bend(band, x, z, 1, out PlantBend now, out _)) return false;
-                double f = field.WashFraction(level);
-                made = new PlantBend { X = was.X + (now.X - was.X) * f, Z = was.Z + (now.Z - was.Z) * f };
+                int index = Math.Max(washIndex, 0);
+                if (!w.Bend(index, x, z, 0, out PlantBend was, out Double3 air) || !w.Bend(index, x, z, 1, out PlantBend now, out _)) return false;
+                if (gridded)
+                {
+                    double f = field.WashFraction(level);
+                    made = new PlantBend { X = was.X + (now.X - was.X) * f, Z = was.Z + (now.Z - was.Z) * f };
+                    washAir = air;
+                }
                 interpolated.LoadY = ground + elevation + m.LoadPoint;
             }
+            // Where no grid holds the plant, the wash's steady air at the load point, as the kernel interpolates it, the lean settled
+            // again in it.
+            if (!gridded && field.SteadyAt(band, x, z, out Double3 steady) && steady.Length() > PlantField.SteadyMin(band))
+                PlantAir.Settle(m, ref interpolated, steady);
             used = interpolated;
             frame.Bend(m, interpolated, x, z, washAir, made, out bend);
             return true;

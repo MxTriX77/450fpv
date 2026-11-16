@@ -128,7 +128,7 @@ namespace Fpv450.Tests.App
             FlightSetup setup = session.Setup;
             double air = setup.Tether.Number("fiber.air_density_kg_m3");
             PlantMechanics[] bands = PlantBands.Mechanics(k => core.Contacts.Cover(k), air);
-            var grass = bands.Take(PlantBands.Grass).ToArray();
+            var grass = PlantBands.Washed.Select(b => bands[b]).ToArray();
             var motors = setup.Propulsion.Motors.Select(m => m.Position).ToArray();
             double radius = setup.Propulsion.Props.Diameter / 2;
             Moisture moisture = SurfaceTable.MoistureOf(setup.Rain);

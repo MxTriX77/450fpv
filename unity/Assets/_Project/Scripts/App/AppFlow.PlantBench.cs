@@ -29,6 +29,7 @@ namespace Fpv450.App
         IEnumerator PlantBench(string folder)
         {
             Directory.CreateDirectory(folder);
+            _smokeLogs = Path.Combine(folder, "flights"); // its flight's log beside its shots, never in the pilot's folder
             AppRadio.Unplug();
             string[] args = Environment.GetCommandLineArgs();
             int at = Array.IndexOf(args, "-plantwind");
