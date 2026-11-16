@@ -453,8 +453,9 @@ namespace Fpv450.Sim.Contact
             else if (!_pValid || (now.Position - _pAt).Length() > StemCacheRefresh || lo.Y < _pLow - StemCacheRefresh)
                 PartCache(now.Position, lo.Y, field);
 
-            // The cached stems that meet a part become active: their lean is then 1.2's law with the parts as constraints. A stem's
-            // natural link rules it out cheaply; a stem based under a disc may lie folded any way, so its whole length is its reach.
+            // The cached stems that meet a part become active: they lean then by the props' law in two dimensions, the parts as
+            // constraints. A stem's natural link rules it out cheaply; a stem based under a disc may lie folded any way, so its whole
+            // length is its reach.
             double reach = grow + 0.01; // the parts' largest radius and a thick stem's half diameter
             double R2 = _radius * _radius;
             for (int e = 0; e < _pCount; e++)
