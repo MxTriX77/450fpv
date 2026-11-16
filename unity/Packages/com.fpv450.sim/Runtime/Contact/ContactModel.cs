@@ -266,6 +266,8 @@ namespace Fpv450.Sim.Contact
         readonly int[] _supports;       // the support shapes, in shape order
         readonly Pair[] _pairs;         // shape i's pairs at i·PairsPerShape
         readonly int[] _count;
+        readonly int[] _crownPair;      // shape i's crown pair carrying it after the last Sense (its deepest touching one), −1 none
+        bool _inCrown;                  // some shape's is
         readonly Pair[] _ground;        // a support's ground (index: shape)
         readonly bool _terrain;         // the ground is a terrain, not one plane (Geometry(Ground, 0) false: w3-farmland-ground 2.2)
         readonly Row[] _byMaterial;     // world material id → its row
@@ -410,6 +412,7 @@ namespace Fpv450.Sim.Contact
             if (n > 255) throw new ArgumentException("the contact spec holds more than 255 shapes", nameof(spec));
             _pairs = new Pair[n * PairsPerShape];
             _count = new int[n];
+            _crownPair = new int[n];
             _ground = new Pair[n];
             _order = new int[n];
             int at = 0, supports = 0;
@@ -862,6 +865,26 @@ namespace Fpv450.Sim.Contact
                     if (p.Touching && !p.Suppressed && p.Surface == WorldIds.NoSurface && p.Material == material) n++;
                 }
             return n;
+        }
+
+        /// <summary>Some part touched a crown's twig shell at the last Sense (w16-plants-in-the-air 1.5: its leaves, PartStems).</summary>
+        public bool InCrown => _inCrown;
+
+        /// <summary>The crown shape i is in at the last Sense: the object and material of its deepest touching crown pair, the one
+        /// that carries it (2.3's one crown a part); false for none.</summary>
+        public bool CrownOf(int i, out int obj, out ushort material)
+        {
+            int k = _off[i] ? -1 : _crownPair[i];
+            if (k < 0 || k >= _count[i])
+            {
+                obj = 0;
+                material = 0;
+                return false;
+            }
+            ref Pair p = ref _pairs[i * PairsPerShape + k];
+            obj = p.Object;
+            material = p.Material;
+            return true;
         }
 
         /// <summary>A blade's load in the last Forces (slot corner × blades + blade).</summary>
@@ -3910,6 +3933,8 @@ namespace Fpv450.Sim.Contact
         public void Sense(in FlightState was, ref FlightState now, StepEvents events)
         {
             if (_rotors != null) PlaceBlades(was, now, events);
+            _inCrown = false;
+            for (int i = 0; i < _crownPair.Length; i++) _crownPair[i] = -1;
 
             // The supports' ground, in one batch.
             for (int k = 0; k < _supports.Length; k++)
@@ -4168,6 +4193,8 @@ namespace Fpv450.Sim.Contact
             }
             for (int k = 0; deepest >= 0 && k < kept; k++)
                 if (k != deepest && _pairs[first + k].Touching && RowOf(_pairs[first + k]).Crown != null) _pairs[first + k].Suppressed = true;
+            _crownPair[i] = deepest;
+            _inCrown |= deepest >= 0;
         }
 
         // A part found inside a rigid box with no first touch this step (a blade come back to rest, a piece a leg's set or break

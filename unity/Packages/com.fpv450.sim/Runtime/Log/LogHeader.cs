@@ -288,7 +288,7 @@ namespace Fpv450.Sim.Log
             TagRandomness = 7, TagStart = 8, TagLayouts = 9, TagPropulsion = 10, TagAero = 11, TagWind = 12, TagContacts = 13,
             TagRuntimeObjects = 14, TagInput = 15, TagAsymmetry = 16, TagVortexRing = 17, TagGroundEffect = 18, TagFlapping = 19,
             TagModes = 20, TagRain = 21, TagInterference = 22, TagRotorWake = 23, TagPlacement = 24, TagTether = 25, TagDroneInternals = 26,
-            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33;
+            TagStems = 27, TagGround = 28, TagCrown = 29, TagHull = 30, TagStemAir = 31, TagHanging = 32, TagMembers = 33, TagPartStems = 34;
 
         public int FormatVersion = LogFormat.Version;
         public int ModelVersion = LogFormat.ModelVersion;
@@ -1422,6 +1422,13 @@ namespace Fpv450.Sim.Log
                 e.Write(Contacts.SupportByDepth);
                 e.Write(Contacts.ClampedTube);
             });
+            // The parts' push by the stems and a crown's leaves since w16-plants-in-the-air 1.5, an entry of its own (no format
+            // change). A log without it flew model 103's contacts, whose parts skimmed both with no force.
+            Entry(w, TagPartStems, e =>
+            {
+                e.Write(Contacts != null);
+                if (Contacts != null) e.Write(Contacts.PartStems);
+            });
             w.Flush();
 
             var file = new MemoryStream();
@@ -1477,7 +1484,7 @@ namespace Fpv450.Sim.Log
 
         void Parse(BinaryReader r, uint length)
         {
-            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false, sawMembers = false;
+            bool sawLayouts = false, sawTables = false, sawStems = false, sawGround = false, sawStemAir = false, sawHanging = false, sawMembers = false, sawPartStems = false;
             ulong tablesHash = 0;
             while (r.BaseStream.Position < length)
             {
@@ -1600,6 +1607,14 @@ namespace Fpv450.Sim.Log
                         {
                             bool depth = r.ReadBoolean();
                             if (Contacts != null) Contacts.HangingDepth = depth;
+                        }
+                        break;
+                    case TagPartStems:
+                        sawPartStems = true;
+                        if (r.ReadBoolean())
+                        {
+                            bool partStems = r.ReadBoolean();
+                            if (Contacts != null) Contacts.PartStems = partStems;
                         }
                         break;
                     case TagMembers:
@@ -2030,6 +2045,8 @@ namespace Fpv450.Sim.Log
                 Contacts.SupportByDepth = false;
                 Contacts.ClampedTube = false;
             }
+            // Before w16-plants-in-the-air 1.5 the parts skimmed the stems and a crown's leaves with no force.
+            if (!sawPartStems && Contacts != null) Contacts.PartStems = false;
             if (sawTables && tablesHash != DroneHash)
                 throw new FlightLogException("the header is malformed: its blade and motor tables are of drone.json 0x"
                     + tablesHash.ToString("X16", CultureInfo.InvariantCulture) + ", its drone of 0x" + DroneHash.ToString("X16", CultureInfo.InvariantCulture));
