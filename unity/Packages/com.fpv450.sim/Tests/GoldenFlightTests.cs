@@ -1170,6 +1170,18 @@ namespace Fpv450.Sim.Tests
                 GoldenFlights.Model103TetherHash, GoldenFlights.TetherHash, "the peel band before design 22");
         }
 
+        // p7d-tether design 23's audit (an unconverged step solved again on the majorizing models, on design 22's line): no pin
+        // moved. The tether golden's line spends its Newton solves on no step, so with the known-wrong chain
+        // (FlightSetup.TetherBeforeDesign23: an unconverged step keeps its last solve) and without it the flight is design 22's
+        // pin, every record and event; every kept audit of an older line flies the known-wrong and keeps its pin.
+        [Test]
+        public void WithTheUnconvergedStepKeptTheTetherGoldenIsDesign22s()
+        {
+            DroneSpec spec = RepositoryDrone.Spec();
+            Audit("tether", "design 22", (old, keep) => (GoldenFlights.FlyContact(spec, out FlightCore c, tether: true, onRecord: keep, beforeDesign23: old), c),
+                GoldenFlights.TetherHash, GoldenFlights.TetherHash, "an unconverged step kept");
+        }
+
         // p7c-wind design 16's audit (the field's turbulence by height, on model 98): with the one-scale field (WindSetup.OneScale,
         // WindPreset.OneScale: the handbook's scales at 35 m at every height, model 98's) each golden flown in a level's wind is
         // its model 98 pin, every record and event; with the scales by height it is its new pin. So the field is the whole move.

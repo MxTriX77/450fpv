@@ -582,6 +582,10 @@ namespace Fpv450.Sim.Tests
         // 19 N on 10–16 mm segments where the solve applied 0.01–0.05 N, and the span's tension check cuts the line there (12.946 s,
         // 19.3 N; 502 steps of the turn read over 1 N); with the chain's Newton solves the line is whole and the most end-of-step
         // tension in the turn is 0.2 N, what the step applied.
+        // p7d-tether design 23: a step that spends its 8 Newton solves unconverged is solved again on the majorizing models. With
+        // the known-wrong (FlightSetup.TetherBeforeDesign23, model 103's chain) such a step keeps its last solve: on the restated
+        // band (seed 5, 1.01 g) a 86 mm segment the solve modelled slack, its nodes parting at 0.16 m/s, ends 153 µm past its rest
+        // and reads 1.59 N where the solve applied none (a snap at that speed carries √(EA·μ)·v = 0.04 N).
         [Test]
         public void AUTurnsSpanReadsWhatTheStepApplied()
         {
@@ -599,12 +603,19 @@ namespace Fpv450.Sim.Tests
             FiberCutScenarios.Turned now;
             double oldMost;
             long oldOver;
-            FiberCutScenarios.Turned old;
+            FiberCutScenarios.Turned old, kept;
+            double keptMost;
+            long keptOver;
             try
             {
                 now = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180);
                 double nowMost = most;
                 long nowOver = over;
+                most = 0;
+                over = 0;
+                kept = FiberCutScenarios.Turn(RepositoryDrone.Spec(), WindLevel.Calm, 5, 5, 90, 180, x => x.TetherBeforeDesign23 = true);
+                keptMost = most;
+                keptOver = over;
                 most = 0;
                 over = 0;
                 // Model 74's chain: the linear step on the line before design 18 (its exit's segment stretched by the slides too), on
@@ -626,12 +637,14 @@ namespace Fpv450.Sim.Tests
             }
             Print($"Newton on the segments: {now.O}; the most span tension in the turn {most:0.000} N, {over} steps over 1 N");
             Print($"the linear step (model 74): {old.O}; the most span tension in the turn {oldMost:0.000} N, {oldOver} steps over 1 N");
+            Print($"an unconverged step kept (model 103's chain): {kept.O}; the most span tension in the turn {keptMost:0.000} N, {keptOver} steps over 1 N");
             Assert.That(old.O.Broken, Is.True, "the known-wrong cuts");
             Assert.That(old.O.Mechanism, Is.EqualTo(TetherMechanism.Tension));
             Assert.That(old.O.Place, Is.EqualTo(FiberMember.Span));
             Assert.That(now.O.Broken, Is.False, "the line is whole");
             Assert.That(most, Is.LessThan(1.0), "the span reads what the step applied");
             Assert.That(over * 10, Is.LessThan(oldOver), "a tenth of the known-wrong's steps over 1 N at most");
+            Assert.That(keptMost, Is.GreaterThan(1.0), "design 23's known-wrong reads a stretch its step never applied");
         }
 
         // The pilot's account (docs/pilot-questions.md, PHY-19): a normal liftoff does not cut the line.

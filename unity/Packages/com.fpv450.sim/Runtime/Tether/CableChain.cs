@@ -321,12 +321,18 @@ namespace Fpv450.Sim.Tether
         /// the line carry it, unbounded), as to model 100.</summary>
         public bool RunEndsOnly;
 
+        /// <summary>The known-wrong of FlightSetup.TetherBeforeDesign23: a step that spends its MaxNewton solves with a segment still
+        /// off keeps its last solve's end, so a segment modelled slack in that solve ends stretched by its nodes' free parting and
+        /// the cuts read a tension no force in the step made (1.59 N where the solve applied 0, the U-turn's seed 5), as to model
+        /// 103.</summary>
+        public bool KeepUnconverged;
+
         // The rounds of the pack's draw into a run at the exit and the run's slide after it in a step (numerical).
         const int SlideRounds = 8;
 
         /// <summary>The Newton solves taken (Relinearise, at most MaxNewton a step), and the steps that ended with
-        /// a segment's tension still past NewtonTolerance from its model (the budget spent): the linearisation's residue left in the
-        /// line.</summary>
+        /// a segment's tension still past NewtonTolerance from its model (the budget spent): each solved again on the majorizing
+        /// models (SafeSteps, design 23), or with KeepUnconverged the linearisation's residue left in the line.</summary>
         public long NewtonSolves { get; private set; }
         public long NewtonUnconverged { get; private set; }
 
@@ -372,6 +378,8 @@ namespace Fpv450.Sim.Tether
 
         // The lowest node whose blocks the last correction changed (Run's next pass assembles and sweeps from it).
         int _dirty;
+        // The last Run spent its Newton solves with a segment still off (design 23: the step is solved again safe).
+        bool _unconverged;
 
         /// <summary>A chain of at most capacity nodes by the spacing law and crests more over the ground's crests (0: none).</summary>
         public CableChain(int capacity, double massPerMetre, double axialStiffness, int crests = 0)
@@ -636,9 +644,13 @@ namespace Fpv450.Sim.Tether
             // 5–8. The step on these models, and the check. A rise the clip cannot take back is solved again from the
             //      start on majorizing models (every term above its true energy, so none can be gained): over-stiff across
             //      the line for that one step (labelled numerical damping). Only what still rises, or is not finite, is a
-            //      TetherWedge.
+            //      TetherWedge. So is a step that spent its Newton solves with a segment still off (design 23): its last solve
+            //      is not backward Euler's solution, and a segment it modelled slack ends stretched by its nodes' free parting,
+            //      a tension no force in the step made (the energy check is global and may keep it). On the majorizing models
+            //      each segment's force at the end is at least its true tension there (a taut one's |T₀·d₀ + k·Δ| = k·|L₁ − ℓ·d₀|,
+            //      a slack one's k·|L₁ − L₀|, each at least k·(|L₁| − ℓ)), so the cuts read no more than the step applied.
             CableGuard verdict = Run(dt, e0, startMagnitude, false, out double e1, out double excess, out double deficit, out double removable, out int bad);
-            if (verdict == CableGuard.Wedge)
+            if (verdict == CableGuard.Wedge || _unconverged && !KeepUnconverged)
             {
                 // The holds the corrections let go stay out of the safe solve (nothing pressed them).
                 for (int i = 0; i < n; i++)
@@ -710,6 +722,7 @@ namespace Fpv450.Sim.Tether
             out double removable, out int bad)
         {
             int n = Count;
+            _unconverged = false;
             for (int pass = 0, corrections = 0, newton = 0; ; pass++)
             {
                 // A pass after the first solves again from the lowest node whose model the correction changed: below it the
@@ -729,7 +742,7 @@ namespace Fpv450.Sim.Tether
                 }
                 else
                 {
-                    if (newton == MaxNewton && Relinearise(false)) NewtonUnconverged++;
+                    if (newton == MaxNewton && Relinearise(false)) { NewtonUnconverged++; _unconverged = true; }
                     break;
                 }
                 if (newtonPass) NewtonSolves++;
