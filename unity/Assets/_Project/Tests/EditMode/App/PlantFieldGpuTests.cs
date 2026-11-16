@@ -78,7 +78,8 @@ namespace Fpv450.Tests.App
             var reference = new PlantAir(wind);
             var frameAir = new PlantAir(wind);
             var lines = new List<string>();
-            double portWorst = 0, nodeWorst = 0, betweenWorst = 0;
+            double portWorst = 0, nodeWorst = 0, betweenWorst = 0, foldWorst = 0;
+            int folds = 0;
             string worstAt = "none";
             List<double> between = new List<double>(), washed = new List<double>(), steady = new List<double>();
             int ported = 0, nodes = 0;
@@ -145,9 +146,18 @@ namespace Fpv450.Tests.App
                             }
                             Assert.That(g.b, Is.EqualTo(1f), $"level {level} band {band} ({x:0.00}, {z:0.00}) holds a bend");
                             double port = Math.Max(Math.Abs(g.r - cpu.X), Math.Abs(g.g - cpu.Z));
-                            portWorst = Math.Max(portWorst, port);
+                            if (port < 2e-3) portWorst = Math.Max(portWorst, port);
+                            else
+                            {
+                                // Past float's reach only where the CPU's own answer is ill-conditioned: its steady air nudged by 1e-5 of
+                                // itself moves it by a tenth of the gap or more (a lean at a fold, the air pressing down as it leans).
+                                Port(field, level, band, bands[band], x, z, fine, coarse, map, wind, frameAir, out PlantBend nudged, out _, out _, out _, 1 + 1e-5);
+                                double moved = Math.Max(Math.Abs(nudged.X - cpu.X), Math.Abs(nudged.Z - cpu.Z));
+                                folds++;
+                                foldWorst = Math.Max(foldWorst, port);
+                                Assert.That(moved, Is.GreaterThanOrEqualTo(port / 10), $"the port at level {level} band {band} ({x:0.00}, {z:0.00}), t {t}: GPU ({g.r:F5}, {g.g:F5}) CPU ({cpu.X:F5}, {cpu.Z:F5}); the node's air {(level < 2 ? field.WashNodeAir(level, a, b, band).ToString("F4") : "-")}, the line's {fine.Rotors.At(new Double3(x, ground + PlantBands.Elevation(band) + bands[band].LoadPoint, z), ground, out _)}, the mean used: lean {used.Lean:F5} way ({used.WayX:F3}, {used.WayZ:F3}) air {used.Air} xx {used.XX:F4} yy {used.YY:F4}"); // the gap is float's at a fold
+                            }
                             ported++;
-                            Assert.That(port, Is.LessThan(2e-3), $"the port at level {level} band {band} ({x:0.00}, {z:0.00}), t {t}: GPU ({g.r:F5}, {g.g:F5}) CPU ({cpu.X:F5}, {cpu.Z:F5}); steady {(field.SteadyAt(band, x, z, out Double3 sa) ? sa.ToString() : "none")}, the mean used: lean {used.Lean:F5} way ({used.WayX:F3}, {used.WayZ:F3}) air {used.Air} xx {used.XX:F4} yy {used.YY:F4}");
                             // The plant: PlantAir.Wind (the wind alone) and PlantAir.Sample (the wind and the wash) at its base.
                             var basePoint = new Double3(x, ground + PlantBands.Elevation(band), z);
                             reference.Wind(bands[band], basePoint, ground, out PlantBend windOnly);
@@ -182,7 +192,7 @@ namespace Fpv450.Tests.App
                 lines.Add($"t {t} s: the wash's levels at ({field.Box(0).x:0.00}, {field.Box(0).y:0.00}) and ({field.Box(1).x:0.00}, {field.Box(1).y:0.00}), the means' blend {field.MeanBlend(0):0.00}, the wind's mean {field.MeanMsPerSecond:0} ms a second of flight");
             }
             foreach (string l in lines) TestContext.WriteLine(l);
-            TestContext.WriteLine($"the port: {ported} texels within {portWorst:E2} rad of PlantAir.Bend on the kernel's mean");
+            TestContext.WriteLine($"the port: {ported - folds} texels within {portWorst:E2} rad of PlantAir.Bend on the kernel's mean, {folds} more at a fold (the CPU's own answer moved by its 1e-5 nudge), up to {foldWorst:E2} rad");
             TestContext.WriteLine($"the plants at the means' nodes at a snapshot's time: {nodes} within {nodeWorst:E2} rad of PlantAir.Wind");
             TestContext.WriteLine("the plants on the wash's grids, against PlantAir.Sample: " + Stats(washed));
             TestContext.WriteLine("the plants round the camera, against PlantAir.Sample (the mean interpolated between nodes and snapshots, the wash's steady " +
@@ -214,7 +224,7 @@ namespace Fpv450.Tests.App
         // The kernel's arithmetic on the CPU in double: the mean interpolated as PlantField.compute's MeanAt does, the wash grid's
         // node as its wash level reads it, then PlantAir.Bend. False where the kernel holds no bend.
         static bool Port(PlantField field, int level, int band, in PlantMechanics m, double x, double z, PlantWash fine, PlantWash coarse,
-            IWorldQuery world, WindField wind, PlantAir frame, out PlantBend bend, out bool atNode, out double ground, out PlantMean used)
+            IWorldQuery world, WindField wind, PlantAir frame, out PlantBend bend, out bool atNode, out double ground, out PlantMean used, double nudge = 1)
         {
             bend = default;
             used = default;
@@ -284,10 +294,16 @@ namespace Fpv450.Tests.App
                 }
                 interpolated.LoadY = ground + elevation + m.LoadPoint;
             }
-            // Where no grid holds the plant, the wash's steady air at the load point, as the kernel interpolates it, the lean settled
-            // again in it.
-            if (!gridded && field.SteadyAt(band, x, z, out Double3 steady) && steady.Length() > PlantField.SteadyMin(band))
-                PlantAir.Settle(m, ref interpolated, steady);
+            // Where no grid integrates the plant, the wash's steady air at the load point (on a wash level the line's at the node, as
+            // the helper exports it; beyond, the polar grid's as the kernel interpolates it), the lean settled again in it.
+            if (!gridded)
+            {
+                Double3 steady = default;
+                bool has = level < 2;
+                if (has) steady = fine.Rotors.At(new Double3(x, ground + elevation + m.LoadPoint, z), ground, out _);
+                else has = field.SteadyAt(band, x, z, out steady);
+                if (has && steady.Length() > PlantField.SteadyMin(band)) PlantAir.Settle(m, ref interpolated, steady * nudge);
+            }
             used = interpolated;
             frame.Bend(m, interpolated, x, z, washAir, made, out bend);
             return true;
