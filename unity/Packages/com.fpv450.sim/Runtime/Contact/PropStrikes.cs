@@ -278,10 +278,16 @@ namespace Fpv450.Sim.Contact
         {
             Double3 axis = now.Attitude.Rotate(Up), impulse = default, angular = default;
             int changed = 0, passed = 0;
+            long w0 = System.Diagnostics.Stopwatch.GetTimestamp();
             StemsBegin(now, thrust);
+            long w1 = System.Diagnostics.Stopwatch.GetTimestamp();
             // What the parts fly through (w16 1.5): the stems they push, before the discs meet them, and a crown's leaves.
             PartStems(now, body, ref impulse, ref angular);
             PartLeaves(now, body, ref impulse, ref angular);
+            long w2 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PrBegin += w1 - w0;
+            PrApply++;
+            PrParts += w2 - w1;
             for (int n = 0; n < _discs.Length; n++)
             {
                 int i = _discs[n];
@@ -372,8 +378,11 @@ namespace Fpv450.Sim.Contact
                 Immerse(c, chord);
                 _tip[c] = Double3.Dot(impulse - before, axis); // every strike's push along the rotor's axis on its arm (G8)
             }
+            long w3 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PrDiscs += w3 - w2;
             StemsEnd(now, events);
             PartsEnd(now, events);
+            PrEnd += System.Diagnostics.Stopwatch.GetTimestamp() - w3;
             if (impulse.X != 0 || impulse.Y != 0 || impulse.Z != 0 || angular.X != 0 || angular.Y != 0 || angular.Z != 0)
             {
                 now.Velocity = now.Velocity + impulse * body.InverseMass;

@@ -342,7 +342,7 @@ namespace Fpv450.Sim.Contact
                     break;
                 }
             }
-            var centre = new XZ((ix + 0.5) * StemSquare, (iz + 0.5) * StemSquare);
+            var centre = new XZ((ix + 0.5) * StemSquare, (iz + 0.5) * StemSquare); PrSqMiss++;
             _point[0] = centre;
             _world.SampleGround(_point, _pointGround);
             _qKey[at] = key;

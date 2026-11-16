@@ -62,7 +62,7 @@ namespace Fpv450.Sim.Contact
         /// <summary>The projection's passes over the parts a stem meets, and the parts one stem holds at once (numerical).</summary>
         const int ProjectionPasses = 3, MaxHits = 8;
 
-        const int ShortEntries = 5, PartCacheSize = 4096, ActiveMax = 2048, PartGroups = 5, BodyGroup = 4;
+        const int ShortEntries = 5, PartCacheSize = 4096, ActiveMax = 2048, PartGroups = 5, BodyGroup = 4, PlacedSlots = 8192, PlacedProbe = 8;
 
         /// <summary>The parts' stems' and leaves' push on a group this step (the four legs in Corners' order: a corner's supports,
         /// skid half and leg tube; then the body, its resting blades among it): the force, world N; the stems touching it; the
@@ -88,6 +88,9 @@ namespace Fpv450.Sim.Contact
         /// and the leaves none (model 103's contacts; ContactSpec.PartStems off is the same, and what a log without entry 34 flew).</summary>
         public bool PartPush = true;
 
+        public static bool PrOld;
+        public static long PrSurv, PrLinked, PrSqMiss, PrG0, PrApply, PrCache, PrScan, PrLaw, PrCacheN, PrSteps, PrCached, PrActive, PrBegin, PrDiscs, PrEnd, PrParts;
+
 
         bool _partsOn;
         double _droneReach;
@@ -108,6 +111,16 @@ namespace Fpv450.Sim.Contact
         Double3 _pAt;
         double _pLow;
         bool _pValid;
+
+        // The field's stems the parts' cache has placed, by id, kept across its rebuilds: a field stem's placement (its base, lean,
+        // length and tissue) is its id's and the world's alone (its square's ground and normal, its layer's tables, each set once),
+        // so a rebuild copies what an earlier one placed and places only the stems new to it. In dense weeds the rebuild every 0.1 m
+        // set the step's 99th percentile.
+        readonly ulong[] _placedKey = new ulong[PlacedSlots];
+        readonly long[] _placedUsed = new long[PlacedSlots];
+        readonly Stalk[] _placedStalk = new Stalk[PlacedSlots];
+        readonly Double3[] _placedTip = new Double3[PlacedSlots];
+        long _rebuilds;
 
         // The active stems: a copy of each one's stalk and its state's slot.
         readonly Stalk[] _aStalk = new Stalk[ActiveMax];
@@ -193,7 +206,7 @@ namespace Fpv450.Sim.Contact
         void Ground0(int q, XZ centre)
         {
             if (_qHas0[q]) return;
-            _qHas0[q] = true;
+            _qHas0[q] = true; PrG0++;
             for (int l = 0; l < Layers; l++) _qDensity0[q * Layers + l] = 0;
             int count = _world.StemsNear(centre, PointRadius, 0, _patches);
             if (count > _patches.Length) count = _patches.Length;
@@ -252,8 +265,224 @@ namespace Fpv450.Sim.Contact
         }
 
         // The cache about centre (the body origin): every stem whose base is within the drone's reach and its own natural lean's,
-        // and which reaches the drone's lowest point (world y, low) less the refresh margin over its square's ground.
+        // and which reaches the drone's lowest point (world y, low) less the refresh margin over its square's ground. The field's
+        // stems come from the placed (Placed) when an earlier rebuild placed them: the same stalks in the same order.
         void PartCache(Double3 centre, double low, bool field)
+        {
+            _pAt = centre;
+            _pLow = low;
+            _pValid = true;
+            _rebuilds++;
+            int m = 0;
+            double near = _droneReach + StemCacheRefresh;
+            DetMath.SinCos(StemNaturalLean, out double lean, out _);
+            double tallest = StemReference + (ReachEntries - 1) * StemReachStep, span = near + tallest * lean;
+            if (field)
+            {
+                int x0 = Floor((centre.X - span) / StemSquare), x1 = Floor((centre.X + span) / StemSquare);
+                int z0 = Floor((centre.Z - span) / StemSquare), z1 = Floor((centre.Z + span) / StemSquare);
+                for (int iz = z0; iz <= z1; iz++)
+                    for (int ix = x0; ix <= x1; ix++)
+                    {
+                        // A square wholly out of the tallest stem's reach is not asked for.
+                        double cx = (ix + 0.5) * StemSquare, cz = (iz + 0.5) * StemSquare;
+                        double ox = DetMath.Max(0, DetMath.Abs(cx - centre.X) - 0.5 * StemSquare), oz = DetMath.Max(0, DetMath.Abs(cz - centre.Z) - 0.5 * StemSquare);
+                        double off2 = ox * ox + oz * oz;
+                        if (off2 > span * span) continue;
+                        int q = Square(ix, iz);
+                        double slope = DetMath.Sqrt(_qNx[q] * _qNx[q] + _qNz[q] * _qNz[q]) / _qNy[q];
+                        // The shortest stem here that can reach the drone's lowest point: its base no higher than the square's ground
+                        // plus its half diagonal's rise.
+                        double need = low - (_qGround[q] + slope * 0.5 * StemSquare * 1.4142135623730951) - StemCacheRefresh;
+                        bool shortToo = need < StemReference;
+                        if (shortToo) Ground0(q, new XZ(cx, cz));
+                        for (int l = 0; l < Layers; l++)
+                        {
+                            double density = _qDensity[q * Layers + l] * StemDensityScale;
+                            int k = (int)_layerKind[l] + (int)CoverKind.GrassBlade - 1;
+                            if (k < (int)CoverKind.GrassBlade || k > (int)CoverKind.BurntCulm) continue;
+                            CoverSet set = _coverSets[k];
+                            if (!(set.Diameter > 0) || !(set.CutEnergy > 0)) continue;
+                            // The layer's tallest's reach from here: a square out of it holds none of the layer's that can come near.
+                            double reachLayer = near + DetMath.Max(_layerTop[l], StemReference) * lean;
+                            if (off2 > reachLayer * reachLayer) continue;
+                            ulong cell = FlightRandom.Mix64(unchecked(((ulong)(uint)ix << 32) ^ (uint)iz ^ ((ulong)l << 59)));
+                            // The props' own stems (PropStems' Cache, the same hash and order: the tallest first).
+                            if (density > 0 && _layerReach[l])
+                            {
+                                int K = (int)(density * StemSquare * StemSquare + Uniform(cell, 0));
+                                for (int s = 0; s < K && m < PartCacheSize; s++)
+                                {
+                                    ulong id = FlightRandom.Mix64(unchecked(cell + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
+                                    int at = Placed(id);
+                                    if (at < 0)
+                                    {
+                                        if (!Within(id, ix, iz, centre, reachLayer)) continue;
+                                        double length = LengthAt(l, (s + Uniform(id, 2)) / K);
+                                        if (length < need) break;
+                                        at = PlaceField(id, ix, iz, q, length, set, k);
+                                    }
+                                    else
+                                    {
+                                        if (!Within(_placedStalk[at].Base, centre, reachLayer)) continue;
+                                        if (_placedStalk[at].Length < need) break;
+                                    }
+                                    Take(ref m, at, centre, near, lean);
+                                }
+                            }
+                            // The shorter ones (the field's at 0 m less at h_ref), by the same law from their own hash.
+                            if (!shortToo || !_layerShort[l]) continue;
+                            double extra = (_qDensity0[q * Layers + l] - _qDensity[q * Layers + l]) * StemDensityScale;
+                            if (!(extra > 0)) continue;
+                            ulong low0 = FlightRandom.Mix64(cell ^ 0x5348_4F52_5453_5445UL);
+                            int Ks = (int)(extra * StemSquare * StemSquare + Uniform(low0, 0));
+                            for (int s = 0; s < Ks && m < PartCacheSize; s++)
+                            {
+                                ulong id = FlightRandom.Mix64(unchecked(low0 + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
+                                int at = Placed(id);
+                                double length;
+                                if (at < 0)
+                                {
+                                    if (!Within(id, ix, iz, centre, near + StemReference * lean)) continue;
+                                    length = ShortLengthAt(l, (s + Uniform(id, 2)) / Ks);
+                                    if (length < need || !(length > 0)) break;
+                                    at = PlaceField(id, ix, iz, q, length, set, k);
+                                }
+                                else
+                                {
+                                    if (!Within(_placedStalk[at].Base, centre, near + StemReference * lean)) continue;
+                                    length = _placedStalk[at].Length;
+                                    if (length < need || !(length > 0)) break;
+                                }
+                                Take(ref m, at, centre, near, lean);
+                            }
+                        }
+                    }
+            }
+            if (_coverSets.Length > (int)CoverKind.Stem && _coverSets[(int)CoverKind.Stem].CutEnergy > 0)
+            {
+                // The map's drawn standing stems (S04's), as PropStems takes them.
+                int n = _world.MicroDetailNear(centre, span, MicroKind.Stem, _elements);
+                if (n > _elements.Length) n = _elements.Length;
+                CoverSet set = _coverSets[(int)CoverKind.Stem];
+                for (int e = 0; e < n && m < PartCacheSize; e++)
+                {
+                    MicroElement el = _elements[e];
+                    if (el.Kind != MicroKind.Stem || !(el.Diameter > 0)) continue;
+                    double u = (FlightRandom.Mix64(el.Id) >> 11) * (1.0 / 9007199254740992.0);
+                    double modulus = set.ModulusMin + (set.ModulusMax - set.ModulusMin) * u;
+                    double top = DetMath.Max(el.P0.Y, DetMath.Max(el.P1.Y, el.P2.Y));
+                    double length = (el.P1 - el.P0).Length() + (el.P2 - el.P1).Length();
+                    if (!(top + StemCacheRefresh >= low)) continue;
+                    ulong id = FlightRandom.Mix64(el.Id ^ 0x5304_5304_5304_5304UL) | 1;
+                    Double3 way = el.P2 - el.P0;
+                    way = new Double3(way.X, 0, way.Z);
+                    double across = way.Length();
+                    if (across > 1e-9) way = way * (1 / across);
+                    else
+                    {
+                        DetMath.SinCos(TwoPi * Uniform(id, 4), out double sa, out double ca);
+                        way = new Double3(ca, 0, sa);
+                    }
+                    double rise = top - el.P0.Y, phi0 = length > rise && length > 0 ? DetMath.Acos(DetMath.Min(1, rise / length)) : 0;
+                    Tissue t = TissueOf(set, el.Diameter * StemDiameterScale, modulus, (ushort)((int)CoverKind.Stem + 1));
+                    Place(ref _pStalk[m], out _pTip[m], id, el.P0, way, length, rise, phi0, t);
+                    m++;
+                }
+            }
+            _pCount = m;
+        }
+
+        // Whether stem id of the square (ix, iz) has its base within reach of centre (in x–z), placed as PropStems places it.
+        static bool Within(ulong id, int ix, int iz, Double3 centre, double reach) =>
+            Within(new Double3((ix + Uniform(id, 0)) * StemSquare, 0, (iz + Uniform(id, 1)) * StemSquare), centre, reach);
+
+        static bool Within(Double3 basePoint, Double3 centre, double reach)
+        {
+            double dx = basePoint.X - centre.X, dz = basePoint.Z - centre.Z;
+            return !(dx * dx + dz * dz > reach * reach);
+        }
+
+        // A field stem of the square (ix, iz) (slot q) of layer kind k, placed as PropStems places it, among the placed: its slot.
+        int PlaceField(ulong id, int ix, int iz, int q, double length, in CoverSet set, int k)
+        {
+            double x = (ix + Uniform(id, 0)) * StemSquare, z = (iz + Uniform(id, 1)) * StemSquare;
+            double phi0 = StemNaturalLean * Uniform(id, 3), azimuth = TwoPi * Uniform(id, 4);
+            double cx = (ix + 0.5) * StemSquare, cz = (iz + 0.5) * StemSquare;
+            double y = _qGround[q] - (_qNx[q] * (x - cx) + _qNz[q] * (z - cz)) / _qNy[q];
+            double d = set.Diameter * StemDiameterScale * DetMath.Exp(StemAllometry * DetMath.Log(length));
+            DetMath.SinCos(azimuth, out double sa, out double ca);
+            Tissue t = TissueOf(set, d, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1));
+            int at = Keep(id);
+            Place(ref _placedStalk[at], out _placedTip[at], id, new Double3(x, y, z), new Double3(ca, 0, sa), length, length, phi0, t);
+            return at;
+        }
+
+        // The placed stem at into the cache if its base is within the drone's reach (near) and its own lean's.
+        void Take(ref int m, int at, Double3 centre, double near, double lean)
+        {
+            ref Stalk k = ref _placedStalk[at];
+            double dx = k.Base.X - centre.X, dz = k.Base.Z - centre.Z, reach = near + k.Length * lean;
+            if (dx * dx + dz * dz > reach * reach) return;
+            _pStalk[m] = k;
+            _pTip[m++] = _placedTip[at];
+        }
+
+        void Place(ref Stalk k, out Double3 tip, ulong id, Double3 basePoint, Double3 lean, double length, double rise, double phi0, in Tissue t)
+        {
+            k.Base = basePoint;
+            k.Lean = lean;
+            k.Length = length;
+            k.Rise = rise;
+            k.Phi0 = phi0;
+            DetMath.SinCos(phi0, out double sp, out k.CosPhi0);
+            k.T = t;
+            k.MuG8 = t.Mu * Gravity / (8 * t.EI);
+            k.Tau0 = 1 / (1.875 * 1.875 * DetMath.Sqrt(t.EI / t.Mu));
+            k.Id = id;
+            k.Slot = -1;
+            tip = basePoint + new Double3(lean.X * sp * length, k.CosPhi0 * length, lean.Z * sp * length);
+        }
+
+        // Stem id's slot among the placed, or −1 (a kept key stays in its probe until another takes its slot).
+        int Placed(ulong id)
+        {
+            int home = (int)((id >> 1) & (PlacedSlots - 1));
+            for (int p = 0; p < PlacedProbe; p++)
+            {
+                int i = (home + p) & (PlacedSlots - 1);
+                if (_placedKey[i] == id)
+                {
+                    _placedUsed[i] = _rebuilds;
+                    return i;
+                }
+                if (_placedKey[i] == 0) return -1;
+            }
+            return -1;
+        }
+
+        // A slot for stem id among the placed: the first empty one in its probe, else the one least recently used.
+        int Keep(ulong id)
+        {
+            int home = (int)((id >> 1) & (PlacedSlots - 1)), at = home;
+            for (int p = 0; p < PlacedProbe; p++)
+            {
+                int i = (home + p) & (PlacedSlots - 1);
+                if (_placedKey[i] == 0)
+                {
+                    at = i;
+                    break;
+                }
+                if (_placedUsed[i] < _placedUsed[at]) at = i;
+            }
+            _placedKey[at] = id;
+            _placedUsed[at] = _rebuilds;
+            return at;
+        }
+
+        // The cache about centre (the body origin): every stem whose base is within the drone's reach and its own natural lean's,
+        // and which reaches the drone's lowest point (world y, low) less the refresh margin over its square's ground.
+        void PartCacheOld(Double3 centre, double low, bool field)
         {
             _pAt = centre;
             _pLow = low;
@@ -299,10 +528,10 @@ namespace Fpv450.Sim.Contact
                                 for (int s = 0; s < K && m < PartCacheSize; s++)
                                 {
                                     ulong id = FlightRandom.Mix64(unchecked(cell + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
-                                    if (!Within(id, ix, iz, centre, reachLayer)) continue;
+                                    if (!WithinOld(id, ix, iz, centre, reachLayer)) continue;
                                     double length = LengthAt(l, (s + Uniform(id, 2)) / K);
                                     if (length < need) break;
-                                    PlaceField(ref m, id, ix, iz, q, length, set, k, centre, near, lean);
+                                    PlaceFieldOld(ref m, id, ix, iz, q, length, set, k, centre, near, lean);
                                 }
                             }
                             // The shorter ones (the field's at 0 m less at h_ref), by the same law from their own hash.
@@ -314,10 +543,10 @@ namespace Fpv450.Sim.Contact
                             for (int s = 0; s < Ks && m < PartCacheSize; s++)
                             {
                                 ulong id = FlightRandom.Mix64(unchecked(low0 + (ulong)(s + 1) * 0xD1B54A32D192ED03UL)) | 1;
-                                if (!Within(id, ix, iz, centre, near + StemReference * lean)) continue;
+                                if (!WithinOld(id, ix, iz, centre, near + StemReference * lean)) continue;
                                 double length = ShortLengthAt(l, (s + Uniform(id, 2)) / Ks);
                                 if (length < need || !(length > 0)) break;
-                                PlaceField(ref m, id, ix, iz, q, length, set, k, centre, near, lean);
+                                PlaceFieldOld(ref m, id, ix, iz, q, length, set, k, centre, near, lean);
                             }
                         }
                     }
@@ -349,14 +578,14 @@ namespace Fpv450.Sim.Contact
                     }
                     double rise = top - el.P0.Y, phi0 = length > rise && length > 0 ? DetMath.Acos(DetMath.Min(1, rise / length)) : 0;
                     Tissue t = TissueOf(set, el.Diameter * StemDiameterScale, modulus, (ushort)((int)CoverKind.Stem + 1));
-                    Place(ref m, id, el.P0, way, length, rise, phi0, t);
+                    PlaceOld(ref m, id, el.P0, way, length, rise, phi0, t);
                 }
             }
             _pCount = m;
         }
 
         // Whether stem id of the square (ix, iz) has its base within reach of centre (in x–z), placed as PropStems places it.
-        static bool Within(ulong id, int ix, int iz, Double3 centre, double reach)
+        static bool WithinOld(ulong id, int ix, int iz, Double3 centre, double reach)
         {
             double dx = (ix + Uniform(id, 0)) * StemSquare - centre.X, dz = (iz + Uniform(id, 1)) * StemSquare - centre.Z;
             return !(dx * dx + dz * dz > reach * reach);
@@ -364,7 +593,7 @@ namespace Fpv450.Sim.Contact
 
         // A field stem of the square (ix, iz) (slot q) of layer kind k, placed as PropStems places it, kept if its base is within
         // the drone's reach (near) and its own lean's.
-        void PlaceField(ref int m, ulong id, int ix, int iz, int q, double length, in CoverSet set, int k, Double3 centre, double near, double lean)
+        void PlaceFieldOld(ref int m, ulong id, int ix, int iz, int q, double length, in CoverSet set, int k, Double3 centre, double near, double lean)
         {
             double x = (ix + Uniform(id, 0)) * StemSquare, z = (iz + Uniform(id, 1)) * StemSquare;
             double dx = x - centre.X, dz = z - centre.Z, reach = near + length * lean;
@@ -375,10 +604,10 @@ namespace Fpv450.Sim.Contact
             double d = set.Diameter * StemDiameterScale * DetMath.Exp(StemAllometry * DetMath.Log(length));
             DetMath.SinCos(azimuth, out double sa, out double ca);
             Tissue t = TissueOf(set, d, 0.5 * (set.ModulusMin + set.ModulusMax), (ushort)(k + 1));
-            Place(ref m, id, new Double3(x, y, z), new Double3(ca, 0, sa), length, length, phi0, t);
+            PlaceOld(ref m, id, new Double3(x, y, z), new Double3(ca, 0, sa), length, length, phi0, t);
         }
 
-        void Place(ref int m, ulong id, Double3 basePoint, Double3 lean, double length, double rise, double phi0, in Tissue t)
+        void PlaceOld(ref int m, ulong id, Double3 basePoint, Double3 lean, double length, double rise, double phi0, in Tissue t)
         {
             ref Stalk k = ref _pStalk[m];
             k.Base = basePoint;
@@ -451,7 +680,15 @@ namespace Fpv450.Sim.Contact
                 _pCount = 0;
             }
             else if (!_pValid || (now.Position - _pAt).Length() > StemCacheRefresh || lo.Y < _pLow - StemCacheRefresh)
-                PartCache(now.Position, lo.Y, field);
+            {
+                long q0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                if (PrOld) PartCacheOld(now.Position, lo.Y, field); else PartCache(now.Position, lo.Y, field);
+                PrCache += System.Diagnostics.Stopwatch.GetTimestamp() - q0;
+                PrCacheN++;
+            }
+            long q1 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PrSteps++;
+            PrCached += _pCount;
 
             // The cached stems that meet a part become active: they lean then by the props' law in two dimensions, the parts as
             // constraints. A stem's natural link rules it out cheaply; a stem based under a disc may lie folded any way, so its whole
@@ -474,6 +711,7 @@ namespace Fpv450.Sim.Contact
                 bool any = false;
                 for (int mp = 0; mp < _masses && !any; mp++) any = _mOn[mp] && Overlaps(k.Base, tip, _mLo[mp], _mHi[mp], around);
                 if (!any) continue;
+                PrSurv++;
                 // Its lean now: its state's if it has one (the jet's, or as the parts left it), else its natural one.
                 int s = Find(k.Id);
                 double len = k.Length, bx = k.Phi0 * k.Lean.X, bz = k.Phi0 * k.Lean.Z;
@@ -486,6 +724,7 @@ namespace Fpv450.Sim.Contact
                     bz = t.Phi * k.Lean.Z + t.CZ;
                 }
                 Link(k, len, bx, bz, out tip, out _);
+                PrLinked++;
                 if (!Meets(k.Base, tip, 0.5 * k.T.D)) continue;
                 if (_aCount == ActiveMax)
                 {
@@ -501,6 +740,9 @@ namespace Fpv450.Sim.Contact
                 _aSlot[_aCount++] = s;
             }
 
+            long q2 = System.Diagnostics.Stopwatch.GetTimestamp();
+            PrScan += q2 - q1;
+            PrActive += _aCount;
             // Every active stem's lean, against the parts; one no part touches whose lean across its way has come home is the
             // jet's (PropStems') again.
             for (int j = 0; j < _aCount; j++)
@@ -533,6 +775,7 @@ namespace Fpv450.Sim.Contact
                 }
                 t.Top = TopOf(k, s);
             }
+            PrLaw += System.Diagnostics.Stopwatch.GetTimestamp() - q2;
         }
 
         // The state's slot of stem id if it has one, else −1 (no insert).
