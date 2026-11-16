@@ -1,3 +1,4 @@
+using System;
 using Fpv450.Sim.World;
 
 namespace Fpv450.Sim.Wind
@@ -199,6 +200,51 @@ namespace Fpv450.Sim.Wind
                 }
             }
         }
+
+        // ---- The modes' tables for the drawn side's GPU port (PlantAir.OpenModes and the rest; w16-plants-in-the-air 1.3) ----
+
+        /// <summary>The open modes' count (0 without a pilot's level).</summary>
+        internal int PlantOpenCount => _level ? _wave.Length : 0;
+
+        /// <summary>The open modes at a load point whose profile's log is lambda (PlantParts.Lambda), their share 1: PlantModes'
+        /// own amplitudes (Scaled's table at the point's grid offsets, or the one-scale field's).</summary>
+        internal void PlantOpenModes(double lambda, PlantMode[] into)
+        {
+            if (!_level) return;
+            if (_scaled)
+            {
+                double sh = DetMath.Min(DetMath.Max(lambda * _perStep + _hA, _hB), _sTop);
+                double sw = DetMath.Min(DetMath.Max(lambda * _perStep + _wA, _wB), _sTop);
+                int jh = (int)sh, jw = (int)sw;
+                double th = sh - jh, tw = sw - jw;
+                for (int m = 0; m < _wave.Length; m++)
+                {
+                    Double3 c = _pol[m];
+                    int ih = m + jh, iw = m + jw;
+                    double ah = _unit[ih] + th * _rise[ih], aw = _unit[iw] + tw * _rise[iw];
+                    into[m] = new PlantMode { Wave = _wave[m], Amplitude = new Double3(c.X * ah, c.Y * aw, c.Z * ah), Phase = _phase[m], Scale = 1 };
+                }
+                return;
+            }
+            for (int m = 0; m < _wave.Length; m++)
+                into[m] = new PlantMode { Wave = _wave[m], Amplitude = _amp[m], Phase = _phase[m], Scale = 1 };
+        }
+
+        /// <summary>The wooded strips' count, and a strip's index (−1 for none).</summary>
+        internal int PlantStripCount => _canopies != null ? _canopies.Length : 0;
+        internal int PlantStripIndex(CanopyFlow strip) => strip == null || _canopies == null ? -1 : Array.IndexOf(_canopies, strip);
+        internal CanopyFlow PlantStrip(int i) => _canopies[i];
+
+        /// <summary>The wake eddies' count (0 without wakes).</summary>
+        internal int PlantWakeCount => _level && _eddyDir != null ? _eddyDir.Length : 0;
+
+        /// <summary>The wake eddies: the unit wave direction, the unit amplitude, the phase and 2π over the eddy's size in
+        /// obstacle heights (a point's wave number is Scale over its obstacle's height).</summary>
+        internal void PlantWakeModes(PlantMode[] into)
+        {
+            for (int m = 0; m < PlantWakeCount; m++)
+                into[m] = new PlantMode { Wave = _eddyDir[m], Amplitude = _eddyAmp[m], Phase = _eddyPhase[m], Scale = _eddyScale[m] };
+        }
     }
 
     public sealed partial class CanopyFlow
@@ -214,6 +260,17 @@ namespace Fpv450.Sim.Wind
                 double phase = k.X * point.X + k.Y * point.Y + k.Z * point.Z + _phase[m] - (k.X * dx + k.Z * dz);
                 sink.Mode(_amp[m] * share, phase, k.X * vx + k.Z * vz);
             }
+        }
+
+        /// <summary>The strip's eddies' count and the eddies (share 1) for the drawn side's GPU port; returns their convection
+        /// over the field's drift.</summary>
+        internal int PlantModeCount => _wave.Length;
+
+        internal double PlantModeTable(PlantMode[] into)
+        {
+            for (int m = 0; m < _wave.Length; m++)
+                into[m] = new PlantMode { Wave = _wave[m], Amplitude = _amp[m], Phase = _phase[m], Scale = 1 };
+            return _convection;
         }
     }
 }
