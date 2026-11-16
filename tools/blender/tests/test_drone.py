@@ -98,6 +98,8 @@ def test_params_conform(variant):
     (lambda p: p["canister"].update(hanger_front_m=0.2), "hangers (front before rear)"),
     (lambda p: p["coil"].update(hoop_d_m=0.105), "inside the canister's body"),
     (lambda p: p["lod"].update(lod3_switch_m=8.0), "must increase"),
+    (lambda p: p["nose_mount"].update(rail_x_m=0.024), "outside the canister's front hanger"),
+    (lambda p: p["nose_mount"].update(rear_z_m=0.095, rail_h_m=0.008), "under the nose mount's roof"),
 ])
 def test_check_refuses_inconsistent_params(change, words):
     p = load("D01_legs_on")
@@ -640,6 +642,78 @@ def test_no_face_is_degenerate(built):
                 assert math.sqrt(sum(c * c for c in n)) > 1e-12
 
 
+# --- the camera's place (w14-camera-place) ------------------------------------------------------------------------
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_the_camera_rides_the_nose_mount_at_the_specs_lens(variant, spec):
+    """The lens drawn at drone.json's camera.lens_m (camera-place.md §5.3), the camera in its bracket under the bottom
+    plate, the bracket's members touching and none overlapping, clear of the canister and its front hanger and below
+    the prop discs; the frame's own camera place between the plates left empty."""
+    params = load(variant)
+    layout, parts = layout_parts(params)
+    lens = spec["camera"]["lens_m"]["value"]
+    assert spec["camera"]["lens_m"]["label"] == "derived" and "camera-place.md §5.3" in spec["camera"]["lens_m"]["note"]
+    lo, hi = bounds(parts["nose_mount"])
+    assert hi[2] == pytest.approx(lens[2])  # the lens is the bracket's front
+    front = [v for v in parts["nose_mount"].vertices if abs(v[2] - lens[2]) < 1e-9]
+    assert max(math.hypot(v[0] - lens[0], v[1] - lens[1]) for v in front) == pytest.approx(0.0055)
+    bottom, _, _ = drone.plate_heights(params, layout)
+    assert hi[1] == pytest.approx(bottom[0])  # hung from the bottom plate's underside
+    boxes = drone.nose_mount_boxes(params, layout)
+    for i, (a0, a1) in enumerate(boxes):
+        for b0, b1 in boxes[i + 1:]:
+            assert any(a1[k] <= b0[k] + 1e-12 or b1[k] <= a0[k] + 1e-12 for k in range(3))  # no overlap
+    for h0, h1 in drone.hanger_boxes(params, layout):
+        for b0, b1 in boxes:
+            assert any(b1[k] <= h0[k] or h1[k] <= b0[k] for k in range(3))
+    can = drone.mount_frame(params, layout, "canister")[0]
+    R = part(spec, "canister")["diameter_m"] / 2
+    _, _, _, zf = drone.canister_stations(params, layout)
+    face_front = max(can.at(R * math.cos(t), R * math.sin(t), zf)[2] for t in [k * math.pi / 18 for k in range(36)])
+    assert min(b0[2] for b0, _ in boxes[2:]) - face_front > 0.02  # the cradle 2 cm ahead of the canister's face
+    prop_low = min(h[1] for h in layout.hubs) - params["prop"]["hub_h_m"] / 2
+    assert hi[1] < prop_low - 0.03
+    elec = parts["electronics"]
+    assert not any(v[2] > 0.06 for v in elec.vertices if bottom[1] < v[1])  # nothing at the frame's camera place
+
+
+@pytest.mark.parametrize("variant", VARIANTS)
+def test_the_nose_rods_are_their_parts_with_bent_tips(variant, spec):
+    params = load(variant)
+    layout, parts = layout_parts(params)
+    floor_lo, floor_hi = drone.nose_mount_boxes(params, layout)[-1]
+    for name, toward in (("nose_rod_left", -1), ("nose_rod_right", 1)):
+        p = part(spec, name)
+        x, y, z = p["position_m"]
+        rear, front = z - p["length_m"] / 2, z + p["length_m"] / 2
+        pts = drone.rod_points(params, layout, name)
+        assert pts[0] == pytest.approx((x, y, rear)) and pts[-1][2] == pytest.approx(front)
+        assert floor_lo[2] <= rear <= floor_hi[2] and floor_lo[1] < y < floor_hi[1]  # held in the floor
+        assert 0 < math.dist(pts[-1], (x, y, front)) < params["nose_rods"]["bend_m"]  # bent by hand
+        assert x == pytest.approx(toward * 0.060) and y == pytest.approx(-0.031) and p["diameter_m"] == 0.001
+    assert part(spec, "nose_rod_left")["position_m"][2] + part(spec, "nose_rod_left")["length_m"] / 2 == pytest.approx(0.299)
+    assert part(spec, "nose_rod_right")["position_m"][2] + part(spec, "nose_rod_right")["length_m"] / 2 == pytest.approx(0.309)
+    lo, hi = bounds(parts["nose_rods"])
+    assert hi[2] == pytest.approx(0.309, abs=0.0006) and lo[0] < -0.059 and hi[0] > 0.059
+
+
+def test_the_mount_part_carries_the_camera_at_its_drawn_mass_centre(spec):
+    """drone.json's nose_mount part: the bracket's 18 g at its drawn members' centre (uniform fill) and the camera's
+    6 g at its body's, which left the electronics part."""
+    params = load("D01_legs_on")
+    layout, _ = layout_parts(params)
+    vol, c = 0.0, [0.0, 0.0, 0.0]
+    for lo, hi in drone.nose_mount_boxes(params, layout):
+        v = (hi[0] - lo[0]) * (hi[1] - lo[1]) * (hi[2] - lo[2])
+        vol += v
+        c = [c[a] + v * (lo[a] + hi[a]) / 2 for a in range(3)]
+    lo, hi = drone.camera_box(layout)
+    centre = [(0.018 * c[a] / vol + 0.006 * (lo[a] + hi[a]) / 2) / 0.024 for a in range(3)]
+    mount = part(spec, "nose_mount")
+    assert mount["mass_kg"] == pytest.approx(0.024) and mount["position_m"] == pytest.approx(centre, abs=1e-4)
+    assert part(spec, "electronics")["mass_kg"] == pytest.approx(0.234)
+
+
 # --- materials and metadata -----------------------------------------------------------------------------------------
 
 def test_palettes_match_their_recipes_and_the_catalog():
@@ -659,11 +733,12 @@ def test_metadata_validates(variant, built):
     assert meta.validate(data, meta.load_physics_materials(REPO)) == []
     kinds = [s["kind"] for s in data["snag"]]
     if variant == "D01_legs_on":
-        assert kinds.count("hook") == 4 + 2 and kinds.count("edge") == 2 + 4  # skid ends and ties; skids and legs
+        assert kinds.count("hook") == 4 + 2 and kinds.count("edge") == 2 + 4 + 2  # skid ends, ties; skids, legs, rods
     else:
-        assert kinds == ["hook", "hook"]  # the cable ties' tails
+        assert kinds == ["hook", "hook", "edge", "edge"]  # the cable ties' tails, the nose rods
     physics = {m["slot"]: m["physics"] for m in data["materials"]}
     assert physics["metal"] == "steel" and physics["carbon"] == "carbon_composite"
     assert "carbon_composite" in {c["material"] for c in data["collision"]}
-    assert all(s["material"] == "carbon_composite" for s in data["snag"] if s["kind"] == "edge")  # legs and skids
+    edges = [s["material"] for s in data["snag"] if s["kind"] == "edge"]
+    assert edges[:-2] == ["carbon_composite"] * (len(edges) - 2) and edges[-2:] == ["plastic"] * 2  # legs, skids; rods
     assert not any(c["landable"] for c in data["collision"])

@@ -5,8 +5,8 @@ shows them (D-043).
 Every dimension and position comes from the component spec, assets-src/drone/drone.json (DRN-03), which the
 physics' mass build reads too; the params (assets-src/drone/<variant>.json, PARAMS below) hold only the look: the arm
 plates' outline, the plates' gauges, the props' planform, the spool's ends and ribs, the canister's cone, nozzle
-and hangers, the bottle's neck, cap and shoulder, the payload and payout settings, the straps, the camera's place
-and the LODs. The spec's parts are mass shapes; each is drawn as follows.
+and hangers, the bottle's neck, cap and shoulder, the payload and payout settings, the straps, the nose mount's
+rails and walls, the nose rods' tip bends and the LODs. The spec's parts are mass shapes; each is drawn as follows.
 
 - **Origin and axes:** the spec's body frame (D-019): x starboard, y up, z forward, from the arm-plane centre.
 - **Motors** (motor_*): the can is the part's cylinder exactly, base to top: a narrower base (motor.base_*), the
@@ -23,9 +23,17 @@ and the LODs. The spec's parts are mass shapes; each is drawn as follows.
   plate on them, black standoffs and the upper plate, the part's height (34 mm, the frame's published) from the
   bottom plate's underside. The spec's box starts at the arms' underside instead; the drawn stack starts a bottom
   plate lower (the arms sandwiched, published construction).
-- **Electronics** (inside the electronics part): the flight-controller and ESC stack on nylon spacers, the camera
-  with its lens at camera.lens_*, the capacitor and the fiber module at the rear, all between the top and upper
-  plates (the upper plate's top is the bottle's); the motor leads along the arms.
+- **Electronics** (inside the electronics part): the flight-controller and ESC stack on nylon spacers, the capacitor
+  and the fiber module at the rear, all between the top and upper plates (the upper plate's top is the bottle's);
+  the motor leads along the arms. The frame's own camera place between the plates stays empty (w14-camera-place).
+- **Camera and nose mount** (nose_mount; camera.lens_m; docs/reference-notes/camera-place.md §5.3, §6): the 19 mm
+  camera, its lens at the spec's camera.lens_m facing +z, hangs under the bottom plate's front in a plain printed
+  bracket: two rails bolted under the plate (nose_mount.rail_*, clear of the canister's front hanger between them)
+  run forward to a cradle, a roof between them, two cheeks either side of the camera and a floor under it, the floor
+  widened across to carry the rods. The spec's nose_mount part is its mass shape (bracket and camera).
+- **Nose rods** (nose_rod_left, nose_rod_right): the parts' cylinders, from inside the floor forward to their front
+  ends, each with its last nose_rods.bend_m bent by hand (nose_rods.<side>.*), the tip still at the part's front end.
+  What they are is not known (camera-place.md §3, §7): drawn pale, named neutrally.
 - **Packs** (pack_*): the part's box exactly, its long edges rounded (pack.corner_r_m), held by `straps` hook-and-loop
   straps each, which pass through the bottom plate; leads to yellow connectors at the rear, plugged.
 - **Coil** (coil; legs_off.moved): T's spool, the wound pack on its bobbin, inside the canister along the part's axis
@@ -116,6 +124,7 @@ MOUTH_BAND_M = 0.0015  # the nozzle mouth's rim band before its flare (assumed)
 SEAM_M = 0.001  # the canister lid's seam, its width and depth (assumed)
 NOZZLE_SEAT_M = 0.004  # how far the nozzle's tube sits in the cone's collar past its face (assumed)
 EXIT = "fiber_exit"  # the line's exit: the metadata's port at the nozzle's tip
+NOSE_RODS = ("nose_rod_left", "nose_rod_right")  # the two pale rods ahead of the camera (camera-place.md §3)
 NECK_M, RING_M = 0.010, 0.003  # a PET bottle's neck under its cap and its support ring's lip (assumed)
 LEAD_R_M = 0.00225  # 10 AWG silicone with its jacket, Ø4.5 mm (the sheet)
 XT90_M = (0.040, 0.011, 0.021)  # a mated XT90 pair: length, height, width (published class)
@@ -197,9 +206,25 @@ PARAMS = {
     "straps": {"type": "int", "range": (2, 3), "default": 2, "effect": "straps per pack"},
     "skid_band": {"type": "bool", "range": "true | false", "default": True,
                   "effect": "the lime band on the port skid (T)"},
-    "camera.lens_y_m": {"type": "float", "range": (0.0, 0.03), "default": 0.015,
-                        "effect": "the lens's height: between the top and upper plates"},
-    "camera.lens_z_m": {"type": "float", "range": (0.09, 0.14), "default": 0.115, "effect": "the lens's front"},
+    "nose_mount.rail_x_m": {"type": "float", "range": (0.015, 0.045), "default": 0.028,
+                            "effect": "the bracket's two rails' centres either side of the centreline"},
+    "nose_mount.rail_w_m": {"type": "float", "range": (0.004, 0.015), "default": 0.008, "effect": "a rail's width"},
+    "nose_mount.rail_h_m": {"type": "float", "range": (0.002, 0.008), "default": 0.004,
+                            "effect": "the rails' and the roof's depth under the bottom plate"},
+    "nose_mount.rear_z_m": {"type": "float", "range": (0.0, 0.095), "default": 0.050,
+                            "effect": "the rails' rear ends, bolted under the bottom plate"},
+    "nose_mount.wall_m": {"type": "float", "range": (0.002, 0.005), "default": 0.003,
+                          "effect": "the cheeks' and the floor's wall"},
+    "nose_rods.bend_m": {"type": "float", "range": (0.002, 0.03), "default": 0.012,
+                         "effect": "the hand-bent length at each rod's tip"},
+    "nose_rods.left.bend_deg": {"type": "float", "range": (0.0, 60.0), "default": 15.0,
+                                "effect": "how far the left tip is bent off the rod's line"},
+    "nose_rods.left.toward_deg": {"type": "float", "range": (-180.0, 180.0), "default": -75.0,
+                                  "effect": "which way, across the rod: from +x towards +y"},
+    "nose_rods.right.bend_deg": {"type": "float", "range": (0.0, 60.0), "default": 25.0,
+                                 "effect": "how far the right tip is bent off the rod's line"},
+    "nose_rods.right.toward_deg": {"type": "float", "range": (-180.0, 180.0), "default": 135.0,
+                                   "effect": "which way, across the rod: from +x towards +y"},
     "lod.lod1_switch_m": {"type": "float", "range": (0.5, 20.0), "default": 3.0, "effect": "LOD1 from here"},
     "lod.lod2_switch_m": {"type": "float", "range": (2.0, 60.0), "default": 10.0, "effect": "LOD2 from here"},
     "lod.lod3_switch_m": {"type": "float", "range": (5.0, 150.0), "default": 35.0, "effect": "LOD3 from here"},
@@ -249,6 +274,7 @@ class Layout:
         self.prop_d = value(spec["props"]["diameter_m"])
         self.blades = int(value(spec["props"]["blades"]))
         self.pitch = value(spec["props"]["pitch_m"])
+        self.lens = tuple(value(spec["camera"]["lens_m"]))  # the FPV lens, facing +z at 0° uptilt
         self.legs_off = legs_off
         self.bottle_only = params["layout"] == "bottle"
 
@@ -330,9 +356,35 @@ def check(params):
             problems.append("the bottle layout serves both builds only while legs_off leaves the payload in place")
     if params["arm"]["mount_width_m"] < params["arm"]["width_m"]:
         problems.append("'arm.mount_width_m' is narrower than 'arm.width_m'")
+    if params["layout"] != "bottle":
+        problems += _nose_problems(spec, params)
     lod = params["lod"]
     if not lod["lod1_switch_m"] < lod["lod2_switch_m"] < lod["lod3_switch_m"] < lod["cull_m"]:
         problems.append("the LOD switches and the cull must increase")
+    return problems
+
+
+def _nose_problems(spec, params):
+    """The nose mount against the spec: its rails clear of the canister's front hanger between them and bolted under
+    the bottom plate, the camera under its roof, each rod's rear end held in the floor."""
+    layout = Layout(spec, params)
+    k = params["nose_mount"]
+    problems = []
+    if k["rail_x_m"] - k["rail_w_m"] / 2 <= HANGER_HALF_M:
+        problems.append("the nose mount's rails must pass outside the canister's front hanger")
+    plate = layout.part("plates")
+    if k["rear_z_m"] >= plate["position_m"][2] + plate["size_m"][2] / 2:
+        problems.append("the nose mount's rails must start under the bottom plate")
+    lo, hi = camera_box(layout)
+    bottom, _, _ = plate_heights(params, layout)
+    if hi[1] > bottom[0] - k["rail_h_m"]:
+        problems.append("the camera must hang under the nose mount's roof")
+    floor_lo, floor_hi = nose_mount_boxes(params, layout)[-1]
+    for name in NOSE_RODS:
+        x, y, z = layout.part(name)["position_m"]
+        rear, r = z - layout.part(name)["length_m"] / 2, layout.part(name)["diameter_m"] / 2
+        if not (floor_lo[1] + r <= y <= floor_hi[1] - r and floor_lo[2] <= rear <= floor_hi[2]):
+            problems.append(f"{name}'s rear end must be held in the nose mount's floor")
     return problems
 
 
@@ -395,7 +447,7 @@ def build(params):
         return _build_bottle(params, layout, lods)
     spans = prop_spans(parts[0], layout)
     collision = _collision(params, layout)
-    lens = (0.0, params["camera"]["lens_y_m"], params["camera"]["lens_z_m"])
+    lens = layout.lens
     report = [f"{'legs off' if layout.legs_off else 'legs on'}, payload {params['payload_kg']:g} kg "
               f"(scale {layout.payload_scale:.4f}), payout {params['payout']:g}; "
               f"prop tips {spans['nose_first']:.4f} m nose-first, {spans['diagonal']:.4f} m on the diagonal "
@@ -507,6 +559,8 @@ def part_meshes(params, layout, q):
                 add_part(name, fn, params, layout, corner)
     add_part("plates", _plates, params, layout)
     add_part("electronics", _electronics, params, layout)
+    add_part("nose_mount", _nose_mount, params, layout)
+    add_part("nose_rods", _nose_rods, params, layout)
     for side in ("left", "right"):
         if layout.has(f"pack_{side}"):
             add_part(f"pack_{side}", _pack, params, layout, side)
@@ -1073,21 +1127,72 @@ def _spline(points, per):
 
 # --- electronics -------------------------------------------------------------------------------------------------
 
-def camera_box(params):
-    lens_y, lens_z = params["camera"]["lens_y_m"], params["camera"]["lens_z_m"]
+def camera_box(layout):
+    """The 19 mm micro camera's body (lo, hi), its 6 mm lens barrel ahead of it to the lens at camera.lens_m."""
+    _, lens_y, lens_z = layout.lens
     return (-0.0095, lens_y - 0.0095, lens_z - 0.026), (0.0095, lens_y + 0.0095, lens_z - 0.006)
 
 
-def _electronics(m, q, params, layout):
+def nose_mount_boxes(params, layout):
+    """The nose bracket's members as boxes (lo, hi), body axes, all of them touching and none overlapping: the two
+    rails from under the bottom plate (rear_z_m) forward to the cradle's front, the roof between them over the
+    camera, the cheeks either side of it, and the floor under it, as wide as the rods it carries (+4 mm)."""
+    k = params["nose_mount"]
+    lo, hi = camera_box(layout)
+    bottom, _, _ = plate_heights(params, layout)
+    y_top, y_roof = bottom[0], bottom[0] - k["rail_h_m"]
+    y_floor = lo[1]  # the camera sits on the floor
+    z0, z1 = lo[2] - k["wall_m"], hi[2]
+    xi, xo = k["rail_x_m"] - k["rail_w_m"] / 2, k["rail_x_m"] + k["rail_w_m"] / 2
+    floor_x = max(abs(layout.part(n)["position_m"][0]) for n in NOSE_RODS) + 0.004
+    boxes = [((-xo, y_roof, k["rear_z_m"]), (-xi, y_top, z1)), ((xi, y_roof, k["rear_z_m"]), (xo, y_top, z1)),
+             ((-xi, y_roof, z0), (xi, y_top, z1))]
+    for s in (-1, 1):
+        x0, x1 = sorted((s * hi[0], s * (hi[0] + k["wall_m"])))
+        boxes.append(((x0, y_floor, z0), (x1, y_roof, z1)))
+    boxes.append(((-floor_x, y_floor - k["wall_m"], z0), (floor_x, y_floor, z1)))
+    return boxes
+
+
+def _nose_mount(m, q, params, layout):
+    """The camera in its nose bracket (camera-place.md §6): the bracket black printed, the camera black with its lens.
+    LOD3 keeps the cradle as one box."""
+    boxes = nose_mount_boxes(params, layout)
     if q == 3:
+        box(m, AXES, (boxes[-1][0][0], boxes[-1][0][1], boxes[-1][0][2]),
+            (boxes[-1][1][0], boxes[0][1][1], boxes[-1][1][2]), BLACK)
         return
-    lo, hi = camera_box(params)
-    lens_y, lens_z = params["camera"]["lens_y_m"], params["camera"]["lens_z_m"]
+    for lo, hi in boxes:
+        box(m, AXES, lo, hi, BLACK)
+    lo, hi = camera_box(layout)
+    _, lens_y, lens_z = layout.lens
     box(m, AXES, lo, hi, BLACK)
     lf = Frame((0.0, lens_y, 0.0), (1, 0, 0), (0, 1, 0), (0, 0, 1))
     lathe(m, lf, [(hi[2], 0.006), (lens_z - 0.0005, 0.006), (lens_z, 0.0055), (lens_z, 0.0)], (16, 10, 6)[q],
           [BLACK, BLACK, LENS])
-    if q == 2:
+
+
+def rod_points(params, layout, name):
+    """A nose rod's polyline: from its part's rear end straight forward, its last bend_m turned by hand, the tip at
+    the part's front end (its z), off the line by bend_m sin(bend) towards toward_deg."""
+    part = layout.part(name)
+    x, y, z = part["position_m"]
+    half = part["length_m"] / 2
+    bend = params["nose_rods"]["bend_m"]
+    side = params["nose_rods"]["left" if name.endswith("left") else "right"]
+    b, t = math.radians(side["bend_deg"]), math.radians(side["toward_deg"])
+    knee = z + half - bend * math.cos(b)
+    off = bend * math.sin(b)
+    return [(x, y, z - half), (x, y, knee), (x + off * math.cos(t), y + off * math.sin(t), z + half)]
+
+
+def _nose_rods(m, q, params, layout):
+    for name in NOSE_RODS:
+        tube(m, rod_points(params, layout, name), layout.part(name)["diameter_m"] / 2, (6, 4, 3, 3)[q], PRINT)
+
+
+def _electronics(m, q, params, layout):
+    if q >= 2:
         return
     part = layout.part("electronics")
     cx, _, cz = part["position_m"]
@@ -1536,10 +1641,15 @@ def _collision(params, layout):
             x, y, z = sk["position_m"]
             r, L = sk["diameter_m"] / 2, sk["length_m"]
             shapes.append(meta.capsule((x, y, z - L / 2 + r), (x, y, z + L / 2 - r), r, carbon))
-    lo, hi = camera_box(params)
-    hi = (hi[0], hi[1], params["camera"]["lens_z_m"])  # with the lens
-    shapes.append(_box_shape([(lo[a] + hi[a]) / 2 for a in range(3)], [hi[a] - lo[a] for a in range(3)],
-                             [0, 0, 0, 1], plastic))
+    lo, hi = camera_box(layout)
+    hi = (hi[0], hi[1], layout.lens[2])  # with the lens
+    for lo, hi in nose_mount_boxes(params, layout) + [(lo, hi)]:
+        shapes.append(_box_shape([(lo[a] + hi[a]) / 2 for a in range(3)], [hi[a] - lo[a] for a in range(3)],
+                                 [0, 0, 0, 1], plastic))
+    for name in NOSE_RODS:
+        pts = rod_points(params, layout, name)
+        for a, b in zip(pts, pts[1:]):
+            shapes.append(meta.capsule(a, b, layout.part(name)["diameter_m"] / 2, plastic))
     shapes += _canister_shapes(params, layout)
     if layout.has("payload"):
         shapes += _bottle_shapes(params, layout)
@@ -1585,7 +1695,7 @@ def _bottle_shapes(params, layout):
 
 def _snag(params, layout):
     """Where a wire or the drone's own line can catch (the sheet's snag hazards): the skids' open ends (hooks), the
-    legs and skids as edges a line rides into, and the cable ties' cut tails (hooks)."""
+    legs and skids as edges a line rides into, the cable ties' cut tails (hooks) and the nose rods (edges)."""
     snag = []
     plastic, carbon = PHYSICS["plastic"], PHYSICS["carbon"]
     for side in ("left", "right"):
@@ -1610,4 +1720,7 @@ def _snag(params, layout):
     for zc, r in tie_stations(params, layout):
         head, tail = tie_head(f, zc, r, rng.uniform(0.6, 1.0))
         snag.append({"kind": "hook", "points": [list(head), list(tail)], "radius_m": TIE_W_M / 2, "material": plastic})
+    for name in NOSE_RODS:  # thin rods out ahead of the nose, where stems meet them (vegetation-on-the-props.md §3.3)
+        snag.append({"kind": "edge", "points": [list(p) for p in rod_points(params, layout, name)],
+                     "radius_m": layout.part(name)["diameter_m"] / 2, "material": plastic})
     return snag
