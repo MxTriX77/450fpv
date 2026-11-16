@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using Fpv450.Sim.World;
 using NUnit.Framework;
 
@@ -8,7 +9,8 @@ namespace Fpv450.Sim.Tests
     // the obstacle grid follows K§10.3; the belt's deficit is Perera's and its turbulence about 2× from 5 to 15 H in a
     // wake 2–3 H tall (K§6.7, K§8.2); the solid house recirculates within 2–3 H and the porous belt nowhere; a jet runs
     // through the belt's gap; the grid's bits depend only on the obstacles and the direction, the worker hands over at
-    // fixed steps, its helpers rebuild with the same bits, and sampling allocates nothing.
+    // fixed steps, its helpers rebuild with the same bits, a helper held past its rebuild never strands Dispose, and sampling
+    // allocates nothing.
     public sealed class WakeGridTests
     {
         const double H = WakeGridFixture.MapleTop;
@@ -334,6 +336,41 @@ namespace Fpv450.Sim.Tests
             // Disposed while its helpers rebuild: it stops (a stop never strands the worker waiting for a helper).
             using (var busy = new WakeGridWorker(WakeGrid.Build(Obstacles(), 0), 3))
                 busy.Step(0, 40);
+        }
+
+        [Test]
+        public void DisposeEndsWhenAHelperIsHeldPastItsRebuild()
+        {
+            // QA's interleaving (w9): a helper counts itself done with a rebuild and is held before its next look; the
+            // worker hands that grid over, publishes the next rebuild and waits for the held helper; Dispose stops the worker
+            // meanwhile. The helper must serve the next rebuild, not stop, or the worker waits for it forever and Dispose
+            // with it (time-boxed here: a failure, not a hang).
+            const System.Reflection.BindingFlags Private = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var worker = new WakeGridWorker(WakeGrid.Build(Obstacles(), 0), 1);
+            var held = new ManualResetEventSlim(false);
+            var release = new ManualResetEventSlim(false);
+            int served = 0;
+            typeof(WakeGridWorker).GetField("_helperServed", Private).SetValue(worker, (Action)(() =>
+            {
+                if (Interlocked.Increment(ref served) != 1) return;
+                held.Set();
+                release.Wait();
+            }));
+            var generation = typeof(WakeGridWorker).GetField("_generation", Private);
+            var stop = typeof(WakeGridWorker).GetField("_stop", Private);
+            var limit = TimeSpan.FromSeconds(20);
+
+            worker.Step(0, 20);
+            Assert.That(held.Wait(limit), Is.True, "the helper served the first rebuild");
+            worker.Step(WakeGridWorker.LatencySteps, 20); // its takeover: the worker finished it without the held helper
+            worker.Step(WakeGridWorker.LatencySteps + WakeGridWorker.FadeSteps, 40); // the fade's end and the next request
+            Assert.That(SpinWait.SpinUntil(() => (int)generation.GetValue(worker) == 2, limit), Is.True, "the next rebuild published");
+            var disposer = new Thread(worker.Dispose) { IsBackground = true };
+            disposer.Start();
+            Assert.That(SpinWait.SpinUntil(() => (bool)stop.GetValue(worker), limit), Is.True, "Dispose stopping the worker");
+            release.Set();
+            Assert.That(disposer.Join(limit), Is.True, "Dispose returned");
+            Assert.That(served, Is.EqualTo(2), "the held helper served the next rebuild");
         }
 
         [Test]

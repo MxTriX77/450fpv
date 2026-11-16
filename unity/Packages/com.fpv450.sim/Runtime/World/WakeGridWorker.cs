@@ -47,7 +47,7 @@ namespace Fpv450.Sim.World
         readonly WakeGrid[] _grids = new WakeGrid[2];
         readonly Thread _thread;
         readonly AutoResetEvent _request = new AutoResetEvent(false);
-        volatile bool _stop, _built;
+        volatile bool _stop, _built, _workerGone;
         double _requestDeg;
         long _lastBuildTicks;
 
@@ -59,6 +59,7 @@ namespace Fpv450.Sim.World
         readonly AutoResetEvent _done = new AutoResetEvent(false);
         WakeGrid _building;
         int _buildSteps, _nextRow, _filling, _generation;
+        Action _helperServed = null; // the tests' seam (WakeGridTests, by reflection): a helper's call once it counts itself done; null in a flight
 
         int _active = 0;            // the index of the active grid
         bool _fading;               // the other grid is fading in
@@ -138,8 +139,12 @@ namespace Fpv450.Sim.World
             }
         }
 
-        // A helper: on each wake-up for a new rebuild, rows of it until none is left (the last thread done signals the worker);
-        // a stop it wakes to after its rebuild's (Dispose's signal may merge with the rebuild's) ends it.
+        // A helper: on each wake-up for a new rebuild, rows of it until none is left (the last thread done signals the worker).
+        // It stops only once the worker has returned (_workerGone, Dispose): no rebuild is published after that, and the worker
+        // returned only after every helper had served every rebuild. A look at _stop instead would be a race (QA, w9): Dispose
+        // sets it while the worker may still publish, so a helper that read it after its last rebuild could leave the next one
+        // unserved and the worker waiting forever. Should Dispose's signal merge with a rebuild's, the helper serves the
+        // rebuild and then stops on the flag.
         void Help(int index)
         {
             int seen = 0;
@@ -152,8 +157,9 @@ namespace Fpv450.Sim.World
                     seen = generation;
                     FillRows(_lanes[index]);
                     if (Interlocked.Decrement(ref _filling) == 0) _done.Set();
+                    _helperServed?.Invoke();
                 }
-                if (_stop) return;
+                if (_workerGone) return;
             }
         }
 
@@ -236,6 +242,7 @@ namespace Fpv450.Sim.World
             _stop = true;
             _request.Set();
             _thread.Join();
+            _workerGone = true; // the helpers may stop now (Help)
             for (int i = 0; i < _helpers.Length; i++)
             {
                 _go[i].Set();
