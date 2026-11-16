@@ -23,15 +23,15 @@ namespace Fpv450.Sim.Wind
         internal PlantParts Parts;
 
         /// <summary>The open modes' share, and the profile's log at the load point (their scale's).</summary>
-        public readonly double Open => Parts.Open;
-        public readonly double Lambda => Parts.Lambda;
+        public double Open { readonly get => Parts.Open; set => Parts.Open = value; }
+        public double Lambda { readonly get => Parts.Lambda; set => Parts.Lambda = value; }
 
-        /// <summary>The strip's eddies' share (PlantAir.StripOf names the strip).</summary>
-        public readonly double StripShare => Parts.StripShare;
+        /// <summary>The strip's eddies' share (PlantAir.StripOf names the strip, PlantAir.SetStrip sets it).</summary>
+        public double StripShare { readonly get => Parts.StripShare; set => Parts.StripShare = value; }
 
         /// <summary>The wake eddies' share and 1 over the obstacle's height, 1/m.</summary>
-        public readonly double Wake => Parts.Wake;
-        public readonly double WakeInverse => Parts.WakeInverse;
+        public double Wake { readonly get => Parts.Wake; set => Parts.Wake = value; }
+        public double WakeInverse { readonly get => Parts.WakeInverse; set => Parts.WakeInverse = value; }
     }
 
     /// <summary>One fluctuation mode as a table holds it: its wave vector (rad/m; a wake eddy's unit direction), its amplitude at
@@ -56,6 +56,9 @@ namespace Fpv450.Sim.Wind
 
         /// <summary>The strip a mean's eddies are read from: its index in the field's strips (StripModes), −1 for none.</summary>
         public int StripOf(in PlantMean mean) => _wind.PlantStripIndex(mean.Parts.Strip);
+
+        /// <summary>Sets the strip a mean's eddies are read from (an interpolated mean's, the drawn side's tests).</summary>
+        public void SetStrip(ref PlantMean mean, int strip) => mean.Parts.Strip = strip >= 0 ? _wind.PlantStrip(strip) : null;
 
         /// <summary>The open modes' count, and the modes at a load point whose profile's log is lambda (PlantMean.Lambda), at share
         /// 1. Their wave vectors, phases and amplitudes are the field's for the whole flight.</summary>

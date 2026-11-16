@@ -113,8 +113,19 @@ namespace Fpv450.Sim.Wind
             in PlantBend made, out PlantBend bend)
         {
             Mean(m, basePoint, ground, meanAdded, out PlantMean mean);
+            Bend(m, mean, basePoint.X, basePoint.Z, linearAdded, made, out bend);
+        }
+
+        /// <summary>
+        /// The bend at the frame from a wind's mean at a plant whose base is at world (x, z) (Respond's second half, which the drawn
+        /// side's GPU port computes from an interpolated mean, w16-plants-in-the-air 1.3): the gusts linearised about the whole lean
+        /// (the mean's lean plus a lean already made: a wash grid's, rad and rad/s, world X and Z) in the mean air plus a further
+        /// air (world m/s: the wash's at the load point), each mode's steady response summed.
+        /// </summary>
+        public void Bend(in PlantMechanics m, in PlantMean mean, double x, double z, in Double3 linearAdded, in PlantBend made, out PlantBend bend)
+        {
             Linearise(m, mean, linearAdded, made, out Response response, out double phi, out double ex, out double ez);
-            _wind.PlantModes(new Double3(basePoint.X, mean.LoadY, basePoint.Z), mean.Parts, _drift, _mean, ref response);
+            _wind.PlantModes(new Double3(x, mean.LoadY, z), mean.Parts, _drift, _mean, ref response);
             double a = phi + response.Along, p = response.Across;
             bend.X = a * ex - p * ez;
             bend.Z = a * ez + p * ex;
