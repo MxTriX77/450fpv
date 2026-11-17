@@ -43,7 +43,7 @@ namespace Fpv450.EditorSetup
             EnsureBootScene();
             EnsureDroneModels();
             // The game: the Boot scene's menu, then Play's two maps (D-100): House, the test range, and Village, the farmland,
-            // which Explore opens in noclip too (w1-farmland-world 2.1, D-088; w3-farmland-ground 3.1).
+            // which tooling opens in noclip too (w1-farmland-world 2.1, D-088; w3-farmland-ground 3.1; w18-menu-cleanup).
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(BootScenePath, true), new EditorBuildSettingsScene(TestRangeScene.ScenePath, true),

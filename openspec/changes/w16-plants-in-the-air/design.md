@@ -495,3 +495,124 @@ The captures (the hovers through the feed and from behind, the pass, the belt in
 - **The softest culm's mean lean** between the 8 m nodes (worst 0.51 rad 100 m out). Settling every grass texel's lean on the GPU from the interpolated air removes it, at about 0.2 ms of GPU a frame; not taken until the frame rate's A/B says there is room.
 - **The crowns in the wash:** a twig or a branch takes the wash quasi-statically (1.2's §4.5) on its band's fixed elevation (6 m, 4 m, 1 m), so a crown's leaves above or below that height take the wash there.
 - **Leaf flutter's own amplitude:** not assumed (the twig's mode carries the flutter); a law is still not read (§10).
+
+## 1.5 The drone feels what it flies through (physics engineer)
+
+The pilot, after model 100: "the drone is not affected by grass, and it should be affected even more heavily when thicker stuff (like twigs and tree leaves)". Before this task the stems acted on the props only (`PropStems`) and a crown's twigs on the parts (2.3); the legs and the body skimmed the stems, and the body a crown's leaves, with no force. This takes in w9-village-physics 2.10's first part (the legs in standing stems).
+
+- **Code:** `Runtime/Contact/PartStems.cs` (a part of `PropStrikes`, as `PropStems`), its state in `PropStems`' stem store, `ContactModel.CrownOf`, `ContactSpec.PartStems`, `EventKind.PlantPush` (40), header entry 34.
+- **Hand numbers:** `tools/flightbench/handcalc/part_stems.py`, independent arithmetic from surfaces.json's cover rows and drone.json's shapes; the field's stems per m² at the two cells are carried from `StemsNear` (`PartStemTests.TheFieldAtTheCells` prints them).
+- **Labels:** as 1.2.
+
+### 1. Which stems: the one stem field (D-102)
+
+- **The props' own stems.** The stems a disc's plane can reach (those reaching h_ref = 0.2 m) are placed by `PropStems`' law (2.12): the same squares, the same hash, the same state in the shared store. A stem a leg pushes is the stem a disc then meets, leaning as the leg left it, and a stem a disc cut is shorter for the legs.
+- **The shorter ones.** Only the parts reach the stems under h_ref (stubble and short blades under a landed skid). They are placed by the same law from their own hash: per 0.1 m square, the field's stems per m² at 0 m less those at h_ref, their lengths from the field's reach between 0 and 0.2 m (5 heights a layer, once a flight). One more `StemsNear` a square, asked only when the drone's lowest point is within 0.3 m of the ground there.
+- **A map's drawn standing stems** (S04's `MicroKind.Stem`) as `PropStems` takes them. S04's straws stay the mat's compliance (p7a-ground design 8).
+- **The parts' cache** holds the stems that can reach the drone's lowest point, based within the drone's reach (0.36 m about its origin) plus the refresh (0.1 m) plus their own natural lean's (L·sin 15°). It is rebuilt as `PropStems`' are (the origin moved 0.1 m, or the lowest point 0.1 m lower). It is empty while the drone's lowest point is over StemWakeTop (2.5 m) above the ground under its hubs: no query, no cost (§6).
+
+### 2. The law (derived)
+
+**One stem, one lean.** A stem is the link of 1.2 and 2.12: a rigid link from its base, its lean a horizontal vector b (rad). The props' stems lean by `PropStems`' law, b' = −m(b)/τ with τ its first mode's (L²/(1.875²·√(EI/μ))), m its net moment over 4EI/L: its spring about its natural lean, less the jet's load and its weight along its lean. A stem a part touches leans by the same law in two dimensions (its φ held by `PropStems` while it does), and comes back to it when no part touches it and its lean across its way is home. So the props and the parts see one stem and one law.
+
+**The contact** (each step, after the drone's move; `Bend`):
+1. **The free step:** b ← b − m(b)·r/(1 + (K/k)·r), r = dt/τ, implicit in the spring. Touched at an arm s up the stem the spring is the cantilever loaded there, **K = 3EI/s** (3EI·δ/s³ at the contact, the note's §6.2); free it is 1.2's 4EI/L.
+2. **The parts as constraints:** each part (a capsule or sphere of the drone, at its pose now) the link meets moves the stem's point at the contact out of it along the normal's share across the stem, by turning the link about its base (three passes, so a stem between two parts settles where it can). The side the part met it on is kept while they touch: a skid whose core has passed the stem's line holds it ahead (2.12's hook rule's side, design 8). The lean never passes lying flat (the ground).
+3. **The force:** the generalised force that move took, **Q = (k·τ/dt + K)·Δb**, Δb the lean's move off its free step, is the stem's resistance: held still it is K·(b − rest) (its bending), moved at ḃ it is k·τ·ḃ more (its first mode's damping, the props' stems' own), and never more than its root carries (M_y, step 5). Each part takes its share by its own move along Q, over its arm, along its normal; moves that cancel (a stem squeezed between two parts of the rigid drone) load nothing. Its share along the stem is at most **Euler's π²EI/(4L²)** (published): a stem pressed on its top buckles.
+4. **The inertia:** at a stem's first touch (no part touched it the step before) the part brings the stem's mass at the contact to its own speed across it, an inelastic impulse m·v_n with **m = min(I/s², μL)**, I = 4μL³/1.875⁴ the link's on its first mode (derived: the rigid link's inertia at s, at most the whole stem).
+5. **The root yields.** The spring carries at most **M_y = ε_f·2EI/d**, ε_f = 8.41/474 = 1.77 % (derived: barley straw's bending stress over its bending modulus in the same three-point tests, stem-properties.md [6]; assumed for every culm and drawn stem). Past it the stem's rest follows its lean (a plastic hinge): it lodges where it was pushed, and the props see it there. A thick dry stalk pushed to 50° at 0.3 m up yields; a green culm (thin, at the model's 6.4 GPa) does not before lying flat.
+6. **Crushed under a part.** A stem a part meets within the part's own reach of the stem's base (the part is on its root) lies flat, lodged, and carries nothing: the ground carries the part.
+- **Why the first-order law, not 1.2's second order.** The rigid link with its own inertia, pushed near its base, swings its tip L/s times faster than the part (a real stem's upper part lags); the probes flung stems at tens of rad/s and loaded the drone with them (measured on this branch's first build). The props' stems already fly the first-order law (overdamped at their first mode, 2.12, assumed there); a touched stem follows it, and its own inertia enters as the impulse of step 4. 1.2's second-order law stays the drawn side's (design §6 says what would move if `PropStems` took it).
+- **Stiffness in series.** A stem is far softer than any part (3EI/s³ of 0.1–60 N/m against the parts' 6.6–1000 kN/m), so its push acts on the rigid body directly. The leg's give across its tube (262 N/m) in series with a skid's stems moves the skid by millimetres a newton, left out and named.
+
+### 3. The crown's leaves (Newton)
+
+A part in a crown's twig shell (its deepest touching crown pair, 2.3's one crown a part; `ContactModel.CrownOf`) meets its leaves. Each leaf it meets is brought to its normal speed (an attached leaf on its petiole cannot get out of the way faster): **Newton's impact law** (published: C_p = 2·sin²θ), F = −ρ_l·(⅔·2r·ℓ·|v⊥|·v⊥ + ½·πr²·|v|·v) on a capsule of core ℓ and radius r, ρ_l the crown's leaf area density times the fresh leaf's mass per area (2.3's numbers: 0.171 kg/m² × 0.88–0.98 m²/m³ = 0.15–0.17 kg/m³). A sphere that is a capsule's cap is the capsule's. A turning disc's leaves stay `PropStrikes.Leaves`' (their fling and cut); a resting prop's blades are parts here.
+- **Left out, derived small:** the air the body pushes aside flowing through the foliage (a porous drag over the disturbed volume, about 6 % of the body's volume at full U, so under 0.01 N here); the leaves' drag on the rotors' inflow (2.3's 2 %).
+
+### 4. The hand calculations against the runs
+
+**One stem and a skid** (`ASkidSweptThroughAStemIsTheCantileverByHand`; the hand is `part_stems.py`'s `push`, ported into the test): a drawn standing stem, 0.4 m, 4 mm, upright, met broadside by the right skid's front half at 0.2 m, the props' fold held off (the parts' law alone):
+
+| Speed | Work on the skid, run | Hand | | Then on the left skid (the stem sprung back) |
+|---|---|---|---|---|
+| 2 m/s | 0.111 J | 0.105 J | +5.7 % | 0.036 J |
+| 5 m/s | 0.160 J | 0.162 J | −1.1 % | 0.042 J |
+
+**Skimming the weeds** (`SkimmingWeedsDragsAndACrownDragsMore`): the weeds cell (823.00, 34.60), flat, 2,707 stems a m² from the ground, 141 reaching 0.75 m; the drone level, its skids' bottoms 0.77 m up, along its nose:
+
+| Speed | Stems' drag, run | Hand (every strip of the drone meeting fresh stems: an upper bound) |
+|---|---|---|
+| 2 m/s | 0.057 N | 0.58 N (skids 0.12, coil 0.32, packs 0.06, arms and motors 0.08) |
+| 5 m/s | 0.224 N | 1.39 N |
+
+The run is 10–16 % of the bound: the props' column folds most stems under the discs before the skids reach them (2.12's fold, which the hand leaves out), and the discs cut the tallest. Lower, the body ploughs: with the skids 0.45 m up the bound is 6.0 N at 2 m/s and 12.3 N at 5 m/s (part_stems.py), the coil's strip the most.
+
+**A crown at the same speeds** (the same test; CrownTests' world, a 3 m GreenBush at 10 m, LAD 0.976):
+
+| Speed | Twigs (2.3's shells) | Leaves, run | Leaves, Newton by hand | Together | Against the skim |
+|---|---|---|---|---|---|
+| 2 m/s | 0.427 N | 0.014 N | 0.015 N | 0.441 N | 7.7× |
+| 5 m/s | 0.428 N | 0.088 N | 0.093 N | 0.516 N | 2.3× |
+
+**The pilot's "more heavily", computed.** Per element a twig pushes back 100–900 times a culm (the note's §6.2), and the crown slows the drone more than skimming the weeds with its legs, 2.3–7.7 times here, from the twigs' strength and the leaves' mass, no factor tuned. It is not so everywhere: a body ploughing into dense tall weeds (the skids 0.45 m up in 0.6–1.8 m stalks) meets thousands of stems a m² and drags more than a crown's 2 twigs a m³ (2.3's L_V, assumed in the low part of the pipe model's 0.2–24): a crown of 5 mm shoots at the pipe model's top would hold ten times what 2.3 gives (named, §7).
+
+**The touchdown in the densest tall cell** (`ALandingInTheDensestTallCellPrintsEachLegsStems`, the spec's straw landing, 0.5 m/s down; the hand's numbers per stem are part_stems.py's):
+
+| Group | Peak | Mean, 0.5 s before the touch | 0.5 s after | Last 0.5 s | Up at the touch |
+|---|---|---|---|---|---|
+| rear right | 14.1 N | 1.79 N | 8.00 N | 0.008 N | 2.34 N |
+| front right | 17.7 N | 1.59 N | 10.29 N | 0.386 N | 2.16 N |
+| rear left | 6.2 N | 1.12 N | 1.37 N | 0.014 N | 2.16 N |
+| front left | 18.5 N | 0.73 N | 6.37 N | 0.679 N | 3.06 N |
+| body | 6.3 N | 1.65 N | 3.66 N | 2.25 N | 3.27 N |
+
+- Under each skid's footprint stand about 15 stems, under the coil about 59 (the hand). A stem pressed on its top buckles at 0.004–0.075 N (Euler); one pushed near its root yields at its plastic moment, 0.08–0.31 N·m, 1.6–15 N at 20–50 mm up for a dry stalk 0.6–1.2 m (the hand): the peaks are the thick stalks' roots yielding under the skids at a few centimetres.
+- So the touchdown in tall stalks is carried partly by them (12 N of the drone's 46 N the half second after the touch), then they lodge and the legs carry next to nothing (0.01–0.7 N); the body still rests on 2.3 N of stems lying under the coil. 1,185 `PlantPush` events, 0 B, none refused.
+
+### 5. The log
+
+**EventKind.PlantPush (40):** at each field's last step (20 ms), one event per group a stem or a crown's leaves touched in it: Index the group (Corners order 0–3: a corner's supports, skid half and leg tube; 4 the body, its resting blades among it) | 0x40 for the leaves; Part the corner's leg part; Object and Material the ground and the cover kind most met (stems) or the crown's object and material (leaves); Shape the stems' pushes over the field; Point the impulse-weighted contact point; A, B, C the field's mean force, world N. A forensic read sees each leg's stems' force at 50 Hz; a replay recomputes every step's. No step record changes (no `LogFormat.Version` change).
+
+**The switch, header entry 34 (`TagPartStems`):** `ContactSpec.PartStems`. Off, the parts skim the stems and the leaves with no force: model 103's contacts, which a log without the entry flew. The props' own kept audits (`StemTests`, `StemWashTests`, `StemLiftoffTests`: the props' law against its hand calculations) fly with it off (`StemScenarios`' `parts`, false by default); 1.5's runs ask for it.
+
+### 6. The step's cost
+
+`PartStemTests.TheCostNearAndAwayFromPlants`: the step's own time (`Advance` alone), both runs warmed, each case's steps over the weeds cell. **Indicative only:** a shared machine under other agents' load, not on AC with the power mode printed; the medians move by ±25 µs between runs of the same case.
+
+| Case | With the push, p50 / p99 | Model 103's contacts, p50 / p99 |
+|---|---|---|
+| Over the weeds, 3 m up, 2 m/s (nothing near) | 78 / 224 µs | 52 / 104 µs |
+| Skimming the weeds' tops, the skids 0.75 m up, 5 m/s | 186 / 955 µs | 133 / 533 µs |
+| Ploughing the weeds, the skids 0.3 m up, 2 m/s (the body in the stems) | 451 / 1,118 µs | 159 / 486 µs |
+| Through a crown, 2 m/s | 155 / 226 µs | 131 / 210 µs |
+
+The pass's own phases, counted inside it (a temporary probe, not committed) over the ploughing run: the cache's rebuilds about 10 µs a step on average (each rebuild about 0.5 ms, one every 0.1 m: every 50 steps at 2 m/s, every 20 at 5 m/s, which is the p99), the activation scan about 63 µs, the active stems' law about 73 µs (about 130 active); over the weeds 3 m up both 0.1–0.2 µs. A crown adds the leaves' crown look-up on each part, a few µs.
+
+- **Away from plants** (the lowest point over 2.5 m above the ground under the hubs, or no stems in the squares): the parts' pass sets the parts' bounds and returns; no world query, no stem visited.
+- **Near them:** the cache's stems (up to 2,058 in the densest cell) are ruled out by their natural link against the drone's bounds, then the parts' groups; only those that meet a part become active (up to about 270 in the landing), each a few closest-point tests a step. Bounded by the cache (4,096) and the active list (2,048).
+- **Where it is heavy:** with the body in dense stems the pass adds about 150 µs a step (the profile) and its rebuilds the p99. A scan that skipped still stems until the drone could have closed their gap was tried and did not pay (the stems under the discs, which may fold in their jet, must be tested every step).
+- **The cuts tried after it (2026-11-16/17), none kept.** Each was built behind a temporary switch and compared in one process against the cache as built: interleaved A/B rounds over the ploughing (2 and 5 m/s, the skids 0.3 m up) and skimming runs, the JIT's first round dropped, the medians over rounds. The machine was shared with another agent's full suite and a replaying engineer, so only the sign and the shares count, not the µs. Every variant flew bit for bit as built: the four skims' and the crown's sums and the landing's and range #61's every step (a per-step digest of the state, the groups' pushes and the rotors' stems).
+  - **The placed stems kept across rebuilds** (a store by stem id, 8,192 slots): a rebuild went 276 → 327 µs (2 m/s) and 279 → 392 µs (5 m/s); a second run gave 243 → 274 and 308 → 320. **It does not pay.** A rebuild still visits every candidate, and a kept stalk's look-up and its two copies cost what its placing saved.
+  - **The squares' table evicting its least recently used slot.** A full probe overwrites its home slot, so once a flight has met 1,024 squares, squares still about the drone are asked for again. The ploughing runs asked the world for 2,546 squares where 1,342 were enough (2 m/s), and 6,492 where 2,090 were enough (5 m/s). A rebuild went 243 → 237 µs and 308 → 270 µs. A square costs about 0.4 µs of world queries, so this is within the noise at 2 m/s and about 12 % of a rebuild at 5 m/s. **Not built.** Note: `_layerTop` is set by whichever square was asked last, so an eviction policy could move a result where one layer's tallest differs between squares. None did in the digest.
+  - **A grid over the cache.** The cache is built square by square, so each square's stems form a run with their natural links' bounds, and the scan passes a run none of whose stems its first tests would keep. It visited 402 of 740 cached stems a step, but the scan stayed 128 → 129 µs (2 m/s) and 139 → 140 µs (5 m/s), under load. **It does not pay.** The first tests over the whole cache cost 19–38 µs a step (a probe that ran them alone); the scan's time is in the stems that pass them (each one's state look-up, its link, the parts' tests).
+  - **Where a rebuild's time goes** (a probe in the ploughing runs, under load: about 800 µs a rebuild). The squares and the ground-up queries take about 19 %; placing about 770 stems about 37 %; the candidate loop about 43 % (about 1,500 candidates: each one's hashes, its base's reach, and its length from the layer's reach table, a linear walk of up to 41 entries); the drawn stems 1–2 µs. So what could cut the p99 is a cache kept per square: a square met once would keep its placed stems with their lengths, and a rebuild would only filter them by the new centre and lowest point (in the same order, so bit for bit) and place the new squares. A search of the reach table by halves would also find the same entry, as the table falls with height (`PropStems.LengthAt`, shared with the props). Neither is built.
+- **Allocations:** 0 B (the landing's `AllocProbe`), the square and reach tables and the active list preallocated.
+
+### 6b. The goldens and the benches (on c13b5a5c; again on 78ecaab5, the line merged at 4415d20e)
+
+- **`flightbench --golden`:** 6 golden cases, 66 PASS, 0 FAIL: **no pin moved** (on 78ecaab5 the same output, line for line but the timings). No golden flies a part through the field's stems or a crown; the range golden lands on S04's straw mat and its standing stems do not reach its parts (0xDD454936B339DBE3, matches).
+- **`--landing`, `--legs`:** PASS, no row failed (on 78ecaab5 the same rows, line for line).
+- **`--contacts`:** one row failed, a known-wrong: S04's wet straw without its area law (`FlyRange` in Rain) rested rolled 1.675°, under the 2° target it must miss. **Traced:** S04 draws standing stems (60 a m², 0.5–1.2 m), and with the parts' push 9 of them under the resting drone prop even the reference foot's mat near level; with it off the same flight rolls −10.6°. The row tests the mat's area law, so its known-wrong now differs from the model by that law alone (the push held off, in the bench and in `LayerTests.TheRangeFlightInRainRestsLevelOnWetStraw`, which asserts the same): −10.6°, failing as it must. The model's rows fly the world (the push on): 0.517° in Rain, −0.077° dry. Every crown row passes, the two post-crash tunnels of 2.3 among them. On 78ecaab5 the bench passes whole, its known-wrong at −10.628°.
+
+- **The red, traced and fixed (c515922c):** `HangingHalfTests.ASlideWithAHangingHalfKeepsItOutOfTheGround`, range #61 on S04 in the one-scale field, jumped 6.06 mm in a step with the push (the bound is 5 mm). The jump was not the stems' push. A hanging half caught inside S04's straw tile through its side kept a 93 mm give out of the tile, and that give turned the half's end into the soil box under it. Once the box's own overlap passed 0 the corner read the box, and the give dropped to 0.3 mm in one step (steps 6895–6897). The push only changed the path that led there. Fixed in `ContactModel`: a give out of a compliant row is bounded by every rigid face it closes, not only by those facing the move (the row yields before the half is driven into the solid beside it). `HangingHalfTests` passes 2 of 2. The bound of 5 mm a step stands.
+- **The full suite, run to its end on 4415d20e** (the line merged, the stems' cost scaffolding removed; 27 min in Release, the machine shared): 967 of 968. The red was `ContactTests.TheHeaderCoversTheContactTypes`: header entry 34 wrote and read `ContactSpec.PartStems`, but `LogHeader.ContactFieldsLogged`, the list the test checks the spec against, did not name it. Fixed in 78ecaab5 (the name added). The test, `StaticInitTests` and `FlightLogTests` pass, 28 of 28; the list is read only by the suite's log-coverage tests. Before it, the related classes (LegChange, LegReplay, RangeContact, SenseGate, Crown, Layer, GoldenFlight, HangingHalf, PartStem) passed 149 of 149.
+
+### 7. Not built, and for whom
+
+- **The hooks of p7a-ground 1.14** (design 8: a stem lying over a part at its first touch holds it by a spring to its release force, 1–4 N dry, 1.5–6 N wet, assumed). The link law gives part of it from first principles: a stem lying over a skid is held there on its kept side, a root met at the ground yields at its plastic moment (1.6–15 N for dry stalks at 20–50 mm, above), and a part sliding under a lodged stem lifts it against its jet. What it cannot give is a stem whose tip is trapped (under other stems, in the mat), which is what design 8's release force stands for, all of it assumed. Not built: whether the dry ground's "sometimes, a little" (2.9's harness) needs it is the harness's to show with this law first. For w9-village-physics 2.10 (its hooks) and 2.9's harness.
+- **The laid fiber over the field's stems** (2.10's second part). The line's caches take S04's drawn stems (`FiberMember.Stem`, design 8's cantilever) but not the field's: a 1 m line cache in the densest cell would hold 7,400 field stems, near its 8,192 elements, and a line lying in grass would test 125 stems a 0.25 m cell. It wants the field's stems placed along the lying line only (by this law's placement, sharing the store), in `Tether/`, which another engineer is changing now (the spool's peel and the tether's goldens). Left for 2.10 with that coordination.
+- **The stems' wash on the parts** (1.5's third bullet): it waits for w9-village-physics 2.14, as the props' does (D-111); the parts read whichever air `PropStems` flies (2.12's column, or 2.13's wash), with no change here.
+- **The crown's fine shoots.** 2.3's twigs are 7.5 mm at L_V 2 m/m³; the leaf-bearing shoots under 5 mm are not counted, and the pipe model allows ten times as many (§4).
+- **The leg's give in series** with its stems (§2), and **the loose pieces** (a broken leg's own contact model has no stems).
+- **The step budget** (PLT-04) on a quiet machine is QA's; this adds §6's cost where stems are near.

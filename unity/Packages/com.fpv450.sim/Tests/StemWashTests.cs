@@ -83,6 +83,9 @@ namespace Fpv450.Sim.Tests
             setup.TetherCoilPart = spec.Coil.Part;
             setup.TetherSpoolMass = spec.Coil.SpoolMass;
             setup.StemWash = true;
+            // The tallest stalks (1.77 m) reach the skids 1.71 m up, and their push on them (w16 1.5) changes the body between the two
+            // beginnings as a strike would: this is 2.13's one air, flown without it.
+            setup.Contacts.PartStems = false;
             var core = new FlightCore(setup);
             var pilot = new SimPilot(core.Controller, at);
             for (int k = 0; k < 16; k++) core.Advance(new StickSample { HostUs = core.State.Step * FlightCore.StepUs, Arm = k >= 8 });

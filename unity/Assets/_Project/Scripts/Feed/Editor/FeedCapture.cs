@@ -19,8 +19,9 @@ namespace Fpv450.Feed
     /// <c>feed-&lt;seed&gt;-&lt;field&gt;.png</c>, in a folder per range when there are several. Options: <c>-feedSeed n</c>, <c>-feedInput frame.png</c> (one
     /// identical input frame instead of the test scene's render, FEED-00), <c>-feedOut dir</c> (default
     /// <c>unity/Logs/feed</c>), <c>-feedSize WxH</c> (1920x1080), <c>-feedLens on|off</c>, <c>-feedSceneWidth n</c>,
-    /// <c>-feedFieldWidth n</c>, <c>-feedGodot</c> (the tear's black wedge, which D-065 took out: the A/B against
-    /// Godot takes it; the dropouts run on Godot's timer either way, D-085), <c>-feedSticks lx,ly,rx,ry</c> (X's stick
+    /// <c>-feedFieldWidth n</c>, <c>-feedGodot</c> (the tear's black wedge, which D-065 took out, and Godot's OSD
+    /// before p4-feed 1.12 put it through the channel: the A/B against Godot takes both; the dropouts run on Godot's
+    /// timer either way, D-085), <c>-feedSticks lx,ly,rx,ry</c> (X's stick
     /// overlay under the name, D-084, each axis −1 to 1: the left stick across and up, then the right's). Two more
     /// suffixes drive the stub's fiber link through the receiver (p7d-tether 1.16, FeedLink): <c>+dip&lt;n&gt;</c>, a
     /// margin dip over the range's first n fields, and <c>+break</c>, the line breaking in its first field.</item>
@@ -202,6 +203,7 @@ namespace Fpv450.Feed
             if (w != null)
                 s.fieldWidth = int.Parse(w, CultureInfo.InvariantCulture);
             s.tearWedge = Array.IndexOf(args, "-feedGodot") >= 0;
+            s.osdChannel = !s.tearWedge; // Godot's feed has Godot's OSD (p4-feed 1.12)
             return s;
         }
 

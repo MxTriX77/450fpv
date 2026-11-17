@@ -1029,8 +1029,30 @@ namespace Fpv450.Sim.Log
         ///    no other face) stays its 2 cm sheet, so the collision follows what is drawn. The map's content hash moves:
         ///    a log of an older map does not replay on it. The farmland's world goldens are re-recorded, audited case by
         ///    case (design 2.15); no flight golden moved. A flight that meets no ruin steps as 102 did.
+        /// 104: the spool's light pull, and a break only on what a step applied (p7d-tether 1.11e and 1.11g, designs
+        ///    22 and 23, on 103; unity/physics/physics-integration-2--w9-peel-band). The spool's peel energy is drawn
+        ///    uniformly over 0.01–2 g of peel on every flight (tether.json spool.peel_energy_j_m, from published packs:
+        ///    US 5,167,382's reduced-adhesive pack, US 12,703,518 B2's drone reel, and the hanging line's own weight).
+        ///    To 103 half the flights drew 2–10 g, a bonded high-speed pack's figure, which kept 40–60 m of line
+        ///    airborne at 0.15–0.25 N and put it into a prop after an ordinary turn-around. And a chain step that
+        ///    spends its 8 Newton solves unconverged is solved again from its start on the chain's safe models
+        ///    (design 2's path for a failed solve), so the cuts read only a tension the step applied: to 103 the check
+        ///    read the spring stretched at the end of such a step (1.59 N where the solve applied none).
+        ///    FlightSetup.TetherBeforeDesign23 (in the header's tether entry; a log without it reads it as set) and
+        ///    GoldenFlights.Model103Peel fly 103's line for the kept audits. The tether golden moved with the band and
+        ///    is re-pinned; with the old band it is 103's pin. A flight without the line steps as 103 did.
+        /// 105: the drone feels the plants it flies through (w16-plants-in-the-air 1.5, on 104;
+        ///    unity/physics/physics-integration-2--w16-drone-plants). The field's stems push the legs, the skids and
+        ///    the body they meet (Contact/PartStems): the props' own stems and the field's shorter ones by one lean
+        ///    law, each stem's spring the cantilever at its contact (3EI/s), its root yielding at barley straw's
+        ///    tested strain and lodging; a crown's leaves press every part in the crown's shell by Newton's impact
+        ///    law. A crown slows the drone 7.7 and 2.3 times more than skimming weeds at 2 and 5 m/s, computed.
+        ///    EventKind.PlantPush (40) logs each leg's and the body's mean force a field. ContactSpec.PartStems
+        ///    (header entry 34; a log without it flew 104's contacts) is the switch for the kept audits. A hanging
+        ///    half's give out of a compliant layer is bounded by every rigid face it closes (range #61's jump). No
+        ///    golden pin moved: a flight that meets no stem or leaf with a part steps as 104 did.
         /// </summary>
-        public const int ModelVersion = 103;
+        public const int ModelVersion = 105;
 
         public const ushort StepBlock = 1, EventBlock = 2, EndBlock = 3;
 

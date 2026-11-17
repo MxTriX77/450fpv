@@ -171,8 +171,12 @@ namespace Fpv450.Sim.Tests
             /// <summary>The most paid out, at the turn and at the end, m; the steps the paid-out length fell.</summary>
             public double Most, AtTurn, AtEnd;
             public int Fell;
-            /// <summary>The line the spool took back over the flight, m: the sum of every fall of the paid-out length.</summary>
-            public double TakenBack;
+            /// <summary>The line the spool took back over the flight, m: the sum of every fall of the paid-out length; and of it
+            /// after the turn.</summary>
+            public double TakenBack, TakenAfterTurn;
+            /// <summary>After the turn, on the steps the spool pays nothing out (the payout speed at or below 0): the least exit
+            /// tension over that step's static hold e^(μθ)·P(0) (a reel that takes line back at its hold keeps it at 1).</summary>
+            public double AtHoldLeast;
             /// <summary>The least paid out after the turn, m; the static hold e^(μθ)·P(0) at the turn, N, and the least and the
             /// most exit tension from 0.5 s to 2.5 s after it, N.</summary>
             public double LeastAfterTurn, Hold, SlackLeast, SlackTension;
@@ -196,7 +200,7 @@ namespace Fpv450.Sim.Tests
             // over trail.freeze_speed_m_s; it rests and freezes within 14 s. Model 60 (the skid's frame): the takeoff's stance on the
             // frame's legs moves where the slack lands, and its first points freeze 18 s into the hover (model 59: 14 s); 20 s.
             const double climb = 6, outFor = 10, backFor = 6, hoverFor = 20, turn = climb + outFor;
-            var r = new OutBack { LeastAfterTurn = double.PositiveInfinity, SlackLeast = double.PositiveInfinity };
+            var r = new OutBack { LeastAfterTurn = double.PositiveInfinity, SlackLeast = double.PositiveInfinity, AtHoldLeast = double.PositiveInfinity };
             double last = 0, stand = Stand(setup);
             Plan flight = OutAndBack(stand, 10, climb, 10, turn, 10);
             Double3 hover = default;
@@ -216,8 +220,18 @@ namespace Fpv450.Sim.Tests
                 FiberLine f = core.Tether;
                 ref readonly TetherTrace tr = ref core.Trace.Tether;
                 double t = core.State.Step * FlightCore.Dt;
-                if (tr.PaidOut < last) { r.Fell++; r.TakenBack += last - tr.PaidOut; }
+                if (tr.PaidOut < last)
+                {
+                    r.Fell++;
+                    r.TakenBack += last - tr.PaidOut;
+                    if (t > turn) r.TakenAfterTurn += last - tr.PaidOut;
+                }
                 last = tr.PaidOut;
+                if (t > turn && tr.PayoutSpeed <= 0)
+                {
+                    double atHold = tr.ExitTension / (f.Lip * f.PeelEnergy * tr.Irregularity);
+                    if (atHold < r.AtHoldLeast) r.AtHoldLeast = atHold;
+                }
                 if (tr.PaidOut > r.Most) r.Most = tr.PaidOut;
                 if (core.State.Step == (long)(turn * 1000))
                 {

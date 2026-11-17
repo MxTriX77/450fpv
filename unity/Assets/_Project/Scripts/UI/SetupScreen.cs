@@ -18,7 +18,9 @@ namespace Fpv450.UI
     public sealed class SetupScreen
     {
         static readonly CultureInfo C = CultureInfo.InvariantCulture;
-        static readonly string[] Legs = { "On", "Off · launch stand" };
+
+        /// <summary>The legs' options, by name alone (w18-menu-cleanup): Off is the launch stand (D-022).</summary>
+        public static readonly string[] Legs = { "On", "Off" };
         static readonly string[] Winds = { "Calm", "Windy", "Severe" };
         static readonly WindLevel[] WindLevels = { WindLevel.Calm, WindLevel.Windy, WindLevel.Severe };
         static readonly string[] Rains = { "Sunny", "Rain", "Severe rain" };
