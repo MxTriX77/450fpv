@@ -279,6 +279,9 @@ namespace Fpv450.Sim.Contact
             Double3 axis = now.Attitude.Rotate(Up), impulse = default, angular = default;
             int changed = 0, passed = 0;
             StemsBegin(now, thrust);
+            // What the parts fly through (w16 1.5): the stems they push, before the discs meet them, and a crown's leaves.
+            PartStems(now, body, ref impulse, ref angular);
+            PartLeaves(now, body, ref impulse, ref angular);
             for (int n = 0; n < _discs.Length; n++)
             {
                 int i = _discs[n];
@@ -370,6 +373,7 @@ namespace Fpv450.Sim.Contact
                 _tip[c] = Double3.Dot(impulse - before, axis); // every strike's push along the rotor's axis on its arm (G8)
             }
             StemsEnd(now, events);
+            PartsEnd(now, events);
             if (impulse.X != 0 || impulse.Y != 0 || impulse.Z != 0 || angular.X != 0 || angular.Y != 0 || angular.Z != 0)
             {
                 now.Velocity = now.Velocity + impulse * body.InverseMass;

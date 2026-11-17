@@ -1935,7 +1935,11 @@ python tools/hygiene/precommit.py --tree HEAD → (below, in the handback)
 
 ## 2.10 Stems on the legs and the fiber
 
-To be written by task 2.10.
+**The legs in standing stems are built in `w16-plants-in-the-air` 1.5** (its design.md "## 1.5", `Runtime/Contact/PartStems.cs`), which took this task's first part in: the one stem field's stems (the props' own and the shorter ones from the ground up) on every part of the drone, each a cantilever at its contact on the props' stems' own lean law, its root yielding (the stem lodges), crushed under a part on its root; the touchdown in the densest tall cell prints each leg's stems (`PartStemTests.ALandingInTheDensestTallCellPrintsEachLegsStems`).
+
+**Left here:**
+- **The hooks of p7a-ground 1.14** (design 8's release spring for a trapped tip): not built; 1.5's design §7 says what the link law already gives (the kept side, a root's plastic hold) and what only design 8's assumed release force would.
+- **The laid fiber over Village's stems:** not built; the line's caches take S04's drawn stems, not the field's (1.5's design §7: the field's stems along the lying line, in `Tether/`, with the engineer changing the spool's peel and the tether's goldens).
 
 ## 2.5 Cut bits on camera
 
