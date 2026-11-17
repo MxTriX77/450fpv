@@ -2,23 +2,22 @@ using UnityEngine;
 
 namespace Fpv450.UI
 {
-    public enum MenuChoice { None, Play, Calibrate, Explore, Exit }
+    public enum MenuChoice { None, Play, Calibrate, Exit }
 
     /// <summary>
-    /// The main menu (APP-02, PRD-05, D-100): Play, Calibrate and Exit, and Explore in a review build. The name and the drone
-    /// at the left, the items under them, and a quiet line at the foot saying which radio is in.
+    /// The main menu (APP-02, PRD-05, D-100): Play, Calibrate and Exit in every build (w18-menu-cleanup: no Explore). The
+    /// name and the drone at the left, the items under them, and a quiet line at the foot saying which radio is in.
     /// </summary>
     public static class MenuScreen
     {
         /// <summary>The items in their order, each with its quiet hint (null: none): Play opens the carousel of House and
-        /// Village (w10-play-maps 1.1), Explore the farmland, Village, in noclip.</summary>
-        public static (MenuChoice Choice, string Name, string Hint)[] Items(bool review) => review
-            ? new (MenuChoice, string, string)[] { (MenuChoice.Play, "Play", PlayHint), (MenuChoice.Calibrate, "Calibrate", null), (MenuChoice.Explore, "Explore", "Village in noclip"), (MenuChoice.Exit, "Exit", null) }
-            : new (MenuChoice, string, string)[] { (MenuChoice.Play, "Play", PlayHint), (MenuChoice.Calibrate, "Calibrate", null), (MenuChoice.Exit, "Exit", null) };
+        /// Village (w10-play-maps 1.1).</summary>
+        public static (MenuChoice Choice, string Name, string Hint)[] Items() =>
+            new (MenuChoice, string, string)[] { (MenuChoice.Play, "Play", PlayHint), (MenuChoice.Calibrate, "Calibrate", null), (MenuChoice.Exit, "Exit", null) };
 
         const string PlayHint = "House or Village";
 
-        public static MenuChoice Draw(bool review, string radio, string version)
+        public static MenuChoice Draw(string radio, string version)
         {
             AppStyle.Begin();
             AppStyle.DrawGround();
@@ -33,7 +32,7 @@ namespace Fpv450.UI
 
             MenuChoice choice = MenuChoice.None;
             float h = AppStyle.S(64);
-            foreach ((MenuChoice item, string name, string hint) in Items(review))
+            foreach ((MenuChoice item, string name, string hint) in Items())
             {
                 if (Item(new Rect(x - AppStyle.S(28), y, w, h), name, hint)) choice = item;
                 y += h;

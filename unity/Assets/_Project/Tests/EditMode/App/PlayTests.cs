@@ -14,19 +14,18 @@ namespace Fpv450.Tests.App
     // w10-play-maps 1.1 (D-100): Play in place of Train, its carousel of House and Village, and what each card opens.
     public sealed class PlayTests
     {
-        // The menu reads Play, Calibrate, Explore (review builds only) and Exit, and no item or hint names a map the item does
-        // not open: Play's names both of Play's maps, Explore's the farmland's, Village, alone.
+        // The menu reads Play, Calibrate and Exit in every build (w18-menu-cleanup: no Explore), and no item or hint names a
+        // map the item does not open: Play's names both of Play's maps.
         [Test]
-        public void TheMenuReadsPlayCalibrateExploreAndExit()
+        public void TheMenuReadsPlayCalibrateAndExit()
         {
-            Assert.That(MenuScreen.Items(false).Select(i => i.Name), Is.EqualTo(new[] { "Play", "Calibrate", "Exit" }));
-            Assert.That(MenuScreen.Items(true).Select(i => i.Name), Is.EqualTo(new[] { "Play", "Calibrate", "Explore", "Exit" }));
-            var items = MenuScreen.Items(true);
-            Assert.That(items.Select(i => i.Choice), Is.EqualTo(new[] { MenuChoice.Play, MenuChoice.Calibrate, MenuChoice.Explore, MenuChoice.Exit }));
-            string play = items[0].Hint, explore = items[2].Hint;
-            TestContext.WriteLine("Play: '" + play + "', Explore: '" + explore + "'");
+            var items = MenuScreen.Items();
+            Assert.That(items.Select(i => i.Name), Is.EqualTo(new[] { "Play", "Calibrate", "Exit" }));
+            Assert.That(items.Select(i => i.Choice), Is.EqualTo(new[] { MenuChoice.Play, MenuChoice.Calibrate, MenuChoice.Exit }));
+            Assert.That(Enum.GetNames(typeof(MenuChoice)), Does.Not.Contain("Explore"), "no item opens the farmland in noclip");
+            string play = items[0].Hint;
+            TestContext.WriteLine("Play: '" + play + "'");
             Assert.That(play, Does.Contain(PlayMaps.House.Name).And.Contain(PlayMaps.Village.Name));
-            Assert.That(explore, Does.Contain(PlayMaps.Village.Name).And.Not.Contain(PlayMaps.House.Name));
             foreach (var i in items)
                 Assert.That(i.Hint ?? "", Does.Not.Contain("test range").And.Not.Contain("Train").And.Not.Contain("farmland"), i.Name + "'s hint");
         }
