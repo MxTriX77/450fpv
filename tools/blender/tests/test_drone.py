@@ -183,12 +183,14 @@ def test_motors_legs_and_packs_are_their_parts(variant, spec):
 def test_four_separate_legs_each_end_in_their_own_tip(spec, built):
     """w17-four-legs 1.2 (D-117: 'in life it is simply four legs'): no skid, T-joint or skid capsule is left in the spec
     or the drawing; each leg's tube runs down to its own tip, the tube's open cut end, which stands on level ground
-    where model 103's skids did; one support a corner sits on that tip (a sphere of the tube's radius, its lowest point
-    the tip), and the leg's capsule ends there; the legs-off build drops the legs alone; the free length runs from the
-    clamp's bottom to the tip. Model 103's file stays beside it, its skids and T-joints whole, for the kept audits."""
+    where photo W stands it (1.5: y -0.234); one support a corner sits on that tip (a sphere of the tube's radius, its
+    lowest point the tip), and the leg's capsule ends there; the legs-off build drops the legs with their sockets (1.5:
+    the stand's posts stand where the sockets sit); the free length runs from the clamp's bottom to the tip. Model
+    103's file stays beside it, its skids and T-joints whole, for the kept audits."""
     names = {p["name"] for p in spec["parts"]}
     assert not {n for n in names if n.startswith(("skid_", "tjoint_"))}
-    assert "tjoint" not in spec["legs"] and spec["legs_off"]["removed"] == [f"leg_{c}" for c in drone.CORNERS]
+    assert "tjoint" not in spec["legs"]
+    assert spec["legs_off"]["removed"] == [f"{k}_{c}" for k in ("leg", "clamp") for c in drone.CORNERS]
     shapes = spec["contacts"]["shapes"]
     assert not [s for s in shapes if s["role"] == "skid"]
     supports = [s for s in shapes if s["role"] == "support"]
@@ -201,7 +203,7 @@ def test_four_separate_legs_each_end_in_their_own_tip(spec, built):
         leg = part(spec, f"leg_{c}")
         (x, y, z), r, L = leg["position_m"], leg["diameter_m"] / 2, leg["length_m"]
         tip = drone.leg_tip(layout, c)
-        assert tip == pytest.approx((x, y - L / 2, z), abs=1e-12) and tip[1] == pytest.approx(-0.253, abs=1e-12)
+        assert tip == pytest.approx((x, y - L / 2, z), abs=1e-12) and tip[1] == pytest.approx(-0.234, abs=1e-12)
         assert s["radius_m"]["value"] == foot_r == r  # the tip is the tube's own end
         assert s["a_m"]["value"] == pytest.approx([x, tip[1] + r, z], abs=1e-12)  # its lowest point the tip
         capsule = next(t for t in shapes if t["name"] == f"leg_{c}")
@@ -214,13 +216,13 @@ def test_four_separate_legs_each_end_in_their_own_tip(spec, built):
         mesh = {r["kind"]: r["mesh"] for r in b["readable"] if r["lod"] == q}
         assert not [k for k in mesh if k.startswith(("skid_", "tjoint_"))]
         lowest = min(v[1] for m in [b["lods"][q]] + list(mesh.values()) for v in m.vertices)
-        assert lowest == pytest.approx(-0.253, abs=1e-12)  # nothing drawn below the tips
+        assert lowest == pytest.approx(-0.234, abs=1e-12)  # nothing drawn below the tips
         for c in drone.CORNERS:
             x, ty, z = drone.leg_tip(layout, c)
             r = part(spec, f"leg_{c}")["diameter_m"] / 2
             ring = [v for v in mesh[f"leg_{c}"].vertices if abs(v[1] - ty) < 1e-12]
             radii = sorted({round(math.hypot(v[0] - x, v[2] - z), 9) for v in ring})
-            # open at LOD0 and 1, the 10/8 mm ring round its bore, which runs BORE_M up; a closed polygon further out
+            # open at LOD0 and 1, the tube's 1 mm ring round its bore, which runs BORE_M up; a closed polygon further out
             assert radii == ([round(r - 0.001, 9), round(r, 9)] if q <= 1 else [round(r, 9)]), f"LOD{q} {c}"
             if q <= 1:
                 assert any(abs(v[1] - (ty + drone.BORE_M)) < 1e-12 for v in mesh[f"leg_{c}"].vertices)
@@ -228,6 +230,21 @@ def test_four_separate_legs_each_end_in_their_own_tip(spec, built):
     kept = {p["name"] for p in fixture["parts"]}
     assert {"skid_right", "skid_left"} | {f"tjoint_{c}" for c in drone.CORNERS} <= kept and "tjoint" in fixture["legs"]
     assert len([s for s in fixture["contacts"]["shapes"] if s["role"] == "skid"]) == 4
+
+
+def test_the_legs_are_photo_ws(spec):
+    """w17-four-legs 1.5 (D-119; the spec's 'The legs are the photo's'): each leg stands on its arm's diagonal at photo
+    W's 0.86-0.92 of the hub's distance, its tip 1.15-1.22 hub distances below the props' plane, its tube 5.9-6.9 mm
+    across (W's readings with their errors, at the frame's scale), vertical, the four alike."""
+    hub = math.hypot(part(spec, "motor_rr")["position_m"][0], part(spec, "motor_rr")["position_m"][2])
+    plane = drone.value(spec["motors"][0]["position_m"])[1]
+    legs = [part(spec, f"leg_{c}") for c in drone.CORNERS]
+    for leg in legs:
+        x, y, z = leg["position_m"]
+        assert abs(abs(x) - abs(z)) < 1e-12 and 0.86 <= math.hypot(x, z) / hub <= 0.92
+        assert 1.15 <= (plane - (y - leg["length_m"] / 2)) / hub <= 1.22
+        assert 0.0059 <= leg["diameter_m"] <= 0.0069 and leg["axis"] == [0, 1, 0]
+    assert len({(leg["diameter_m"], leg["length_m"], leg["position_m"][1]) for leg in legs}) == 1
 
 
 def test_clamps_follow_their_parts(spec):
@@ -533,8 +550,8 @@ def test_legs_off_drops_the_legs_and_moves_what_the_spec_moves(spec):
         if name == "payload":
             continue  # moved, then scaled from its moved centre (test_payload_mass_scales_the_bottle)
         assert layout.part(name)["position_m"] == pytest.approx(expected)
-    for corner in drone.CORNERS:
-        assert f"clamp_{corner}" in parts  # the clamps stay on the arms
+    for corner in drone.CORNERS:  # each socket leaves with its leg (w17-four-legs 1.5: the stand's posts stand there)
+        assert f"clamp_{corner}" not in parts and f"arm_{corner}" in parts
 
 
 @pytest.mark.parametrize("kg", [0.1, 0.5, 2.0])

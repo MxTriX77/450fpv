@@ -405,7 +405,7 @@ Transform:
   m_GameObject: {fileID: 667413738016949730}
   serializedVersion: 2
   m_LocalRotation: {x: 1, y: 0, z: 0, w: 0}
-  m_LocalPosition: {x: -0.1025, y: -0.128, z: 0.1025}
+  m_LocalPosition: {x: -0.1422, y: -0.1185, z: 0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -430,8 +430,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.005
-  m_Height: 0.25
+  m_Radius: 0.003
+  m_Height: 0.231
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &677293170835374485
@@ -514,7 +514,7 @@ Transform:
   m_GameObject: {fileID: 944717225431184130}
   serializedVersion: 2
   m_LocalRotation: {x: 1, y: 0, z: 0, w: 0}
-  m_LocalPosition: {x: 0.1025, y: -0.128, z: -0.1025}
+  m_LocalPosition: {x: 0.1422, y: -0.1185, z: -0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -539,8 +539,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.005
-  m_Height: 0.25
+  m_Radius: 0.003
+  m_Height: 0.231
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1067700301020473993
@@ -1186,7 +1186,7 @@ Transform:
   m_GameObject: {fileID: 2075691590150952255}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.92387974, z: 0, w: 0.38268292}
-  m_LocalPosition: {x: -0.1025, y: -0.01125, z: 0.1025}
+  m_LocalPosition: {x: -0.1422, y: -0.01125, z: 0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1211,7 +1211,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.035, y: 0.0165, z: 0.025}
+  m_Size: {x: 0.014, y: 0.0165, z: 0.014}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2103348951412881908
 GameObject:
@@ -1490,7 +1490,7 @@ Transform:
   m_GameObject: {fileID: 2557152031571978492}
   serializedVersion: 2
   m_LocalRotation: {x: 1, y: 0, z: 0, w: 0}
-  m_LocalPosition: {x: -0.1025, y: -0.128, z: -0.1025}
+  m_LocalPosition: {x: -0.1422, y: -0.1185, z: -0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1515,8 +1515,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.005
-  m_Height: 0.25
+  m_Radius: 0.003
+  m_Height: 0.231
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2598066497580545711
@@ -2011,7 +2011,7 @@ Transform:
   m_GameObject: {fileID: 3176889649749089340}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.38268292, z: 0, w: 0.92387974}
-  m_LocalPosition: {x: 0.1025, y: -0.01125, z: -0.1025}
+  m_LocalPosition: {x: 0.1422, y: -0.01125, z: -0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2036,7 +2036,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.035, y: 0.0165, z: 0.025}
+  m_Size: {x: 0.014, y: 0.0165, z: 0.014}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &3529060224848976097
 GameObject:
@@ -3685,7 +3685,7 @@ Transform:
   m_GameObject: {fileID: 5065730213279406499}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.38268292, z: 0, w: 0.92387974}
-  m_LocalPosition: {x: 0.1025, y: -0.01125, z: 0.1025}
+  m_LocalPosition: {x: 0.1422, y: -0.01125, z: 0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3710,7 +3710,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.035, y: 0.0165, z: 0.025}
+  m_Size: {x: 0.014, y: 0.0165, z: 0.014}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &5129526014194366646
 GameObject:
@@ -5667,7 +5667,7 @@ Transform:
   m_GameObject: {fileID: 8498460360277568996}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.92387974, z: 0, w: 0.38268292}
-  m_LocalPosition: {x: -0.1025, y: -0.01125, z: -0.1025}
+  m_LocalPosition: {x: -0.1422, y: -0.01125, z: -0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5692,7 +5692,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.035, y: 0.0165, z: 0.025}
+  m_Size: {x: 0.014, y: 0.0165, z: 0.014}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8540037977628954788
 GameObject:
@@ -5814,7 +5814,7 @@ Transform:
   m_GameObject: {fileID: 8551705532539909077}
   serializedVersion: 2
   m_LocalRotation: {x: 1, y: 0, z: 0, w: 0}
-  m_LocalPosition: {x: 0.1025, y: -0.128, z: 0.1025}
+  m_LocalPosition: {x: 0.1422, y: -0.1185, z: 0.1422}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5839,8 +5839,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.005
-  m_Height: 0.25
+  m_Radius: 0.003
+  m_Height: 0.231
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8735503837071654456
@@ -6232,11 +6232,11 @@ MonoBehaviour:
   units: m
   frame: unity-lh-yup
   bounds:
-    m_Center: {x: 0.00010100007, y: -0.10375, z: -0.036219493}
-    m_Extent: {x: 0.28681, y: 0.14925, z: 0.2275775}
+    m_Center: {x: 0.00010100007, y: -0.09425, z: -0.036219493}
+    m_Extent: {x: 0.28681, y: 0.13975, z: 0.2275775}
   lods:
   - mesh: D01_legs_on_LOD0
-    tris: 12930
+    tris: 12754
     switchDistanceM: 0
     thinWire: 0
   - mesh: D01_legs_on_LOD1
@@ -6333,18 +6333,18 @@ MonoBehaviour:
     material: plastic
     landable: 0
   - kind: 0
-    center: {x: 0.1025, y: -0.01125, z: -0.1025}
-    size: {x: 0.035, y: 0.0165, z: 0.025}
+    center: {x: 0.1422, y: -0.01125, z: -0.1422}
+    size: {x: 0.014, y: 0.0165, z: 0.014}
     radius: 0
     height: 0
     rotation: {x: 0, y: 0.382683, z: 0, w: 0.92388}
     material: plastic
     landable: 0
   - kind: 2
-    center: {x: 0.1025, y: -0.128, z: -0.1025}
+    center: {x: 0.1422, y: -0.1185, z: -0.1422}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.005
-    height: 0.25
+    radius: 0.003
+    height: 0.231
     rotation: {x: 1, y: 0, z: 0, w: 0}
     material: carbon_composite
     landable: 0
@@ -6397,18 +6397,18 @@ MonoBehaviour:
     material: plastic
     landable: 0
   - kind: 0
-    center: {x: 0.1025, y: -0.01125, z: 0.1025}
-    size: {x: 0.035, y: 0.0165, z: 0.025}
+    center: {x: 0.1422, y: -0.01125, z: 0.1422}
+    size: {x: 0.014, y: 0.0165, z: 0.014}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.382683, z: 0, w: 0.92388}
     material: plastic
     landable: 0
   - kind: 2
-    center: {x: 0.1025, y: -0.128, z: 0.1025}
+    center: {x: 0.1422, y: -0.1185, z: 0.1422}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.005
-    height: 0.25
+    radius: 0.003
+    height: 0.231
     rotation: {x: 1, y: 0, z: 0, w: 0}
     material: carbon_composite
     landable: 0
@@ -6461,18 +6461,18 @@ MonoBehaviour:
     material: plastic
     landable: 0
   - kind: 0
-    center: {x: -0.1025, y: -0.01125, z: -0.1025}
-    size: {x: 0.035, y: 0.0165, z: 0.025}
+    center: {x: -0.1422, y: -0.01125, z: -0.1422}
+    size: {x: 0.014, y: 0.0165, z: 0.014}
     radius: 0
     height: 0
     rotation: {x: 0, y: 0.92388, z: 0, w: 0.382683}
     material: plastic
     landable: 0
   - kind: 2
-    center: {x: -0.1025, y: -0.128, z: -0.1025}
+    center: {x: -0.1422, y: -0.1185, z: -0.1422}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.005
-    height: 0.25
+    radius: 0.003
+    height: 0.231
     rotation: {x: 1, y: 0, z: 0, w: 0}
     material: carbon_composite
     landable: 0
@@ -6525,18 +6525,18 @@ MonoBehaviour:
     material: plastic
     landable: 0
   - kind: 0
-    center: {x: -0.1025, y: -0.01125, z: 0.1025}
-    size: {x: 0.035, y: 0.0165, z: 0.025}
+    center: {x: -0.1422, y: -0.01125, z: 0.1422}
+    size: {x: 0.014, y: 0.0165, z: 0.014}
     radius: 0
     height: 0
     rotation: {x: 0, y: -0.92388, z: 0, w: 0.382683}
     material: plastic
     landable: 0
   - kind: 2
-    center: {x: -0.1025, y: -0.128, z: 0.1025}
+    center: {x: -0.1422, y: -0.1185, z: 0.1422}
     size: {x: 0, y: 0, z: 0}
-    radius: 0.005
-    height: 0.25
+    radius: 0.003
+    height: 0.231
     rotation: {x: 1, y: 0, z: 0, w: 0}
     material: carbon_composite
     landable: 0
@@ -6656,24 +6656,24 @@ MonoBehaviour:
   snag:
   - kind: edge
     points:
-    - {x: 0.1025, y: -0.003, z: -0.1025}
-    - {x: 0.1025, y: -0.253, z: -0.1025}
-    radiusM: 0.005
+    - {x: 0.1422, y: -0.003, z: -0.1422}
+    - {x: 0.1422, y: -0.234, z: -0.1422}
+    radiusM: 0.003
   - kind: edge
     points:
-    - {x: 0.1025, y: -0.003, z: 0.1025}
-    - {x: 0.1025, y: -0.253, z: 0.1025}
-    radiusM: 0.005
+    - {x: 0.1422, y: -0.003, z: 0.1422}
+    - {x: 0.1422, y: -0.234, z: 0.1422}
+    radiusM: 0.003
   - kind: edge
     points:
-    - {x: -0.1025, y: -0.003, z: -0.1025}
-    - {x: -0.1025, y: -0.253, z: -0.1025}
-    radiusM: 0.005
+    - {x: -0.1422, y: -0.003, z: -0.1422}
+    - {x: -0.1422, y: -0.234, z: -0.1422}
+    radiusM: 0.003
   - kind: edge
     points:
-    - {x: -0.1025, y: -0.003, z: 0.1025}
-    - {x: -0.1025, y: -0.253, z: 0.1025}
-    radiusM: 0.005
+    - {x: -0.1422, y: -0.003, z: 0.1422}
+    - {x: -0.1422, y: -0.234, z: 0.1422}
+    radiusM: 0.003
   - kind: hook
     points:
     - {x: -0.042469, y: -0.119981, z: 0.107729}
@@ -6693,7 +6693,7 @@ LODGroup:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9141103689291261719}
   serializedVersion: 2
-  m_LocalReferencePoint: {x: 0.00010100007, y: -0.10375, z: -0.036219493}
+  m_LocalReferencePoint: {x: 0.00010100007, y: -0.09425, z: -0.036219493}
   m_Size: 0.57362
   m_FadeMode: 0
   m_AnimateCrossFading: 0
