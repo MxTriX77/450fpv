@@ -237,14 +237,17 @@ namespace Fpv450.Sim.Flight
         public double FootRadius;
 
         /// <summary>What the legs are built of (p7g-legs 1.1): the tube, the clamp under each arm and the T-joint on each skid;
-        /// null for a file without them (the fixtures).</summary>
+        /// null for a file without them (the fixtures). Four separate legs (w17-four-legs) have no T-joint: TJoint null.</summary>
         public LegTube Tube;
         public LegClamp Clamp;
         public LegTJoint TJoint;
 
         /// <summary>A leg's give along its tube, N/m, in series: the tube's own EA/L, the arm bending under the clamp (the tube's top
-        /// bears on the arm's underside, so a push never loads the clamp's grip) and the skid's ring squeezed in the T-joint.</summary>
-        public double VerticalStiffness => 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness + 1 / Tube.RingStiffness(TJoint.SkidGrip));
+        /// bears on the arm's underside, so a push never loads the clamp's grip) and, on skids, the skid's ring squeezed in the
+        /// T-joint.</summary>
+        public double VerticalStiffness => TJoint == null
+            ? 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness)
+            : 1 / (1 / Tube.AxialStiffness + 1 / Clamp.MountStiffness + 1 / Tube.RingStiffness(TJoint.SkidGrip));
 
         /// <summary>A leg's give across its tube at the foot, N/m, in series: the tube bending from the clamp, 3EI/L³, and the
         /// clamp's jaws letting the tube turn, its foot moving L² over their rotational stiffness.</summary>
@@ -805,12 +808,28 @@ namespace Fpv450.Sim.Flight
                 c.LegTubeAxialStiffness = Legs.Tube.AxialStiffness;
                 // p7g-legs 1.4: the leg across its tube as a lever, γL = π²L/12 (derived from the two above).
                 c.LegLeverLength = c.LegSwayLoad / c.LegTubeSideStiffness;
-                // p7g-legs (model 54): the skid's frame fore and aft, its own lever the frame's sway load over its give.
-                LegFrame frame = BuildLegFrame();
-                c.LegFrameSideStiffness = frame.SideStiffness;
-                c.LegFrameSwayLoad = frame.SwayLoad;
-                c.LegFrameLeverLength = frame.SwayLoad / frame.SideStiffness;
+                // p7g-legs (model 54): the skid's frame fore and aft, its own lever the frame's sway load over its give. Four
+                // separate legs have no frame (w17-four-legs design 5): each a cantilever both ways, 0 (one value both ways).
+                if (Legs.TJoint != null)
+                {
+                    LegFrame frame = BuildLegFrame();
+                    c.LegFrameSideStiffness = frame.SideStiffness;
+                    c.LegFrameSwayLoad = frame.SwayLoad;
+                    c.LegFrameLeverLength = frame.SwayLoad / frame.SideStiffness;
+                }
                 if (loadout.Legs) c.Legs = BuildLegDamage();
+            }
+            // w17-four-legs: a drone on four separate legs (the legs' build without T-joints) stands on their tips in the soil; a
+            // drone on skids (drone_skids.json, model 105's, the kept audits' fixture) flies the half-skids' law (ContactSpec.LegTips).
+            c.LegTips = Legs.Tube != null && Legs.TJoint == null;
+            foreach (Contact.ContactShape s in c.Shapes)
+                if (s.Role == Contact.ContactRole.Skid) c.LegTips = false;
+            if (c.LegTips)
+            {
+                // The tip (design 1): each support is its leg's tip, a disc of the support's radius (legs.foot_radius_m) plugged by
+                // the soil (assumed); the shaft above it the tube's outer diameter.
+                c.TipRadius = Legs.FootRadius;
+                c.ShaftDiameter = Legs.Tube.OuterDiameter;
             }
             c.Materials = (Contact.MaterialRow[])materials.Clone();
             c.MaterialsHash = materialsHash;
@@ -871,11 +890,13 @@ namespace Fpv450.Sim.Flight
         /// <summary>
         /// The legs' failure data (p7g-legs 1.2) from the legs block: each leg's part and T-joint ("tjoint_rr", …), its clamp's
         /// bottom edge ("clamp_rr"'s underside) and its foot (its T-joint's underside, the skid's) on the leg's axis, the tube,
-        /// the clamp and the T-joint with their labelled strengths and bounds (1.1). Null for a file without the build.
+        /// the clamp and the T-joint with their labelled strengths and bounds (1.1). Null for a file without the build. Four
+        /// separate legs (w17-four-legs, no legs.tjoint): no T-joint, skid or sibling (−1), each foot its leg's tip.
         /// </summary>
         public Contact.LegDamageSpec BuildLegDamage()
         {
             if (Legs.Tube == null) return null;
+            if (Legs.TJoint == null) return BuildTipLegDamage();
             string[] corners = { "rr", "fr", "rl", "fl" };
             var d = new Contact.LegDamageSpec
             {
@@ -913,6 +934,33 @@ namespace Fpv450.Sim.Flight
             d.FrameTopShare = frame.TopShare;
             d.FrameJointShare = frame.JointShare;
             d.FrameSelfStiffness = frame.SelfStiffness;
+            return d;
+        }
+
+        // Four separate legs (w17-four-legs design 5): each leg's part, its clamp's bottom edge and its foot, the tube's lower end (its
+        // tip), on its axis; no T-joint, skid or sibling (−1), so nothing hangs and no frame; the T-joint's strengths unread.
+        Contact.LegDamageSpec BuildTipLegDamage()
+        {
+            string[] corners = { "rr", "fr", "rl", "fl" };
+            var d = new Contact.LegDamageSpec
+            {
+                FreeLength = Legs.Tube.FreeLength, OuterDiameter = Legs.Tube.OuterDiameter, InnerDiameter = Legs.Tube.InnerDiameter,
+                Modulus = Legs.Tube.Modulus.Value, CrackedFactor = Legs.Tube.CrackedStiffness,
+                BoltDiameter = Legs.Clamp.BoltDiameter, GripLength = Legs.Clamp.GripLength,
+                YieldStress = Legs.Tube.YieldStress, Elongation = Legs.Tube.Elongation, EdgeFactor = Legs.Clamp.EdgeFactor,
+                ClampTorque = Legs.Clamp.Torque, NutFactor = Legs.Clamp.NutFactor, Friction = Legs.Clamp.Friction,
+                StubStiffness = Legs.Clamp.MountSideStiffness, StubStiffnessUp = Legs.Clamp.MountStiffness,
+            };
+            for (int c = 0; c < 4; c++)
+            {
+                DronePart leg = Parts[Legs.Parts[c]], clamp = Parts[PartIndex("clamp_" + corners[c])];
+                Double3 half = leg.Axis * (leg.Length / 2), tip = half.Y > 0 ? leg.Position - half : leg.Position + half;
+                d.Parts[c] = Legs.Parts[c];
+                d.TJointParts[c] = d.SkidParts[c] = d.Sibling[c] = -1;
+                d.Clamp[c] = new Double3(leg.Position.X, clamp.Position.Y - clamp.Size.Y / 2, leg.Position.Z);
+                d.Foot[c] = d.Bore[c] = new Double3(leg.Position.X, tip.Y, leg.Position.Z);
+            }
+            d.AirDensity = Aero != null ? Aero.AirDensity : 0;
             return d;
         }
 
@@ -1495,7 +1543,8 @@ namespace Fpv450.Sim.Flight
                     JsonNode n;
                     if ((n = Required(p, "tube", "legs")) != null) legs.Tube = ReadLegTube(n, "legs.tube");
                     if ((n = Required(p, "clamp", "legs")) != null) legs.Clamp = ReadLegClamp(n, "legs.clamp");
-                    if ((n = Required(p, "tjoint", "legs")) != null) legs.TJoint = ReadLegTJoint(n, "legs.tjoint");
+                    // The T-joints hold the skids (model 103's drone, drone_skids.json); four separate legs have none (w17-four-legs).
+                    if ((n = p.Member("tjoint")) != null) legs.TJoint = ReadLegTJoint(n, "legs.tjoint");
                 }
                 _notes = false;
             }

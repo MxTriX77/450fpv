@@ -1,4 +1,5 @@
 using System;
+using Fpv450.Sim.Contact;
 using Fpv450.Sim.Control;
 using Fpv450.Sim.Flight;
 using Fpv450.Sim.Tether;
@@ -23,6 +24,24 @@ namespace Fpv450.Sim.Tests
             Assert.That(core.State.RotorSpeed.FrontLeft, Is.GreaterThan(500), "the motors turn");
             Assert.That(GoldenFlights.FlyPowered(spec, out _), Is.EqualTo(hash), "a second flight gives the same bits");
             Assert.That(hash, Is.EqualTo(GoldenFlights.PoweredHash), "the pinned golden (a re-record is audited and raises the model version)");
+        }
+
+        // w17-four-legs 1.3's audit (the four legs' tips in the soil): on model 105's drone on its skids (SkidsDrone, drone_skids.json),
+        // whose contacts fly the half-skids' law (ContactSpec.LegTips off, from the file), each golden is its model 105 pin, every record
+        // and event. So the tips' law and the drone without its skids and T-joints are the whole move.
+        [Test]
+        public void OnTheSkidsEachGoldenIsModel105s()
+        {
+            DroneSpec spec = SkidsDrone.Spec();
+            MaterialRow[] materials = ContactScenarios.RepositoryMaterials(out ulong mh);
+            Assert.That(spec.BuildContacts(spec.Nominal, materials, mh, SoilScenarios.Table()).LegTips, Is.False, "a drone on skids flies them");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _), Is.EqualTo(GoldenFlights.Model105PoweredHash), "powered");
+            Assert.That(GoldenFlights.FlyPowered(spec, out _, wind: WindSetup.Of(WindLevel.Calm), rain: RainLevel.SevereRain),
+                Is.EqualTo(GoldenFlights.Model105RainPoweredHash), "rain");
+            Assert.That(GoldenFlights.FlyContact(spec, out _), Is.EqualTo(GoldenFlights.Model105ContactHash), "contact");
+            Assert.That(GoldenFlights.FlyRange(spec, out _), Is.EqualTo(GoldenFlights.Model105RangeHash), "range");
+            Assert.That(GoldenFlights.FlyContact(spec, out _, tether: true), Is.EqualTo(GoldenFlights.Model105TetherHash), "tether");
+            Assert.That(GoldenFlights.FlyTumble(spec, out _, out _), Is.EqualTo(GoldenFlights.Model105TumbleHash), "tumble");
         }
 
         // 1.6's audit, kept across the merge with 1.4b and model 6 (1.7): the contacts change nothing for a flight that

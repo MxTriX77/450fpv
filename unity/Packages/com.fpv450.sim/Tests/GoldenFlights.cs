@@ -644,6 +644,13 @@ namespace Fpv450.Sim.Tests
             Model70TumbleHash = 0x5431D1EB9A8701D7UL;
 
         /// <summary>The tether golden at model 74 (p7d-tether 1.8, the bent nozzle, on 70); model 74's other goldens are model 70's.</summary>
+        /// <summary>The goldens at model 105 (the stems' push on the parts, the last on skids), which model 105's drone on its skids
+        /// (SkidsDrone, drone_skids.json; its contacts the half-skids' law, ContactSpec.LegTips off) keeps bit for bit, every record and event:
+        /// GoldenFlightTests.OnTheSkidsEachGoldenIsModel105s (w17-four-legs 1.3).</summary>
+        public const ulong Model105PoweredHash = 0xD2EC471719F8265BUL, Model105RainPoweredHash = 0xA90B2AC7DB9DE1DFUL,
+            Model105ContactHash = 0x6E2473430C3C1DA3UL, Model105RangeHash = 0xDD454936B339DBE3UL, Model105TetherHash = 0x86F63CCC975F747EUL,
+            Model105TumbleHash = 0x2BDEED11E769F217UL;
+
         public const ulong Model74TetherHash = 0x3911B157986C67C6UL;
 
         /// <summary>The tether golden of model 77's merge (74 onto 73, before 77's chain), which the flight with the known-wrong linear

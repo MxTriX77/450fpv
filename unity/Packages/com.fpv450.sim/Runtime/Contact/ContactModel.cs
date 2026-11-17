@@ -147,7 +147,7 @@ namespace Fpv450.Sim.Contact
     /// (Restructure); and a skid half whose leg let go hangs from the other T-joint on its skid, its cantilever's give a turn
     /// of its shapes about that bore (Hang), folding past the skid's first yield there.
     /// </summary>
-    public sealed class ContactModel
+    public sealed partial class ContactModel
     {
         /// <summary>A corner's half-skid in soil (ContactModel.SoilOf): its leg's deflection, each node's sink below the
         /// soil's surface (middle, T-joint, outer end) and deepest sink, the soil's static force, the force with its damping,
@@ -287,6 +287,9 @@ namespace Fpv450.Sim.Contact
         readonly Row[] _surfaceRow;     // world surface id → its friction as a rigid ground
         readonly Print[] _prints;
         int _printNext;
+
+        // The legs' tips in the soil (w17-four-legs, ContactSpec.LegTips): each corner's tip, or null on skids or without the table.
+        readonly Tip[] _tips;
 
         // Wet ground (1.13): each corner's footprint clinging to a wet layer (a material row's cling, straw's) since it last
         // let go, m² (null when nothing clings); the cover kinds' sets at the flight's moisture, for the elements (1.14, 1.15).
@@ -431,6 +434,9 @@ namespace Fpv450.Sim.Contact
                 if (_shapes[i].Role == ContactRole.Support) _supports[k++] = i;
             for (int i = 0; i < n; i++)
                 if (_shapes[i].Role == ContactRole.Skid && _shapes[i].Corner >= 0 && _shapes[i].Corner < 4) _halfSkid[_shapes[i].Corner] = i;
+            for (int c = 0; _spec.LegTips && c < 4; c++)
+                if (_halfSkid[c] >= 0)
+                    throw new ArgumentException("the legs' tips (ContactSpec.LegTips) stand each corner on its leg's tip; a drone on skids flies them off", nameof(spec));
             SurfaceTable table = _spec.Surfaces;
             if (table != null) _skids = Skids();
             int middles = _skids != null ? 4 : 0; // the supports' samples, then the skids' middles
@@ -569,8 +575,8 @@ namespace Fpv450.Sim.Contact
                         }
                 LegDamageSpec l = _spec.Legs;
                 _skidBending = l.Modulus * l.SecondMoment;
-                Double3 span = l.Bore[0] - l.Bore[l.Sibling[0]];
-                _skidLever = span.Length();
+                // Four separate legs (w17-four-legs) have no skid to hang from: no sibling, no lever.
+                _skidLever = l.Sibling[0] >= 0 ? (l.Bore[0] - l.Bore[l.Sibling[0]]).Length() : 0;
                 _skidContact = _legTube[0] >= 0 ? _shapes[_legTube[0]].Stiffness : 0;
             }
         }
@@ -2329,7 +2335,7 @@ namespace Fpv450.Sim.Contact
             // The other half of the skid hanging from this T-joint: its force through the foot and its couple about the bore.
             Double3 footCouple = default;
             int hung = _spec.Legs.Sibling[c];
-            if ((_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
+            if (hung >= 0 && (_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
             {
                 law = law + _hangForce[hung];
                 along += Double3.Dot(_hangForce[hung], skid);
@@ -2356,7 +2362,7 @@ namespace Fpv450.Sim.Contact
                     deflection = deflection + e * (onSkid * (anchor / (_tubeSideF[c] + anchor) - anchor / (ks + anchor)));
                 }
                 Double3 mine = lateral;
-                if ((_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
+                if (hung >= 0 && (_corner[hung] & CornerState.Hanging) != 0 && _hangTouching[hung])
                     mine = mine - (_hangForce[hung] - up * Double3.Dot(up, _hangForce[hung]));
                 Double3 tried = trial - up * Double3.Dot(up, trial);
                 double t2 = Double3.Dot(tried, tried), o2 = Double3.Dot(mine, mine);
@@ -2706,6 +2712,7 @@ namespace Fpv450.Sim.Contact
             _restructure = false;
             if (_legs == null) return ch;
             LegDamageSpec l = _spec.Legs;
+            if (l.Sibling[0] < 0) return RestructureTips(s, events);
             for (int side = 0; side < 2; side++)
             {
                 // The side's two corners: a (its lower index) and b.
@@ -2789,6 +2796,50 @@ namespace Fpv450.Sim.Contact
                                 Place(i, Placed(i, _base[i].A), Placed(i, _base[i].B), s);
                     }
                 }
+            }
+            for (int c = 0; c < 4; c++) _followed[c] = _legs.Flags(c);
+            return ch;
+        }
+
+        // Four separate legs (w17-four-legs design 6): a leg that parts leaves as its tube below the clamp's edge with its tip, its
+        // stub staying in the clamp; one that slides out leaves whole with its tip. No skid, no T-joint, nothing hangs: the corner
+        // keeps no support (its record's skid states read 0).
+        LegChange RestructureTips(in FlightState s, StepEvents events)
+        {
+            LegChange ch = _change;
+            LegDamageSpec l = _spec.Legs;
+            for (int c = 0; c < 4; c++)
+            {
+                LegFlags now = _legs.Flags(c);
+                bool tubeWas = (_corner[c] & (CornerState.Stub | CornerState.TubeGone)) == 0;
+                bool tubeOn = (now & (LegFlags.Broken | LegFlags.Detached)) == 0;
+                if (!tubeWas || tubeOn) continue;
+                int piece = ch.Pieces++;
+                bool off = (now & LegFlags.Detached) != 0;
+                ch.Parts[piece] = off ? 1 << c : 1 << (4 + c);
+                int tube = _legTube[c];
+                if (tube >= 0)
+                {
+                    Leave(tube, ch, piece, s, events);
+                    if (!off)
+                    {
+                        ch.Geometry[piece][ch.ShapeCount[piece] - 1].A = l.Clamp[c];
+                        _off[tube] = false;
+                        ref ContactShape t = ref _shapes[tube];
+                        t.A = _wasA[tube] = _base[tube].A;
+                        t.B = _wasB[tube] = l.Clamp[c];
+                        if (l.StubStiffness > 0)
+                        {
+                            t.Stiffness = l.StubStiffness;
+                            t.StiffnessUp = l.StubStiffnessUp;
+                        }
+                        ch.Stubs |= 1 << c;
+                    }
+                }
+                if (_tips != null && _tips[c].Engaged) LeaveTip(c);
+                for (int i = 0; i < _shapes.Length; i++)
+                    if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && _base[i].Role == ContactRole.Support) Leave(i, ch, piece, s, events);
+                _corner[c] |= off ? CornerState.TubeGone : CornerState.Stub;
             }
             for (int c = 0; c < 4; c++) _followed[c] = _legs.Flags(c);
             return ch;

@@ -334,8 +334,6 @@ namespace Fpv450.Sim.Contact
                 double torque = Draw(random, ref s, "clamp.torque_n_m", _spec.ClampTorque);
                 double nut = Draw(random, ref s, "clamp.nut_factor", _spec.NutFactor);
                 double mu = Draw(random, ref s, "clamp.friction", _spec.Friction);
-                double screw = Draw(random, ref s, "tjoint.torque_n_m", _spec.TJointTorque);
-                double layers = Draw(random, ref s, "tjoint.interlayer_strength_pa", _spec.Interlayer);
                 _yieldMoment[k] = yieldStress * i / _c;
                 _squash[k] = yieldStress * area;
                 _edge[k] = edge;
@@ -343,8 +341,18 @@ namespace Fpv450.Sim.Contact
                 double preload = torque / (nut * _spec.BoltDiameter);
                 _slipForce[k] = 2 * mu * preload;
                 _twistMoment[k] = mu * preload * _spec.OuterDiameter;
-                _skidSlip[k] = 2 * mu * (screw / (nut * _spec.ScrewDiameter));
-                _socketMoment[k] = layers * socket;
+                if (_spec.TJointParts[k] < 0)
+                {
+                    // Four separate legs (w17-four-legs): no T-joint to draw or let go.
+                    _skidSlip[k] = _socketMoment[k] = double.PositiveInfinity;
+                }
+                else
+                {
+                    double screw = Draw(random, ref s, "tjoint.torque_n_m", _spec.TJointTorque);
+                    double layers = Draw(random, ref s, "tjoint.interlayer_strength_pa", _spec.Interlayer);
+                    _skidSlip[k] = 2 * mu * (screw / (nut * _spec.ScrewDiameter));
+                    _socketMoment[k] = layers * socket;
+                }
                 _jawFriction[k] = _twistMoment[k] / Lever(k);
             }
             // The legs' stiffness spread (2.9, design 12): a stream of its own after the strengths, so no other draw moves.

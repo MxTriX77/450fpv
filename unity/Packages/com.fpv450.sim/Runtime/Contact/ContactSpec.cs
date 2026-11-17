@@ -284,6 +284,45 @@ namespace Fpv450.Sim.Contact
         /// </summary>
         public bool AnchorReach = true;
 
+        /// <summary>
+        /// The legs stand on their tips in the soil (w17-four-legs, design decisions 1–4 and 6): each corner's one support is its
+        /// leg's tip, a small penetrometer that digs in by the soil's own resistance, holds on the way out by the shaft's friction
+        /// and adhesion alone, resists sliding by the soil in front of its shaft, and starts each flight set down to its own drawn
+        /// depth. True for a drone on four separate legs (DroneSpec.BuildContacts: the legs' build without T-joints, no skid shape);
+        /// false for a drone on skids, which flies model 105's ground law: the half-skids in soil, the skids' frame, the hanging half
+        /// (the kept audits fly drone_skids.json with it; a hand-built spec keeps it false). A log without its header entry (tag 35)
+        /// flew the skids. The header records it with the tip law's values in its own entry.
+        /// </summary>
+        public bool LegTips;
+
+        /// <summary>The tip (design 1): its radius, a disc the soil plugs (legs.foot_radius_m, the support's), and the shaft's
+        /// outer diameter above it (legs.tube's), m; from drone.json at BuildContacts.</summary>
+        public double TipRadius, ShaftDiameter;
+
+        /// <summary>The depth at which a tip meets surfaces.json's tip_resistance_pa, z_ref (m): 0.025, derived (the middle of the
+        /// 0–5 cm layer field penetrometer readings of a topsoil average over); the resistance grows from nothing at the loose surface,
+        /// q(z) = q_t·z/z_ref (assumed form, Bekker's n = 1 line).</summary>
+        public double TipReferenceDepth = 0.025;
+
+        /// <summary>The soil's modulus over its penetration resistance for an axisymmetric load, α_E: 2.5 (published, Schmertmann,
+        /// Hartman and Brown 1978), and its Poisson's ratio ν: 0.3 (assumed, a loam's drained 0.25–0.35): the tip's elastic return
+        /// on unloading, Sneddon's rigid punch k_e = 2aE/(1 − ν²) on E = α_E·q(z_m).</summary>
+        public double TipModulusRatio = 2.5, TipPoisson = 0.3;
+
+        /// <summary>The shaft's friction over the tip resistance at its depth, r_s: 0.01 (assumed, design 2: CPT friction ratios of
+        /// silt mixtures 2–5 %, Robertson 1990, halved for a shaft pulled near the free surface; its band 0–0.04 is printed beside
+        /// PHY-03's rates). The grip on the embedded shaft is r_s·q(z) over πD·dz, both ways.</summary>
+        public double ShaftFriction = 0.01;
+
+        /// <summary>The penetration resistance over the soil's undrained shear strength, N_kt: 15 (published, 10–20, Lunne, Robertson
+        /// and Powell 1997), and Matlock 1970's growth of the lateral resistance with depth, J: 0.5 (published), for the soil in front
+        /// of a dug-in shaft, p_u = (3 + J·z/D)·c_u·D up to 9·c_u·D (design 3).</summary>
+        public double ConeFactor = 15, LateralGrowth = 0.5;
+
+        /// <summary>Each tip's set-down load over its static share at the start, leg.setdown: uniform in [1, 1.5] (assumed, design 4:
+        /// a careful hand lets go as the tips touch, pressing a leg at most half its share again).</summary>
+        public double SetDownMin = 1, SetDownMax = 1.5;
+
 
         /// <summary>The legs' failure law's data (LegDamage, p7g-legs 1.2); null for none, the elastic legs. Needs the side
         /// give.</summary>
