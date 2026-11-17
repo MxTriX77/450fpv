@@ -9,6 +9,8 @@ import os
 
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..")
 DRONE = json.load(open(os.path.join(ROOT, "assets-src", "drone", "drone.json"), encoding="utf-8"))
+# Model 103's drone on its skids (kept as the audits' fixture, w17-four-legs 1.2): what left the drone is read from it.
+SKIDS = json.load(open(os.path.join(ROOT, "assets-src", "drone", "drone_skids.json"), encoding="utf-8"))
 SURF = json.load(open(os.path.join(ROOT, "assets-src", "surfaces.json"), encoding="utf-8"))
 G = 9.81
 
@@ -29,7 +31,9 @@ E_TUBE = v(TUBE, "modulus_pa")                            # published (PVC-U)
 SIGMA_Y = v(TUBE, "yield_stress_pa")                      # published
 K_T_EDGE = v(LEGS["clamp"], "edge_stress_factor")         # assumed (drone.json)
 K_ARM = v(LEGS["clamp"], "mount_stiffness_n_per_m")       # derived (drone.json)
-SKID_MASS = 2 * v(PARTS["skid_right"], "mass_kg")         # derived (drone.json): the two skids leave
+# What left the drone with the skids (derived, drone_skids.json's parts, w17-four-legs 1.2): the two skids and the four T-joints.
+GONE = [p for p in SKIDS["parts"] if p["name"].startswith(("skid_", "tjoint_"))]
+SKID_MASS = sum(v(p, "mass_kg") for p in GONE)
 # The tube runs from the clamp's bottom (clamp_rr: y -0.01125 - 0.00825) to the ground at the old skids' underside
 # (y -0.253): the leg's free length once its own end is the foot (derived; 1.2's tip may move it).
 CLAMP_BOTTOM = v(PARTS["clamp_rr"], "position_m")[1] - v(PARTS["clamp_rr"], "size_m")[1] / 2
@@ -52,18 +56,35 @@ FLOWN = {
 }
 
 
+def own_inertia(p):
+    """A part's own inertia about axes through its centre parallel to body x (pitch) and z (roll): a box's m(b^2 + c^2)/12, a
+    cylinder along body z its rod's m(3r^2 + L^2)/12 across and m r^2/2 about its axis (derived)."""
+    m = v(p, "mass_kg")
+    if p["kind"] == "box":
+        sx, sy, sz = v(p, "size_m")
+        return m * (sy * sy + sz * sz) / 12, m * (sx * sx + sy * sy) / 12
+    r, length = v(p, "diameter_m") / 2, v(p, "length_m")
+    return m * (3 * r * r + length * length) / 12, m * r * r / 2
+
+
 def build(load):
-    """The drone of one loadout with the skids taken off (derived): their 36.6 g leave, and their own inertia about the
-    centre of mass (each a rod of 0.45 m at (+-0.1025, -0.248, 0)) leaves with them."""
+    """The drone of one loadout without what left with the skids (derived): the two skids and four T-joints (68.6 g, drone_skids.json)
+    taken off model 103's logged build, their own inertia and their parallel axes about the old centre of mass, then the inertia
+    moved to the new centre of mass (the parallel axis theorem)."""
     f = FLOWN[load]
     m = f["m"] - SKID_MASS
-    y_s = -0.248
-    com_y = (f["m"] * f["com_y"] - SKID_MASS * y_s) / m
+    com_y = (f["m"] * f["com_y"] - sum(v(p, "mass_kg") * v(p, "position_m")[1] for p in GONE)) / m
     h = com_y - TIP_Y                                       # the centre of mass over the tips
-    each = SKID_MASS / 2
-    dy = y_s - f["com_y"]
-    ixx = f["ixx"] - 2 * each * (dy ** 2 + 0.45 ** 2 / 12)
-    izz = f["izz"] - 2 * each * (LEG_X ** 2 + dy ** 2)
+    ixx, izz = f["ixx"], f["izz"]
+    for p in GONE:
+        x, y, z = v(p, "position_m")
+        ox, oz = own_inertia(p)
+        mp = v(p, "mass_kg")
+        ixx -= ox + mp * ((y - f["com_y"]) ** 2 + z * z)
+        izz -= oz + mp * ((y - f["com_y"]) ** 2 + x * x)
+    shift = com_y - f["com_y"]
+    ixx -= m * shift * shift
+    izz -= m * shift * shift
     i_diag = (ixx + izz) / 2                                # about a diagonal through the centre (the last corner's axis)
     share = i_diag / (i_diag + m * R_LEG ** 2)             # the last held corner's share of the thrust's excess
     c_leg = 2 * ZETA_LEG * math.sqrt(K_AXIAL * m / 4)
