@@ -1,6 +1,6 @@
 # Tasks: w17-four-legs
 
-Branch `unity/physics/physics-integration-2--w17-four-legs`, cut from the physics line. Order: 1.1 and 1.2 together; then 1.3 (after `w16-plants-in-the-air` 1.5's follow-up has landed in `Runtime/Contact/`) and 1.5 side by side (1.5 on its own branch, `unity/art/physics-integration-2--w17-loop-legs`); then 1.6; then 1.4; then 2.1; then 3.1.
+Branch `unity/physics/physics-integration-2--w17-four-legs`, cut from the physics line. Order: 1.1 and 1.2 together; then 1.3 (after `w16-plants-in-the-air` 1.5's follow-up has landed in `Runtime/Contact/`) and 1.5 side by side (1.5 on its own branch, `unity/art/physics-integration-2--w17-loop-legs`, named before D-119); the goldens are re-recorded once, after 1.5 has merged into 1.3's branch; then 1.4; then 2.1; then 3.1.
 
 ## 1. The four legs
 
@@ -59,26 +59,18 @@ Branch `unity/physics/physics-integration-2--w17-four-legs`, cut from the physic
   - The leg shots of the smoke test.
   - The summary's names.
   - The start standing in the ground as the flight drew it.
-- [ ] Checks for 1.3, 1.4 and 1.6: `dotnet test tools/simtests -c Release`; `flightbench --golden`, `--landing`, `--legs`, `--ground`, `--slopes`, `--contacts`; Unity's EditMode suite; `python tools/hygiene/precommit.py --tree HEAD`; `openspec validate w17-four-legs --strict`.
-- [ ] 1.5 [asset-artist] **The legs and the canister as the pilot's kit has them** (the pilot, 2026-11-17: "Copy the photo", D-118). Task 1.2's straight tubes were the first reading.
-  - **Read photo U** (and V where it shows them), each number with its error:
-    - each leg's loop: the stock's kind and section, the loop's height and width, the two fixing points under the arm, the point's shape and angle;
-    - the stance's height;
-    - what hangs under the frame and how low: the canister's size and place, and where the fiber leaves it.
-  - **The model:** the loop legs replace the straight tubes. The canister is re-proportioned to what photo U shows, with the coil's mass unchanged. At rest on level ground only the legs' points touch.
-  - **For the physics** (task 1.6):
-    - per leg, the loop's geometry as parameters: the stock's section, its developed length, the fixing points, the point's shape and bearing area;
-    - the contact shapes: the loop's sides and one support at the point;
-    - the masses re-derived, with what leaves and what comes;
-    - the canister's exit point and direction in the body frame.
-  - Both variants (legs on, legs off) still build with one command. The earlier drones stay as fixtures for the kept audits.
-  - The object sheet and the review sheet are redone, with a side-by-side against photo U (local only).
-- [ ] 1.6 [physics-engineer] **The loop's law and the final drone,** after 1.3 and 1.5.
-  - The loop leg's stiffnesses (along it, across it in its plane and out of it), its first yield and its failure, derived from its shape and material by `p7g-legs`' method; the tips' law of 1.3 reads the point's own area.
-  - The drone's mass, centre of mass and inertia on the new legs and canister; the hull's areas; the hand calculations redone for the new stance.
-  - The fiber's exit at the canister's new place (`p7d-tether`'s exit design), with the tether's checks; the legs-off build on its launch stand still clears (DRN-07).
-  - 1.3's targets run again on the final drone. The goldens are re-recorded **once**, here, and audited case by case; PHY-03's rates are printed again.
-  - 0 B in steady state; the step's cost against PLT-04.
+- [ ] Checks for 1.3 and 1.4: `dotnet test tools/simtests -c Release`; `flightbench --golden`, `--landing`, `--legs`, `--ground`, `--slopes`, `--contacts`; Unity's EditMode suite; `python tools/hygiene/precommit.py --tree HEAD`; `openspec validate w17-four-legs --strict`.
+- [ ] 1.5 [asset-artist] **The legs as photo W shows them** (the pilot, 2026-11-17, D-119: "narrow tubes pointing perpendicularly into the ground"). Task 1.2's tubes are refined, not replaced.
+  - **Read photo W,** each number with its error:
+    - where each leg stands along its arm, and how it is fixed there;
+    - the tube's outer diameter, and its length from the arm to the tip;
+    - whether the four are alike and perpendicular to the ground;
+    - what the tip's end is;
+    - the clearance between the canister and the ground.
+  - **The model:** the four tubes moved, resized and fixed as read. The canister and everything else stay as they are.
+  - **For the physics** (task 1.3 reads them from `drone.json`): the tips' places, the free length, the tube's section, the contact shapes, and the masses and totals with what changed. The legs' stiffness and damping are 1.3's to derive.
+  - Both variants (legs on, legs off) still build with one command. The skids' drone stays as the fixture.
+  - The object sheet and the review sheet are redone, with a side-by-side against photo W (local only).
 
 ## 2. Review
 
