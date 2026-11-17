@@ -151,6 +151,10 @@ Branch `unity/techart/p4-feed` off `unity/main`, once `p1-g1-look-lock-gallery` 
   - *Not checked:* a rendered still of a dropout (the GPU is shared); the next build's smoke shots show one.
   - *Left to the orchestrator:* `docs/requirements.md` (the N8/N12 lines) and `docs/test-range.md` ("it never drops out on its own") still read D-065's way.
 
+- [ ] 1.12 [tech-artist] The OSD through the analog channel with the picture (the pilot, 2026-11-17; design 11):
+  - **What:** the pilot: the analog noise is great, but the OSD looks laid over the picture digitally, while "the video together with the OSD already goes through the analog channel". Measure the references' OSD against the sim's on the same measures first; then make every stage of the channel after the OSD's insertion act on the picture with the OSD in it, largest miss first, and nothing the references do not show. Godot's OSD stays one switch away for the FEED-00 A/B. The pilot's word outranks OSD-04's "the OSD stays crisp" and D-026's port of the Godot OSD where they disagree; each departure is written below.
+  - **Verify:** the measures on the references' OSD (A–H, L, P, read in place) and on the sim's captures before and after; with the OSD's cells masked, the feed's output bit for bit as before; `dotnet test tools/feedtests`; EditMode's feed and rig tests; `-feedcost` before and after on AC with the power mode printed; the sheets in `reference/_compare/` (local only); `openspec validate p4-feed --strict`.
+
 ## 2. Review and gate
 
 - [ ] 2.1 [qa-engineer] review against spec scenarios:
