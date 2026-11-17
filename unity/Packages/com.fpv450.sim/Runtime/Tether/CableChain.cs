@@ -331,6 +331,15 @@ namespace Fpv450.Sim.Tether
         /// 103.</summary>
         public bool KeepUnconverged;
 
+        /// <summary>p7d-tether design 24 (C1): a capstan slot on a world member holds the line along it only while its node presses
+        /// (Coulomb's and Euler-Eytelwein's bounds both vanish with the normal force): one taken speculative at the step's start
+        /// (its node off the member) is free along the line in the solve, its hold acting across it only, and one whose node ends
+        /// the step without a press lets its hold follow the node along the line. A gliding member (a drone part), a barb's notch
+        /// and a member that lets go (a hook, a stem) keep their own laws. Off (the chain's default, and the fiber's known-wrong
+        /// FlightSetup.TetherHoldWithoutPress: model 105's), such a slot held the line along it at its hold's full stiffness
+        /// whatever its press, so a node 0.2-1.5 mm off a ruin's member carried 21-26 mN of the pull past a corner (QA's C1).</summary>
+        public bool HoldNeedsPress;
+
         // The rounds of the pack's draw into a run at the exit and the run's slide after it in a step (numerical).
         const int SlideRounds = 8;
 
@@ -790,8 +799,8 @@ namespace Fpv450.Sim.Tether
                 Double3 along = LineTangent(i);
                 double wrap = 0, low = 0;
                 if (a.Contact0.Glide || a.Contact1.Glide) Wrap(i, out wrap, out low);
-                SettleContact(a.Position, along, wrap, low, ref a.Contact0);
-                SettleContact(a.Position, along, wrap, low, ref a.Contact1);
+                SettleContact(a.Position, along, wrap, low, HoldNeedsPress, ref a.Contact0);
+                SettleContact(a.Position, along, wrap, low, HoldNeedsPress, ref a.Contact1);
             }
             CapstanRuns();
             // The pack's line drawn into a run that reaches the exit, and the run's profile again from it (a few rounds, numerical:
@@ -964,9 +973,10 @@ namespace Fpv450.Sim.Tether
                     diag = diag + Iso(dt * a.AnchorDamping + dt2 * a.AnchorStiffness);
                     f = f - (a.Position - a.AnchorTarget) * a.AnchorStiffness + a.AnchorVelocity * a.AnchorDamping;
                 }
-                Double3 along = a.Contact0.Free || a.Contact1.Free ? LineTangentAt(i) : default;
-                AddContact(a.Position, dt, along, ref a.Contact0, ref diag, ref f);
-                AddContact(a.Position, dt, along, ref a.Contact1, ref diag, ref f);
+                bool loose = HoldNeedsPress && (Loose(ref a.Contact0) || Loose(ref a.Contact1));
+                Double3 along = a.Contact0.Free || a.Contact1.Free || loose ? LineTangentAt(i) : default;
+                AddContact(a.Position, dt, along, HoldNeedsPress, ref a.Contact0, ref diag, ref f);
+                AddContact(a.Position, dt, along, HoldNeedsPress, ref a.Contact1, ref diag, ref f);
                 _diag[i] = diag;
                 _rhs[i] = a.Velocity * a.Mass + f * dt;
             }
@@ -1196,7 +1206,7 @@ namespace Fpv450.Sim.Tether
 
         // The contact's model on the diagonal and in the force: the normal spring from its rest gap (the surface when
         // pressing, the gap at the start when speculative) and its damper, the hold's tangential spring.
-        static void AddContact(Double3 x, double dt, Double3 along, ref CableContact c, ref Sym3 diag, ref Double3 f)
+        static void AddContact(Double3 x, double dt, Double3 along, bool needsPress, ref CableContact c, ref Sym3 diag, ref Double3 f)
         {
             if (c.Mode == 0) return;
             Double3 nrm = c.Normal;
@@ -1205,7 +1215,7 @@ namespace Fpv450.Sim.Tether
             f = f + nrm * (-c.Stiffness * (g - c.Rest) + c.Damping * Double3.Dot(nrm, c.Velocity));
             if (c.Slips || !(c.HoldStiffness > 0)) return;
             Double3 off = Tangential(x - c.Hold, nrm);
-            if (c.Free)
+            if (c.Free || needsPress && Loose(ref c))
             {
                 // Free along the line: the hold's spring acts across it only.
                 Double3 axis = FreeAxis(along, nrm);
@@ -1214,6 +1224,10 @@ namespace Fpv450.Sim.Tether
             }
             f = f - off * c.HoldStiffness;
         }
+
+        // Design 24 (C1): a capstan slot on a world member taken speculative at the step's start (its node off the member): it holds
+        // nothing along the line this step.
+        static bool Loose(ref CableContact c) => c.Active && c.Mode == 2 && c.Capstan && !c.Glide && !c.Notch && !(c.Cap > 0);
 
         static double DamperWork(Double3 v, double dt, ref CableContact c)
         {
@@ -1258,7 +1272,7 @@ namespace Fpv450.Sim.Tether
             low = t0 < t1 ? t0 : t1;
         }
 
-        static void SettleContact(Double3 x, Double3 along, double wrap, double low, ref CableContact c)
+        static void SettleContact(Double3 x, Double3 along, double wrap, double low, bool needsPress, ref CableContact c)
         {
             c.Slid = false;
             if (c.Mode == 0)
@@ -1286,9 +1300,11 @@ namespace Fpv450.Sim.Tether
                 Double3 on = axis * Double3.Dot(axis, t);
                 t = t - on;
                 double pull = c.HoldStiffness * on.Length();
-                if (c.Free)
+                if (c.Free || needsPress && !c.Glide && !(c.Cap > 0) && (c.Mode == 2 || !(c.NormalForce > 0)))
                 {
-                    c.Hold = c.Hold + on; // slipping by: the hold follows the node along the line
+                    // Slipping by (design 24: or holding nothing along the line, its node not pressing at the step's start or end):
+                    // the hold follows the node along the line.
+                    c.Hold = c.Hold + on;
                     c.Slid = true;
                 }
                 else if (c.Glide && pull > 0 && pull > low * (DetMath.Exp(c.StaticFriction * wrap) - 1))

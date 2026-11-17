@@ -434,6 +434,49 @@ namespace Fpv450.Sim.Tests
             }
         }
 
+        // p7d-tether design 24 (C1; QA's 1.11h finding, traced on the pilot's flight 2 at 29.2 s): a node lying 1 mm off a member
+        // (within KinematicBand, so its slot is taken speculative) does not press it, and without a press neither Coulomb nor the
+        // capstan holds anything. Ten such nodes over a plank, the line's far end anchored (the trail's end), its near end drawn
+        // along it at 2 mm/s: with HoldNeedsPress the pull passes them to the far end, the tension along the line the same to the
+        // solve's; model 105's slots (off) hold it along the line, so the far end carries less of it, step after step.
+        [Test]
+        public void ANodeThatDoesNotPressHoldsNothingAlongTheLine()
+        {
+            foreach (bool needsPress in new[] { false, true })
+            {
+                const int n = 12;
+                var x = new Double3[n];
+                var s = new double[n];
+                for (int i = 0; i < n; i++)
+                {
+                    x[i] = new Double3(0.01 * i, 0.001, 0);
+                    s[i] = 0.01 * i;
+                }
+                var chain = new CableChain(n, FiberMass, FiberStiffness) { HoldNeedsPress = needsPress };
+                chain.Reset(x, s, n);
+                Anchor(chain, 0, 1e4);
+                Anchor(chain, n - 1, 1e4);
+                for (int i = 1; i < n - 1; i++)
+                {
+                    chain[i].Contact0 = CableContact.On(new Double3(x[i].X, 0, 0), new Double3(0, 1, 0), default, 1e4, 0, 1e4, 0.45, 0.35, true);
+                    chain[i].Contact0.Kinematic = true;
+                }
+                for (int step = 1; step <= 200; step++)
+                {
+                    chain[n - 1].AnchorTarget = x[n - 1] + new Double3(2e-6 * step, 0, 0);
+                    chain[n - 1].AnchorVelocity = new Double3(0.002, 0, 0);
+                    chain.Step(Dt);
+                }
+                double far = chain.Tension(0), near = chain.Tension(n - 2), press = 0;
+                for (int i = 1; i < n - 1; i++) press = Math.Max(press, chain[i].Contact0.NormalForce);
+                TestContext.WriteLine($"{(needsPress ? "design 24" : "model 105's slots")}: near {near:F4} N, far {far:F4} N, most press {press:E2} N; wedges {chain.Wedges}");
+                Assert.That(near, Is.GreaterThan(0.1), "the drawn end is pulled");
+                Assert.That(press, Is.EqualTo(0), "nothing presses the plank");
+                if (needsPress) Assert.That(near - far, Is.LessThanOrEqualTo(CableChain.NewtonTolerance), "the pull passes: no press, no hold");
+                else Assert.That(near - far, Is.GreaterThan(0.1 * near), "model 105's slots hold the pull along the line");
+            }
+        }
+
         // ---- the drone's parts (p7d-tether 1.7's gliding slots) ----
 
         /// <summary>What "A line in a crotch of the drone's parts" measured.</summary>

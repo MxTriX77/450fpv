@@ -298,6 +298,10 @@ namespace Fpv450.Sim.Tether
         /// known-wrong for R1, FlightSetup.TetherFreeAirOnFaces, implied by every older line's switch).</summary>
         internal static bool FreeAirOnFaces(FlightSetup setup) => setup.TetherFreeAirOnFaces || BeforeDesign23(setup);
 
+        /// <summary>Whether a flight's chain lets a capstan slot hold the line along it without a press (p7d-tether design 24's
+        /// known-wrong for C1, FlightSetup.TetherHoldWithoutPress, implied by every older line's switch).</summary>
+        internal static bool HoldWithoutPress(FlightSetup setup) => setup.TetherHoldWithoutPress || BeforeDesign23(setup);
+
         /// <summary>Design 24: the members' contact nodes' own room past the spacing law's (assumed: where a contact node was
         /// refused in the pilot's model 103 flights the chain held a mean 6–19 nodes on members, and in five flights none it could
         /// give way, design 24's census; the room bounds the line's cost, PLT-04). Taken only once no free node can give way.</summary>
@@ -397,6 +401,7 @@ namespace Fpv450.Sim.Tether
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
                 KeepSlideStretch = setup.TetherBeforeDesign18, RunEndsOnly = BeforeDesign21(setup), KeepUnconverged = BeforeDesign23(setup),
+                HoldNeedsPress = !HoldWithoutPress(setup),
             };
             nodes = _chain.Capacity;
             _at = new XZ[nodes + 4];
