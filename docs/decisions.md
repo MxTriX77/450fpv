@@ -987,3 +987,12 @@ The pilot, 2026-11-17, minutes after D-118, with a new photo (W): "And they shou
   - the tips' law in the soil, and the legs as cantilever tubes by `p7g-legs`' law (`w17-four-legs` 1.3, in work).
 - **Read from photo W** (`w17-four-legs` 1.5): where each leg stands along its arm, the tube's diameter and length, and how it is fixed. The model's tubes are moved and resized to it, and the goldens are re-recorded once, after that.
 - **For the next question about the pilot's kit:** show the pilot the picture's reading (the crop itself), not only words about it.
+
+## D-120 The legs are aluminium tubes in 3D-printed clamps, and the give is the clamps' play · Accepted
+The pilot, 2026-11-17, asked what the legs of photo W are made of: "legs themselves are of aluminum. but they are fixed to the drone using 3d-printed clamps, because of this, even though the legs are more or less stable - the clamps are tend to play".
+- **The tube:** about 6 mm aluminium (photo W), with a published alloy's properties, each labelled. It bends and stays bent, dents or buckles; it does not crack. The 6/4 mm PVC-U of `w17-four-legs` 1.5 is replaced. As PVC-U it would have buckled under the drone's own weight on hard ground (8.2 N against a leg's 12–15 N share).
+- **The give is in the clamp:** a printed polymer socket. It has free play before it bears, then its own compliance, and its own failure (the print cracks, the tube slips or pulls out).
+- **The play is hand-made and differs per drone:** a bounded draw of a named physical parameter per flight, seeded and logged (PHY-24).
+- **This explains the pilot's older account** (D-086): the legs "a little bit soft", "sometimes adds the stumbling effect when you land". It is checked against that account, never tuned to it.
+- **Supersedes for the sim's drone:** "usually plastic" (D-086), and the PVC-U tube and bolted clamp of `p7g-legs`. That change's method stays.
+- **Built in `w17-four-legs` 1.3,** with the tips' law in the soil, before the goldens are re-recorded once.
