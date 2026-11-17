@@ -59,6 +59,7 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 | **The straw** | "Straws are quite stiff, but not extremely" | 2026-11-13 |
 | **The physics, above all** | "We must recall all of what was discussed before so the physics of drone is top notch this time" (D-104) | 2026-11-13 |
 | **The legs' ends** | four separate legs, no rails joining them: "in life it is simply four legs". Their points can dig into the ground on a rough landing; at the start they stand only slightly dug in, each to its own depth | 2026-11-17, D-117 |
+| **The legs' shape** | copy the kit photo (U): each leg a loop of bent stock ending in a point, the drone standing about 0.10–0.13 m, not straight 0.25 m tubes. Asked with the cost named (a new leg law, a shorter canister): "Copy the photo". The earlier "25–35 cm" may be the stock's length | 2026-11-17, D-118 |
 | **The pale bars in the picture** | two thin wire whiskers on the nose of their kit (photos U and V). They do not point parallel: they converge slightly toward the centre of the picture. They change nothing in the flight; they shake a little with the wind and the speed, and they can break | 2026-11-17, D-117 |
 | **The camera's place and the props** | the camera stays where it is (the planned move is cancelled). The props are a little visible at the right and left of the picture's top | 2026-11-17, D-117 |
 | **The OSD's path** | the video goes over the analog channel together with the OSD, so the channel's look applies to the OSD too | 2026-11-17, D-117 |
