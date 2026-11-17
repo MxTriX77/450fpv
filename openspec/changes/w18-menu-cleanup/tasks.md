@@ -35,4 +35,5 @@ Branch `unity/game/physics-integration-2--menu-cleanup`, cut from the pilot's bu
 
 ## 2. Review
 
-- [ ] 2.1 [qa-engineer] Review against the spec scenarios: no Explore in any build, every check the smoke test made in noclip still made or replaced, every removed and kept text against the rule, the captures before and after.
+- [x] 2.1 [qa-engineer] Review against the spec scenarios: no Explore in any build, every check the smoke test made in noclip still made or replaced, every removed and kept text against the rule, the captures before and after.
+  - **As reviewed:** approve (`review.md`). Both players built at c74bde22 pass `-smoketest` with exit 0 (review 51 checks, pilot's 43) and open no socket; the pilot's build ignores `-farmbench`. Nothing blocks; fix soon, both pre-existing: F1 (the Rates tab's − and + draw no glyph) and F8 (the session test's Unity–headless hash pinned at model 99).
