@@ -61,3 +61,14 @@ Plants SHALL act on the drone's legs, body and props by their stiffness and drag
 #### Scenario: Into a crown
 - **WHEN** the drone flies into a tree's crown at the speed it skimmed the weeds
 - **THEN** it is slowed more than in the weeds, by the twigs' and leaves' own forces
+
+### Requirement: The plants show the flight's weather
+The drawn plants SHALL let the pilot read the flight's wind from the picture alone: how strong it is, and where its gusts come from on this flight. They move by the flight's own wind field and by nothing else (AST-09, VIS-05, PHY-13).
+
+#### Scenario: The levels differ at a glance
+- **WHEN** the same field and tree row are seen in Calm, Windy and Severe
+- **THEN** the plants' lean and sway grow with the level, by the field's own speeds, and the three are told apart from a still hover without the OSD
+
+#### Scenario: The lean points where the wind goes
+- **WHEN** a flight's prevailing direction is drawn from its seed, and it meanders and shifts
+- **THEN** the grass and the crowns lean downwind of the local wind at each place and moment, and a gust is seen crossing a field from the side it comes from before it reaches the drone
