@@ -401,6 +401,24 @@ namespace Fpv450.Sim.Flight
         /// force on the group, world N (x, y, z).
         /// </summary>
         PlantPush = 40,
+
+        /// <summary>
+        /// A leg's tip that the soil held on its way out let go (w17-four-legs 1.3, ContactModel's tips): the hold on its shaft and
+        /// face fell to nothing as it came out, or its corner left the soil while held. Index its corner | the hold's main part at
+        /// its peak &lt;&lt; 4 (1 the shaft's grip, 2 the wet face's suction, 3 the wet shaft's adhesion); Part its leg's part; Object,
+        /// Shape and Surface the soil; Point the tip as it let go. A: the hold's peak, N (the pull on the leg along the soil's
+        /// normal); B: the tip's embedment at that peak, m; C: the tip's speed out of the soil as it let go, m/s. A stuck leg
+        /// holds a few newtons over its depth and lets go slowly; a pilot's sharp liftoff tears it out fast.
+        /// </summary>
+        TipFreed = 41,
+
+        /// <summary>
+        /// A dug-in leg's tip started to plough through the soil in front of it (w17-four-legs 1.3): its anchor's hold across, the
+        /// friction, the wet face's adhesion and the soil before its embedded shaft (Matlock 1970), was passed. Index its corner;
+        /// Part its leg's part; Object, Shape and Surface the soil; Point the tip. A: the push across, N; B: the tip's embedment, m;
+        /// C: the soil's resistance before the shaft at that depth, N. Once a slide, at its start.
+        /// </summary>
+        TipPloughed = 42,
     }
 
     /// <summary>A blade pass's mode (BladeStrike's and BladeDamaged's Index, high 4 bits; p7f-damage design 5).</summary>

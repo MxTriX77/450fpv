@@ -523,6 +523,13 @@ namespace Fpv450.Sim.Log
                             : " in " + Where(e))
                         + ", mean force " + V(new Double3(e.A, e.B, e.C), "0.000") + " N (" + G(new Double3(e.A, e.B, e.C).Length()) + " N) at "
                         + V(e.Point, "0.000") + " m";
+                case EventKind.TipFreed:
+                    return "TIP FREED: leg " + CornerName((byte)(e.Index & 0x0F)) + "'s tip let go of " + Where(e) + " (its hold by "
+                        + ((e.Index >> 4) == 2 ? "the wet face's suction" : (e.Index >> 4) == 3 ? "the wet shaft's adhesion" : "the shaft's grip") + "), "
+                        + G(e.A) + " N at its peak " + G(e.B * 1000) + " mm in, leaving at " + G(e.C) + " m/s from " + V(e.Point, "0.000") + " m";
+                case EventKind.TipPloughed:
+                    return "TIP PLOUGHED: leg " + CornerName(e.Index) + "'s tip " + G(e.B * 1000) + " mm in " + Where(e) + " pushed across with " + G(e.A)
+                        + " N past the soil's " + G(e.C) + " N before its shaft, at " + V(e.Point, "0.000") + " m";
                 default:
                     return "event kind " + (int)e.Kind + ": part " + e.Part + ", index " + e.Index + ", " + Where(e) + ", a " + G(e.A) + ", b "
                         + G(e.B) + ", c " + G(e.C);

@@ -438,7 +438,12 @@ namespace Fpv450.Sim.Contact
                 if (_halfSkid[c] >= 0)
                     throw new ArgumentException("the legs' tips (ContactSpec.LegTips) stand each corner on its leg's tip; a drone on skids flies them off", nameof(spec));
             SurfaceTable table = _spec.Surfaces;
-            if (table != null) _skids = Skids();
+            if (table != null)
+            {
+                // Four legs stand on their tips (w17-four-legs, ContactSpec.LegTips); a drone on skids on its half-skids.
+                if (_spec.LegTips) _tips = Tips(random);
+                else _skids = Skids();
+            }
             int middles = _skids != null ? 4 : 0; // the supports' samples, then the skids' middles
             _at = new XZ[supports + middles];
             _samples = new GroundSample[supports + middles];
@@ -482,7 +487,7 @@ namespace Fpv450.Sim.Contact
                     Crown = r.Rigid ? null : r.Crown,
                 };
             }
-            if (clings && _skids != null) _cling = new double[4];
+            if (clings && (_skids != null || _tips != null)) _cling = new double[4];
             _groundRow = new Row { Known = true, Rigid = true, StaticFriction = _spec.GroundStaticFriction, KineticFriction = _spec.GroundKineticFriction };
 
             // The world's surfaces by id, from the table by name at the flight's moisture; one the table lacks is refused.
@@ -503,7 +508,7 @@ namespace Fpv450.Sim.Contact
                     _soil[id] = set;
                     _surfaceRow[id] = new Row { Known = true, Rigid = true, StaticFriction = set.StaticFriction, KineticFriction = set.KineticFriction };
                     // The cohesive pull's rise on the soil's unload line ends at σ_a, which must come before δ_a (1.13).
-                    for (int c = 0; set.Adhesion > 0 && c < 4; c++)
+                    for (int c = 0; _skids != null && set.Adhesion > 0 && c < 4; c++)
                     {
                         if (!_skids[c].Known) continue;
                         double ku = set.UnloadRatio * Soil.Modulus(set, Soil.Width(SoilPart.Tube, _skids[c].Radius));
@@ -511,11 +516,14 @@ namespace Fpv450.Sim.Contact
                             throw new ArgumentException("surfaces.json's " + name + " at " + moisture + ": σ_a over the unload modulus, " + set.Adhesion / ku
                                 + " m, is not below adhesion_release_m " + set.AdhesionRelease, nameof(spec));
                     }
+                    // A tip's wet face's suction rises on its unloading line, at least the loading line's k_t per area (w17-four-legs).
+                    if (_tips != null && set.Adhesion > 0 && set.TipResistance > 0 && !(set.Adhesion / (set.TipResistance / _spec.TipReferenceDepth) < set.AdhesionRelease))
+                        throw new ArgumentException("surfaces.json's " + name + " at " + moisture + ": σ_a over the tip's k_t is not below adhesion_release_m", nameof(spec));
                 }
                 _cover = new CoverSet[table.Cover.Length];
                 for (int i = 0; i < _cover.Length; i++) _cover[i] = table.Cover[i].Set(moisture);
             }
-            for (int c = 0; _cling != null && c < 4; c++)
+            for (int c = 0; _cling != null && _skids != null && c < 4; c++)
             {
                 if (!_skids[c].Known) continue;
                 for (int id = 1; id < _byMaterial.Length; id++)
@@ -1481,6 +1489,26 @@ namespace Fpv450.Sim.Contact
                     }
                     _soilPoint[c].On = false;
                 }
+                if (_tips != null && _tips[c].Known)
+                {
+                    // A leg's tip in soil (w17-four-legs): its one point the soil's; the corner's other points read their depth.
+                    for (int i = 0; i < _shapes.Length; i++)
+                    {
+                        if (_shapes[i].Corner != c || _shapes[i].Role != ContactRole.Support) continue;
+                        _ground[i].Overlap = 0;
+                        for (int k = 0; k < _count[i]; k++)
+                        {
+                            ref Pair p = ref _pairs[i * PairsPerShape + k];
+                            p.Overlap = p.Surface == WorldIds.NoSurface ? p.Depth : 0;
+                        }
+                    }
+                    if (TipCorner(c, s, ref compression))
+                    {
+                        if (_cling != null) _cling[c] = 0;
+                        continue;
+                    }
+                    _soilPoint[c].On = false;
+                }
                 double deepest = 0, sum = 0, closing = 0;
                 int deepShape = -1, deepPair = -1;
                 for (int i = 0; i < _shapes.Length; i++)
@@ -1582,7 +1610,8 @@ namespace Fpv450.Sim.Contact
                     // A wet layer's footprint (1.13): the half-skid along it at the layer's own compression; the widest since it
                     // last let go.
                     double area = 0;
-                    if (row.Adhesion > 0)
+                    if (row.Adhesion > 0 && _tips != null) area = _tipArea; // a tip's face (w17-four-legs)
+                    else if (row.Adhesion > 0)
                     {
                         Soil.Displaced(SoilPart.Tube, _skids[c].Radius, solid ? stroke : ka * deepest / kr, out _, out double chord);
                         area = chord * _skids[c].Length;
@@ -1964,7 +1993,9 @@ namespace Fpv450.Sim.Contact
                                 axial += Final(ref p, i, k, up, c, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                         }
                     }
-                    if (_soilPoint[c].On) axial += SoilFinal(c, up, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
+                    if (_soilPoint[c].On)
+                        axial += _tips != null ? TipFinal(c, up, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce, events)
+                            : SoilFinal(c, up, s, com, ref f, ref m, ref touching, ref strongest, ref strongestPair, ref strongestForce);
                     load[c] = axial;
                 }
                 _lastAxial[c] = _legTouching[c] ? load[c] : 0;
@@ -1972,6 +2003,7 @@ namespace Fpv450.Sim.Contact
                 _tubeMoment[c] = default;
                 _tubeStrongest[c] = 0;
             }
+            if (_tips != null) TipEvents(events);
             if (_legs == null) return;
             MoveShapes(s);
             for (int c = 0; c < 4; c++)
@@ -2309,7 +2341,7 @@ namespace Fpv450.Sim.Contact
                 {
                     ref SoilPoint sp = ref _soilPoint[c];
                     ref Pair q = ref sp.Foot;
-                    Double3 fp = SoilConed(c), r = q.Point - q.Stretch - foot;
+                    Double3 fp = _tips != null ? TipConed(c) : SoilConed(c), r = q.Point - q.Stretch - foot;
                     law = law + fp + sp.Pull;
                     drift = drift + q.Drift * q.Share;
                     trial = trial + q.Force + sp.Pull;
@@ -2836,7 +2868,7 @@ namespace Fpv450.Sim.Contact
                         ch.Stubs |= 1 << c;
                     }
                 }
-                if (_tips != null && _tips[c].Engaged) LeaveTip(c);
+                if (_tips != null && _tips[c].Engaged) LeaveTip(c, World(s, _shapes[_tips[c].Support].A), false);
                 for (int i = 0; i < _shapes.Length; i++)
                     if (!_off[i] && _legOf[i] < 0 && _base[i].Corner == c && _base[i].Role == ContactRole.Support) Leave(i, ch, piece, s, events);
                 _corner[c] |= off ? CornerState.TubeGone : CornerState.Stub;
@@ -3006,7 +3038,8 @@ namespace Fpv450.Sim.Contact
             ref Pair q = ref _pairs[shape * PairsPerShape + pair];
             // The layer's own stiffness under the clinging footprint, the half-skid's whole length (its area's, 1.12): at
             // least the row's in every law, so the constructor's check at the row's holds.
-            double kl = row.Law != AreaLaw.None ? row.Stiffness * Footprint(q, row, false, _skids[c].Length, 2 * _skids[c].Radius) : row.Stiffness;
+            // A tip's (w17-four-legs) at the row's own, its reference foot's.
+            double kl = row.Law != AreaLaw.None && _skids != null ? row.Stiffness * Footprint(q, row, false, _skids[c].Length, 2 * _skids[c].Radius) : row.Stiffness;
             double k0 = _spec.LegStiffness, kn = Series(k0, kl), peak = row.Adhesion * _cling[c], fn;
             if (kn * depth >= -peak) fn = kn * depth;
             else

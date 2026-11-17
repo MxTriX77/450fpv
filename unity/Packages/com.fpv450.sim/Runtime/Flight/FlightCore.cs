@@ -416,6 +416,8 @@ namespace Fpv450.Sim.Flight
                 }
                 // The motors' bells (p7f-damage 1.5): a contact on a turning bell drags its rotor, dents its ring and rubs its gap.
                 if (_propulsion != null) _contacts.AttachBells(_propulsion, setup.Propulsion);
+                // Four legs (w17-four-legs design 4): a start standing on the ground is set down, each tip to its drawn depth.
+                _contacts.SetDown(ref _state, _mass.Properties);
                 _contacts.Sense(_state, ref _state, _events);
                 _events.Clear();
                 if (_contacts.Legs != null)
