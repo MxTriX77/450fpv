@@ -935,3 +935,26 @@ The orchestrator, 2026-11-16, on the game developer's trial (the pilot approved 
 - **How:** `Fpv450.Build.Windows -il2cpp` (Mono stays the build method's default), managed stripping Minimal (it strips only the class libraries and UnityEngine), output `Builds/Windows-Review-IL2CPP`; the build pointer passes `-il2cpp`, and `tools/build_latest.ps1` leaves IL2CPP's 1 GB `*_BackUpThisFolder_ButDontShipItWithYourGame` out of `unity\Builds\Latest`.
 - **Costs:** the build takes about 7 minutes (Mono's 1); the shipped player is the same size (999 against 989 MB).
 - **Not yet measured:** the query-heavy case (the laid line on a ruin, where Mono was 4.5–5× slower); the pilot's flights and the performance baseline on a quiet machine on AC will show it.
+
+## D-117 The pilot's feedback on model 103: four legs that dig in, the OSD through the channel, the camera stays, the plants show the weather · Accepted
+The pilot, 2026-11-17, after about 30 flights on the model 103 build (ledger P54 to P61; their words are rendered from Russian). Their account outranks any calculation (D-104).
+- **Four separate legs, no rails.** "On both sides of the legs there are some two parallel rails … these two rails are not needed. In life it is simply four legs." The model's two fore-aft skid tubes go; the pilot's own kit (photo U) stands on four separate legs (DRN-01).
+- **The ground's hold is wrong.** With the legs in the ground at low throttle the drone "sort of slides along the ground", a little more throttle and "it jumps up": "as if the drone were pulled to the ground by a magnet. That is not it at all."
+  - A rough landing can drive the legs' points into the soil.
+  - At the start each leg stands "only slightly dug into the ground", each to its own random depth, so that a careful liftoff "felt different every time, so that the pilot gets used to the craft on every flight".
+  - Change `w17-four-legs`: a leg's tip as a small penetrometer in the surface's own soil, a hold that stores no energy, and the start's embedment as a bounded, seeded and logged draw of how the drone was set down (PHY-24).
+- **A landing carries the drone's weight.** In flight, at liftoff and in the shake the drone is heavy, but at a landing it is "as if it were a small light plastic toy plane". Flight at low throttle is "fully realistic". "Be careful: improve the current physics, but break nothing in it; it is made with a jeweller's care now." So the landing is fixed inside `w17-four-legs`: the flight model is not touched, and every pin that moves is audited.
+- **No Explore, no small labels.** "Delete the Explore section. And also remove the small labels across the project (like next to Train you write the two maps side by side, and similar things: remove them everywhere)."
+  - The menu is Train, Calibrate and Exit in every build. The noclip view stays the team's tool for captures and benches, opened by a command-line argument (PRD-05, PRD-07, APP-02).
+  - A screen keeps only the texts the pilot needs to operate it: a key or stick prompt, a state that changes, a problem. Change `w18-menu-cleanup`.
+- **The fiber's lay is plausible, with three statements to test** (`p7d-tether` 1.11h):
+  - "I seem to have laid it, say, over a roof, but looking back I still see it has slid off somewhere. Or it seems so to me";
+  - when a prop winds up its own fiber, "the break is instant";
+  - "it lies down under its own weight, and if, say, you laid it round a house's corner, the tension then goes from that corner".
+- **The OSD goes through the analog channel with the picture.** The noise is great, but the OSD looks laid over digitally: "the video TOGETHER with the OSD already goes over the analog channel. So all of this has to be applied to the OSD too." This outranks OSD-04's "the OSD stays crisp" and the Godot port on that point (D-026). `p4-feed` 1.12 measures the footage's glyphs and applies the channel's stages to them; the picture itself does not move.
+- **The camera stays where it is. D-103's camera move is cancelled** ("camera position: let's cancel this one. It seems you got it wrong"), and `w14-camera-place` is dropped.
+  - The two pale bars in the footage are **two thin wire whiskers on the nose of the pilot's kit** (photos U and V), neither props nor the camera's mount. "They do not point parallel, they converge slightly (!) toward the centre point of the camera's picture."
+  - The props "are of course a little visible too, at the right and left of the picture's top" (VIS-07).
+  - The whiskers do nothing in the sim's physics: "this does not affect our flight in any way, they are simply there, and from the wind, the speed and so on they can shake a little, and break too of course."
+  - So the turning props (`w13-props-in-frame`) ship with the camera where it is, checked against that account, and a new change draws the whiskers from the two photos alone.
+- **The plants show the weather.** "Grass and leaves and twigs swaying should match the actual weather - it's important. The pilot should understand how strong the wind is, and where the gusts usually blow from this flight." It is a requirement of `w16-plants-in-the-air` now: the three wind levels are told apart from a still hover without the OSD, and the lean points where the local wind goes.

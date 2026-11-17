@@ -14,6 +14,8 @@ QA's recall of everything asked, said or decided about the drone's physics, with
 
 2026-11-14: §1.7 adds the pilot's seven statements after flying model 100 (at model 102: 2 contradicted, 2 partly, 3 missing); the counts above are as of §0's runs.
 
+2026-11-17: §1.8 adds the pilot's eight statements after flying model 103 (3 contradicted, 2 partly, 2 missing, 1 built and unproven); the counts above are still as of §0's runs.
+
 The seven contradictions: a leg never sticks alone at liftoff (P1); slope landings tumble (P9); straw landings cut and shake nothing, always lie flat, and the stalks are too thin (P12, P12a, P12c); two of the four fiber causes never cut, and no cut is at the hole's edge (P36, P37).
 
 ## Status words
@@ -148,6 +150,21 @@ The pilot's 14 flights (Village, Severe, 2 kg, legs on) and their forensics are 
 | P51 | "the drone is not affected by grass, and it should be affected even more heavily when thicker stuff (like twigs and tree leaves)." | D-114 | PHY-05 | stems on the props (`Contact/PropStems`), a crown's twigs on parts; not the stems on the legs or the body (W9 2.10) | `w16-plants-in-the-air` 1.5 | **partly** |
 | P52 | "let's do that sway matches real wind behavior real time" and "they are flexible, so they should flexibly get back to their default position if a gust is short etc., again - calculate and make it realistic" | D-114 | VIS-05, AST-09, PHY-13 | not built | `w16-plants-in-the-air` 1.1 to 1.3 | **missing** |
 | P53 | "dusts whiffs as you land closer to the ground" (clip H's ending as the example) | D-114 | VIS-06 | not built | `w16-plants-in-the-air` 1.4 | **missing** |
+
+### 1.8 After about 30 flights on the model 103 build (2026-11-17)
+
+The pilot's feedback is D-117; their words are rendered from Russian. The rows are as of that day: the changes are proposed and their first tasks are in work.
+
+| # | The pilot's words | Source | Req | Where it is built | Proven by | Status |
+|---|---|---|---|---|---|---|
+| P54 | "on both sides of the legs there are some two parallel rails … these two rails are not needed. in life it is simply four legs" | D-117 | DRN-01 | `assets-src/drone/drone.json` `skid_right` and `skid_left` (two 0.45 m tubes), the contact's skid pairs and a broken leg's hanging half | `w17-four-legs` (proposed) | **contradicted** |
+| P55 | with the legs in the ground at low throttle the drone "sort of slides along the ground", a little more and "it jumps up": "as if the drone were pulled to the ground by a magnet. that is not it at all" | D-117 | PHY-03, PHY-01 | `Contact/Soil.cs` (the anchors and the cohesive pull), `ContactModel` (W9 2.4, 2.6, 2.9) | none; `w17-four-legs` 1.1 measures it in the pilot's flights | **contradicted** |
+| P56 | a rough landing can drive the legs' points into the ground; at the start "only slightly dug into the ground", each leg to a random depth, so that a careful liftoff "felt different every time, so that the pilot gets used to the craft on every flight" | D-117 | PHY-03, PHY-24 | not built: the skids rest on the surface, and the start differs between flights only by the balance's draw | `w17-four-legs` 1.1 and 1.3 | **missing** |
+| P57 | heavy in flight, at liftoff and in the shake, but at a landing "as if it were a small light plastic toy plane"; flight at low throttle is "fully realistic"; "improve the current physics, but break nothing in it" | D-117 | PHY-02 | `ContactModel` (the legs' pairs), `Contact/LegDamage.cs` | none; `w17-four-legs` 1.1 measures the touchdowns | **contradicted** |
+| P58 | "I seem to have laid it, say, over a roof, but looking back I still see it has slid off somewhere. or it seems so to me" | D-117 | PHY-18, PHY-21 | `Tether/` (the laid line and its contacts on members, design 21) | none: the pilot's flights are not read for it yet; `p7d-tether` 1.11h | **built, unproven** |
+| P59 | when a prop winds up its own fiber "the break is instant"; "it lies down under its own weight, and if, say, you laid it round a house's corner, the tension then goes from that corner" | D-117 | PHY-19, PHY-18 | `Tether/FiberCuts.cs` (a disc's cut), the wraps on members (design 21) | `fb --tether` rows for the disc's cut; a corner's hold on the laid line behind it has no test; `p7d-tether` 1.11h | **partly** |
+| P60 | "grass and leaves and twigs swaying should match the actual weather - it's important. the pilot should understand how strong the wind is, and where the gusts usually blow from this flight" | D-117 | VIS-05, AST-09, PHY-13 | the plants' law in the sim's air (`Wind/PlantLaw`, `PlantAir`, `PlantWash`) on the line; the drawn side on its branch, unmerged | `w16-plants-in-the-air` 1.3 and its requirement "The plants show the flight's weather" | **partly** |
+| P61 | the two thin wire whiskers on the kit's nose (the pale bars of the footage): "this does not affect our flight in any way, they are simply there, and from the wind, the speed and so on they can shake a little, and break too of course" | D-117 | VIS-07, DRN-04 | not built | a new change, from photos U and V | **missing** |
 
 ## 2. Every physics requirement
 

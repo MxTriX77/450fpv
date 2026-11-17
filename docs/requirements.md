@@ -116,7 +116,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 
 *Accept:* the setup screen offers exactly these five, plus the start point. *Source:* V§3, D-010, D-021.
 
-**PRD-05 Menu.** The app opens to **Train / Calibrate / Exit**, "prettier than uglier". Review builds add **Explore** (noclip). *Source:* V§3.
+**PRD-05 Menu.** The app opens to **Train / Calibrate / Exit**, "prettier than uglier". No other item in any build: no **Explore** (the pilot, 2026-11-17, D-117). *Source:* V§3.
 
 **PRD-06 Physics logging.** Every flight writes a log that can explain any crash as physics or pilot error. *Accept:* LOG-01 to LOG-03. *Source:* V§4.
 
@@ -128,6 +128,7 @@ The pilot, 2026-10-17: "when i say realism i mean more than just abstract realis
 - **Esc** releases the mouse and a click recaptures it; pitch clamps at ±89° and the view never flips; one mouse-sensitivity setting
 - movement is bound to **physical key positions**, so WASD works on Ukrainian and Russian keyboard layouts
 - base speed 6 m/s, the wheel steps it ×1.25 within 1–60 m/s, Shift multiplies it by 8; no collision (the camera passes through walls and ground)
+- **not in the player's menu** (D-117): it is the team's tool for captures and benches, opened by a command-line argument
 
 *Accept:* used at gates G2 and G3; an EditMode or PlayMode test per control above. *Source:* V§5.2; gap review G16, G17 (D-037).
 
@@ -482,11 +483,14 @@ Rain shows no visible falling streaks in the feed (K§8.7). **Lens drops** (FEED
 
 **VIS-04 Distance.** Aerial perspective is tuned so a belt at 200 m reads as a dark band and the horizon matches the footage's tone (K§9).
 
-**VIS-05 Shadows, AO and vegetation sway.** Sway amplitude follows the wind level, and later the wind field.
+**VIS-05 Shadows, AO and vegetation sway.** Sway amplitude follows the wind level, and later the wind field. **The plants show the flight's weather** (the pilot, 2026-11-17, D-117): how strong the wind is, and where its gusts come from on this flight, is read from the grass, the leaves and the twigs alone.
 
 **VIS-06 Effects hooks** for phase 7: dust under prop wash on dry surfaces, ash plumes on burnt ground, dust haze in belts. These are visual only.
 
 **VIS-07 Prop blades and airframe parts in view.** The FPV camera sees prop blades crossing the top corners and airframe parts at mid-height, matching the reference set-up (K§11). They are rendered as geometry, not as a feed effect.
+- The props show a little at the right and left of the picture's top (the pilot, 2026-11-17, D-117). The camera stays where it is.
+- The parts at mid-height are **two thin wire whiskers on the nose** of the pilot's kit (photos U and V). They do not point parallel: they converge slightly toward the centre of the picture.
+- The whiskers change nothing in the flight. They shake a little with the wind and the speed, and they can break.
 
 ---
 
@@ -604,7 +608,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 - Inserted **before** the analog stages and **not lens-distorted**.
 - Tears with N8 and dims with N13.
 - Band-limited into the chroma detector: fringing on OSD rows about 7.9, against about 105 without the limit.
-- The scene smears horizontally while the OSD stays crisp (chroma trap).
+- **The OSD goes through the channel with the picture** (the pilot, 2026-11-17, D-117: "the video TOGETHER with the OSD already goes over the analog channel"). Every stage after the OSD's insertion acts on the glyphs as on the scene, by what the footage's glyphs measure. This replaces "the scene smears horizontally while the OSD stays crisp".
 
 *Source:* K§11.6.
 
@@ -619,7 +623,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 - **a plain plastic bottle strapped on top**, the only load, its filled mass the setup's weight (D-050)
 - FPV camera at **0° uptilt**
 - fiber transceiver, flight-controller stack, wiring
-- **legs 25–35 cm** (pilot; carbon tubes on clamps standing on fore-aft skids, as letter T shows them) in the legs-on variant, and a legs-off variant
+- **four separate legs, 25–35 cm** (pilot; plastic tubes on clamps, D-086) in the legs-on variant, and a legs-off variant. Each leg ends in its own tip, and no skid or rail joins them: "in life it is simply four legs" (D-117, photo U)
 
 *Source:* B plan 5, B req 4, K§5.
 
@@ -631,7 +635,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 - The coil mass falls with payout, and the CoM shift is computed.
 - The inertia ranges are checked against K§5.2, after re-deriving for letter T's layout: the spool on top, the payload below, two packs along the sides (D-043).
 
-**DRN-04 In-view parts.** Prop blades and airframe parts visible from the FPV camera match the reference set-up (VIS-07). Props show motion blur and spin with rpm.
+**DRN-04 In-view parts.** Prop blades and airframe parts visible from the FPV camera match the reference set-up (VIS-07), the two nose whiskers among them. Props show motion blur and spin with rpm.
 
 **DRN-05 Animation hooks.** Prop spin, leg flex (from physics), coil payout, and the trailing fiber line (a thin rendered line through the tether nodes).
 
@@ -649,7 +653,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 
 **APP-01 Wireframes first (gate G6).** Main menu, setup, calibration, in-flight pause, and the post-flight summary. The pilot approves before any UI is built. *Source:* V§4.3.
 
-**APP-02 Main menu.** Train, Calibrate and Exit (plus Explore in review builds). A clean, readable design.
+**APP-02 Main menu.** Train, Calibrate and Exit, in every build. A clean, readable design: a screen carries only the texts the pilot needs to operate it (a key or stick prompt, a state that changes, a problem), and no label that describes an item, a map or an option (D-117).
 
 **APP-03 Setup.**
 - payload 0–2.0 kg in 0.1 kg steps
@@ -769,6 +773,7 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 **PHY-02 Landing bounce.** It emerges from leg compliance and residual thrust, with nothing scripted.
 - **Hold the sticks and the drone leaves the ground; cut the throttle and it stays.**
 - The separation is **computed**, never asked (D-024).
+- **A landing carries the drone's weight** (the pilot, 2026-11-17, D-117): it never feels "as if it were a small light plastic toy plane". A rough landing drives the legs' tips into the soil.
 
 *Source:* V§2.6, K§6.6.
 
@@ -779,6 +784,8 @@ The design to start from is [legacy/flight-model/](legacy/flight-model/), conden
 - **The pilot's account sets the targets:** "sometimes, a little bit" on firm dry ground; **more often on softer ground**; **most of the time in rain**. The horizon tips a little.
   - The rates come from the physics (hooks, stiction, wet adhesion), and are checked against that account.
   - The first attempt measured about 0.9 hooked legs per liftoff on belt straw, which is too high for "sometimes".
+- **No magnet** (the pilot, 2026-11-17, D-117): the ground never holds the drone and then lets go at once. At low throttle the drone does not slide along the ground, and a little more throttle does not make it jump. A leg's hold is the soil's on its dug-in tip, and it stores no energy.
+- **Every flight starts with each leg slightly dug in, to its own random depth,** so a careful liftoff feels different on every flight. The depth is a bounded, seeded and logged draw of how the drone was set down (PHY-24).
 
 *Source:* V§2.1, K§7.3.
 
