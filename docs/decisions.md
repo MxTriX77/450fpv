@@ -945,7 +945,7 @@ The pilot, 2026-11-17, after about 30 flights on the model 103 build (ledger P54
   - Change `w17-four-legs`: a leg's tip as a small penetrometer in the surface's own soil, a hold that stores no energy, and the start's embedment as a bounded, seeded and logged draw of how the drone was set down (PHY-24).
 - **A landing carries the drone's weight.** In flight, at liftoff and in the shake the drone is heavy, but at a landing it is "as if it were a small light plastic toy plane". Flight at low throttle is "fully realistic". "Be careful: improve the current physics, but break nothing in it; it is made with a jeweller's care now." So the landing is fixed inside `w17-four-legs`: the flight model is not touched, and every pin that moves is audited.
 - **No Explore, no small labels.** "Delete the Explore section. And also remove the small labels across the project (like next to Train you write the two maps side by side, and similar things: remove them everywhere)."
-  - The menu is Train, Calibrate and Exit in every build. The noclip view stays the team's tool for captures and benches, opened by a command-line argument (PRD-05, PRD-07, APP-02).
+  - The menu is Play, Calibrate and Exit in every build (the pilot's "Train" is Play since D-100). The noclip view stays the team's tool for captures and benches, opened by a command-line argument (PRD-05, PRD-07, APP-02).
   - A screen keeps only the texts the pilot needs to operate it: a key or stick prompt, a state that changes, a problem. Change `w18-menu-cleanup`.
 - **The fiber's lay is plausible, with three statements to test** (`p7d-tether` 1.11h):
   - "I seem to have laid it, say, over a roof, but looking back I still see it has slid off somewhere. Or it seems so to me";
