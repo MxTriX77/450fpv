@@ -54,6 +54,23 @@ namespace Fpv450.Feed.Tests
             }
         }
 
+        /// p4-feed 1.12: the OSD goes through the analog channel with the picture by default; off is Godot's OSD, which
+        /// only the FEED-00 A/B takes (FeedCapture -feedGodot).
+        [Test]
+        public void TheOsdGoesThroughTheChannelByDefault()
+        {
+            Assert.That(Asset.osdChannel, Is.True, "the project's settings");
+            FeedSettings s = ScriptableObject.CreateInstance<FeedSettings>();
+            try
+            {
+                Assert.That(s.osdChannel, Is.True, "a new settings asset");
+            }
+            finally
+            {
+                Object.DestroyImmediate(s);
+            }
+        }
+
         /// The rig runs the scheduler at the settings' seed, takes the camera's field of view and target while it
         /// runs, puts the feed on its own output camera, and gives the camera back.
         [Test]

@@ -203,7 +203,8 @@ namespace Fpv450.Feed
                       $"picture {settings.PictureHorizontalFovDeg:0.0}° across, lens k1 {settings.K1:0.00}, " +
                       $"field {settings.fieldWidth}x{FeedSettings.FieldRows}, seed {settings.seed}, " +
                       (settings.dropoutTimer ? "Godot's dropout timer (D-085), " : "no dropout timer, ") +
-                      (settings.tearWedge ? "Godot's tear wedge (the A/B, D-026). " : "no tear wedge (D-065). ") +
+                      (settings.tearWedge ? "Godot's tear wedge (the A/B, D-026), " : "no tear wedge (D-065), ") +
+                      (settings.osdChannel ? "the OSD through the channel (p4-feed 1.12). " : "Godot's OSD (the A/B). ") +
                       FeedSignalLog.Describe(Signals));
             Debug.Log($"[Feed] OSD ({Signals.SourceOf(FeedSignal.OsdState).ToString().ToLowerInvariant()}), " +
                       $"{FeedOsd.Cols}x{FeedOsd.Rows} cells of {FeedOsd.CellW * 1920f:0.0}x{FeedOsd.CellH * 1080f:0.0} px at 1920x1080, " +

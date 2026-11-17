@@ -34,6 +34,8 @@ namespace Fpv450.Feed
         public bool dropoutTimer = true;
         [Tooltip("The black wedge a tear cuts in from the right edge, the pilot's \"black sticks\" (D-026). Off (D-065, kept by D-085): they look too artificial. On only for the FEED-00 A/B against Godot.")]
         public bool tearWedge;
+        [Tooltip("The OSD through the analog channel with the picture (p4-feed 1.12, the pilot 2026-11-17): the channel's softness on the glyphs' luma, the chip's white at the receiver's clip, no vignette on the characters. Off is the Godot feed's OSD, for the FEED-00 A/B.")]
+        public bool osdChannel = true;
 
         [Header("The camera's read (p7e-camera-feel)")]
         [Tooltip("The CMOS rolling shutter and the exposure's blur from the flight's poses (RollingShutter), on a rig that is handed a track. Off reads the scene as before, as the FEED-00 A/B does.")]
