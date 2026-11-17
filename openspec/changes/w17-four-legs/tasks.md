@@ -4,7 +4,8 @@ Branch `unity/physics/physics-integration-2--w17-four-legs`, cut from the physic
 
 ## 1. The four legs
 
-- [ ] 1.1 [physics-engineer] **The baseline from the pilot's flights, and the design.** No change to a flight yet.
+- [x] 1.1 [physics-engineer] **The baseline from the pilot's flights, and the design.** No change to a flight yet.
+  - *As built:* `design.md` §1 (the 30 logs since model 103, read from their step records: 28 liftoffs, 63 touchdowns), §2 decisions 1–8 and §4's targets; `tools/flightbench/handcalc/four_legs.py` prints every hand number. The magnet is the wet half-skids' cohesive pull (−3.0 to −10.7 N a corner, the last release at T/W 1.31–1.71), which presses nothing and so leaves the drone frictionless while held; the toy plane is the skids' skating (0.4–4.4 m), chatter and rocking. New labelled inputs for 1.3: `surfaces.json` `tip_resistance_pa` per surface, z_ref, α_E, ν, r_s, N_kt, J, the `leg.setdown` draw [1, 1.5]. Not settled: r_s (0–0.04 band) carries the dry account; wet tilled ground and spoil are mud (39–117 mm at rest); questions on the pilot's leg ends in design §"Questions".
   - **Measure the pilot's own flights** (the logs since the model 103 build, about 30). For every liftoff:
     - the throttle and the thrust over weight at the first motion;
     - how far the drone slid before it left the ground;
