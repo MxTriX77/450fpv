@@ -959,7 +959,7 @@ The pilot, 2026-11-17, after about 30 flights on the model 103 build (ledger P54
   - So the turning props (`w13-props-in-frame`) ship with the camera where it is, checked against that account, and a new change draws the whiskers from the two photos alone.
 - **The plants show the weather.** "Grass and leaves and twigs swaying should match the actual weather - it's important. The pilot should understand how strong the wind is, and where the gusts usually blow from this flight." It is a requirement of `w16-plants-in-the-air` now: the three wind levels are told apart from a still hover without the OSD, and the lean points where the local wind goes.
 
-## D-118 The legs copy the pilot's kit photo: bent loops ending in a point, a low stance · Accepted
+## D-118 The legs copy the pilot's kit photo: bent loops ending in a point, a low stance · Withdrawn by D-119 the same day (a misreading of the photo)
 The pilot, 2026-11-17, asked which legs the sim's drone should have, with the cost named: "Copy the photo".
 - **What the photo shows** (photo U, the pilot's own kit, read by the asset artist):
   - each leg is a loop of bent stock in its arm's vertical plane, fixed under the arm at two points and ending in a point;
@@ -976,3 +976,14 @@ The pilot, 2026-11-17, asked which legs the sim's drone should have, with the co
   - the tips' law in the soil (task 1.3, in work) is the same for both shapes;
   - the flight model is untouched (the pilot: "improve the current physics, but break nothing in it"). The goldens are re-recorded once, at the end, and audited.
 - **Not said by the pilot:** what the stock is (strip, rod or pipe) and the exact height. Both are read from the photo and labelled.
+
+## D-119 The legs are narrow straight tubes pointing perpendicularly into the ground; D-118's loops are withdrawn · Accepted
+The pilot, 2026-11-17, minutes after D-118, with a new photo (W): "And they shouldn't be bent loops 10-13 legs, like on this photo - narrow tubes pointing perpendicularly into the ground".
+- **What went wrong:** photo U was read as showing loop legs about 0.10–0.13 m tall, and the question put to the pilot called them the legs of their kit. Their "Copy the photo" meant the legs as they know them, which photo W shows. They corrected the reading as soon as they saw it written out.
+- **The legs:** four separate narrow straight tubes, one under each arm, perpendicular to the ground, each ending in its own tip (photo W). The pilot's first account, 25–35 cm, stands.
+- **Withdrawn from D-118:** the loop legs, their new bending and failure law, the re-proportioned canister and the moved fiber exit. None of it was built: the task was stopped minutes in.
+- **What stands:**
+  - D-117's four separate legs with no rails;
+  - the tips' law in the soil, and the legs as cantilever tubes by `p7g-legs`' law (`w17-four-legs` 1.3, in work).
+- **Read from photo W** (`w17-four-legs` 1.5): where each leg stands along its arm, the tube's diameter and length, and how it is fixed. The model's tubes are moved and resized to it, and the goldens are re-recorded once, after that.
+- **For the next question about the pilot's kit:** show the pilot the picture's reading (the crop itself), not only words about it.
