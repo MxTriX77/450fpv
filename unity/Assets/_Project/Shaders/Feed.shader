@@ -144,7 +144,7 @@ Shader "Hidden/Fpv450/Feed"
         0.176213, 0.121109, 0.064825, 0.027023, 0.008773, 0.002218 };
     // The OSD's white as the receiver shows it: the chip's white lands on the receiver's clip, so the clip takes the
     // grain's upper half and leaves its lower. The footage's flat ink sits at 252-255 (B, C, D, F, G by day, L at
-    // night) and moves 0.39-0.63 of a level frame to frame; one level over the clip left the sim's 0.12, two none.
+    // night) and moves 0.39-0.63 of a level frame to frame; one level over the clip left the sim's 0.12, five none.
     #define OSD_WHITE_OUT 1.0
 
     // GLSL's mod: x - y * floor(x / y). HLSL's fmod truncates, which differs for the -1 line of an odd field.
