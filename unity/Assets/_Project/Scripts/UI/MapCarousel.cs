@@ -5,16 +5,16 @@ namespace Fpv450.UI
 {
     public enum CarouselChoice { None, Choose, Back }
 
-    /// <summary>A map's card: its name, a line on what it is, and its still (null: a plain card).</summary>
+    /// <summary>A map's card: its name and its still (null: a plain card). No line describes the map (w18-menu-cleanup).</summary>
     public sealed class MapCard
     {
-        public string Name, Line;
+        public string Name;
         public Texture Still;
     }
 
     /// <summary>
     /// Play's carousel (w10-play-maps 1.1, D-100, APP-02): one card per map, the selected one large in the middle with its
-    /// name and line under it, its neighbours smaller and dimmed at the sides, sliding when the selection moves, and a dash
+    /// name under it, its neighbours smaller and dimmed at the sides, sliding when the selection moves, and a dash
     /// per card under it for where it is; Back and Choose at the foot, as the setup's Back and Fly. A click on a side card
     /// moves to it, on the middle one chooses it. The keys and the radio's sticks are the caller's (Move, once a frame).
     /// </summary>
@@ -74,10 +74,10 @@ namespace Fpv450.UI
                 MapCard card = Cards[Selected];
                 float below = cy + h * 0.5f + AppStyle.S(26);
                 GUI.Label(new Rect(0, below, Screen.width, AppStyle.S(44)), card.Name, Centred(AppStyle.Heading));
-                GUI.Label(new Rect(0, below + AppStyle.S(50), Screen.width, AppStyle.S(30)), card.Line, Centred(AppStyle.Label));
+                // The dashes 24 px under the name, as they stood under the describing line that went (w18-menu-cleanup).
                 float dash = AppStyle.S(28), gap = AppStyle.S(10), dashes = Cards.Length * dash + (Cards.Length - 1) * gap;
                 for (int i = 0; i < Cards.Length; i++)
-                    AppStyle.Fill(new Rect(Mathf.Round(cx - dashes * 0.5f + i * (dash + gap)), below + AppStyle.S(104), dash, AppStyle.S(4)),
+                    AppStyle.Fill(new Rect(Mathf.Round(cx - dashes * 0.5f + i * (dash + gap)), below + AppStyle.S(68), dash, AppStyle.S(4)),
                         i == Selected ? AppStyle.Accent : AppStyle.Control);
             }
 

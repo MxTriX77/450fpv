@@ -208,7 +208,6 @@ namespace Fpv450.UI
 
         void Idle()
         {
-            GUILayout.Label("About a minute, with the radio alone after Start.", _text);
             if (GUILayout.Button("Start", GUILayout.Width(160), GUILayout.Height(40))) Begin();
             Profiles();
         }

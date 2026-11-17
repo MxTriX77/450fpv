@@ -331,10 +331,13 @@ namespace Fpv450.App
                 case View.Loading:
                     AppStyle.Begin();
                     AppStyle.DrawGround();
-                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), _explore ? "Loading " + PlayMaps.Village.Name + "…  noclip" : "Loading " + _map.Name + "…  arm once the drone is in", AppStyle.Label);
+                    GUI.Label(new Rect(AppStyle.S(150), Screen.height * 0.45f, Screen.width, AppStyle.S(40)), LoadingLine(_explore ? PlayMaps.Village.Name : _map.Name), AppStyle.Label);
                     break;
             }
         }
+
+        /// <summary>The loading screen's line: the map's name alone (w18-menu-cleanup).</summary>
+        public static string LoadingLine(string map) => "Loading " + map + "…";
 
         // ---- The smoke test ----
 

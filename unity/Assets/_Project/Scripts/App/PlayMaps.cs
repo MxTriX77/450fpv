@@ -5,11 +5,11 @@ using UnityEngine;
 
 namespace Fpv450.App
 {
-    /// <summary>A map Play offers (D-100): its map id, its name and line on the card, the scene its flights load, the world
-    /// they fly (FlightWorlds, from the data root) and the start points its setup offers.</summary>
+    /// <summary>A map Play offers (D-100): its map id, its name on the card, the scene its flights load, the world they fly
+    /// (FlightWorlds, from the data root) and the start points its setup offers.</summary>
     public sealed class PlayMap
     {
-        public string Id, Name, Line, Scene;
+        public string Id, Name, Scene;
         public Func<string, FlightWorldChoice> World;
         public Func<string, StartPoint[]> Starts;
     }
@@ -26,14 +26,12 @@ namespace Fpv450.App
         public static readonly PlayMap House = new PlayMap
         {
             Id = FlightWorlds.TestRangeMap, Name = "House", Scene = TestRangeScene,
-            Line = "The test range: a yard with houses, a car, fences, trees and wires",
             World = FlightWorlds.TestRange, Starts = root => FlightWorlds.TestRange(root).StartPoints,
         };
 
         public static readonly PlayMap Village = new PlayMap
         {
             Id = FlightWorlds.FarmlandMap, Name = "Village", Scene = FarmlandExplore.Scene,
-            Line = "The farmland: fields, tree belts and a ruined village on rolling hills",
             World = FlightWorlds.Farmland, Starts = root => FlightWorlds.FarmlandStarts,
         };
 

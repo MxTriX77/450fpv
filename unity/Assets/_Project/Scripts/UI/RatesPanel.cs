@@ -95,15 +95,11 @@ namespace Fpv450.UI
             GUILayout.EndHorizontal();
 
             GUILayout.Space(16);
-            GUILayout.BeginHorizontal();
             if (GUILayout.Button("Defaults", GUILayout.Width(160), GUILayout.Height(36)))
             {
                 foreach (FcSettingRow row in rows) row.Set(ref _settings, row.Get(FcSettingsStore.PlayerDefault));
                 Changed();
             }
-            GUILayout.Space(12);
-            GUILayout.Label("Betaflight 4.5, ACTUAL rates. Changes are saved as you make them.", _small, GUILayout.Height(36));
-            GUILayout.EndHorizontal();
             if (_message != null) GUILayout.Label(_message, _small);
 
             if (_dirty && Event.current.rawType == EventType.MouseUp) Save();
