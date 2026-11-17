@@ -31,9 +31,20 @@ E_TUBE = v(TUBE, "modulus_pa")                            # published (PVC-U)
 SIGMA_Y = v(TUBE, "yield_stress_pa")                      # published
 K_T_EDGE = v(LEGS["clamp"], "edge_stress_factor")         # assumed (drone.json)
 K_ARM = v(LEGS["clamp"], "mount_stiffness_n_per_m")       # derived (drone.json)
-# What left the drone with the skids (derived, drone_skids.json's parts, w17-four-legs 1.2): the two skids and the four T-joints.
-GONE = [p for p in SKIDS["parts"] if p["name"].startswith(("skid_", "tjoint_"))]
-SKID_MASS = sum(v(p, "mass_kg") for p in GONE)
+# What changed from model 103's drone (derived, the two files' parts): the parts gone (the skids and the T-joints, 1.2) and the parts
+# rebuilt (the legs and their sockets as photo W shows them, 1.5) leave as model 103 had them; the rebuilt ones come back as drone.json
+# has them.
+_OLD = {p["name"]: p for p in SKIDS["parts"]}
+_NEW = {p["name"]: p for p in DRONE["parts"]}
+
+
+def _shape(p):
+    return tuple(json.dumps(p.get(k, {}).get("value"), sort_keys=True) for k in ("mass_kg", "position_m", "size_m", "diameter_m", "length_m", "axis"))
+
+
+GONE = [p for n, p in _OLD.items() if n not in _NEW or _shape(p) != _shape(_NEW[n])]
+CAME = [p for n, p in _NEW.items() if n not in _OLD or _shape(p) != _shape(_OLD[n])]
+SKID_MASS = sum(v(p, "mass_kg") for p in GONE) - sum(v(p, "mass_kg") for p in CAME)
 # The tube runs from the clamp's bottom (clamp_rr: y -0.01125 - 0.00825) to the ground at the old skids' underside
 # (y -0.253): the leg's free length once its own end is the foot (derived; 1.2's tip may move it).
 CLAMP_BOTTOM = v(PARTS["clamp_rr"], "position_m")[1] - v(PARTS["clamp_rr"], "size_m")[1] / 2
@@ -58,13 +69,15 @@ FLOWN = {
 
 def own_inertia(p):
     """A part's own inertia about axes through its centre parallel to body x (pitch) and z (roll): a box's m(b^2 + c^2)/12, a
-    cylinder along body z its rod's m(3r^2 + L^2)/12 across and m r^2/2 about its axis (derived)."""
+    cylinder's m r^2/2 about its axis and m(3r^2 + L^2)/12 across it, by its axis's cosines (derived)."""
     m = v(p, "mass_kg")
     if p["kind"] == "box":
         sx, sy, sz = v(p, "size_m")
         return m * (sy * sy + sz * sz) / 12, m * (sx * sx + sy * sy) / 12
     r, length = v(p, "diameter_m") / 2, v(p, "length_m")
-    return m * (3 * r * r + length * length) / 12, m * r * r / 2
+    ax = v(p, "axis") if "axis" in p else [0, 1, 0]
+    along, across = m * r * r / 2, m * (3 * r * r + length * length) / 12
+    return along * ax[0] ** 2 + across * (1 - ax[0] ** 2), along * ax[2] ** 2 + across * (1 - ax[2] ** 2)
 
 
 def build(load):
@@ -73,15 +86,17 @@ def build(load):
     moved to the new centre of mass (the parallel axis theorem)."""
     f = FLOWN[load]
     m = f["m"] - SKID_MASS
-    com_y = (f["m"] * f["com_y"] - sum(v(p, "mass_kg") * v(p, "position_m")[1] for p in GONE)) / m
+    com_y = (f["m"] * f["com_y"] - sum(v(p, "mass_kg") * v(p, "position_m")[1] for p in GONE)
+             + sum(v(p, "mass_kg") * v(p, "position_m")[1] for p in CAME)) / m
     h = com_y - TIP_Y                                       # the centre of mass over the tips
     ixx, izz = f["ixx"], f["izz"]
-    for p in GONE:
-        x, y, z = v(p, "position_m")
-        ox, oz = own_inertia(p)
-        mp = v(p, "mass_kg")
-        ixx -= ox + mp * ((y - f["com_y"]) ** 2 + z * z)
-        izz -= oz + mp * ((y - f["com_y"]) ** 2 + x * x)
+    for parts, sign in ((GONE, -1), (CAME, 1)):
+        for p in parts:
+            x, y, z = v(p, "position_m")
+            ox, oz = own_inertia(p)
+            mp = v(p, "mass_kg")
+            ixx += sign * (ox + mp * ((y - f["com_y"]) ** 2 + z * z))
+            izz += sign * (oz + mp * ((y - f["com_y"]) ** 2 + x * x))
     shift = com_y - f["com_y"]
     ixx -= m * shift * shift
     izz -= m * shift * shift
@@ -325,7 +340,8 @@ def main():
     for load in FLOWN:
         d = build(load)
         no, dh = nose_over_speed(d)
-        print(f"{load}: mass {d['m']:.4f} kg (skids {SKID_MASS * 1000:.1f} g off), centre of mass {d['h']:.4f} m over the tips,"
+        print(f"{load}: mass {d['m']:.4f} kg ({SKID_MASS * 1000:.1f} g off model 103's: {', '.join(p['name'] for p in GONE)} out, "
+              f"{', '.join(p['name'] for p in CAME)} in), centre of mass {d['h']:.4f} m over the tips,"
               f" Ixx {d['ixx']:.4f} Izz {d['izz']:.4f} I_diag {d['i_diag']:.4f}, a leg's static share {d['w_leg']:.2f} N,"
               f" the last corner's share of the excess {d['share']:.3f}, leg damping {d['c_leg']:.0f} N s/m")
         print(f"   tips that catch go over at {no['along (pitch)']:.2f} m/s along, {no['across (roll)']:.2f} m/s across (CoM rises"
