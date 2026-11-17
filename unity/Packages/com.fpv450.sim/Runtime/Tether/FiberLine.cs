@@ -192,6 +192,9 @@ namespace Fpv450.Sim.Tether
         readonly bool _slidingTrail; // FlightSetup.TetherSlidingTrail: the trail before w3-farmland-ground 2.4
         readonly bool _capstanLip;   // FlightSetup.TetherBeforeDesign18: the line before design 18
         readonly bool _airless;      // FlightSetup.TetherAirlessTrail (or an older line's switch): the trail before design 20
+        readonly bool _room;         // design 24 (unless FlightSetup.TetherFullChainRefuses): a lift outranks a free node; no freeze through a shape
+        readonly bool[] _liftKeep;
+        ulong _endMember0, _endMember1; // design 24: the shape members the trail's end held when it froze (0: none or unknown)
         int _trailCount;
         // Design 20: the round of the trail's window (one point deeper than its end tested a step) and that point's ground.
         long _thawProbe;
@@ -265,6 +268,16 @@ namespace Fpv450.Sim.Tether
         /// FlightSetup.TetherBeforeDesign23, implied by every older line's switch).</summary>
         internal static bool BeforeDesign23(FlightSetup setup) => setup.TetherBeforeDesign23 || BeforeDesign21(setup);
 
+        /// <summary>Whether a flight's chain refuses a member's contact node and a lifted trail point once the spacing law's room is
+        /// spent, and freezes its trail's segment wherever it lies (p7d-tether design 24's known-wrong for R2,
+        /// FlightSetup.TetherFullChainRefuses, implied by every older line's switch).</summary>
+        internal static bool FullChainRefuses(FlightSetup setup) => setup.TetherFullChainRefuses || BeforeDesign23(setup);
+
+        /// <summary>Design 24: the members' contact nodes' own room past the spacing law's (assumed: where a contact node was
+        /// refused in the pilot's model 103 flights the chain held a mean 6–19 nodes on members, and in five flights none it could
+        /// give way, design 24's census; the room bounds the line's cost, PLT-04). Taken only once no free node can give way.</summary>
+        public const int ContactNodes = 16;
+
         public FiberLine(TetherTable table, FlightSetup setup, MassModel mass, FlightRandom random, in FlightState start, double dt,
             ContactModel parts = null, Propulsion propulsion = null)
         {
@@ -277,6 +290,7 @@ namespace Fpv450.Sim.Tether
             _slidingTrail = setup.TetherSlidingTrail;
             _capstanLip = setup.TetherBeforeDesign18;
             _airless = setup.TetherAirlessTrail || setup.TetherWakeReach4R || setup.TetherBeforeDesign18 || setup.TetherDesign4Air;
+            _room = !FullChainRefuses(setup);
 
             double film = setup.Rain == RainLevel.Rain ? table.Number("fiber.wet_film_rain_m")
                 : setup.Rain == RainLevel.SevereRain ? table.Number("fiber.wet_film_severe_m") : 0;
@@ -336,7 +350,7 @@ namespace Fpv450.Sim.Tether
             _trailAir = new double[capacity];
 
             // On a terrain the chain has room for the crests' nodes besides the spacing law's (w3-farmland-ground 2.5).
-            _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0)
+            _chain = new CableChain(nodes, _mass, table.Number("fiber.axial_stiffness_n"), _terrain ? CrestNodes : 0, _room ? ContactNodes : 0)
             {
                 Gravity = FlightCore.Gravity, ZeroForceHold = setup.TetherZeroForceHold, LinearStep = setup.TetherLinearStep,
                 KeepSlideStretch = setup.TetherBeforeDesign18, RunEndsOnly = BeforeDesign21(setup), KeepUnconverged = BeforeDesign23(setup),
@@ -361,6 +375,7 @@ namespace Fpv450.Sim.Tether
             _loadLift = new Double3[nodes];
             _loadMaterial = new double[nodes];
             _loadLength = new double[nodes];
+            _liftKeep = new bool[nodes];
             if (setup.Propulsion != null)
                 _rotors = new RotorAir(table, setup.Propulsion.Props.Diameter / 2, !setup.TetherDesign4Air,
                     setup.TetherFountainThroughBody ? null : parts,
@@ -1546,6 +1561,12 @@ namespace Fpv450.Sim.Tether
                 ref CableNode a = ref _chain[1];
                 if (!(a.RestTime >= _freezeTime || !_slidingTrail && Spanned()) || _slidingTrail && !(_airPerMetre[1] <= _groundStatic * _weight)
                     || !(exitMaterial - a.Material > _nearLength)) break;
+                // Design 24: the trail never lays a segment through a shape; the node stays live until its contacts hold it there.
+                if (_room && _contacts != null && _contacts.Through(_trail[_trailCount - 1], _endMember0, _endMember1, a))
+                {
+                    FreezesHeld++;
+                    break;
+                }
                 if (_trailCount == _trail.Length)
                 {
                     // Overflow: the oldest pair merged (the anchor kept), a world bug.
@@ -1558,6 +1579,11 @@ namespace Fpv450.Sim.Tether
                     bug.Index = 1;
                     bug.A = _trail.Length;
                     events.Add(bug);
+                }
+                if (_room)
+                {
+                    _endMember0 = FiberContacts.ShapeMember(a.Contact0);
+                    _endMember1 = FiberContacts.ShapeMember(a.Contact1);
                 }
                 _trail[_trailCount] = a.Position;
                 _trailMaterial[_trailCount] = a.Material;
@@ -1578,9 +1604,13 @@ namespace Fpv450.Sim.Tether
             // it froze with plus the polymer pair's friction. The sliding trail lifted it once the pull's size passed the tension
             // it held and the friction of trail.hold_length_m of line, whichever way it pulled, or the air passed the ground's
             // friction alone.
-            while (_trailCount >= 2 && !_chain.SpacingFull && (_slidingTrail
+            // Design 24: a point lifted back outranks a free node: with the spacing law's room spent, a free node gives way to it
+            // (the trail's frozen end otherwise held whatever reached it, the corner's pull too: QA's C1). Before it a full chain
+            // lifted nothing.
+            while (_trailCount >= 2 && (_room || !_chain.SpacingFull) && (_slidingTrail
                 ? _chain.Tension(0) > _trailHeld[_trailCount - 1] + _hold || _airPerMetre[0] > _groundStatic * _weight
-                : Pulled() || (_airless ? _airPerMetre[0] > _trailAir[_trailCount - 1] + _groundStatic * _weight : !changed && EndMoves())))
+                : Pulled() || (_airless ? _airPerMetre[0] > _trailAir[_trailCount - 1] + _groundStatic * _weight : !changed && EndMoves()))
+                && (!_chain.SpacingFull || LiftRoom()))
             {
                 LiftEnd();
                 changed = true;
@@ -1588,6 +1618,26 @@ namespace Fpv450.Sim.Tether
             // Design 20: one point deeper in turn, the line laid before the trail's end in the rotors' wash.
             if (!_airless && !_slidingTrail && _rotors != null) Thaw();
         }
+
+        // Design 24: room for a lifted point, the spacing law's spent: a free node gives way (CableChain.GiveWay), the per-node air
+        // following the nodes; true once the room is there.
+        bool LiftRoom()
+        {
+            int n = _chain.Count;
+            for (int i = 0; i < n; i++) _liftKeep[i] = false;
+            int m = _chain.GiveWay(_liftKeep);
+            if (m < 0) return false;
+            n = _chain.Count;
+            Array.Copy(_airPerMetre, m + 1, _airPerMetre, m, n - m);
+            Array.Copy(_airAt, m + 1, _airAt, m, n - m);
+            LiftsGaveWay++;
+            return !_chain.SpacingFull;
+        }
+
+        /// <summary>Design 24 (forensics): free nodes merged away for a lifted trail point, and freezes held back because the
+        /// trail's segment to the node would lie through a shape.</summary>
+        public long LiftsGaveWay { get; private set; }
+        public long FreezesHeld { get; private set; }
 
         // The trail's last point back into the chain: node 0 (anchored there) set free, the point before it the new end.
         void LiftEnd()
@@ -1598,6 +1648,7 @@ namespace Fpv450.Sim.Tether
             a.RestTime = 0;
             a.StillTime = 0;
             a.Lifted = !_slidingTrail;
+            _endMember0 = _endMember1 = 0;
             _trailCount--;
             _chain.InsertFirst(_trail[_trailCount - 1], _trailMaterial[_trailCount - 1]);
             ShiftAir(1);

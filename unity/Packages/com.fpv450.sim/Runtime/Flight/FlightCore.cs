@@ -175,6 +175,14 @@ namespace Fpv450.Sim.Flight
         /// The audit against design 22's line and the known-wrong for the span's tension, never a pilot's flight.</summary>
         public bool TetherBeforeDesign23;
 
+        /// <summary>The known-wrong chain of p7d-tether design 24's R2 (model 105's): once the spacing law's room is spent a
+        /// member's contact node is refused, so the segment lies through the member until room comes (a 12 m segment through a
+        /// wall's beam in the pilot's flight 2); a trail point the pull would lift waits for room, so the frozen end holds what
+        /// reaches it; and the trail freezes its segment wherever it lies. TetherBeforeDesign23 and every switch it is implied by
+        /// imply it (every kept audit of an older line). The audit against model 105 and the known-wrong for the laid line over a
+        /// ruin, never a pilot's flight.</summary>
+        public bool TetherFullChainRefuses;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the

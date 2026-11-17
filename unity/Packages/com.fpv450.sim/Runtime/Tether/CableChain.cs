@@ -257,11 +257,15 @@ namespace Fpv450.Sim.Tether
         public const int MaxNewton = 8; // numerical: a reverse's line whipped round the body's parts at 10 m/s takes 5–8
         public const double NewtonTolerance = 1e-3;
 
-        /// <summary>The nodes the chain holds at most: the spacing law's room and the crests' (w3-farmland-ground 2.5).</summary>
+        /// <summary>The nodes the chain holds at most: the spacing law's room, the crests' (w3-farmland-ground 2.5) and the members'
+        /// contact nodes' (p7d-tether design 24).</summary>
         public readonly int Capacity;
         /// <summary>The spacing law's room: its splits, a member's contact node and a trail point lifted back stop at
         /// SpacingCapacity nodes besides the crests; and the crests' own.</summary>
         public readonly int SpacingCapacity, CrestCapacity;
+        /// <summary>Design 24: the members' contact nodes' own room past the spacing law's, taken only once no free node can give
+        /// way to them (SplitContact); 0 for a chain without it (model 105's: a contact node stops at SpacingCapacity).</summary>
+        public readonly int ContactCapacity;
         /// <summary>kg/m and N: the line's (the table's or the wire record's).</summary>
         public readonly double MassPerMetre, AxialStiffness;
         /// <summary>m/s², world axes.</summary>
@@ -381,15 +385,18 @@ namespace Fpv450.Sim.Tether
         // The last Run spent its Newton solves with a segment still off (design 23: the step is solved again safe).
         bool _unconverged;
 
-        /// <summary>A chain of at most capacity nodes by the spacing law and crests more over the ground's crests (0: none).</summary>
-        public CableChain(int capacity, double massPerMetre, double axialStiffness, int crests = 0)
+        /// <summary>A chain of at most capacity nodes by the spacing law, crests more over the ground's crests and contacts more
+        /// for the members' contact nodes (0: none).</summary>
+        public CableChain(int capacity, double massPerMetre, double axialStiffness, int crests = 0, int contacts = 0)
         {
             if (capacity < 2) throw new ArgumentOutOfRangeException(nameof(capacity));
             if (crests < 0) throw new ArgumentOutOfRangeException(nameof(crests));
+            if (contacts < 0) throw new ArgumentOutOfRangeException(nameof(contacts));
             if (!(massPerMetre > 0) || !(axialStiffness > 0)) throw new ArgumentOutOfRangeException(nameof(massPerMetre));
             SpacingCapacity = capacity;
             CrestCapacity = crests;
-            capacity += crests;
+            ContactCapacity = contacts;
+            capacity += crests + contacts;
             Capacity = capacity;
             MassPerMetre = massPerMetre;
             AxialStiffness = axialStiffness;
@@ -2015,6 +2022,64 @@ namespace Fpv450.Sim.Tether
             if (!(f * rest > MinRest) || !((1 - f) * rest > MinRest)) return false;
             Split(j, f);
             return true;
+        }
+
+        /// <summary>Design 24: a member's contact node put into segment j at f (SplitAt's), in the spacing law's room or, once that
+        /// is spent, in the contacts' own (ContactCapacity). False where neither has room or a piece would be too short.</summary>
+        public bool SplitContact(int j, double f)
+        {
+            if (Count - Crests >= SpacingCapacity + ContactCapacity || j < 0 || j + 1 >= Count || !(f > 0 && f < 1)) return false;
+            double rest = _nodes[j + 1].Material - _nodes[j].Material;
+            if (!(f * rest > MinRest) || !((1 - f) * rest > MinRest)) return false;
+            Split(j, f);
+            return true;
+        }
+
+        /// <summary>
+        /// Design 24: a free node gives way to a member's contact node or a trail point lifted back, the spacing law's room spent.
+        /// The node whose removal moves the line least (the nearest its neighbours' chord; the first from the fixed end on a tie)
+        /// among those that are neither anchored, on a member other than the ground or a layer (Removable), a crest, within the
+        /// near spacing of the
+        /// exit (near_length_m of line: the props' scale) nor marked in keep (the caller's: an end of a segment a member meets this
+        /// step), merged away by the spacing law's own merge (momentum kept; one that would raise the energy is passed over).
+        /// keep is indexed by node and shifted with the merge. Returns the index removed, or −1 where no node can give way.
+        /// </summary>
+        public int GiveWay(bool[] keep)
+        {
+            double from = _focus - _near;
+            while (true)
+            {
+                int best = -1;
+                double least = double.PositiveInfinity;
+                for (int m = 1; m + 1 < Count; m++)
+                {
+                    if (keep[m] || !Removable(m) || !(_nodes[m].Material < from)) continue;
+                    double off = Offset(m);
+                    if (off < least)
+                    {
+                        least = off;
+                        best = m;
+                    }
+                }
+                if (best < 0) return -1;
+                if (TryMerge(best))
+                {
+                    Array.Copy(keep, best + 1, keep, best, Count - best);
+                    keep[Count] = false;
+                    return best;
+                }
+                keep[best] = true;
+            }
+        }
+
+        // Node m's distance from the chord between its neighbours, m: the line's shape the node alone holds.
+        double Offset(int m)
+        {
+            Double3 a = _nodes[m - 1].Position, d = _nodes[m + 1].Position - a, x = _nodes[m].Position - a;
+            double dd = Double3.Dot(d, d), t = dd > 0 ? Double3.Dot(x, d) / dd : 0;
+            if (t < 0) t = 0;
+            else if (t > 1) t = 1;
+            return (x - d * t).Length();
         }
 
         /// <summary>A crest's node put into segment j at at, on the ground where the chord passes under it (w3-farmland-ground

@@ -143,6 +143,27 @@ namespace Fpv450.Sim.Tests
             Assert.That(k.Crashed, Is.False);
         }
 
+        // "A line laid over battens lies over them" (p7d-tether design 24, R2: QA's 1.11h finding, segments of 1–20 m through a
+        // ruin's walls and beams while the chain's room was spent): flown out at 2 m over 26 battens of alternate heights, the line
+        // falls onto them; no segment of it, live or frozen, lies through one deeper than the chain's polygon reaches into an
+        // arris (FiberContacts.ThroughDepth, the least piece). Model 105's chain (TetherFullChainRefuses) refuses their contact
+        // nodes once its 32 are spent and lays its chords through them.
+        [Test]
+        public void ALineLaidOverBattensLiesOverThem()
+        {
+            FiberContactScenarios.Battens wrong = FiberContactScenarios.OverBattens(Spec, true);
+            FiberContactScenarios.Battens b = FiberContactScenarios.OverBattens(Spec, false);
+            foreach (var (name, x) in new[] { ("model 105's chain", wrong), ("design 24", b) })
+                Print($"{name}: deepest chord inside a batten {x.Deepest * 1000:F2} mm (step {x.DeepestStep}), frozen {x.DeepestFrozen * 1000:F2} mm; "
+                    + $"contact nodes put {x.Put}, refused {x.Refused}; free nodes gave way {x.GaveWay}, to a lift {x.LiftsGaveWay}; "
+                    + $"steps on the contacts' room {x.ContactRoomSteps}, most nodes {x.MostNodes}; trail {x.Trail}; wedges {x.Wedges}");
+            Assert.That(wrong.Refused, Is.GreaterThan(0), "model 105's chain runs out of room over the battens");
+            Assert.That(wrong.Deepest, Is.GreaterThan(2 * FiberContacts.ThroughDepth), "and lays a chord through one");
+            Assert.That(b.Deepest, Is.LessThanOrEqualTo(FiberContacts.ThroughDepth), "no chord through a batten");
+            Assert.That(b.DeepestFrozen, Is.LessThanOrEqualTo(FiberContacts.ThroughDepth), "nor frozen into the trail");
+            Assert.That(b.Wedges, Is.EqualTo(0));
+        }
+
         // "The line lies on what is under it": hovering 30 m from its anchor over the range's plane, S04's straw and E01's run,
         // after 60 s, the line from the touchdown back to the anchor lies on the ground, the straw's top or the trench's floor and
         // walls within 2 mm, its trail points never inside a rigid shape, and none of it floats.

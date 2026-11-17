@@ -202,6 +202,12 @@ namespace Fpv450.Sim.Tether
         readonly int[] _nextHit = new int[MaxHits];
         readonly double[] _split;
         readonly int[] _splitsBefore;
+        // Design 24 (unless FlightSetup.TetherFullChainRefuses): room made for the contact nodes before they are put, free nodes
+        // giving way (CableChain.GiveWay); the ends of segments a member meets kept (by node, shifted as nodes go); each node of
+        // the chain at the start of Prepare gone or not, and those gone before each.
+        readonly bool _room;
+        readonly bool[] _keep, _gone;
+        readonly int[] _orig, _goneBefore;
         // Assign's node: its neighbours, whose segments the corner holds off a round member (design 21).
         Double3 _before, _after;
         bool _hasBefore, _hasAfter;
@@ -248,9 +254,15 @@ namespace Fpv450.Sim.Tether
             _aluminiumStatic = table.Number("contact.aluminium_static_friction");
             _aluminiumKinetic = table.Number("contact.aluminium_kinetic_friction");
 
-            int nodes = (int)table.Number("span.max_nodes") + FiberLine.CrestNodes; // a terrain's chain holds its crests' too
+            // A terrain's chain holds its crests' too, and with design 24 the contact nodes' own room.
+            _room = !FiberLine.FullChainRefuses(setup);
+            int nodes = (int)table.Number("span.max_nodes") + FiberLine.CrestNodes + (_room ? FiberLine.ContactNodes : 0);
             _split = new double[nodes];
             _splitsBefore = new int[nodes + 1];
+            _keep = new bool[nodes];
+            _gone = new bool[nodes];
+            _orig = new int[nodes];
+            _goneBefore = new int[nodes + 1];
             _segHits = new int[nodes];
             _segHitsEnd = new int[nodes];
             _nodeHit = new int[nodes];
@@ -529,10 +541,16 @@ namespace Fpv450.Sim.Tether
                 }
                 _split[j] = u;
             }
+            // Design 24: a contact node outranks a free one. Where the spacing law's room cannot take them all, free nodes give way
+            // first (the ones holding the least of the line's shape, never an end of a segment a member meets this step, so every
+            // hit keeps its segment), then the contacts' own room takes the rest; only past both is one refused.
+            for (int i = 0; i < n; i++) _goneBefore[i] = 0;
+            if (_room) MakeRoom(chain, n);
             for (int j = n - 2; j >= 0; j--)
             {
                 if (!(_split[j] > 0)) continue;
-                if (chain.SplitAt(j, _split[j])) Inserted++;
+                int at = j - _goneBefore[j];
+                if (_room ? chain.SplitContact(at, _split[j]) : chain.SplitAt(at, _split[j])) Inserted++;
                 else
                 {
                     Refused++;
@@ -549,7 +567,7 @@ namespace Fpv450.Sim.Tether
             for (int h = 0; h < _hitCount; h++)
             {
                 ref Hit x = ref _hits[h];
-                int j = x.Seg, at = j + _splitsBefore[j];
+                int j = x.Seg, at = j + _splitsBefore[j] - _goneBefore[j];
                 double cut = _split[j];
                 int node;
                 if (cut > 0)
@@ -572,6 +590,84 @@ namespace Fpv450.Sim.Tether
                 _nodeHit[node] = h;
             }
         }
+
+        // Design 24: room for this Prepare's contact nodes (_split), free nodes giving way while the spacing law's room cannot take
+        // them all, at most one a node wanted; _goneBefore[j] the nodes gone below node j of the chain as Prepare found it (n).
+        void MakeRoom(CableChain chain, int n)
+        {
+            int want = 0;
+            for (int j = 0; j + 1 < n; j++)
+                if (_split[j] > 0) want++;
+            int over = want - (chain.SpacingCapacity - (n - chain.Crests));
+            if (over > want) over = want;
+            if (!(over > 0)) return;
+            for (int i = 0; i < n; i++)
+            {
+                _keep[i] = false;
+                _gone[i] = false;
+                _orig[i] = i;
+            }
+            for (int j = 0; j + 1 < n; j++)
+                if (_segHitsEnd[j] > _segHits[j])
+                {
+                    _keep[j] = true;
+                    _keep[j + 1] = true;
+                }
+            for (int k = 0; k < over; k++)
+            {
+                int m = chain.GiveWay(_keep);
+                if (m < 0) break;
+                _gone[_orig[m]] = true;
+                Array.Copy(_orig, m + 1, _orig, m, chain.Count - m);
+                GaveWay++;
+            }
+            int gone = 0;
+            for (int i = 0; i < n; i++)
+            {
+                _goneBefore[i] = gone;
+                if (_gone[i]) gone++;
+            }
+        }
+
+        /// <summary>Design 24: free nodes merged away to give a contact node room (CableChain.GiveWay; forensics).</summary>
+        public long GaveWay { get; private set; }
+
+        /// <summary>
+        /// Design 24: whether the line from a to node b lies through a rigid shape (any but the ground, a layer and the skipped
+        /// shells) with its axis deeper than ThroughDepth: the trail never freezes such a segment (FiberLine). A member b's own
+        /// slots hold, or a's (a0, a1: the shape members the node frozen at a held, 0 for none), is not one it lies through (a
+        /// node pressed into a member, or between two overlapping ones, design 21's named case, is its slots' to let out). One
+        /// query at no margin.
+        /// </summary>
+        public bool Through(Double3 a, ulong a0, ulong a1, in CableNode b)
+        {
+            var cap = new Capsule(a, b.Position, _radius);
+            int count = _world.StaticContacts(cap, cap, 0, _shapes, QueryFilter.NoWires | QueryFilter.NoGround);
+            Queries++;
+            QueriesTotal++;
+            if (count > ShapeBuffer) count = ShapeBuffer;
+            for (int i = 0; i < count; i++)
+            {
+                ref StaticContact c = ref _shapes[i];
+                if (c.Object == WorldIds.Ground || c.Surface != WorldIds.NoSurface) continue;
+                if (c.Material < _matSkip.Length && (_matSkip[c.Material] || _matLayer[c.Material])) continue;
+                if (!(c.Distance < -(_radius + ThroughDepth))) continue;
+                ulong member = ((ulong)(uint)c.Object << 32) | (uint)c.Shape;
+                if (b.Contact0.Active && b.Contact0.Member == member && b.Contact0.MemberKind == (byte)FiberMember.Shape
+                    || b.Contact1.Active && b.Contact1.Member == member && b.Contact1.MemberKind == (byte)FiberMember.Shape
+                    || member == a0 || member == a1) continue;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>Design 24: the shape member slot c holds, for Through (0 for none or another kind).</summary>
+        public static ulong ShapeMember(in CableContact c) => c.Active && c.MemberKind == (byte)FiberMember.Shape ? c.Member : 0;
+
+        /// <summary>Design 24: how deep the line's axis may lie inside a rigid shape for the trail to freeze it there, m: the
+        /// chain's own polygon reaches that far into an arris (a contact node is put at an arris only where both pieces pass the
+        /// least piece, so a chord round it lies up to LeastPiece inside; numerical).</summary>
+        public const double ThroughDepth = LeastPiece;
 
         // The world's shapes near segment j, if its certificate has run out: what a query at the margin finds, the certificate
         // issued when it finds nothing (the ground, which the batch carries, and the skipped shells aside). Its near list

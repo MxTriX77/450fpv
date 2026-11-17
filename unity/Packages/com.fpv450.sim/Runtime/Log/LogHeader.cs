@@ -123,6 +123,7 @@ namespace Fpv450.Sim.Log
             "TetherAirlessTrail",
             "TetherBeforeDesign21",
             "TetherBeforeDesign23",
+            "TetherFullChainRefuses",
             "StemAir", "StemWash",
         };
 
@@ -383,6 +384,7 @@ namespace Fpv450.Sim.Log
         public bool TetherAirlessTrail;
         public bool TetherBeforeDesign21;
         public bool TetherBeforeDesign23;
+        public bool TetherFullChainRefuses;
 
         /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
         /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
@@ -488,6 +490,7 @@ namespace Fpv450.Sim.Log
                 TetherAirlessTrail = setup.TetherAirlessTrail,
                 TetherBeforeDesign21 = setup.TetherBeforeDesign21,
                 TetherBeforeDesign23 = setup.TetherBeforeDesign23,
+                TetherFullChainRefuses = setup.TetherFullChainRefuses,
                 StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
                 StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
@@ -630,6 +633,7 @@ namespace Fpv450.Sim.Log
                 TetherAirlessTrail = TetherAirlessTrail,
                 TetherBeforeDesign21 = TetherBeforeDesign21,
                 TetherBeforeDesign23 = TetherBeforeDesign23,
+                TetherFullChainRefuses = TetherFullChainRefuses,
                 StemAir = StemAir,
                 StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
@@ -1217,6 +1221,7 @@ namespace Fpv450.Sim.Log
                 }
                 e.Write(TetherBeforeDesign21); // p7d-tether design 21: last, so a log without it reads as the slots before it
                 e.Write(TetherBeforeDesign23); // p7d-tether design 23: after it, so a log without it reads as the step before it
+                e.Write(TetherFullChainRefuses); // p7d-tether design 24's R2: after it, so a log without it reads as the chain before it
             });
             Entry(w, TagRuntimeObjects, e =>
             {
@@ -1945,6 +1950,8 @@ namespace Fpv450.Sim.Log
                         TetherBeforeDesign21 = r.BaseStream.Position >= end || r.ReadBoolean();
                         // Before p7d-tether design 23 (model 103 and older) an unconverged step kept its last solve.
                         TetherBeforeDesign23 = r.BaseStream.Position >= end || r.ReadBoolean();
+                        // Before p7d-tether design 24 (model 105 and older) a full chain refused a contact node and a lift.
+                        TetherFullChainRefuses = r.BaseStream.Position >= end || r.ReadBoolean();
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

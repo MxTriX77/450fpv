@@ -920,6 +920,49 @@ namespace Fpv450.Sim.Tests
             Assert.That(chain[chain.Count - 1].Material, Is.EqualTo(length));
         }
 
+        // p7d-tether design 24 (R2): a contact node outranks a free one. A chain at the spacing law's room (8 nodes): GiveWay merges the
+        // free node nearest its neighbours' chord, never a kept one (an end of a segment a member meets), one on a member, an anchored
+        // one or one within the near spacing of the exit, mass and momentum kept; with no free node left the contact node takes the
+        // contacts' own room (SplitContact), and past it is refused; SplitAt (model 105's) refuses once the law's room is spent.
+        [Test]
+        public void AFreeNodeGivesWayToAContactNode()
+        {
+            double mu = FiberMass;
+            const int n = 8;
+            var x = new Double3[n];
+            var s = new double[n];
+            for (int i = 0; i < n; i++) x[i] = new Double3(i, i == 2 ? 0.30 : i == 4 ? 0.05 : i == 5 ? 0.001 : 0, 0);
+            for (int i = 1; i < n; i++) s[i] = s[i - 1] + (x[i] - x[i - 1]).Length();
+            var chain = new CableChain(n, mu, FiberStiffness, 0, 2);
+            chain.Reset(x, s, n);
+            for (int i = 0; i < n; i++) chain[i].Velocity = new Double3(0.1 * i, 0.05, -0.02 * i);
+            Anchor(chain, 0, 1e4);
+            chain.SetSpacing(0.1, 1.5, 1.5, s[n - 1]); // nodes 6 and 7 within 1.5 m of line of the exit: near
+            chain[3].Contact0 = CableContact.On(x[3], new Double3(0, 1, 0), default, 1e4, 0, 1e4, 0.5, 0.4, true); // on a member
+            Double3 p0 = Momentum(chain);
+            double m0 = 0;
+            for (int i = 0; i < n; i++) m0 += chain[i].Mass;
+            Assert.That(chain.SplitAt(1, 0.5), Is.False, "model 105's chain: the law's room spent, a contact node refused");
+            var keep = new bool[n];
+            keep[5] = true; // an end of a segment a member meets this step
+            int first = chain.GiveWay(keep);
+            int second = chain.GiveWay(keep);
+            int third = chain.GiveWay(keep);
+            double m1 = 0;
+            for (int i = 0; i < chain.Count; i++) m1 += chain[i].Mass;
+            TestContext.WriteLine($"gave way: node {first}, then {second}, then {third}; {chain.Count} nodes; mass {m1:E9} of {m0:E9}; momentum change {(Momentum(chain) - p0).Length():E2}");
+            Assert.That(first, Is.EqualTo(4), "node 4, 5 cm off its chord: node 5 (1 mm) is kept, node 1 is 15 cm off, 2 30 cm, 3 on a member, 6 near");
+            Assert.That(second, Is.EqualTo(1), "then node 1, not node 2");
+            Assert.That(third, Is.EqualTo(1), "then node 2, now at index 1");
+            Assert.That(chain.GiveWay(keep), Is.EqualTo(-1), "no free node left outside the near metre");
+            Assert.That(m1, Is.EqualTo(m0).Within(1e-12).Percent);
+            Assert.That((Momentum(chain) - p0).Length(), Is.LessThanOrEqualTo(1e-15));
+            int splits = 0;
+            while (chain.SplitContact(0, 0.5)) splits++;
+            Assert.That(splits, Is.EqualTo(5), "5 nodes to the law's 8 and the contacts' own 2");
+            Assert.That(chain.SplitAt(0, 0.5), Is.False, "model 105's split refuses past the law's room");
+        }
+
         static Double3 Momentum(CableChain c)
         {
             Double3 p = default;

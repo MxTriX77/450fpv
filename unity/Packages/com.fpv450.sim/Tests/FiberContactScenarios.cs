@@ -229,6 +229,98 @@ namespace Fpv450.Sim.Tests
             return p;
         }
 
+        // ---- "A line laid over battens lies over them" (p7d-tether design 24, R2) ----
+
+        public struct Battens
+        {
+            /// <summary>The deepest any chain segment's axis lay inside a batten from the drone's arrival on (8 s), m, and the step;
+            /// the deepest a frozen trail segment lies inside one at the end, m; the trail's points.</summary>
+            public double Deepest, DeepestFrozen;
+            public long DeepestStep;
+            public int Trail;
+            /// <summary>Contact nodes put and refused, free nodes that gave way to one or to a lifted point, the steps the chain held
+            /// more than the spacing law's room, the most nodes; the energy check's wedges.</summary>
+            public long Put, Refused, GaveWay, LiftsGaveWay, ContactRoomSteps, Wedges;
+            public int MostNodes;
+        }
+
+        /// <summary>
+        /// Twenty-six timber battens (50 × 50 mm, 2 m long across the path, every 0.4 m from x = 1 to 11 m, their tops alternately
+        /// 0.30 and 0.35 m over the stub's floor), placed at the start; the drone climbs to 2 m, flies out along +x at 2 m/s over
+        /// them to x = 12 m and hovers there to 16 s, its line paying out and falling onto them. With design 24 a contact node
+        /// outranks a free one; FlightSetup.TetherFullChainRefuses flies model 105's chain.
+        /// </summary>
+        public static Battens OverBattens(DroneSpec spec, bool knownWrong)
+        {
+            FlightSetup setup = TetherScenarios.Setup(spec);
+            setup.TetherFullChainRefuses = knownWrong;
+            double stand = TetherScenarios.Stand(setup), r = LineRadius;
+            var b = new Battens();
+            var ids = new HashSet<int>();
+            var buffer = new StaticContact[64];
+            const int count = 26;
+            FlightCore end = TetherScenarios.Fly(setup, 16, (t, core, pilot) =>
+            {
+                pilot.HoldVelocity = false;
+                double x = t < 2 ? 0 : t < 8 ? 2 * (t - 2) : 12;
+                pilot.Target = new Double3(x, stand + DetMath.Min(2, t), 0);
+            }, core =>
+            {
+                FiberLine line = core.Tether;
+                if (core.State.Step == 1)
+                {
+                    ushort timber = core.World.Query.MaterialId("timber");
+                    for (int k = 0; k < count; k++)
+                    {
+                        double top = k % 2 == 0 ? 0.30 : 0.35;
+                        ids.Add(core.World.Query.AddObject("test batten " + k, new[]
+                        {
+                            new ShapeGeometry
+                            {
+                                Kind = ShapeKind.Box, Center = new Double3(1 + 0.4 * k, top - 0.025, 0), AxisX = new Double3(1, 0, 0),
+                                AxisY = new Double3(0, 1, 0), AxisZ = new Double3(0, 0, 1), HalfExtents = new Double3(0.025, 0.025, 1),
+                                Material = timber,
+                            },
+                        }));
+                    }
+                    for (int j = 0; j < line.Chain.Count; j++) line.Chain[j].Cleared = false;
+                }
+                CableChain c = line.Chain;
+                if (c.Count > b.MostNodes) b.MostNodes = c.Count;
+                if (c.Count - c.Crests > c.SpacingCapacity) b.ContactRoomSteps++;
+                if (core.State.Step < 8000 || line.Broken) return;
+                for (int j = 0; j + 1 < c.Count; j++)
+                {
+                    double d = Inside(core.World, ids, c[j].Position, c[j + 1].Position, r, buffer);
+                    if (d > b.Deepest)
+                    {
+                        b.Deepest = d;
+                        b.DeepestStep = core.State.Step;
+                    }
+                }
+            });
+            FiberLine l = end.Tether;
+            for (int i = 1; i < l.TrailCount; i++) b.DeepestFrozen = Math.Max(b.DeepestFrozen, Inside(end.World, ids, l.Trail[i - 1], l.Trail[i], r, buffer));
+            b.Trail = l.TrailCount;
+            b.Put = l.Contacts.Inserted;
+            b.Refused = l.Contacts.Refused;
+            b.GaveWay = l.Contacts.GaveWay;
+            b.LiftsGaveWay = l.LiftsGaveWay;
+            b.Wedges = l.Chain.Wedges;
+            return b;
+        }
+
+        // How deep the segment a–b's axis lies inside any of the objects ids, m (0 outside).
+        static double Inside(FlightWorld world, HashSet<int> ids, Double3 a, Double3 b, double r, StaticContact[] buffer)
+        {
+            var cap = new Capsule(a, b, r);
+            int found = world.Query.StaticContacts(cap, cap, 0, buffer, QueryFilter.NoWires | QueryFilter.NoGround);
+            double deepest = 0;
+            for (int k = 0; k < found && k < buffer.Length; k++)
+                if (ids.Contains(buffer[k].Object) && -buffer[k].Distance - r > deepest) deepest = -buffer[k].Distance - r;
+            return deepest;
+        }
+
         // ---- "The wedge of a fork" ----
 
         public struct Wedge
