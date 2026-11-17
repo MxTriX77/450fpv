@@ -2302,7 +2302,7 @@ MonoBehaviour:
   id: D01
   variant: D01_legs_off
   generator: drone
-  paramsSha256: 096150310f90fae8541f72a18f8cd96d6f287bf0f84a0617c665442f072a2847
+  paramsSha256: d72f07924b82deebd2150fc6890cf4f3f747936355e3fc80e7466345dcc28700
   units: m
   frame: unity-lh-yup
   bounds:

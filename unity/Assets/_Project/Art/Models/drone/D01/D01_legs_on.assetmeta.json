@@ -3,19 +3,19 @@
   "id": "D01",
   "variant": "D01_legs_on",
   "generator": "drone",
-  "params_sha256": "e067ab91c045072b9c683fcfb12aff2c84af2bd3b825bc20efa971869596ec53",
+  "params_sha256": "74b5b5db404801453edb01b8fe50dbc1a7acd572c74b70d94578c89813dd91af",
   "units": "m",
   "frame": "unity-lh-yup",
   "bounds": {
     "min": [
       -0.286709,
-      -0.2534,
+      -0.253,
       -0.263797
     ],
     "max": [
       0.286911,
       0.0455,
-      0.225
+      0.191358
     ]
   },
   "lods": [
@@ -264,27 +264,6 @@
     {
       "shape": "box",
       "center": [
-        0.1025,
-        -0.2365,
-        -0.1025
-      ],
-      "size": [
-        0.016,
-        0.033,
-        0.03
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
         0.095815,
         0,
         0.095815
@@ -436,27 +415,6 @@
         0.0
       ],
       "material": "carbon_composite",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
-        0.1025,
-        -0.2365,
-        0.1025
-      ],
-      "size": [
-        0.016,
-        0.033,
-        0.03
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "material": "plastic",
       "landable": false
     },
     {
@@ -618,27 +576,6 @@
     {
       "shape": "box",
       "center": [
-        -0.1025,
-        -0.2365,
-        -0.1025
-      ],
-      "size": [
-        0.016,
-        0.033,
-        0.03
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
         -0.095815,
         0,
         0.095815
@@ -795,27 +732,6 @@
     {
       "shape": "box",
       "center": [
-        -0.1025,
-        -0.2365,
-        0.1025
-      ],
-      "size": [
-        0.016,
-        0.033,
-        0.03
-      ],
-      "rotation": [
-        0,
-        0,
-        0,
-        1
-      ],
-      "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "box",
-      "center": [
         -0.0735,
         -0.043,
         0
@@ -853,24 +769,6 @@
         1
       ],
       "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "capsule",
-      "center": [
-        -0.1025,
-        -0.248,
-        0.0
-      ],
-      "radius": 0.005,
-      "height": 0.45,
-      "rotation": [
-        0.707107,
-        0.0,
-        0.0,
-        0.707107
-      ],
-      "material": "carbon_composite",
       "landable": false
     },
     {
@@ -913,24 +811,6 @@
         1
       ],
       "material": "plastic",
-      "landable": false
-    },
-    {
-      "shape": "capsule",
-      "center": [
-        0.1025,
-        -0.248,
-        0.0
-      ],
-      "radius": 0.005,
-      "height": 0.45,
-      "rotation": [
-        0.707107,
-        0.0,
-        0.0,
-        0.707107
-      ],
-      "material": "carbon_composite",
       "landable": false
     },
     {
@@ -1131,108 +1011,6 @@
       "kind": "edge",
       "points": [
         [
-          -0.1025,
-          -0.248,
-          -0.225
-        ],
-        [
-          -0.1025,
-          -0.248,
-          0.225
-        ]
-      ],
-      "radius_m": 0.005,
-      "material": "carbon_composite"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.1025,
-          -0.248,
-          -0.1025
-        ],
-        [
-          -0.1025,
-          -0.248,
-          -0.225
-        ]
-      ],
-      "radius_m": 0.005,
-      "material": "carbon_composite"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          -0.1025,
-          -0.248,
-          0.1025
-        ],
-        [
-          -0.1025,
-          -0.248,
-          0.225
-        ]
-      ],
-      "radius_m": 0.005,
-      "material": "carbon_composite"
-    },
-    {
-      "kind": "edge",
-      "points": [
-        [
-          0.1025,
-          -0.248,
-          -0.225
-        ],
-        [
-          0.1025,
-          -0.248,
-          0.225
-        ]
-      ],
-      "radius_m": 0.005,
-      "material": "carbon_composite"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.1025,
-          -0.248,
-          -0.1025
-        ],
-        [
-          0.1025,
-          -0.248,
-          -0.225
-        ]
-      ],
-      "radius_m": 0.005,
-      "material": "carbon_composite"
-    },
-    {
-      "kind": "hook",
-      "points": [
-        [
-          0.1025,
-          -0.248,
-          0.1025
-        ],
-        [
-          0.1025,
-          -0.248,
-          0.225
-        ]
-      ],
-      "radius_m": 0.005,
-      "material": "carbon_composite"
-    },
-    {
-      "kind": "edge",
-      "points": [
-        [
           0.1025,
           -0.003,
           -0.1025
@@ -1367,19 +1145,7 @@
       "lod": 0,
       "name": "D01_legs_on_LOD0_leg_rr",
       "kind": "leg_rr",
-      "tris": 92
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_tjoint_rr",
-      "kind": "tjoint_rr",
-      "tris": 80
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_skid_rr",
-      "kind": "skid_rr",
-      "tris": 92
+      "tris": 140
     },
     {
       "lod": 0,
@@ -1391,19 +1157,7 @@
       "lod": 0,
       "name": "D01_legs_on_LOD0_leg_fr",
       "kind": "leg_fr",
-      "tris": 92
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_tjoint_fr",
-      "kind": "tjoint_fr",
-      "tris": 80
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_skid_fr",
-      "kind": "skid_fr",
-      "tris": 92
+      "tris": 140
     },
     {
       "lod": 0,
@@ -1415,19 +1169,7 @@
       "lod": 0,
       "name": "D01_legs_on_LOD0_leg_rl",
       "kind": "leg_rl",
-      "tris": 92
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_tjoint_rl",
-      "kind": "tjoint_rl",
-      "tris": 80
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_skid_rl",
-      "kind": "skid_rl",
-      "tris": 188
+      "tris": 140
     },
     {
       "lod": 0,
@@ -1439,19 +1181,7 @@
       "lod": 0,
       "name": "D01_legs_on_LOD0_leg_fl",
       "kind": "leg_fl",
-      "tris": 92
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_tjoint_fl",
-      "kind": "tjoint_fl",
-      "tris": 80
-    },
-    {
-      "lod": 0,
-      "name": "D01_legs_on_LOD0_skid_fl",
-      "kind": "skid_fl",
-      "tris": 92
+      "tris": 140
     },
     {
       "lod": 1,
@@ -1463,19 +1193,7 @@
       "lod": 1,
       "name": "D01_legs_on_LOD1_leg_rr",
       "kind": "leg_rr",
-      "tris": 60
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_tjoint_rr",
-      "kind": "tjoint_rr",
-      "tris": 56
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_skid_rr",
-      "kind": "skid_rr",
-      "tris": 60
+      "tris": 92
     },
     {
       "lod": 1,
@@ -1487,19 +1205,7 @@
       "lod": 1,
       "name": "D01_legs_on_LOD1_leg_fr",
       "kind": "leg_fr",
-      "tris": 60
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_tjoint_fr",
-      "kind": "tjoint_fr",
-      "tris": 56
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_skid_fr",
-      "kind": "skid_fr",
-      "tris": 60
+      "tris": 92
     },
     {
       "lod": 1,
@@ -1511,19 +1217,7 @@
       "lod": 1,
       "name": "D01_legs_on_LOD1_leg_rl",
       "kind": "leg_rl",
-      "tris": 60
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_tjoint_rl",
-      "kind": "tjoint_rl",
-      "tris": 56
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_skid_rl",
-      "kind": "skid_rl",
-      "tris": 124
+      "tris": 92
     },
     {
       "lod": 1,
@@ -1535,19 +1229,7 @@
       "lod": 1,
       "name": "D01_legs_on_LOD1_leg_fl",
       "kind": "leg_fl",
-      "tris": 60
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_tjoint_fl",
-      "kind": "tjoint_fl",
-      "tris": 56
-    },
-    {
-      "lod": 1,
-      "name": "D01_legs_on_LOD1_skid_fl",
-      "kind": "skid_fl",
-      "tris": 60
+      "tris": 92
     },
     {
       "lod": 2,
@@ -1559,18 +1241,6 @@
       "lod": 2,
       "name": "D01_legs_on_LOD2_leg_rr",
       "kind": "leg_rr",
-      "tris": 20
-    },
-    {
-      "lod": 2,
-      "name": "D01_legs_on_LOD2_tjoint_rr",
-      "kind": "tjoint_rr",
-      "tris": 44
-    },
-    {
-      "lod": 2,
-      "name": "D01_legs_on_LOD2_skid_rr",
-      "kind": "skid_rr",
       "tris": 20
     },
     {
@@ -1587,18 +1257,6 @@
     },
     {
       "lod": 2,
-      "name": "D01_legs_on_LOD2_tjoint_fr",
-      "kind": "tjoint_fr",
-      "tris": 44
-    },
-    {
-      "lod": 2,
-      "name": "D01_legs_on_LOD2_skid_fr",
-      "kind": "skid_fr",
-      "tris": 20
-    },
-    {
-      "lod": 2,
       "name": "D01_legs_on_LOD2_stub_rl",
       "kind": "stub_rl",
       "tris": 16
@@ -1611,18 +1269,6 @@
     },
     {
       "lod": 2,
-      "name": "D01_legs_on_LOD2_tjoint_rl",
-      "kind": "tjoint_rl",
-      "tris": 44
-    },
-    {
-      "lod": 2,
-      "name": "D01_legs_on_LOD2_skid_rl",
-      "kind": "skid_rl",
-      "tris": 68
-    },
-    {
-      "lod": 2,
       "name": "D01_legs_on_LOD2_stub_fl",
       "kind": "stub_fl",
       "tris": 16
@@ -1631,18 +1277,6 @@
       "lod": 2,
       "name": "D01_legs_on_LOD2_leg_fl",
       "kind": "leg_fl",
-      "tris": 20
-    },
-    {
-      "lod": 2,
-      "name": "D01_legs_on_LOD2_tjoint_fl",
-      "kind": "tjoint_fl",
-      "tris": 44
-    },
-    {
-      "lod": 2,
-      "name": "D01_legs_on_LOD2_skid_fl",
-      "kind": "skid_fl",
       "tris": 20
     },
     {
@@ -1659,12 +1293,6 @@
     },
     {
       "lod": 3,
-      "name": "D01_legs_on_LOD3_skid_rr",
-      "kind": "skid_rr",
-      "tris": 12
-    },
-    {
-      "lod": 3,
       "name": "D01_legs_on_LOD3_stub_fr",
       "kind": "stub_fr",
       "tris": 10
@@ -1673,12 +1301,6 @@
       "lod": 3,
       "name": "D01_legs_on_LOD3_leg_fr",
       "kind": "leg_fr",
-      "tris": 12
-    },
-    {
-      "lod": 3,
-      "name": "D01_legs_on_LOD3_skid_fr",
-      "kind": "skid_fr",
       "tris": 12
     },
     {
@@ -1695,12 +1317,6 @@
     },
     {
       "lod": 3,
-      "name": "D01_legs_on_LOD3_skid_rl",
-      "kind": "skid_rl",
-      "tris": 12
-    },
-    {
-      "lod": 3,
       "name": "D01_legs_on_LOD3_stub_fl",
       "kind": "stub_fl",
       "tris": 10
@@ -1709,12 +1325,6 @@
       "lod": 3,
       "name": "D01_legs_on_LOD3_leg_fl",
       "kind": "leg_fl",
-      "tris": 12
-    },
-    {
-      "lod": 3,
-      "name": "D01_legs_on_LOD3_skid_fl",
-      "kind": "skid_fl",
       "tris": 12
     }
   ]
