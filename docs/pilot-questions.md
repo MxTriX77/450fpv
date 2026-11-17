@@ -58,6 +58,12 @@ The pilot's words: "why tf are you asking me these questions if it's you whos go
 | **Tall grass in the prop wash** | "Usually it lies flat because of prop wash power, but not always" | 2026-11-13 |
 | **The straw** | "Straws are quite stiff, but not extremely" | 2026-11-13 |
 | **The physics, above all** | "We must recall all of what was discussed before so the physics of drone is top notch this time" (D-104) | 2026-11-13 |
+| **The legs' ends** | four separate legs, no rails joining them: "in life it is simply four legs". Their points can dig into the ground on a rough landing; at the start they stand only slightly dug in, each to its own depth | 2026-11-17, D-117 |
+| **The pale bars in the picture** | two thin wire whiskers on the nose of their kit (photos U and V). They do not point parallel: they converge slightly toward the centre of the picture. They change nothing in the flight; they shake a little with the wind and the speed, and they can break | 2026-11-17, D-117 |
+| **The camera's place and the props** | the camera stays where it is (the planned move is cancelled). The props are a little visible at the right and left of the picture's top | 2026-11-17, D-117 |
+| **The OSD's path** | the video goes over the analog channel together with the OSD, so the channel's look applies to the OSD too | 2026-11-17, D-117 |
+| **The laid fiber** | it lies under its own weight; laid round a house's corner, the tension goes from that corner on; a prop that winds up its own fiber breaks it at once | 2026-11-17, D-117 |
+| **Menu** | no Explore; no small describing labels on the screens | 2026-11-17, D-117 |
 
 ## Dropped as computable: the team calculates these (D-024)
 - **Landing-bounce height:** from leg compliance and residual thrust.
@@ -87,8 +93,6 @@ Ask new questions only under the rule above, at the matching gate.
 | Farmland flight (D-093) | The start point is on a level hilltop meadow at the village's south-east edge, 35 m from the nearest ruin, facing it. The village's core is on an 11 m slope, with no level 2 m gap between the ruins. Is that a good place to start, or do you want it among the ruins (on a slope, or on a levelled pad)? | where they like to start; the rule (free, level, in the village) is met either way | D-092, `w1-farmland-world` review F7 |
 | Play build (D-100) | With M open, the map covers the OSD's centre: the reticle and the throttle. Is that fine for a glance, or should the map leave the centre free? | a preference about flying with it open | `w11-world-map` review, F6 |
 | Play build (D-100) | The cards' stills show the feed's first field: its grain, but no interference bars. Do you want more of the feed's character on the cards? | a look preference | `w10-play-maps` 1.2 |
-| Props in the frame (W13, W14) | The two pale bars at mid-height at the left and right edges of your picture: what are they on your quad (the front legs, antenna tubes, something else)? | their own kit; the footage shows the bars but not what they are | `w14-camera-place` 1.1, the same note §3.3 |
-| Props in the frame (W13, W14) | Does your camera sit out at the nose, under the frame, ahead of the front motors? | their own kit; the reference photo hides the camera, and the footage puts the lens there | `w14-camera-place` 1.1, `reference-notes/camera-place.md` §7 |
 | Next build (the fiber) | The fiber's exit on your canister: what is it (a bare metal hole, a plastic or ceramic eyelet, a short tube), and is its edge sharp or rounded? | their own kit; whether the fiber can tear at the exit depends on the exit's material and edge, and no reference shows it closely | `p7d-tether` 1.11, design 18 |
 | Next build (the fiber) | Before liftoff, how do you lay the fiber from the drone to the station: pulled straight, or with some loose line near the drone? | their own practice; loose line at the launch spot is what a hard liftoff could blow into the props, and nothing public describes a lay | `p7d-tether` 1.11b, design 18 |
 | Next build (the hover) | Could you share one Betaflight blackbox log of a plain hover from your own quad, made anywhere harmless? It stays on this machine and is never committed. | their own kit; the log shows how much of a hover's heading motion is the hand on the yaw stick, which no public source sizes for this pilot | `p7c-wind` 1.5d, D-110 |
