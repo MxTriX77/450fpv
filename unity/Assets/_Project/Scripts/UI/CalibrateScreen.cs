@@ -25,6 +25,9 @@ namespace Fpv450.UI
         /// <summary>The Back button: the menu closes the screen.</summary>
         public event Action Closed;
 
+        /// <summary>The tab shown when the wizard is not running: 0 the radio, 1 the rates (the smoke test's shots).</summary>
+        public int Tab { get => _tab; set => _tab = value; }
+
         RadioReader _own;
         CalibrationStore _store;
         string _storeError;
@@ -190,14 +193,17 @@ namespace Fpv450.UI
                 if (_storeError != null) GUILayout.Label(_storeError, _small);
             }
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Back", GUILayout.Width(160), GUILayout.Height(36)))
-            {
-                _wizard = null;
-                Stop();
-                _rates.Save();
-                Closed?.Invoke();
-            }
+            if (GUILayout.Button("Back", GUILayout.Width(160), GUILayout.Height(36))) Back();
             GUILayout.EndArea();
+        }
+
+        /// <summary>The Back button's: the wizard dropped, the rates saved, and the menu told.</summary>
+        public void Back()
+        {
+            _wizard = null;
+            Stop();
+            _rates.Save();
+            Closed?.Invoke();
         }
 
         void Idle()

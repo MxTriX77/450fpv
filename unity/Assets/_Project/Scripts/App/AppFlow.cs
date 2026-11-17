@@ -382,8 +382,8 @@ namespace Fpv450.App
         }
 
         /// <summary>
-        /// The player's smoke test, through the screens' own calls: the menu, Play's carousel (moved and chosen by its keys,
-        /// D-100) and Village's setup drawn; Explore in a review build;
+        /// The player's smoke test, through the screens' own calls: the menu, the Calibrate screen's two tabs and its Back,
+        /// Play's carousel (moved and chosen by its keys, D-100) and Village's setup drawn; Explore in a review build;
         /// then two flights over the farmland from the village's start, the one the setup offers (D-092, w3-farmland-ground
         /// 3.1; on the test range until then, from its houses' start): on the legs, then from the launch
         /// stand (legs off) in Rain, the second set from the first's summary through Setup. Each flight carries
@@ -906,6 +906,15 @@ namespace Fpv450.App
                     Debug.Log("[Smoke] the D3D12 pipeline library was dropped this run, not read empty: its log line is the next run's check");
             }
             yield return Shot("menu");
+            // w18-menu-cleanup 1.2: the Calibrate screen from the menu, its radio's tab and its rates' shot, and Back.
+            Calibrate();
+            yield return null;
+            yield return Shot("calibrate_radio");
+            _calibrate.Tab = 1;
+            yield return Shot("calibrate_rates");
+            _calibrate.Back();
+            yield return null;
+            Check(_view == View.Menu && _calibrate == null, "Calibrate opens from the menu, and its Back returns to the menu");
             yield return Pick(PlayMaps.Village);
             Check(_view == View.Setup && _setup.Starts.Length == 1 && _setup.Starts[0].Name == FlightWorlds.FarmlandStart.Name,
                   "Play → Village opens its setup, from the village's start only (D-092): " + _setup.Starts.Length + " start point(s)");
@@ -992,6 +1001,7 @@ namespace Fpv450.App
                 bool barred = n == 1 && _flight != null && _flight.Host.Inputs != null && _flight.Host.Inputs.KeyboardAllowed;
                 if (barred) _flight.Host.Inputs.KeyboardAllowed = false;
                 Fly();
+                if (_view == View.Loading) yield return Shot("loading_" + tag); // w18-menu-cleanup 1.2
                 string where = "'" + start.Name + "' (legs " + (c.Legs ? "on" : "off, the stand") + ")";
                 yield return Until(() => _view == View.Flight && _flight != null && _flight.Host.Session != null, 60);
                 Check(_flight != null && _flight.Host.Session != null, "Fly loads the flight over the farmland at " + where);
