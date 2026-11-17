@@ -958,3 +958,21 @@ The pilot, 2026-11-17, after about 30 flights on the model 103 build (ledger P54
   - The whiskers do nothing in the sim's physics: "this does not affect our flight in any way, they are simply there, and from the wind, the speed and so on they can shake a little, and break too of course."
   - So the turning props (`w13-props-in-frame`) ship with the camera where it is, checked against that account, and a new change draws the whiskers from the two photos alone.
 - **The plants show the weather.** "Grass and leaves and twigs swaying should match the actual weather - it's important. The pilot should understand how strong the wind is, and where the gusts usually blow from this flight." It is a requirement of `w16-plants-in-the-air` now: the three wind levels are told apart from a still hover without the OSD, and the lean points where the local wind goes.
+
+## D-118 The legs copy the pilot's kit photo: bent loops ending in a point, a low stance · Accepted
+The pilot, 2026-11-17, asked which legs the sim's drone should have, with the cost named: "Copy the photo".
+- **What the photo shows** (photo U, the pilot's own kit, read by the asset artist):
+  - each leg is a loop of bent stock in its arm's vertical plane, fixed under the arm at two points and ending in a point;
+  - the drone stands about 0.10–0.13 m on them (scaled from the motor cans, ±20 %).
+- **What the model had:** after D-117, four straight tubes 0.25 m tall, from the pilot's "25–35 cm". A loop of the photo's size takes 0.22–0.28 m of stock, which may be what that figure meant.
+- **Why it matters:** the stance's height decides how a touchdown behaves. On the straight 0.25 m legs the drone goes over at about 0.7 m/s along the ground once its tips catch (hand calculation, `w17-four-legs` design); the pilot's landings touched at 0.45–2 m/s along.
+- **What changes** (`w17-four-legs` tasks 1.5 and 1.6):
+  - the legs become the kit's loops;
+  - the canister under the frame is re-proportioned to what the photo shows, the coil's mass unchanged, so that only the legs' points touch level ground;
+  - the loop's bending and failure law is derived from its shape by `p7g-legs`' method;
+  - the fiber's exit follows the canister, and the masses, the hull's areas and the launch stand are derived again.
+- **What stays:**
+  - only the legs and the canister follow the photo: the frame, the motors, the packs and the load stay as modelled;
+  - the tips' law in the soil (task 1.3, in work) is the same for both shapes;
+  - the flight model is untouched (the pilot: "improve the current physics, but break nothing in it"). The goldens are re-recorded once, at the end, and audited.
+- **Not said by the pilot:** what the stock is (strip, rod or pipe) and the exact height. Both are read from the photo and labelled.
