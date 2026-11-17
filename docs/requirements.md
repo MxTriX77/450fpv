@@ -623,7 +623,7 @@ Train mode shows what the pilot needs; the layout positions come from the footag
 - **a plain plastic bottle strapped on top**, the only load, its filled mass the setup's weight (D-050)
 - FPV camera at **0° uptilt**
 - fiber transceiver, flight-controller stack, wiring
-- **four separate legs, 25–35 cm** (pilot) in the legs-on variant, and a legs-off variant. Each leg is a narrow straight tube (plastic, D-086) under its arm, pointing perpendicularly into the ground and ending in its own tip, as photo W shows them (the pilot: "narrow tubes pointing perpendicularly into the ground", D-119). No skid or rail joins them: "in life it is simply four legs" (D-117)
+- **four separate legs, 25–35 cm** (pilot) in the legs-on variant, and a legs-off variant. Each leg is a narrow straight aluminium tube held in a 3D-printed clamp that has some play (D-120) under its arm, pointing perpendicularly into the ground and ending in its own tip, as photo W shows them (the pilot: "narrow tubes pointing perpendicularly into the ground", D-119). No skid or rail joins them: "in life it is simply four legs" (D-117)
 
 *Source:* B plan 5, B req 4, K§5.
 
