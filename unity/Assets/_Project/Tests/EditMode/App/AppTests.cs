@@ -281,7 +281,7 @@ namespace Fpv450.Tests.App
         }
 
         // The pilot's "it has lost its throttle because in noclip": the throttle element (D-080) in every OSD the app shows,
-        // the flight's (FlightOsd, on any world) and noclip's (Explore and the test range: the stand-in, NoclipFeedSignals),
+        // the flight's (FlightOsd, on any world) and noclip's (the farmland's noclip view and the test range: the stand-in, NoclipFeedSignals),
         // at the same cells (row 7, columns 24–27) and in the same text.
         [Test]
         public void EveryOsdModeShowsTheThrottle()
@@ -297,7 +297,7 @@ namespace Fpv450.Tests.App
                     osd.BuildOsd(1);
                     Assert.That(Cells((IFeedSignals)osd, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(0)), mode + ": the stick down");
                 }
-                noclip.Stub.Osd.ThrottlePercent = 47; // Explore's radio (ExploreThrottle)
+                noclip.Stub.Osd.ThrottlePercent = 47; // a stick's percent, as the element shows any
                 noclip.BuildOsd(2);
                 Assert.That(Cells(noclip, 7, 24, 4), Is.EqualTo(FlightOsd.ThrottleText(47)), "noclip: the stick's percent");
             }

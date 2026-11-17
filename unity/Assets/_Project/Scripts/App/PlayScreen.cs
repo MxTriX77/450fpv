@@ -28,7 +28,7 @@ namespace Fpv450.App
         public void Open(PlayMap at)
         {
             if (_carousel.Cards.Length == 0)
-                _carousel.Cards = Array.ConvertAll(PlayMaps.All, m => new MapCard { Name = m.Name, Line = m.Line, Still = PlayMaps.LoadStill(PlayMaps.StillPath(m)) });
+                _carousel.Cards = Array.ConvertAll(PlayMaps.All, m => new MapCard { Name = m.Name, Still =PlayMaps.LoadStill(PlayMaps.StillPath(m)) });
             _carousel.Show(Array.IndexOf(PlayMaps.All, at));
             _sticks.Reset();
             CalibrationProfile profile = null;

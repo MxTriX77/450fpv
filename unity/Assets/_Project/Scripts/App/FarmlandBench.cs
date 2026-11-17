@@ -13,7 +13,8 @@ namespace Fpv450.App
 {
     /// <summary>
     /// The farmland's frame-rate benchmark (w6-farmland-look 1.2, PLT-07). A review build started with
-    /// <c>-farmbench &lt;file&gt;</c> opens Explore as the menu does, then flies the camera along <see cref="Path"/>: west
+    /// <c>-farmbench &lt;file&gt;</c> opens the farmland's noclip view (AppFlow's, which no menu item opens since
+    /// w18-menu-cleanup), then flies the camera along <see cref="Path"/>: west
     /// through the village's lane at 4 m, up and across the village at 30 m, along the tree belt on field F8's west edge
     /// at 5 m and over the open field F7 at 15 m, at <see cref="Speed"/>. It flies the path once per run of
     /// <c>-benchruns</c> (default <c>feed,noclip</c>: through the feed, then in noclip with the feed off), each holding the
@@ -72,8 +73,8 @@ namespace Fpv450.App
             public string Render;
         }
 
-        /// <summary>Explore is open: flies the path once per run, writes the file and quits (exit 1 when Explore never
-        /// came or the camera is missing).</summary>
+        /// <summary>The noclip view is open: flies the path once per run, writes the file and quits (exit 1 when the view
+        /// never came or the camera is missing).</summary>
         public static IEnumerator Main(float loadSeconds)
         {
             string[] args = Environment.GetCommandLineArgs();

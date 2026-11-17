@@ -17,15 +17,15 @@ namespace Fpv450
     {
         /// <summary>
         /// The game (p6-input-app 1.4b): the build settings' scenes, Boot (the menu) and Play's two maps (D-100), the test
-        /// range (House) and the farmland (Village, and Explore's noclip, w1-farmland-world 2.1; it needs the vendor store
+        /// range (House) and the farmland (Village, and the noclip view tooling opens, w1-farmland-world 2.1; it needs the vendor store
         /// linked, tools/vendor/link.ps1), full screen at the
         /// display's resolution, with copies of the files the flight reads (AppData.PlayerFiles) under its StreamingAssets
         /// at their repository paths. A scene with a missing reference fails the build (SceneReferences): the farmland in an
         /// unlinked checkout. Each map's top-down image (TopDownMaps, w11-world-map 1.1) and Play's stills (MapStills,
         /// w10-play-maps 1.2) are rendered first, so the build needs graphics (never <c>-nographics</c>) and fails without
         /// them, and everything under <see cref="GeneratedFolder"/> goes into the player's
-        /// <c>StreamingAssets/generated/</c>. <c>-review</c> makes a review build (FPV450_REVIEW: Explore and the
-        /// flight's review keys) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
+        /// <c>StreamingAssets/generated/</c>. <c>-review</c> makes a review build (FPV450_REVIEW: the flight's
+        /// review keys, <c>-farmbench</c> and the smoke test's noclip checks; the menu is the pilot's build's) in <c>Builds/Windows-Review/</c>; a development build is a review build too.
         /// </summary>
         public static void Windows()
         {

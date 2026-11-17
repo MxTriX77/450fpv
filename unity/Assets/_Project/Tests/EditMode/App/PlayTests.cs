@@ -14,21 +14,27 @@ namespace Fpv450.Tests.App
     // w10-play-maps 1.1 (D-100): Play in place of Train, its carousel of House and Village, and what each card opens.
     public sealed class PlayTests
     {
-        // The menu reads Play, Calibrate, Explore (review builds only) and Exit, and no item or hint names a map the item does
-        // not open: Play's names both of Play's maps, Explore's the farmland's, Village, alone.
+        // The menu reads Play, Calibrate and Exit in every build, each by its name alone, under the title and the drone's name
+        // (w18-menu-cleanup: no Explore, no hints, no describing subtitle).
         [Test]
-        public void TheMenuReadsPlayCalibrateExploreAndExit()
+        public void TheMenuReadsPlayCalibrateAndExit()
         {
-            Assert.That(MenuScreen.Items(false).Select(i => i.Name), Is.EqualTo(new[] { "Play", "Calibrate", "Exit" }));
-            Assert.That(MenuScreen.Items(true).Select(i => i.Name), Is.EqualTo(new[] { "Play", "Calibrate", "Explore", "Exit" }));
-            var items = MenuScreen.Items(true);
-            Assert.That(items.Select(i => i.Choice), Is.EqualTo(new[] { MenuChoice.Play, MenuChoice.Calibrate, MenuChoice.Explore, MenuChoice.Exit }));
-            string play = items[0].Hint, explore = items[2].Hint;
-            TestContext.WriteLine("Play: '" + play + "', Explore: '" + explore + "'");
-            Assert.That(play, Does.Contain(PlayMaps.House.Name).And.Contain(PlayMaps.Village.Name));
-            Assert.That(explore, Does.Contain(PlayMaps.Village.Name).And.Not.Contain(PlayMaps.House.Name));
-            foreach (var i in items)
-                Assert.That(i.Hint ?? "", Does.Not.Contain("test range").And.Not.Contain("Train").And.Not.Contain("farmland"), i.Name + "'s hint");
+            var items = MenuScreen.Items();
+            Assert.That(items.Select(i => i.Name), Is.EqualTo(new[] { "Play", "Calibrate", "Exit" }));
+            Assert.That(items.Select(i => i.Choice), Is.EqualTo(new[] { MenuChoice.Play, MenuChoice.Calibrate, MenuChoice.Exit }));
+            Assert.That(Enum.GetNames(typeof(MenuChoice)), Does.Not.Contain("Explore"), "no item opens the farmland in noclip");
+            Assert.That(MenuScreen.Subtitle, Is.EqualTo("Svinoriz 10 Opto"), "the drone's name alone under the title");
+        }
+
+        // w18-menu-cleanup: a card carries the map's name and still and no describing line, the setup's legs read On and Off
+        // alone, and the loading screen the map's name alone.
+        [Test]
+        public void TheCardsTheSetupAndTheLoadingScreenReadNoDescriptions()
+        {
+            Assert.That(typeof(MapCard).GetFields().Select(f => f.Name), Is.EquivalentTo(new[] { "Name", "Still" }));
+            Assert.That(SetupScreen.Legs, Is.EqualTo(new[] { "On", "Off" }));
+            Assert.That(AppFlow.LoadingLine(PlayMaps.House.Name), Is.EqualTo("Loading House…"));
+            Assert.That(AppFlow.LoadingLine(PlayMaps.Village.Name), Is.EqualTo("Loading Village…"));
         }
 
         // Play's maps in the carousel's order: House, the test range from its houses' start (D-077), and Village, the farmland
@@ -42,7 +48,6 @@ namespace Fpv450.Tests.App
             string[] built = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => Path.GetFileNameWithoutExtension(s.path)).ToArray();
             foreach (PlayMap map in PlayMaps.All)
             {
-                Assert.That(map.Line, Is.Not.Empty, map.Name + "'s line");
                 Assert.That(PlayMaps.ForScene(map.Scene), Is.SameAs(map), map.Name + " by its scene");
                 Assert.That(built, Does.Contain(map.Scene), map.Name + "'s scene is in the build");
             }
