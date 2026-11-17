@@ -141,6 +141,8 @@
     "stem_slide_off_share": {"value": 0.5, "label": "assumed", "rationale": "a standing stem lets the line slide off its tip once pushed this share of the contact's height across (p7a-ground design 8's stems, carried)"},
     "hook_reach_m": {"value": 0.03, "label": "assumed", "rationale": "a hooked straw's spring reaches its release force over this pull (p7a-ground design 8's hooks, carried)"},
     "aluminium_static_friction": {"value": 0.35, "label": "assumed", "rationale": "μs of the coating on the motors' aluminium cans: the steel row's of physics_materials.json, the nearest metal there (no aluminium row: the cans are the drone's, design 6)"},
-    "aluminium_kinetic_friction": {"value": 0.28, "label": "assumed", "rationale": "μk of the same pair (the steel row's)"}
+    "aluminium_kinetic_friction": {"value": 0.28, "label": "assumed", "rationale": "μk of the same pair (the steel row's)"},
+    "face_roughness_m": {"value": [0.0005, 0.005], "label": "assumed", "rationale": "p7d-tether design 24 (R1): the equivalent sand roughness k_s of a rigid shape's face a laid line lies on, for the air over it (the fully rough log law, z0 = k_s/30): a smooth row's (sheet metal with its rust and paint, glass, plastic; the microbend's smooth class) and a rough row's (weathered masonry, concrete, sawn timber, asbestos cement; its rough class). The line rests on the crests, at y = k_s"},
+    "face_layer_height_m": {"value": 0.5, "label": "derived", "rationale": "p7d-tether design 24 (R1): the depth of the air's own layer over a face, where it meets the free flow over the building: an internal boundary layer grows from the face's windward edge as δ ≈ 0.75·z0·(x/z0)^0.8 (Elliott 1958, published), 0.5 m over 5.3 m of fetch on z0 0.17 mm (the fetch assumed: a roof's or a slab's few metres; 0.25–1 m for 2.2–12.6 m). The air along the face at height y is the free flow's times ln(y/z0)/ln(z_m/z0)"}
   }
 }

@@ -164,6 +164,45 @@ namespace Fpv450.Sim.Tests
             Assert.That(b.Wedges, Is.EqualTo(0));
         }
 
+        // "A line on a face reads that face's air" (p7d-tether design 24, R1; QA's 1.11h check 2): a line laid on a timber block's top
+        // 6 m up, a steady 8 m/s across it. The face's own layer (Nikuradse's fully rough law matched to the free flow at
+        // contact.face_layer_height_m, 0.5 m; k_s 5 mm) gives the line on its crests 8·ln 30/ln 3000 = 3.40 m/s (the labelled band
+        // 3.0–3.7 for a layer of 0.25–1 m and k_s of 2–10 mm), White's drag 2.95 mN/m on it; model 105 (TetherFreeAirOnFaces)
+        // reads the free 8 m/s, 13.5 mN/m.
+        [Test]
+        public void ALineOnAFaceReadsThatFacesWind()
+        {
+            FiberContactScenarios.OnFace wrong = FiberContactScenarios.FaceAirOnABox(Spec, true, false);
+            FiberContactScenarios.OnFace f = FiberContactScenarios.FaceAirOnABox(Spec, false, false);
+            double hand = 8 * Math.Log(30) / Math.Log(30 * 0.5 / 0.005);
+            var drag = new FiberDrag(TetherScenarios.Table(), 2.5e-4);
+            Print($"model 105's air: {wrong.Points} points on the top read {wrong.Along:F4} m/s along it, drag {drag.PerMetre(wrong.Along) * 1e3:F3} mN/m; "
+                + $"design 24: {f.Points} points read {f.Along:F4} m/s, drag {drag.PerMetre(f.Along) * 1e3:F3} mN/m; the hand's {hand:F4} m/s");
+            Assert.That(wrong.Points, Is.GreaterThan(0));
+            Assert.That(f.Points, Is.GreaterThan(0));
+            Assert.That(wrong.Along, Is.EqualTo(8).Within(0.01).Percent, "model 105 reads the free air over the terrain");
+            Assert.That(f.Along, Is.EqualTo(hand).Within(0.01).Percent, "the face's own layer at the crests");
+            Assert.That(f.Along, Is.InRange(3.0, 3.7), "the labelled band");
+            Assert.That(drag.PerMetre(f.Along), Is.EqualTo(2.947e-3).Within(1).Percent, "White's drag at the hand's air");
+            Assert.That(drag.PerMetre(wrong.Along), Is.EqualTo(1.349e-2).Within(1).Percent);
+        }
+
+        // The wash over a face (design 24, R1): the drone hovering 1.5 m over the block's top with its line lying on it. The wash
+        // lands on the top (FaceFields), and the line at 1–2 m from the drone's axis lies in its wall jet, blowing outward; model
+        // 105 reads the free wake there, which has no wall jet on a roof.
+        [Test]
+        public void TheWashLandsOnTheFaceUnderIt()
+        {
+            FiberContactScenarios.OnFace wrong = FiberContactScenarios.FaceAirOnABox(Spec, true, true);
+            FiberContactScenarios.OnFace f = FiberContactScenarios.FaceAirOnABox(Spec, false, true);
+            Print($"model 105's air: {wrong.Points} point-steps on the top at 1–2 m, outward {wrong.Outward:F3} m/s, wash landed on it {wrong.FaceFields} steps; "
+                + $"design 24: {f.Points}, outward {f.Outward:F3} m/s, landed {f.FaceFields} steps");
+            Assert.That(wrong.FaceFields, Is.EqualTo(0));
+            Assert.That(f.FaceFields, Is.GreaterThan(1000), "the wash lands on the block's top");
+            Assert.That(f.Points, Is.GreaterThan(0));
+            Assert.That(f.Outward, Is.GreaterThan(0.5), "the wall jet over the top at the line's own height");
+        }
+
         // "The line lies on what is under it": hovering 30 m from its anchor over the range's plane, S04's straw and E01's run,
         // after 60 s, the line from the touchdown back to the anchor lies on the ground, the straw's top or the trench's floor and
         // walls within 2 mm, its trail points never inside a rigid shape, and none of it floats.

@@ -310,6 +310,90 @@ namespace Fpv450.Sim.Tests
             return b;
         }
 
+        // ---- "A line on a face reads that face's air" (p7d-tether design 24, R1) ----
+
+        public struct OnFace
+        {
+            /// <summary>The air the line's points lying on the box's top took (FiberLine's loads): their count and the mean of its
+            /// part along the top, m/s; with the drone hovering over the box, the mean of its part outward from under the drone at
+            /// 1–2 m from its axis, m/s, and the steps whose wash landed on the box (FaceFields).</summary>
+            public int Points;
+            public double Along, Outward;
+            public long FaceFields;
+        }
+
+        /// <summary>
+        /// A timber block 4 × 4 m and 6 m tall (its top 6 m over the stub's floor, x 4–8, z −2–2); the drone climbs to 7.5 m, flies
+        /// out along +x at 2 m/s over it and its line falls onto the top. Wind: a steady 8 m/s from the north (across the line) from
+        /// 12 s, the drone hovering at x = 16, 8 m past the block; read the step after it starts. Hover: still air, the drone
+        /// back over the block's middle 1.5 m over its top from 14 s; read over 16–18 s at 1–2 m from its axis.
+        /// </summary>
+        public static OnFace FaceAirOnABox(DroneSpec spec, bool knownWrong, bool hover)
+        {
+            FlightSetup setup = TetherScenarios.Setup(spec);
+            setup.TetherFreeAirOnFaces = knownWrong;
+            if (!hover)
+            {
+                setup.Wind = WindSetup.SteadyFrom(0, 8);
+                setup.Wind.SteadyOnsetSeconds = 12;
+            }
+            double stand = TetherScenarios.Stand(setup), r = LineRadius, top = 6;
+            var f = new OnFace();
+            double sum = 0, outward = 0;
+            int outs = 0;
+            FlightCore end = TetherScenarios.Fly(setup, hover ? 18 : 12.01, (t, core, pilot) =>
+            {
+                pilot.HoldVelocity = false;
+                double x = t < 3.5 ? 0 : t < 9 ? 2 * (t - 3.5) : hover ? DetMath.Max(6, 11 - (t - 9)) : DetMath.Min(16, 11 + 2 * (t - 9));
+                pilot.Target = new Double3(x, stand + DetMath.Min(7.5, 2.5 * t), 0);
+            }, core =>
+            {
+                FiberLine line = core.Tether;
+                if (core.State.Step == 1)
+                {
+                    core.World.Query.AddObject("test block", new[]
+                    {
+                        new ShapeGeometry
+                        {
+                            Kind = ShapeKind.Box, Center = new Double3(6, top / 2, 0), AxisX = new Double3(1, 0, 0), AxisY = new Double3(0, 1, 0),
+                            AxisZ = new Double3(0, 0, 1), HalfExtents = new Double3(2, top / 2, 2), Material = core.World.Query.MaterialId("timber"),
+                        },
+                    });
+                    for (int j = 0; j < line.Chain.Count; j++) line.Chain[j].Cleared = false;
+                }
+                long step = core.State.Step;
+                bool read = hover ? step > 16000 : step == 12002;
+                if (!read || line.Broken) return;
+                Double3 drone = core.State.Position;
+                for (int i = 0; i < line.LoadCount; i++)
+                {
+                    Double3 p = line.LoadPoint(i);
+                    if (!(Math.Abs(p.Y - top - r) < 0.002 && Math.Abs(p.X - 6) < 2 && Math.Abs(p.Z) < 2)) continue;
+                    Double3 air = line.LoadAir(i);
+                    var flat = new Double3(air.X, 0, air.Z);
+                    if (!hover)
+                    {
+                        f.Points++;
+                        sum += flat.Length();
+                        continue;
+                    }
+                    var away = new Double3(p.X - drone.X, 0, p.Z - drone.Z);
+                    double d = away.Length();
+                    if (!(d > 1 && d < 2)) continue;
+                    outward += Double3.Dot(flat, away) / d;
+                    outs++;
+                }
+            });
+            if (!hover) f.Along = f.Points > 0 ? sum / f.Points : double.NaN;
+            else
+            {
+                f.Points = outs;
+                f.Outward = outs > 0 ? outward / outs : double.NaN;
+            }
+            f.FaceFields = end.Tether.FaceFields;
+            return f;
+        }
+
         // How deep the segment a–b's axis lies inside any of the objects ids, m (0 outside).
         static double Inside(FlightWorld world, HashSet<int> ids, Double3 a, Double3 b, double r, StaticContact[] buffer)
         {

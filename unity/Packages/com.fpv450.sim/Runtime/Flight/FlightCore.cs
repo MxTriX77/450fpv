@@ -183,6 +183,13 @@ namespace Fpv450.Sim.Flight
         /// ruin, never a pilot's flight.</summary>
         public bool TetherFullChainRefuses;
 
+        /// <summary>The known-wrong air of p7d-tether design 24's R1 (model 105's): a node lying on a rigid shape's face (a roof, a
+        /// wall's top, a slab) reads the wind and the rotors' wash at the terrain's height under it, the free air of its height over
+        /// the terrain and the wash as a free wake, and no wall's lift (7.9 m/s where the roof's own layer gives about 3.4, flight
+        /// 24's ridge). TetherBeforeDesign23 and every switch it is implied by imply it (every kept audit of an older line). The
+        /// audit against model 105 and the known-wrong for the line on a face, never a pilot's flight.</summary>
+        public bool TetherFreeAirOnFaces;
+
         /// <summary>tether.json's table for the stems' air with StemWash in a flight without the line (w9-village-physics
         /// 2.13): the props' stems (PropStems) read the rotors' wash by its rotor_air rows, design 19's law the line reads
         /// (RotorAir). With the line the line's table is read and this one is not. The header records its rows and hash when the

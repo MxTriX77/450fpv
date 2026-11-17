@@ -661,6 +661,9 @@ namespace Fpv450.Sim.Tether
             return false;
         }
 
+        /// <summary>Design 24 (R1): whether a shape of this material is rigid to the line (not a skipped shell, not a layer).</summary>
+        public bool Rigid(ushort material) => !(material < _matSkip.Length && (_matSkip[material] || _matLayer[material]));
+
         /// <summary>Design 24: the shape member slot c holds, for Through (0 for none or another kind).</summary>
         public static ulong ShapeMember(in CableContact c) => c.Active && c.MemberKind == (byte)FiberMember.Shape ? c.Member : 0;
 
