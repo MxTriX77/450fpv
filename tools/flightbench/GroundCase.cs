@@ -127,6 +127,13 @@ namespace Fpv450.FlightBench
             $"lone {c.Lone,2}/{c.Flights} ({c.Rate,4:P0}), longest {c.LoneHold * 1000,3:F0} ms, most {c.LoneTurn,4:F2}°; one or many {c.Group,2}/{c.Flights} ({c.GroupRate,4:P0}); " +
             $"never off {c.Never}; threw {c.Thrown}; sink {c.Sink * 1000,5:F2} mm; crashes {c.Crashes}, tunnels {c.Tunnels}";
 
+        // A cell read on its held group (one or many) instead of its lone corner.
+        static Cell AsGroup(Cell c)
+        {
+            c.Lone = c.Group;
+            return c;
+        }
+
         // The 95 % binomial margin of a difference of two rates (normal approximation, published).
         static double Margin(in Cell a, in Cell b) =>
             1.96 * Math.Sqrt(a.Rate * (1 - a.Rate) / Math.Max(1, a.Flights) + b.Rate * (1 - b.Rate) / Math.Max(1, b.Flights));
@@ -157,8 +164,17 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"    soft in Severe rain {severeSoft.Lone}/{severeSoft.Flights}: at least Rain's: {(v.Severe ? "met" : "not met")}");
         }
 
-        public static bool Run(int seeds, bool nominalLegs = false)
+        public static bool Run(int seeds, bool nominalLegs = false, double shaftFriction = double.NaN)
         {
+            if (!double.IsNaN(shaftFriction))
+            {
+                // w17-four-legs 1.3: the tips' shaft friction ratio r_s (ContactSpec.ShaftFriction) at a value of its band, 0–0.04.
+                _edit += s =>
+                {
+                    if (s.Contacts != null) s.Contacts.ShaftFriction = shaftFriction;
+                };
+                Console.WriteLine($"  --shaft {shaftFriction}: the tips' shaft friction ratio r_s");
+            }
             if (nominalLegs)
             {
                 _edit = s =>
@@ -204,6 +220,9 @@ namespace Fpv450.FlightBench
             Console.WriteLine($"    Severe soft {Rates(ss)}");
             Verdict model = Judge(df, ds, rf, rs, ss);
             Print("the model", model, df, ds, rf, rs, ss);
+            // w17-four-legs design §4 target 7: the account read on the group, "one or many" (w9 2.9's finding).
+            Verdict group = Judge(AsGroup(df), AsGroup(ds), AsGroup(rf), AsGroup(rs), AsGroup(ss));
+            Print("the model, one or many held", group, AsGroup(df), AsGroup(ds), AsGroup(rf), AsGroup(rs), AsGroup(ss));
             Row("the pilot's account (design 13's targets on the lone corner)", model.All, model.All ? "every target met" : "a target is not met (above)");
             int tunnels = 0;
             foreach (Cell c in cells.Values) tunnels += c.Tunnels;
