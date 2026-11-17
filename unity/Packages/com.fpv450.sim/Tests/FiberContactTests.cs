@@ -167,7 +167,7 @@ namespace Fpv450.Sim.Tests
         // "A line on a face reads that face's air" (p7d-tether design 24, R1; QA's 1.11h check 2): a line laid on a timber block's top
         // 6 m up, a steady 8 m/s across it. The face's own layer (Nikuradse's fully rough law matched to the free flow at
         // contact.face_layer_height_m, 0.5 m; k_s 5 mm) gives the line on its crests 8·ln 30/ln 3000 = 3.40 m/s (the labelled band
-        // 3.0–3.7 for a layer of 0.25–1 m and k_s of 2–10 mm), White's drag 2.95 mN/m on it; model 105 (TetherFreeAirOnFaces)
+        // 3.0–3.7 for a layer of 0.25–1 m or k_s of 2–10 mm), White's drag 2.95 mN/m on it; model 105 (TetherFreeAirOnFaces)
         // reads the free 8 m/s, 13.5 mN/m.
         [Test]
         public void ALineOnAFaceReadsThatFacesWind()

@@ -62,7 +62,7 @@ namespace Fpv450.Sim.Tests
             TetherScenarios.OutBack r = TetherScenarios.OutThenBack(Spec, true);
             Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps, {r.TakenBack:F3} m taken back "
                 + $"({r.TakenAfterTurn:F3} after the turn); exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; "
-                + $"after the turn, paying nothing out, the exit at {r.AtHoldLeast:F6} of its hold at least; line over chord {r.Slack:F3}");
+                + $"after the turn, paying nothing out, the exit at {r.AtHoldLeast:F6} of its hold at least ({r.SafeNotPaying} such steps solved safe); line over chord {r.Slack:F3}");
             Assert.That(r.Fell, Is.GreaterThan(0), "the line comes back");
             // Models 60–103 judged how much it took back: from its most to its end, then from model 65 in all (5.2 m on 65; 1.029 m
             // on 1.11e's chain, design 23's known-wrong). Since design 23 (p7d-tether 1.11g) by the reel's own law instead: it takes
@@ -76,7 +76,11 @@ namespace Fpv450.Sim.Tests
             // pack's section at the lip) over 6.9 mN of line hanging from the exit's 10.2 m. A reel within 0.3–2 mN of the hang
             // trades line both ways on the hover's small loads; "more than 1 m" was a number of the old flight. The logged exit
             // tension is the hold to 1.2e-5 here (a sub-millimetre exit segment's rest is the difference of two 150 m materials,
-            // ulp 2.8e-14 m, against a stretch of H/EA ≈ 7e-6 of it); allowed 1e-3, a rest down to 4 µm.
+            // ulp 2.8e-14 m, against a stretch of H/EA ≈ 7e-6 of it); allowed 1e-3, a rest down to 4 µm. A step solved again on the
+            // majorizing models (design 23) solves a segment paying nothing as the elastic one it is, which takes nothing in, so the
+            // law is judged on the others: since design 24 (the contact nodes' room) the hover's path parts, and 69 of its 83 safe
+            // steps paying nothing, at 24.05–24.2 s, leave the exit's 173 mm segment slack (the node behind it on the drone's parts);
+            // on every other the exit is at its hold (0.999991 of it at least), 1.409 m taken back.
             Assert.That(r.TakenAfterTurn, Is.GreaterThan(0), "the reel takes line back on the return");
             Assert.That(r.AtHoldLeast, Is.EqualTo(1).Within(1e-3), "by its law: paying nothing out, the exit carries the reel's hold (it takes in the slack that reaches it)");
             bool target = r.Fell == 0 && r.LeastAfterTurn >= r.AtTurn;

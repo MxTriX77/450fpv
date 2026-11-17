@@ -177,6 +177,9 @@ namespace Fpv450.Sim.Tests
             /// <summary>After the turn, on the steps the spool pays nothing out (the payout speed at or below 0): the least exit
             /// tension over that step's static hold e^(μθ)·P(0) (a reel that takes line back at its hold keeps it at 1).</summary>
             public double AtHoldLeast;
+            /// <summary>The steps after the turn paying nothing out that were solved again on the majorizing models (design 23),
+            /// which leave AtHoldLeast's judgement: such a step solves a segment paying nothing as the elastic one it is.</summary>
+            public int SafeNotPaying;
             /// <summary>The least paid out after the turn, m; the static hold e^(μθ)·P(0) at the turn, N, and the least and the
             /// most exit tension from 0.5 s to 2.5 s after it, N.</summary>
             public double LeastAfterTurn, Hold, SlackLeast, SlackTension;
@@ -227,7 +230,8 @@ namespace Fpv450.Sim.Tests
                     if (t > turn) r.TakenAfterTurn += last - tr.PaidOut;
                 }
                 last = tr.PaidOut;
-                if (t > turn && tr.PayoutSpeed <= 0)
+                if (t > turn && tr.PayoutSpeed <= 0 && (tr.Flags & (byte)TetherFlags.SafeStep) != 0) r.SafeNotPaying++;
+                else if (t > turn && tr.PayoutSpeed <= 0)
                 {
                     double atHold = tr.ExitTension / (f.Lip * f.PeelEnergy * tr.Irregularity);
                     if (atHold < r.AtHoldLeast) r.AtHoldLeast = atHold;
