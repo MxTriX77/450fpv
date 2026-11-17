@@ -11,8 +11,11 @@ The pilot, 2026-11-17, after about 30 flights on the model 103 build (their word
 
 The drone was modelled from letter T: four legs standing on two fore-aft skids (DRN-01). The pilot's own kit has four separate legs, and their account outranks the reading of a photo (D-104).
 
+**The pilot's decision on the legs' shape** (2026-11-17, D-118). Task 1.2 first built four straight tubes 0.25 m tall. Photo U, the pilot's own kit, shows something else: each leg is a loop of bent stock fixed under its arm at two points and ending in a point, standing only about 0.10–0.13 m tall. Asked which the sim's drone should have, with the cost named (a new leg law, and a shorter canister under the frame so it clears the ground), the pilot answered: "Copy the photo".
+
 ## What Changes
-- **Four separate legs.** The two skid rails leave the model and `drone.json`. Each leg is a tube on its clamp, ending in its own tip as photos T and U show it. The collision follows what is drawn (REAL-05).
+- **Four separate legs, the pilot's kit's own.** The two skid rails leave the model and `drone.json`. Each leg is a loop of bent stock fixed under its arm and ending in a point, standing as low as photo U shows. The collision follows what is drawn (REAL-05).
+- **The canister clears the ground.** What hangs under the frame is re-proportioned to what photo U shows, with the coil's mass unchanged, so that only the legs' points touch level ground. The fiber's exit follows the canister.
 - **A leg's tip digs into soil by the soil's own law.**
   - Under the drone's weight and at a touchdown the tip penetrates by the surface's bearing resistance. A rough landing drives it deeper; hard ground takes none.
   - A dug-in tip resists sliding by the soil in front of it, so the drone does not run along the ground like a sled.
@@ -23,7 +26,8 @@ The drone was modelled from letter T: four legs standing on two fore-aft skids (
 
 ## Non-goals
 - No change to the rotors, the air, the controller, the fiber or the wind.
-- No new leg material or failure law (`p7g-legs` stays; a broken leg has no neighbour to hang from any more, so the hanging half leaves with the skids).
+- No new leg material (D-086: plastic). The loop's bending and failure law is derived from its shape by `p7g-legs`' method. A broken leg has no neighbour to hang from any more, so the hanging half leaves with the skids.
+- Only the legs and the canister follow photo U. Its other differences from the model stay as they are.
 - No tuning to a feel: every number is measured, published, derived or assumed and labelled.
 - The stems' push on the legs (`w16-plants-in-the-air` 1.5) lands first; this change builds on it.
 
@@ -31,5 +35,6 @@ The drone was modelled from letter T: four legs standing on two fore-aft skids (
 - The asset: `tools/blender/generators/drone.py`, `assets-src/drone/D01_legs_on.json`, `assets-src/drone/drone.json` (the parts, the legs' contact shapes), the drone's object sheet, the Unity prefab and its review sheet.
 - The sim core: `Runtime/Contact/` (the legs' contact with soil, the start's embedment, the events), `Runtime/Log/` (a header entry and the draws), the kept audits (the skids' drone as a fixture).
 - The player: the drone's view and leg placement, the leg shots, the summary's names, the smoke test.
-- Every legs-on golden moves with the drone's mass (36.6 g of skids leave) and with the law: one model number.
+- Every legs-on golden moves with the drone's mass and layout (the skids and their joints leave, the legs and the canister change shape) and with the law: one model number.
+- The fiber's exit moves with the canister (`p7d-tether`'s exit design reads its place), and the launch stand is checked against the new canister (DRN-07).
 - The branch is `unity/physics/physics-integration-2--w17-four-legs`, cut from the physics line. It merges into the line, then the pilot's build branch.

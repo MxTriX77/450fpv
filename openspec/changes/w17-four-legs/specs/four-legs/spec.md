@@ -1,11 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: The drone stands on four separate legs
-The legs-on drone SHALL stand on four separate legs, each a tube on its clamp ending in its own tip, with no rail joining them, in the drawn model, in `drone.json` and in the collision alike (DRN-01, DRN-03, REAL-05).
+The legs-on drone SHALL stand on four separate legs as the pilot's kit has them (photo U): each a loop of bent stock fixed under its arm and ending in a point, with no rail joining them, in the drawn model, in `drone.json` and in the collision alike (DRN-01, DRN-03, REAL-01, REAL-05).
 
 #### Scenario: The model and the physics agree
 - **WHEN** the legs-on drone is built by its generator and loaded by the sim
 - **THEN** it has four leg tips as its lowest contact points, no skid part, and every drawn leg has its contact shape
+
+#### Scenario: The legs are the kit's
+- **WHEN** the legs-on model is set beside photo U
+- **THEN** each leg is a loop ending in a point, the drone stands as high as the photo's kit within the photo's measuring error, and nothing under the frame but the legs' points touches level ground
 
 ### Requirement: A leg's tip digs into soil by the soil's own law
 A leg's tip SHALL penetrate a surface by that surface's own bearing resistance, under the drone's weight and at a touchdown, and SHALL resist sliding by the soil in front of it while it is in (PHY-01, PHY-03).
