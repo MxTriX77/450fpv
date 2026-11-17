@@ -81,6 +81,7 @@
       "about": "S01: root-bound sod over loam",
       "dry": {
         "bearing_n_per_m3": {"value": 7.0e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 20.2 mm (derived), K§7.2's 20 mm"},
+        "tip_resistance_pa": {"value": 1500000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): root-bound sod over loam: grazed pasture's middle (0.8–3 MPa at 4–8 cm)"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a root-bound loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 26250.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 3.5e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -101,6 +102,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 450000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 7875.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -121,6 +123,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 225000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 3937.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 5.25e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -144,6 +147,7 @@
       "about": "S02: a dry, crusted silty field: little sink, the bounce case",
       "dry": {
         "bearing_n_per_m3": {"value": 5.0e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 2.83 mm (derived), K§7.2's 2.8 mm"},
+        "tip_resistance_pa": {"value": 3000000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): a dry crusted silt: past the roots' stop near 2.5 MPa"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a dried loam crust; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 1.875e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.5e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -164,6 +168,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.5e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 900000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 56250.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -184,6 +189,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 450000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 28125.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -207,6 +213,7 @@
       "about": "S03: the loose, churned spoil of a shelled patch: a thud with no bounce",
       "dry": {
         "bearing_n_per_m3": {"value": 2.8e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 50.5 mm (derived), K§7.2's 51 mm"},
+        "tip_resistance_pa": {"value": 400000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): loose churned spoil"},
         "cohesive_share": {"value": 0.3, "label": "assumed", "note": "churned spoil, its structure broken, so less of its stiffness is cohesive than a loam's; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 6300.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.96e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -227,6 +234,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 8.4e5, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 120000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 1890.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 5.88e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -247,6 +255,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 4.2e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 60000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 945.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.94e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -270,6 +279,7 @@
       "about": "S04: soft, moist loam under the tree belt's straw (the test range's plane)",
       "dry": {
         "bearing_n_per_m3": {"value": 4.7e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 30.1 mm (derived), K§7.2's 30 mm"},
+        "tip_resistance_pa": {"value": 800000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): soft moist loam under straw: pasture's low end"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a moist loam (p7a-ground design 2's one half); Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 17625.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.35e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -290,6 +300,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.41e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 240000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 5287.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 7.05e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -310,6 +321,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 7.05e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 120000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 2643.75, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 3.525e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -333,6 +345,7 @@
       "about": "S05: firm, bare loam in the belt",
       "dry": {
         "bearing_n_per_m3": {"value": 1.4e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 10.1 mm (derived), K§7.2's 10 mm"},
+        "tip_resistance_pa": {"value": 1500000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): firm bare loam: the roots' slowing at 1.5 MPa"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a firm loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 52500.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 7.0e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -353,6 +366,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 4.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 450000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 15750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -373,6 +387,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 225000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 7875.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -396,6 +411,7 @@
       "about": "S06: loose tilled loam (its furrows are the zone's relief, map data)",
       "dry": {
         "bearing_n_per_m3": {"value": 4.0e6, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 35.4 mm (derived), K§7.2's 35 mm"},
+        "tip_resistance_pa": {"value": 400000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): a loose tilled seedbed"},
         "cohesive_share": {"value": 0.3, "label": "assumed", "note": "a loam loosened by tillage, its structure broken; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 9000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.8e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -416,6 +432,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 120000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 2700.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 8.4e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -436,6 +453,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 6.0e5, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 60000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.3, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 1350.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 4.2e5, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -459,6 +477,7 @@
       "about": "S07: a burnt field's crusted loam under its ash",
       "dry": {
         "bearing_n_per_m3": {"value": 2.5e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 5.66 mm (derived), not in K§7.2's list"},
+        "tip_resistance_pa": {"value": 2000000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): crusted loam under ash"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a crusted loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 93750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.25e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -479,6 +498,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 7.5e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 600000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 28125.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -499,6 +519,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 3.75e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 300000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 14062.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.875e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -522,6 +543,7 @@
       "about": "S08: firm loam under weeds",
       "dry": {
         "bearing_n_per_m3": {"value": 1.4e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 10.1 mm (derived), K§7.2's 10 mm"},
+        "tip_resistance_pa": {"value": 1500000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): firm loam under weeds: the roots' slowing at 1.5 MPa"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a firm, rooted loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 52500.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 7.0e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -542,6 +564,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 4.2e6, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 450000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 15750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -562,6 +585,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 2.1e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 225000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 7875.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.05e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -585,6 +609,7 @@
       "about": "S09: compacted yard soil under leaf litter",
       "dry": {
         "bearing_n_per_m3": {"value": 3.5e7, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 4.04 mm (derived), K§7.2's 4.0 mm"},
+        "tip_resistance_pa": {"value": 2500000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): compacted yard soil: the roots' stop"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a compacted loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 1.3125e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.75e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -605,6 +630,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.05e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 750000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 39375.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 5.25e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -625,6 +651,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 5.25e6, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 375000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 19687.5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.625e6, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -648,6 +675,7 @@
       "about": "S10: brick and mortar debris: granular and nearly rigid",
       "dry": {
         "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "carried (K§7.2; surfaces-review §1–§4): the 15 mm reference foot at 25 N sinks 25/(bearing·π·0.0075²) = 1.41 mm (derived), K§7.2's 1.4 mm"},
+        "tip_resistance_pa": {"value": 5000000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): packed brick and mortar debris: the trafficked passes' top"},
         "cohesive_share": {"value": 0.1, "label": "assumed", "note": "granular debris, as a sand, whose stiffness is almost all frictional; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 75000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 9.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -668,6 +696,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry bearing (a departure from wetting's factor)"},
+        "tip_resistance_pa": {"value": 1500000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.1, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 75000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 9.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -688,6 +717,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 1.0e8, "label": "assumed", "note": "granular brick and mortar debris drains and holds no cohesive film, so it keeps its dry bearing (a departure from wetting's factor)"},
+        "tip_resistance_pa": {"value": 750000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.1, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 75000.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 9.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -759,6 +789,7 @@
       "about": "S13: a wheel-compacted silt loam track, its ruts the zone's relief (map data)",
       "dry": {
         "bearing_n_per_m3": {"value": 1.4e8, "label": "assumed", "note": "new (p7a-ground design 1): a dry, wheel-compacted silt loam marks under the 15 mm reference foot's 25 N (141 kPa) by about 1 mm, its loose dust and crumb (assumed); the compacted body beneath, of the order of E 20–50 MPa (the published order for compacted silts and stiff clays), gives under 0.1 mm as an elastic punch, π·a·(1 − ν²)·q/(2E) (Boussinesq's rigid disc, derived); so bearing = 25 N/(π·0.0075²·1 mm) = 1.41e8 N/m³, rounded to 1.4e8 (1.01 mm, derived): the stiffest soil of the table, a skid on it is carried by its leg"},
+        "tip_resistance_pa": {"value": 4000000.0, "label": "assumed", "note": "w17-four-legs design 1: a flat tip's penetration resistance at ContactSpec.TipReferenceDepth (0.025 m), inside the published order of field penetrometer readings (crop roots slow past 1.5 MPa and stop near 2.5 MPa at field capacity, soilquality.org.au; grazed pasture 0.8–3 MPa at 4–8 cm; trafficked wheel passes 2.3–5.4 MPa): a wheel-compacted silt loam track: inside the trafficked passes' 2.3–5.4 MPa"},
         "cohesive_share": {"value": 0.5, "label": "assumed", "note": "a compacted silt loam; Wong 2008's tabulated soils put k_c/b at a 7.5 mm plate near k_phi for loams and clays and far below it for dry sand (the published order)"},
         "k_c_n_per_m2": {"value": 5.25e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 7.0e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -779,6 +810,7 @@
       },
       "wet": {
         "bearing_n_per_m3": {"value": 4.2e7, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
+        "tip_resistance_pa": {"value": 1200000.0, "label": "derived", "note": "the dry set's × wetting.bearing_wet"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 1.575e5, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 2.1e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
@@ -799,6 +831,7 @@
       },
       "saturated": {
         "bearing_n_per_m3": {"value": 2.1e7, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
+        "tip_resistance_pa": {"value": 600000.0, "label": "derived", "note": "the dry set's × wetting.bearing_saturated"},
         "cohesive_share": {"value": 0.5, "label": "derived", "note": "the dry set's"},
         "k_c_n_per_m2": {"value": 78750.0, "label": "derived", "note": "cohesive_share × bearing_n_per_m3 × reference_width_m"},
         "k_phi_n_per_m3": {"value": 1.05e7, "label": "derived", "note": "(1 − cohesive_share) × bearing_n_per_m3"},
