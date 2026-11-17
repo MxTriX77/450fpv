@@ -96,7 +96,6 @@ namespace Fpv450.Sim.Contact
         {
             double a = _spec.TipRadius, d = _spec.ShaftDiameter;
             if (!(a > 0) || !(d > 0)) throw new ArgumentException("the legs' tips need their radius and their shaft's diameter (ContactSpec.TipRadius, ShaftDiameter)");
-            if (!(_spec.LegSideStiffness > 0)) throw new ArgumentException("the legs' tips stand on the legs' side give (LegSideStiffness)");
             _tipArea = TipPi * a * a;
             _tipReturn = (1 - _spec.TipPoisson * _spec.TipPoisson) * _tipArea / (2 * a * _spec.TipModulusRatio);
             _tipPrints = new TipPrint[TipPrintRing];

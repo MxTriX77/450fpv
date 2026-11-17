@@ -1112,6 +1112,14 @@ namespace Fpv450.Sim.Flight
                 if ((n = Required(root, "stand", top)) != null) spec.Stand = ReadStand(n);
                 if ((n = Required(root, "aero", top)) != null) ReadAero(n, spec);
                 if ((n = root.Member("contacts")) != null) spec.Contacts = ReadContacts(n, spec);
+                // A built drone on skids holds them in its T-joints (p7g-legs 1.1); four separate legs have none (w17-four-legs).
+                if (spec.Legs.Tube != null && spec.Legs.TJoint == null && spec.Contacts != null)
+                    foreach (Contact.ContactShape s in spec.Contacts.Shapes)
+                        if (s.Role == Contact.ContactRole.Skid)
+                        {
+                            Fail("legs.tjoint", "missing (a drone on skids holds them in its T-joints)");
+                            break;
+                        }
                 return spec;
             }
 

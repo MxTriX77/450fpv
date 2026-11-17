@@ -441,7 +441,9 @@ namespace Fpv450.Sim.Contact
             if (table != null)
             {
                 // Four legs stand on their tips (w17-four-legs, ContactSpec.LegTips); a drone on skids on its half-skids.
-                if (_spec.LegTips) _tips = Tips(random);
+                // The tips stand on the legs' side give: a scenario's legs rigid across (model 37's, LandingScenarios.RigidAcross) put the
+                // supports on the ground's surface alone.
+                if (_spec.LegTips) { if (_spec.LegSideStiffness > 0) _tips = Tips(random); }
                 else _skids = Skids();
             }
             int middles = _skids != null ? 4 : 0; // the supports' samples, then the skids' middles
