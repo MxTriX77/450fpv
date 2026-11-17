@@ -60,15 +60,25 @@ namespace Fpv450.Sim.Tests
         public void AKnownWrongTwoWaySpoolFails()
         {
             TetherScenarios.OutBack r = TetherScenarios.OutThenBack(Spec, true);
-            Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps, {r.TakenBack:F2} m taken back; "
-                + $"exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; line over chord {r.Slack:F3}");
+            Print($"two-way: most {r.Most:F2} m, at the turn {r.AtTurn:F2}, least after it {r.LeastAfterTurn:F2}, at the end {r.AtEnd:F2}, fell {r.Fell} steps, {r.TakenBack:F3} m taken back "
+                + $"({r.TakenAfterTurn:F3} after the turn); exit tension 0.5–2.5 s after the turn {r.SlackLeast:F5}–{r.SlackTension:F5} N against a hold of {r.Hold:F4}; "
+                + $"after the turn, paying nothing out, the exit at {r.AtHoldLeast:F6} of its hold at least; line over chord {r.Slack:F3}");
             Assert.That(r.Fell, Is.GreaterThan(0), "the line comes back");
-            // From its most (after the turn: since model 62's safe pass leaves free slots free, the slack first draws line out
-            // past the turn's length, 112.9 m against the turn's 95.9, then the reel takes 12.1 m of it back). Since model 65 (62's
-            // chain on the canister) by what the reel takes back in all: it takes 5.2 m back over 18 245 steps, but the hover's
-            // slack draws it out again (106.56 m at most, 106.40 at the end; with the 0-force hold, 64's chain, 17.1 m taken back,
-            // 107.34 → 94.00), where the one-way spool takes back nothing (LineNeverComesBack: it never falls).
-            Assert.That(r.TakenBack, Is.GreaterThan(1), "the reel takes line back on the return");
+            // Models 60–103 judged how much it took back: from its most to its end, then from model 65 in all (5.2 m on 65; 1.029 m
+            // on 1.11e's chain, design 23's known-wrong). Since design 23 (p7d-tether 1.11g) by the reel's own law instead: it takes
+            // line in whenever the line's pull at the exit falls under its hold e^(μθ)·P(0), so on every step after the turn that
+            // pays nothing out the exit carries that step's hold, and what it takes back is all the slack that reaches the exit,
+            // whatever the flight makes of it; on the same flight the one-way spool leaves its exit slack on 1769 steps (0 of its
+            // hold) and takes nothing back. How much is the flight's: 0.785 m (15 mm in the climb, 313 on the return, 457 in the
+            // hover). Design 23 solves 45 unconverged steps again, the first on the return at 18.645 s while paying out (5.01 mm at
+            // 0.157 N against a hold of 0.0135 N, where the kept solve paid 4.12 mm), and the slack's path parts there: the hover
+            // pays out 21.13 m against 19.56 and takes back 457 mm against 646, its hold from 5 s in 7.25 mN against 8.96 (the
+            // pack's section at the lip) over 6.9 mN of line hanging from the exit's 10.2 m. A reel within 0.3–2 mN of the hang
+            // trades line both ways on the hover's small loads; "more than 1 m" was a number of the old flight. The logged exit
+            // tension is the hold to 1.2e-5 here (a sub-millimetre exit segment's rest is the difference of two 150 m materials,
+            // ulp 2.8e-14 m, against a stretch of H/EA ≈ 7e-6 of it); allowed 1e-3, a rest down to 4 µm.
+            Assert.That(r.TakenAfterTurn, Is.GreaterThan(0), "the reel takes line back on the return");
+            Assert.That(r.AtHoldLeast, Is.EqualTo(1).Within(1e-3), "by its law: paying nothing out, the exit carries the reel's hold (it takes in the slack that reaches it)");
             bool target = r.Fell == 0 && r.LeastAfterTurn >= r.AtTurn;
             Assert.That(target, Is.False, "the known-wrong model fails \"Line never comes back\"");
         }
