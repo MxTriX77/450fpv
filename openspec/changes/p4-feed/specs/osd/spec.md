@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: The OSD exactly as the footage shows it
-The OSD SHALL be the Godot feed's character grid, font and crosshair, laid out as measured from the footage (OSD-01), with the strings "Svinoriz 10 Opto" and "! SAFE !" and every value invented (OSD-02, D-011). It SHALL be inserted before the encode, as the flight controller's chip does, so that every stage after the insertion acts on the picture with the OSD in it (OSD-04, the pilot 2026-11-17): the channel's softness in luma as the footage measures it, smeared in chroma with only 10 % hard-edged, giving the footage's fringing, its white at the receiver's clip, and no stage of the camera's (the lens, its vignette, the sensor) on the characters. Godot's OSD SHALL stay one switch away for the FEED-00 A/B.
+The OSD SHALL be the Godot feed's character grid, font and crosshair, laid out as measured from the footage (OSD-01), with the strings "Svinoriz 10 Opto" and "! SAFE !" and every value invented (OSD-02, D-011). It SHALL be inserted before the encode, as the flight controller's chip does, so that every stage after the insertion acts on the picture with the OSD in it (OSD-04, the pilot 2026-11-17): the channel's softness in luma as the footage measures it, smeared in chroma with only 10 % hard-edged, giving the footage's fringing, its white at the receiver's clip, and no stage of the camera's (the lens, its vignette, the sensor, its highlight cast) on the characters. Godot's OSD SHALL stay one switch away for the FEED-00 A/B.
 
 #### Scenario: The grid matches the Godot OSD
 - **WHEN** the Unity and Godot OSDs are rendered at the same field
