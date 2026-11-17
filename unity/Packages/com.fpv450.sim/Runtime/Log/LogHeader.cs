@@ -122,6 +122,7 @@ namespace Fpv450.Sim.Log
             "TetherWakeReach4R",
             "TetherAirlessTrail",
             "TetherBeforeDesign21",
+            "TetherBeforeDesign23",
             "StemAir", "StemWash",
         };
 
@@ -381,6 +382,7 @@ namespace Fpv450.Sim.Log
         public bool TetherWakeReach4R;
         public bool TetherAirlessTrail;
         public bool TetherBeforeDesign21;
+        public bool TetherBeforeDesign23;
 
         /// <summary>The stems' air (w9-village-physics 2.13, its own entry, TagStemAir): whether the stems read the rotors' wash
         /// with distance (FlightSetup.StemWash with a table to read; no log without the entry did), and tether.json's rows and hash
@@ -485,6 +487,7 @@ namespace Fpv450.Sim.Log
                 TetherWakeReach4R = setup.TetherWakeReach4R,
                 TetherAirlessTrail = setup.TetherAirlessTrail,
                 TetherBeforeDesign21 = setup.TetherBeforeDesign21,
+                TetherBeforeDesign23 = setup.TetherBeforeDesign23,
                 StemWash = setup.StemWash && (setup.Tether ?? setup.StemAir) != null,
                 StemAir = setup.StemWash && setup.Tether == null ? setup.StemAir : null,
                 RuntimeObjects = (RuntimeObject[])(setup.RuntimeObjects ?? new RuntimeObject[0]).Clone(),
@@ -626,6 +629,7 @@ namespace Fpv450.Sim.Log
                 TetherWakeReach4R = TetherWakeReach4R,
                 TetherAirlessTrail = TetherAirlessTrail,
                 TetherBeforeDesign21 = TetherBeforeDesign21,
+                TetherBeforeDesign23 = TetherBeforeDesign23,
                 StemAir = StemAir,
                 StemWash = StemWash,
                 RuntimeObjects = (RuntimeObject[])RuntimeObjects.Clone(),
@@ -1212,6 +1216,7 @@ namespace Fpv450.Sim.Log
                     }
                 }
                 e.Write(TetherBeforeDesign21); // p7d-tether design 21: last, so a log without it reads as the slots before it
+                e.Write(TetherBeforeDesign23); // p7d-tether design 23: after it, so a log without it reads as the step before it
             });
             Entry(w, TagRuntimeObjects, e =>
             {
@@ -1923,6 +1928,8 @@ namespace Fpv450.Sim.Log
                         }
                         // Before p7d-tether design 21 (model 100 and older) a slot held its node alone.
                         TetherBeforeDesign21 = r.BaseStream.Position >= end || r.ReadBoolean();
+                        // Before p7d-tether design 23 (model 103 and older) an unconverged step kept its last solve.
+                        TetherBeforeDesign23 = r.BaseStream.Position >= end || r.ReadBoolean();
                         break;
                     case TagRuntimeObjects:
                         RuntimeObjects = new RuntimeObject[r.ReadUInt16()];

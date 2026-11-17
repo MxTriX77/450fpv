@@ -43,7 +43,7 @@ namespace Fpv450.Sim.Tests
             Assert.That(t.Number("fiber.axial_stiffness_n"), Is.EqualTo(895.8));
             Assert.That(t.Number("fiber.proof_force_n"), Is.EqualTo(8.461));
             Assert.That(t.Number("link.launch_margin_db"), Is.EqualTo(13.5));
-            Assert.That(t.Row("spool.peel_energy_j_m").Values, Is.EqualTo(new[] { 0, 9.81e-5, 0.5, 0.0196, 1, 0.0981 }));
+            Assert.That(t.Row("spool.peel_energy_j_m").Values, Is.EqualTo(new[] { 0, 9.81e-5, 1, 0.0196 })); // design 22: 0.01–2 g
             Assert.That(t.Row("strength.span_pa").Values, Is.EqualTo(new[] { 0, 6.895e8, 1, 1.4e9 }));
             Assert.That(t.Row("strength.span_pa").Kind, Is.EqualTo(TetherValueKind.Quantiles));
             Assert.That(DroneSpec.Labels[t.Row("fiber.youngs_modulus_pa").Label], Is.EqualTo("published"));
